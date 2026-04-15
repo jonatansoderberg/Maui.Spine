@@ -75,8 +75,11 @@
             </SpineCollectionView.HeaderBottomContent>
             
             <SpineCollectionView.ItemTemplate>
-                <DataTemplate>
-                    <local:ContextItem Item="{Binding .}" />
+                <DataTemplate x:DataType="Item">
+                    <local:ContextItem
+                        Icon="{Binding Icon}"
+                        Title="{Binding Title}"
+                        Description="{Binding Description}" />
                 </DataTemplate>
             </SpineCollectionView.ItemTemplate>
 

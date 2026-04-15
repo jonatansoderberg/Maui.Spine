@@ -33,7 +33,13 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
         if (Items is [])
         {
-            var items = Enumerable.Range(1, 30).Select(i => new Item { Title = $"Item {i}", IsMovable = false });
+            var items = Enumerable.Range(1, 30).Select(i => new Item
+            {
+                Icon = "fish.svg",
+                Title = $"Item {i}",
+                Description = i % 2 == 0 ? $"Description for item {i} with extra details that may scroll since it is a long description that does not fit" : null,
+                IsMovable = false
+            });
 
             foreach (var item in items)
                 Items.Add(item);
@@ -47,7 +53,13 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 public partial class Item
 {
     [ObservableProperty]
+    private string? icon;
+
+    [ObservableProperty]
     private string? title;
+
+    [ObservableProperty]
+    private string? description;
 
     [ObservableProperty]
     private bool isMovable;

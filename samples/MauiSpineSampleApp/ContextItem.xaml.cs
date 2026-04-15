@@ -1,5 +1,3 @@
-using MauiSpineSampleApp.Pages;
-
 namespace MauiBottomSheetPoc;
 
 public partial class ContextItem : ContentView
@@ -9,42 +7,60 @@ public partial class ContextItem : ContentView
         InitializeComponent();
     }
 
-    // Bindable property for the item
-    public static readonly BindableProperty ItemProperty =
-        BindableProperty.Create(nameof(Item), typeof(Item), typeof(ContextItem));
+    // --- Icon (SVG filename, required) ---
+    public static readonly BindableProperty IconProperty =
+        BindableProperty.Create(nameof(Icon), typeof(string), typeof(ContextItem));
 
-    public Item Item
+    public string Icon
     {
-        get => (Item)GetValue(ItemProperty);
-        set => SetValue(ItemProperty, value);
+        get => (string)GetValue(IconProperty);
+        set => SetValue(IconProperty, value);
     }
 
-    // Commands
-    public static readonly BindableProperty EditCommandProperty =
-        BindableProperty.Create(nameof(EditCommand), typeof(Command), typeof(ContextItem));
+    // --- Title (required) ---
+    public static readonly BindableProperty TitleProperty =
+        BindableProperty.Create(nameof(Title), typeof(string), typeof(ContextItem));
 
-    public Command EditCommand
+    public new string Title
     {
-        get => (Command)GetValue(EditCommandProperty);
-        set => SetValue(EditCommandProperty, value);
+        get => (string)GetValue(TitleProperty);
+        set => SetValue(TitleProperty, value);
     }
 
-    public static readonly BindableProperty MoveCommandProperty =
-        BindableProperty.Create(nameof(MoveCommand), typeof(Command), typeof(ContextItem));
+    // --- Description (optional, shown as AnimatedLabel) ---
+    public static readonly BindableProperty DescriptionProperty =
+        BindableProperty.Create(nameof(Description), typeof(string), typeof(ContextItem),
+            propertyChanged: (b, _, n) => ((ContextItem)b).OnDescriptionChanged((string)n));
 
-    public Command MoveCommand
+    public string? Description
     {
-        get => (Command)GetValue(MoveCommandProperty);
-        set => SetValue(MoveCommandProperty, value);
+        get => (string?)GetValue(DescriptionProperty);
+        set => SetValue(DescriptionProperty, value);
     }
 
-    public static readonly BindableProperty DeleteCommandProperty =
-        BindableProperty.Create(nameof(DeleteCommand), typeof(Command), typeof(ContextItem));
-
-    public Command DeleteCommand
+    private void OnDescriptionChanged(string? value)
     {
-        get => (Command)GetValue(DeleteCommandProperty);
-        set => SetValue(DeleteCommandProperty, value);
+        if (DescriptionLabel is not null)
+            DescriptionLabel.IsVisible = !string.IsNullOrWhiteSpace(value);
     }
 
+    // --- Actions (optional right-aligned content: Switch, ImageButton, Slider, Label, etc.) ---
+    public static readonly BindableProperty ActionsProperty =
+        BindableProperty.Create(nameof(Actions), typeof(View), typeof(ContextItem),
+            propertyChanged: (b, _, n) => ((ContextItem)b).OnActionsChanged((View?)n));
+
+    public View? Actions
+    {
+        get => (View?)GetValue(ActionsProperty);
+        set => SetValue(ActionsProperty, value);
+    }
+
+    private void OnActionsChanged(View? value)
+    {
+        if (ActionsContainer is not null)
+        {
+            ActionsContainer.Content = value;
+            ActionsContainer.IsVisible = value is not null;
+        }
+    }
 }
