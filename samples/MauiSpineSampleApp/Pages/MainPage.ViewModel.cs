@@ -8,6 +8,8 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
     public double HeaderMinHeight => SystemBarInsets.Top + 32;
 
+    public double FooterHeight => SystemBarInsets.Bottom;
+
     public ObservableCollection<Item> Items { get; set; } = new ObservableCollection<Item>();
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
@@ -15,7 +17,10 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         base.OnPropertyChanged(e);
 
         if (e.PropertyName == nameof(SystemBarInsets))
+        {
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderMinHeight)));
+            OnPropertyChanged(new PropertyChangedEventArgs(nameof(FooterHeight)));
+        }
     }
 
     [RelayCommand] private async Task OpenSettings() => await _navigation.NavigateToAsync<Settings.SettingsPage>();
