@@ -14,6 +14,8 @@ builder.UseSpine(options =>
     options.AddAssembly(typeof(MauiProgram).Assembly);
     options.AppTitle = "My App";
 
+    options.Windows.Backdrop = WindowBackdrop.Mica;
+    options.Windows.BottomSheetBackdrop = WindowBackdrop.Acrylic;
     options.Windows.InitialWidth  = 500;
     options.Windows.InitialHeight = 800;
     options.Windows.MinWidth      = 400;
@@ -24,6 +26,7 @@ builder.UseSpine(options =>
     options.Windows.StartupPosition = WindowStartupPosition.Center;
     options.Windows.ShowInTaskbar = true;
     options.Windows.ShowTrayIcon  = true;
+    options.Windows.TrayIconSvg   = "app_icon.svg";
     options.Windows.CloseToBackground = true;
     options.Windows.TrayIconTooltip = "My App";
 });
@@ -47,7 +50,14 @@ builder.UseSpine(options =>
 | Value | Description |
 |---|---|
 | `TopLeft` | Top-left corner of the screen |
-| `Center` | Horizontally and vertically centered |
+| `TopCenter` | Horizontally centered at the top |
+| `TopRight` | Top-right corner of the screen |
+| `CenterLeft` | Vertically centered on the left edge |
+| `Center` | Centered on the screen (default) |
+| `CenterRight` | Vertically centered on the right edge |
+| `BottomLeft` | Bottom-left corner of the screen |
+| `BottomCenter` | Horizontally centered at the bottom |
+| `BottomRight` | Bottom-right corner of the screen |
 
 ---
 
@@ -68,22 +78,58 @@ builder.UseSpine(options =>
 |---|---|---|---|
 | `ShowInTaskbar` | `bool` | `true` | Whether the window appears in the taskbar and Alt+Tab |
 | `ShowTrayIcon` | `bool` | `false` | Show a system-tray icon |
-| `TrayIconPath` | `string` | `"Resources/Raw/light_theme.ico"` | Path to the tray icon (relative to app package) |
+| `TrayIconSvg` | `string?` | `null` | SVG filename (e.g. `"app_icon.svg"`) rendered at runtime via `Plugin.Maui.SvgIcon`. Takes precedence over `TrayIconPath` when set |
+| `TrayIconPath` | `string` | `"Resources/Raw/light_theme.ico"` | Path to a pre-built tray icon (relative to app package). Used when `TrayIconSvg` is null |
 | `TrayIconTooltip` | `string` | `""` | Tooltip text when hovering the tray icon |
 | `CloseToBackground` | `bool` | `false` | Hide the window instead of exiting when closed |
 
 ### Tray icon setup
 
-Enable the tray icon and pair it with `CloseToBackground` to allow the user to restore the app from the tray:
+Enable the tray icon and pair it with `CloseToBackground` to allow the user to restore the app from the tray.
+
+**Preferred approach — SVG rendered at runtime** (requires `Plugin.Maui.SvgIcon`):
 
 ```csharp
 options.Windows.ShowTrayIcon      = true;
+options.Windows.TrayIconSvg       = "app_icon.svg";
 options.Windows.TrayIconTooltip   = "My App";
+options.Windows.CloseToBackground = true;
+```
+
+**Alternative — pre-built `.ico` file:**
+
+```csharp
+options.Windows.ShowTrayIcon      = true;
 options.Windows.TrayIconPath      = "Resources/Raw/tray.ico";
+options.Windows.TrayIconTooltip   = "My App";
 options.Windows.CloseToBackground = true;
 ```
 
 Tray menu items are populated automatically from shortcuts registered via `options.Shortcuts.UseHandler<MyHandler>()` where `showInTray = true`. See [Shortcuts](shortcuts.md).
+
+---
+
+## Window backdrop
+
+Spine supports Windows system backdrop materials (Mica and Acrylic) that adapt automatically to light/dark theme.
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `Backdrop` | `WindowBackdrop` | `Mica` | System backdrop for the main app window |
+| `BottomSheetBackdrop` | `WindowBackdrop` | `None` | System backdrop for the bottom sheet surface |
+
+### `WindowBackdrop` values
+
+| Value | Effect |
+|---|---|
+| `None` | No system backdrop; the window uses a standard opaque background |
+| `Mica` | Mica material (Windows 11+). Subtle desktop tint that follows the wallpaper |
+| `Acrylic` | Desktop Acrylic material (Windows 10 1903+). Translucent frosted-glass look |
+
+```csharp
+options.Windows.Backdrop = WindowBackdrop.Mica;               // main window
+options.Windows.BottomSheetBackdrop = WindowBackdrop.Acrylic;  // sheet surface
+```
 
 ---
 

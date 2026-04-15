@@ -8,7 +8,9 @@ This guide walks you through setting up a new .NET MAUI app with Spine from scra
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - Visual Studio 2022 17.13+ with the **.NET MAUI** workload installed
-- A target platform: Android (API 21+), iOS 15+, macOS Catalyst, or Windows 10 (19041+)
+- A target platform: Android (API 21+) or Windows 10 (19041+)
+
+> **iOS / macOS Catalyst:** Platform-specific implementations are currently in progress. The framework compiles for these targets, but native sheet rendering and platform integrations are not yet complete.
 
 ---
 
@@ -167,3 +169,7 @@ Spine auto-discovers pages via assembly scanning — no manual DI registration nee
 | App shortcuts & tray icon | [Shortcuts](shortcuts.md) |
 | Windows desktop options | [Windows Platform Options](windows-options.md) |
 | Custom page transitions | [Custom Transitions](custom-transitions.md) |
+| Collapsing header collection view | [SpineCollectionView](spine-controls.md) |
+| Marquee label control | [AnimatedLabel](animated-label.md) |
+| SVG image rendering | [SvgImage](svg-image.md) |
+| SVG icon file generation | [SvgIcon](svg-icon.md) |

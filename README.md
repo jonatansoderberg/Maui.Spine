@@ -35,10 +35,10 @@
 
 | Platform | Status |
 |---|---|
-| Android | ✅ |
-| iOS | ✅ |
-| macOS Catalyst | ✅ |
-| Windows (WinUI 3) | ✅ |
+| Android | ✅ Supported |
+| Windows (WinUI 3) | ✅ Supported |
+| iOS | 🚧 In progress |
+| macOS Catalyst | 🚧 In progress |
 
 ---
 
@@ -151,6 +151,10 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Shortcuts](docs/wiki/shortcuts.md) | App shortcuts and tray menu |
 | [Windows Platform Options](docs/wiki/windows-options.md) | Window size, tray, single-instance, title bar |
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
+| [SpineCollectionView](docs/wiki/spine-controls.md) | Collapsing sticky header, adaptive overlay |
+| [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
+| [SvgImage](docs/wiki/svg-image.md) | SVG-to-bitmap rendering with theme-aware tinting |
+| [SvgIcon](docs/wiki/svg-icon.md) | SVG-to-icon file generation for tray and window icons |
 
 ---
 

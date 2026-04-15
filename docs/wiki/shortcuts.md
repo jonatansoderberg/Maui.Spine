@@ -88,9 +88,9 @@ builder.UseSpine(options =>
 | Platform | Where shortcuts appear |
 |---|---|
 | Android | App long-press menu (app shortcuts) |
-| iOS | Home screen / dock long-press |
 | Windows | Jump list + tray context menu (when tray is enabled) |
-| macOS | Dock context menu |
+| iOS | ?? In progress |
+| macOS | ?? In progress |
 
 ---
 
