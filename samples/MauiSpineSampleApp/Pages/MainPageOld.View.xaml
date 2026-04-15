@@ -1,0 +1,68 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:svg="clr-namespace:Plugin.Maui.SvgImage;assembly=Plugin.Maui.SvgImage"
+    x:Class="MauiSpineSampleApp.Pages.MainPageOld"
+    x:TypeArguments="MainPageOldViewModel"
+    x:DataType="MainPageOldViewModel">
+
+    <VerticalStackLayout Padding="10" Spacing="5">
+
+        <!-- AnimatedLabel demos -->
+        <!-- Short text: fits the available width, no scrolling. -->
+        <Border Padding="10,6" BackgroundColor="#1DB954" StrokeShape="RoundRectangle 8">
+            <AnimatedLabel
+                Text="Now Playing"
+                FontSize="15"
+                FontAttributes="Bold"
+                TextColor="White" />
+        </Border>
+
+        <!-- Long text: wider than the container, triggers side-to-side scrolling. -->
+        <Border Padding="10,6" BackgroundColor="#282828" StrokeShape="RoundRectangle 8">
+            <AnimatedLabel
+                Text="The Weeknd — Blinding Lights (Extended Radio Mix) · After Hours · Republic Records"
+                FontSize="14"
+                TextColor="White" />
+        </Border>
+
+        <Border Padding="10,6" BackgroundColor="#282828" StrokeShape="RoundRectangle 8">
+            <AnimatedLabel
+                Text="The Winding Lights (Extended Radio Mix) · After Hours · Republic Recordseeknd — Blinding Lights (Extended Radio Mix) · After Hours · Republic Records"
+                FontSize="14"
+                TextColor="White" />    
+        </Border>
+
+        <Border Padding="10,6" BackgroundColor="#282828" StrokeShape="RoundRectangle 8">
+            <AnimatedLabel
+                Text="{Binding DynamicText}"
+                ResetOnTextUpdate="False"
+                EnableFadeOnTextChange="True" 
+                FontSize="14"
+                TextColor="White" />
+        </Border>
+
+        <Button Text="UpdateString" Command="{Binding ChangeDynamicTextCommand}" />
+        <Button Text="BottomSheet" Command="{Binding ShowBottomSheetCommand}" />
+        <Button Text="Simple BottomSheet" Command="{Binding ShowSimpleBottomSheetCommand}" />
+        <Button Text="Fullscreen Sheet" Command="{Binding ShowFullscreenSheetCommand}" />
+        <Button Text="Fullscreen Sheet (with result)" Command="{Binding ShowFullscreenSheetWithResultCommand}" />
+        <Label Text="{Binding SheetResult}" FontSize="14" HorizontalTextAlignment="Center" />
+        <Button Text="Small Sheet" Command="{Binding ShowSmallSheetCommand}" />
+        <Button Text="Person Detail (with param)" Command="{Binding ShowPersonDetailCommand}" />
+
+
+
+        <!--<Grid Padding="0" Margin="0" BackgroundColor="#282828" WidthRequest="50" HeightRequest="50">
+            
+        </Grid>-->
+            <ImageButton Padding="5" CornerRadius="50" SvgImageSource.Svg="fish.svg" WidthRequest="100" HeightRequest="100" Style="{StaticResource SvgImageButtonStyle}" />
+        
+        
+        
+        
+        <ImageButton SvgImageSource.Svg="fish.svg" WidthRequest="100" HeightRequest="100" Style="{StaticResource SvgImageButtonStyle}" IsEnabled="False" />
+
+    </VerticalStackLayout>
+
+</SpinePage>

@@ -1,0 +1,23 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Settings.SettingsPage"
+    x:TypeArguments="SettingsPageViewModel"
+    x:DataType="SettingsPageViewModel">
+
+    <VerticalStackLayout Padding="10" Spacing="5">
+        <Label Text="Hello"/>
+        <Label Text="{Binding UserName}"/>
+        <Button Text="Change" Command="{Binding ChangeCommand}" />
+
+        <Label Text="Theme" FontAttributes="Bold" Margin="0,10,0,0"/>
+        <HorizontalStackLayout
+            RadioButtonGroup.GroupName="Theme"
+            RadioButtonGroup.SelectedValue="{Binding SelectedThemeName}">
+            <RadioButton Content="Auto" Value="Auto" />
+            <RadioButton Content="Light" Value="Light" />
+            <RadioButton Content="Dark" Value="Dark" />
+        </HorizontalStackLayout>
+    </VerticalStackLayout>
+
+</SpinePage>

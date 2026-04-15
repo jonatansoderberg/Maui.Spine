@@ -1,0 +1,87 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:sharpnado="http://sharpnado.com"
+    xmlns:local="clr-namespace:MauiBottomSheetPoc"
+    x:Class="MauiSpineSampleApp.Pages.MainPage"
+    x:TypeArguments="MainPageViewModel"
+    x:DataType="MainPageViewModel">
+ 
+    <Grid>
+
+        <SpineCollectionView 
+            EnableAdaptiveOverlay="True"
+            AdaptiveCaptionButtons="True"
+            EnableHeaderAsDragRegionOnWindows="True"
+            CanReorderItems="True"
+            ItemsSource="{Binding Items}"
+            HeaderImageSource="spine_hero2.png"
+            HeaderTitle="SPINE SAMPLES"
+            HeaderTitleFontFamily="BrandonGrotesqueBlack"
+            HeaderTitleFontSize="25"
+            HeaderMaxHeight="230"
+            HeaderMinHeight="{Binding HeaderMinHeight}">
+
+            <SpineCollectionView.HeaderOverlayContent>
+                <sharpnado:MaterialFrame
+                    CornerRadius="0"
+                    Elevation="0"
+                    Opacity="0.0"
+                    LightThemeBackgroundColor="{DynamicResource DynamicLightThemeColor}"
+                    MaterialTheme="{DynamicResource DynamicMaterialTheme}"/>
+            </SpineCollectionView.HeaderOverlayContent>
+
+            <SpineCollectionView.HeaderTopContent>
+                <AbsoluteLayout InputTransparent="True" CascadeInputTransparent="False">
+
+                    <ImageButton
+                        Padding="2"
+                        CornerRadius="0"
+                        Margin="{OnPlatform Default='0,48,5,0', WinUI='0,0,144,0'}"
+                        WidthRequest="{OnPlatform Default=32, WinUI=48}"
+                        HeightRequest="32"
+                        Style="{StaticResource SvgImageButtonStyle}"
+                        SvgImageSource.Svg="Settings.svg"
+                        Command="{Binding OpenSettingsCommand}"
+                        AbsoluteLayout.LayoutBounds="1, 0, AutoSize, AutoSize"
+                        AbsoluteLayout.LayoutFlags="PositionProportional" />
+
+                </AbsoluteLayout>
+            </SpineCollectionView.HeaderTopContent>
+
+            <SpineCollectionView.HeaderBottomContent>
+                <AbsoluteLayout InputTransparent="True" CascadeInputTransparent="False">
+
+                    <Label
+                        InputTransparent="True"
+                        Text="SPINE SAMPLES"
+                        FontFamily="BrandonGrotesqueBlack"
+                        FontSize="25"
+                        TextTransform="Uppercase"
+                        TextColor="White"
+                        Margin="10,-4"
+                        AbsoluteLayout.LayoutBounds="0, 1, AutoSize, AutoSize"
+                        AbsoluteLayout.LayoutFlags="PositionProportional">
+                        <Label.Shadow>
+                            <Shadow Offset="0,0" Radius="2" Opacity="0.8">
+                                <Shadow.Brush>
+                                    <SolidColorBrush Color="Black" />
+                                </Shadow.Brush>
+                            </Shadow>
+                        </Label.Shadow>
+                    </Label>
+
+                </AbsoluteLayout>
+            </SpineCollectionView.HeaderBottomContent>
+            
+            <SpineCollectionView.ItemTemplate>
+                <DataTemplate>
+                    <local:ContextItem Item="{Binding .}" />
+                </DataTemplate>
+            </SpineCollectionView.ItemTemplate>
+
+        </SpineCollectionView>
+
+    </Grid>
+    
+</SpinePage>

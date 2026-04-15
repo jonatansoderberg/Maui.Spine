@@ -1,0 +1,21 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.PersonDetailPage"
+    x:TypeArguments="PersonDetailPageViewModel"
+    x:DataType="PersonDetailPageViewModel">
+
+    <VerticalStackLayout Padding="20" Spacing="12">
+
+        <Label Text="Name" FontAttributes="Bold" />
+        <Label Text="{Binding Name}" FontSize="16" />
+
+        <Label Text="Email" FontAttributes="Bold" />
+        <Label Text="{Binding Email}" FontSize="16" />
+
+        <Label Text="Age" FontAttributes="Bold" />
+        <Label Text="{Binding Age}" FontSize="16" />
+
+    </VerticalStackLayout>
+
+</SpinePage>

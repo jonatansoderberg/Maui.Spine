@@ -1,0 +1,203 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net10.0-android;net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
+		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net10.0-windows10.0.19041.0</TargetFrameworks>
+
+
+		<!-- Note for MacCatalyst:
+		The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
+		When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>.
+		The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated;
+		either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
+		<!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
+
+		<OutputType>Exe</OutputType>
+		<RootNamespace>MauiBottomSheetPoc</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<LangVersion>preview</LangVersion>
+
+    <!--XAML Source Generator-->
+    <MauiXamlInflator>SourceGen</MauiXamlInflator>
+    
+    <!-- Opt in to Material3 on Android	-->
+    <UseMaterial3>true</UseMaterial3>
+    
+		<!-- Display name -->
+		<ApplicationTitle>MauiBottomSheetPoc</ApplicationTitle>
+
+		<!-- App Identifier -->
+		<ApplicationId>com.companyname.mauibottomsheetpoc</ApplicationId>
+
+		<!-- Versions -->
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+
+		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
+		<WindowsPackageType>None</WindowsPackageType>
+
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- App Icon -->
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+
+		<!-- Splash Screen -->
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+
+		<!-- Images -->
+		<MauiImage Include="Resources\Images\*" />
+		<MauiImage Update="Resources\Images\dotnet_bot.png" Resize="True" BaseSize="300,185" />
+		
+		<!-- Custom Fonts -->
+		<MauiFont Include="Resources\Fonts\*" />
+
+		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AsyncAwaitBestPractices" Version="10.0.0" />
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.50" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
+		<PackageReference Include="Sharpnado.MaterialFrame.Maui" Version="3.0.2" />
+	</ItemGroup>
+
+  
+  
+	<ItemGroup>
+
+    <AndroidResource Remove=".github\**" />
+
+    <Compile Remove=".github\**" />
+
+    <Compile Remove="Pages\**\*.ViewModel.cs" />
+
+    <EmbeddedResource Remove=".github\**" />
+
+    <MauiCss Remove=".github\**" />
+
+    <MauiXaml Remove=".github\**" />
+
+    <None Remove=".github\**" />
+
+    <MauiAsset Remove="Resources\Raw\light_theme.ico" />
+
+    <MauiXaml Update="ContextItem.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <MauiXaml Update="Pages\MainPage.View.xaml">
+      <DependentUpon>MainPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\MainPage.ViewModel.cs">
+      <DependentUpon>MainPage.cs</DependentUpon>
+    </Compile>
+
+		<MauiXaml Update="Pages\MainPageOld.View.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+      <DependentUpon>MainPageOld.cs</DependentUpon>
+	  </MauiXaml>
+
+		<Compile Include="Pages\MainPageOld.ViewModel.cs">
+      <DependentUpon>MainPageOld.cs</DependentUpon>
+    </Compile>
+
+		<Compile Include="Pages\PersonDetailPage.ViewModel.cs">
+			<DependentUpon>PersonDetailPage.cs</DependentUpon>
+		</Compile>
+    
+    <Compile Include="Pages\SimpleBottomSheetPage.ViewModel.cs">
+      <DependentUpon>SimpleBottomSheetPage.cs</DependentUpon>
+    </Compile>
+    
+    <Compile Include="Pages\SamplePage.ViewModel.cs">
+      <DependentUpon>SamplePage.cs</DependentUpon>
+    </Compile>
+    
+		<Compile Include="Pages\SmallSheetPage.ViewModel.cs">
+			<DependentUpon>SmallSheetPage.cs</DependentUpon>
+		</Compile>
+    
+		<MauiXaml Update="Pages\PersonDetailPage.View.xaml">
+			<Generator>MSBuild:Compile</Generator>
+			<DependentUpon>PersonDetailPage.cs</DependentUpon>
+		</MauiXaml>
+    
+    <MauiXaml Update="Pages\SimpleBottomSheetPage.View.xaml">
+      <DependentUpon>SimpleBottomSheetPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+    
+    <MauiXaml Update="Pages\SamplePage.View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <DependentUpon>SamplePage.cs</DependentUpon>
+    </MauiXaml>
+
+
+    <Compile Include="Pages\SamplePage2.ViewModel.cs">
+      <DependentUpon>SamplePage2.cs</DependentUpon>
+    </Compile>
+
+		<MauiXaml Update="Pages\SamplePage2.View.xaml">
+			<Generator>MSBuild:Compile</Generator>
+			<DependentUpon>SamplePage2.cs</DependentUpon>
+		</MauiXaml>
+
+		<MauiXaml Update="Pages\FullscreenSheetPage.View.xaml">
+			<Generator>MSBuild:Compile</Generator>
+			<DependentUpon>FullscreenSheetPage.cs</DependentUpon>
+		</MauiXaml>
+
+		<Compile Include="Pages\FullscreenSheetPage.ViewModel.cs">
+			<DependentUpon>FullscreenSheetPage.cs</DependentUpon>
+		</Compile>
+
+		<MauiXaml Update="Pages\Settings\SettingsPage.View.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+      <DependentUpon>SettingsPage.cs</DependentUpon>
+	  </MauiXaml>
+
+		<MauiXaml Update="Pages\SmallSheetPage.View.xaml">
+			<Generator>MSBuild:Compile</Generator>
+			<DependentUpon>SmallSheetPage.cs</DependentUpon>
+		</MauiXaml>
+
+		<MauiXaml Update="Resources\Styles\MaterialFrame.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
+    
+    <Compile Include="Pages\Settings\SettingsPage.ViewModel.cs">
+      <DependentUpon>SettingsPage.cs</DependentUpon>
+    </Compile>
+	</ItemGroup>
+
+  
+  
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+		<Content Include="Resources\Raw\light_theme.ico" />
+	</ItemGroup>
+
+  
+  
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Plugin.Maui.AnimatedLabel\Plugin.Maui.AnimatedLabel.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.SpineControls\Plugin.Maui.SpineControls.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.SvgImage\Plugin.Maui.SvgImage.csproj" />
+	</ItemGroup>
+
+  
+</Project>

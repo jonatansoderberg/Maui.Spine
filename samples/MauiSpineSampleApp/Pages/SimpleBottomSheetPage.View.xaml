@@ -1,0 +1,17 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.SimpleBottomSheetPage"
+    x:TypeArguments="SimpleBottomSheetPageViewModel"
+    x:DataType="SimpleBottomSheetPageViewModel">
+
+    <VerticalStackLayout Padding="24" Spacing="5">
+        <Label Text="Simple bottom sheet with close as secondary page action (top-right)"/>
+
+        <HorizontalStackLayout Spacing="0">
+            <CheckBox IsChecked="{Binding PreventDismiss}" />
+            <Label Text="Prevent dismiss" VerticalTextAlignment="Center" />
+        </HorizontalStackLayout>
+    </VerticalStackLayout>
+    
+</SpinePage>

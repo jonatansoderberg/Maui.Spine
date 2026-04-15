@@ -1,0 +1,23 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.FullscreenSheetPage"
+    x:TypeArguments="FullscreenSheetPageViewModel"
+    x:DataType="FullscreenSheetPageViewModel">
+
+    <VerticalStackLayout Padding="24" Spacing="16" VerticalOptions="Center">
+        <Label
+            Text="Welcome!"
+            FontSize="32"
+            FontAttributes="Bold"
+            HorizontalOptions="Center" />
+        <Label
+            Text="This is a full-screen bottom sheet."
+            FontSize="16"
+            HorizontalOptions="Center"
+            HorizontalTextAlignment="Center" />
+        <Button Text="Confirm (return result)" Command="{Binding ConfirmCommand}" />
+        <Button Text="Cancel (dismiss)" Command="{Binding CancelCommand}" />
+    </VerticalStackLayout>
+
+</SpinePage>
