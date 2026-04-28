@@ -27,6 +27,7 @@ internal static class HeaderBarConstants
 
     public const double RegionSideMargin = 4;
     public const double SheetSideMargin = 10;
+    public const double SheetTopPadding = 0;
 
 #else
 
@@ -42,8 +43,14 @@ internal static class HeaderBarConstants
     public const double RegionButtonPadding = 0;
 
     public const double RegionSideMargin = 0;
-    public const double SheetSideMargin = 14;
+    public const double SheetSideMargin = 16;
 
+#if IOS || MACCATALYST
+    // Space below the UISheetPresentationController grabber handle
+    public const double SheetTopPadding = 20;
+#else
+    public const double SheetTopPadding = 0;
+#endif
 
 #endif
 
