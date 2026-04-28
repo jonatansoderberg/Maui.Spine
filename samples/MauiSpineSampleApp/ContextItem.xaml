@@ -11,6 +11,12 @@
         Padding="8,6"
         Margin="0">
 
+        <Border.GestureRecognizers>
+            <TapGestureRecognizer
+                Command="{Binding TapCommand, Source={x:Reference Root}}"
+                CommandParameter="{Binding TapCommandParameter, Source={x:Reference Root}}" />
+        </Border.GestureRecognizers>
+
         <Grid ColumnDefinitions="40, *, Auto" RowDefinitions="Auto, Auto"
               ColumnSpacing="12" RowSpacing="0"
               Padding="0" Margin="0">

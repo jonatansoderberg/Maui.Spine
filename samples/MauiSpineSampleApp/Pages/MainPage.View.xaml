@@ -5,7 +5,8 @@
     xmlns:local="clr-namespace:MauiBottomSheetPoc"
     x:Class="MauiSpineSampleApp.Pages.MainPage"
     x:TypeArguments="MainPageViewModel"
-    x:DataType="MainPageViewModel">
+    x:DataType="MainPageViewModel"
+    x:Name="Page">
  
     <Grid>
 
@@ -79,7 +80,9 @@
                     <local:ContextItem
                         Icon="{Binding Icon}"
                         Title="{Binding Title}"
-                        Description="{Binding Description}" />
+                        Description="{Binding Description}"
+                        TapCommand="{Binding BindingContext.ItemTappedCommand, Source={x:Reference Page}}"
+                        TapCommandParameter="{Binding .}" />
                 </DataTemplate>
             </SpineCollectionView.ItemTemplate>
 

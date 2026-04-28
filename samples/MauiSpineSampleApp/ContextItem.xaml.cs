@@ -1,3 +1,5 @@
+using System.Windows.Input;
+
 namespace MauiBottomSheetPoc;
 
 public partial class ContextItem : ContentView
@@ -62,5 +64,24 @@ public partial class ContextItem : ContentView
             ActionsContainer.Content = value;
             ActionsContainer.IsVisible = value is not null;
         }
+    }
+
+    // --- TapCommand / TapCommandParameter (optional, invoked when item is tapped) ---
+    public static readonly BindableProperty TapCommandProperty =
+        BindableProperty.Create(nameof(TapCommand), typeof(ICommand), typeof(ContextItem));
+
+    public ICommand? TapCommand
+    {
+        get => (ICommand?)GetValue(TapCommandProperty);
+        set => SetValue(TapCommandProperty, value);
+    }
+
+    public static readonly BindableProperty TapCommandParameterProperty =
+        BindableProperty.Create(nameof(TapCommandParameter), typeof(object), typeof(ContextItem));
+
+    public object? TapCommandParameter
+    {
+        get => GetValue(TapCommandParameterProperty);
+        set => SetValue(TapCommandParameterProperty, value);
     }
 }

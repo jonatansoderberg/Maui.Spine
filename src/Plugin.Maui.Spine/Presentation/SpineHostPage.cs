@@ -8,7 +8,7 @@ namespace Plugin.Maui.Spine.Presentation;
 /// <summary>
 /// The root host page for a Spine application. It is a singleton <see cref="ContentPage"/> that
 /// contains the <see cref="RootNavigationRegion"/> and manages bottom-sheet presentation.
-/// Created and managed by <c>UseSpine</c> — you do not need to instantiate or register it manually.
+/// Created and managed by <c>UseSpine</c> ï¿½ you do not need to instantiate or register it manually.
 /// </summary>
 public partial class SpineHostPage : ContentPage, IDisposable
 {
@@ -70,7 +70,7 @@ public partial class SpineHostPage : ContentPage, IDisposable
 
                 await vm.ResetAsync(message.Content);
 
-#if WINDOWS || ANDROID
+#if WINDOWS || ANDROID || IOS || MACCATALYST
                 var bottomSheetTask = this.DisplayBottomSheet(
                     () => bottomSheetFrameView,
                     (b) =>

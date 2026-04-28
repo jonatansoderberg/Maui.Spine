@@ -188,7 +188,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
             closedVm.OnDismissedAsync().SafeFireAndForget();
         }
 
-#if WINDOWS || ANDROID
+#if WINDOWS || ANDROID || IOS || MACCATALYST
         BottomSheetPageExtensions.DismissActiveBottomSheet();
 #else
         await Task.CompletedTask;

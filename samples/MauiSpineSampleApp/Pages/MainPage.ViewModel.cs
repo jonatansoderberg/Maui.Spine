@@ -25,6 +25,13 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
     [RelayCommand] private async Task OpenSettings() => await _navigation.NavigateToAsync<Settings.SettingsPage>();
 
+    [RelayCommand]
+    private async Task ItemTapped(Item item)
+    {
+        if (Items.IndexOf(item) == 0)
+            await _navigation.NavigateToAsync<MainPageOld>();
+    }
+
     public override Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
         if (PageActions.Count == 0)
