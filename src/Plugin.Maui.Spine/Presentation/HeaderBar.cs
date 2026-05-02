@@ -230,8 +230,8 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
             ? new Thickness(HeaderBarConstants.SheetButtonPadding)
             : new Thickness(HeaderBarConstants.RegionButtonPadding);
 
-        //Test
-        _primaryPageActionView.Margin = new Thickness(HeaderBarConstants.SheetButtonPadding, 0, -HeaderBarConstants.SheetButtonPadding, 0);
+        var actionTopMargin = Presentation is NavigationPresentation.Sheet ? HeaderBarConstants.SheetTopPadding : 0;
+        _primaryPageActionView.Margin = new Thickness(HeaderBarConstants.SheetButtonPadding, actionTopMargin, -HeaderBarConstants.SheetButtonPadding, 0);
 
         _secondaryPageActionView.HeightRequest = HeaderBarConstants.Height;
 
@@ -239,7 +239,7 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
             ? new Thickness(HeaderBarConstants.SheetButtonPadding)
             : new Thickness(HeaderBarConstants.RegionButtonPadding);
 
-        _secondaryPageActionView.Margin = new Thickness(HeaderBarConstants.SheetButtonPadding, 0, -HeaderBarConstants.SheetButtonPadding, 0);
+        _secondaryPageActionView.Margin = new Thickness(HeaderBarConstants.SheetButtonPadding, actionTopMargin, -HeaderBarConstants.SheetButtonPadding, 0);
 
 
         UpdateSecondaryActionVisibility();
