@@ -77,6 +77,16 @@ internal static class BottomSheetPageExtensions
         // Block interactive swipe-to-dismiss; every attempt goes through the delegate.
         sheetVc.ModalInPresentation = true;
 
+        // UISheetPresentationController's card surface does not reliably inherit the
+        // trait collection from the MAUI window. Explicitly mirror the MAUI app theme
+        // so the native sheet background renders dark when the app is in dark mode.
+        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark
+            || (Application.Current?.RequestedTheme != AppTheme.Light
+                && Application.Current?.PlatformAppTheme == AppTheme.Dark);
+        sheetVc.OverrideUserInterfaceStyle = isDark
+            ? UIUserInterfaceStyle.Dark
+            : UIUserInterfaceStyle.Light;
+
         // ── Detents ──────────────────────────────────────────────────────────────
         var allowedDetents = bottomSheetBuilder.AllowedDetents.Count > 0
             ? bottomSheetBuilder.AllowedDetents
@@ -267,6 +277,8 @@ internal static class BottomSheetPageExtensions
         {
             base.ViewDidLoad();
 
+            View!.BackgroundColor = UIColor.Clear;
+
             _nativeContent.TranslatesAutoresizingMaskIntoConstraints = false;
             View!.AddSubview(_nativeContent);
 
@@ -276,6 +288,17 @@ internal static class BottomSheetPageExtensions
                 _nativeContent.TopAnchor.ConstraintEqualTo(View.TopAnchor),
                 _nativeContent.BottomAnchor.ConstraintEqualTo(View.BottomAnchor),
             ]);
+        }
+
+        public override void ViewWillAppear(bool animated)
+        {
+            base.ViewWillAppear(animated);
+
+            // The UISheetPresentationController card chrome lives in the presentation
+            // container view, not in this VC's view subtree. OverrideUserInterfaceStyle
+            // on the VC alone doesn't reach it — we must set it on the container too.
+            if (PresentationController?.ContainerView is { } container)
+                container.OverrideUserInterfaceStyle = OverrideUserInterfaceStyle;
         }
 
         public override void ViewDidDisappear(bool animated)
