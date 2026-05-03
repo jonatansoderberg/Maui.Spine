@@ -50,6 +50,7 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
         // system bar insets are measured and available to ViewModels.
         HookWindowsPlatform(window);
         HookAndroidPlatform(window);
+        HookMacCatalystPlatform(window);
 
         _navigationService.SetRootAsync<TNavigable>().SafeFireAndForget();
 
@@ -59,6 +60,7 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
             partial void InitializeWindowsTitleBar(Window window);
             partial void HookWindowsPlatform(Window window);
             partial void HookAndroidPlatform(Window window);
+            partial void HookMacCatalystPlatform(Window window);
 
             /// <summary>Closes the window. On Windows, if CloseToBackground is enabled the window hides to tray instead.</summary>
             public void CloseWindow() => Application.Current?.CloseWindow(_window!);

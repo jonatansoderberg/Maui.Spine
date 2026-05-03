@@ -121,7 +121,7 @@ public sealed class NavigationRegion : ContentView
         _container.Margin = new Thickness(0, -insets.Top, 0, 0);
 
         var topMargin = insets.Top;
-        if (ViewModel.Presentation == NavigationPresentation.Sheet)
+        if (ViewModel.Presentation is NavigationPresentation.Sheet)
             topMargin += HeaderBarConstants.SheetTopPadding;
 
         _frameActionView.Margin = new Thickness(0, topMargin, 0, 0);
