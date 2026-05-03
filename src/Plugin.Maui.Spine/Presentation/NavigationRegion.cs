@@ -57,6 +57,12 @@ public sealed class NavigationRegion : ContentView
         viewModel.Presentation = presentation;
         BindingContext = viewModel;
 
+        // Disable MAUI's automatic ISafeAreaView2 geometry on this ContentView.
+        // Spine owns the safe-area contract: ISystemInsetsProvider supplies the real
+        // platform insets, UpdateContainerMargin positions the header, and
+        // ApplySafeAreaPadding pads each content host per the page's SafeAreaEdges.
+        this.SafeAreaEdges = Microsoft.Maui.SafeAreaEdges.None;
+
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         _container = new Grid();
@@ -118,7 +124,33 @@ public sealed class NavigationRegion : ContentView
     private void UpdateContainerMargin()
     {
         var insets = _insetsProvider.SystemBarInsets;
-        _container.Margin = new Thickness(0, -insets.Top, 0, 0);
+
+#if IOS
+        // ContentPage's safe area cannot be disabled on iOS — MAUI always offsets the page
+        // content by UIView.safeAreaInsets regardless of SafeAreaEdges = None on the host page.
+        // Counteract that offset with a negative margin so _container fills the full window,
+        // allowing Spine to apply insets explicitly via ApplySafeAreaPadding.
+        _container.Margin = new Thickness(-insets.Left, -insets.Top, -insets.Right, -insets.Bottom);
+#endif
+
+#if MACCATALYST
+        // After fullSizeContentView, MAUI's safeAreaInsets offset already positions
+        // NavigationRegion below the title bar for normal pages. Only full-bleed pages
+        // (no header bar, no safe area) need the negative counteraction so their content
+        // extends behind the title bar. SystemBarInsets stays zero on Mac Catalyst so
+        // ApplySafeAreaPadding on other pages is unaffected.
+        {
+            var vm = ViewModel.CurrentRegionViewModel;
+            var titleBarH = (_insetsProvider as SystemInsetsProvider)?.MacTitleBarHeight ?? 0;
+            bool fullBleed = titleBarH > 0
+                && vm is not null
+                && !vm.IsHeaderBarVisible
+                && vm.SafeAreaEdges == SpineSafeArea.None;
+            _container.Margin = fullBleed
+                ? new Thickness(0, -titleBarH, 0, 0)
+                : Thickness.Zero;
+        }
+#endif
 
         var topMargin = insets.Top;
         if (ViewModel.Presentation is NavigationPresentation.Sheet)
@@ -180,6 +212,10 @@ public sealed class NavigationRegion : ContentView
     {
         if (e.PropertyName == nameof(ViewModel.CurrentRegionViewModel))
         {
+            // Mac Catalyst: container margin depends on the new page's SafeAreaEdges +
+            // IsHeaderBarVisible, so recalculate whenever the page changes.
+            UpdateContainerMargin();
+
             _frameActionView?.SetBinding(HeaderBar.IsHeaderBarVisibleProperty, new Binding("IsHeaderBarVisible", source: ViewModel.CurrentRegionViewModel));
             _frameActionView?.SetBinding(HeaderBar.IsBackButtonVisibleProperty, new Binding("IsBackButtonVisible", source: ViewModel.CurrentRegionViewModel));
             _frameActionView?.SetBinding(HeaderBar.IsTitleBarVisibleProperty, new Binding("IsTitleBarVisible", source: ViewModel.CurrentRegionViewModel));
