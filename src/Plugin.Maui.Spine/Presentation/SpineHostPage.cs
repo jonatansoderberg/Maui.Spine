@@ -48,8 +48,10 @@ public partial class SpineHostPage : ContentPage, IDisposable
         NavigationRegion rootFrameView,
         [FromKeyedServices("BottomSheet")] NavigationRegion bottomSheetFrameView)
     {
-        // Edge-to-edge: Spine manages safe-area padding per-page on the NavigationRegion
-        // content hosts, so the host page must not apply any system-bar padding itself.
+        // Spine manages safe-area padding per-page on the NavigationRegion content hosts.
+        // The host page must not apply any inset itself — NavigationRegion.SafeAreaEdges = None
+        // (set in NavigationRegion's constructor) also disables MAUI's automatic ISafeAreaView2
+        // geometry, and ISystemInsetsProvider reports the real insets Spine applies explicitly.
         this.SafeAreaEdges = Microsoft.Maui.SafeAreaEdges.None;
 
         SheetNavigationRegion = bottomSheetFrameView;

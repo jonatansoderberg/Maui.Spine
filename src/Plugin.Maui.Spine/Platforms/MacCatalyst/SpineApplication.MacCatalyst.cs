@@ -20,6 +20,41 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
     partial void HookMacCatalystPlatform(Window window)
     {
+        // Enable fullSizeContentView so UIWindow covers the full NSWindow frame (including
+        // the native title bar), then read safeAreaInsets.top as the title bar height.
+        // NavigationRegion uses that height to apply a per-page negative container margin
+        // only for full-bleed pages (IsHeaderBarVisible=false, SafeAreaEdges=None).
+        var provider = _services.GetRequiredService<ISystemInsetsProvider>() as SystemInsetsProvider;
+        if (provider is not null)
+        {
+            // window.Activated fires while UIWindowScene is still a _UIPlaceholderWindowScene,
+            // which doesn't expose the underlying NSWindow. Instead, observe the AppKit
+            // NSWindowDidBecomeKeyNotification — its object IS the real NSWindow.
+            NSNotificationCenter.DefaultCenter.AddObserver(
+                new NSString("NSWindowDidBecomeKeyNotification"),
+                notification => MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    if (notification.Object is not { } nsObj) return;
+                    if (AppKitObjC.IsStatusBarWindow(nsObj.Handle)) return;
+
+                    EnableFullSizeContentView(nsObj.Handle);
+
+                    if (window.Handler?.PlatformView is not UIKit.UIWindow uiWindow) return;
+
+                    // Force a UIKit layout pass so safeAreaInsets update for the new
+                    // fullSizeContentView geometry before we read them.
+                    uiWindow.SetNeedsLayout();
+                    uiWindow.LayoutIfNeeded();
+
+                    // Read title-bar height now that UIKit has updated safeAreaInsets.
+                    // NavigationRegion applies a per-page negative container margin for
+                    // full-bleed pages (IsHeaderBarVisible=false, SafeAreaEdges=None);
+                    // non-full-bleed pages rely on MAUI's own safe-area offset instead.
+                    provider.UpdateFromUIWindow(uiWindow);
+                }),
+                null);
+        }
+
         var options = _services.GetRequiredService<SpineOptions>();
         var macOptions = options.MacOS;
 
@@ -40,6 +75,22 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
         if (macOptions.CloseToBackground)
             SetupCloseToBackground(window);
+    }
+
+    private static void EnableFullSizeContentView(IntPtr nsWindowPtr)
+    {
+        try
+        {
+            // NSWindowStyleMask.FullSizeContentView = 1 << 15 — extends the content view to
+            // fill the full NSWindow frame including the area behind the title bar.
+            var mask = AppKitObjC.nuint_msgSend(nsWindowPtr, Selector.GetHandle("styleMask"));
+            AppKitObjC.Void_msgSend_nuint(nsWindowPtr, Selector.GetHandle("setStyleMask:"), mask | 32768u);
+            AppKitObjC.Void_msgSend_bool(nsWindowPtr, Selector.GetHandle("setTitlebarAppearsTransparent:"), true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Spine/Mac] EnableFullSizeContentView: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     private void SetupMenuBarIcon(SpineOptions.MacOSPlatformOptions macOptions, SpineOptions options)
@@ -245,6 +296,12 @@ internal static class AppKitObjC
 
     [DllImport(Lib, EntryPoint = "objc_msgSend")]
     public static extern void Void_msgSend_bool(IntPtr receiver, IntPtr selector, bool arg1);
+
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern nuint nuint_msgSend(IntPtr receiver, IntPtr selector);
+
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern void Void_msgSend_nuint(IntPtr receiver, IntPtr selector, nuint arg1);
 
     public static bool IsStatusBarWindow(IntPtr win)
     {
