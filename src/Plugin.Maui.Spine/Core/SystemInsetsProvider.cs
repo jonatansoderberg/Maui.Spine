@@ -89,7 +89,7 @@ internal sealed class SystemInsetsProvider : ISystemInsetsProvider
     internal void UpdateFromUIWindow(UIWindow uiWindow)
     {
         var top = (double)uiWindow.SafeAreaInsets.Top;
-        if (top == 0) top = 28; // standard Mac title bar fallback
+        if (top == 0) top = 41; // standard Mac title bar fallback
         SetMacTitleBarHeight(top);
     }
 #else
