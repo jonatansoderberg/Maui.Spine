@@ -1,5 +1,15 @@
 {
   "permissions": {
-    "allow": []
+    "allow": [
+      "Bash(gh issue view * --repo jonatansoderberg/Maui.Spine *)",
+      "Bash(gh issue list --repo jonatansoderberg/Maui.Spine *)",
+      "Bash(git branch --list *)",
+      "Bash(git checkout -b issue/*)",
+      "Bash(git checkout issue/*)",
+      "Bash(git log --oneline *)",
+      "Bash(mkdir -p issues)",
+      "Skill(spine-issue)",
+      "Skill(spine-issue:*)"
+    ]
   }
 }
