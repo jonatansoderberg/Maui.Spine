@@ -45,6 +45,9 @@ public static class MauiProgram
                 options.Windows.IsMaximizable = true;
                 //options.Windows.IsMinimizable = true;
                 //options.Windows.IsAlwaysOnTop = true;
+                options.MacOS.ShowTrayIcon = true;
+                options.MacOS.TrayIconSvg = "water.svg";
+                options.MacOS.CloseToBackground = true;
             })
             .UseSharpnadoMaterialFrame(loggerEnable: false)
             .ConfigureFonts(fonts =>

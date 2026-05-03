@@ -244,6 +244,44 @@ public sealed class SpineOptions
     /// <summary>Android-specific layout settings.</summary>
     public AndroidPlatformOptions Android { get; } = new AndroidPlatformOptions();
 
+    /// <summary>
+    /// macOS-specific menu-bar icon and window behaviour settings for Spine.
+    /// All properties take effect only when running on macOS (Mac Catalyst).
+    /// </summary>
+    public sealed class MacOSPlatformOptions
+    {
+        /// <summary>
+        /// When true, a menu-bar (tray) icon is shown in the macOS status bar.
+        /// Pair with <see cref="CloseToBackground"/> to allow the user to restore
+        /// or exit the app from the menu bar.
+        /// </summary>
+        public bool ShowTrayIcon { get; set; } = false;
+
+        /// <summary>
+        /// When true, closing the window hides it instead of terminating the application.
+        /// Intended to be used together with a tray icon to restore the window.
+        /// </summary>
+        public bool CloseToBackground { get; set; } = false;
+
+        /// <summary>Tooltip text shown when hovering over the menu-bar icon.</summary>
+        public string TrayIconTooltip { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Short SVG file name (e.g. <c>"app_icon.svg"</c>) used to generate the menu-bar icon
+        /// at runtime via <c>ISvgIconService</c>. The SVG must be an embedded resource in one
+        /// of the assemblies registered via <see cref="SpineOptions.AddAssembly"/>.
+        /// Rendered as a PDF template image so macOS handles light/dark automatically.
+        /// Takes precedence over <see cref="TrayIconPath"/> when set.
+        /// </summary>
+        public string? TrayIconSvg { get; set; }
+
+        /// <summary>Path to a PNG or PDF image used as the menu-bar icon when <see cref="TrayIconSvg"/> is not set.</summary>
+        public string TrayIconPath { get; set; } = string.Empty;
+    }
+
+    /// <summary>macOS-specific menu-bar icon and window behaviour settings.</summary>
+    public MacOSPlatformOptions MacOS { get; } = new MacOSPlatformOptions();
+
     /// <summary>Configuration for platform shortcuts (app actions, tray menu items).</summary>
     public ShortcutsConfig Shortcuts { get; } = new ShortcutsConfig();
 
