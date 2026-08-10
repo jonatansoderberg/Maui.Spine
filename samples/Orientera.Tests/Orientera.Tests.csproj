@@ -16,6 +16,7 @@
 	-->
 	<ItemGroup>
 		<Compile Include="..\Orientera\Domain\**\*.cs" LinkBase="Linked\Domain" />
+		<Compile Include="..\Orientera\Presentation\**\*.cs" LinkBase="Linked\Presentation" />
 		<Compile Include="..\Orientera\Services\Analysis\**\*.cs" LinkBase="Linked\Services\Analysis" />
 		<Compile Include="..\Orientera\Services\Context\ContextEngine.cs" LinkBase="Linked\Services\Context" />
 		<Compile Include="..\Orientera\Services\FakeData\**\*.cs" Exclude="..\Orientera\Services\FakeData\FakeDataSource.cs" LinkBase="Linked\Services\FakeData" />

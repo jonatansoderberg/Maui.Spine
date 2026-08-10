@@ -14,6 +14,7 @@ public sealed record CompareCandidate
     public required string TimeText { get; init; }
     public required bool IsWinner { get; init; }
     public required bool IsInMyGroup { get; init; }
+    public required string Accessibility { get; init; }
 }
 
 public partial class CompareRunnerSheetViewModel(
@@ -48,6 +49,15 @@ public partial class CompareRunnerSheetViewModel(
                 TimeText = Format.Time(result.Time),
                 IsWinner = result.Place == 1,
                 IsInMyGroup = groupIds.Contains(result.Person),
+                Accessibility = string.Join(", ",
+                    new[]
+                    {
+                        Format.SpokenPlace(result.Place),
+                        result.Name,
+                        result.Club,
+                        Format.SpokenTime(result.Time),
+                        groupIds.Contains(result.Person) ? "i min grupp" : string.Empty,
+                    }.Where(part => part.Length > 0)),
             });
         }
     }

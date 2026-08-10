@@ -38,5 +38,46 @@ public sealed partial class EventCard : ObservableObject
 
     public string FavouriteGlyph => IsFavourite ? "★" : "☆";
 
-    partial void OnIsFavouriteChanged(bool value) => OnPropertyChanged(nameof(FavouriteGlyph));
+    public string FavouriteDescription => IsFavourite
+        ? $"Ta bort {Title} från favoriter"
+        : $"Spara {Title} som favorit";
+
+    /// <summary>
+    /// The whole card as one spoken sentence. A card is one cell to a screen reader — six
+    /// separate swipes through date, title, organiser and badges would make the list unusable.
+    /// </summary>
+    public string Accessibility
+    {
+        get
+        {
+            var parts = new List<string> { DateLabel, Title, PlaceLabel, MetaLabel, DistanceLabel };
+
+            if (IsRecurring)
+                parts.Add(OccurrenceLabel);
+
+            if (IsLive)
+                parts.Add("pågår nu");
+
+            if (IsRegistered)
+                parts.Add("du är anmäld");
+
+            if (HasGroupEntry)
+                parts.Add("någon i min grupp är anmäld");
+
+            if (ShowContextBadge && ContextLabel.Length > 0)
+                parts.Add(ContextLabel);
+
+            if (IsFavourite)
+                parts.Add("favoritmarkerad");
+
+            return string.Join(", ", parts);
+        }
+    }
+
+    partial void OnIsFavouriteChanged(bool value)
+    {
+        OnPropertyChanged(nameof(FavouriteGlyph));
+        OnPropertyChanged(nameof(FavouriteDescription));
+        OnPropertyChanged(nameof(Accessibility));
+    }
 }

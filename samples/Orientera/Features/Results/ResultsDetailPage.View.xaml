@@ -24,12 +24,13 @@
                     <Setter Property="IsVisible" Value="False" />
                 </DataTrigger>
             </VerticalStackLayout.Triggers>
-            <Label Style="{StaticResource Heading2Label}" HorizontalTextAlignment="Center" Text="Inget resultat ännu" />
+            <Label Style="{StaticResource Heading2Label}" SemanticProperties.HeadingLevel="Level2"
+                   HorizontalTextAlignment="Center" Text="Inget resultat ännu" />
             <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center" Text="{Binding EmptyMessage}" />
         </VerticalStackLayout>
 
         <ScrollView Grid.Row="1" IsVisible="{Binding HasResult}">
-            <VerticalStackLayout Padding="16,0,16,24" Spacing="16">
+            <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="16">
 
                 <!-- ============ Översikt ============ -->
                 <VerticalStackLayout Spacing="12" IsVisible="{Binding IsOverview}">
@@ -39,8 +40,11 @@
                             <Label Style="{StaticResource SectionLabel}" Text="{Binding ClassLine}" />
 
                             <HorizontalStackLayout Spacing="10" VerticalOptions="End">
-                                <Label Style="{StaticResource DisplayNumberLabel}" Text="{Binding PlaceText}" />
+                                <Label Style="{StaticResource DisplayNumberLabel}"
+                                       SemanticProperties.Description="{Binding PlaceSpoken}"
+                                       Text="{Binding PlaceText}" />
                                 <Label Style="{StaticResource NumericCaptionLabel}"
+                                       AutomationProperties.IsInAccessibleTree="False"
                                        VerticalOptions="End" Margin="0,0,0,6"
                                        Text="{Binding PlaceOfText}" />
                             </HorizontalStackLayout>
@@ -48,12 +52,15 @@
                             <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
                                 <VerticalStackLayout Grid.Column="0">
                                     <Label Style="{StaticResource CaptionLabel}" Text="Tid" />
-                                    <Label Style="{StaticResource NumericHeading2Label}" Text="{Binding TimeText}" />
+                                    <Label Style="{StaticResource NumericHeading2Label}"
+                                           SemanticProperties.Description="{Binding TimeSpoken}"
+                                           Text="{Binding TimeText}" />
                                 </VerticalStackLayout>
                                 <VerticalStackLayout Grid.Column="1">
                                     <Label Style="{StaticResource CaptionLabel}" Text="Efter vinnaren" />
                                     <Label Style="{StaticResource NumericHeading2Label}"
                                            TextColor="{DynamicResource NegativeDelta}"
+                                           SemanticProperties.Description="{Binding BehindSpoken}"
                                            Text="{Binding BehindText}" />
                                 </VerticalStackLayout>
                                 <VerticalStackLayout Grid.Column="2">
@@ -105,7 +112,7 @@
                         <VerticalStackLayout BindableLayout.ItemsSource="{Binding Legs}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="LegRow">
-                                    <VerticalStackLayout>
+                                    <VerticalStackLayout SemanticProperties.Description="{Binding Accessibility}">
                                         <Grid ColumnDefinitions="72,*,44,44,72" Padding="14,8" ColumnSpacing="6">
                                             <Label Grid.Column="0" Style="{StaticResource NumericCaptionLabel}"
                                                    VerticalOptions="Center" Text="{Binding Control}" />
@@ -147,7 +154,8 @@
                     <Border Style="{StaticResource Card}" IsVisible="{Binding HasMistakes}">
                         <VerticalStackLayout Spacing="6">
                             <Label Style="{StaticResource SectionLabel}" Text="Största tapp" />
-                            <Label Style="{StaticResource Heading1Label}" Text="{Binding BiggestLossControl}" />
+                            <Label Style="{StaticResource Heading1Label}" SemanticProperties.HeadingLevel="Level2"
+                                   Text="{Binding BiggestLossControl}" />
                             <Label Style="{StaticResource BodyStrongLabel}"
                                    TextColor="{DynamicResource EstimateInk}"
                                    Text="{Binding BiggestLossText}" />
@@ -163,12 +171,14 @@
                                     <Label Style="{StaticResource CaptionLabel}" Text="Bomtid" />
                                     <Label Style="{StaticResource NumericHeading2Label}"
                                            TextColor="{DynamicResource EstimateInk}"
+                                           SemanticProperties.Description="{Binding TotalMistakeSpoken}"
                                            Text="{Binding TotalMistakeText}" />
                                 </VerticalStackLayout>
                                 <VerticalStackLayout Grid.Column="1">
                                     <Label Style="{StaticResource CaptionLabel}" Text="Utan bommar" />
                                     <Label Style="{StaticResource NumericHeading2Label}"
                                            TextColor="{DynamicResource EstimateInk}"
+                                           SemanticProperties.Description="{Binding TheoreticalTimeSpoken}"
                                            Text="{Binding TheoreticalTimeText}" />
                                 </VerticalStackLayout>
                                 <VerticalStackLayout Grid.Column="2">
@@ -190,7 +200,8 @@
                         <VerticalStackLayout BindableLayout.ItemsSource="{Binding Comparison}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="ComparisonRow">
-                                    <Grid ColumnDefinitions="76,*,*,72" Padding="14,7" ColumnSpacing="6">
+                                    <Grid ColumnDefinitions="76,*,*,72" Padding="14,7" ColumnSpacing="6"
+                                          SemanticProperties.Description="{Binding Accessibility}">
                                         <Label Grid.Column="0" Style="{StaticResource NumericCaptionLabel}" Text="{Binding Label}" />
                                         <Label Grid.Column="1" Style="{StaticResource NumericLabel}" Text="{Binding Mine}" />
                                         <Label Grid.Column="2" Style="{StaticResource NumericCaptionLabel}" Text="{Binding Theirs}" />

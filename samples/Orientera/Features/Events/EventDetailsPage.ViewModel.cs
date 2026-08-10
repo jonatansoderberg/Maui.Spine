@@ -25,6 +25,8 @@ public sealed record DocumentItem
     public required string Title { get; init; }
     public required string Url { get; init; }
     public required string Meta { get; init; }
+
+    public string Accessibility => $"{Title}, {Meta}";
 }
 
 public partial class EventDetailsPageViewModel(
@@ -58,6 +60,7 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial string TravelText { get; set; } = string.Empty;
     [ObservableProperty] public partial string PredictionText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasPrediction { get; set; }
+    [ObservableProperty] public partial string PredictionAccessibility { get; set; } = string.Empty;
 
     // ---- sections ----
     [ObservableProperty] public partial bool HasBriefing { get; set; }
@@ -224,6 +227,13 @@ public partial class EventDetailsPageViewModel(
         HasPrediction = prediction is not null;
         PredictionText = prediction is not null
             ? $"Förväntad placering {prediction.Range} av {prediction.FieldSize}"
+            : string.Empty;
+
+        // The interval is modelled, and the spoken form has to say so — colour alone carries
+        // that distinction for sighted users only.
+        PredictionAccessibility = prediction is not null
+            ? $"Uppskattning: förväntad placering {prediction.LowPlace} till {prediction.HighPlace} "
+              + $"av {prediction.FieldSize} anmälda"
             : string.Empty;
 
         CanFollowLive = _decision.State == ContextState.Live;

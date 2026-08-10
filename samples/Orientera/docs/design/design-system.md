@@ -134,9 +134,27 @@ prognosintervall. Vanlig text använder `Inter`.
 Rytm och geometri (temaoberoende): `RadiusCard` 16, `RadiusChip` 18, `RadiusBadge` 8,
 `SpaceXs/S/M/L/Xl` 4/8/12/16/24, `TouchTargetMin` 44, `ScreenPadding` 16,12,16,24.
 
+## Regler som kom ur implementationen
+
+- **Använd inte `DataTrigger` för att sätta temafärger.** En trigger sparar värdet den
+  ersatte, en gång. Efter ett light/dark-byte återställer den den *gamla* temafärgen. Växla i
+  stället mellan färdigstylade element, som `Controls/ChipView.cs` gör.
+- **Modellerade värden behöver både `EstimateInk` och ett ord** ("uppskattat", "trolig bom").
+  Färg ensam bär inte skillnaden för färgblinda eller skärmläsare.
+- **Tabulära siffror har en egen läst form.** `Format.SpokenTime` säger "38 minuter 33
+  sekunder"; en skärmläsare läser annars "38:33" som ett klockslag.
+- **Listrader är ett element för skärmläsaren.** Ett kort med sex etiketter blir sex svep. Sätt
+  `SemanticProperties.Description` på kortets `Border` — och lägg då eventuella knappar
+  *utanför* den, eftersom en Description på en layout gör barnen onåbara på iOS.
+- **Ett 44 pt-mål intill en rubrik kapar textkolumnen.** Lägg det på en kortare rad i stället.
+
 ## Verifiering
 
 `Features/Dev/DesignSystemPage` är ett levande specimen över tokens, typografi och
 komponenter, med en `Tema`-page-action som växlar `UserAppTheme`. Kontrollerat på
 iPhone 17 Pro-simulator (iOS 26.2) i både light och dark, samt byggverifierat för Android.
 Sidan är underlaget för etapp 5:s light/dark-svep.
+
+Etapp 5 svepte båda teman över alla vyer på iPhone 17 Pro-simulator (iOS 26.2) och Pixel 10
+Pro-emulator (API 36), och verifierade tillgänglighetsträdet objektivt med
+`adb shell uiautomator dump`.

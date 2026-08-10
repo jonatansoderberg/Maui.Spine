@@ -57,12 +57,15 @@ Byggordning (varje punkt är leverbar för sig):
 5. **Resultat + Analys** — Översikt/Sträckor/Analys-flikar, färgkodade tapp, största-tapp-kort, `CompareRunnerSheet`, `PredictionInfoSheet` (intervall + förklaring). Performance-densitet.
 6. **Jag** — profil, Sverigelistan-kort (poäng, trend, resultat som räknas/faller ur), Min grupp-hantering (`FollowRunnerSheet`), utvecklingsblock.
 
-### Etapp 5 — M0-polish och validering
+### Etapp 5 — M0-polish och validering ✅
 
-- Light/Dark-svep över allt; kontrastkontroll av tokens.
-- VoiceOver/TalkBack-pass på kärnflödena.
-- Körverifiering iOS-simulator + Android-emulator.
-- Designriktningsbeslut dokumenteras som utfall i `design/`.
+- ✅ Light/Dark-svep över alla vyer och sheets, iOS och Android. Kontrastkontrollen av tokens
+  gjordes när de låstes i etapp 1 ([design-system.md](design/design-system.md)).
+- ✅ Skärmläsarpass på kärnflödena: rubriknivåer, listrader som ett element, uppläsbara tider
+  och placeringar, dekorativa glyfer ur trädet, 44 pt-mål. Verifierat objektivt via
+  `adb shell uiautomator dump` mot Android-tillgänglighetsträdet.
+- ✅ Körverifiering på iPhone 17 Pro-simulator (iOS 26.2) och Pixel 10 Pro-emulator (API 36).
+- ✅ Designriktningens utfall dokumenterat i [design/utfall-m0.md](design/utfall-m0.md).
 
 ## M1–M5 — översikt och beroenden
 
@@ -93,4 +96,10 @@ Arkitekturregel från dag ett: **alla datakällor bakom interface** (`IEventSour
 3. ✅ Tokens + tema-resurser.
 4. ✅ Fake-data + ContextEngine + tester.
 5. ✅ Flikarna i ordningen Tävlingar → Detalj → Hem → Live → Resultat → Jag.
-6. Etapp 5: light/dark-svep, VoiceOver/TalkBack, Android-emulatorkörning.
+6. ✅ Etapp 5: light/dark-svep, skärmläsarpass, Android-emulatorkörning.
+
+**M0 är klar.** Nästa steg är M1 (Eventor Core) — se tabellen nedan. Tre Spine-fynd är öppna:
+[#13](https://github.com/jonatansoderberg/Maui.Spine/issues/13),
+[#18](https://github.com/jonatansoderberg/Maui.Spine/issues/18),
+[#21](https://github.com/jonatansoderberg/Maui.Spine/issues/21) och
+[#22](https://github.com/jonatansoderberg/Maui.Spine/issues/22).

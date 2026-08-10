@@ -22,6 +22,8 @@ public sealed record GroupMemberRow
     public required PersonId Person { get; init; }
     public required string Name { get; init; }
     public required string Meta { get; init; }
+
+    public string UnfollowDescription => $"Sluta följa {Name}";
 }
 
 public sealed record SeriesRow
@@ -47,6 +49,7 @@ public partial class ProfilePageViewModel(
 
     // ---- Sverigelistan ----
     [ObservableProperty] public partial string PointsText { get; set; } = string.Empty;
+    [ObservableProperty] public partial string PointsSpoken { get; set; } = string.Empty;
     [ObservableProperty] public partial string NationalPlaceText { get; set; } = string.Empty;
     [ObservableProperty] public partial string TrendText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool IsImproving { get; set; }
@@ -119,6 +122,8 @@ public partial class ProfilePageViewModel(
             return;
 
         PointsText = ranking.Points.ToString("N0");
+        PointsSpoken = $"{ranking.Points} poäng, {ranking.NationalPlace}:e plats i Sverige, "
+                     + $"{(ranking.Trend >= 0 ? "upp" : "ner")} {Math.Abs(ranking.Trend)} poäng";
         NationalPlaceText = $"{ranking.NationalPlace}:e i Sverige";
         IsImproving = ranking.Trend >= 0;
         TrendText = ranking.Trend >= 0 ? $"+{ranking.Trend} p" : $"{ranking.Trend} p";

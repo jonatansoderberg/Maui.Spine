@@ -31,6 +31,7 @@
                              VerticalOptions="Center"
                              IsVisible="{Binding IsEmpty}">
             <Label Style="{StaticResource Heading2Label}"
+                   SemanticProperties.HeadingLevel="Level2"
                    HorizontalTextAlignment="Center"
                    Text="Inget att visa" />
             <Label Style="{StaticResource BodySecondaryLabel}"
@@ -47,31 +48,26 @@
             </CollectionView.ItemsLayout>
 
             <CollectionView.Footer>
-                <BoxView HeightRequest="16" Color="Transparent" />
+                <BoxView HeightRequest="{StaticResource TabBarSpacer}" Color="Transparent" />
             </CollectionView.Footer>
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="EventCard">
+                    <!--
+                        Stjärnan ligger utanför kortets Border. Kortet är ett element för
+                        skärmläsaren — annars blir varje kort sex svep — och en Description på
+                        Bordern gör dess barn oåtkomliga på iOS. Favoritknappen måste därför
+                        vara ett syskon för att gå att nå.
+                    -->
                     <Grid Padding="16,0">
-                        <Border Style="{StaticResource Card}">
-                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                        <Border Style="{StaticResource Card}"
+                                SemanticProperties.Description="{Binding Accessibility}"
+                                SemanticProperties.Hint="Öppnar tävlingen">
+                            <Grid ColumnDefinitions="*,44" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="4">
 
                                 <Label Grid.Row="0" Grid.Column="0"
                                        Style="{StaticResource SectionLabel}"
                                        Text="{Binding DateLabel}" />
-
-                                <!-- Favoritmarkering direkt i listan -->
-                                <Label Grid.Row="0" Grid.Column="1" Grid.RowSpan="2"
-                                       Style="{StaticResource Heading2Label}"
-                                       TextColor="{DynamicResource AccentAction}"
-                                       VerticalOptions="Start"
-                                       Text="{Binding FavouriteGlyph}">
-                                    <Label.GestureRecognizers>
-                                        <TapGestureRecognizer
-                                            Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ToggleFavouriteCommand}"
-                                            CommandParameter="{Binding .}" />
-                                    </Label.GestureRecognizers>
-                                </Label>
 
                                 <Label Grid.Row="1" Grid.Column="0"
                                        Style="{StaticResource Heading2Label}"
@@ -116,6 +112,21 @@
                                     CommandParameter="{Binding .}" />
                             </Border.GestureRecognizers>
                         </Border>
+
+                        <Label Style="{StaticResource Heading2Label}"
+                               TextColor="{DynamicResource AccentAction}"
+                               HorizontalOptions="End" VerticalOptions="Start"
+                               HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
+                               WidthRequest="44" HeightRequest="44"
+                               Margin="0,4,6,0"
+                               SemanticProperties.Description="{Binding FavouriteDescription}"
+                               Text="{Binding FavouriteGlyph}">
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ToggleFavouriteCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Label.GestureRecognizers>
+                        </Label>
                     </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>

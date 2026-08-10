@@ -20,6 +20,42 @@ public static class Format
 
     public static string Time(TimeSpan? time) => time is { } t ? Time(t) : "—";
 
+    /// <summary>
+    /// A time as a screen reader should say it. "38:33" is read as a clock time or as two
+    /// separate numbers depending on the platform; "38 minuter 33 sekunder" is unambiguous.
+    /// </summary>
+    public static string SpokenTime(TimeSpan time)
+    {
+        var parts = new List<string>(3);
+
+        int hours = (int)time.TotalHours;
+
+        if (hours > 0)
+            parts.Add($"{hours} {(hours == 1 ? "timme" : "timmar")}");
+
+        if (time.Minutes > 0)
+            parts.Add($"{time.Minutes} {(time.Minutes == 1 ? "minut" : "minuter")}");
+
+        if (time.Seconds > 0 || parts.Count == 0)
+            parts.Add($"{time.Seconds} {(time.Seconds == 1 ? "sekund" : "sekunder")}");
+
+        return string.Join(' ', parts);
+    }
+
+    public static string SpokenTime(TimeSpan? time) => time is { } t ? SpokenTime(t) : "ingen tid";
+
+    /// <summary>A signed difference in words: "1 minut 7 sekunder efter".</summary>
+    public static string SpokenDelta(TimeSpan? delta) => delta switch
+    {
+        null => string.Empty,
+        { Ticks: 0 } => "samma tid",
+        { Ticks: < 0 } d => $"{SpokenTime(d.Duration())} före",
+        { } d => $"{SpokenTime(d)} efter",
+    };
+
+    /// <summary>"3:e" is read as "3 e" — say "tredje plats" instead.</summary>
+    public static string SpokenPlace(int? place) => place is { } p ? $"plats {p}" : "ingen placering";
+
     /// <summary>Signed difference: "+1:07" behind, "−0:14" ahead. Uses a real minus sign.</summary>
     public static string Delta(TimeSpan delta)
     {
