@@ -47,7 +47,7 @@ public partial class ResultsDetailPageViewModel(
     IEventSource _events,
     IPeopleSource _people,
     IParticipationSource _participation,
-    ComparisonRequest _comparison) : ViewModelBase, IReceivesNavigationParameter<CompetitionId>
+    ComparisonRequest _comparison) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
 {
     private CompetitionId _id;
     private Person? _me;
@@ -110,6 +110,15 @@ public partial class ResultsDetailPageViewModel(
         if (navigationDirection == NavigationDirection.Back)
             return;
 
+        if (!await LoadAsync(BuildAsync))
+        {
+            HasResult = false;
+            EmptyMessage = "Ingen anslutning. Resultat och sträcktider behöver nätverk.";
+        }
+    }
+
+    private async Task BuildAsync()
+    {
         var competition = await _events.GetCompetitionAsync(_id);
         _me = await _people.GetMeAsync();
 

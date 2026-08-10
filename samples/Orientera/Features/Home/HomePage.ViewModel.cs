@@ -21,7 +21,7 @@ public partial class HomePageViewModel(
     IParticipationSource _participation,
     ILiveSource _live,
     IProgressSource _progress,
-    CompetitionContextService _context) : ViewModelBase
+    CompetitionContextService _context) : OrienteraViewModel
 {
     /// <summary>Hem has few large blocks, not a dense dashboard.</summary>
     private const int MaxBlocks = 4;
@@ -36,14 +36,24 @@ public partial class HomePageViewModel(
         if (PageActions.Count == 0)
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
 
-        await BuildAsync();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        await LoadAsync(BuildAsync);
+
+        if (IsOffline)
+            Blocks.Clear();
+
+        HasContent = Blocks.Count > 0;
     }
 
     [RelayCommand]
     private async Task OpenTimeMachine()
     {
         await _navigation.NavigateToAsync<TimeMachineSheet>();
-        await BuildAsync();
+        await ReloadAsync();
     }
 
     [RelayCommand]

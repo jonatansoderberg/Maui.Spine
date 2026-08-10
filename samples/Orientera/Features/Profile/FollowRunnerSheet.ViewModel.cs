@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Orientera.Domain;
+using Orientera.Presentation;
 using Orientera.Services.Sources;
 
 namespace Orientera.Features.Profile;
@@ -22,7 +23,7 @@ public sealed partial class SearchResultRow : ObservableObject
 /// Min grupp is a private list, so this is a plain search over public people — no requests,
 /// no mutual consent, nothing shared back.
 /// </summary>
-public partial class FollowRunnerSheetViewModel(IPeopleSource _people) : ViewModelBase
+public partial class FollowRunnerSheetViewModel(IPeopleSource _people) : OrienteraViewModel
 {
     private IReadOnlySet<PersonId> _followed = new HashSet<PersonId>();
 
@@ -60,7 +61,9 @@ public partial class FollowRunnerSheetViewModel(IPeopleSource _people) : ViewMod
         _followed = group.Select(f => f.Person.Id).ToHashSet();
     }
 
-    private async Task SearchAsync()
+    private Task SearchAsync() => LoadAsync(RunSearchAsync);
+
+    private async Task RunSearchAsync()
     {
         // An empty query lists the district rather than showing a blank sheet.
         var matches = string.IsNullOrWhiteSpace(Query)

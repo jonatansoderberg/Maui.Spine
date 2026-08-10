@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using Orientera.Domain;
+using Orientera.Presentation;
 using Orientera.Services.Context;
 using Orientera.Services.FakeData;
+using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 
@@ -28,7 +30,9 @@ public sealed partial class LifecycleStop : ObservableObject
 public partial class TimeMachineSheetViewModel(
     TimeMachineClock _clock,
     IEventSource _events,
-    CompetitionContextService _context) : ViewModelBase
+    ConnectivitySwitch _connectivity,
+    OfflinePackageService _offline,
+    CompetitionContextService _context) : OrienteraViewModel
 {
     private Competition? _tracked;
 
@@ -49,12 +53,22 @@ public partial class TimeMachineSheetViewModel(
     [ObservableProperty]
     public partial bool IsShifted { get; set; }
 
+    [ObservableProperty]
+    public partial string OfflineLabel { get; set; } = string.Empty;
+
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
-        _tracked = await _events.GetCompetitionAsync(FakeDataset.NmLongId);
+        await LoadAsync(async () => _tracked = await _events.GetCompetitionAsync(FakeDataset.NmLongId));
 
         if (_tracked is null)
+        {
+            NowLabel = _clock.Now.ToString("dddd d MMMM yyyy, HH:mm");
+            OfflineLabel = _connectivity.IsOffline ? "Gå online igen" : "Simulera offline";
+            TrackedName = "Norrlandsmästerskapen Lång";
+            StateLabel = "Offline";
+            ActionLabel = "Tävlingen kunde inte hämtas";
             return;
+        }
 
         TrackedName = _tracked.Name;
 
@@ -86,20 +100,48 @@ public partial class TimeMachineSheetViewModel(
         await RefreshAsync();
     }
 
+    /// <summary>
+    /// Cuts the app off from its sources so the offline package and the fallback states can be
+    /// exercised without unplugging anything.
+    /// </summary>
+    [RelayCommand]
+    private async Task ToggleOffline()
+    {
+        // Refresh the stored packages before going dark, so there is something to fall back to.
+        if (!_connectivity.IsOffline)
+            await _offline.RefreshRelevantAsync();
+
+        _connectivity.Toggle();
+        await RefreshAsync();
+    }
+
     private async Task RefreshAsync()
     {
         NowLabel = _clock.Now.ToString("dddd d MMMM yyyy, HH:mm");
         IsShifted = _clock.IsShifted;
+        OfflineLabel = _connectivity.IsOffline ? "Gå online igen" : "Simulera offline";
 
         if (_tracked is null)
             return;
 
-        var decision = await _context.EvaluateAsync(_tracked);
-        StateLabel = decision.StateText;
-        ActionLabel = decision.PrimaryActionText;
+        if (await LoadAsync(async () =>
+            {
+                var decision = await _context.EvaluateAsync(_tracked);
+                StateLabel = decision.StateText;
+                ActionLabel = decision.PrimaryActionText;
+
+                foreach (var stop in Stops)
+                    stop.IsCurrent = stop.ExpectedState == decision.State;
+            }))
+        {
+            return;
+        }
+
+        StateLabel = "Offline";
+        ActionLabel = "Kontexten beräknas när anslutningen är tillbaka";
 
         foreach (var stop in Stops)
-            stop.IsCurrent = stop.ExpectedState == decision.State;
+            stop.IsCurrent = false;
     }
 
     /// <summary>
