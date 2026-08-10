@@ -5,9 +5,69 @@
     x:TypeArguments="ResultsPageViewModel"
     x:DataType="ResultsPageViewModel">
 
-    <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Resultat" FontSize="22" FontAttributes="Bold" />
-        <Label Text="Placeholder — Översikt / Sträckor / Analys (WinSplits++) byggs i M0 etapp 4." />
-    </VerticalStackLayout>
+    <Grid>
+
+        <VerticalStackLayout Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsEmpty}">
+            <Label Style="{StaticResource Heading2Label}" HorizontalTextAlignment="Center" Text="Inga resultat ännu" />
+            <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center"
+                   Text="Dina resultat dyker upp här när de publicerats." />
+        </VerticalStackLayout>
+
+        <CollectionView ItemsSource="{Binding Results}" SelectionMode="None" IsVisible="{Binding HasResults}">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="8" />
+            </CollectionView.ItemsLayout>
+
+            <CollectionView.Footer>
+                <BoxView HeightRequest="16" Color="Transparent" />
+            </CollectionView.Footer>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="MyResultRow">
+                    <Grid Padding="16,0">
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+
+                                <Label Grid.Column="0"
+                                       Style="{StaticResource DisplayNumberLabel}"
+                                       VerticalOptions="Center"
+                                       Text="{Binding PlaceText}" />
+
+                                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                    <Label Style="{StaticResource Heading2Label}" Text="{Binding Name}" />
+                                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
+                                    <HorizontalStackLayout Spacing="6">
+                                        <Border Style="{StaticResource Badge}" IsVisible="{Binding HasSplits}">
+                                            <Label Style="{StaticResource BadgeLabel}" Text="Sträcktider" />
+                                        </Border>
+                                        <Border Style="{StaticResource BadgeAccent}" IsVisible="{Binding IsPreliminary}">
+                                            <Label Style="{StaticResource BadgeAccentLabel}" Text="Preliminärt" />
+                                        </Border>
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+
+                                <VerticalStackLayout Grid.Column="2" Spacing="2" VerticalOptions="Center">
+                                    <Label Style="{StaticResource NumericHeading2Label}"
+                                           HorizontalTextAlignment="End"
+                                           Text="{Binding TimeText}" />
+                                    <Label Style="{StaticResource NumericCaptionLabel}"
+                                           HorizontalTextAlignment="End"
+                                           TextColor="{DynamicResource NegativeDelta}"
+                                           Text="{Binding BehindText}" />
+                                </VerticalStackLayout>
+                            </Grid>
+
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenResultCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
 
 </SpinePage>

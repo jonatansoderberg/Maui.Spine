@@ -1,4 +1,9 @@
+using Orientera.Domain;
+
 namespace Orientera.Features.Events;
 
-[NavigableRegion(Title = "Tävlingsdetaljer")]
-public partial class EventDetailsPage { public EventDetailsPage() => InitializeComponent(); }
+[NavigableRegion(Title = "Tävling")]
+public partial class EventDetailsPage : INavigableWithParameter<CompetitionId>
+{
+    public EventDetailsPage() => InitializeComponent();
+}

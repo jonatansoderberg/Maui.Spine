@@ -132,6 +132,11 @@ public static class RelevanceEngine
 
     public static double TemporalScore(Competition competition, RelevanceContext context)
     {
+        // A competition that is running right now is as timely as it gets — without this it
+        // would fall into the decay branch below and rank under tomorrow's events.
+        if (context.Now >= competition.FirstStart && context.Now < competition.LastFinish)
+            return 1.0;
+
         double daysAway = (competition.FirstStart - context.Now).TotalDays;
 
         // The past decays fast — a week-old competition is nearly irrelevant in a calendar.

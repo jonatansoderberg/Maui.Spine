@@ -18,6 +18,9 @@ public sealed class FakeDataSource(IClock _clock)
     private readonly FakeDataset _data = FakeDataset.Instance;
     private readonly List<FollowedPerson> _myGroup = [.. FakeDataset.Instance.MyGroup];
 
+    // Local favourites, no account needed. In-memory for M0; SQLite from M1.
+    private readonly HashSet<CompetitionId> _favourites = [FakeDataset.DmSprintId, FakeDataset.HosttraffenId];
+
     // ---------------------------------------------------------------- IEventSource
 
     public Task<IReadOnlyList<Competition>> GetCompetitionsAsync(CancellationToken cancellationToken = default) =>
@@ -31,6 +34,19 @@ public sealed class FakeDataSource(IClock _clock)
 
     public Task<Series?> GetSeriesAsync(SeriesId id, CancellationToken cancellationToken = default) =>
         Task.FromResult(_data.Series.FirstOrDefault(s => s.Id == id));
+
+    public Task<IReadOnlySet<CompetitionId>> GetFavouritesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlySet<CompetitionId>>(_favourites);
+
+    public Task<bool> ToggleFavouriteAsync(CompetitionId competition, CancellationToken cancellationToken = default)
+    {
+        bool added = _favourites.Add(competition);
+
+        if (!added)
+            _favourites.Remove(competition);
+
+        return Task.FromResult(added);
+    }
 
     // ---------------------------------------------------------------- IPeopleSource
 

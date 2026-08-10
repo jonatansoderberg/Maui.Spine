@@ -16,6 +16,11 @@ public interface IEventSource
     Task<Course?> GetCourseAsync(CompetitionId id, string className, CancellationToken cancellationToken = default);
 
     Task<Series?> GetSeriesAsync(SeriesId id, CancellationToken cancellationToken = default);
+
+    /// <summary>Locally starred competitions — works without an account, per the product principles.</summary>
+    Task<IReadOnlySet<CompetitionId>> GetFavouritesAsync(CancellationToken cancellationToken = default);
+
+    Task<bool> ToggleFavouriteAsync(CompetitionId competition, CancellationToken cancellationToken = default);
 }
 
 public interface IPeopleSource

@@ -1,0 +1,220 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Results.ResultsDetailPage"
+    x:TypeArguments="ResultsDetailPageViewModel"
+    x:DataType="ResultsDetailPageViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Översikt / Sträckor / Analys -->
+        <HorizontalStackLayout Grid.Row="0" Spacing="8" Padding="16,4,16,10" IsVisible="{Binding HasResult}">
+            <ChipView Text="Översikt" IsSelected="{Binding IsOverview}"
+                      Command="{Binding SelectTabCommand}" CommandParameter="Overview" />
+            <ChipView Text="Sträckor" IsSelected="{Binding IsLegs}" IsEnabled="{Binding HasSplits}"
+                      Command="{Binding SelectTabCommand}" CommandParameter="Legs" />
+            <ChipView Text="Analys" IsSelected="{Binding IsAnalysis}" IsEnabled="{Binding HasSplits}"
+                      Command="{Binding SelectTabCommand}" CommandParameter="Analysis" />
+        </HorizontalStackLayout>
+
+        <!-- Inget resultat ännu -->
+        <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="8" VerticalOptions="Center">
+            <VerticalStackLayout.Triggers>
+                <DataTrigger TargetType="VerticalStackLayout" Binding="{Binding HasResult}" Value="True">
+                    <Setter Property="IsVisible" Value="False" />
+                </DataTrigger>
+            </VerticalStackLayout.Triggers>
+            <Label Style="{StaticResource Heading2Label}" HorizontalTextAlignment="Center" Text="Inget resultat ännu" />
+            <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center" Text="{Binding EmptyMessage}" />
+        </VerticalStackLayout>
+
+        <ScrollView Grid.Row="1" IsVisible="{Binding HasResult}">
+            <VerticalStackLayout Padding="16,0,16,24" Spacing="16">
+
+                <!-- ============ Översikt ============ -->
+                <VerticalStackLayout Spacing="12" IsVisible="{Binding IsOverview}">
+
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Style="{StaticResource SectionLabel}" Text="{Binding ClassLine}" />
+
+                            <HorizontalStackLayout Spacing="10" VerticalOptions="End">
+                                <Label Style="{StaticResource DisplayNumberLabel}" Text="{Binding PlaceText}" />
+                                <Label Style="{StaticResource NumericCaptionLabel}"
+                                       VerticalOptions="End" Margin="0,0,0,6"
+                                       Text="{Binding PlaceOfText}" />
+                            </HorizontalStackLayout>
+
+                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                <VerticalStackLayout Grid.Column="0">
+                                    <Label Style="{StaticResource CaptionLabel}" Text="Tid" />
+                                    <Label Style="{StaticResource NumericHeading2Label}" Text="{Binding TimeText}" />
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="1">
+                                    <Label Style="{StaticResource CaptionLabel}" Text="Efter vinnaren" />
+                                    <Label Style="{StaticResource NumericHeading2Label}"
+                                           TextColor="{DynamicResource NegativeDelta}"
+                                           Text="{Binding BehindText}" />
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="2">
+                                    <Label Style="{StaticResource CaptionLabel}" Text="Status" />
+                                    <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding StatusText}" />
+                                </VerticalStackLayout>
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Prognos mot utfall -->
+                    <Border Style="{StaticResource Card}" IsVisible="{Binding HasPrediction}">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Style="{StaticResource SectionLabel}" Text="Prognos mot utfall" />
+                            <HorizontalStackLayout Spacing="10">
+                                <Label Style="{StaticResource BodyStrongLabel}"
+                                       TextColor="{DynamicResource EstimateInk}"
+                                       Text="{Binding PredictionText}" />
+                                <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding PredictionOutcomeText}">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding BeatPrediction}" Value="True">
+                                            <Setter Property="TextColor" Value="{DynamicResource PositiveDelta}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </HorizontalStackLayout>
+                            <Label Style="{StaticResource CaptionLabel}" Text="Tryck för att se vad prognosen byggde på." />
+
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding OpenPredictionCommand}" />
+                            </Border.GestureRecognizers>
+                        </VerticalStackLayout>
+                    </Border>
+
+                </VerticalStackLayout>
+
+                <!-- ============ Sträckor ============ -->
+                <VerticalStackLayout Spacing="4" IsVisible="{Binding IsLegs}">
+
+                    <Grid ColumnDefinitions="72,*,44,44,72" Padding="14,0,14,6" ColumnSpacing="6">
+                        <Label Grid.Column="0" Style="{StaticResource SectionLabel}" Text="Kontroll" />
+                        <Label Grid.Column="1" Style="{StaticResource SectionLabel}" Text="Tid" />
+                        <Label Grid.Column="2" Style="{StaticResource SectionLabel}" Text="Str" />
+                        <Label Grid.Column="3" Style="{StaticResource SectionLabel}" Text="Tot" />
+                        <Label Grid.Column="4" Style="{StaticResource SectionLabel}" HorizontalTextAlignment="End" Text="Tapp" />
+                    </Grid>
+
+                    <Border Style="{StaticResource Card}" Padding="0">
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Legs}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="LegRow">
+                                    <VerticalStackLayout>
+                                        <Grid ColumnDefinitions="72,*,44,44,72" Padding="14,8" ColumnSpacing="6">
+                                            <Label Grid.Column="0" Style="{StaticResource NumericCaptionLabel}"
+                                                   VerticalOptions="Center" Text="{Binding Control}" />
+                                            <Label Grid.Column="1" Style="{StaticResource NumericStrongLabel}"
+                                                   VerticalOptions="Center" Text="{Binding LegTime}" />
+                                            <Label Grid.Column="2" Style="{StaticResource NumericCaptionLabel}"
+                                                   VerticalOptions="Center" Text="{Binding LegPlace}" />
+                                            <Label Grid.Column="3" Style="{StaticResource NumericCaptionLabel}"
+                                                   VerticalOptions="Center" Text="{Binding PositionAfter}" />
+                                            <Label Grid.Column="4" Style="{StaticResource NumericStrongLabel}"
+                                                   HorizontalTextAlignment="End" VerticalOptions="Center"
+                                                   Text="{Binding Loss}">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsLikelyMistake}" Value="True">
+                                                        <Setter Property="TextColor" Value="{DynamicResource NegativeDelta}" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                        </Grid>
+
+                                        <!-- Modellerad bedömning, tydligt separerad från mätdata -->
+                                        <Label Style="{StaticResource CaptionLabel}"
+                                               TextColor="{DynamicResource EstimateInk}"
+                                               Padding="14,0,14,8"
+                                               IsVisible="{Binding IsLikelyMistake}"
+                                               Text="{Binding MistakeText}" />
+
+                                        <BoxView Style="{StaticResource Divider}" />
+                                    </VerticalStackLayout>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+
+                <!-- ============ Analys ============ -->
+                <VerticalStackLayout Spacing="12" IsVisible="{Binding IsAnalysis}">
+
+                    <Border Style="{StaticResource Card}" IsVisible="{Binding HasMistakes}">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Style="{StaticResource SectionLabel}" Text="Största tapp" />
+                            <Label Style="{StaticResource Heading1Label}" Text="{Binding BiggestLossControl}" />
+                            <Label Style="{StaticResource BodyStrongLabel}"
+                                   TextColor="{DynamicResource EstimateInk}"
+                                   Text="{Binding BiggestLossText}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Style="{StaticResource SectionLabel}" Text="Uppskattat" />
+
+                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                                <VerticalStackLayout Grid.Column="0">
+                                    <Label Style="{StaticResource CaptionLabel}" Text="Bomtid" />
+                                    <Label Style="{StaticResource NumericHeading2Label}"
+                                           TextColor="{DynamicResource EstimateInk}"
+                                           Text="{Binding TotalMistakeText}" />
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="1">
+                                    <Label Style="{StaticResource CaptionLabel}" Text="Utan bommar" />
+                                    <Label Style="{StaticResource NumericHeading2Label}"
+                                           TextColor="{DynamicResource EstimateInk}"
+                                           Text="{Binding TheoreticalTimeText}" />
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="2">
+                                    <Label Style="{StaticResource CaptionLabel}" Text="Stabilitet" />
+                                    <Label Style="{StaticResource NumericHeading2Label}" Text="{Binding StabilityText}" />
+                                </VerticalStackLayout>
+                            </Grid>
+
+                            <Label Style="{StaticResource CaptionLabel}"
+                                   Text="Bomtid och tiden utan bommar är beräknade, inte uppmätta. De utgår från din egen fart på övriga sträckor." />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Button Style="{StaticResource SecondaryButton}"
+                            Text="{Binding CompareTargetText}"
+                            Command="{Binding CompareCommand}" />
+
+                    <Border Style="{StaticResource Card}" Padding="0" IsVisible="{Binding Comparison.Count}">
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Comparison}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="ComparisonRow">
+                                    <Grid ColumnDefinitions="76,*,*,72" Padding="14,7" ColumnSpacing="6">
+                                        <Label Grid.Column="0" Style="{StaticResource NumericCaptionLabel}" Text="{Binding Label}" />
+                                        <Label Grid.Column="1" Style="{StaticResource NumericLabel}" Text="{Binding Mine}" />
+                                        <Label Grid.Column="2" Style="{StaticResource NumericCaptionLabel}" Text="{Binding Theirs}" />
+                                        <Label Grid.Column="3" Style="{StaticResource NumericStrongLabel}"
+                                               HorizontalTextAlignment="End"
+                                               TextColor="{DynamicResource PositiveDelta}"
+                                               Text="{Binding Delta}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsBehind}" Value="True">
+                                                    <Setter Property="TextColor" Value="{DynamicResource NegativeDelta}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                    </Grid>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </Border>
+
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+    </Grid>
+
+</SpinePage>

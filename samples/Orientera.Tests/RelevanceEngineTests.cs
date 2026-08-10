@@ -158,6 +158,24 @@ public class RelevanceEngineTests
     }
 
     [Fact]
+    public void A_competition_running_right_now_is_maximally_timely()
+    {
+        // Without this the ongoing race falls into the "past" branch and ranks below tomorrow.
+        var ongoing = Make("ongoing", CompetitionLevel.Championship, Gavle, daysAway: 0) with
+        {
+            FirstStart = Now.AddHours(-2),
+            LastFinish = Now.AddHours(2),
+        };
+
+        var tomorrow = Make("tomorrow", CompetitionLevel.Championship, Gavle, daysAway: 1);
+
+        Assert.Equal(1.0, RelevanceEngine.TemporalScore(ongoing, Context()));
+        Assert.True(
+            RelevanceEngine.Score(ongoing, Context()).Total >=
+            RelevanceEngine.Score(tomorrow, Context()).Total);
+    }
+
+    [Fact]
     public void The_past_decays_below_anything_upcoming()
     {
         var lastWeek = Make("last-week", CompetitionLevel.Championship, Gavle, daysAway: -7);
