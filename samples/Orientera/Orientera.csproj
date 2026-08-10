@@ -50,8 +50,8 @@
 		<!-- Embedded SVGs (tab icons, resolved via the SvgIcon pipeline) -->
 		<EmbeddedResource Include="Resources\Svg\*.svg" />
 
-		<!-- Custom Fonts -->
-		<MauiFont Include="Resources\Fonts\*" />
+		<!-- Custom Fonts (Inter, SIL OFL 1.1 — see Resources\Fonts\Inter-OFL.txt) -->
+		<MauiFont Include="Resources\Fonts\*.ttf" />
 
 		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />

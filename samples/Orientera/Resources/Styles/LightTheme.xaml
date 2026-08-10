@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Resources.Styles.LightTheme">
+
+    <!--
+        Orientera design tokens — Light.
+        DarkTheme.xaml declares the exact same key set; ThemeManager swaps between them.
+        Consume tokens with {DynamicResource} so the swap propagates. Never use colour
+        literals in page XAML.
+        Locked values and their WCAG AA evidence: docs/design/design-system.md
+    -->
+
+    <!-- Surfaces -->
+    <Color x:Key="SurfacePage">#F7F7F5</Color>
+    <Color x:Key="SurfaceCard">#FFFFFF</Color>
+    <Color x:Key="SurfaceRaised">#FFFFFF</Color>
+    <Color x:Key="SurfaceSubtle">#F1F1EC</Color>
+
+    <!-- Lines -->
+    <Color x:Key="Outline">#E4E4E0</Color>
+    <Color x:Key="OutlineStrong">#D3D3CD</Color>
+
+    <!-- Text -->
+    <Color x:Key="TextPrimary">#1A1D21</Color>
+    <Color x:Key="TextSecondary">#5B6167</Color>
+    <Color x:Key="TextOnAccent">#FFFFFF</Color>
+
+    <!-- Accent -->
+    <Color x:Key="AccentAction">#C2410C</Color>
+    <Color x:Key="AccentSubtle">#FDF1EA</Color>
+
+    <!-- Semantics -->
+    <Color x:Key="PositiveDelta">#237D33</Color>
+    <Color x:Key="NegativeDelta">#C92A2A</Color>
+    <Color x:Key="EstimateInk">#9C36B5</Color>
+    <Color x:Key="MapInk">#8A7B5C</Color>
+
+    <!-- Elevation. Light cards carry a soft shadow; dark cards a hairline instead. -->
+    <x:Double x:Key="CardStrokeThickness">0</x:Double>
+    <Shadow x:Key="CardShadow" Brush="#1A1D21" Offset="0,2" Radius="12" Opacity="0.08" />
+
+    <!-- Brush projections — Border.Stroke takes a Brush, not a Color -->
+    <SolidColorBrush x:Key="OutlineBrush" Color="{StaticResource Outline}" />
+    <SolidColorBrush x:Key="OutlineStrongBrush" Color="{StaticResource OutlineStrong}" />
+    <SolidColorBrush x:Key="AccentActionBrush" Color="{StaticResource AccentAction}" />
+
+</ResourceDictionary>

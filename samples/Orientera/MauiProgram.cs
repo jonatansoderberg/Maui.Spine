@@ -25,11 +25,27 @@ public static class MauiProgram
                 options.Windows.MinWidth = 360;
                 options.Windows.MinHeight = 600;
                 options.Windows.PersistWindowPosition = true;
+
+                // #E8590C is the one orange that clears 3:1 against both the light and the
+                // dark native bar; the per-theme AccentAction tokens are tuned for text.
+                options.Tabs.Style = new SpineTabBarStyle
+                {
+                    SelectedColor = Color.FromArgb("#E8590C"),
+                };
             })
             .ConfigureFonts(fonts =>
             {
-                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+                fonts.AddFont("Inter-Regular.ttf", "Inter");
+                fonts.AddFont("Inter-Medium.ttf", "InterMedium");
+                fonts.AddFont("Inter-SemiBold.ttf", "InterSemiBold");
+                fonts.AddFont("Inter-Bold.ttf", "InterBold");
+
+                // Same Inter, with the OpenType `tnum` substitutions baked into cmap so
+                // digits are fixed-width — MAUI cannot enable font features at runtime.
+                fonts.AddFont("InterTabular-Regular.ttf", "InterTabular");
+                fonts.AddFont("InterTabular-Medium.ttf", "InterTabularMedium");
+                fonts.AddFont("InterTabular-SemiBold.ttf", "InterTabularSemiBold");
+                fonts.AddFont("InterTabular-Bold.ttf", "InterTabularBold");
             });
 
 #if DEBUG

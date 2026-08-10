@@ -1,8 +1,8 @@
 # Orientera — UI/UX-designprinciper (FÖRSLAG)
 
-> **Status: FÖRSLAG — ska stämmas av innan någon skarp implementation.**
+> **Status: AVSTÄMD 2026-08-10.** Principerna nedan är normativa. Besluten 1–5 är tagna —
+> se sammanfattningen i §9 och de låsta värdena i [design-system.md](design-system.md).
 > Baserat på spec v1.0 avsnitt 15 (UX/design och mockups) + Nordic Light/Dark-mockuperna (sid 21–24).
-> Beslut som behövs markeras ⬜.
 
 ## 1. Rekommenderad visuell riktning
 
@@ -19,7 +19,7 @@ Konkret:
 - **Tävlingsdetalj-hero + kart-vyer** → subtila Map-inslag: svaga höjdkurve-mönster/kartdetaljer som bakgrundstextur, aldrig som brus bakom text.
 - **Live, Resultat, Analys** → Performance: högre datatäthet, tabulära siffror, färgkodad förlust/vinst.
 
-⬜ **Beslut 1:** Godkänn riktningen Nordic + Map + Performance, eller välj en renodlad variant.
+✅ **Beslut 1:** Riktningen Nordic + Map + Performance godkänd.
 
 ## 2. Designprinciper (ur spec, normativa)
 
@@ -50,7 +50,7 @@ Systemtema som default; alla färger som tokens i Light + Dark (samma nyckelset,
 
 Nyckelidé: **modellerad data får en egen färg** (`EstimateInk`) så att observerat vs uppskattat aldrig förväxlas — det operationaliserar förklarbarhetsprincipen.
 
-⬜ **Beslut 2:** Godkänn tokenuppsättningen (namn + palettinriktning). Exakta nyanser justeras vid kontrastverifiering (WCAG AA mot respektive yta).
+✅ **Beslut 2:** Tokenuppsättningen godkänd. Fyra nyanser justerades vid kontrastverifieringen (`AccentAction`, `AccentSubtle`, `PositiveDelta`, `NegativeDelta` i light) — se [design-system.md](design-system.md#justeringar-mot-förslaget-wcag-aa).
 
 ## 4. Typografi
 
@@ -90,12 +90,14 @@ Nyckelidé: **modellerad data får en egen färg** (`EstimateInk`) så att obser
 
 ## 9. Avstämningspunkter innan skarp implementation
 
-| # | Beslut | Alternativ |
-|---|--------|-----------|
-| 1 | Visuell riktning | Nordic+Map+Performance (rek.) / renodlad Nordic / renodlad Performance |
-| 2 | Färgtokens & accent | Orange enligt förslag / justerad palett |
-| 3 | Typsnitt | Inter (rek.) / Manrope / systemfont |
-| 4 | Tabbikonografi | Punktmarkörer som i mockups / klassiska ikoner + text |
-| 5 | Namn/brand i M0 | "Orientera" + kompasslogga enligt PDF / placeholder tills SP-13 name clearance |
+Samtliga beslut togs 2026-08-10.
 
-När besluten är tagna kodifieras detta som design tokens i `Resources/Styles/` (Light/Dark-resurslexikon) och en `docs/design/design-system.md` med de låsta värdena.
+| # | Beslut | Utfall |
+|---|--------|--------|
+| 1 | Visuell riktning | **Nordic + Map + Performance** |
+| 2 | Färgtokens & accent | **Förslaget godkänt**, nyanser justerade endast där WCAG AA fallerade |
+| 3 | Typsnitt | **Inter**, med tabulära siffror i alla tider, placeringar och splits |
+| 4 | Tabbikonografi | **Klassiska ikoner + text** |
+| 5 | Namn/brand i M0 | **"Orientera" internt**, ingen store-facing branding (SP-13 kvarstår) |
+
+Kodifierat som design tokens i `Resources/Styles/` (Light/Dark-resurslexikon) och låsta värden i [design-system.md](design-system.md).

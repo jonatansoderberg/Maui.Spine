@@ -5,9 +5,13 @@
     x:TypeArguments="HomePageViewModel"
     x:DataType="HomePageViewModel">
 
-    <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Orientera" FontSize="28" FontAttributes="Bold" />
-        <Label Text="M0-scaffold — placeholder. Kontextstyrt Hem byggs efter designavstämning (se docs/design/designprinciper.md)." />
+    <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="12">
+        <Label Style="{StaticResource DisplayLabel}" Text="Orientera" />
+        <Label Style="{StaticResource BodySecondaryLabel}"
+               Text="M0-scaffold — det kontextstyrda Hem byggs i etapp 4 (docs/implementation-plan.md)." />
+        <Button Style="{StaticResource SecondaryButton}"
+                Text="Designsystem"
+                Command="{Binding OpenDesignSystemCommand}" />
     </VerticalStackLayout>
 
 </SpinePage>
