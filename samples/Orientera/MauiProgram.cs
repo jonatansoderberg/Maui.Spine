@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Orientera.Services.Context;
 using Orientera.Services.FakeData;
 using Orientera.Services.Local;
+using Orientera.Services.Notifications;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
@@ -115,6 +116,21 @@ public static class MauiProgram
         services.AddSingleton<OfflinePackageService>();
 
         services.AddSingleton<CompetitionContextService>();
+
+        // Notifications are planned from data the app already has, and delivered by whatever
+        // the platform offers.
+        services.AddSingleton(_ => new NotificationPreferencesStore(
+            Path.Combine(FileSystem.AppDataDirectory, "notifications.json")));
+
+#if IOS || MACCATALYST
+        services.AddSingleton<INotificationScheduler, AppleNotificationScheduler>();
+#elif ANDROID
+        services.AddSingleton<INotificationScheduler, AndroidNotificationScheduler>();
+#else
+        services.AddSingleton<INotificationScheduler, UnsupportedNotificationScheduler>();
+#endif
+
+        services.AddSingleton<NotificationService>();
 
     }
 }

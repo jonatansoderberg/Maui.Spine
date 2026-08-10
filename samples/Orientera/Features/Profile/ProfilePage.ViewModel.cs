@@ -80,6 +80,9 @@ public partial class ProfilePageViewModel(
     }
 
     [RelayCommand]
+    private async Task OpenNotifications() => await _navigation.NavigateToAsync<NotificationSheet>();
+
+    [RelayCommand]
     private async Task OpenIdentity()
     {
         await _navigation.NavigateToAsync<IdentitySheet>();

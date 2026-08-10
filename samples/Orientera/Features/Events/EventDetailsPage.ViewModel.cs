@@ -6,6 +6,7 @@ using Orientera.Presentation;
 using Orientera.Services.Context;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
+using Orientera.Services.Travel;
 using Orientera.Services.Time;
 
 namespace Orientera.Features.Events;
@@ -258,8 +259,9 @@ public partial class EventDetailsPageViewModel(
             ? $"Anmälan stänger {Format.RelativeDate(DateOnly.FromDateTime(competition.Schedule.EntryDeadline!.Value.Date), today)}"
             : string.Empty;
 
-        double distance = me.Home.DistanceKmTo(competition.Location);
-        TravelText = $"{Format.Distance(distance)} hemifrån · ca {Math.Round(distance / 70.0 * 60)} min";
+        double distance = TravelEstimate.DistanceKm(me.Home, competition.Location);
+        var duration = TravelEstimate.Duration(me.Home, competition.Location);
+        TravelText = $"{Format.Distance(distance)} hemifrån · ca {duration.TotalMinutes:0} min";
 
         var prediction = IsFromCache
             ? snapshot.Prediction

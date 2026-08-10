@@ -8,7 +8,7 @@ Din personliga orienteringsassistent — en verklig produkt och samtidigt ett av
 
 ## Status
 
-M0 och M1 är byggda; M2 pågår. Eventor och LiveResults ligger bakom
+M0, M1 och M2 är byggda. Eventor och LiveResults ligger bakom
 [Orientera.Backend](../Orientera.Backend/README.md), och appen kör mot dem eller mot fake-datat
 beroende på konfiguration.
 
