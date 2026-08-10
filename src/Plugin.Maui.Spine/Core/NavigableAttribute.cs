@@ -144,6 +144,90 @@ public sealed class NavigableRegionAttribute : NavigableAttribute
 }
 
 /// <summary>
+/// Marks a page as a region page that additionally roots a bottom tab.
+/// Apply this attribute to a class that derives from <see cref="SpinePage{TViewModel}"/>.
+/// When one or more <see cref="NavigableTabAttribute"/> pages are discovered, Spine hosts the app
+/// in a native tab host (<c>UITabBarController</c> on iOS/Mac Catalyst, Material
+/// <c>BottomNavigationView</c> on Android) with one navigation stack per tab.
+/// Inside its own stack a tab page behaves exactly like a <see cref="NavigableRegionAttribute"/> page.
+/// </summary>
+/// <example>
+/// <code>
+/// [NavigableTab(Title = "Home", Icon = "tab_home.svg", Order = 0)]
+/// public partial class HomePage { public HomePage() => InitializeComponent(); }
+/// </code>
+/// </example>
+public sealed class NavigableTabAttribute : NavigableAttribute
+{
+    /// <summary>
+    /// Initializes a new <see cref="NavigableTabAttribute"/>.
+    /// A tab's stack lives as long as the app, so <see cref="NavigableAttribute.Lifetime"/>
+    /// defaults to <see cref="ServiceLifetime.Singleton"/> (unlike the region default of Transient).
+    /// </summary>
+    public NavigableTabAttribute()
+        : base(NavigationPresentation.RegionPresentation)
+    {
+        Lifetime = ServiceLifetime.Singleton;
+    }
+
+    private NavigableTabAttribute(NavigableTabAttribute source, SpineOptions.TabDefaultsConfig defaults)
+        : base(source, defaults, NavigationPresentation.RegionPresentation)
+    {
+        Icon = source.Icon;
+        Order = source.Order;
+        TabTitle = source.TabTitle;
+        IsTitleBarVisible = source.IsTitleBarVisibleSet ? source.IsTitleBarVisible : defaults.IsTitleBarVisible;
+        SafeAreaEdges = source.SafeAreaEdgesSet ? source.SafeAreaEdges : defaults.SafeAreaEdges;
+    }
+
+    internal NavigableTabAttribute WithDefaults(SpineOptions.TabDefaultsConfig defaults) => new(this, defaults);
+
+    /// <summary>
+    /// Short SVG file name (e.g. <c>"tab_home.svg"</c>) rendered as the tab icon through the
+    /// SvgIcon pipeline. Must be an embedded resource in a registered assembly.
+    /// Icons should be monochrome/template-style — both platforms tint them natively for the
+    /// selected/unselected states. When <see langword="null"/> the tab renders text-only.
+    /// </summary>
+    public string? Icon { get; init; }
+
+    /// <summary>
+    /// Position of this tab in the tab bar. Required in practice: assembly scan order is
+    /// nondeterministic, so two tabs left at the default value fail startup validation
+    /// as duplicates.
+    /// </summary>
+    public int Order { get; init; }
+
+    /// <summary>
+    /// Label shown in the tab bar. Defaults to <see cref="NavigableAttribute.Title"/> when empty —
+    /// set this when the bar label should differ from the header-bar title.
+    /// </summary>
+    public string TabTitle { get; init; } = string.Empty;
+
+    /// <summary>The label rendered in the tab bar: <see cref="TabTitle"/>, falling back to <see cref="NavigableAttribute.Title"/>.</summary>
+    internal string EffectiveTabTitle => string.IsNullOrEmpty(TabTitle) ? Title : TabTitle;
+
+    private bool _isTitleBarVisibleSet;
+    /// <summary>
+    /// Whether the native window title bar is shown when this page is active (desktop only).
+    /// When not set the value is inherited from <see cref="SpineOptions.TabDefaultsConfig.IsTitleBarVisible"/>.
+    /// </summary>
+    public bool IsTitleBarVisible { get => field; set { field = value; _isTitleBarVisibleSet = true; } }
+    internal bool IsTitleBarVisibleSet => _isTitleBarVisibleSet;
+
+    private bool _safeAreaEdgesSet;
+    /// <summary>
+    /// The edges on which Spine applies system-bar padding (safe area) for this page.
+    /// Inside a tab host the bottom inset includes the native tab bar, so pages that include
+    /// <see cref="SafeAreaEdges.Bottom"/> are padded above the bar while pages that exclude it
+    /// render behind the bar (required for the iOS 26 Liquid Glass look) — use
+    /// <see cref="Plugin.Maui.Spine.Core.ViewModelBase.SafeAreaInsets"/> to offset your content.
+    /// When not set the value is inherited from <see cref="SpineOptions.TabDefaultsConfig.SafeAreaEdges"/>.
+    /// </summary>
+    public SafeAreaEdges SafeAreaEdges { get => field; set { field = value; _safeAreaEdgesSet = true; } }
+    internal bool SafeAreaEdgesSet => _safeAreaEdgesSet;
+}
+
+/// <summary>
 /// Marks a page as a bottom-sheet modal that Spine presents using the platform sheet API.
 /// Apply this attribute to a class that derives from <see cref="SpinePage{TViewModel}"/>.
 /// </summary>

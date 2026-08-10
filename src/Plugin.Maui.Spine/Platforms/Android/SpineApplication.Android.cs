@@ -30,8 +30,9 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
     /// <summary>
     /// Opts the window into edge-to-edge layout and attaches the <see cref="SystemInsetsProvider"/>
-    /// to the host page so system bar measurements are captured. Safe-area padding for individual
-    /// pages is handled by <see cref="NavigationRegion"/> via the provider's <c>InsetsChanged</c> event.
+    /// to the host's native view(s) so system bar measurements are captured. Safe-area padding for
+    /// individual pages is handled by <see cref="NavigationRegion"/> via the provider's
+    /// <c>InsetsChanged</c> event.
     /// </summary>
     private void InitializeEdgeToEdge()
     {
@@ -39,10 +40,19 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         if (Platform.CurrentActivity?.Window is { } activityWindow)
             WindowCompat.SetDecorFitsSystemWindows(activityWindow, false);
 
-        // Resolve the Android SystemInsetsProvider and attach it to the host page's native view.
         var insetsProvider = _services.GetRequiredService<ISystemInsetsProvider>() as SystemInsetsProvider;
-        if (insetsProvider is not null)
-            _host.InitializeEdgeToEdgeInsets(insetsProvider);
+        if (insetsProvider is null)
+            return;
+
+        switch (_host)
+        {
+            case SpineHostPage hostPage:
+                hostPage.InitializeEdgeToEdgeInsets(insetsProvider);
+                break;
+            case SpineTabbedHostPage tabbedHost:
+                tabbedHost.InitializeEdgeToEdgeInsets(insetsProvider);
+                break;
+        }
     }
 
     /// <summary>
@@ -68,11 +78,10 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         if (Platform.CurrentActivity is not AndroidX.AppCompat.App.AppCompatActivity activity)
             return;
 
-        if (_host.RootNavigationRegion.BindingContext is not NavigationRegionViewModel rootVm)
-            return;
-
         if (_host.SheetNavigationRegion.BindingContext is not NavigationRegionViewModel sheetVm)
             return;
+
+        NavigationRegionViewModel RootVm() => (NavigationRegionViewModel)_host.RootNavigationRegion.BindingContext;
 
         var callback = new SpineRegionBackCallback(() =>
         {
@@ -88,19 +97,47 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                 return;
             }
 
-            rootVm.BackAsync().SafeFireAndForget();
+            var rootVm = RootVm();
+            if (rootVm.BackEnabled())
+            {
+                rootVm.BackAsync().SafeFireAndForget();
+                return;
+            }
+
+            // At the active region's root: the tab host may still switch to the first tab
+            // (TabRootBackBehavior.SwitchToFirstTab).
+            _host.TryHandleRootBack();
         });
 
-        // Enabled when the root region can navigate back OR when a sheet is active
-        // so that back presses are not silently swallowed by the Activity default path.
+        // Enabled when the active region can navigate back, a sheet is active, or the tab host
+        // can still handle root back — otherwise back presses leave the app via the default path.
         void UpdateEnabled() =>
-            callback.Enabled = rootVm.BackEnabled()
-                || BottomSheetPageExtensions.ActiveBottomSheetDismiss is not null;
+            callback.Enabled = RootVm().BackEnabled()
+                || BottomSheetPageExtensions.ActiveBottomSheetDismiss is not null
+                || _host.CanHandleRootBack;
 
+        // The active region changes on tab switches — keep the CanExecuteChanged subscription
+        // pointed at the current region's back command.
+        NavigationRegionViewModel? subscribedVm = null;
+        void Resubscribe()
+        {
+            if (subscribedVm is not null)
+                subscribedVm.BackCommand.CanExecuteChanged -= OnBackCanExecuteChanged;
+
+            subscribedVm = RootVm();
+            subscribedVm.BackCommand.CanExecuteChanged += OnBackCanExecuteChanged;
+        }
+        void OnBackCanExecuteChanged(object? sender, EventArgs e) => UpdateEnabled();
+
+        Resubscribe();
         UpdateEnabled();
-        rootVm.BackCommand.CanExecuteChanged  += (_, _) => UpdateEnabled();
         sheetVm.BackCommand.CanExecuteChanged += (_, _) => UpdateEnabled();
         BottomSheetPageExtensions.ActiveBottomSheetChanged += UpdateEnabled;
+        _host.ActiveRegionChanged += () =>
+        {
+            Resubscribe();
+            UpdateEnabled();
+        };
 
         activity.OnBackPressedDispatcher.AddCallback(activity, callback);
     }

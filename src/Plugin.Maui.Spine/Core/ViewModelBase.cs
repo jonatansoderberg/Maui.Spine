@@ -127,6 +127,13 @@ public abstract partial class ViewModelBase : ObservableObject
     public virtual Task<bool> OnCloseRequestedAsync() => Task.FromResult(true);
 
     /// <summary>
+    /// Called on a tab root's ViewModel when its already-active tab is re-selected while the
+    /// stack is at the root. Override for scroll-to-top handling. Only invoked for pages
+    /// decorated with <see cref="NavigableTabAttribute"/>.
+    /// </summary>
+    public virtual Task OnTabReselectedAsync() => Task.CompletedTask;
+
+    /// <summary>
     /// Holds the pending <see cref="TaskCompletionSource{T}"/> for an in-progress
     /// <c>NavigateToWithResultAsync</c> call targeting this page.  Managed by
     /// <c>NavigationService</c> and <c>NavigationRegionViewModel</c>.

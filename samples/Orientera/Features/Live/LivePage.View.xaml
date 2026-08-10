@@ -1,0 +1,13 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Live.LivePage"
+    x:TypeArguments="LivePageViewModel"
+    x:DataType="LivePageViewModel">
+
+    <VerticalStackLayout Padding="24" Spacing="12">
+        <Label Text="Live" FontSize="22" FontAttributes="Bold" />
+        <Label Text="Placeholder — Följ mig / Min grupp / min klass med simulerad 15 s-uppdatering byggs i M0 etapp 4." />
+    </VerticalStackLayout>
+
+</SpinePage>

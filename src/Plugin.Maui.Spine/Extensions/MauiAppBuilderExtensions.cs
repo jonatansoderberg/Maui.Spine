@@ -51,6 +51,9 @@ public static partial class SpineExtensions
         services.AddSingleton<ISpineTransitions, DefaultSpineTransitions>();
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ISystemInsetsProvider, SystemInsetsProvider>();
+        services.AddSingleton<SpineHostProvider>();
+        services.AddSingleton<TabBadgeService>();
+        services.AddSingleton<ITabBadgeService>(sp => sp.GetRequiredService<TabBadgeService>());
 
         services.AddTransient<NavigationRegionViewModel>();
 
@@ -76,14 +79,52 @@ public static partial class SpineExtensions
             var registry = sp.GetRequiredService<NavigationRegistry>();
             var rootRegion = sp.GetRequiredService<NavigationRegion>();
             var bottomSheetRegion = sp.GetRequiredKeyedService<NavigationRegion>(BottomSheetRegionKey);
+            var hostProvider = sp.GetRequiredService<SpineHostProvider>();
 
-            var page = new SpineHostPage(registry, rootRegion, bottomSheetRegion)
+            var page = new SpineHostPage(registry, rootRegion, bottomSheetRegion, hostProvider)
             {
                 AppTitle = options.AppTitle,
                 BottomSheetBackdrop = options.Windows.BottomSheetBackdrop
             };
 
             return page;
+        });
+
+        services.AddSingleton<SpineTabbedHostPage>(sp =>
+        {
+            var page = new SpineTabbedHostPage(
+                sp.GetRequiredService<NavigationRegistry>(),
+                sp.GetRequiredService<SpineOptions>(),
+                sp.GetRequiredService<ISpineTransitions>(),
+                sp.GetRequiredService<ISystemInsetsProvider>(),
+                sp.GetRequiredKeyedService<NavigationRegion>(BottomSheetRegionKey),
+                sp.GetRequiredService<SpineHostProvider>(),
+                sp.GetRequiredService<TabBadgeService>(),
+                sp.GetRequiredService<Plugin.Maui.SvgImage.ResourceNameCache>(),
+                sp)
+            {
+                AppTitle = options.AppTitle,
+                BottomSheetBackdrop = options.Windows.BottomSheetBackdrop
+            };
+
+            return page;
+        });
+
+        // The window root: the tab host when [NavigableTab] pages were discovered, otherwise the
+        // plain single-region host. SpineHostProvider allows runtime swaps (logout → login).
+        services.AddSingleton<ISpineHost>(sp =>
+        {
+            var hostProvider = sp.GetRequiredService<SpineHostProvider>();
+            if (hostProvider.Current is not null)
+                return hostProvider.Current;
+
+            var registry = sp.GetRequiredService<NavigationRegistry>();
+            ISpineHost host = registry.Tabs.Count > 0
+                ? sp.GetRequiredService<SpineTabbedHostPage>()
+                : sp.GetRequiredService<SpineHostPage>();
+
+            hostProvider.SetCurrent(host);
+            return host;
         });
 
         if (options.Assemblies.Count == 0)

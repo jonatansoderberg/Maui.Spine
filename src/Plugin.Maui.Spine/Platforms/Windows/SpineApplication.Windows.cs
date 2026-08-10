@@ -121,23 +121,23 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         {
             if (isVisible)
             {
-                if (Math.Abs(_host.Padding.Top - 0) < 0.1 && _titleBar.Opacity >= 0.99)
+                if (Math.Abs(_host.HostPage.Padding.Top - 0) < 0.1 && _titleBar.Opacity >= 0.99)
                     return;
 
-                _host.Padding = new Microsoft.Maui.Thickness(0, -32, 0, 0);
+                _host.HostPage.Padding = new Microsoft.Maui.Thickness(0, -32, 0, 0);
                 _titleBar.Opacity = 0;
 
                 await Task.WhenAll(
-                    AnimatePaddingTopAsync(_host, -32, 0, 100, Easing.CubicOut),
+                    AnimatePaddingTopAsync(_host.HostPage, -32, 0, 100, Easing.CubicOut),
                     _titleBar.FadeToAsync(1, 100, Easing.CubicOut));
             }
             else
             {
-                if (Math.Abs(_host.Padding.Top - (-32)) < 0.1 && _titleBar.Opacity <= 0.01)
+                if (Math.Abs(_host.HostPage.Padding.Top - (-32)) < 0.1 && _titleBar.Opacity <= 0.01)
                     return;
 
                 await Task.WhenAll(
-                    AnimatePaddingTopAsync(_host, 0, -32, 100, Easing.CubicIn),
+                    AnimatePaddingTopAsync(_host.HostPage, 0, -32, 100, Easing.CubicIn),
                     _titleBar.FadeToAsync(0, 100, Easing.CubicIn));
             }
         }
@@ -147,7 +147,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         }
     }
 
-    private Task AnimatePaddingTopAsync(SpineHostPage host, double from, double to, uint length, Easing easing)
+    private Task AnimatePaddingTopAsync(Page host, double from, double to, uint length, Easing easing)
     {
         var tcs = new TaskCompletionSource<bool>();
 
@@ -488,7 +488,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         // When a system backdrop is active the host page's background colour (set by the
         // app's ContentPage style) would paint over the entire window, hiding the effect.
         // Clearing it to Transparent lets the Mica / Acrylic material show through.
-        _host.BackgroundColor = backdrop == WindowBackdrop.None
+        _host.HostPage.BackgroundColor = backdrop == WindowBackdrop.None
             ? null          // restore default so the app style takes effect again
             : Colors.Transparent;
     }
