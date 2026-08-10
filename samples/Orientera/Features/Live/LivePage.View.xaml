@@ -40,10 +40,21 @@
         </VerticalStackLayout>
 
         <!-- Högre datatäthet än Hem: tabulära siffror och kompakta rader -->
-        <CollectionView Grid.Row="2" Margin="16,0" ItemsSource="{Binding Rows}" SelectionMode="None">
+        <CollectionView Grid.Row="2" Margin="16,0" ItemsSource="{Binding Groups}"
+                        IsGrouped="True" SelectionMode="None">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Vertical" ItemSpacing="4" />
             </CollectionView.ItemsLayout>
+
+            <CollectionView.GroupHeaderTemplate>
+                <DataTemplate x:DataType="LiveClassGroup">
+                    <Label Style="{StaticResource SectionLabel}"
+                           Margin="0,12,0,4"
+                           SemanticProperties.HeadingLevel="Level2"
+                           SemanticProperties.Description="{Binding Accessibility}"
+                           Text="{Binding Name}" />
+                </DataTemplate>
+            </CollectionView.GroupHeaderTemplate>
 
             <CollectionView.Footer>
                 <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
@@ -68,15 +79,9 @@
                                            VerticalOptions="Center"
                                            Text="{Binding GroupGlyph}" />
                                 </HorizontalStackLayout>
-                                <Label Style="{StaticResource CaptionLabel}">
-                                    <Label.FormattedText>
-                                        <FormattedString>
-                                            <Span Text="{Binding Club}" />
-                                            <Span Text=" · " />
-                                            <Span Text="{Binding Class}" />
-                                        </FormattedString>
-                                    </Label.FormattedText>
-                                </Label>
+                                <!-- The class is the group heading; repeating it on every row
+                                     is noise. It stays in the row's spoken description. -->
+                                <Label Style="{StaticResource CaptionLabel}" Text="{Binding Club}" />
                             </VerticalStackLayout>
 
                             <VerticalStackLayout Grid.Column="2" Spacing="1" VerticalOptions="Center">

@@ -67,6 +67,14 @@ public sealed partial class LiveRow : ObservableObject
     }
 }
 
+/// <summary>One class' rows, with the class as the list's heading.</summary>
+public sealed class LiveClassGroup(string _name) : ObservableCollection<LiveRow>
+{
+    public string Name => _name;
+
+    public string Accessibility => $"Klass {_name}";
+}
+
 public partial class LivePageViewModel(
     IClock _clock,
     ILiveSource _live,
@@ -83,6 +91,12 @@ public partial class LivePageViewModel(
     private DateTimeOffset _lastUpdate;
 
     public ObservableCollection<LiveRow> Rows { get; } = [];
+
+    /// <summary>
+    /// The same rows, under the class they are placed in. Live spans classes in every scope but
+    /// "min klass", and a placing has no meaning outside its own.
+    /// </summary>
+    public ObservableCollection<LiveClassGroup> Groups { get; } = [];
 
     public IReadOnlyList<string> ScopeLabels { get; } = ["Min grupp", "Min klass", "Alla"];
 
@@ -214,14 +228,18 @@ public partial class LivePageViewModel(
             Scope == LiveScope.MyClass ? _me.DefaultClass : null);
         _lastUpdate = snapshot.GeneratedAt;
 
+        // A place means something inside its class, so the class orders the list and the
+        // place orders the class.
         var visible = snapshot.Entries
             .Where(InScope)
-            .OrderBy(e => e.Status == LiveStatus.NotStarted ? 1 : 0)
+            .OrderBy(e => e.Class, StringComparer.CurrentCulture)
+            .ThenBy(e => e.Status == LiveStatus.NotStarted ? 1 : 0)
             .ThenBy(e => e.Position ?? int.MaxValue)
             .ThenBy(e => e.StartTime)
             .ToList();
 
-        Merge(visible);
+        if (Merge(visible))
+            Regroup();
 
         IsEmpty = Rows.Count == 0;
         EmptyMessage = "Ingen i det här urvalet är ute på banan.";
@@ -257,7 +275,8 @@ public partial class LivePageViewModel(
     /// Updates the existing rows in place where possible. Live updates animate the value,
     /// never the layout — rebuilding the collection would make the list jump on every poll.
     /// </summary>
-    private void Merge(IReadOnlyList<LiveEntry> entries)
+    /// <summary>Returns true when the rows themselves changed, not just their values.</summary>
+    private bool Merge(IReadOnlyList<LiveEntry> entries)
     {
         if (Rows.Count != entries.Count || !Rows.Select(r => r.Person).SequenceEqual(entries.Select(e => e.Person)))
         {
@@ -266,11 +285,32 @@ public partial class LivePageViewModel(
             foreach (var entry in entries)
                 Rows.Add(CreateRow(entry));
 
-            return;
+            return true;
         }
 
         for (int i = 0; i < entries.Count; i++)
             Apply(Rows[i], entries[i]);
+
+        return false;
+    }
+
+    /// <summary>
+    /// Rebuilt only when the field changed. The row objects are reused, so a poll that only
+    /// moves times and places updates through the bindings and never touches the layout.
+    /// </summary>
+    private void Regroup()
+    {
+        Groups.Clear();
+
+        foreach (var byClass in Rows.GroupBy(r => r.Class))
+        {
+            var group = new LiveClassGroup(byClass.Key);
+
+            foreach (var row in byClass)
+                group.Add(row);
+
+            Groups.Add(group);
+        }
     }
 
     private LiveRow CreateRow(LiveEntry entry)
