@@ -30,10 +30,11 @@ Projektskelett enligt Spine-mönstret, feature-mappar, placeholder-sidor för de
 
 - ✅ **Tabb-frågan löst enligt alternativ A.** `SpineTabHost` byggdes som nytt primitiv i `Plugin.Maui.Spine` — `[NavigableTab]`, en region-stack per flik med bevarat state, native `UITabBarController` på iOS/Catalyst och Material `BottomNavigationView` på Android. Levererad i [PR #11](https://github.com/jonatansoderberg/Maui.Spine/pull/11) ([issue #10](https://github.com/jonatansoderberg/Maui.Spine/issues/10)); Orienteras fem flikar är deklarerade mot den. Dokumentation: [docs/wiki/tab-host.md](../../../docs/wiki/tab-host.md).
 - Verifiera Spine på iOS: region-push/pop, sheets med detents, back-svep. Utfall matas in i Spine-repots issues.
-  - **Delvis verifierat 2026-08-10** (iPhone 17 Pro-sim, iOS 26.2, Orientera-scaffolden): start, header bar, tab-host, region-push/pop och interaktiv back-swipe fungerar. **Kvar:** bottom sheets med detents — verifieras när den första sheeten byggs (`EventFilterSheet`, etapp 4).
+  - ✅ **Verifierat 2026-08-10** (iPhone 17 Pro-sim, iOS 26.2): start, header bar, tab-host, region-push/pop och interaktiv back-swipe. Bottom sheets med detents verifierade med `TimeMachineSheet` (etapp 3) — medium- och fullscreen-detent, drag mellan dem, dimmad bakgrund och page actions fungerar.
+  - Fynd: [#13](https://github.com/jonatansoderberg/Maui.Spine/issues/13) — header bar ritar en inaktiv tillbaka-chevron på tab-rotsidor (kosmetiskt).
 - Deep-link-skelett (PWOS-schemaliknande `orientera://event/{id}`) kan vänta till M5, men URL-strukturen bestäms här.
 
-### Etapp 3 — Fake-data-lager och domänkärna
+### Etapp 3 — Fake-data-lager och domänkärna ✅
 
 Domänmodeller läggs i appen (utbrytning till separat projekt kan ske vid M1 när backend-kontraktet formas):
 
