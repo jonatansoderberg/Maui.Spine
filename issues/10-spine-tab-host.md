@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/10
 **Branch:** issue/10-spine-tab-host
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
