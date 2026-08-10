@@ -44,6 +44,10 @@
                     IsVisible="{Binding IsShifted}"
                     Command="{Binding ResetCommand}" />
 
+            <Button Style="{StaticResource SecondaryButton}"
+                    Text="{Binding OfflineLabel}"
+                    Command="{Binding ToggleOfflineCommand}" />
+
             <Label Style="{StaticResource SectionLabel}" Text="Tävlingsresan" />
 
         </VerticalStackLayout>

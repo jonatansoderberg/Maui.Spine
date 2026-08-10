@@ -3,6 +3,7 @@ using Orientera.Domain;
 using Orientera.Presentation;
 using Orientera.Services.Context;
 using Orientera.Services.Grouping;
+using Orientera.Services.Offline;
 using Orientera.Services.Relevance;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
@@ -24,7 +25,8 @@ public partial class EventsPageViewModel(
     IEventSource _events,
     IPeopleSource _people,
     IParticipationSource _participation,
-    CompetitionContextService _context) : ViewModelBase
+    IOfflineStore _offlineStore,
+    CompetitionContextService _context) : OrienteraViewModel
 {
     private IReadOnlyList<Competition> _all = [];
     private Person? _me;
@@ -67,7 +69,7 @@ public partial class EventsPageViewModel(
         if (PageActions.Count == 0)
             PageActions.Add(new PageAction(text: "Filter", command: OpenFilterCommand));
 
-        await LoadAsync();
+        await ReloadAsync();
     }
 
     public override Task OnTabReselectedAsync()
@@ -82,7 +84,7 @@ public partial class EventsPageViewModel(
         foreach (var c in Chips)
             c.IsSelected = ReferenceEquals(c, chip);
 
-        await BuildAsync();
+        await LoadAsync(BuildAsync);
     }
 
     [RelayCommand]
@@ -94,7 +96,7 @@ public partial class EventsPageViewModel(
         {
             _filter = filter;
             FilterLabel = filter.IsActive ? $"Filter ({filter.ActiveCount})" : "Filter";
-            await BuildAsync();
+            await LoadAsync(BuildAsync);
         }
     }
 
@@ -115,13 +117,56 @@ public partial class EventsPageViewModel(
     [RelayCommand]
     private void ToggleMapMode() => IsMapMode = !IsMapMode;
 
-    private async Task LoadAsync()
+    private async Task ReloadAsync()
     {
-        _all = await _events.GetCompetitionsAsync();
+        // Identity and favourites are local, so they load whether or not there is a connection.
         _me = await _people.GetMeAsync();
         _favourites = await _events.GetFavouritesAsync();
 
-        await BuildAsync();
+        await LoadAsync(async () =>
+        {
+            _all = await _events.GetCompetitionsAsync();
+
+            await BuildAsync();
+        });
+
+        if (IsOffline)
+            await ShowSavedAsync();
+    }
+
+    /// <summary>
+    /// Offline the list becomes the saved packages. Without this the packages exist but are
+    /// unreachable — the calendar they are normally opened from needs the network.
+    /// </summary>
+    private async Task ShowSavedAsync()
+    {
+        var packages = await _offlineStore.GetAllAsync();
+        var today = DateOnly.FromDateTime(_clock.Now.Date);
+
+        Cards.Clear();
+
+        foreach (var package in packages.OrderBy(p => p.Competition.FirstStart))
+        {
+            var competition = package.Competition;
+
+            Cards.Add(new EventCard
+            {
+                Competition = competition.Id,
+                Title = competition.Name,
+                DateLabel = Format.RelativeDate(competition.Date, today),
+                PlaceLabel = $"{competition.Organiser} · {competition.Place}",
+                MetaLabel = $"{Format.Discipline(competition.Discipline)} · {Format.Level(competition.Level)}",
+                DistanceLabel = _me is null ? string.Empty : Format.Distance(_me.Home.DistanceKmTo(competition.Location)),
+                ContextLabel = "Sparad offline",
+                ShowContextBadge = true,
+                IsRegistered = package.MyEntryRegisteredAt is not null,
+                HasGroupEntry = package.MyEntryRegisteredAt is null && package.GroupEntryRegisteredAt is not null,
+            });
+        }
+
+        HasCards = Cards.Count > 0;
+        IsEmpty = !HasCards;
+        EmptyMessage = "Ingen anslutning, och inga sparade tävlingar. Tävlingar sparas när du är anmäld, följer dem eller favoritmarkerar dem.";
     }
 
     private async Task BuildAsync()

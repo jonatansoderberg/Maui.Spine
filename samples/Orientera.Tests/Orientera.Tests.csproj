@@ -16,10 +16,12 @@
 	-->
 	<ItemGroup>
 		<Compile Include="..\Orientera\Domain\**\*.cs" LinkBase="Linked\Domain" />
-		<Compile Include="..\Orientera\Presentation\**\*.cs" LinkBase="Linked\Presentation" />
+		<Compile Include="..\Orientera\Presentation\Format.cs" LinkBase="Linked\Presentation" />
 		<Compile Include="..\Orientera\Services\Analysis\**\*.cs" LinkBase="Linked\Services\Analysis" />
 		<Compile Include="..\Orientera\Services\Context\ContextEngine.cs" LinkBase="Linked\Services\Context" />
-		<Compile Include="..\Orientera\Services\FakeData\**\*.cs" Exclude="..\Orientera\Services\FakeData\FakeDataSource.cs" LinkBase="Linked\Services\FakeData" />
+		<Compile Include="..\Orientera\Services\FakeData\**\*.cs" LinkBase="Linked\Services\FakeData" />
+		<Compile Include="..\Orientera\Services\Offline\**\*.cs" LinkBase="Linked\Services\Offline" />
+		<Compile Include="..\Orientera\Services\Sources\**\*.cs" LinkBase="Linked\Services\Sources" />
 		<Compile Include="..\Orientera\Services\Grouping\**\*.cs" LinkBase="Linked\Services\Grouping" />
 		<Compile Include="..\Orientera\Services\Relevance\**\*.cs" LinkBase="Linked\Services\Relevance" />
 		<Compile Include="..\Orientera\Services\Time\**\*.cs" LinkBase="Linked\Services\Time" />

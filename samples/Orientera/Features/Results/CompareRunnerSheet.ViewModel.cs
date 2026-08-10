@@ -21,11 +21,14 @@ public partial class CompareRunnerSheetViewModel(
     INavigationService _navigation,
     IPeopleSource _people,
     IParticipationSource _participation,
-    ComparisonRequest _request) : ViewModelBase
+    ComparisonRequest _request) : OrienteraViewModel
 {
     public ObservableCollection<CompareCandidate> Candidates { get; } = [];
 
-    public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
+    public override Task OnAppearingAsync(NavigationDirection navigationDirection) =>
+        LoadAsync(BuildAsync);
+
+    private async Task BuildAsync()
     {
         var results = await _participation.GetResultsAsync(_request.Competition);
         var group = await _people.GetMyGroupAsync();

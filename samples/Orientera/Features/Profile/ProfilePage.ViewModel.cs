@@ -41,7 +41,7 @@ public partial class ProfilePageViewModel(
     IClock _clock,
     IPeopleSource _people,
     IProgressSource _progress,
-    IEventSource _events) : ViewModelBase
+    IEventSource _events) : OrienteraViewModel
 {
     [ObservableProperty] public partial string Name { get; set; } = string.Empty;
     [ObservableProperty] public partial string Meta { get; set; } = string.Empty;
@@ -72,34 +72,39 @@ public partial class ProfilePageViewModel(
         if (PageActions.Count == 0)
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
 
-        await LoadAsync();
+        await ReloadAsync();
     }
 
     [RelayCommand]
     private async Task OpenFollowRunner()
     {
         await _navigation.NavigateToAsync<FollowRunnerSheet>();
-        await LoadAsync();
+        await ReloadAsync();
     }
 
     [RelayCommand]
     private async Task Unfollow(GroupMemberRow row)
     {
         await _people.UnfollowAsync(row.Person);
-        await LoadAsync();
+        await ReloadAsync();
     }
 
     [RelayCommand]
     private async Task OpenTimeMachine()
     {
         await _navigation.NavigateToAsync<TimeMachineSheet>();
-        await LoadAsync();
+        await ReloadAsync();
     }
 
     [RelayCommand]
     private async Task OpenDesignSystem() => await _navigation.NavigateToAsync<DesignSystemPage>();
 
-    private async Task LoadAsync()
+    /// <summary>
+    /// Who I am and who I follow are local, so they load unconditionally. Sverigelistan and the
+    /// series come from the network and are guarded separately — an outage should cost those
+    /// two cards, not the whole page.
+    /// </summary>
+    private async Task ReloadAsync()
     {
         var me = await _people.GetMeAsync();
         var today = DateOnly.FromDateTime(_clock.Now.Date);
@@ -108,9 +113,19 @@ public partial class ProfilePageViewModel(
         Initials = me.Initials;
         Meta = $"{me.Club} · {me.District} · {me.DefaultClass}";
 
-        await LoadRankingAsync(me, today);
         await LoadGroupAsync();
-        await LoadSeriesAsync(me, today);
+
+        await LoadAsync(async () =>
+        {
+            await LoadRankingAsync(me, today);
+            await LoadSeriesAsync(me, today);
+        });
+
+        if (IsOffline)
+        {
+            HasRanking = false;
+            HasSeries = false;
+        }
     }
 
     private async Task LoadRankingAsync(Person me, DateOnly today)

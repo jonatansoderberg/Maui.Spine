@@ -70,7 +70,7 @@ public sealed partial class LiveRow : ObservableObject
 public partial class LivePageViewModel(
     IClock _clock,
     ILiveSource _live,
-    IPeopleSource _people) : ViewModelBase
+    IPeopleSource _people) : OrienteraViewModel
 {
     /// <summary>LiveResults caches for 15 seconds, so polling faster only wastes data.</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
@@ -98,12 +98,19 @@ public partial class LivePageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
-        _me ??= await _people.GetMeAsync();
+        await LoadAsync(async () =>
+        {
+            _me ??= await _people.GetMeAsync();
 
-        var group = await _people.GetMyGroupAsync();
-        _groupIds = group.Select(f => f.Person.Id).ToHashSet();
+            var group = await _people.GetMyGroupAsync();
+            _groupIds = group.Select(f => f.Person.Id).ToHashSet();
 
-        await RefreshAsync();
+            await RefreshAsync();
+        });
+
+        if (IsOffline)
+            ShowOffline();
+
         StartPolling();
     }
 
@@ -121,7 +128,10 @@ public partial class LivePageViewModel(
         IsMyClass = Scope == LiveScope.MyClass;
         IsEveryone = Scope == LiveScope.Everyone;
 
-        await RefreshAsync();
+        await LoadAsync(RefreshAsync);
+
+        if (IsOffline)
+            ShowOffline();
 
         // The list is replaced under the reader's cursor; say what it now shows.
         SemanticScreenReader.Default.Announce($"{ScopeLabels[(int)Scope]}, {Rows.Count} löpare");
@@ -145,7 +155,16 @@ public partial class LivePageViewModel(
                 using var timer = new PeriodicTimer(PollInterval);
 
                 while (await timer.WaitForNextTickAsync(cts.Token))
-                    await MainThread.InvokeOnMainThreadAsync(RefreshAsync);
+                {
+                    await MainThread.InvokeOnMainThreadAsync(async () =>
+                    {
+                        // A poll that fails must not take the app down mid-race.
+                        await LoadAsync(RefreshAsync);
+
+                        if (IsOffline)
+                            ShowOffline();
+                    });
+                }
             }
             catch (OperationCanceledException)
             {
@@ -197,6 +216,16 @@ public partial class LivePageViewModel(
         IsEmpty = Rows.Count == 0;
         EmptyMessage = "Ingen i det här urvalet är ute på banan.";
         UpdatedText = $"Uppdaterad för {Format.Age(_clock.Now - _lastUpdate)} sedan";
+    }
+
+    /// <summary>Live is the one screen a cached copy cannot stand in for — it is only useful now.</summary>
+    private void ShowOffline()
+    {
+        Rows.Clear();
+        HasLive = false;
+        IsEmpty = true;
+        CompetitionName = string.Empty;
+        EmptyMessage = "Ingen anslutning. Live behöver nätverk — starttider för dig och Min grupp finns sparade på tävlingssidan.";
     }
 
     private bool InScope(LiveEntry entry) => Scope switch

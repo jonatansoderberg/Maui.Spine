@@ -22,7 +22,7 @@ public partial class ResultsPageViewModel(
     INavigationService _navigation,
     IEventSource _events,
     IPeopleSource _people,
-    IParticipationSource _participation) : ViewModelBase
+    IParticipationSource _participation) : OrienteraViewModel
 {
     public ObservableCollection<MyResultRow> Results { get; } = [];
 
@@ -30,6 +30,18 @@ public partial class ResultsPageViewModel(
     [ObservableProperty] public partial bool HasResults { get; set; }
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
+    {
+        await LoadAsync(BuildAsync);
+
+        if (IsOffline)
+        {
+            Results.Clear();
+            HasResults = false;
+            IsEmpty = true;
+        }
+    }
+
+    private async Task BuildAsync()
     {
         var me = await _people.GetMeAsync();
         var competitions = await _events.GetCompetitionsAsync();

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Orientera.Features.Results;
 using Orientera.Services.Context;
 using Orientera.Services.FakeData;
+using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 using Plugin.Maui.Spine.Extensions;
@@ -77,12 +78,20 @@ public static class MauiProgram
         services.AddSingleton<TimeMachineClock>(_ => new TimeMachineClock(FakeDataset.DefaultNow));
         services.AddSingleton<IClock>(sp => sp.GetRequiredService<TimeMachineClock>());
 
+        // The seed sits behind an unreliable boundary standing in for the network, so the
+        // offline and error paths are exercised by the same code that will meet a real BFF.
         services.AddSingleton<FakeDataSource>();
-        services.AddSingleton<IEventSource>(sp => sp.GetRequiredService<FakeDataSource>());
-        services.AddSingleton<IPeopleSource>(sp => sp.GetRequiredService<FakeDataSource>());
-        services.AddSingleton<IParticipationSource>(sp => sp.GetRequiredService<FakeDataSource>());
-        services.AddSingleton<ILiveSource>(sp => sp.GetRequiredService<FakeDataSource>());
-        services.AddSingleton<IProgressSource>(sp => sp.GetRequiredService<FakeDataSource>());
+        services.AddSingleton<ConnectivitySwitch>();
+        services.AddSingleton<UnreliableSource>();
+        services.AddSingleton<IEventSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<IPeopleSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<IParticipationSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<ILiveSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<IProgressSource>(sp => sp.GetRequiredService<UnreliableSource>());
+
+        services.AddSingleton<IOfflineStore>(_ => new FileOfflineStore(
+            Path.Combine(FileSystem.AppDataDirectory, "offline-packages")));
+        services.AddSingleton<OfflinePackageService>();
 
         services.AddSingleton<CompetitionContextService>();
 
