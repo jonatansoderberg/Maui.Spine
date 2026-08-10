@@ -20,13 +20,24 @@ public sealed record CompareCandidate
 public partial class CompareRunnerSheetViewModel(
     INavigationService _navigation,
     IPeopleSource _people,
-    IParticipationSource _participation,
-    ComparisonRequest _request) : ViewModelBase
+    IParticipationSource _participation) : ViewModelBase,
+    IReceivesNavigationParameter<ComparisonRequest>
 {
+    private ComparisonRequest? _request;
+
     public ObservableCollection<CompareCandidate> Candidates { get; } = [];
+
+    public Task OnNavigationParameterAsync(ComparisonRequest param)
+    {
+        _request = param;
+        return Task.CompletedTask;
+    }
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
+        if (_request is null)
+            return;
+
         var results = await _participation.GetResultsAsync(_request.Competition);
         var group = await _people.GetMyGroupAsync();
         var groupIds = group.Select(f => f.Person.Id).ToHashSet();
