@@ -1,0 +1,50 @@
+namespace Orientera.Services.Time;
+
+public interface IClock
+{
+    DateTimeOffset Now { get; }
+}
+
+public sealed class SystemClock : IClock
+{
+    public DateTimeOffset Now => DateTimeOffset.Now;
+}
+
+/// <summary>
+/// The clock the M0 app runs on. Moving it replays a competition through every context state,
+/// which is the DoD requirement that context can be simulated across the whole lifecycle.
+/// </summary>
+/// <remarks>
+/// It starts at a curated instant rather than the real time so the demo data is always live:
+/// the seeded calendar is anchored to August 2026 and the default drops the user into
+/// Norrlandsmästerskapen while it is running.
+/// </remarks>
+public sealed class TimeMachineClock : IClock
+{
+    private readonly DateTimeOffset _default;
+
+    public TimeMachineClock(DateTimeOffset defaultNow)
+    {
+        _default = defaultNow;
+        Now = defaultNow;
+    }
+
+    public DateTimeOffset Now { get; private set; }
+
+    public bool IsShifted => Now != _default;
+
+    public event EventHandler? Changed;
+
+    public void MoveTo(DateTimeOffset instant)
+    {
+        if (instant == Now)
+            return;
+
+        Now = instant;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Advance(TimeSpan delta) => MoveTo(Now + delta);
+
+    public void Reset() => MoveTo(_default);
+}

@@ -1,0 +1,86 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Dev.TimeMachineSheet"
+    x:TypeArguments="TimeMachineSheetViewModel"
+    x:DataType="TimeMachineSheetViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <VerticalStackLayout Grid.Row="0" Padding="16,4,16,12" Spacing="12">
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Style="{StaticResource SectionLabel}" Text="Nu" />
+                    <Label Style="{StaticResource NumericHeading2Label}" Text="{Binding NowLabel}" />
+
+                    <BoxView Style="{StaticResource Divider}" Margin="0,4" />
+
+                    <Label Style="{StaticResource SectionLabel}" Text="{Binding TrackedName}" />
+                    <HorizontalStackLayout Spacing="8">
+                        <Border Style="{StaticResource BadgeAccent}">
+                            <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding StateLabel}" />
+                        </Border>
+                        <Label Style="{StaticResource BodyStrongLabel}"
+                               VerticalOptions="Center"
+                               Text="{Binding ActionLabel}" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                <Button Grid.Column="0" Style="{StaticResource SecondaryButton}" Text="−1 d"
+                        Command="{Binding AdvanceCommand}" CommandParameter="-24" />
+                <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Text="−1 h"
+                        Command="{Binding AdvanceCommand}" CommandParameter="-1" />
+                <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Text="+1 h"
+                        Command="{Binding AdvanceCommand}" CommandParameter="1" />
+                <Button Grid.Column="3" Style="{StaticResource SecondaryButton}" Text="+1 d"
+                        Command="{Binding AdvanceCommand}" CommandParameter="24" />
+            </Grid>
+
+            <Button Style="{StaticResource SecondaryButton}"
+                    Text="Återställ till demoläget"
+                    IsVisible="{Binding IsShifted}"
+                    Command="{Binding ResetCommand}" />
+
+            <Label Style="{StaticResource SectionLabel}" Text="Tävlingsresan" />
+
+        </VerticalStackLayout>
+
+        <CollectionView Grid.Row="1"
+                        Margin="16,0,16,16"
+                        ItemsSource="{Binding Stops}"
+                        SelectionMode="None">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="LifecycleStop">
+                    <Grid Padding="0,3">
+                        <Border Style="{StaticResource Card}" Padding="14,10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                    <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Label}" />
+                                    <Label Style="{StaticResource NumericCaptionLabel}" Text="{Binding TimeLabel}" />
+                                </VerticalStackLayout>
+
+                                <Border Grid.Column="1"
+                                        Style="{StaticResource BadgeLive}"
+                                        VerticalOptions="Center"
+                                        IsVisible="{Binding IsCurrent}">
+                                    <Label Style="{StaticResource BadgeOnFillLabel}" Text="Nu" />
+                                </Border>
+                            </Grid>
+
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.MoveToCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+
+</SpinePage>

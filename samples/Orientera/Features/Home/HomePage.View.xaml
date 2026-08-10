@@ -9,6 +9,25 @@
         <Label Style="{StaticResource DisplayLabel}" Text="Orientera" />
         <Label Style="{StaticResource BodySecondaryLabel}"
                Text="M0-scaffold — det kontextstyrda Hem byggs i etapp 4 (docs/implementation-plan.md)." />
+
+        <Border Style="{StaticResource Card}">
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="{Binding TrackedName}" />
+                <HorizontalStackLayout Spacing="8">
+                    <Border Style="{StaticResource BadgeAccent}">
+                        <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding StateLabel}" />
+                    </Border>
+                    <Label Style="{StaticResource BodyStrongLabel}" VerticalOptions="Center"
+                           Text="{Binding ActionLabel}" />
+                </HorizontalStackLayout>
+                <Label Style="{StaticResource NumericCaptionLabel}" Text="{Binding NowLabel}" />
+            </VerticalStackLayout>
+        </Border>
+
+        <Button Style="{StaticResource PrimaryButton}"
+                Text="Tidsmaskin"
+                Command="{Binding OpenTimeMachineCommand}" />
+
         <Button Style="{StaticResource SecondaryButton}"
                 Text="Designsystem"
                 Command="{Binding OpenDesignSystemCommand}" />

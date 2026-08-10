@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<LangVersion>preview</LangVersion>
+		<IsPackable>false</IsPackable>
+		<RootNamespace>Orientera.Tests</RootNamespace>
+	</PropertyGroup>
+
+	<!--
+		The domain and the engines live in the app project (they move to their own assembly at
+		M1, when the backend contract forms). They are MAUI-free by construction, so the tests
+		compile the sources directly rather than referencing the multi-targeted app.
+	-->
+	<ItemGroup>
+		<Compile Include="..\Orientera\Domain\**\*.cs" LinkBase="Linked\Domain" />
+		<Compile Include="..\Orientera\Services\Analysis\**\*.cs" LinkBase="Linked\Services\Analysis" />
+		<Compile Include="..\Orientera\Services\Context\ContextEngine.cs" LinkBase="Linked\Services\Context" />
+		<Compile Include="..\Orientera\Services\FakeData\**\*.cs" Exclude="..\Orientera\Services\FakeData\FakeDataSource.cs" LinkBase="Linked\Services\FakeData" />
+		<Compile Include="..\Orientera\Services\Grouping\**\*.cs" LinkBase="Linked\Services\Grouping" />
+		<Compile Include="..\Orientera\Services\Relevance\**\*.cs" LinkBase="Linked\Services\Relevance" />
+		<Compile Include="..\Orientera\Services\Time\**\*.cs" LinkBase="Linked\Services\Time" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.1" />
+	</ItemGroup>
+
+</Project>
