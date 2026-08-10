@@ -5,9 +5,187 @@
     x:TypeArguments="EventDetailsPageViewModel"
     x:DataType="EventDetailsPageViewModel">
 
-    <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Tävlingsdetaljer" FontSize="22" FontAttributes="Bold" />
-        <Label Text="Placeholder — pushad på Tävlingar-tabbens stack. Tab-baren ska vara kvar och back-swipe fungera." />
-    </VerticalStackLayout>
+    <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20">
+
+            <!-- ============ Hero ============ -->
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <VerticalStackLayout Grid.Column="0" Spacing="4">
+                    <Label Style="{StaticResource SectionLabel}" Text="{Binding MetaLine}" />
+                    <Label Style="{StaticResource DisplayLabel}" Text="{Binding Name}" />
+                    <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding OrganiserLine}" />
+                    <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding DateLine}" />
+                </VerticalStackLayout>
+
+                <Label Grid.Column="1"
+                       Style="{StaticResource DisplayLabel}"
+                       TextColor="{DynamicResource AccentAction}"
+                       VerticalOptions="Start"
+                       Text="{Binding FavouriteGlyph}">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding ToggleFavouriteCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </Grid>
+
+            <!-- ============ För dig ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="För dig" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="12">
+
+                        <HorizontalStackLayout Spacing="8">
+                            <Border Style="{StaticResource BadgeAccent}">
+                                <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding StateText}" />
+                            </Border>
+                            <Border Style="{StaticResource Badge}">
+                                <Label Style="{StaticResource BadgeLabel}" Text="{Binding MyClass}" />
+                            </Border>
+                        </HorizontalStackLayout>
+
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="10">
+                            <VerticalStackLayout Grid.Row="0" Grid.Column="0" IsVisible="{Binding HasMyStart}">
+                                <Label Style="{StaticResource CaptionLabel}" Text="Min start" />
+                                <Label Style="{StaticResource NumericHeading2Label}" Text="{Binding MyStartText}" />
+                            </VerticalStackLayout>
+
+                            <VerticalStackLayout Grid.Row="0" Grid.Column="1">
+                                <Label Style="{StaticResource CaptionLabel}" Text="Resa" />
+                                <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding TravelText}" />
+                            </VerticalStackLayout>
+
+                            <VerticalStackLayout Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                 IsVisible="{Binding HasDeadline}">
+                                <Label Style="{StaticResource CaptionLabel}" Text="Deadline" />
+                                <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding DeadlineText}" />
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <!-- Prediction är modellerad data och märks som sådan -->
+                        <Border Style="{StaticResource Badge}"
+                                HorizontalOptions="Start"
+                                IsVisible="{Binding HasPrediction}"
+                                BackgroundColor="Transparent"
+                                Padding="0">
+                            <HorizontalStackLayout Spacing="6">
+                                <Label Style="{StaticResource BodyStrongLabel}"
+                                       TextColor="{DynamicResource EstimateInk}"
+                                       Text="{Binding PredictionText}" />
+                                <Label Style="{StaticResource CaptionLabel}"
+                                       TextColor="{DynamicResource EstimateInk}"
+                                       VerticalOptions="Center"
+                                       Text="ⓘ uppskattning" />
+                            </HorizontalStackLayout>
+
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding OpenPredictionCommand}" />
+                            </Border.GestureRecognizers>
+                        </Border>
+
+                        <!-- En primär CTA per vy, satt av Context Engine -->
+                        <Button Style="{StaticResource PrimaryButton}"
+                                Text="{Binding PrimaryActionText}"
+                                Command="{Binding PrimaryActionCommand}" />
+
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Snabbhandlingar ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Snabbhandlingar" />
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                    <Button Grid.Column="0" Style="{StaticResource SecondaryButton}" Text="Klass"
+                            Command="{Binding OpenChooseClassCommand}" />
+                    <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Text="Live"
+                            IsEnabled="{Binding CanFollowLive}" Command="{Binding OpenLiveCommand}" />
+                    <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Text="Resultat"
+                            IsEnabled="{Binding HasResults}" Command="{Binding OpenResultsCommand}" />
+                </Grid>
+            </VerticalStackLayout>
+
+            <!-- ============ PM-briefing ============ -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasBriefing}">
+                <Label Style="{StaticResource SectionLabel}" Text="Det viktigaste ur PM" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Briefing}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="BriefingItem">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding Label}" />
+                                    <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Value}" />
+                                    <HorizontalStackLayout Spacing="6">
+                                        <Border Style="{StaticResource Badge}">
+                                            <Label Style="{StaticResource BadgeLabel}" Text="{Binding Source}" />
+                                        </Border>
+                                        <Border Style="{StaticResource Badge}" IsVisible="{Binding IsUncertain}">
+                                            <Label Style="{StaticResource BadgeLabel}"
+                                                   TextColor="{DynamicResource EstimateInk}"
+                                                   Text="Osäker tolkning" />
+                                        </Border>
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Tävlingsinfo ============ -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasBriefing}">
+                <Label Style="{StaticResource SectionLabel}" Text="Tävlingsinfo" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Facts}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="BriefingItem">
+                                <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                                    <Label Grid.Column="0" Style="{StaticResource CaptionLabel}" Text="{Binding Label}" />
+                                    <VerticalStackLayout Grid.Column="1" Spacing="1">
+                                        <Label Style="{StaticResource BodyLabel}" Text="{Binding Value}" />
+                                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding Source}" />
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Dokument ============ -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasDocuments}">
+                <Label Style="{StaticResource SectionLabel}" Text="Dokument" />
+
+                <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Documents}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="DocumentItem">
+                            <Border Style="{StaticResource Card}" Padding="14,12">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Grid.Column="0" Spacing="1">
+                                        <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Title}" />
+                                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="1"
+                                           Style="{StaticResource BodyLabel}"
+                                           TextColor="{DynamicResource TextSecondary}"
+                                           VerticalOptions="Center"
+                                           Text="↗" />
+                                </Grid>
+
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenExternalCommand}"
+                                        CommandParameter="{Binding Url}" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
 
 </SpinePage>

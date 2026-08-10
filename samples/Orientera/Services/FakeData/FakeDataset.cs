@@ -450,7 +450,7 @@ public sealed class FakeDataset
 
     private static readonly Dictionary<string, RunShape> ScriptedRuns = new()
     {
-        // NM Lång D21 — Elin is quick but drops two minutes on the long legs 4 and 8.
+        // NM Lång D21 — Elin runs well but drops over two minutes on the long legs 4 and 8.
         [$"{nameof(NmLongId)}|p-elin"] = new RunShape(1.055, new Dictionary<int, int> { [4] = 96, [8] = 141 }),
         [$"{nameof(NmLongId)}|p-maja"] = new RunShape(1.09, new Dictionary<int, int> { [11] = 68 }),
         [$"{nameof(NmLongId)}|p-sara"] = new RunShape(1.00),
@@ -460,20 +460,20 @@ public sealed class FakeDataset
         [$"{nameof(NmLongId)}|p-tuva"] = new RunShape(1.045),
         [$"{nameof(NmLongId)}|p-ellen"] = new RunShape(1.07),
 
-        // H14 — Viktor takes second.
+        // H14 — Viktor near the front.
         [$"{nameof(NmLongId)}|p-viktor"] = new RunShape(1.03, new Dictionary<int, int> { [5] = 47 }),
         [$"{nameof(NmLongId)}|p-love"] = new RunShape(1.00),
 
-        // H21 — Anton wins his class.
+        // H21 — Anton at the sharp end.
         [$"{nameof(NmLongId)}|p-anton"] = new RunShape(1.00),
 
-        // Hemlingbyloppet — Elin third.
-        [$"{nameof(HemlingbyloppetId)}|p-elin"] = new RunShape(1.03, new Dictionary<int, int> { [6] = 58 }),
+        // Hemlingbyloppet — Elin near the podium, one clear mistake.
+        [$"{nameof(HemlingbyloppetId)}|p-elin"] = new RunShape(1.03, new Dictionary<int, int> { [6] = 112 }),
         [$"{nameof(HemlingbyloppetId)}|p-sara"] = new RunShape(1.00),
         [$"{nameof(HemlingbyloppetId)}|p-klara"] = new RunShape(1.015),
 
-        // Sommarsprinten — Elin fifth, sprint mistakes are small.
-        [$"{nameof(SommarsprintenId)}|p-elin"] = new RunShape(1.04, new Dictionary<int, int> { [7] = 22 }),
+        // Sommarsprinten — sprint mistakes are small by nature.
+        [$"{nameof(SommarsprintenId)}|p-elin"] = new RunShape(1.04, new Dictionary<int, int> { [7] = 41 }),
         [$"{nameof(SommarsprintenId)}|p-klara"] = new RunShape(1.00),
         [$"{nameof(SommarsprintenId)}|p-sara"] = new RunShape(1.01),
         [$"{nameof(SommarsprintenId)}|p-ida"] = new RunShape(1.02),

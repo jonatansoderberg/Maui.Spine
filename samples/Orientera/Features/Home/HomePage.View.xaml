@@ -5,32 +5,159 @@
     x:TypeArguments="HomePageViewModel"
     x:DataType="HomePageViewModel">
 
-    <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="12">
-        <Label Style="{StaticResource DisplayLabel}" Text="Orientera" />
-        <Label Style="{StaticResource BodySecondaryLabel}"
-               Text="M0-scaffold — det kontextstyrda Hem byggs i etapp 4 (docs/implementation-plan.md)." />
+    <SpinePage.Resources>
 
-        <Border Style="{StaticResource Card}">
-            <VerticalStackLayout Spacing="8">
-                <Label Style="{StaticResource SectionLabel}" Text="{Binding TrackedName}" />
-                <HorizontalStackLayout Spacing="8">
-                    <Border Style="{StaticResource BadgeAccent}">
-                        <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding StateLabel}" />
-                    </Border>
-                    <Label Style="{StaticResource BodyStrongLabel}" VerticalOptions="Center"
-                           Text="{Binding ActionLabel}" />
-                </HorizontalStackLayout>
-                <Label Style="{StaticResource NumericCaptionLabel}" Text="{Binding NowLabel}" />
+        <DataTemplate x:Key="LiveNowTemplate" x:DataType="LiveNowBlock">
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="10">
+                    <HorizontalStackLayout Spacing="8">
+                        <Border Style="{StaticResource BadgeLive}">
+                            <Label Style="{StaticResource BadgeOnFillLabel}" Text="Live nu" />
+                        </Border>
+                    </HorizontalStackLayout>
+
+                    <Label Style="{StaticResource Heading1Label}" Text="{Binding Title}" />
+                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding Subtitle}" />
+                    <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding MyStatus}" />
+
+                    <Button Style="{StaticResource PrimaryButton}"
+                            Text="{Binding ActionText}"
+                            Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenLiveCommand}" />
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="NextForMeTemplate" x:DataType="NextForMeBlock">
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
+                    <Label Style="{StaticResource Heading1Label}" Text="{Binding Title}" />
+                    <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding WhenText}" />
+                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlaceText}" />
+
+                    <HorizontalStackLayout Spacing="8">
+                        <Border Style="{StaticResource BadgeAccent}">
+                            <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding StateText}" />
+                        </Border>
+                        <Label Style="{StaticResource NumericStrongLabel}"
+                               VerticalOptions="Center"
+                               IsVisible="{Binding HasStart}"
+                               Text="{Binding StartText}" />
+                    </HorizontalStackLayout>
+
+                    <Button Style="{StaticResource PrimaryButton}"
+                            Text="{Binding ActionText}"
+                            Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenCompetitionCommand}"
+                            CommandParameter="{Binding Competition}" />
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="LatestResultTemplate" x:DataType="LatestResultBlock">
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
+                    <Label Style="{StaticResource Heading2Label}" Text="{Binding Title}" />
+
+                    <HorizontalStackLayout Spacing="12" VerticalOptions="End">
+                        <Label Style="{StaticResource DisplayNumberLabel}" Text="{Binding PlaceText}" />
+                        <VerticalStackLayout VerticalOptions="End" Margin="0,0,0,4">
+                            <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding TimeText}" />
+                            <Label Style="{StaticResource NumericCaptionLabel}"
+                                   TextColor="{DynamicResource NegativeDelta}"
+                                   Text="{Binding BehindText}" />
+                        </VerticalStackLayout>
+                    </HorizontalStackLayout>
+
+                    <Button Style="{StaticResource SecondaryButton}"
+                            Text="{Binding ActionText}"
+                            Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenResultCommand}"
+                            CommandParameter="{Binding Competition}" />
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="GroupTemplate" x:DataType="GroupBlock">
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
+                    <Label Style="{StaticResource Heading2Label}" Text="{Binding Summary}" />
+
+                    <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding Lines}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Label Style="{StaticResource NumericLabel}" Text="{Binding .}" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="DiscoveryTemplate" x:DataType="DiscoveryBlock">
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
+                    <Label Style="{StaticResource Heading2Label}" Text="{Binding Title}" />
+                    <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding WhenText}" />
+                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding ReasonText}" />
+
+                    <Button Style="{StaticResource SecondaryButton}"
+                            Text="Visa tävling"
+                            Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenCompetitionCommand}"
+                            CommandParameter="{Binding Competition}" />
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="DevelopmentTemplate" x:DataType="DevelopmentBlock">
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="6">
+                    <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
+
+                    <HorizontalStackLayout Spacing="10" VerticalOptions="End">
+                        <Label Style="{StaticResource DisplayNumberLabel}" Text="{Binding PointsText}" />
+                        <Label Style="{StaticResource NumericCaptionLabel}"
+                               VerticalOptions="End" Margin="0,0,0,6"
+                               TextColor="{DynamicResource PositiveDelta}"
+                               Text="{Binding TrendText}" />
+                    </HorizontalStackLayout>
+
+                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlaceText}" />
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
+
+        <HomeBlockTemplateSelector x:Key="BlockSelector"
+                                   LiveNow="{StaticResource LiveNowTemplate}"
+                                   NextForMe="{StaticResource NextForMeTemplate}"
+                                   LatestResult="{StaticResource LatestResultTemplate}"
+                                   Group="{StaticResource GroupTemplate}"
+                                   Discovery="{StaticResource DiscoveryTemplate}"
+                                   Development="{StaticResource DevelopmentTemplate}" />
+
+    </SpinePage.Resources>
+
+    <CollectionView ItemsSource="{Binding Blocks}"
+                    ItemTemplate="{StaticResource BlockSelector}"
+                    Margin="16,0"
+                    SelectionMode="None">
+
+        <CollectionView.ItemsLayout>
+            <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
+        </CollectionView.ItemsLayout>
+
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="0,4,0,12" Spacing="2">
+                <Label Style="{StaticResource DisplayLabel}" Text="{Binding Greeting}" />
+                <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding TodayText}" />
             </VerticalStackLayout>
-        </Border>
+        </CollectionView.Header>
 
-        <Button Style="{StaticResource PrimaryButton}"
-                Text="Tidsmaskin"
-                Command="{Binding OpenTimeMachineCommand}" />
+        <CollectionView.Footer>
+            <BoxView HeightRequest="24" Color="Transparent" />
+        </CollectionView.Footer>
 
-        <Button Style="{StaticResource SecondaryButton}"
-                Text="Designsystem"
-                Command="{Binding OpenDesignSystemCommand}" />
-    </VerticalStackLayout>
+    </CollectionView>
 
 </SpinePage>

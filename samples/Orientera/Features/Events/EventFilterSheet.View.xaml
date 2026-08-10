@@ -1,0 +1,69 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Events.EventFilterSheet"
+    x:TypeArguments="EventFilterSheetViewModel"
+    x:DataType="EventFilterSheetViewModel">
+
+    <Grid RowDefinitions="*,Auto">
+
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="16,4,16,16" Spacing="16">
+
+                <VerticalStackLayout Spacing="6">
+                    <Label Style="{StaticResource SectionLabel}" Text="Tävlingsnivå" />
+                    <Picker ItemsSource="{Binding LevelOptions}" SelectedIndex="{Binding SelectedLevel}" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="6">
+                    <Label Style="{StaticResource SectionLabel}" Text="Disciplin" />
+                    <Picker ItemsSource="{Binding DisciplineOptions}" SelectedIndex="{Binding SelectedDiscipline}" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="6">
+                    <Label Style="{StaticResource SectionLabel}" Text="Avstånd hemifrån" />
+                    <Picker ItemsSource="{Binding DistanceOptions}" SelectedIndex="{Binding SelectedDistance}" />
+                </VerticalStackLayout>
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="4">
+                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
+                            <VerticalStackLayout Grid.Column="0" VerticalOptions="Center">
+                                <Label Style="{StaticResource BodyLabel}" Text="Visa träningar" />
+                                <Label Style="{StaticResource CaptionLabel}" Text="Motion och återkommande träning" />
+                            </VerticalStackLayout>
+                            <Switch Grid.Column="1" VerticalOptions="Center" IsToggled="{Binding ShowTraining}" />
+                        </Grid>
+
+                        <BoxView Style="{StaticResource Divider}" />
+
+                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
+                            <Label Grid.Column="0" Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" Text="Endast där min klass finns" />
+                            <Switch Grid.Column="1" VerticalOptions="Center" IsToggled="{Binding OnlyMyClass}" />
+                        </Grid>
+
+                        <BoxView Style="{StaticResource Divider}" />
+
+                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
+                            <Label Grid.Column="0" Style="{StaticResource BodyLabel}"
+                                   VerticalOptions="Center" Text="Endast anmälningsbara" />
+                            <Switch Grid.Column="1" VerticalOptions="Center" IsToggled="{Binding OnlyRegisterable}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label Style="{StaticResource CaptionLabel}"
+                       Text="Datumintervall, distrikt, restid och serie kommer när kalendern går på riktig data (M1)." />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <VerticalStackLayout Grid.Row="1" Padding="16,0,16,16" Spacing="8">
+            <Button Style="{StaticResource PrimaryButton}" Text="Visa tävlingar" Command="{Binding ApplyCommand}" />
+            <Button Style="{StaticResource SecondaryButton}" Text="Rensa filter" Command="{Binding ClearCommand}" />
+        </VerticalStackLayout>
+
+    </Grid>
+
+</SpinePage>

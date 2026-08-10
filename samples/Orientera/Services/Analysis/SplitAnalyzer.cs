@@ -14,8 +14,12 @@ namespace Orientera.Services.Analysis;
 /// </remarks>
 public static class SplitAnalyzer
 {
-    /// <summary>How much worse than the runner's own pace a leg must be to look like a mistake.</summary>
-    public const double MistakeRatioThreshold = 1.30;
+    /// <summary>
+    /// How much worse than the runner's own pace a leg must be to look like a mistake.
+    /// 25% over your own baseline on a single leg is a route choice gone wrong or a lost
+    /// control, not a bad patch — below that the signal is not clean enough to name it.
+    /// </summary>
+    public const double MistakeRatioThreshold = 1.25;
 
     /// <summary>Legs losing less than this are noise, however bad the ratio looks.</summary>
     public static readonly TimeSpan MinimumMistakeLoss = TimeSpan.FromSeconds(20);

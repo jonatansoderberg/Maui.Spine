@@ -1,0 +1,46 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Profile.FollowRunnerSheet"
+    x:TypeArguments="FollowRunnerSheetViewModel"
+    x:DataType="FollowRunnerSheetViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <VerticalStackLayout Grid.Row="0" Padding="16,0,16,8" Spacing="6">
+            <SearchBar Placeholder="Sök namn eller klubb" Text="{Binding Query}" />
+            <Label Style="{StaticResource CaptionLabel}"
+                   Text="Min grupp är din egen lista. Ingen får veta att du följer dem." />
+        </VerticalStackLayout>
+
+        <CollectionView Grid.Row="1" Margin="16,0,16,16" ItemsSource="{Binding Results}" SelectionMode="None">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="6" />
+            </CollectionView.ItemsLayout>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="SearchResultRow">
+                    <Border Style="{StaticResource Card}" Padding="14,10">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <VerticalStackLayout Grid.Column="0" Spacing="1" VerticalOptions="Center">
+                                <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Name}" />
+                                <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
+                            </VerticalStackLayout>
+
+                            <Button Grid.Column="1"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="14,0"
+                                    HeightRequest="36"
+                                    FontSize="{StaticResource SizeCaption}"
+                                    Text="{Binding ActionText}"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ToggleCommand}"
+                                    CommandParameter="{Binding .}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+
+</SpinePage>

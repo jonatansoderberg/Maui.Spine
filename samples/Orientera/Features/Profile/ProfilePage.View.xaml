@@ -5,9 +5,186 @@
     x:TypeArguments="ProfilePageViewModel"
     x:DataType="ProfilePageViewModel">
 
-    <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Jag" FontSize="22" FontAttributes="Bold" />
-        <Label Text="Placeholder — profil, Sverigelistan, Min grupp och utveckling byggs i M0 etapp 4." />
-    </VerticalStackLayout>
+    <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20">
+
+            <!-- ============ Profil ============ -->
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                <Border Grid.Column="0"
+                        WidthRequest="56" HeightRequest="56"
+                        BackgroundColor="{DynamicResource AccentSubtle}"
+                        Stroke="Transparent" StrokeThickness="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="28" />
+                    </Border.StrokeShape>
+                    <Label Style="{StaticResource Heading1Label}"
+                           TextColor="{DynamicResource AccentAction}"
+                           HorizontalOptions="Center" VerticalOptions="Center"
+                           Text="{Binding Initials}" />
+                </Border>
+
+                <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                    <Label Style="{StaticResource Heading1Label}" Text="{Binding Name}" />
+                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
+                </VerticalStackLayout>
+            </Grid>
+
+            <!-- ============ Sverigelistan ============ -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasRanking}">
+                <Label Style="{StaticResource SectionLabel}" Text="Sverigelistan" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="12">
+
+                        <HorizontalStackLayout Spacing="10" VerticalOptions="End">
+                            <Label Style="{StaticResource DisplayNumberLabel}" Text="{Binding PointsText}" />
+                            <Label Style="{StaticResource NumericCaptionLabel}"
+                                   VerticalOptions="End" Margin="0,0,0,6"
+                                   TextColor="{DynamicResource PositiveDelta}"
+                                   Text="{Binding TrendText}" />
+                        </HorizontalStackLayout>
+
+                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding NationalPlaceText}" />
+                        <Label Style="{StaticResource NumericCaptionLabel}" Text="{Binding DisciplineText}" />
+
+                        <Border Style="{StaticResource BadgeAccent}"
+                                HorizontalOptions="Start"
+                                IsVisible="{Binding HasExpiryWarning}">
+                            <Label Style="{StaticResource BadgeAccentLabel}"
+                                   TextTransform="None"
+                                   Text="{Binding ExpiryWarning}" />
+                        </Border>
+
+                        <BoxView Style="{StaticResource Divider}" />
+
+                        <Label Style="{StaticResource SectionLabel}" Text="Resultat i snittet" />
+
+                        <VerticalStackLayout Spacing="7" BindableLayout.ItemsSource="{Binding CountingResults}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="RankingRow">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                        <VerticalStackLayout Grid.Column="0" Spacing="1">
+                                            <Label Style="{StaticResource BodyLabel}" Text="{Binding Name}">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsCounting}" Value="False">
+                                                        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                            <Label Style="{StaticResource NumericCaptionLabel}" Text="{Binding DateText}" />
+                                            <Label Style="{StaticResource CaptionLabel}"
+                                                   TextColor="{DynamicResource NegativeDelta}"
+                                                   IsVisible="{Binding ExpiresSoon}"
+                                                   Text="{Binding ExpiryText}" />
+                                        </VerticalStackLayout>
+
+                                        <Label Grid.Column="1"
+                                               Style="{StaticResource NumericHeading2Label}"
+                                               VerticalOptions="Center"
+                                               Text="{Binding PointsText}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsCounting}" Value="False">
+                                                    <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                    </Grid>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Serie ============ -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasSeries}">
+                <Label Style="{StaticResource SectionLabel}" Text="{Binding SeriesName}" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Style="{StaticResource Heading2Label}" Text="{Binding SeriesStandingText}" />
+
+                        <VerticalStackLayout Spacing="7" BindableLayout.ItemsSource="{Binding SeriesRounds}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="SeriesRow">
+                                    <Grid ColumnDefinitions="*,56,44" ColumnSpacing="8">
+                                        <VerticalStackLayout Grid.Column="0" Spacing="1">
+                                            <Label Style="{StaticResource BodyLabel}" Text="{Binding Name}" />
+                                            <Label Style="{StaticResource NumericCaptionLabel}" Text="{Binding DateText}" />
+                                        </VerticalStackLayout>
+
+                                        <Label Grid.Column="1" Style="{StaticResource NumericCaptionLabel}"
+                                               VerticalOptions="Center" HorizontalTextAlignment="End"
+                                               Text="{Binding PlaceText}" />
+
+                                        <Label Grid.Column="2" Style="{StaticResource NumericStrongLabel}"
+                                               VerticalOptions="Center" HorizontalTextAlignment="End"
+                                               Text="{Binding PointsText}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsCounting}" Value="False">
+                                                    <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+                                    </Grid>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+
+                        <Label Style="{StaticResource CaptionLabel}"
+                               Text="Grå rader räknas inte i totalen — de är strukna eller inte körda ännu." />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Min grupp ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Min grupp" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Group}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="GroupMemberRow">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                        <VerticalStackLayout Grid.Column="0" Spacing="1" VerticalOptions="Center">
+                                            <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Name}" />
+                                            <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
+                                        </VerticalStackLayout>
+
+                                        <Label Grid.Column="1"
+                                               Style="{StaticResource BodyLabel}"
+                                               TextColor="{DynamicResource TextSecondary}"
+                                               VerticalOptions="Center"
+                                               Text="Sluta följa">
+                                            <Label.GestureRecognizers>
+                                                <TapGestureRecognizer
+                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.UnfollowCommand}"
+                                                    CommandParameter="{Binding .}" />
+                                            </Label.GestureRecognizers>
+                                        </Label>
+                                    </Grid>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Text="Följ någon"
+                                Command="{Binding OpenFollowRunnerCommand}" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Dev-verktyg ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Utvecklingsläge" />
+                <Button Style="{StaticResource SecondaryButton}" Text="Tidsmaskin" Command="{Binding OpenTimeMachineCommand}" />
+                <Button Style="{StaticResource SecondaryButton}" Text="Designsystem" Command="{Binding OpenDesignSystemCommand}" />
+                <Label Style="{StaticResource CaptionLabel}"
+                       Text="M0 kör på fake-data. Tidsmaskinen flyttar &quot;nu&quot; genom tävlingsresan; designsystemet visar tokens och komponenter." />
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
 
 </SpinePage>

@@ -46,7 +46,7 @@ Domänmodeller läggs i appen (utbrytning till separat projekt kan ske vid M1 n�
 - **Dev-verktyg: "tidsmaskin".** En dev-sheet där man flyttar "nu" genom tävlingslivscykeln och ser Hem/CTA:er byta state (DoD-kravet "context-state kan simuleras").
 - Unit-testprojekt för ContextEngine, RelevanceEngine, EventGrouper (NFR Testbarhet).
 
-### Etapp 4 — Flikarna med fake-data
+### Etapp 4 — Flikarna med fake-data ✅
 
 Byggordning (varje punkt är leverbar för sig):
 
@@ -90,6 +90,7 @@ Arkitekturregel från dag ett: **alla datakällor bakom interface** (`IEventSour
 
 1. ✅ **Designavstämning** (etapp 1-grinden) — besluten 1–5 tagna 2026-08-10, se [design/designprinciper.md](design/designprinciper.md).
 2. ✅ Tab-host (alternativ A) + iOS-verifiering av Spine (sheets med detents kvarstår).
-3. Tokens + tema-resurser.
-4. Fake-data + ContextEngine + tester.
-5. Flikarna i ordningen Tävlingar → Detalj → Hem → Live → Resultat → Jag.
+3. ✅ Tokens + tema-resurser.
+4. ✅ Fake-data + ContextEngine + tester.
+5. ✅ Flikarna i ordningen Tävlingar → Detalj → Hem → Live → Resultat → Jag.
+6. Etapp 5: light/dark-svep, VoiceOver/TalkBack, Android-emulatorkörning.

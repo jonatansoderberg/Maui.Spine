@@ -1,0 +1,66 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Results.PredictionInfoSheet"
+    x:TypeArguments="PredictionInfoSheetViewModel"
+    x:DataType="PredictionInfoSheetViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16,4,16,24" Spacing="16">
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="4">
+                    <Label Style="{StaticResource SectionLabel}" Text="Förväntad placering" />
+
+                    <HorizontalStackLayout Spacing="8" VerticalOptions="End">
+                        <Label Style="{StaticResource DisplayNumberLabel}"
+                               TextColor="{DynamicResource EstimateInk}"
+                               Text="{Binding Range}" />
+                        <Label Style="{StaticResource CaptionLabel}"
+                               VerticalOptions="End"
+                               Margin="0,0,0,6"
+                               Text="{Binding FieldText}" />
+                    </HorizontalStackLayout>
+
+                    <HorizontalStackLayout Spacing="6" Margin="0,6,0,0">
+                        <Border Style="{StaticResource Badge}">
+                            <Label Style="{StaticResource BadgeLabel}"
+                                   TextColor="{DynamicResource EstimateInk}"
+                                   Text="Uppskattning" />
+                        </Border>
+                        <Border Style="{StaticResource Badge}">
+                            <Label Style="{StaticResource BadgeLabel}" Text="{Binding ConfidenceText}" />
+                        </Border>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Vad som ligger bakom" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Drivers}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                    <Label Grid.Column="0"
+                                           Style="{StaticResource BodyLabel}"
+                                           TextColor="{DynamicResource EstimateInk}"
+                                           Text="•" />
+                                    <Label Grid.Column="1" Style="{StaticResource BodyLabel}" Text="{Binding .}" />
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <Label Style="{StaticResource CaptionLabel}"
+                   Text="Prognosen är ett intervall, inte en gissning på en exakt placering. Den beräknas av en deterministisk modell så att den kan testas mot historiska tävlingar — AI används bara för att tolka PM till terrängegenskaper." />
+
+            <Label Style="{StaticResource CaptionLabel}" Text="{Binding ModelText}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

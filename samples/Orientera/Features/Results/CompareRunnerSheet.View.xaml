@@ -1,0 +1,56 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Results.CompareRunnerSheet"
+    x:TypeArguments="CompareRunnerSheetViewModel"
+    x:DataType="CompareRunnerSheetViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <Label Grid.Row="0"
+               Style="{StaticResource CaptionLabel}"
+               Padding="16,0,16,10"
+               Text="Vinnaren är förvald jämförelse. Klubbkompisar och Min grupp är oftast mer lärorika." />
+
+        <CollectionView Grid.Row="1" Margin="16,0,16,16" ItemsSource="{Binding Candidates}" SelectionMode="None">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="6" />
+            </CollectionView.ItemsLayout>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="CompareCandidate">
+                    <Border Style="{StaticResource Card}" Padding="14,10">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                            <Label Grid.Column="0"
+                                   Style="{StaticResource NumericHeading2Label}"
+                                   VerticalOptions="Center"
+                                   Text="{Binding PlaceText}" />
+
+                            <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Name}" />
+                                <Label Style="{StaticResource CaptionLabel}" Text="{Binding Club}" />
+                            </VerticalStackLayout>
+
+                            <VerticalStackLayout Grid.Column="2" Spacing="2" VerticalOptions="Center">
+                                <Label Style="{StaticResource NumericStrongLabel}"
+                                       HorizontalTextAlignment="End"
+                                       Text="{Binding TimeText}" />
+                                <Border Style="{StaticResource Badge}" IsVisible="{Binding IsInMyGroup}">
+                                    <Label Style="{StaticResource BadgeLabel}" Text="Min grupp" />
+                                </Border>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ChooseCommand}"
+                                CommandParameter="{Binding .}" />
+                        </Border.GestureRecognizers>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+
+</SpinePage>

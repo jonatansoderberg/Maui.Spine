@@ -5,10 +5,122 @@
     x:TypeArguments="EventsPageViewModel"
     x:DataType="EventsPageViewModel">
 
-    <VerticalStackLayout Padding="24" Spacing="12">
-        <Label Text="Tävlingar" FontSize="22" FontAttributes="Bold" />
-        <Label Text="Placeholder — lista + karta, snabbfilter, relevans och gruppering byggs i M0 etapp 4 (docs/implementation-plan.md)." />
-        <Button Text="Öppna tävlingsdetaljer" Command="{Binding OpenDetailsCommand}" />
-    </VerticalStackLayout>
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Snabbfilter: en rad, horisontellt scrollbar, vald chip = accentfyllning -->
+        <ScrollView Grid.Row="0"
+                    Orientation="Horizontal"
+                    HorizontalScrollBarVisibility="Never"
+                    Padding="16,4,16,10">
+            <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Chips}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="FilterChip">
+                        <ChipView Text="{Binding Label}"
+                                  IsSelected="{Binding IsSelected}"
+                                  Command="{Binding Source={RelativeSource AncestorType={x:Type HorizontalStackLayout}}, Path=BindingContext.SelectChipCommand}"
+                                  CommandParameter="{Binding .}" />
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+        </ScrollView>
+
+        <!-- Tomt läge är ett designat läge, inte en spinner -->
+        <VerticalStackLayout Grid.Row="1"
+                             Padding="32"
+                             Spacing="8"
+                             VerticalOptions="Center"
+                             IsVisible="{Binding IsEmpty}">
+            <Label Style="{StaticResource Heading2Label}"
+                   HorizontalTextAlignment="Center"
+                   Text="Inget att visa" />
+            <Label Style="{StaticResource BodySecondaryLabel}"
+                   HorizontalTextAlignment="Center"
+                   Text="{Binding EmptyMessage}" />
+        </VerticalStackLayout>
+
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding Cards}"
+                        SelectionMode="None"
+                        IsVisible="{Binding HasCards}">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="8" />
+            </CollectionView.ItemsLayout>
+
+            <CollectionView.Footer>
+                <BoxView HeightRequest="16" Color="Transparent" />
+            </CollectionView.Footer>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="EventCard">
+                    <Grid Padding="16,0">
+                        <Border Style="{StaticResource Card}">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+
+                                <Label Grid.Row="0" Grid.Column="0"
+                                       Style="{StaticResource SectionLabel}"
+                                       Text="{Binding DateLabel}" />
+
+                                <!-- Favoritmarkering direkt i listan -->
+                                <Label Grid.Row="0" Grid.Column="1" Grid.RowSpan="2"
+                                       Style="{StaticResource Heading2Label}"
+                                       TextColor="{DynamicResource AccentAction}"
+                                       VerticalOptions="Start"
+                                       Text="{Binding FavouriteGlyph}">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ToggleFavouriteCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Label.GestureRecognizers>
+                                </Label>
+
+                                <Label Grid.Row="1" Grid.Column="0"
+                                       Style="{StaticResource Heading2Label}"
+                                       Text="{Binding Title}" />
+
+                                <VerticalStackLayout Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Spacing="2">
+                                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlaceLabel}" />
+                                    <Label Style="{StaticResource CaptionLabel}">
+                                        <Label.FormattedText>
+                                            <FormattedString>
+                                                <Span Text="{Binding MetaLabel}" />
+                                                <Span Text=" · " />
+                                                <Span Text="{Binding DistanceLabel}" />
+                                            </FormattedString>
+                                        </Label.FormattedText>
+                                    </Label>
+                                </VerticalStackLayout>
+
+                                <HorizontalStackLayout Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                                       Spacing="6" Margin="0,6,0,0">
+                                    <Border Style="{StaticResource BadgeLive}" IsVisible="{Binding IsLive}">
+                                        <Label Style="{StaticResource BadgeOnFillLabel}" Text="Live" />
+                                    </Border>
+                                    <Border Style="{StaticResource BadgePositive}" IsVisible="{Binding IsRegistered}">
+                                        <Label Style="{StaticResource BadgeOnFillLabel}" Text="Anmäld" />
+                                    </Border>
+                                    <Border Style="{StaticResource Badge}" IsVisible="{Binding HasGroupEntry}">
+                                        <Label Style="{StaticResource BadgeLabel}" Text="Min grupp" />
+                                    </Border>
+                                    <Border Style="{StaticResource Badge}" IsVisible="{Binding IsRecurring}">
+                                        <Label Style="{StaticResource BadgeLabel}" Text="{Binding OccurrenceLabel}" />
+                                    </Border>
+                                    <Border Style="{StaticResource BadgeAccent}" IsVisible="{Binding ShowContextBadge}">
+                                        <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding ContextLabel}" />
+                                    </Border>
+                                </HorizontalStackLayout>
+                            </Grid>
+
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenDetailsCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
 
 </SpinePage>
