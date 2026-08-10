@@ -1,0 +1,14 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Events.EventsPage"
+    x:TypeArguments="EventsPageViewModel"
+    x:DataType="EventsPageViewModel">
+
+    <VerticalStackLayout Padding="24" Spacing="12">
+        <Label Text="Tävlingar" FontSize="22" FontAttributes="Bold" />
+        <Label Text="Placeholder — lista + karta, snabbfilter, relevans och gruppering byggs i M0 etapp 4 (docs/implementation-plan.md)." />
+        <Button Text="Öppna tävlingsdetaljer" Command="{Binding OpenDetailsCommand}" />
+    </VerticalStackLayout>
+
+</SpinePage>

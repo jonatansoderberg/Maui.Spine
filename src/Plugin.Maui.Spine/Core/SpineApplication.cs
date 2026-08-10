@@ -1,5 +1,6 @@
 ﻿using AsyncAwaitBestPractices;
 using Plugin.Maui.Spine.Presentation;
+using Plugin.Maui.Spine.Services;
 
 namespace Plugin.Maui.Spine.Core;
 
@@ -22,24 +23,34 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
 {
     private static IServiceProvider _services => IPlatformApplication.Current?.Services ?? throw new PlatformNotSupportedException();
 
-    private readonly SpineHostPage _host;
+    private readonly ISpineHost _host;
     private readonly INavigationService _navigationService;
     private Window? _window;
 
     /// <summary>
-    /// Initializes the application, resolving <see cref="SpineHostPage"/> and
+    /// Initializes the application, resolving the active <see cref="ISpineHost"/>
+    /// (<see cref="SpineHostPage"/>, or <see cref="SpineTabbedHostPage"/> when
+    /// <see cref="NavigableTabAttribute"/> pages are discovered) and
     /// <see cref="INavigationService"/> from the DI container.
     /// </summary>
     public SpineApplication()
     {
-        _host = _services.GetRequiredService<SpineHostPage>();
+        var registry = _services.GetRequiredService<NavigationRegistry>();
+
+        if (registry.Tabs.Count > 0 && !registry.IsTab(typeof(TNavigable)))
+            throw new InvalidOperationException(
+                $"[NavigableTab] pages were discovered, but the application root page " +
+                $"'{typeof(TNavigable).Name}' is not one of them. The SpineApplication " +
+                $"x:TypeArguments page decides the initially selected tab and must be a tab root.");
+
+        _host = _services.GetRequiredService<ISpineHost>();
         _navigationService = _services.GetRequiredService<INavigationService>();
     }
 
     /// <inheritdoc/>
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        var window = new Window(_host);
+        var window = new Window(_host.HostPage);
         _window = window;
 
         this.BindingContext = _host.RootNavigationRegion.BindingContext;

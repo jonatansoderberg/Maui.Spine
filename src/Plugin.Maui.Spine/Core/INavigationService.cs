@@ -49,4 +49,12 @@ public interface INavigationService
     /// </summary>
     /// <typeparam name="TPage">The page to set as the new root.</typeparam>
     Task SetRootAsync<TPage>() where TPage : INavigable;
+
+    /// <summary>
+    /// Switches to the tab rooted by <typeparamref name="TPage"/>, preserving the stack state of
+    /// every tab. Equivalent to <see cref="NavigateToAsync{TPage}"/> on a tab page, but
+    /// intention-revealing. No-op when <typeparamref name="TPage"/> is already the active tab.
+    /// </summary>
+    /// <typeparam name="TPage">A page decorated with <see cref="NavigableTabAttribute"/> (validated at runtime).</typeparam>
+    Task SwitchToTabAsync<TPage>() where TPage : INavigable;
 }

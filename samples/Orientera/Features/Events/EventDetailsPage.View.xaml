@@ -1,0 +1,13 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Events.EventDetailsPage"
+    x:TypeArguments="EventDetailsPageViewModel"
+    x:DataType="EventDetailsPageViewModel">
+
+    <VerticalStackLayout Padding="24" Spacing="12">
+        <Label Text="Tävlingsdetaljer" FontSize="22" FontAttributes="Bold" />
+        <Label Text="Placeholder — pushad på Tävlingar-tabbens stack. Tab-baren ska vara kvar och back-swipe fungera." />
+    </VerticalStackLayout>
+
+</SpinePage>

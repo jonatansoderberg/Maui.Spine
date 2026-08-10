@@ -1,0 +1,13 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Home.HomePage"
+    x:TypeArguments="HomePageViewModel"
+    x:DataType="HomePageViewModel">
+
+    <VerticalStackLayout Padding="24" Spacing="12">
+        <Label Text="Orientera" FontSize="28" FontAttributes="Bold" />
+        <Label Text="M0-scaffold — placeholder. Kontextstyrt Hem byggs efter designavstämning (se docs/design/designprinciper.md)." />
+    </VerticalStackLayout>
+
+</SpinePage>

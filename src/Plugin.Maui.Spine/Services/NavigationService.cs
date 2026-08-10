@@ -14,27 +14,37 @@ internal sealed class NavigationService : INavigationService
 {
     private readonly IServiceProvider _services;
     private readonly NavigationRegistry _registry;
-    private readonly SpineHostPage _host;
+    private readonly SpineHostProvider _hostProvider;
     private readonly ISystemInsetsProvider _insetsProvider;
 
+    private ISpineHost _host => _hostProvider.Current
+        ?? throw new InvalidOperationException("No Spine host is active yet.");
+
     /// <summary>
-    /// Initializes the service with the DI container, page registry, host page, and insets provider.
+    /// Initializes the service with the DI container, page registry, host provider, and insets provider.
     /// </summary>
     public NavigationService(
         IServiceProvider services,
         NavigationRegistry registry,
-        SpineHostPage host,
+        SpineHostProvider hostProvider,
         ISystemInsetsProvider insetsProvider)
     {
         _services = services;
         _registry = registry;
-        _host = host;
+        _hostProvider = hostProvider;
         _insetsProvider = insetsProvider;
     }
 
     /// <inheritdoc/>
     public async Task NavigateToAsync<TNode>() where TNode : INavigable
     {
+        // A [NavigableTab] page is never pushed — navigating to it switches to its tab.
+        if (_registry.IsTab(typeof(TNode)))
+        {
+            await SwitchToTabCoreAsync(typeof(TNode));
+            return;
+        }
+
         var view = _services.GetRequiredService(typeof(TNode)) as View;
 
         if (view is null)
@@ -48,9 +58,40 @@ internal sealed class NavigationService : INavigationService
     }
 
     /// <inheritdoc/>
+    public Task SwitchToTabAsync<TPage>() where TPage : INavigable
+    {
+        if (!_registry.IsTab(typeof(TPage)))
+            throw new InvalidOperationException(
+                $"'{typeof(TPage).Name}' is not a [NavigableTab] page — SwitchToTabAsync only targets tab roots.");
+
+        return SwitchToTabCoreAsync(typeof(TPage));
+    }
+
+    private Task SwitchToTabCoreAsync(Type pageType)
+    {
+        if (_host is not SpineTabbedHostPage tabbedHost)
+            throw new InvalidOperationException(
+                "No tab host is active. Tab navigation requires [NavigableTab] pages and the tabbed host as window root.");
+
+        return tabbedHost.SwitchToAsync(pageType);
+    }
+
+    /// <inheritdoc/>
     public async Task NavigateToAsync<TNode, TParam>(TParam param)
         where TNode : INavigable, INavigableWithParameter<TParam>
     {
+        // Switching to a tab with a parameter delivers it to the tab root's ViewModel.
+        if (_registry.IsTab(typeof(TNode)))
+        {
+            await SwitchToTabCoreAsync(typeof(TNode));
+
+            if (_host is SpineTabbedHostPage tabbedHost
+                && tabbedHost.GetTabRootBindingContext(typeof(TNode)) is IReceivesNavigationParameter<TParam> tabVm)
+                await tabVm.OnNavigationParameterAsync(param);
+
+            return;
+        }
+
         var view = _services.GetRequiredService(typeof(TNode)) as View;
 
         if (view is null)
@@ -70,6 +111,10 @@ internal sealed class NavigationService : INavigationService
     public async Task<NavigationResult<TResult>> NavigateToWithResultAsync<TPage, TResult>()
         where TPage : INavigable, INavigableWithResult<TResult>
     {
+        if (_registry.IsTab(typeof(TPage)))
+            throw new InvalidOperationException(
+                $"'{typeof(TPage).Name}' is a [NavigableTab] page — a tab switch cannot produce a result.");
+
         var view = _services.GetRequiredService(typeof(TPage)) as View;
 
         if (view is null)
@@ -153,6 +198,21 @@ internal sealed class NavigationService : INavigationService
     /// <inheritdoc/>
     public async Task SetRootAsync<TNode>() where TNode : INavigable
     {
+        if (_registry.IsTab(typeof(TNode)))
+        {
+            // Swap back to the tab host when a plain host took over (e.g. login → main app).
+            if (_host is not SpineTabbedHostPage)
+                SwapHost(_services.GetRequiredService<SpineTabbedHostPage>());
+
+            await ((SpineTabbedHostPage)_host).SetRootTabAsync(typeof(TNode));
+            return;
+        }
+
+        // A non-tab root while the tab host is active replaces the whole tab host with a plain
+        // root region (e.g. logout → login page).
+        if (_registry.Tabs.Count > 0 && _host is SpineTabbedHostPage)
+            SwapHost(_services.GetRequiredService<SpineHostPage>());
+
         var view = _services.GetRequiredService(typeof(TNode)) as View;
 
         if (view is not null)
@@ -163,6 +223,17 @@ internal sealed class NavigationService : INavigationService
 
             await _host.ActiveRegionViewModel.ResetAsync(view);
         }
+    }
+
+    private void SwapHost(ISpineHost next)
+    {
+        var window = _hostProvider.Current?.HostPage.Window
+            ?? Application.Current?.Windows.FirstOrDefault();
+
+        _hostProvider.SetCurrent(next);
+
+        if (window is not null)
+            window.Page = next.HostPage;
     }
 
     private async Task NavigateCoreAsync(View view, NavigableAttribute meta)
@@ -243,33 +314,12 @@ internal sealed class NavigationService : INavigationService
     }
 
     private void SetViewModelMeta(View view, NavigableAttribute meta)
-    {
-        if (view.BindingContext is not ViewModelBase vm)
-            return;
+        => NavigableMeta.Apply(view, meta, RegionInsetsProvider());
 
-        vm.Title = meta.Title;
-        vm.TitlePlacement = meta.TitlePlacement;
-        vm.TitleAlignment = meta.TitleAlignment;
-        vm.IsHeaderBarVisible = meta.IsHeaderBarVisible;
-        vm.IsBackButtonVisible = meta.IsBackButtonVisible;
-
-        if (meta is NavigableRegionAttribute regionMeta)
-        {
-            vm.IsTitleBarVisible = regionMeta.IsTitleBarVisible;
-            vm.SafeAreaEdges = regionMeta.SafeAreaEdges;
-        }
-        else if (meta is NavigableSheetAttribute sheetMeta)
-        {
-            vm.SafeAreaEdges = sheetMeta.SafeAreaEdges;
-        }
-
-        // Populate raw system bar dimensions and the per-page complement insets.
-        var insets = _insetsProvider.SystemBarInsets;
-        vm.SystemBarInsets = insets;
-        vm.SafeAreaInsets = new Thickness(
-            (vm.SafeAreaEdges & SafeAreaEdges.Left)   != 0 ? 0 : insets.Left,
-            (vm.SafeAreaEdges & SafeAreaEdges.Top)    != 0 ? 0 : insets.Top,
-            (vm.SafeAreaEdges & SafeAreaEdges.Right)  != 0 ? 0 : insets.Right,
-            (vm.SafeAreaEdges & SafeAreaEdges.Bottom) != 0 ? 0 : insets.Bottom);
-    }
+    // Region pages pushed inside a tab must use that tab's insets (its bottom includes the
+    // native tab bar), not the window-level insets.
+    private ISystemInsetsProvider RegionInsetsProvider()
+        => _host is SpineTabbedHostPage tabbedHost && !tabbedHost.IsSheetActive
+            ? tabbedHost.ActiveTabInsets
+            : _insetsProvider;
 }

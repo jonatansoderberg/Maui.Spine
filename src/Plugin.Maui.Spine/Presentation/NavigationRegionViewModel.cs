@@ -254,6 +254,56 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(SecondaryPageAction));
     }
 
+    /// <summary>
+    /// Pops every page above the root in a single back transition. Used when the active tab is
+    /// re-selected (iOS convention). No-op when the stack is already at its root.
+    /// </summary>
+    public async Task PopToRootAsync()
+    {
+        if (_stack.Count < 2)
+            return;
+
+        if (CurrentRegionViewModel is not null)
+        {
+            var canGoBack = await CurrentRegionViewModel.OnBackRequestedAsync();
+            if (!canGoBack)
+                return;
+        }
+
+        InvokeOnDisappearing(NavigationDirection.Back);
+
+        // Cancel pending results on every popped page, then collapse the stack to its root.
+        while (_stack.Count > 1 && _stack.TryPop(out var popped))
+        {
+            if (popped?.BindingContext is ViewModelBase poppedVm && poppedVm.PendingResult is { } tcs)
+            {
+                poppedVm.PendingResult = null;
+                tcs.TrySetResult(null);
+                poppedVm.OnDismissedAsync().SafeFireAndForget();
+            }
+        }
+
+        var root = _stack.Peek();
+
+        BackView.Content = root;
+        OnPropertyChanged(nameof(BackView));
+
+        await Task.WhenAll([_frameTransition.AnimateBackShowAsync(BackView), _frameTransition.AnimateBackHideAsync(FrontView)]);
+
+        BackView.Content = null;
+        FrontView.Content = root;
+        FrontView.IsVisible = true;
+
+        InvokeOnAppearing(NavigationDirection.Back);
+
+        CloseCommand.NotifyCanExecuteChanged();
+        BackCommand.NotifyCanExecuteChanged();
+
+        OnPropertyChanged(nameof(CurrentRegionViewModel));
+        OnPropertyChanged(nameof(PrimaryPageAction));
+        OnPropertyChanged(nameof(SecondaryPageAction));
+    }
+
     /// <summary>Returns <see langword="true"/> when the navigation stack has exactly one page (the close action is available).</summary>
     public bool CloseEnabled() => _stack.Count <= 1;
 

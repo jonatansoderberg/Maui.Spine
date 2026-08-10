@@ -59,6 +59,15 @@ public sealed class SpineOptions
     /// <summary>Default values applied to all sheet pages unless overridden per-page.</summary>
     public SheetDefaultsConfig SheetDefaults { get; } = new SheetDefaultsConfig();
 
+    /// <summary>Default values applied to all tab root pages unless overridden per-page.</summary>
+    public TabDefaultsConfig TabDefaults { get; } = new TabDefaultsConfig();
+
+    /// <summary>
+    /// Host-level tab bar settings. Tabs themselves are declared by decorating pages with
+    /// <see cref="NavigableTabAttribute"/> — discovery of one or more tab pages activates the tab host.
+    /// </summary>
+    public SpineTabsOptions Tabs { get; } = new SpineTabsOptions();
+
     /// <summary>
     /// Adds <paramref name="assembly"/> to the list of assemblies Spine will scan for navigable pages.
     /// Returns <see langword="this"/> for fluent chaining.
@@ -127,6 +136,36 @@ public sealed class SpineOptions
         /// render edge-to-edge behind that bar — use
         /// <see cref="Plugin.Maui.Spine.Core.ViewModelBase.SafeAreaInsets"/> to offset your content.
         /// Defaults to <see cref="SafeAreaEdges.All"/> (all bars padded).
+        /// </summary>
+        public SafeAreaEdges SafeAreaEdges { get; set; } = SafeAreaEdges.All;
+    }
+
+    /// <summary>
+    /// Default values applied to tab root pages decorated with <see cref="NavigableTabAttribute"/>
+    /// when individual attribute properties are not explicitly set.
+    /// Mirrors <see cref="RegionDefaultsConfig"/> — a tab root behaves as a region page inside its stack.
+    /// </summary>
+    public sealed class TabDefaultsConfig : NavigableDefaults
+    {
+        /// <summary>Initializes defaults tuned to the current platform and device idiom.</summary>
+        public TabDefaultsConfig()
+        {
+            var isDesktop = DeviceInfo.Idiom == DeviceIdiom.Desktop;
+
+            IsHeaderBarVisible = !isDesktop;
+            IsTitleBarVisible = isDesktop;
+            IsBackButtonVisible = true;
+            TitlePlacement = isDesktop ? TitlePlacement.TitleBar : TitlePlacement.HeaderBar;
+            TitleAlignment = isDesktop ? TitleAlignment.Left : TitleAlignment.Center;
+        }
+
+        /// <summary>Default visibility of the native window title bar (desktop only).</summary>
+        public bool IsTitleBarVisible { get; set; }
+
+        /// <summary>
+        /// Default edges on which Spine applies system-bar padding for tab root pages.
+        /// Inside the tab host the bottom inset includes the native tab bar.
+        /// Defaults to <see cref="SafeAreaEdges.All"/>.
         /// </summary>
         public SafeAreaEdges SafeAreaEdges { get; set; } = SafeAreaEdges.All;
     }
