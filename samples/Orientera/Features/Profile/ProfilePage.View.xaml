@@ -20,6 +20,7 @@
                     <Label Style="{StaticResource Heading1Label}"
                            TextColor="{DynamicResource AccentAction}"
                            HorizontalOptions="Center" VerticalOptions="Center"
+                           AutomationProperties.IsInAccessibleTree="False"
                            Text="{Binding Initials}" />
                 </Border>
 
@@ -37,7 +38,9 @@
                     <VerticalStackLayout Spacing="12">
 
                         <HorizontalStackLayout Spacing="10" VerticalOptions="End">
-                            <Label Style="{StaticResource DisplayNumberLabel}" Text="{Binding PointsText}" />
+                            <Label Style="{StaticResource DisplayNumberLabel}"
+                                   SemanticProperties.Description="{Binding PointsSpoken}"
+                                   Text="{Binding PointsText}" />
                             <Label Style="{StaticResource NumericCaptionLabel}"
                                    VerticalOptions="End" Margin="0,0,0,6"
                                    TextColor="{DynamicResource PositiveDelta}"
@@ -156,6 +159,9 @@
                                                Style="{StaticResource BodyLabel}"
                                                TextColor="{DynamicResource TextSecondary}"
                                                VerticalOptions="Center"
+                                               MinimumHeightRequest="44"
+                                               VerticalTextAlignment="Center"
+                                               SemanticProperties.Description="{Binding UnfollowDescription}"
                                                Text="Sluta följa">
                                             <Label.GestureRecognizers>
                                                 <TapGestureRecognizer

@@ -149,13 +149,14 @@
 
         <CollectionView.Header>
             <VerticalStackLayout Padding="0,4,0,12" Spacing="2">
-                <Label Style="{StaticResource DisplayLabel}" Text="{Binding Greeting}" />
+                <Label Style="{StaticResource DisplayLabel}" SemanticProperties.HeadingLevel="Level1"
+                       Text="{Binding Greeting}" />
                 <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding TodayText}" />
             </VerticalStackLayout>
         </CollectionView.Header>
 
         <CollectionView.Footer>
-            <BoxView HeightRequest="24" Color="Transparent" />
+            <BoxView HeightRequest="{StaticResource TabBarSpacer}" Color="Transparent" />
         </CollectionView.Footer>
 
     </CollectionView>

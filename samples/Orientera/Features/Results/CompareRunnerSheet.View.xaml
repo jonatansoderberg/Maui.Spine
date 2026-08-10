@@ -19,7 +19,9 @@
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="CompareCandidate">
-                    <Border Style="{StaticResource Card}" Padding="14,10">
+                    <Border Style="{StaticResource Card}" Padding="14,10"
+                            SemanticProperties.Description="{Binding Accessibility}"
+                            SemanticProperties.Hint="Väljer löparen att jämföra med">
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                             <Label Grid.Column="0"
                                    Style="{StaticResource NumericHeading2Label}"

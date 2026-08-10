@@ -52,6 +52,19 @@ public sealed class ChipView : ContentView
         ApplySelection();
     }
 
+    /// <summary>
+    /// The chip is one accessible element carrying its own selected state — a screen reader
+    /// otherwise reads a bare word with no way to tell which filter is active.
+    /// </summary>
+    private void ApplySemantics()
+    {
+        SemanticProperties.SetDescription(this,
+            IsSelected ? $"{Text}, valt filter" : Text);
+
+        SemanticProperties.SetHint(this,
+            IsSelected ? string.Empty : $"Visa {Text}");
+    }
+
     public string Text
     {
         get => (string)GetValue(TextProperty);
@@ -90,11 +103,13 @@ public sealed class ChipView : ContentView
     {
         _restLabel.Text = Text;
         _selectedLabel.Text = Text;
+        ApplySemantics();
     }
 
     private void ApplySelection()
     {
         _rest.IsVisible = !IsSelected;
         _selected.IsVisible = IsSelected;
+        ApplySemantics();
     }
 }

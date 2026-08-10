@@ -8,7 +8,8 @@
     <Grid>
 
         <VerticalStackLayout Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsEmpty}">
-            <Label Style="{StaticResource Heading2Label}" HorizontalTextAlignment="Center" Text="Inga resultat ännu" />
+            <Label Style="{StaticResource Heading2Label}" SemanticProperties.HeadingLevel="Level2"
+                   HorizontalTextAlignment="Center" Text="Inga resultat ännu" />
             <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center"
                    Text="Dina resultat dyker upp här när de publicerats." />
         </VerticalStackLayout>
@@ -19,13 +20,15 @@
             </CollectionView.ItemsLayout>
 
             <CollectionView.Footer>
-                <BoxView HeightRequest="16" Color="Transparent" />
+                <BoxView HeightRequest="{StaticResource TabBarSpacer}" Color="Transparent" />
             </CollectionView.Footer>
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="MyResultRow">
                     <Grid Padding="16,0">
-                        <Border Style="{StaticResource Card}">
+                        <Border Style="{StaticResource Card}"
+                                SemanticProperties.Description="{Binding Accessibility}"
+                                SemanticProperties.Hint="Öppnar resultatet">
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
 
                                 <Label Grid.Column="0"

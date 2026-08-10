@@ -33,6 +33,38 @@ public sealed partial class LiveRow : ObservableObject
     [ObservableProperty] public partial bool HasNotStarted { get; set; }
 
     public string GroupGlyph => IsInMyGroup ? "★" : string.Empty;
+
+    /// <summary>
+    /// The row as one spoken line. Times are spelled out — "40:43" is read as a clock time,
+    /// which is wrong for an elapsed race time.
+    /// </summary>
+    [ObservableProperty]
+    public partial string Accessibility { get; set; } = string.Empty;
+
+    public void UpdateAccessibility(int? place, TimeSpan? time)
+    {
+        var parts = new List<string>(6);
+
+        if (IsMe)
+            parts.Add("du");
+
+        parts.Add(Name);
+
+        if (IsInMyGroup)
+            parts.Add("i min grupp");
+
+        parts.Add($"{Club}, klass {Class}");
+
+        if (place is not null)
+            parts.Add(Format.SpokenPlace(place));
+
+        parts.Add(ProgressText);
+
+        if (time is not null)
+            parts.Add(Format.SpokenTime(time));
+
+        Accessibility = string.Join(", ", parts);
+    }
 }
 
 public partial class LivePageViewModel(
@@ -90,6 +122,9 @@ public partial class LivePageViewModel(
         IsEveryone = Scope == LiveScope.Everyone;
 
         await RefreshAsync();
+
+        // The list is replaced under the reader's cursor; say what it now shows.
+        SemanticScreenReader.Default.Announce($"{ScopeLabels[(int)Scope]}, {Rows.Count} löpare");
     }
 
     /// <summary>
@@ -213,13 +248,14 @@ public partial class LivePageViewModel(
         row.IsRunning = entry.Status == LiveStatus.Running;
         row.HasNotStarted = entry.Status == LiveStatus.NotStarted;
 
-        row.PositionText = entry.Status switch
+        int? place = entry.Status switch
         {
-            LiveStatus.Finished when entry.FinalPlace is { } place => Format.Place(place),
-            LiveStatus.Mispunch => "—",
-            LiveStatus.NotStarted => "—",
-            _ => entry.Position is { } position ? Format.Place(position) : "—",
+            LiveStatus.Finished => entry.FinalPlace,
+            LiveStatus.Mispunch or LiveStatus.NotStarted => null,
+            _ => entry.Position,
         };
+
+        row.PositionText = place is { } p ? Format.Place(p) : "—";
 
         row.ProgressText = entry.Status switch
         {
@@ -229,11 +265,14 @@ public partial class LivePageViewModel(
             _ => entry.LastControlNumber is { } control ? $"Kontroll {control}" : "Startat",
         };
 
-        row.TimeText = entry.Status switch
+        var time = entry.Status switch
         {
-            LiveStatus.Finished => Format.Time(entry.FinishTime),
-            LiveStatus.NotStarted => "—",
-            _ => Format.Time(entry.ElapsedAtLastControl),
+            LiveStatus.Finished => entry.FinishTime,
+            LiveStatus.NotStarted => null,
+            _ => entry.ElapsedAtLastControl,
         };
+
+        row.TimeText = time is { } t ? Format.Time(t) : "—";
+        row.UpdateAccessibility(place, time);
     }
 }

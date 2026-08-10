@@ -19,7 +19,8 @@
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="x:String">
-                    <Border Style="{StaticResource Card}" Padding="16,12">
+                    <Border Style="{StaticResource Card}" Padding="16,12"
+                            SemanticProperties.Hint="Väljer klassen">
                         <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding .}" />
 
                         <Border.GestureRecognizers>

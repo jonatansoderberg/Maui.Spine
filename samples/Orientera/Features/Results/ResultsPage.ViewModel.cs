@@ -15,6 +15,7 @@ public sealed record MyResultRow
     public required string BehindText { get; init; }
     public required bool HasSplits { get; init; }
     public required bool IsPreliminary { get; init; }
+    public required string Accessibility { get; init; }
 }
 
 public partial class ResultsPageViewModel(
@@ -53,6 +54,17 @@ public partial class ResultsPageViewModel(
                 BehindText = result.BehindWinner is { } behind ? Format.Delta(behind) : string.Empty,
                 HasSplits = result.Splits.Count > 0,
                 IsPreliminary = result.Status == ResultStatus.Preliminary,
+                Accessibility = string.Join(", ",
+                    new[]
+                    {
+                        competition.Name,
+                        $"{competition.Date:d MMMM}",
+                        $"klass {result.Class}",
+                        Format.SpokenPlace(result.Place),
+                        Format.SpokenTime(result.Time),
+                        Format.SpokenDelta(result.BehindWinner),
+                        result.Splits.Count > 0 ? "sträcktider finns" : string.Empty,
+                    }.Where(part => part.Length > 0)),
             });
         }
 

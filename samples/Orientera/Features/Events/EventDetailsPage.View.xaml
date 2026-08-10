@@ -8,25 +8,37 @@
     <ScrollView>
         <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20">
 
-            <!-- ============ Hero ============ -->
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                <VerticalStackLayout Grid.Column="0" Spacing="4">
-                    <Label Style="{StaticResource SectionLabel}" Text="{Binding MetaLine}" />
-                    <Label Style="{StaticResource DisplayLabel}" Text="{Binding Name}" />
-                    <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding OrganiserLine}" />
-                    <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding DateLine}" />
-                </VerticalStackLayout>
+            <!--
+                Stjärnan delar rad med den korta metaraden, inte med titeln. Ett 44 pt-mål
+                bredvid rubriken kapade textkolumnen så att "Norrlandsmästerskapen" bröts mitt
+                i ordet.
+            -->
+            <VerticalStackLayout Spacing="4">
+                <Grid ColumnDefinitions="*,44" ColumnSpacing="12">
+                    <Label Grid.Column="0"
+                           Style="{StaticResource SectionLabel}"
+                           VerticalOptions="Center"
+                           Text="{Binding MetaLine}" />
 
-                <Label Grid.Column="1"
-                       Style="{StaticResource DisplayLabel}"
-                       TextColor="{DynamicResource AccentAction}"
-                       VerticalOptions="Start"
-                       Text="{Binding FavouriteGlyph}">
-                    <Label.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding ToggleFavouriteCommand}" />
-                    </Label.GestureRecognizers>
-                </Label>
-            </Grid>
+                    <Label Grid.Column="1"
+                           Style="{StaticResource Heading1Label}"
+                           SemanticProperties.HeadingLevel="None"
+                           TextColor="{DynamicResource AccentAction}"
+                           WidthRequest="44" HeightRequest="44"
+                           HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
+                           SemanticProperties.Description="{Binding FavouriteDescription}"
+                           Text="{Binding FavouriteGlyph}">
+                        <Label.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding ToggleFavouriteCommand}" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                </Grid>
+
+                <Label Style="{StaticResource DisplayLabel}" SemanticProperties.HeadingLevel="Level1"
+                       Text="{Binding Name}" />
+                <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding OrganiserLine}" />
+                <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding DateLine}" />
+            </VerticalStackLayout>
 
             <!-- ============ För dig ============ -->
             <VerticalStackLayout Spacing="8">
@@ -67,7 +79,9 @@
                                 HorizontalOptions="Start"
                                 IsVisible="{Binding HasPrediction}"
                                 BackgroundColor="Transparent"
-                                Padding="0">
+                                Padding="0"
+                                SemanticProperties.Description="{Binding PredictionAccessibility}"
+                                SemanticProperties.Hint="Förklarar vad prognosen bygger på">
                             <HorizontalStackLayout Spacing="6">
                                 <Label Style="{StaticResource BodyStrongLabel}"
                                        TextColor="{DynamicResource EstimateInk}"
@@ -161,7 +175,9 @@
                 <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Documents}">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="DocumentItem">
-                            <Border Style="{StaticResource Card}" Padding="14,12">
+                            <Border Style="{StaticResource Card}" Padding="14,12"
+                                    SemanticProperties.Description="{Binding Accessibility}"
+                                    SemanticProperties.Hint="Öppnas utanför appen">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <VerticalStackLayout Grid.Column="0" Spacing="1">
                                         <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Title}" />
@@ -171,6 +187,7 @@
                                            Style="{StaticResource BodyLabel}"
                                            TextColor="{DynamicResource TextSecondary}"
                                            VerticalOptions="Center"
+                                           AutomationProperties.IsInAccessibleTree="False"
                                            Text="↗" />
                                 </Grid>
 
