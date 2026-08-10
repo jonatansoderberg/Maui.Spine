@@ -1,7 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Orientera.Features.Results;
 using Orientera.Services.Context;
 using Orientera.Services.FakeData;
 using Orientera.Services.Offline;
@@ -109,8 +108,5 @@ public static class MauiProgram
 
         services.AddSingleton<CompetitionContextService>();
 
-        // Hand-off state for the compare sheet — Spine cannot combine a navigation parameter
-        // with a typed result, so the request is left here instead (Spine issue #18).
-        services.AddSingleton<ComparisonRequest>();
     }
 }

@@ -108,7 +108,26 @@ internal sealed class NavigationService : INavigationService
     }
 
     /// <inheritdoc/>
-    public async Task<NavigationResult<TResult>> NavigateToWithResultAsync<TPage, TResult>()
+    public Task<NavigationResult<TResult>> NavigateToWithResultAsync<TPage, TResult>()
+        where TPage : INavigable, INavigableWithResult<TResult>
+        => NavigateToWithResultCoreAsync<TPage, TResult>(deliverParameter: null);
+
+    /// <inheritdoc/>
+    public Task<NavigationResult<TResult>> NavigateToWithResultAsync<TPage, TParam, TResult>(TParam param)
+        where TPage : INavigable, INavigableWithParameter<TParam>, INavigableWithResult<TResult>
+        => NavigateToWithResultCoreAsync<TPage, TResult>(async view =>
+        {
+            if (view.BindingContext is IReceivesNavigationParameter<TParam> paramVm)
+                await paramVm.OnNavigationParameterAsync(param);
+        });
+
+    /// <summary>
+    /// Shared body for both result-returning overloads. <paramref name="deliverParameter"/> runs
+    /// after the page's metadata is applied and before it is presented, so a ViewModel sees its
+    /// parameter before <c>OnAppearingAsync</c> either way.
+    /// </summary>
+    private async Task<NavigationResult<TResult>> NavigateToWithResultCoreAsync<TPage, TResult>(
+        Func<View, Task>? deliverParameter)
         where TPage : INavigable, INavigableWithResult<TResult>
     {
         if (_registry.IsTab(typeof(TPage)))
@@ -123,6 +142,9 @@ internal sealed class NavigationService : INavigationService
         var meta = _registry.Get(typeof(TPage));
 
         SetViewModelMeta(view, meta);
+
+        if (deliverParameter is not null)
+            await deliverParameter(view);
 
         var viewModel = view.BindingContext as ViewModelBase;
         var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);

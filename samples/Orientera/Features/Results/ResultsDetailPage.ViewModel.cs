@@ -46,8 +46,7 @@ public partial class ResultsDetailPageViewModel(
     INavigationService _navigation,
     IEventSource _events,
     IPeopleSource _people,
-    IParticipationSource _participation,
-    ComparisonRequest _comparison) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
+    IParticipationSource _participation) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
 {
     private CompetitionId _id;
     private Person? _me;
@@ -174,11 +173,10 @@ public partial class ResultsDetailPageViewModel(
         if (_mine is null)
             return;
 
-        // Spine's NavigateToWithResultAsync cannot carry a parameter, so the request is handed
-        // over through a small shared state object instead. Tracked as Spine issue #18.
-        _comparison.Set(_id, _mine.Class, _mine.Person);
+        var request = new ComparisonRequest(_id, _mine.Class, _mine.Person);
 
-        var result = await _navigation.NavigateToWithResultAsync<CompareRunnerSheet, PersonId>();
+        var result = await _navigation
+            .NavigateToWithResultAsync<CompareRunnerSheet, ComparisonRequest, PersonId>(request);
 
         if (result is { IsSuccess: true, Value: { } target })
             BuildComparison(target);

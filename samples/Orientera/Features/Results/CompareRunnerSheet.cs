@@ -2,29 +2,16 @@ using Orientera.Domain;
 
 namespace Orientera.Features.Results;
 
-/// <summary>
-/// Which comparison the sheet should offer. Spine's typed navigation cannot combine a
-/// parameter with a result, so the caller leaves the request here before presenting the sheet.
-/// </summary>
-public sealed class ComparisonRequest
-{
-    public CompetitionId Competition { get; private set; }
-    public string Class { get; private set; } = string.Empty;
-    public PersonId Exclude { get; private set; }
-
-    public void Set(CompetitionId competition, string className, PersonId exclude)
-    {
-        Competition = competition;
-        Class = className;
-        Exclude = exclude;
-    }
-}
+/// <summary>Which comparison the sheet should offer: the field to pick from, minus me.</summary>
+public sealed record ComparisonRequest(CompetitionId Competition, string Class, PersonId Exclude);
 
 [NavigableSheet(
     Title = "Jämför löpare",
     BackgroundPageOverlay = BackgroundPageOverlay.Dimmed,
     AllowedDetents = [SheetDetent.Medium, SheetDetent.FullScreen])]
-public partial class CompareRunnerSheet : INavigableWithResult<PersonId>
+public partial class CompareRunnerSheet :
+    INavigableWithParameter<ComparisonRequest>,
+    INavigableWithResult<PersonId>
 {
     public CompareRunnerSheet() => InitializeComponent();
 }

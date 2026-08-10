@@ -20,16 +20,27 @@ public sealed record CompareCandidate
 public partial class CompareRunnerSheetViewModel(
     INavigationService _navigation,
     IPeopleSource _people,
-    IParticipationSource _participation,
-    ComparisonRequest _request) : OrienteraViewModel
+    IParticipationSource _participation) : OrienteraViewModel,
+    IReceivesNavigationParameter<ComparisonRequest>
 {
+    private ComparisonRequest? _request;
+
     public ObservableCollection<CompareCandidate> Candidates { get; } = [];
+
+    public Task OnNavigationParameterAsync(ComparisonRequest param)
+    {
+        _request = param;
+        return Task.CompletedTask;
+    }
 
     public override Task OnAppearingAsync(NavigationDirection navigationDirection) =>
         LoadAsync(BuildAsync);
 
     private async Task BuildAsync()
     {
+        if (_request is null)
+            return;
+
         var results = await _participation.GetResultsAsync(_request.Competition);
         var group = await _people.GetMyGroupAsync();
         var groupIds = group.Select(f => f.Person.Id).ToHashSet();

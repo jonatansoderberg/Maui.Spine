@@ -31,6 +31,22 @@ public interface INavigationService
         where TPage : INavigable, INavigableWithResult<TResult>;
 
     /// <summary>
+    /// Navigates to <typeparamref name="TPage"/> with a typed <paramref name="param"/> and waits
+    /// for it to produce a <typeparamref name="TResult"/> — the picker shape: "here is the
+    /// context, tell me what the user chose".
+    /// </summary>
+    /// <remarks>
+    /// The parameter reaches the ViewModel through
+    /// <see cref="IReceivesNavigationParameter{TParam}"/> before <c>OnAppearingAsync</c>, exactly
+    /// as with <see cref="NavigateToAsync{TPage,TParam}"/>.
+    /// </remarks>
+    /// <typeparam name="TPage">The target page. Must declare both the parameter and the result.</typeparam>
+    /// <typeparam name="TParam">The type handed to the page.</typeparam>
+    /// <typeparam name="TResult">The type the page returns via <see cref="ReturnAsync"/>.</typeparam>
+    Task<NavigationResult<TResult>> NavigateToWithResultAsync<TPage, TParam, TResult>(TParam param)
+        where TPage : INavigable, INavigableWithParameter<TParam>, INavigableWithResult<TResult>;
+
+    /// <summary>
     /// Navigates back to the previous page in the current navigation stack.
     /// If the stack has only one entry this is a no-op.
     /// </summary>

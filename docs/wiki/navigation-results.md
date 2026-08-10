@@ -128,9 +128,36 @@ public partial class EditItemSheetViewModel : ViewModelBase,
 
 Navigate from the caller:
 
+Navigate with both in a single call, using the three-type-argument overload:
+
 ```csharp
-// NavigateToAsync with parameter + result requires both interfaces on the page
-var result = await _navigation.NavigateToWithResultAsync<EditItemSheet, Item>();
+var result = await _navigation
+    .NavigateToWithResultAsync<EditItemSheet, Item, Item>(item);
 ```
 
-> Currently `NavigateToWithResultAsync` does not accept a parameter directly. Pass the parameter separately using `NavigateToAsync<TPage, TParam>` first if your use case requires it, or combine the call by implementing a custom ViewModel method.
+The type arguments are the page, the parameter type, and the result type. The parameter reaches
+the ViewModel through `IReceivesNavigationParameter<TParam>` before `OnAppearingAsync`, exactly
+as with `NavigateToAsync<TPage, TParam>`.
+
+This is the shape most picker sheets need: "here is the context, tell me what the user chose".
+
+```csharp
+public sealed record ComparisonRequest(CompetitionId Competition, string Class, PersonId Exclude);
+
+[NavigableSheet(Title = "Compare runner")]
+public partial class CompareRunnerSheet :
+    INavigableWithParameter<ComparisonRequest>,
+    INavigableWithResult<PersonId>
+{
+    public CompareRunnerSheet() => InitializeComponent();
+}
+```
+
+```csharp
+var result = await _navigation
+    .NavigateToWithResultAsync<CompareRunnerSheet, ComparisonRequest, PersonId>(
+        new ComparisonRequest(competition, myClass, me));
+
+if (result is { IsSuccess: true, Value: { } target })
+    Compare(target);
+```
