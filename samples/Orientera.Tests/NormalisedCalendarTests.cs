@@ -35,8 +35,8 @@ public class NormalisedCalendarTests
         Assert.Equal("Veckans bana", series.Title);
         Assert.Equal(3, series.Occurrences.Count);
 
-        // Five competitions, three rows: the sprint, the series, the championship.
-        Assert.Equal(3, groups.Count);
+        // Six competitions, four rows: the two championships, the sprint and the series.
+        Assert.Equal(4, groups.Count);
     }
 
     /// <summary>A championship and a district race must not be merged by a shared organiser.</summary>
@@ -62,9 +62,13 @@ public class NormalisedCalendarTests
             .Select(c => c.Name)
             .ToList();
 
+        // Both championships are in my own district and lead; the district sprint follows; the
+        // club evenings one district over come last. The championship three days past still
+        // outranks them — that one is what "senaste resultat" is about.
         Assert.Equal("Natt-SM, långdistans", ranked[0]);
-        Assert.Equal("DM, Sprint", ranked[1]);
-        Assert.All(ranked.Skip(2), name => Assert.StartsWith("Veckans bana", name));
+        Assert.Equal("Norrlandsmästerskapen, medel", ranked[1]);
+        Assert.Equal("DM, Sprint", ranked[2]);
+        Assert.All(ranked.Skip(3), name => Assert.StartsWith("Veckans bana", name));
     }
 
     [Fact]

@@ -16,14 +16,17 @@ public class EventorNormalizerTests
     private IReadOnlyList<Competition> Competitions() =>
         _normalizer.Competitions(Fixture.Eventor("events.xml"), _organisations);
 
+    private Competition Sprint() => Competitions().Single(c => c.Id.Value == "38412");
+
     [Fact]
     public void A_calendar_becomes_competitions_in_date_order()
     {
         var competitions = Competitions();
 
-        Assert.Equal(5, competitions.Count);
+        Assert.Equal(6, competitions.Count);
         Assert.Equal(
             [
+                "Norrlandsmästerskapen, medel",
                 "DM, Sprint",
                 "Veckans bana, etapp 6",
                 "Veckans bana, etapp 7",
@@ -36,7 +39,7 @@ public class EventorNormalizerTests
     [Fact]
     public void The_organiser_carries_its_club_and_its_district()
     {
-        var sprint = Competitions()[0];
+        var sprint = Sprint();
 
         Assert.Equal("Gävle OK", sprint.Organiser);
         Assert.Equal("Gästrikland", sprint.District);
@@ -55,7 +58,7 @@ public class EventorNormalizerTests
     [Fact]
     public void Times_are_read_in_the_federations_zone()
     {
-        var sprint = Competitions()[0];
+        var sprint = Sprint();
 
         Assert.Equal(new DateTimeOffset(2026, 8, 15, 10, 0, 0, TimeSpan.FromHours(2)), sprint.FirstStart);
         Assert.Equal(new DateTimeOffset(2026, 8, 15, 15, 0, 0, TimeSpan.FromHours(2)), sprint.LastFinish);
@@ -73,7 +76,7 @@ public class EventorNormalizerTests
     [Fact]
     public void The_arena_position_is_read_longitude_first()
     {
-        var sprint = Competitions()[0];
+        var sprint = Sprint();
 
         Assert.Equal(60.6749, sprint.Location.Latitude, precision: 4);
         Assert.Equal(17.1413, sprint.Location.Longitude, precision: 4);
@@ -120,7 +123,7 @@ public class EventorNormalizerTests
     [Fact]
     public void An_event_with_a_deadline_ahead_reads_as_open_for_entry()
     {
-        var sprint = Competitions()[0];
+        var sprint = Sprint();
 
         Assert.Null(sprint.Schedule.RegistrationOpensAt);
 

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Orientera.Domain;
+using Orientera.Services.Local;
 using Orientera.Services.Offline;
 
 namespace Orientera.Services.Sources;
@@ -10,13 +11,15 @@ namespace Orientera.Services.Sources;
 /// Eventor through the BFF; the rest is answered without inventing anything.
 /// </summary>
 /// <remarks>
-/// Three kinds of data meet here. What M1 integrates comes over HTTP. What is local by
-/// principle — who I am, who I follow, what I have starred — stays local and keeps working
-/// without a connection or an account. What M2 and M3 will integrate — my entries, live,
-/// prediction, Sverigelistan — is empty rather than borrowed from the fake dataset: a real
-/// calendar next to a fabricated entry would be worse than an honest empty state.
+/// Three kinds of data meet here. What is integrated comes over HTTP: competitions, starts and
+/// results from Eventor, live from LiveResults. What is local by principle — who I am, who I
+/// follow, what I have starred — stays local and keeps working without a connection or an
+/// account. What M3 will integrate — my entries, prediction, Sverigelistan — is empty rather
+/// than borrowed from the fake dataset: a real calendar next to a fabricated entry would be
+/// worse than an honest empty state.
 /// </remarks>
-public sealed class BackendSource(HttpClient _http, IOrienteraSource _local) : IOrienteraSource
+public sealed class BackendSource(HttpClient _http, IOrienteraSource _local, LocalIdentityStore _identity)
+    : IOrienteraSource
 {
     // ---------------------------------------------------------------- IEventSource
 
@@ -42,8 +45,15 @@ public sealed class BackendSource(HttpClient _http, IOrienteraSource _local) : I
 
     // ---------------------------------------------------------------- IPeopleSource
 
-    public Task<Person> GetMeAsync(CancellationToken cancellationToken = default) =>
-        _local.GetMeAsync(cancellationToken);
+    /// <summary>
+    /// Against real data "me" is whoever the user said they are; the seeded runner only stands
+    /// in until they have said it, so the screens have something to render.
+    /// </summary>
+    public async Task<Person> GetMeAsync(CancellationToken cancellationToken = default)
+    {
+        var seeded = await _local.GetMeAsync(cancellationToken);
+        return _identity.AsPerson(seeded) ?? seeded;
+    }
 
     public Task<IReadOnlyList<FollowedPerson>> GetMyGroupAsync(CancellationToken cancellationToken = default) =>
         _local.GetMyGroupAsync(cancellationToken);
@@ -59,7 +69,11 @@ public sealed class BackendSource(HttpClient _http, IOrienteraSource _local) : I
 
     // ---------------------------------------------------------------- IParticipationSource
 
-    /// <summary>My entries need an identified person in Eventor — the auth model is M2/M5.</summary>
+    /// <summary>
+    /// My entries need an identified person <em>in Eventor</em>. The local identity names a
+    /// runner well enough for live and result lists, but not well enough to claim an entry —
+    /// that needs the auth model, which is M5.
+    /// </summary>
     public Task<IReadOnlyList<CompetitionEntry>> GetEntriesAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<CompetitionEntry>>([]);
 
@@ -78,17 +92,31 @@ public sealed class BackendSource(HttpClient _http, IOrienteraSource _local) : I
 
     // ---------------------------------------------------------------- ILiveSource
 
-    /// <summary>Live is LiveResults, and matching it to Eventor is SP-04 (M2).</summary>
     public Task<IReadOnlyList<Competition>> GetLiveCompetitionsAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<Competition>>([]);
+        ListAsync<Competition>("live", cancellationToken);
 
-    public Task<LiveSnapshot> GetSnapshotAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
-        Task.FromResult(new LiveSnapshot
-        {
-            Competition = competition,
-            GeneratedAt = DateTimeOffset.Now,
-            Entries = [],
-        });
+    /// <summary>
+    /// A competition with no live source resolved answers with an empty field rather than an
+    /// error — there is nothing wrong, there is simply nothing to follow.
+    /// </summary>
+    public async Task<LiveSnapshot> GetSnapshotAsync(
+        CompetitionId competition,
+        string? className = null,
+        CancellationToken cancellationToken = default)
+    {
+        var path = $"competitions/{Uri.EscapeDataString(competition.Value)}/live";
+
+        if (className is not null)
+            path += $"?class={Uri.EscapeDataString(className)}";
+
+        return await GetAsync<LiveSnapshot>(path, cancellationToken)
+            ?? new LiveSnapshot
+            {
+                Competition = competition,
+                GeneratedAt = DateTimeOffset.Now,
+                Entries = [],
+            };
+    }
 
     // ---------------------------------------------------------------- IProgressSource
 

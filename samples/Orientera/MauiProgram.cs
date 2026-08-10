@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Orientera.Services.Context;
 using Orientera.Services.FakeData;
+using Orientera.Services.Local;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
@@ -83,8 +84,14 @@ public static class MauiProgram
             string.IsNullOrWhiteSpace(backendAddress) ? FakeDataset.DefaultNow : DateTimeOffset.Now));
         services.AddSingleton<IClock>(sp => sp.GetRequiredService<TimeMachineClock>());
 
+        services.AddSingleton(new DataSourceInfo(backendAddress));
         services.AddSingleton<FakeDataSource>();
         services.AddSingleton<ConnectivitySwitch>();
+
+        // Who the user says they are, on this phone only — what the live and result lists
+        // identify a runner by.
+        services.AddSingleton(_ => new LocalIdentityStore(
+            Path.Combine(FileSystem.AppDataDirectory, "identity.json")));
 
         // One seam, two implementations: the seeded dataset, or the BFF over the same
         // contracts. Everything above reads the narrow interfaces and cannot tell which.
@@ -93,7 +100,8 @@ public static class MauiProgram
         else
             services.AddSingleton<IOrienteraSource>(sp => new BackendSource(
                 new HttpClient { BaseAddress = new Uri(backendAddress), Timeout = TimeSpan.FromSeconds(20) },
-                sp.GetRequiredService<FakeDataSource>()));
+                sp.GetRequiredService<FakeDataSource>(),
+                sp.GetRequiredService<LocalIdentityStore>()));
 
         services.AddSingleton<UnreliableSource>();
         services.AddSingleton<IEventSource>(sp => sp.GetRequiredService<UnreliableSource>());

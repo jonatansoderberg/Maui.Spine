@@ -1,0 +1,135 @@
+{
+ "status": "OK",
+ "className": "H21",
+ "splitcontrols": [
+  {
+   "code": 1079,
+   "name": "79"
+  },
+  {
+   "code": 1088,
+   "name": "88"
+  }
+ ],
+ "results": [
+  {
+   "place": "1",
+   "name": "Ludvig Åhlund",
+   "club": "Malungs OK Skogsmårdarna",
+   "result": "205600",
+   "status": 0,
+   "timeplus": "0",
+   "progress": 100,
+   "splits": {
+    "1079": 118300,
+    "1079_status": 0,
+    "1079_place": 1,
+    "1079_timeplus": 0,
+    "1088": 201500,
+    "1088_status": 0,
+    "1088_place": 1,
+    "1088_timeplus": 0
+   },
+   "start": 4368000
+  },
+  {
+   "place": "2",
+   "name": "Börje Pauler",
+   "club": "Skogslöparna",
+   "result": "224700",
+   "status": 0,
+   "timeplus": "19100",
+   "progress": 100,
+   "splits": {
+    "1079": 133000,
+    "1079_status": 0,
+    "1079_place": 2,
+    "1079_timeplus": 14700,
+    "1088": 220100,
+    "1088_status": 0,
+    "1088_place": 2,
+    "1088_timeplus": 18600
+   },
+   "start": 4200000
+  },
+  {
+   "place": "3",
+   "name": "Joel Hallberg-Collins",
+   "club": "Malungs OK Skogsmårdarna",
+   "result": "230900",
+   "status": 0,
+   "timeplus": "25300",
+   "progress": 100,
+   "splits": {
+    "1079": 134300,
+    "1079_status": 0,
+    "1079_place": 4,
+    "1079_timeplus": 16000,
+    "1088": 225700,
+    "1088_status": 0,
+    "1088_place": 3,
+    "1088_timeplus": 24200
+   },
+   "start": 4248000
+  },
+  {
+   "place": "4",
+   "name": "Adam Nyman",
+   "club": "IFK Mora OK",
+   "result": "238900",
+   "status": 0,
+   "timeplus": "33300",
+   "progress": 100,
+   "splits": {
+    "1079": 140500,
+    "1079_status": 0,
+    "1079_place": 5,
+    "1079_timeplus": 22200,
+    "1088": 234600,
+    "1088_status": 0,
+    "1088_place": 4,
+    "1088_timeplus": 33100
+   },
+   "start": 4308000
+  },
+  {
+   "place": "-",
+   "name": "Bo Roger Nordström",
+   "club": "HJS-Vansbro OK",
+   "result": "0",
+   "status": 1,
+   "timeplus": "",
+   "progress": 100,
+   "splits": {
+    "1079": "",
+    "1079_status": 1,
+    "1079_place": "",
+    "1088": "",
+    "1088_status": 1,
+    "1088_place": ""
+   },
+   "start": 4356000
+  },
+  {
+   "place": "-",
+   "name": "Pavel Balabanov",
+   "club": "Alfta-Ösa OK",
+   "result": "298500",
+   "status": 3,
+   "timeplus": "",
+   "progress": 100,
+   "splits": {
+    "1079": 181300,
+    "1079_status": 3,
+    "1079_place": "-",
+    "1079_timeplus": 63000,
+    "1088": 294100,
+    "1088_status": 3,
+    "1088_place": "-",
+    "1088_timeplus": 92600
+   },
+   "start": 4176000
+  }
+ ],
+ "hash": "3629155b22474cae3316811c05e3e8bc"
+}

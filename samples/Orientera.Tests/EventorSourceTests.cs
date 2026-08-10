@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Orientera.Backend.Caching;
 using Orientera.Backend.Configuration;
 using Orientera.Backend.Eventor;
+using Orientera.Backend.Upstream;
 
 namespace Orientera.Tests;
 
@@ -40,8 +41,8 @@ public class EventorSourceTests
     {
         var competitions = await _source.GetCompetitionsAsync();
 
-        Assert.Equal(5, competitions.Count);
-        Assert.Equal("DM, Sprint", competitions[0].Name);
+        Assert.Equal(6, competitions.Count);
+        Assert.Equal("Norrlandsmästerskapen, medel", competitions[0].Name);
         Assert.Equal("Gästrikland", competitions[0].District);
     }
 
@@ -135,7 +136,7 @@ public class EventorSourceTests
     {
         _eventor.Fail = true;
 
-        await Assert.ThrowsAsync<EventorUnavailableException>(() => _source.GetCompetitionsAsync());
+        await Assert.ThrowsAsync<UpstreamUnavailableException>(() => _source.GetCompetitionsAsync());
     }
 
     [Fact]
@@ -149,7 +150,7 @@ public class EventorSourceTests
             new ResponseCache(new MemoryCache(new MemoryCacheOptions())),
             Options.Create(new EventorOptions { ApiKey = string.Empty }));
 
-        await Assert.ThrowsAsync<EventorUnavailableException>(() => unconfigured.GetCompetitionsAsync());
+        await Assert.ThrowsAsync<UpstreamUnavailableException>(() => unconfigured.GetCompetitionsAsync());
         Assert.Empty(_eventor.Requests);
     }
 

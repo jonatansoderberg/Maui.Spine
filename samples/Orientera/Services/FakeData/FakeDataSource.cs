@@ -154,10 +154,16 @@ public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
         return Task.FromResult<IReadOnlyList<Competition>>(live);
     }
 
-    public Task<LiveSnapshot> GetSnapshotAsync(CompetitionId competition, CancellationToken cancellationToken = default)
+    public Task<LiveSnapshot> GetSnapshotAsync(
+        CompetitionId competition,
+        string? className = null,
+        CancellationToken cancellationToken = default)
     {
         var now = _clock.Now;
-        var runs = Runs(competition);
+
+        var runs = className is null
+            ? Runs(competition)
+            : [.. Runs(competition).Where(r => r.Class == className)];
         var entries = new List<LiveEntry>(runs.Count);
 
         foreach (var run in runs)

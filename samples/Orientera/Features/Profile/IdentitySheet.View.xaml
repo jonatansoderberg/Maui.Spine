@@ -1,0 +1,41 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Profile.IdentitySheet"
+    x:TypeArguments="IdentitySheetViewModel"
+    x:DataType="IdentitySheetViewModel">
+
+    <VerticalStackLayout Padding="16,0,16,16" Spacing="14">
+
+        <Label Style="{StaticResource CaptionLabel}"
+               Text="Startlistor och liveresultat känner igen dig på namn och klubb. Uppgifterna stannar i telefonen." />
+
+        <VerticalStackLayout Spacing="4">
+            <Label Style="{StaticResource SectionLabel}" Text="NAMN" />
+            <Entry Text="{Binding Name}"
+                   Placeholder="Förnamn Efternamn"
+                   SemanticProperties.Hint="Ditt namn som det står i startlistan" />
+        </VerticalStackLayout>
+
+        <VerticalStackLayout Spacing="4">
+            <Label Style="{StaticResource SectionLabel}" Text="KLUBB" />
+            <Entry Text="{Binding Club}"
+                   Placeholder="Din klubb"
+                   SemanticProperties.Hint="Din klubb som den står i startlistan" />
+        </VerticalStackLayout>
+
+        <VerticalStackLayout Spacing="4">
+            <Label Style="{StaticResource SectionLabel}" Text="KLASS" />
+            <Entry Text="{Binding DefaultClass}"
+                   Placeholder="Till exempel D21"
+                   SemanticProperties.Hint="Klassen du oftast springer" />
+        </VerticalStackLayout>
+
+        <Button Style="{StaticResource PrimaryButton}"
+                Text="Spara"
+                Command="{Binding SaveCommand}"
+                IsEnabled="{Binding CanSave}" />
+
+    </VerticalStackLayout>
+
+</SpinePage>

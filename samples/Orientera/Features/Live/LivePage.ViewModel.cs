@@ -78,7 +78,8 @@ public partial class LivePageViewModel(
     private CancellationTokenSource? _polling;
     private Competition? _competition;
     private Person? _me;
-    private IReadOnlySet<PersonId> _groupIds = new HashSet<PersonId>();
+    private IReadOnlyList<RunnerIdentity> _group = [];
+    private RunnerIdentity _meIdentity;
     private DateTimeOffset _lastUpdate;
 
     public ObservableCollection<LiveRow> Rows { get; } = [];
@@ -103,7 +104,12 @@ public partial class LivePageViewModel(
             _me ??= await _people.GetMeAsync();
 
             var group = await _people.GetMyGroupAsync();
-            _groupIds = group.Select(f => f.Person.Id).ToHashSet();
+
+            // The live source has names and clubs, not person ids — it is a different system
+            // with a different idea of who people are, so this is the only comparison that
+            // works across both it and the seeded data (SP-04).
+            _meIdentity = RunnerIdentity.Of(_me.Name, _me.Club);
+            _group = [.. group.Select(f => RunnerIdentity.Of(f.Person.Name, f.Person.Club))];
 
             await RefreshAsync();
         });
@@ -201,7 +207,11 @@ public partial class LivePageViewModel(
 
         CompetitionName = _competition.Name;
 
-        var snapshot = await _live.GetSnapshotAsync(_competition.Id);
+        // One class is one upstream request; the other scopes have to look across all of them,
+        // because Min grupp does not run in a single class.
+        var snapshot = await _live.GetSnapshotAsync(
+            _competition.Id,
+            Scope == LiveScope.MyClass ? _me.DefaultClass : null);
         _lastUpdate = snapshot.GeneratedAt;
 
         var visible = snapshot.Entries
@@ -230,10 +240,18 @@ public partial class LivePageViewModel(
 
     private bool InScope(LiveEntry entry) => Scope switch
     {
-        LiveScope.MyGroup => _groupIds.Contains(entry.Person) || entry.Person == _me!.Id,
+        LiveScope.MyGroup => IsGroup(entry) || IsMe(entry),
         LiveScope.MyClass => entry.Class == _me!.DefaultClass,
         _ => true,
     };
+
+    private bool IsMe(LiveEntry entry) => _meIdentity.Matches(RunnerIdentity.Of(entry.Name, entry.Club));
+
+    private bool IsGroup(LiveEntry entry)
+    {
+        var identity = RunnerIdentity.Of(entry.Name, entry.Club);
+        return _group.Any(member => member.Matches(identity));
+    }
 
     /// <summary>
     /// Updates the existing rows in place where possible. Live updates animate the value,
@@ -263,8 +281,8 @@ public partial class LivePageViewModel(
             Name = entry.Name,
             Club = entry.Club,
             Class = entry.Class,
-            IsMe = entry.Person == _me!.Id,
-            IsInMyGroup = _groupIds.Contains(entry.Person),
+            IsMe = IsMe(entry),
+            IsInMyGroup = IsGroup(entry),
         };
 
         Apply(row, entry);

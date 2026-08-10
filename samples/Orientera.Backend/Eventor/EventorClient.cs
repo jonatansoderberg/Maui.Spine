@@ -2,12 +2,13 @@ using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orientera.Backend.Configuration;
+using Orientera.Backend.Upstream;
 
 namespace Orientera.Backend.Eventor;
 
 /// <summary>
 /// The HTTP boundary against Eventor. Everything above it sees XML documents or an
-/// <see cref="EventorUnavailableException"/> — never a status code, never a socket.
+/// <see cref="UpstreamUnavailableException"/> — never a status code, never a socket.
 /// </summary>
 public sealed class EventorClient(
     HttpClient _http,
@@ -28,7 +29,7 @@ public sealed class EventorClient(
         CancellationToken cancellationToken = default)
     {
         if (!_settings.IsConfigured)
-            throw new EventorUnavailableException("Ingen API-nyckel för Eventor är konfigurerad.");
+            throw new UpstreamUnavailableException("Ingen API-nyckel för Eventor är konfigurerad.");
 
         var uri = BuildUri(path, query);
 
@@ -44,18 +45,18 @@ public sealed class EventorClient(
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Eventor {Path} svarade {Status}.", path, (int)response.StatusCode);
-                throw new EventorUnavailableException($"Eventor svarade {(int)response.StatusCode} på {path}.");
+                throw new UpstreamUnavailableException($"Eventor svarade {(int)response.StatusCode} på {path}.");
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             var document = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken);
 
             return document.Root
-                ?? throw new EventorUnavailableException($"Eventor svarade med ett tomt dokument på {path}.");
+                ?? throw new UpstreamUnavailableException($"Eventor svarade med ett tomt dokument på {path}.");
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Xml.XmlException)
         {
-            throw new EventorUnavailableException($"Eventor kunde inte nås på {path}.", exception);
+            throw new UpstreamUnavailableException($"Eventor kunde inte nås på {path}.", exception);
         }
         finally
         {

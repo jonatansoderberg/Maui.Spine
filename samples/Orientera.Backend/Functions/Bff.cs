@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Orientera.Backend.Eventor;
+using Orientera.Backend.Upstream;
 using Orientera.Services.Sources;
 
 namespace Orientera.Backend.Functions;
@@ -22,7 +22,7 @@ internal static class Bff
                 ? Results.NotFound()
                 : Results.Json(value, OrienteraJson.Options);
         }
-        catch (EventorUnavailableException exception)
+        catch (UpstreamUnavailableException exception)
         {
             logger.LogWarning(exception, "Eventor är inte tillgängligt.");
 

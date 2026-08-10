@@ -1,0 +1,74 @@
+{
+ "competitions": [
+  {
+   "id": 37380,
+   "name": "North Atlantic Sprint på Smyril Norröna",
+   "organizer": "Orienteringsklubben Esbjerg",
+   "date": "2026-08-10",
+   "timediff": 0
+  },
+  {
+   "id": 37400,
+   "name": "ABCD-cup MTBO",
+   "organizer": "Waxholms OK",
+   "date": "2026-08-10",
+   "timediff": 0
+  },
+  {
+   "id": 37405,
+   "name": "Kolmårdsträffen, dag 2, lång",
+   "organizer": "Tjalve Orienteringsklubb",
+   "date": "2026-08-10",
+   "timediff": 0
+  },
+  {
+   "id": 37308,
+   "name": "Norrlandsmästerskapen, medel",
+   "organizer": "Gävle OK",
+   "date": "2026-08-09",
+   "timediff": 0
+  },
+  {
+   "id": 37309,
+   "name": "Norrlandsmästerskapen, distriktsstafett",
+   "organizer": "Gävle OK",
+   "date": "2026-08-09",
+   "timediff": 0
+  },
+  {
+   "id": 37341,
+   "name": "Trampen, dag 2, lång",
+   "organizer": "Ludvika OK",
+   "date": "2026-08-09",
+   "timediff": 0
+  },
+  {
+   "id": 37343,
+   "name": "Arosträffen",
+   "organizer": "Västerås SOK",
+   "date": "2026-08-09",
+   "timediff": 0
+  },
+  {
+   "id": 37352,
+   "name": "GM, stafett",
+   "organizer": "OK Nackhe",
+   "date": "2026-08-09",
+   "timediff": 0
+  },
+  {
+   "id": 37353,
+   "name": "GM, publik, medel",
+   "organizer": "OK Nackhe",
+   "date": "2026-08-09",
+   "timediff": 0
+  },
+  {
+   "id": 36658,
+   "name": "	Knock Out Madrid 2026 - Clasificatorias",
+   "organizer": "	Colmenar-Malarruta",
+   "date": "2026-05-17",
+   "timediff": 0
+  }
+ ]
+}

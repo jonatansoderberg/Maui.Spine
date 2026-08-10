@@ -41,8 +41,12 @@ public partial class ProfilePageViewModel(
     IClock _clock,
     IPeopleSource _people,
     IProgressSource _progress,
-    IEventSource _events) : OrienteraViewModel
+    IEventSource _events,
+    DataSourceInfo _source) : OrienteraViewModel
 {
+    /// <summary>Which data source this run is against — a demo must not read as live data.</summary>
+    public string SourceDescription => _source.Description;
+
     [ObservableProperty] public partial string Name { get; set; } = string.Empty;
     [ObservableProperty] public partial string Meta { get; set; } = string.Empty;
     [ObservableProperty] public partial string Initials { get; set; } = string.Empty;
@@ -72,6 +76,13 @@ public partial class ProfilePageViewModel(
         if (PageActions.Count == 0)
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
 
+        await ReloadAsync();
+    }
+
+    [RelayCommand]
+    private async Task OpenIdentity()
+    {
+        await _navigation.NavigateToAsync<IdentitySheet>();
         await ReloadAsync();
     }
 
