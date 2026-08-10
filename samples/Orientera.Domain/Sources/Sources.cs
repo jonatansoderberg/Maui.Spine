@@ -63,6 +63,7 @@ public sealed record LiveEntry
     public required PersonId Person { get; init; }
     public required string Name { get; init; }
     public required string Club { get; init; }
+    public string? ClubLogo { get; init; }
     public required string Class { get; init; }
     public required DateTimeOffset StartTime { get; init; }
     public required LiveStatus Status { get; init; }

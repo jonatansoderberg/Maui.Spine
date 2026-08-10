@@ -12,6 +12,11 @@ public sealed partial class EventCard : ObservableObject
     public required string Title { get; init; }
     public required string DateLabel { get; init; }
     public required string PlaceLabel { get; init; }
+
+    /// <summary>The organising club's badge, when the federation has one.</summary>
+    public string? OrganiserLogo { get; init; }
+
+    public bool HasOrganiserLogo => !string.IsNullOrEmpty(OrganiserLogo);
     public required string MetaLabel { get; init; }
     public required string DistanceLabel { get; init; }
 

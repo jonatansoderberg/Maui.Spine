@@ -69,7 +69,11 @@ public sealed class LiveResultsNormalizer(TimeZoneInfo _zone)
     /// One class' rows. <paramref name="date"/> is the competition's date, because LiveResults
     /// reports a start time as a clock reading without saying which day it belongs to.
     /// </summary>
-    public IReadOnlyList<LiveEntry> Entries(JsonElement payload, string className, DateOnly date)
+    public IReadOnlyList<LiveEntry> Entries(
+        JsonElement payload,
+        string className,
+        DateOnly date,
+        Eventor.OrganisationDirectory? organisations = null)
     {
         if (!payload.TryGetProperty("results", out var list) || list.ValueKind != JsonValueKind.Array)
             return [];
@@ -92,6 +96,7 @@ public sealed class LiveResultsNormalizer(TimeZoneInfo _zone)
                 Person = new PersonId(RunnerIdentity.Of(name, club).Key),
                 Name = name,
                 Club = club,
+                ClubLogo = organisations?.LogoForName(club),
                 Class = className,
                 StartTime = StartOf(element, date),
                 Status = status,

@@ -84,6 +84,21 @@
         </Setter>
     </Style>
 
+    <!--
+        Klubbmärken kommer som de är — egen bakgrund, egna färger, hundra olika. Ramen ger dem
+        en gemensam form så att de läses som en del av listan i stället för som pålagda dekaler.
+    -->
+    <Style x:Key="ClubBadge" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceRaised}" />
+        <Setter Property="Stroke" Value="{DynamicResource Outline}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="2" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="StrokeShape">
+            <RoundRectangle CornerRadius="5" />
+        </Setter>
+    </Style>
+
     <Style x:Key="BadgeAccent" TargetType="Border" BasedOn="{StaticResource Badge}">
         <Setter Property="BackgroundColor" Value="{DynamicResource AccentSubtle}" />
     </Style>

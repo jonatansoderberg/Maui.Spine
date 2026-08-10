@@ -75,8 +75,10 @@ public sealed class LiveSource(
         if (className is null && classes.Count > 8)
             _logger.LogInformation("Live: hämtar {Count} klasser för tävling {Id}.", classes.Count, match.Competition.Id);
 
+        var organisations = await _eventor.DirectoryAsync(cancellationToken);
+
         var perClass = await Task.WhenAll(classes.Select(name =>
-            EntriesAsync(match.Competition, name, cancellationToken)));
+            EntriesAsync(match.Competition, name, organisations, cancellationToken)));
 
         return new LiveSnapshot
         {
@@ -125,6 +127,7 @@ public sealed class LiveSource(
     private Task<IReadOnlyList<LiveEntry>> EntriesAsync(
         LiveCompetition competition,
         string className,
+        Eventor.OrganisationDirectory organisations,
         CancellationToken cancellationToken) =>
         _cache.GetOrAddAsync(
             $"live-results:{competition.Id}:{className}",
@@ -138,7 +141,7 @@ public sealed class LiveSource(
                     ["unformattedTimes"] = "true",
                 }, token);
 
-                return _normalizer.Entries(payload, className, competition.Date);
+                return _normalizer.Entries(payload, className, competition.Date, organisations);
             },
             cancellationToken);
 }

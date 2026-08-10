@@ -48,6 +48,7 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
             Id = new CompetitionId(id),
             Name = name,
             Organiser = organisations.NameOf(organiserId),
+            OrganiserLogo = organisations.LogoOf(organiserId),
             District = district,
             Place = PlaceOf(race, name, district),
             Location = PositionOf(race),
@@ -286,7 +287,10 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
         return [.. starts.OrderBy(s => s.StartTime)];
     }
 
-    public IReadOnlyList<CompetitionResult> Results(XElement resultList, CompetitionId competition)
+    public IReadOnlyList<CompetitionResult> Results(
+        XElement resultList,
+        CompetitionId competition,
+        OrganisationDirectory? organisations = null)
     {
         var results = new List<CompetitionResult>();
 
@@ -312,6 +316,7 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
                         Person = person,
                         Name = NameOf(personResult),
                         Club = personResult.Child("Organisation").Text("Name") ?? string.Empty,
+                        ClubLogo = organisations?.LogoOf(personResult.Child("Organisation").Text("OrganisationId")),
                         Class = className,
                         Status = StatusOf(result.Child("CompetitorStatus").Attr("value")),
                         Time = EventorXml.Duration(result.Text("Time")),

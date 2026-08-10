@@ -48,6 +48,12 @@ public partial class EventDetailsPageViewModel(
     // ---- hero ----
     [ObservableProperty] public partial string Name { get; set; } = string.Empty;
     [ObservableProperty] public partial string OrganiserLine { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasOrganiserLogo))]
+    public partial string? OrganiserLogo { get; set; }
+
+    public bool HasOrganiserLogo => !string.IsNullOrEmpty(OrganiserLogo);
     [ObservableProperty] public partial string DateLine { get; set; } = string.Empty;
     [ObservableProperty] public partial string MetaLine { get; set; } = string.Empty;
     [ObservableProperty] public partial bool IsFavourite { get; set; }
@@ -57,7 +63,18 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial string PrimaryActionText { get; set; } = string.Empty;
     [ObservableProperty] public partial string MyClass { get; set; } = string.Empty;
     [ObservableProperty] public partial string MyStartText { get; set; } = string.Empty;
-    [ObservableProperty] public partial bool HasMyStart { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TravelColumn))]
+    [NotifyPropertyChangedFor(nameof(TravelColumnSpan))]
+    public partial bool HasMyStart { get; set; }
+
+    /// <summary>
+    /// Travel sits beside the start time when there is one, and takes its place when there is
+    /// not — an empty half-card reads as something failing to load.
+    /// </summary>
+    public int TravelColumn => HasMyStart ? 1 : 0;
+
+    public int TravelColumnSpan => HasMyStart ? 1 : 2;
     [ObservableProperty] public partial string DeadlineText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasDeadline { get; set; }
     [ObservableProperty] public partial string TravelText { get; set; } = string.Empty;
@@ -237,6 +254,7 @@ public partial class EventDetailsPageViewModel(
 
         Name = competition.Name;
         OrganiserLine = $"{competition.Organiser} · {competition.Place}";
+        OrganiserLogo = competition.OrganiserLogo;
         DateLine = $"{Format.RelativeDate(competition.Date, today)} · första start {Format.Clock(competition.FirstStart)}";
         MetaLine = $"{Format.Discipline(competition.Discipline)} · {Format.Level(competition.Level)} · {competition.District}";
         IsFavourite = favourites.Contains(competition.Id);
