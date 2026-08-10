@@ -52,7 +52,10 @@ internal partial class NavigationRegionViewModel : ObservableObject
 
     PageAction? GetImplicitBackAction()
     {
-        if (!BackEnabled() && Presentation == NavigationPresentation.SheetPresentation)
+        // A back affordance only makes sense when there is something behind the current page.
+        // At the root of a region — the app root, or a tab root inside the tab host — the stack
+        // has one entry, and the button would render as a control that does nothing.
+        if (!BackEnabled())
             return null;
 
         return new PageAction(null, BackCommand)
