@@ -50,6 +50,9 @@
 		<!-- Embedded SVGs (tab icons, resolved via the SvgIcon pipeline) -->
 		<EmbeddedResource Include="Resources\Svg\*.svg" />
 
+		<!-- Which data source the app runs against; read in MauiProgram -->
+		<EmbeddedResource Include="appsettings.json" />
+
 		<!-- Custom Fonts (Inter, SIL OFL 1.1 — see Resources\Fonts\Inter-OFL.txt) -->
 		<MauiFont Include="Resources\Fonts\*.ttf" />
 
@@ -61,9 +64,11 @@
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.50" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\Orientera.Domain\Orientera.Domain.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.SpineControls\Plugin.Maui.SpineControls.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.SvgImage\Plugin.Maui.SvgImage.csproj" />

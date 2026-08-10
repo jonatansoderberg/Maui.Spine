@@ -10,21 +10,30 @@
 	</PropertyGroup>
 
 	<!--
-		The domain and the engines live in the app project (they move to their own assembly at
-		M1, when the backend contract forms). They are MAUI-free by construction, so the tests
-		compile the sources directly rather than referencing the multi-targeted app.
+		The domain and the source contracts are their own assembly since M1. The engines still
+		live in the app project; they are MAUI-free by construction, so the tests compile those
+		sources directly rather than referencing the multi-targeted app.
 	-->
 	<ItemGroup>
-		<Compile Include="..\Orientera\Domain\**\*.cs" LinkBase="Linked\Domain" />
+		<ProjectReference Include="..\Orientera.Domain\Orientera.Domain.csproj" />
+		<ProjectReference Include="..\Orientera.Backend\Orientera.Backend.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<Compile Include="..\Orientera\Presentation\Format.cs" LinkBase="Linked\Presentation" />
 		<Compile Include="..\Orientera\Services\Analysis\**\*.cs" LinkBase="Linked\Services\Analysis" />
 		<Compile Include="..\Orientera\Services\Context\ContextEngine.cs" LinkBase="Linked\Services\Context" />
 		<Compile Include="..\Orientera\Services\FakeData\**\*.cs" LinkBase="Linked\Services\FakeData" />
 		<Compile Include="..\Orientera\Services\Offline\**\*.cs" LinkBase="Linked\Services\Offline" />
-		<Compile Include="..\Orientera\Services\Sources\**\*.cs" LinkBase="Linked\Services\Sources" />
 		<Compile Include="..\Orientera\Services\Grouping\**\*.cs" LinkBase="Linked\Services\Grouping" />
 		<Compile Include="..\Orientera\Services\Relevance\**\*.cs" LinkBase="Linked\Services\Relevance" />
+		<Compile Include="..\Orientera\Services\Sources\**\*.cs" LinkBase="Linked\Services\Sources" />
 		<Compile Include="..\Orientera\Services\Time\**\*.cs" LinkBase="Linked\Services\Time" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Eventor responses in the documented XML shape; see Fixtures/Eventor/README.md -->
+		<None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>

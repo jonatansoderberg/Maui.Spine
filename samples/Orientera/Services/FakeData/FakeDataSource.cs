@@ -12,8 +12,7 @@ namespace Orientera.Services.FakeData;
 /// published and live positions follow the time machine. M1 replaces this with a BFF-backed
 /// implementation behind the same interfaces; this one stays as demo and test mode.
 /// </remarks>
-public sealed class FakeDataSource(IClock _clock)
-    : IEventSource, IPeopleSource, IParticipationSource, ILiveSource, IProgressSource
+public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
 {
     private readonly FakeDataset _data = FakeDataset.Instance;
     private readonly List<FollowedPerson> _myGroup = [.. FakeDataset.Instance.MyGroup];

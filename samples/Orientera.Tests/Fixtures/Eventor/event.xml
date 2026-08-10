@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Event eventForm="IndSingleDay" resultListExists="true" startListExists="true">
+  <EventId>38499</EventId>
+  <Name>Natt-SM, långdistans</Name>
+  <EventClassificationId>1</EventClassificationId>
+  <EventStatusId>9</EventStatusId>
+  <StartDate>
+    <Date>2026-09-05</Date>
+    <Clock>21:00:00</Clock>
+  </StartDate>
+  <FinishDate>
+    <Date>2026-09-06</Date>
+    <Clock>01:00:00</Clock>
+  </FinishDate>
+  <Organiser>
+    <OrganisationId>322</OrganisationId>
+  </Organiser>
+  <EntryBreak>
+    <ValidFromDate>
+      <Date>2026-08-31</Date>
+      <Clock>23:59:59</Clock>
+    </ValidFromDate>
+  </EntryBreak>
+  <EventRace eventRaceId="41301" raceLightCondition="Night" raceDistance="Long">
+    <EventRaceId>41301</EventRaceId>
+    <Name>Natt-SM, långdistans</Name>
+    <RaceDate>
+      <Date>2026-09-05</Date>
+      <Clock>21:00:00</Clock>
+    </RaceDate>
+    <EventCenterPosition x="16.7756" y="60.6172" unit="deg" />
+  </EventRace>
+  <ModifyDate>
+    <Date>2026-09-06</Date>
+    <Clock>09:40:00</Clock>
+  </ModifyDate>
+</Event>

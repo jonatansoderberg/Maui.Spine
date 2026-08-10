@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Orientera.Domain;
 
 public enum Discipline
@@ -81,7 +83,9 @@ public sealed record Competition
     public IReadOnlyList<CompetitionDocument> Documents { get; init; } = [];
     public CompetitionProfile? Profile { get; init; }
 
+    [JsonIgnore]
     public DateOnly Date => DateOnly.FromDateTime(FirstStart.Date);
 
+    [JsonIgnore]
     public bool IsLowPriority => Level is CompetitionLevel.Training or CompetitionLevel.Recreational;
 }

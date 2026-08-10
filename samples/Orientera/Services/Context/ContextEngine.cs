@@ -77,8 +77,15 @@ public static class ContextEngine
         if (registered)
             return ContextState.Registered;
 
-        if (Published(schedule.RegistrationOpensAt) &&
-            (schedule.EntryDeadline is not { } deadline || now <= deadline))
+        // When the opening time is known it decides. Eventor does not publish one, and there a
+        // competition in the calendar with time left on its deadline is open for entry.
+        bool opened = schedule.RegistrationOpensAt is { } opensAt
+            ? opensAt <= now
+            : schedule.EntryDeadline is not null;
+
+        bool closed = schedule.EntryDeadline is { } deadline && now > deadline;
+
+        if (opened && !closed)
             return ContextState.RegistrationOpen;
 
         return ContextState.Discovered;
