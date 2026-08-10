@@ -23,10 +23,11 @@ public class EventorNormalizerTests
     {
         var competitions = Competitions();
 
-        Assert.Equal(6, competitions.Count);
+        Assert.Equal(7, competitions.Count);
         Assert.Equal(
             [
                 "Norrlandsmästerskapen, medel",
+                "Norrlandsmästerskapen, distriktsstafett",
                 "DM, Sprint",
                 "Veckans bana, etapp 6",
                 "Veckans bana, etapp 7",
@@ -82,10 +83,12 @@ public class EventorNormalizerTests
         Assert.Equal(17.1413, sprint.Location.Longitude, precision: 4);
     }
 
+    /// <summary>A relay is a relay whatever its legs measure — the event form decides.</summary>
     [Theory]
     [InlineData("38412", Discipline.Sprint)]
     [InlineData("38499", Discipline.Night)]
     [InlineData("38520", Discipline.Middle)]
+    [InlineData("38601", Discipline.Relay)]
     public void The_discipline_follows_distance_and_light(string id, Discipline expected) =>
         Assert.Equal(expected, Competitions().Single(c => c.Id.Value == id).Discipline);
 
@@ -106,8 +109,9 @@ public class EventorNormalizerTests
         Assert.False(Competitions().Single(c => c.Id.Value == "38499").IsLowPriority);
     }
 
+    /// <summary>Ordinary entry closes first; the later break is late entry, at a price.</summary>
     [Fact]
-    public void The_first_entry_break_is_the_deadline()
+    public void The_first_entry_period_carries_the_deadline()
     {
         var nightChampionship = Competitions().Single(c => c.Id.Value == "38499");
 
@@ -117,15 +121,21 @@ public class EventorNormalizerTests
     }
 
     /// <summary>
-    /// Eventor has no "entry opens", and a guessed one would sit after the deadline for every
-    /// event whose PM was updated late. The deadline is what the context state reads.
+    /// An entry break is the period entry is <em>open</em>: from when it opens, to when it
+    /// closes. Reading the wrong end put the deadline months early.
     /// </summary>
     [Fact]
-    public void An_event_with_a_deadline_ahead_reads_as_open_for_entry()
+    public void An_entry_break_is_the_period_entry_is_open()
     {
         var sprint = Sprint();
 
-        Assert.Null(sprint.Schedule.RegistrationOpensAt);
+        Assert.Equal(
+            new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.FromHours(2)),
+            sprint.Schedule.RegistrationOpensAt);
+
+        Assert.Equal(
+            new DateTimeOffset(2026, 8, 10, 23, 59, 59, TimeSpan.FromHours(2)),
+            sprint.Schedule.EntryDeadline);
 
         var decision = Services.Context.ContextEngine.Evaluate(new ContextInput
         {
@@ -134,6 +144,39 @@ public class EventorNormalizerTests
         });
 
         Assert.Equal(ContextState.RegistrationOpen, decision.State);
+    }
+
+    /// <summary>
+    /// Eventor records publication as a hash table entry keyed by the race, with an exact
+    /// timestamp — not as an attribute on the event, which is what M1 assumed.
+    /// </summary>
+    [Fact]
+    public void Publication_times_come_from_the_hash_table()
+    {
+        var sprint = Sprint();
+
+        Assert.Equal(
+            new DateTimeOffset(2026, 8, 13, 19, 40, 12, TimeSpan.FromHours(2)),
+            sprint.Schedule.StartListPublishedAt);
+
+        Assert.Null(sprint.Schedule.ResultsPublishedAt);
+
+        var championship = Competitions().Single(c => c.Id.Value == "38499");
+
+        Assert.Equal(
+            new DateTimeOffset(2026, 9, 6, 9, 40, 0, TimeSpan.FromHours(2)),
+            championship.Schedule.ResultsPublishedAt);
+    }
+
+    /// <summary>
+    /// The Swedish instance lists foreign clubs too, and their competitions are not ours. The
+    /// organisation's own country decides — no guessing from names.
+    /// </summary>
+    [Fact]
+    public void A_competition_organised_abroad_is_left_out()
+    {
+        Assert.DoesNotContain(Competitions(), c => c.Id.Value == "38999");
+        Assert.Contains(Competitions(), c => c.Organiser == "Gävle OK");
     }
 
     [Fact]
@@ -145,6 +188,7 @@ public class EventorNormalizerTests
         Assert.Null(competitions.Single(c => c.Id.Value == "38412").Schedule.ResultsPublishedAt);
         Assert.NotNull(competitions.Single(c => c.Id.Value == "38499").Schedule.ResultsPublishedAt);
         Assert.Null(competitions.Single(c => c.Id.Value == "38520").Schedule.StartListPublishedAt);
+        Assert.Null(competitions.Single(c => c.Id.Value == "38520").Schedule.ResultsPublishedAt);
     }
 
     // ---------------------------------------------------------------- documents

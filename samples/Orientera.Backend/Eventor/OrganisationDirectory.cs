@@ -27,11 +27,22 @@ public sealed class OrganisationDirectory
             var name = organisation.Text("Name") ?? id;
             var parent = organisation.Child("ParentOrganisation").Text("OrganisationId");
 
-            entries[id] = new Entry(name, parent);
+            // Every organisation carries its country; the Swedish instance lists foreign clubs
+            // too, so this is what makes "Swedish competitions only" a fact rather than a guess.
+            var country = organisation.Child("Country").Child("Alpha3").Attr("value");
+
+            entries[id] = new Entry(name, parent, country);
         }
 
         return new OrganisationDirectory(entries);
     }
+
+    /// <summary>
+    /// False only when the organisation is known to be somewhere else. An organiser we have no
+    /// record of is not evidence of a foreign competition.
+    /// </summary>
+    public bool IsSwedish(string? id) =>
+        id is null || !_byId.TryGetValue(id, out var entry) || entry.Country is null or "SWE";
 
     public string NameOf(string? id) =>
         id is not null && _byId.TryGetValue(id, out var entry) ? entry.Name : string.Empty;
@@ -62,5 +73,5 @@ public sealed class OrganisationDirectory
         return trimmed.EndsWith('s') ? trimmed[..^1] : trimmed;
     }
 
-    private readonly record struct Entry(string Name, string? ParentId);
+    private readonly record struct Entry(string Name, string? ParentId, string? Country);
 }

@@ -41,7 +41,7 @@ public class EventorSourceTests
     {
         var competitions = await _source.GetCompetitionsAsync();
 
-        Assert.Equal(6, competitions.Count);
+        Assert.Equal(7, competitions.Count);
         Assert.Equal("Norrlandsmästerskapen, medel", competitions[0].Name);
         Assert.Equal("Gästrikland", competitions[0].District);
     }
@@ -67,8 +67,9 @@ public class EventorSourceTests
 
         var query = _eventor.Requests.Single(r => r.RequestUri!.AbsolutePath.EndsWith("/events")).RequestUri!.Query;
 
-        Assert.Contains("fromDate=2026-08-01", query);
-        Assert.Contains("toDate=2026-08-31", query);
+        // Eventor takes input in UTC, and a Swedish August day starts two hours earlier there.
+        Assert.Contains("fromDate=2026-07-31%2022%3A00%3A00", query);
+        Assert.Contains("toDate=2026-08-31%2021%3A59%3A59", query);
         Assert.Contains("organisationIds=10", query);
         Assert.Contains("includeEntryBreaks=true", query);
     }
@@ -105,6 +106,20 @@ public class EventorSourceTests
 
         Assert.NotNull(competition!.Schedule.ResultsPublishedAt);
         Assert.Equal(competition.Schedule.ResultsPublishedAt, competition.Schedule.SplitsPublishedAt);
+    }
+
+    /// <summary>
+    /// The calendar only knows the day. Once the start list is out, the first start is the
+    /// earliest start in it — and the arena has to close after it, not twelve hours before.
+    /// </summary>
+    [Fact]
+    public async Task The_first_start_comes_from_the_start_list()
+    {
+        var competition = await _source.GetCompetitionAsync(new CompetitionId("38412"));
+
+        Assert.NotNull(competition);
+        Assert.Equal(new DateTimeOffset(2026, 8, 15, 10, 4, 0, TimeSpan.FromHours(2)), competition.FirstStart);
+        Assert.True(competition.LastFinish > competition.FirstStart);
     }
 
     [Fact]

@@ -28,6 +28,7 @@ public sealed class EventorSource(EventorClient _client, ResponseCache _cache, I
 
     private readonly EventorOptions _settings = _options.Value;
     private readonly EventorNormalizer _normalizer = EventorNormalizer.ForZone(_options.Value.TimeZone);
+    private readonly TimeZoneInfo _zone = TimeZoneInfo.FindSystemTimeZoneById(_options.Value.TimeZone);
 
     public async Task<IReadOnlyList<Competition>> GetCompetitionsAsync(
         DateOnly? from = null,
@@ -92,12 +93,14 @@ public sealed class EventorSource(EventorClient _client, ResponseCache _cache, I
             }, token),
             cancellationToken);
 
-        return competition with
+        var detail = competition with
         {
             Documents = _normalizer.Documents(documents, id),
             Classes = _normalizer.Classes(classes),
             Schedule = await WithSplitsAsync(competition, id, cancellationToken),
         };
+
+        return WithFirstStart(detail, await FirstStartAsync(detail, id, cancellationToken));
     }
 
     public async Task<IReadOnlyList<Start>> GetStartsAsync(CompetitionId id, CancellationToken cancellationToken = default)
@@ -140,6 +143,35 @@ public sealed class EventorSource(EventorClient _client, ResponseCache _cache, I
         return competition.Schedule with { SplitsPublishedAt = hasSplits ? publishedAt : null };
     }
 
+    /// <summary>
+    /// Moving the first start has to move the arena's closing time with it. The calendar gives
+    /// the date at midnight, so a competition whose start list says 18:30 would otherwise close
+    /// at six in the morning — twelve hours before it began.
+    /// </summary>
+    private static Competition WithFirstStart(Competition competition, DateTimeOffset firstStart) =>
+        competition with
+        {
+            FirstStart = firstStart,
+            LastFinish = competition.LastFinish > firstStart ? competition.LastFinish : firstStart.AddHours(6),
+        };
+
+    /// <summary>
+    /// The calendar carries the competition's date at midnight — the first start is not in it.
+    /// Once the start list is out, the earliest start is the real answer.
+    /// </summary>
+    private async Task<DateTimeOffset> FirstStartAsync(
+        Competition competition,
+        CompetitionId id,
+        CancellationToken cancellationToken)
+    {
+        if (competition.Schedule.StartListPublishedAt is null)
+            return competition.FirstStart;
+
+        var starts = await GetStartsAsync(id, cancellationToken);
+
+        return starts.Count > 0 ? starts.Min(s => s.StartTime) : competition.FirstStart;
+    }
+
     private Task<XElement> ResultsAsync(CompetitionId id, int? top, CancellationToken cancellationToken) =>
         _cache.GetOrAddAsync(
             $"results:{id.Value}:{top}",
@@ -160,6 +192,15 @@ public sealed class EventorSource(EventorClient _client, ResponseCache _cache, I
             async token => OrganisationDirectory.From(await _client.GetAsync("organisations", cancellationToken: token)),
             cancellationToken);
 
-    private static string Moment(DateOnly date, TimeOnly time) =>
-        date.ToDateTime(time).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+    /// <summary>
+    /// Eventor's guide is explicit that input parameters are always UTC, while the answers come
+    /// back in Swedish local time. A calendar window is a Swedish day, so it is converted here.
+    /// </summary>
+    private string Moment(DateOnly date, TimeOnly time)
+    {
+        var local = date.ToDateTime(time);
+        var offset = new DateTimeOffset(local, _zone.GetUtcOffset(local));
+
+        return offset.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+    }
 }

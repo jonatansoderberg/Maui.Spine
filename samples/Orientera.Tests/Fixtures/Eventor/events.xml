@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <EventList>
-  <Event eventForm="IndSingleDay" startListExists="true" resultListExists="false">
+  <Event eventForm="IndSingleDay">
     <EventId>38412</EventId>
     <Name>DM, Sprint</Name>
     <EventClassificationId>3</EventClassificationId>
@@ -21,11 +21,11 @@
     </Organiser>
     <EntryBreak>
       <ValidFromDate>
-        <Date>2026-08-10</Date>
-        <Clock>23:59:59</Clock>
+        <Date>2026-06-01</Date>
+        <Clock>00:00:00</Clock>
       </ValidFromDate>
       <ValidToDate>
-        <Date>2026-08-13</Date>
+        <Date>2026-08-10</Date>
         <Clock>23:59:59</Clock>
       </ValidToDate>
     </EntryBreak>
@@ -42,9 +42,13 @@
       <Date>2026-08-01</Date>
       <Clock>08:12:00</Clock>
     </ModifyDate>
+    <HashTableEntry>
+      <Key>startList_41233</Key>
+      <Value>2026-08-13 19:40:12</Value>
+    </HashTableEntry>
   </Event>
 
-  <Event eventForm="IndSingleDay" resultListExists="true" startListExists="true">
+  <Event eventForm="IndSingleDay">
     <EventId>38499</EventId>
     <Name>Natt-SM, långdistans</Name>
     <EventClassificationId>1</EventClassificationId>
@@ -62,15 +66,23 @@
     </Organiser>
     <EntryBreak>
       <ValidFromDate>
+        <Date>2026-07-01</Date>
+        <Clock>00:00:00</Clock>
+      </ValidFromDate>
+      <ValidToDate>
         <Date>2026-08-31</Date>
         <Clock>23:59:59</Clock>
-      </ValidFromDate>
+      </ValidToDate>
     </EntryBreak>
     <EntryBreak>
       <ValidFromDate>
+        <Date>2026-09-01</Date>
+        <Clock>00:00:00</Clock>
+      </ValidFromDate>
+      <ValidToDate>
         <Date>2026-09-02</Date>
         <Clock>23:59:59</Clock>
-      </ValidFromDate>
+      </ValidToDate>
     </EntryBreak>
     <EventRace eventRaceId="41301" raceLightCondition="Night" raceDistance="Long">
       <EventRaceId>41301</EventRaceId>
@@ -85,10 +97,18 @@
       <Date>2026-09-06</Date>
       <Clock>09:40:00</Clock>
     </ModifyDate>
+    <HashTableEntry>
+      <Key>startList_41301</Key>
+      <Value>2026-09-04 06:15:00</Value>
+    </HashTableEntry>
+    <HashTableEntry>
+      <Key>officialResult_41301</Key>
+      <Value>2026-09-06 09:40:00</Value>
+    </HashTableEntry>
   </Event>
 
   <!-- Har en riktig LiveResults-tävling bakom sig; se Fixtures/LiveResults (SP-04). -->
-  <Event eventForm="IndSingleDay" startListExists="true" resultListExists="true">
+  <Event eventForm="IndSingleDay">
     <EventId>38301</EventId>
     <Name>Norrlandsmästerskapen, medel</Name>
     <EventClassificationId>1</EventClassificationId>
@@ -106,9 +126,13 @@
     </Organiser>
     <EntryBreak>
       <ValidFromDate>
+        <Date>2026-06-15</Date>
+        <Clock>00:00:00</Clock>
+      </ValidFromDate>
+      <ValidToDate>
         <Date>2026-08-04</Date>
         <Clock>23:59:59</Clock>
-      </ValidFromDate>
+      </ValidToDate>
     </EntryBreak>
     <EventRace eventRaceId="41180" raceLightCondition="Day" raceDistance="Middle">
       <EventRaceId>41180</EventRaceId>
@@ -123,6 +147,14 @@
       <Date>2026-08-09</Date>
       <Clock>16:20:00</Clock>
     </ModifyDate>
+    <HashTableEntry>
+      <Key>startList_41180</Key>
+      <Value>2026-08-08 05:10:00</Value>
+    </HashTableEntry>
+    <HashTableEntry>
+      <Key>officialResult_41180</Key>
+      <Value>2026-08-09 16:20:00</Value>
+    </HashTableEntry>
   </Event>
 
   <Event eventForm="IndSingleDay">
@@ -197,6 +229,58 @@
     <ModifyDate>
       <Date>2026-08-12</Date>
       <Clock>19:05:00</Clock>
+    </ModifyDate>
+  </Event>
+
+  <!-- Stafett: eventForm avgör, inte raceDistance. Verifierat mot skarp data (#42). -->
+  <Event eventForm="RelaySingleDay">
+    <EventId>38601</EventId>
+    <Name>Norrlandsmästerskapen, distriktsstafett</Name>
+    <EventClassificationId>1</EventClassificationId>
+    <EventStatusId>9</EventStatusId>
+    <StartDate>
+      <Date>2026-08-09</Date>
+    </StartDate>
+    <Organiser>
+      <OrganisationId>321</OrganisationId>
+    </Organiser>
+    <EventRace eventRaceId="41190" raceDistance="Long">
+      <EventRaceId>41190</EventRaceId>
+      <Name>Näset, Sandviken</Name>
+      <RaceDate>
+        <Date>2026-08-09</Date>
+        <Clock>13:00:00</Clock>
+      </RaceDate>
+      <EventCenterPosition x="16.8102" y="60.6294" unit="WGS-84" />
+    </EventRace>
+    <ModifyDate>
+      <Date>2026-08-09</Date>
+      <Clock>17:00:00</Clock>
+    </ModifyDate>
+  </Event>
+
+  <Event eventForm="IndSingleDay">
+    <EventId>38999</EventId>
+    <Name>Ballerup Nat Cup</Name>
+    <EventClassificationId>4</EventClassificationId>
+    <EventStatusId>9</EventStatusId>
+    <StartDate>
+      <Date>2026-08-22</Date>
+    </StartDate>
+    <Organiser>
+      <OrganisationId>900</OrganisationId>
+    </Organiser>
+    <EventRace eventRaceId="41999" raceDistance="Middle">
+      <EventRaceId>41999</EventRaceId>
+      <Name>Ballerup</Name>
+      <RaceDate>
+        <Date>2026-08-22</Date>
+        <Clock>18:00:00</Clock>
+      </RaceDate>
+    </EventRace>
+    <ModifyDate>
+      <Date>2026-08-01</Date>
+      <Clock>10:00:00</Clock>
     </ModifyDate>
   </Event>
 </EventList>

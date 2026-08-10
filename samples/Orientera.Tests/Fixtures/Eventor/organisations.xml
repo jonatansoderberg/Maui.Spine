@@ -4,16 +4,31 @@
     <OrganisationId>10</OrganisationId>
     <Name>Gästriklands Orienteringsförbund</Name>
     <OrganisationTypeId>2</OrganisationTypeId>
+    <Country>
+      <CountryId value="752" />
+      <Alpha3 value="SWE" />
+      <Name languageId="sv">Sverige</Name>
+    </Country>
   </Organisation>
   <Organisation>
     <OrganisationId>11</OrganisationId>
     <Name>Dalarnas OF</Name>
     <OrganisationTypeId>2</OrganisationTypeId>
+    <Country>
+      <CountryId value="752" />
+      <Alpha3 value="SWE" />
+      <Name languageId="sv">Sverige</Name>
+    </Country>
   </Organisation>
   <Organisation>
     <OrganisationId>321</OrganisationId>
     <Name>Gävle OK</Name>
     <OrganisationTypeId>3</OrganisationTypeId>
+    <Country>
+      <CountryId value="752" />
+      <Alpha3 value="SWE" />
+      <Name languageId="sv">Sverige</Name>
+    </Country>
     <ParentOrganisation>
       <OrganisationId>10</OrganisationId>
       <Name>Gästriklands Orienteringsförbund</Name>
@@ -23,6 +38,11 @@
     <OrganisationId>322</OrganisationId>
     <Name>Sandvikens OK</Name>
     <OrganisationTypeId>3</OrganisationTypeId>
+    <Country>
+      <CountryId value="752" />
+      <Alpha3 value="SWE" />
+      <Name languageId="sv">Sverige</Name>
+    </Country>
     <ParentOrganisation>
       <OrganisationId>10</OrganisationId>
       <Name>Gästriklands Orienteringsförbund</Name>
@@ -32,9 +52,25 @@
     <OrganisationId>410</OrganisationId>
     <Name>Stora Tuna OK</Name>
     <OrganisationTypeId>3</OrganisationTypeId>
+    <Country>
+      <CountryId value="752" />
+      <Alpha3 value="SWE" />
+      <Name languageId="sv">Sverige</Name>
+    </Country>
     <ParentOrganisation>
       <OrganisationId>11</OrganisationId>
       <Name>Dalarnas OF</Name>
     </ParentOrganisation>
+  </Organisation>
+  <!-- Den svenska instansen listar även utländska klubbar; deras tävlingar är inte våra. -->
+  <Organisation>
+    <OrganisationId>900</OrganisationId>
+    <Name>Ballerup OK</Name>
+    <OrganisationTypeId>3</OrganisationTypeId>
+    <Country>
+      <CountryId value="208" />
+      <Alpha3 value="DEN" />
+      <Name languageId="sv">Danmark</Name>
+    </Country>
   </Organisation>
 </OrganisationList>
