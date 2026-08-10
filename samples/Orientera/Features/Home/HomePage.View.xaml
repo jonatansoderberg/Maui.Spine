@@ -166,7 +166,7 @@
         </CollectionView.Header>
 
         <CollectionView.Footer>
-            <BoxView HeightRequest="{StaticResource TabBarSpacer}" Color="Transparent" />
+            <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
         </CollectionView.Footer>
 
         </CollectionView>

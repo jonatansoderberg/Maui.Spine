@@ -22,10 +22,41 @@ public partial class SpineTabbedHostPage
             _bottomNav = bottomNav;
             bottomNav.ItemReselected += OnItemReselected;
 
+            // The bar has no height until it has been measured, and it remeasures when the
+            // window insets change (gesture bar, three-button navigation, rotation).
+            bottomNav.LayoutChange += OnBottomNavLayoutChange;
+
             ApplyStyle(bottomNav);
+            ApplyTabBarInset();
         }
 
         ApplyAllBadges();
+    }
+
+    private void OnBottomNavLayoutChange(object? sender, Android.Views.View.LayoutChangeEventArgs e) =>
+        ApplyTabBarInset();
+
+    /// <summary>
+    /// Reports the Material bar's height to every tab as its bottom safe-area inset.
+    /// </summary>
+    /// <remarks>
+    /// Tab pages render edge-to-edge — <see cref="SpineTabPage"/> zeroes their native padding
+    /// and consumes the window insets — so the page's content area runs the full height of the
+    /// window, underneath the bar. The bar is opaque and draws over that area, which makes its
+    /// height exactly the padding a region owes at the bottom. The bar applies the system
+    /// navigation inset to itself, so its measured height already includes it and must not be
+    /// added twice.
+    /// </remarks>
+    private void ApplyTabBarInset()
+    {
+        if (_bottomNav is not { } bottomNav)
+            return;
+
+        var density = bottomNav.Context?.Resources?.DisplayMetrics?.Density ?? 1f;
+        double bottom = density > 0 ? bottomNav.Height / density : 0;
+
+        foreach (var slot in _slots)
+            slot.Insets.SetBottomOverride(bottom);
     }
 
     partial void PlatformApplyBadge(int index, string? text)
@@ -100,17 +131,22 @@ public partial class SpineTabbedHostPage
     }
 
     /// <summary>
-    /// Wires edge-to-edge inset management for every tab page and zeroes the per-tab bottom
-    /// inset — on Android the opaque Material bar owns the bottom edge, so regions must not
-    /// pad for the system navigation bar underneath it.
+    /// Wires edge-to-edge inset management for every tab page and replaces the window's bottom
+    /// inset with the native tab bar's height — inside the tab host it is the bar, not the
+    /// system navigation bar, that content has to clear.
     /// </summary>
     internal void InitializeEdgeToEdgeInsets(SystemInsetsProvider insetsProvider)
     {
         foreach (var slot in _slots)
         {
+            // Start at zero rather than the window inset: the system navigation bar sits
+            // behind the tab bar, so reporting it would pad content by the wrong amount until
+            // the bar has been measured.
             slot.Insets.SetBottomOverride(0);
             slot.Page.InitializeEdgeToEdgeInsets(insetsProvider);
         }
+
+        ApplyTabBarInset();
     }
 
     private static BottomNavigationView? FindBottomNavigationView(ViewGroup root)
