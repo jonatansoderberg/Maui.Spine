@@ -1,0 +1,30 @@
+{
+ "status": "OK",
+ "passings": [
+  {
+   "passtime": "13:17:41",
+   "runnerName": "Ebba Strömsten",
+   "class": "D21",
+   "control": 1000,
+   "controlName": "",
+   "time": "63:32"
+  },
+  {
+   "passtime": "13:17:41",
+   "runnerName": "Ebba Strömsten",
+   "class": "D21",
+   "control": 1079,
+   "controlName": "79",
+   "time": "42:23"
+  },
+  {
+   "passtime": "13:17:41",
+   "runnerName": "Ebba Strömsten",
+   "class": "D21",
+   "control": 1088,
+   "controlName": "88",
+   "time": "62:21"
+  }
+ ],
+ "hash": "ab870df88fb9868343fb1086846a1b33"
+}

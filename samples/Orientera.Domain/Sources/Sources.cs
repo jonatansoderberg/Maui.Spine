@@ -91,7 +91,15 @@ public interface ILiveSource
     /// <summary>Competitions with something happening right now.</summary>
     Task<IReadOnlyList<Competition>> GetLiveCompetitionsAsync(CancellationToken cancellationToken = default);
 
-    Task<LiveSnapshot> GetSnapshotAsync(CompetitionId competition, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// The live field. <paramref name="className"/> narrows it to one class, which is what a
+    /// runner watching their own race needs — the live source is only searchable by class, so
+    /// everything else costs one request per class in the competition.
+    /// </summary>
+    Task<LiveSnapshot> GetSnapshotAsync(
+        CompetitionId competition,
+        string? className = null,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IProgressSource

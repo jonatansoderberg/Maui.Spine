@@ -87,6 +87,44 @@
     </ModifyDate>
   </Event>
 
+  <!-- Har en riktig LiveResults-tävling bakom sig; se Fixtures/LiveResults (SP-04). -->
+  <Event eventForm="IndSingleDay" startListExists="true" resultListExists="true">
+    <EventId>38301</EventId>
+    <Name>Norrlandsmästerskapen, medel</Name>
+    <EventClassificationId>1</EventClassificationId>
+    <EventStatusId>9</EventStatusId>
+    <StartDate>
+      <Date>2026-08-09</Date>
+      <Clock>10:00:00</Clock>
+    </StartDate>
+    <FinishDate>
+      <Date>2026-08-09</Date>
+      <Clock>15:00:00</Clock>
+    </FinishDate>
+    <Organiser>
+      <OrganisationId>321</OrganisationId>
+    </Organiser>
+    <EntryBreak>
+      <ValidFromDate>
+        <Date>2026-08-04</Date>
+        <Clock>23:59:59</Clock>
+      </ValidFromDate>
+    </EntryBreak>
+    <EventRace eventRaceId="41180" raceLightCondition="Day" raceDistance="Middle">
+      <EventRaceId>41180</EventRaceId>
+      <Name>Näset, Sandviken</Name>
+      <RaceDate>
+        <Date>2026-08-09</Date>
+        <Clock>10:00:00</Clock>
+      </RaceDate>
+      <EventCenterPosition x="16.8102" y="60.6294" unit="deg" />
+    </EventRace>
+    <ModifyDate>
+      <Date>2026-08-09</Date>
+      <Clock>16:20:00</Clock>
+    </ModifyDate>
+  </Event>
+
   <Event eventForm="IndSingleDay">
     <EventId>38519</EventId>
     <Name>Veckans bana, etapp 6</Name>

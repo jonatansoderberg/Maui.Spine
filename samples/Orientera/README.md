@@ -8,8 +8,9 @@ Din personliga orienteringsassistent — en verklig produkt och samtidigt ett av
 
 ## Status
 
-M0 är klar. M1 pågår: offline-paketet och felfallbacken finns, och Eventor-integrationen ligger i
-[Orientera.Backend](../Orientera.Backend/README.md).
+M0 och M1 är byggda; M2 pågår. Eventor och LiveResults ligger bakom
+[Orientera.Backend](../Orientera.Backend/README.md), och appen kör mot dem eller mot fake-datat
+beroende på konfiguration.
 
 ## Datakälla
 
@@ -17,8 +18,13 @@ Appen läser allt bakom källinterfacen i `Orientera.Domain/Sources`, och vilken
 används avgörs av `Backend:BaseAddress` i [appsettings.json](appsettings.json):
 
 - **tom adress** — det deterministiska fake-datat, appens demo- och testläge.
-- **en adress** — BFF:en, som normaliserar Eventor. Det som ännu inte är integrerat (mina
-  anmälningar, live, prognos, Sverigelistan) svarar tomt i stället för att låna från fake-datat.
+- **en adress** — BFF:en, som normaliserar Eventor och LiveResults. Det som ännu inte är
+  integrerat (mina anmälningar, prognos, Sverigelistan) svarar tomt i stället för att låna från
+  fake-datat.
+
+Vem du är är lokalt: namn, klubb och klass sparas i telefonen (Jag → Ändra) och är det som gör
+att appen kan hitta dig i en startlista eller en livelista. Inget konto, inget som lämnar
+telefonen.
 
 ## Struktur
 

@@ -9,7 +9,7 @@
         <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20">
 
             <!-- ============ Profil ============ -->
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
                 <Border Grid.Column="0"
                         WidthRequest="56" HeightRequest="56"
                         BackgroundColor="{DynamicResource AccentSubtle}"
@@ -28,6 +28,16 @@
                     <Label Style="{StaticResource Heading1Label}" Text="{Binding Name}" />
                     <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
                 </VerticalStackLayout>
+
+                <Button Grid.Column="2"
+                        Style="{StaticResource SecondaryButton}"
+                        Padding="14,0"
+                        HeightRequest="36"
+                        FontSize="{StaticResource SizeCaption}"
+                        Text="Ändra"
+                        VerticalOptions="Center"
+                        SemanticProperties.Description="Ändra namn, klubb och klass"
+                        Command="{Binding OpenIdentityCommand}" />
             </Grid>
 
             <!-- ============ Sverigelistan ============ -->
@@ -187,7 +197,7 @@
                 <Button Style="{StaticResource SecondaryButton}" Text="Tidsmaskin" Command="{Binding OpenTimeMachineCommand}" />
                 <Button Style="{StaticResource SecondaryButton}" Text="Designsystem" Command="{Binding OpenDesignSystemCommand}" />
                 <Label Style="{StaticResource CaptionLabel}"
-                       Text="M0 kör på fake-data. Tidsmaskinen flyttar &quot;nu&quot; genom tävlingsresan; designsystemet visar tokens och komponenter." />
+                       Text="{Binding SourceDescription}" />
             </VerticalStackLayout>
 
         </VerticalStackLayout>

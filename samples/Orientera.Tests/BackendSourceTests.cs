@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Orientera.Services.FakeData;
+using Orientera.Services.Local;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
@@ -15,6 +16,11 @@ namespace Orientera.Tests;
 public class BackendSourceTests
 {
     private readonly FakeDataSource _local = new(new TimeMachineClock(FakeDataset.DefaultNow));
+
+    // No identity set: "me" is the seeded runner, which is what the app shows until the user
+    // says who they are.
+    private readonly LocalIdentityStore _identity = new(Path.Combine(
+        Path.GetTempPath(), $"orientera-identity-{Guid.NewGuid():N}.json"));
 
     private static readonly Competition Sprint = new()
     {
@@ -90,7 +96,8 @@ public class BackendSourceTests
     {
         var source = new BackendSource(
             new HttpClient(new ThrowingHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
-            _local);
+            _local,
+            _identity);
 
         await Assert.ThrowsAsync<SourceUnavailableException>(() => source.GetCompetitionsAsync());
     }
@@ -101,7 +108,8 @@ public class BackendSourceTests
     {
         var source = new BackendSource(
             new HttpClient(new ThrowingHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
-            _local);
+            _local,
+            _identity);
 
         Assert.NotEmpty(await source.GetFavouritesAsync());
         Assert.NotEmpty(await source.GetMyGroupAsync());
@@ -126,7 +134,8 @@ public class BackendSourceTests
     private BackendSource SourceReturning(HttpStatusCode status, string body) =>
         new(
             new HttpClient(new StubHandler(status, body)) { BaseAddress = new Uri("http://localhost:7071/api/") },
-            _local);
+            _local,
+            _identity);
 
     private static string Json<T>(T value) => JsonSerializer.Serialize(value, OrienteraJson.Options);
 

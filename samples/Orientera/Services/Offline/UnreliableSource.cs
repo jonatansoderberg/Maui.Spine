@@ -84,8 +84,11 @@ public sealed class UnreliableSource(IOrienteraSource _inner, ConnectivitySwitch
     public Task<IReadOnlyList<Competition>> GetLiveCompetitionsAsync(CancellationToken cancellationToken = default) =>
         Through(() => _inner.GetLiveCompetitionsAsync(cancellationToken));
 
-    public Task<LiveSnapshot> GetSnapshotAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
-        Through(() => _inner.GetSnapshotAsync(competition, cancellationToken));
+    public Task<LiveSnapshot> GetSnapshotAsync(
+        CompetitionId competition,
+        string? className = null,
+        CancellationToken cancellationToken = default) =>
+        Through(() => _inner.GetSnapshotAsync(competition, className, cancellationToken));
 
     // ---------------------------------------------------------------- IProgressSource
 

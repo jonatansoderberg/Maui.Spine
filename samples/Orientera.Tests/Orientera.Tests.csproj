@@ -27,6 +27,7 @@
 		<Compile Include="..\Orientera\Services\Offline\**\*.cs" LinkBase="Linked\Services\Offline" />
 		<Compile Include="..\Orientera\Services\Grouping\**\*.cs" LinkBase="Linked\Services\Grouping" />
 		<Compile Include="..\Orientera\Services\Relevance\**\*.cs" LinkBase="Linked\Services\Relevance" />
+		<Compile Include="..\Orientera\Services\Local\**\*.cs" LinkBase="Linked\Services\Local" />
 		<Compile Include="..\Orientera\Services\Sources\**\*.cs" LinkBase="Linked\Services\Sources" />
 		<Compile Include="..\Orientera\Services\Time\**\*.cs" LinkBase="Linked\Services\Time" />
 	</ItemGroup>

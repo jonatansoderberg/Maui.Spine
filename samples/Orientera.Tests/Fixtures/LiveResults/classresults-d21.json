@@ -1,0 +1,137 @@
+{
+ "status": "OK",
+ "className": "D21",
+ "splitcontrols": [
+  {
+   "code": 1079,
+   "name": "79"
+  },
+  {
+   "code": 1088,
+   "name": "88"
+  }
+ ],
+ "results": [
+  {
+   "place": "1",
+   "name": "Jennie Börjesson Eriksson",
+   "club": "Malungs OK Skogsmårdarna",
+   "result": "213100",
+   "status": 0,
+   "timeplus": "0",
+   "progress": 100,
+   "splits": {
+    "1079": 128000,
+    "1079_status": 0,
+    "1079_place": 1,
+    "1079_timeplus": 0,
+    "1088": 207900,
+    "1088_status": 0,
+    "1088_place": 1,
+    "1088_timeplus": 0
+   },
+   "start": 4260000
+  },
+  {
+   "place": "2",
+   "name": "Johanna Börjesson Eriksson",
+   "club": "Malungs OK Skogsmårdarna",
+   "result": "230000",
+   "status": 0,
+   "timeplus": "16900",
+   "progress": 100,
+   "splits": {
+    "1079": 145400,
+    "1079_status": 0,
+    "1079_place": 2,
+    "1079_timeplus": 17400,
+    "1088": 224700,
+    "1088_status": 0,
+    "1088_place": 2,
+    "1088_timeplus": 16800
+   },
+   "start": 4164000
+  },
+  {
+   "place": "3",
+   "name": "Emma Blixt",
+   "club": "OK Nolaskogsarna",
+   "result": "238500",
+   "status": 0,
+   "timeplus": "25400",
+   "progress": 100,
+   "splits": {
+    "1079": 150700,
+    "1079_status": 0,
+    "1079_place": 5,
+    "1079_timeplus": 22700,
+    "1088": 233700,
+    "1088_status": 0,
+    "1088_place": 3,
+    "1088_timeplus": 25800
+   },
+   "start": 4140000
+  },
+  {
+   "place": "4",
+   "name": "Anna Mårsell",
+   "club": "Stora Tuna OK",
+   "result": "238900",
+   "status": 0,
+   "timeplus": "25800",
+   "progress": 100,
+   "splits": {
+    "1079": 148700,
+    "1079_status": 0,
+    "1079_place": 3,
+    "1079_timeplus": 20700,
+    "1088": 234200,
+    "1088_status": 0,
+    "1088_place": 4,
+    "1088_timeplus": 26300
+   },
+   "start": 4176000
+  },
+  {
+   "place": "5",
+   "name": "Olga Balabanova",
+   "club": "Alfta-Ösa OK",
+   "result": "239500",
+   "status": 0,
+   "timeplus": "26400",
+   "progress": 100,
+   "splits": {
+    "1079": 153000,
+    "1079_status": 0,
+    "1079_place": 6,
+    "1079_timeplus": 25000,
+    "1088": 234300,
+    "1088_status": 0,
+    "1088_place": 5,
+    "1088_timeplus": 26400
+   },
+   "start": 4272000
+  },
+  {
+   "place": "6",
+   "name": "Ellen Davidsson",
+   "club": "Alfta-Ösa OK",
+   "result": "243800",
+   "status": 0,
+   "timeplus": "30700",
+   "progress": 100,
+   "splits": {
+    "1079": 149400,
+    "1079_status": 0,
+    "1079_place": 4,
+    "1079_timeplus": 21400,
+    "1088": 237900,
+    "1088_status": 0,
+    "1088_place": 6,
+    "1088_timeplus": 30000
+   },
+   "start": 4248000
+  }
+ ],
+ "hash": "1a24650d593dcd1a9a7ebb6b3c3007e6"
+}
