@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!--
+        Typography — Inter, phone-first scale from docs/design/designprinciper.md §4.
+        Everything numeric (times, placements, splits, points) uses the Numeric families:
+        those are Inter with the OpenType `tnum` substitutions folded into cmap, so digits
+        are fixed-width and live-updating columns never jump. MAUI exposes no runtime API
+        for font features, hence the separate font files.
+    -->
+
+    <!-- Font family aliases (registered in MauiProgram) -->
+    <x:String x:Key="FontRegular">Inter</x:String>
+    <x:String x:Key="FontMedium">InterMedium</x:String>
+    <x:String x:Key="FontSemiBold">InterSemiBold</x:String>
+    <x:String x:Key="FontBold">InterBold</x:String>
+    <x:String x:Key="FontNumeric">InterTabular</x:String>
+    <x:String x:Key="FontNumericMedium">InterTabularMedium</x:String>
+    <x:String x:Key="FontNumericSemiBold">InterTabularSemiBold</x:String>
+    <x:String x:Key="FontNumericBold">InterTabularBold</x:String>
+
+    <!-- Scale -->
+    <x:Double x:Key="SizeDisplay">28</x:Double>
+    <x:Double x:Key="SizeH1">22</x:Double>
+    <x:Double x:Key="SizeH2">17</x:Double>
+    <x:Double x:Key="SizeBody">15</x:Double>
+    <x:Double x:Key="SizeCaption">13</x:Double>
+    <x:Double x:Key="SizeMicro">11</x:Double>
+
+    <!-- Text styles -->
+
+    <Style x:Key="DisplayLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontSemiBold}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeDisplay}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="LineHeight" Value="1.15" />
+    </Style>
+
+    <!-- Big key figures: placement, "14 / 67", points. Delta follows in CaptionLabel. -->
+    <Style x:Key="DisplayNumberLabel" TargetType="Label" BasedOn="{StaticResource DisplayLabel}">
+        <Setter Property="FontFamily" Value="{StaticResource FontNumericSemiBold}" />
+    </Style>
+
+    <Style x:Key="Heading1Label" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontSemiBold}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeH1}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="LineHeight" Value="1.2" />
+    </Style>
+
+    <Style x:Key="Heading2Label" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontSemiBold}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeH2}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="LineHeight" Value="1.25" />
+    </Style>
+
+    <Style x:Key="BodyLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontRegular}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeBody}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="LineHeight" Value="1.35" />
+    </Style>
+
+    <Style x:Key="BodyStrongLabel" TargetType="Label" BasedOn="{StaticResource BodyLabel}">
+        <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
+    </Style>
+
+    <Style x:Key="BodySecondaryLabel" TargetType="Label" BasedOn="{StaticResource BodyLabel}">
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <Style x:Key="CaptionLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontRegular}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeCaption}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="LineHeight" Value="1.3" />
+    </Style>
+
+    <Style x:Key="CaptionStrongLabel" TargetType="Label" BasedOn="{StaticResource CaptionLabel}">
+        <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- Numeric variants: tabular figures -->
+
+    <Style x:Key="NumericLabel" TargetType="Label" BasedOn="{StaticResource BodyLabel}">
+        <Setter Property="FontFamily" Value="{StaticResource FontNumeric}" />
+    </Style>
+
+    <Style x:Key="NumericStrongLabel" TargetType="Label" BasedOn="{StaticResource BodyLabel}">
+        <Setter Property="FontFamily" Value="{StaticResource FontNumericMedium}" />
+    </Style>
+
+    <Style x:Key="NumericCaptionLabel" TargetType="Label" BasedOn="{StaticResource CaptionLabel}">
+        <Setter Property="FontFamily" Value="{StaticResource FontNumeric}" />
+    </Style>
+
+    <Style x:Key="NumericHeading2Label" TargetType="Label" BasedOn="{StaticResource Heading2Label}">
+        <Setter Property="FontFamily" Value="{StaticResource FontNumericSemiBold}" />
+    </Style>
+
+    <!-- Section label — "LIVE NU", "SENASTE RESULTAT". Structure without heading weight. -->
+    <Style x:Key="SectionLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeMicro}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="TextTransform" Value="Uppercase" />
+        <Setter Property="CharacterSpacing" Value="1.2" />
+    </Style>
+
+</ResourceDictionary>

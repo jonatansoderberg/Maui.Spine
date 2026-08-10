@@ -7,20 +7,20 @@
 
 - Appen ligger i `samples/Orientera` och refererar Spine-pluginsen som projektreferenser (`Plugin.Maui.Spine`, `Plugin.Maui.SpineControls`, `Plugin.Maui.SvgIcon`, `Plugin.Maui.SvgImage`, ev. `Plugin.Maui.AnimatedLabel`).
 - Spine-mönster som används: `SpineApplication`-rot, trefilsmönstret (`Page.cs` + `Page.View.xaml` + `Page.ViewModel.cs`), `[NavigableRegion]`/`[NavigableSheet]`, typed params/results, `SpineCollectionView`.
-- **Känd Spine-lucka: det finns inget tabb-koncept.** Spec:en kräver 5 bottenflikar. Se etapp 2.
+- **Tabbar:** Spine har ett tab-host-primitiv (`[NavigableTab]`, native `UITabBarController`/`BottomNavigationView`) sedan [PR #11](https://github.com/jonatansoderberg/Maui.Spine/pull/11). Orienteras fem flikar är deklarerade mot det. Se [docs/wiki/tab-host.md](../../../docs/wiki/tab-host.md).
 - **Plattformsläge:** README anger iOS/macOS "in progress" för Spine, medan Orientera är phone-first iOS + Android. iOS-verifiering av Spine-primitiver ingår därför som explicit aktivitet i etapp 2 (risk R1).
 
 ## M0 — UX-prototyp
 
 **Mål (DoD ur spec):** app körbar på iOS + Android; Hem, Tävlingar, Event detail, Live, Resultat, Analys och Jag med realistisk fake-data; Light + Dark; grupperade återkommande event; simulerbar context-state genom hela livscykeln; designriktning vald.
 
-### Etapp 0 — Scaffold ✅ (denna leverans)
+### Etapp 0 — Scaffold ✅
 
 Projektskelett enligt Spine-mönstret, feature-mappar, placeholder-sidor för de fem flikarna, byggverifierat. Ingen design, ingen logik.
 
 ### Etapp 1 — Designavstämning (grind)
 
-- Gå igenom `design/designprinciper.md`, ta beslut 1–5.
+- ✅ **Grinden passerad 2026-08-10.** Beslut 1–5 tagna: Nordic + subtil Map + Performance i Resultat/Analys; tokenuppsättningen godkänd inklusive `EstimateInk`; Inter med tabulära siffror; klassiska tabbikoner + text; "Orientera" internt i M0 utan store-facing branding. Se `design/designprinciper.md`.
 - Kodifiera tokens: `Resources/Styles/LightTheme.xaml` + `DarkTheme.xaml` (samma nyckelset, systemtema default), typografiresurser, korn av komponentstilar (kort, chip, badge, sektionsetikett).
 - Eventuellt: snabb HTML-mockup per flik för att testa riktningen innan XAML.
 
@@ -28,11 +28,9 @@ Projektskelett enligt Spine-mönstret, feature-mappar, placeholder-sidor för de
 
 ### Etapp 2 — Navigationsskal och tab-host
 
-- **Lös tabb-frågan.** Alternativ:
-  - **A (rekommenderas):** bygg `SpineTabHost` som nytt primitiv i `Plugin.Maui.Spine` (eller SpineControls) — 5 flikar, varsin region-stack, bevarat state per flik, Material 3 bottom bar på Android / UITabBar-lik på iOS. Högt showcase-värde för Spine. **Spec: [docs/proposals/spine-tab-host.md](../../../docs/proposals/spine-tab-host.md) i Spine-repot.**
-  - **B:** app-lokal tab-host i Orientera (Grid + innehållsväxling + egen tabbar) — snabbare, men inget ramverksvärde och riskerar dubbelarbete.
+- ✅ **Tabb-frågan löst enligt alternativ A.** `SpineTabHost` byggdes som nytt primitiv i `Plugin.Maui.Spine` — `[NavigableTab]`, en region-stack per flik med bevarat state, native `UITabBarController` på iOS/Catalyst och Material `BottomNavigationView` på Android. Levererad i [PR #11](https://github.com/jonatansoderberg/Maui.Spine/pull/11) ([issue #10](https://github.com/jonatansoderberg/Maui.Spine/issues/10)); Orienteras fem flikar är deklarerade mot den. Dokumentation: [docs/wiki/tab-host.md](../../../docs/wiki/tab-host.md).
 - Verifiera Spine på iOS: region-push/pop, sheets med detents, back-svep. Utfall matas in i Spine-repots issues.
-  - **Delvis verifierat 2026-08-10** (iPhone 17 Pro-sim, iOS 26.2, Orientera-scaffolden): start, header bar, region-push/pop och interaktiv back-swipe fungerar. Kvar att verifiera: bottom sheets med detents (ingen sheet finns i scaffolden ännu).
+  - **Delvis verifierat 2026-08-10** (iPhone 17 Pro-sim, iOS 26.2, Orientera-scaffolden): start, header bar, tab-host, region-push/pop och interaktiv back-swipe fungerar. **Kvar:** bottom sheets med detents — verifieras när den första sheeten byggs (`EventFilterSheet`, etapp 4).
 - Deep-link-skelett (PWOS-schemaliknande `orientera://event/{id}`) kan vänta till M5, men URL-strukturen bestäms här.
 
 ### Etapp 3 — Fake-data-lager och domänkärna
@@ -82,15 +80,15 @@ Arkitekturregel från dag ett: **alla datakällor bakom interface** (`IEventSour
 | # | Risk | Hantering |
 |---|------|-----------|
 | R1 | Spine på iOS är "in progress" — Orientera är phone-first iOS+Android | Tidig iOS-verifiering i etapp 2; fynd blir Spine-issues; Orientera driver ramverkets iOS-mognad (poängen med real-world sample) |
-| R2 | Inget tabb-primitiv i Spine | Etapp 2 alternativ A/B; beslut tas vid designavstämningen |
+| R2 | ~~Inget tabb-primitiv i Spine~~ **Stängd** | Alternativ A byggd och mergad (Spine PR #11): `[NavigableTab]` + native tab-host |
 | R3 | Extern dataåtkomst (Eventor auth, Sverigelistan, Omaps-rättigheter) obekräftad | M0 är helt fake-data; spikes körs parallellt; NFR Fallback (degradera till deep-link) är inbyggd princip |
 | R4 | Namnet "Orientera" ej klarerat | SP-13 före store-release; koden använder namnet internt utan risk |
 | R5 | Fake-data som inte känns realistisk gör M0-utvärderingen missvisande | Seed-datat modelleras på PDF:ens verkliga exempel (Gästrikland aug 2026) |
 
 ## Föreslagen arbetsordning närmast
 
-1. **Designavstämning** (etapp 1-grinden) — besluten 1–5 i designprinciper-dokumentet.
-2. Tab-host-beslut (A/B) + iOS-verifiering av Spine.
+1. ✅ **Designavstämning** (etapp 1-grinden) — besluten 1–5 tagna 2026-08-10, se [design/designprinciper.md](design/designprinciper.md).
+2. ✅ Tab-host (alternativ A) + iOS-verifiering av Spine (sheets med detents kvarstår).
 3. Tokens + tema-resurser.
 4. Fake-data + ContextEngine + tester.
 5. Flikarna i ordningen Tävlingar → Detalj → Hem → Live → Resultat → Jag.

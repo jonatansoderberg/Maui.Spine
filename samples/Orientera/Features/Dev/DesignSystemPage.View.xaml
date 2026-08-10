@@ -1,0 +1,147 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Dev.DesignSystemPage"
+    x:TypeArguments="DesignSystemPageViewModel"
+    x:DataType="DesignSystemPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="24">
+
+            <!-- ============ Ytor ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Ytor" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <HorizontalStackLayout Spacing="10">
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="8" Color="{DynamicResource SurfacePage}" />
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="8" Color="{DynamicResource SurfaceCard}" />
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="8" Color="{DynamicResource SurfaceRaised}" />
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="8" Color="{DynamicResource SurfaceSubtle}" />
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="8" Color="{DynamicResource Outline}" />
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="8" Color="{DynamicResource OutlineStrong}" />
+                        </HorizontalStackLayout>
+                        <Label Style="{StaticResource CaptionLabel}"
+                               Text="SurfacePage · SurfaceCard · SurfaceRaised · SurfaceSubtle · Outline · OutlineStrong" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Bläck ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Bläck och semantik" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Style="{StaticResource BodyLabel}" Text="TextPrimary — rubriker och värden" />
+                        <Label Style="{StaticResource BodySecondaryLabel}" Text="TextSecondary — metadata och etiketter" />
+                        <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource AccentAction}" Text="AccentAction — primär handling" />
+                        <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource PositiveDelta}" Text="PositiveDelta — vinst, +0:14" />
+                        <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource NegativeDelta}" Text="NegativeDelta — tapp, −1:07" />
+                        <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource EstimateInk}" Text="EstimateInk — modellerat, ej observerat" />
+                        <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource MapInk}" Text="MapInk — kartidentitet (dekor, ej text-AA)" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Typografi ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Typografi" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Style="{StaticResource DisplayLabel}" Text="Display 28" />
+                        <Label Style="{StaticResource Heading1Label}" Text="Heading 1 · 22" />
+                        <Label Style="{StaticResource Heading2Label}" Text="Heading 2 · 17" />
+                        <Label Style="{StaticResource BodyLabel}" Text="Body 15 — Norrlandsmästerskapen, Hemlingby, Gävle" />
+                        <Label Style="{StaticResource CaptionLabel}" Text="Caption 13 — arrangör och distrikt" />
+                        <Label Style="{StaticResource SectionLabel}" Text="Micro 11 · sektionsetikett" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Tabulära siffror ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Tabulära siffror" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Style="{StaticResource CaptionLabel}"
+                               Text="Kolumnerna nedan ska ligga still. Vänster: proportionella siffror (fel). Höger: tabulära (rätt)." />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                <Label Style="{StaticResource BodyLabel}" Text="31:12" />
+                                <Label Style="{StaticResource BodyLabel}" Text="11:11" />
+                                <Label Style="{StaticResource BodyLabel}" Text="48:07" />
+                                <Label Style="{StaticResource BodyLabel}" Text="1:04:59" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                <Label Style="{StaticResource NumericLabel}" Text="31:12" />
+                                <Label Style="{StaticResource NumericLabel}" Text="11:11" />
+                                <Label Style="{StaticResource NumericLabel}" Text="48:07" />
+                                <Label Style="{StaticResource NumericLabel}" Text="1:04:59" />
+                            </VerticalStackLayout>
+                        </Grid>
+                        <HorizontalStackLayout Spacing="8" VerticalOptions="End">
+                            <Label Style="{StaticResource DisplayNumberLabel}" Text="3:a" />
+                            <Label Style="{StaticResource NumericCaptionLabel}"
+                                   TextColor="{DynamicResource PositiveDelta}"
+                                   VerticalOptions="End" Margin="0,0,0,6" Text="+2 mot prognos" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Chips ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Snabbfilter" />
+                <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                    <HorizontalStackLayout Spacing="8">
+                        <Border Style="{StaticResource ChipSelected}">
+                            <Label Style="{StaticResource ChipSelectedLabel}" Text="För dig" />
+                        </Border>
+                        <Border Style="{StaticResource Chip}">
+                            <Label Style="{StaticResource ChipLabel}" Text="Nära" />
+                        </Border>
+                        <Border Style="{StaticResource Chip}">
+                            <Label Style="{StaticResource ChipLabel}" Text="Gästrikland" />
+                        </Border>
+                        <Border Style="{StaticResource Chip}">
+                            <Label Style="{StaticResource ChipLabel}" Text="Större" />
+                        </Border>
+                        <Border Style="{StaticResource Chip}">
+                            <Label Style="{StaticResource ChipLabel}" Text="Denna vecka" />
+                        </Border>
+                    </HorizontalStackLayout>
+                </ScrollView>
+            </VerticalStackLayout>
+
+            <!-- ============ Badges ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Statusbadges" />
+                <Border Style="{StaticResource Card}">
+                    <HorizontalStackLayout Spacing="8">
+                        <Border Style="{StaticResource BadgePositive}">
+                            <Label Style="{StaticResource BadgeOnFillLabel}" Text="Anmäld" />
+                        </Border>
+                        <Border Style="{StaticResource BadgeLive}">
+                            <Label Style="{StaticResource BadgeOnFillLabel}" Text="Live" />
+                        </Border>
+                        <Border Style="{StaticResource BadgeAccent}">
+                            <Label Style="{StaticResource BadgeAccentLabel}" Text="PM" />
+                        </Border>
+                        <Border Style="{StaticResource Badge}">
+                            <Label Style="{StaticResource BadgeLabel}" Text="Grupp" />
+                        </Border>
+                    </HorizontalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Knappar ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Handlingar" />
+                <Button Style="{StaticResource PrimaryButton}" Text="Anmäl dig" />
+                <Button Style="{StaticResource SecondaryButton}" Text="Läs PM" />
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>
