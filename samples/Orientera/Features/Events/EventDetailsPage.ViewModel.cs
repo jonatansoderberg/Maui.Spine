@@ -4,6 +4,7 @@ using Orientera.Features.Live;
 using Orientera.Features.Results;
 using Orientera.Presentation;
 using Orientera.Services.Context;
+using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 
@@ -35,7 +36,8 @@ public partial class EventDetailsPageViewModel(
     IEventSource _events,
     IPeopleSource _people,
     IParticipationSource _participation,
-    CompetitionContextService _context) : ViewModelBase, IReceivesNavigationParameter<CompetitionId>
+    OfflinePackageService _offline,
+    CompetitionContextService _context) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
 {
     private CompetitionId _id;
     private Competition? _competition;
@@ -68,6 +70,11 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial bool CanFollowLive { get; set; }
     [ObservableProperty] public partial bool HasResults { get; set; }
 
+    // ---- offline ----
+    [ObservableProperty] public partial bool IsFromCache { get; set; }
+    [ObservableProperty] public partial bool IsUnavailable { get; set; }
+    [ObservableProperty] public partial string CacheLabel { get; set; } = string.Empty;
+
     public ObservableCollection<BriefingItem> Briefing { get; } = [];
     public ObservableCollection<BriefingItem> Facts { get; } = [];
     public ObservableCollection<DocumentItem> Documents { get; } = [];
@@ -84,15 +91,27 @@ public partial class EventDetailsPageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
-        _competition = await _events.GetCompetitionAsync(_id);
         _me = await _people.GetMeAsync();
+
+        // Read through the offline package: with coverage this is live and refreshes the
+        // stored copy, without it the stored copy is what keeps the page usable at the arena.
+        var snapshot = await _offline.GetAsync(_id);
+
+        IsFromCache = snapshot.Origin == DataOrigin.Cache;
+        IsUnavailable = snapshot.Origin == DataOrigin.Unavailable;
+
+        CacheLabel = snapshot is { Origin: DataOrigin.Cache, CachedAt: { } cachedAt }
+            ? $"Offline — sparat {Format.Clock(cachedAt)}"
+            : string.Empty;
+
+        _competition = snapshot.Competition;
 
         if (_competition is null || _me is null)
             return;
 
         Title = _competition.Name;
 
-        await BuildAsync(_competition, _me);
+        await LoadAsync(() => BuildAsync(_competition, _me, snapshot));
     }
 
     [RelayCommand]
@@ -186,15 +205,34 @@ public partial class EventDetailsPageViewModel(
         }
     }
 
-    private async Task BuildAsync(Competition competition, Person me)
+    private async Task BuildAsync(Competition competition, Person me, CompetitionSnapshot snapshot)
     {
         var now = _clock.Now;
         var today = DateOnly.FromDateTime(now.Date);
 
-        _decision = await _context.EvaluateAsync(competition);
-        var entries = await _participation.GetEntriesAsync();
-        var starts = await _participation.GetStartsAsync(competition.Id);
+        // Offline the context engine is fed from the package instead of the sources — the CTA
+        // is the most useful thing on this page and has to survive the outage with the rest.
+        _decision = IsFromCache
+            ? ContextEngine.Evaluate(new ContextInput
+            {
+                Now = now,
+                Competition = competition,
+                MyEntryRegisteredAt = snapshot.MyEntryRegisteredAt,
+                GroupEntryRegisteredAt = snapshot.GroupEntryRegisteredAt,
+                MyStartTime = snapshot.MyStart?.StartTime,
+            })
+            : await _context.EvaluateAsync(competition);
         var favourites = await _events.GetFavouritesAsync();
+
+        // Entries are only needed to know whether I am registered; offline that is answered by
+        // whether the package carried a start time for me.
+        var entries = IsFromCache
+            ? []
+            : await _participation.GetEntriesAsync();
+
+        var starts = IsFromCache
+            ? (snapshot.MyStart is { } cachedStart ? new List<Start> { cachedStart } : [])
+            : await _participation.GetStartsAsync(competition.Id);
 
         Name = competition.Name;
         OrganiserLine = $"{competition.Organiser} · {competition.Place}";
@@ -206,7 +244,7 @@ public partial class EventDetailsPageViewModel(
         PrimaryActionText = _decision.PrimaryActionText;
 
         var myEntry = entries.FirstOrDefault(e => e.Competition == competition.Id && e.Person == me.Id);
-        MyClass = myEntry?.Class ?? me.DefaultClass;
+        MyClass = myEntry?.Class ?? snapshot.MyStart?.Class ?? me.DefaultClass;
 
         var myStart = starts.FirstOrDefault(s => s.Person == me.Id);
         HasMyStart = myStart is not null;
@@ -223,7 +261,9 @@ public partial class EventDetailsPageViewModel(
         double distance = me.Home.DistanceKmTo(competition.Location);
         TravelText = $"{Format.Distance(distance)} hemifrån · ca {Math.Round(distance / 70.0 * 60)} min";
 
-        var prediction = await _participation.GetPredictionAsync(competition.Id, me.Id);
+        var prediction = IsFromCache
+            ? snapshot.Prediction
+            : await _participation.GetPredictionAsync(competition.Id, me.Id);
         HasPrediction = prediction is not null;
         PredictionText = prediction is not null
             ? $"Förväntad placering {prediction.Range} av {prediction.FieldSize}"

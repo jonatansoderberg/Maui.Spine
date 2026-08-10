@@ -1,7 +1,9 @@
 using System.Globalization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Orientera.Services.Context;
 using Orientera.Services.FakeData;
+using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 using Plugin.Maui.Spine.Extensions;
@@ -60,7 +62,10 @@ public static class MauiProgram
                 fonts.AddFont("InterTabular-Bold.ttf", "InterTabularBold");
             });
 
-        RegisterDomainServices(builder.Services);
+        builder.Configuration.AddJsonStream(
+            typeof(MauiProgram).Assembly.GetManifestResourceStream("Orientera.appsettings.json")!);
+
+        RegisterDomainServices(builder.Services, builder.Configuration["Backend:BaseAddress"]);
 
 #if DEBUG
         builder.Logging.AddDebug();
@@ -69,19 +74,37 @@ public static class MauiProgram
         return builder.Build();
     }
 
-    private static void RegisterDomainServices(IServiceCollection services)
+    private static void RegisterDomainServices(IServiceCollection services, string? backendAddress)
     {
-        // M0 runs on the time machine rather than the wall clock, so the seeded August 2026
-        // calendar is always current and the whole competition lifecycle stays replayable.
-        services.AddSingleton<TimeMachineClock>(_ => new TimeMachineClock(FakeDataset.DefaultNow));
+        // The time machine rather than the wall clock, so the seeded August 2026 calendar is
+        // always current and the whole competition lifecycle stays replayable. Against a live
+        // backend it is set to now and left there.
+        services.AddSingleton<TimeMachineClock>(_ => new TimeMachineClock(
+            string.IsNullOrWhiteSpace(backendAddress) ? FakeDataset.DefaultNow : DateTimeOffset.Now));
         services.AddSingleton<IClock>(sp => sp.GetRequiredService<TimeMachineClock>());
 
         services.AddSingleton<FakeDataSource>();
-        services.AddSingleton<IEventSource>(sp => sp.GetRequiredService<FakeDataSource>());
-        services.AddSingleton<IPeopleSource>(sp => sp.GetRequiredService<FakeDataSource>());
-        services.AddSingleton<IParticipationSource>(sp => sp.GetRequiredService<FakeDataSource>());
-        services.AddSingleton<ILiveSource>(sp => sp.GetRequiredService<FakeDataSource>());
-        services.AddSingleton<IProgressSource>(sp => sp.GetRequiredService<FakeDataSource>());
+        services.AddSingleton<ConnectivitySwitch>();
+
+        // One seam, two implementations: the seeded dataset, or the BFF over the same
+        // contracts. Everything above reads the narrow interfaces and cannot tell which.
+        if (string.IsNullOrWhiteSpace(backendAddress))
+            services.AddSingleton<IOrienteraSource>(sp => sp.GetRequiredService<FakeDataSource>());
+        else
+            services.AddSingleton<IOrienteraSource>(sp => new BackendSource(
+                new HttpClient { BaseAddress = new Uri(backendAddress), Timeout = TimeSpan.FromSeconds(20) },
+                sp.GetRequiredService<FakeDataSource>()));
+
+        services.AddSingleton<UnreliableSource>();
+        services.AddSingleton<IEventSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<IPeopleSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<IParticipationSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<ILiveSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<IProgressSource>(sp => sp.GetRequiredService<UnreliableSource>());
+
+        services.AddSingleton<IOfflineStore>(_ => new FileOfflineStore(
+            Path.Combine(FileSystem.AppDataDirectory, "offline-packages")));
+        services.AddSingleton<OfflinePackageService>();
 
         services.AddSingleton<CompetitionContextService>();
 

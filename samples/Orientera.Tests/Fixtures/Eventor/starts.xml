@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StartList>
+  <Event>
+    <EventId>38412</EventId>
+    <Name>DM, Sprint</Name>
+  </Event>
+  <ClassStart numberOfEntries="2">
+    <EventClass>
+      <EventClassId>512002</EventClassId>
+      <Name>Herrar 21 elit</Name>
+      <ClassShortName>H21</ClassShortName>
+    </EventClass>
+    <PersonStart>
+      <Person sex="M">
+        <PersonId>144210</PersonId>
+        <PersonName>
+          <Given>Erik</Given>
+          <Family>Lundqvist</Family>
+        </PersonName>
+      </Person>
+      <Organisation>
+        <OrganisationId>321</OrganisationId>
+        <Name>Gävle OK</Name>
+      </Organisation>
+      <Start>
+        <StartTime>
+          <Date>2026-08-15</Date>
+          <Clock>10:12:00</Clock>
+        </StartTime>
+        <BibNumber>104</BibNumber>
+        <CourseLength>3400</CourseLength>
+      </Start>
+    </PersonStart>
+    <PersonStart>
+      <Person sex="M">
+        <PersonName>
+          <Given>Direktanmäld</Given>
+          <Family>Löpare</Family>
+        </PersonName>
+      </Person>
+      <Organisation>
+        <OrganisationId>322</OrganisationId>
+        <Name>Sandvikens OK</Name>
+      </Organisation>
+      <Start>
+        <StartTime>
+          <Date>2026-08-15</Date>
+          <Clock>10:04:00</Clock>
+        </StartTime>
+        <CourseLength>3400</CourseLength>
+      </Start>
+    </PersonStart>
+  </ClassStart>
+  <ClassStart numberOfEntries="1">
+    <EventClass>
+      <EventClassId>512003</EventClassId>
+      <Name>Damer 21 elit</Name>
+      <ClassShortName>D21</ClassShortName>
+    </EventClass>
+    <PersonStart>
+      <Person sex="F">
+        <PersonId>144233</PersonId>
+        <PersonName>
+          <Given>Anna</Given>
+          <Given>Maria</Given>
+          <Family>Berg</Family>
+        </PersonName>
+      </Person>
+      <Organisation>
+        <OrganisationId>321</OrganisationId>
+        <Name>Gävle OK</Name>
+      </Organisation>
+      <Start>
+        <StartTime>
+          <Date>2026-08-15</Date>
+          <Clock>10:08:00</Clock>
+        </StartTime>
+        <CourseLength>3100</CourseLength>
+      </Start>
+    </PersonStart>
+  </ClassStart>
+</StartList>

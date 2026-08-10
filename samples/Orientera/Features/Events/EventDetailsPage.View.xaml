@@ -9,6 +9,25 @@
         <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20">
 
             <!--
+                Offline är ett designat läge: det cachade paketet visas med sin tidsstämpel,
+                inte en spinner och inte tyst gammal data.
+            -->
+            <Border Style="{StaticResource BadgeAccent}"
+                    HorizontalOptions="Fill"
+                    Padding="12,8"
+                    IsVisible="{Binding IsFromCache}">
+                <Label Style="{StaticResource CaptionStrongLabel}"
+                       TextColor="{DynamicResource AccentAction}"
+                       Text="{Binding CacheLabel}" />
+            </Border>
+
+            <VerticalStackLayout Spacing="6" IsVisible="{Binding IsUnavailable}">
+                <Label Style="{StaticResource Heading2Label}" Text="Kunde inte hämta tävlingen" />
+                <Label Style="{StaticResource BodySecondaryLabel}"
+                       Text="Ingen anslutning, och tävlingen finns inte sparad offline. Den sparas automatiskt när du är anmäld, följer den eller favoritmarkerar den." />
+            </VerticalStackLayout>
+
+            <!--
                 Stjärnan delar rad med den korta metaraden, inte med titeln. Ett 44 pt-mål
                 bredvid rubriken kapade textkolumnen så att "Norrlandsmästerskapen" bröts mitt
                 i ordet.

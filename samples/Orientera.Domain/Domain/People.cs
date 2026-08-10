@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Orientera.Domain;
 
 public sealed record Person
@@ -9,6 +11,7 @@ public sealed record Person
     public required string DefaultClass { get; init; }
     public GeoPoint Home { get; init; }
 
+    [JsonIgnore]
     public string Initials
     {
         get

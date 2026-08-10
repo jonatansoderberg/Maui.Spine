@@ -138,7 +138,17 @@
 
     </SpinePage.Resources>
 
-    <CollectionView ItemsSource="{Binding Blocks}"
+    <Grid>
+
+        <!-- Offline utan sparade block: ett designat läge, inte en tom lista -->
+        <VerticalStackLayout Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsOffline}">
+            <Label Style="{StaticResource Heading2Label}" HorizontalTextAlignment="Center"
+                   Text="Ingen anslutning" />
+            <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center"
+                   Text="Tävlingar du sparat offline finns kvar under Tävlingar — PM, din starttid och arenan fungerar utan nätverk." />
+        </VerticalStackLayout>
+
+        <CollectionView ItemsSource="{Binding Blocks}"
                     ItemTemplate="{StaticResource BlockSelector}"
                     Margin="16,0"
                     SelectionMode="None">
@@ -156,9 +166,11 @@
         </CollectionView.Header>
 
         <CollectionView.Footer>
-            <BoxView HeightRequest="{StaticResource TabBarSpacer}" Color="Transparent" />
+            <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
         </CollectionView.Footer>
 
-    </CollectionView>
+        </CollectionView>
+
+    </Grid>
 
 </SpinePage>

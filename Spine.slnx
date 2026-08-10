@@ -5,6 +5,8 @@
   <Project Path="samples/Orientera/Orientera.csproj">
     <Deploy />
   </Project>
+  <Project Path="samples/Orientera.Backend/Orientera.Backend.csproj" />
+  <Project Path="samples/Orientera.Domain/Orientera.Domain.csproj" />
   <Project Path="samples/Orientera.Tests/Orientera.Tests.csproj" />
   <Project Path="src/Plugin.Maui.AnimatedLabel/Plugin.Maui.AnimatedLabel.csproj" Id="39cb0bc0-a3d4-45a1-ba1c-fd0cbdbddc8a" />
   <Project Path="src/Plugin.Maui.Spine/Plugin.Maui.Spine.csproj" />

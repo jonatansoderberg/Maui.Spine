@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ResultList status="complete">
+  <Event>
+    <EventId>38499</EventId>
+    <Name>Natt-SM, långdistans</Name>
+  </Event>
+  <ClassResult numberOfEntries="4" numberOfStarts="3">
+    <EventClass>
+      <EventClassId>512002</EventClassId>
+      <Name>Herrar 21 elit</Name>
+      <ClassShortName>H21</ClassShortName>
+    </EventClass>
+    <PersonResult>
+      <Person sex="M">
+        <PersonId>144210</PersonId>
+        <PersonName>
+          <Given>Erik</Given>
+          <Family>Lundqvist</Family>
+        </PersonName>
+      </Person>
+      <Organisation>
+        <OrganisationId>321</OrganisationId>
+        <Name>Gävle OK</Name>
+      </Organisation>
+      <Result>
+        <ResultId>771001</ResultId>
+        <StartTime>
+          <Date>2026-09-05</Date>
+          <Clock>21:12:00</Clock>
+        </StartTime>
+        <Time>1:02:33</Time>
+        <TimeDiff>0:00</TimeDiff>
+        <ResultPosition>1</ResultPosition>
+        <CompetitorStatus value="OK" />
+        <SplitTime sequence="1">
+          <ControlCode>62</ControlCode>
+          <Time>4:12</Time>
+        </SplitTime>
+        <SplitTime sequence="2">
+          <ControlCode>71</ControlCode>
+          <Time>11:48</Time>
+        </SplitTime>
+        <SplitTime sequence="3">
+          <ControlCode>34</ControlCode>
+          <Time>19:02</Time>
+        </SplitTime>
+      </Result>
+    </PersonResult>
+    <PersonResult>
+      <Person sex="M">
+        <PersonId>144299</PersonId>
+        <PersonName>
+          <Given>Johan</Given>
+          <Family>Sjödin</Family>
+        </PersonName>
+      </Person>
+      <Organisation>
+        <OrganisationId>410</OrganisationId>
+        <Name>Stora Tuna OK</Name>
+      </Organisation>
+      <Result>
+        <ResultId>771002</ResultId>
+        <Time>1:05:18</Time>
+        <TimeDiff>2:45</TimeDiff>
+        <ResultPosition>2</ResultPosition>
+        <CompetitorStatus value="OK" />
+        <SplitTime sequence="1">
+          <ControlCode>62</ControlCode>
+          <Time>4:30</Time>
+        </SplitTime>
+        <SplitTime sequence="2">
+          <ControlCode>71</ControlCode>
+          <Time>13:55</Time>
+        </SplitTime>
+      </Result>
+    </PersonResult>
+    <PersonResult>
+      <Person sex="M">
+        <PersonId>144301</PersonId>
+        <PersonName>
+          <Given>Nils</Given>
+          <Family>Åkerblom</Family>
+        </PersonName>
+      </Person>
+      <Organisation>
+        <OrganisationId>322</OrganisationId>
+        <Name>Sandvikens OK</Name>
+      </Organisation>
+      <Result>
+        <ResultId>771003</ResultId>
+        <CompetitorStatus value="MisPunch" />
+        <Time>1:11:02</Time>
+      </Result>
+    </PersonResult>
+    <PersonResult>
+      <Person sex="M">
+        <PersonId>144355</PersonId>
+        <PersonName>
+          <Given>Olle</Given>
+          <Family>Ström</Family>
+        </PersonName>
+      </Person>
+      <Organisation>
+        <OrganisationId>322</OrganisationId>
+        <Name>Sandvikens OK</Name>
+      </Organisation>
+      <Result>
+        <ResultId>771004</ResultId>
+        <CompetitorStatus value="DidNotStart" />
+      </Result>
+    </PersonResult>
+  </ClassResult>
+  <ClassResult numberOfEntries="1" numberOfStarts="1">
+    <EventClass>
+      <EventClassId>512003</EventClassId>
+      <Name>Damer 21 elit</Name>
+      <ClassShortName>D21</ClassShortName>
+    </EventClass>
+    <PersonResult>
+      <Person sex="F">
+        <PersonId>144233</PersonId>
+        <PersonName>
+          <Given>Anna</Given>
+          <Family>Berg</Family>
+        </PersonName>
+      </Person>
+      <Organisation>
+        <OrganisationId>321</OrganisationId>
+        <Name>Gävle OK</Name>
+      </Organisation>
+      <Result>
+        <ResultId>771010</ResultId>
+        <Time>58:41</Time>
+        <TimeDiff>0:00</TimeDiff>
+        <ResultPosition>1</ResultPosition>
+        <CompetitorStatus value="Finished" />
+      </Result>
+    </PersonResult>
+  </ClassResult>
+</ResultList>

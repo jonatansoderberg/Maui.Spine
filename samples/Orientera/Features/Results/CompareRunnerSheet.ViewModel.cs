@@ -20,7 +20,7 @@ public sealed record CompareCandidate
 public partial class CompareRunnerSheetViewModel(
     INavigationService _navigation,
     IPeopleSource _people,
-    IParticipationSource _participation) : ViewModelBase,
+    IParticipationSource _participation) : OrienteraViewModel,
     IReceivesNavigationParameter<ComparisonRequest>
 {
     private ComparisonRequest? _request;
@@ -33,7 +33,10 @@ public partial class CompareRunnerSheetViewModel(
         return Task.CompletedTask;
     }
 
-    public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
+    public override Task OnAppearingAsync(NavigationDirection navigationDirection) =>
+        LoadAsync(BuildAsync);
+
+    private async Task BuildAsync()
     {
         if (_request is null)
             return;

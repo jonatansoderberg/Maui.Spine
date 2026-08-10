@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OrganisationList>
+  <Organisation>
+    <OrganisationId>10</OrganisationId>
+    <Name>Gästriklands Orienteringsförbund</Name>
+    <OrganisationTypeId>2</OrganisationTypeId>
+  </Organisation>
+  <Organisation>
+    <OrganisationId>11</OrganisationId>
+    <Name>Dalarnas OF</Name>
+    <OrganisationTypeId>2</OrganisationTypeId>
+  </Organisation>
+  <Organisation>
+    <OrganisationId>321</OrganisationId>
+    <Name>Gävle OK</Name>
+    <OrganisationTypeId>3</OrganisationTypeId>
+    <ParentOrganisation>
+      <OrganisationId>10</OrganisationId>
+      <Name>Gästriklands Orienteringsförbund</Name>
+    </ParentOrganisation>
+  </Organisation>
+  <Organisation>
+    <OrganisationId>322</OrganisationId>
+    <Name>Sandvikens OK</Name>
+    <OrganisationTypeId>3</OrganisationTypeId>
+    <ParentOrganisation>
+      <OrganisationId>10</OrganisationId>
+      <Name>Gästriklands Orienteringsförbund</Name>
+    </ParentOrganisation>
+  </Organisation>
+  <Organisation>
+    <OrganisationId>410</OrganisationId>
+    <Name>Stora Tuna OK</Name>
+    <OrganisationTypeId>3</OrganisationTypeId>
+    <ParentOrganisation>
+      <OrganisationId>11</OrganisationId>
+      <Name>Dalarnas OF</Name>
+    </ParentOrganisation>
+  </Organisation>
+</OrganisationList>
