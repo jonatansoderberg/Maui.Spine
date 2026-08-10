@@ -1,16 +1,15 @@
 using Orientera.Domain;
-using Orientera.Services.FakeData;
 using Orientera.Services.Sources;
 
 namespace Orientera.Services.Offline;
 
 /// <summary>
-/// Sits where the network will be. Every source call passes through here, and fails when
-/// <see cref="ConnectivitySwitch.IsOffline"/> is set — which is what gives the offline and
-/// error paths something real to handle before there is a backend to lose contact with.
+/// Sits where the network is. Every source call passes through here, and fails when
+/// <see cref="ConnectivitySwitch.IsOffline"/> is set — the dev switch that makes the offline
+/// and error paths demonstrable without unplugging anything. A real failure below it arrives
+/// as the same <see cref="SourceUnavailableException"/> and takes the same path.
 /// </summary>
-public sealed class UnreliableSource(FakeDataSource _inner, ConnectivitySwitch _connectivity)
-    : IEventSource, IPeopleSource, IParticipationSource, ILiveSource, IProgressSource
+public sealed class UnreliableSource(IOrienteraSource _inner, ConnectivitySwitch _connectivity) : IOrienteraSource
 {
     private void Guard()
     {

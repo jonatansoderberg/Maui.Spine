@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EventClassList>
+  <EventClass lowAge="0" highAge="20" sex="M">
+    <EventClassId>512001</EventClassId>
+    <Name>Herrar 20 år</Name>
+    <ClassShortName>H20</ClassShortName>
+  </EventClass>
+  <EventClass lowAge="0" highAge="0" sex="M">
+    <EventClassId>512002</EventClassId>
+    <Name>Herrar 21 elit</Name>
+    <ClassShortName>H21</ClassShortName>
+  </EventClass>
+  <EventClass lowAge="0" highAge="0" sex="F">
+    <EventClassId>512003</EventClassId>
+    <Name>Damer 21 elit</Name>
+    <ClassShortName>D21</ClassShortName>
+  </EventClass>
+  <EventClass lowAge="45" highAge="0" sex="M">
+    <EventClassId>512004</EventClassId>
+    <Name>Herrar 45 år</Name>
+  </EventClass>
+</EventClassList>

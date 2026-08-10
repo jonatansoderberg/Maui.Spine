@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Orientera.Domain;
 
 /// <summary>
@@ -21,5 +23,6 @@ public sealed record Prediction
 
     public required string ModelVersion { get; init; }
 
+    [JsonIgnore]
     public string Range => $"{LowPlace}–{HighPlace}";
 }

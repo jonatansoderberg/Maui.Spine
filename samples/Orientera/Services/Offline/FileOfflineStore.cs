@@ -1,6 +1,6 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Orientera.Domain;
+using Orientera.Services.Sources;
 
 namespace Orientera.Services.Offline;
 
@@ -13,11 +13,8 @@ namespace Orientera.Services.Offline;
 /// </remarks>
 public sealed class FileOfflineStore : IOfflineStore
 {
-    private static readonly JsonSerializerOptions Json = new()
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        WriteIndented = false,
-    };
+    // The same shape the BFF speaks, so a package is the response it was built from.
+    private static readonly JsonSerializerOptions Json = OrienteraJson.Options;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly string _directory;

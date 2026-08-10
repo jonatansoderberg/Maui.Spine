@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Orientera.Domain;
 
 public enum ProfileGroup
@@ -29,6 +31,7 @@ public sealed record ProfileFact
     /// <summary>Classes the fact applies to. Empty means it applies to everyone.</summary>
     public IReadOnlyList<string> Classes { get; init; } = [];
 
+    [JsonIgnore]
     public string SourceLabel => $"{SourceDocument} sida {Page}";
 }
 

@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<EventList>
+  <Event eventForm="IndSingleDay" startListExists="true" resultListExists="false">
+    <EventId>38412</EventId>
+    <Name>DM, Sprint</Name>
+    <EventClassificationId>3</EventClassificationId>
+    <EventStatusId>9</EventStatusId>
+    <StartDate>
+      <Date>2026-08-15</Date>
+      <Clock>10:00:00</Clock>
+    </StartDate>
+    <FinishDate>
+      <Date>2026-08-15</Date>
+      <Clock>15:00:00</Clock>
+    </FinishDate>
+    <Organiser>
+      <Organisation>
+        <OrganisationId>321</OrganisationId>
+        <Name>Gävle OK</Name>
+      </Organisation>
+    </Organiser>
+    <EntryBreak>
+      <ValidFromDate>
+        <Date>2026-08-10</Date>
+        <Clock>23:59:59</Clock>
+      </ValidFromDate>
+      <ValidToDate>
+        <Date>2026-08-13</Date>
+        <Clock>23:59:59</Clock>
+      </ValidToDate>
+    </EntryBreak>
+    <EventRace eventRaceId="41233" raceLightCondition="Day" raceDistance="Sprint">
+      <EventRaceId>41233</EventRaceId>
+      <Name>Gävle centrum</Name>
+      <RaceDate>
+        <Date>2026-08-15</Date>
+        <Clock>10:00:00</Clock>
+      </RaceDate>
+      <EventCenterPosition x="17.1413" y="60.6749" unit="deg" />
+    </EventRace>
+    <ModifyDate>
+      <Date>2026-08-01</Date>
+      <Clock>08:12:00</Clock>
+    </ModifyDate>
+  </Event>
+
+  <Event eventForm="IndSingleDay" resultListExists="true" startListExists="true">
+    <EventId>38499</EventId>
+    <Name>Natt-SM, långdistans</Name>
+    <EventClassificationId>1</EventClassificationId>
+    <EventStatusId>9</EventStatusId>
+    <StartDate>
+      <Date>2026-09-05</Date>
+      <Clock>21:00:00</Clock>
+    </StartDate>
+    <FinishDate>
+      <Date>2026-09-06</Date>
+      <Clock>01:00:00</Clock>
+    </FinishDate>
+    <Organiser>
+      <OrganisationId>322</OrganisationId>
+    </Organiser>
+    <EntryBreak>
+      <ValidFromDate>
+        <Date>2026-08-31</Date>
+        <Clock>23:59:59</Clock>
+      </ValidFromDate>
+    </EntryBreak>
+    <EntryBreak>
+      <ValidFromDate>
+        <Date>2026-09-02</Date>
+        <Clock>23:59:59</Clock>
+      </ValidFromDate>
+    </EntryBreak>
+    <EventRace eventRaceId="41301" raceLightCondition="Night" raceDistance="Long">
+      <EventRaceId>41301</EventRaceId>
+      <Name>Natt-SM, långdistans</Name>
+      <RaceDate>
+        <Date>2026-09-05</Date>
+        <Clock>21:00:00</Clock>
+      </RaceDate>
+      <EventCenterPosition x="16.7756" y="60.6172" unit="deg" />
+    </EventRace>
+    <ModifyDate>
+      <Date>2026-09-06</Date>
+      <Clock>09:40:00</Clock>
+    </ModifyDate>
+  </Event>
+
+  <Event eventForm="IndSingleDay">
+    <EventId>38519</EventId>
+    <Name>Veckans bana, etapp 6</Name>
+    <EventClassificationId>5</EventClassificationId>
+    <EventStatusId>9</EventStatusId>
+    <StartDate>
+      <Date>2026-08-18</Date>
+    </StartDate>
+    <Organiser>
+      <OrganisationId>410</OrganisationId>
+    </Organiser>
+    <EventRace eventRaceId="41354" raceDistance="Middle">
+      <EventRaceId>41354</EventRaceId>
+      <Name>Veckans bana, etapp 6</Name>
+      <RaceDate>
+        <Date>2026-08-18</Date>
+        <Clock>17:00:00</Clock>
+      </RaceDate>
+    </EventRace>
+    <ModifyDate>
+      <Date>2026-08-12</Date>
+      <Clock>19:05:00</Clock>
+    </ModifyDate>
+  </Event>
+
+  <Event eventForm="IndSingleDay">
+    <EventId>38521</EventId>
+    <Name>Veckans bana, etapp 8</Name>
+    <EventClassificationId>5</EventClassificationId>
+    <EventStatusId>9</EventStatusId>
+    <StartDate>
+      <Date>2026-08-20</Date>
+    </StartDate>
+    <Organiser>
+      <OrganisationId>410</OrganisationId>
+    </Organiser>
+    <EventRace eventRaceId="41356" raceDistance="Middle">
+      <EventRaceId>41356</EventRaceId>
+      <Name>Veckans bana, etapp 8</Name>
+      <RaceDate>
+        <Date>2026-08-20</Date>
+        <Clock>17:00:00</Clock>
+      </RaceDate>
+    </EventRace>
+    <ModifyDate>
+      <Date>2026-08-12</Date>
+      <Clock>19:05:00</Clock>
+    </ModifyDate>
+  </Event>
+
+  <Event eventForm="IndSingleDay">
+    <EventId>38520</EventId>
+    <Name>Veckans bana, etapp 7</Name>
+    <EventClassificationId>5</EventClassificationId>
+    <EventStatusId>9</EventStatusId>
+    <StartDate>
+      <Date>2026-08-19</Date>
+    </StartDate>
+    <Organiser>
+      <OrganisationId>410</OrganisationId>
+    </Organiser>
+    <EventRace eventRaceId="41355" raceDistance="Middle">
+      <EventRaceId>41355</EventRaceId>
+      <Name>Veckans bana, etapp 7</Name>
+      <RaceDate>
+        <Date>2026-08-19</Date>
+        <Clock>17:00:00</Clock>
+      </RaceDate>
+    </EventRace>
+    <ModifyDate>
+      <Date>2026-08-12</Date>
+      <Clock>19:05:00</Clock>
+    </ModifyDate>
+  </Event>
+</EventList>

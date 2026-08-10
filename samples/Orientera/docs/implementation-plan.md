@@ -71,7 +71,7 @@ Byggordning (varje punkt är leverbar för sig):
 
 | Fas | Kärnleveranser | Blockerande spikes |
 |-----|----------------|--------------------|
-| **M1 Eventor Core** | `Orientera.Backend` (Azure Functions, isolated): EventorAdapter + normalisering + cache; appen byter FakeData → BFF bakom samma interface; offline-tävlingspaket; fel→fallback | SP-01 (access/auth-modell) |
+| **M1 Eventor Core** | ✅ `Orientera.Backend` (Azure Functions, isolated): EventorAdapter + normalisering + cache; appen byter FakeData → BFF bakom samma interface; offline-tävlingspaket; fel→fallback | ~~SP-01~~ klarerad |
 | **M2 Live & Personal** | LiveResultsAdapter + matchning; Live på riktig data; identifierad person; Min grupp; lokala favoriter; notis-grund | SP-04 (Eventor↔LiveResults-matchning) |
 | **M3 Intelligence** | PM-pipeline (LLM-extraktion → `CompetitionProfile` med Value/Confidence/Source/Page); Sverigelistan; serier; prediction (deterministisk modell + backtest) | SP-02, SP-03, SP-10, SP-11 |
 | **M4 Mapping & Analysis** | OmapsAdapter (rättighetsstyrd), kurs/kontroller, GPX/FIT-import, vägvalsanalys, Livelox deep-link | SP-05, SP-06, SP-07, SP-08, SP-12 |
@@ -98,7 +98,14 @@ Arkitekturregel från dag ett: **alla datakällor bakom interface** (`IEventSour
 5. ✅ Flikarna i ordningen Tävlingar → Detalj → Hem → Live → Resultat → Jag.
 6. ✅ Etapp 5: light/dark-svep, skärmläsarpass, Android-emulatorkörning.
 
-**M0 är klar.** Nästa steg är M1 (Eventor Core) — se tabellen nedan. Tre Spine-fynd är öppna:
+**M0 är klar.** M1 är byggd i två steg: offline-paketet och felfallbacken
+([#29](https://github.com/jonatansoderberg/Maui.Spine/issues/29)), och därefter backend med
+Eventor-adapter, normalisering, cache och BFF plus appens byte från fake-data
+([#31](https://github.com/jonatansoderberg/Maui.Spine/issues/31)). Det som återstår innan M1
+stämplas klar är en verifieringsomgång mot skarp Eventor-data med API-nyckel — normaliseringen
+är byggd och testad mot den dokumenterade XML-formen, inte mot inspelade svar.
+
+Nästa fas är M2 (Live & Personal), som behöver SP-04. Tre Spine-fynd är öppna:
 [#13](https://github.com/jonatansoderberg/Maui.Spine/issues/13),
 [#18](https://github.com/jonatansoderberg/Maui.Spine/issues/18),
 [#21](https://github.com/jonatansoderberg/Maui.Spine/issues/21) och

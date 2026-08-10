@@ -363,3 +363,6 @@ MigrationBackup/
 FodyWeavers.xsd
 # macOS
 .DS_Store
+
+# Azure Functions local settings (secrets)
+local.settings.json

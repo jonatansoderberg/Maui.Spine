@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Orientera.Domain;
 
 /// <summary>One result inside the Sverigelistan average.</summary>
@@ -34,5 +36,6 @@ public sealed record RankingSnapshot
 
     public required IReadOnlyList<RankingResult> Results { get; init; }
 
+    [JsonIgnore]
     public IEnumerable<RankingResult> Counting => Results.Where(r => r.IsCounting);
 }

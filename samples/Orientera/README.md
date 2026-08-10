@@ -8,7 +8,17 @@ Din personliga orienteringsassistent — en verklig produkt och samtidigt ett av
 
 ## Status
 
-M0 etapp 0 — scaffold. Endast placeholder-sidor; ingen skarp feature-implementation sker innan designprinciperna är avstämda (etapp 1-grinden i implementationsplanen).
+M0 är klar. M1 pågår: offline-paketet och felfallbacken finns, och Eventor-integrationen ligger i
+[Orientera.Backend](../Orientera.Backend/README.md).
+
+## Datakälla
+
+Appen läser allt bakom källinterfacen i `Orientera.Domain/Sources`, och vilken implementation som
+används avgörs av `Backend:BaseAddress` i [appsettings.json](appsettings.json):
+
+- **tom adress** — det deterministiska fake-datat, appens demo- och testläge.
+- **en adress** — BFF:en, som normaliserar Eventor. Det som ännu inte är integrerat (mina
+  anmälningar, live, prognos, Sverigelistan) svarar tomt i stället för att låna från fake-datat.
 
 ## Struktur
 
@@ -19,10 +29,11 @@ Features/
   Live/      LivePage        — Följ mig / Min grupp / klass
   Results/   ResultsPage     — resultat, splits, WinSplits++-analys
   Profile/   ProfilePage     — Jag, Sverigelistan, serier, utveckling
-Domain/        domänmodeller (Competition, ContextState, Prediction, ...)
-Services/      Context, Relevance, Grouping, Offline, FakeData, ...
-Integrations/  Eventor, LiveResults, Livelox, Omaps, Maps (adapters, M1+)
+Services/      Context, Relevance, Grouping, Offline, FakeData, Sources, ...
 docs/          krav, plan och design
+
+../Orientera.Domain/   domänmodell och källkontrakt, delade med backend och tester
+../Orientera.Backend/  BFF: Eventor-adapter, normalisering och cache
 ```
 
 ## Köra
