@@ -193,6 +193,11 @@
 
             <!-- ============ Dev-verktyg ============ -->
             <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Notiser" />
+                <Button Style="{StaticResource SecondaryButton}"
+                        Text="Vad du vill bli notifierad om"
+                        Command="{Binding OpenNotificationsCommand}" />
+
                 <Label Style="{StaticResource SectionLabel}" Text="Utvecklingsläge" />
                 <Button Style="{StaticResource SecondaryButton}" Text="Tidsmaskin" Command="{Binding OpenTimeMachineCommand}" />
                 <Button Style="{StaticResource SecondaryButton}" Text="Designsystem" Command="{Binding OpenDesignSystemCommand}" />

@@ -1,0 +1,46 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Profile.NotificationSheet"
+    x:TypeArguments="NotificationSheetViewModel"
+    x:DataType="NotificationSheetViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <Label Grid.Row="0"
+               Padding="16,0,16,8"
+               Style="{StaticResource CaptionLabel}"
+               Text="{Binding StatusText}" />
+
+        <CollectionView Grid.Row="1" Margin="16,0,16,16" ItemsSource="{Binding Rows}" SelectionMode="None">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="6" />
+            </CollectionView.ItemsLayout>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="NotificationRow">
+                    <Border Style="{StaticResource Card}" Padding="14,10">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <VerticalStackLayout Grid.Column="0" Spacing="1" VerticalOptions="Center">
+                                <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Label}" />
+                                <Label Style="{StaticResource CaptionLabel}" Text="{Binding Explanation}" />
+                            </VerticalStackLayout>
+
+                            <Button Grid.Column="1"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="14,0"
+                                    HeightRequest="36"
+                                    FontSize="{StaticResource SizeCaption}"
+                                    Text="{Binding StateText}"
+                                    SemanticProperties.Description="{Binding Accessibility}"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ToggleCommand}"
+                                    CommandParameter="{Binding .}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+
+</SpinePage>

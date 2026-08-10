@@ -72,7 +72,7 @@ Byggordning (varje punkt är leverbar för sig):
 | Fas | Kärnleveranser | Blockerande spikes |
 |-----|----------------|--------------------|
 | **M1 Eventor Core** | ✅ `Orientera.Backend` (Azure Functions, isolated): EventorAdapter + normalisering + cache; appen byter FakeData → BFF bakom samma interface; offline-tävlingspaket; fel→fallback | ~~SP-01~~ klarerad |
-| **M2 Live & Personal** | ✅ LiveResultsAdapter + matchning; Live på riktig data; identifierad person; Min grupp; lokala favoriter — notisgrunden återstår | ~~SP-04~~ körd: `CompetitionMatcher` |
+| **M2 Live & Personal** | ✅ LiveResultsAdapter + matchning; Live på riktig data; identifierad person; Min grupp; lokala favoriter; notisgrund | ~~SP-04~~ körd: `CompetitionMatcher` |
 | **M3 Intelligence** | PM-pipeline (LLM-extraktion → `CompetitionProfile` med Value/Confidence/Source/Page); Sverigelistan; serier; prediction (deterministisk modell + backtest) | SP-02, SP-03, SP-10, SP-11 |
 | **M4 Mapping & Analysis** | OmapsAdapter (rättighetsstyrd), kurs/kontroller, GPX/FIT-import, vägvalsanalys, Livelox deep-link | SP-05, SP-06, SP-07, SP-08, SP-12 |
 | **M5 Productization** | Konto/sync, push, ev. anmälan, store-release | SP-01 (auth), SP-13 (namn) |
@@ -105,11 +105,15 @@ Eventor-adapter, normalisering, cache och BFF plus appens byte från fake-data
 stämplas klar är en verifieringsomgång mot skarp Eventor-data med API-nyckel — normaliseringen
 är byggd och testad mot den dokumenterade XML-formen, inte mot inspelade svar.
 
-M2:s livehalva är byggd i [#33](https://github.com/jonatansoderberg/Maui.Spine/issues/33):
-LiveResults-adaptern, SP-04-matchningen och den lokala identiteten. Kvar i M2 är notisgrunden.
+M2 är byggd i två steg: LiveResults-adaptern, SP-04-matchningen och den lokala identiteten
+([#33](https://github.com/jonatansoderberg/Maui.Spine/issues/33)), och notisgrunden
+([#35](https://github.com/jonatansoderberg/Maui.Spine/issues/35)). Nästa fas är M3
+(Intelligence): PM-extraktion, Sverigelistan, serier och prognos — SP-02, SP-03, SP-10 och
+SP-11.
 
 Spine-fynden från M0 är åtgärdade ([#13](https://github.com/jonatansoderberg/Maui.Spine/issues/13),
 [#18](https://github.com/jonatansoderberg/Maui.Spine/issues/18),
-[#21](https://github.com/jonatansoderberg/Maui.Spine/issues/21)); kvar är
-[#22](https://github.com/jonatansoderberg/Maui.Spine/issues/22), som är dokumenterad som en
-känd begränsning i Android-tabbaren.
+[#21](https://github.com/jonatansoderberg/Maui.Spine/issues/21)). Öppna fynd:
+[#22](https://github.com/jonatansoderberg/Maui.Spine/issues/22) (dokumenterad begränsning i
+Android-tabbaren) och [#36](https://github.com/jonatansoderberg/Maui.Spine/issues/36)
+(`Switch` i en mall i en sheet tar inte emot tryck på iOS).
