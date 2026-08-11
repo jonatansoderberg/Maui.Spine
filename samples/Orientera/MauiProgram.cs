@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Orientera.Services.Analysis;
 using Orientera.Services.Context;
 using Orientera.Services.FakeData;
 using Orientera.Services.Local;
@@ -104,12 +105,22 @@ public static class MauiProgram
         // One seam, two implementations: the seeded dataset, or the BFF over the same
         // contracts. Everything above reads the narrow interfaces and cannot tell which.
         if (string.IsNullOrWhiteSpace(backendAddress))
+        {
             services.AddSingleton<IOrienteraSource>(sp => sp.GetRequiredService<FakeDataSource>());
+            services.AddSingleton<IRaceStorySource, NoRaceStorySource>();
+        }
         else
+        {
             services.AddSingleton<IOrienteraSource>(sp => new BackendSource(
                 new HttpClient { BaseAddress = new Uri(backendAddress), Timeout = TimeSpan.FromSeconds(20) },
                 sp.GetRequiredService<FakeDataSource>(),
                 sp.GetRequiredService<LocalIdentityStore>()));
+
+            // Its own client: writing a paragraph is slower than reading a result list, and the
+            // shorter timeout is the one everything else should keep.
+            services.AddSingleton<IRaceStorySource>(_ => new BackendRaceStorySource(
+                new HttpClient { BaseAddress = new Uri(backendAddress), Timeout = TimeSpan.FromSeconds(60) }));
+        }
 
         services.AddSingleton<UnreliableSource>();
         services.AddSingleton<IEventSource>(sp => sp.GetRequiredService<UnreliableSource>());

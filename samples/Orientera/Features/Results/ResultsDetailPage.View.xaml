@@ -233,6 +233,24 @@
                 <!-- ============ Analys ============ -->
                 <VerticalStackLayout Spacing="12" IsVisible="{Binding IsAnalysis}">
 
+                    <!-- Loppberättelsen skrivs medan resten av fliken redan går att läsa. -->
+                    <Border Style="{StaticResource Card}" IsVisible="{Binding IsWritingStory}">
+                        <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                            <ActivityIndicator IsRunning="{Binding IsWritingStory}" WidthRequest="16" HeightRequest="16" />
+                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                   Text="Skriver om ditt lopp…" />
+                        </HorizontalStackLayout>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}" IsVisible="{Binding HasStory}">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Style="{StaticResource SectionLabel}" Text="Ditt lopp" />
+                            <Label Style="{StaticResource BodyLabel}" Text="{Binding StoryText}" />
+                            <Label Style="{StaticResource CaptionLabel}"
+                                   Text="Sammanfattad av AI ur dina sträcktider." />
+                        </VerticalStackLayout>
+                    </Border>
+
                     <Border Style="{StaticResource Card}" IsVisible="{Binding HasMistakes}">
                         <VerticalStackLayout Spacing="6">
                             <Label Style="{StaticResource SectionLabel}" Text="Största tapp" />

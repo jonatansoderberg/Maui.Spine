@@ -6,6 +6,7 @@ using Orientera.Backend.Caching;
 using Orientera.Backend.Configuration;
 using Orientera.Backend.Eventor;
 using Orientera.Backend.LiveResults;
+using Orientera.Backend.Story;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -13,6 +14,7 @@ builder.ConfigureFunctionsWebApplication();
 
 builder.Services.Configure<EventorOptions>(builder.Configuration.GetSection(EventorOptions.Section));
 builder.Services.Configure<LiveResultsOptions>(builder.Configuration.GetSection(LiveResultsOptions.Section));
+builder.Services.Configure<StoryOptions>(builder.Configuration.GetSection(StoryOptions.Section));
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ResponseCache>();
 
@@ -20,6 +22,7 @@ builder.Services.AddSingleton<ResponseCache>();
 // hold their connections — and their DNS answers — for the life of the process.
 builder.Services.AddScoped<EventorSource>();
 builder.Services.AddScoped<LiveSource>();
+builder.Services.AddScoped<RaceStoryWriter>();
 
 builder.Services.AddHttpClient<EventorClient>(client =>
 {

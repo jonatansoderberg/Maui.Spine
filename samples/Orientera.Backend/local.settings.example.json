@@ -6,6 +6,9 @@
 
     "Eventor__ApiKey": "",
     "Eventor__BaseAddress": "https://eventor.orientering.se/api/",
-    "Eventor__OrganisationIds": ""
+    "Eventor__OrganisationIds": "",
+
+    "Story__ApiKey": "",
+    "Story__Model": "claude-sonnet-5"
   }
 }
