@@ -109,9 +109,11 @@ public partial class SpineTabbedHostPage
         if (bottomNav.Context is not { Theme: { } theme } context)
             return;
 
-        // Material 3 puts the bar on colorSurfaceContainer; older themes only have colorSurface.
-        var surface = Resolve(context, theme, "colorSurfaceContainer")
-            ?? Resolve(context, theme, "colorSurface");
+        // colorSurface first, because that is what the bar was inflated with: preferring
+        // colorSurfaceContainer gave a bar that changed shade the first time the theme switched
+        // and then never matched a freshly launched app again.
+        var surface = Resolve(context, theme, "colorSurface")
+            ?? Resolve(context, theme, "colorSurfaceContainer");
 
         if (surface is { } background)
             bottomNav.SetBackgroundColor(new Android.Graphics.Color(background));

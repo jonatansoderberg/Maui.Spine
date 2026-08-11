@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/22
 **Branch:** issue/22-android-tab-theme
-**Status:** Fix skriven, **inte verifierad**
+**Status:** Completed
 
 ## Plan
 
@@ -32,29 +32,32 @@ baren.
 
 ## Verifiering
 
-**Felet är reproducerat**, på Pixel Tablet-emulator (API 36), med skärmbilder före och efter
-`adb shell cmd uimode night no`: sidan blir ljus, baren står kvar svart.
+**Pixel Tablet-emulator (API 36), Orientera.** Barens färg är avläst ur skärmbilderna pixel för
+pixel, inte bedömd med ögat:
 
-**Fixen är inte verifierad.** Tre saker stod i vägen, och de är värda att skriva ned eftersom de
-kostade mest tid av allt:
+| Läge | Barens färg |
+|---|---|
+| Start i mörkt | `#141218` |
+| Byte till ljust, utan omstart | `#FEF7FF` |
+| Tillbaka till mörkt | `#141218` |
 
-1. **`dotnet build` paketerar inte om APK:n när bara ett refererat projekt ändrats.** APK:ns
-   tidsstämpel uppdateras, men innehållet är gammalt. Bara `dotnet clean` följt av ett nytt bygge
-   gav en APK med rätt kod i sig.
-2. **macOS `strings` saknar `-e`.** Alla mina kontroller av om koden fanns i binären returnerade
-   tyst noll och var därmed värdelösa — .NET lagrar stränglitteraler i UTF-16. Kontrollerna gjordes
-   om i python och visade då att bygget var korrekt hela tiden.
-3. **Emulatorn delas med en annan app** som återkommande tar förgrunden, så skärmbilderna visade
-   inte alltid Orientera.
+Före fixen stod baren kvar mörk när sidan blev ljus — reproducerat med skärmbilder innan något
+ändrades.
 
-Det som *är* fastställt: felet finns, orsaken i ärendet stämmer, koden kompilerar och ligger i den
-byggda binären. Att baren faktiskt byter färg vid ett temabyte har jag inte sett med egna ögon,
-och det ska ingen tro att jag har.
+**En rättning som mätningen tvingade fram.** Första utfallet läste `colorSurfaceContainer` först.
+Baren följde temat, men fick en annan mörk nyans efter första bytet (`#211F26`) än vid start
+(`#141218`) och matchade sedan aldrig en nystartad app. Vyn är inflaterad med `colorSurface`, så
+det är den som ska läsas först. Det syntes bara för att färgen mättes; med ögat hade båda passerat
+som "mörk".
 
-## Nästa steg
+## Det som gjorde felsökningen lång
 
-Kör med en ren emulator: `dotnet clean`, bygg, `adb uninstall`, `adb install`, starta appen, växla
-`adb shell cmd uimode night no` och jämför skärmbilder. Blir baren fortfarande mörk är nästa
-misstänkta att `RequestedThemeChanged` inte fyras på Android vid `UiMode`-ändring — då är
-`Activity.OnConfigurationChanged` rätt hook i stället, och den kräver att MAUI:s aktivitet
-exponerar den.
+Tre fällor, värda att skriva ned:
+
+1. **Fast Deployment.** APK:n innehåller inga assemblies — de pushas separat av `dotnet build
+   -t:Run`. Ett `adb install` av APK:n ger en app som antingen kraschar med *"No assemblies found
+   in .__override__"* eller kör kvar på en tidigare deploys kod. Det är därför appen länge visade
+   gammal text. Bygg med `-p:EmbedAssembliesIntoApk=true` för att kunna installera med `adb`.
+2. **macOS `strings` saknar `-e`.** Alla kontroller av om koden fanns i binären returnerade tyst
+   noll; .NET lagrar stränglitteraler i UTF-16. Gjordes om i python.
+3. **Emulatorn delas** med en annan app som återkommande tar förgrunden.
