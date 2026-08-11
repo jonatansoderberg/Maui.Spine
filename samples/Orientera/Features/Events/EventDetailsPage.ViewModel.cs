@@ -38,6 +38,7 @@ public partial class EventDetailsPageViewModel(
     IEventSource _events,
     IPeopleSource _people,
     IParticipationSource _participation,
+    ILiveSource _live,
     OfflinePackageService _offline,
     CompetitionContextService _context,
     CompetitionClassStore _classes,
@@ -71,6 +72,9 @@ public partial class EventDetailsPageViewModel(
     // ---- för dig ----
     [ObservableProperty] public partial string StateText { get; set; } = string.Empty;
     [ObservableProperty] public partial string PrimaryActionText { get; set; } = string.Empty;
+
+    /// <summary>False when the one action the state offers is one the app cannot deliver.</summary>
+    [ObservableProperty] public partial bool HasPrimaryAction { get; set; } = true;
     [ObservableProperty] public partial string MyClass { get; set; } = string.Empty;
     [ObservableProperty] public partial string MyStartText { get; set; } = string.Empty;
     [ObservableProperty]
@@ -183,6 +187,31 @@ public partial class EventDetailsPageViewModel(
             // on race day it read "Navigera" and opened the class picker.
             default:
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Whether live actually exists for this competition, not just whether it is under way.
+    /// </summary>
+    /// <remarks>
+    /// The context engine knows the calendar; it does not know whether LiveResults has this race.
+    /// A competition can be running and have no live source at all, and offering "Följ live" for
+    /// one lands the runner in a different race with nothing said (#89). The list of what is live
+    /// right now is the same list the live tab reads, so asking costs one cached request.
+    /// </remarks>
+    private async Task<bool> HasLiveSourceAsync(CompetitionId competition)
+    {
+        try
+        {
+            var live = await _live.GetLiveCompetitionsAsync();
+
+            return live.Any(c => c.Id == competition);
+        }
+        // Not knowing is not the same as knowing there is none. Offline, the button stays and
+        // fails the way everything else does.
+        catch (SourceUnavailableException)
+        {
+            return true;
         }
     }
 
@@ -365,7 +394,11 @@ public partial class EventDetailsPageViewModel(
               + $"av {prediction.FieldSize} anmälda"
             : string.Empty;
 
-        CanFollowLive = _decision.State == ContextState.Live;
+        CanFollowLive = _decision.State == ContextState.Live && await HasLiveSourceAsync(competition.Id);
+
+        // The big button routes through the same action, so it lies in the same way. A race with
+        // no live source has nothing to offer here; the quick actions below still do.
+        HasPrimaryAction = _decision.PrimaryAction != ContextAction.FollowLive || CanFollowLive;
         HasResults = _decision.State >= ContextState.ResultsPublished;
 
         BuildBriefing(competition, MyClass);
