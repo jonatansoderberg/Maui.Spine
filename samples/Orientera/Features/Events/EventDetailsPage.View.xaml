@@ -143,6 +143,7 @@
 
                         <!-- En primär CTA per vy, satt av Context Engine -->
                         <Button Style="{StaticResource PrimaryButton}"
+                                IsVisible="{Binding HasPrimaryAction}"
                                 Text="{Binding PrimaryActionText}"
                                 Command="{Binding PrimaryActionCommand}" />
 
