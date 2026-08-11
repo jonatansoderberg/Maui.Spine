@@ -138,17 +138,29 @@
 
     </SpinePage.Resources>
 
-    <Grid>
+    <Grid RowDefinitions="Auto,*">
+
+        <!--
+            Hälsningen står utanför listan. Som CollectionView.Header mättes den innan texten
+            fanns, och en header som en gång mätts som tom växer inte när innehållet kommer —
+            rubriken klipptes och första kortet ritades ovanpå den.
+        -->
+        <VerticalStackLayout Grid.Row="0" Padding="16,4,16,12" Spacing="2">
+            <Label Style="{StaticResource DisplayLabel}" SemanticProperties.HeadingLevel="Level1"
+                   Text="{Binding Greeting}" />
+            <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding TodayText}" />
+        </VerticalStackLayout>
 
         <!-- Offline utan sparade block: ett designat läge, inte en tom lista -->
-        <VerticalStackLayout Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsOffline}">
+        <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsOffline}">
             <Label Style="{StaticResource Heading2Label}" HorizontalTextAlignment="Center"
                    Text="Ingen anslutning" />
             <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center"
                    Text="Tävlingar du sparat offline finns kvar under Tävlingar — PM, din starttid och arenan fungerar utan nätverk." />
         </VerticalStackLayout>
 
-        <CollectionView ItemsSource="{Binding Blocks}"
+        <CollectionView Grid.Row="1"
+                    ItemsSource="{Binding Blocks}"
                     ItemTemplate="{StaticResource BlockSelector}"
                     Margin="16,0"
                     SelectionMode="None">
@@ -156,14 +168,6 @@
         <CollectionView.ItemsLayout>
             <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
         </CollectionView.ItemsLayout>
-
-        <CollectionView.Header>
-            <VerticalStackLayout Padding="0,4,0,12" Spacing="2">
-                <Label Style="{StaticResource DisplayLabel}" SemanticProperties.HeadingLevel="Level1"
-                       Text="{Binding Greeting}" />
-                <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding TodayText}" />
-            </VerticalStackLayout>
-        </CollectionView.Header>
 
         <CollectionView.Footer>
             <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
