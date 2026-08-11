@@ -159,13 +159,41 @@ public partial class EventDetailsPageViewModel(
                 await _navigation.NavigateToAsync<ResultsDetailPage, CompetitionId>(_competition.Id);
                 break;
 
+            case ContextAction.Navigate:
+                await NavigateToArena();
+                break;
+
             case ContextAction.Register:
                 await OpenChooseClass();
                 break;
 
+            // Every action that can become a button label needs its own case. A default that
+            // does something else than the button says is the bug this switch already had once:
+            // on race day it read "Navigera" and opened the class picker.
             default:
-                await OpenChooseClass();
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Hands the arena to the phone's map app. Orientera does not do turn-by-turn navigation, and
+    /// the answer to "how do I get there" is one the map already has.
+    /// </summary>
+    private async Task NavigateToArena()
+    {
+        if (_competition is not { Location: { Latitude: not 0, Longitude: not 0 } arena } competition)
+            return;
+
+        try
+        {
+            await Map.OpenAsync(
+                new Location(arena.Latitude, arena.Longitude),
+                new MapLaunchOptions { Name = competition.Place, NavigationMode = NavigationMode.Driving });
+        }
+        catch (Exception)
+        {
+            // No map app, or a platform that will not open one. The arena is on the page either
+            // way, and a failed launch must not take the page down.
         }
     }
 
