@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Orientera.Domain;
 
 namespace Orientera.Services.Sources;
@@ -58,6 +59,29 @@ public enum LiveStatus
     DidNotFinish,
 }
 
+/// <summary>A radio control on a class' course, as the organiser numbers it.</summary>
+public sealed record LiveControl
+{
+    public required int Code { get; init; }
+
+    /// <summary>The printed control code — "79" for the control the timing system calls 1079.</summary>
+    public required string Name { get; init; }
+}
+
+/// <summary>One runner past one radio control.</summary>
+public sealed record LivePassing
+{
+    public required int Control { get; init; }
+
+    /// <summary>Time from this runner's own start, not a clock reading.</summary>
+    public required TimeSpan Elapsed { get; init; }
+
+    /// <summary>Standing in the class at this control among everyone who has passed it.</summary>
+    public int? Place { get; init; }
+
+    public TimeSpan? Behind { get; init; }
+}
+
 public sealed record LiveEntry
 {
     public required PersonId Person { get; init; }
@@ -68,16 +92,21 @@ public sealed record LiveEntry
     public required DateTimeOffset StartTime { get; init; }
     public required LiveStatus Status { get; init; }
 
-    /// <summary>Last control passed, or null before the first punch.</summary>
-    public int? LastControlNumber { get; init; }
+    /// <summary>Every radio control passed so far, in course order.</summary>
+    public IReadOnlyList<LivePassing> Passings { get; init; } = [];
 
-    public TimeSpan? ElapsedAtLastControl { get; init; }
+    /// <summary>Where the runner was last seen, or null before the first radio.</summary>
+    [JsonIgnore]
+    public LivePassing? LastPassing => Passings.Count > 0 ? Passings[^1] : null;
 
     /// <summary>Provisional position in the class at the last common control.</summary>
     public int? Position { get; init; }
 
     public TimeSpan? FinishTime { get; init; }
     public int? FinalPlace { get; init; }
+
+    /// <summary>Behind the class winner at the finish.</summary>
+    public TimeSpan? FinishBehind { get; init; }
 }
 
 public sealed record LiveSnapshot
@@ -85,6 +114,16 @@ public sealed record LiveSnapshot
     public required CompetitionId Competition { get; init; }
     public required DateTimeOffset GeneratedAt { get; init; }
     public required IReadOnlyList<LiveEntry> Entries { get; init; }
+
+    /// <summary>
+    /// The radio controls each class passes, in course order. Classes run different courses, so
+    /// the columns of a split table belong to the class and not to the competition.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<LiveControl>> Controls { get; init; } =
+        new Dictionary<string, IReadOnlyList<LiveControl>>();
+
+    public IReadOnlyList<LiveControl> ControlsFor(string className) =>
+        Controls.TryGetValue(className, out var controls) ? controls : [];
 }
 
 public interface ILiveSource

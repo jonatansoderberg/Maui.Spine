@@ -166,15 +166,22 @@ public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
             : [.. Runs(competition).Where(r => r.Class == className)];
         var entries = new List<LiveEntry>(runs.Count);
 
+        var radios = runs
+            .GroupBy(r => r.Class)
+            .ToDictionary(byClass => byClass.Key, byClass => RadioControls(byClass.First()));
+
         foreach (var run in runs)
         {
-            var passed = run.Splits.LastOrDefault(s => run.StartTime + s.ElapsedTime <= now);
+            var radio = radios[run.Class];
+            var passings = Passings(runs, run, radio, now);
             bool finished = run.HasFinishedBy(now);
 
             var status = !run.HasStartedBy(now) ? LiveStatus.NotStarted
                 : finished && run.Status == ResultStatus.Mispunch ? LiveStatus.Mispunch
                 : finished ? LiveStatus.Finished
                 : LiveStatus.Running;
+
+            TimeSpan? winner = finished && run.Status == ResultStatus.Ok ? WinningTime(runs, run, now) : null;
 
             entries.Add(new LiveEntry
             {
@@ -184,11 +191,13 @@ public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
                 Class = run.Class,
                 StartTime = run.StartTime,
                 Status = status,
-                LastControlNumber = passed?.ControlNumber,
-                ElapsedAtLastControl = passed?.ElapsedTime,
-                Position = passed is null ? null : PositionAtControl(runs, run, passed, now),
+                Passings = passings,
+                Position = finished && run.Status == ResultStatus.Ok
+                    ? PlaceAmongFinished(runs, run, now)
+                    : passings.Count > 0 ? passings[^1].Place : null,
                 FinishTime = finished ? run.TotalTime : null,
                 FinalPlace = finished && run.Status == ResultStatus.Ok ? PlaceAmongFinished(runs, run, now) : null,
+                FinishBehind = winner is { } best ? run.TotalTime - best : null,
             });
         }
 
@@ -197,6 +206,13 @@ public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
             Competition = competition,
             GeneratedAt = now,
             Entries = entries,
+            Controls = radios.ToDictionary(
+                byClass => byClass.Key,
+                byClass => (IReadOnlyList<LiveControl>)[.. byClass.Value.Select(s => new LiveControl
+                {
+                    Code = s.ControlNumber,
+                    Name = s.ControlCode,
+                })]),
         };
 
         return Task.FromResult(snapshot);
@@ -279,31 +295,73 @@ public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
             .ToList();
     }
 
-    /// <summary>Provisional position in the class at the runner's own last control.</summary>
-    private static int PositionAtControl(
+    /// <summary>
+    /// The controls the class' course has a radio at. A real competition puts them at a couple
+    /// of controls along the way, never at all of them — every third control is that shape, and
+    /// the last control is the finish rather than a radio.
+    /// </summary>
+    private static IReadOnlyList<Split> RadioControls(PlannedRun run) =>
+        [.. run.Splits.Where(s => s.ControlNumber % 3 == 0 && s.ControlNumber != run.Splits[^1].ControlNumber)];
+
+    /// <summary>The radio controls this run had reached by <paramref name="now"/>.</summary>
+    private static IReadOnlyList<LivePassing> Passings(
         IReadOnlyList<PlannedRun> runs,
         PlannedRun run,
-        Split passed,
+        IReadOnlyList<Split> radios,
         DateTimeOffset now)
     {
-        int ahead = 0;
+        var passings = new List<LivePassing>(radios.Count);
 
-        foreach (var other in runs)
+        foreach (var radio in radios)
         {
-            if (other.Class != run.Class || ReferenceEquals(other, run) || other.Status != ResultStatus.Ok)
+            var mine = run.Splits.FirstOrDefault(s => s.ControlNumber == radio.ControlNumber);
+
+            if (mine is null || run.StartTime + mine.ElapsedTime > now)
                 continue;
 
-            var theirSplit = other.Splits.FirstOrDefault(s => s.ControlNumber == passed.ControlNumber);
+            // A run that will not be ranked has no place at a control either, which is what
+            // LiveResults reports for a mispunch.
+            var ranked = run.Status == ResultStatus.Ok
+                ? Elapsed(runs, run.Class, radio.ControlNumber, now).ToList()
+                : [];
 
-            if (theirSplit is null || other.StartTime + theirSplit.ElapsedTime > now)
-                continue;
-
-            if (theirSplit.ElapsedTime < passed.ElapsedTime)
-                ahead++;
+            passings.Add(new LivePassing
+            {
+                Control = mine.ControlNumber,
+                Elapsed = mine.ElapsedTime,
+                Place = ranked.Count > 0 ? ranked.Count(e => e < mine.ElapsedTime) + 1 : null,
+                Behind = ranked.Count > 0 ? mine.ElapsedTime - ranked.Min() : null,
+            });
         }
 
-        return ahead + 1;
+        return passings;
     }
+
+    /// <summary>Every ranked time recorded at one control in one class so far.</summary>
+    private static IEnumerable<TimeSpan> Elapsed(
+        IReadOnlyList<PlannedRun> runs,
+        string className,
+        int control,
+        DateTimeOffset now)
+    {
+        foreach (var run in runs)
+        {
+            if (run.Class != className || run.Status != ResultStatus.Ok)
+                continue;
+
+            var split = run.Splits.FirstOrDefault(s => s.ControlNumber == control);
+
+            if (split is not null && run.StartTime + split.ElapsedTime <= now)
+                yield return split.ElapsedTime;
+        }
+    }
+
+    private static TimeSpan WinningTime(IReadOnlyList<PlannedRun> runs, PlannedRun run, DateTimeOffset now) =>
+        runs
+            .Where(other => other.Class == run.Class && other.Status == ResultStatus.Ok && other.HasFinishedBy(now))
+            .Select(other => other.TotalTime)
+            .DefaultIfEmpty()
+            .Min();
 
     private static int PlaceAmongFinished(IReadOnlyList<PlannedRun> runs, PlannedRun run, DateTimeOffset now) =>
         runs.Count(other =>

@@ -39,78 +39,144 @@
                    Text="{Binding EmptyMessage}" />
         </VerticalStackLayout>
 
-        <!-- Högre datatäthet än Hem: tabulära siffror och kompakta rader -->
-        <CollectionView Grid.Row="2" Margin="16,0" ItemsSource="{Binding Groups}"
-                        IsGrouped="True" SelectionMode="None">
-            <CollectionView.ItemsLayout>
-                <LinearItemsLayout Orientation="Vertical" ItemSpacing="4" />
-            </CollectionView.ItemsLayout>
+        <!--
+            Sträcktabellen: en kolumn per radiokontroll. Namnkolumnen ligger sist i varje rad
+            och skjuts tillbaka med tabellens scrollposition, så den står stilla medan
+            kontrollerna passerar under den.
+        -->
+        <ScrollView Grid.Row="2" x:Name="Table"
+                    Orientation="Horizontal"
+                    BackgroundColor="{DynamicResource SurfaceCard}"
+                    IsVisible="{Binding HasRows}">
 
-            <CollectionView.GroupHeaderTemplate>
-                <DataTemplate x:DataType="LiveClassGroup">
-                    <Label Style="{StaticResource SectionLabel}"
-                           Margin="0,12,0,4"
-                           SemanticProperties.HeadingLevel="Level2"
-                           SemanticProperties.Description="{Binding Accessibility}"
-                           Text="{Binding Name}" />
-                </DataTemplate>
-            </CollectionView.GroupHeaderTemplate>
+            <CollectionView WidthRequest="{Binding TableWidth}"
+                            HeightRequest="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=Height}"
+                            ItemsSource="{Binding Groups}"
+                            IsGrouped="True" SelectionMode="None">
 
-            <CollectionView.Footer>
-                <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
-            </CollectionView.Footer>
+                <CollectionView.GroupHeaderTemplate>
+                    <DataTemplate x:DataType="LiveClassGroup">
+                        <Grid ColumnDefinitions="156,*" Padding="0,14,0,6">
 
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="LiveRow">
-                    <Border Style="{StaticResource Card}" Padding="14,10"
-                            SemanticProperties.Description="{Binding Accessibility}">
-                        <Grid ColumnDefinitions="42,*,Auto" ColumnSpacing="10">
+                            <HorizontalStackLayout Grid.Column="1"
+                                                   BindableLayout.ItemsSource="{Binding Columns}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Label Style="{StaticResource SectionLabel}"
+                                               WidthRequest="72" Margin="0,0,10,0"
+                                               HorizontalTextAlignment="End"
+                                               Text="{Binding .}" />
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </HorizontalStackLayout>
 
                             <Label Grid.Column="0"
-                                   Style="{StaticResource NumericHeading2Label}"
-                                   VerticalOptions="Center"
-                                   Text="{Binding PositionText}" />
-
-                            <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
-                                <HorizontalStackLayout Spacing="6">
-                                    <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Name}" />
-                                    <Label Style="{StaticResource CaptionLabel}"
-                                           TextColor="{DynamicResource AccentAction}"
-                                           VerticalOptions="Center"
-                                           Text="{Binding GroupGlyph}" />
-                                </HorizontalStackLayout>
-                                <!-- The class is the group heading; repeating it on every row
-                                     is noise. It stays in the row's spoken description. -->
-                                <HorizontalStackLayout Spacing="5">
-                                    <Border Style="{StaticResource ClubBadge}" IsVisible="{Binding HasClubLogo}">
-                                        <Image WidthRequest="14" HeightRequest="14"
-                                               AutomationProperties.IsInAccessibleTree="False"
-                                               Source="{Binding ClubLogo}" />
-                                    </Border>
-                                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding Club}" />
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-
-                            <VerticalStackLayout Grid.Column="2" Spacing="1" VerticalOptions="Center">
-                                <Label Style="{StaticResource NumericStrongLabel}"
-                                       HorizontalTextAlignment="End"
-                                       Text="{Binding TimeText}" />
-                                <Label Style="{StaticResource NumericCaptionLabel}"
-                                       HorizontalTextAlignment="End"
-                                       Text="{Binding ProgressText}" />
-                            </VerticalStackLayout>
+                                   Style="{StaticResource SectionLabel}"
+                                   Padding="16,0,0,0"
+                                   BackgroundColor="{DynamicResource SurfaceCard}"
+                                   TranslationX="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=ScrollX}"
+                                   SemanticProperties.HeadingLevel="Level2"
+                                   SemanticProperties.Description="{Binding Accessibility}"
+                                   Text="{Binding Name}" />
                         </Grid>
+                    </DataTemplate>
+                </CollectionView.GroupHeaderTemplate>
 
-                        <!-- Jag-raden får en accentton, aldrig bara en färg utan text -->
-                        <Border.Triggers>
-                            <DataTrigger TargetType="Border" Binding="{Binding IsMe}" Value="True">
-                                <Setter Property="BackgroundColor" Value="{DynamicResource AccentSubtle}" />
-                            </DataTrigger>
-                        </Border.Triggers>
-                    </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+                <CollectionView.Footer>
+                    <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
+                </CollectionView.Footer>
+
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="LiveRow">
+                        <Grid ColumnDefinitions="156,*" RowDefinitions="Auto,Auto">
+
+                            <Grid.Triggers>
+                                <DataTrigger TargetType="Grid" Binding="{Binding IsMe}" Value="True">
+                                    <Setter Property="BackgroundColor" Value="{DynamicResource AccentSubtle}" />
+                                </DataTrigger>
+                            </Grid.Triggers>
+
+
+                            <HorizontalStackLayout Grid.Column="1" Grid.Row="0"
+                                                   Padding="0,7" VerticalOptions="Center"
+                                                   BindableLayout.ItemsSource="{Binding Cells}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="LiveCell">
+                                        <VerticalStackLayout WidthRequest="72" Margin="0,0,10,0"
+                                                             SemanticProperties.Description="{Binding Accessibility}">
+                                            <Label Style="{StaticResource NumericStrongLabel}"
+                                                   HorizontalTextAlignment="End"
+                                                   Text="{Binding TimeText}">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsLeading}" Value="True">
+                                                        <Setter Property="TextColor" Value="{DynamicResource AccentAction}" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                            <Label Style="{StaticResource NumericCaptionLabel}"
+                                                   HorizontalTextAlignment="End"
+                                                   Text="{Binding DetailText}" />
+                                        </VerticalStackLayout>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </HorizontalStackLayout>
+
+                            <!-- Namnkolumnen målas sist: kontrollerna scrollar in under den -->
+                            <Grid Grid.Column="0" Grid.Row="0"
+                                  Padding="16,7,8,7"
+                                  BackgroundColor="{DynamicResource SurfaceCard}"
+                                  TranslationX="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=ScrollX}"
+                                  SemanticProperties.Description="{Binding Accessibility}">
+
+                                <!--
+                                    Ingen placeringskolumn: en placering hör till den kontroll
+                                    den mättes vid, och tre löpare kan alla vara etta vid var
+                                    sin. Ordningen i listan är rangordningen; siffrorna står i
+                                    kolumnen de gäller.
+                                -->
+                                <VerticalStackLayout Spacing="1" VerticalOptions="Center">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                        <Label Style="{StaticResource BodyStrongLabel}"
+                                               LineBreakMode="TailTruncation"
+                                               Text="{Binding Name}" />
+                                        <Label Grid.Column="1"
+                                               Style="{StaticResource CaptionLabel}"
+                                               TextColor="{DynamicResource AccentAction}"
+                                               VerticalOptions="Center"
+                                               Text="{Binding GroupGlyph}" />
+                                    </Grid>
+                                    <!-- The class is the group heading; repeating it on every row
+                                         is noise. It stays in the row's spoken description. -->
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                                        <Border Style="{StaticResource ClubBadge}" IsVisible="{Binding HasClubLogo}">
+                                            <Image WidthRequest="14" HeightRequest="14"
+                                                   AutomationProperties.IsInAccessibleTree="False"
+                                                   Source="{Binding ClubLogo}" />
+                                        </Border>
+                                        <Label Grid.Column="1"
+                                               Style="{StaticResource CaptionLabel}"
+                                               LineBreakMode="TailTruncation"
+                                               Text="{Binding Club}" />
+                                    </Grid>
+                                    <Label Style="{StaticResource CaptionLabel}"
+                                           IsVisible="{Binding HasStatus}"
+                                           Text="{Binding StatusText}" />
+                                </VerticalStackLayout>
+
+                                <!-- Jag-raden får en accentton, aldrig bara en färg utan text -->
+                                <Grid.Triggers>
+                                    <DataTrigger TargetType="Grid" Binding="{Binding IsMe}" Value="True">
+                                        <Setter Property="BackgroundColor" Value="{DynamicResource AccentSubtle}" />
+                                    </DataTrigger>
+                                </Grid.Triggers>
+                            </Grid>
+
+                            <BoxView Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource Divider}" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </ScrollView>
 
     </Grid>
 
