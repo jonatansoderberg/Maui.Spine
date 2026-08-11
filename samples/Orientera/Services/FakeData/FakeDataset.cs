@@ -40,6 +40,7 @@ public sealed class FakeDataset
         Predictions = BuildPredictions();
         Ranking = BuildRanking();
         SeriesStandings = BuildSeriesStandings();
+        ClubActivities = BuildClubActivities();
     }
 
     public Person Me { get; }
@@ -53,6 +54,7 @@ public sealed class FakeDataset
     public IReadOnlyList<SeriesStanding> SeriesStandings { get; }
     public IReadOnlyList<Prediction> Predictions { get; }
     public RankingSnapshot Ranking { get; }
+    public IReadOnlyList<ClubActivity> ClubActivities { get; }
 
     // ---------------------------------------------------------------- identifiers
 
@@ -635,6 +637,56 @@ public sealed class FakeDataset
     ];
 
     // ---------------------------------------------------------------- ranking
+
+    /// <summary>
+    /// The club's activity list. Relays first, because that is what a club list is mostly for:
+    /// one closes soon and one closed long ago, so both states are visible in the demo.
+    /// </summary>
+    private static IReadOnlyList<ClubActivity> BuildClubActivities() =>
+    [
+        new()
+        {
+            Id = "a-25manna",
+            Name = "25-manna 10/10 Huddinge",
+            Organisation = "OK Gästrike",
+            EntryDeadline = At(2026, 8, 30, 20, 0),
+            EntryCount = 6,
+            IsOpen = true,
+            Url = "https://eventor.orientering.se/Activities/Show/26686",
+        },
+        new()
+        {
+            Id = "a-dm-stafett",
+            Name = "DM-stafett 30/8 Ockelbo",
+            Organisation = "OK Gästrike",
+            EntryDeadline = At(2026, 8, 23, 20, 0),
+            EntryCount = 14,
+            IsOpen = true,
+            Url = "https://eventor.orientering.se/Activities/Show/26684",
+        },
+        new()
+        {
+            Id = "a-stafettraning",
+            Name = "Stafettträning vid Kronkojan",
+            Organisation = "OK Gästrike",
+            StartsAt = At(2026, 8, 19, 18, 0),
+            EntryDeadline = At(2026, 8, 18, 12, 0),
+            EntryCount = 32,
+            IsOpen = true,
+            Url = "https://eventor.orientering.se/Activities/Show/26404",
+        },
+        new()
+        {
+            Id = "a-usm-traning",
+            Name = "Träningsdag inför USM",
+            Organisation = "Gästriklands OF",
+            StartsAt = At(2026, 8, 22, 8, 0),
+            EntryDeadline = At(2026, 8, 16, 22, 0),
+            EntryCount = 3,
+            IsOpen = true,
+            Url = "https://eventor.orientering.se/Activities/Show/26713",
+        },
+    ];
 
     private static RankingSnapshot BuildRanking() => new()
     {

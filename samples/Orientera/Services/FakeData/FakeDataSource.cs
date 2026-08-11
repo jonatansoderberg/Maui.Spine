@@ -265,6 +265,11 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
         Task.FromResult<IReadOnlyList<SeriesStanding>>(
             _data.SeriesStandings.Where(s => s.Person == person).ToList());
 
+    // ---------------------------------------------------------------- IClubActivitySource
+
+    public Task<IReadOnlyList<ClubActivity>> GetClubActivitiesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(_data.ClubActivities);
+
     // ---------------------------------------------------------------- projections
 
     /// <summary>

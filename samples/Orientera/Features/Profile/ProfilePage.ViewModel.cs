@@ -17,6 +17,17 @@ public sealed record RankingRow
     public required string ExpiryText { get; init; }
 }
 
+public sealed record ActivityRow
+{
+    public required string Name { get; init; }
+    public required string Meta { get; init; }
+    public required string DeadlineText { get; init; }
+    public required bool ClosesSoon { get; init; }
+    public required string Url { get; init; }
+
+    public string OpenDescription => $"Öppna {Name} i Eventor";
+}
+
 public sealed record GroupMemberRow
 {
     public required PersonId Person { get; init; }
@@ -42,6 +53,7 @@ public partial class ProfilePageViewModel(
     IPeopleSource _people,
     IProgressSource _progress,
     IEventSource _events,
+    IClubActivitySource _activities,
     DataSourceInfo _source) : OrienteraViewModel
 {
     /// <summary>Which data source this run is against — a demo must not read as live data.</summary>
@@ -66,6 +78,11 @@ public partial class ProfilePageViewModel(
     [ObservableProperty] public partial string SeriesName { get; set; } = string.Empty;
     [ObservableProperty] public partial string SeriesStandingText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasSeries { get; set; }
+
+    // ---- klubbaktiviteter ----
+    [ObservableProperty] public partial bool HasActivities { get; set; }
+
+    public ObservableCollection<ActivityRow> Activities { get; } = [];
 
     public ObservableCollection<RankingRow> CountingResults { get; } = [];
     public ObservableCollection<GroupMemberRow> Group { get; } = [];
@@ -121,7 +138,8 @@ public partial class ProfilePageViewModel(
     private async Task ReloadAsync()
     {
         var me = await _people.GetMeAsync();
-        var today = DateOnly.FromDateTime(_clock.Now.Date);
+        var now = _clock.Now;
+        var today = DateOnly.FromDateTime(now.Date);
 
         Name = me.Name;
         Initials = me.Initials;
@@ -133,14 +151,76 @@ public partial class ProfilePageViewModel(
         {
             await LoadRankingAsync(me, today);
             await LoadSeriesAsync(me, today);
+            await LoadActivitiesAsync(now);
         });
 
         if (IsOffline)
         {
             HasRanking = false;
             HasSeries = false;
+            HasActivities = false;
         }
     }
+
+    /// <summary>
+    /// The club's activity list, soonest deadline first. Only what is still ahead: a relay that
+    /// closed in April is not something to act on, and the list is long enough without it.
+    /// </summary>
+    private async Task LoadActivitiesAsync(DateTimeOffset now)
+    {
+        var activities = await _activities.GetClubActivitiesAsync();
+
+        Activities.Clear();
+
+        var upcoming = activities
+            .Where(a => a.EntryDeadline is null || a.EntryDeadline > now)
+            .OrderBy(a => a.EntryDeadline ?? DateTimeOffset.MaxValue);
+
+        var today = DateOnly.FromDateTime(now.Date);
+
+        // "ons 10 feb." reads as this February. Relay sign-ups close a year and a half ahead —
+        // 10-mila 2027 closes in February 2027 — so a date in another year says which.
+        string When(DateTimeOffset moment)
+        {
+            var date = DateOnly.FromDateTime(moment.Date);
+            var relative = Format.RelativeDate(date, today);
+
+            return date.Year == today.Year ? relative : $"{relative} {date.Year}";
+        }
+
+        foreach (var activity in upcoming)
+        {
+            var deadline = activity.EntryDeadline;
+
+            Activities.Add(new ActivityRow
+            {
+                Name = WithoutOrganisation(activity),
+                Meta = activity.StartsAt is { } start
+                    ? $"{activity.Organisation} · {When(start)}"
+                    : activity.Organisation,
+                DeadlineText = deadline is null
+                    ? $"{activity.EntryCount} anmälda"
+                    : $"{activity.EntryCount} anmälda · anmälan stänger {When(deadline.Value)}",
+                ClosesSoon = activity.IsOpen && deadline is { } close && close - now <= TimeSpan.FromDays(7),
+                Url = activity.Url,
+            });
+        }
+
+        HasActivities = Activities.Count > 0;
+    }
+
+    /// <summary>
+    /// Eventor names a district's activities "Träningsdag inför USM (Gästriklands OF)". The row
+    /// says whose it is on its own line, so the parenthesis is the same word twice.
+    /// </summary>
+    private static string WithoutOrganisation(ClubActivity activity) =>
+        activity.Name.EndsWith($"({activity.Organisation})", StringComparison.Ordinal)
+            ? activity.Name[..^$"({activity.Organisation})".Length].TrimEnd()
+            : activity.Name;
+
+    [RelayCommand]
+    private async Task OpenActivity(ActivityRow row) =>
+        await Launcher.Default.OpenAsync(row.Url);
 
     private async Task LoadRankingAsync(Person me, DateOnly today)
     {

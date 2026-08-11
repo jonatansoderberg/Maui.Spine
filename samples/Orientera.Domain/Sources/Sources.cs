@@ -158,6 +158,15 @@ public interface ILiveSource
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// The club's own activity list. Not per person: it is the list of whichever club the app is
+/// reading as, which is the only one there is anything to show for.
+/// </summary>
+public interface IClubActivitySource
+{
+    Task<IReadOnlyList<ClubActivity>> GetClubActivitiesAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IProgressSource
 {
     Task<RankingSnapshot?> GetRankingAsync(PersonId person, CancellationToken cancellationToken = default);

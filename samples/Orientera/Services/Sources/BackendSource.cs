@@ -164,6 +164,16 @@ public sealed class BackendSource(
     public Task<IReadOnlyList<SeriesStanding>> GetSeriesStandingsAsync(PersonId person, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<SeriesStanding>>([]);
 
+    // ---------------------------------------------------------------- IClubActivitySource
+
+    /// <summary>
+    /// Which club is the backend's to know: it holds the key, and it reads the list as the person
+    /// it is configured as. The app has no organisation id of its own until the identity is a real
+    /// login (M5, #106).
+    /// </summary>
+    public Task<IReadOnlyList<ClubActivity>> GetClubActivitiesAsync(CancellationToken cancellationToken = default) =>
+        ListAsync<ClubActivity>("activities", cancellationToken);
+
     // ---------------------------------------------------------------- transport
 
     private async Task<IReadOnlyList<T>> ListAsync<T>(string path, CancellationToken cancellationToken) =>
