@@ -18,6 +18,11 @@ public sealed partial class LiveRow : ObservableObject
     public required PersonId Person { get; init; }
     public required string Name { get; init; }
     public required string Club { get; init; }
+
+    /// <summary>The club's badge, or null for a club that has not uploaded one.</summary>
+    public string? ClubLogo { get; init; }
+
+    public bool HasClubLogo => !string.IsNullOrEmpty(ClubLogo);
     public required string Class { get; init; }
 
     /// <summary>The row for the user gets an accent tone, per the live-list design rule.</summary>
@@ -320,6 +325,7 @@ public partial class LivePageViewModel(
             Person = entry.Person,
             Name = entry.Name,
             Club = entry.Club,
+            ClubLogo = entry.ClubLogo,
             Class = entry.Class,
             IsMe = IsMe(entry),
             IsInMyGroup = IsGroup(entry),

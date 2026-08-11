@@ -74,7 +74,14 @@
                                        Text="{Binding Title}" />
 
                                 <VerticalStackLayout Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Spacing="2">
-                                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlaceLabel}" />
+                                    <HorizontalStackLayout Spacing="6">
+                                        <Border Style="{StaticResource ClubBadge}" IsVisible="{Binding HasOrganiserLogo}">
+                                            <Image WidthRequest="15" HeightRequest="15"
+                                                   AutomationProperties.IsInAccessibleTree="False"
+                                                   Source="{Binding OrganiserLogo}" />
+                                        </Border>
+                                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlaceLabel}" />
+                                    </HorizontalStackLayout>
                                     <Label Style="{StaticResource CaptionLabel}">
                                         <Label.FormattedText>
                                             <FormattedString>

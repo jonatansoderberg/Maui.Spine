@@ -120,7 +120,7 @@ public sealed class EventorSource(EventorClient _client, ResponseCache _cache, I
     public async Task<IReadOnlyList<CompetitionResult>> GetResultsAsync(CompetitionId id, CancellationToken cancellationToken = default)
     {
         var results = await ResultsAsync(id, top: null, cancellationToken);
-        return _normalizer.Results(results, id);
+        return _normalizer.Results(results, id, await DirectoryAsync(cancellationToken));
     }
 
     /// <summary>
@@ -184,8 +184,8 @@ public sealed class EventorSource(EventorClient _client, ResponseCache _cache, I
             }, token),
             cancellationToken);
 
-    /// <summary>Clubs and districts change a few times a year, so once a day is often enough.</summary>
-    private Task<OrganisationDirectory> DirectoryAsync(CancellationToken cancellationToken) =>
+    /// <summary>Clubs, districts and badges change a few times a year — once a day is enough.</summary>
+    public Task<OrganisationDirectory> DirectoryAsync(CancellationToken cancellationToken) =>
         _cache.GetOrAddAsync(
             "organisations",
             OrganisationLifetime,

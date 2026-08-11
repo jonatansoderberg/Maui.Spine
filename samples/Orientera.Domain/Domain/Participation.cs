@@ -35,6 +35,7 @@ public sealed record CompetitionResult
     public required PersonId Person { get; init; }
     public required string Name { get; init; }
     public required string Club { get; init; }
+    public string? ClubLogo { get; init; }
     public required string Class { get; init; }
     public required ResultStatus Status { get; init; }
     public TimeSpan? Time { get; init; }

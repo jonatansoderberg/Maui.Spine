@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Xml.Linq;
+using Orientera.Domain;
 
 namespace Orientera.Backend.Eventor;
 
@@ -9,11 +11,38 @@ namespace Orientera.Backend.Eventor;
 /// </summary>
 public sealed class OrganisationDirectory
 {
-    private readonly Dictionary<string, Entry> _byId;
+    /// <summary>
+    /// Where the federation keeps the clubs' badges. A 32-pixel PNG per organisation, and a 404
+    /// for the clubs that have not uploaded one — which is why nothing is verified up front.
+    /// </summary>
+    private const string LogoTemplate =
+        "https://eventor-sweden-storage.orientering.se/organisationlogos/{0}/MediumIcon.png";
 
-    private OrganisationDirectory(Dictionary<string, Entry> byId) => _byId = byId;
+    private readonly Dictionary<string, Entry> _byId;
+    private readonly Dictionary<string, string> _idByName;
+
+    private OrganisationDirectory(Dictionary<string, Entry> byId)
+    {
+        _byId = byId;
+
+        // LiveResults knows a club by name only, so the badge has to be findable that way too.
+        _idByName = new Dictionary<string, string>();
+
+        foreach (var (id, entry) in byId)
+            _idByName.TryAdd(RunnerIdentity.Normalise(entry.Name), id);
+    }
 
     public static OrganisationDirectory Empty { get; } = new([]);
+
+    /// <summary>The club's badge, by organisation id.</summary>
+    public string? LogoOf(string? id) =>
+        id is not null && _byId.ContainsKey(id) ? string.Format(CultureInfo.InvariantCulture, LogoTemplate, id) : null;
+
+    /// <summary>The club's badge, by the name a result or live list writes it under.</summary>
+    public string? LogoForName(string? club) =>
+        club is not null && _idByName.TryGetValue(RunnerIdentity.Normalise(club), out var id)
+            ? string.Format(CultureInfo.InvariantCulture, LogoTemplate, id)
+            : null;
 
     public static OrganisationDirectory From(XElement organisationList)
     {

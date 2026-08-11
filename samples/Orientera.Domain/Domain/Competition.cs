@@ -65,6 +65,9 @@ public sealed record Competition
     public required CompetitionId Id { get; init; }
     public required string Name { get; init; }
     public required string Organiser { get; init; }
+
+    /// <summary>The organising club's badge, where the federation has one.</summary>
+    public string? OrganiserLogo { get; init; }
     public required string District { get; init; }
     public required string Place { get; init; }
     public required GeoPoint Location { get; init; }

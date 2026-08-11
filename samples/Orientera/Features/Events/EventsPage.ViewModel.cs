@@ -155,6 +155,7 @@ public partial class EventsPageViewModel(
                 Title = competition.Name,
                 DateLabel = Format.RelativeDate(competition.Date, today),
                 PlaceLabel = $"{competition.Organiser} · {competition.Place}",
+                OrganiserLogo = competition.OrganiserLogo,
                 MetaLabel = $"{Format.Discipline(competition.Discipline)} · {Format.Level(competition.Level)}",
                 DistanceLabel = _me is null ? string.Empty : Format.Distance(_me.Home.DistanceKmTo(competition.Location)),
                 ContextLabel = "Sparad offline",
@@ -286,6 +287,7 @@ public partial class EventsPageViewModel(
                 ? Format.DateRange(eventGroup.FirstDate, eventGroup.LastDate)
                 : Format.RelativeDate(eventGroup.FirstDate, today),
             PlaceLabel = $"{eventGroup.Organiser} · {eventGroup.Place}",
+            OrganiserLogo = primary.OrganiserLogo,
             MetaLabel = $"{Format.Discipline(eventGroup.Discipline)} · {Format.Level(eventGroup.Level)}",
             DistanceLabel = Format.Distance(distance),
             OccurrenceLabel = eventGroup.IsRecurring ? $"{eventGroup.Occurrences.Count} tillfällen" : string.Empty,
