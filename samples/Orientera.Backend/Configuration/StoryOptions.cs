@@ -13,7 +13,11 @@ public sealed class StoryOptions
     /// <summary>Absent means the feature is off, and the app is told so rather than guessed at.</summary>
     public string? ApiKey { get; set; }
 
-    public string Model { get; set; } = "claude-opus-5";
+    /// <summary>
+    /// Sonnet, not Opus. Att formulera om sex färdiga påståenden är en språkuppgift, inte en
+    /// resonemangsuppgift — det som skiljer tiderna åt här är kostnad och latens, inte kvalitet.
+    /// </summary>
+    public string Model { get; set; } = "claude-sonnet-5";
 
     /// <summary>
     /// A finished race does not change, so the same facts may be worded once and reused. Long

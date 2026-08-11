@@ -58,6 +58,13 @@ Utan konfigurerad nyckel svarar backend 404 och appen visar inget kort alls.
 - **Ingen nyckel, inget kort.** Backend svarar 404 och appen visar ingenting — samma princip som
   gäller resten av det ointegrerade. Alternativet, att appen sätter ihop meningarna själv, hade
   gett en text som låter skriven utan att vara det.
+- **Sonnet 5, inte Opus 5.** Uppgiften är att formulera om sex färdiga påståenden — en
+  språkuppgift, inte en resonemangsuppgift. Opus 5 var fel tier från början: fem gånger dyrare
+  och långsammare utan att texten blir bättre. `Story__Model` går att sätta om utan omkompilering
+  om utfallet säger något annat.
+- **Ett misslyckat anrop loggas.** Ett uteblivet svar ser i appen likadant ut som "ingen nyckel
+  konfigurerad" — inget kort alls. `AnthropicException` fångas därför och loggas, annars finns
+  inget sätt att i efterhand skilja ett trasigt anrop från en avstängd funktion.
 - **Bara fakta över nätet.** Requesten innehåller klass och färdiga påståenden — inget namn,
   ingen klubb, inget person-id. En loppberättelse ska inte bli stället där identiteten läcker.
 

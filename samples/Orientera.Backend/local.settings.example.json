@@ -9,6 +9,6 @@
     "Eventor__OrganisationIds": "",
 
     "Story__ApiKey": "",
-    "Story__Model": "claude-opus-5"
+    "Story__Model": "claude-sonnet-5"
   }
 }

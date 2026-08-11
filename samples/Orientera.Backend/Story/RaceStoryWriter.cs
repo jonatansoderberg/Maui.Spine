@@ -1,7 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using Anthropic;
+using Anthropic.Exceptions;
 using Anthropic.Models.Messages;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orientera.Backend.Caching;
 using Orientera.Backend.Configuration;
@@ -19,7 +21,10 @@ namespace Orientera.Backend.Story;
 /// never happened. What the model is actually good at — turning six flat statements into a
 /// paragraph that sounds like a coach who watched — is all it is asked for.
 /// </remarks>
-public sealed class RaceStoryWriter(IOptions<StoryOptions> _options, ResponseCache _cache)
+public sealed class RaceStoryWriter(
+    IOptions<StoryOptions> _options,
+    ResponseCache _cache,
+    ILogger<RaceStoryWriter>? _logger = null)
 {
     private const string Coach = """
         Du är en erfaren orienteringstränare som sammanfattar ett lopp för löparen själv, på svenska.
@@ -44,11 +49,22 @@ public sealed class RaceStoryWriter(IOptions<StoryOptions> _options, ResponseCac
         if (!options.IsConfigured || request.Lines.Count == 0)
             return null;
 
-        return await _cache.GetOrAddAsync(
-            $"story:{options.Model}:{Fingerprint(request)}",
-            TimeSpan.FromHours(options.CacheHours),
-            token => AskAsync(request, options, token),
-            cancellationToken);
+        try
+        {
+            return await _cache.GetOrAddAsync(
+                $"story:{options.Model}:{Fingerprint(request)}",
+                TimeSpan.FromHours(options.CacheHours),
+                token => AskAsync(request, options, token),
+                cancellationToken);
+        }
+        // Ett uteblivet svar visas som inget kort alls, vilket ser likadant ut som "ingen nyckel
+        // konfigurerad". Utan den här raden skiljer ingenting de två åt i efterhand.
+        catch (AnthropicException exception)
+        {
+            _logger?.LogWarning(exception, "Loppberättelsen kunde inte skrivas ({Model}).", options.Model);
+
+            return null;
+        }
     }
 
     private static async Task<RaceStory?> AskAsync(
