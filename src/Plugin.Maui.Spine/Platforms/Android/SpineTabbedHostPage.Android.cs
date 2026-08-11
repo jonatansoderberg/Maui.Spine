@@ -8,6 +8,7 @@ namespace Plugin.Maui.Spine.Presentation;
 public partial class SpineTabbedHostPage
 {
     private BottomNavigationView? _bottomNav;
+    private bool _watchingTheme;
 
     partial void PlatformAttach()
     {
@@ -29,6 +30,8 @@ public partial class SpineTabbedHostPage
             ApplyStyle(bottomNav);
             ApplyTabBarInset();
         }
+
+        WatchTheme();
 
         ApplyAllBadges();
     }
@@ -57,6 +60,93 @@ public partial class SpineTabbedHostPage
 
         foreach (var slot in _slots)
             slot.Insets.SetBottomOverride(bottom);
+    }
+
+    /// <summary>
+    /// Re-themes the native bar when the system switches between light and dark.
+    /// </summary>
+    /// <remarks>
+    /// The MAUI activity declares <c>UiMode</c> among its <c>ConfigurationChanges</c>, so Android
+    /// does not recreate it and nothing re-inflates the bar. Its Material colours were resolved
+    /// from the theme when it was created and stay resolved — the page turns light while the bar
+    /// keeps the previous theme's surface until the app is restarted (#22).
+    ///
+    /// Subscribed once and never unsubscribed: the host lives as long as the window does, and a
+    /// bar that stops following the theme halfway through a session is the defect again.
+    /// </remarks>
+    private void WatchTheme()
+    {
+        if (_watchingTheme || Application.Current is not { } app)
+            return;
+
+        _watchingTheme = true;
+        app.RequestedThemeChanged += (_, _) => Dispatcher.Dispatch(ReapplyBarAppearance);
+    }
+
+    private void ReapplyBarAppearance()
+    {
+        if (_bottomNav is not { IsAttachedToWindow: true } bottomNav)
+            return;
+
+        ApplyThemeColors(bottomNav);
+
+        // Spine's own overrides go on top of the theme, in the same order as at attach.
+        ApplyStyle(bottomNav);
+        ApplyAllBadges();
+    }
+
+    /// <summary>
+    /// Reads the bar's surface and item tints out of the activity's theme as it now stands.
+    /// </summary>
+    /// <remarks>
+    /// The theme itself does follow the configuration change; it is only the colours already
+    /// resolved into the view that are stale. Resolving them again is therefore enough, and it
+    /// keeps the bar on whatever the app's Material theme says rather than on a colour Spine
+    /// picked for it.
+    /// </remarks>
+    private static void ApplyThemeColors(BottomNavigationView bottomNav)
+    {
+        if (bottomNav.Context is not { Theme: { } theme } context)
+            return;
+
+        // Material 3 puts the bar on colorSurfaceContainer; older themes only have colorSurface.
+        var surface = Resolve(context, theme, "colorSurfaceContainer")
+            ?? Resolve(context, theme, "colorSurface");
+
+        if (surface is { } background)
+            bottomNav.SetBackgroundColor(new Android.Graphics.Color(background));
+
+        if (Resolve(context, theme, "colorOnSurface") is { } selected
+            && Resolve(context, theme, "colorOnSurfaceVariant") is { } unselected)
+        {
+            var states = new[]
+            {
+                new[] { Android.Resource.Attribute.StateChecked },
+                new[] { -Android.Resource.Attribute.StateChecked },
+            };
+
+            var stateList = new Android.Content.Res.ColorStateList(states, [selected, unselected]);
+
+            bottomNav.ItemIconTintList = stateList;
+            bottomNav.ItemTextColor = stateList;
+        }
+    }
+
+    /// <summary>
+    /// Looks a theme attribute up by name. The Material binding does not surface its
+    /// <c>Resource.Attribute</c> constants, and a name lookup resolves against whatever theme
+    /// the app actually uses rather than against a constant that may not exist in it.
+    /// </summary>
+    private static int? Resolve(Android.Content.Context context, Android.Content.Res.Resources.Theme theme, string attribute)
+    {
+        var id = context.Resources?.GetIdentifier(attribute, "attr", context.PackageName) ?? 0;
+
+        if (id == 0)
+            return null;
+
+        var value = new Android.Util.TypedValue();
+
+        return theme.ResolveAttribute(id, value, true) ? value.Data : null;
     }
 
     partial void PlatformApplyBadge(int index, string? text)
