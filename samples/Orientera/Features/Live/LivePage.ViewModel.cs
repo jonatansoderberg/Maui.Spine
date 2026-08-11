@@ -140,7 +140,7 @@ public partial class LivePageViewModel(
     IEventSource _events,
     IPeopleSource _people,
     INavigationService _navigation,
-    LiveClassStore _classes) : OrienteraViewModel
+    CompetitionClassStore _classes) : OrienteraViewModel
 {
     /// <summary>LiveResults caches for 15 seconds, so polling faster only wastes data.</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
