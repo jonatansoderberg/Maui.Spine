@@ -116,7 +116,21 @@ public partial class SpineTabbedHostPage
             ?? Resolve(context, theme, "colorSurfaceContainer");
 
         if (surface is { } background)
-            bottomNav.SetBackgroundColor(new Android.Graphics.Color(background));
+        {
+            var colour = new Android.Graphics.Color(background);
+
+            bottomNav.SetBackgroundColor(colour);
+
+            // The gesture-navigation strip below the bar shows the window's own background, and
+            // that was resolved from the theme at startup exactly like the bar's colours were.
+            // Left alone it puts a dark band under a light bar.
+            //
+            // The window background, not setNavigationBarColor: that setter is a no-op from
+            // Android 15 for apps drawing edge-to-edge, which this one does — nothing is painted
+            // over the strip any more, so what shows there is whatever is behind it.
+            if (Microsoft.Maui.ApplicationModel.Platform.CurrentActivity?.Window is { } window)
+                window.SetBackgroundDrawable(new Android.Graphics.Drawables.ColorDrawable(colour));
+        }
 
         if (Resolve(context, theme, "colorOnSurface") is { } selected
             && Resolve(context, theme, "colorOnSurfaceVariant") is { } unselected)
