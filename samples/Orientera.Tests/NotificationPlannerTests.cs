@@ -140,8 +140,9 @@ public class NotificationPlannerTests
     }
 
     /// <summary>
-    /// Leaving time is the start minus the margin at the arena minus the drive. 70 km at 70
-    /// km/h is an hour, plus the 45-minute margin.
+    /// Leaving time is the start minus the margin at the arena minus the drive. Just under 70 km
+    /// is far enough to be driven at the full road average, 80 km/h — 52 minutes — plus the
+    /// 45-minute margin at the arena.
     /// </summary>
     [Fact]
     public void Time_to_leave_counts_backwards_from_my_start()
@@ -155,7 +156,7 @@ public class NotificationPlannerTests
 
         var leave = Assert.Single(planned, n => n.Kind == NotificationKind.TimeToLeave);
 
-        Assert.Equal(start.AddMinutes(-45).AddMinutes(-60), leave.At);
+        Assert.Equal(start.AddMinutes(-45).AddMinutes(-52), leave.At);
     }
 
     [Fact]
