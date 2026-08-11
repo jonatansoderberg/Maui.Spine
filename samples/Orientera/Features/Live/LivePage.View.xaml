@@ -27,8 +27,10 @@
                       Command="{Binding SelectScopeCommand}" CommandParameter="MyGroup" />
             <ChipView Text="Min klass" IsSelected="{Binding IsMyClass}"
                       Command="{Binding SelectScopeCommand}" CommandParameter="MyClass" />
-            <ChipView Text="Alla" IsSelected="{Binding IsEveryone}"
-                      Command="{Binding SelectScopeCommand}" CommandParameter="Everyone" />
+            <!-- Klasschipet är en väljare: att trycka på det frågar alltid vilken klass -->
+            <ChipView Text="{Binding ClassChipText}" IsSelected="{Binding IsClass}"
+                      IsVisible="{Binding CanPickClass}"
+                      Command="{Binding PickClassCommand}" />
         </HorizontalStackLayout>
 
         <VerticalStackLayout Grid.Row="2" Padding="32" Spacing="8" VerticalOptions="Center"
@@ -62,8 +64,11 @@
                                                    BindableLayout.ItemsSource="{Binding Columns}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="x:String">
+                                        <!-- Kolumnbredden växer så att den bredaste klassen fyller
+                                             raden; smalare klasser slutar där deras kontroller tar slut -->
                                         <Label Style="{StaticResource SectionLabel}"
-                                               WidthRequest="72" Margin="0,0,10,0"
+                                               WidthRequest="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.CellWidth}"
+                                               Margin="0,0,10,0"
                                                HorizontalTextAlignment="End"
                                                Text="{Binding .}" />
                                     </DataTemplate>
@@ -102,7 +107,8 @@
                                                    BindableLayout.ItemsSource="{Binding Cells}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="LiveCell">
-                                        <VerticalStackLayout WidthRequest="72" Margin="0,0,10,0"
+                                        <VerticalStackLayout Margin="0,0,10,0"
+                                                             WidthRequest="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.CellWidth}"
                                                              SemanticProperties.Description="{Binding Accessibility}">
                                             <Label Style="{StaticResource NumericStrongLabel}"
                                                    HorizontalTextAlignment="End"

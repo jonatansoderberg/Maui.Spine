@@ -175,7 +175,8 @@ public partial class EventDetailsPageViewModel(
         if (_competition is null)
             return;
 
-        var result = await _navigation.NavigateToWithResultAsync<ChooseClassSheet, string>();
+        var result = await _navigation.NavigateToWithResultAsync<ChooseClassSheet, ClassChoice, string>(
+            new ClassChoice(_competition.Classes, "Klassen styr banan, startlistan och prediction."));
 
         if (result is { IsSuccess: true, Value: { } className })
             MyClass = className;

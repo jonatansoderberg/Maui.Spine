@@ -80,6 +80,27 @@ public class LiveResultsNormalizerTests
         Assert.Equal(new DateTimeOffset(2026, 8, 9, 11, 50, 0, TimeSpan.FromHours(2)), winner.StartTime);
     }
 
+    /// <summary>
+    /// A runner who never started has an empty start time, and midnight is a real clock reading —
+    /// reading one as the other put "Start 00:00" on the live list (#65).
+    /// </summary>
+    [Fact]
+    public void A_runner_who_never_started_has_no_start_time()
+    {
+        var vit = _normalizer.Entries(Fixture.LiveResults("classresults-vit20.json"), "Vit 2,0", RaceDay);
+
+        var absent = vit.First(e => e.Name == "Isabel Sjödin");
+
+        Assert.Equal(LiveStatus.NotStarted, absent.Status);
+        Assert.Null(absent.StartTime);
+
+        // The same status with a start time is a different runner: one who has not started yet.
+        var waiting = H21().First(e => e.Name == "Bo Roger Nordström");
+
+        Assert.Equal(LiveStatus.NotStarted, waiting.Status);
+        Assert.Equal(new DateTimeOffset(2026, 8, 9, 12, 6, 0, TimeSpan.FromHours(2)), waiting.StartTime);
+    }
+
     [Fact]
     public void Radio_controls_become_the_runners_last_known_position()
     {

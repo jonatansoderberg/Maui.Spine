@@ -152,8 +152,12 @@ public partial class HomePageViewModel(
                 $"Du är vid kontroll {ControlName(mine.Class, control)}, {Format.Place(position)} i {mine.Class}",
             { Status: LiveStatus.Finished, FinalPlace: { } place } =>
                 $"Du är i mål, {Format.Place(place)}",
+            { Status: LiveStatus.NotStarted, StartTime: { } start } =>
+                $"Din start {Format.Clock(start)}",
+            // The live source has the user in the class but no start time for them, which is how
+            // it reports someone who never started.
             { Status: LiveStatus.NotStarted } =>
-                $"Din start {Format.Clock(mine.StartTime)}",
+                $"Du står som ej start i {mine.Class}",
             _ => $"{snapshot.Entries.Count(e => e.Status == LiveStatus.Running)} löpare i skogen",
         };
 

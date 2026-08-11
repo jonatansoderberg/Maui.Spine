@@ -10,7 +10,7 @@
         <Label Grid.Row="0"
                Style="{StaticResource CaptionLabel}"
                Padding="16,0,16,10"
-               Text="Klassen styr banan, startlistan och prediction." />
+               Text="{Binding Explanation}" />
 
         <CollectionView Grid.Row="1" Margin="16,0,16,16" ItemsSource="{Binding Classes}" SelectionMode="None">
             <CollectionView.ItemsLayout>
