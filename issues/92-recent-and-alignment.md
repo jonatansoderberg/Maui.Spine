@@ -22,7 +22,7 @@ Två små saker efter #56, båda upptäckta av användaren i körning.
 
 ## Verifiering
 
-`dotnet test`: 247 gröna (244 + 3 nya).
+`dotnet test`: 246 gröna (244 + 2 nya).
 
 **iPhone 17 Pro-simulator (iOS 26.2):** "MEST RELEVANT", "DENNA VECKA", "NÄSTA VECKA" och
 "AUGUSTI" ligger i linje med korten. **Nyligen** syns inte i demoläget — det seedade datat har
