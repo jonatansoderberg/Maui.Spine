@@ -71,7 +71,8 @@ public partial class ResultsDetailPageViewModel(
     INavigationService _navigation,
     IEventSource _events,
     IPeopleSource _people,
-    IParticipationSource _participation) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
+    IParticipationSource _participation,
+    IRaceStorySource _stories) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
 {
     private CompetitionId _id;
     private Person? _me;
@@ -117,6 +118,14 @@ public partial class ResultsDetailPageViewModel(
     [ObservableProperty] public partial string BiggestLossText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasMistakes { get; set; }
     [ObservableProperty] public partial string CompareTargetText { get; set; } = string.Empty;
+
+    // ---- race story ----
+
+    /// <summary>The race written back as a few sentences, or empty when nobody wrote it.</summary>
+    [ObservableProperty] public partial string StoryText { get; set; } = string.Empty;
+
+    [ObservableProperty] public partial bool HasStory { get; set; }
+    [ObservableProperty] public partial bool IsWritingStory { get; set; }
 
     // ---- states ----
 
@@ -180,6 +189,10 @@ public partial class ResultsDetailPageViewModel(
 
         HasResult = _field.Count > 0;
         HasMine = _mine is not null;
+
+        // A reloaded page is a different race until proven otherwise.
+        StoryText = string.Empty;
+        HasStory = false;
 
         if (!HasResult)
         {
@@ -267,6 +280,36 @@ public partial class ResultsDetailPageViewModel(
         IsOverview = Tab == ResultsTab.Overview;
         IsLegs = Tab == ResultsTab.Legs;
         IsAnalysis = Tab == ResultsTab.Analysis;
+
+        if (IsAnalysis)
+            _ = WriteStoryAsync();
+    }
+
+    /// <summary>
+    /// Written when Analys is opened, not when the page loads: it is the one thing on the page
+    /// that costs someone something per read, so a runner who only wanted their time never pays
+    /// for it. Deliberately not awaited — the rest of the tab is already computed and readable
+    /// while the paragraph is being written.
+    /// </summary>
+    private async Task WriteStoryAsync()
+    {
+        if (_mine is null || _legs.Count == 0 || HasStory || IsWritingStory)
+            return;
+
+        IsWritingStory = true;
+
+        try
+        {
+            var facts = RaceStoryFacts.From(_mine, _legs, _field);
+            var story = await _stories.WriteAsync(new RaceStoryRequest { Class = facts.Class, Lines = facts.Lines });
+
+            StoryText = story?.Text ?? string.Empty;
+            HasStory = StoryText.Length > 0;
+        }
+        finally
+        {
+            IsWritingStory = false;
+        }
     }
 
     [RelayCommand]
