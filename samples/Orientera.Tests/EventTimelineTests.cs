@@ -46,9 +46,27 @@ public class EventTimelineTests
     public void A_year_from_now_says_which_year() =>
         Assert.Equal("Augusti 2027", EventTimeline.NameFor(Group(Today.AddDays(365)), Today));
 
+    /// <summary>
+    /// Yesterday's race is what a runner is still looking up, so it stays in the list. Anything
+    /// older is the summer that was, and belongs behind the chip.
+    /// </summary>
     [Fact]
-    public void What_has_been_run_is_past() =>
-        Assert.Equal(EventTimeline.Past, EventTimeline.NameFor(Group(Today.AddDays(-1)), Today));
+    public void Yesterday_stays_in_the_list_under_its_own_heading()
+    {
+        var yesterday = Group(Today.AddDays(-1));
+
+        Assert.False(EventTimeline.IsPast(yesterday, Today));
+        Assert.Equal(EventTimeline.Recent, EventTimeline.NameFor(yesterday, Today));
+    }
+
+    [Fact]
+    public void The_day_before_yesterday_is_archived() =>
+        Assert.Equal(EventTimeline.Past, EventTimeline.NameFor(Group(Today.AddDays(-2)), Today));
+
+    /// <summary>Today's races are current, not recent — the card already says "idag".</summary>
+    [Fact]
+    public void Today_is_this_week_not_recent() =>
+        Assert.Equal("Denna vecka", EventTimeline.NameFor(Group(Today), Today));
 
     [Fact]
     public void Today_is_not_past() =>
@@ -71,9 +89,9 @@ public class EventTimelineTests
     [Fact]
     public void A_series_entirely_behind_us_is_past()
     {
-        var series = Group(Today.AddDays(-9), Today.AddDays(-8), Today.AddDays(-2));
+        var series = Group(Today.AddDays(-9), Today.AddDays(-8), Today.AddDays(-3));
 
         Assert.True(EventTimeline.IsPast(series, Today));
-        Assert.Equal(Today.AddDays(-2), EventTimeline.SortDate(series, Today));
+        Assert.Equal(Today.AddDays(-3), EventTimeline.SortDate(series, Today));
     }
 }

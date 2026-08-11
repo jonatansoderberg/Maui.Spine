@@ -16,7 +16,20 @@ public static class EventTimeline
     /// <summary>Past competitions are listed newest first — the one just run is the one being looked for.</summary>
     public const string Past = "Tidigare";
 
-    public static bool IsPast(EventGroup group, DateOnly today) => group.LastDate < today;
+    /// <summary>What ran today or yesterday, kept in the list rather than archived.</summary>
+    public const string Recent = "Nyligen";
+
+    /// <summary>
+    /// How far back a competition stays in the planning list. One day: the race you ran
+    /// yesterday is what you are still looking up, and the summer before it is not.
+    /// </summary>
+    private const int RecentDays = 1;
+
+    /// <summary>
+    /// True for what belongs behind the "Tidigare" chip rather than in the list. Yesterday's
+    /// races are not archived — a runner is still looking for their own result.
+    /// </summary>
+    public static bool IsPast(EventGroup group, DateOnly today) => group.LastDate < today.AddDays(-RecentDays);
 
     /// <summary>The date the group is filed under: what is still to come, or what last happened.</summary>
     public static DateOnly SortDate(EventGroup group, DateOnly today) =>
@@ -28,6 +41,10 @@ public static class EventTimeline
             return Past;
 
         var date = SortDate(group, today);
+
+        // Nothing ahead, but recent enough to keep: it ran yesterday.
+        if (date < today)
+            return Recent;
 
         // Weeks, then months. Nobody plans "in 23 days"; they plan this weekend, next weekend,
         // and then by month.
