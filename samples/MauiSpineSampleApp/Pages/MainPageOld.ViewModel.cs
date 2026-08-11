@@ -41,6 +41,7 @@ public partial class MainPageOldViewModel(INavigationService _navigation) : View
     [RelayCommand] private async Task ShowSimpleBottomSheet() => await _navigation.NavigateToAsync<SimpleBottomSheetPage>();
     [RelayCommand] private async Task ShowFullscreenSheet() => await _navigation.NavigateToAsync<FullscreenSheetPage>();
     [RelayCommand] private async Task ShowSmallSheet() => await _navigation.NavigateToAsync<SmallSheetPage>();
+    [RelayCommand] private async Task ShowToggleList() => await _navigation.NavigateToAsync<ToggleListSheet>();
     [RelayCommand] private async Task ShowPersonDetail() =>
         await _navigation.NavigateToAsync<PersonDetailPage, PersonData>(new PersonData("Alice Smith", "alice@example.com", 30));
 

@@ -119,6 +119,15 @@
 			<DependentUpon>PersonDetailPage.cs</DependentUpon>
 		</Compile>
     
+    <Compile Include="Pages\ToggleListSheet.ViewModel.cs">
+      <DependentUpon>ToggleListSheet.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\ToggleListSheet.View.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <DependentUpon>ToggleListSheet.cs</DependentUpon>
+    </MauiXaml>
+
     <Compile Include="Pages\SimpleBottomSheetPage.ViewModel.cs">
       <DependentUpon>SimpleBottomSheetPage.cs</DependentUpon>
     </Compile>
