@@ -643,7 +643,7 @@ public sealed class FakeDataset
         Points = 1043,
         NationalPlace = 187,
         Trend = 12,
-        DisciplinePoints = new Dictionary<Discipline, int>
+        DisciplinePoints = new Dictionary<Discipline, double>
         {
             [Discipline.Sprint] = 1088,
             [Discipline.Middle] = 1051,

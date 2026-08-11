@@ -8,7 +8,7 @@ public sealed record RankingResult
     public required CompetitionId Competition { get; init; }
     public required string CompetitionName { get; init; }
     public required DateOnly Date { get; init; }
-    public required int Points { get; init; }
+    public required double Points { get; init; }
 
     /// <summary>Whether this result is one of the six that make up the current average.</summary>
     public required bool IsCounting { get; init; }
@@ -25,14 +25,18 @@ public sealed record RankingSnapshot
 {
     public required PersonId Person { get; init; }
     public required DateOnly Date { get; init; }
-    public required int Points { get; init; }
+    public required double Points { get; init; }
     public required int NationalPlace { get; init; }
 
     /// <summary>Points change since the previous snapshot.</summary>
-    public required int Trend { get; init; }
+    public required double Trend { get; init; }
 
-    public IReadOnlyDictionary<Discipline, int> DisciplinePoints { get; init; } =
-        new Dictionary<Discipline, int>();
+    /// <summary>
+    /// Sverigelistan is published to two decimals and the differences are small — a runner can sit
+    /// a few hundredths from the place above. Rounding to whole points threw that away.
+    /// </summary>
+    public IReadOnlyDictionary<Discipline, double> DisciplinePoints { get; init; } =
+        new Dictionary<Discipline, double>();
 
     public required IReadOnlyList<RankingResult> Results { get; init; }
 

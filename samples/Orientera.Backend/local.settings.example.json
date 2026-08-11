@@ -12,6 +12,9 @@
     "Story__Model": "claude-sonnet-5",
 
     "Livelox__ApiKey": "",
-    "Livelox__BaseAddress": "https://api.livelox.com/"
+    "Livelox__BaseAddress": "https://api.livelox.com/",
+
+    "//Ranking__DemoSessionPersonId": "Prototypläge: personens Eventor-session lånas för att läsa andras rankingsidor. Lämna tomt i drift.",
+    "Ranking__DemoSessionPersonId": ""
   }
 }

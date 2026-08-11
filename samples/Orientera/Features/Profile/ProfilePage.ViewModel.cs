@@ -150,7 +150,8 @@ public partial class ProfilePageViewModel(
         if (ranking is null)
             return;
 
-        PointsText = ranking.Points.ToString("N0");
+        // Two decimals, as Sverigelistan publishes them: places are separated by hundredths.
+        PointsText = ranking.Points.ToString("N2", Format.Culture);
         PointsSpoken = $"{ranking.Points} poäng, {ranking.NationalPlace}:e plats i Sverige, "
                      + $"{(ranking.Trend >= 0 ? "upp" : "ner")} {Math.Abs(ranking.Trend)} poäng";
         NationalPlaceText = $"{ranking.NationalPlace}:e i Sverige";
@@ -159,17 +160,21 @@ public partial class ProfilePageViewModel(
 
         DisciplineText = string.Join("  ·  ", ranking.DisciplinePoints
             .OrderBy(kv => kv.Key)
-            .Select(kv => $"{Format.Discipline(kv.Key)} {kv.Value:N0}"));
+            .Select(kv => $"{Format.Discipline(kv.Key)} {kv.Value.ToString("N2", Format.Culture)}"));
 
         CountingResults.Clear();
 
-        foreach (var result in ranking.Results.OrderByDescending(r => r.Points))
+        // The six that make up the average, newest first — not every result the runner has, and
+        // not sorted by points. Sverigelistan counts downwards: a lower figure is a better race,
+        // so ordering by points descending put the worst results at the top of a list headed
+        // "resultat i snittet", where they were not in the average at all.
+        foreach (var result in ranking.Counting.OrderByDescending(r => r.Date))
         {
             CountingResults.Add(new RankingRow
             {
                 Name = result.CompetitionName,
                 DateText = result.Date.ToString("d MMM yyyy"),
-                PointsText = result.Points.ToString("N0"),
+                PointsText = result.Points.ToString("N2", Format.Culture),
                 IsCounting = result.IsCounting,
                 ExpiresSoon = result.ExpiresSoon(today),
                 ExpiryText = result.ExpiresSoon(today)

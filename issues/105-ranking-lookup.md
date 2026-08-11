@@ -88,3 +88,57 @@ autentiserar mot *API:et*, som inte har några rankingendpoints.
 - **Historik** finns inte här heller. Klubbsidan är ett nuläge.
 - `GetRankingAsync` i appen är fortfarande inte kopplad — endpointen finns, men kopplingen kräver
   att användaren pekar ut sin egen rad en gång, och det är ett eget ärende.
+
+---
+
+# Del 2 — proxy mot löparsidan
+
+Efter beslut att bygga server-proxyn, och efter att webbläsartestet visat mekanismen.
+
+## Hur den fungerar
+
+1. `GET /api/externalLoginUrl?personId=…&organisationId=…` med organisationsnyckeln ger en
+   engångslänk, giltig fem minuter.
+2. Länken följs med en egen cookiejar → en session.
+3. `GET /Ranking/ol/Runner/Index/{personId}` med den sessionen → sidan utan betalvägg.
+4. `RunnerRankingParser` läser båda tabellerna till en `RankingSnapshot`.
+
+**Inget lösenord är inblandat någonstans.** Det visade sig att `externalLoginUrl` bara behöver ett
+`personId`, och det hämtas ur klubbens medlemslista med nyckeln vi redan har.
+
+**`personId` är samma id som rankingens löpar-id** — 121330 i både `/api/persons/organisations/115`
+och `/Ranking/ol/Runner/Index/121330`. Ingen mappning behövs.
+
+## Två gränser, uppmätta
+
+| Fråga | Svar |
+|---|---|
+| Kan vi skapa en session för någon i en annan klubb? | **Nej.** 403, både med deras riktiga klubb-id och när de påstods vara våra. |
+| Kan en inloggad session läsa en annan klubbs löpare? | **Ja.** Isa Envall (klubb 124) svarade 200 utan betalvägg. |
+
+Det andra svaret är det som betyder något: Sverigelistan är en **prenumeration**, inte en
+behörighet per person. En betalande medlems session öppnar allas sidor.
+
+Därför är `Ranking:DemoSessionPersonId` en inställning och inte ett beteende. Tom kan backend bara
+svara för sin egen organisations medlemmar — den gräns Eventor ändå upprätthåller. Satt svarar den
+för vem som helst, på en persons prenumeration, och det är ett val någon fattar och äger.
+
+## Verifiering
+
+`dotnet test`: 262 gröna. Sex nya mot en riktig sparad löparsida.
+
+**Skarpt, hela kedjan:** riksplats 1914, 63 poäng, Lång 86 / Medel 61 / Natt 215 / Sprint 85,
+141 resultat varav **exakt 6** räknande.
+
+**I appen:** Jag-fliken visar det, med de sex räknande newest first och "faller ur 19 sep." på den
+som går ut.
+
+**En bugg som datan avslöjade:** vyn sorterade `Results` på poäng fallande och visade alltså de
+*sämsta* resultaten under rubriken "resultat i snittet" — Sverigelistan räknar nedåt, lägre är
+bättre. Demodatat hade motsatt konvention och dolde felet. Nu används `Counting`, nyast först.
+
+## Inte gjort
+
+- **Annan klubbs löpare genom prototypsessionen** svarade inte i stubben (timeout). Vägen är
+  verifierad med curl men inte genom backend.
+- **Trend** är 0. Sidan visar ett nuläge; en trend kräver två avläsningar.
