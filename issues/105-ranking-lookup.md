@@ -51,7 +51,7 @@ tredje som gjorde en bättre form möjlig.
 
 `dotnet test`: 256 gröna (250 + 6 nya).
 
-**Mot skarp Eventor via BFF-stubben**, Gävle OK (124): 35 löpare, med id, klass,
+**Mot skarp Eventor via BFF-stubben**, IKHP Huskvarna Idrottsklubb (124): 35 löpare, med id, klass,
 rikslistplacering och poäng — `16695 Isa Envall D21 riks 5 3,30`. Andra anropet svarar på
 0,0008 s ur cachen.
 

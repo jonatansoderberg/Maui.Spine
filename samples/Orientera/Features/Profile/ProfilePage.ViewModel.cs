@@ -54,7 +54,7 @@ public partial class ProfilePageViewModel(
     // ---- Sverigelistan ----
     [ObservableProperty] public partial string PointsText { get; set; } = string.Empty;
     [ObservableProperty] public partial string PointsSpoken { get; set; } = string.Empty;
-    [ObservableProperty] public partial string NationalPlaceText { get; set; } = string.Empty;
+    [ObservableProperty] public partial string PlacesText { get; set; } = string.Empty;
     [ObservableProperty] public partial string TrendText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool IsImproving { get; set; }
     [ObservableProperty] public partial string DisciplineText { get; set; } = string.Empty;
@@ -154,7 +154,7 @@ public partial class ProfilePageViewModel(
         PointsText = ranking.Points.ToString("N2", Format.Culture);
         PointsSpoken = $"{ranking.Points} poäng, {ranking.NationalPlace}:e plats i Sverige, "
                      + $"{(ranking.Trend >= 0 ? "upp" : "ner")} {Math.Abs(ranking.Trend)} poäng";
-        NationalPlaceText = $"{ranking.NationalPlace}:e i Sverige";
+        PlacesText = string.Join(" · ", Places(ranking));
         IsImproving = ranking.Trend >= 0;
         TrendText = ranking.Trend >= 0 ? $"+{ranking.Trend} p" : $"{ranking.Trend} p";
 
@@ -191,6 +191,26 @@ public partial class ProfilePageViewModel(
             1 => $"Ett räknande resultat faller ur {expiring[0].ExpiresOn:d MMM}.",
             _ => $"{expiring.Count} räknande resultat faller ur inom kort.",
         };
+    }
+
+    /// <summary>
+    /// The same average read three ways: against the country, against the runner's own class, and
+    /// against their club. A place the source did not carry is left out rather than filled in.
+    /// </summary>
+    private static IEnumerable<string> Places(RankingSnapshot ranking)
+    {
+        yield return $"{Format.Place(ranking.NationalPlace)} i Sverige";
+
+        if (ranking.Class is { } ownClass)
+            yield return $"{Format.Place(ownClass.Place)} i {ownClass.Class}";
+
+        if (ranking.Club is { } club)
+        {
+            // The club page ranks women and men separately, so the number means half a club.
+            yield return club.Section is { } section
+                ? $"{Format.Place(club.Place)} i {club.Club}, {Format.Section(section)}"
+                : $"{Format.Place(club.Place)} i {club.Club}";
+        }
     }
 
     private async Task LoadGroupAsync()

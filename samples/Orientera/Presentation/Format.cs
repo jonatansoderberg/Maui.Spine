@@ -74,6 +74,17 @@ public static class Format
 
     public static string Place(int? place) => place is { } p ? Place(p) : "—";
 
+    /// <summary>
+    /// Which half of a club's list a place is in. Said out loud because a club place is counted
+    /// per section — 17th in a club means 17th among its men, not 17th of everyone.
+    /// </summary>
+    public static string Section(RankingSection section) => section switch
+    {
+        RankingSection.Women => "damer",
+        RankingSection.Men => "herrar",
+        _ => string.Empty,
+    };
+
     /// <summary>"14 / 67" — placement out of the field.</summary>
     public static string PlaceOf(int? place, int starters) =>
         place is { } p ? $"{p} / {starters}" : $"— / {starters}";

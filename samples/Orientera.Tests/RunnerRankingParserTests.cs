@@ -42,6 +42,30 @@ public class RunnerRankingParserTests
         Assert.Equal(84.91, points[Discipline.Sprint], 2);
     }
 
+    /// <summary>
+    /// Under every list the page repeats the same average against the runner's own class. The
+    /// points are identical and only the place differs — 1914th in the country, 203rd in H45.
+    /// </summary>
+    [Fact]
+    public void The_place_on_the_runners_own_class_list_is_read()
+    {
+        var snapshot = Snapshot();
+
+        Assert.Equal("H45", snapshot.Class?.Class);
+        Assert.Equal(203, snapshot.Class?.Place);
+    }
+
+    /// <summary>The one link that says which club page to merge a club place from.</summary>
+    [Fact]
+    public void The_page_names_the_runners_club()
+    {
+        var club = RunnerRankingParser.Club(File.ReadAllText(Path.Combine(
+            AppContext.BaseDirectory, "Fixtures", "Ranking", "runner-121330.html")));
+
+        Assert.Equal("115", club?.Id);
+        Assert.Equal("Gävle OK", club?.Name);
+    }
+
     [Fact]
     public void The_results_behind_the_average_are_read()
     {

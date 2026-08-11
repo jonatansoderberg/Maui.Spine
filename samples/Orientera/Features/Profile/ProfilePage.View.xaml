@@ -57,7 +57,7 @@
                                    Text="{Binding TrendText}" />
                         </HorizontalStackLayout>
 
-                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding NationalPlaceText}" />
+                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlacesText}" />
                         <Label Style="{StaticResource NumericCaptionLabel}" Text="{Binding DisciplineText}" />
 
                         <Border Style="{StaticResource BadgeAccent}"

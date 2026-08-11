@@ -1,3 +1,5 @@
+using Orientera.Domain;
+
 namespace Orientera.Backend.Ranking;
 
 /// <summary>Which list a row belongs to. Only forest has a club-wise page today.</summary>
@@ -28,8 +30,14 @@ public sealed record RankingRow
     public required string Name { get; init; }
     public required string Class { get; init; }
 
-    /// <summary>Place within the club, as the page numbers it.</summary>
+    /// <summary>Place within the club, as the page numbers it — from one, within the section.</summary>
     public required int ClubRank { get; init; }
+
+    /// <summary>
+    /// Which of the club page's two tables the row stood in. Null if the page stopped heading
+    /// them, in which case the rank is still the page's own number and only its half is unknown.
+    /// </summary>
+    public RankingSection? Section { get; init; }
 
     /// <summary>Place on the national list. Absent for a runner the list does not rank.</summary>
     public int? NationalRank { get; init; }

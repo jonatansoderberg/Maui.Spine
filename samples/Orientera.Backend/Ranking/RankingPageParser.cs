@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
+using Orientera.Domain;
 
 namespace Orientera.Backend.Ranking;
 
@@ -24,17 +25,34 @@ public static partial class RankingPageParser
     public static IReadOnlyList<RankingRow> Parse(string clubId, string html)
     {
         var rows = new List<RankingRow>();
+        RankingSection? section = null;
 
-        foreach (Match row in RowPattern().Matches(html))
+        foreach (Match match in SectionOrRowPattern().Matches(html))
         {
+            // The club is two tables under two headings, each numbered from one. Read flat they
+            // yield two runners ranked first, and a place that cannot be told apart.
+            if (match.Groups["section"].Success)
+            {
+                section = Clean(match.Groups["section"].Value) switch
+                {
+                    "Damer" => RankingSection.Women,
+                    "Herrar" => RankingSection.Men,
+                    _ => section,
+                };
+
+                continue;
+            }
+
+            var row = match.Groups["row"];
+
             // The runner's own id, which the club page links every name to. Without it a row
             // could only be matched on a name, which is what SP-02 wrongly concluded.
-            var runner = RunnerPattern().Match(row.Groups[1].Value);
+            var runner = RunnerPattern().Match(row.Value);
 
             if (!runner.Success)
                 continue;
 
-            var cells = CellPattern().Matches(row.Groups[1].Value)
+            var cells = CellPattern().Matches(row.Value)
                 .Select(c => Clean(c.Groups[1].Value))
                 .ToList();
 
@@ -59,6 +77,7 @@ public static partial class RankingPageParser
                     ? national
                     : null,
                 Points = points,
+                Section = section,
             });
         }
 
@@ -72,8 +91,11 @@ public static partial class RankingPageParser
     private static string Clean(string cell) =>
         WhitespacePattern().Replace(WebUtility.HtmlDecode(TagPattern().Replace(cell, string.Empty)), " ").Trim();
 
-    [GeneratedRegex(@"<tr[^>]*>(.*?)</tr>", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
-    private static partial Regex RowPattern();
+    /// <summary>Headings and rows in the order the page has them, so a row knows its section.</summary>
+    [GeneratedRegex(
+        @"<h3[^>]*>(?<section>.*?)</h3>|<tr[^>]*>(?<row>.*?)</tr>",
+        RegexOptions.Singleline | RegexOptions.IgnoreCase)]
+    private static partial Regex SectionOrRowPattern();
 
     [GeneratedRegex(@"<t[dh][^>]*>(.*?)</t[dh]>", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
     private static partial Regex CellPattern();
