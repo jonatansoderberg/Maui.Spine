@@ -92,6 +92,9 @@ public sealed class UnreliableSource(IOrienteraSource _inner, ConnectivitySwitch
 
     // ---------------------------------------------------------------- IProgressSource
 
+    public Task<LiveloxLink?> GetLiveloxAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
+        _inner.GetLiveloxAsync(competition, cancellationToken);
+
     public Task<RankingSnapshot?> GetRankingAsync(PersonId person, CancellationToken cancellationToken = default) =>
         Through(() => _inner.GetRankingAsync(person, cancellationToken));
 

@@ -138,6 +138,15 @@ public sealed class BackendSource(
             };
     }
 
+    // ---------------------------------------------------------------- ILiveloxSource
+
+    /// <summary>
+    /// Where this competition lives in Livelox, if it does. A link, not data: maps and routes are
+    /// Livelox's to show, and the course endpoint needs a scope our key does not carry.
+    /// </summary>
+    public Task<LiveloxLink?> GetLiveloxAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
+        GetAsync<LiveloxLink>($"competitions/{Uri.EscapeDataString(competition.Value)}/livelox", cancellationToken);
+
     // ---------------------------------------------------------------- IProgressSource
 
     /// <summary>Sverigelistan needs a machine-readable source (SP-02, M3).</summary>

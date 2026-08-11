@@ -9,6 +9,9 @@
     "Eventor__OrganisationIds": "",
 
     "Story__ApiKey": "",
-    "Story__Model": "claude-sonnet-5"
+    "Story__Model": "claude-sonnet-5",
+
+    "Livelox__ApiKey": "",
+    "Livelox__BaseAddress": "https://api.livelox.com/"
   }
 }

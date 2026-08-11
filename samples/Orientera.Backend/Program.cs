@@ -1,10 +1,12 @@
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Hosting;
 using Orientera.Backend.Caching;
 using Orientera.Backend.Configuration;
 using Orientera.Backend.Eventor;
+using Orientera.Backend.Livelox;
 using Orientera.Backend.LiveResults;
 using Orientera.Backend.Story;
 
@@ -15,6 +17,7 @@ builder.ConfigureFunctionsWebApplication();
 builder.Services.Configure<EventorOptions>(builder.Configuration.GetSection(EventorOptions.Section));
 builder.Services.Configure<LiveResultsOptions>(builder.Configuration.GetSection(LiveResultsOptions.Section));
 builder.Services.Configure<StoryOptions>(builder.Configuration.GetSection(StoryOptions.Section));
+builder.Services.Configure<LiveloxOptions>(builder.Configuration.GetSection(LiveloxOptions.Section));
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ResponseCache>();
 
@@ -32,6 +35,13 @@ builder.Services.AddHttpClient<EventorClient>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(20);
     client.DefaultRequestHeaders.Add("Accept", "application/xml");
+});
+
+builder.Services.AddHttpClient<LiveloxSource>((sp, client) =>
+{
+    client.BaseAddress = new Uri(
+        sp.GetRequiredService<IOptions<LiveloxOptions>>().Value.BaseAddress);
+    client.Timeout = TimeSpan.FromSeconds(15);
 });
 
 builder.Services.AddHttpClient<LiveResultsClient>(client =>
