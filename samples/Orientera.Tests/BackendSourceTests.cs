@@ -131,6 +131,39 @@ public class BackendSourceTests
         Assert.Null(await source.GetPredictionAsync(Sprint.Id, FakeDataset.Instance.Me.Id));
     }
 
+    /// <summary>
+    /// The BFF leaves null members out of its JSON, so a runner without a start time arrives
+    /// without the property at all. A contract that demands it turns that runner into "no
+    /// connection" for the whole screen (#65).
+    /// </summary>
+    [Fact]
+    public async Task A_live_entry_without_a_start_time_survives_the_wire()
+    {
+        var body = Json(new LiveSnapshot
+        {
+            Competition = Sprint.Id,
+            GeneratedAt = Sprint.FirstStart,
+            Entries =
+            [
+                new LiveEntry
+                {
+                    Person = new PersonId("maria falk|sundsvalls ok"),
+                    Name = "Maria Falk",
+                    Club = "Sundsvalls OK",
+                    Class = "Blå 3,0",
+                    StartTime = null,
+                    Status = LiveStatus.NotStarted,
+                },
+            ],
+        });
+
+        Assert.DoesNotContain("startTime", body);
+
+        var snapshot = await SourceReturning(HttpStatusCode.OK, body).GetSnapshotAsync(Sprint.Id);
+
+        Assert.Null(Assert.Single(snapshot.Entries).StartTime);
+    }
+
     private BackendSource SourceReturning(HttpStatusCode status, string body) =>
         new(
             new HttpClient(new StubHandler(status, body)) { BaseAddress = new Uri("http://localhost:7071/api/") },

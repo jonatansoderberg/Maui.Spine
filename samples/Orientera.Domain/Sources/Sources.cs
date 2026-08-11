@@ -89,7 +89,18 @@ public sealed record LiveEntry
     public required string Club { get; init; }
     public string? ClubLogo { get; init; }
     public required string Class { get; init; }
-    public required DateTimeOffset StartTime { get; init; }
+
+    /// <summary>
+    /// Null when the source has no start time for this runner. It is what separates a runner who
+    /// has not started yet from one who never will, and both arrive as
+    /// <see cref="LiveStatus.NotStarted"/>.
+    /// </summary>
+    /// <remarks>
+    /// Not <c>required</c>: the BFF omits null members (<see cref="OrienteraJson"/>), so a
+    /// required property that is allowed to be null is one the app cannot deserialise.
+    /// </remarks>
+    public DateTimeOffset? StartTime { get; init; }
+
     public required LiveStatus Status { get; init; }
 
     /// <summary>Every radio control passed so far, in course order.</summary>

@@ -13,3 +13,6 @@ Rör dem inte i onödan. De bär tre saker som normaliseringen finns för:
   giltig JSON, och varje strikt parser vägrar den. Filen ska behålla tabben.
 - Samma fält är ibland tal, ibland sträng, ibland tom sträng (`result`, `timeplus`, `splits`).
 - Tider är hundradels sekund, och starttid är hundradelar sedan midnatt — utan datum.
+- `classresults-vit20.json` (hämtad 2026-08-11, hel klass) bär **starttid som tom sträng** för två
+  löpare som aldrig startade. Det är skillnaden mellan "har inte startat än" och "startade
+  aldrig", och den finns bara i det här svaret (#65).
