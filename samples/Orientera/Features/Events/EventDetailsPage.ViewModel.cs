@@ -39,6 +39,7 @@ public partial class EventDetailsPageViewModel(
     IPeopleSource _people,
     IParticipationSource _participation,
     ILiveSource _live,
+    ILiveloxSource _livelox,
     OfflinePackageService _offline,
     CompetitionContextService _context,
     CompetitionClassStore _classes,
@@ -104,6 +105,16 @@ public partial class EventDetailsPageViewModel(
     // ---- sections ----
     [ObservableProperty] public partial bool HasBriefing { get; set; }
     [ObservableProperty] public partial bool HasDocuments { get; set; }
+
+    // ---- Livelox ----
+
+    /// <summary>
+    /// Livelox has this competition and there is something there to look at. An event with no
+    /// participants and no map is a shell, and a link to it is a dead end.
+    /// </summary>
+    [ObservableProperty] public partial bool HasLivelox { get; set; }
+
+    [ObservableProperty] public partial string LiveloxText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool CanFollowLive { get; set; }
     [ObservableProperty] public partial bool HasResults { get; set; }
 
@@ -188,6 +199,48 @@ public partial class EventDetailsPageViewModel(
             default:
                 break;
         }
+    }
+
+    private LiveloxLink? _liveloxLink;
+
+    /// <summary>
+    /// Looks up the competition in Livelox.
+    /// </summary>
+    /// <remarks>
+    /// A link, and only a link. Livelox keeps maps and routes deliberately — for copyright,
+    /// attribution and privacy — and no API returns them. Course data does have an endpoint, but
+    /// it is scoped and our key does not carry <c>courses.read</c> (SP-07). Offering the door and
+    /// saying whose house it is beats pretending the app has what is behind it.
+    /// </remarks>
+    private async Task LoadLiveloxAsync(CompetitionId competition)
+    {
+        _liveloxLink = null;
+        HasLivelox = false;
+
+        try
+        {
+            _liveloxLink = await _livelox.GetLiveloxAsync(competition);
+        }
+        catch (SourceUnavailableException)
+        {
+            return;
+        }
+
+        if (_liveloxLink is not { } link || (!link.HasMap && link.Participants == 0))
+            return;
+
+        HasLivelox = true;
+
+        LiveloxText = link.Participants > 0
+            ? $"{link.Participants} löpares vägval i Livelox"
+            : "Karta och banor i Livelox";
+    }
+
+    [RelayCommand]
+    private async Task OpenLivelox()
+    {
+        if (_liveloxLink is { Url: { Length: > 0 } url })
+            await Launcher.OpenAsync(url);
     }
 
     /// <summary>
@@ -395,6 +448,8 @@ public partial class EventDetailsPageViewModel(
             : string.Empty;
 
         CanFollowLive = _decision.State == ContextState.Live && await HasLiveSourceAsync(competition.Id);
+
+        await LoadLiveloxAsync(competition.Id);
 
         // The big button routes through the same action, so it lies in the same way. A race with
         // no live source has nothing to offer here; the quick actions below still do.

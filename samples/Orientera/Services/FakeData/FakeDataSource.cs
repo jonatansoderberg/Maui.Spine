@@ -247,6 +247,15 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
         return Task.FromResult(snapshot);
     }
 
+    // ---------------------------------------------------------------- ILiveloxSource
+
+    /// <summary>
+    /// Nothing. The seeded competitions do not exist in Livelox, and a link that opens somebody
+    /// else's real event from a made-up one would be the demo lying about the outside world.
+    /// </summary>
+    public Task<LiveloxLink?> GetLiveloxAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
+        Task.FromResult<LiveloxLink?>(null);
+
     // ---------------------------------------------------------------- IProgressSource
 
     public Task<RankingSnapshot?> GetRankingAsync(PersonId person, CancellationToken cancellationToken = default) =>

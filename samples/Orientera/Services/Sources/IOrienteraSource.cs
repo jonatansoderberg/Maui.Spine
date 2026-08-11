@@ -6,4 +6,4 @@ namespace Orientera.Services.Sources;
 /// without any of them knowing.
 /// </summary>
 public interface IOrienteraSource
-    : IEventSource, IPeopleSource, IParticipationSource, ILiveSource, IProgressSource;
+    : IEventSource, IPeopleSource, IParticipationSource, ILiveSource, IProgressSource, ILiveloxSource;

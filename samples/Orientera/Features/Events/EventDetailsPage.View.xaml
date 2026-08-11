@@ -214,6 +214,32 @@
             </VerticalStackLayout>
 
             <!-- ============ Dokument ============ -->
+            <!-- Livelox äger kartorna och vägvalen; appen erbjuder dörren och säger vems huset är -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasLivelox}">
+                <Label Style="{StaticResource SectionLabel}" Text="Vägval" />
+
+                <Border Style="{StaticResource Card}" Padding="14,12"
+                        SemanticProperties.Hint="Öppnas i Livelox utanför appen">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Grid.Column="0" Spacing="1">
+                            <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding LiveloxText}" />
+                            <Label Style="{StaticResource CaptionLabel}"
+                                   Text="Kartor och rutter visas av Livelox" />
+                        </VerticalStackLayout>
+                        <Label Grid.Column="1"
+                               Style="{StaticResource BodyLabel}"
+                               TextColor="{DynamicResource TextSecondary}"
+                               VerticalOptions="Center"
+                               AutomationProperties.IsInAccessibleTree="False"
+                               Text="&#x2197;&#xFE0E;" />
+                    </Grid>
+
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding OpenLiveloxCommand}" />
+                    </Border.GestureRecognizers>
+                </Border>
+            </VerticalStackLayout>
+
             <VerticalStackLayout Spacing="8" IsVisible="{Binding HasDocuments}">
                 <Label Style="{StaticResource SectionLabel}" Text="Dokument" />
 
