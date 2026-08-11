@@ -65,6 +65,29 @@ public sealed class LiveResultsNormalizer(TimeZoneInfo _zone)
         return [.. list.EnumerateArray().Select(c => Text(c, "className")).OfType<string>()];
     }
 
+    /// <summary>The class' radio controls, in the order the course passes them.</summary>
+    public IReadOnlyList<LiveControl> Controls(JsonElement payload)
+    {
+        if (!payload.TryGetProperty("splitcontrols", out var list) || list.ValueKind != JsonValueKind.Array)
+            return [];
+
+        var controls = new List<LiveControl>(list.GetArrayLength());
+
+        foreach (var element in list.EnumerateArray())
+        {
+            if (Integer(element, "code") is not { } code)
+                continue;
+
+            controls.Add(new LiveControl
+            {
+                Code = code,
+                Name = Text(element, "name") ?? code.ToString(CultureInfo.InvariantCulture),
+            });
+        }
+
+        return controls;
+    }
+
     /// <summary>
     /// One class' rows. <paramref name="date"/> is the competition's date, because LiveResults
     /// reports a start time as a clock reading without saying which day it belongs to.
@@ -78,18 +101,20 @@ public sealed class LiveResultsNormalizer(TimeZoneInfo _zone)
         if (!payload.TryGetProperty("results", out var list) || list.ValueKind != JsonValueKind.Array)
             return [];
 
+        var controls = Controls(payload);
         var entries = new List<LiveEntry>(list.GetArrayLength());
 
         foreach (var element in list.EnumerateArray())
         {
             var name = Text(element, "name") ?? string.Empty;
             var club = Text(element, "club") ?? string.Empty;
-            var splits = Splits(element);
-            Passing? last = splits.Count > 0 ? splits[^1] : null;
+            var passings = Passings(element, controls);
+            var last = passings.Count > 0 ? passings[^1] : null;
 
             int rawStatus = Integer(element, "status") ?? 0;
-            var status = StatusOf(rawStatus, splits.Count > 0);
+            var status = StatusOf(rawStatus, passings.Count > 0);
             var time = Duration(element, "result");
+            bool finished = status == LiveStatus.Finished;
 
             entries.Add(new LiveEntry
             {
@@ -100,14 +125,14 @@ public sealed class LiveResultsNormalizer(TimeZoneInfo _zone)
                 Class = className,
                 StartTime = StartOf(element, date),
                 Status = status,
-                LastControlNumber = last?.Control,
-                ElapsedAtLastControl = last?.Elapsed,
+                Passings = passings,
                 // Position is the standing in the class either way: at the last radio while
                 // running, at the finish once finished. The live list sorts on it, so leaving
                 // it out for finished runners scatters them through the field.
-                Position = status == LiveStatus.Finished ? Integer(element, "place") : last?.Place,
-                FinishTime = status is LiveStatus.Finished ? time : null,
-                FinalPlace = status == LiveStatus.Finished ? Integer(element, "place") : null,
+                Position = finished ? Integer(element, "place") : last?.Place,
+                FinishTime = finished ? time : null,
+                FinalPlace = finished ? Integer(element, "place") : null,
+                FinishBehind = finished ? Duration(element, "timeplus") : null,
             });
         }
 
@@ -136,31 +161,34 @@ public sealed class LiveResultsNormalizer(TimeZoneInfo _zone)
     }
 
     /// <summary>
-    /// Radio controls, in passing order. The keys are control codes with sibling keys for
-    /// status, place and time behind — <c>1079</c>, <c>1079_place</c> and so on.
+    /// The radio controls this runner has reached, in course order. The keys are control codes
+    /// with sibling keys for status, place and time behind — <c>1079</c>, <c>1079_place</c> and
+    /// so on; a control the runner has not passed carries an empty string.
     /// </summary>
-    private static IReadOnlyList<Passing> Splits(JsonElement element)
+    private static IReadOnlyList<LivePassing> Passings(JsonElement element, IReadOnlyList<LiveControl> controls)
     {
         if (!element.TryGetProperty("splits", out var splits) || splits.ValueKind != JsonValueKind.Object)
             return [];
 
-        var passings = new List<Passing>();
+        var passings = new List<LivePassing>(controls.Count);
 
-        foreach (var property in splits.EnumerateObject())
+        foreach (var control in controls)
         {
-            if (property.Name.Contains('_') || !int.TryParse(property.Name, out int control))
+            var key = control.Code.ToString(CultureInfo.InvariantCulture);
+
+            if (!splits.TryGetProperty(key, out var value) || Duration(value) is not { } elapsed)
                 continue;
 
-            if (Duration(property.Value) is not { } elapsed)
-                continue;
-
-            passings.Add(new Passing(
-                control,
-                elapsed,
-                Integer(splits, $"{property.Name}_place")));
+            passings.Add(new LivePassing
+            {
+                Control = control.Code,
+                Elapsed = elapsed,
+                Place = Integer(splits, $"{key}_place"),
+                Behind = Duration(splits, $"{key}_timeplus"),
+            });
         }
 
-        return [.. passings.OrderBy(p => p.Elapsed)];
+        return passings;
     }
 
     // ---------------------------------------------------------------- tolerant reads
@@ -202,6 +230,4 @@ public sealed class LiveResultsNormalizer(TimeZoneInfo _zone)
 
         return hundredths is > 0 ? TimeSpan.FromTicks((long)(hundredths.Value * TicksPerUnit)) : null;
     }
-
-    private readonly record struct Passing(int Control, TimeSpan Elapsed, int? Place);
 }

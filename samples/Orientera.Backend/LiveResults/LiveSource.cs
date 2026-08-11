@@ -78,13 +78,16 @@ public sealed class LiveSource(
         var organisations = await _eventor.DirectoryAsync(cancellationToken);
 
         var perClass = await Task.WhenAll(classes.Select(name =>
-            EntriesAsync(match.Competition, name, organisations, cancellationToken)));
+            ResultsAsync(match.Competition, name, organisations, cancellationToken)));
 
         return new LiveSnapshot
         {
             Competition = competition,
             GeneratedAt = now,
-            Entries = [.. perClass.SelectMany(entries => entries)],
+            Entries = [.. perClass.SelectMany(results => results.Entries)],
+            Controls = perClass
+                .Where(results => results.Controls.Count > 0)
+                .ToDictionary(results => results.Class, results => results.Controls),
         };
     }
 
@@ -124,7 +127,7 @@ public sealed class LiveSource(
             }, token)),
             cancellationToken);
 
-    private Task<IReadOnlyList<LiveEntry>> EntriesAsync(
+    private Task<ClassResults> ResultsAsync(
         LiveCompetition competition,
         string className,
         Eventor.OrganisationDirectory organisations,
@@ -141,7 +144,16 @@ public sealed class LiveSource(
                     ["unformattedTimes"] = "true",
                 }, token);
 
-                return _normalizer.Entries(payload, className, competition.Date, organisations);
+                return new ClassResults(
+                    className,
+                    _normalizer.Controls(payload),
+                    _normalizer.Entries(payload, className, competition.Date, organisations));
             },
             cancellationToken);
+
+    /// <summary>One class' rows and the radio controls its course passes, from one response.</summary>
+    private sealed record ClassResults(
+        string Class,
+        IReadOnlyList<LiveControl> Controls,
+        IReadOnlyList<LiveEntry> Entries);
 }

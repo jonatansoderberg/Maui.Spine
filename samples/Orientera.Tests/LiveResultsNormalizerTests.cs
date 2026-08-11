@@ -89,8 +89,63 @@ public class LiveResultsNormalizerTests
         // sorts on Position, so it has to hold the standing in both states.
         Assert.Equal(LiveStatus.Finished, second.Status);
         Assert.Equal(2, second.Position);
-        Assert.Equal(1088, second.LastControlNumber);
-        Assert.Equal(new TimeSpan(0, 37, 27), second.ElapsedAtLastControl);
+        Assert.Equal(1088, second.LastPassing?.Control);
+        Assert.Equal(new TimeSpan(0, 37, 27), second.LastPassing?.Elapsed);
+    }
+
+    /// <summary>The columns of the split table, and the order the course passes them.</summary>
+    [Fact]
+    public void The_class_carries_its_radio_controls_in_course_order()
+    {
+        var controls = _normalizer.Controls(Fixture.LiveResults("classresults-d21.json"));
+
+        Assert.Equal([1079, 1088], controls.Select(c => c.Code));
+
+        // The code the timing system uses is not the number written on the control.
+        Assert.Equal(["79", "88"], controls.Select(c => c.Name));
+    }
+
+    /// <summary>
+    /// Every passing, not just the last one: place and time behind at each radio is what makes
+    /// a runner's progress through the field readable.
+    /// </summary>
+    [Fact]
+    public void A_runner_carries_every_radio_passing_with_place_and_time_behind()
+    {
+        var third = D21().First(e => e.Name == "Emma Blixt");
+
+        Assert.Equal([1079, 1088], third.Passings.Select(p => p.Control));
+        Assert.Equal([5, 3], third.Passings.Select(p => p.Place));
+
+        Assert.Equal(new TimeSpan(0, 25, 7), third.Passings[0].Elapsed);
+        Assert.Equal(new TimeSpan(0, 3, 47), third.Passings[0].Behind);
+
+        // Fifth at 79 and third at 88: she ran into the field, which is the whole point of
+        // showing the controls beside each other.
+        Assert.Equal(new TimeSpan(0, 4, 18), third.Passings[1].Behind);
+    }
+
+    [Fact]
+    public void The_class_winner_is_the_one_with_no_time_behind()
+    {
+        var winner = D21().First(e => e.Name == "Jennie Börjesson Eriksson");
+
+        Assert.All(winner.Passings, passing => Assert.Equal(1, passing.Place));
+        Assert.All(winner.Passings, passing => Assert.Null(passing.Behind));
+        Assert.Null(winner.FinishBehind);
+
+        Assert.Equal(new TimeSpan(0, 4, 14), D21().First(e => e.Name == "Emma Blixt").FinishBehind);
+    }
+
+    /// <summary>A mispunch has times at the radios but no place at any of them.</summary>
+    [Fact]
+    public void A_mispunch_is_timed_but_not_placed()
+    {
+        var mispunch = H21().First(e => e.Name == "Pavel Balabanov");
+
+        Assert.Equal([1079, 1088], mispunch.Passings.Select(p => p.Control));
+        Assert.Equal(new TimeSpan(0, 30, 13), mispunch.Passings[0].Elapsed);
+        Assert.All(mispunch.Passings, passing => Assert.Null(passing.Place));
     }
 
     [Theory]
@@ -106,7 +161,7 @@ public class LiveResultsNormalizerTests
         var absent = H21().First(e => e.Name == "Bo Roger Nordström");
 
         Assert.Null(absent.FinishTime);
-        Assert.Null(absent.ElapsedAtLastControl);
+        Assert.Empty(absent.Passings);
         Assert.Null(absent.FinalPlace);
     }
 

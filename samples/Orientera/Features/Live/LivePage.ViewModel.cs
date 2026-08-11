@@ -13,6 +13,53 @@ public enum LiveScope
     Everyone,
 }
 
+/// <summary>
+/// One runner at one radio control: accumulated time, the standing at that control, and the
+/// time behind whoever leads it. The finish is the last column and reads the same way.
+/// </summary>
+public sealed partial class LiveCell : ObservableObject
+{
+    /// <summary>The control as it is written in the forest, or "Mål" for the finish column.</summary>
+    public required string Control { get; init; }
+
+    [ObservableProperty] public partial string TimeText { get; set; } = "—";
+
+    /// <summary>Place and time behind on one line: "(3) +1:07".</summary>
+    [ObservableProperty] public partial string DetailText { get; set; } = string.Empty;
+
+    /// <summary>The control's leader, marked in the accent colour.</summary>
+    [ObservableProperty] public partial bool IsLeading { get; set; }
+
+    /// <summary>
+    /// A cell is its own element to a screen reader — a row of twelve unlabelled numbers is
+    /// unreadable, so every cell says which control it belongs to.
+    /// </summary>
+    [ObservableProperty] public partial string Accessibility { get; set; } = string.Empty;
+
+    public void Update(TimeSpan? time, int? place, TimeSpan? behind)
+    {
+        TimeText = time is { } t ? Format.Time(t) : "—";
+        IsLeading = place == 1;
+
+        DetailText = (place, behind) switch
+        {
+            (null, _) => string.Empty,
+            ({ } p, { Ticks: > 0 } b) => $"({p}) {Format.Delta(b)}",
+            ({ } p, _) => $"({p})",
+        };
+
+        Accessibility = time is null
+            ? $"{Control}, ingen tid"
+            : string.Join(", ", new[]
+            {
+                Control,
+                Format.SpokenTime(time),
+                place is null ? null : Format.SpokenPlace(place),
+                behind is { Ticks: > 0 } ? Format.SpokenDelta(behind) : null,
+            }.OfType<string>());
+    }
+}
+
 public sealed partial class LiveRow : ObservableObject
 {
     public required PersonId Person { get; init; }
@@ -30,25 +77,30 @@ public sealed partial class LiveRow : ObservableObject
 
     public required bool IsInMyGroup { get; init; }
 
-    [ObservableProperty] public partial string PositionText { get; set; } = string.Empty;
-    [ObservableProperty] public partial string ProgressText { get; set; } = string.Empty;
-    [ObservableProperty] public partial string TimeText { get; set; } = string.Empty;
-    [ObservableProperty] public partial bool IsFinished { get; set; }
-    [ObservableProperty] public partial bool IsRunning { get; set; }
-    [ObservableProperty] public partial bool HasNotStarted { get; set; }
+    /// <summary>
+    /// One cell per column of the class' split table, in course order with the finish last.
+    /// The collection is built once per row: a poll writes new values into the cells, so the
+    /// table never relays under a finger that is scrolling it.
+    /// </summary>
+    public required IReadOnlyList<LiveCell> Cells { get; init; }
+
+    /// <summary>Only what the table cannot say: a start time, a broken race, a mispunch.</summary>
+    [ObservableProperty] public partial string StatusText { get; set; } = string.Empty;
+
+    [ObservableProperty] public partial bool HasStatus { get; set; }
 
     public string GroupGlyph => IsInMyGroup ? "★" : string.Empty;
 
     /// <summary>
-    /// The row as one spoken line. Times are spelled out — "40:43" is read as a clock time,
-    /// which is wrong for an elapsed race time.
+    /// Who the row is, for a screen reader. The numbers are in the cells, each of which is read
+    /// as its own element with the control it belongs to.
     /// </summary>
     [ObservableProperty]
     public partial string Accessibility { get; set; } = string.Empty;
 
-    public void UpdateAccessibility(int? place, TimeSpan? time)
+    public void UpdateAccessibility()
     {
-        var parts = new List<string>(6);
+        var parts = new List<string>(5);
 
         if (IsMe)
             parts.Add("du");
@@ -60,22 +112,20 @@ public sealed partial class LiveRow : ObservableObject
 
         parts.Add($"{Club}, klass {Class}");
 
-        if (place is not null)
-            parts.Add(Format.SpokenPlace(place));
-
-        parts.Add(ProgressText);
-
-        if (time is not null)
-            parts.Add(Format.SpokenTime(time));
+        if (HasStatus)
+            parts.Add(StatusText);
 
         Accessibility = string.Join(", ", parts);
     }
 }
 
-/// <summary>One class' rows, with the class as the list's heading.</summary>
-public sealed class LiveClassGroup(string _name) : ObservableCollection<LiveRow>
+/// <summary>One class' rows, with the class and its radio controls as the table's heading.</summary>
+public sealed class LiveClassGroup(string _name, IReadOnlyList<string> _columns) : ObservableCollection<LiveRow>
 {
     public string Name => _name;
+
+    /// <summary>The column headings: each radio control, then the finish.</summary>
+    public IReadOnlyList<string> Columns => _columns;
 
     public string Accessibility => $"Klass {_name}";
 }
@@ -88,12 +138,23 @@ public partial class LivePageViewModel(
     /// <summary>LiveResults caches for 15 seconds, so polling faster only wastes data.</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
 
+    /// <summary>
+    /// The name column stays put while the controls scroll past it, so how wide the table is
+    /// depends on layout. These two are the same numbers the view lays the columns out with
+    /// (<c>LivePage.View.xaml</c>); the table would scroll to the wrong place if they drifted.
+    /// </summary>
+    public const double FrozenWidth = 156;
+
+    public const double CellWidth = 82;
+
     private CancellationTokenSource? _polling;
     private Competition? _competition;
     private Person? _me;
     private IReadOnlyList<RunnerIdentity> _group = [];
     private RunnerIdentity _meIdentity;
     private DateTimeOffset _lastUpdate;
+    private IReadOnlyDictionary<string, IReadOnlyList<LiveControl>> _controls =
+        new Dictionary<string, IReadOnlyList<LiveControl>>();
 
     public ObservableCollection<LiveRow> Rows { get; } = [];
 
@@ -113,8 +174,18 @@ public partial class LivePageViewModel(
     [ObservableProperty] public partial string CompetitionName { get; set; } = string.Empty;
     [ObservableProperty] public partial string UpdatedText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasLive { get; set; }
-    [ObservableProperty] public partial bool IsEmpty { get; set; }
+
+    /// <summary>How wide the table is with every column laid out — what the view scrolls across.</summary>
+    [ObservableProperty] public partial double TableWidth { get; set; } = FrozenWidth + CellWidth;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRows))]
+    public partial bool IsEmpty { get; set; }
+
     [ObservableProperty] public partial string EmptyMessage { get; set; } = string.Empty;
+
+    /// <summary>The table is a sheet of its own; it must not cover the empty state.</summary>
+    public bool HasRows => !IsEmpty;
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
@@ -232,6 +303,7 @@ public partial class LivePageViewModel(
             _competition.Id,
             Scope == LiveScope.MyClass ? _me.DefaultClass : null);
         _lastUpdate = snapshot.GeneratedAt;
+        bool columnsChanged = AdoptControls(snapshot);
 
         // A place means something inside its class, so the class orders the list and the
         // place orders the class.
@@ -243,7 +315,7 @@ public partial class LivePageViewModel(
             .ThenBy(e => e.StartTime)
             .ToList();
 
-        if (Merge(visible))
+        if (Merge(visible, columnsChanged))
             Regroup();
 
         IsEmpty = Rows.Count == 0;
@@ -277,13 +349,34 @@ public partial class LivePageViewModel(
     }
 
     /// <summary>
+    /// Takes the snapshot's radio controls and says whether the columns moved. They only do so
+    /// when the competition changes or an organiser adds a radio mid-race, and a column that
+    /// appears has to rebuild the rows that were built without it.
+    /// </summary>
+    private bool AdoptControls(LiveSnapshot snapshot)
+    {
+        bool changed =
+            snapshot.Controls.Count != _controls.Count
+            || snapshot.Controls.Any(pair =>
+                !_controls.TryGetValue(pair.Key, out var known)
+                || !known.Select(c => c.Code).SequenceEqual(pair.Value.Select(c => c.Code)));
+
+        if (changed)
+            _controls = snapshot.Controls;
+
+        return changed;
+    }
+
+    /// <summary>
     /// Updates the existing rows in place where possible. Live updates animate the value,
     /// never the layout — rebuilding the collection would make the list jump on every poll.
     /// </summary>
     /// <summary>Returns true when the rows themselves changed, not just their values.</summary>
-    private bool Merge(IReadOnlyList<LiveEntry> entries)
+    private bool Merge(IReadOnlyList<LiveEntry> entries, bool columnsChanged)
     {
-        if (Rows.Count != entries.Count || !Rows.Select(r => r.Person).SequenceEqual(entries.Select(e => e.Person)))
+        if (columnsChanged
+            || Rows.Count != entries.Count
+            || !Rows.Select(r => r.Person).SequenceEqual(entries.Select(e => e.Person)))
         {
             Rows.Clear();
 
@@ -309,14 +402,24 @@ public partial class LivePageViewModel(
 
         foreach (var byClass in Rows.GroupBy(r => r.Class))
         {
-            var group = new LiveClassGroup(byClass.Key);
+            var group = new LiveClassGroup(byClass.Key, Columns(byClass.Key));
 
             foreach (var row in byClass)
                 group.Add(row);
 
             Groups.Add(group);
         }
+
+        int widest = Groups.Count > 0 ? Groups.Max(g => g.Columns.Count) : 1;
+        TableWidth = FrozenWidth + (widest * CellWidth);
     }
+
+    /// <summary>The class' radio controls as headings, with the finish as the last column.</summary>
+    private IReadOnlyList<string> Columns(string className) =>
+        [.. ControlsFor(className).Select(c => c.Name), "Mål"];
+
+    private IReadOnlyList<LiveControl> ControlsFor(string className) =>
+        _controls.TryGetValue(className, out var controls) ? controls : [];
 
     private LiveRow CreateRow(LiveEntry entry)
     {
@@ -329,43 +432,37 @@ public partial class LivePageViewModel(
             Class = entry.Class,
             IsMe = IsMe(entry),
             IsInMyGroup = IsGroup(entry),
+            Cells = [.. Columns(entry.Class).Select(control => new LiveCell { Control = control })],
         };
 
         Apply(row, entry);
         return row;
     }
 
-    private static void Apply(LiveRow row, LiveEntry entry)
+    private void Apply(LiveRow row, LiveEntry entry)
     {
-        row.IsFinished = entry.Status is LiveStatus.Finished or LiveStatus.Mispunch;
-        row.IsRunning = entry.Status == LiveStatus.Running;
-        row.HasNotStarted = entry.Status == LiveStatus.NotStarted;
-
-        int? place = entry.Status switch
-        {
-            LiveStatus.Finished => entry.FinalPlace,
-            LiveStatus.Mispunch or LiveStatus.NotStarted => null,
-            _ => entry.Position,
-        };
-
-        row.PositionText = place is { } p ? Format.Place(p) : "—";
-
-        row.ProgressText = entry.Status switch
+        // The table carries the race; the row only says what the table cannot.
+        row.StatusText = entry.Status switch
         {
             LiveStatus.NotStarted => $"Start {Format.Clock(entry.StartTime)}",
             LiveStatus.Mispunch => "Felstämplat",
-            LiveStatus.Finished => "I mål",
-            _ => entry.LastControlNumber is { } control ? $"Kontroll {control}" : "Startat",
+            LiveStatus.DidNotFinish => "Bröt",
+            LiveStatus.Running when entry.Passings.Count == 0 => "Startad",
+            _ => string.Empty,
         };
 
-        var time = entry.Status switch
+        row.HasStatus = row.StatusText.Length > 0;
+        row.UpdateAccessibility();
+
+        var controls = ControlsFor(entry.Class);
+
+        for (int i = 0; i < controls.Count && i < row.Cells.Count; i++)
         {
-            LiveStatus.Finished => entry.FinishTime,
-            LiveStatus.NotStarted => null,
-            _ => entry.ElapsedAtLastControl,
-        };
+            var passing = entry.Passings.FirstOrDefault(p => p.Control == controls[i].Code);
+            row.Cells[i].Update(passing?.Elapsed, passing?.Place, passing?.Behind);
+        }
 
-        row.TimeText = time is { } t ? Format.Time(t) : "—";
-        row.UpdateAccessibility(place, time);
+        if (row.Cells.Count > 0)
+            row.Cells[^1].Update(entry.FinishTime, entry.FinalPlace, entry.FinishBehind);
     }
 }

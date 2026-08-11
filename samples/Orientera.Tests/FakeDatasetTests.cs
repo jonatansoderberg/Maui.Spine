@@ -1,5 +1,7 @@
 using Orientera.Services.Context;
 using Orientera.Services.FakeData;
+using Orientera.Services.Sources;
+using Orientera.Services.Time;
 
 namespace Orientera.Tests;
 
@@ -198,5 +200,52 @@ public class FakeDatasetTests
             Assert.True(p.HighPlace <= p.FieldSize);
             Assert.NotEmpty(p.Drivers);
         });
+    }
+
+    /// <summary>
+    /// A live snapshot reports the radio controls, not every control on the course — a
+    /// competition puts a radio at a couple of them, and the split table has one column each.
+    /// </summary>
+    [Fact]
+    public async Task A_live_snapshot_carries_the_classes_radio_controls()
+    {
+        var source = new FakeDataSource(new TimeMachineClock(FakeDataset.DefaultNow));
+
+        var snapshot = await source.GetSnapshotAsync(FakeDataset.NmLongId);
+        var controls = snapshot.ControlsFor("D21");
+
+        var course = Data.Runs[FakeDataset.NmLongId].First(r => r.Class == "D21").Splits;
+
+        Assert.NotEmpty(controls);
+        Assert.True(controls.Count < course.Count);
+        Assert.DoesNotContain(controls, c => c.Code == course[^1].ControlNumber);
+        Assert.Equal(controls.Select(c => c.Code).Order(), controls.Select(c => c.Code));
+    }
+
+    /// <summary>
+    /// A runner out on the course has passed some of the radios and not the rest, which is the
+    /// state the split table exists to show.
+    /// </summary>
+    [Fact]
+    public async Task A_runner_in_the_forest_has_passed_some_of_the_radios()
+    {
+        var source = new FakeDataSource(new TimeMachineClock(FakeDataset.DefaultNow));
+
+        var snapshot = await source.GetSnapshotAsync(FakeDataset.NmLongId);
+        var running = snapshot.Entries.Where(e => e.Status == LiveStatus.Running).ToList();
+
+        Assert.NotEmpty(running);
+        Assert.Contains(running, e => e.Passings.Count > 0);
+
+        Assert.All(running, entry =>
+        {
+            Assert.True(entry.Passings.Count <= snapshot.ControlsFor(entry.Class).Count);
+            Assert.Equal(entry.Passings.Select(p => p.Elapsed).Order(), entry.Passings.Select(p => p.Elapsed));
+        });
+
+        // Someone leads every radio that anyone has reached, and a run that will not be ranked
+        // is timed at the radios without being placed at them.
+        Assert.Contains(snapshot.Entries.SelectMany(e => e.Passings), passing => passing.Place == 1);
+        Assert.All(snapshot.Entries.SelectMany(e => e.Passings), passing => Assert.True(passing.Place is null or >= 1));
     }
 }

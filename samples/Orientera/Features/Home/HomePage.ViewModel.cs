@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using Orientera.Domain;
 using Orientera.Features.Dev;
 using Orientera.Features.Events;
@@ -147,8 +148,8 @@ public partial class HomePageViewModel(
 
         string status = mine switch
         {
-            { Status: LiveStatus.Running, LastControlNumber: { } control, Position: { } position } =>
-                $"Du är vid kontroll {control}, {Format.Place(position)} i {mine.Class}",
+            { Status: LiveStatus.Running, LastPassing.Control: var control, Position: { } position } =>
+                $"Du är vid kontroll {ControlName(mine.Class, control)}, {Format.Place(position)} i {mine.Class}",
             { Status: LiveStatus.Finished, FinalPlace: { } place } =>
                 $"Du är i mål, {Format.Place(place)}",
             { Status: LiveStatus.NotStarted } =>
@@ -165,6 +166,12 @@ public partial class HomePageViewModel(
             MyStatus = status,
             ActionText = "Följ live",
         };
+
+        // The live source numbers a radio control by its timing-system code; the number written
+        // on the control in the forest is the one a runner recognises.
+        string ControlName(string className, int code) =>
+            snapshot.ControlsFor(className).FirstOrDefault(c => c.Code == code)?.Name
+                ?? code.ToString(CultureInfo.InvariantCulture);
     }
 
     private async Task<NextForMeBlock?> BuildNextForMeAsync(
