@@ -98,6 +98,9 @@ public static class MauiProgram
         services.AddSingleton(_ => new LocalIdentityStore(
             Path.Combine(FileSystem.AppDataDirectory, "identity.json")));
 
+        services.AddSingleton(_ => new LiveClassStore(
+            Path.Combine(FileSystem.AppDataDirectory, "live-classes.json")));
+
         // One seam, two implementations: the seeded dataset, or the BFF over the same
         // contracts. Everything above reads the narrow interfaces and cannot tell which.
         if (string.IsNullOrWhiteSpace(backendAddress))

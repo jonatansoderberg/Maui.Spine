@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using Orientera.Domain;
+using Orientera.Features.Events;
 using Orientera.Presentation;
+using Orientera.Services.Local;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 
@@ -10,7 +12,9 @@ public enum LiveScope
 {
     MyGroup,
     MyClass,
-    Everyone,
+
+    /// <summary>One class the user picked, which is the only way to reach the rest of the field.</summary>
+    Class,
 }
 
 /// <summary>
@@ -133,7 +137,10 @@ public sealed class LiveClassGroup(string _name, IReadOnlyList<string> _columns)
 public partial class LivePageViewModel(
     IClock _clock,
     ILiveSource _live,
-    IPeopleSource _people) : OrienteraViewModel
+    IEventSource _events,
+    IPeopleSource _people,
+    INavigationService _navigation,
+    LiveClassStore _classes) : OrienteraViewModel
 {
     /// <summary>LiveResults caches for 15 seconds, so polling faster only wastes data.</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
@@ -156,6 +163,11 @@ public partial class LivePageViewModel(
     private IReadOnlyDictionary<string, IReadOnlyList<LiveControl>> _controls =
         new Dictionary<string, IReadOnlyList<LiveControl>>();
 
+    /// <summary>The competition whose classes have been read, so a poll does not read them again.</summary>
+    private CompetitionId? _adopted;
+
+    private IReadOnlyList<string> _classList = [];
+
     public ObservableCollection<LiveRow> Rows { get; } = [];
 
     /// <summary>
@@ -164,12 +176,26 @@ public partial class LivePageViewModel(
     /// </summary>
     public ObservableCollection<LiveClassGroup> Groups { get; } = [];
 
-    public IReadOnlyList<string> ScopeLabels { get; } = ["Min grupp", "Min klass", "Alla"];
-
     [ObservableProperty] public partial LiveScope Scope { get; set; } = LiveScope.MyGroup;
     [ObservableProperty] public partial bool IsMyGroup { get; set; } = true;
     [ObservableProperty] public partial bool IsMyClass { get; set; }
-    [ObservableProperty] public partial bool IsEveryone { get; set; }
+    [ObservableProperty] public partial bool IsClass { get; set; }
+
+    /// <summary>
+    /// The picked class, or null before anything is picked. The competition's own classes are
+    /// what the picker offers, so this is always one of them.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ClassChipText))]
+    public partial string? SelectedClass { get; set; }
+
+    public string ClassChipText => SelectedClass ?? "Välj klass";
+
+    /// <summary>
+    /// False for a competition whose classes Eventor does not list — a chip that opens an empty
+    /// picker is worse than no chip.
+    /// </summary>
+    [ObservableProperty] public partial bool CanPickClass { get; set; }
 
     [ObservableProperty] public partial string CompetitionName { get; set; } = string.Empty;
     [ObservableProperty] public partial string UpdatedText { get; set; } = string.Empty;
@@ -217,12 +243,36 @@ public partial class LivePageViewModel(
     }
 
     [RelayCommand]
-    private async Task SelectScope(string scope)
+    private async Task SelectScope(string scope) => await ApplyScopeAsync(Enum.Parse<LiveScope>(scope));
+
+    /// <summary>
+    /// The class chip is a picker, not a filter: tapping it always asks which class, because the
+    /// competition has forty of them and the answer is the whole point of the chip.
+    /// </summary>
+    [RelayCommand]
+    private async Task PickClass()
     {
-        Scope = Enum.Parse<LiveScope>(scope);
-        IsMyGroup = Scope == LiveScope.MyGroup;
-        IsMyClass = Scope == LiveScope.MyClass;
-        IsEveryone = Scope == LiveScope.Everyone;
+        if (_competition is not { } competition || _classList.Count == 0)
+            return;
+
+        var choice = await _navigation.NavigateToWithResultAsync<ChooseClassSheet, ClassChoice, string>(
+            new ClassChoice(_classList, "Livelistan visar klassen du väljer."));
+
+        if (choice is not { IsSuccess: true, Value: { } className })
+            return;
+
+        SelectedClass = className;
+        _classes.Save(competition.Id, className);
+
+        await ApplyScopeAsync(LiveScope.Class);
+    }
+
+    private async Task ApplyScopeAsync(LiveScope scope)
+    {
+        Scope = scope;
+        IsMyGroup = scope == LiveScope.MyGroup;
+        IsMyClass = scope == LiveScope.MyClass;
+        IsClass = scope == LiveScope.Class;
 
         await LoadAsync(RefreshAsync);
 
@@ -230,8 +280,15 @@ public partial class LivePageViewModel(
             ShowOffline();
 
         // The list is replaced under the reader's cursor; say what it now shows.
-        SemanticScreenReader.Default.Announce($"{ScopeLabels[(int)Scope]}, {Rows.Count} löpare");
+        SemanticScreenReader.Default.Announce($"{ScopeLabel}, {Rows.Count} löpare");
     }
+
+    private string ScopeLabel => Scope switch
+    {
+        LiveScope.MyGroup => "Min grupp",
+        LiveScope.MyClass => "Min klass",
+        _ => ClassChipText,
+    };
 
     /// <summary>
     /// Polls on the same cadence as the upstream cache. Only the changing values on each row
@@ -296,12 +353,11 @@ public partial class LivePageViewModel(
         }
 
         CompetitionName = _competition.Name;
+        await AdoptCompetitionAsync(_competition);
 
-        // One class is one upstream request; the other scopes have to look across all of them,
-        // because Min grupp does not run in a single class.
-        var snapshot = await _live.GetSnapshotAsync(
-            _competition.Id,
-            Scope == LiveScope.MyClass ? _me.DefaultClass : null);
+        // One class is one upstream request; Min grupp is the only scope that has to look across
+        // all of them, because a group does not run in a single class.
+        var snapshot = await _live.GetSnapshotAsync(_competition.Id, ClassInScope());
         _lastUpdate = snapshot.GeneratedAt;
         bool columnsChanged = AdoptControls(snapshot);
 
@@ -333,11 +389,49 @@ public partial class LivePageViewModel(
         EmptyMessage = "Ingen anslutning. Live behöver nätverk — starttider för dig och Min grupp finns sparade på tävlingssidan.";
     }
 
+    /// <summary>
+    /// The competition's classes and the class the user last followed in it — read once per
+    /// competition, not on every poll.
+    /// </summary>
+    /// <remarks>
+    /// The live list only carries the calendar's projection of a competition, and that one has no
+    /// classes; they come with the competition's own page. Both sides cache it, so asking costs
+    /// nothing after the first time.
+    /// </remarks>
+    private async Task AdoptCompetitionAsync(Competition competition)
+    {
+        if (_adopted == competition.Id)
+            return;
+
+        _adopted = competition.Id;
+
+        var detailed = await _events.GetCompetitionAsync(competition.Id);
+        _classList = detailed?.Classes is { Count: > 0 } classes ? classes : competition.Classes;
+        CanPickClass = _classList.Count > 0;
+
+        // A remembered class the competition no longer lists is not a class any more.
+        if (_classes.For(competition.Id) is not { } remembered || !_classList.Contains(remembered))
+            return;
+
+        SelectedClass = remembered;
+        Scope = LiveScope.Class;
+        IsMyGroup = false;
+        IsClass = true;
+    }
+
+    /// <summary>The class to ask the source for, or null when the scope spans all of them.</summary>
+    private string? ClassInScope() => Scope switch
+    {
+        LiveScope.MyClass => _me!.DefaultClass,
+        LiveScope.Class => SelectedClass,
+        _ => null,
+    };
+
     private bool InScope(LiveEntry entry) => Scope switch
     {
         LiveScope.MyGroup => IsGroup(entry) || IsMe(entry),
         LiveScope.MyClass => entry.Class == _me!.DefaultClass,
-        _ => true,
+        _ => entry.Class == SelectedClass,
     };
 
     private bool IsMe(LiveEntry entry) => _meIdentity.Matches(RunnerIdentity.Of(entry.Name, entry.Club));

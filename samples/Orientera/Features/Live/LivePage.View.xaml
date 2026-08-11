@@ -27,8 +27,10 @@
                       Command="{Binding SelectScopeCommand}" CommandParameter="MyGroup" />
             <ChipView Text="Min klass" IsSelected="{Binding IsMyClass}"
                       Command="{Binding SelectScopeCommand}" CommandParameter="MyClass" />
-            <ChipView Text="Alla" IsSelected="{Binding IsEveryone}"
-                      Command="{Binding SelectScopeCommand}" CommandParameter="Everyone" />
+            <!-- Klasschipet är en väljare: att trycka på det frågar alltid vilken klass -->
+            <ChipView Text="{Binding ClassChipText}" IsSelected="{Binding IsClass}"
+                      IsVisible="{Binding CanPickClass}"
+                      Command="{Binding PickClassCommand}" />
         </HorizontalStackLayout>
 
         <VerticalStackLayout Grid.Row="2" Padding="32" Spacing="8" VerticalOptions="Center"
