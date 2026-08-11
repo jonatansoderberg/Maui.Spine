@@ -65,6 +65,8 @@
 		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.50" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
+		<!-- Kartmotor: se issue #49. SkiaSharp-versionen är densamma som Spine-pluginsen redan drar in. -->
+		<PackageReference Include="Mapsui.Maui" Version="5.1.0" />
 	</ItemGroup>
 
 	<ItemGroup>

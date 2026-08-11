@@ -9,6 +9,7 @@ using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 using Plugin.Maui.Spine.Extensions;
+using SkiaSharp.Views.Maui.Controls.Hosting;
 
 namespace Orientera;
 
@@ -63,6 +64,9 @@ public static class MauiProgram
                 fonts.AddFont("InterTabular-SemiBold.ttf", "InterTabularSemiBold");
                 fonts.AddFont("InterTabular-Bold.ttf", "InterTabularBold");
             });
+
+        // Mapsui ritar kartan med SkiaSharp och behöver dess handlers registrerade.
+        builder.UseSkiaSharp();
 
         builder.Configuration.AddJsonStream(
             typeof(MauiProgram).Assembly.GetManifestResourceStream("Orientera.appsettings.json")!);

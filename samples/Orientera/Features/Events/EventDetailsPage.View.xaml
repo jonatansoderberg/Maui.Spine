@@ -3,6 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     x:Class="Orientera.Features.Events.EventDetailsPage"
     x:TypeArguments="EventDetailsPageViewModel"
+    xmlns:events="clr-namespace:Orientera.Features.Events"
     x:DataType="EventDetailsPageViewModel">
 
     <ScrollView>
@@ -68,6 +69,16 @@
 
             <!-- ============ För dig ============ -->
             <VerticalStackLayout Spacing="8">
+                <!-- Var ligger tävlingen? En tävling är en plats innan den är något annat. -->
+                <VerticalStackLayout Spacing="4" IsVisible="{Binding HasArena}">
+                    <Border Stroke="{DynamicResource Outline}" StrokeThickness="1" Padding="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12" />
+                        </Border.StrokeShape>
+                        <events:ArenaMap HeightRequest="170" Arena="{Binding Arena}" />
+                    </Border>
+                </VerticalStackLayout>
+
                 <Label Style="{StaticResource SectionLabel}" Text="För dig" />
 
                 <Border Style="{StaticResource Card}">
