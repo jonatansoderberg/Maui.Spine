@@ -32,6 +32,31 @@ public sealed record LegRow
     public required string Accessibility { get; init; }
 }
 
+/// <summary>One runner in the competition's own result list.</summary>
+public sealed record ResultRow
+{
+    public required string PlaceText { get; init; }
+    public required string Name { get; init; }
+    public required string Club { get; init; }
+    public string? ClubLogo { get; init; }
+    public bool HasClubLogo => !string.IsNullOrEmpty(ClubLogo);
+    public required string TimeText { get; init; }
+    public required string BehindText { get; init; }
+
+    /// <summary>The user's own row, marked the same way the live list marks it.</summary>
+    public required bool IsMe { get; init; }
+
+    public required string Accessibility { get; init; }
+}
+
+/// <summary>One class' result list, with the class as the heading.</summary>
+public sealed class ResultClassGroup(string _name) : List<ResultRow>
+{
+    public string Name => _name;
+
+    public string Accessibility => $"Klass {_name}";
+}
+
 public sealed record ComparisonRow
 {
     public required string Label { get; init; }
@@ -89,12 +114,24 @@ public partial class ResultsDetailPageViewModel(
     [ObservableProperty] public partial string CompareTargetText { get; set; } = string.Empty;
 
     // ---- states ----
+
+    /// <summary>The competition has a published result list — the page has something to show.</summary>
     [ObservableProperty] public partial bool HasResult { get; set; }
+
+    /// <summary>The user is in that list. Without it there is a field but no analysis.</summary>
+    [ObservableProperty] public partial bool HasMine { get; set; }
+
     [ObservableProperty] public partial bool HasSplits { get; set; }
     [ObservableProperty] public partial string EmptyMessage { get; set; } = string.Empty;
 
+    /// <summary>Said once, above the list, when the user is not in the result.</summary>
+    [ObservableProperty] public partial string NotInFieldText { get; set; } = string.Empty;
+
     public ObservableCollection<LegRow> Legs { get; } = [];
     public ObservableCollection<ComparisonRow> Comparison { get; } = [];
+
+    /// <summary>The whole field, class by class, with the user's own class first.</summary>
+    public ObservableCollection<ResultClassGroup> Field { get; } = [];
 
     private Prediction? _prediction;
 
@@ -128,17 +165,34 @@ public partial class ResultsDetailPageViewModel(
         Title = competition.Name;
 
         _field = await _participation.GetResultsAsync(_id);
-        _mine = _field.FirstOrDefault(r => r.Person == _me.Id);
+
+        // The result list carries names and clubs; the person ids in it are Eventor's, and the
+        // user's identity is local. Name and club is the only comparison that spans both, the
+        // same one the live list is matched through (SP-04).
+        var me = RunnerIdentity.Of(_me.Name, _me.Club);
+        _mine = _field.FirstOrDefault(r => me.Matches(RunnerIdentity.Of(r.Name, r.Club)));
         _prediction = await _participation.GetPredictionAsync(_id, _me.Id);
 
-        if (_mine is null)
+        HasResult = _field.Count > 0;
+        HasMine = _mine is not null;
+
+        if (!HasResult)
         {
-            HasResult = false;
-            EmptyMessage = "Resultatet är inte publicerat ännu. Flytta klockan framåt i tidsmaskinen för att se det.";
+            EmptyMessage = "Resultatet är inte publicerat ännu.";
             return;
         }
 
-        HasResult = true;
+        BuildField(me);
+
+        // The field is worth showing on its own: opening a competition you did not run is the
+        // normal case, not an error.
+        NotInFieldText = HasMine
+            ? string.Empty
+            : $"Du är inte med i den här resultatlistan. {_field.Count} resultat totalt.";
+
+        if (_mine is null)
+            return;
+
         BuildOverview(competition, _mine);
 
         _legs = SplitAnalyzer.Analyse(_mine, _field);
@@ -148,6 +202,53 @@ public partial class ResultsDetailPageViewModel(
         {
             BuildLegs();
             BuildAnalysis(_mine);
+        }
+    }
+
+    /// <summary>
+    /// The field class by class. The user's own class comes first — it is the one they opened the
+    /// page for, and a championship has forty of them.
+    /// </summary>
+    private void BuildField(RunnerIdentity me)
+    {
+        Field.Clear();
+
+        string mine = _mine?.Class ?? _me?.DefaultClass ?? string.Empty;
+
+        var classes = _field
+            .GroupBy(r => r.Class)
+            .OrderByDescending(g => g.Key == mine)
+            .ThenBy(g => g.Key, StringComparer.CurrentCulture);
+
+        foreach (var byClass in classes)
+        {
+            var group = new ResultClassGroup(byClass.Key);
+
+            foreach (var result in byClass.OrderBy(r => r.Place ?? int.MaxValue).ThenBy(r => r.Time))
+            {
+                bool isMe = me.Matches(RunnerIdentity.Of(result.Name, result.Club));
+
+                group.Add(new ResultRow
+                {
+                    PlaceText = result.Place is { } place ? Format.Place(place) : "—",
+                    Name = result.Name,
+                    Club = result.Club,
+                    ClubLogo = result.ClubLogo,
+                    TimeText = result.Status == ResultStatus.Ok ? Format.Time(result.Time) : Format.ResultStatus(result.Status),
+                    BehindText = result.BehindWinner is { } behind ? Format.Delta(behind) : string.Empty,
+                    IsMe = isMe,
+                    Accessibility = string.Join(", ", new[]
+                    {
+                        isMe ? "du" : null,
+                        result.Name,
+                        $"{result.Club}, klass {result.Class}",
+                        result.Place is not null ? Format.SpokenPlace(result.Place) : Format.ResultStatus(result.Status),
+                        result.Status == ResultStatus.Ok ? Format.SpokenTime(result.Time) : null,
+                    }.OfType<string>()),
+                });
+            }
+
+            Field.Add(group);
         }
     }
 
