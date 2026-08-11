@@ -643,6 +643,8 @@ public sealed class FakeDataset
         Points = 1043,
         NationalPlace = 187,
         Trend = 12,
+        Class = new ClassStanding { Class = "D21", Place = 24 },
+        Club = new ClubStanding { Club = "OK Gästrike", Place = 2, Section = RankingSection.Women },
         DisciplinePoints = new Dictionary<Discipline, double>
         {
             [Discipline.Sprint] = 1088,

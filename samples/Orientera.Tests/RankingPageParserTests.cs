@@ -57,6 +57,33 @@ public class RankingPageParserTests
     public void Every_row_carries_the_runner_id() =>
         Assert.All(Parse(), r => Assert.Matches(@"^\d+$", r.RunnerId));
 
+    /// <summary>
+    /// The club is two tables, and both number from one. Read flat the page yields two runners
+    /// ranked first, and "17:e i klubben" cannot be told from the other 17th.
+    /// </summary>
+    [Fact]
+    public void Both_halves_of_the_club_are_numbered_from_one()
+    {
+        var rows = Parse();
+
+        Assert.Equal(12, rows.Count(r => r.Section is RankingSection.Women));
+        Assert.Equal(23, rows.Count(r => r.Section is RankingSection.Men));
+        Assert.Equal(2, rows.Count(r => r.ClubRank == 1));
+    }
+
+    [Fact]
+    public void A_row_knows_which_table_it_stood_in()
+    {
+        var rows = Parse();
+
+        Assert.Equal(RankingSection.Women, rows[0].Section);
+
+        var firstMan = rows[12];
+        Assert.Equal("Simon Harden", firstMan.Name);
+        Assert.Equal(1, firstMan.ClubRank);
+        Assert.Equal(RankingSection.Men, firstMan.Section);
+    }
+
     [Fact]
     public void The_header_row_is_not_a_runner() =>
         Assert.DoesNotContain(Parse(), r => r.Name is "Namn");

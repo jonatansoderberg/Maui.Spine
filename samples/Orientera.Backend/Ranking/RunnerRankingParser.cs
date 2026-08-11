@@ -26,7 +26,7 @@ public static partial class RunnerRankingParser
             return null;
 
         var results = Results(tables[0].Value, readOn);
-        var lists = Lists(tables[1].Value);
+        var (lists, ownClass) = Lists(tables[1].Value);
 
         if (!lists.TryGetValue("Sverigelistan", out var overall))
             return null;
@@ -40,6 +40,7 @@ public static partial class RunnerRankingParser
             // The page shows a current standing, not a change. A trend needs two readings, and
             // this reads one — so it is zero rather than a number invented to fill the field.
             Trend = 0,
+            Class = ownClass,
             DisciplinePoints = lists
                 .Where(l => DisciplineOf(l.Key) is not null)
                 .ToDictionary(l => DisciplineOf(l.Key)!.Value, l => l.Value.Points),
@@ -57,27 +58,56 @@ public static partial class RunnerRankingParser
         _ => null,
     };
 
-    private static Dictionary<string, (int Place, double Points)> Lists(string table)
+    /// <summary>
+    /// The lists table: one row per list, and directly under each of them a row for the runner's
+    /// own class, with the same points and a place on that class's list. Only the class row under
+    /// the overall list is kept — the per-discipline ones say the same thing about a narrower cut.
+    /// </summary>
+    private static (Dictionary<string, (int Place, double Points)> Lists, ClassStanding? Class) Lists(string table)
     {
         var lists = new Dictionary<string, (int, double)>(StringComparer.Ordinal);
+        ClassStanding? ownClass = null;
+        string? previous = null;
 
         foreach (Match row in RowPattern().Matches(table))
         {
             var cells = Cells(row.Groups[1].Value);
 
-            // Each list is followed by a row for the runner's own class with the same shape; only
-            // the named lists are taken, so the class rows fall away on the name lookup.
-            if (cells.Count < 4 || DisciplineOf(cells[0]) is null && cells[0] != "Sverigelistan")
+            // Header and spacer rows leave `previous` alone: a class row is the first readable
+            // row after its list, not necessarily the next one in the markup.
+            if (cells.Count < 4
+                || !int.TryParse(cells[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int place)
+                || !TryNumber(cells[2], out double points))
+            {
                 continue;
+            }
 
-            if (int.TryParse(cells[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int place)
-                && TryNumber(cells[2], out double points))
+            if (cells[0] == "Sverigelistan" || DisciplineOf(cells[0]) is not null)
             {
                 lists[cells[0]] = (place, points);
+                previous = cells[0];
+
+                continue;
             }
+
+            if (previous == "Sverigelistan")
+                ownClass = new ClassStanding { Class = cells[0], Place = place };
+
+            previous = null;
         }
 
-        return lists;
+        return (lists, ownClass);
+    }
+
+    /// <summary>
+    /// The club the page says the runner belongs to — id and name both, from the one link that
+    /// carries them. It is what the club page is then looked up with, so no id has to be guessed.
+    /// </summary>
+    public static (string Id, string Name)? Club(string html)
+    {
+        var match = ClubPattern().Match(html);
+
+        return match.Success ? (match.Groups[1].Value, Clean(match.Groups[2].Value)) : null;
     }
 
     private static List<RankingResult> Results(string table, DateOnly readOn)
@@ -135,6 +165,11 @@ public static partial class RunnerRankingParser
 
     [GeneratedRegex(@"/Ranking/[^/]+/Event/Index/(\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex EventPattern();
+
+    [GeneratedRegex(
+        @"runnerClubLink[^>]*>\s*<a[^>]*/Ranking/[^/]+/Club/Index/(\d+)[^>]*>(.*?)</a>",
+        RegexOptions.Singleline | RegexOptions.IgnoreCase)]
+    private static partial Regex ClubPattern();
 
     [GeneratedRegex(@"\d{4}-\d{2}-\d{2}")]
     private static partial Regex DatePattern();
