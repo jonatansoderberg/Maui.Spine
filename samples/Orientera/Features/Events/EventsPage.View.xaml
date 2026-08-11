@@ -54,8 +54,9 @@
 
             <CollectionView.GroupHeaderTemplate>
                 <DataTemplate x:DataType="EventSection">
+                    <!-- Vänsterkanten följer kortens, inte listans -->
                     <Label Style="{StaticResource SectionLabel}"
-                           Padding="4,14,0,4"
+                           Padding="16,14,0,4"
                            SemanticProperties.Description="{Binding Accessibility}"
                            Text="{Binding Name}" />
                 </DataTemplate>
