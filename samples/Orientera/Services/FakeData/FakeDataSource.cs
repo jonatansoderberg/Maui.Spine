@@ -1,4 +1,5 @@
 using Orientera.Domain;
+using Orientera.Services.Local;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 
@@ -12,7 +13,7 @@ namespace Orientera.Services.FakeData;
 /// published and live positions follow the time machine. M1 replaces this with a BFF-backed
 /// implementation behind the same interfaces; this one stays as demo and test mode.
 /// </remarks>
-public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
+public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity = null) : IOrienteraSource
 {
     private readonly FakeDataset _data = FakeDataset.Instance;
     private readonly List<FollowedPerson> _myGroup = [.. FakeDataset.Instance.MyGroup];
@@ -50,7 +51,38 @@ public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
     // ---------------------------------------------------------------- IPeopleSource
 
     public Task<Person> GetMeAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(_data.Me);
+        Task.FromResult(Me);
+
+    /// <summary>
+    /// The seeded runner, wearing whatever name the user gave the identity sheet.
+    /// </summary>
+    /// <remarks>
+    /// The demo used to ignore the identity entirely: the sheet saved, the profile did not
+    /// change, and the same sheet behaved differently against a real backend (#75). It applies
+    /// here too — but as a rename of the seeded runner rather than as a new person.
+    ///
+    /// That distinction is the whole design. The seeded season is built around one runner: her
+    /// results, her splits, her group, her prediction. Introducing a second identity beside her
+    /// would leave the user outside every result list in the demo, which looks broken in a new
+    /// way. Keeping her id and changing what she is called makes the demo about whoever is
+    /// holding the phone, which is what it is for.
+    /// </remarks>
+    private Person Me
+    {
+        get
+        {
+            var identity = _identity?.Current;
+
+            return identity is { IsComplete: true }
+                ? _data.Me with
+                {
+                    Name = identity.Name,
+                    Club = identity.Club,
+                    DefaultClass = identity.DefaultClass,
+                }
+                : _data.Me;
+        }
+    }
 
     public Task<IReadOnlyList<FollowedPerson>> GetMyGroupAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<FollowedPerson>>([.. _myGroup]);
@@ -225,8 +257,25 @@ public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
 
     // ---------------------------------------------------------------- projections
 
-    private IReadOnlyList<PlannedRun> Runs(CompetitionId competition) =>
-        _data.Runs.TryGetValue(competition, out var runs) ? runs : [];
+    /// <summary>
+    /// The seeded runs, with the user's own runner carrying the identity's name and club.
+    /// </summary>
+    /// <remarks>
+    /// Results and live rows are built from <see cref="PlannedRun.Person"/>, and both are matched
+    /// back to the user by name and club (SP-04). Renaming here is therefore the only place it
+    /// has to happen for the whole demo to agree on who the user is.
+    /// </remarks>
+    private IReadOnlyList<PlannedRun> Runs(CompetitionId competition)
+    {
+        if (!_data.Runs.TryGetValue(competition, out var runs))
+            return [];
+
+        var me = Me;
+
+        return me == _data.Me
+            ? runs
+            : [.. runs.Select(r => r.Person.Id == _data.Me.Id ? r with { Person = me } : r)];
+    }
 
     /// <summary>
     /// Results as they exist at the current time: nothing before anyone finishes, a

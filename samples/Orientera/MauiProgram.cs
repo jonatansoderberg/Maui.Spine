@@ -91,7 +91,11 @@ public static class MauiProgram
         services.AddSingleton<IClock>(sp => sp.GetRequiredService<TimeMachineClock>());
 
         services.AddSingleton(new DataSourceInfo(backendAddress));
-        services.AddSingleton<FakeDataSource>();
+        // The identity applies in demo mode too — it renames the seeded runner rather than
+        // introducing a second person beside her (#75).
+        services.AddSingleton(sp => new FakeDataSource(
+            sp.GetRequiredService<IClock>(),
+            sp.GetRequiredService<LocalIdentityStore>()));
         services.AddSingleton<ConnectivitySwitch>();
 
         // Who the user says they are, on this phone only — what the live and result lists
