@@ -164,6 +164,36 @@ public class BackendSourceTests
         Assert.Null(Assert.Single(snapshot.Entries).StartTime);
     }
 
+    /// <summary>
+    /// A cold backend is the source being unavailable, not the caller changing its mind. The
+    /// difference matters: an unavailable source hands over to the offline package, while a
+    /// swallowed cancellation leaves an empty screen with nothing said (#51).
+    /// </summary>
+    [Fact]
+    public async Task A_backend_too_slow_to_answer_is_an_unavailable_source()
+    {
+        var source = new BackendSource(
+            new HttpClient(new SlowHandler()) { BaseAddress = new Uri("http://localhost:7071/api/"), Timeout = TimeSpan.FromMilliseconds(50) },
+            _local,
+            _identity);
+
+        await Assert.ThrowsAsync<SourceUnavailableException>(() => source.GetCompetitionsAsync());
+    }
+
+    /// <summary>The caller giving up is still the caller's business, and must not read as offline.</summary>
+    [Fact]
+    public async Task A_caller_that_gives_up_is_not_an_unavailable_source()
+    {
+        var source = new BackendSource(
+            new HttpClient(new SlowHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
+            _local,
+            _identity);
+
+        using var giveUp = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => source.GetCompetitionsAsync(giveUp.Token));
+    }
+
     private BackendSource SourceReturning(HttpStatusCode status, string body) =>
         new(
             new HttpClient(new StubHandler(status, body)) { BaseAddress = new Uri("http://localhost:7071/api/") },
@@ -179,6 +209,17 @@ public class BackendSourceTests
             {
                 Content = new StringContent(_body, Encoding.UTF8, "application/json"),
             });
+    }
+
+    /// <summary>Never answers — the cold backend still downloading three thousand organisations.</summary>
+    private sealed class SlowHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
     }
 
     private sealed class ThrowingHandler : HttpMessageHandler
