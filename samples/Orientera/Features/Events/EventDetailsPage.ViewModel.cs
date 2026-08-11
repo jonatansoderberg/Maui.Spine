@@ -85,6 +85,11 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial string DeadlineText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasDeadline { get; set; }
     [ObservableProperty] public partial string TravelText { get; set; } = string.Empty;
+
+    /// <summary>The time, kept apart from the distance so only it carries the estimate colour.</summary>
+    [ObservableProperty] public partial string TravelDurationText { get; set; } = string.Empty;
+
+    [ObservableProperty] public partial string TravelSpoken { get; set; } = string.Empty;
     [ObservableProperty] public partial string PredictionText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasPrediction { get; set; }
     [ObservableProperty] public partial string PredictionAccessibility { get; set; } = string.Empty;
@@ -316,7 +321,12 @@ public partial class EventDetailsPageViewModel(
 
         double distance = TravelEstimate.DistanceKm(me.Home, competition.Location);
         var duration = TravelEstimate.Duration(me.Home, competition.Location);
-        TravelText = $"{Format.Distance(distance)} hemifrån · ca {duration.TotalMinutes:0} min";
+
+        // "Fågelvägen" is the whole caveat in one word: it is the distance the app can compute,
+        // and every driver knows the road is longer.
+        TravelText = $"ca {Format.Distance(distance)} fågelvägen";
+        TravelDurationText = $"~{duration.TotalMinutes:0} min";
+        TravelSpoken = $"uppskattat {Format.Distance(distance)} fågelvägen, ungefär {duration.TotalMinutes:0} minuter";
 
         var prediction = IsFromCache
             ? snapshot.Prediction
