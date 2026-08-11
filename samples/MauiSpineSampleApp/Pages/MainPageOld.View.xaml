@@ -49,6 +49,7 @@
         <Button Text="Fullscreen Sheet (with result)" Command="{Binding ShowFullscreenSheetWithResultCommand}" />
         <Label Text="{Binding SheetResult}" FontSize="14" HorizontalTextAlignment="Center" />
         <Button Text="Small Sheet" Command="{Binding ShowSmallSheetCommand}" />
+        <Button Text="Toggle list (switchar i mall)" Command="{Binding ShowToggleListCommand}" />
         <Button Text="Person Detail (with param)" Command="{Binding ShowPersonDetailCommand}" />
 
 

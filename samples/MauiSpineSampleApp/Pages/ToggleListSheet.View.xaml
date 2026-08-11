@@ -1,0 +1,41 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.ToggleListSheet"
+    x:TypeArguments="ToggleListSheetViewModel"
+    x:DataType="ToggleListSheetViewModel">
+
+    <VerticalStackLayout Padding="24" Spacing="14">
+
+        <Label Text="{Binding Log}" FontAttributes="Bold" />
+
+        <Label Text="I mall (BindableLayout)" FontSize="12" />
+
+        <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Rows}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="ToggleRow">
+                    <Border Padding="12">
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                            <Label Grid.Column="0" Text="{Binding Name}" VerticalTextAlignment="Center" />
+                            <Switch Grid.Column="1" IsToggled="{Binding IsOn}" />
+                            <Button Grid.Column="2" Text="Knapp" FontSize="12"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ToggleListSheetViewModel}}, Path=ToggleCommand}"
+                                    CommandParameter="{Binding .}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+
+        <Label Text="Utanför mall (kontrollfall)" FontSize="12" />
+
+        <Border Padding="12">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Grid.Column="0" Text="Direkt mot vymodellen" VerticalTextAlignment="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding DirectSwitch}" />
+            </Grid>
+        </Border>
+
+    </VerticalStackLayout>
+
+</SpinePage>
