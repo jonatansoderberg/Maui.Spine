@@ -15,7 +15,10 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
     private NSObject? _statusItem;
     private NSObject? _statusButton;
     private NSObject? _statusImage;
-    private SpineWindowDelegate? _windowDelegate;
+    private SpineMenuItemTarget? _closeTarget;
+
+    /// <summary>The real AppKit window behind the Catalyst scene, once it has been key.</summary>
+    private NSObject? _nsWindow;
     private readonly List<SpineMenuItemTarget> _menuTargets = [];
 
     partial void HookMacCatalystPlatform(Window window)
@@ -38,6 +41,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                     if (AppKitObjC.IsStatusBarWindow(nsObj.Handle)) return;
 
                     EnableFullSizeContentView(nsObj.Handle);
+                    AdoptNSWindow(nsObj);
 
                     if (window.Handler?.PlatformView is not UIKit.UIWindow uiWindow) return;
 
@@ -210,12 +214,33 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         AppKitObjC.Void_msgSend_IntPtr(_statusItem.Handle, Selector.GetHandle("setMenu:"), menuHandle);
     }
 
+    private bool _closeToBackground;
+
+    /// <summary>
+    /// Takes over the red button so closing the window hides it instead of ending the app.
+    /// </summary>
+    /// <remarks>
+    /// Finding the <c>NSWindow</c> was the whole of this problem. <c>NSApplication.windows</c> is
+    /// empty on Mac Catalyst, <c>keyWindow</c> and <c>mainWindow</c> are nil, and neither
+    /// <c>UIWindow.nsWindow</c> nor <c>UIWindowScene._nsWindowScene</c> answers its selector —
+    /// UIKit owns the windows and AppKit does not know about them. But
+    /// <c>NSWindowDidBecomeKeyNotification</c> is an ordinary AppKit notification and its object
+    /// <em>is</em> the window. Spine already observes it to turn on fullSizeContentView; the same
+    /// object is all close-to-background ever needed.
+    ///
+    /// The button's target and action are swapped rather than the window's delegate. On Catalyst
+    /// that delegate is a UIKit object running the scene lifecycle, and replacing it would mean
+    /// forwarding every selector it implements correctly or breaking the window in ways that
+    /// surface far from here. The close button belongs to nobody else.
+    /// </remarks>
     private void SetupCloseToBackground(Window mauiWindow)
     {
-        // TODO: intercepting the red-button close on Mac Catalyst requires finding the
-        // underlying NSWindow from the UIKit layer. NSApplication.windows is always empty
-        // on Mac Catalyst, and bridging via UIWindowScene private APIs is unreliable.
-        // Tracked in GitHub issue: CloseToBackground not yet implemented on macOS.
+        _closeToBackground = true;
+
+        // The window may already have been key — the notification fires before this runs when the
+        // app is restored rather than launched.
+        if (_nsWindow is not null)
+            InterceptCloseButton(_nsWindow);
 
         mauiWindow.Destroying += (_, _) =>
         {
@@ -226,30 +251,57 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         };
     }
 
-    private static void FocusMacWindow()
+    private void AdoptNSWindow(NSObject nsWindow)
+    {
+        _nsWindow = nsWindow;
+
+        if (_closeToBackground)
+            InterceptCloseButton(nsWindow);
+    }
+
+    /// <summary>NSWindowButton.CloseButton. AppKit's enum, absent from the Catalyst bindings.</summary>
+    private const nuint CloseButton = 0;
+
+    private void InterceptCloseButton(NSObject nsWindow)
+    {
+        // Once is enough: the notification fires on every activation, and re-targeting the same
+        // button each time would leak a target per focus.
+        if (_closeTarget is not null)
+            return;
+
+        var button = AppKitObjC.IntPtr_msgSend_nuint(
+            nsWindow.Handle, Selector.GetHandle("standardWindowButton:"), CloseButton);
+
+        if (button == IntPtr.Zero)
+            return;
+
+        var window = nsWindow;
+        _closeTarget = new SpineMenuItemTarget(() => HideMacWindow(window));
+
+        AppKitObjC.Void_msgSend_IntPtr(button, Selector.GetHandle("setTarget:"), _closeTarget.Handle);
+        AppKitObjC.Void_msgSend_IntPtr(button, Selector.GetHandle("setAction:"), Selector.GetHandle("invoke:"));
+    }
+
+    private static void HideMacWindow(NSObject nsWindow) =>
+        MainThread.BeginInvokeOnMainThread(() =>
+            AppKitObjC.Void_msgSend_IntPtr(nsWindow.Handle, Selector.GetHandle("orderOut:"), IntPtr.Zero));
+
+    private void FocusMacWindow()
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
+            // Ordering the window back in is what makes the tray icon a way home once the red
+            // button has hidden it; activating alone would raise an app with nothing on screen.
+            if (_nsWindow is { } nsWindow)
+            {
+                AppKitObjC.Void_msgSend_IntPtr(
+                    nsWindow.Handle, Selector.GetHandle("makeKeyAndOrderFront:"), IntPtr.Zero);
+            }
+
             var sharedApp = AppKitObjC.IntPtr_msgSend(
                 Class.GetHandle("NSApplication"), Selector.GetHandle("sharedApplication"));
             AppKitObjC.Void_msgSend_bool(sharedApp, Selector.GetHandle("activateIgnoringOtherApps:"), true);
         });
-    }
-
-    /// <summary>
-    /// Registered as NSWindow delegate. Hides the window instead of closing it,
-    /// enabling close-to-background behaviour on macOS.
-    /// Not yet wired up — see CloseToBackground tracking issue.
-    /// </summary>
-    [Register("SpineWindowDelegate")]
-    internal sealed class SpineWindowDelegate : NSObject
-    {
-        [Export("windowShouldClose:")]
-        public bool WindowShouldClose(NSObject sender)
-        {
-            AppKitObjC.Void_msgSend_IntPtr((IntPtr)sender.Handle, Selector.GetHandle("orderOut:"), IntPtr.Zero);
-            return false;
-        }
     }
 
     /// <summary>
