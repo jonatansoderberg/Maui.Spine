@@ -99,7 +99,7 @@ public static class MauiProgram
         services.AddSingleton(_ => new LocalIdentityStore(
             Path.Combine(FileSystem.AppDataDirectory, "identity.json")));
 
-        services.AddSingleton(_ => new LiveClassStore(
+        services.AddSingleton(_ => new CompetitionClassStore(
             Path.Combine(FileSystem.AppDataDirectory, "live-classes.json")));
 
         // One seam, two implementations: the seeded dataset, or the BFF over the same

@@ -4,6 +4,7 @@ using Orientera.Features.Live;
 using Orientera.Features.Results;
 using Orientera.Presentation;
 using Orientera.Services.Context;
+using Orientera.Services.Local;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Travel;
@@ -38,7 +39,8 @@ public partial class EventDetailsPageViewModel(
     IPeopleSource _people,
     IParticipationSource _participation,
     OfflinePackageService _offline,
-    CompetitionContextService _context) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
+    CompetitionContextService _context,
+    CompetitionClassStore _classes) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
 {
     private CompetitionId _id;
     private Competition? _competition;
@@ -209,10 +211,19 @@ public partial class EventDetailsPageViewModel(
             return;
 
         var result = await _navigation.NavigateToWithResultAsync<ChooseClassSheet, ClassChoice, string>(
-            new ClassChoice(_competition.Classes, "Klassen styr banan, startlistan och prediction."));
+            new ClassChoice(
+                _competition.Classes,
+                "Klassen avgör vilka PM-punkter som visas, och vilken klass Live öppnar i."));
 
-        if (result is { IsSuccess: true, Value: { } className })
-            MyClass = className;
+        if (result is not { IsSuccess: true, Value: { } className })
+            return;
+
+        MyClass = className;
+        _classes.Save(_competition.Id, className);
+
+        // The briefing is filtered by class, so it has to be rebuilt rather than wait for the
+        // next visit — the choice is meant to be visible the moment it is made.
+        BuildBriefing(_competition, className);
     }
 
     [RelayCommand]
@@ -304,8 +315,15 @@ public partial class EventDetailsPageViewModel(
         StateText = _decision.StateText;
         PrimaryActionText = _decision.PrimaryActionText;
 
+        // A picked class wins over everything the app worked out on its own. It has to: under
+        // any other order the picker silently does nothing the next time the page loads, which
+        // is the whole of #61. An entry is still a fact, but it is a fact about the entry — the
+        // start time below says which class the runner is actually running.
         var myEntry = entries.FirstOrDefault(e => e.Competition == competition.Id && e.Person == me.Id);
-        MyClass = myEntry?.Class ?? snapshot.MyStart?.Class ?? me.DefaultClass;
+        MyClass = _classes.For(competition.Id)
+            ?? myEntry?.Class
+            ?? snapshot.MyStart?.Class
+            ?? me.DefaultClass;
 
         var myStart = starts.FirstOrDefault(s => s.Person == me.Id);
         HasMyStart = myStart is not null;
