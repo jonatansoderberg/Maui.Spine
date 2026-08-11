@@ -56,7 +56,7 @@ public sealed class UnreliableSource(IOrienteraSource _inner, ConnectivitySwitch
     public Task<IReadOnlyList<Person>> SearchAsync(string query, CancellationToken cancellationToken = default) =>
         Through(() => _inner.SearchAsync(query, cancellationToken));
 
-    public Task FollowAsync(PersonId person, FollowReason reason, CancellationToken cancellationToken = default) =>
+    public Task FollowAsync(Person person, FollowReason reason, CancellationToken cancellationToken = default) =>
         _inner.FollowAsync(person, reason, cancellationToken);
 
     public Task UnfollowAsync(PersonId person, CancellationToken cancellationToken = default) =>

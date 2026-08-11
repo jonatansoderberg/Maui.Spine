@@ -32,7 +32,12 @@ public interface IPeopleSource
 
     Task<IReadOnlyList<Person>> SearchAsync(string query, CancellationToken cancellationToken = default);
 
-    Task FollowAsync(PersonId person, FollowReason reason, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Follows a person the caller already has in hand. An id alone is not enough: against a
+    /// real backend the person came out of a result list, and there is no directory to look
+    /// them up in afterwards.
+    /// </summary>
+    Task FollowAsync(Person person, FollowReason reason, CancellationToken cancellationToken = default);
 
     Task UnfollowAsync(PersonId person, CancellationToken cancellationToken = default);
 }

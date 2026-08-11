@@ -70,14 +70,10 @@ public sealed class FakeDataSource(IClock _clock) : IOrienteraSource
         return Task.FromResult<IReadOnlyList<Person>>(matches);
     }
 
-    public Task FollowAsync(PersonId person, FollowReason reason, CancellationToken cancellationToken = default)
+    public Task FollowAsync(Person person, FollowReason reason, CancellationToken cancellationToken = default)
     {
-        if (_myGroup.Any(f => f.Person.Id == person))
-            return Task.CompletedTask;
-
-        var found = _data.People.FirstOrDefault(p => p.Id == person);
-        if (found is not null)
-            _myGroup.Add(new FollowedPerson { Person = found, Reason = reason });
+        if (_myGroup.All(f => f.Person.Id != person.Id))
+            _myGroup.Add(new FollowedPerson { Person = person, Reason = reason });
 
         return Task.CompletedTask;
     }

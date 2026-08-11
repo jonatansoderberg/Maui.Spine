@@ -7,7 +7,7 @@ namespace Orientera.Features.Profile;
 
 public sealed partial class SearchResultRow : ObservableObject
 {
-    public required PersonId Person { get; init; }
+    public required Person Person { get; init; }
     public required string Name { get; init; }
     public required string Meta { get; init; }
 
@@ -35,6 +35,16 @@ public partial class FollowRunnerSheetViewModel(IPeopleSource _people) : Oriente
     [ObservableProperty]
     public partial bool IsEmpty { get; set; } = true;
 
+    /// <summary>
+    /// Where the search looks. Eventor has no public person lookup, so the app searches the
+    /// result lists it has already fetched — which finds a real runner who has finished a race
+    /// lately, and nobody else. Saying so is what keeps an empty answer from reading as "that
+    /// person does not exist".
+    /// </summary>
+    [ObservableProperty]
+    public partial string ScopeText { get; set; } =
+        "Söker bland löpare i resultatlistorna för tävlingar runt idag.";
+
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
         await ReloadFollowedAsync();
@@ -47,12 +57,12 @@ public partial class FollowRunnerSheetViewModel(IPeopleSource _people) : Oriente
     private async Task Toggle(SearchResultRow row)
     {
         if (row.IsFollowed)
-            await _people.UnfollowAsync(row.Person);
+            await _people.UnfollowAsync(row.Person.Id);
         else
             await _people.FollowAsync(row.Person, FollowReason.Favourite);
 
         await ReloadFollowedAsync();
-        row.IsFollowed = _followed.Contains(row.Person);
+        row.IsFollowed = _followed.Contains(row.Person.Id);
     }
 
     private async Task ReloadFollowedAsync()
@@ -76,7 +86,7 @@ public partial class FollowRunnerSheetViewModel(IPeopleSource _people) : Oriente
         {
             Results.Add(new SearchResultRow
             {
-                Person = person.Id,
+                Person = person,
                 Name = person.Name,
                 Meta = $"{person.Club} · {person.DefaultClass}",
                 IsFollowed = _followed.Contains(person.Id),
