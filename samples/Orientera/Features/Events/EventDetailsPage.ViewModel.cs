@@ -40,7 +40,8 @@ public partial class EventDetailsPageViewModel(
     IParticipationSource _participation,
     OfflinePackageService _offline,
     CompetitionContextService _context,
-    CompetitionClassStore _classes) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
+    CompetitionClassStore _classes,
+    LiveSelection _liveSelection) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
 {
     private CompetitionId _id;
     private Competition? _competition;
@@ -156,6 +157,9 @@ public partial class EventDetailsPageViewModel(
         switch (_decision.PrimaryAction)
         {
             case ContextAction.FollowLive:
+                // A tab root takes no navigation parameter, so the competition is left where the
+                // live tab looks for it rather than guessed at from whatever is running.
+                _liveSelection.Select(_competition.Id);
                 await _navigation.SwitchToTabAsync<LivePage>();
                 break;
 

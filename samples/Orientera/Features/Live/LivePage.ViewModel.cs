@@ -3,6 +3,7 @@ using Orientera.Domain;
 using Orientera.Features.Events;
 using Orientera.Presentation;
 using Orientera.Services.Local;
+using Orientera.Services.Context;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 
@@ -140,7 +141,8 @@ public partial class LivePageViewModel(
     IEventSource _events,
     IPeopleSource _people,
     INavigationService _navigation,
-    CompetitionClassStore _classes) : OrienteraViewModel
+    CompetitionClassStore _classes,
+    LiveSelection _selection) : OrienteraViewModel
 {
     /// <summary>LiveResults caches for 15 seconds, so polling faster only wastes data.</summary>
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
@@ -171,6 +173,9 @@ public partial class LivePageViewModel(
     private CompetitionId? _adopted;
 
     private IReadOnlyList<string> _classList = [];
+
+    /// <summary>Everything running right now, so the picker has something to offer.</summary>
+    private IReadOnlyList<Competition> _liveCompetitions = [];
     private int _widest = 1;
     private double _available;
 
@@ -204,6 +209,12 @@ public partial class LivePageViewModel(
     [ObservableProperty] public partial bool CanPickClass { get; set; }
 
     [ObservableProperty] public partial string CompetitionName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// True only when there is a second competition to switch to. A picker with one option is
+    /// noise, and a championship weekend is exactly when there are several.
+    /// </summary>
+    [ObservableProperty] public partial bool CanPickCompetition { get; set; }
     [ObservableProperty] public partial string UpdatedText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasLive { get; set; }
 
@@ -264,6 +275,27 @@ public partial class LivePageViewModel(
     /// The class chip is a picker, not a filter: tapping it always asks which class, because the
     /// competition has forty of them and the answer is the whole point of the chip.
     /// </summary>
+    [RelayCommand]
+    private async Task PickCompetition()
+    {
+        if (_liveCompetitions.Count < 2)
+            return;
+
+        var options = _liveCompetitions
+            .Select(c => new CompetitionOption(c.Id.Value, c.Name, $"{c.Organiser} · {c.Place}"))
+            .ToList();
+
+        var choice = await _navigation.NavigateToWithResultAsync<ChooseCompetitionSheet, CompetitionChoice, string>(
+            new CompetitionChoice(options, "Flera tävlingar pågår just nu."));
+
+        if (choice is not { IsSuccess: true, Value: { } id } || id == _competition?.Id.Value)
+            return;
+
+        _selection.Select(new CompetitionId(id));
+
+        await ApplyScopeAsync(Scope);
+    }
+
     [RelayCommand]
     private async Task PickClass()
     {
@@ -353,9 +385,15 @@ public partial class LivePageViewModel(
         if (_me is null)
             return;
 
-        var liveCompetitions = await _live.GetLiveCompetitionsAsync();
-        _competition = liveCompetitions.FirstOrDefault();
+        _liveCompetitions = await _live.GetLiveCompetitionsAsync();
 
+        // A competition that has finished since it was picked is not a choice any more.
+        _selection.KeepOnly(_liveCompetitions.Select(c => c.Id));
+
+        _competition = _liveCompetitions.FirstOrDefault(c => c.Id == _selection.Current)
+            ?? _liveCompetitions.FirstOrDefault();
+
+        CanPickCompetition = _liveCompetitions.Count > 1;
         HasLive = _competition is not null;
 
         if (_competition is null)
@@ -363,6 +401,7 @@ public partial class LivePageViewModel(
             Rows.Clear();
             IsEmpty = true;
             CompetitionName = string.Empty;
+            CanPickCompetition = false;
             EmptyMessage = "Ingen tävling pågår just nu. Flytta klockan i tidsmaskinen för att se live-läget.";
             return;
         }
@@ -426,9 +465,22 @@ public partial class LivePageViewModel(
         _classList = detailed?.Classes is { Count: > 0 } classes ? classes : competition.Classes;
         CanPickClass = _classList.Count > 0;
 
-        // A remembered class the competition no longer lists is not a class any more.
+        // A remembered class the competition no longer lists is not a class any more — and a
+        // class picked in the competition before this one belongs to that competition. Either
+        // way the filter is cleared rather than left pointing somewhere it does not exist.
         if (_classes.For(competition.Id) is not { } remembered || !_classList.Contains(remembered))
+        {
+            if (SelectedClass is not null)
+            {
+                SelectedClass = null;
+                Scope = LiveScope.MyGroup;
+                IsMyGroup = true;
+                IsMyClass = false;
+                IsClass = false;
+            }
+
             return;
+        }
 
         SelectedClass = remembered;
         Scope = LiveScope.Class;
