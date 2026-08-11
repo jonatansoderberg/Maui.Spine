@@ -4,11 +4,9 @@ using Mapsui.Projections;
 using Mapsui.Tiling;
 using Mapsui.UI.Maui;
 using Orientera.Domain;
-using MapsuiBrush = Mapsui.Styles.Brush;
-using MapsuiColor = Mapsui.Styles.Color;
 using MapsuiMap = Mapsui.Map;
-using MapsuiPen = Mapsui.Styles.Pen;
-using SymbolStyle = Mapsui.Styles.SymbolStyle;
+using Image = Mapsui.Styles.Image;
+using ImageStyle = Mapsui.Styles.ImageStyle;
 
 namespace Orientera.Features.Events;
 
@@ -61,14 +59,18 @@ public sealed class ArenaMap : MapControl
         Map.Navigator.CenterOnAndZoomTo(centre, ArenaResolution);
     }
 
+    /// <summary>
+    /// The arena is marked with orienteering's own control symbol rather than a map pin: a square
+    /// split along the diagonal, white above and orange below. Every orienteer reads it without
+    /// being told, and unlike a pin it sits centred on the point rather than pointing at it.
+    /// </summary>
     private static MemoryLayer ArenaLayer(MPoint centre) => new("Arena")
     {
         Features = [new PointFeature(centre)],
-        Style = new SymbolStyle
+        Style = new ImageStyle
         {
+            Image = new Image { Source = "embedded://Orientera.Resources.Svg.arena_control.svg" },
             SymbolScale = 0.9,
-            Fill = new MapsuiBrush(MapsuiColor.FromString("#E8590C")),
-            Outline = new MapsuiPen(MapsuiColor.White, 2),
         },
     };
 }
