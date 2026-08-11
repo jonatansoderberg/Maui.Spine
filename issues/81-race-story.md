@@ -28,7 +28,7 @@ Utan konfigurerad nyckel svarar backend 404 och appen visar inget kort alls.
   räknas som en stark sträcka och hur många bommar som får nämnas ligger namngivna högst upp.
 - `Orientera/Services/Analysis/RaceStorySources.cs` — `BackendRaceStorySource` (postar och
   minns svaret per lopp) och `NoRaceStorySource` (tomt utan backend).
-- `Orientera.Backend/Story/RaceStoryWriter.cs` — anropet mot Claude (`claude-opus-5`, officiella
+- `Orientera.Backend/Story/RaceStoryWriter.cs` — anropet mot Claude (`claude-sonnet-5`, officiella
   `Anthropic`-paketet), med systemprompten som förbjuder tillägg och en cache på faktanas hash.
 - `Orientera.Backend/Functions/StoryFunctions.cs` — `POST /api/stories/race`.
 - `Orientera.Backend/Configuration/StoryOptions.cs` + `local.settings.example.json` —
