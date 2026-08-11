@@ -29,6 +29,9 @@ till vänster och orange nere till höger.
 - **Appens orange, inte kontrollens.** Riktiga kontrollskärmar är närmare PMS 165 än
   designsystemets `#E8590C`. Här väger det tyngre att markören hör ihop med resten av appens
   färger än att den matchar tyget i skogen.
+- **Trettio procent mindre efter genomgång.** Första utfallet (`SymbolScale = 0.9`) tog för mycket
+  av kartan — markören konkurrerade med gatunätet den ska placeras i. `0.63` räcker för att
+  symbolen ska läsas som en kontroll och lämnar kvar sammanhanget runt arenan.
 
 ## Verifiering
 
