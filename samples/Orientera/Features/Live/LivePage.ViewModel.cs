@@ -152,7 +152,11 @@ public partial class LivePageViewModel(
     /// </summary>
     public const double FrozenWidth = 156;
 
-    public const double CellWidth = 82;
+    /// <summary>Narrowest a column may be — a finish time with its place and time behind under it.</summary>
+    public const double MinColumnWidth = 82;
+
+    /// <summary>The gap between columns, which the view carries as each cell's right margin.</summary>
+    private const double ColumnGap = 10;
 
     private CancellationTokenSource? _polling;
     private Competition? _competition;
@@ -167,6 +171,8 @@ public partial class LivePageViewModel(
     private CompetitionId? _adopted;
 
     private IReadOnlyList<string> _classList = [];
+    private int _widest = 1;
+    private double _available;
 
     public ObservableCollection<LiveRow> Rows { get; } = [];
 
@@ -201,8 +207,17 @@ public partial class LivePageViewModel(
     [ObservableProperty] public partial string UpdatedText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasLive { get; set; }
 
-    /// <summary>How wide the table is with every column laid out — what the view scrolls across.</summary>
-    [ObservableProperty] public partial double TableWidth { get; set; } = FrozenWidth + CellWidth;
+    /// <summary>
+    /// How wide the table is: every column laid out, but never narrower than the screen it sits
+    /// on. A class with one column would otherwise leave a third of the row empty.
+    /// </summary>
+    [ObservableProperty] public partial double TableWidth { get; set; } = FrozenWidth + MinColumnWidth;
+
+    /// <summary>
+    /// What one cell may draw in, without its gap. Columns widen so that the class with the most
+    /// controls fills the row; past that they keep their width and the table scrolls.
+    /// </summary>
+    [ObservableProperty] public partial double CellWidth { get; set; } = MinColumnWidth - ColumnGap;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasRows))]
@@ -506,8 +521,27 @@ public partial class LivePageViewModel(
             Groups.Add(group);
         }
 
-        int widest = Groups.Count > 0 ? Groups.Max(g => g.Columns.Count) : 1;
-        TableWidth = FrozenWidth + (widest * CellWidth);
+        _widest = Groups.Count > 0 ? Groups.Max(g => g.Columns.Count) : 1;
+        Measure();
+    }
+
+    /// <summary>The width of the area the table is laid out in, once the view knows it.</summary>
+    public void Fit(double available)
+    {
+        if (available <= 0 || Math.Abs(available - _available) < 0.5)
+            return;
+
+        _available = available;
+        Measure();
+    }
+
+    private void Measure()
+    {
+        double room = _available > 0 ? (_available - FrozenWidth) / _widest : MinColumnWidth;
+        double column = Math.Max(MinColumnWidth, room);
+
+        CellWidth = column - ColumnGap;
+        TableWidth = FrozenWidth + (_widest * column);
     }
 
     /// <summary>The class' radio controls as headings, with the finish as the last column.</summary>
