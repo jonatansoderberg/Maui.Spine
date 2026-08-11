@@ -15,7 +15,7 @@ namespace Orientera.Backend.Predictions;
 /// </remarks>
 public static class PredictionModel
 {
-    public const string Version = "form-ratio-1";
+    public const string Version = "form-ranking-1";
 
     /// <summary>
     /// Below this share of the field having a known form, the interval is honest only if it is
@@ -91,7 +91,9 @@ public static class PredictionModel
     /// </remarks>
     private static double ConfidenceOf(RunnerForm runner, double knownShare)
     {
-        double history = Math.Min(runner.Races / 8.0, 1.0);
+        // A ranking is evidence, but of a different kind: it is six races read through a fitted
+        // line rather than races we watched. Half, so it never claims what watching would.
+        double history = runner.FromRanking ? 0.5 : Math.Min(runner.Races / 8.0, 1.0);
         double consistency = 1.0 - Math.Min(runner.Spread / 0.2, 1.0);
 
         return Math.Round(
@@ -107,7 +109,9 @@ public static class PredictionModel
     {
         var drivers = new List<string>(3)
         {
-            $"{runner.Races} lopp i din historik",
+            runner.FromRanking
+                ? "din Sverigelistan — inga lopp i din historik här"
+                : $"{runner.Races} lopp i din historik",
             runner.Spread <= 0.05
                 ? "jämna lopp — smalt intervall"
                 : "ojämna lopp — bredare intervall",

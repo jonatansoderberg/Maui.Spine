@@ -24,6 +24,30 @@ public sealed record RunnerForm
 
     public required int Races { get; init; }
 
+    /// <summary>
+    /// Whether this form is a ranking read through <see cref="RankingCalibration"/> rather than
+    /// races we have watched. It changes what the forecast may claim, not how it is counted.
+    /// </summary>
+    public bool FromRanking { get; init; }
+
+    /// <summary>
+    /// A form for a runner nobody has watched race, out of their Sverigelistan alone.
+    /// </summary>
+    /// <remarks>
+    /// This is what the ranking buys. Under three results a runner used to be unknown, and early
+    /// in a season that was most of the field — SP-11 measured the interval swelling to more than
+    /// half the field because of it. A ranking exists for four in five, all season.
+    /// </remarks>
+    public static RunnerForm Ranked(RunnerIdentity identity, double points, RankingCalibration calibration) =>
+        new()
+        {
+            Identity = identity,
+            Ratio = calibration.RatioOf(points),
+            Spread = calibration.Spread,
+            Races = 0,
+            FromRanking = true,
+        };
+
     public static RunnerForm? From(RunnerIdentity identity, IReadOnlyList<double> ratios)
     {
         // Two races say almost nothing about a spread, and a spread is what the interval is
