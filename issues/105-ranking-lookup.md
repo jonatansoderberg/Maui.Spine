@@ -55,6 +55,32 @@ tredje som gjorde en bättre form möjlig.
 rikslistplacering och poäng — `16695 Isa Envall D21 riks 5 3,30`. Andra anropet svarar på
 0,0008 s ur cachen.
 
+## Löparsidan, undersökt i webbläsaren
+
+Med inloggat konto (användaren loggade in själv i den interna webbläsaren; backend fick aldrig
+några uppgifter) svarar `/Ranking/ol/Runner/Index/{id}` med allt det som saknas här:
+
+- **En tabell med 170 rader** — varje resultat med datum, tävling, disciplinkod (Lå/Me/Sp/Na),
+  klass och poäng. De sex som räknas är numrerade 1–6 i första kolumnen.
+- **En tabell med listorna per disciplin** — Sverigelistan, Långlistan, Medellistan, Nattlistan,
+  Sprintlistan — var och en med rikslistplacering, poäng och Ti, plus samma rad för klassen.
+
+**Hur åtkomsten fungerar:** vanlig formulärinloggning som sätter en sessionscookie. I nätverkslogen
+finns **inga XHR- eller JSON-anrop alls** — sidan är serverrenderad HTML plus statiska filer. Det
+finns alltså inget API bakom rankingen, inte ens för inloggade. `/api/authenticatePerson`
+autentiserar mot *API:et*, som inte har några rankingendpoints.
+
+## Tre vägar till poäng per disciplin
+
+1. **Fråga förbundet om API-åtkomst.** Enda vägen som är hållbar över tid. Det är redan en
+   betaltjänst, så frågan är affärsmässig snarare än teknisk.
+2. **WebView i appen där användaren loggar in själv**, och appen läser sin egen användares sida
+   på enheten. Ingen delad session, inga uppgifter i backend, användaren läser data hen betalat
+   för. Försvarbart — men det är HTML-skrapning bakom en inloggning, och går sönder vid varje
+   ändring av markup eller inloggningsflöde.
+3. **Backend med ett konto.** Avfärdad. Det skulle betyda att servern uppträder som en person,
+   och att data någon betalar för sprids vidare.
+
 ## Kvar
 
 - **Poäng per disciplin** kräver löparsidan, alltså rankingavgiften. Frågan till förbundet blir
