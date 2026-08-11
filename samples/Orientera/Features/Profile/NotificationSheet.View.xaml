@@ -26,15 +26,10 @@
                                 <Label Style="{StaticResource CaptionLabel}" Text="{Binding Explanation}" />
                             </VerticalStackLayout>
 
-                            <Button Grid.Column="1"
-                                    Style="{StaticResource SecondaryButton}"
-                                    Padding="14,0"
-                                    HeightRequest="36"
-                                    FontSize="{StaticResource SizeCaption}"
-                                    Text="{Binding StateText}"
-                                    SemanticProperties.Description="{Binding Accessibility}"
-                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ToggleCommand}"
-                                    CommandParameter="{Binding .}" />
+                            <Switch Grid.Column="1"
+                                    VerticalOptions="Center"
+                                    IsToggled="{Binding IsEnabled}"
+                                    SemanticProperties.Description="{Binding Accessibility}" />
                         </Grid>
                     </Border>
                 </DataTemplate>

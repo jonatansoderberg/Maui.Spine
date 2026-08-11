@@ -10,14 +10,36 @@ public sealed partial class NotificationRow : ObservableObject
     public required string Label { get; init; }
     public required string Explanation { get; init; }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StateText))]
-    [NotifyPropertyChangedFor(nameof(Accessibility))]
-    public partial bool IsEnabled { get; set; }
+    /// <summary>
+    /// Raised when the user moves the switch. The sheet owns what happens next — asking the
+    /// system for permission, and putting the switch back if the answer is no.
+    /// </summary>
+    internal Action<NotificationRow, bool>? Requested { get; set; }
 
-    public string StateText => IsEnabled ? "På" : "Av";
+    /// <summary>Set while the sheet writes a value back, so the round trip does not repeat.</summary>
+    private bool _settling;
 
-    public string Accessibility => $"{Label}, {(IsEnabled ? "på" : "av")}";
+    [ObservableProperty] public partial bool IsEnabled { get; set; }
+
+    partial void OnIsEnabledChanged(bool value)
+    {
+        if (!_settling)
+            Requested?.Invoke(this, value);
+    }
+
+    /// <summary>Writes the state without asking for it again — used to revert a denied switch.</summary>
+    internal void Settle(bool value)
+    {
+        _settling = true;
+        IsEnabled = value;
+        _settling = false;
+    }
+
+    /// <summary>
+    /// A switch reads its own on/off state aloud, so the description says what the setting is
+    /// for and nothing about where it stands.
+    /// </summary>
+    public string Accessibility => $"{Label}. {Explanation}";
 }
 
 /// <summary>
@@ -34,6 +56,8 @@ public partial class NotificationSheetViewModel(
 
     [ObservableProperty] public partial string StatusText { get; set; } = string.Empty;
 
+    private string _restingStatus = string.Empty;
+
     public override Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
         Rows.Clear();
@@ -44,38 +68,46 @@ public partial class NotificationSheetViewModel(
         // promise the app is not yet able to keep.
         foreach (var kind in NotificationKinds.Available)
         {
-            Rows.Add(new NotificationRow
+            var row = new NotificationRow
             {
                 Kind = kind,
                 Label = NotificationKinds.Label(kind),
                 Explanation = NotificationKinds.Explanation(kind),
-                IsEnabled = current.IsEnabled(kind),
-            });
+            };
+
+            // Settle before subscribing: the stored value is not a request from the user.
+            row.Settle(current.IsEnabled(kind));
+            row.Requested = OnRequested;
+
+            Rows.Add(row);
         }
 
-        StatusText = _scheduler.IsSupported
+        _restingStatus = _scheduler.IsSupported
             ? "Notiserna ligger i telefonen och behöver ingen inloggning."
             : "Den här plattformen kan inte schemalägga notiser.";
+
+        StatusText = _restingStatus;
 
         return Task.CompletedTask;
     }
 
-    [RelayCommand]
-    private async Task Toggle(NotificationRow row)
-    {
-        bool wanted = !row.IsEnabled;
+    // The switch has already moved by the time this runs; the work is to make it true, or to
+    // move it back.
+    private void OnRequested(NotificationRow row, bool wanted) => _ = ApplyAsync(row, wanted);
 
+    private async Task ApplyAsync(NotificationRow row, bool wanted)
+    {
         if (wanted && !await _scheduler.RequestPermissionAsync())
         {
-            // Denied at the OS level. Say so rather than leaving a control that claims to be on
-            // and does nothing.
-            StatusText = "Notiser är avstängda för Orientera i systeminställningarna.";
+            // Denied at the OS level. The switch goes back rather than sitting on, claiming a
+            // state the app cannot hold.
+            row.Settle(false);
+            StatusText = "Notiser är avstängda för Orientera i systeminställningarna. Slå på dem där först.";
             return;
         }
 
-        row.IsEnabled = wanted;
-
         _preferences.Save(_preferences.Current.With(row.Kind, wanted));
+        StatusText = _restingStatus;
 
         await _notifications.RefreshAsync();
     }
