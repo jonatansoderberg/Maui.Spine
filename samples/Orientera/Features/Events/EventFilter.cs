@@ -15,6 +15,9 @@ public enum QuickFilter
     ThisWeek,
     Mine,
     Favourites,
+
+    /// <summary>What has already been run. Off to one side, because this tab is for planning.</summary>
+    Past,
 }
 
 /// <summary>The advanced filter, returned as a typed result from <see cref="EventFilterSheet"/>.</summary>

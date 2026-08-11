@@ -12,6 +12,9 @@ public static class Format
 {
     private static readonly CultureInfo Sv = new("sv-SE");
 
+    /// <summary>The app's language, for callers that format their own dates.</summary>
+    public static CultureInfo Culture => Sv;
+
     /// <summary>"48:07" under an hour, "1:04:59" above it.</summary>
     public static string Time(TimeSpan time) =>
         time.TotalHours >= 1
