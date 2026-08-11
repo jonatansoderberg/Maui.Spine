@@ -202,11 +202,21 @@ internal partial class NavigationRegionViewModel : ObservableObject
     /// Pops the topmost page off the navigation stack and plays the back transition.
     /// Calls <see cref="ViewModelBase.OnBackRequestedAsync"/> first and aborts if it returns <see langword="false"/>.
     /// </summary>
+    /// <remarks>
+    /// Going back from the only page of a sheet means leaving the sheet, so this dismisses it.
+    /// Returning silently instead would make <c>BackAsync</c> a call that does nothing and says
+    /// nothing — which reads, from inside a sheet, as a button that is broken.
+    /// </remarks>
     [RelayCommand(CanExecute = nameof(BackEnabled))]
     public async Task BackAsync()
     {
         if (_stack.Count < 2)
+        {
+            if (Presentation is NavigationPresentation.Sheet)
+                await CloseAsync();
+
             return;
+        }
 
         if (CurrentRegionViewModel is not null)
         {
