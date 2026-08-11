@@ -152,9 +152,15 @@ public sealed class LiveResultsNormalizer(TimeZoneInfo _zone)
         _ => hasPassings ? LiveStatus.Running : LiveStatus.NotStarted,
     };
 
-    private DateTimeOffset StartOf(JsonElement element, DateOnly date)
+    /// <summary>
+    /// Null for a runner the source has no start time for. LiveResults answers <c>0</c> there,
+    /// which is a real clock reading — midnight — and would otherwise be shown as one.
+    /// </summary>
+    private DateTimeOffset? StartOf(JsonElement element, DateOnly date)
     {
-        var sinceMidnight = Duration(element, "start") ?? TimeSpan.Zero;
+        if (Duration(element, "start") is not { } sinceMidnight)
+            return null;
+
         var local = date.ToDateTime(TimeOnly.MinValue) + sinceMidnight;
 
         return new DateTimeOffset(local, _zone.GetUtcOffset(local));

@@ -368,7 +368,9 @@ public partial class LivePageViewModel(
             .OrderBy(e => e.Class, StringComparer.CurrentCulture)
             .ThenBy(e => e.Status == LiveStatus.NotStarted ? 1 : 0)
             .ThenBy(e => e.Position ?? int.MaxValue)
-            .ThenBy(e => e.StartTime)
+            // A runner the source has no start time for goes last, which is where their status
+            // already puts them.
+            .ThenBy(e => e.StartTime ?? DateTimeOffset.MaxValue)
             .ToList();
 
         if (Merge(visible, columnsChanged))
@@ -538,7 +540,9 @@ public partial class LivePageViewModel(
         // The table carries the race; the row only says what the table cannot.
         row.StatusText = entry.Status switch
         {
-            LiveStatus.NotStarted => $"Start {Format.Clock(entry.StartTime)}",
+            // No start time is the source saying this runner never started, not that they start
+            // at midnight.
+            LiveStatus.NotStarted => entry.StartTime is { } start ? $"Start {Format.Clock(start)}" : "Ej start",
             LiveStatus.Mispunch => "Felstämplat",
             LiveStatus.DidNotFinish => "Bröt",
             LiveStatus.Running when entry.Passings.Count == 0 => "Startad",
