@@ -91,6 +91,11 @@ public partial class ResultsDetailPageViewModel(
     [ObservableProperty] public partial string PlaceOfText { get; set; } = string.Empty;
     [ObservableProperty] public partial string TimeText { get; set; } = string.Empty;
     [ObservableProperty] public partial string BehindText { get; set; } = string.Empty;
+
+    /// <summary>"Efter vinnaren", or "Före tvåan" for the runner who won.</summary>
+    [ObservableProperty] public partial string BehindLabel { get; set; } = "Efter vinnaren";
+
+    [ObservableProperty] public partial bool IsWinner { get; set; }
     [ObservableProperty] public partial string StatusText { get; set; } = string.Empty;
     [ObservableProperty] public partial string PredictionText { get; set; } = string.Empty;
     [ObservableProperty] public partial string PredictionOutcomeText { get; set; } = string.Empty;
@@ -235,7 +240,10 @@ public partial class ResultsDetailPageViewModel(
                     Club = result.Club,
                     ClubLogo = result.ClubLogo,
                     TimeText = result.Status == ResultStatus.Ok ? Format.Time(result.Time) : Format.ResultStatus(result.Status),
-                    BehindText = result.BehindWinner is { } behind ? Format.Delta(behind) : string.Empty,
+                    // The winner's own row says nothing by saying "+0:00".
+                    BehindText = result.Place == 1 || result.BehindWinner is not { } behind
+                        ? string.Empty
+                        : Format.Delta(behind),
                     IsMe = isMe,
                     Accessibility = string.Join(", ", new[]
                     {
@@ -283,20 +291,54 @@ public partial class ResultsDetailPageViewModel(
             BuildComparison(target);
     }
 
+    /// <summary>
+    /// How far ahead of the runner-up the winner finished, or null when the class had no second
+    /// runner to be ahead of. A mispunched runner is not second — the margin is measured to the
+    /// next result that counts.
+    /// </summary>
+    private TimeSpan? MarginToRunnerUp(CompetitionResult winner)
+    {
+        var runnerUp = _field
+            .Where(r => r.Class == winner.Class && r.Status == ResultStatus.Ok && r.Place == 2)
+            .OrderBy(r => r.Time)
+            .FirstOrDefault();
+
+        return runnerUp is not null ? runnerUp.Time - winner.Time : null;
+    }
+
     private void BuildOverview(Competition competition, CompetitionResult mine)
     {
         ClassLine = $"{mine.Class} · {Format.Discipline(competition.Discipline)} · {competition.Date:d MMM yyyy}";
         PlaceText = Format.Place(mine.Place);
         PlaceOfText = Format.PlaceOf(mine.Place, mine.Starters);
         TimeText = Format.Time(mine.Time);
-        BehindText = mine.BehindWinner is { } behind ? Format.Delta(behind) : "—";
         StatusText = Format.ResultStatus(mine.Status);
 
         PlaceSpoken = $"{Format.SpokenPlace(mine.Place)} av {mine.Starters} startande";
         TimeSpoken = $"tid {Format.SpokenTime(mine.Time)}";
-        BehindSpoken = mine.BehindWinner is { } spokenBehind
-            ? $"efter vinnaren {Format.SpokenTime(spokenBehind)}"
-            : "ingen tid efter vinnaren";
+
+        // The winner has no time behind the winner. What a winner wants to know is the margin
+        // down to second.
+        IsWinner = mine.Place == 1;
+
+        if (IsWinner)
+        {
+            var margin = MarginToRunnerUp(mine);
+
+            BehindLabel = "Före tvåan";
+            BehindText = margin is { } ahead ? Format.Time(ahead) : "—";
+            BehindSpoken = margin is { } spokenAhead
+                ? $"före tvåan {Format.SpokenTime(spokenAhead)}"
+                : "ingen tvåa att jämföra med";
+        }
+        else
+        {
+            BehindLabel = "Efter vinnaren";
+            BehindText = mine.BehindWinner is { } behind ? Format.Delta(behind) : "—";
+            BehindSpoken = mine.BehindWinner is { } spokenBehind
+                ? $"efter vinnaren {Format.SpokenTime(spokenBehind)}"
+                : "ingen tid efter vinnaren";
+        }
 
         HasPrediction = _prediction is not null && mine.Place is not null;
 

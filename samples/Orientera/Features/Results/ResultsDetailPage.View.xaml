@@ -57,11 +57,18 @@
                                            Text="{Binding TimeText}" />
                                 </VerticalStackLayout>
                                 <VerticalStackLayout Grid.Column="1">
-                                    <Label Style="{StaticResource CaptionLabel}" Text="Efter vinnaren" />
+                                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding BehindLabel}" />
                                     <Label Style="{StaticResource NumericHeading2Label}"
                                            TextColor="{DynamicResource NegativeDelta}"
                                            SemanticProperties.Description="{Binding BehindSpoken}"
-                                           Text="{Binding BehindText}" />
+                                           Text="{Binding BehindText}">
+                                        <!-- Rött är tid man tappat; en marginal före tvåan är motsatsen -->
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsWinner}" Value="True">
+                                                <Setter Property="TextColor" Value="{DynamicResource PositiveDelta}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
                                 </VerticalStackLayout>
                                 <VerticalStackLayout Grid.Column="2">
                                     <Label Style="{StaticResource CaptionLabel}" Text="Status" />
