@@ -70,7 +70,7 @@ public sealed class ArenaMap : MapControl
         Style = new ImageStyle
         {
             Image = new Image { Source = "embedded://Orientera.Resources.Svg.arena_control.svg" },
-            SymbolScale = 0.9,
+            SymbolScale = 0.63,
         },
     };
 }
