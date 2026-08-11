@@ -50,6 +50,13 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial string OrganiserLine { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasArena))]
+    public partial GeoPoint Arena { get; set; }
+
+    public bool HasArena => Arena is not { Latitude: 0, Longitude: 0 };
+
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasOrganiserLogo))]
     public partial string? OrganiserLogo { get; set; }
 
@@ -255,6 +262,7 @@ public partial class EventDetailsPageViewModel(
         Name = competition.Name;
         OrganiserLine = $"{competition.Organiser} · {competition.Place}";
         OrganiserLogo = competition.OrganiserLogo;
+        Arena = competition.Location;
         DateLine = $"{Format.RelativeDate(competition.Date, today)} · första start {Format.Clock(competition.FirstStart)}";
         MetaLine = $"{Format.Discipline(competition.Discipline)} · {Format.Level(competition.Level)} · {competition.District}";
         IsFavourite = favourites.Contains(competition.Id);
