@@ -24,6 +24,9 @@ builder.Services.AddScoped<EventorSource>();
 builder.Services.AddScoped<LiveSource>();
 builder.Services.AddScoped<RaceStoryWriter>();
 
+// The organisation list is fetched while the host starts rather than by whoever asks first.
+builder.Services.AddHostedService<DirectoryWarmup>();
+
 builder.Services.AddHttpClient<EventorClient>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(20);
