@@ -40,7 +40,8 @@
         </VerticalStackLayout>
 
         <CollectionView Grid.Row="1"
-                        ItemsSource="{Binding Cards}"
+                        ItemsSource="{Binding Sections}"
+                        IsGrouped="True"
                         SelectionMode="None"
                         IsVisible="{Binding HasCards}">
             <CollectionView.ItemsLayout>
@@ -50,6 +51,15 @@
             <CollectionView.Footer>
                 <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
             </CollectionView.Footer>
+
+            <CollectionView.GroupHeaderTemplate>
+                <DataTemplate x:DataType="EventSection">
+                    <Label Style="{StaticResource SectionLabel}"
+                           Padding="4,14,0,4"
+                           SemanticProperties.Description="{Binding Accessibility}"
+                           Text="{Binding Name}" />
+                </DataTemplate>
+            </CollectionView.GroupHeaderTemplate>
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="EventCard">

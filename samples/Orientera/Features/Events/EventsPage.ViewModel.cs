@@ -42,9 +42,11 @@ public partial class EventsPageViewModel(
         new() { Filter = QuickFilter.ThisWeek, Label = "Denna vecka" },
         new() { Filter = QuickFilter.Mine, Label = "Mina" },
         new() { Filter = QuickFilter.Favourites, Label = "Favoriter" },
+        new() { Filter = QuickFilter.Past, Label = "Tidigare" },
     ];
 
-    public ObservableCollection<EventCard> Cards { get; } = [];
+    /// <summary>The list, in dated sections. "För dig" is one section, since it is ranked.</summary>
+    public ObservableCollection<EventSection> Sections { get; } = [];
 
     [ObservableProperty]
     public partial string EmptyMessage { get; set; } = string.Empty;
@@ -143,13 +145,15 @@ public partial class EventsPageViewModel(
         var packages = await _offlineStore.GetAllAsync();
         var today = DateOnly.FromDateTime(_clock.Now.Date);
 
-        Cards.Clear();
+        Sections.Clear();
+
+        var saved = new EventSection("Sparade offline");
 
         foreach (var package in packages.OrderBy(p => p.Competition.FirstStart))
         {
             var competition = package.Competition;
 
-            Cards.Add(new EventCard
+            saved.Add(new EventCard
             {
                 Competition = competition.Id,
                 Title = competition.Name,
@@ -165,7 +169,10 @@ public partial class EventsPageViewModel(
             });
         }
 
-        HasCards = Cards.Count > 0;
+        if (saved.Count > 0)
+            Sections.Add(saved);
+
+        HasCards = saved.Count > 0;
         IsEmpty = !HasCards;
         EmptyMessage = "Ingen anslutning, och inga sparade tävlingar. Tävlingar sparas när du är anmäld, följer dem eller favoritmarkerar dem.";
     }
@@ -204,16 +211,51 @@ public partial class EventsPageViewModel(
         // Group first, then order: a recurring series must occupy one slot, not six.
         var groups = EventGrouper.Group(candidates);
 
-        var ordered = Selected == QuickFilter.ForYou
-            ? groups.OrderByDescending(g => g.Occurrences.Max(c => RelevanceEngine.Score(c, relevance).Total)).ToList()
-            : groups.OrderBy(g => g.FirstDate).ToList();
+        // This tab is for finding a competition to go to. What has been run lives under its own
+        // chip and in Resultat — mixing the two put the summer that was at the top of the list.
+        bool past = Selected == QuickFilter.Past;
 
-        Cards.Clear();
+        groups = groups.Where(g => EventTimeline.IsPast(g, today) == past).ToList();
+
+        var ordered = Selected switch
+        {
+            // Newest first: the race someone is looking back at is the one just run.
+            QuickFilter.Past => groups.OrderByDescending(g => g.LastDate).ToList(),
+            QuickFilter.ForYou => groups
+                .OrderByDescending(g => g.Occurrences.Max(c => RelevanceEngine.Score(c, relevance).Total))
+                .ThenBy(g => EventTimeline.SortDate(g, today))
+                .ToList(),
+            _ => groups.OrderBy(g => EventTimeline.SortDate(g, today)).ThenBy(g => g.Title).ToList(),
+        };
+
+        // "För dig" is ranked, not dated, so headings would fight the order it is in. Everything
+        // else reads as a calendar and gets the dates to navigate by.
+        //
+        // Built complete before anything reaches Sections: a UICollectionView that is told about
+        // an empty section and then has rows appended to the plain list behind it counts wrong
+        // and throws. The observed collection only ever sees finished sections.
+        var built = new List<EventSection>();
 
         foreach (var eventGroup in ordered)
-            Cards.Add(await BuildCardAsync(eventGroup, today, mine, groupEntries, _me));
+        {
+            var card = await BuildCardAsync(eventGroup, today, mine, groupEntries, _me);
 
-        IsEmpty = Cards.Count == 0;
+            string name = Selected == QuickFilter.ForYou
+                ? "Mest relevant"
+                : EventTimeline.NameFor(eventGroup, today);
+
+            if (built.Count == 0 || built[^1].Name != name)
+                built.Add(new EventSection(name));
+
+            built[^1].Add(card);
+        }
+
+        Sections.Clear();
+
+        foreach (var section in built)
+            Sections.Add(section);
+
+        IsEmpty = Sections.Count == 0;
         HasCards = !IsEmpty;
         EmptyMessage = EmptyMessageFor(Selected);
     }
@@ -253,7 +295,10 @@ public partial class EventsPageViewModel(
         IReadOnlySet<CompetitionId> mine,
         IReadOnlySet<CompetitionId> groupEntries) => Selected switch
         {
+            // Relevance does not know what time it is, so the filter does: a competition that
+            // has already been decided cannot be the most relevant thing on the list.
             QuickFilter.ForYou => true,
+            QuickFilter.Past => true,
             QuickFilter.Near => _me!.Home.DistanceKmTo(competition.Location) <= 60,
             QuickFilter.District => competition.District == _me!.District,
             QuickFilter.Bigger => competition.Level <= CompetitionLevel.National,
@@ -307,6 +352,7 @@ public partial class EventsPageViewModel(
         QuickFilter.Favourites => "Inga favoritmarkerade tävlingar. Tryck på stjärnan i listan.",
         QuickFilter.ThisWeek => "Inget den här veckan. Prova Större eller För dig.",
         QuickFilter.Near => "Inget i närheten. Vidga sökningen i filtret.",
+        QuickFilter.Past => "Inga tidigare tävlingar i kalenderfönstret.",
         _ => "Inga tävlingar matchar filtret.",
     };
 }
