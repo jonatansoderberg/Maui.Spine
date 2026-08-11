@@ -9,9 +9,21 @@
 
         <!-- Vilken tävling och hur färsk datan är -->
         <VerticalStackLayout Grid.Row="0" Padding="16,4,16,8" Spacing="2" IsVisible="{Binding HasLive}">
-            <Label Style="{StaticResource Heading2Label}"
-                   SemanticProperties.HeadingLevel="Level1"
-                   Text="{Binding CompetitionName}" />
+            <!-- Namnet blir valbart först när det finns en till tävling att byta till -->
+            <HorizontalStackLayout Spacing="6">
+                <Label Style="{StaticResource Heading2Label}"
+                       SemanticProperties.HeadingLevel="Level1"
+                       Text="{Binding CompetitionName}" />
+                <Label Style="{StaticResource Heading2Label}"
+                       VerticalOptions="Center"
+                       IsVisible="{Binding CanPickCompetition}"
+                       TextColor="{DynamicResource AccentAction}"
+                       Text="▾" />
+
+                <HorizontalStackLayout.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding PickCompetitionCommand}" />
+                </HorizontalStackLayout.GestureRecognizers>
+            </HorizontalStackLayout>
             <HorizontalStackLayout Spacing="8">
                 <Border Style="{StaticResource BadgeLive}">
                     <Label Style="{StaticResource BadgeOnFillLabel}" Text="Live" />
