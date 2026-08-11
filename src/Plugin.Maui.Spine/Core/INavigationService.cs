@@ -48,8 +48,12 @@ public interface INavigationService
 
     /// <summary>
     /// Navigates back to the previous page in the current navigation stack.
-    /// If the stack has only one entry this is a no-op.
     /// </summary>
+    /// <remarks>
+    /// From the only page of a bottom sheet, going back means leaving the sheet, so the sheet is
+    /// dismissed and any pending result is cancelled. Elsewhere at the root of a stack — an app
+    /// root or a tab root — there is nothing behind the page and the call does nothing.
+    /// </remarks>
     Task BackAsync();
 
     /// <summary>
