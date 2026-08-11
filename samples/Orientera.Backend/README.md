@@ -69,15 +69,28 @@ Matchningen Eventor ↔ LiveResults (SP-04) väger datum, arrangör och namn. Da
 inte en signal. Två kandidater som är lika bra ger **ingen** matchning: en gissning som visas som
 ett faktum är värre än en tom vy.
 
-## Att verifiera mot skarp data
+## Verifierat mot skarp data
 
-Normaliseringen är byggd mot den dokumenterade XML-formen
-([OpenAPI-spec för Eventor-API:t](https://github.com/orienteering-oss/eventor-api-openapi-spec)),
-och fixturerna i `Orientera.Tests` är skrivna efter den — inte inspelade från skarpa svar.
-Följande antaganden ska stämmas av mot riktig data innan M1 stängs:
+Normaliseringen är körd mot skarpa Eventor-svar 2026-08-10 med en riktig API-nyckel (issue #42).
+Fixturerna i `Orientera.Tests` är uppdaterade till den form API:et faktiskt svarar i.
 
-- `startListExists` / `resultListExists` som attribut på `Event`.
-- `SplitTime/Time` som *ackumulerad* tid från start (sträcktiden räknas ut som differens).
-- `EntryBreak/ValidFromDate` som ordinarie anmälningsstopp.
-- Att arenanamnet saknas i kalendern — `Place` faller tillbaka på loppnamn respektive distrikt
-  tills PM-pipelinen i M3 kan läsa ut arenan.
+Bekräftat: bas-URL och `ApiKey`-huvudet, samtliga endpoints, `SplitTime/Time` som **ackumulerad**
+tid, tidformaten, statuskoderna, `EventCenterPosition` med x som longitud, och klubb/distrikt ur
+organisationslistan.
+
+Rättat efter verifieringen:
+
+| Antagande i M1 | Verkligheten |
+|----------------|--------------|
+| `startListExists` / `resultListExists` som attribut | Finns inte. Publiceringstiderna ligger i `HashTableEntry` — `startList_{raceId}` och `officialResult_{raceId}` — med exakta tidpunkter |
+| `EntryBreak/ValidFromDate` = anmälningsstopp | Tvärtom: `ValidFromDate` öppnar, `ValidToDate` stänger |
+| Ingen "anmälan öppnar"-tidpunkt finns | Den finns, som `ValidFromDate` |
+| Första start finns i kalendern | Nej — `StartDate` är midnatt. Första start hämtas ur startlistan när den publicerats |
+| Inparametrar i lokal tid | Ska vara UTC |
+| Disciplin ur `raceDistance` | En stafett är `eventForm="RelaySingleDay"` med `raceDistance="Long"` — formen avgör |
+
+`TimeZone: UTC`-huvudet **ska inte** skickas: utan det svarar API:et i svensk lokaltid
+(`2026-08-07 00:00:00`), med det backar samma värde ett dygn (`2026-08-06 22:00:00`).
+
+Kvar att fylla: arenanamnet. Kalendern har bara loppets namn, och `Place` faller tillbaka på
+distriktet — arenan står i PM:et, som är M3:s pipeline.

@@ -18,9 +18,13 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
 
     public IReadOnlyList<Competition> Competitions(XElement eventList, OrganisationDirectory organisations) =>
         [.. eventList.Children("Event")
+            .Where(e => organisations.IsSwedish(OrganiserOf(e)))
             .Select(e => Competition(e, organisations))
             .OfType<Competition>()
             .OrderBy(c => c.FirstStart)];
+
+    private static string? OrganiserOf(XElement element) =>
+        element.Child("Organiser").Deep("OrganisationId").FirstOrDefault()?.Value.Trim();
 
     public Competition? Competition(XElement element, OrganisationDirectory organisations)
     {
@@ -28,7 +32,7 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
             return null;
 
         var race = element.Children("EventRace").FirstOrDefault();
-        var organiserId = element.Child("Organiser").Deep("OrganisationId").FirstOrDefault()?.Value.Trim();
+        var organiserId = OrganiserOf(element);
         var district = organisations.DistrictOf(organiserId);
 
         var firstStart =
@@ -39,8 +43,6 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
         if (firstStart == default)
             return null;
 
-        var modified = element.Child("ModifyDate").Moment(_zone);
-
         return new Competition
         {
             Id = new CompetitionId(id),
@@ -49,11 +51,11 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
             District = district,
             Place = PlaceOf(race, name, district),
             Location = PositionOf(race),
-            Discipline = DisciplineOf(race),
+            Discipline = DisciplineOf(element, race),
             Level = LevelOf(element.Text("EventClassificationId")),
             FirstStart = firstStart,
             LastFinish = LastFinishOf(element, firstStart),
-            Schedule = ScheduleOf(element, modified),
+            Schedule = ScheduleOf(element),
             Documents = [],
             Classes = [],
         };
@@ -86,8 +88,16 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
     /// Eventor separates distance from light condition; the domain treats a night race as its
     /// own discipline, because that is how a runner picks competitions.
     /// </summary>
-    private static Discipline DisciplineOf(XElement? race)
+    /// <remarks>
+    /// A relay is a relay whatever its legs measure: live Eventor data marks
+    /// "Norrlandsmästerskapen, distriktsstafett" as <c>eventForm="RelaySingleDay"</c> with
+    /// <c>raceDistance="Long"</c>, and reading only the distance called it a long-distance race.
+    /// </remarks>
+    private static Discipline DisciplineOf(XElement element, XElement? race)
     {
+        if (element.Attr("eventForm")?.StartsWith("Relay", StringComparison.Ordinal) == true)
+            return Discipline.Relay;
+
         if (race.Attr("raceLightCondition") is "Night")
             return Discipline.Night;
 
@@ -123,35 +133,58 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
         return finish is { } at && at > firstStart ? at : firstStart.AddHours(6);
     }
 
-    private CompetitionSchedule ScheduleOf(XElement element, DateTimeOffset? modified)
+    /// <summary>
+    /// Verified against live Eventor data (issue #42): an entry break is the period entry is
+    /// <em>open</em>, and the publication times live in the event's hash table rather than in
+    /// attributes on the event.
+    /// </summary>
+    private CompetitionSchedule ScheduleOf(XElement element)
     {
-        // The first entry break is where ordinary entry closes; later ones are the late-entry
-        // periods, which cost extra and are not the deadline a runner plans around.
-        var deadline = element.Children("EntryBreak")
+        var breaks = element.Children("EntryBreak").ToList();
+
+        // The first period is ordinary entry; later ones are late entry, which costs extra and
+        // is not the deadline a runner plans around.
+        var opens = breaks
             .Select(b => b.Child("ValidFromDate").Moment(_zone))
             .OfType<DateTimeOffset>()
-            .OrderBy(at => at)
+            .Order()
             .Cast<DateTimeOffset?>()
             .FirstOrDefault();
 
-        bool startList = Exists(element, "startListExists");
-        bool resultList = Exists(element, "resultListExists");
+        var deadline = breaks
+            .Select(b => b.Child("ValidToDate").Moment(_zone))
+            .OfType<DateTimeOffset>()
+            .Order()
+            .Cast<DateTimeOffset?>()
+            .FirstOrDefault();
 
         return new CompetitionSchedule
         {
-            // Eventor has no "entry opens" timestamp, and inventing one from the modify date
-            // puts it after the deadline for any event whose PM was updated late. The
-            // deadline alone carries the state (see ContextEngine).
+            RegistrationOpensAt = opens,
             EntryDeadline = deadline,
-            StartListPublishedAt = startList ? modified : null,
-            ResultsPublishedAt = resultList ? modified : null,
+            StartListPublishedAt = Published(element, "startList"),
+            ResultsPublishedAt = Published(element, "officialResult"),
         };
     }
 
-    private static bool Exists(XElement element, string name) =>
-        element.Flag(name) || string.Equals(element.Text(Capitalize(name)), "true", StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Eventor records when a start list or a result list was published as a hash table entry
+    /// keyed by the race — <c>startList_55507</c>, <c>officialResult_55507</c>. An exact
+    /// timestamp, which is what the context engine needs to say what a competition is at.
+    /// </summary>
+    private DateTimeOffset? Published(XElement element, string key)
+    {
+        foreach (var entry in element.Children("HashTableEntry"))
+        {
+            if (entry.Text("Key") is not { } name || !name.StartsWith(key + "_", StringComparison.Ordinal))
+                continue;
 
-    private static string Capitalize(string name) => char.ToUpperInvariant(name[0]) + name[1..];
+            if (Timestamp(entry.Text("Value")) is { } at)
+                return at;
+        }
+
+        return null;
+    }
 
     // ---------------------------------------------------------------- documents and classes
 

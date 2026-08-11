@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Event eventForm="IndSingleDay" resultListExists="true" startListExists="true">
+<Event eventForm="IndSingleDay">
   <EventId>38499</EventId>
   <Name>Natt-SM, långdistans</Name>
   <EventClassificationId>1</EventClassificationId>
@@ -17,9 +17,13 @@
   </Organiser>
   <EntryBreak>
     <ValidFromDate>
+      <Date>2026-07-01</Date>
+      <Clock>00:00:00</Clock>
+    </ValidFromDate>
+    <ValidToDate>
       <Date>2026-08-31</Date>
       <Clock>23:59:59</Clock>
-    </ValidFromDate>
+    </ValidToDate>
   </EntryBreak>
   <EventRace eventRaceId="41301" raceLightCondition="Night" raceDistance="Long">
     <EventRaceId>41301</EventRaceId>
@@ -34,4 +38,12 @@
     <Date>2026-09-06</Date>
     <Clock>09:40:00</Clock>
   </ModifyDate>
+  <HashTableEntry>
+    <Key>startList_41301</Key>
+    <Value>2026-09-04 06:15:00</Value>
+  </HashTableEntry>
+  <HashTableEntry>
+    <Key>officialResult_41301</Key>
+    <Value>2026-09-06 09:40:00</Value>
+  </HashTableEntry>
 </Event>
