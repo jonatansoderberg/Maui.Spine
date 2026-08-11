@@ -23,6 +23,7 @@ builder.Services.AddSingleton<ResponseCache>();
 builder.Services.AddScoped<EventorSource>();
 builder.Services.AddScoped<LiveSource>();
 builder.Services.AddScoped<RaceStoryWriter>();
+builder.Services.AddScoped<PeopleSearch>();
 
 // The organisation list is fetched while the host starts rather than by whoever asks first.
 builder.Services.AddHostedService<DirectoryWarmup>();

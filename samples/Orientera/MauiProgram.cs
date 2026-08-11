@@ -99,6 +99,10 @@ public static class MauiProgram
         services.AddSingleton(_ => new LocalIdentityStore(
             Path.Combine(FileSystem.AppDataDirectory, "identity.json")));
 
+        // Who the user follows, on this phone. Empty until they say otherwise.
+        services.AddSingleton(_ => new LocalGroupStore(
+            Path.Combine(FileSystem.AppDataDirectory, "my-group.json")));
+
         services.AddSingleton(_ => new CompetitionClassStore(
             Path.Combine(FileSystem.AppDataDirectory, "live-classes.json")));
 
@@ -114,7 +118,8 @@ public static class MauiProgram
             services.AddSingleton<IOrienteraSource>(sp => new BackendSource(
                 new HttpClient { BaseAddress = new Uri(backendAddress), Timeout = TimeSpan.FromSeconds(20) },
                 sp.GetRequiredService<FakeDataSource>(),
-                sp.GetRequiredService<LocalIdentityStore>()));
+                sp.GetRequiredService<LocalIdentityStore>(),
+                sp.GetRequiredService<LocalGroupStore>()));
 
             // Its own client: writing a paragraph is slower than reading a result list, and the
             // shorter timeout is the one everything else should keep.

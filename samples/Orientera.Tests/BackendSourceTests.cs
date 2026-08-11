@@ -22,6 +22,9 @@ public class BackendSourceTests
     private readonly LocalIdentityStore _identity = new(Path.Combine(
         Path.GetTempPath(), $"orientera-identity-{Guid.NewGuid():N}.json"));
 
+    private readonly LocalGroupStore _group = new(Path.Combine(
+        Path.GetTempPath(), $"orientera-group-{Guid.NewGuid():N}.json"));
+
     private static readonly Competition Sprint = new()
     {
         Id = new CompetitionId("38412"),
@@ -97,24 +100,67 @@ public class BackendSourceTests
         var source = new BackendSource(
             new HttpClient(new ThrowingHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
             _local,
-            _identity);
+            _identity,
+            _group);
 
         await Assert.ThrowsAsync<SourceUnavailableException>(() => source.GetCompetitionsAsync());
     }
 
-    /// <summary>Favourites and Min grupp are local by principle: no account, no connection needed.</summary>
+    /// <summary>Favourites and identity are local by principle: no account, no connection needed.</summary>
     [Fact]
     public async Task Local_data_answers_even_when_the_backend_does_not()
     {
-        var source = new BackendSource(
-            new HttpClient(new ThrowingHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
-            _local,
-            _identity);
+        var source = Offline();
 
         Assert.NotEmpty(await source.GetFavouritesAsync());
-        Assert.NotEmpty(await source.GetMyGroupAsync());
         Assert.Equal(FakeDataset.Instance.Me.Name, (await source.GetMeAsync()).Name);
     }
+
+    /// <summary>
+    /// Min grupp is local too, but against a real backend it starts empty. The demo dataset's
+    /// three followed runners belong to the demo; a real runner opening the app to find three
+    /// strangers they never chose is the app inventing a social graph (#63).
+    /// </summary>
+    [Fact]
+    public async Task My_group_starts_empty_and_holds_only_what_the_user_followed()
+    {
+        var source = Offline();
+
+        Assert.Empty(await source.GetMyGroupAsync());
+
+        var runner = new Person
+        {
+            Id = new PersonId("144299"),
+            Name = "Johan Sjödin",
+            Club = "Stora Tuna OK",
+            District = "Dalarna",
+            DefaultClass = "H21",
+        };
+
+        await source.FollowAsync(runner, FollowReason.Favourite);
+
+        Assert.Equal("Johan Sjödin", Assert.Single(await source.GetMyGroupAsync()).Person.Name);
+
+        await source.UnfollowAsync(runner.Id);
+
+        Assert.Empty(await source.GetMyGroupAsync());
+    }
+
+    /// <summary>The seeded demo people are not searchable against a real backend.</summary>
+    [Fact]
+    public async Task Search_asks_the_backend_rather_than_the_demo_dataset()
+    {
+        var source = SourceReturning(HttpStatusCode.OK, Json(new List<Person>()));
+
+        Assert.Empty(await source.SearchAsync("Alfred"));
+    }
+
+    private BackendSource Offline() =>
+        new(
+            new HttpClient(new ThrowingHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
+            _local,
+            _identity,
+            _group);
 
     /// <summary>
     /// My entries need an identified person, which is M2. Until then the honest answer is
@@ -175,7 +221,8 @@ public class BackendSourceTests
         var source = new BackendSource(
             new HttpClient(new SlowHandler()) { BaseAddress = new Uri("http://localhost:7071/api/"), Timeout = TimeSpan.FromMilliseconds(50) },
             _local,
-            _identity);
+            _identity,
+            _group);
 
         await Assert.ThrowsAsync<SourceUnavailableException>(() => source.GetCompetitionsAsync());
     }
@@ -187,7 +234,8 @@ public class BackendSourceTests
         var source = new BackendSource(
             new HttpClient(new SlowHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
             _local,
-            _identity);
+            _identity,
+            _group);
 
         using var giveUp = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
 
@@ -198,7 +246,8 @@ public class BackendSourceTests
         new(
             new HttpClient(new StubHandler(status, body)) { BaseAddress = new Uri("http://localhost:7071/api/") },
             _local,
-            _identity);
+            _identity,
+            _group);
 
     private static string Json<T>(T value) => JsonSerializer.Serialize(value, OrienteraJson.Options);
 

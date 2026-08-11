@@ -18,7 +18,11 @@ namespace Orientera.Services.Sources;
 /// than borrowed from the fake dataset: a real calendar next to a fabricated entry would be
 /// worse than an honest empty state.
 /// </remarks>
-public sealed class BackendSource(HttpClient _http, IOrienteraSource _local, LocalIdentityStore _identity)
+public sealed class BackendSource(
+    HttpClient _http,
+    IOrienteraSource _local,
+    LocalIdentityStore _identity,
+    LocalGroupStore _group)
     : IOrienteraSource
 {
     // ---------------------------------------------------------------- IEventSource
@@ -55,17 +59,33 @@ public sealed class BackendSource(HttpClient _http, IOrienteraSource _local, Loc
         return _identity.AsPerson(seeded) ?? seeded;
     }
 
+    /// <summary>
+    /// Min grupp is local, and against a real backend it starts empty: the demo dataset's three
+    /// followed runners belong to the demo, not to whoever installed the app.
+    /// </summary>
     public Task<IReadOnlyList<FollowedPerson>> GetMyGroupAsync(CancellationToken cancellationToken = default) =>
-        _local.GetMyGroupAsync(cancellationToken);
+        Task.FromResult(_group.All());
 
-    public Task<IReadOnlyList<Person>> SearchAsync(string query, CancellationToken cancellationToken = default) =>
-        _local.SearchAsync(query, cancellationToken);
+    /// <summary>
+    /// Real people, from result lists the backend has already fetched. Eventor has no public
+    /// person lookup, so this is what a real search can be without new access (SP-04) — and it
+    /// is a search over people who exist, which the seeded demo list was not.
+    /// </summary>
+    public async Task<IReadOnlyList<Person>> SearchAsync(string query, CancellationToken cancellationToken = default) =>
+        await GetAsync<List<Person>>($"people?q={Uri.EscapeDataString(query)}", cancellationToken) ?? [];
 
-    public Task FollowAsync(PersonId person, FollowReason reason, CancellationToken cancellationToken = default) =>
-        _local.FollowAsync(person, reason, cancellationToken);
+    public Task FollowAsync(Person person, FollowReason reason, CancellationToken cancellationToken = default)
+    {
+        _group.Follow(person, reason);
+        return Task.CompletedTask;
+    }
 
-    public Task UnfollowAsync(PersonId person, CancellationToken cancellationToken = default) =>
-        _local.UnfollowAsync(person, cancellationToken);
+    public Task UnfollowAsync(PersonId person, CancellationToken cancellationToken = default)
+    {
+        _group.Unfollow(person);
+        return Task.CompletedTask;
+    }
+
 
     // ---------------------------------------------------------------- IParticipationSource
 
