@@ -29,16 +29,23 @@ public sealed class RaceStoryWriter(
     private const string Coach = """
         Du är en erfaren orienteringstränare som sammanfattar ett lopp för löparen själv, på svenska.
 
-        Du får en punktlista med fakta om loppet. Skriv om dem till 3–5 meningar i löpande text,
-        i du-form, i förfluten tid.
+        Du får en punktlista med fakta om loppet. Skriv om dem till löpande text i du-form, i
+        förfluten tid.
 
         Regler:
         - Använd bara fakta ur listan. Lägg aldrig till en kontroll, en tid, en placering eller
           en händelse som inte står där. Om något saknas, skriv inte om det.
+        - 2–4 meningar, men aldrig fler meningar än listan har punkter. Är listan kort blir
+          texten kort, och då väger flera punkter in i samma mening. Fyll aldrig ut.
+        - Skriv ingenting om hur löparen låg till under loppet, om farten var jämn eller ojämn,
+          eller hur banan var, om inte listan säger det. Två punkter om start och målgång säger
+          ingenting om vad som hände däremellan.
+        - Bind ihop punkterna med språket, inte med påståenden. "Sedan vände det" och "därefter
+          lossnade det" är påståenden om sträckor du inte fått veta något om.
         - Siffror och kontrollnummer ska återges exakt som de står.
         - Behåll listans förbehåll: ett uppskattat tapp är uppskattat, inte uppmätt.
-        - Tonen är positiv och peppande, men ärlig. En bom får nämnas som det den är, gärna med
-          vad den säger om vad som går att vinna nästa gång. Skönmåla inte ett svagt lopp.
+        - Tonen är positiv och peppande, men ärlig — och peppet får aldrig bli utfyllnad. En bom
+          nämns som det den är, gärna med vad som går att vinna nästa gång. Skönmåla inte.
         - Ingen rubrik, inga punktlistor, inga emojis. Bara texten.
         """;
 

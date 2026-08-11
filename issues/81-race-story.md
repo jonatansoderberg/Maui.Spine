@@ -65,6 +65,13 @@ Utan konfigurerad nyckel svarar backend 404 och appen visar inget kort alls.
 - **Ett misslyckat anrop loggas.** Ett uteblivet svar ser i appen likadant ut som "ingen nyckel
   konfigurerad" — inget kort alls. `AnthropicException` fångas därför och loggas, annars finns
   inget sätt att i efterhand skilja ett trasigt anrop från en avstängd funktion.
+- **Ingen längd som är längre än fakta.** Första prompten bad om 3–5 meningar. Det kravet blev
+  ett golv: en löpare med två sträckor gav två faktarader, och modellen fyllde ut till fem
+  meningar med "ett stabilt lopp där du höll dig i toppen genom hela banan" — ingenting av det
+  stod i listan. Regeln är nu 2–4 meningar *men aldrig fler än listan har punkter*, plus ett
+  förbud mot att beskriva hur det låg till mellan punkterna. Det är samma sorts fel som
+  faktalagret finns för att förhindra, men det uppstod i formuleringssteget och gick bara att
+  hitta genom att köra skarpt.
 - **Bara fakta över nätet.** Requesten innehåller klass och färdiga påståenden — inget namn,
   ingen klubb, inget person-id. En loppberättelse ska inte bli stället där identiteten läcker.
 
@@ -82,6 +89,14 @@ start och målgång, ingen påhittad stark sträcka. Den utskriften avslöjade o
 `/api/stories/race`, får 404, och visar varken kort eller spinner som hänger. Fliken i övrigt
 oförändrad.
 
-**Inte verifierat:** den formulerade texten. Det kräver en `Story__ApiKey` i
-`local.settings.json`, som inte finns på maskinen. Allt fram till anropet är kört skarpt; själva
-meningarna har ingen sett ännu.
+**Skarpt anrop mot Claude, med nyckel** (2026-08-11, `claude-sonnet-5`): fungerar. Första
+anropet tar 7–10 sekunder, cacheträffen 0,04 s. Segrarens berättelse i H21 blev korrekt återgiven
+in i varje siffra.
+
+Körningen avslöjade också ett verkligt fel: tvåan i samma klass har bara två sträckor och därmed
+två faktarader, och modellen fyllde ut till fem meningar med påståenden om jämnhet och position
+som inte fanns i datat. Prompten är omskriven (se besluten ovan) och båda fallen körda om — två
+fakta ger nu två meningar, sex fakta ger fyra, och inget som inte står i listan.
+
+**Inte verifierat:** hur texten står sig över många olika lopp. Fem skarpa anrop är inte ett
+stickprov som säger något om svansen.
