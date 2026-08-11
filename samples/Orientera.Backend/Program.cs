@@ -8,6 +8,7 @@ using Orientera.Backend.Configuration;
 using Orientera.Backend.Eventor;
 using Orientera.Backend.Livelox;
 using Orientera.Backend.LiveResults;
+using Orientera.Backend.Ranking;
 using Orientera.Backend.Story;
 
 var builder = FunctionsApplication.CreateBuilder(args);
@@ -18,6 +19,7 @@ builder.Services.Configure<EventorOptions>(builder.Configuration.GetSection(Even
 builder.Services.Configure<LiveResultsOptions>(builder.Configuration.GetSection(LiveResultsOptions.Section));
 builder.Services.Configure<StoryOptions>(builder.Configuration.GetSection(StoryOptions.Section));
 builder.Services.Configure<LiveloxOptions>(builder.Configuration.GetSection(LiveloxOptions.Section));
+builder.Services.Configure<RankingOptions>(builder.Configuration.GetSection(RankingOptions.Section));
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ResponseCache>();
 
@@ -27,6 +29,7 @@ builder.Services.AddScoped<EventorSource>();
 builder.Services.AddScoped<LiveSource>();
 builder.Services.AddScoped<RaceStoryWriter>();
 builder.Services.AddScoped<PeopleSearch>();
+builder.Services.AddScoped<RunnerRankingSource>();
 
 // The organisation list is fetched while the host starts rather than by whoever asks first.
 builder.Services.AddHostedService<DirectoryWarmup>();
@@ -42,6 +45,12 @@ builder.Services.AddHttpClient<LiveloxSource>((sp, client) =>
     client.BaseAddress = new Uri(
         sp.GetRequiredService<IOptions<LiveloxOptions>>().Value.BaseAddress);
     client.Timeout = TimeSpan.FromSeconds(15);
+});
+
+builder.Services.AddHttpClient<RankingScraper>((sp, client) =>
+{
+    client.BaseAddress = new Uri(sp.GetRequiredService<IOptions<RankingOptions>>().Value.BaseAddress);
+    client.Timeout = TimeSpan.FromSeconds(20);
 });
 
 builder.Services.AddHttpClient<LiveResultsClient>(client =>

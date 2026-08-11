@@ -165,6 +165,9 @@ public class BackendSourceTests
     /// <summary>
     /// My entries need an identified person, which is M2. Until then the honest answer is
     /// nothing at all — a fabricated entry next to a real calendar would be worse.
+    ///
+    /// Sverigelistan used to be on this list and no longer is: the backend fetches a real one
+    /// through a runner's own Eventor session (issues/105-ranking-lookup.md).
     /// </summary>
     [Fact]
     public async Task What_is_not_integrated_yet_is_empty_rather_than_invented()
@@ -173,8 +176,8 @@ public class BackendSourceTests
 
         Assert.Empty(await source.GetEntriesAsync());
         Assert.Empty(await source.GetLiveCompetitionsAsync());
-        Assert.Null(await source.GetRankingAsync(FakeDataset.Instance.Me.Id));
         Assert.Null(await source.GetPredictionAsync(Sprint.Id, FakeDataset.Instance.Me.Id));
+
     }
 
     /// <summary>

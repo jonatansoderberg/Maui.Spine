@@ -157,7 +157,9 @@ public sealed class BackendSource(
     /// honest answer.
     /// </summary>
     public Task<RankingSnapshot?> GetRankingAsync(PersonId person, CancellationToken cancellationToken = default) =>
-        Task.FromResult<RankingSnapshot?>(null);
+        // The person is ignored: the backend knows whose ranking it is configured to fetch, and
+        // the app has no Eventor person id until the identity is a real login (M5, #106).
+        GetAsync<RankingSnapshot>("ranking/me", cancellationToken);
 
     public Task<IReadOnlyList<SeriesStanding>> GetSeriesStandingsAsync(PersonId person, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<SeriesStanding>>([]);
