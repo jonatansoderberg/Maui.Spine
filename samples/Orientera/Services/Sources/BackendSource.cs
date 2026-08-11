@@ -149,7 +149,13 @@ public sealed class BackendSource(
 
     // ---------------------------------------------------------------- IProgressSource
 
-    /// <summary>Sverigelistan needs a machine-readable source (SP-02, M3).</summary>
+    /// <summary>
+    /// Sverigelistan has no machine-readable source. SP-02 looked: Eventor's API documents
+    /// thirty-seven endpoints and none of them is ranking, the lists exist only as HTML, the rows
+    /// carry no person id, and there is no history to read — see
+    /// <c>issues/103-sp02-sverigelistan.md</c>. Until that is asked for properly, empty is the
+    /// honest answer.
+    /// </summary>
     public Task<RankingSnapshot?> GetRankingAsync(PersonId person, CancellationToken cancellationToken = default) =>
         Task.FromResult<RankingSnapshot?>(null);
 
