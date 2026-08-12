@@ -134,24 +134,52 @@ public class RankingPriorBacktest
     }
 
     /// <summary>
-    /// The verdict, written as a test so it cannot quietly stop being true. The product needs an
-    /// interval that holds four times in five while covering well under half the field; the best
-    /// this model manages at that coverage is 52,8 % of the field. The ranking moved it and did
-    /// not move it far enough.
+    /// What the chosen variant achieves, pinned so a change has to be deliberate: at the coverage
+    /// the product asks for, the interval covers about half the field and its middle lands two and
+    /// a half places from the truth.
     /// </summary>
     /// <remarks>
-    /// This assertion fails the day the bar is cleared. That is the point: the verdict in
-    /// issues/113-ranking-prior.md would then be out of date, and so would the decision to keep
-    /// the forecast out of the app.
+    /// The bar moved (#117). The forecast no longer has to be authoritative — it may be an
+    /// approximation as long as the app says so — which is why this pins numbers instead of
+    /// asserting a failure the way issues/113-ranking-prior.md did.
     /// </remarks>
     [Fact]
-    public void The_bar_the_product_needs_is_still_not_met()
+    public void The_blend_is_the_variant_that_ships()
     {
-        var best = Tightest(Use.WhenUnwatched, RequiredCoverage);
+        var blended = Tightest(Use.Blended, RequiredCoverage);
+
+        Assert.InRange(blended.Width, 0.45, 0.55);
+        Assert.True(
+            Run(Use.Blended).MedianError <= 2.5,
+            $"The middle of the interval lands {Run(Use.Blended).MedianError:F1} places out.");
+    }
+
+    /// <summary>
+    /// Every variant lands within a few points of every other. The ordering below is real but
+    /// small, and smaller than the spread between races — so this pins the ordering rather than
+    /// the gaps, and nothing downstream should lean on the gaps being large.
+    /// </summary>
+    [Fact]
+    public void The_variants_are_close_and_the_blend_is_the_best_of_them()
+    {
+        var blended = Tightest(Use.Blended, RequiredCoverage);
+        var fallback = Tightest(Use.WhenUnwatched, RequiredCoverage);
+        var rankingFirst = Tightest(Use.RankingFirst, RequiredCoverage);
+
+        // Sorting the field on Sverigelistan alone gives the narrowest interval of all — 50,9 %
+        // against 51,4 % — and pays for it by landing a whole place further from the truth.
+        Assert.True(
+            rankingFirst.Width < fallback.Width,
+            $"Ranking first {rankingFirst} against fallback {fallback}.");
 
         Assert.True(
-            best.Width > RequiredWidth,
-            $"The bar is met: {best}. Revisit issues/113-ranking-prior.md and wire the forecast in.");
+            Run(Use.RankingFirst).MedianError > Run(Use.Blended).MedianError,
+            $"Ranking first is off by {Run(Use.RankingFirst).MedianError:F1}, the blend by "
+            + $"{Run(Use.Blended).MedianError:F1}.");
+
+        Assert.True(
+            blended.Width < fallback.Width,
+            $"Blend {blended} against fallback {fallback}.");
     }
 
     [Fact]
@@ -195,15 +223,31 @@ public class RankingPriorBacktest
         /// trusted; six ranking results across a year may say more than three of our own.
         /// </summary>
         OverThinForm,
+
+        /// <summary>
+        /// Sort the field on Sverigelistan and let our own races matter only for the people the
+        /// list has nothing to say about. The simplest thing that could work.
+        /// </summary>
+        RankingFirst,
+
+        /// <summary>
+        /// Both, mixed: the ranking weighs <c>k / (k + races)</c> and our own races the rest, so a
+        /// runner we have watched once is mostly their ranking and one we have watched twenty
+        /// times is mostly themselves.
+        /// </summary>
+        Blended,
     }
 
     /// <summary>Below this many races of our own, a ranking is the better estimate.</summary>
     private const int ThinForm = 6;
 
+    /// <summary>How many races of our own it takes to outweigh the ranking. Swept; see #117.</summary>
+    private const double BlendPivot = 2.0;
+
     private Outcome Run(bool useRanking) =>
         Run(useRanking ? Use.WhenUnwatched : Use.None);
 
-    private Outcome Run(Use use, double spreadScale = 1.0)
+    private Outcome Run(Use use, double spreadScale = 1.0, double pivot = BlendPivot)
     {
         var calibration = Calibrate();
         var history = new Dictionary<string, List<double>>();
@@ -211,6 +255,10 @@ public class RankingPriorBacktest
 
         int hits = 0, total = 0, confidentHits = 0, confidentTotal = 0;
         double width = 0, knownShare = 0;
+
+        // How far the middle of the interval lands from the real place. For a forecast that is
+        // allowed to be approximate, this is the number that says whether it is any good.
+        var errors = new List<double>();
 
         foreach (var competition in _data.Competitions.OrderBy(c => c.Date, StringComparer.Ordinal))
         {
@@ -227,7 +275,7 @@ public class RankingPriorBacktest
                     continue;
 
                 var forms = starters
-                    .Select(r => (Result: r, Form: Widen(FormOf(r, history, use, calibration, day), spreadScale)))
+                    .Select(r => (Result: r, Form: Widen(FormOf(r, history, use, calibration, day, pivot), spreadScale)))
                     .ToList();
 
                 var known = forms.Where(f => f.Form is not null).Select(f => f.Form!).ToList();
@@ -258,6 +306,7 @@ public class RankingPriorBacktest
                         hits++;
 
                     width += (double)(prediction.HighPlace - prediction.LowPlace + 1) / prediction.FieldSize;
+                    errors.Add(Math.Abs(((prediction.LowPlace + prediction.HighPlace) / 2.0) - result.Place));
 
                     if (prediction.Confidence >= 0.6)
                     {
@@ -291,6 +340,7 @@ public class RankingPriorBacktest
             total == 0 ? 0 : width / total,
             confidentTotal == 0 ? 0 : (double)confidentHits / confidentTotal,
             knownShare / fields,
+            errors.Count == 0 ? 0 : Median(errors),
             perCompetition);
     }
 
@@ -303,7 +353,8 @@ public class RankingPriorBacktest
         Dictionary<string, List<double>> history,
         Use use,
         RankingCalibration calibration,
-        DateOnly day)
+        DateOnly day,
+        double pivot)
     {
         var identity = RunnerIdentity.Of(result.Person);
         var watched = RunnerForm.From(
@@ -312,12 +363,20 @@ public class RankingPriorBacktest
         if (use == Use.None)
             return watched;
 
-        if (watched is not null && (use == Use.WhenUnwatched || watched.Races >= ThinForm))
+        if (use == Use.WhenUnwatched && watched is not null)
             return watched;
 
-        return RankingBefore(result.Person, day) is { } points
-            ? RunnerForm.Ranked(identity, points, calibration)
-            : watched;
+        if (use == Use.OverThinForm && watched is { Races: >= ThinForm })
+            return watched;
+
+        if (RankingBefore(result.Person, day) is not { } points)
+            return watched;
+
+        var ranked = RunnerForm.Ranked(identity, points, calibration);
+
+        return use == Use.Blended && watched is not null
+            ? RunnerForm.Blend(watched, ranked, pivot / (pivot + watched.Races))
+            : ranked;
     }
 
     /// <summary>
@@ -359,6 +418,15 @@ public class RankingPriorBacktest
         return history;
     }
 
+    private static double Median(List<double> values)
+    {
+        var sorted = values.Order().ToList();
+
+        return sorted.Count % 2 == 1
+            ? sorted[sorted.Count / 2]
+            : (sorted[(sorted.Count / 2) - 1] + sorted[sorted.Count / 2]) / 2;
+    }
+
     private static DateOnly Date(Competition competition) =>
         DateOnly.ParseExact(competition.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture);
 
@@ -368,10 +436,12 @@ public class RankingPriorBacktest
         double RelativeWidth,
         double ConfidentCoverage,
         double KnownShare,
+        double MedianError,
         IReadOnlyDictionary<int, int> PerCompetition)
     {
         public override string ToString() =>
-            $"{Coverage:P1} av {RelativeWidth:P1} bredd, {Predictions} prognoser, {KnownShare:P1} känd form";
+            $"{Coverage:P1} av {RelativeWidth:P1} bredd, medianfel {MedianError:F1} platser, "
+            + $"{Predictions} prognoser, {KnownShare:P1} känd form";
     }
 
     private sealed record Competition(int Id, string Date, string Name);
