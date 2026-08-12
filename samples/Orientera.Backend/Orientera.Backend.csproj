@@ -12,6 +12,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- The start-list reader is tested against a saved response; it is not API surface. -->
+		<InternalsVisibleTo Include="Orientera.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Anthropic" Version="12.40.0" />
 		<PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />
 		<PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.1.0" />

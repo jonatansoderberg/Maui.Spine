@@ -151,6 +151,50 @@
                 </Border>
             </VerticalStackLayout>
 
+            <!-- ============ Startfältet enligt Sverigelistan ============ -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasStartField}">
+                <Label Style="{StaticResource SectionLabel}" Text="Fältet enligt Sverigelistan" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding StartFieldCaption}" />
+
+                        <VerticalStackLayout Spacing="7" BindableLayout.ItemsSource="{Binding StartField}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="StartFieldRow">
+                                    <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="10">
+                                        <Label Grid.Column="0"
+                                               Style="{StaticResource NumericCaptionLabel}"
+                                               VerticalOptions="Center"
+                                               Text="{Binding Order}" />
+
+                                        <VerticalStackLayout Grid.Column="1" Spacing="1">
+                                            <Label Style="{StaticResource BodyLabel}" Text="{Binding Name}">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsMe}" Value="True">
+                                                        <Setter Property="TextColor" Value="{DynamicResource AccentAction}" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                            <Label Style="{StaticResource CaptionLabel}" Text="{Binding Club}" />
+                                        </VerticalStackLayout>
+
+                                        <VerticalStackLayout Grid.Column="2" Spacing="1" HorizontalOptions="End">
+                                            <Label Style="{StaticResource NumericStrongLabel}"
+                                                   HorizontalTextAlignment="End"
+                                                   Text="{Binding PointsText}" />
+                                            <Label Style="{StaticResource NumericCaptionLabel}"
+                                                   HorizontalTextAlignment="End"
+                                                   Text="{Binding RankText}" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
             <!-- ============ Snabbhandlingar ============ -->
             <VerticalStackLayout Spacing="8">
                 <Label Style="{StaticResource SectionLabel}" Text="Snabbhandlingar" />

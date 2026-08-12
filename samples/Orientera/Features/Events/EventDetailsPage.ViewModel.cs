@@ -32,12 +32,24 @@ public sealed record DocumentItem
     public string Accessibility => $"{Title}, {Meta}";
 }
 
+/// <summary>One line of the start field, as Sverigelistan ranks it.</summary>
+public sealed record StartFieldRow
+{
+    public required string Order { get; init; }
+    public required string Name { get; init; }
+    public required string Club { get; init; }
+    public required string PointsText { get; init; }
+    public required string RankText { get; init; }
+    public required bool IsMe { get; init; }
+}
+
 public partial class EventDetailsPageViewModel(
     INavigationService _navigation,
     IClock _clock,
     IEventSource _events,
     IPeopleSource _people,
     IParticipationSource _participation,
+    IStartFieldSource _field,
     ILiveSource _live,
     ILiveloxSource _livelox,
     OfflinePackageService _offline,
@@ -98,6 +110,11 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial string TravelDurationText { get; set; } = string.Empty;
 
     [ObservableProperty] public partial string TravelSpoken { get; set; } = string.Empty;
+    [ObservableProperty] public partial bool HasStartField { get; set; }
+    [ObservableProperty] public partial string StartFieldCaption { get; set; } = string.Empty;
+
+    public ObservableCollection<StartFieldRow> StartField { get; } = [];
+
     [ObservableProperty] public partial string PredictionText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasPrediction { get; set; }
     [ObservableProperty] public partial string PredictionAccessibility { get; set; } = string.Empty;
@@ -252,6 +269,46 @@ public partial class EventDetailsPageViewModel(
     /// one lands the runner in a different race with nothing said (#89). The list of what is live
     /// right now is the same list the live tab reads, so asking costs one cached request.
     /// </remarks>
+    /// <summary>
+    /// The field, as Sverigelistan ranks it. Not a forecast — three measurements said an honest
+    /// placement interval covers half the field (#113, #117), so this shows what the interval was
+    /// made of and lets the reader draw their own conclusion.
+    /// </summary>
+    private async Task LoadStartFieldAsync(CompetitionId competition, string className, Person me)
+    {
+        StartField.Clear();
+        HasStartField = false;
+
+        if (string.IsNullOrWhiteSpace(className))
+            return;
+
+        var field = await _field.GetStartFieldAsync(competition, className);
+
+        if (field.Count == 0)
+            return;
+
+        int ranked = 0;
+
+        foreach (var runner in field)
+        {
+            if (runner.Points is not null)
+                ranked++;
+
+            StartField.Add(new StartFieldRow
+            {
+                Order = runner.Points is null ? "—" : ranked.ToString(Format.Culture),
+                Name = runner.Name,
+                Club = runner.Club,
+                PointsText = runner.Points is { } points ? points.ToString("N2", Format.Culture) : "—",
+                RankText = runner.NationalRank is { } rank ? $"riks {rank}" : "utan ranking",
+                IsMe = runner.Person == me.Id,
+            });
+        }
+
+        StartFieldCaption = $"{ranked} av {field.Count} finns på listan";
+        HasStartField = true;
+    }
+
     private async Task<bool> HasLiveSourceAsync(CompetitionId competition)
     {
         try
@@ -446,6 +503,8 @@ public partial class EventDetailsPageViewModel(
             ? $"Uppskattning: förväntad placering {prediction.LowPlace} till {prediction.HighPlace} "
               + $"av {prediction.FieldSize} anmälda"
             : string.Empty;
+
+        await LoadStartFieldAsync(competition.Id, MyClass, me);
 
         CanFollowLive = _decision.State == ContextState.Live && await HasLiveSourceAsync(competition.Id);
 

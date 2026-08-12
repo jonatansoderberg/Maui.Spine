@@ -139,6 +139,7 @@ public static class MauiProgram
         services.AddSingleton<IProgressSource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<ILiveloxSource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<IClubActivitySource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<IStartFieldSource>(sp => sp.GetRequiredService<UnreliableSource>());
 
         services.AddSingleton<IOfflineStore>(_ => new FileOfflineStore(
             Path.Combine(FileSystem.AppDataDirectory, "offline-packages")));

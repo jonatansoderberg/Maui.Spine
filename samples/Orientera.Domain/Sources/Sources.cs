@@ -167,6 +167,16 @@ public interface IClubActivitySource
     Task<IReadOnlyList<ClubActivity>> GetClubActivitiesAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// A start field with Sverigelistan beside each name. Per class, because a competition's field is
+/// only comparable within one.
+/// </summary>
+public interface IStartFieldSource
+{
+    Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
+        CompetitionId competition, string className, CancellationToken cancellationToken = default);
+}
+
 public interface IProgressSource
 {
     Task<RankingSnapshot?> GetRankingAsync(PersonId person, CancellationToken cancellationToken = default);

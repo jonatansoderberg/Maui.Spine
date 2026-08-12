@@ -12,4 +12,5 @@ public interface IOrienteraSource
         ILiveSource,
         IProgressSource,
         ILiveloxSource,
-        IClubActivitySource;
+        IClubActivitySource,
+        IStartFieldSource;
