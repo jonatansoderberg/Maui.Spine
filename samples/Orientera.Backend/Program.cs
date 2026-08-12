@@ -33,6 +33,7 @@ builder.Services.AddScoped<PeopleSearch>();
 builder.Services.AddScoped<RunnerRankingSource>();
 builder.Services.AddScoped<EventorSession>();
 builder.Services.AddScoped<ClubActivitySource>();
+builder.Services.AddScoped<StartFieldSource>();
 
 // The organisation list is fetched while the host starts rather than by whoever asks first.
 builder.Services.AddHostedService<DirectoryWarmup>();

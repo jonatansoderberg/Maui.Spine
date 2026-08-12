@@ -270,6 +270,38 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
     public Task<IReadOnlyList<ClubActivity>> GetClubActivitiesAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(_data.ClubActivities);
 
+    // ---------------------------------------------------------------- IStartFieldSource
+
+    /// <summary>
+    /// The demo's field, ranked. The points are derived from each runner's seeded time so the
+    /// list agrees with the race it belongs to — a demo that ranks people the opposite way to
+    /// how they finish teaches the wrong thing about what the list means.
+    /// </summary>
+    public Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
+        CompetitionId competition, string className, CancellationToken cancellationToken = default)
+    {
+        if (!_data.Runs.TryGetValue(competition, out var runs))
+            return Task.FromResult<IReadOnlyList<StartFieldRunner>>([]);
+
+        var field = runs
+            .Where(r => r.Class == className)
+            .OrderBy(r => r.TotalTime)
+            .Select((run, index) => new StartFieldRunner
+            {
+                Person = run.Person.Id,
+                Name = run.Person.Name,
+                Club = run.Person.Club,
+                StartTime = run.StartTime,
+                // Every fourth runner is outside the list, as in a real field.
+                Points = index % 4 == 3 ? null : Math.Round(3.4 + (index * 1.9), 2),
+                NationalRank = index % 4 == 3 ? null : 40 + (index * 37),
+            })
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<StartFieldRunner>>(
+            [.. field.OrderBy(r => r.Points ?? double.MaxValue).ThenBy(r => r.StartTime)]);
+    }
+
     // ---------------------------------------------------------------- projections
 
     /// <summary>

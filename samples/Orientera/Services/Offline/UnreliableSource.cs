@@ -105,4 +105,10 @@ public sealed class UnreliableSource(IOrienteraSource _inner, ConnectivitySwitch
 
     public Task<IReadOnlyList<ClubActivity>> GetClubActivitiesAsync(CancellationToken cancellationToken = default) =>
         Through(() => _inner.GetClubActivitiesAsync(cancellationToken));
+
+    // ---------------------------------------------------------------- IStartFieldSource
+
+    public Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
+        CompetitionId competition, string className, CancellationToken cancellationToken = default) =>
+        Through(() => _inner.GetStartFieldAsync(competition, className, cancellationToken));
 }

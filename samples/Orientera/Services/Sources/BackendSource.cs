@@ -174,6 +174,14 @@ public sealed class BackendSource(
     public Task<IReadOnlyList<ClubActivity>> GetClubActivitiesAsync(CancellationToken cancellationToken = default) =>
         ListAsync<ClubActivity>("activities", cancellationToken);
 
+    // ---------------------------------------------------------------- IStartFieldSource
+
+    public Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
+        CompetitionId competition, string className, CancellationToken cancellationToken = default) =>
+        ListAsync<StartFieldRunner>(
+            $"competitions/{Uri.EscapeDataString(competition.Value)}/field?class={Uri.EscapeDataString(className)}",
+            cancellationToken);
+
     // ---------------------------------------------------------------- transport
 
     private async Task<IReadOnlyList<T>> ListAsync<T>(string path, CancellationToken cancellationToken) =>
