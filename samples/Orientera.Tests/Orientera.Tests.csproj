@@ -32,6 +32,13 @@
 		<Compile Include="..\Orientera\Features\Events\EventFilter.cs" LinkBase="Linked\Features\Events" />
 		<Compile Include="..\Orientera\Services\Relevance\**\*.cs" LinkBase="Linked\Services\Relevance" />
 		<Compile Include="..\Orientera\Services\Local\**\*.cs" LinkBase="Linked\Services\Local" />
+		<!--
+			The Eventor reading is HttpClient and the domain's parsers, so it compiles here too.
+			Its platform half — the web view's cookie store and SecureStorage — is in
+			EventorPlatform.cs and is left out.
+		-->
+		<Compile Include="..\Orientera\Services\Eventor\EventorWebSession.cs" LinkBase="Linked\Services\Eventor" />
+		<Compile Include="..\Orientera\Services\Eventor\EventorReader.cs" LinkBase="Linked\Services\Eventor" />
 		<Compile Include="..\Orientera\Services\Sources\**\*.cs" LinkBase="Linked\Services\Sources" />
 		<Compile Include="..\Orientera\Services\Time\**\*.cs" LinkBase="Linked\Services\Time" />
 	</ItemGroup>

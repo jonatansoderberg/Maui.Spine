@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Orientera.Services.Eventor;
 using Orientera.Services.FakeData;
 using Orientera.Services.Local;
 using Orientera.Services.Offline;
@@ -24,6 +25,13 @@ public class BackendSourceTests
 
     private readonly LocalGroupStore _group = new(Path.Combine(
         Path.GetTempPath(), $"orientera-group-{Guid.NewGuid():N}.json"));
+
+    // Nobody has logged in to Eventor on this "phone", so everything behind that login is empty.
+    // That is the state the app ships in, and the one the rest of the source has to work in.
+    private readonly EventorReader _eventor = new(
+        new HttpClient(),
+        new EventorSessionStore(Path.Combine(
+            Path.GetTempPath(), $"orientera-eventor-{Guid.NewGuid():N}.json")));
 
     private static readonly Competition Sprint = new()
     {
@@ -101,7 +109,8 @@ public class BackendSourceTests
             new HttpClient(new ThrowingHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
             _local,
             _identity,
-            _group);
+            _group,
+            _eventor);
 
         await Assert.ThrowsAsync<SourceUnavailableException>(() => source.GetCompetitionsAsync());
     }
@@ -160,7 +169,8 @@ public class BackendSourceTests
             new HttpClient(new ThrowingHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
             _local,
             _identity,
-            _group);
+            _group,
+            _eventor);
 
     /// <summary>
     /// My entries need an identified person, which is M2. Until then the honest answer is
@@ -225,7 +235,8 @@ public class BackendSourceTests
             new HttpClient(new SlowHandler()) { BaseAddress = new Uri("http://localhost:7071/api/"), Timeout = TimeSpan.FromMilliseconds(50) },
             _local,
             _identity,
-            _group);
+            _group,
+            _eventor);
 
         await Assert.ThrowsAsync<SourceUnavailableException>(() => source.GetCompetitionsAsync());
     }
@@ -238,7 +249,8 @@ public class BackendSourceTests
             new HttpClient(new SlowHandler()) { BaseAddress = new Uri("http://localhost:7071/api/") },
             _local,
             _identity,
-            _group);
+            _group,
+            _eventor);
 
         using var giveUp = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
 
@@ -250,7 +262,8 @@ public class BackendSourceTests
             new HttpClient(new StubHandler(status, body)) { BaseAddress = new Uri("http://localhost:7071/api/") },
             _local,
             _identity,
-            _group);
+            _group,
+            _eventor);
 
     private static string Json<T>(T value) => JsonSerializer.Serialize(value, OrienteraJson.Options);
 

@@ -43,7 +43,7 @@ public partial class EventsPageViewModel(
         new() { Filter = QuickFilter.Bigger, Label = "Större" },
         new() { Filter = QuickFilter.ThisWeek, Label = "Denna vecka" },
         new() { Filter = QuickFilter.Mine, Label = "Mina" },
-        new() { Filter = QuickFilter.Favourites, Label = "Favoriter" },
+        new() { Filter = QuickFilter.Favourites, Label = "Intresserad" },
         new() { Filter = QuickFilter.Past, Label = "Tidigare" },
     ];
 
@@ -225,7 +225,7 @@ public partial class EventsPageViewModel(
 
         HasCards = saved.Count > 0;
         IsEmpty = !HasCards;
-        EmptyMessage = "Ingen anslutning, och inga sparade tävlingar. Tävlingar sparas när du är anmäld, följer dem eller favoritmarkerar dem.";
+        EmptyMessage = "Ingen anslutning, och inga sparade tävlingar. Tävlingar sparas när du är anmäld, följer dem eller markerar dig som intresserad.";
     }
 
     private async Task BuildAsync()
@@ -412,7 +412,7 @@ public partial class EventsPageViewModel(
     private static string EmptyMessageFor(QuickFilter filter) => filter switch
     {
         QuickFilter.Mine => "Du är inte anmäld till något just nu.",
-        QuickFilter.Favourites => "Inga favoritmarkerade tävlingar. Tryck på stjärnan i listan.",
+        QuickFilter.Favourites => "Inga tävlingar du markerat som intresserad. Tryck på stjärnan i listan.",
         QuickFilter.ThisWeek => "Inget den här veckan. Prova Större eller För dig.",
         QuickFilter.Near => "Inget i närheten. Vidga sökningen i filtret.",
         QuickFilter.Past => "Inga tidigare tävlingar i kalenderfönstret.",

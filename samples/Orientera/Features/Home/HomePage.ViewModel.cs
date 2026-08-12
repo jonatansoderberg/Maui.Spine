@@ -4,9 +4,13 @@ using Orientera.Domain;
 using Orientera.Features.Dev;
 using Orientera.Features.Events;
 using Orientera.Features.Live;
+using Orientera.Features.Onboarding;
+using Orientera.Features.Profile;
 using Orientera.Features.Results;
 using Orientera.Presentation;
 using Orientera.Services.Context;
+using Orientera.Services.Eventor;
+using Orientera.Services.Local;
 using Orientera.Services.Relevance;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
@@ -22,6 +26,7 @@ public partial class HomePageViewModel(
     IParticipationSource _participation,
     ILiveSource _live,
     IProgressSource _progress,
+    FirstRunStore _firstRun,
     CompetitionContextService _context) : OrienteraViewModel
 {
     /// <summary>Hem has few large blocks, not a dense dashboard.</summary>
@@ -37,7 +42,26 @@ public partial class HomePageViewModel(
         if (PageActions.Count == 0)
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
 
+        await WelcomeAsync();
+
         await ReloadAsync();
+    }
+
+    /// <summary>
+    /// The first launch asks the one question the app cannot answer for the user, and then never
+    /// asks again — skipping is an answer.
+    /// </summary>
+    private async Task WelcomeAsync()
+    {
+        if (_firstRun.IsAnswered)
+            return;
+
+        _firstRun.MarkAnswered();
+
+        var choice = await _navigation.NavigateToWithResultAsync<WelcomeSheet, WelcomeChoice>();
+
+        if (choice is { IsSuccess: true, Value.WantsLogin: true })
+            await _navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorWebSession>();
     }
 
     private async Task ReloadAsync()

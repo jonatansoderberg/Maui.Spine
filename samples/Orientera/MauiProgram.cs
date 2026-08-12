@@ -104,6 +104,10 @@ public static class MauiProgram
         services.AddSingleton(_ => new LocalIdentityStore(
             Path.Combine(FileSystem.AppDataDirectory, "identity.json")));
 
+        // Whether the welcome has been answered. Skipping it counts as answering (#123).
+        services.AddSingleton(_ => new FirstRunStore(
+            Path.Combine(FileSystem.AppDataDirectory, "first-run.json")));
+
         // Who the user follows, on this phone. Empty until they say otherwise.
         services.AddSingleton(_ => new LocalGroupStore(
             Path.Combine(FileSystem.AppDataDirectory, "my-group.json")));
@@ -113,6 +117,12 @@ public static class MauiProgram
         services.AddSingleton<EventorCredentialStore>();
         services.AddSingleton(_ => new EventorSessionStore(
             Path.Combine(FileSystem.AppDataDirectory, "eventor-session.json")));
+
+        // Sverigelistan, the club's activities and the points beside a start field are read here,
+        // on the phone, with that session — never by the backend on someone else's behalf (#123).
+        services.AddSingleton(sp => new EventorReader(
+            new HttpClient { Timeout = TimeSpan.FromSeconds(20) },
+            sp.GetRequiredService<EventorSessionStore>()));
 
         services.AddSingleton(_ => new DistrictStore(
             Path.Combine(FileSystem.AppDataDirectory, "districts.json")));
@@ -133,7 +143,8 @@ public static class MauiProgram
                 new HttpClient { BaseAddress = new Uri(backendAddress), Timeout = TimeSpan.FromSeconds(20) },
                 sp.GetRequiredService<FakeDataSource>(),
                 sp.GetRequiredService<LocalIdentityStore>(),
-                sp.GetRequiredService<LocalGroupStore>()));
+                sp.GetRequiredService<LocalGroupStore>(),
+                sp.GetRequiredService<EventorReader>()));
 
             // Its own client: writing a paragraph is slower than reading a result list, and the
             // shorter timeout is the one everything else should keep.

@@ -1,9 +1,8 @@
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
-using Orientera.Domain;
 
-namespace Orientera.Backend.Activities;
+namespace Orientera.Domain.Activities;
 
 /// <summary>
 /// Reads Eventor's club activity page.

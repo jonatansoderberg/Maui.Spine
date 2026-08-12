@@ -80,7 +80,7 @@
                     <!--
                         Stjärnan ligger utanför kortets Border. Kortet är ett element för
                         skärmläsaren — annars blir varje kort sex svep — och en Description på
-                        Bordern gör dess barn oåtkomliga på iOS. Favoritknappen måste därför
+                        Bordern gör dess barn oåtkomliga på iOS. Stjärnan måste därför
                         vara ett syskon för att gå att nå.
                     -->
                     <Grid Padding="16,0">

@@ -56,6 +56,7 @@ public partial class ProfilePageViewModel(
     IEventSource _events,
     IClubActivitySource _activities,
     EventorSessionStore _eventorSessions,
+    EventorReader _eventor,
     DataSourceInfo _source) : OrienteraViewModel
 {
     /// <summary>Which data source this run is against — a demo must not read as live data.</summary>
@@ -64,6 +65,18 @@ public partial class ProfilePageViewModel(
     [ObservableProperty] public partial string Name { get; set; } = string.Empty;
     [ObservableProperty] public partial string Meta { get; set; } = string.Empty;
     [ObservableProperty] public partial string Initials { get; set; } = string.Empty;
+    [ObservableProperty] public partial string ClassText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether the user may rewrite their own name and club.
+    /// </summary>
+    /// <remarks>
+    /// Only while nobody owns the answer. Logged in, Eventor does, and the next fetch would
+    /// overwrite whatever was typed here — two truths about the same thing are worse than one.
+    /// The class stays editable either way: people enter classes other than the one they are
+    /// ranked in.
+    /// </remarks>
+    [ObservableProperty] public partial bool CanEditIdentity { get; set; } = true;
 
     // ---- Sverigelistan ----
     [ObservableProperty] public partial string PointsText { get; set; } = string.Empty;
@@ -75,6 +88,11 @@ public partial class ProfilePageViewModel(
     [ObservableProperty] public partial string ExpiryWarning { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasExpiryWarning { get; set; }
     [ObservableProperty] public partial bool HasRanking { get; set; }
+
+    /// <summary>Why there is no Sverigelistan to show, when there is not.</summary>
+    [ObservableProperty] public partial string RankingExplanation { get; set; } = string.Empty;
+
+    [ObservableProperty] public partial bool HasRankingExplanation { get; set; }
 
     // ---- serie ----
     [ObservableProperty] public partial string SeriesName { get; set; } = string.Empty;
@@ -110,20 +128,57 @@ public partial class ProfilePageViewModel(
     private async Task OpenEventorLogin()
     {
         await _navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorWebSession>();
-        ShowEventorStatus();
+        await ReloadAsync();
     }
 
-    private void ShowEventorStatus()
+    /// <summary>
+    /// What the login can and cannot read, in the user's words.
+    /// </summary>
+    /// <remarks>
+    /// Four states rather than two. A session Eventor has forgotten looks exactly like never having
+    /// logged in, but "logga in igen" and "logga in" are different requests; and a club without the
+    /// fee is not a failure at all, so it must not be phrased as one. Being offline says nothing
+    /// about any of it, and so says nothing.
+    /// </remarks>
+    private async Task ShowEventorStatusAsync()
     {
         var session = _eventorSessions.Load();
+        var access = await _eventor.AccessAsync();
 
-        EventorStatus = session is null
-            ? "Inte inloggad. Utan din egen inloggning visas ingen Sverigelistan."
-            : $"Inloggad som {session.PersonId}"
-              + (session.ExpiresAt is { } expires ? $" · giltig till {expires:d MMM yyyy}" : string.Empty);
+        var who = session?.Account is { } account
+            ? $"Inloggad som {account.Name}, {account.Club}"
+            : "Inloggad";
 
-        EventorAction = session is null ? "Logga in på Eventor" : "Logga in igen";
+        EventorStatus = access switch
+        {
+            EventorAccess.NoSession => "Inte inloggad. Sverigelistan och klubbens aktiviteter läses med din egen inloggning.",
+            EventorAccess.Expired => "Eventor känner inte längre igen inloggningen. Logga in igen så kommer listan tillbaka.",
+            EventorAccess.NoSubscription => $"{who}. Klubben har inte Sverigelistan för säsongen, så ingen placering visas.",
+            EventorAccess.Unreachable => $"{who}. Eventor svarar inte just nu.",
+            _ => who + Validity(session),
+        };
+
+        EventorAction = access is EventorAccess.NoSession ? "Logga in på Eventor" : "Logga in igen";
+        CanEditIdentity = access is EventorAccess.NoSession or EventorAccess.Expired;
+
+        RankingExplanation = access switch
+        {
+            EventorAccess.NoSession => "Logga in på Eventor så visas din Sverigelistan här. Appen ser aldrig ditt lösenord — du loggar in på Eventors egen sida.",
+            EventorAccess.Expired => "Inloggningen har gått ut. Logga in igen så visas din Sverigelistan här.",
+            EventorAccess.NoSubscription => "Din klubb har inte betalat avgiften för Sverigelistan i år, så det finns ingen placering att visa.",
+            _ => string.Empty,
+        };
+
+        HasRankingExplanation = !HasRanking && RankingExplanation.Length > 0;
     }
+
+    /// <summary>
+    /// How long the login lasts, when Eventor's own cookies say. Only theirs are counted: the
+    /// advertising cookies on the same pages live for years and once had the app promising a
+    /// login valid until 2027 (#123).
+    /// </summary>
+    private static string Validity(EventorWebSession? session) =>
+        session?.ExpiresAt is { } expires ? $" · giltig till {expires:d MMM yyyy}" : string.Empty;
 
     [RelayCommand]
     private async Task OpenNotifications() => await _navigation.NavigateToAsync<NotificationSheet>();
@@ -172,9 +227,10 @@ public partial class ProfilePageViewModel(
 
         Name = me.Name;
         Initials = me.Initials;
-        Meta = $"{me.Club} · {me.District} · {me.DefaultClass}";
 
-        ShowEventorStatus();
+        // The class has a row of its own, so it is not repeated here.
+        Meta = string.Join(" · ", new[] { me.Club, me.District }.Where(part => part.Length > 0));
+        ClassText = me.DefaultClass is { Length: > 0 } ownClass ? ownClass : "Ingen klass vald";
 
         await LoadGroupAsync();
 
@@ -191,6 +247,9 @@ public partial class ProfilePageViewModel(
             HasSeries = false;
             HasActivities = false;
         }
+
+        // Last, because what it says depends on whether the ranking came through.
+        await ShowEventorStatusAsync();
     }
 
     /// <summary>

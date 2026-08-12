@@ -1,0 +1,64 @@
+<!-- Samma sida som home-121330.html med rankingrutan borttagen: inloggad, men klubben har inte
+     Sverigelistan. Konstruerad, inte hämtad — kontot som mätningarna gjordes med betalar, och den
+     exakta ordalydelsen för en klubb utan avgift är omätt (#123). Det som testas här är att en
+     sida utan rutan ändå är en inloggning. -->
+<html><body>
+<div id="userInfoContainer" class="middleMenuContainer">
+            <a id="userInfoLink" href="#">
+                <span>
+Jonatan                </span>
+                <span>
+                    <svg style="width: 9px; height: 6px;">
+                        <g><path xmlns:default="http://www.w3.org/2000/svg" d="M0,0l8,0l-4,4l-4,-4z"></path></g>
+                    </svg>
+                </span>
+            </a>
+            <div id="userInfo">
+
+    <fieldset>
+
+<form action="/Home/ChangeOrganisation" method="post">                <p>
+                    Välkommen <span class="loggedInName">Jonatan S&#246;derberg</span>!
+                </p>
+                    <p>G&#228;vle OK</p>
+                <script>
+                    var changeOrganisationButton = document.getElementById("changeOrganisationButton");
+                    if (changeOrganisationButton != null) {
+                        changeOrganisationButton.style.display = 'none';
+                    }
+                </script>
+</form>
+    </fieldset>
+
+    <ul id="userInfoMenu">
+                <li>
+                    <a href="/MyPages/Settings">
+                        <span>
+                            Mina sidor
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/Organisation/Info">
+                        <span>
+                            Klubben
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/Home/AdminMenuLandingPage">
+                        <span>
+                            Administration
+                        </span>
+                    </a>
+                </li>
+        <li>
+<form action="/Home/Logout" method="post">                <input type="submit" class="link" name="logout" value="Logga ut" />
+</form>        </li>
+    </ul>
+</div>
+        </div>
+</div>
+
+        
+</body></html>

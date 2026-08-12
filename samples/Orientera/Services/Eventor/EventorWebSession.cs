@@ -2,8 +2,30 @@ using System.Text.Json;
 
 namespace Orientera.Services.Eventor;
 
+/// <summary>Where Eventor is, so the login page and the fetches cannot disagree about it.</summary>
+public static class EventorSite
+{
+    public const string Origin = "https://eventor.orientering.se";
+}
+
 /// <summary>One cookie as the platform's web view holds it.</summary>
 public sealed record SessionCookie(string Name, string Value, DateTimeOffset? ExpiresAt);
+
+/// <summary>
+/// Who Eventor says the session belongs to.
+/// </summary>
+/// <remarks>
+/// Read once, at login, and kept because it is what the app then calls the user: a name and a club
+/// instead of a number. The class is Eventor's "Förvald klass 1" and is a suggestion — the runner
+/// may enter another one, and the app lets them say so.
+/// </remarks>
+public sealed record EventorAccount
+{
+    public required string Name { get; init; }
+    public required string Club { get; init; }
+    public string? ClubId { get; init; }
+    public string? DefaultClass { get; init; }
+}
 
 /// <summary>
 /// The Eventor session the user logged in with, on this phone.
@@ -17,81 +39,56 @@ public sealed record EventorWebSession
 {
     public required IReadOnlyList<SessionCookie> Cookies { get; init; }
 
-    /// <summary>The runner's own Eventor id, read off the start page after login.</summary>
-    public required string PersonId { get; init; }
+    /// <summary>
+    /// The runner's own Eventor id, read off the start page after login. Absent for a member of a
+    /// club without Sverigelistan: only the ranking box carries the id, and they have no box.
+    /// </summary>
+    public string? PersonId { get; init; }
 
     public required DateTimeOffset CapturedAt { get; init; }
+
+    /// <summary>Name, club and class as Eventor states them. Absent on sessions captured before #123.</summary>
+    public EventorAccount? Account { get; init; }
 
     /// <summary>The header the on-device fetches send.</summary>
     public string Header => string.Join("; ", Cookies.Select(c => $"{c.Name}={c.Value}"));
 
     /// <summary>
-    /// When the longest-lived cookie runs out, if the platform says. A cookie without an expiry is
-    /// a session cookie and dies with the process, so a session made only of those has no answer.
+    /// When Eventor's own login cookie runs out, if it has an expiry at all.
     /// </summary>
-    public DateTimeOffset? ExpiresAt =>
-        Cookies.Select(c => c.ExpiresAt).OfType<DateTimeOffset>() is { } dated && dated.Any()
-            ? dated.Max()
-            : null;
-}
-
-/// <summary>
-/// Reads the cookies out of the web view the user logged in through.
-/// </summary>
-/// <remarks>
-/// Platform APIs, because the session cookie is HttpOnly and JavaScript cannot see it — measured
-/// while designing this (#123). iOS hands over expiry dates; Android's <c>CookieManager</c> gives
-/// only name and value, so the longest-lived cookie is unknown there. That asymmetry is why the
-/// app never depends on the expiry: it asks the start page whether it is still logged in.
-/// </remarks>
-public static partial class EventorCookies
-{
-    public const string Origin = "https://eventor.orientering.se";
-
-    public static partial Task<IReadOnlyList<SessionCookie>> ReadAsync(WebView view);
-}
-
-/// <summary>
-/// The login itself, kept on the phone.
-/// </summary>
-/// <remarks>
-/// Stored so the app can log in again without asking, when Eventor's own persistent cookie has run
-/// out. Two things about how it is replayed, both deliberate:
-///
-/// The password goes into <see cref="SecureStorage"/>, which is the Keychain on iOS and the
-/// Keystore-backed store on Android, and nowhere else. It is never sent to our backend, because our
-/// backend has no business holding it.
-///
-/// And it is replayed by filling Eventor's own form in the web view rather than by posting to
-/// <c>/Login</c> with an <c>HttpClient</c>. The login page loads Cloudflare Turnstile; a raw post
-/// works today and can stop working without warning, and it would fail <em>silently</em> — the
-/// answer would be a login page, not an error. Driving the real form keeps that from happening and
-/// survives two-factor if the federation adds it.
-/// </remarks>
-public sealed class EventorCredentialStore
-{
-    private const string UsernameKey = "eventor.username";
-    private const string PasswordKey = "eventor.password";
-
-    public async Task<(string Username, string Password)?> ReadAsync()
+    /// <remarks>
+    /// Only Eventor's cookies count. Measured on #123: taking the longest-lived cookie of any kind
+    /// made the app report "giltig till 16 sep 2027", which was an advertising cookie's date — the
+    /// login itself was a session cookie with no expiry at all. A number read off the wrong cookie
+    /// is worse than no number, because it is believed.
+    /// </remarks>
+    public DateTimeOffset? ExpiresAt
     {
-        var username = await SecureStorage.Default.GetAsync(UsernameKey);
-        var password = await SecureStorage.Default.GetAsync(PasswordKey);
+        get
+        {
+            var dated = Cookies
+                .Where(c => !IsTracking(c.Name))
+                .Select(c => c.ExpiresAt)
+                .OfType<DateTimeOffset>()
+                .ToList();
 
-        return username is { Length: > 0 } && password is { Length: > 0 } ? (username, password) : null;
+            return dated.Count > 0 ? dated.Max() : null;
+        }
     }
 
-    public async Task SaveAsync(string username, string password)
-    {
-        await SecureStorage.Default.SetAsync(UsernameKey, username);
-        await SecureStorage.Default.SetAsync(PasswordKey, password);
-    }
+    /// <summary>
+    /// The advertising and analytics cookies Eventor's pages set alongside the login, by name and
+    /// by prefix. Excluding the known ones rather than listing the login by name is deliberate:
+    /// what "kom ihåg mig" adds is not measured yet, and a cookie nobody has identified should
+    /// count as possibly Eventor's rather than be quietly dropped.
+    /// </summary>
+    private static bool IsTracking(string name) =>
+        Trackers.Contains(name, StringComparer.OrdinalIgnoreCase)
+        || name.StartsWith("__utm", StringComparison.OrdinalIgnoreCase)
+        || name.StartsWith("IABGPP", StringComparison.OrdinalIgnoreCase);
 
-    public void Forget()
-    {
-        SecureStorage.Default.Remove(UsernameKey);
-        SecureStorage.Default.Remove(PasswordKey);
-    }
+    private static readonly string[] Trackers =
+        ["lwuid", "adksid", "adkvid", "ple", "pld", "usprivacy", "euconsent-v2", "__mggpc__"];
 }
 
 /// <summary>The captured session, on this phone only.</summary>

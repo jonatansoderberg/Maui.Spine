@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Orientera.Domain;
+using Orientera.Services.Eventor;
 using Orientera.Services.Local;
 using Orientera.Services.Offline;
 
@@ -11,18 +12,21 @@ namespace Orientera.Services.Sources;
 /// Eventor through the BFF; the rest is answered without inventing anything.
 /// </summary>
 /// <remarks>
-/// Three kinds of data meet here. What is integrated comes over HTTP: competitions, starts and
+/// Four kinds of data meet here. What is integrated comes over HTTP: competitions, starts and
 /// results from Eventor, live from LiveResults. What is local by principle — who I am, who I
-/// follow, what I have starred — stays local and keeps working without a connection or an
-/// account. What M3 will integrate — my entries, prediction, Sverigelistan — is empty rather
-/// than borrowed from the fake dataset: a real calendar next to a fabricated entry would be
-/// worse than an honest empty state.
+/// follow, what I am interested in — stays local and keeps working without a connection or an
+/// account. What sits behind the reader's own Eventor login — Sverigelistan, the club's
+/// activities, the points beside a start field — is read on the phone through
+/// <see cref="EventorReader"/> and is empty until they log in (#123). What is still unintegrated
+/// is empty rather than borrowed from the fake dataset: a real calendar next to a fabricated entry
+/// would be worse than an honest empty state.
 /// </remarks>
 public sealed class BackendSource(
     HttpClient _http,
     IOrienteraSource _local,
     LocalIdentityStore _identity,
-    LocalGroupStore _group)
+    LocalGroupStore _group,
+    EventorReader _eventor)
     : IOrienteraSource
 {
     // ---------------------------------------------------------------- IEventSource
@@ -150,16 +154,13 @@ public sealed class BackendSource(
     // ---------------------------------------------------------------- IProgressSource
 
     /// <summary>
-    /// Sverigelistan has no machine-readable source. SP-02 looked: Eventor's API documents
-    /// thirty-seven endpoints and none of them is ranking, the lists exist only as HTML, the rows
-    /// carry no person id, and there is no history to read — see
-    /// <c>issues/103-sp02-sverigelistan.md</c>. Until that is asked for properly, empty is the
-    /// honest answer.
+    /// Sverigelistan has no machine-readable source — SP-02 looked, and none of Eventor's
+    /// thirty-seven endpoints is the ranking (<c>issues/103-sp02-sverigelistan.md</c>). So it is
+    /// read as HTML, and since #123 it is read here, on the phone, with the login the user made
+    /// themselves. The person is the phone's own; there is no other ranking to ask for.
     /// </summary>
     public Task<RankingSnapshot?> GetRankingAsync(PersonId person, CancellationToken cancellationToken = default) =>
-        // The person is ignored: the backend knows whose ranking it is configured to fetch, and
-        // the app has no Eventor person id until the identity is a real login (M5, #106).
-        GetAsync<RankingSnapshot>("ranking/me", cancellationToken);
+        _eventor.RankingAsync(cancellationToken);
 
     public Task<IReadOnlyList<SeriesStanding>> GetSeriesStandingsAsync(PersonId person, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<SeriesStanding>>([]);
@@ -167,20 +168,52 @@ public sealed class BackendSource(
     // ---------------------------------------------------------------- IClubActivitySource
 
     /// <summary>
-    /// Which club is the backend's to know: it holds the key, and it reads the list as the person
-    /// it is configured as. The app has no organisation id of its own until the identity is a real
-    /// login (M5, #106).
+    /// The club's own activity list, read as a member of it — which is now the member holding the
+    /// phone rather than whoever the backend was configured as (#123). Logged out there is no club
+    /// to read for, and the list is empty rather than someone else's.
     /// </summary>
     public Task<IReadOnlyList<ClubActivity>> GetClubActivitiesAsync(CancellationToken cancellationToken = default) =>
-        ListAsync<ClubActivity>("activities", cancellationToken);
+        _eventor.ActivitiesAsync(cancellationToken);
 
     // ---------------------------------------------------------------- IStartFieldSource
 
-    public Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
-        CompetitionId competition, string className, CancellationToken cancellationToken = default) =>
-        ListAsync<StartFieldRunner>(
+    /// <summary>
+    /// Who is entered, from the backend; what Sverigelistan says about them, from the phone.
+    /// </summary>
+    /// <remarks>
+    /// The two halves have different owners. The entries are open data behind the club's API key;
+    /// the points sit behind a personal subscription, and reading them for a whole field is only
+    /// defensible when it is the reader's own. Without a login the field still stands — in start
+    /// order, without points — because who is running is worth knowing on its own.
+    /// </remarks>
+    public async Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
+        CompetitionId competition, string className, CancellationToken cancellationToken = default)
+    {
+        var field = await ListAsync<StartFieldRunner>(
             $"competitions/{Uri.EscapeDataString(competition.Value)}/field?class={Uri.EscapeDataString(className)}",
             cancellationToken);
+
+        if (field.Count == 0)
+            return field;
+
+        var ranking = await _eventor.ClubRankingAsync(
+            field.Select(r => r.ClubId).OfType<string>(), cancellationToken);
+
+        if (ranking.Count == 0)
+            return field;
+
+        return
+        [
+            .. field
+                .Select(runner => ranking.TryGetValue(runner.Person.Value, out var row)
+                    ? runner with { Points = row.Points, NationalRank = row.NationalRank }
+                    : runner)
+                // Lower points is a better runner. Whoever the list does not carry goes last, in
+                // start order, rather than being given a place they have not earned.
+                .OrderBy(r => r.Points ?? double.MaxValue)
+                .ThenBy(r => r.StartTime ?? DateTimeOffset.MaxValue),
+        ];
+    }
 
     // ---------------------------------------------------------------- transport
 

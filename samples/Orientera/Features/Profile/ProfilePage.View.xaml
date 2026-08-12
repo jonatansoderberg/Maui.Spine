@@ -29,6 +29,10 @@
                     <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
                 </VerticalStackLayout>
 
+                <!--
+                    Ändra finns bara när ingen annan äger svaret. Är man inloggad är namnet och
+                    klubben Eventors, och nästa hämtning skriver ändå över det man skrivit (#123).
+                -->
                 <Button Grid.Column="2"
                         Style="{StaticResource SecondaryButton}"
                         Padding="14,0"
@@ -36,9 +40,43 @@
                         FontSize="{StaticResource SizeCaption}"
                         Text="Ändra"
                         VerticalOptions="Center"
+                        IsVisible="{Binding CanEditIdentity}"
                         SemanticProperties.Description="Ändra namn, klubb och klass"
                         Command="{Binding OpenIdentityCommand}" />
             </Grid>
+
+            <!-- Klassen är alltid användarens eget val: man anmäler sig i andra klasser än sin normala. -->
+            <Border Style="{StaticResource Card}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <VerticalStackLayout Grid.Column="0" Spacing="1" VerticalOptions="Center">
+                        <Label Style="{StaticResource SectionLabel}" Text="Klass" />
+                        <Label Style="{StaticResource BodyLabel}" Text="{Binding ClassText}" />
+                    </VerticalStackLayout>
+
+                    <Button Grid.Column="1"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="14,0"
+                            HeightRequest="36"
+                            FontSize="{StaticResource SizeCaption}"
+                            Text="Välj"
+                            VerticalOptions="Center"
+                            SemanticProperties.Description="Välj vilken klass du oftast springer"
+                            Command="{Binding OpenIdentityCommand}" />
+                </Grid>
+            </Border>
+
+            <!--
+                Sverigelistan saknas oftare än den finns: den kräver en egen inloggning och en
+                klubb som betalat avgiften. Då står det varför, i stället för att kortet bara
+                uteblir (#123).
+            -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasRankingExplanation}">
+                <Label Style="{StaticResource SectionLabel}" Text="Sverigelistan" />
+
+                <Border Style="{StaticResource Card}">
+                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding RankingExplanation}" />
+                </Border>
+            </VerticalStackLayout>
 
             <!-- ============ Sverigelistan ============ -->
             <VerticalStackLayout Spacing="8" IsVisible="{Binding HasRanking}">

@@ -14,6 +14,14 @@ public sealed record StartFieldRunner
     public required PersonId Person { get; init; }
     public required string Name { get; init; }
     public required string Club { get; init; }
+
+    /// <summary>
+    /// The club's Eventor id, which the start list states outright. The points are looked up one
+    /// club page at a time, on the phone and with the reader's own login (#123), so the id travels
+    /// with the runner rather than being resolved from the club's name afterwards.
+    /// </summary>
+    public string? ClubId { get; init; }
+
     public DateTimeOffset? StartTime { get; init; }
 
     /// <summary>Sverigelistan's average. Absent for anyone the list does not carry.</summary>

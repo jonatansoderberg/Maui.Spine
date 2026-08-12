@@ -1,0 +1,90 @@
+<!-- /Home/Index för en inloggad läsare, 2026-08-12. Utdrag: användarmenyn och rankingrutan,
+     ordagrant som Eventor skickar dem. Resten av sidan är annonser och nyheter. -->
+<html><body>
+<div id="userInfoContainer" class="middleMenuContainer">
+            <a id="userInfoLink" href="#">
+                <span>
+Jonatan                </span>
+                <span>
+                    <svg style="width: 9px; height: 6px;">
+                        <g><path xmlns:default="http://www.w3.org/2000/svg" d="M0,0l8,0l-4,4l-4,-4z"></path></g>
+                    </svg>
+                </span>
+            </a>
+            <div id="userInfo">
+
+    <fieldset>
+
+<form action="/Home/ChangeOrganisation" method="post">                <p>
+                    Välkommen <span class="loggedInName">Jonatan S&#246;derberg</span>!
+                </p>
+                    <p>G&#228;vle OK</p>
+                <script>
+                    var changeOrganisationButton = document.getElementById("changeOrganisationButton");
+                    if (changeOrganisationButton != null) {
+                        changeOrganisationButton.style.display = 'none';
+                    }
+                </script>
+</form>
+    </fieldset>
+
+    <ul id="userInfoMenu">
+                <li>
+                    <a href="/MyPages/Settings">
+                        <span>
+                            Mina sidor
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/Organisation/Info">
+                        <span>
+                            Klubben
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/Home/AdminMenuLandingPage">
+                        <span>
+                            Administration
+                        </span>
+                    </a>
+                </li>
+        <li>
+<form action="/Home/Logout" method="post">                <input type="submit" class="link" name="logout" value="Logga ut" />
+</form>        </li>
+    </ul>
+</div>
+        </div>
+</div>
+
+        
+<div class="startPageBox rankingStartPageBox">
+        <h3>
+<a href="/Ranking/ol/Runner/Index/121330">Sverigelistan - Orientering</a>        </h3>
+        <div class="imageBullets">
+            <ul>
+
+                
+                            <li class="list16x16">
+                                Min plats/po&#228;ng i
+                                <a href="/Ranking/ol/List/Index/127">Rikslistan</a>:
+                                1921 / 62,98
+                            </li>
+                            <li class="list16x16">
+                                Min plats/po&#228;ng i
+                                <a href="/Ranking/ol/List/Index/141">H45</a>:
+                                204 / 62,98
+                            </li>
+                                    <li class="list16x16">
+                        <a href="/Ranking/ol/Club/Index/115">Klubblista f&#246;r G&#228;vle OK</a>
+                    </li>
+                
+                
+            </ul>
+        </div>
+    </div>
+
+
+
+</body></html>

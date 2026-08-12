@@ -26,9 +26,9 @@ public partial class EventorLoginSheet : INavigableWithResult<EventorWebSession>
             if (BindingContext is not EventorLoginSheetViewModel model)
                 return;
 
-            var link = await Browser.EvaluateJavaScriptAsync(EventorLoginSheetViewModel.PersonIdScript);
+            var greeting = await Browser.EvaluateJavaScriptAsync(EventorLoginSheetViewModel.LoggedInScript);
 
-            await model.OnPageAsync(link, () => EventorCookies.ReadAsync(Browser));
+            await model.OnPageAsync(greeting, () => EventorCookies.ReadAsync(Browser));
         };
     }
 }

@@ -1,4 +1,4 @@
-using Orientera.Backend.Activities;
+using Orientera.Domain.Activities;
 
 namespace Orientera.Tests;
 

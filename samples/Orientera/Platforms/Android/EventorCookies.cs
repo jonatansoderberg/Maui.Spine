@@ -14,7 +14,7 @@ public static partial class EventorCookies
     /// </summary>
     public static partial Task<IReadOnlyList<SessionCookie>> ReadAsync(WebView view)
     {
-        var header = CookieManager.Instance?.GetCookie(Origin);
+        var header = CookieManager.Instance?.GetCookie(EventorSite.Origin);
 
         if (header is null or { Length: 0 })
             return Task.FromResult<IReadOnlyList<SessionCookie>>([]);

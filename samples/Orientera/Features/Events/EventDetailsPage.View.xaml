@@ -25,7 +25,7 @@
             <VerticalStackLayout Spacing="6" IsVisible="{Binding IsUnavailable}">
                 <Label Style="{StaticResource Heading2Label}" Text="Kunde inte hämta tävlingen" />
                 <Label Style="{StaticResource BodySecondaryLabel}"
-                       Text="Ingen anslutning, och tävlingen finns inte sparad offline. Den sparas automatiskt när du är anmäld, följer den eller favoritmarkerar den." />
+                       Text="Ingen anslutning, och tävlingen finns inte sparad offline. Den sparas automatiskt när du är anmäld, följer den eller markerar dig som intresserad." />
             </VerticalStackLayout>
 
             <!--

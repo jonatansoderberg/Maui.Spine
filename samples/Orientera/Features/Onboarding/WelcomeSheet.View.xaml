@@ -1,0 +1,31 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Onboarding.WelcomeSheet"
+    x:TypeArguments="WelcomeSheetViewModel"
+    x:DataType="WelcomeSheetViewModel">
+
+    <Grid RowDefinitions="*,Auto" Padding="24,8,24,24">
+
+        <VerticalStackLayout Grid.Row="0" Spacing="16" VerticalOptions="Center">
+            <Label Style="{StaticResource Heading1Label}" Text="Välkommen till Orientera" />
+            <Label Style="{StaticResource BodyLabel}" Text="{Binding Explanation}" />
+        </VerticalStackLayout>
+
+        <VerticalStackLayout Grid.Row="1" Spacing="10">
+            <Button Style="{StaticResource PrimaryButton}"
+                    Text="Logga in på Eventor"
+                    SemanticProperties.Description="Logga in på Eventors egen sida"
+                    Command="{Binding LoginCommand}" />
+
+            <Button Style="{StaticResource SecondaryButton}"
+                    Text="Hoppa över"
+                    Command="{Binding SkipCommand}" />
+
+            <Label Style="{StaticResource CaptionLabel}"
+                   HorizontalTextAlignment="Center"
+                   Text="{Binding SkipExplanation}" />
+        </VerticalStackLayout>
+    </Grid>
+
+</SpinePage>

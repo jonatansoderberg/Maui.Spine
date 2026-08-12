@@ -43,9 +43,13 @@ public sealed partial class EventCard : ObservableObject
 
     public string FavouriteGlyph => IsFavourite ? "★" : "☆";
 
+    /// <summary>
+    /// "Intresserad", not "favorit". A favourite is a person you follow; about a competition the
+    /// word for the star is whether you are interested in going.
+    /// </summary>
     public string FavouriteDescription => IsFavourite
-        ? $"Ta bort {Title} från favoriter"
-        : $"Spara {Title} som favorit";
+        ? $"Ta bort intressemarkeringen för {Title}"
+        : $"Markera att du är intresserad av {Title}";
 
     /// <summary>
     /// The whole card as one spoken sentence. A card is one cell to a screen reader — six
@@ -73,7 +77,7 @@ public sealed partial class EventCard : ObservableObject
                 parts.Add(ContextLabel);
 
             if (IsFavourite)
-                parts.Add("favoritmarkerad");
+                parts.Add("intresserad");
 
             return string.Join(", ", parts);
         }
