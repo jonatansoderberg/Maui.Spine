@@ -28,6 +28,8 @@
 		<Compile Include="..\Orientera\Services\Offline\**\*.cs" LinkBase="Linked\Services\Offline" />
 		<Compile Include="..\Orientera\Services\Travel\**\*.cs" LinkBase="Linked\Services\Travel" />
 		<Compile Include="..\Orientera\Services\Grouping\**\*.cs" LinkBase="Linked\Services\Grouping" />
+		<!-- The filter is plain rules over the domain, so it is tested without the UI around it. -->
+		<Compile Include="..\Orientera\Features\Events\EventFilter.cs" LinkBase="Linked\Features\Events" />
 		<Compile Include="..\Orientera\Services\Relevance\**\*.cs" LinkBase="Linked\Services\Relevance" />
 		<Compile Include="..\Orientera\Services\Local\**\*.cs" LinkBase="Linked\Services\Local" />
 		<Compile Include="..\Orientera\Services\Sources\**\*.cs" LinkBase="Linked\Services\Sources" />

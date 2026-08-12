@@ -10,6 +10,36 @@
         <ScrollView Grid.Row="0">
             <VerticalStackLayout Padding="16,4,16,16" Spacing="16">
 
+                <!-- Distrikten kommer ur kalendern i handen, så listan är de som finns något i -->
+                <VerticalStackLayout Spacing="6" IsVisible="{Binding HasDistricts}">
+                    <Label Style="{StaticResource SectionLabel}" Text="Distrikt" />
+                    <Label Style="{StaticResource CaptionLabel}"
+                           Text="Inget valt betyder alla distrikt." />
+
+                    <!--
+                        Samma konstruktion som chippraden på Tävlingar. En FlexLayout med Wrap
+                        ritade chippen men tog inte emot tryck: barnen hamnade utanför dess mätta
+                        yta i den lodräta ScrollView:en, och träffytan följde mätningen, inte det
+                        som syntes.
+                    -->
+                    <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                        <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Districts}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="DistrictOption">
+                                    <ChipView Text="{Binding Name}"
+                                              IsSelected="{Binding IsSelected}"
+                                              Command="{Binding ToggleCommand}" />
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="6">
+                    <Label Style="{StaticResource SectionLabel}" Text="Tidsintervall" />
+                    <Picker ItemsSource="{Binding PeriodOptions}" SelectedIndex="{Binding SelectedPeriod}" />
+                </VerticalStackLayout>
+
                 <VerticalStackLayout Spacing="6">
                     <Label Style="{StaticResource SectionLabel}" Text="Tävlingsnivå" />
                     <Picker ItemsSource="{Binding LevelOptions}" SelectedIndex="{Binding SelectedLevel}" />
