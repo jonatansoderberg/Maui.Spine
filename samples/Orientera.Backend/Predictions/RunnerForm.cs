@@ -48,6 +48,26 @@ public sealed record RunnerForm
             FromRanking = true,
         };
 
+    /// <summary>
+    /// A form that leans on the ranking while there are few races of our own, and on the races as
+    /// they accumulate. <paramref name="rankingWeight"/> is the ranking's share of it.
+    /// </summary>
+    /// <remarks>
+    /// Neither source is better everywhere. A ranking is six results across a whole year, steady
+    /// but blind to the last month; our own races are current but few. Choosing between them
+    /// throws away whichever is not chosen, and the backtest says the mixture beats both.
+    /// </remarks>
+    public static RunnerForm Blend(RunnerForm watched, RunnerForm ranked, double rankingWeight)
+    {
+        double weight = Math.Clamp(rankingWeight, 0, 1);
+
+        return watched with
+        {
+            Ratio = ((1 - weight) * watched.Ratio) + (weight * ranked.Ratio),
+            Spread = ((1 - weight) * watched.Spread) + (weight * ranked.Spread),
+        };
+    }
+
     public static RunnerForm? From(RunnerIdentity identity, IReadOnlyList<double> ratios)
     {
         // Two races say almost nothing about a spread, and a spread is what the interval is
