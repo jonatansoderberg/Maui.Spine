@@ -256,7 +256,7 @@ public partial class HomePageViewModel(
 
         return new GroupBlock
         {
-            SectionLabel = "Min grupp",
+            SectionLabel = "Favoriter",
             Summary = $"{group.Count} personer du följer",
             Lines = upcoming
                 .Select(c => $"{Format.RelativeDate(c.Date, today)} · {c.Name}")

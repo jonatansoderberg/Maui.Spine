@@ -332,7 +332,7 @@ public partial class LivePageViewModel(
 
     private string ScopeLabel => Scope switch
     {
-        LiveScope.MyGroup => "Min grupp",
+        LiveScope.MyGroup => "Favoriter",
         LiveScope.MyClass => "Min klass",
         _ => ClassChipText,
     };

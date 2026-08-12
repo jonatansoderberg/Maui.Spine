@@ -197,9 +197,9 @@
                 </Border>
             </VerticalStackLayout>
 
-            <!-- ============ Min grupp ============ -->
+            <!-- ============ Favoriter ============ -->
             <VerticalStackLayout Spacing="8">
-                <Label Style="{StaticResource SectionLabel}" Text="Min grupp" />
+                <Label Style="{StaticResource SectionLabel}" Text="Favoriter" />
 
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="10">
