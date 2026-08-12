@@ -5,10 +5,23 @@
     x:TypeArguments="EventsPageViewModel"
     x:DataType="EventsPageViewModel">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,Auto,*">
+
+        <!-- Sökrutan står på sidan, inte i filterarket: man skriver och ser, utan att stänga något -->
+        <!--
+            En Entry och inte en SearchBar: iOS ritar UISearchBar med sin egen svarta bakgrund som
+            inte viker sig för BackgroundColor, och en svart platta över appens yta är inte designen.
+        -->
+        <Entry Grid.Row="0"
+               Margin="16,0,16,8"
+               ClearButtonVisibility="WhileEditing"
+               ReturnType="Search"
+               Placeholder="Sök tävling, arrangör eller plats"
+               SemanticProperties.Description="Sök bland tävlingar på namn, arrangör eller plats"
+               Text="{Binding Query}" />
 
         <!-- Snabbfilter: en rad, horisontellt scrollbar, vald chip = accentfyllning -->
-        <ScrollView Grid.Row="0"
+        <ScrollView Grid.Row="1"
                     Orientation="Horizontal"
                     HorizontalScrollBarVisibility="Never"
                     Padding="16,4,16,10">
@@ -25,7 +38,7 @@
         </ScrollView>
 
         <!-- Tomt läge är ett designat läge, inte en spinner -->
-        <VerticalStackLayout Grid.Row="1"
+        <VerticalStackLayout Grid.Row="2"
                              Padding="32"
                              Spacing="8"
                              VerticalOptions="Center"
@@ -39,7 +52,7 @@
                    Text="{Binding EmptyMessage}" />
         </VerticalStackLayout>
 
-        <CollectionView Grid.Row="1"
+        <CollectionView Grid.Row="2"
                         ItemsSource="{Binding Sections}"
                         IsGrouped="True"
                         SelectionMode="None"

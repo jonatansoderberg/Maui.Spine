@@ -114,6 +114,9 @@ public static class MauiProgram
         services.AddSingleton(_ => new EventorSessionStore(
             Path.Combine(FileSystem.AppDataDirectory, "eventor-session.json")));
 
+        services.AddSingleton(_ => new DistrictStore(
+            Path.Combine(FileSystem.AppDataDirectory, "districts.json")));
+
         services.AddSingleton(_ => new CompetitionClassStore(
             Path.Combine(FileSystem.AppDataDirectory, "live-classes.json")));
 
