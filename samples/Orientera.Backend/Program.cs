@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Hosting;
+using Orientera.Backend.Activities;
 using Orientera.Backend.Caching;
 using Orientera.Backend.Configuration;
 using Orientera.Backend.Eventor;
@@ -30,6 +31,8 @@ builder.Services.AddScoped<LiveSource>();
 builder.Services.AddScoped<RaceStoryWriter>();
 builder.Services.AddScoped<PeopleSearch>();
 builder.Services.AddScoped<RunnerRankingSource>();
+builder.Services.AddScoped<EventorSession>();
+builder.Services.AddScoped<ClubActivitySource>();
 
 // The organisation list is fetched while the host starts rather than by whoever asks first.
 builder.Services.AddHostedService<DirectoryWarmup>();

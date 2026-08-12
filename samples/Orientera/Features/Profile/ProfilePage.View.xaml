@@ -109,6 +109,39 @@
                 </Border>
             </VerticalStackLayout>
 
+            <!-- ============ Klubbaktiviteter ============ -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasActivities}">
+                <Label Style="{StaticResource SectionLabel}" Text="Klubbaktiviteter" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Activities}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="ActivityRow">
+                                <VerticalStackLayout Spacing="2">
+                                    <VerticalStackLayout.GestureRecognizers>
+                                        <TapGestureRecognizer
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type Border}}, Path=BindingContext.OpenActivityCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </VerticalStackLayout.GestureRecognizers>
+
+                                    <Label Style="{StaticResource BodyLabel}"
+                                           SemanticProperties.Description="{Binding OpenDescription}"
+                                           Text="{Binding Name}" />
+                                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
+                                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding DeadlineText}">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding ClosesSoon}" Value="True">
+                                                <Setter Property="TextColor" Value="{DynamicResource NegativeDelta}" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
             <!-- ============ Serie ============ -->
             <VerticalStackLayout Spacing="8" IsVisible="{Binding HasSeries}">
                 <Label Style="{StaticResource SectionLabel}" Text="{Binding SeriesName}" />
