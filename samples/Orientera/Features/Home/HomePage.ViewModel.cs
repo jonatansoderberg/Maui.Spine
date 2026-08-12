@@ -42,7 +42,7 @@ public partial class HomePageViewModel(
         if (PageActions.Count == 0)
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
 
-        await WelcomeAsync();
+        ScheduleWelcome();
 
         await ReloadAsync();
     }
@@ -51,17 +51,27 @@ public partial class HomePageViewModel(
     /// The first launch asks the one question the app cannot answer for the user, and then never
     /// asks again — skipping is an answer.
     /// </summary>
-    private async Task WelcomeAsync()
+    /// <remarks>
+    /// Queued rather than awaited. Pushing a sheet from inside the first page's own appearing
+    /// crashed the app at startup with "MauiContext is null": the window the sheet needs is not
+    /// there until this method has returned.
+    /// </remarks>
+    private void ScheduleWelcome()
     {
         if (_firstRun.IsAnswered)
             return;
 
         _firstRun.MarkAnswered();
 
-        var choice = await _navigation.NavigateToWithResultAsync<WelcomeSheet, WelcomeChoice>();
+        Application.Current?.Dispatcher.Dispatch(async () =>
+        {
+            var choice = await _navigation.NavigateToWithResultAsync<WelcomeSheet, WelcomeChoice>();
 
-        if (choice is { IsSuccess: true, Value.WantsLogin: true })
-            await _navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorWebSession>();
+            if (choice is { IsSuccess: true, Value.WantsLogin: true })
+                await _navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorWebSession>();
+
+            await ReloadAsync();
+        });
     }
 
     private async Task ReloadAsync()

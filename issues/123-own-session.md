@@ -95,7 +95,26 @@ Avgiftssidan behandlas som "vet inte", inte "finns inte" — en död session ser
 
 ## Changes
 
-<!-- Fylls på under arbetet. -->
+- **`Orientera.Domain/Eventor/`** — `StartPageParser` och `SettingsPageParser` med sina
+  domäntyper. `ActivityPageParser` flyttad hit från backend.
+- **`EventorReader`** i appen läser startsidan, löparsidan, klubbsidorna, `/MyPages/Settings` och
+  aktivitetssidan med sessionens kakor, med en cache per sida (startsidan 5 min, ranking och
+  klubbsidor 12 h, aktiviteter 1 h). Misslyckade hämtningar cachas inte.
+- **`EventorAccess`** skiljer fyra lägen åt: ingen inloggning, utgången session, klubb utan
+  Sverigelistan, och Eventor som inte svarar.
+- **`BackendSource`** låter rankingen, klubbaktiviteterna och startfältets poäng gå genom läsaren.
+  `StartFieldRunner` bär klubbid; backend sorterar inte längre på poäng den inte har.
+- **Backend** tappar `RunnerRankingSource`, `ClubActivitySource`, `ActivityFunctions`,
+  `EventorSession` och `Ranking:DemoSessionPersonId`.
+- **Inloggningen** stänger på hälsningen i stället för rankingrutan, läser kontot och skriver
+  namn, klubb och klass till identiteten.
+- **Jag-fliken**: Eventor-kortet ligger direkt under namnet, "Ändra" finns bara när ingen är
+  inloggad, klassen har en egen rad, och en tom Sverigelista får en förklaring i stället för att
+  bara utebli.
+- **`WelcomeSheet`** vid första starten, med "Hoppa över".
+- **`ExpiresAt`** räknar bara Eventors egna kakor.
+- **"Intresserad"** ersätter "favorit" om tävlingar; Favoriter är kvar för personer man följer.
+- **Chip och badge** centrerade vertikalt efter mätning.
 
 ## Decisions
 
@@ -108,4 +127,42 @@ Avgiftssidan behandlas som "vet inte", inte "finns inte" — en död session ser
 
 ## Verifiering
 
-<!-- Fylls på: dotnet test, skarp körning i simulatorn, skärmbilder, vad körningen avslöjade. -->
+`dotnet test`: **305 gröna** (289 innan, plus sju för sidparsrarna och nio för läsaren).
+Bygger för iOS. Skarp körning i simulatorn mot Eventor med sessionen från #124, och en BFF-stubb
+som svarar tomt på allt så att appen kör i backend-läge utan att dölja korten bakom offline.
+
+### Vad körningen visade
+
+**Rankingen läses på enheten.** Jag-fliken: 62,98 · 1921:a i Sverige · 204:a i H45 ·
+**17:e i Gävle OK, herrar**. De tre första siffrorna stämmer med det `/Home/Index` och löparsidan
+gav i mätningen; klubbplaceringen kommer ur klubbsidan, hämtad med samma session.
+Klubbaktiviteterna kom också: 25-manna, 10-mila 2027, Jukola 2027.
+
+**Tre saker som körningen avslöjade och som mätningen inte hade sagt:**
+
+1. **Onboardingen kraschade appen vid start.** Att öppna ett ark inifrån första sidans egen
+   `OnAppearingAsync` gav `MauiContext is null` — fönstret finns inte förrän metoden returnerat.
+   Isolerat genom att lägga tillbaka `first-run.json` och starta om: ingen krasch. Löst genom att
+   köa arket på dispatchern i stället för att invänta det.
+2. **Simulatorns skärmbild är beskuren nedtill.** 918×1907 px mot en skärm på 402×874 pt är olika
+   skalor i x och y, och en tabbrad som räknades om med y-skalan hamnade i hemindikatorn. Tre tomma
+   tryck innan det mättes efter.
+3. **Ingen beständig Eventor-kaka i burken**, trots att "Kom ihåg mig" var ikryssad — se nedan.
+
+### Chipen och badgen, uppmätt
+
+| | Före | Efter |
+|---|---|---|
+| Badge (37→) höjd | 24,0 pt, text 10,0 pt över / 3,3 under | 17,0 pt, 3,0 / 3,3 |
+| Chip | 42,7 pt, 18,7 över / 11,0 under | 42,7 pt, 14,7 / 15,0 |
+
+Badgens etikett sträcktes till ramens höjd och sköt texten nedåt; centrerad etikett med centrerad
+text rättar den. Chipen är en annan sak: `MinimumHeightRequest` sätter höjden till 44 och ramen
+lägger överskottet under innehållet, så där är det paddingen som måste vara osymmetrisk.
+`VerticalTextAlignment` på chipetiketten mätte **ingen** skillnad och togs bort igen.
+
+### Kvar att mäta
+
+Den skarpa inloggningen: att kontot sätts automatiskt, att klassen förväljs från "Förvald klass 1",
+och framför allt vad "Kom ihåg mig" faktiskt lägger i burken. Sessionen i appen är fortfarande den
+från #124, som saknar konto.

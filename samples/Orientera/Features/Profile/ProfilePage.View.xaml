@@ -45,6 +45,20 @@
                         Command="{Binding OpenIdentityCommand}" />
             </Grid>
 
+            <!-- ============ Eventor-inloggning ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Eventor" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding EventorStatus}" />
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Text="{Binding EventorAction}"
+                                Command="{Binding OpenEventorLoginCommand}" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
             <!-- Klassen är alltid användarens eget val: man anmäler sig i andra klasser än sin normala. -->
             <Border Style="{StaticResource Card}">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
@@ -143,20 +157,6 @@
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
                         </VerticalStackLayout>
-                    </VerticalStackLayout>
-                </Border>
-            </VerticalStackLayout>
-
-            <!-- ============ Eventor-inloggning ============ -->
-            <VerticalStackLayout Spacing="8">
-                <Label Style="{StaticResource SectionLabel}" Text="Eventor" />
-
-                <Border Style="{StaticResource Card}">
-                    <VerticalStackLayout Spacing="10">
-                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding EventorStatus}" />
-                        <Button Style="{StaticResource SecondaryButton}"
-                                Text="{Binding EventorAction}"
-                                Command="{Binding OpenEventorLoginCommand}" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>

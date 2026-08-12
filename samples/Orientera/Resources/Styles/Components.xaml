@@ -42,12 +42,20 @@
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceRaised}" />
     </Style>
 
-    <!-- Chip — quick filters. One row, horizontally scrollable; selected = accent fill. -->
+    <!--
+        Chip — quick filters. One row, horizontally scrollable; selected = accent fill.
+
+        Padding är avsiktligt osymmetrisk. MinimumHeightRequest sätter höjden till 44, och ramen
+        lägger då allt överskott under innehållet i stället för att centrera det: uppmätt på iOS
+        låg texten 18,7 pt från överkanten och 11,0 pt från underkanten. Med 4 över och 12 under
+        blev det 14,7 mot 15,0 — centrerat inom en pixel, och chipen är fortfarande 44 hög.
+        VerticalTextAlignment på etiketten mätte ingen skillnad alls och står därför inte här.
+    -->
     <Style x:Key="Chip" TargetType="Border">
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" />
         <Setter Property="Stroke" Value="{DynamicResource OutlineBrush}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="Padding" Value="14,4,14,12" />
         <Setter Property="MinimumHeightRequest" Value="{StaticResource TouchTargetMin}" />
         <Setter Property="StrokeShape">
             <RoundRectangle CornerRadius="18" />
@@ -111,12 +119,20 @@
         <Setter Property="BackgroundColor" Value="{DynamicResource AccentAction}" />
     </Style>
 
+    <!--
+        Etiketten sträcktes till ramens höjd och sköt texten nedåt i den ytan: uppmätt på iOS
+        10,0 pt luft ovanför texten mot 3,3 pt under, i en badge som blivit 24 pt hög av en
+        padding på 3. Centrerad etikett med centrerad text ger 3,0 mot 3,3 i en badge på 17 pt,
+        vilket är den storlek paddingen beskriver.
+    -->
     <Style x:Key="BadgeLabel" TargetType="Label">
         <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
         <Setter Property="FontSize" Value="{StaticResource SizeMicro}" />
         <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="TextTransform" Value="Uppercase" />
         <Setter Property="CharacterSpacing" Value="0.8" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
     </Style>
 
     <Style x:Key="BadgeAccentLabel" TargetType="Label" BasedOn="{StaticResource BadgeLabel}">
