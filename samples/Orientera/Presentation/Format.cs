@@ -106,6 +106,18 @@ public static class Format
         };
     }
 
+    /// <summary>
+    /// A short date to put inside a sentence: "19 sep" where <c>d MMM</c> gives "19 sep.".
+    /// </summary>
+    /// <remarks>
+    /// Eight of the twelve Swedish months abbreviate with a period of their own — mars, maj, juni
+    /// and juli do not. A sentence that ends in a date therefore reads "faller ur 19 sep.." two
+    /// thirds of the year and correctly the rest, which is how #115 got through review. The
+    /// sentence keeps its own full stop; the date gives up the abbreviation's.
+    /// </remarks>
+    public static string DateInSentence(DateOnly date) =>
+        date.ToString("d MMM", Sv).TrimEnd('.');
+
     /// <summary>"4–9 aug" for a range, a single date otherwise.</summary>
     public static string DateRange(DateOnly first, DateOnly last)
     {

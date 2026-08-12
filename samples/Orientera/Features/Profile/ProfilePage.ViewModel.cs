@@ -268,7 +268,7 @@ public partial class ProfilePageViewModel(
         ExpiryWarning = expiring.Count switch
         {
             0 => string.Empty,
-            1 => $"Ett räknande resultat faller ur {expiring[0].ExpiresOn:d MMM}.",
+            1 => $"Ett räknande resultat faller ur {Format.DateInSentence(expiring[0].ExpiresOn)}.",
             _ => $"{expiring.Count} räknande resultat faller ur inom kort.",
         };
     }
