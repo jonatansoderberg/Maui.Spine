@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Orientera.Services.Analysis;
 using Orientera.Services.Context;
+using Orientera.Services.Eventor;
 using Orientera.Services.FakeData;
 using Orientera.Services.Local;
 using Orientera.Services.Notifications;
@@ -106,6 +107,12 @@ public static class MauiProgram
         // Who the user follows, on this phone. Empty until they say otherwise.
         services.AddSingleton(_ => new LocalGroupStore(
             Path.Combine(FileSystem.AppDataDirectory, "my-group.json")));
+
+        // The Eventor login lives on the phone: credentials in the platform's secure store, the
+        // captured session beside the other local files. Neither ever reaches the backend (#123).
+        services.AddSingleton<EventorCredentialStore>();
+        services.AddSingleton(_ => new EventorSessionStore(
+            Path.Combine(FileSystem.AppDataDirectory, "eventor-session.json")));
 
         services.AddSingleton(_ => new DistrictStore(
             Path.Combine(FileSystem.AppDataDirectory, "districts.json")));

@@ -1,3 +1,4 @@
+using Orientera.Domain.Ranking;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

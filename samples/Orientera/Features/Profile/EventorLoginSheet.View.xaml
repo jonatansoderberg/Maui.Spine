@@ -1,0 +1,24 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Profile.EventorLoginSheet"
+    x:TypeArguments="EventorLoginSheetViewModel"
+    x:DataType="EventorLoginSheetViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <Label Grid.Row="0"
+               Style="{StaticResource CaptionLabel}"
+               Padding="16,4,16,10"
+               Text="{Binding Explanation}" />
+
+        <!-- Eventors egen sida. Appen har inga egna fält för lösenordet, med avsikt. -->
+        <WebView Grid.Row="1" x:Name="Browser" Source="{Binding LoginUrl}" />
+
+        <Button Grid.Row="2"
+                Style="{StaticResource SecondaryButton}"
+                Margin="16,10"
+                Text="Avbryt"
+                Command="{Binding CancelCommand}" />
+    </Grid>
+</SpinePage>

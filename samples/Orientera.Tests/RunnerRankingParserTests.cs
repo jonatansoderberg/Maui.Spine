@@ -1,4 +1,5 @@
 using Orientera.Backend.Ranking;
+using Orientera.Domain.Ranking;
 
 namespace Orientera.Tests;
 

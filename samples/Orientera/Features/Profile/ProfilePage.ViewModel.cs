@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Orientera.Domain;
 using Orientera.Features.Dev;
 using Orientera.Presentation;
+using Orientera.Services.Eventor;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 
@@ -54,6 +55,7 @@ public partial class ProfilePageViewModel(
     IProgressSource _progress,
     IEventSource _events,
     IClubActivitySource _activities,
+    EventorSessionStore _eventorSessions,
     DataSourceInfo _source) : OrienteraViewModel
 {
     /// <summary>Which data source this run is against — a demo must not read as live data.</summary>
@@ -79,6 +81,10 @@ public partial class ProfilePageViewModel(
     [ObservableProperty] public partial string SeriesStandingText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasSeries { get; set; }
 
+    // ---- Eventor-inloggning ----
+    [ObservableProperty] public partial string EventorStatus { get; set; } = string.Empty;
+    [ObservableProperty] public partial string EventorAction { get; set; } = "Logga in på Eventor";
+
     // ---- klubbaktiviteter ----
     [ObservableProperty] public partial bool HasActivities { get; set; }
 
@@ -94,6 +100,29 @@ public partial class ProfilePageViewModel(
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
 
         await ReloadAsync();
+    }
+
+    /// <summary>
+    /// Sverigelistan läses med användarens egen inloggning, så var och en ser det hen betalar för.
+    /// Utan inloggning uteblir rankingen — den lånas inte av någon annan (#123).
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenEventorLogin()
+    {
+        await _navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorWebSession>();
+        ShowEventorStatus();
+    }
+
+    private void ShowEventorStatus()
+    {
+        var session = _eventorSessions.Load();
+
+        EventorStatus = session is null
+            ? "Inte inloggad. Utan din egen inloggning visas ingen Sverigelistan."
+            : $"Inloggad som {session.PersonId}"
+              + (session.ExpiresAt is { } expires ? $" · giltig till {expires:d MMM yyyy}" : string.Empty);
+
+        EventorAction = session is null ? "Logga in på Eventor" : "Logga in igen";
     }
 
     [RelayCommand]
@@ -144,6 +173,8 @@ public partial class ProfilePageViewModel(
         Name = me.Name;
         Initials = me.Initials;
         Meta = $"{me.Club} · {me.District} · {me.DefaultClass}";
+
+        ShowEventorStatus();
 
         await LoadGroupAsync();
 

@@ -35,7 +35,7 @@
         </VerticalStackLayout>
 
         <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="16,4,16,10" IsVisible="{Binding HasLive}">
-            <ChipView Text="Min grupp" IsSelected="{Binding IsMyGroup}"
+            <ChipView Text="Favoriter" IsSelected="{Binding IsMyGroup}"
                       Command="{Binding SelectScopeCommand}" CommandParameter="MyGroup" />
             <ChipView Text="Min klass" IsSelected="{Binding IsMyClass}"
                       Command="{Binding SelectScopeCommand}" CommandParameter="MyClass" />

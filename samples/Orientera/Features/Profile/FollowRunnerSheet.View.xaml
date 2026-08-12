@@ -10,7 +10,7 @@
         <VerticalStackLayout Grid.Row="0" Padding="16,0,16,8" Spacing="6">
             <SearchBar Placeholder="Sök namn eller klubb" Text="{Binding Query}" />
             <Label Style="{StaticResource CaptionLabel}"
-                   Text="Min grupp är din egen lista. Ingen får veta att du följer dem." />
+                   Text="Favoriter är din egen lista. Ingen får veta att du följer dem." />
             <!-- Sökningen går över resultatlistor appen redan hämtat; det är ärligare att säga
                  var den letar än att låta en tom träfflista se ut som att personen inte finns -->
             <Label Style="{StaticResource CaptionLabel}"

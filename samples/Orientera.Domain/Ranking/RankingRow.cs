@@ -1,6 +1,5 @@
-using Orientera.Domain;
 
-namespace Orientera.Backend.Ranking;
+namespace Orientera.Domain.Ranking;
 
 /// <summary>Which list a row belongs to. Only forest has a club-wise page today.</summary>
 public enum RankingDiscipline

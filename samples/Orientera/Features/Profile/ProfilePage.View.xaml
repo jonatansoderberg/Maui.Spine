@@ -109,6 +109,20 @@
                 </Border>
             </VerticalStackLayout>
 
+            <!-- ============ Eventor-inloggning ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Eventor" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding EventorStatus}" />
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Text="{Binding EventorAction}"
+                                Command="{Binding OpenEventorLoginCommand}" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
             <!-- ============ Klubbaktiviteter ============ -->
             <VerticalStackLayout Spacing="8" IsVisible="{Binding HasActivities}">
                 <Label Style="{StaticResource SectionLabel}" Text="Klubbaktiviteter" />
@@ -183,9 +197,9 @@
                 </Border>
             </VerticalStackLayout>
 
-            <!-- ============ Min grupp ============ -->
+            <!-- ============ Favoriter ============ -->
             <VerticalStackLayout Spacing="8">
-                <Label Style="{StaticResource SectionLabel}" Text="Min grupp" />
+                <Label Style="{StaticResource SectionLabel}" Text="Favoriter" />
 
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="10">

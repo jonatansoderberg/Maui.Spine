@@ -10,7 +10,7 @@
         <Label Grid.Row="0"
                Style="{StaticResource CaptionLabel}"
                Padding="16,0,16,10"
-               Text="Vinnaren är förvald jämförelse. Klubbkompisar och Min grupp är oftast mer lärorika." />
+               Text="Vinnaren är förvald jämförelse. Klubbkompisar och favoriter är oftast mer lärorika." />
 
         <CollectionView Grid.Row="1" Margin="16,0,16,16" ItemsSource="{Binding Candidates}" SelectionMode="None">
             <CollectionView.ItemsLayout>
@@ -38,7 +38,7 @@
                                        HorizontalTextAlignment="End"
                                        Text="{Binding TimeText}" />
                                 <Border Style="{StaticResource Badge}" IsVisible="{Binding IsInMyGroup}">
-                                    <Label Style="{StaticResource BadgeLabel}" Text="Min grupp" />
+                                    <Label Style="{StaticResource BadgeLabel}" Text="Favoriter" />
                                 </Border>
                             </VerticalStackLayout>
                         </Grid>

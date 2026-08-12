@@ -1,9 +1,8 @@
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
-using Orientera.Domain;
 
-namespace Orientera.Backend.Ranking;
+namespace Orientera.Domain.Ranking;
 
 /// <summary>
 /// Reads a runner's own Sverigelistan page — the one behind the fee.
