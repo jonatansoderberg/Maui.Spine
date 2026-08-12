@@ -3,6 +3,7 @@ using Orientera.Domain;
 using Orientera.Presentation;
 using Orientera.Services.Context;
 using Orientera.Services.Grouping;
+using Orientera.Services.Local;
 using Orientera.Services.Offline;
 using Orientera.Services.Relevance;
 using Orientera.Services.Sources;
@@ -26,6 +27,7 @@ public partial class EventsPageViewModel(
     IPeopleSource _people,
     IParticipationSource _participation,
     IOfflineStore _offlineStore,
+    DistrictStore _districts,
     CompetitionContextService _context) : OrienteraViewModel
 {
     private IReadOnlyList<Competition> _all = [];
@@ -60,6 +62,22 @@ public partial class EventsPageViewModel(
     [ObservableProperty]
     public partial string FilterLabel { get; set; } = "Filter";
 
+    /// <summary>
+    /// The search box, on the page rather than in the sheet: you type and see, instead of typing,
+    /// closing the sheet, and finding out whether it matched.
+    /// </summary>
+    [ObservableProperty]
+    public partial string Query { get; set; } = string.Empty;
+
+    async partial void OnQueryChanged(string value)
+    {
+        _filter = _filter with { Query = value.Trim() };
+        ShowFilterAction();
+
+        if (_me is not null)
+            await LoadAsync(BuildAsync);
+    }
+
     /// <summary>Map discovery is an M4 feature; M0 shows the placeholder rather than pretending.</summary>
     [ObservableProperty]
     public partial bool IsMapMode { get; set; }
@@ -68,8 +86,7 @@ public partial class EventsPageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
-        if (PageActions.Count == 0)
-            PageActions.Add(new PageAction(text: "Filter", command: OpenFilterCommand));
+        ShowFilterAction();
 
         await ReloadAsync();
     }
@@ -89,15 +106,41 @@ public partial class EventsPageViewModel(
         await LoadAsync(BuildAsync);
     }
 
+    /// <summary>
+    /// The header button says how many choices are set. Without the count an active filter is
+    /// invisible, and a short list reads as a broken calendar rather than as a filtered one —
+    /// which matters more now that a district or a period can hide most of it.
+    /// </summary>
+    private void ShowFilterAction()
+    {
+        FilterLabel = _filter.IsActive ? $"Filter ({_filter.ActiveCount})" : "Filter";
+
+        PageActions.Clear();
+        PageActions.Add(new PageAction(text: FilterLabel, command: OpenFilterCommand));
+    }
+
     [RelayCommand]
     private async Task OpenFilter()
     {
-        var result = await _navigation.NavigateToWithResultAsync<EventFilterSheet, EventFilter>();
+        // The sheet opens showing what is set. Districts are offered from the calendar in hand,
+        // so the list is the ones there are competitions in rather than every district in Sweden.
+        var districts = _all
+            .Select(c => c.District)
+            .Where(d => d.Length > 0)
+            .Distinct()
+            .OrderBy(d => d, StringComparer.CurrentCulture)
+            .ToList();
+
+        var result = await _navigation.NavigateToWithResultAsync<EventFilterSheet, FilterRequest, EventFilter>(
+            new FilterRequest(_filter, districts));
 
         if (result is { IsSuccess: true, Value: { } filter })
         {
-            _filter = filter;
-            FilterLabel = filter.IsActive ? $"Filter ({filter.ActiveCount})" : "Filter";
+            // The query belongs to the page's search box, not to the sheet; the sheet must not
+            // clear what is typed there by returning a filter that never carried it.
+            _filter = filter with { Query = Query.Trim() };
+            _districts.Save(_filter.Districts);
+            ShowFilterAction();
             await LoadAsync(BuildAsync);
         }
     }
@@ -123,6 +166,14 @@ public partial class EventsPageViewModel(
     {
         // Identity and favourites are local, so they load whether or not there is a connection.
         _me = await _people.GetMeAsync();
+
+        // Where you look is a standing preference; what you searched for last week is not.
+        if (_districts.Load() is { Count: > 0 } saved)
+        {
+            _filter = _filter with { Districts = saved };
+            ShowFilterAction();
+        }
+
         _favourites = await _events.GetFavouritesAsync();
 
         await LoadAsync(async () =>
@@ -204,7 +255,7 @@ public partial class EventsPageViewModel(
         };
 
         var candidates = _all
-            .Where(c => PassesAdvanced(c, relevance))
+            .Where(c => PassesAdvanced(c, relevance, today))
             .Where(c => PassesQuick(c, now, today, mine, groupEntries))
             .ToList();
 
@@ -260,8 +311,20 @@ public partial class EventsPageViewModel(
         EmptyMessage = EmptyMessageFor(Selected);
     }
 
-    private bool PassesAdvanced(Competition competition, RelevanceContext relevance)
+    private bool PassesAdvanced(Competition competition, RelevanceContext relevance, DateOnly today)
     {
+        if (_filter.Districts.Count > 0 && !_filter.Districts.Contains(competition.District))
+            return false;
+
+        if (!_filter.Matches(competition))
+            return false;
+
+        if (_filter.Window(today) is { } window
+            && (competition.Date < window.From || competition.Date > window.To))
+        {
+            return false;
+        }
+
         // Training and recreational events are hidden unless explicitly asked for — the spec's
         // "minska Eventor-bruset" applied at its most common source.
         if (competition.IsLowPriority && !_filter.ShowTraining)
