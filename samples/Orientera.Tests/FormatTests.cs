@@ -31,6 +31,25 @@ public class FormatTests
         Assert.Equal(string.Empty, Format.SpokenDelta(null));
     }
 
+    /// <summary>
+    /// Eight of the twelve Swedish months abbreviate with a period of their own, so a sentence
+    /// that adds its own ends in two — "faller ur 19 sep..". The four that do not are why the fix
+    /// is not simply dropping the sentence's period (#115).
+    /// </summary>
+    [Fact]
+    public void A_date_inside_a_sentence_leaves_the_full_stop_to_the_sentence()
+    {
+        Assert.Equal("19 sep", Format.DateInSentence(new DateOnly(2026, 9, 19)));
+        Assert.Equal("19 maj", Format.DateInSentence(new DateOnly(2026, 5, 19)));
+
+        Assert.Equal(
+            "Ett räknande resultat faller ur 19 sep.",
+            $"Ett räknande resultat faller ur {Format.DateInSentence(new DateOnly(2026, 9, 19))}.");
+        Assert.Equal(
+            "Ett räknande resultat faller ur 19 maj.",
+            $"Ett räknande resultat faller ur {Format.DateInSentence(new DateOnly(2026, 5, 19))}.");
+    }
+
     [Fact]
     public void Placements_are_written_as_ordinals_and_spoken_as_words()
     {
