@@ -12,6 +12,17 @@ namespace Orientera.Services.Eventor;
 public static partial class EventorCookies
 {
     public static partial Task<IReadOnlyList<SessionCookie>> ReadAsync(WebView view);
+
+    /// <summary>
+    /// Throws away the web view's own cookies for Eventor.
+    /// </summary>
+    /// <remarks>
+    /// Logging out has to reach in here, not only into the app's stored session. The login sheet
+    /// closes the moment Eventor greets somebody by name, and that greeting comes from the cookie
+    /// jar the web view keeps — so a logout that left it alone would be undone by the next login
+    /// attempt before the user had typed anything.
+    /// </remarks>
+    public static partial Task ForgetAsync();
 }
 
 /// <summary>

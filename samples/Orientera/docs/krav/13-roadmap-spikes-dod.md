@@ -6,7 +6,7 @@
 |-----|----------|
 | **M0 – UX-prototyp** | Fake-data, design system, kärnflöden och mockups. |
 | **M1 – Eventor Core** | Events, detaljer, dokument, starter, resultat, splits, relevans och cache. |
-| **M2 – Live & Personal** | LiveResults, Jag, Min grupp, context engine, lokala favoriter. |
+| **M2 – Live & Personal** | LiveResults, Jag, Min grupp, context engine, lokala favoriter och intressemarkeringar. |
 | **M3 – Intelligence** | PM-extraktion, Sverigelistan, serier, prediction och historisk statistik. |
 | **M4 – Mapping & Analysis** | Omaps, kurser, GPS, vägval, kartanalys, Livelox-koppling. |
 | **M5 – Productization** | Konto/sync, push, auth, eventuell anmälan, App Store/Google Play. |

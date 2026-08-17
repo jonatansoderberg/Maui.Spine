@@ -17,7 +17,7 @@ Eventor har stor datatäckning men desktoporienterad informationsdensitet. Produ
 - Större
 - Denna vecka
 - Mina
-- Favoriter
+- Intresserad
 
 ### Avancerade filter
 
@@ -41,7 +41,7 @@ Relevans ska vara en **egen komponent, inte en sortering inne i ViewModel**. Den
 | Min grupp är anmäld | Hög relevans även om jag själv inte springer. |
 | Avstånd/restid | Nära events prioriteras, men får inte alltid slå mästerskap. |
 | Distrikt | Valt distrikt får boost men begränsar inte discovery. |
-| Serie/favorit | Följda serier, klubbar och arrangörer får boost. |
+| Serie/följd arrangör | Följda serier, klubbar och arrangörer får boost. |
 | Deadline | Anmälan som snart stänger flyttas upp. |
 | Återkommande träning | Grupperas/komprimeras och kan döljas. |
 

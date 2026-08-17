@@ -6,7 +6,7 @@ Tävlingsdetaljen ska vara **vertikal, mobil och kontextstyrd**. Den ska inte sp
 
 Sektionsordning:
 
-1. **Hero:** namn, arrangör, datum, nivå, disciplin och favorit.
+1. **Hero:** namn, arrangör, datum, nivå, disciplin och intressemarkering.
 2. **För dig:** anmälningsstatus, klass, min start, deadline, restid och prediction.
 3. **Snabbhandlingar:** PM, Karta, Live, Resultat, Livelox.
 4. **Tävlingsinfo:** arena, parkering, avgifter, stämpling, klasser, kontakt.
