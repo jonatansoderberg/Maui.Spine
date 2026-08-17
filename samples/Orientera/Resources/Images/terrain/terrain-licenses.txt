@@ -12,4 +12,29 @@ Format:
       Ändringar:  <beskärning, komprimering, inget>
 
 ----------------------------------------------------------------------
-(Inga bilder tillagda ännu. Se README.md för vilka som ska täckas.)
+
+Samtliga elva bilder i katalogen är i dag PROVISORISKA och genererade i
+projektet — inga fotografier, inga tredjepartsrättigheter.
+
+  terrain_sprint_urban.jpg
+  terrain_sprint_default.jpg
+  terrain_middle_skog.jpg
+  terrain_middle_moran.jpg
+  terrain_long_skog.jpg
+  terrain_long_moran.jpg
+  terrain_long_fjall.jpg
+  terrain_ultralong_fjall.jpg
+  terrain_night_skog.jpg
+  terrain_relay_skog.jpg
+  terrain_indoor_default.jpg
+
+      Källa:      generate-placeholders.py i den här katalogen
+      Upphov:     projektet självt
+      Licens:     samma som repot
+      Skapad:     2026-08-17
+      Ändringar:  —
+
+De är stiliserade lager, inte platser, och de fyller uppslagets båda första steg
+så att HeroImage kan byggas och granskas i etapp B. Beslut D2 gäller fortfarande:
+de ska ersättas av kurerade terrängbilder valda på disciplin och terrängtyp. När
+en riktig bild läggs in får den sin egen rad ovan och stryks ur listan här.

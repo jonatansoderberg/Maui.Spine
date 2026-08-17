@@ -130,8 +130,10 @@ kommentar som pekar på temafilen. Alternativet är ett byggsteg som genererar d
    kan byta med temat. Statusraden säger nu "paletten omlåst 2026-08-17".
 7. **Bildbanken:** `Resources/Images/terrain/` med namnregel, uppslagsordning och licensmall
    (`README.md` + `terrain-licenses.txt`), och csproj-globben som tar in `*.jpg` därifrån.
-   **Bilderna själva saknas** — de elva som README listar behöver väljas och licensklareras av
-   en människa. Det är hela poängen med D2 ("kurerade"), och inget jag kan göra åt.
+   Alla elva filerna finns, men **provisoriskt**: stiliserade lager genererade av
+   `generate-placeholders.py` i samma katalog, deterministiskt och utan tredjepartsrättigheter.
+   De fyller uppslagets båda första steg så att `HeroImage` kan byggas och granskas i etapp B.
+   D2 gäller fortfarande — de ska bytas mot kurerade fotografier, och licensfilen säger det.
 
 **Verifierat:** `dotnet build` grön för maccatalyst och ios. Ingen färgliteral kvar i runtime-XAML
 eller C# (grep över `Features`, `Controls`, `Services`, `App.xaml`, `MauiProgram.cs` ger noll

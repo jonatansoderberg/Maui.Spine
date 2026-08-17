@@ -30,6 +30,20 @@ prefixet `terrain_` i stället för en katalog i namnet.
 2. `terrain_<disciplin>_default`
 3. kartrutan
 
+## Provisoriska bilder
+
+De elva filerna som ligger här nu är **inte fotografier**. De är stiliserade lager genererade av
+[`generate-placeholders.py`](generate-placeholders.py) — deterministiskt, så samma kommando ger
+samma filer:
+
+```
+python3 generate-placeholders.py
+```
+
+De finns för att `HeroImage` ska kunna byggas och granskas i etapp B utan att vänta på
+bildvalet. Att de uppenbart inte är fotografier är en fördel så länge de ligger kvar: ingen kan
+missta dem för arenan. D2 gäller fortfarande — de ska bytas mot kurerade terrängbilder.
+
 ## Vad som ska ligga här
 
 Ett tiotal bilder som täcker uppslagets båda första steg:
