@@ -26,11 +26,11 @@ public sealed class HeroImage : ContentView
     private static readonly HashSet<string> Bundled =
     [
         "sprint_urban", "sprint_default",
-        "middle_skog", "middle_moran",
-        "long_skog", "long_moran", "long_fjall",
-        "ultralong_fjall",
-        "night_skog",
-        "relay_skog",
+        "middle_skog", "middle_moran", "middle_default",
+        "long_skog", "long_moran", "long_fjall", "long_default",
+        "ultralong_fjall", "ultralong_default",
+        "night_skog", "night_default",
+        "relay_skog", "relay_default",
         "indoor_default",
     ];
 
@@ -115,8 +115,15 @@ public sealed class HeroImage : ContentView
         _image.Source = name is null ? null : ImageSource.FromFile($"terrain_{name}.jpg");
         _image.IsVisible = name is not null;
 
+        // Hidden rather than merely covered: a fallback left alive behind the picture is a second
+        // map fetching its own tiles for a view nobody sees.
+        _fallbackSlot.IsVisible = name is null && Fallback is not null;
+
         // Nothing to darken, and a scrim over a map tile only makes the map harder to read.
         _scrim.IsVisible = name is not null;
+
+        // Neither a picture nor a fallback is a blank band across the top of the page.
+        IsVisible = name is not null || Fallback is not null;
     }
 
     private string? Resolve()

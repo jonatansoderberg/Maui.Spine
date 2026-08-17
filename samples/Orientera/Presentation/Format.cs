@@ -131,15 +131,11 @@ public static class Format
         // trailing period that eight of the twelve Swedish months otherwise carry.
         string month = date.ToString("MMM", Sv).TrimEnd('.');
 
-        return $"{date.ToString("dddd", Sv)} {Ordinal(date.Day)} {month} ({when})";
+        // Plain cardinal, not an ordinal: Swedish writes dates as "torsdag 20 augusti". The
+        // ordinal form ("20:e") belongs to speech and to a day named on its own, and the test run
+        // read "torsdag 20:e aug" as a bug in the formatting rather than as a date.
+        return $"{date.ToString("dddd", Sv)} {date.Day} {month} ({when})";
     }
-
-    /// <summary>
-    /// A Swedish written ordinal: 1:a, 2:a, 3:e — and 11:e, 12:e, which the rule for 1 and 2
-    /// would otherwise get wrong.
-    /// </summary>
-    private static string Ordinal(int day) =>
-        day is not (11 or 12) && day % 10 is 1 or 2 ? $"{day}:a" : $"{day}:e";
 
     /// <summary>
     /// A short date to put inside a sentence: "19 sep" where <c>d MMM</c> gives "19 sep.".

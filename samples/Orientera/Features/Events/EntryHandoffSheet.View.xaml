@@ -1,0 +1,32 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Events.EntryHandoffSheet"
+    x:TypeArguments="EntryHandoffSheetViewModel"
+    x:DataType="EntryHandoffSheetViewModel">
+
+    <VerticalStackLayout Padding="16,0,16,16" Spacing="16">
+
+        <HandoffCard Title="{Binding Competition}"
+                     Destination="Anmälan sker på Eventors sida"
+                     Transfers="{Binding ClassLine}"
+                     StaysInApp="True" />
+
+        <!--
+            Sidan är Eventors, men den öppnas i appens egen webbvy (D5): Safari har en egen
+            kakburk, och en anmälan öppnad externt möts av att du inte är inloggad.
+        -->
+        <Label Style="{StaticResource BodySecondaryLabel}"
+               Text="Formuläret är Eventors och öppnas här i appen, med din inloggning kvar. Namn, klubb och bricknummer är redan ifyllda därifrån." />
+
+        <Button Style="{StaticResource PrimaryButton}"
+                Text="Fortsätt till Eventor"
+                Command="{Binding ContinueCommand}" />
+
+        <Button Style="{StaticResource SecondaryButton}"
+                Text="Inte nu"
+                Command="{Binding CancelCommand}" />
+
+    </VerticalStackLayout>
+
+</SpinePage>

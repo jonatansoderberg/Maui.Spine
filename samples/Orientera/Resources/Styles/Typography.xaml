@@ -70,6 +70,11 @@
         <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
     </Style>
 
+    <!-- Raden som är läsaren själv, i en lista med andra. Aldrig det enda som säger det. -->
+    <Style x:Key="BodyAccentLabel" TargetType="Label" BasedOn="{StaticResource BodyStrongLabel}">
+        <Setter Property="TextColor" Value="{DynamicResource AccentAction}" />
+    </Style>
+
     <Style x:Key="BodySecondaryLabel" TargetType="Label" BasedOn="{StaticResource BodyLabel}">
         <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
     </Style>

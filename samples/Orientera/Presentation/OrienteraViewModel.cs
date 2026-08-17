@@ -32,7 +32,14 @@ public abstract partial class OrienteraViewModel : ViewModelBase
     /// blank screen and a finished-but-empty screen looked identical.
     /// </remarks>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLoaded))]
     public partial bool IsLoading { get; set; }
+
+    /// <summary>
+    /// The other half of <see cref="IsLoading"/>, so a page can show a skeleton in its content's
+    /// shape without a converter — and so the two can never be visible at once.
+    /// </summary>
+    public bool IsLoaded => !IsLoading;
 
     /// <summary>
     /// Drops whatever the page says when it has nothing, for the duration of a load.

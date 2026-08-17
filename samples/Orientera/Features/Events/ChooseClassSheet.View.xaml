@@ -12,26 +12,47 @@
                Padding="16,0,16,10"
                Text="{Binding Explanation}" />
 
-        <CollectionView Grid.Row="1" Margin="16,0,16,16" ItemsSource="{Binding Classes}" SelectionMode="None">
-            <CollectionView.ItemsLayout>
-                <LinearItemsLayout Orientation="Vertical" ItemSpacing="6" />
-            </CollectionView.ItemsLayout>
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="16,0,16,16" Spacing="16">
 
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="x:String">
-                    <Border Style="{StaticResource Card}" Padding="16,12"
-                            SemanticProperties.Hint="Väljer klassen">
-                        <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding .}" />
-
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ChooseCommand}"
-                                CommandParameter="{Binding .}" />
-                        </Border.GestureRecognizers>
+                <VerticalStackLayout Spacing="8" IsVisible="{Binding HasAgeClasses}">
+                    <Label Style="{StaticResource SectionLabel}" Text="Åldersklasser" />
+                    <Border Style="{StaticResource Card}" Padding="16,6">
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding AgeClasses}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="ClassRow">
+                                    <ListRow Primary="{Binding Name}"
+                                             Value="{Binding Check}"
+                                             Description="{Binding Accessibility}"
+                                             ShowChevron="False"
+                                             Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.ChooseCommand}"
+                                             CommandParameter="{Binding Name}" />
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
                     </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="8" IsVisible="{Binding HasCourses}">
+                    <Label Style="{StaticResource SectionLabel}" Text="Banor" />
+                    <Border Style="{StaticResource Card}" Padding="16,6">
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Courses}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="ClassRow">
+                                    <ListRow Primary="{Binding Name}"
+                                             Value="{Binding Check}"
+                                             Description="{Binding Accessibility}"
+                                             ShowChevron="False"
+                                             Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.ChooseCommand}"
+                                             CommandParameter="{Binding Name}" />
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
 
     </Grid>
 

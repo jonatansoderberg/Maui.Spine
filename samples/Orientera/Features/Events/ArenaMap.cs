@@ -41,6 +41,28 @@ public sealed class ArenaMap : MapControl
         set => SetValue(ArenaProperty, value);
     }
 
+    /// <summary>
+    /// Mapsui fetches tiles for the size it had when the map was set, and a view inside a
+    /// ScrollView is measured before it is laid out — so the map asked for tiles at a height it
+    /// had not been given yet and the lower half stayed white, for as long as the page was open.
+    /// Re-centring once the real height arrives makes it ask again for the size it actually has.
+    /// </summary>
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+
+        if (width <= 0 || height <= 0 || Map is null)
+            return;
+
+        if (Math.Abs(height - _drawnAtHeight) < 1)
+            return;
+
+        _drawnAtHeight = height;
+        Recentre();
+    }
+
+    private double _drawnAtHeight;
+
     private void Rebuild()
     {
         // A competition without a position is a competition we cannot draw.
@@ -55,8 +77,18 @@ public sealed class ArenaMap : MapControl
         map.Layers.Add(ArenaLayer(centre));
         Map = map;
 
+        Recentre();
+    }
+
+    private void Recentre()
+    {
+        if (Arena is { Latitude: 0, Longitude: 0 })
+            return;
+
+        var (x, y) = SphericalMercator.FromLonLat(Arena.Longitude, Arena.Latitude);
+
         // Mapsui 5 navigates through the map's own navigator; there is no Home hook.
-        Map.Navigator.CenterOnAndZoomTo(centre, ArenaResolution);
+        Map.Navigator.CenterOnAndZoomTo(new MPoint(x, y), ArenaResolution);
     }
 
     /// <summary>
