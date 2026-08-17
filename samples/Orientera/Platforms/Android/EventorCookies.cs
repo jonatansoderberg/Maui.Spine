@@ -28,4 +28,28 @@ public static partial class EventorCookies
 
         return Task.FromResult<IReadOnlyList<SessionCookie>>(cookies);
     }
+
+    /// <summary>
+    /// <c>CookieManager</c> has no way to drop one domain's cookies, and the store is shared by
+    /// every web view in the process. Eventor is the only site the app ever opens one for, so
+    /// emptying it entirely removes exactly what a per-domain call would have.
+    /// </summary>
+    public static partial Task ForgetAsync()
+    {
+        var manager = CookieManager.Instance;
+
+        if (manager is null)
+            return Task.CompletedTask;
+
+        var done = new TaskCompletionSource();
+        manager.RemoveAllCookies(new Callback(done));
+        manager.Flush();
+
+        return done.Task;
+    }
+
+    private sealed class Callback(TaskCompletionSource _done) : Java.Lang.Object, IValueCallback
+    {
+        public void OnReceiveValue(Java.Lang.Object? value) => _done.TrySetResult();
+    }
 }

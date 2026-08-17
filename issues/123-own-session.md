@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/123
 **Branch:** issue/123-own-session
-**Status:** In Progress
+**Status:** Completed
 
 Steg 1–3 landade i #124. Det här är steg 5 — hämtningen på enheten — plus onboardingen som föll
 ut ur användningen av steg 1–3.
@@ -224,6 +224,56 @@ Två fel hittades på vägen dit, båda tysta:
   under förbundets nyheter och de sociala inloggningsknapparna. Arket rullar nu dit av sig självt.
   Rapporterat från en riktig körning, vilket är den enda plats det kunde upptäckas.
 
+### Vägen ut, som saknades
+
+Testkörningen genom hela appen (`docs/testrun-2026-08-17/`) hittade tre saker som hörde till det
+här issuet och ingen annanstans. Alla tre är samma fel sett från olika håll: inloggningen hade
+byggts färdig, men inte det som händer efteråt.
+
+- **Ingen utloggning fanns.** `EventorSessionStore.Forget()` och `EventorCredentialStore.Forget()`
+  var skrivna och testade — och anropades inte från någonstans. En funktion som lägger ett lösenord
+  i nyckelringen måste kunna ta bort det igen, annars är den en enkelriktad dörr.
+- **"Logga in igen" svarade ingenting.** Knappen visades även när sessionen levde. Arket öppnade
+  Eventors sida, blev hälsat vid namn och stängde sig självt innan användaren hann se något —
+  precis som konstruerat, men en kontroll som inte besvarar något ska inte stå där. Den visas nu
+  bara i de två lägen där den betyder något: ingen session, eller en Eventor har glömt.
+- **`AppLoginSheet` gick inte att nå.** `OpenAppLoginCommand` var inte bunden till någon knapp i
+  något XAML, så den andra vägen in kunde inte vägas mot den första — vilket var hela skälet att
+  behålla båda. Den ligger nu under Utvecklingsläge, inte i Eventor-kortet: det är ett försök som
+  ska utvärderas, inte ett val användaren ska ställas inför.
+
+**Utloggningen måste nå längre än till appens egna filer.** Sessionen, lösenordet och läsarens
+cache är tre av fyra; den fjärde är webbvyns egen kakburk. Utan den hade nästa
+inloggningsförsök mötts av Eventors hälsning och stängt sig direkt — en utloggning som ångrar
+sig innan användaren hunnit skriva något. `EventorCookies.ForgetAsync()` är därför ny på alla tre
+plattformarna: iOS och Mac Catalyst tar Eventors kakor ur `WKWebsiteDataStore.DefaultDataStore`,
+Android tömmer `CookieManager` helt, eftersom den saknar ett sätt att släppa en enskild domän och
+Eventor är den enda sida appen någonsin öppnar en webbvy för.
+
+Namn och klubb blir kvar. De är vem löparen är, inte något Eventor lånat ut — och med ingen
+inloggad blir de redigerbara igen, så ett fel kan rättas i stället för att bara glömmas.
+
+### Verifierat i simulatorn, alla tre lägen
+
+Körd 17 aug mot skarp Eventor. Datakatalogen kopierades först undan, så att provet kunde göras
+utan att offra sessionen.
+
+| Läge | Vad kortet visar | Utfall |
+|---|---|---|
+| Inloggad | Bara **Logga ut** | ✅ Den döda "Logga in igen" är borta |
+| Efter utloggning | "Inte inloggad…" + **Logga in på Eventor**, och "Ändra" tillbaka bredvid namnet | ✅ Sverigelistan ersätts av sin förklaring |
+| Sessionen utgången | Båda knapparna | ✅ Vägen ut står öppen även när Eventor glömt vem det är |
+
+**Att kakburken verkligen töms är mätt, inte antaget.** Efter utloggningen öppnades inloggningen
+igen: arket stannade kvar på Eventors egen inloggningssida, och förbundets samtycketsruta kom
+tillbaka — den visas bara för en webbvy utan kakor. Före den här ändringen hade arket stängt sig
+på hälsningen.
+
+### Kravdokumenten följer efter ordet
+
+Beslutet nedan om att `docs/krav/` skulle tas separat är verkställt. Där texten handlar om
+tävlingar står nu *intresserad*; där den handlar om personer står *favoriter* kvar, som avsett.
+
 ## Decisions
 
 - **Allt tre går över, inte bara rankingen.** Frågan ställdes och svaret var att alla ska använda
@@ -251,6 +301,15 @@ Två fel hittades på vägen dit, båda tysta:
   vilket är varför det kunde gå sönder tyst.
 - **Kravdokumenten under `docs/krav/` är inte omskrivna.** De säger fortfarande "lokala favoriter"
   om tävlingar. Det är en redaktionell ändring i specen, inte i koden, och tas separat.
+  **Verkställt vid stängningen** — se ovan.
+- **Utloggningen frågar inte om bekräftelse.** Appen har inga dialoger någonstans, och att införa
+  en dialogtjänst för den här knappen hade varit ett eget bygge. Priset för en felaktig tryckning
+  är att lösenordet måste skrivas in en gång till, inte att något går förlorat.
+- **`AppLoginSheet` behålls, men under Utvecklingsläge.** Argumentet emot den står kvar i klassens
+  egen dokumentation: den som lärt sig skriva sitt Eventor-lösenord i en app som inte är Eventor
+  har lärt sig den vana nätfiske lever på. Den ska vägas på riktig telefon innan någon av vägarna
+  tas bort, och en väg som inte går att nå kan inte vägas. Att den försvinner med resten av
+  utvecklingsläget vid release är avsikten, inte en biverkan.
 
 ## Verifiering
 

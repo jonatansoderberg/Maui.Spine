@@ -58,7 +58,13 @@
                         <Label Style="{StaticResource CaptionLabel}" Text="{Binding EventorStatus}" />
                         <Button Style="{StaticResource SecondaryButton}"
                                 Text="{Binding EventorAction}"
+                                IsVisible="{Binding CanLogIn}"
                                 Command="{Binding OpenEventorLoginCommand}" />
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Text="Logga ut"
+                                IsVisible="{Binding CanLogOut}"
+                                SemanticProperties.Description="Logga ut från Eventor och glöm det sparade lösenordet"
+                                Command="{Binding LogOutCommand}" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
@@ -296,6 +302,15 @@
                 <Label Style="{StaticResource SectionLabel}" Text="Utvecklingsläge" />
                 <Button Style="{StaticResource SecondaryButton}" Text="Tidsmaskin" Command="{Binding OpenTimeMachineCommand}" />
                 <Button Style="{StaticResource SecondaryButton}" Text="Designsystem" Command="{Binding OpenDesignSystemCommand}" />
+                <!--
+                    Den andra vägen in, som ska vägas mot Eventors egen sida på en riktig telefon
+                    (#123). Här och inte i Eventor-kortet: det är ett försök som ska utvärderas,
+                    inte ett val användaren ska ställas inför — två inloggningsknappar bredvid
+                    varandra hade bara varit förvirrande.
+                -->
+                <Button Style="{StaticResource SecondaryButton}"
+                        Text="Logga in med appens egna fält"
+                        Command="{Binding OpenAppLoginCommand}" />
                 <Label Style="{StaticResource CaptionLabel}"
                        Text="{Binding SourceDescription}" />
             </VerticalStackLayout>

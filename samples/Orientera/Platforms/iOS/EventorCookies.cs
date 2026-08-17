@@ -32,4 +32,19 @@ public static partial class EventorCookies
                 }),
         ];
     }
+
+    /// <summary>
+    /// The default data store, because that is the one the login sheet's web view writes to — the
+    /// same store the entry page reads from when it opens already signed in.
+    /// </summary>
+    public static partial async Task ForgetAsync()
+    {
+        var store = WKWebsiteDataStore.DefaultDataStore.HttpCookieStore;
+
+        foreach (var cookie in await store.GetAllCookiesAsync())
+        {
+            if (cookie.Domain.TrimStart('.').EndsWith("orientering.se", StringComparison.OrdinalIgnoreCase))
+                await store.DeleteCookieAsync(cookie);
+        }
+    }
 }

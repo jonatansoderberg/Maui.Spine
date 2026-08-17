@@ -64,6 +64,7 @@ public partial class ProfilePageViewModel(
     IEventSource _events,
     IClubActivitySource _activities,
     EventorSessionStore _eventorSessions,
+    EventorCredentialStore _credentials,
     EventorReader _eventor,
     DataSourceInfo _source) : OrienteraViewModel
 {
@@ -111,6 +112,19 @@ public partial class ProfilePageViewModel(
     [ObservableProperty] public partial string EventorStatus { get; set; } = string.Empty;
     [ObservableProperty] public partial string EventorAction { get; set; } = "Logga in på Eventor";
 
+    /// <summary>
+    /// Whether logging in is the thing to offer.
+    /// </summary>
+    /// <remarks>
+    /// Only when there is nothing to log in with, or when Eventor has forgotten what there was.
+    /// Offered while the session still works, the button opened Eventor's page, was greeted by
+    /// name and closed itself again before the user saw it — a control that answers nothing.
+    /// </remarks>
+    [ObservableProperty] public partial bool CanLogIn { get; set; } = true;
+
+    /// <summary>Whether there is anything to log out of. A login without one is a one-way door.</summary>
+    [ObservableProperty] public partial bool CanLogOut { get; set; }
+
     // ---- klubbaktiviteter ----
     [ObservableProperty] public partial bool HasActivities { get; set; }
 
@@ -155,6 +169,26 @@ public partial class ProfilePageViewModel(
     }
 
     /// <summary>
+    /// Gives back everything the login left behind: the session, the saved password, the pages
+    /// read with them, and the web view's own cookies.
+    /// </summary>
+    /// <remarks>
+    /// The name and the club stay. They are who the runner is, not something Eventor lent them,
+    /// and with nobody logged in they become editable again — so a wrong one can be corrected
+    /// rather than only forgotten.
+    /// </remarks>
+    [RelayCommand]
+    private async Task LogOut()
+    {
+        _eventorSessions.Forget();
+        _credentials.Forget();
+        _eventor.Clear();
+
+        await EventorCookies.ForgetAsync();
+        await ReloadAsync();
+    }
+
+    /// <summary>
     /// What the login can and cannot read, in the user's words.
     /// </summary>
     /// <remarks>
@@ -183,6 +217,11 @@ public partial class ProfilePageViewModel(
 
         EventorAction = access is EventorAccess.NoSession ? "Logga in på Eventor" : "Logga in igen";
         CanEditIdentity = access is EventorAccess.NoSession or EventorAccess.Expired;
+        CanLogIn = access is EventorAccess.NoSession or EventorAccess.Expired;
+
+        // The password outlives the session — it is what the silent re-login replays — so the way
+        // out has to stay open even when Eventor has already forgotten who this is.
+        CanLogOut = session is not null || await _credentials.ReadAsync() is not null;
 
         RankingExplanation = access switch
         {
