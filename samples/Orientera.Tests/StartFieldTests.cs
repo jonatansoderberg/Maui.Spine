@@ -26,8 +26,8 @@ public class StartFieldTests
         var field = StartFieldSource.Field(Starts(), "H45");
 
         Assert.Equal(17, field.Count);
-        Assert.All(field, e => Assert.False(string.IsNullOrWhiteSpace(e.Runner.Name)));
-        Assert.All(field, e => Assert.NotNull(e.Club));
+        Assert.All(field, r => Assert.False(string.IsNullOrWhiteSpace(r.Name)));
+        Assert.All(field, r => Assert.NotNull(r.ClubId));
     }
 
     [Fact]
@@ -35,16 +35,19 @@ public class StartFieldTests
     {
         var first = StartFieldSource.Field(Starts(), "H45")[0];
 
-        Assert.Equal("Henrik Wännström", first.Runner.Name);
-        Assert.Equal("Linköpings OK", first.Runner.Club);
-        Assert.Equal(new PersonId("4122"), first.Runner.Person);
-        Assert.Equal("242", first.Club);
+        Assert.Equal("Henrik Wännström", first.Name);
+        Assert.Equal("Linköpings OK", first.Club);
+        Assert.Equal(new PersonId("4122"), first.Person);
+        Assert.Equal("242", first.ClubId);
     }
 
-    /// <summary>The club id is what the ranking is looked up with, so it has to be the club's own.</summary>
+    /// <summary>
+    /// The club id travels with the runner all the way to the phone, which is where the club page
+    /// is now read (#123). Without it the app would have to resolve a club from its name.
+    /// </summary>
     [Fact]
     public void Every_runner_knows_which_club_page_to_look_them_up_on() =>
-        Assert.All(StartFieldSource.Field(Starts(), "D21"), e => Assert.Matches(@"^\d+$", e.Club));
+        Assert.All(StartFieldSource.Field(Starts(), "D21"), r => Assert.Matches(@"^\d+$", r.ClubId));
 
     [Fact]
     public void A_class_that_is_not_in_the_list_is_empty_rather_than_wrong() =>

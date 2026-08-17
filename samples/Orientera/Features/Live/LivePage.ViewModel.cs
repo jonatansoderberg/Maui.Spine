@@ -219,6 +219,16 @@ public partial class LivePageViewModel(
     [ObservableProperty] public partial bool HasLive { get; set; }
 
     /// <summary>
+    /// Whether anybody is actually out on the course right now.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="HasLive"/>, which only says the app has a competition to show.
+    /// A field that has all finished, or has not started, is not live, and a badge saying so
+    /// above a list saying nobody is out contradicts itself on one screen.
+    /// </remarks>
+    [ObservableProperty] public partial bool IsRunningNow { get; set; }
+
+    /// <summary>
     /// How wide the table is: every column laid out, but never narrower than the screen it sits
     /// on. A class with one column would otherwise leave a third of the row empty.
     /// </summary>
@@ -267,6 +277,8 @@ public partial class LivePageViewModel(
         StopPolling();
         return Task.CompletedTask;
     }
+
+    protected override void ClearEmptyState() => IsEmpty = false;
 
     [RelayCommand]
     private async Task SelectScope(string scope) => await ApplyScopeAsync(Enum.Parse<LiveScope>(scope));
@@ -352,17 +364,33 @@ public partial class LivePageViewModel(
         {
             try
             {
-                using var timer = new PeriodicTimer(PollInterval);
+                // One tick a second, one fetch per PollInterval. The age is the only thing on the
+                // page that has to move between fetches: "Uppdaterad för 0 sek sedan" that never
+                // counts up reads as a frozen page, which is the one thing a live view must not
+                // look like.
+                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+                int elapsed = 0;
 
                 while (await timer.WaitForNextTickAsync(cts.Token))
                 {
+                    elapsed++;
+
+                    bool fetch = elapsed % (int)PollInterval.TotalSeconds == 0;
+
                     await MainThread.InvokeOnMainThreadAsync(async () =>
                     {
-                        // A poll that fails must not take the app down mid-race.
-                        await LoadAsync(RefreshAsync);
+                        if (fetch)
+                        {
+                            // A poll that fails must not take the app down mid-race.
+                            await LoadAsync(RefreshAsync);
 
-                        if (IsOffline)
-                            ShowOffline();
+                            if (IsOffline)
+                                ShowOffline();
+                        }
+                        else
+                        {
+                            ShowAge();
+                        }
                     });
                 }
             }
@@ -415,6 +443,8 @@ public partial class LivePageViewModel(
         _lastUpdate = snapshot.GeneratedAt;
         bool columnsChanged = AdoptControls(snapshot);
 
+        IsRunningNow = snapshot.Entries.Any(e => e.Status == LiveStatus.Running);
+
         // A place means something inside its class, so the class orders the list and the
         // place orders the class.
         var visible = snapshot.Entries
@@ -432,14 +462,19 @@ public partial class LivePageViewModel(
 
         IsEmpty = Rows.Count == 0;
         EmptyMessage = "Ingen i det här urvalet är ute på banan.";
-        UpdatedText = $"Uppdaterad för {Format.Age(_clock.Now - _lastUpdate)} sedan";
+        ShowAge();
     }
+
+    /// <summary>How old the figures on screen are, counted from when the source generated them.</summary>
+    private void ShowAge() =>
+        UpdatedText = HasLive ? $"Uppdaterad för {Format.Age(_clock.Now - _lastUpdate)} sedan" : string.Empty;
 
     /// <summary>Live is the one screen a cached copy cannot stand in for — it is only useful now.</summary>
     private void ShowOffline()
     {
         Rows.Clear();
         HasLive = false;
+        IsRunningNow = false;
         IsEmpty = true;
         CompetitionName = string.Empty;
         EmptyMessage = "Ingen anslutning. Live behöver nätverk — starttider för dig och Min grupp finns sparade på tävlingssidan.";

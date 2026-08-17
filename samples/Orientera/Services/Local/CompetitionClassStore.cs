@@ -13,7 +13,7 @@ namespace Orientera.Services.Local;
 /// competition page keep the class the runner picked there. It is one question with one answer,
 /// so it is one store: picking a class on the competition page is picking the one live opens in.
 ///
-/// Like identity and favourites it stays on the phone, because nobody else needs to know. The
+/// Like identity and interests it stays on the phone, because nobody else needs to know. The
 /// file is still called live-classes.json — the name is where it started, and renaming it would
 /// throw away the choices already saved on people's phones.
 /// </remarks>

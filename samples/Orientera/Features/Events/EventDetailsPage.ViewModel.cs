@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
+using Microsoft.Maui.Controls.Shapes;
 using Orientera.Domain;
 using Orientera.Features.Live;
 using Orientera.Features.Results;
 using Orientera.Presentation;
 using Orientera.Services.Context;
+using Orientera.Services.Eventor;
 using Orientera.Services.Local;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
@@ -41,6 +43,12 @@ public sealed record StartFieldRow
     public required string PointsText { get; init; }
     public required string RankText { get; init; }
     public required bool IsMe { get; init; }
+
+    /// <summary>
+    /// False on an entry list, where the order and the points do not exist yet. Carried on the row
+    /// rather than read off the page's own state so the template stays bound to one thing.
+    /// </summary>
+    public bool ShowRanking { get; init; } = true;
 }
 
 public partial class EventDetailsPageViewModel(
@@ -63,7 +71,10 @@ public partial class EventDetailsPageViewModel(
     private ContextDecision? _decision;
 
     // ---- hero ----
-    [ObservableProperty] public partial string Name { get; set; } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InterestDescription))]
+    public partial string Name { get; set; } = string.Empty;
+
     [ObservableProperty] public partial string OrganiserLine { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -80,7 +91,16 @@ public partial class EventDetailsPageViewModel(
     public bool HasOrganiserLogo => !string.IsNullOrEmpty(OrganiserLogo);
     [ObservableProperty] public partial string DateLine { get; set; } = string.Empty;
     [ObservableProperty] public partial string MetaLine { get; set; } = string.Empty;
-    [ObservableProperty] public partial bool IsFavourite { get; set; }
+
+    /// <summary>The distance and the level as marks, the same two the list draws.</summary>
+    [ObservableProperty] public partial Geometry? DisciplineShape { get; set; }
+
+    [ObservableProperty] public partial string DisciplineKey { get; set; } = string.Empty;
+
+    [ObservableProperty] public partial Geometry? LevelShape { get; set; }
+
+    public bool HasLevelShape => LevelShape is not null;
+    [ObservableProperty] public partial bool IsInterested { get; set; }
 
     // ---- för dig ----
     [ObservableProperty] public partial string StateText { get; set; } = string.Empty;
@@ -113,6 +133,62 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial bool HasStartField { get; set; }
     [ObservableProperty] public partial string StartFieldCaption { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Whether the list below is who has entered rather than who has been drawn. It changes the
+    /// heading and hides the ranking columns, which are empty before the draw and would otherwise
+    /// read as a Sverigelistan that failed to load.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StartFieldHeading))]
+    public partial bool IsEntryList { get; set; }
+
+    public string StartFieldHeading => IsEntryList ? "ANMÄLDA" : "STARTFÄLT";
+
+    /// <summary>
+    /// Fetches the entry list on demand and folds it out under the start field.
+    /// </summary>
+    /// <remarks>
+    /// On demand rather than always: the two lists say almost the same thing once the draw is out,
+    /// and a page that shows both at full length twice is a page nobody scrolls to the bottom of.
+    /// </remarks>
+    [RelayCommand]
+    private async Task ToggleEntrants()
+    {
+        ShowEntrants = !ShowEntrants;
+
+        if (!ShowEntrants || Entrants.Count > 0 || _competition is null || _me is null)
+            return;
+
+        var entrants = await _field.GetEntryListAsync(_competition.Id, MyClass);
+
+        foreach (var runner in entrants)
+        {
+            Entrants.Add(new StartFieldRow
+            {
+                Order = "—",
+                Name = runner.Name,
+                Club = runner.Club,
+                PointsText = string.Empty,
+                RankText = string.Empty,
+                IsMe = RunnerIdentity.Of(runner.Name, runner.Club)
+                    .Matches(RunnerIdentity.Of(_me.Name, _me.Club)),
+                ShowRanking = false,
+            });
+        }
+
+        EntrantsCaption = $"{Entrants.Count} anmälda i {MyClass}";
+    }
+
+    /// <summary>Whether the entry list is worth offering as a separate list of its own.</summary>
+    [ObservableProperty] public partial bool HasEntryList { get; set; }
+
+    /// <summary>The entry list, opened on demand once the start list has taken its place.</summary>
+    public ObservableCollection<StartFieldRow> Entrants { get; } = [];
+
+    [ObservableProperty] public partial bool ShowEntrants { get; set; }
+
+    [ObservableProperty] public partial string EntrantsCaption { get; set; } = string.Empty;
+
     public ObservableCollection<StartFieldRow> StartField { get; } = [];
 
     [ObservableProperty] public partial string PredictionText { get; set; } = string.Empty;
@@ -144,9 +220,18 @@ public partial class EventDetailsPageViewModel(
     public ObservableCollection<BriefingItem> Facts { get; } = [];
     public ObservableCollection<DocumentItem> Documents { get; } = [];
 
-    public string FavouriteGlyph => IsFavourite ? "★" : "☆";
+    public string InterestGlyph => IsInterested ? "★" : "☆";
 
-    partial void OnIsFavouriteChanged(bool value) => OnPropertyChanged(nameof(FavouriteGlyph));
+    /// <summary>The same sentence the card in the list uses, so the star reads alike in both.</summary>
+    public string InterestDescription => IsInterested
+        ? $"Ta bort intressemarkeringen för {Name}"
+        : $"Markera att du är intresserad av {Name}";
+
+    partial void OnIsInterestedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(InterestGlyph));
+        OnPropertyChanged(nameof(InterestDescription));
+    }
 
     public Task OnNavigationParameterAsync(CompetitionId param)
     {
@@ -207,7 +292,7 @@ public partial class EventDetailsPageViewModel(
                 break;
 
             case ContextAction.Register:
-                await OpenChooseClass();
+                await OpenEventorEntry();
                 break;
 
             // Every action that can become a button label needs its own case. A default that
@@ -277,12 +362,28 @@ public partial class EventDetailsPageViewModel(
     private async Task LoadStartFieldAsync(CompetitionId competition, string className, Person me)
     {
         StartField.Clear();
+        Entrants.Clear();
         HasStartField = false;
+        HasEntryList = false;
+        ShowEntrants = false;
 
         if (string.IsNullOrWhiteSpace(className))
             return;
 
         var field = await _field.GetStartFieldAsync(competition, className);
+
+        // Before the draw the start list is empty and the entry list is the whole answer to "who
+        // else is going?" — the question people actually ask in the weeks they are deciding.
+        IsEntryList = field.Count == 0;
+
+        if (IsEntryList)
+            field = await _field.GetEntryListAsync(competition, className);
+
+        // Everyone who has entered stays reachable after the draw too. A start list is ordered by
+        // time and stops at the class you are in; the entry list answers a different question —
+        // who is coming at all — and losing it the moment the times are drawn was an either/or
+        // nobody asked for.
+        HasEntryList = !IsEntryList;
 
         if (field.Count == 0)
             return;
@@ -301,11 +402,24 @@ public partial class EventDetailsPageViewModel(
                 Club = runner.Club,
                 PointsText = runner.Points is { } points ? points.ToString("N2", Format.Culture) : "—",
                 RankText = runner.NationalRank is { } rank ? $"riks {rank}" : "utan ranking",
-                IsMe = runner.Person == me.Id,
+
+                // The entry list has no person ids, so the reader is found the way the live lists
+                // find them — by name and club (#75).
+                IsMe = IsEntryList
+                    ? RunnerIdentity.Of(runner.Name, runner.Club).Matches(RunnerIdentity.Of(me.Name, me.Club))
+                    : runner.Person == me.Id,
+                ShowRanking = !IsEntryList,
             });
         }
 
-        StartFieldCaption = $"{ranked} av {field.Count} finns på listan";
+        // Two different sentences because they answer two different questions. Before the draw
+        // nobody has points here — the entry list carries no club ids to look them up by — so a
+        // "0 av 36 finns på listan" would read as a broken Sverigelistan rather than as a field
+        // that has not been drawn.
+        StartFieldCaption = IsEntryList
+            ? $"{field.Count} anmälda i {className}. Startlistan är inte lottad än."
+            : $"{ranked} av {field.Count} finns på listan";
+
         HasStartField = true;
     }
 
@@ -345,6 +459,26 @@ public partial class EventDetailsPageViewModel(
             // No map app, or a platform that will not open one. The arena is on the page either
             // way, and a failed launch must not take the page down.
         }
+    }
+
+    /// <summary>
+    /// Hands the runner over to Eventor to actually enter.
+    /// </summary>
+    /// <remarks>
+    /// The button used to open the class picker, which saves a class locally and enters nothing.
+    /// A runner who pressed "Anmäl dig", picked a class and closed the app was not entered and had
+    /// no way to tell. The class picker is still a quick action of its own, where the word for it
+    /// is "Klass".
+    /// </remarks>
+    [RelayCommand]
+    private async Task OpenEventorEntry()
+    {
+        if (_competition is null)
+            return;
+
+        // In the app, not Safari: the Eventor session lives in the app's own web view store, and
+        // an entry page opened externally is an entry page that says you are not logged in.
+        await _navigation.NavigateToAsync<EventorEntrySheet, CompetitionId>(_competition.Id);
     }
 
     [RelayCommand]
@@ -392,10 +526,10 @@ public partial class EventDetailsPageViewModel(
     }
 
     [RelayCommand]
-    private async Task ToggleFavourite()
+    private async Task ToggleInterest()
     {
         if (_competition is not null)
-            IsFavourite = await _events.ToggleFavouriteAsync(_competition.Id);
+            IsInterested = await _events.ToggleInterestAsync(_competition.Id);
     }
 
     /// <summary>
@@ -435,7 +569,7 @@ public partial class EventDetailsPageViewModel(
                 MyStartTime = snapshot.MyStart?.StartTime,
             })
             : await _context.EvaluateAsync(competition);
-        var favourites = await _events.GetFavouritesAsync();
+        var interests = await _events.GetInterestsAsync();
 
         // Entries are only needed to know whether I am registered; offline that is answered by
         // whether the package carried a start time for me.
@@ -453,18 +587,26 @@ public partial class EventDetailsPageViewModel(
         Arena = competition.Location;
         DateLine = $"{Format.RelativeDate(competition.Date, today)} · första start {Format.Clock(competition.FirstStart)}";
         MetaLine = $"{Format.Discipline(competition.Discipline)} · {Format.Level(competition.Level)} · {competition.District}";
-        IsFavourite = favourites.Contains(competition.Id);
+        // Qualified: this view model has a property of the same name as the helper.
+        DisciplineShape = Presentation.DisciplineShape.For(competition.Discipline);
+        DisciplineKey = competition.Discipline.ToString();
+        LevelShape = Presentation.DisciplineShape.For(competition.Level);
+        OnPropertyChanged(nameof(HasLevelShape));
+        IsInterested = interests.Contains(competition.Id);
 
         StateText = _decision.StateText;
         PrimaryActionText = _decision.PrimaryActionText;
 
-        // A picked class wins over everything the app worked out on its own. It has to: under
-        // any other order the picker silently does nothing the next time the page loads, which
-        // is the whole of #61. An entry is still a fact, but it is a fact about the entry — the
-        // start time below says which class the runner is actually running.
+        // The entry wins, then the picked class. #61 put the picker first because the app had no
+        // way of knowing what the runner had actually entered, and a picker that silently did
+        // nothing was the bug being fixed. Since the entries are read from Eventor there is a
+        // fact where there was only a preference, and a page that shows H45 to somebody entered
+        // in H21 offers them the wrong start list, the wrong field and the wrong start time.
+        // The picker still decides every competition the runner has not entered, which is all of
+        // the ones it was ever really for.
         var myEntry = entries.FirstOrDefault(e => e.Competition == competition.Id && e.Person == me.Id);
-        MyClass = _classes.For(competition.Id)
-            ?? myEntry?.Class
+        MyClass = myEntry?.Class
+            ?? _classes.For(competition.Id)
             ?? snapshot.MyStart?.Class
             ?? me.DefaultClass;
 
@@ -477,7 +619,7 @@ public partial class EventDetailsPageViewModel(
                       && deadline > now;
 
         DeadlineText = HasDeadline
-            ? $"Anmälan stänger {Format.RelativeDate(DateOnly.FromDateTime(competition.Schedule.EntryDeadline!.Value.Date), today)}"
+            ? $"Anmälan stänger {Format.Deadline(DateOnly.FromDateTime(competition.Schedule.EntryDeadline!.Value.Date), today)}"
             : string.Empty;
 
         double distance = TravelEstimate.DistanceKm(me.Home, competition.Location);

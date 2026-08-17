@@ -5,8 +5,12 @@
     x:TypeArguments="ProfilePageViewModel"
     x:DataType="ProfilePageViewModel">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20">
+    <Grid>
+
+        <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource ScreenPadding}"
+                                 Margin="{Binding SafeAreaInsets}"
+                                 Spacing="20">
 
             <!-- ============ Profil ============ -->
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
@@ -29,6 +33,10 @@
                     <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
                 </VerticalStackLayout>
 
+                <!--
+                    Ändra finns bara när ingen annan äger svaret. Är man inloggad är namnet och
+                    klubben Eventors, och nästa hämtning skriver ändå över det man skrivit (#123).
+                -->
                 <Button Grid.Column="2"
                         Style="{StaticResource SecondaryButton}"
                         Padding="14,0"
@@ -36,9 +44,57 @@
                         FontSize="{StaticResource SizeCaption}"
                         Text="Ändra"
                         VerticalOptions="Center"
+                        IsVisible="{Binding CanEditIdentity}"
                         SemanticProperties.Description="Ändra namn, klubb och klass"
                         Command="{Binding OpenIdentityCommand}" />
             </Grid>
+
+            <!-- ============ Eventor-inloggning ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Eventor" />
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding EventorStatus}" />
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Text="{Binding EventorAction}"
+                                Command="{Binding OpenEventorLoginCommand}" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- Klassen är alltid användarens eget val: man anmäler sig i andra klasser än sin normala. -->
+            <Border Style="{StaticResource Card}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <VerticalStackLayout Grid.Column="0" Spacing="1" VerticalOptions="Center">
+                        <Label Style="{StaticResource SectionLabel}" Text="Klass" />
+                        <Label Style="{StaticResource BodyLabel}" Text="{Binding ClassText}" />
+                    </VerticalStackLayout>
+
+                    <Button Grid.Column="1"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="14,0"
+                            HeightRequest="36"
+                            FontSize="{StaticResource SizeCaption}"
+                            Text="Välj"
+                            VerticalOptions="Center"
+                            SemanticProperties.Description="Välj vilken klass du oftast springer"
+                            Command="{Binding OpenIdentityCommand}" />
+                </Grid>
+            </Border>
+
+            <!--
+                Sverigelistan saknas oftare än den finns: den kräver en egen inloggning och en
+                klubb som betalat avgiften. Då står det varför, i stället för att kortet bara
+                uteblir (#123).
+            -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasRankingExplanation}">
+                <Label Style="{StaticResource SectionLabel}" Text="Sverigelistan" />
+
+                <Border Style="{StaticResource Card}">
+                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding RankingExplanation}" />
+                </Border>
+            </VerticalStackLayout>
 
             <!-- ============ Sverigelistan ============ -->
             <VerticalStackLayout Spacing="8" IsVisible="{Binding HasRanking}">
@@ -77,13 +133,19 @@
                                 <DataTemplate x:DataType="RankingRow">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                         <VerticalStackLayout Grid.Column="0" Spacing="1">
-                                            <Label Style="{StaticResource BodyLabel}" Text="{Binding Name}">
-                                                <Label.Triggers>
+                                            <HorizontalStackLayout Spacing="6">
+                                                <Path Style="{StaticResource DisciplineGlyph}"
+                                                      Data="{Binding DisciplineShape}"
+                                                      IsVisible="{Binding HasDisciplineShape}" />
+                                                <Label Style="{StaticResource BodyLabel}" VerticalOptions="Center"
+                                                       Text="{Binding Name}">
+                                                    <Label.Triggers>
                                                     <DataTrigger TargetType="Label" Binding="{Binding IsCounting}" Value="False">
                                                         <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
                                                     </DataTrigger>
                                                 </Label.Triggers>
-                                            </Label>
+                                                </Label>
+                                            </HorizontalStackLayout>
                                             <Label Style="{StaticResource NumericCaptionLabel}" Text="{Binding DateText}" />
                                             <Label Style="{StaticResource CaptionLabel}"
                                                    TextColor="{DynamicResource NegativeDelta}"
@@ -105,20 +167,6 @@
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
                         </VerticalStackLayout>
-                    </VerticalStackLayout>
-                </Border>
-            </VerticalStackLayout>
-
-            <!-- ============ Eventor-inloggning ============ -->
-            <VerticalStackLayout Spacing="8">
-                <Label Style="{StaticResource SectionLabel}" Text="Eventor" />
-
-                <Border Style="{StaticResource Card}">
-                    <VerticalStackLayout Spacing="10">
-                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding EventorStatus}" />
-                        <Button Style="{StaticResource SecondaryButton}"
-                                Text="{Binding EventorAction}"
-                                Command="{Binding OpenEventorLoginCommand}" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
@@ -253,6 +301,12 @@
             </VerticalStackLayout>
 
         </VerticalStackLayout>
-    </ScrollView>
+        </ScrollView>
+
+        <ActivityIndicator Style="{StaticResource PageLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}" />
+
+    </Grid>
 
 </SpinePage>

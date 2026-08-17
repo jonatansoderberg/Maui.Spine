@@ -117,12 +117,12 @@ public sealed class OfflinePackageService(
             var me = await _people.GetMeAsync(cancellationToken);
             var group = (await _people.GetMyGroupAsync(cancellationToken)).Select(f => f.Person.Id).ToHashSet();
             var entries = await _participation.GetEntriesAsync(cancellationToken);
-            var favourites = await _events.GetFavouritesAsync(cancellationToken);
+            var interests = await _events.GetInterestsAsync(cancellationToken);
 
             var relevant = entries
                 .Where(e => e.Person == me.Id || group.Contains(e.Person))
                 .Select(e => e.Competition)
-                .Concat(favourites)
+                .Concat(interests)
                 .Distinct()
                 .ToList();
 

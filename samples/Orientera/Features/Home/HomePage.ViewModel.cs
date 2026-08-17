@@ -4,9 +4,13 @@ using Orientera.Domain;
 using Orientera.Features.Dev;
 using Orientera.Features.Events;
 using Orientera.Features.Live;
+using Orientera.Features.Onboarding;
+using Orientera.Features.Profile;
 using Orientera.Features.Results;
 using Orientera.Presentation;
 using Orientera.Services.Context;
+using Orientera.Services.Eventor;
+using Orientera.Services.Local;
 using Orientera.Services.Relevance;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
@@ -22,6 +26,9 @@ public partial class HomePageViewModel(
     IParticipationSource _participation,
     ILiveSource _live,
     IProgressSource _progress,
+    FirstRunStore _firstRun,
+    EventorReader _eventorReader,
+    EventorCredentialStore _credentials,
     CompetitionContextService _context) : OrienteraViewModel
 {
     /// <summary>Hem has few large blocks, not a dense dashboard.</summary>
@@ -37,7 +44,72 @@ public partial class HomePageViewModel(
         if (PageActions.Count == 0)
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
 
+        ScheduleWelcome();
+
         await ReloadAsync();
+
+        await ResumeEventorAsync();
+    }
+
+    /// <summary>
+    /// Logs the runner back in to Eventor when it has forgotten them, if they let the app remember.
+    /// </summary>
+    /// <remarks>
+    /// Measured twice on #123: Eventor issues a session cookie with no expiry and "kom ihåg mig"
+    /// adds nothing, so the login dies when the server drops it — after two days once, after an
+    /// hour and a half the next time. Nothing about that is the runner's fault and nothing about
+    /// it is worth a screen, so the app quietly does again what it did the first time.
+    ///
+    /// Once per appearance and never in a loop: if the saved password no longer works, the sheet
+    /// is standing open on Eventor's own page for the runner to sort out, which is the one thing
+    /// that can actually fix it.
+    /// </remarks>
+    private async Task ResumeEventorAsync()
+    {
+        if (_resumedEventor)
+            return;
+
+        _resumedEventor = true;
+
+        if (await _eventorReader.AccessAsync() is not EventorAccess.Expired)
+            return;
+
+        if (await _credentials.ReadAsync() is null)
+            return;
+
+        await _navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorLoginRequest, EventorWebSession>(
+            new EventorLoginRequest(UseSavedPassword: true));
+
+        await ReloadAsync();
+    }
+
+    private bool _resumedEventor;
+
+    /// <summary>
+    /// The first launch asks the one question the app cannot answer for the user, and then never
+    /// asks again — skipping is an answer.
+    /// </summary>
+    /// <remarks>
+    /// Queued rather than awaited. Pushing a sheet from inside the first page's own appearing
+    /// crashed the app at startup with "MauiContext is null": the window the sheet needs is not
+    /// there until this method has returned.
+    /// </remarks>
+    private void ScheduleWelcome()
+    {
+        if (_firstRun.IsAnswered)
+            return;
+
+        _firstRun.MarkAnswered();
+
+        Application.Current?.Dispatcher.Dispatch(async () =>
+        {
+            var choice = await _navigation.NavigateToWithResultAsync<WelcomeSheet, WelcomeChoice>();
+
+            if (choice is { IsSuccess: true, Value.WantsLogin: true })
+                await _navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorWebSession>();
+
+            await ReloadAsync();
+        });
     }
 
     private async Task ReloadAsync()
@@ -165,6 +237,11 @@ public partial class HomePageViewModel(
         {
             SectionLabel = "Live nu",
             Competition = relevant.Id,
+            DisciplineShape = DisciplineShape.For(relevant.Discipline),
+            DisciplineKey = relevant.Discipline.ToString(),
+            DisciplineLabel = Format.Discipline(relevant.Discipline),
+            LevelShape = DisciplineShape.For(relevant.Level),
+            LevelLabel = Format.Level(relevant.Level),
             Title = relevant.Name,
             Subtitle = $"{relevant.Organiser} · {relevant.Place}",
             MyStatus = status,
@@ -201,12 +278,17 @@ public partial class HomePageViewModel(
 
         return new NextForMeBlock
         {
-            SectionLabel = "Nästa för mig",
+            SectionLabel = "Nästa för dig",
             Competition = next.Id,
+            DisciplineShape = DisciplineShape.For(next.Discipline),
+            DisciplineKey = next.Discipline.ToString(),
+            DisciplineLabel = Format.Discipline(next.Discipline),
+            LevelShape = DisciplineShape.For(next.Level),
+            LevelLabel = Format.Level(next.Level),
             Title = next.Name,
             WhenText = $"{Format.RelativeDate(next.Date, today)} · första start {Format.Clock(next.FirstStart)}",
             PlaceText = $"{next.Organiser} · {next.Place}",
-            StartText = myStart is not null ? $"Min start {Format.Clock(myStart.StartTime)}" : string.Empty,
+            StartText = myStart is not null ? $"Din start {Format.Clock(myStart.StartTime)}" : string.Empty,
             HasStart = myStart is not null,
             StateText = decision.StateText,
             ActionText = decision.PrimaryActionText,
@@ -226,10 +308,19 @@ public partial class HomePageViewModel(
         if (competition is null)
             return null;
 
+        // The race's own name first: a stage of a multi-day event knows its distance where the
+        // calendar entry for the whole week does not.
+        var resultDiscipline = latest.CompetitionDiscipline ?? competition.Discipline;
+
         return new LatestResultBlock
         {
             SectionLabel = "Senaste resultat",
             Competition = latest.Competition,
+            DisciplineShape = DisciplineShape.For(resultDiscipline),
+            DisciplineKey = resultDiscipline.ToString(),
+            DisciplineLabel = Format.Discipline(resultDiscipline),
+            LevelShape = DisciplineShape.For(competition.Level),
+            LevelLabel = Format.Level(competition.Level),
             Title = competition.Name,
             PlaceText = Format.Place(latest.Place),
             TimeText = Format.Time(latest.Time),
@@ -282,10 +373,14 @@ public partial class HomePageViewModel(
             GroupEntries = groupEntries,
         };
 
+        // Ranking, not Score().Total, and the same date tiebreak the list uses: two races of the
+        // same championship score identically to five decimals, and picking on the raw total put
+        // Sunday's above Saturday's here while the list had them the right way round.
         var candidate = competitions
             .Where(c => !myEntries.Contains(c.Id) && !c.IsLowPriority && c.FirstStart > now)
-            .Select(c => (Competition: c, Score: RelevanceEngine.Score(c, context)))
-            .OrderByDescending(x => x.Score.Total)
+            .Select(c => (Competition: c, Score: RelevanceEngine.Ranking(c, context)))
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => x.Competition.FirstStart)
             .FirstOrDefault();
 
         if (candidate.Competition is null)
@@ -301,6 +396,11 @@ public partial class HomePageViewModel(
         {
             SectionLabel = "Kan vara något för dig",
             Competition = candidate.Competition.Id,
+            DisciplineShape = DisciplineShape.For(candidate.Competition.Discipline),
+            DisciplineKey = candidate.Competition.Discipline.ToString(),
+            DisciplineLabel = Format.Discipline(candidate.Competition.Discipline),
+            LevelShape = DisciplineShape.For(candidate.Competition.Level),
+            LevelLabel = Format.Level(candidate.Competition.Level),
             Title = candidate.Competition.Name,
             WhenText = Format.RelativeDate(candidate.Competition.Date, today),
             ReasonText = reason,
@@ -317,7 +417,9 @@ public partial class HomePageViewModel(
         return new DevelopmentBlock
         {
             SectionLabel = "Utveckling",
-            PointsText = ranking.Points.ToString("N0"),
+            // Two decimals, like Jag-fliken and Eventor itself. Sverigelistan separates runners
+            // by hundredths, so a rounded 63 hides the whole difference it exists to show.
+            PointsText = ranking.Points.ToString("N2", Format.Culture),
             PlaceText = $"{ranking.NationalPlace}:e i Sverige",
             TrendText = ranking.Trend >= 0 ? $"+{ranking.Trend} p" : $"{ranking.Trend} p",
             IsImproving = ranking.Trend >= 0,

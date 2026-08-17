@@ -39,7 +39,7 @@ public class RaceStoryFactsTests
     [Fact]
     public void The_fastest_first_leg_is_said_plainly()
     {
-        Assert.Contains(LinesFor(Winner), l => l == "Snabbast i klassen på första sträckan.");
+        Assert.Contains(LinesFor(Winner), l => l == "Snabbast i klassen till första kontrollen.");
     }
 
     /// <summary>
@@ -51,9 +51,22 @@ public class RaceStoryFactsTests
     {
         var mistake = Assert.Single(LinesFor(WithMistake), l => l.Contains("tapp"));
 
-        Assert.Contains("sträcka 4", mistake);
+        Assert.StartsWith("Kontroll 4:", mistake);
         Assert.Contains("uppskattat", mistake);
         Assert.Contains("omkring", mistake);
+    }
+
+    /// <summary>
+    /// The runner's own word for where a mistake happened is the control, not the code number on
+    /// it — "kontroll 4", never "kontroll 34".
+    /// </summary>
+    [Fact]
+    public void A_mistake_is_not_named_by_its_code()
+    {
+        var mistake = Assert.Single(LinesFor(WithMistake), l => l.Contains("tapp"));
+
+        Assert.DoesNotContain("34", mistake);
+        Assert.DoesNotContain("sträcka", mistake);
     }
 
     /// <summary>
@@ -63,15 +76,19 @@ public class RaceStoryFactsTests
     [Fact]
     public void A_middling_runner_gets_no_strong_stretch()
     {
-        Assert.DoesNotContain(LinesFor(WithMistake), l => l.StartsWith("Sträcka "));
+        Assert.DoesNotContain(LinesFor(WithMistake), l => l.StartsWith("Från "));
     }
 
+    /// <summary>
+    /// A stretch is named by the controls it runs between: the six legs of this course start at
+    /// the start and end at control 6, so it is never "kontroll 1 till 6".
+    /// </summary>
     [Fact]
     public void A_runner_who_led_every_leg_gets_one()
     {
-        var stretch = Assert.Single(LinesFor(Winner), l => l.StartsWith("Sträcka "));
+        var stretch = Assert.Single(LinesFor(Winner), l => l.StartsWith("Från "));
 
-        Assert.Equal("Sträcka 1–6: snabbaste sträcktid i klassen på var och en.", stretch);
+        Assert.Equal("Från start till kontroll 6: snabbaste sträcktid i klassen hela vägen.", stretch);
     }
 
     /// <summary>A race with no splits has nothing to tell, but still says how it ended.</summary>

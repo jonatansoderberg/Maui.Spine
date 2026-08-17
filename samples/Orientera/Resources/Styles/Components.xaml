@@ -42,12 +42,20 @@
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceRaised}" />
     </Style>
 
-    <!-- Chip — quick filters. One row, horizontally scrollable; selected = accent fill. -->
+    <!--
+        Chip — quick filters. One row, horizontally scrollable; selected = accent fill.
+
+        Padding är avsiktligt osymmetrisk. MinimumHeightRequest sätter höjden till 44, och ramen
+        lägger då allt överskott under innehållet i stället för att centrera det: uppmätt på iOS
+        låg texten 18,7 pt från överkanten och 11,0 pt från underkanten. Med 4 över och 12 under
+        blev det 14,7 mot 15,0 — centrerat inom en pixel, och chipen är fortfarande 44 hög.
+        VerticalTextAlignment på etiketten mätte ingen skillnad alls och står därför inte här.
+    -->
     <Style x:Key="Chip" TargetType="Border">
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" />
         <Setter Property="Stroke" Value="{DynamicResource OutlineBrush}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="Padding" Value="14,4,14,12" />
         <Setter Property="MinimumHeightRequest" Value="{StaticResource TouchTargetMin}" />
         <Setter Property="StrokeShape">
             <RoundRectangle CornerRadius="18" />
@@ -111,12 +119,20 @@
         <Setter Property="BackgroundColor" Value="{DynamicResource AccentAction}" />
     </Style>
 
+    <!--
+        Etiketten sträcktes till ramens höjd och sköt texten nedåt i den ytan: uppmätt på iOS
+        10,0 pt luft ovanför texten mot 3,3 pt under, i en badge som blivit 24 pt hög av en
+        padding på 3. Centrerad etikett med centrerad text ger 3,0 mot 3,3 i en badge på 17 pt,
+        vilket är den storlek paddingen beskriver.
+    -->
     <Style x:Key="BadgeLabel" TargetType="Label">
         <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
         <Setter Property="FontSize" Value="{StaticResource SizeMicro}" />
         <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="TextTransform" Value="Uppercase" />
         <Setter Property="CharacterSpacing" Value="0.8" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
     </Style>
 
     <Style x:Key="BadgeAccentLabel" TargetType="Label" BasedOn="{StaticResource BadgeLabel}">
@@ -148,6 +164,79 @@
     <Style x:Key="Divider" TargetType="BoxView">
         <Setter Property="Color" Value="{DynamicResource Outline}" />
         <Setter Property="HeightRequest" Value="1" />
+    </Style>
+
+    <!--
+        The discipline mark: a control ring with the route into it, drawn from DisciplineGlyph.
+        The colour cannot come from the binding — a resource key is a string and DynamicResource
+        will not take one — so the discipline picks its own brush here, one trigger per kind. The
+        geometry still arrives bound, so the shapes have a single home in DisciplineGlyph.cs.
+    -->
+    <Style x:Key="DisciplineGlyph" TargetType="Path">
+        <Setter Property="Aspect" Value="Uniform" />
+        <Setter Property="WidthRequest" Value="16" />
+        <Setter Property="HeightRequest" Value="16" />
+        <!-- A hairline, the weight Strava draws its activity marks at. Two was a marker pen. -->
+        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeLineJoin" Value="Round" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="Stroke" Value="{DynamicResource TextMuted}" />
+        <Setter Property="AutomationProperties.IsInAccessibleTree" Value="False" />
+        <Style.Triggers>
+            <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="Sprint">
+                <Setter Property="Stroke" Value="{DynamicResource DisciplineSprint}" />
+            </DataTrigger>
+            <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="Middle">
+                <Setter Property="Stroke" Value="{DynamicResource DisciplineMiddle}" />
+            </DataTrigger>
+            <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="Long">
+                <Setter Property="Stroke" Value="{DynamicResource DisciplineLong}" />
+            </DataTrigger>
+            <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="UltraLong">
+                <Setter Property="Stroke" Value="{DynamicResource DisciplineUltraLong}" />
+            </DataTrigger>
+            <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="Night">
+                <Setter Property="Stroke" Value="{DynamicResource DisciplineNight}" />
+            </DataTrigger>
+            <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="Relay">
+                <Setter Property="Stroke" Value="{DynamicResource DisciplineRelay}" />
+            </DataTrigger>
+            <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="Indoor">
+                <Setter Property="Stroke" Value="{DynamicResource DisciplineIndoor}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--
+        Shown while a page is reading. Centred over the whole surface rather than at the top:
+        a spinner where the first row will be reads as a row that failed to arrive.
+    -->
+    <Style x:Key="PageLoading" TargetType="ActivityIndicator">
+        <Setter Property="Color" Value="{DynamicResource TextMuted}" />
+        <Setter Property="HorizontalOptions" Value="Center" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="WidthRequest" Value="28" />
+        <Setter Property="HeightRequest" Value="28" />
+        <Setter Property="AutomationProperties.IsInAccessibleTree" Value="True" />
+        <Setter Property="SemanticProperties.Description" Value="Laddar" />
+    </Style>
+
+    <!--
+        A mästerskap gets a gold cup beside its name; nothing else on the ladder is a kind rather
+        than a degree. Not BasedOn the discipline style: that one's triggers key off DisciplineKey
+        and would repaint the cup in the distance's colour on every card.
+    -->
+    <Style x:Key="LevelGlyph" TargetType="Path">
+        <Setter Property="Aspect" Value="Uniform" />
+        <Setter Property="WidthRequest" Value="14" />
+        <Setter Property="HeightRequest" Value="14" />
+        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeLineJoin" Value="Round" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="Stroke" Value="{DynamicResource LevelChampionship}" />
+        <Setter Property="AutomationProperties.IsInAccessibleTree" Value="False" />
     </Style>
 
 </ResourceDictionary>

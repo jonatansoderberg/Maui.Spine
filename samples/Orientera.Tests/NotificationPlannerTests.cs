@@ -52,7 +52,7 @@ public class NotificationPlannerTests
     private static NotificationContext Context(
         Competition competition,
         bool entered = false,
-        bool favourite = false,
+        bool interested = false,
         (string Name, bool Enabled)? groupMember = null,
         DateTimeOffset? myStart = null,
         params NotificationKind[] enabled)
@@ -68,7 +68,7 @@ public class NotificationPlannerTests
             Me = Me,
             Competitions = [competition],
             MyEntries = entered ? new HashSet<CompetitionId> { competition.Id } : [],
-            Favourites = favourite ? new HashSet<CompetitionId> { competition.Id } : [],
+            Interests = interested ? new HashSet<CompetitionId> { competition.Id } : [],
             GroupEntries = groupMember is { Enabled: true } member
                 ? new Dictionary<CompetitionId, string> { [competition.Id] = member.Name }
                 : new Dictionary<CompetitionId, string>(),
@@ -83,7 +83,7 @@ public class NotificationPlannerTests
     [Fact]
     public void Nothing_is_planned_without_an_opt_in()
     {
-        var context = Context(Competition(entryDeadline: Now.AddDays(3)), favourite: true) with
+        var context = Context(Competition(entryDeadline: Now.AddDays(3)), interested: true) with
         {
             Preferences = NotificationPreferences.Default,
         };
@@ -101,7 +101,7 @@ public class NotificationPlannerTests
     {
         var deadline = Now.AddDays(3);
 
-        var planned = NotificationPlanner.Plan(Context(Competition(entryDeadline: deadline), favourite: true));
+        var planned = NotificationPlanner.Plan(Context(Competition(entryDeadline: deadline), interested: true));
 
         var warning = Assert.Single(planned, n => n.Kind == NotificationKind.EntryClosing);
 
@@ -123,7 +123,7 @@ public class NotificationPlannerTests
     public void A_deadline_too_close_to_warn_about_is_dropped()
     {
         var planned = NotificationPlanner.Plan(
-            Context(Competition(entryDeadline: Now.AddHours(6)), favourite: true));
+            Context(Competition(entryDeadline: Now.AddHours(6)), interested: true));
 
         Assert.DoesNotContain(planned, n => n.Kind == NotificationKind.EntryClosing);
     }
@@ -224,7 +224,7 @@ public class NotificationPlannerTests
             results: Now.AddDays(5).AddHours(6),
             pm: Now.AddDays(3));
 
-        var planned = NotificationPlanner.Plan(Context(competition, entered: true, favourite: true));
+        var planned = NotificationPlanner.Plan(Context(competition, entered: true, interested: true));
 
         Assert.Equal(planned.OrderBy(n => n.At), planned);
     }

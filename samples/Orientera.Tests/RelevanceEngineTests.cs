@@ -53,12 +53,13 @@ public class RelevanceEngineTests
     };
 
     [Fact]
-    public void The_four_weights_add_up_to_one()
+    public void The_five_weights_add_up_to_one()
     {
         double total = RelevanceEngine.PersonalWeight
                      + RelevanceEngine.ImportanceWeight
                      + RelevanceEngine.GeographicWeight
-                     + RelevanceEngine.TemporalWeight;
+                     + RelevanceEngine.TemporalWeight
+                     + RelevanceEngine.UrgencyWeight;
 
         Assert.Equal(1.0, total, 6);
     }
@@ -116,6 +117,21 @@ public class RelevanceEngineTests
 
         Assert.True(championshipScore > trainingScore,
             $"championship {championshipScore:F3} should outrank training {trainingScore:F3}");
+    }
+
+    /// <summary>
+    /// Distance is a guess at whether you would travel; an entry is you having answered. The club
+    /// evening in Dalarna this runner is signed up for scored zero on geography and dropped out of
+    /// the top of their own calendar the first time geography was weighted up.
+    /// </summary>
+    [Fact]
+    public void A_race_I_have_entered_is_not_charged_for_being_far_away()
+    {
+        var distant = Make("distant", CompetitionLevel.Training, Falun, district: "Dalarna");
+        var ids = new HashSet<CompetitionId> { distant.Id };
+
+        Assert.True(RelevanceEngine.GeographicScore(distant, Context()) < 1.0);
+        Assert.Equal(1.0, RelevanceEngine.GeographicScore(distant, Context(mine: ids)));
     }
 
     [Fact]
@@ -199,8 +215,83 @@ public class RelevanceEngineTests
         var relaxed = Make("relaxed", CompetitionLevel.National, Gavle, daysAway: 20);
 
         Assert.True(
-            RelevanceEngine.TemporalScore(closing, Context()) >
-            RelevanceEngine.TemporalScore(relaxed, Context()));
+            RelevanceEngine.Ranking(closing, Context()) >
+            RelevanceEngine.Ranking(relaxed, Context()));
+    }
+
+    /// <summary>
+    /// Eventor publishes an entry deadline for almost everything and an opening date for almost
+    /// nothing. The old bonus asked for both, so it never fired for the närtävlingar it existed
+    /// to lift — the deadline alone has to be enough.
+    /// </summary>
+    [Fact]
+    public void A_deadline_without_an_opening_date_still_counts()
+    {
+        var schedule = new CompetitionSchedule { EntryDeadline = Now.AddDays(2) };
+        var closing = Make("closing", CompetitionLevel.Local, Gavle, daysAway: 20, schedule: schedule);
+
+        Assert.True(RelevanceEngine.UrgencyScore(closing, Context()) > 0.8);
+    }
+
+    /// <summary>An entry that has not opened is not something to act on today.</summary>
+    [Fact]
+    public void An_entry_that_has_not_opened_is_not_urgent()
+    {
+        var schedule = new CompetitionSchedule
+        {
+            RegistrationOpensAt = Now.AddDays(1),
+            EntryDeadline = Now.AddDays(3),
+        };
+
+        var later = Make("later", CompetitionLevel.National, Gavle, daysAway: 20, schedule: schedule);
+
+        Assert.Equal(0.0, RelevanceEngine.UrgencyScore(later, Context()));
+    }
+
+    /// <summary>A deadline that has passed is not urgent; it is over.</summary>
+    [Fact]
+    public void A_passed_deadline_is_not_urgent()
+    {
+        var schedule = new CompetitionSchedule { EntryDeadline = Now.AddDays(-1) };
+        var closed = Make("closed", CompetitionLevel.National, Gavle, daysAway: 5, schedule: schedule);
+
+        Assert.Equal(0.0, RelevanceEngine.UrgencyScore(closed, Context()));
+    }
+
+    /// <summary>
+    /// The case the axis was added for: a närtävling twelve kilometres away in the home district,
+    /// closing in three days, against a championship in another district seventy-six kilometres out.
+    /// The near one wins now — but the home-district championship still wins over both.
+    /// </summary>
+    [Fact]
+    public void A_near_race_closing_soon_outranks_a_distant_championship()
+    {
+        var closing = new CompetitionSchedule { EntryDeadline = Now.AddDays(3) };
+
+        var nearby = Make(
+            "nearby",
+            CompetitionLevel.Local,
+            Gavle,
+            daysAway: 7,
+            district: "Gästrikland",
+            schedule: closing);
+
+        var faraway = Make(
+            "faraway",
+            CompetitionLevel.Championship,
+            Falun,
+            daysAway: 12,
+            district: "Västmanland");
+
+        var home = Make(
+            "home",
+            CompetitionLevel.Championship,
+            Gavle,
+            daysAway: 12,
+            district: "Gästrikland");
+
+        Assert.True(RelevanceEngine.Ranking(nearby, Context()) > RelevanceEngine.Ranking(faraway, Context()));
+        Assert.True(RelevanceEngine.Ranking(home, Context()) > RelevanceEngine.Ranking(nearby, Context()));
     }
 
     [Fact]
@@ -245,5 +336,64 @@ public class RelevanceEngineTests
 
         Assert.True(averageRealRank < averageTrainingRank,
             $"real competitions average rank {averageRealRank:F1} should beat training {averageTrainingRank:F1}");
+    }
+}
+
+/// <summary>
+/// What settles the order when two competitions are equally relevant.
+/// </summary>
+/// <remarks>
+/// Gästriklands DM medel and DM stafett: same championship, same club, same entry deadline,
+/// arenas forty metres apart. Both shown as 41 km. The geographic score differed in the fifth
+/// decimal, and the calendar put Sunday's race above Saturday's — an order that looks arbitrary
+/// because it is.
+/// </remarks>
+public class RelevanceTieBreakTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 8, 17, 9, 0, 0, TimeSpan.FromHours(2));
+
+    private static Competition Championship(string name, int day, double longitude) => new()
+    {
+        Id = new CompetitionId(name),
+        Name = name,
+        Organiser = "Ockelbo OK",
+        District = "Gästrikland",
+        Place = "Ockelbo",
+        Location = new GeoPoint(60.8398, longitude),
+        Discipline = Discipline.Middle,
+        Level = CompetitionLevel.Championship,
+        FirstStart = new DateTimeOffset(2026, 8, day, 10, 0, 0, TimeSpan.FromHours(2)),
+        LastFinish = new DateTimeOffset(2026, 8, day, 15, 0, 0, TimeSpan.FromHours(2)),
+    };
+
+    private static RelevanceContext Context() => new()
+    {
+        Now = Now,
+        Home = new GeoPoint(60.6749, 17.1413),
+        HomeDistrict = "Gästrikland",
+        MyClass = "H45",
+    };
+
+    [Fact]
+    public void Forty_metres_between_arenas_does_not_decide_the_order()
+    {
+        var saturday = Championship("DM, medel", 29, 16.457287723341);
+        var sunday = Championship("DM, stafett", 30, 16.4580667866488);
+
+        var ranked = RelevanceEngine.Rank([sunday, saturday], Context());
+
+        Assert.Equal("DM, medel", ranked[0].Name);
+    }
+
+    /// <summary>The rounding must not flatten a difference that is real.</summary>
+    [Fact]
+    public void A_difference_worth_believing_still_wins()
+    {
+        var near = Championship("Nära", 30, 17.10);
+        var far = Championship("Långt bort", 29, 14.00);
+
+        var ranked = RelevanceEngine.Rank([far, near], Context());
+
+        Assert.Equal("Nära", ranked[0].Name);
     }
 }

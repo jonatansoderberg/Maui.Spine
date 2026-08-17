@@ -19,11 +19,17 @@ public static partial class EventorCookies
         return
         [
             .. cookies
-                .Where(c => c.Domain.Contains("eventor.orientering.se", StringComparison.OrdinalIgnoreCase))
+                // Every cookie the federation's own domain sets, not only the ones spelled with
+                // the "eventor" host. A parent-domain cookie — ".orientering.se" — belongs to
+                // Eventor just as much, and the login is the one cookie that must not be dropped.
+                .Where(c => c.Domain.TrimStart('.').EndsWith("orientering.se", StringComparison.OrdinalIgnoreCase))
                 .Select(c => new SessionCookie(
                     c.Name,
                     c.Value,
-                    c.ExpiresDate is { } expires ? (DateTimeOffset)(DateTime)expires : null)),
+                    c.ExpiresDate is { } expires ? (DateTimeOffset)(DateTime)expires : null)
+                {
+                    Domain = c.Domain,
+                }),
         ];
     }
 }

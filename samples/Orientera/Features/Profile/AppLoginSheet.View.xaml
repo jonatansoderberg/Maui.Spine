@@ -1,0 +1,40 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Profile.AppLoginSheet"
+    x:TypeArguments="AppLoginSheetViewModel"
+    x:DataType="AppLoginSheetViewModel">
+
+    <VerticalStackLayout Padding="16,8,16,16" Spacing="14">
+
+        <Label Style="{StaticResource CaptionLabel}"
+               Text="Ditt Eventor-konto. Uppgifterna sparas i telefonens säkra lager och skickas till Eventors egen inloggning — aldrig till Orienteras server." />
+
+        <VerticalStackLayout Spacing="4">
+            <Label Style="{StaticResource SectionLabel}" Text="ANVÄNDARNAMN" />
+            <Entry Text="{Binding Username}"
+                   Keyboard="Email"
+                   IsSpellCheckEnabled="False"
+                   IsTextPredictionEnabled="False"
+                   Placeholder="Användarnamn på Eventor"
+                   SemanticProperties.Hint="Ditt användarnamn på Eventor" />
+        </VerticalStackLayout>
+
+        <VerticalStackLayout Spacing="4">
+            <Label Style="{StaticResource SectionLabel}" Text="LÖSENORD" />
+            <Entry Text="{Binding Password}"
+                   IsPassword="True"
+                   Placeholder="Lösenord"
+                   SemanticProperties.Hint="Ditt lösenord på Eventor" />
+        </VerticalStackLayout>
+
+        <Button Style="{StaticResource PrimaryButton}"
+                Text="Logga in"
+                IsEnabled="{Binding CanSubmit}"
+                Command="{Binding SubmitCommand}" />
+
+        <Button Style="{StaticResource SecondaryButton}"
+                Text="Avbryt"
+                Command="{Binding CancelCommand}" />
+    </VerticalStackLayout>
+</SpinePage>

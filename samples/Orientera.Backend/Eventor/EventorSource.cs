@@ -13,7 +13,7 @@ namespace Orientera.Backend.Eventor;
 /// </summary>
 /// <remarks>
 /// This is deliberately not an <c>IEventSource</c>. The app's source interfaces also carry
-/// local concerns — favourites, who I am — that a backend has no business answering in M1.
+/// local concerns — interests, who I am — that a backend has no business answering in M1.
 /// </remarks>
 public sealed class EventorSource(EventorClient _client, ResponseCache _cache, IOptions<EventorOptions> _options)
 {

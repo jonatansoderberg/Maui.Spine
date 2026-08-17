@@ -48,7 +48,7 @@ public sealed class NotificationService(
         var me = await _people.GetMeAsync(cancellationToken);
         var group = await _people.GetMyGroupAsync(cancellationToken);
         var competitions = await _events.GetCompetitionsAsync(cancellationToken);
-        var favourites = await _events.GetFavouritesAsync(cancellationToken);
+        var interests = await _events.GetInterestsAsync(cancellationToken);
         var entries = await _participation.GetEntriesAsync(cancellationToken);
 
         var groupIds = group
@@ -83,7 +83,7 @@ public sealed class NotificationService(
             Competitions = competitions,
             MyEntries = mine,
             GroupEntries = theirs,
-            Favourites = favourites,
+            Interests = interests,
             MyStarts = starts,
             Preferences = _preferences.Current,
         });

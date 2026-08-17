@@ -18,8 +18,8 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
     private readonly FakeDataset _data = FakeDataset.Instance;
     private readonly List<FollowedPerson> _myGroup = [.. FakeDataset.Instance.MyGroup];
 
-    // Local favourites, no account needed. In-memory for M0; SQLite from M1.
-    private readonly HashSet<CompetitionId> _favourites = [FakeDataset.DmSprintId, FakeDataset.HosttraffenId];
+    // Local interests, no account needed. In-memory for M0; SQLite from M1.
+    private readonly HashSet<CompetitionId> _interests = [FakeDataset.DmSprintId, FakeDataset.HosttraffenId];
 
     // ---------------------------------------------------------------- IEventSource
 
@@ -35,15 +35,15 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
     public Task<Series?> GetSeriesAsync(SeriesId id, CancellationToken cancellationToken = default) =>
         Task.FromResult(_data.Series.FirstOrDefault(s => s.Id == id));
 
-    public Task<IReadOnlySet<CompetitionId>> GetFavouritesAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlySet<CompetitionId>>(_favourites);
+    public Task<IReadOnlySet<CompetitionId>> GetInterestsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlySet<CompetitionId>>(_interests);
 
-    public Task<bool> ToggleFavouriteAsync(CompetitionId competition, CancellationToken cancellationToken = default)
+    public Task<bool> ToggleInterestAsync(CompetitionId competition, CancellationToken cancellationToken = default)
     {
-        bool added = _favourites.Add(competition);
+        bool added = _interests.Add(competition);
 
         if (!added)
-            _favourites.Remove(competition);
+            _interests.Remove(competition);
 
         return Task.FromResult(added);
     }
@@ -277,6 +277,15 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
     /// list agrees with the race it belongs to — a demo that ranks people the opposite way to
     /// how they finish teaches the wrong thing about what the list means.
     /// </summary>
+    /// <summary>
+    /// The demo draws every competition the moment it is seeded, so there is never a stretch
+    /// where entries exist and start times do not. The list the app would show before the draw is
+    /// the start field itself.
+    /// </summary>
+    public Task<IReadOnlyList<StartFieldRunner>> GetEntryListAsync(
+        CompetitionId competition, string className, CancellationToken cancellationToken = default) =>
+        GetStartFieldAsync(competition, className, cancellationToken);
+
     public Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
         CompetitionId competition, string className, CancellationToken cancellationToken = default)
     {

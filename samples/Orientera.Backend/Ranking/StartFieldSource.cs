@@ -1,31 +1,27 @@
-using Orientera.Domain.Ranking;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Orientera.Backend.Caching;
-using Orientera.Backend.Configuration;
 using Orientera.Backend.Eventor;
 using Orientera.Domain;
 
 namespace Orientera.Backend.Ranking;
 
 /// <summary>
-/// A start field, sorted by Sverigelistan.
+/// Who is entered in a class, with the club each of them runs for.
 /// </summary>
 /// <remarks>
-/// The start list carries names, person ids and clubs; Sverigelistan's club pages carry points for
-/// everyone in a club. One page per club in the field, not one per runner — a field of forty spans
-/// a dozen clubs, and the pages are cached for half a day and shared between classes and users.
+/// Names, person ids and clubs come from Eventor's API with the club's own key, which is a key for
+/// data and not for a person. Sverigelistan's points do not come from here at all any more: the
+/// club pages are behind a personal login, and since #123 that login is the reader's own and the
+/// pages are read on their phone. A server reading them would be one member's subscription
+/// answering for everybody.
 ///
-/// Read through <see cref="EventorSession"/>, because anonymously a club page lists almost nobody
-/// (measured on Gävle OK: one runner against 188). That is the same prototype boundary as the rest
-/// of the ranking, and it is governed by the same setting.
+/// So this hands over the field in start order and states each runner's club id. The phone adds the
+/// points, or does not, and the list is honest either way.
 /// </remarks>
 public sealed class StartFieldSource(
     EventorClient _eventor,
-    EventorSession _sessions,
     ResponseCache _cache,
-    IOptions<RankingOptions> _ranking,
     ILogger<StartFieldSource> _logger)
 {
     public Task<IReadOnlyList<StartFieldRunner>> ForClassAsync(
@@ -46,24 +42,7 @@ public sealed class StartFieldSource(
                 new Dictionary<string, string?> { ["eventId"] = eventId },
                 cancellationToken);
 
-            var field = Field(starts, className);
-
-            if (field.Count == 0)
-                return [];
-
-            var ranking = await RankingByRunnerAsync(field, cancellationToken);
-
-            return
-            [
-                .. field
-                    .Select(entry => ranking.TryGetValue(entry.Runner.Person.Value, out var row)
-                        ? entry.Runner with { Points = row.Points, NationalRank = row.NationalRank }
-                        : entry.Runner)
-                    // Lower points is a better runner. Whoever the list does not carry goes last,
-                    // in start order, rather than being given a place they have not earned.
-                    .OrderBy(r => r.Points ?? double.MaxValue)
-                    .ThenBy(r => r.StartTime ?? DateTimeOffset.MaxValue),
-            ];
+            return [.. Field(starts, className).OrderBy(r => r.StartTime ?? DateTimeOffset.MaxValue)];
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {
@@ -74,9 +53,9 @@ public sealed class StartFieldSource(
     }
 
     /// <summary>The runners in one class, as the start list states them, with their club's id.</summary>
-    internal static List<(StartFieldRunner Runner, string? Club)> Field(XElement starts, string className)
+    internal static List<StartFieldRunner> Field(XElement starts, string className)
     {
-        var field = new List<(StartFieldRunner, string?)>();
+        var field = new List<StartFieldRunner>();
 
         foreach (var classStart in starts.Deep("ClassStart"))
         {
@@ -96,79 +75,17 @@ public sealed class StartFieldSource(
                 var given = string.Join(' ', person.Child("PersonName").Children("Given").Select(g => g.Value.Trim()));
                 var family = person.Child("PersonName").Text("Family") ?? string.Empty;
 
-                field.Add((
-                    new StartFieldRunner
-                    {
-                        Person = new PersonId(id),
-                        Name = string.Join(' ', new[] { given, family }.Where(p => p.Length > 0)),
-                        Club = personStart.Child("Organisation").Text("Name") ?? string.Empty,
-                        StartTime = personStart.Child("Start").Child("StartTime").Moment(TimeZoneInfo.Local),
-                    },
-                    personStart.Child("Organisation").Text("OrganisationId")));
+                field.Add(new StartFieldRunner
+                {
+                    Person = new PersonId(id),
+                    Name = string.Join(' ', new[] { given, family }.Where(p => p.Length > 0)),
+                    Club = personStart.Child("Organisation").Text("Name") ?? string.Empty,
+                    ClubId = personStart.Child("Organisation").Text("OrganisationId"),
+                    StartTime = personStart.Child("Start").Child("StartTime").Moment(TimeZoneInfo.Local),
+                });
             }
         }
 
         return field;
     }
-
-    /// <summary>
-    /// Every club in the field, looked up once. Runners whose club page does not list them keep
-    /// no ranking at all, which is the honest answer for someone the list does not rank.
-    /// </summary>
-    private async Task<Dictionary<string, RankingRow>> RankingByRunnerAsync(
-        IReadOnlyList<(StartFieldRunner Runner, string? Club)> field, CancellationToken cancellationToken)
-    {
-        var rows = new Dictionary<string, RankingRow>(StringComparer.Ordinal);
-
-        if (_ranking.Value.DemoSessionPersonId is not { Length: > 0 } person)
-            return rows;
-
-        // The start list states the club's id outright, so no directory lookup is needed.
-        var ids = field.Select(e => e.Club).OfType<string>().Distinct().ToList();
-
-        if (ids.Count == 0)
-            return rows;
-
-        using var session = await _sessions.OpenAsync(person, cancellationToken);
-
-        if (session is null)
-            return rows;
-
-        // A field of forty spans a couple of dozen clubs, and one page took a second each when
-        // fetched in turn — close enough to the app's timeout to lose the whole section. Four at
-        // a time is fast enough and still a polite number of requests to send Eventor at once.
-        var pages = new List<IReadOnlyList<RankingRow>>();
-
-        await Parallel.ForEachAsync(
-            ids,
-            new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = cancellationToken },
-            async (club, token) =>
-            {
-                var page = await ClubAsync(session, club, token);
-
-                lock (pages)
-                    pages.Add(page);
-            });
-
-        foreach (var row in pages.SelectMany(p => p))
-            rows.TryAdd(row.RunnerId, row);
-
-        return rows;
-    }
-
-    private Task<IReadOnlyList<RankingRow>> ClubAsync(
-        HttpClient session, string clubId, CancellationToken cancellationToken) =>
-        _cache.GetOrAddAsync(
-            $"ranking:club:session:{clubId}",
-            TimeSpan.FromHours(_ranking.Value.CacheHours),
-            async token =>
-            {
-                using var page = await session.GetAsync(
-                    new Uri(new Uri(_ranking.Value.BaseAddress), $"Ranking/ol/Club/Index/{clubId}"), token);
-
-                return page.IsSuccessStatusCode
-                    ? RankingPageParser.Parse(clubId, await page.Content.ReadAsStringAsync(token))
-                    : [];
-            },
-            cancellationToken);
 }

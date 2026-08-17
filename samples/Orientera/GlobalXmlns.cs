@@ -30,4 +30,7 @@
     "Orientera.Features.Profile")]
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
+    "Orientera.Features.Onboarding")]
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
     "Orientera.Controls")]

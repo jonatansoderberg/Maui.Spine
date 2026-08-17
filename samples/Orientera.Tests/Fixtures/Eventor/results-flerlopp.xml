@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResultList>
+  <Event eventForm="IndMultiDay">
+    <EventId>56311</EventId>
+    <Name>Karlstad Indoor</Name>
+    <EventRace raceDistance="Long"><EventRaceId>58181</EventRaceId><Name>Etapp 1</Name></EventRace>
+    <EventRace raceDistance="Long"><EventRaceId>58182</EventRaceId><Name>Etapp 2</Name></EventRace>
+  </Event>
+  <ClassResult numberOfEntries="93" numberOfStarts="91">
+    <EventClass>
+      <Name>Herrar</Name>
+      <ClassRaceInfo noOfEntries="45" noOfStarts="44"><EventRaceId>58181</EventRaceId><Name>Etapp 1</Name></ClassRaceInfo>
+      <ClassRaceInfo noOfEntries="48" noOfStarts="47"><EventRaceId>58182</EventRaceId><Name>Etapp 2</Name></ClassRaceInfo>
+    </EventClass>
+    <PersonResult>
+      <Person><PersonName><Family>Bodin-Liliegren</Family><Given>Linus</Given></PersonName><PersonId>1</PersonId></Person>
+      <Organisation><OrganisationId>9</OrganisationId><Name>OK Djerf</Name></Organisation>
+      <RaceResult><EventRaceId>58181</EventRaceId>
+        <Result><ResultId>21508674</ResultId><Time>30:47</Time><TimeDiff>3:05</TimeDiff>
+          <ResultPosition>2</ResultPosition><CompetitorStatus value="OK" /></Result>
+      </RaceResult>
+      <RaceResult><EventRaceId>58182</EventRaceId>
+        <Result><ResultId>21509137</ResultId><Time>41:37</Time><TimeDiff>2:42</TimeDiff>
+          <ResultPosition>4</ResultPosition><CompetitorStatus value="OK" /></Result>
+      </RaceResult>
+    </PersonResult>
+  </ClassResult>
+</ResultList>

@@ -8,20 +8,30 @@
     <VerticalStackLayout Padding="16,0,16,16" Spacing="14">
 
         <Label Style="{StaticResource CaptionLabel}"
+               IsVisible="{Binding CanEditIdentity}"
                Text="Startlistor och liveresultat känner igen dig på namn och klubb. Uppgifterna stannar i telefonen." />
 
-        <VerticalStackLayout Spacing="4">
+        <Label Style="{StaticResource CaptionLabel}"
+               IsVisible="{Binding IsEventorOwned}"
+               Text="Namn och klubb kommer från din Eventor-inloggning och uppdateras därifrån. Klassen väljer du själv." />
+
+        <VerticalStackLayout Spacing="4" IsVisible="{Binding CanEditIdentity}">
             <Label Style="{StaticResource SectionLabel}" Text="NAMN" />
             <Entry Text="{Binding Name}"
                    Placeholder="Förnamn Efternamn"
                    SemanticProperties.Hint="Ditt namn som det står i startlistan" />
         </VerticalStackLayout>
 
-        <VerticalStackLayout Spacing="4">
+        <VerticalStackLayout Spacing="4" IsVisible="{Binding CanEditIdentity}">
             <Label Style="{StaticResource SectionLabel}" Text="KLUBB" />
             <Entry Text="{Binding Club}"
                    Placeholder="Din klubb"
                    SemanticProperties.Hint="Din klubb som den står i startlistan" />
+        </VerticalStackLayout>
+
+        <VerticalStackLayout Spacing="2" IsVisible="{Binding IsEventorOwned}">
+            <Label Style="{StaticResource Heading2Label}" Text="{Binding Name}" />
+            <Label Style="{StaticResource CaptionLabel}" Text="{Binding Club}" />
         </VerticalStackLayout>
 
         <VerticalStackLayout Spacing="4">

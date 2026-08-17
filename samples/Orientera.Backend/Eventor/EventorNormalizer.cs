@@ -18,13 +18,50 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
 
     public IReadOnlyList<Competition> Competitions(XElement eventList, OrganisationDirectory organisations) =>
         [.. eventList.Children("Event")
-            .Where(e => organisations.IsSwedish(OrganiserOf(e)))
+            .Where(e => organisations.IsSwedish(OrganiserIdsOf(e).FirstOrDefault()))
             .Select(e => Competition(e, organisations))
             .OfType<Competition>()
             .OrderBy(c => c.FirstStart)];
 
-    private static string? OrganiserOf(XElement element) =>
-        element.Child("Organiser").Deep("OrganisationId").FirstOrDefault()?.Value.Trim();
+    /// <summary>
+    /// Every club behind the event, in Eventor's order.
+    /// </summary>
+    /// <remarks>
+    /// Plural because clubs arrange together and Eventor says so: Valbos nationella is Skutskärs OK
+    /// <em>and</em> Valbo AIF, and taking the first left the club whose name is on the competition
+    /// off its own page. The first is still the one whose district and badge the event inherits —
+    /// that is what Eventor's order means.
+    ///
+    /// Every id under the organiser except the ones belonging to a parent. Depth rather than
+    /// structure, because Eventor nests this differently in different answers — reading only
+    /// direct children worked for a single competition and returned nothing at all for the
+    /// calendar, which left twelve hundred competitions with no organiser and no district.
+    ///
+    /// The trap the structure was meant to avoid is still avoided: a club carries its district
+    /// federation inside itself as <c>ParentOrganisation</c>, and taking every id underneath gave
+    /// "Skutskärs OK, Gästriklands OF, Valbo AIF, Gästriklands OF" — the district twice, and
+    /// neither time as an arranger.
+    /// </remarks>
+    private static List<string> OrganiserIdsOf(XElement element)
+    {
+        if (element.Child("Organiser") is not { } organiser)
+            return [];
+
+        return
+        [
+            .. organiser.Deep("OrganisationId")
+                .Where(id => !IsParents(id, organiser))
+                .Select(id => id.Value.Trim())
+                .Where(id => id.Length > 0)
+                .Distinct(),
+        ];
+    }
+
+    /// <summary>Whether this id belongs to a club's parent rather than to the club itself.</summary>
+    private static bool IsParents(XElement id, XElement organiser) =>
+        id.Ancestors()
+            .TakeWhile(a => a != organiser)
+            .Any(a => a.Name.LocalName == "ParentOrganisation");
 
     public Competition? Competition(XElement element, OrganisationDirectory organisations)
     {
@@ -32,7 +69,8 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
             return null;
 
         var race = element.Children("EventRace").FirstOrDefault();
-        var organiserId = OrganiserOf(element);
+        var organiserIds = OrganiserIdsOf(element);
+        var organiserId = organiserIds.FirstOrDefault();
         var district = organisations.DistrictOf(organiserId);
 
         var firstStart =
@@ -47,7 +85,9 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
         {
             Id = new CompetitionId(id),
             Name = name,
-            Organiser = organisations.NameOf(organiserId),
+            Organiser = string.Join(", ", organiserIds
+                .Select(organisations.NameOf)
+                .Where(n => n.Length > 0)),
             OrganiserLogo = organisations.LogoOf(organiserId),
             District = district,
             Place = PlaceOf(race, name, district),
@@ -102,10 +142,16 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
         if (race.Attr("raceLightCondition") is "Night")
             return Discipline.Night;
 
+        // Indoor is not a classification Eventor has — it calls these sprints. The name is the
+        // only place it is stated, and to a runner it is a different sport in a school corridor.
+        if (element.Text("Name") is { } name && name.Contains("indoor", StringComparison.OrdinalIgnoreCase))
+            return Discipline.Indoor;
+
         return race.Attr("raceDistance") switch
         {
             "Sprint" or "KnockOutSprint" => Discipline.Sprint,
-            "Long" or "UltraLong" => Discipline.Long,
+            "UltraLong" => Discipline.UltraLong,
+            "Long" => Discipline.Long,
             "Relay" or "SprintRelay" or "MixedRelay" => Discipline.Relay,
             _ => Discipline.Middle,
         };
@@ -294,37 +340,70 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
     {
         var results = new List<CompetitionResult>();
 
+        // An event can hold more than one race. Karlstad Indoor is one id, one class called
+        // "Herrar", and two races named "Etapp 1" and "Etapp 2" — flattened, the class had two
+        // first places, two seconds, and the same runner twice. Eventor keeps them apart in
+        // RaceResult/EventRaceId; the class name has to keep them apart on screen.
+        var races = resultList
+            .Deep("EventRace")
+            .Select(race => (Id: race.Text("EventRaceId"), Name: race.Text("Name")))
+            .Where(race => race.Id is { Length: > 0 })
+            .ToDictionary(race => race.Id!, race => race.Name);
+
+        bool manyRaces = races.Count > 1;
+
         foreach (var classResult in resultList.Deep("ClassResult"))
         {
             var className = ClassNameOf(classResult);
-            int starters = EventorXml.Integer(classResult.Attr("numberOfStarts"))
+
+            // Per race where the class says so, otherwise the class total. A race's field is not
+            // the whole weekend's, and "8:e av 91" in a class of 44 is a placing out of nowhere.
+            var perRace = classResult
+                .Deep("ClassRaceInfo")
+                .Where(info => info.Text("EventRaceId") is { Length: > 0 })
+                .ToDictionary(
+                    info => info.Text("EventRaceId")!,
+                    info => EventorXml.Integer(info.Attr("noOfStarts"))
+                        ?? EventorXml.Integer(info.Attr("noOfEntries")));
+
+            int classStarters = EventorXml.Integer(classResult.Attr("numberOfStarts"))
                 ?? EventorXml.Integer(classResult.Attr("numberOfEntries"))
                 ?? classResult.Children("PersonResult").Count();
 
             foreach (var personResult in classResult.Children("PersonResult"))
             {
-                // A multi-race event carries one Result per race; the single-race case is the
-                // same shape with one of them.
-                foreach (var result in personResult.Deep("Result"))
+                // A multi-race event wraps each race's result in RaceResult; the single-race case
+                // has the Result directly under PersonResult. Deep() reaches both.
+                foreach (var raceResult in personResult.Deep("RaceResult").DefaultIfEmpty(personResult))
                 {
-                    var person = PersonOf(personResult, className);
+                    string? raceId = raceResult.Text("EventRaceId");
 
-                    results.Add(new CompetitionResult
+                    foreach (var result in raceResult.Children("Result"))
                     {
-                        Id = new ResultId(result.Text("ResultId") ?? $"{competition.Value}|{person.Value}"),
-                        Competition = competition,
-                        Person = person,
-                        Name = NameOf(personResult),
-                        Club = personResult.Child("Organisation").Text("Name") ?? string.Empty,
-                        ClubLogo = organisations?.LogoOf(personResult.Child("Organisation").Text("OrganisationId")),
-                        Class = className,
-                        Status = StatusOf(result.Child("CompetitorStatus").Attr("value")),
-                        Time = EventorXml.Duration(result.Text("Time")),
-                        Place = EventorXml.Integer(result.Text("ResultPosition")),
-                        BehindWinner = EventorXml.Duration(result.Text("TimeDiff")),
-                        Starters = starters,
-                        Splits = SplitsOf(result),
-                    });
+                        var person = PersonOf(personResult, className);
+
+                        // The race's own name, and only when there is more than one to tell apart.
+                        string name = manyRaces && raceId is { } id && races.GetValueOrDefault(id) is { Length: > 0 } race
+                            ? $"{className}, {race}"
+                            : className;
+
+                        results.Add(new CompetitionResult
+                        {
+                            Id = new ResultId(result.Text("ResultId") ?? $"{competition.Value}|{person.Value}"),
+                            Competition = competition,
+                            Person = person,
+                            Name = NameOf(personResult),
+                            Club = personResult.Child("Organisation").Text("Name") ?? string.Empty,
+                            ClubLogo = organisations?.LogoOf(personResult.Child("Organisation").Text("OrganisationId")),
+                            Class = name,
+                            Status = StatusOf(result.Child("CompetitorStatus").Attr("value")),
+                            Time = EventorXml.Duration(result.Text("Time")),
+                            Place = EventorXml.Integer(result.Text("ResultPosition")),
+                            BehindWinner = EventorXml.Duration(result.Text("TimeDiff")),
+                            Starters = (raceId is { } key ? perRace.GetValueOrDefault(key) : null) ?? classStarters,
+                            Splits = SplitsOf(result),
+                        });
+                    }
                 }
             }
         }

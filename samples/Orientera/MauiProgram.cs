@@ -45,6 +45,17 @@ public static class MauiProgram
                 options.Windows.MinHeight = 600;
                 options.Windows.PersistWindowPosition = true;
 
+                // The tab bar floats over the content instead of standing on top of it: iOS 26
+                // draws it as Liquid Glass, and glass with nothing behind it is just a grey pill.
+                // Spine stops padding the bottom edge, and each page's own list pays for the
+                // clearance out of SafeAreaInsets — which the tab host measures with the bar
+                // included, so the last row still scrolls clear of it.
+                // Qualified: MAUI 10 has a SafeAreaEdges of its own, and both are in scope here.
+                options.TabDefaults.SafeAreaEdges =
+                    Plugin.Maui.Spine.Core.SafeAreaEdges.Top
+                    | Plugin.Maui.Spine.Core.SafeAreaEdges.Left
+                    | Plugin.Maui.Spine.Core.SafeAreaEdges.Right;
+
                 // #E8590C is the one orange that clears 3:1 against both the light and the
                 // dark native bar; the per-theme AccentAction tokens are tuned for text.
                 options.Tabs.Style = new SpineTabBarStyle
@@ -104,6 +115,10 @@ public static class MauiProgram
         services.AddSingleton(_ => new LocalIdentityStore(
             Path.Combine(FileSystem.AppDataDirectory, "identity.json")));
 
+        // Whether the welcome has been answered. Skipping it counts as answering (#123).
+        services.AddSingleton(_ => new FirstRunStore(
+            Path.Combine(FileSystem.AppDataDirectory, "first-run.json")));
+
         // Who the user follows, on this phone. Empty until they say otherwise.
         services.AddSingleton(_ => new LocalGroupStore(
             Path.Combine(FileSystem.AppDataDirectory, "my-group.json")));
@@ -113,6 +128,28 @@ public static class MauiProgram
         services.AddSingleton<EventorCredentialStore>();
         services.AddSingleton(_ => new EventorSessionStore(
             Path.Combine(FileSystem.AppDataDirectory, "eventor-session.json")));
+
+        // Sverigelistan, the club's activities and the points beside a start field are read here,
+        // on the phone, with that session — never by the backend on someone else's behalf (#123).
+        // Redirects are not followed: a dead session makes Eventor bounce /Home/Index to
+        // /PersistentLogin and back without end, and the reader needs to see the 302 itself to
+        // tell "logged out" from "not answering" (#123).
+        services.AddSingleton(sp =>
+        {
+            var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+            {
+                Timeout = TimeSpan.FromSeconds(20),
+            };
+
+            // Eventor inspects the User-Agent and answers 403 to ones it does not like — measured
+            // with urllib's default, which it refuses outright. These are the federation's own web
+            // pages being read on behalf of a person sitting in the app, so the app says so rather
+            // than arriving anonymously and hoping.
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                $"Orientera/1.0 ({DeviceInfo.Platform}; {DeviceInfo.VersionString})");
+
+            return new EventorReader(http, sp.GetRequiredService<EventorSessionStore>());
+        });
 
         services.AddSingleton(_ => new DistrictStore(
             Path.Combine(FileSystem.AppDataDirectory, "districts.json")));
@@ -133,7 +170,8 @@ public static class MauiProgram
                 new HttpClient { BaseAddress = new Uri(backendAddress), Timeout = TimeSpan.FromSeconds(20) },
                 sp.GetRequiredService<FakeDataSource>(),
                 sp.GetRequiredService<LocalIdentityStore>(),
-                sp.GetRequiredService<LocalGroupStore>()));
+                sp.GetRequiredService<LocalGroupStore>(),
+                sp.GetRequiredService<EventorReader>()));
 
             // Its own client: writing a paragraph is slower than reading a result list, and the
             // shorter timeout is the one everything else should keep.

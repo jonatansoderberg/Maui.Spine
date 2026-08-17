@@ -37,12 +37,12 @@ public sealed class UnreliableSource(IOrienteraSource _inner, ConnectivitySwitch
     public Task<Series?> GetSeriesAsync(SeriesId id, CancellationToken cancellationToken = default) =>
         Through(() => _inner.GetSeriesAsync(id, cancellationToken));
 
-    // Favourites are local, so they keep working without a connection.
-    public Task<IReadOnlySet<CompetitionId>> GetFavouritesAsync(CancellationToken cancellationToken = default) =>
-        _inner.GetFavouritesAsync(cancellationToken);
+    // Interests are local, so they keep working without a connection.
+    public Task<IReadOnlySet<CompetitionId>> GetInterestsAsync(CancellationToken cancellationToken = default) =>
+        _inner.GetInterestsAsync(cancellationToken);
 
-    public Task<bool> ToggleFavouriteAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
-        _inner.ToggleFavouriteAsync(competition, cancellationToken);
+    public Task<bool> ToggleInterestAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
+        _inner.ToggleInterestAsync(competition, cancellationToken);
 
     // ---------------------------------------------------------------- IPeopleSource
 
@@ -111,4 +111,8 @@ public sealed class UnreliableSource(IOrienteraSource _inner, ConnectivitySwitch
     public Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
         CompetitionId competition, string className, CancellationToken cancellationToken = default) =>
         Through(() => _inner.GetStartFieldAsync(competition, className, cancellationToken));
+
+    public Task<IReadOnlyList<StartFieldRunner>> GetEntryListAsync(
+        CompetitionId competition, string className, CancellationToken cancellationToken = default) =>
+        Through(() => _inner.GetEntryListAsync(competition, className, cancellationToken));
 }

@@ -2,8 +2,56 @@ using System.Text.Json;
 
 namespace Orientera.Services.Eventor;
 
+/// <summary>Where Eventor is, so the login page and the fetches cannot disagree about it.</summary>
+public static class EventorSite
+{
+    public const string Origin = "https://eventor.orientering.se";
+
+    /// <summary>
+    /// Eventor's own entry form for a competition.
+    /// </summary>
+    /// <remarks>
+    /// Entering a race is Eventor's business, not the app's: it takes payment details, club
+    /// membership and rules the app has no copy of. What the app can do is stop lying about it —
+    /// a button that says "Anmäl dig" and opens a class picker leaves the runner believing they
+    /// have entered. Measured on the live site: the event page links to <c>/Entry?eventId=…</c>.
+    /// </remarks>
+    public static string EntryUrl(string eventId) =>
+        $"{Origin}/Entry?eventId={Uri.EscapeDataString(eventId)}";
+}
+
 /// <summary>One cookie as the platform's web view holds it.</summary>
-public sealed record SessionCookie(string Name, string Value, DateTimeOffset? ExpiresAt);
+public sealed record SessionCookie(string Name, string Value, DateTimeOffset? ExpiresAt)
+{
+    /// <summary>
+    /// The domain the web view files it under, where the platform says. Null on Android, whose
+    /// <c>CookieManager</c> answers with a header and no metadata, and on sessions captured before
+    /// #123 measured this.
+    /// </summary>
+    /// <remarks>
+    /// Kept because "which domain" is the whole open question about "kom ihåg mig": a login cookie
+    /// on <c>.orientering.se</c> and one on <c>eventor.orientering.se</c> are told apart by nothing
+    /// else. Only the name, the domain and the expiry are ever written down or logged — a cookie's
+    /// value is the login itself.
+    /// </remarks>
+    public string? Domain { get; init; }
+}
+
+/// <summary>
+/// Who Eventor says the session belongs to.
+/// </summary>
+/// <remarks>
+/// Read once, at login, and kept because it is what the app then calls the user: a name and a club
+/// instead of a number. The class is Eventor's "Förvald klass 1" and is a suggestion — the runner
+/// may enter another one, and the app lets them say so.
+/// </remarks>
+public sealed record EventorAccount
+{
+    public required string Name { get; init; }
+    public required string Club { get; init; }
+    public string? ClubId { get; init; }
+    public string? DefaultClass { get; init; }
+}
 
 /// <summary>
 /// The Eventor session the user logged in with, on this phone.
@@ -17,81 +65,42 @@ public sealed record EventorWebSession
 {
     public required IReadOnlyList<SessionCookie> Cookies { get; init; }
 
-    /// <summary>The runner's own Eventor id, read off the start page after login.</summary>
-    public required string PersonId { get; init; }
+    /// <summary>
+    /// The runner's own Eventor id, read off the start page after login. Absent for a member of a
+    /// club without Sverigelistan: only the ranking box carries the id, and they have no box.
+    /// </summary>
+    public string? PersonId { get; init; }
 
     public required DateTimeOffset CapturedAt { get; init; }
+
+    /// <summary>Name, club and class as Eventor states them. Absent on sessions captured before #123.</summary>
+    public EventorAccount? Account { get; init; }
 
     /// <summary>The header the on-device fetches send.</summary>
     public string Header => string.Join("; ", Cookies.Select(c => $"{c.Name}={c.Value}"));
 
+    /// <summary>Eventor's own login cookie. Nothing else says anything about the session.</summary>
+    public const string LoginCookie = "ASP.NET_SessionId";
+
     /// <summary>
-    /// When the longest-lived cookie runs out, if the platform says. A cookie without an expiry is
-    /// a session cookie and dies with the process, so a session made only of those has no answer.
+    /// When the login runs out, which so far is never: Eventor issues a session cookie with no
+    /// expiry, and it dies when the server forgets it rather than on a date.
     /// </summary>
+    /// <remarks>
+    /// Read off the login cookie by name. The first attempt took the longest-lived cookie that was
+    /// not a known tracker, which made the app promise "giltig till 16 sep 2027" — an advertising
+    /// cookie's date. Excluding trackers by name was the wrong shape: measured twice on #123, the
+    /// jar carried fourteen and then twenty cookies, and the second run brought Google's
+    /// <c>_ga</c>, <c>__gads</c>, <c>__gpi</c> and <c>__eoi</c> on <c>.orientering.se</c>, which the
+    /// list did not know. The promise came back, off a different cookie. A list of everyone else's
+    /// cookies is never finished; the login has one name.
+    ///
+    /// Naming it is only safe because "kom ihåg mig" was finally measured, ticked, against the
+    /// widened <c>orientering.se</c> filter: it adds no persistent cookie at all. If Eventor ever
+    /// starts issuing one, this is the line that has to learn its name.
+    /// </remarks>
     public DateTimeOffset? ExpiresAt =>
-        Cookies.Select(c => c.ExpiresAt).OfType<DateTimeOffset>() is { } dated && dated.Any()
-            ? dated.Max()
-            : null;
-}
-
-/// <summary>
-/// Reads the cookies out of the web view the user logged in through.
-/// </summary>
-/// <remarks>
-/// Platform APIs, because the session cookie is HttpOnly and JavaScript cannot see it — measured
-/// while designing this (#123). iOS hands over expiry dates; Android's <c>CookieManager</c> gives
-/// only name and value, so the longest-lived cookie is unknown there. That asymmetry is why the
-/// app never depends on the expiry: it asks the start page whether it is still logged in.
-/// </remarks>
-public static partial class EventorCookies
-{
-    public const string Origin = "https://eventor.orientering.se";
-
-    public static partial Task<IReadOnlyList<SessionCookie>> ReadAsync(WebView view);
-}
-
-/// <summary>
-/// The login itself, kept on the phone.
-/// </summary>
-/// <remarks>
-/// Stored so the app can log in again without asking, when Eventor's own persistent cookie has run
-/// out. Two things about how it is replayed, both deliberate:
-///
-/// The password goes into <see cref="SecureStorage"/>, which is the Keychain on iOS and the
-/// Keystore-backed store on Android, and nowhere else. It is never sent to our backend, because our
-/// backend has no business holding it.
-///
-/// And it is replayed by filling Eventor's own form in the web view rather than by posting to
-/// <c>/Login</c> with an <c>HttpClient</c>. The login page loads Cloudflare Turnstile; a raw post
-/// works today and can stop working without warning, and it would fail <em>silently</em> — the
-/// answer would be a login page, not an error. Driving the real form keeps that from happening and
-/// survives two-factor if the federation adds it.
-/// </remarks>
-public sealed class EventorCredentialStore
-{
-    private const string UsernameKey = "eventor.username";
-    private const string PasswordKey = "eventor.password";
-
-    public async Task<(string Username, string Password)?> ReadAsync()
-    {
-        var username = await SecureStorage.Default.GetAsync(UsernameKey);
-        var password = await SecureStorage.Default.GetAsync(PasswordKey);
-
-        return username is { Length: > 0 } && password is { Length: > 0 } ? (username, password) : null;
-    }
-
-    public async Task SaveAsync(string username, string password)
-    {
-        await SecureStorage.Default.SetAsync(UsernameKey, username);
-        await SecureStorage.Default.SetAsync(PasswordKey, password);
-    }
-
-    public void Forget()
-    {
-        SecureStorage.Default.Remove(UsernameKey);
-        SecureStorage.Default.Remove(PasswordKey);
-    }
+        Cookies.FirstOrDefault(c => c.Name.Equals(LoginCookie, StringComparison.OrdinalIgnoreCase))?.ExpiresAt;
 }
 
 /// <summary>The captured session, on this phone only.</summary>

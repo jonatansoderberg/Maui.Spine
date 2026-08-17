@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Hosting;
-using Orientera.Backend.Activities;
 using Orientera.Backend.Caching;
 using Orientera.Backend.Configuration;
 using Orientera.Backend.Eventor;
@@ -30,9 +29,6 @@ builder.Services.AddScoped<EventorSource>();
 builder.Services.AddScoped<LiveSource>();
 builder.Services.AddScoped<RaceStoryWriter>();
 builder.Services.AddScoped<PeopleSearch>();
-builder.Services.AddScoped<RunnerRankingSource>();
-builder.Services.AddScoped<EventorSession>();
-builder.Services.AddScoped<ClubActivitySource>();
 builder.Services.AddScoped<StartFieldSource>();
 
 // The organisation list is fetched while the host starts rather than by whoever asks first.
@@ -52,6 +48,14 @@ builder.Services.AddHttpClient<LiveloxSource>((sp, client) =>
 });
 
 builder.Services.AddHttpClient<RankingScraper>((sp, client) =>
+{
+    client.BaseAddress = new Uri(sp.GetRequiredService<IOptions<RankingOptions>>().Value.BaseAddress);
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+
+// The entry list is a public Eventor web page, so it rides on the same web base address as the
+// ranking pages rather than on the API client — the API refuses entries to a club's key.
+builder.Services.AddHttpClient<EntryListSource>((sp, client) =>
 {
     client.BaseAddress = new Uri(sp.GetRequiredService<IOptions<RankingOptions>>().Value.BaseAddress);
     client.Timeout = TimeSpan.FromSeconds(20);
