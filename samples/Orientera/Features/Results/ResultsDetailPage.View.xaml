@@ -326,6 +326,11 @@
             </VerticalStackLayout>
         </ScrollView>
 
+        <ActivityIndicator Grid.Row="1"
+                           Style="{StaticResource PageLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}" />
+
     </Grid>
 
 </SpinePage>

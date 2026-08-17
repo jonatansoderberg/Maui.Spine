@@ -42,7 +42,8 @@ public sealed class RaceStoryWriter(
           ingenting om vad som hände däremellan.
         - Bind ihop punkterna med språket, inte med påståenden. "Sedan vände det" och "därefter
           lossnade det" är påståenden om sträckor du inte fått veta något om.
-        - Siffror och kontrollnummer ska återges exakt som de står.
+        - Siffror och kontrollnummer ska återges exakt som de står. Numrera aldrig om, och skriv
+          aldrig "sträcka 3" om en kontroll — listan säger "kontroll 3", och så heter den.
         - Behåll listans förbehåll: ett uppskattat tapp är uppskattat, inte uppmätt.
         - Tonen är positiv och peppande, men ärlig — och peppet får aldrig bli utfyllnad. En bom
           nämns som det den är, gärna med vad som går att vinna nästa gång. Skönmåla inte.

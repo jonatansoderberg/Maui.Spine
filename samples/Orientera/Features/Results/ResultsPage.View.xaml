@@ -20,7 +20,10 @@
             </CollectionView.ItemsLayout>
 
             <CollectionView.Footer>
-                <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
+                <!-- Margin carries the tab bar's own height; the height is the breathing room. -->
+                <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
+                         Margin="{Binding SafeAreaInsets}"
+                         Color="Transparent" />
             </CollectionView.Footer>
 
             <CollectionView.ItemTemplate>
@@ -38,7 +41,13 @@
 
                                 <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
                                     <Label Style="{StaticResource Heading2Label}" Text="{Binding Name}" />
-                                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
+                                    <HorizontalStackLayout Spacing="6">
+                                        <Path Style="{StaticResource DisciplineGlyph}"
+                                              Data="{Binding DisciplineShape}"
+                                              IsVisible="{Binding HasDiscipline}" />
+                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                               Text="{Binding Meta}" />
+                                    </HorizontalStackLayout>
                                     <HorizontalStackLayout Spacing="6">
                                         <Border Style="{StaticResource Badge}" IsVisible="{Binding HasSplits}">
                                             <Label Style="{StaticResource BadgeLabel}" Text="Sträcktider" />
@@ -71,6 +80,11 @@
             </CollectionView.ItemTemplate>
         </CollectionView>
 
-    </Grid>
+    
+        <ActivityIndicator Style="{StaticResource PageLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}" />
+
+</Grid>
 
 </SpinePage>

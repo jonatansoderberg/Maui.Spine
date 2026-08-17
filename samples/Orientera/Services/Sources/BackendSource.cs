@@ -45,22 +45,31 @@ public sealed class BackendSource(
     public Task<Series?> GetSeriesAsync(SeriesId id, CancellationToken cancellationToken = default) =>
         Task.FromResult<Series?>(null);
 
-    public Task<IReadOnlySet<CompetitionId>> GetFavouritesAsync(CancellationToken cancellationToken = default) =>
-        _local.GetFavouritesAsync(cancellationToken);
+    public Task<IReadOnlySet<CompetitionId>> GetInterestsAsync(CancellationToken cancellationToken = default) =>
+        _local.GetInterestsAsync(cancellationToken);
 
-    public Task<bool> ToggleFavouriteAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
-        _local.ToggleFavouriteAsync(competition, cancellationToken);
+    public Task<bool> ToggleInterestAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
+        _local.ToggleInterestAsync(competition, cancellationToken);
 
     // ---------------------------------------------------------------- IPeopleSource
 
     /// <summary>
-    /// Against real data "me" is whoever the user said they are; the seeded runner only stands
-    /// in until they have said it, so the screens have something to render.
+    /// Who the app is reading as, carrying Eventor's own person id once there is a login.
     /// </summary>
+    /// <remarks>
+    /// The id matters and is not cosmetic. Start lists and results come from the backend with
+    /// Eventor's <c>PersonId</c> on every row, while an identity typed in by hand can only be
+    /// <c>me:name-club</c> — so "min starttid" compared two id spaces that could never meet and
+    /// found nothing, on a page that was showing the runner's own start list at the time.
+    /// </remarks>
     public async Task<Person> GetMeAsync(CancellationToken cancellationToken = default)
     {
         var seeded = await _local.GetMeAsync(cancellationToken);
-        return _identity.AsPerson(seeded) ?? seeded;
+        var me = _identity.AsPerson(seeded) ?? seeded;
+
+        return await _eventor.StartPageAsync(cancellationToken) is { PersonId: { Length: > 0 } id }
+            ? me with { Id = new PersonId(id) }
+            : me;
     }
 
     /// <summary>
@@ -94,12 +103,34 @@ public sealed class BackendSource(
     // ---------------------------------------------------------------- IParticipationSource
 
     /// <summary>
-    /// My entries need an identified person <em>in Eventor</em>. The local identity names a
-    /// runner well enough for live and result lists, but not well enough to claim an entry —
-    /// that needs the auth model, which is M5.
+    /// The reader's own entries, from Eventor's "Mina tävlingar" on this phone.
     /// </summary>
-    public Task<IReadOnlyList<CompetitionEntry>> GetEntriesAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<CompetitionEntry>>([]);
+    /// <remarks>
+    /// Empty until they log in, and empty is honest: an app that cannot see the entry says
+    /// "Anmälan öppen", which is what a competition looks like to somebody who has not entered.
+    /// It also costs more than a badge — <c>MyEntries</c> is the heaviest single signal in
+    /// <see cref="Relevance.RelevanceEngine"/>, so without it "För dig" ranks on size and distance
+    /// alone and puts a championship two districts away above the race you are running on Sunday.
+    /// </remarks>
+    public async Task<IReadOnlyList<CompetitionEntry>> GetEntriesAsync(CancellationToken cancellationToken = default)
+    {
+        var me = await GetMeAsync(cancellationToken);
+
+        return
+        [
+            .. (await _eventor.EntriesAsync(cancellationToken)).Select(entry => new CompetitionEntry
+            {
+                Competition = new CompetitionId(entry.EventId),
+                Person = me.Id,
+                Class = entry.Class,
+
+                // Eventor's page does not say when the entry was made, and the app only ever asks
+                // whether it is in the past. Any real moment would be a guess; this one is not
+                // mistakable for a fact.
+                RegisteredAt = DateTimeOffset.MinValue,
+            }),
+        ];
+    }
 
     public Task<IReadOnlyList<Start>> GetStartsAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
         ListAsync<Start>($"competitions/{Uri.EscapeDataString(competition.Value)}/starts", cancellationToken);
@@ -107,8 +138,48 @@ public sealed class BackendSource(
     public Task<IReadOnlyList<CompetitionResult>> GetResultsAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
         ListAsync<CompetitionResult>($"competitions/{Uri.EscapeDataString(competition.Value)}/results", cancellationToken);
 
-    public Task<IReadOnlyList<CompetitionResult>> GetResultsForPersonAsync(PersonId person, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<CompetitionResult>>([]);
+    /// <summary>
+    /// The reader's own season, from Eventor's "Mina tävlingar" on this phone.
+    /// </summary>
+    /// <remarks>
+    /// Not from the backend, and not assembled from result lists: a result list says who ran a
+    /// competition, never which competitions you ran. Only the reader's own page knows that, and
+    /// it is behind their login — so it is read here, like the ranking and the entries.
+    ///
+    /// The rows carry their own name and date. The calendar reaches a few months back and these
+    /// go to January, so a result cannot borrow them from a competition the app has in hand.
+    /// </remarks>
+    public async Task<IReadOnlyList<CompetitionResult>> GetResultsForPersonAsync(
+        PersonId person, CancellationToken cancellationToken = default)
+    {
+        var me = await GetMeAsync(cancellationToken);
+
+        return
+        [
+            .. (await _eventor.ResultsAsync(cancellationToken))
+                .OrderByDescending(r => r.Date)
+                .Select(r => new CompetitionResult
+                {
+                    Id = new ResultId($"{r.EventId}:{me.Id.Value}"),
+                    Competition = new CompetitionId(r.EventId),
+                    Person = me.Id,
+                    Name = me.Name,
+                    Club = me.Club,
+                    Class = r.Class,
+
+                    // A row without a placement is a race that was started and not finished in a
+                    // classifiable way. Eventor's page says "ej godkänd" without saying which of
+                    // the reasons it was, so this stops at the one thing it does say.
+                    Status = r.Place is null ? ResultStatus.Mispunch : ResultStatus.Ok,
+                    Place = r.Place,
+                    Time = r.Time,
+                    BehindWinner = r.Behind,
+                    CompetitionName = r.Name,
+                    CompetitionDate = r.Date,
+                    CompetitionDiscipline = r.Discipline,
+                }),
+        ];
+    }
 
     /// <summary>Prediction is M3, and an unbacktested number is worse than none (SP-11).</summary>
     public Task<Prediction?> GetPredictionAsync(CompetitionId competition, PersonId person, CancellationToken cancellationToken = default) =>
@@ -186,6 +257,16 @@ public sealed class BackendSource(
     /// defensible when it is the reader's own. Without a login the field still stands — in start
     /// order, without points — because who is running is worth knowing on its own.
     /// </remarks>
+    /// <summary>
+    /// The entry list, plain. No club ids on Eventor's page, so no points can be looked up for it
+    /// — and that is the honest shape of a field nobody has drawn yet.
+    /// </summary>
+    public Task<IReadOnlyList<StartFieldRunner>> GetEntryListAsync(
+        CompetitionId competition, string className, CancellationToken cancellationToken = default) =>
+        ListAsync<StartFieldRunner>(
+            $"competitions/{Uri.EscapeDataString(competition.Value)}/entries?class={Uri.EscapeDataString(className)}",
+            cancellationToken);
+
     public async Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
         CompetitionId competition, string className, CancellationToken cancellationToken = default)
     {

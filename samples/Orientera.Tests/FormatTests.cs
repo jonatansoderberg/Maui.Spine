@@ -92,4 +92,44 @@ public class FormatTests
 
         Assert.Equal(expected, Format.RelativeDate(today.AddDays(offset), today));
     }
+
+    /// <summary>
+    /// A weekday alone cannot be acted on — "torsdag" is either three days away or ten, and the
+    /// difference is the whole point of a deadline.
+    /// </summary>
+    [Fact]
+    public void A_deadline_says_the_day_the_date_and_the_countdown()
+    {
+        var today = new DateOnly(2026, 8, 17);
+
+        Assert.Equal("torsdag 20:e aug (om 3 dagar)", Format.Deadline(new DateOnly(2026, 8, 20), today));
+    }
+
+    [Fact]
+    public void A_deadline_today_or_tomorrow_says_so()
+    {
+        var today = new DateOnly(2026, 8, 17);
+
+        Assert.EndsWith("(idag)", Format.Deadline(today, today));
+        Assert.EndsWith("(imorgon)", Format.Deadline(today.AddDays(1), today));
+        Assert.EndsWith("(har stängt)", Format.Deadline(today.AddDays(-1), today));
+    }
+
+    /// <summary>Swedish writes 1:a and 2:a but 11:e and 12:e, which the plain rule gets wrong.</summary>
+    [Theory]
+    [InlineData(1, "1:a")]
+    [InlineData(2, "2:a")]
+    [InlineData(3, "3:e")]
+    [InlineData(11, "11:e")]
+    [InlineData(12, "12:e")]
+    [InlineData(21, "21:a")]
+    [InlineData(22, "22:a")]
+    [InlineData(23, "23:e")]
+    [InlineData(31, "31:a")]
+    public void The_day_carries_a_swedish_ordinal(int day, string expected)
+    {
+        var date = new DateOnly(2026, 3, day);
+
+        Assert.Contains(expected, Format.Deadline(date, date.AddDays(-1)));
+    }
 }

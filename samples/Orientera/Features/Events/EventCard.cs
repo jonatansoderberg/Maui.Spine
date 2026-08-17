@@ -1,3 +1,4 @@
+using Microsoft.Maui.Controls.Shapes;
 using Orientera.Domain;
 
 namespace Orientera.Features.Events;
@@ -17,8 +18,33 @@ public sealed partial class EventCard : ObservableObject
     public string? OrganiserLogo { get; init; }
 
     public bool HasOrganiserLogo => !string.IsNullOrEmpty(OrganiserLogo);
-    public required string MetaLabel { get; init; }
+    public required string DisciplineLabel { get; init; }
+
+    public required string LevelLabel { get; init; }
+
+    /// <summary>The distance and the level as one phrase, for the screen reader.</summary>
+    /// <remarks>
+    /// The row draws them as separate labels so a mark can stand beside each. A screen reader
+    /// reads the row as one description, and two fragments with a glyph between them read as two
+    /// unrelated words there.
+    /// </remarks>
+    public string MetaLabel => $"{DisciplineLabel} · {LevelLabel}";
+
     public required string DistanceLabel { get; init; }
+
+    /// <summary>The discipline's mark, and the name the style picks its colour by.</summary>
+    /// <remarks>
+    /// The mark is a scanning aid, not the label: <see cref="MetaLabel"/> still spells the
+    /// distance out beside it, and the accessibility string reads the word rather than the shape.
+    /// </remarks>
+    public required Geometry? DisciplineShape { get; init; }
+
+    public required string DisciplineKey { get; init; }
+
+    /// <summary>The gold cup, for a championship. Null for every other level.</summary>
+    public required Geometry? LevelShape { get; init; }
+
+    public bool HasLevelShape => LevelShape is not null;
 
     /// <summary>"6 tillfällen" for a grouped series, empty otherwise.</summary>
     public string OccurrenceLabel { get; init; } = string.Empty;
@@ -39,15 +65,16 @@ public sealed partial class EventCard : ObservableObject
     public bool HasGroupEntry { get; init; }
 
     [ObservableProperty]
-    public partial bool IsFavourite { get; set; }
+    public partial bool IsInterested { get; set; }
 
-    public string FavouriteGlyph => IsFavourite ? "★" : "☆";
+    public string InterestGlyph => IsInterested ? "★" : "☆";
 
     /// <summary>
     /// "Intresserad", not "favorit". A favourite is a person you follow; about a competition the
-    /// word for the star is whether you are interested in going.
+    /// word for the star is whether you are interested in going, which is why this track is
+    /// called interest and <see cref="Domain.FollowReason.Favourite"/> keeps the other word.
     /// </summary>
-    public string FavouriteDescription => IsFavourite
+    public string InterestDescription => IsInterested
         ? $"Ta bort intressemarkeringen för {Title}"
         : $"Markera att du är intresserad av {Title}";
 
@@ -76,17 +103,17 @@ public sealed partial class EventCard : ObservableObject
             if (ShowContextBadge && ContextLabel.Length > 0)
                 parts.Add(ContextLabel);
 
-            if (IsFavourite)
+            if (IsInterested)
                 parts.Add("intresserad");
 
             return string.Join(", ", parts);
         }
     }
 
-    partial void OnIsFavouriteChanged(bool value)
+    partial void OnIsInterestedChanged(bool value)
     {
-        OnPropertyChanged(nameof(FavouriteGlyph));
-        OnPropertyChanged(nameof(FavouriteDescription));
+        OnPropertyChanged(nameof(InterestGlyph));
+        OnPropertyChanged(nameof(InterestDescription));
         OnPropertyChanged(nameof(Accessibility));
     }
 }

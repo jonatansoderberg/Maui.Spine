@@ -7,8 +7,29 @@ public enum Discipline
     Sprint,
     Middle,
     Long,
+
+    /// <summary>
+    /// Longer than long, and its own thing to a runner deciding whether to go.
+    /// </summary>
+    /// <remarks>
+    /// Eventor states it as <c>UltraLong</c> and it used to be folded into <see cref="Long"/>,
+    /// which made a DM ultralång look like any other forest race in a list where the distance is
+    /// the first thing read.
+    /// </remarks>
+    UltraLong,
+
     Night,
     Relay,
+
+    /// <summary>
+    /// Indoor orienteering, which the federation does not classify at all.
+    /// </summary>
+    /// <remarks>
+    /// There is no <c>raceDistance</c> for it: Eventor calls Karlstad Indoor a sprint like any
+    /// other. The name is the only thing that says otherwise, so this is read from it and is
+    /// marked as unofficial wherever it is shown.
+    /// </remarks>
+    Indoor,
 }
 
 /// <summary>

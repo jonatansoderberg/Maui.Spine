@@ -1,3 +1,4 @@
+using Microsoft.Maui.Controls.Shapes;
 using Orientera.Domain;
 
 namespace Orientera.Features.Home;
@@ -11,18 +12,45 @@ public abstract record HomeBlock
     public required string SectionLabel { get; init; }
 }
 
-public sealed record LiveNowBlock : HomeBlock
+/// <summary>
+/// A block about one competition, and therefore one that can wear its marks.
+/// </summary>
+/// <remarks>
+/// The distance and the level are the same two facts the list in Tävlingar shows, drawn the same
+/// way. Hem was the one place that named a competition without saying what kind it was.
+/// </remarks>
+public abstract record CompetitionBlock : HomeBlock
 {
     public required CompetitionId Competition { get; init; }
+
+    /// <summary>The distance's mark, or null when the calendar does not say.</summary>
+    public Geometry? DisciplineShape { get; init; }
+
+    /// <summary>The name the glyph style picks its colour by.</summary>
+    public string DisciplineKey { get; init; } = string.Empty;
+
+    public string DisciplineLabel { get; init; } = string.Empty;
+
+    public bool HasDisciplineShape => DisciplineShape is not null;
+
+    /// <summary>The gold cup, for a championship. Null for every other level.</summary>
+    public Geometry? LevelShape { get; init; }
+
+    public string LevelLabel { get; init; } = string.Empty;
+
+    public bool HasLevelShape => LevelShape is not null;
+}
+
+public sealed record LiveNowBlock : CompetitionBlock
+{
     public required string Title { get; init; }
     public required string Subtitle { get; init; }
     public required string MyStatus { get; init; }
     public required string ActionText { get; init; }
 }
 
-public sealed record NextForMeBlock : HomeBlock
+public sealed record NextForMeBlock : CompetitionBlock
 {
-    public required CompetitionId Competition { get; init; }
     public required string Title { get; init; }
     public required string WhenText { get; init; }
     public required string PlaceText { get; init; }
@@ -32,9 +60,8 @@ public sealed record NextForMeBlock : HomeBlock
     public required string ActionText { get; init; }
 }
 
-public sealed record LatestResultBlock : HomeBlock
+public sealed record LatestResultBlock : CompetitionBlock
 {
-    public required CompetitionId Competition { get; init; }
     public required string Title { get; init; }
     public required string PlaceText { get; init; }
     public required string TimeText { get; init; }
@@ -49,9 +76,8 @@ public sealed record GroupBlock : HomeBlock
     public required IReadOnlyList<string> Lines { get; init; }
 }
 
-public sealed record DiscoveryBlock : HomeBlock
+public sealed record DiscoveryBlock : CompetitionBlock
 {
-    public required CompetitionId Competition { get; init; }
     public required string Title { get; init; }
     public required string WhenText { get; init; }
     public required string ReasonText { get; init; }

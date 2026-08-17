@@ -43,4 +43,26 @@ public sealed record CompetitionResult
     public TimeSpan? BehindWinner { get; init; }
     public int Starters { get; init; }
     public IReadOnlyList<Split> Splits { get; init; } = [];
+
+    /// <summary>
+    /// What the competition was called and when it was, for results that travel without it.
+    /// </summary>
+    /// <remarks>
+    /// A result read from a competition's own list needs neither — the caller already has the
+    /// competition in hand. A season read off the runner's own page does: the calendar reaches a
+    /// few months back and their January races are outside it, so a result that could not name
+    /// itself would be dropped on the floor by the page that exists to show it.
+    /// </remarks>
+    public string? CompetitionName { get; init; }
+
+    public DateOnly? CompetitionDate { get; init; }
+
+    /// <summary>
+    /// The distance, when the result knows it better than the calendar does.
+    /// </summary>
+    /// <remarks>
+    /// Set for a stage of a multi-day event, where the calendar has one entry for the whole week
+    /// and only the stage's own name says which distance was run.
+    /// </remarks>
+    public Discipline? CompetitionDiscipline { get; init; }
 }

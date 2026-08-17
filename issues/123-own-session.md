@@ -114,7 +114,115 @@ Avgiftssidan behandlas som "vet inte", inte "finns inte" — en död session ser
 - **`WelcomeSheet`** vid första starten, med "Hoppa över".
 - **`ExpiresAt`** räknar bara Eventors egna kakor.
 - **"Intresserad"** ersätter "favorit" om tävlingar; Favoriter är kvar för personer man följer.
+- **Koden följer efter ordet.** Tävlingsspåret heter `Interest` rakt igenom: `IEventSource`
+  (`GetInterestsAsync`/`ToggleInterestAsync`), `QuickFilter.Interested`,
+  `EventCard.IsInterested`/`InterestGlyph`/`InterestDescription`, `RelevanceContext.Interests`,
+  `NotificationContext.Interests`, båda vyerna och testerna. `FollowReason.Favourite` är orörd.
+- **`EventDetailsPageViewModel.InterestDescription`** tillagd — vyn band mot en egenskap som inte
+  fanns, så detaljsidans stjärna saknade uppläsning.
 - **Chip och badge** centrerade vertikalt efter mätning.
+
+### Anmälningar och startlistor, funna vid skarp körning mot BFF:en
+
+Backend-läget saknade två saker som demoläget hade, och de hängde ihop.
+
+- **`BackendSource.GetEntriesAsync` returnerade hårdkodat `[]`.** Följden var inte bara att
+  "Anmäld" aldrig kunde visas. `MyEntries` är den tyngsta enskilda signalen i
+  `RelevanceEngine` (`PersonalScore` väger 0,40 och ger 1,0 för en anmälan), och BFF:ens
+  kalendersvar bär `classes: []`, så klasstermen tänder inte heller. **`PersonalScore` var därmed
+  0 för varje tävling**, och "För dig" rankade på storlek, avstånd och tid allena — en MTBO-SM
+  98 km bort låg jämsides med den nationella tävlingen användaren skulle springa på söndag.
+- **Anmälningarna läses nu på telefonen** ur `/MyPages/Events`, med användarens egen session, av
+  samma skäl som rankingen. Raden känns igen på länken till `/Entry?eventId=`, inte på datumet:
+  en tävling som sprungits i morse är förbi vid lunch, och datumregeln hade kallat den anmälan
+  till midnatt. Eventors `eventId` **är** kalenderns id — 53725 på båda sidor — så ingen matchning
+  behövs.
+- **Startlistorna matchade aldrig.** BFF:en fyller `Start.Person` med Eventors `PersonId`, medan
+  identiteten bara kunde vara `me:namn-klubb`. `starts.FirstOrDefault(s => s.Person == me.Id)`
+  jämförde två id-rymder som inte kunde mötas, på en sida som visade användarens egen startlista.
+  `GetMeAsync` bär nu sessionens `PersonId` när någon är inloggad. Mätt: tävling 55850 har 309
+  starter, varav en är `121330`.
+- **`RegisteredAt` finns inte på sidan** och sätts till `DateTimeOffset.MinValue`. Appen frågar
+  bara om anmälan ligger i det förflutna. Ett påhittat klockslag hade hamnat i offlinepaketet och
+  överlevt gissningen.
+
+### Anmälda löpare före lottningen
+
+Detaljsidan hade ingen väg till fältet förrän startlistan var lottad, vilket är precis de veckor
+man bestämmer sig. Eventor publicerar listan hela tiden på
+`/Events/Entries?eventId=…&groupBy=EventClass` — en rubrik och en tabell per klass, trettio av
+varje för en nationell tävling.
+
+- **Den ligger i BFF:en, inte på telefonen.** Sidan svarar identiskt utan kakor — mätt. Publikt
+  läses av backend och cachas åt alla; personligt läses på telefonen. Att lägga den på enheten
+  hade varit 90 kB per användare och hade slutat fungera utloggad utan skäl. Eventors API svarar
+  403 på `/entries` med klubbens nyckel, så det blir HTML.
+- **Klassrubriken måste bära sitt antal för att räknas.** Sidans egen sidorubrik "Produkter och
+  tjänster" parades annars ihop med första klasstabellen och adertons löpare hamnade i en klass
+  uppkallad efter en annons. `(\d+)` i rubriken är Eventors egen markör för att det *är* en klass.
+- **Sektionen är en, i två lägen.** Före lottningen "ANMÄLDA" med namn och klubb; efter den
+  "STARTFÄLT" med Sverigelistan. Ordningskolumnen och poängen döljs i det första läget — de finns
+  inte, och tomma kolumner hade lästs som en ranking som inte laddat.
+- **Läsaren hittas på namn och klubb.** Anmälningslistan publicerar inga person-id, så
+  `RunnerIdentity` gör jobbet, precis som i livelistorna.
+
+### Anmälan slår valt klassval (ändrar #61)
+
+`live-classes.json` hade `{"53725":"H45"}` medan anmälan var i H21, och sidan visade H45 —
+korrekt enligt #61, där ett valt klassval vinner. Den regeln skrevs när appen omöjligt kunde veta
+vad någon faktiskt anmält sig i. Nu finns ett faktum där det bara fanns en preferens.
+
+Priset för att inte ändra var mätbart: **H21 har 36 anmälda, H45 har 3.** Sidan hade erbjudit fel
+startlista, fel fält och fel starttid. Ordningen är nu anmälan → valt klassval → starttid →
+förvald klass. Väljaren bestämmer fortfarande varje tävling man *inte* är anmäld till, vilket är
+alla de den egentligen fanns för.
+
+### Steg 4 byggt, och en andra väg in att utvärdera
+
+Sessionens livslängd mättes en tredje gång: **1,5 timme.** Två dygn, sedan nittio minuter — det
+går inte att planera kring, och en utloggad app tappar anmälningar, resultat och Sverigelistan
+på en gång. Steg 4 är därför byggt.
+
+- **`EventorLoginForm`** samlar Eventors fältnamn på ett ställe — `PersonUsername`,
+  `PersonPassword`, `PersonPersistentLogin`, `PersonLogin` i `form[action="/Login"]`, uppmätta på
+  den skarpa sidan. Klubbinloggningen på samma sida rörs inte.
+- **Appen postar aldrig till `/Login` själv.** Den fyller förbundets eget formulär i webbvyn och
+  låter det skicka. Cloudflares utmaning laddas i sidans `<head>`, och ett rått anrop hade fallit
+  på den — tyst, med en inloggningssida som svar i stället för ett fel. Samma väg överlever den
+  dag tvåfaktor tillkommer: sidan står redan öppen framför användaren.
+- **Lösenordet sparas först när Eventor accepterat det**, hämtat ur formulärets egen submit och
+  lagt i `SecureStorage` (nyckelringen). Att spara det innan hade sparat ett felaktigt lösenord
+  och spelat upp det för alltid.
+- **Återinloggningen sker vid start**, en gång, och bara när läget faktiskt är `Expired`. Går den
+  inte igenom står Eventors sida kvar öppen — det enda som kan lösa problemet.
+- **Löftet är omskrivet.** Välkomsttexten sa "appen ser aldrig ditt lösenord". Det är inte längre
+  sant, och en text som inte är sann är värre än ingen. Nu står det var uppgifterna hamnar: i
+  telefonens säkra lager, aldrig på någon server.
+
+**`AppLoginSheet`** ligger bredvid som andra väg in, för utvärdering: appens egna fält i stället
+för Eventors sida. Den delar hela mekanismen — samma formulär, samma POST, samma lagring — och
+skillnaden är bara var lösenordet skrivs. Argumentet emot är noterat i klassens egen dokumentation
+och ska vägas på riktig telefon innan någon av vägarna tas bort: den som lärt sig skriva sitt
+Eventor-lösenord i en app som inte är Eventor har lärt sig den vana nätfiske lever på, och fälten
+har ingenstans att visa en utmaning som kräver interaktion.
+
+### Steg 4 verifierat skarpt
+
+17 aug: sessionen dödades avsiktligt kl. 08:25 och appen startades om. Den skrev en ny giltig
+session åt sig själv 08:25:58, utan att fråga, och Hem visade både resultat och Sverigelistan —
+båda kräver en levande inloggning. Sessionen har nu mätts till två dygn, nittio minuter och några
+timmar; ingen av dem går att planera kring, och ingen av dem märks längre.
+
+Två fel hittades på vägen dit, båda tysta:
+
+- **Värdena kom aldrig fram.** De skickades tillbaka från webbvyn åtskilda av en radbrytning, som
+  anlände som de två tecknen `\` och `n`. Uppdelningen fann ett fält i stället för två, ingenting
+  sparades, och den tysta inloggningen förblev tyst utan ett felmeddelande någonstans. Läses nu
+  ett värde i taget, procentkodade, så att inget tecken behöver överleva plattformarnas olika sätt
+  att återge en JavaScript-sträng.
+- **"Det visas inget inloggningsformulär på Eventor."** Det gjorde det, en och en halv skärm ned
+  under förbundets nyheter och de sociala inloggningsknapparna. Arket rullar nu dit av sig självt.
+  Rapporterat från en riktig körning, vilket är den enda plats det kunde upptäckas.
 
 ## Decisions
 
@@ -123,7 +231,26 @@ Avgiftssidan behandlas som "vet inte", inte "finns inte" — en död session ser
   rätt pris: listan är klubbens egen och lästes tidigare med en annan medlems inloggning.
 - **Klassen förblir användarens val** även när Eventor har en förvald klass. Eventors värde blir
   förslaget vid inloggning, inte sanningen — man anmäler sig i andra klasser än sin normala.
-- **Steg 4 byggs inte**, men premissen för att låta bli är inte längre mätt. Se kaktabellen ovan.
+- **Steg 4 byggs inte här, men premissen för att låta bli är nu motbevisad.** Antagandet var att
+  Eventors "kom ihåg mig" håller inloggningen levande så länge att en återinloggning inte behövs.
+  Mätt med rutan ikryssad sätter Eventor ingen beständig kaka alls, så sessionen dör när servern
+  glömmer den — utan förvarning och utan datum att visa. `EventorCredentialStore` finns redan och
+  motiverar varför en återinloggning måste köras genom Eventors eget formulär. Det är nästa steg,
+  och nu av ett skäl som är mätt.
+- **`Interested`, inte `Interests`, i `QuickFilter`.** Chipet är ett predikat om tävlingen —
+  "intresserad" — och läser då som `IsInterested`. Mängden heter `Interests` där den är en mängd
+  (`GetInterestsAsync`, `RelevanceContext.Interests`).
+- **Inget HTTP-kontrakt rörs.** Intressemarkeringarna är lokala och passerar aldrig nätet, så
+  namnbytet stannar i C#. `IEventSource` mot backend delegerar bara vidare till det lokala spåret.
+- **`ExpiresAt` läser inloggningskakan vid namn, inte "alla utom spårarna".** Uteslutningslistan
+  höll i en burk och sprack i nästa: andra körningen hade tjugo kakor i stället för fjorton, och
+  Googles fyra på `.orientering.se` stod inte i listan, så appen lovade *giltig till 16 sep 2027*
+  igen — ur en annan kaka. En lista över alla andras kakor blir aldrig färdig. Skälet att ändå
+  välja uteslutning var att "kom ihåg mig" var omätt; nu är den mätt och lägger ingenting till,
+  så `ASP.NET_SessionId` kan namnges. Fyra tester håller det på plats — det fanns inga förut,
+  vilket är varför det kunde gå sönder tyst.
+- **Kravdokumenten under `docs/krav/` är inte omskrivna.** De säger fortfarande "lokala favoriter"
+  om tävlingar. Det är en redaktionell ändring i specen, inte i koden, och tas separat.
 
 ## Verifiering
 
@@ -161,8 +288,38 @@ text rättar den. Chipen är en annan sak: `MinimumHeightRequest` sätter höjde
 lägger överskottet under innehållet, så där är det paddingen som måste vara osymmetrisk.
 `VerticalTextAlignment` på chipetiketten mätte **ingen** skillnad och togs bort igen.
 
-### Kvar att mäta
+### Den skarpa inloggningen, mätt
 
-Den skarpa inloggningen: att kontot sätts automatiskt, att klassen förväljs från "Förvald klass 1",
-och framför allt vad "Kom ihåg mig" faktiskt lägger i burken. Sessionen i appen är fortfarande den
-från #124, som saknar konto.
+Körd 12 aug 2026 13:32 i simulatorn, med tömd kakburk och utan sparad identitet så att inget
+kunde ärvas från förra körningen.
+
+**Kontot sätts automatiskt.** `Account` i den sparade sessionen:
+namn *Jonatan Söderberg*, klubb *Gävle OK*, klubbid *115*, förvald klass *H21* — allt fyra
+stämmer med mätningen mot sidorna. Jag-fliken bytte från den seedade demolöparen till rätt namn
+och klubb utan att någon skrev in något.
+
+**Klassen förväljs, och skrivs över av den som äger den.** Eventor svarade *H21* från
+*Förvald klass 1*, och det var vad Jag-fliken visade efter inloggningen. Den byttes sedan till
+*H45* för hand, vilket är precis det designen ville: Eventors värde är förslaget, inte sanningen.
+Att `identity.json` skrevs fjorton sekunder efter sessionen är den ändringen, inte en bugg —
+`IdentitySheet` skrev den, inte inloggningen.
+
+**"Kom ihåg mig" lägger ingenting i burken — med rutan ikryssad.** Bekräftat vid körningen, vilket
+är vad som gör mätningen värd något: det är inte en oikryssad ruta som förklarar det som saknas.
+Tjugo kakor kom in, en enda är Eventors inloggning:
+
+| Kaka | Domän | Utgång |
+|---|---|---|
+| `ASP.NET_SessionId` | `eventor.orientering.se` | **ingen** |
+| `_ga`, `_ga_2775GT7RJT`, `__gads`, `__gpi`, `__eoi` | `.orientering.se` | 2027 |
+| `adksid`, `adkvid`, `lwuid`, `__browsiSessionID`, `ple`, `pld` | `eventor.orientering.se` | 2026–2027 |
+| `__utma/b/z/t/c`, `usprivacy`, `euconsent-v2`, `IABGPP_HDR_GppString` | `.eventor.orientering.se` | 2026–2027 |
+
+Därmed är den andra omätta förklaringen **avfärdad**: filtret står nu öppet för hela
+`orientering.se`, och det enda som ligger där är Googles kakor. Ingen beständig
+Eventor-kaka finns — inte för att den filtrerades bort, utan för att den inte sätts.
+**"En inloggning per år" är fel premiss.** Sessionen lever så länge Eventor minns den på sin sida,
+och steg 4 har därmed ett verkligt skäl som det inte hade förut.
+
+**Löftet "giltig till 16 sep 2027" kom tillbaka** — den här gången ur `_ga` i stället för `ple`.
+Se beslutet nedan.

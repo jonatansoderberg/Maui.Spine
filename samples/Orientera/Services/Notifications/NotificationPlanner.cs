@@ -17,7 +17,7 @@ public sealed record NotificationContext
     public IReadOnlyDictionary<CompetitionId, string> GroupEntries { get; init; } =
         new Dictionary<CompetitionId, string>();
 
-    public IReadOnlySet<CompetitionId> Favourites { get; init; } = new HashSet<CompetitionId>();
+    public IReadOnlySet<CompetitionId> Interests { get; init; } = new HashSet<CompetitionId>();
 
     /// <summary>My start time, where the start list has been drawn.</summary>
     public IReadOnlyDictionary<CompetitionId, DateTimeOffset> MyStarts { get; init; } =
@@ -49,7 +49,7 @@ public static class NotificationPlanner
         {
             bool mine = context.MyEntries.Contains(competition.Id);
             bool group = context.GroupEntries.ContainsKey(competition.Id);
-            bool followed = mine || group || context.Favourites.Contains(competition.Id);
+            bool followed = mine || group || context.Interests.Contains(competition.Id);
 
             if (!followed)
                 continue;

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Microsoft.Maui.Controls.Shapes;
 using Orientera.Domain;
 using Orientera.Features.Dev;
 using Orientera.Presentation;
@@ -11,6 +12,13 @@ namespace Orientera.Features.Profile;
 public sealed record RankingRow
 {
     public required string Name { get; init; }
+
+    /// <summary>The distance the race's own name states, drawn. Null when it states none.</summary>
+    public Geometry? DisciplineShape { get; init; }
+
+    public string DisciplineKey { get; init; } = string.Empty;
+
+    public bool HasDisciplineShape => DisciplineShape is not null;
     public required string DateText { get; init; }
     public required string PointsText { get; init; }
     public required bool IsCounting { get; init; }
@@ -132,6 +140,21 @@ public partial class ProfilePageViewModel(
     }
 
     /// <summary>
+    /// Den andra vägen in: appens egna fält i stället för Eventors sida.
+    /// </summary>
+    /// <remarks>
+    /// Ligger bredvid den första med avsikt, inte i stället för. Båda skickar samma POST från
+    /// samma formulär; det som skiljer är var lösenordet skrivs, och det är den skillnaden som
+    /// ska utvärderas på en riktig telefon innan någon av dem tas bort.
+    /// </remarks>
+    [RelayCommand]
+    private async Task OpenAppLogin()
+    {
+        await _navigation.NavigateToWithResultAsync<AppLoginSheet, EventorWebSession>();
+        await ReloadAsync();
+    }
+
+    /// <summary>
     /// What the login can and cannot read, in the user's words.
     /// </summary>
     /// <remarks>
@@ -163,7 +186,7 @@ public partial class ProfilePageViewModel(
 
         RankingExplanation = access switch
         {
-            EventorAccess.NoSession => "Logga in på Eventor så visas din Sverigelistan här. Appen ser aldrig ditt lösenord — du loggar in på Eventors egen sida.",
+            EventorAccess.NoSession => "Logga in på Eventor så visas din Sverigelistan här. Du loggar in på Eventors egen sida, och uppgifterna stannar på telefonen.",
             EventorAccess.Expired => "Inloggningen har gått ut. Logga in igen så visas din Sverigelistan här.",
             EventorAccess.NoSubscription => "Din klubb har inte betalat avgiften för Sverigelistan i år, så det finns ingen placering att visa.",
             _ => string.Empty,
@@ -340,9 +363,13 @@ public partial class ProfilePageViewModel(
         // "resultat i snittet", where they were not in the average at all.
         foreach (var result in ranking.Counting.OrderByDescending(r => r.Date))
         {
+            var discipline = DisciplineNames.In(result.CompetitionName);
+
             CountingResults.Add(new RankingRow
             {
                 Name = result.CompetitionName,
+                DisciplineShape = DisciplineShape.For(discipline),
+                DisciplineKey = discipline?.ToString() ?? string.Empty,
                 DateText = result.Date.ToString("d MMM yyyy"),
                 PointsText = result.Points.ToString("N2", Format.Culture),
                 IsCounting = result.IsCounting,

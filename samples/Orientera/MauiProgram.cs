@@ -45,6 +45,17 @@ public static class MauiProgram
                 options.Windows.MinHeight = 600;
                 options.Windows.PersistWindowPosition = true;
 
+                // The tab bar floats over the content instead of standing on top of it: iOS 26
+                // draws it as Liquid Glass, and glass with nothing behind it is just a grey pill.
+                // Spine stops padding the bottom edge, and each page's own list pays for the
+                // clearance out of SafeAreaInsets — which the tab host measures with the bar
+                // included, so the last row still scrolls clear of it.
+                // Qualified: MAUI 10 has a SafeAreaEdges of its own, and both are in scope here.
+                options.TabDefaults.SafeAreaEdges =
+                    Plugin.Maui.Spine.Core.SafeAreaEdges.Top
+                    | Plugin.Maui.Spine.Core.SafeAreaEdges.Left
+                    | Plugin.Maui.Spine.Core.SafeAreaEdges.Right;
+
                 // #E8590C is the one orange that clears 3:1 against both the light and the
                 // dark native bar; the per-theme AccentAction tokens are tuned for text.
                 options.Tabs.Style = new SpineTabBarStyle
@@ -120,9 +131,25 @@ public static class MauiProgram
 
         // Sverigelistan, the club's activities and the points beside a start field are read here,
         // on the phone, with that session — never by the backend on someone else's behalf (#123).
-        services.AddSingleton(sp => new EventorReader(
-            new HttpClient { Timeout = TimeSpan.FromSeconds(20) },
-            sp.GetRequiredService<EventorSessionStore>()));
+        // Redirects are not followed: a dead session makes Eventor bounce /Home/Index to
+        // /PersistentLogin and back without end, and the reader needs to see the 302 itself to
+        // tell "logged out" from "not answering" (#123).
+        services.AddSingleton(sp =>
+        {
+            var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+            {
+                Timeout = TimeSpan.FromSeconds(20),
+            };
+
+            // Eventor inspects the User-Agent and answers 403 to ones it does not like — measured
+            // with urllib's default, which it refuses outright. These are the federation's own web
+            // pages being read on behalf of a person sitting in the app, so the app says so rather
+            // than arriving anonymously and hoping.
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                $"Orientera/1.0 ({DeviceInfo.Platform}; {DeviceInfo.VersionString})");
+
+            return new EventorReader(http, sp.GetRequiredService<EventorSessionStore>());
+        });
 
         services.AddSingleton(_ => new DistrictStore(
             Path.Combine(FileSystem.AppDataDirectory, "districts.json")));

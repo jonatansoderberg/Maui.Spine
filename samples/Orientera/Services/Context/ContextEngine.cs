@@ -113,7 +113,7 @@ public static class ContextEngine
         ContextState.RegistrationOpen => "Anmäl dig",
         ContextState.Registered => "Förbered",
         ContextState.PmPublished => "Läs det viktigaste",
-        ContextState.StartListPublished => "Visa min start",
+        ContextState.StartListPublished => "Visa startlistan",
         ContextState.RaceDay => "Navigera",
         ContextState.Live => "Följ live",
         ContextState.Finished => "Se preliminärt",

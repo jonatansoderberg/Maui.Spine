@@ -22,7 +22,10 @@ public static partial class EventorCookies
                 .Select(c => new SessionCookie(
                     c.Name,
                     c.Value,
-                    c.ExpiresDate is { } expires ? (DateTimeOffset)(DateTime)expires : null)),
+                    c.ExpiresDate is { } expires ? (DateTimeOffset)(DateTime)expires : null)
+                {
+                    Domain = c.Domain,
+                }),
         ];
     }
 }

@@ -15,7 +15,8 @@ public partial class WelcomeSheetViewModel(INavigationService _navigation) : Vie
 {
     public string Explanation =>
         "Loggar du in på Eventor vet appen vem du är: dina anmälningar, din klubbs aktiviteter och "
-        + "din plats på Sverigelistan. Du loggar in på Eventors egen sida — appen ser aldrig ditt lösenord.";
+        + "din plats på Sverigelistan. Du loggar in på Eventors egen sida, och uppgifterna sparas i\n"
+        + "telefonens säkra lager så att du slipper göra om det — aldrig på någon server.";
 
     public string SkipExplanation =>
         "Du kan titta runt först. Tävlingskalendern och resultaten finns utan inloggning.";

@@ -1,0 +1,24 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Events.EventorEntrySheet"
+    x:TypeArguments="EventorEntrySheetViewModel"
+    x:DataType="EventorEntrySheetViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <Label Grid.Row="0"
+               Style="{StaticResource CaptionLabel}"
+               Padding="16,4,16,10"
+               Text="Anmälan sker hos Eventor. Du är redan inloggad här." />
+
+        <!-- Eventors egen anmälningssida, i appens web view — där sessionen finns. -->
+        <WebView Grid.Row="1" Source="{Binding EntryUrl}" />
+
+        <Button Grid.Row="2"
+                Style="{StaticResource SecondaryButton}"
+                Margin="16,10"
+                Text="Klar"
+                Command="{Binding CloseCommand}" />
+    </Grid>
+</SpinePage>

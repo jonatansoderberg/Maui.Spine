@@ -14,7 +14,10 @@ namespace Orientera.Features.Events;
 public sealed partial class FilterChip : ObservableObject
 {
     public required QuickFilter Filter { get; init; }
-    public required string Label { get; init; }
+
+    /// <summary>Settable because the district chip is named after whoever is holding the phone.</summary>
+    [ObservableProperty]
+    public required partial string Label { get; set; }
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
@@ -32,18 +35,21 @@ public partial class EventsPageViewModel(
 {
     private IReadOnlyList<Competition> _all = [];
     private Person? _me;
-    private IReadOnlySet<CompetitionId> _favourites = new HashSet<CompetitionId>();
+    private IReadOnlySet<CompetitionId> _interests = new HashSet<CompetitionId>();
+
+    /// <summary>Before the identity has loaded, and for anyone whose district is unknown.</summary>
+    private const string DistrictChipLabel = "Mitt distrikt";
     private EventFilter _filter = EventFilter.Default;
 
     public ObservableCollection<FilterChip> Chips { get; } =
     [
         new() { Filter = QuickFilter.ForYou, Label = "För dig", IsSelected = true },
         new() { Filter = QuickFilter.Near, Label = "Nära" },
-        new() { Filter = QuickFilter.District, Label = "Gästrikland" },
+        new() { Filter = QuickFilter.District, Label = DistrictChipLabel },
         new() { Filter = QuickFilter.Bigger, Label = "Större" },
         new() { Filter = QuickFilter.ThisWeek, Label = "Denna vecka" },
         new() { Filter = QuickFilter.Mine, Label = "Mina" },
-        new() { Filter = QuickFilter.Favourites, Label = "Intresserad" },
+        new() { Filter = QuickFilter.Interested, Label = "Intresserad" },
         new() { Filter = QuickFilter.Past, Label = "Tidigare" },
     ];
 
@@ -150,12 +156,12 @@ public partial class EventsPageViewModel(
         await _navigation.NavigateToAsync<EventDetailsPage, CompetitionId>(card.Competition);
 
     [RelayCommand]
-    private async Task ToggleFavourite(EventCard card)
+    private async Task ToggleInterest(EventCard card)
     {
-        card.IsFavourite = await _events.ToggleFavouriteAsync(card.Competition);
-        _favourites = await _events.GetFavouritesAsync();
+        card.IsInterested = await _events.ToggleInterestAsync(card.Competition);
+        _interests = await _events.GetInterestsAsync();
 
-        if (Selected == QuickFilter.Favourites)
+        if (Selected == QuickFilter.Interested)
             await BuildAsync();
     }
 
@@ -164,8 +170,13 @@ public partial class EventsPageViewModel(
 
     private async Task ReloadAsync()
     {
-        // Identity and favourites are local, so they load whether or not there is a connection.
+        // Identity and interests are local, so they load whether or not there is a connection.
         _me = await _people.GetMeAsync();
+
+        // The chip is named after the user's own district. It used to read "Gästrikland" for
+        // everybody, which was right for exactly one person and a lie for the rest.
+        Chips.First(c => c.Filter == QuickFilter.District).Label =
+            _me.District is { Length: > 0 } district ? district : DistrictChipLabel;
 
         // Where you look is a standing preference; what you searched for last week is not.
         if (_districts.Load() is { Count: > 0 } saved)
@@ -174,7 +185,7 @@ public partial class EventsPageViewModel(
             ShowFilterAction();
         }
 
-        _favourites = await _events.GetFavouritesAsync();
+        _interests = await _events.GetInterestsAsync();
 
         await LoadAsync(async () =>
         {
@@ -211,7 +222,11 @@ public partial class EventsPageViewModel(
                 DateLabel = Format.RelativeDate(competition.Date, today),
                 PlaceLabel = $"{competition.Organiser} · {competition.Place}",
                 OrganiserLogo = competition.OrganiserLogo,
-                MetaLabel = $"{Format.Discipline(competition.Discipline)} · {Format.Level(competition.Level)}",
+                DisciplineLabel = Format.Discipline(competition.Discipline),
+                LevelLabel = Format.Level(competition.Level),
+                LevelShape = DisciplineShape.For(competition.Level),
+                DisciplineShape = DisciplineShape.For(competition.Discipline),
+                DisciplineKey = competition.Discipline.ToString(),
                 DistanceLabel = _me is null ? string.Empty : Format.Distance(_me.Home.DistanceKmTo(competition.Location)),
                 ContextLabel = "Sparad offline",
                 ShowContextBadge = true,
@@ -227,6 +242,8 @@ public partial class EventsPageViewModel(
         IsEmpty = !HasCards;
         EmptyMessage = "Ingen anslutning, och inga sparade tävlingar. Tävlingar sparas när du är anmäld, följer dem eller markerar dig som intresserad.";
     }
+
+    protected override void ClearEmptyState() => IsEmpty = false;
 
     private async Task BuildAsync()
     {
@@ -251,7 +268,7 @@ public partial class EventsPageViewModel(
             MyClass = _me.DefaultClass,
             MyEntries = mine,
             GroupEntries = groupEntries,
-            Favourites = _favourites,
+            Interests = _interests,
         };
 
         var candidates = _all
@@ -273,7 +290,7 @@ public partial class EventsPageViewModel(
             // Newest first: the race someone is looking back at is the one just run.
             QuickFilter.Past => groups.OrderByDescending(g => g.LastDate).ToList(),
             QuickFilter.ForYou => groups
-                .OrderByDescending(g => g.Occurrences.Max(c => RelevanceEngine.Score(c, relevance).Total))
+                .OrderByDescending(g => g.Occurrences.Max(c => RelevanceEngine.Ranking(c, relevance)))
                 .ThenBy(g => EventTimeline.SortDate(g, today))
                 .ToList(),
             _ => groups.OrderBy(g => EventTimeline.SortDate(g, today)).ThenBy(g => g.Title).ToList(),
@@ -367,7 +384,7 @@ public partial class EventsPageViewModel(
             QuickFilter.Bigger => competition.Level <= CompetitionLevel.National,
             QuickFilter.ThisWeek => competition.Date >= today && competition.Date <= today.AddDays(7),
             QuickFilter.Mine => mine.Contains(competition.Id) || groupEntries.Contains(competition.Id),
-            QuickFilter.Favourites => _favourites.Contains(competition.Id),
+            QuickFilter.Interested => _interests.Contains(competition.Id),
             _ => true,
         };
 
@@ -396,7 +413,11 @@ public partial class EventsPageViewModel(
                 : Format.RelativeDate(eventGroup.FirstDate, today),
             PlaceLabel = $"{eventGroup.Organiser} · {eventGroup.Place}",
             OrganiserLogo = primary.OrganiserLogo,
-            MetaLabel = $"{Format.Discipline(eventGroup.Discipline)} · {Format.Level(eventGroup.Level)}",
+            DisciplineLabel = Format.Discipline(eventGroup.Discipline),
+            LevelLabel = Format.Level(eventGroup.Level),
+            LevelShape = DisciplineShape.For(eventGroup.Level),
+            DisciplineShape = DisciplineShape.For(eventGroup.Discipline),
+            DisciplineKey = eventGroup.Discipline.ToString(),
             DistanceLabel = Format.Distance(distance),
             OccurrenceLabel = eventGroup.IsRecurring ? $"{eventGroup.Occurrences.Count} tillfällen" : string.Empty,
             ContextLabel = decision.StateText,
@@ -405,14 +426,14 @@ public partial class EventsPageViewModel(
             IsRegistered = eventGroup.Occurrences.Any(c => mine.Contains(c.Id)),
             HasGroupEntry = eventGroup.Occurrences.Any(c => groupEntries.Contains(c.Id))
                             && !eventGroup.Occurrences.Any(c => mine.Contains(c.Id)),
-            IsFavourite = _favourites.Contains(primary.Id),
+            IsInterested = _interests.Contains(primary.Id),
         };
     }
 
     private static string EmptyMessageFor(QuickFilter filter) => filter switch
     {
         QuickFilter.Mine => "Du är inte anmäld till något just nu.",
-        QuickFilter.Favourites => "Inga tävlingar du markerat som intresserad. Tryck på stjärnan i listan.",
+        QuickFilter.Interested => "Inga tävlingar du markerat som intresserad. Tryck på stjärnan i listan.",
         QuickFilter.ThisWeek => "Inget den här veckan. Prova Större eller För dig.",
         QuickFilter.Near => "Inget i närheten. Vidga sökningen i filtret.",
         QuickFilter.Past => "Inga tidigare tävlingar i kalenderfönstret.",

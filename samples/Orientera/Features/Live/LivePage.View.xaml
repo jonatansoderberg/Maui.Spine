@@ -25,7 +25,7 @@
                 </HorizontalStackLayout.GestureRecognizers>
             </HorizontalStackLayout>
             <HorizontalStackLayout Spacing="8">
-                <Border Style="{StaticResource BadgeLive}">
+                <Border Style="{StaticResource BadgeLive}" IsVisible="{Binding IsRunningNow}">
                     <Label Style="{StaticResource BadgeOnFillLabel}" Text="Live" />
                 </Border>
                 <Label Style="{StaticResource NumericCaptionLabel}"
@@ -100,7 +100,10 @@
                 </CollectionView.GroupHeaderTemplate>
 
                 <CollectionView.Footer>
-                    <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
+                    <!-- Margin carries the tab bar's own height; the height is the breathing room. -->
+                    <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
+                             Margin="{Binding SafeAreaInsets}"
+                             Color="Transparent" />
                 </CollectionView.Footer>
 
                 <CollectionView.ItemTemplate>
@@ -196,6 +199,11 @@
             </CollectionView>
         </ScrollView>
 
-    </Grid>
+    
+        <ActivityIndicator Style="{StaticResource PageLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}" />
+
+</Grid>
 
 </SpinePage>

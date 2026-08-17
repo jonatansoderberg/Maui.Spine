@@ -19,9 +19,9 @@ public interface IEventSource
     Task<Series?> GetSeriesAsync(SeriesId id, CancellationToken cancellationToken = default);
 
     /// <summary>Locally starred competitions — works without an account, per the product principles.</summary>
-    Task<IReadOnlySet<CompetitionId>> GetFavouritesAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlySet<CompetitionId>> GetInterestsAsync(CancellationToken cancellationToken = default);
 
-    Task<bool> ToggleFavouriteAsync(CompetitionId competition, CancellationToken cancellationToken = default);
+    Task<bool> ToggleInterestAsync(CompetitionId competition, CancellationToken cancellationToken = default);
 }
 
 public interface IPeopleSource
@@ -174,6 +174,17 @@ public interface IClubActivitySource
 public interface IStartFieldSource
 {
     Task<IReadOnlyList<StartFieldRunner>> GetStartFieldAsync(
+        CompetitionId competition, string className, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Who has entered, for the weeks before the draw when there is no start list yet.
+    /// </summary>
+    /// <remarks>
+    /// Names and clubs only — the entry list publishes no start times, no person ids and no
+    /// points, and a row that pretended otherwise would be inventing the very thing the reader
+    /// opened the list to find out.
+    /// </remarks>
+    Task<IReadOnlyList<StartFieldRunner>> GetEntryListAsync(
         CompetitionId competition, string className, CancellationToken cancellationToken = default);
 }
 

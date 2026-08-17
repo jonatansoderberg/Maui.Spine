@@ -115,13 +115,13 @@ public class BackendSourceTests
         await Assert.ThrowsAsync<SourceUnavailableException>(() => source.GetCompetitionsAsync());
     }
 
-    /// <summary>Favourites and identity are local by principle: no account, no connection needed.</summary>
+    /// <summary>Interests and identity are local by principle: no account, no connection needed.</summary>
     [Fact]
     public async Task Local_data_answers_even_when_the_backend_does_not()
     {
         var source = Offline();
 
-        Assert.NotEmpty(await source.GetFavouritesAsync());
+        Assert.NotEmpty(await source.GetInterestsAsync());
         Assert.Equal(FakeDataset.Instance.Me.Name, (await source.GetMeAsync()).Name);
     }
 
@@ -291,5 +291,82 @@ public class BackendSourceTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             throw new HttpRequestException("Connection refused.");
+    }
+}
+
+/// <summary>
+/// The reader's own season, all the way from Eventor's page to the list the Resultat tab binds to.
+/// </summary>
+/// <remarks>
+/// End to end on purpose. The parser was green and the tab was still empty, which is exactly the
+/// gap a parser test cannot see: everything between the page and the page's list — the login
+/// check, the cache, the mapping onto the domain — sits outside it.
+/// </remarks>
+public class MyResultsThroughTheSourceTests
+{
+    private static BackendSource Source()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"orientera-session-{Guid.NewGuid():N}.json");
+        var sessions = new EventorSessionStore(path);
+
+        sessions.Save(new EventorWebSession
+        {
+            Cookies = [new SessionCookie("ASP.NET_SessionId", "live", null)],
+            PersonId = "121330",
+            CapturedAt = DateTimeOffset.Now,
+        });
+
+        var eventor = new EventorReader(new HttpClient(new MyPagesHandler()), sessions);
+
+        return new BackendSource(
+            new HttpClient { BaseAddress = new Uri("http://localhost/api/") },
+            new FakeDataSource(new TimeMachineClock(FakeDataset.DefaultNow)),
+            new LocalIdentityStore(Path.Combine(Path.GetTempPath(), $"id-{Guid.NewGuid():N}.json")),
+            new LocalGroupStore(Path.Combine(Path.GetTempPath(), $"grp-{Guid.NewGuid():N}.json")),
+            eventor);
+    }
+
+    [Fact]
+    public async Task A_season_of_results_reaches_the_app()
+    {
+        var results = await Source().GetResultsForPersonAsync(new PersonId("121330"));
+
+        Assert.NotEmpty(results);
+    }
+
+    [Fact]
+    public async Task A_result_names_its_own_competition_so_the_calendar_need_not()
+    {
+        var results = await Source().GetResultsForPersonAsync(new PersonId("121330"));
+
+        Assert.All(results, r => Assert.False(string.IsNullOrWhiteSpace(r.CompetitionName)));
+        Assert.All(results, r => Assert.NotNull(r.CompetitionDate));
+    }
+
+    [Fact]
+    public async Task The_newest_race_comes_first()
+    {
+        var results = await Source().GetResultsForPersonAsync(new PersonId("121330"));
+
+        Assert.Equal(
+            results.Select(r => r.CompetitionDate).OrderByDescending(d => d).ToList(),
+            results.Select(r => r.CompetitionDate).ToList());
+    }
+
+    /// <summary>Eventor answers every page the reader asks for with the real "Mina tävlingar".</summary>
+    private sealed class MyPagesHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            string file = request.RequestUri!.AbsolutePath.Contains("MyPages/Events")
+                ? Fixture.PathFor("Eventor", "myevents-121330.html")
+                : Fixture.PathFor("Eventor", "home-121330.html");
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(File.ReadAllText(file), Encoding.UTF8, "text/html"),
+            });
+        }
     }
 }

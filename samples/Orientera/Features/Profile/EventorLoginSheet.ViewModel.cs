@@ -16,8 +16,32 @@ public partial class EventorLoginSheetViewModel(
     INavigationService _navigation,
     EventorSessionStore _sessions,
     EventorReader _eventor,
-    LocalIdentityStore _identity) : ViewModelBase
+    EventorCredentialStore _credentials,
+    LocalIdentityStore _identity) : ViewModelBase, IReceivesNavigationParameter<EventorLoginRequest>
 {
+    /// <summary>
+    /// Whether the sheet should fill Eventor's form itself from what it remembers.
+    /// </summary>
+    /// <remarks>
+    /// The sheet is still Eventor's own page and the POST is still Eventor's own form — the only
+    /// difference is who types. That is what keeps the challenge on the page working, and what
+    /// will keep working the day the federation adds a second factor: when the silent attempt
+    /// cannot finish, the page is already open in front of the runner to finish by hand.
+    /// </remarks>
+    public bool WantsSilentLogin { get; private set; }
+
+    public Task OnNavigationParameterAsync(EventorLoginRequest param)
+    {
+        WantsSilentLogin = param.UseSavedPassword;
+
+        if (param.UseSavedPassword)
+            Explanation = "Loggar in dig igen på Eventor. Fyll i själv om sidan frågar.";
+
+        return Task.CompletedTask;
+    }
+
+    public Task<(string Username, string Password)?> CredentialsAsync() => _credentials.ReadAsync();
+
     public string LoginUrl => $"{EventorSite.Origin}/Login";
 
     /// <summary>
@@ -38,10 +62,21 @@ public partial class EventorLoginSheetViewModel(
     /// Called after every navigation with whatever the page said about the reader. The sheet closes
     /// the moment Eventor greets somebody by name.
     /// </summary>
-    public async Task OnPageAsync(string? greeting, Func<Task<IReadOnlyList<SessionCookie>>> cookies)
+    public async Task OnPageAsync(
+        string? greeting,
+        Func<Task<IReadOnlyList<SessionCookie>>> cookies,
+        Func<string, Task<string?>> typed)
     {
         if (Clean(greeting) is not { Length: > 0 })
             return;
+
+        // Remembered only once the login has actually worked. Storing what was typed before
+        // Eventor accepted it would save a wrong password and replay it forever.
+        string username = Decode(await typed(EventorLoginForm.ReadRememberedUsernameScript));
+        string password = Decode(await typed(EventorLoginForm.ReadRememberedPasswordScript));
+
+        if (username.Length > 0 && password.Length > 0)
+            await _credentials.SaveAsync(username, password);
 
         var captured = await cookies();
 
@@ -90,6 +125,28 @@ public partial class EventorLoginSheetViewModel(
     /// </summary>
     private static string Clean(string? value) =>
         value?.Trim().Trim('"').Trim() ?? string.Empty;
+
+    /// <summary>
+    /// A percent-encoded value from the web view, back to what was typed.
+    /// </summary>
+    /// <remarks>
+    /// Encoded on the way out so that no quote, backslash or newline in a password has to survive
+    /// the platforms' differing ideas of how a JavaScript string is rendered — see
+    /// <see cref="EventorLoginForm.ReadRememberedUsernameScript"/>.
+    /// </remarks>
+    private static string Decode(string? value)
+    {
+        var cleaned = Clean(value);
+
+        try
+        {
+            return Uri.UnescapeDataString(cleaned);
+        }
+        catch (UriFormatException)
+        {
+            return string.Empty;
+        }
+    }
 
     [RelayCommand]
     private async Task Cancel() => await _navigation.ReturnAsync(null!);

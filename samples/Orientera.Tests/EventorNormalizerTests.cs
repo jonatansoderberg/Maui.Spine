@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Orientera.Backend.Eventor;
 
 namespace Orientera.Tests;
@@ -54,6 +55,41 @@ public class EventorNormalizerTests
 
         Assert.Equal("Gävle OK", competitions.Single(c => c.Id.Value == "38412").Organiser);
         Assert.Equal("Sandvikens OK", competitions.Single(c => c.Id.Value == "38499").Organiser);
+    }
+
+    /// <summary>
+    /// Clubs arrange together, and the club whose name is on the competition may be the second one.
+    /// </summary>
+    /// <remarks>
+    /// Valbos nationella is Skutskärs OK <em>and</em> Valbo AIF. Taking the first organiser left
+    /// the second club off its own competition; taking every id underneath pulled in the district
+    /// federation, which each club belongs to and which arranges nothing.
+    /// </remarks>
+    [Fact]
+    public void Every_arranging_club_is_named_and_no_district_federation_is()
+    {
+        var joint = _normalizer.Competition(
+            XElement.Parse("""
+                <Event>
+                  <EventId>53725</EventId>
+                  <Name>Gemensam nationell</Name>
+                  <StartDate><Date>2026-08-16</Date></StartDate>
+                  <Organiser>
+                    <Organisation>
+                      <OrganisationId>321</OrganisationId>
+                      <ParentOrganisation><OrganisationId>10</OrganisationId></ParentOrganisation>
+                    </Organisation>
+                    <Organisation>
+                      <OrganisationId>322</OrganisationId>
+                      <ParentOrganisation><OrganisationId>10</OrganisationId></ParentOrganisation>
+                    </Organisation>
+                  </Organiser>
+                </Event>
+                """),
+            _organisations);
+
+        Assert.Equal("Gävle OK, Sandvikens OK", joint!.Organiser);
+        Assert.DoesNotContain("Orienteringsförbund", joint.Organiser);
     }
 
     [Fact]

@@ -105,7 +105,7 @@ public class OfflinePackageTests : IDisposable
         // Entered.
         Assert.NotNull(await _store.GetAsync(FakeDataset.NmLongId));
 
-        // Starred but not entered — DM Sprint is seeded as a favourite.
+        // Starred but not entered — DM Sprint is seeded as an interest.
         Assert.NotNull(await _store.GetAsync(FakeDataset.DmSprintId));
     }
 
@@ -157,7 +157,7 @@ public class OfflinePackageTests : IDisposable
         // Who I am, who I follow and what I starred are local — an outage must not hide them.
         Assert.NotNull(await _source.GetMeAsync());
         Assert.NotEmpty(await _source.GetMyGroupAsync());
-        Assert.NotEmpty(await _source.GetFavouritesAsync());
+        Assert.NotEmpty(await _source.GetInterestsAsync());
     }
 
     [Fact]

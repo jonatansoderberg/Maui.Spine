@@ -107,6 +107,41 @@ public static class Format
     }
 
     /// <summary>
+    /// A deadline in full: the weekday, the date, and how long that leaves.
+    /// </summary>
+    /// <remarks>
+    /// "Anmälan stänger torsdag" is a weekday without a date, and a weekday alone is the one form
+    /// a reader cannot act on — it could be this week or next, and the difference is whether there
+    /// is still time. The countdown is the part that answers "do I have to do this now"; the date
+    /// is the part they can put in a calendar. Both, or neither is enough.
+    /// </remarks>
+    public static string Deadline(DateOnly date, DateOnly today)
+    {
+        int days = date.DayNumber - today.DayNumber;
+
+        string when = days switch
+        {
+            < 0 => "har stängt",
+            0 => "idag",
+            1 => "imorgon",
+            _ => $"om {days} dagar",
+        };
+
+        // The month only, from the same abbreviation the rest of the app uses — it drops the
+        // trailing period that eight of the twelve Swedish months otherwise carry.
+        string month = date.ToString("MMM", Sv).TrimEnd('.');
+
+        return $"{date.ToString("dddd", Sv)} {Ordinal(date.Day)} {month} ({when})";
+    }
+
+    /// <summary>
+    /// A Swedish written ordinal: 1:a, 2:a, 3:e — and 11:e, 12:e, which the rule for 1 and 2
+    /// would otherwise get wrong.
+    /// </summary>
+    private static string Ordinal(int day) =>
+        day is not (11 or 12) && day % 10 is 1 or 2 ? $"{day}:a" : $"{day}:e";
+
+    /// <summary>
     /// A short date to put inside a sentence: "19 sep" where <c>d MMM</c> gives "19 sep.".
     /// </summary>
     /// <remarks>
@@ -140,8 +175,10 @@ public static class Format
         Domain.Discipline.Sprint => "Sprint",
         Domain.Discipline.Middle => "Medel",
         Domain.Discipline.Long => "Lång",
+        Domain.Discipline.UltraLong => "Ultralång",
         Domain.Discipline.Night => "Natt",
         Domain.Discipline.Relay => "Stafett",
+        Domain.Discipline.Indoor => "Indoor",
         _ => string.Empty,
     };
 

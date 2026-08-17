@@ -53,6 +53,14 @@ builder.Services.AddHttpClient<RankingScraper>((sp, client) =>
     client.Timeout = TimeSpan.FromSeconds(20);
 });
 
+// The entry list is a public Eventor web page, so it rides on the same web base address as the
+// ranking pages rather than on the API client — the API refuses entries to a club's key.
+builder.Services.AddHttpClient<EntryListSource>((sp, client) =>
+{
+    client.BaseAddress = new Uri(sp.GetRequiredService<IOptions<RankingOptions>>().Value.BaseAddress);
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+
 builder.Services.AddHttpClient<LiveResultsClient>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(15);

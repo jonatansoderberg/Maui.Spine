@@ -62,7 +62,10 @@
             </CollectionView.ItemsLayout>
 
             <CollectionView.Footer>
-                <BoxView HeightRequest="{StaticResource ListBottomSpacer}" Color="Transparent" />
+                <!-- Margin carries the tab bar's own height; the height is the breathing room. -->
+                <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
+                         Margin="{Binding SafeAreaInsets}"
+                         Color="Transparent" />
             </CollectionView.Footer>
 
             <CollectionView.GroupHeaderTemplate>
@@ -106,15 +109,26 @@
                                         </Border>
                                         <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlaceLabel}" />
                                     </HorizontalStackLayout>
-                                    <Label Style="{StaticResource CaptionLabel}">
-                                        <Label.FormattedText>
-                                            <FormattedString>
-                                                <Span Text="{Binding MetaLabel}" />
-                                                <Span Text=" · " />
-                                                <Span Text="{Binding DistanceLabel}" />
-                                            </FormattedString>
-                                        </Label.FormattedText>
-                                    </Label>
+                                    <!--
+                                        Separate labels rather than one FormattedString: a mark has
+                                        to stand beside the word it belongs to, and a Span cannot
+                                        hold a shape.
+                                    -->
+                                    <HorizontalStackLayout Spacing="5">
+                                        <Path Style="{StaticResource DisciplineGlyph}"
+                                              Data="{Binding DisciplineShape}" />
+                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                               Text="{Binding DisciplineLabel}" />
+                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
+                                        <Path Style="{StaticResource LevelGlyph}"
+                                              Data="{Binding LevelShape}"
+                                              IsVisible="{Binding HasLevelShape}" />
+                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                               Text="{Binding LevelLabel}" />
+                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
+                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                               Text="{Binding DistanceLabel}" />
+                                    </HorizontalStackLayout>
                                 </VerticalStackLayout>
 
                                 <HorizontalStackLayout Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
@@ -150,11 +164,11 @@
                                HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
                                WidthRequest="44" HeightRequest="44"
                                Margin="0,4,6,0"
-                               SemanticProperties.Description="{Binding FavouriteDescription}"
-                               Text="{Binding FavouriteGlyph}">
+                               SemanticProperties.Description="{Binding InterestDescription}"
+                               Text="{Binding InterestGlyph}">
                             <Label.GestureRecognizers>
                                 <TapGestureRecognizer
-                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ToggleFavouriteCommand}"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.ToggleInterestCommand}"
                                     CommandParameter="{Binding .}" />
                             </Label.GestureRecognizers>
                         </Label>
@@ -163,6 +177,11 @@
             </CollectionView.ItemTemplate>
         </CollectionView>
 
-    </Grid>
+    
+        <ActivityIndicator Grid.Row="2" Style="{StaticResource PageLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}" />
+
+</Grid>
 
 </SpinePage>

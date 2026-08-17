@@ -6,7 +6,9 @@
     xmlns:events="clr-namespace:Orientera.Features.Events"
     x:DataType="EventDetailsPageViewModel">
 
-    <ScrollView>
+    <Grid>
+
+        <ScrollView>
         <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20">
 
             <!--
@@ -35,10 +37,16 @@
             -->
             <VerticalStackLayout Spacing="4">
                 <Grid ColumnDefinitions="*,44" ColumnSpacing="12">
-                    <Label Grid.Column="0"
-                           Style="{StaticResource SectionLabel}"
-                           VerticalOptions="Center"
-                           Text="{Binding MetaLine}" />
+                    <HorizontalStackLayout Grid.Column="0" Spacing="6" VerticalOptions="Center">
+                        <Path Style="{StaticResource DisciplineGlyph}"
+                              Data="{Binding DisciplineShape}" />
+                        <Path Style="{StaticResource LevelGlyph}"
+                              Data="{Binding LevelShape}"
+                              IsVisible="{Binding HasLevelShape}" />
+                        <Label Style="{StaticResource SectionLabel}"
+                               VerticalOptions="Center"
+                               Text="{Binding MetaLine}" />
+                    </HorizontalStackLayout>
 
                     <Label Grid.Column="1"
                            Style="{StaticResource Heading1Label}"
@@ -318,6 +326,12 @@
             </VerticalStackLayout>
 
         </VerticalStackLayout>
-    </ScrollView>
+        </ScrollView>
+
+        <ActivityIndicator Style="{StaticResource PageLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}" />
+
+    </Grid>
 
 </SpinePage>

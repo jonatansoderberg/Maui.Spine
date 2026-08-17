@@ -44,6 +44,17 @@
     <!-- Brush projections — Border.Stroke takes a Brush, not a Color -->
     <SolidColorBrush x:Key="OutlineBrush" Color="{StaticResource Outline}" />
     <SolidColorBrush x:Key="OutlineStrongBrush" Color="{StaticResource OutlineStrong}" />
+
+    <!-- Disciplin: fyra distanser kall till varm, natt och indoor utanför skalan. -->
+    <Color x:Key="DisciplineSprint">#6D28D9</Color>
+    <Color x:Key="DisciplineMiddle">#1D7FE8</Color>
+    <Color x:Key="DisciplineLong">#16A34A</Color>
+    <Color x:Key="DisciplineUltraLong">#F97316</Color>
+    <Color x:Key="DisciplineNight">#3730A3</Color>
+    <Color x:Key="DisciplineRelay">#EF4444</Color>
+    <Color x:Key="LevelChampionship">#CA8A04</Color>
+    <Color x:Key="DisciplineIndoor">#0D9488</Color>
+
     <SolidColorBrush x:Key="AccentActionBrush" Color="{StaticResource AccentAction}" />
 
 </ResourceDictionary>

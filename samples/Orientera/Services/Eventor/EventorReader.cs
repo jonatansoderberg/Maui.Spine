@@ -150,6 +150,51 @@ public sealed class EventorReader(HttpClient _http, EventorSessionStore _session
     }
 
     /// <summary>
+    /// The competitions the reader is entered in and has not run yet.
+    /// </summary>
+    /// <remarks>
+    /// On the phone, with the reader's own login, for the same reason as the ranking: an entry is
+    /// the most personal thing the app shows, and the backend has no business holding a list of
+    /// who is going where. Five minutes, because an entry made on the way to the car should be
+    /// visible when the app is next opened — and because the page is the one the user just left.
+    /// </remarks>
+    public async Task<IReadOnlyList<EventorEntry>> EntriesAsync(CancellationToken cancellationToken = default)
+    {
+        if (await StartPageAsync(cancellationToken) is not { IsLoggedIn: true })
+            return [];
+
+        return await _cache.GetOrAddAsync(
+            "my-entries",
+            TimeSpan.FromMinutes(5),
+            async token => await GetAsync("MyPages/Events", token) is { } html
+                ? MyEventsPageParser.Parse(html, DateOnly.FromDateTime(DateTime.Now))
+                : null,
+            cancellationToken) ?? [];
+    }
+
+    /// <summary>
+    /// The races the reader has already run this season, off the same page as the entries.
+    /// </summary>
+    /// <remarks>
+    /// Eventor has no "my results" anywhere else: the result list of a competition knows the field
+    /// and the calendar knows the race, but only this page knows which of them were yours. Half an
+    /// hour, because a result appears once and then stops changing.
+    /// </remarks>
+    public async Task<IReadOnlyList<EventorResult>> ResultsAsync(CancellationToken cancellationToken = default)
+    {
+        if (await StartPageAsync(cancellationToken) is not { IsLoggedIn: true })
+            return [];
+
+        return await _cache.GetOrAddAsync(
+            "my-results",
+            TimeSpan.FromMinutes(30),
+            async token => await GetAsync("MyPages/Events", token) is { } html
+                ? MyEventsPageParser.ParseResults(html, DateOnly.FromDateTime(DateTime.Now))
+                : null,
+            cancellationToken) ?? [];
+    }
+
+    /// <summary>
     /// Sverigelistan for everyone in the given clubs, which is how a start field gets its points.
     /// One page per club, not one per runner: a field of forty spans a dozen clubs.
     /// </summary>
@@ -204,6 +249,16 @@ public sealed class EventorReader(HttpClient _http, EventorSessionStore _session
     /// One page, with the session's cookies. Anything that is not an answer is null: Eventor is
     /// read over whatever network a phone happens to have, and an outage is not news.
     /// </summary>
+    /// <summary>
+    /// What a redirect to the login hands back: a page with nothing on it. Every parser then reads
+    /// what is true — no greeting, no ranking box, no rows — and <see cref="AccessAsync"/> reaches
+    /// <see cref="EventorAccess.Expired"/> through the branch it already had.
+    /// </summary>
+    private const string LoginRedirect = "";
+
+    private static bool IsRedirect(System.Net.HttpStatusCode status) =>
+        (int)status is >= 300 and < 400;
+
     private async Task<string?> GetAsync(string path, CancellationToken cancellationToken)
     {
         if (_sessions.Load() is not { } session)
@@ -215,6 +270,15 @@ public sealed class EventorReader(HttpClient _http, EventorSessionStore _session
             request.Headers.Add("Cookie", session.Header);
 
             using var response = await _http.SendAsync(request, cancellationToken);
+
+            // A redirect is Eventor saying the session is not logged in, and it says it in a way
+            // that has to be caught here. Measured on #123 after a session died: /Home/Index sends
+            // a dead session to /PersistentLogin, which sends it straight back, forever. Following
+            // redirects turns that into an exception, an exception reads as "Eventor is down", and
+            // the reader is told to wait when they should log in again — the exact collapse of the
+            // three empty cases into one shrug that this page set out to avoid.
+            if (IsRedirect(response.StatusCode))
+                return LoginRedirect;
 
             return response.IsSuccessStatusCode
                 ? await response.Content.ReadAsStringAsync(cancellationToken)

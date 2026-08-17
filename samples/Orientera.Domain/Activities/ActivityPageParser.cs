@@ -59,6 +59,8 @@ public static partial class ActivityPageParser
             if (cells.Count < 4)
                 continue;
 
+            bool open = row.Contains("/Activities/Register/", StringComparison.OrdinalIgnoreCase);
+
             activities.Add(new ClubActivity
             {
                 Id = activity.Groups[1].Value,
@@ -70,8 +72,14 @@ public static partial class ActivityPageParser
                     Clean(cells[3]), NumberStyles.Integer, CultureInfo.InvariantCulture, out int entries)
                     ? entries
                     : 0,
-                IsOpen = row.Contains("/Activities/Register/", StringComparison.OrdinalIgnoreCase),
-                Url = $"https://eventor.orientering.se/Activities/Show/{activity.Groups[1].Value}",
+                IsOpen = open,
+
+                // The sign-up page while sign-up is open, the activity page once it has closed.
+                // Tapping "anmälan stänger söndag" and landing on a page that only says the same
+                // thing again is a row that reads as a link and behaves as a label.
+                Url = open
+                    ? $"https://eventor.orientering.se/Activities/Register/{activity.Groups[1].Value}"
+                    : $"https://eventor.orientering.se/Activities/Show/{activity.Groups[1].Value}",
             });
         }
 

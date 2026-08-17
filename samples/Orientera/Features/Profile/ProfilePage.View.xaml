@@ -5,8 +5,12 @@
     x:TypeArguments="ProfilePageViewModel"
     x:DataType="ProfilePageViewModel">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20">
+    <Grid>
+
+        <ScrollView>
+        <VerticalStackLayout Padding="{StaticResource ScreenPadding}"
+                                 Margin="{Binding SafeAreaInsets}"
+                                 Spacing="20">
 
             <!-- ============ Profil ============ -->
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
@@ -129,13 +133,19 @@
                                 <DataTemplate x:DataType="RankingRow">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                                         <VerticalStackLayout Grid.Column="0" Spacing="1">
-                                            <Label Style="{StaticResource BodyLabel}" Text="{Binding Name}">
-                                                <Label.Triggers>
+                                            <HorizontalStackLayout Spacing="6">
+                                                <Path Style="{StaticResource DisciplineGlyph}"
+                                                      Data="{Binding DisciplineShape}"
+                                                      IsVisible="{Binding HasDisciplineShape}" />
+                                                <Label Style="{StaticResource BodyLabel}" VerticalOptions="Center"
+                                                       Text="{Binding Name}">
+                                                    <Label.Triggers>
                                                     <DataTrigger TargetType="Label" Binding="{Binding IsCounting}" Value="False">
                                                         <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
                                                     </DataTrigger>
                                                 </Label.Triggers>
-                                            </Label>
+                                                </Label>
+                                            </HorizontalStackLayout>
                                             <Label Style="{StaticResource NumericCaptionLabel}" Text="{Binding DateText}" />
                                             <Label Style="{StaticResource CaptionLabel}"
                                                    TextColor="{DynamicResource NegativeDelta}"
@@ -291,6 +301,12 @@
             </VerticalStackLayout>
 
         </VerticalStackLayout>
-    </ScrollView>
+        </ScrollView>
+
+        <ActivityIndicator Style="{StaticResource PageLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}" />
+
+    </Grid>
 
 </SpinePage>

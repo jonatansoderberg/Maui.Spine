@@ -62,9 +62,9 @@ public sealed record RaceStoryFacts
 
     private static string Start(LegAnalysis first) => first.LegPlace switch
     {
-        1 => "Snabbast i klassen på första sträckan.",
-        <= 3 => $"{Format.Place(first.LegPlace)} snabbaste tid på första sträckan.",
-        _ => $"Första sträckan: {Format.Place(first.LegPlace)} sträcktid.",
+        1 => "Snabbast i klassen till första kontrollen.",
+        <= 3 => $"{Format.Place(first.LegPlace)} snabbaste tid till första kontrollen.",
+        _ => $"Till första kontrollen: {Format.Place(first.LegPlace)} sträcktid.",
     };
 
     /// <summary>
@@ -91,14 +91,26 @@ public sealed record RaceStoryFacts
             return null;
 
         var stretch = legs.Skip(bestEnd - best + 1).Take(best).ToList();
-        string range = $"Sträcka {stretch[0].ControlNumber}–{stretch[^1].ControlNumber}";
+        string range = Range(stretch[0].ControlNumber, stretch[^1].ControlNumber);
 
         if (stretch.All(l => l.LegPlace == 1))
-            return $"{range}: snabbaste sträcktid i klassen på var och en.";
+            return $"{range}: snabbaste sträcktid i klassen hela vägen.";
 
         return $"{range}: bland klassens snabbaste hela vägen "
-             + $"(i snitt plats {stretch.Average(l => l.LegPlace):0.#} på sträckan).";
+             + $"(i snitt plats {stretch.Average(l => l.LegPlace):0.#} per sträcka).";
     }
+
+    /// <summary>
+    /// A run of legs, named by the controls it runs between — which is how a runner says it.
+    /// </summary>
+    /// <remarks>
+    /// Leg <c>n</c> is the leg <em>into</em> control <c>n</c>, so legs 7–10 are the way from
+    /// control 6 to control 10, not from 7. The first leg starts at the start, which has no
+    /// number to give it.
+    /// </remarks>
+    private static string Range(int firstLeg, int lastLeg) => firstLeg <= 1
+        ? $"Från start till kontroll {lastLeg}"
+        : $"Från kontroll {firstLeg - 1} till {lastLeg}";
 
     /// <summary>
     /// The worst leg place that still counts as strong. A quarter of the class, but never more
@@ -110,11 +122,15 @@ public sealed record RaceStoryFacts
         Math.Max(1, starters / 2));
 
     /// <summary>The mistakes that cost the most, and only those — modelled, so said as modelled.</summary>
+    /// <remarks>
+    /// Named by the control's order on the course, not by its code. The code is what the runner
+    /// reads off the flag in the forest; afterwards it identifies nothing they remember.
+    /// </remarks>
     private static IEnumerable<string> Mistakes(IReadOnlyList<LegAnalysis> legs) =>
         legs.Where(l => l.IsLikelyMistake)
             .OrderByDescending(l => l.EstimatedMistakeTime)
             .Take(MostMistakes)
-            .Select(l => $"Kontroll {l.ControlCode} (sträcka {l.ControlNumber}): "
+            .Select(l => $"Kontroll {l.ControlNumber}: "
                        + $"uppskattat tapp omkring {Format.Time(l.EstimatedMistakeTime)} mot din egen fart.");
 
     private static string? Development(IReadOnlyList<LegAnalysis> legs)

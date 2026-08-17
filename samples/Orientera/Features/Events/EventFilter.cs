@@ -10,11 +10,13 @@ public enum QuickFilter
 {
     ForYou,
     Near,
+
+    /// <summary>The user's own district, whichever that is — the chip is labelled from it.</summary>
     District,
     Bigger,
     ThisWeek,
     Mine,
-    Favourites,
+    Interested,
 
     /// <summary>What has already been run. Off to one side, because this tab is for planning.</summary>
     Past,
