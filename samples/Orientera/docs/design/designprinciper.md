@@ -24,7 +24,7 @@ Konkret:
 ## 2. Designprinciper (ur spec, normativa)
 
 1. **Få tydliga kort hellre än många widgets.** Hem har max 3–4 stora block.
-2. **Orange används som orienteringsaccent och primär action — inte överallt.** En primär CTA per vy.
+2. **Grönt bär primär handling och aktivt läge.** En primär CTA per vy. Orange är inte varumärket utan en signal, och reserveras för tre saker: live pågår, deadline inom ett dygn, och tapp mot vinnaren. *(Omskriven genom beslut 6; löd tidigare "Orange används som orienteringsaccent och primär action".)*
 3. **Live/resultat får ha högre datatäthet än Hem/Tävlingar.** Densitet är ett medvetet lägesval, inte en glidande skala.
 4. **Kartan får vara visuellt dominant när användaren analyserar vägval.** UI kliver undan; overlay-kort är kompakta.
 5. **Status och osäkerhet uttrycks tydligt** — prediction visas som intervall ("8–15"), AI-extraherad information med källa ("Måttligt kuperat — PM sida 2") och uppskattningar märks som uppskattningar.
@@ -90,7 +90,8 @@ Nyckelidé: **modellerad data får en egen färg** (`EstimateInk`) så att obser
 
 ## 9. Avstämningspunkter innan skarp implementation
 
-Samtliga beslut togs 2026-08-10.
+Beslut 1–5 togs 2026-08-10, inför M0. Beslut 6–11 togs 2026-08-17 och kommer ur
+[redesign-02-natur-och-energi.md](redesign-02-natur-och-energi.md) §3.
 
 | # | Beslut | Utfall |
 |---|--------|--------|
@@ -99,5 +100,11 @@ Samtliga beslut togs 2026-08-10.
 | 3 | Typsnitt | **Inter**, med tabulära siffror i alla tider, placeringar och splits |
 | 4 | Tabbikonografi | **Klassiska ikoner + text** |
 | 5 | Namn/brand i M0 | **"Orientera" internt**, ingen store-facing branding (SP-13 kvarstår) |
+| 6 | Accentfärg (D1) | **Grön bas, orange för det som brinner.** Orange bryts ut som `SignalUrgent` med tre tillåtna användningar: live pågår, deadline inom ett dygn, tapp mot vinnaren. Princip 2 i §2 omskriven |
+| 7 | Bildkälla (D2) | **Kurerade terrängbilder i appen**, valda på disciplin och terrängtyp. Fungerar offline, påstår aldrig att de är arenan; kartrutan är fallback |
+| 8 | Profilbild och social graf (D3) | **Avatarplatsen byggs nu, innehållet stannar lokalt.** `IdentityView` känner inte sin källa, så konto och följargraf blir ett eget M5-beslut som inte rör designen igen |
+| 9 | Flikstruktur (D4) | **`Hem · Tävlingar · Live · Profil · Mer`.** Resultat flyttar in under Mer; §6 och [krav/01-vision-och-navigation.md](../krav/01-vision-och-navigation.md) skrivs om |
+| 10 | Anmälan (D5) | Mellanlandning ja; formuläret **kvar i appens webbvy** — Safari har egen kakburk och extern öppning loggar ut användaren |
+| 11 | Arbetsordning (D6) | Fynden från testkörningen lagas inuti varje sida när den byggs om, inte i en egen omgång |
 
 Kodifierat som design tokens i `Resources/Styles/` (Light/Dark-resurslexikon) och låsta värden i [design-system.md](design-system.md).

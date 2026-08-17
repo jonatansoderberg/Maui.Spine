@@ -35,10 +35,29 @@
                         <Label Style="{StaticResource BodyLabel}" Text="TextPrimary — rubriker och värden" />
                         <Label Style="{StaticResource BodySecondaryLabel}" Text="TextSecondary — metadata och etiketter" />
                         <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource AccentAction}" Text="AccentAction — primär handling" />
+                        <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource SignalUrgent}" Text="SignalUrgent — live, sista dygnet, tapp mot vinnaren" />
                         <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource PositiveDelta}" Text="PositiveDelta — vinst, +0:14" />
                         <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource NegativeDelta}" Text="NegativeDelta — tapp, −1:07" />
                         <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource EstimateInk}" Text="EstimateInk — modellerat, ej observerat" />
+                        <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource LinkInk}" Text="LinkInk — länk ut ur en text" />
                         <Label Style="{StaticResource BodyLabel}" TextColor="{DynamicResource MapInk}" Text="MapInk — kartidentitet (dekor, ej text-AA)" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <!-- ============ Dekorytor ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Dekor och identitet" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <HorizontalStackLayout Spacing="10">
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="8" Color="{DynamicResource SkeletonBase}" />
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="20" Color="{DynamicResource AvatarBackground}" />
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="8" Color="{DynamicResource HeroScrim}" />
+                            <BoxView WidthRequest="40" HeightRequest="40" CornerRadius="8" Color="{DynamicResource BrandTint}" />
+                        </HorizontalStackLayout>
+                        <Label Style="{StaticResource CaptionLabel}"
+                               Text="SkeletonBase · AvatarBackground · HeroScrim · BrandTint (temaoberoende: tabbar, ikon, splash)" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
@@ -122,7 +141,7 @@
                             <Label Style="{StaticResource BadgeOnFillLabel}" Text="Anmäld" />
                         </Border>
                         <Border Style="{StaticResource BadgeLive}">
-                            <Label Style="{StaticResource BadgeOnFillLabel}" Text="Live" />
+                            <Label Style="{StaticResource BadgeOnSignalLabel}" Text="Live" />
                         </Border>
                         <Border Style="{StaticResource BadgeAccent}">
                             <Label Style="{StaticResource BadgeAccentLabel}" Text="PM" />

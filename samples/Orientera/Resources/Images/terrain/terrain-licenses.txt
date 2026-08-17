@@ -1,0 +1,15 @@
+Terrängbilder — källa och licens
+================================
+
+En rad per bild. Ingen bild läggs i katalogen utan sin rad här.
+
+Format:
+  <filnamn>
+      Källa:      <URL eller arkiv>
+      Upphov:     <fotograf>
+      Licens:     <licens och version>
+      Hämtad:     <datum>
+      Ändringar:  <beskärning, komprimering, inget>
+
+----------------------------------------------------------------------
+(Inga bilder tillagda ännu. Se README.md för vilka som ska täckas.)
