@@ -86,11 +86,27 @@ public partial class ResultsPageViewModel(
     public ObservableCollection<ResultSeason> Seasons { get; } = [];
 
     [ObservableProperty] public partial bool IsEmpty { get; set; }
+
     [ObservableProperty] public partial bool HasResults { get; set; }
+
+    /// <summary>
+    /// Skeleton rows stand in for a list that is not there yet — never on top of one that is.
+    /// </summary>
+    /// <remarks>
+    /// A reload keeps the results on screen while it runs, so <c>IsLoading</c> alone drew the
+    /// skeleton over the rows it was standing in for: two states at once, which is the thing P10
+    /// exists to prevent.
+    /// </remarks>
+    [ObservableProperty] public partial bool ShowSkeleton { get; set; }
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
+        // Only when there is nothing to stand in for. A reload keeps the rows on screen.
+        ShowSkeleton = !HasResults;
+
         await LoadAsync(BuildAsync);
+
+        ShowSkeleton = false;
 
         if (IsOffline)
         {

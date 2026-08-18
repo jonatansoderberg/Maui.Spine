@@ -109,7 +109,7 @@
 
     
         <!-- Skelett i listans egen form: sidan byter inte utseende när datan kommer, den fylls i. -->
-        <VerticalStackLayout Padding="16,8" Spacing="8" IsVisible="{Binding IsLoading}"
+        <VerticalStackLayout Padding="16,8" Spacing="8" IsVisible="{Binding ShowSkeleton}"
                              InputTransparent="True">
             <BoxView HeightRequest="92" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
             <BoxView HeightRequest="92" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
