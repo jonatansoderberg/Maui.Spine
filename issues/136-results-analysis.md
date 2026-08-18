@@ -34,6 +34,19 @@ kallas klara.
   `ChipView` dokumenterar: en trigger minns färgen den ersatte och lämnar tillbaka fel temas färg
   efter ett temabyte.
 
+5. **Motstridiga placeringssiffror lagade.** Två källor för en och samma sak:
+   `RaceStoryFacts` räknade klassens storlek ur startfältet medan Översikt läser
+   `CompetitionResult.Starters` — därav "33:e plats av 38 startande" under en rubrik som sa 33/34.
+   Sammanfattningen läser nu samma tal som sidan visar, och `field`-parametern föll bort med det.
+   Och "gled ner till 34:e plats i mål" var fel ord: `PositionAfter` är placeringen *vid en
+   kontroll*, bland dem som har sträcktider där, med upploppet kvar. Den säger nu "vid sista
+   kontrollen", vilket är det den vet.
+
+**Testerna:** `dotnet test` — 393 gröna. Tio föll när jag körde sviten första gången, alla från
+datumformatet i steg 1 (#131): `FormatTests` pinnade ordningstalsformen som fyndet bad oss ta bort.
+Jag körde aldrig testerna i det steget, och de gick mergade till `master` röda. Testerna beskriver
+nu regeln som gäller.
+
 ## Kvar
 
 - **Fynd 5, motstridiga placeringssiffror.** Översikt säger 33/34, analystexten "33:e plats av 38

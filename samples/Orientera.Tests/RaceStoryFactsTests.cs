@@ -25,7 +25,7 @@ public class RaceStoryFactsTests
     private static IReadOnlyList<CompetitionResult> Field => [Winner, WithMistake];
 
     private static IReadOnlyList<string> LinesFor(CompetitionResult result) =>
-        RaceStoryFacts.From(result, SplitAnalyzer.Analyse(result, Field), Field).Lines;
+        RaceStoryFacts.From(result, SplitAnalyzer.Analyse(result, Field)).Lines;
 
     [Fact]
     public void A_race_always_ends_with_how_it_ended()
@@ -97,7 +97,7 @@ public class RaceStoryFactsTests
     {
         var bare = Winner with { Splits = [] };
 
-        var line = Assert.Single(RaceStoryFacts.From(bare, [], Field).Lines);
+        var line = Assert.Single(RaceStoryFacts.From(bare, []).Lines);
 
         Assert.StartsWith("I mål:", line);
     }

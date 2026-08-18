@@ -32,13 +32,15 @@ public sealed record RaceStoryFacts
     /// <summary>The facts, each one a finished statement the phrasing may not contradict.</summary>
     public required IReadOnlyList<string> Lines { get; init; }
 
-    public static RaceStoryFacts From(
-        CompetitionResult result,
-        IReadOnlyList<LegAnalysis> legs,
-        IReadOnlyList<CompetitionResult> field)
+    public static RaceStoryFacts From(CompetitionResult result, IReadOnlyList<LegAnalysis> legs)
     {
         var lines = new List<string>(8);
-        int starters = field.Count(r => r.Class == result.Class);
+
+        // The same number the page states beside the placing. Counting the class out of the field
+        // gave a different one — the field carries everyone the class had, the result carries the
+        // starters it was placed against — and the summary then said "33:e plats av 38 startande"
+        // under a heading that said 33 / 34. Two sources for one fact is one source too many.
+        int starters = result.Starters;
 
         if (legs.Count > 0)
             lines.Add(Start(legs[0]));
@@ -141,10 +143,14 @@ public sealed record RaceStoryFacts
         int from = legs[0].PositionAfter;
         int to = legs[^1].PositionAfter;
 
+        // "I mål" was the wrong word for it: PositionAfter is the position at a control, among the
+        // runners who have splits there, and the run-in is still to come. It said the runner slid
+        // to 34th in a race the same page placed 33rd. The last control is what it knows, so the
+        // last control is what it says.
         return (to - from) switch
         {
-            <= -2 => $"Gick från {Format.Place(from)} efter första kontrollen till {Format.Place(to)} i mål.",
-            >= 2 => $"Låg {Format.Place(from)} efter första kontrollen och {Format.Place(to)} i mål.",
+            <= -2 => $"Gick från {Format.Place(from)} efter första kontrollen till {Format.Place(to)} vid sista kontrollen.",
+            >= 2 => $"Låg {Format.Place(from)} efter första kontrollen och {Format.Place(to)} vid sista kontrollen.",
             _ => null,
         };
     }

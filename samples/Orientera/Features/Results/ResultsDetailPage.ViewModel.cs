@@ -336,7 +336,7 @@ public partial class ResultsDetailPageViewModel(
 
         try
         {
-            var facts = RaceStoryFacts.From(_mine, _legs, _field);
+            var facts = RaceStoryFacts.From(_mine, _legs);
             var story = await _stories.WriteAsync(new RaceStoryRequest { Class = facts.Class, Lines = facts.Lines });
 
             StoryText = story?.Text ?? string.Empty;

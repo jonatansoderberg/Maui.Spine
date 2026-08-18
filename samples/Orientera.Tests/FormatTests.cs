@@ -102,7 +102,7 @@ public class FormatTests
     {
         var today = new DateOnly(2026, 8, 17);
 
-        Assert.Equal("torsdag 20:e aug (om 3 dagar)", Format.Deadline(new DateOnly(2026, 8, 20), today));
+        Assert.Equal("torsdag 20 aug (om 3 dagar)", Format.Deadline(new DateOnly(2026, 8, 20), today));
     }
 
     [Fact]
@@ -115,18 +115,19 @@ public class FormatTests
         Assert.EndsWith("(har stängt)", Format.Deadline(today.AddDays(-1), today));
     }
 
-    /// <summary>Swedish writes 1:a and 2:a but 11:e and 12:e, which the plain rule gets wrong.</summary>
+    /// <summary>
+    /// The date is written as a person writes it: "torsdag 20 augusti", not "20:e". The ordinal
+    /// form belongs to speech and to a day named on its own, and the test run read "20:e aug" as
+    /// a bug in the formatting rather than as a date.
+    /// </summary>
     [Theory]
-    [InlineData(1, "1:a")]
-    [InlineData(2, "2:a")]
-    [InlineData(3, "3:e")]
-    [InlineData(11, "11:e")]
-    [InlineData(12, "12:e")]
-    [InlineData(21, "21:a")]
-    [InlineData(22, "22:a")]
-    [InlineData(23, "23:e")]
-    [InlineData(31, "31:a")]
-    public void The_day_carries_a_swedish_ordinal(int day, string expected)
+    [InlineData(1, "1 mars")]
+    [InlineData(2, "2 mars")]
+    [InlineData(3, "3 mars")]
+    [InlineData(11, "11 mars")]
+    [InlineData(21, "21 mars")]
+    [InlineData(31, "31 mars")]
+    public void The_day_is_a_plain_number(int day, string expected)
     {
         var date = new DateOnly(2026, 3, day);
 
