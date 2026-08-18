@@ -193,12 +193,20 @@
                 <!-- ============ Sträckor ============ -->
                 <VerticalStackLayout Spacing="4" IsVisible="{Binding IsLegs}">
 
+                    <!--
+                        Rubrikerna förklaras en gång i stället för att skrivas ut i sina kolumner:
+                        de är fyra och sex tecken breda och rymmer inte "Sträcka" och "Totalt" utan
+                        att radbrytas mitt i ordet — vilket är svårare att läsa än förkortningen var.
+                    -->
+                    <Label Style="{StaticResource CaptionLabel}"
+                           Padding="14,0,14,4"
+                           Text="Str = placering på sträckan · Tot = placering totalt · Tapp = mot din egen fart" />
+
                     <Grid ColumnDefinitions="72,*,44,44,72" Padding="14,0,14,6" ColumnSpacing="6">
                         <Label Grid.Column="0" Style="{StaticResource SectionLabel}" Text="Kontroll" />
                         <Label Grid.Column="1" Style="{StaticResource SectionLabel}" Text="Tid" />
-                        <!-- Utskrivna: STR, TOT och TAPP förklarades ingenstans. -->
-                        <Label Grid.Column="2" Style="{StaticResource SectionLabel}" Text="Sträcka" />
-                        <Label Grid.Column="3" Style="{StaticResource SectionLabel}" Text="Totalt" />
+                        <Label Grid.Column="2" Style="{StaticResource SectionLabel}" Text="Str" />
+                        <Label Grid.Column="3" Style="{StaticResource SectionLabel}" Text="Tot" />
                         <Label Grid.Column="4" Style="{StaticResource SectionLabel}" HorizontalTextAlignment="End" Text="Tapp" />
                     </Grid>
 

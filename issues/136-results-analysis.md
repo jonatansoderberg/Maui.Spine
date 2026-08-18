@@ -72,17 +72,36 @@ nu regeln som gäller.
   tävlingar jag kunde öppna lämnar inga sträcktider från den här källan, så tabellerna ritas aldrig.
   De är bygg- och testverifierade men inte sedda.
 
-## Blockerande: fel tävling öppnas
+## Det som såg ut som fel tävling — och inte var det
 
-Testat mot en mindre tävling i stället för O-Ringen, och då syntes det: **två olika rader öppnar
-samma tävlingssida.** Valbos nationella (översta raden) och Leksandstrippeln #3 (fem rader ned)
-landar båda på O-Ringen Göteborg.
+Jag skrev att två rader öppnade samma tävling. **Det stämde inte.** Rubriken sätts i `BuildAsync`
+efter att tävlingen hämtats, så en hämtning som faller tidigt lämnar den förra sidans rubrik kvar.
+Det var det jag såg.
 
-Det syntes inte tidigare eftersom O-Ringen tar så lång tid att hämta att det såg ut som trög
-laddning snarare än fel destination.
+Den verkliga orsaken: backendens kalender börjar 2026-04-20 och innehåller inte Leksandstrippeln
+(april), Älgsprinten eller Veteranträffen (maj). Resultatlistan kommer från Eventors egen historik
+och når längre bak än kalendern gör. `GetCompetitionAsync` ger då null, `BuildAsync` returnerar
+direkt, och sidan visar gammal rubrik plus "Ingen anslutning".
 
-Bindningen ser oförändrad ut — `CommandParameter="{Binding .}"` mot `OpenResultCommand`, som
-navigerar på `row.Competition` — så misstanken faller på `IsGrouped="True"`, det enda som ändrats
-runt listan. Inte verifierat.
+**Två riktiga fynd faller ur det:**
+- En sida som inte kunde hämta sin tävling behåller föregående sidas rubrik.
+- "Ingen anslutning" sägs om något som inte är ett nätverksfel. Att en tävling ligger utanför
+  kalenderns fönster är något annat än att telefonen är offline.
 
-**#137 ska inte mergas förrän det här är utrett.** Grupperingen är den första att prova att backa.
+Båda hör hemma i en egen omgång; ingen av dem kommer ur den här ändringen.
+
+## Testat med data på resultatsidan
+
+Valbos nationella (16 aug, finns i kalendern) laddar helt:
+
+- **Siffrorna stämmer överens.** Analystexten säger "du gick i mål som 33:a av 34 på tiden 1:15:50,
+  +50:28 efter vinnaren" — samma tal som Översikt visar. Testkörningens motsägelse (33 av 38, och
+  34:e i mål) är borta.
+- **"Efter vinnaren +50:28" står i orange**, som det materiella tapp det är.
+- **Sträcktabellen:** de utskrivna rubrikerna radbröts mitt i ordet — "STRÄC KA", "TOTAL T" —
+  eftersom kolumnerna är 44 punkter breda. Förkortningarna är tillbaka och förklaras i stället en
+  gång ovanför tabellen, vilket är fyndets egen andra väg: "skriv ut rubrikerna **eller** lägg en
+  förklaring som säger dem en gång".
+
+**Kvar osett:** jämförelsens rubrikrad, som ligger längre ned i Analys-fliken.
+**Kvar olagat:** "Stabilitet 0,36" är fortfarande ett tal utan skala.
