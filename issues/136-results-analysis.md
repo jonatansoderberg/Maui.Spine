@@ -56,3 +56,18 @@ nu regeln som gäller.
 - **Årsrubriker och säsongssammanfattning** i resultatlistan (skärm 26), och normaliseringen av
   klasskolumnen som blandar klasser och banor (skärm 27). Båda hör till samma sida men är egna
   ändringar.
+
+## Testat på resultatsidan
+
+Öppnad från listan med riktiga data:
+
+- **Tomt läge kommer först efter laddningen.** Snurran går ensam, och först när hämtningen är klar
+  står svaret. Det var fyndet, och det är lagat.
+- **Nytt fynd:** när hämtningen misslyckas står "Inget resultat ännu — Ingen anslutning. Resultat
+  och sträcktider behöver nätverk." Appen har uppenbart nätverk; listan bakom laddades nyss. Det är
+  `LoadAsync` som tolkar varje misslyckad källa som en utebliven anslutning, och sidan upprepar det
+  som en förklaring den inte har täckning för. Att en tävling saknar resultatdata hos källan är
+  något annat än att telefonen är offline, och de ska inte säga samma sak.
+- **Fortfarande osett:** sträcktabellens utskrivna rubriker och jämförelsens rubrikrad. De
+  tävlingar jag kunde öppna lämnar inga sträcktider från den här källan, så tabellerna ritas aldrig.
+  De är bygg- och testverifierade men inte sedda.
