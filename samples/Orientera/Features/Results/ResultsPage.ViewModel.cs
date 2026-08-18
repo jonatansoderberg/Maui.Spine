@@ -3,6 +3,7 @@ using Microsoft.Maui.Controls.Shapes;
 using Orientera.Domain;
 using Orientera.Presentation;
 using Orientera.Services.Offline;
+using Orientera.Services.Eventor;
 using Orientera.Services.Sources;
 
 namespace Orientera.Features.Results;
@@ -78,7 +79,8 @@ public partial class ResultsPageViewModel(
     INavigationService _navigation,
     IEventSource _events,
     IPeopleSource _people,
-    IParticipationSource _participation) : OrienteraViewModel
+    IParticipationSource _participation,
+    EventorSessionResume _resume) : OrienteraViewModel
 {
     public ObservableCollection<MyResultRow> Results { get; } = [];
 
@@ -105,6 +107,11 @@ public partial class ResultsPageViewModel(
         ShowSkeleton = !HasResults;
 
         await LoadAsync(BuildAsync);
+
+        // The results are read with the runner's own Eventor session, so an expired one empties
+        // this page. Reviving it here rather than only on Hem is the whole point of the service.
+        if (await _resume.TryResumeAsync(_navigation))
+            await LoadAsync(BuildAsync);
 
         ShowSkeleton = false;
 

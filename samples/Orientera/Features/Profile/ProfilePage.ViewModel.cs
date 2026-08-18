@@ -64,6 +64,7 @@ public partial class ProfilePageViewModel(
     IEventSource _events,
     IClubActivitySource _activities,
     EventorSessionStore _eventorSessions,
+    EventorSessionResume _resume,
     EventorCredentialStore _credentials,
     EventorReader _eventor,
     DataSourceInfo _source) : OrienteraViewModel
@@ -140,6 +141,11 @@ public partial class ProfilePageViewModel(
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
 
         await ReloadAsync();
+
+        // Jag är sidan som säger vem Eventor tror att du är. Att den skulle vara den enda som
+        // inte försöker väcka en somnad session vore bakvänt.
+        if (await _resume.TryResumeAsync(_navigation))
+            await ReloadAsync();
     }
 
     /// <summary>
