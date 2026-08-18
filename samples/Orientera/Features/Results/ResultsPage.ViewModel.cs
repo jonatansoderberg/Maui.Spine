@@ -32,6 +32,24 @@ public sealed record MyResultRow
     public required string PlaceText { get; init; }
     public required string TimeText { get; init; }
     public required string BehindText { get; init; }
+
+    /// <summary>
+    /// Whether the gap to the winner is worth marking. Everything below it stays neutral.
+    /// </summary>
+    /// <remarks>
+    /// Red on every difference — including +0:55 for a second place — meant red only ever said
+    /// "not the winner", which the reader already knew from the placing beside it. A mark that
+    /// applies to all but one row carries nothing.
+    /// <para>
+    /// The boundary is a tenth of the winner's time: it scales, which an absolute number cannot —
+    /// a minute is a rout over a sprint and a decent run over a long distance. Ten per cent is a
+    /// chosen line rather than a measured one, and it is one number in one place if it moves.
+    /// </para>
+    /// </remarks>
+    public required bool HasMaterialGap { get; init; }
+
+    /// <summary>A gap that is there but not worth a colour.</summary>
+    public bool HasNeutralGap => BehindText.Length > 0 && !HasMaterialGap;
     public required bool HasSplits { get; init; }
     public required bool IsPreliminary { get; init; }
     public required string Accessibility { get; init; }
@@ -111,6 +129,10 @@ public partial class ResultsPageViewModel(
                 PlaceText = Format.Place(result.Place),
                 TimeText = Format.Time(result.Time),
                 BehindText = result.BehindWinner is { } behind ? Format.Delta(behind) : string.Empty,
+                HasMaterialGap = result.BehindWinner is { } gap
+                                 && gap > TimeSpan.Zero
+                                 && result.Time - gap is { Ticks: > 0 } winner
+                                 && gap.TotalSeconds >= winner.TotalSeconds * 0.10,
                 HasSplits = result.Splits.Count > 0,
                 IsPreliminary = result.Status == ResultStatus.Preliminary,
                 Accessibility = string.Join(", ",

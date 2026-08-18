@@ -7,7 +7,9 @@
 
     <Grid>
 
-        <VerticalStackLayout Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsEmpty}">
+        <!-- Tomt läge är ett svar, inte ett väntrum (P10): aldrig medan en hämtning pågår. -->
+        <VerticalStackLayout Padding="32" Spacing="8" VerticalOptions="Center"
+                             IsVisible="{Binding IsEmpty}">
             <Label Style="{StaticResource Heading2Label}" SemanticProperties.HeadingLevel="Level2"
                    HorizontalTextAlignment="Center" Text="Inga resultat ännu" />
             <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center"
@@ -62,9 +64,19 @@
                                     <Label Style="{StaticResource NumericHeading2Label}"
                                            HorizontalTextAlignment="End"
                                            Text="{Binding TimeText}" />
+                                    <!--
+                                        Två färdigstylade etiketter i stället för en trigger, av
+                                        samma skäl som ChipView: en trigger minns färgen den
+                                        ersatte och lämnar tillbaka fel temas färg efter ett byte.
+                                    -->
                                     <Label Style="{StaticResource NumericCaptionLabel}"
                                            HorizontalTextAlignment="End"
-                                           TextColor="{DynamicResource NegativeDelta}"
+                                           IsVisible="{Binding HasNeutralGap}"
+                                           Text="{Binding BehindText}" />
+                                    <Label Style="{StaticResource NumericCaptionLabel}"
+                                           HorizontalTextAlignment="End"
+                                           TextColor="{DynamicResource SignalUrgent}"
+                                           IsVisible="{Binding HasMaterialGap}"
                                            Text="{Binding BehindText}" />
                                 </VerticalStackLayout>
                             </Grid>
@@ -81,9 +93,14 @@
         </CollectionView>
 
     
-        <ActivityIndicator Style="{StaticResource PageLoading}"
-                           IsRunning="{Binding IsLoading}"
-                           IsVisible="{Binding IsLoading}" />
+        <!-- Skelett i listans egen form: sidan byter inte utseende när datan kommer, den fylls i. -->
+        <VerticalStackLayout Padding="16,8" Spacing="8" IsVisible="{Binding IsLoading}"
+                             InputTransparent="True">
+            <BoxView HeightRequest="92" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+            <BoxView HeightRequest="92" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+            <BoxView HeightRequest="92" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+            <BoxView HeightRequest="92" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+        </VerticalStackLayout>
 
 </Grid>
 
