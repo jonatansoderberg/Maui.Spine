@@ -71,3 +71,18 @@ nu regeln som gäller.
 - **Fortfarande osett:** sträcktabellens utskrivna rubriker och jämförelsens rubrikrad. De
   tävlingar jag kunde öppna lämnar inga sträcktider från den här källan, så tabellerna ritas aldrig.
   De är bygg- och testverifierade men inte sedda.
+
+## Blockerande: fel tävling öppnas
+
+Testat mot en mindre tävling i stället för O-Ringen, och då syntes det: **två olika rader öppnar
+samma tävlingssida.** Valbos nationella (översta raden) och Leksandstrippeln #3 (fem rader ned)
+landar båda på O-Ringen Göteborg.
+
+Det syntes inte tidigare eftersom O-Ringen tar så lång tid att hämta att det såg ut som trög
+laddning snarare än fel destination.
+
+Bindningen ser oförändrad ut — `CommandParameter="{Binding .}"` mot `OpenResultCommand`, som
+navigerar på `row.Competition` — så misstanken faller på `IsGrouped="True"`, det enda som ändrats
+runt listan. Inte verifierat.
+
+**#137 ska inte mergas förrän det här är utrett.** Grupperingen är den första att prova att backa.
