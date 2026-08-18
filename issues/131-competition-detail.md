@@ -28,10 +28,16 @@ Sidan får konceptets form och lagar sina egna sju fynd i samma vända (D6).
 
 ### Fynden
 
-1. **Kartan ritar klart.** Mapsui hämtar brickor för den storlek kartan hade när `Map` sattes, och
-   en vy i en `ScrollView` mäts innan den får sin höjd — så kartan bad om brickor för en höjd den
-   ännu inte fått, och nedre halvan förblev vit så länge sidan var öppen. `OnSizeAllocated`
-   centrerar om när den verkliga höjden kommer.
+1. **Kartan ritar fortfarande inte klart — fyndet är inte lagat.** Hypotesen var att Mapsui hämtar
+   brickor för den storlek kartan hade när `Map` sattes. Den höll inte: kartan vet om sin storlek
+   (märket centreras i hela ytan, krediteringen sitter i rätt hörn), och en liten panorering gör
+   det värre i stället för bättre — kvar blir en triangulär kil, vilket är en ritning som inte
+   målar om hela ytan och inte brickor som saknas. Om- centrering, `Map.Refresh()` och
+   `ForceUpdate()` ändrade ingenting, och `TryUpdateViewportSize()` är dokumenterad men inte
+   publik i 5.1.0. Ändringen är utbackad; fyndet ligger som #133 och hör till etapp E — det
+   verifieras isolerat och rapporteras uppåt.
+
+   Sidans omdisposition begränsar det: kartan är inte längre hero utan en egen sektion längre ned.
 2. **"första start 00:00" borta.** `Competition.HasFirstStart` säger om starttiden är satt; ett
    datum utan tid kommer som midnatt. Sidan skriver "starttid ej satt" i stället.
 3. **"Visa tävling" borta från tävlingens egen sida.** `ContextAction.ShowCompetition` ger ingen
@@ -52,8 +58,9 @@ Sidan får konceptets form och lagar sina egna sju fynd i samma vända (D6).
 - `ListRow.IsHighlighted` och stilen `BodyAccentLabel` — läsarens egen rad i en lista med andra.
 
 **Verifierat:** build grön för maccatalyst och ios. Kört på iPhone 17 Pro (iOS 26) i båda teman:
-hero, "starttid ej satt", deadline utan ordinal, ingen "Visa tävling"-knapp, kartan hel, villkoren
-under de släckta knapparna, klassvalet med bock, mellanlandningen och vidare in i Eventors formulär.
+hero, "starttid ej satt", deadline utan ordinal, ingen "Visa tävling"-knapp, villkoren under de
+släckta knapparna, klassvalet med bock, mellanlandningen och vidare in i Eventors formulär.
+Sex av sju fynd lagade; kartan (fynd 1) är inte lagad och ligger som #133.
 
 ## Decisions
 
@@ -72,6 +79,11 @@ under de släckta knapparna, klassvalet med bock, mellanlandningen och vidare in
 
 ## Öppna fynd som hör till nästa steg
 
+- **Kontrollsymbolen på kartan blev grön i etapp A och är nu orange igen.** Kontrollen är
+  orienteringens tecken, inte appens: vit uppe till vänster, orange nedanför diagonalen, likadan
+  på varje karta i världen. En kontroll i varumärkets färg är inte längre en kontroll. Den står
+  därför utanför paletten. Rättat här, och skrivet in i `design-system.md` och i #127:s changelog.
+- **Kartan ritar bara en del av sin yta** — #133, etapp E.
 - `EventorEntrySheet` säger "Du är redan inloggad här" oavsett om sessionen finns. Utan inloggning
   möts man av Eventors "Du behöver vara inloggad för att anmäla dig" under en rubrik som påstår
   motsatsen. Hör till etapp C steg 2 tillsammans med annonsväggen och klassen i URL:en.
