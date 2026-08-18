@@ -134,7 +134,7 @@
                                 <HorizontalStackLayout Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
                                                        Spacing="6" Margin="0,6,0,0">
                                     <Border Style="{StaticResource BadgeLive}" IsVisible="{Binding IsLive}">
-                                        <Label Style="{StaticResource BadgeOnFillLabel}" Text="Live" />
+                                        <Label Style="{StaticResource BadgeOnSignalLabel}" Text="Live" />
                                     </Border>
                                     <Border Style="{StaticResource BadgePositive}" IsVisible="{Binding IsRegistered}">
                                         <Label Style="{StaticResource BadgeOnFillLabel}" Text="Anmäld" />

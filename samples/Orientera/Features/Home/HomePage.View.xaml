@@ -12,7 +12,7 @@
                 <VerticalStackLayout Spacing="10">
                     <HorizontalStackLayout Spacing="8">
                         <Border Style="{StaticResource BadgeLive}">
-                            <Label Style="{StaticResource BadgeOnFillLabel}" Text="Live nu" />
+                            <Label Style="{StaticResource BadgeOnSignalLabel}" Text="Live nu" />
                         </Border>
                     </HorizontalStackLayout>
 

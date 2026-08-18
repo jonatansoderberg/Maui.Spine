@@ -26,7 +26,7 @@
             </HorizontalStackLayout>
             <HorizontalStackLayout Spacing="8">
                 <Border Style="{StaticResource BadgeLive}" IsVisible="{Binding IsRunningNow}">
-                    <Label Style="{StaticResource BadgeOnFillLabel}" Text="Live" />
+                    <Label Style="{StaticResource BadgeOnSignalLabel}" Text="Live" />
                 </Border>
                 <Label Style="{StaticResource NumericCaptionLabel}"
                        VerticalOptions="Center"

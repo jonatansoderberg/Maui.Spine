@@ -115,8 +115,9 @@
         <Setter Property="BackgroundColor" Value="{DynamicResource PositiveDelta}" />
     </Style>
 
+    <!-- Live pågår: en av SignalUrgents tre tillåtna användningar (D1) -->
     <Style x:Key="BadgeLive" TargetType="Border" BasedOn="{StaticResource Badge}">
-        <Setter Property="BackgroundColor" Value="{DynamicResource AccentAction}" />
+        <Setter Property="BackgroundColor" Value="{DynamicResource SignalUrgent}" />
     </Style>
 
     <!--
@@ -141,6 +142,11 @@
 
     <Style x:Key="BadgeOnFillLabel" TargetType="Label" BasedOn="{StaticResource BadgeLabel}">
         <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
+    </Style>
+
+    <!-- Texten på SignalUrgent-fyllning: orangen är varm, accentens mörka bläck är grönt -->
+    <Style x:Key="BadgeOnSignalLabel" TargetType="Label" BasedOn="{StaticResource BadgeLabel}">
+        <Setter Property="TextColor" Value="{DynamicResource TextOnSignal}" />
     </Style>
 
     <!-- One primary CTA per view (§2.2) -->

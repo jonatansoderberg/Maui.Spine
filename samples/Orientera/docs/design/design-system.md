@@ -1,6 +1,7 @@
 # Orientera — designsystem (låsta värden)
 
-> **Status: LÅST 2026-08-10** för M0. Utfallet av avstämningspunkt 1–5 i
+> **Status: LÅST 2026-08-10** för M0, **paletten omlåst 2026-08-17** genom beslut 6 (grön bas,
+> orange som signal). Utfallet av avstämningspunkt 1–11 i
 > [designprinciper.md](designprinciper.md). Principerna där är fortsatt normativa;
 > det här dokumentet är facit för de konkreta värdena.
 >
@@ -34,13 +35,35 @@ monterad i `Application.Resources`. **Konsumera alltid tokens med `{DynamicResou
 | `OutlineStrong` | `#D3D3CD` | `#3C4249` | Tydligare avgränsning |
 | `TextPrimary` | `#1A1D21` | `#F2F3F4` | Rubriker, värden |
 | `TextSecondary` | `#5B6167` | `#9AA1A7` | Metadata, etiketter |
-| `TextOnAccent` | `#FFFFFF` | `#1A1208` | Text på accentfyllning |
-| `AccentAction` | `#C2410C` | `#FF7A33` | Primär CTA, vald chip, live-markör |
-| `AccentSubtle` | `#FDF1EA` | `#3A2A20` | Fyllning bakom accent-chip/badge |
+| `TextOnAccent` | `#FFFFFF` | `#08150F` | Text på accentfyllning |
+| `TextOnSignal` | `#FFFFFF` | `#1A1208` | Text på `SignalUrgent`-fyllning |
+| `AccentAction` | `#1B5E3F` | `#58C99A` | Primär CTA, vald chip, aktivt läge |
+| `AccentSubtle` | `#EAF2ED` | `#1E2E26` | Fyllning bakom accent-chip/badge |
+| `SignalUrgent` | `#C2410C` | `#FF7A33` | **Tre tillåtna användningar** — se nedan |
 | `PositiveDelta` | `#237D33` | `#51CF66` | Vinst/över prognos |
 | `NegativeDelta` | `#C92A2A` | `#FF6B6B` | Tapp/bom |
 | `EstimateInk` | `#9C36B5` | `#DA77F2` | Modellerade/uppskattade värden |
+| `LinkInk` | `#1D4ED8` | `#7FB2FF` | Länk ut ur en text |
 | `MapInk` | `#8A7B5C` | `#4A5240` | Kartidentitet — **dekor, aldrig text** |
+| `HeroScrim` | `#B3000000` | `#CC000000` | Gradientens nedre stopp under hero — dekor |
+| `SkeletonBase` | `#ECECE8` | `#262A2E` | Skelettrader — dekor |
+| `AvatarBackground` | `#E6EDE9` | `#2A322D` | Platsen bakom profilbild och klubbmärke |
+| `BrandTint` | `#2E8B57` | `#2E8B57` | Tabbtint, appikon, splash — **samma i båda teman** |
+| `Primary` / `PrimaryDark` | `#1B5E3F` / `#58C99A` | samma par | Läses av Spines `PageActionView`; båda deklareras i båda teman |
+
+### Orange som signal (beslut 6)
+
+`SignalUrgent` är inte en andra accent. Den har tre användningar och inga andra:
+
+| Var | Form |
+|---|---|
+| Live pågår | `BadgeLive` |
+| Deadline inom ett dygn | byggs i etapp C steg 1 |
+| Tapp mot vinnaren | byggs i etapp C steg 3 |
+
+Nyansen är den orange som bar `AccentAction` fram till 2026-08-17, oförändrad — därför gäller
+M0:s kontrastmätningar för den fortfarande. Att den har ett eget namn är hela poängen: varje
+användning går att räkna med en grep, så regeln kan granskas i stället för bara påstås.
 
 Icke-färgtokens i samma nyckelset: `CardStrokeThickness` (0 / 1) och `CardShadow`
 (mjuk skugga / ingen). Det är hela skillnaden mellan ljus och mörk korthöjd:
@@ -58,17 +81,33 @@ Fyra nyanser flyttades. Ingen av dem ändrar palettens karaktär; alla fyra fall
 | `PositiveDelta` (light) | `#2F9E44` | `#237D33` | 3.45:1 på kort. |
 | `NegativeDelta` (light) | `#E03131` | `#C92A2A` | 4.51:1 på kort men 4.21:1 på sidbakgrund. |
 
-Den ursprungliga orangen `#E8590C` lever kvar på tre ställen där den inte bär text:
-appikon, splash och **native tab-barens selected tint**. Den är den enda nyansen som
-klarar 3:1 mot *både* den ljusa och den mörka bakgrunden i baren (3.58:1 / 4.68:1),
-vilket per-tema-tokens inte gör — tab-barens stil sätts en gång vid start
-(`SpineTabBarStyle` appliceras vid handler-creation och läses inte om vid temabyte).
+### Färgen som inte kan byta med temat
+
+Tre ytor kan inte läsa en token: **native tab-barens selected tint** sätts en gång vid start
+(`SpineTabBarStyle` appliceras vid handler-creation och läses inte om vid temabyte), och
+**appikon** och **splash** bakas vid build. De behöver en enda nyans som klarar 3:1 mot både den
+ljusa och den mörka bakgrunden — det som fram till 2026-08-17 var motivet till att `#E8590C`
+låg kvar som literal.
+
+Med den gröna paletten är den nyansen `BrandTint` `#2E8B57`, uppmätt mot samma ytor:
+
+| Kandidat | Mot ljus bar `#FFFFFF` | Mot mörk bar `#1B1E21` |
+|---|---|---|
+| `#E8590C` (M0) | 3.58 | 4.68 |
+| **`#2E8B57`** (låst) | **4.25** | **3.94** |
+| `#1B5E3F` (`AccentAction` light) | 7.72 | 2.17 ❌ |
+
+`AccentAction` duger alltså inte som tabbtint, precis som per-tema-orangen inte dög.
+`BrandTint` deklareras i båda temafilerna med samma värde; `MauiProgram` läser den därifrån,
+och `Orientera.csproj` och `Resources/Svg/arena_control.svg` upprepar hexen med en kommentar
+som pekar hem — ett byggsteg kan inte slå upp en `ResourceDictionary`.
 
 ### Kontrastverifiering
 
-Alla text-på-yta-par av `TextPrimary`, `TextSecondary`, `AccentAction`, `PositiveDelta`,
-`NegativeDelta` och `EstimateInk` mot alla fyra ytor klarar **4.5:1 i båda teman**, liksom
-text på accent-, positiv- och negativfyllning. Urval:
+Alla text-på-yta-par av `TextPrimary`, `TextSecondary`, `AccentAction`, `SignalUrgent`,
+`PositiveDelta`, `NegativeDelta`, `EstimateInk` och `LinkInk` mot alla fyra ytor klarar
+**4.5:1 i båda teman**, liksom text på accent-, signal-, positiv- och negativfyllning. Urval,
+med den gröna paletten ommätt 2026-08-17:
 
 | Par | Light | Dark |
 |-----|-------|------|
@@ -76,12 +115,25 @@ text på accent-, positiv- och negativfyllning. Urval:
 | `TextPrimary` on `SurfaceCard` | 16.91 | 15.07 |
 | `TextSecondary` on `SurfacePage` | 5.84 | 7.12 |
 | `TextSecondary` on `SurfaceCard` | 6.27 | 6.40 |
-| `AccentAction` on `SurfaceCard` | 5.18 | 6.44 |
-| `AccentAction` on `AccentSubtle` | 4.67 | 5.28 |
-| `TextOnAccent` on `AccentAction` | 5.18 | 7.13 |
+| `AccentAction` on `SurfaceCard` | 7.72 | 8.16 |
+| `AccentAction` on `SurfacePage` | 7.20 | 9.08 |
+| `AccentAction` on `AccentSubtle` | 6.77 | 6.94 |
+| `TextOnAccent` on `AccentAction` | 7.72 | 9.10 |
+| `SignalUrgent` on `SurfaceCard` | 5.18 | 6.44 |
+| `TextOnSignal` on `SignalUrgent` | 5.18 | 7.13 |
 | `PositiveDelta` on `SurfaceCard` | 5.18 | 8.34 |
+| `TextOnAccent` on `PositiveDelta` | 5.18 | 9.31 |
 | `NegativeDelta` on `SurfaceCard` | 5.46 | 6.03 |
 | `EstimateInk` on `SurfaceCard` | 5.82 | 6.30 |
+| `LinkInk` on `SurfaceCard` | 6.70 | 7.75 |
+| `TextPrimary` on `AvatarBackground` | 14.22 | 11.87 |
+
+PM-märket var det svagaste paret i mörkt läge (`AccentAction` på `AccentSubtle`, testkörningens
+fynd på designsystemsidan). Med den gröna paletten går det från 5.28 till 6.94 — problemet
+försvinner med bytet i stället för att behöva en egen justering.
+
+`HeroScrim`, `SkeletonBase` och `MapInk` är dekor och bär aldrig text. Skelettraderna ligger
+avsiktligt nära kortytan (1.18 / 1.16) — de är platshållare, inte innehåll.
 
 `MapInk` är undantaget: den är en dekorativ texturton (höjdkurvemönster bakom hero och
 kartytor) och ska aldrig bära text. WCAG ställer inga kontrastkrav på rent dekorativ grafik.

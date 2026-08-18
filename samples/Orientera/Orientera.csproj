@@ -38,14 +38,20 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- Ikon och splash bakas vid build och kan inte läsa en ResourceDictionary. #2E8B57 är
+		     BrandTint ur Resources\Styles\LightTheme.xaml; ändras den där ändras den här. -->
+
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#E8590C" />
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#2E8B57" />
 
 		<!-- Splash Screen -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#E8590C" BaseSize="128,128" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#2E8B57" BaseSize="128,128" />
 
-		<!-- Images -->
+		<!-- Images. Terrängbilderna ligger i en egen katalog men plattas ut av MAUI; de bär
+		     sitt terrain_-prefix i filnamnet. Globben tar bara .jpg så README och licensfilen
+		     inte skickas genom bildpipelinen. -->
 		<MauiImage Include="Resources\Images\*" />
+		<MauiImage Include="Resources\Images\terrain\*.jpg" />
 
 		<!-- Embedded SVGs (tab icons, resolved via the SvgIcon pipeline) -->
 		<EmbeddedResource Include="Resources\Svg\*.svg" />

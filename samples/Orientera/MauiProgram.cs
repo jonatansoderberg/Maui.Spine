@@ -7,6 +7,7 @@ using Orientera.Services.Eventor;
 using Orientera.Services.FakeData;
 using Orientera.Services.Local;
 using Orientera.Services.Notifications;
+using Orientera.Resources.Styles;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
@@ -56,11 +57,12 @@ public static class MauiProgram
                     | Plugin.Maui.Spine.Core.SafeAreaEdges.Left
                     | Plugin.Maui.Spine.Core.SafeAreaEdges.Right;
 
-                // #E8590C is the one orange that clears 3:1 against both the light and the
-                // dark native bar; the per-theme AccentAction tokens are tuned for text.
+                // The bar is styled once at handler creation and never re-read on a theme swap,
+                // so its tint cannot be a per-theme token. BrandTint is the green that clears
+                // 3:1 against both bars (4.25 / 3.94); AccentAction only clears the light one.
                 options.Tabs.Style = new SpineTabBarStyle
                 {
-                    SelectedColor = Color.FromArgb("#E8590C"),
+                    SelectedColor = (Color)new LightTheme()["BrandTint"],
                 };
             })
             .ConfigureFonts(fonts =>

@@ -70,7 +70,7 @@
                                         Style="{StaticResource BadgeLive}"
                                         VerticalOptions="Center"
                                         IsVisible="{Binding IsCurrent}">
-                                    <Label Style="{StaticResource BadgeOnFillLabel}" Text="Nu" />
+                                    <Label Style="{StaticResource BadgeOnSignalLabel}" Text="Nu" />
                                 </Border>
                             </Grid>
 

@@ -26,16 +26,47 @@
     <Color x:Key="TextPrimary">#1A1D21</Color>
     <Color x:Key="TextSecondary">#5B6167</Color>
     <Color x:Key="TextOnAccent">#FFFFFF</Color>
+    <Color x:Key="TextOnSignal">#FFFFFF</Color>
 
     <!-- Accent -->
-    <Color x:Key="AccentAction">#C2410C</Color>
-    <Color x:Key="AccentSubtle">#FDF1EA</Color>
+    <Color x:Key="AccentAction">#1B5E3F</Color>
+    <Color x:Key="AccentSubtle">#EAF2ED</Color>
+
+    <!--
+        SignalUrgent är inte en andra accent utan en signal, och har exakt tre tillåtna
+        användningar (beslut D1): live pågår, deadline inom ett dygn, tapp mot vinnaren.
+        Nyansen är den orange som bar accenten före redesignen, oförändrad och därmed
+        fortfarande kontrastverifierad.
+    -->
+    <Color x:Key="SignalUrgent">#C2410C</Color>
 
     <!-- Semantics -->
     <Color x:Key="PositiveDelta">#237D33</Color>
     <Color x:Key="NegativeDelta">#C92A2A</Color>
     <Color x:Key="EstimateInk">#9C36B5</Color>
     <Color x:Key="MapInk">#8A7B5C</Color>
+    <Color x:Key="LinkInk">#1D4ED8</Color>
+
+    <!-- Ytor som konceptet kräver: hero-gradient, skelettrader, avatarplats -->
+    <Color x:Key="HeroScrim">#B3000000</Color>
+    <Color x:Key="SkeletonBase">#ECECE8</Color>
+    <Color x:Key="AvatarBackground">#E6EDE9</Color>
+
+    <!--
+        BrandTint är den enda färgen som inte kan byta med temat: tabbarens tint sätts vid
+        handler-creation, och appikon och splash bakas vid build. Samma värde i båda temafilerna.
+        Uppmätt 4.25:1 mot den ljusa baren och 3.94:1 mot den mörka — AccentAction klarar bara
+        den ljusa (7.72 mot 2.17).
+    -->
+    <Color x:Key="BrandTint">#2E8B57</Color>
+
+    <!--
+        Spines PageActionView färgar textknappar i sidhuvudet ur Primary/PrimaryDark och faller
+        annars tillbaka på MAUI-mallens lila. Båda deklareras i båda temafilerna, så knappen får
+        rätt nyans oavsett vilket tema som råkar vara monterat när den läser.
+    -->
+    <Color x:Key="Primary">#1B5E3F</Color>
+    <Color x:Key="PrimaryDark">#58C99A</Color>
 
     <!-- Elevation. Light cards carry a soft shadow; dark cards a hairline instead. -->
     <x:Double x:Key="CardStrokeThickness">0</x:Double>

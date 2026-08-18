@@ -22,17 +22,32 @@
     <!-- Text -->
     <Color x:Key="TextPrimary">#F2F3F4</Color>
     <Color x:Key="TextSecondary">#9AA1A7</Color>
-    <Color x:Key="TextOnAccent">#1A1208</Color>
+    <Color x:Key="TextOnAccent">#08150F</Color>
+    <Color x:Key="TextOnSignal">#1A1208</Color>
 
     <!-- Accent -->
-    <Color x:Key="AccentAction">#FF7A33</Color>
-    <Color x:Key="AccentSubtle">#3A2A20</Color>
+    <Color x:Key="AccentAction">#58C99A</Color>
+    <Color x:Key="AccentSubtle">#1E2E26</Color>
+
+    <!-- Tre tillåtna användningar, se LightTheme.xaml -->
+    <Color x:Key="SignalUrgent">#FF7A33</Color>
 
     <!-- Semantics -->
     <Color x:Key="PositiveDelta">#51CF66</Color>
     <Color x:Key="NegativeDelta">#FF6B6B</Color>
     <Color x:Key="EstimateInk">#DA77F2</Color>
     <Color x:Key="MapInk">#4A5240</Color>
+    <Color x:Key="LinkInk">#7FB2FF</Color>
+
+    <!-- Ytor som konceptet kräver -->
+    <Color x:Key="HeroScrim">#CC000000</Color>
+    <Color x:Key="SkeletonBase">#262A2E</Color>
+    <Color x:Key="AvatarBackground">#2A322D</Color>
+
+    <!-- Temaoberoende, se LightTheme.xaml -->
+    <Color x:Key="BrandTint">#2E8B57</Color>
+    <Color x:Key="Primary">#1B5E3F</Color>
+    <Color x:Key="PrimaryDark">#58C99A</Color>
 
     <!-- Elevation -->
     <x:Double x:Key="CardStrokeThickness">1</x:Double>
