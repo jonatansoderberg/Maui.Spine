@@ -160,6 +160,116 @@
                 <Button Style="{StaticResource SecondaryButton}" Text="Läs PM" />
             </VerticalStackLayout>
 
+            <!-- ============ Komponenter (etapp B) ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="IdentityView" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <HorizontalStackLayout Spacing="12">
+                            <IdentityView Size="48" Source="terrain_long_skog.jpg" />
+                            <IdentityView Size="48" Fallback="EN" />
+                            <IdentityView Size="28" Shape="Rounded" Source="terrain_sprint_urban.jpg" />
+                            <IdentityView Size="28" Shape="Rounded" Fallback="GK" />
+                            <IdentityView Size="48" />
+                        </HorizontalStackLayout>
+                        <Label Style="{StaticResource CaptionLabel}"
+                               Text="Bild · initialer · klubbmärke · klubb utan märke. Den femte har varken bild eller initialer och kollapsar — en tom cirkel läser som trasig data (P8)." />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="ListRow" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="4">
+                        <ListRow Primary="Elin Norberg" Secondary="OK Gästrike" Value="38:33" ValueDetail="+1:07">
+                            <ListRow.Identity>
+                                <IdentityView Size="36" Fallback="EN" />
+                            </ListRow.Identity>
+                        </ListRow>
+                        <BoxView Style="{StaticResource Divider}" />
+                        <ListRow Primary="Johan Sandberg" Secondary="Gävle OK" Value="37:26" ValueDetail="vinnare">
+                            <ListRow.Identity>
+                                <IdentityView Size="36" Shape="Rounded" Source="terrain_middle_skog.jpg" />
+                            </ListRow.Identity>
+                        </ListRow>
+                        <BoxView Style="{StaticResource Divider}" />
+                        <ListRow Primary="Utan identitet och utan pil"
+                                 Secondary="Kolumnbredderna får skilja, ordningen aldrig"
+                                 Value="4" ShowChevron="False" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="SegmentBar" />
+                <SegmentBar ItemsSource="{Binding Segments}"
+                            SelectedValue="{Binding SelectedSegment}"
+                            Command="{Binding SelectSegmentCommand}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="HeroImage" />
+                <HeroImage Discipline="long" Terrain="fjall" HeightRequest="160" />
+                <Label Style="{StaticResource CaptionLabel}"
+                       Text="Uppslag på disciplin + terräng, med scrim i underkanten. Utan träff visas fallbacken:" />
+                <HeroImage Discipline="okänd" HeightRequest="80">
+                    <HeroImage.Fallback>
+                        <Border Style="{StaticResource Card}">
+                            <Label Style="{StaticResource BodySecondaryLabel}"
+                                   HorizontalOptions="Center" VerticalOptions="Center"
+                                   Text="Kartrutan — den som är sann geografi" />
+                        </Border>
+                    </HeroImage.Fallback>
+                </HeroImage>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="StateView — fyra lägen" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="12">
+                        <StateView State="Loading">
+                            <StateView.Skeleton>
+                                <VerticalStackLayout Spacing="8">
+                                    <BoxView HeightRequest="14" CornerRadius="4" WidthRequest="220"
+                                             HorizontalOptions="Start"
+                                             Color="{DynamicResource SkeletonBase}" />
+                                    <BoxView HeightRequest="14" CornerRadius="4" WidthRequest="160"
+                                             HorizontalOptions="Start"
+                                             Color="{DynamicResource SkeletonBase}" />
+                                </VerticalStackLayout>
+                            </StateView.Skeleton>
+                        </StateView>
+                        <BoxView Style="{StaticResource Divider}" />
+                        <StateView State="Content">
+                            <StateView.Body>
+                                <Label Style="{StaticResource BodyLabel}" Text="Innehållet, när det finns." />
+                            </StateView.Body>
+                        </StateView>
+                        <BoxView Style="{StaticResource Divider}" />
+                        <StateView State="Empty"
+                                   EmptyMessage="Inga resultat än"
+                                   EmptyHint="De dyker upp när tävlingen är klar." />
+                        <BoxView Style="{StaticResource Divider}" />
+                        <StateView State="Error"
+                                   ErrorMessage="Kunde inte läsa resultaten"
+                                   ErrorDetail="Sparade tävlingar och PM fungerar fortfarande."
+                                   RetryCommand="{Binding ToggleThemeCommand}" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="HandoffCard" />
+                <HandoffCard Title="Anmäl dig"
+                             Destination="Eventors sida"
+                             Transfers="Din klass D21 följer med"
+                             StaysInApp="True" />
+                <HandoffCard Title="Bana och vägval"
+                             Destination="Livelox"
+                             Transfers="Öppnas utanför appen" />
+            </VerticalStackLayout>
+
         </VerticalStackLayout>
     </ScrollView>
 

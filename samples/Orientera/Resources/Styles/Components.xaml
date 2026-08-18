@@ -187,7 +187,9 @@
         <Setter Property="StrokeLineCap" Value="Round" />
         <Setter Property="StrokeLineJoin" Value="Round" />
         <Setter Property="VerticalOptions" Value="Center" />
-        <Setter Property="Stroke" Value="{DynamicResource TextMuted}" />
+        <!-- TextSecondary, inte TextMuted: den nyckeln har aldrig funnits i något tema, så
+             disciplinmärket utan träff i triggarna och snurran ritades i MAUI:s standardfärg. -->
+        <Setter Property="Stroke" Value="{DynamicResource TextSecondary}" />
         <Setter Property="AutomationProperties.IsInAccessibleTree" Value="False" />
         <Style.Triggers>
             <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="Sprint">
@@ -219,7 +221,7 @@
         a spinner where the first row will be reads as a row that failed to arrive.
     -->
     <Style x:Key="PageLoading" TargetType="ActivityIndicator">
-        <Setter Property="Color" Value="{DynamicResource TextMuted}" />
+        <Setter Property="Color" Value="{DynamicResource TextSecondary}" />
         <Setter Property="HorizontalOptions" Value="Center" />
         <Setter Property="VerticalOptions" Value="Center" />
         <Setter Property="WidthRequest" Value="28" />
