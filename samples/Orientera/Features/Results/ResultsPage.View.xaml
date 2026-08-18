@@ -16,7 +16,22 @@
                    Text="Dina resultat dyker upp här när de publicerats." />
         </VerticalStackLayout>
 
-        <CollectionView ItemsSource="{Binding Results}" SelectionMode="None" IsVisible="{Binding HasResults}">
+        <CollectionView ItemsSource="{Binding Seasons}" IsGrouped="True"
+                        SelectionMode="None" IsVisible="{Binding HasResults}">
+
+            <!-- Säsongsrubrik: listan gick tidigare rakt bakåt genom åren utan att säga var
+                 ett år slutade och nästa började. -->
+            <CollectionView.GroupHeaderTemplate>
+                <DataTemplate x:DataType="ResultSeason">
+                    <Grid Padding="16,16,16,6" ColumnDefinitions="*,Auto">
+                        <Label Style="{StaticResource SectionLabel}"
+                               SemanticProperties.HeadingLevel="Level2"
+                               Text="{Binding Heading}" />
+                        <Label Grid.Column="1" Style="{StaticResource CaptionLabel}"
+                               Text="{Binding Summary}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.GroupHeaderTemplate>
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Vertical" ItemSpacing="8" />
             </CollectionView.ItemsLayout>
