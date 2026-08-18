@@ -124,6 +124,15 @@ public partial class EventDetailsPageViewModel(
     public int TravelColumnSpan => HasMyStart ? 1 : 2;
     [ObservableProperty] public partial string DeadlineText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasDeadline { get; set; }
+
+    /// <summary>
+    /// When entry has a closing date but has not opened yet. A page that says only when entry
+    /// closes, while the state says the competition is merely discovered, contradicts itself —
+    /// and the reader is left to guess which half is wrong.
+    /// </summary>
+    [ObservableProperty] public partial string OpensText { get; set; } = string.Empty;
+
+    [ObservableProperty] public partial bool HasOpens { get; set; }
     [ObservableProperty] public partial string TravelText { get; set; } = string.Empty;
 
     /// <summary>The time, kept apart from the distance so only it carries the estimate colour.</summary>
@@ -210,6 +219,15 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial string LiveloxText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool CanFollowLive { get; set; }
     [ObservableProperty] public partial bool HasResults { get; set; }
+
+    /// <summary>Why a quick action is unavailable. Empty when it is available.</summary>
+    [ObservableProperty] public partial string LiveConditionText { get; set; } = string.Empty;
+
+    /// <inheritdoc cref="LiveConditionText" />
+    [ObservableProperty] public partial string ResultsConditionText { get; set; } = string.Empty;
+
+    /// <summary>Which bundled terrain picture the hero looks up — the discipline, in lower case.</summary>
+    [ObservableProperty] public partial string HeroDiscipline { get; set; } = string.Empty;
 
     // ---- offline ----
     [ObservableProperty] public partial bool IsFromCache { get; set; }
@@ -401,7 +419,11 @@ public partial class EventDetailsPageViewModel(
                 Name = runner.Name,
                 Club = runner.Club,
                 PointsText = runner.Points is { } points ? points.ToString("N2", Format.Culture) : "—",
-                RankText = runner.NationalRank is { } rank ? $"riks {rank}" : "utan ranking",
+
+                // "utan ranking" på varje rad var en kolumn som mest sa att den var tom. Raden
+                // visar riksplaceringen när den finns och tiger annars — och före lottningen,
+                // när listan är anmälda och inte startande, finns den inte för någon.
+                RankText = !IsEntryList && runner.NationalRank is { } rank ? $"riks {rank}" : string.Empty,
 
                 // The entry list has no person ids, so the reader is found the way the live lists
                 // find them — by name and club (#75).
@@ -476,9 +498,19 @@ public partial class EventDetailsPageViewModel(
         if (_competition is null)
             return;
 
+        // The landing first (P11): what is about to happen, and which class goes with it. Leaving
+        // for a page in someone else's language is a step the runner takes, not a side effect of
+        // pressing the button they were offered.
+        var go = await _navigation.NavigateToWithResultAsync<EntryHandoffSheet, EntryHandoff, bool>(
+            new EntryHandoff(_competition.Name, MyClass));
+
+        if (go is not { IsSuccess: true, Value: true })
+            return;
+
         // In the app, not Safari: the Eventor session lives in the app's own web view store, and
         // an entry page opened externally is an entry page that says you are not logged in.
-        await _navigation.NavigateToAsync<EventorEntrySheet, CompetitionId>(_competition.Id);
+        await _navigation.NavigateToAsync<EventorEntrySheet, EventorEntry>(
+            new EventorEntry(_competition.Id, MyClass));
     }
 
     [RelayCommand]
@@ -490,7 +522,8 @@ public partial class EventDetailsPageViewModel(
         var result = await _navigation.NavigateToWithResultAsync<ChooseClassSheet, ClassChoice, string>(
             new ClassChoice(
                 _competition.Classes,
-                "Klassen avgör vilka PM-punkter som visas, och vilken klass Live öppnar i."));
+                "Klassen avgör vilka PM-punkter som visas, och vilken klass Live öppnar i.",
+                MyClass));
 
         if (result is not { IsSuccess: true, Value: { } className })
             return;
@@ -585,11 +618,14 @@ public partial class EventDetailsPageViewModel(
         OrganiserLine = $"{competition.Organiser} · {competition.Place}";
         OrganiserLogo = competition.OrganiserLogo;
         Arena = competition.Location;
-        DateLine = $"{Format.RelativeDate(competition.Date, today)} · första start {Format.Clock(competition.FirstStart)}";
+        DateLine = competition.HasFirstStart
+            ? $"{Format.RelativeDate(competition.Date, today)} · första start {Format.Clock(competition.FirstStart)}"
+            : $"{Format.RelativeDate(competition.Date, today)} · starttid ej satt";
         MetaLine = $"{Format.Discipline(competition.Discipline)} · {Format.Level(competition.Level)} · {competition.District}";
         // Qualified: this view model has a property of the same name as the helper.
         DisciplineShape = Presentation.DisciplineShape.For(competition.Discipline);
         DisciplineKey = competition.Discipline.ToString();
+        HeroDiscipline = competition.Discipline.ToString().ToLowerInvariant();
         LevelShape = Presentation.DisciplineShape.For(competition.Level);
         OnPropertyChanged(nameof(HasLevelShape));
         IsInterested = interests.Contains(competition.Id);
@@ -620,6 +656,17 @@ public partial class EventDetailsPageViewModel(
 
         DeadlineText = HasDeadline
             ? $"Anmälan stänger {Format.Deadline(DateOnly.FromDateTime(competition.Schedule.EntryDeadline!.Value.Date), today)}"
+            : string.Empty;
+
+        // Eventor publishes both dates, and a competition whose entry has not opened yet was
+        // showing only the closing one — beside a state that said "Upptäckt". Two halves of the
+        // same schedule, and the reader had to guess which one to believe.
+        HasOpens = myEntry is null
+                   && competition.Schedule.RegistrationOpensAt is { } opens
+                   && opens > now;
+
+        OpensText = HasOpens
+            ? $"Anmälan öppnar {Format.Deadline(DateOnly.FromDateTime(competition.Schedule.RegistrationOpensAt!.Value.Date), today)}"
             : string.Empty;
 
         double distance = TravelEstimate.DistanceKm(me.Home, competition.Location);
@@ -654,8 +701,18 @@ public partial class EventDetailsPageViewModel(
 
         // The big button routes through the same action, so it lies in the same way. A race with
         // no live source has nothing to offer here; the quick actions below still do.
-        HasPrimaryAction = _decision.PrimaryAction != ContextAction.FollowLive || CanFollowLive;
+        //
+        // ShowCompetition is dropped outright: its label is "Visa tävling", and this is the
+        // competition. A primary action that leads to the page it is standing on is not an action,
+        // and the deadline block above already says what there is to know before entry opens.
+        HasPrimaryAction = _decision.PrimaryAction is not ContextAction.ShowCompetition
+                           && (_decision.PrimaryAction != ContextAction.FollowLive || CanFollowLive);
+
         HasResults = _decision.State >= ContextState.ResultsPublished;
+
+        // A greyed button with no reason reads as a broken button (testkörningen, skärm 17).
+        LiveConditionText = CanFollowLive ? string.Empty : "finns när tävlingen startat";
+        ResultsConditionText = HasResults ? string.Empty : "finns efter målgång";
 
         BuildBriefing(competition, MyClass);
         BuildDocuments(competition, now);

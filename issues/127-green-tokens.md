@@ -44,8 +44,9 @@ kontrastverifierad och redan låst, den byter bara namn och tappar rollen som va
    grön text på orange fyllning i chip och badge.
 3. `MauiProgram.cs:63` — `SelectedColor` läser `BrandTint` ur resursordboken i stället för literalen, och
    kommentaren ovanför skrivs om mot den nya mätningen.
-4. `Orientera.csproj:42`, `:45` och `Resources/Svg/arena_control.svg:4` — `#E8590C` → `BrandTint`-hexen.
-   De bakas vid build och kan inte läsa en token; de får en kommentar som pekar hit.
+4. `Orientera.csproj:42` och `:45` — `#E8590C` → `BrandTint`-hexen. De bakas vid build och kan
+   inte läsa en token; de får en kommentar som pekar hit. `Resources/Svg/arena_control.svg`
+   undantas: se **Decisions**.
 5. Live-märket (`BadgeLive`, `Components.xaml:118`) byter från `AccentAction` till `SignalUrgent` — det är
    den första av de tre tillåtna användningarna.
 
@@ -105,7 +106,7 @@ Följden är att avslutskriteriet "`SignalUrgent` på exakt tre ställen" flytta
 att `NegativeDelta` behöver ett eget svar där: vad betyder rött när tapp blivit orange? Bom? Struken?
 
 **F2 — Avslutskriteriet "ingen färgliteral utanför temafilerna" kan inte gälla bokstavligt.**
-Appikon, splash och `arena_control.svg` bakas vid build och kan inte läsa en `ResourceDictionary`. Förslag:
+Appikon och splash bakas vid build och kan inte läsa en `ResourceDictionary`. Förslag:
 kriteriet blir "inga färgliteraler i runtime-XAML eller C#", och byggtidsassets bär `BrandTint`-hexen med en
 kommentar som pekar på temafilen. Alternativet är ett byggsteg som genererar dem — mer maskineri än frågan väger.
 
@@ -122,7 +123,7 @@ kommentar som pekar på temafilen. Alternativet är ett byggsteg som genererar d
    och fem anropsställen bytte till den.
 3. **Tabbtinten** läser `BrandTint` ur temaordboken (`MauiProgram.cs`) i stället för `#E8590C`.
 4. **Byggtidsassets** bär `#2E8B57` med en kommentar som pekar på temafilen: `Orientera.csproj`
-   (ikon + splash) och `Resources/Svg/arena_control.svg`.
+   (ikon + splash).
 5. **Designsystemsidan** fick `SignalUrgent`, `LinkInk` och en sektion "Dekor och identitet" med
    `SkeletonBase`, `AvatarBackground`, `HeroScrim` och `BrandTint`.
 6. **Dokumenten:** designprinciper §9 har beslut 6–11, princip 2 i §2 omskriven; design-system.md
@@ -164,5 +165,11 @@ statusmärken gröna; live-märket orange; PM-märket i mörkt läge läsbart.
   "Tid" och "Filter" stod i systemfärg i testkörningen. Båda nycklarna finns i båda temafilerna,
   så resultatet blir rätt oavsett vilken ordbok som är monterad och oberoende av i vilken ordning
   temabytets händelsehanterare råkar köra. Två fynd ur testkörningen lagade på köpet.
+- **Kontrollsymbolen står utanför paletten.** `arena_control.svg` byttes först till `BrandTint`
+  tillsammans med ikonen och splashen, och det var fel: kontrollen är orienteringens tecken, inte
+  appens. Vit uppe till vänster och orange nedanför diagonalen ser likadan ut på varje karta i
+  världen och läses utan att förklaras — en kontroll i varumärkets färg är inte längre en kontroll.
+  Den behåller `#E8590C`, inte som rest av den gamla accenten utan som sportens färg, och ska inte
+  städas in i något token. (Rättat i etapp C steg 1, se #131.)
 - **PM-märket i mörkt läge behövde ingen egen justering.** Det var `AccentAction` på
   `AccentSubtle`, 5.28 med den orange paletten. Med den gröna blir samma par 6.94.

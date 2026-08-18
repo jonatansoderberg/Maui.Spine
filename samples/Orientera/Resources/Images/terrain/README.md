@@ -62,6 +62,10 @@ Ett tiotal bilder som täcker uppslagets båda första steg:
 | `terrain_relay_skog.jpg` | stafett |
 | `terrain_indoor_default.jpg` | inomhus |
 
+Varje disciplin har dessutom sin `_default`, eftersom terrängtypen ännu inte finns i domänen —
+den skulle komma ur PM-extraktionen (M3, SP-10, inte byggd). Tills dess slår hero upp på disciplin
+allena, och utan en `_default` per disciplin hade den fallit till kartrutan för de flesta tävlingar.
+
 ## Licens
 
 Varje bild skrivs in i [`terrain-licenses.txt`](terrain-licenses.txt) med källa, upphovsperson

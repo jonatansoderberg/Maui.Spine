@@ -46,6 +46,10 @@ public sealed class ListRow : ContentView
         BindableProperty.Create(nameof(ShowChevron), typeof(bool), typeof(ListRow), true,
             propertyChanged: (b, _, _) => ((ListRow)b).Apply());
 
+    public static readonly BindableProperty IsHighlightedProperty =
+        BindableProperty.Create(nameof(IsHighlighted), typeof(bool), typeof(ListRow), false,
+            propertyChanged: (b, _, _) => ((ListRow)b).Apply());
+
     public static readonly BindableProperty DescriptionProperty =
         BindableProperty.Create(nameof(Description), typeof(string), typeof(ListRow), string.Empty,
             propertyChanged: (b, _, _) => ((ListRow)b).Apply());
@@ -170,6 +174,13 @@ public sealed class ListRow : ContentView
         set => SetValue(ShowChevronProperty, value);
     }
 
+    /// <summary>The row that is the reader's own. Never the only thing that says so.</summary>
+    public bool IsHighlighted
+    {
+        get => (bool)GetValue(IsHighlightedProperty);
+        set => SetValue(IsHighlightedProperty, value);
+    }
+
     /// <summary>What the screen reader says. Composed from the row's own text when left empty.</summary>
     public string Description
     {
@@ -204,6 +215,10 @@ public sealed class ListRow : ContentView
         _secondary.Text = Secondary;
         _value.Text = Value;
         _valueDetail.Text = ValueDetail;
+
+        // Two pre-built styles rather than a trigger, for the reason ChipView documents: a trigger
+        // remembers the colour it replaced and restores the old theme's after a swap.
+        _primary.SetDynamicResource(StyleProperty, IsHighlighted ? "BodyAccentLabel" : "BodyStrongLabel");
 
         _secondary.IsVisible = !string.IsNullOrWhiteSpace(Secondary);
         _value.IsVisible = !string.IsNullOrWhiteSpace(Value);

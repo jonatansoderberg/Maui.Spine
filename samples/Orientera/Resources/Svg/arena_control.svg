@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <!-- Orienteringens kontrollsymbol: kvadrat delad längs diagonalen, vit uppe till vänster.
-       #2E8B57 är BrandTint ur Resources/Styles/LightTheme.xaml; en inbäddad SVG kan inte
-       läsa en token, så värdet upprepas här. -->
+       Orange är inte appens val här utan sportens: kontrollen ser likadan ut på varje karta,
+       skärm och skärmvägg i världen, och en kontroll i varumärkets färg är inte längre en
+       kontroll. Den står därför utanför paletten och byter inte med den. -->
   <polygon points="0,0 32,0 0,32" fill="#FFFFFF" />
-  <polygon points="32,0 32,32 0,32" fill="#2E8B57" />
+  <polygon points="32,0 32,32 0,32" fill="#E8590C" />
   <rect x="1.25" y="1.25" width="29.5" height="29.5" fill="none" stroke="#1A1D21" stroke-width="2.5" />
 </svg>

@@ -99,8 +99,16 @@ Med den gröna paletten är den nyansen `BrandTint` `#2E8B57`, uppmätt mot samm
 
 `AccentAction` duger alltså inte som tabbtint, precis som per-tema-orangen inte dög.
 `BrandTint` deklareras i båda temafilerna med samma värde; `MauiProgram` läser den därifrån,
-och `Orientera.csproj` och `Resources/Svg/arena_control.svg` upprepar hexen med en kommentar
-som pekar hem — ett byggsteg kan inte slå upp en `ResourceDictionary`.
+och `Orientera.csproj` upprepar hexen med en kommentar som pekar hem — ett byggsteg kan inte
+slå upp en `ResourceDictionary`.
+
+### Färgen som inte är vår
+
+`Resources/Svg/arena_control.svg` står utanför paletten och bytte inte med den.
+Kontrollsymbolen är orienteringens egen: vit uppe till vänster, orange nedanför diagonalen,
+likadan på varje karta och skärmvägg i världen. Den läses utan att förklaras, och en kontroll i
+varumärkets färg är inte längre en kontroll. Den behåller därför `#E8590C` — inte som rest av den
+gamla accenten utan som sportens tecken, och den ska inte städas in i något token.
 
 ### Kontrastverifiering
 

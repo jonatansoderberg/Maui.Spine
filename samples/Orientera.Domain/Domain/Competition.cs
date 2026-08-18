@@ -110,6 +110,18 @@ public sealed record Competition
     [JsonIgnore]
     public DateOnly Date => DateOnly.FromDateTime(FirstStart.Date);
 
+    /// <summary>
+    /// Whether the first start is an actual time of day rather than a date with no time on it.
+    /// </summary>
+    /// <remarks>
+    /// A calendar entry without a start time arrives as midnight, and midnight rendered as
+    /// "första start 00:00" — a time the app appeared to know and did not. The ambiguity is
+    /// theoretical: nothing starts at midnight, night races included, since those set off in the
+    /// evening. Treating 00:00 as unset is therefore reading the encoding the source already uses.
+    /// </remarks>
+    [JsonIgnore]
+    public bool HasFirstStart => FirstStart.TimeOfDay != TimeSpan.Zero;
+
     [JsonIgnore]
     public bool IsLowPriority => Level is CompetitionLevel.Training or CompetitionLevel.Recreational;
 }

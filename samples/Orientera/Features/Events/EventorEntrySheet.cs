@@ -1,4 +1,4 @@
-using Orientera.Domain;
+using Orientera.Services.Eventor;
 
 namespace Orientera.Features.Events;
 
@@ -16,7 +16,24 @@ namespace Orientera.Features.Events;
     BackgroundPageOverlay = BackgroundPageOverlay.Dimmed,
     AllowedDetents = [SheetDetent.FullScreen],
     InitialDetent = SheetDetent.FullScreen)]
-public partial class EventorEntrySheet : INavigableWithParameter<CompetitionId>
+public partial class EventorEntrySheet : INavigableWithParameter<EventorEntry>
 {
-    public EventorEntrySheet() => InitializeComponent();
+    public EventorEntrySheet()
+    {
+        InitializeComponent();
+
+        // Eventor serves its chrome again on every page of the entry flow, so this runs on every
+        // navigation rather than once. Both scripts are safe to repeat: the style element is added
+        // once, and the class is only set when the form offers it.
+        Form.Navigated += async (_, e) =>
+        {
+            if (e.Result is not WebNavigationResult.Success)
+                return;
+
+            await Form.EvaluateJavaScriptAsync(EventorEntryChrome.HideChrome);
+
+            if (BindingContext is EventorEntrySheetViewModel { ClassName.Length: > 0 } vm)
+                await Form.EvaluateJavaScriptAsync(EventorEntryChrome.SelectClass(vm.ClassName));
+        };
+    }
 }

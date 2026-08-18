@@ -8,7 +8,7 @@
 
     <Grid>
 
-        <ScrollView>
+        <ScrollView IsVisible="{Binding IsLoaded}">
         <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20">
 
             <!--
@@ -29,6 +29,13 @@
                 <Label Style="{StaticResource BodySecondaryLabel}"
                        Text="Ingen anslutning, och tävlingen finns inte sparad offline. Den sparas automatiskt när du är anmäld, följer den eller markerar dig som intresserad." />
             </VerticalStackLayout>
+
+            <!--
+                Hero först (P7): terräng av det slag tävlingen går i, aldrig ett påstående om
+                platsen. Utan bild degraderar den till kartrutan — inte till en tom yta — och
+                kartan står kvar längre ned i sidan, där den är information och inte dekor.
+            -->
+            <HeroImage Discipline="{Binding HeroDiscipline}" HeightRequest="180" Margin="-16,-12,-16,0" />
 
             <!--
                 Stjärnan delar rad med den korta metaraden, inte med titeln. Ett 44 pt-mål
@@ -77,16 +84,6 @@
 
             <!-- ============ För dig ============ -->
             <VerticalStackLayout Spacing="8">
-                <!-- Var ligger tävlingen? En tävling är en plats innan den är något annat. -->
-                <VerticalStackLayout Spacing="4" IsVisible="{Binding HasArena}">
-                    <Border Stroke="{DynamicResource Outline}" StrokeThickness="1" Padding="0">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="12" />
-                        </Border.StrokeShape>
-                        <events:ArenaMap HeightRequest="170" Arena="{Binding Arena}" />
-                    </Border>
-                </VerticalStackLayout>
-
                 <Label Style="{StaticResource SectionLabel}" Text="För dig" />
 
                 <Border Style="{StaticResource Card}">
@@ -120,8 +117,12 @@
                             </VerticalStackLayout>
 
                             <VerticalStackLayout Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                 Spacing="2"
                                                  IsVisible="{Binding HasDeadline}">
-                                <Label Style="{StaticResource CaptionLabel}" Text="Deadline" />
+                                <Label Style="{StaticResource CaptionLabel}" Text="Anmälan" />
+                                <Label Style="{StaticResource BodyStrongLabel}"
+                                       IsVisible="{Binding HasOpens}"
+                                       Text="{Binding OpensText}" />
                                 <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding DeadlineText}" />
                             </VerticalStackLayout>
                         </Grid>
@@ -167,35 +168,27 @@
                     <VerticalStackLayout Spacing="10">
                         <Label Style="{StaticResource CaptionLabel}" Text="{Binding StartFieldCaption}" />
 
+                        <!--
+                            Samma anatomi som varje annan lista (P9). Ordningstalet står i
+                            identitetens plats, poängen i värdets, och riksplaceringen på raden
+                            under värdet — men bara när den finns.
+                        -->
                         <VerticalStackLayout Spacing="7" BindableLayout.ItemsSource="{Binding StartField}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="StartFieldRow">
-                                    <Grid ColumnDefinitions="28,*,Auto" ColumnSpacing="10">
-                                        <Label Grid.Column="0"
-                                               Style="{StaticResource NumericCaptionLabel}"
-                                               VerticalOptions="Center"
-                                               Text="{Binding Order}" />
-
-                                        <VerticalStackLayout Grid.Column="1" Spacing="1">
-                                            <Label Style="{StaticResource BodyLabel}" Text="{Binding Name}">
-                                                <Label.Triggers>
-                                                    <DataTrigger TargetType="Label" Binding="{Binding IsMe}" Value="True">
-                                                        <Setter Property="TextColor" Value="{DynamicResource AccentAction}" />
-                                                    </DataTrigger>
-                                                </Label.Triggers>
-                                            </Label>
-                                            <Label Style="{StaticResource CaptionLabel}" Text="{Binding Club}" />
-                                        </VerticalStackLayout>
-
-                                        <VerticalStackLayout Grid.Column="2" Spacing="1" HorizontalOptions="End">
-                                            <Label Style="{StaticResource NumericStrongLabel}"
-                                                   HorizontalTextAlignment="End"
-                                                   Text="{Binding PointsText}" />
+                                    <ListRow Primary="{Binding Name}"
+                                             Secondary="{Binding Club}"
+                                             Value="{Binding PointsText}"
+                                             ValueDetail="{Binding RankText}"
+                                             IsHighlighted="{Binding IsMe}"
+                                             ShowChevron="False">
+                                        <ListRow.Identity>
                                             <Label Style="{StaticResource NumericCaptionLabel}"
-                                                   HorizontalTextAlignment="End"
-                                                   Text="{Binding RankText}" />
-                                        </VerticalStackLayout>
-                                    </Grid>
+                                                   WidthRequest="28"
+                                                   VerticalOptions="Center"
+                                                   Text="{Binding Order}" />
+                                        </ListRow.Identity>
+                                    </ListRow>
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
                         </VerticalStackLayout>
@@ -204,16 +197,40 @@
             </VerticalStackLayout>
 
             <!-- ============ Snabbhandlingar ============ -->
+            <!--
+                Villkoret står under den släckta knappen. En grå knapp utan förklaring läser som
+                en trasig knapp — det var samma fynd två gånger i testkörningen.
+            -->
             <VerticalStackLayout Spacing="8">
                 <Label Style="{StaticResource SectionLabel}" Text="Snabbhandlingar" />
-                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                    <Button Grid.Column="0" Style="{StaticResource SecondaryButton}" Text="Klass"
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                    <Button Grid.Row="0" Grid.Column="0" Style="{StaticResource SecondaryButton}" Text="Klass"
                             Command="{Binding OpenChooseClassCommand}" />
-                    <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Text="Live"
+                    <Button Grid.Row="0" Grid.Column="1" Style="{StaticResource SecondaryButton}" Text="Live"
                             IsEnabled="{Binding CanFollowLive}" Command="{Binding OpenLiveCommand}" />
-                    <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Text="Resultat"
+                    <Button Grid.Row="0" Grid.Column="2" Style="{StaticResource SecondaryButton}" Text="Resultat"
                             IsEnabled="{Binding HasResults}" Command="{Binding OpenResultsCommand}" />
+
+                    <Label Grid.Row="1" Grid.Column="1"
+                           Style="{StaticResource CaptionLabel}"
+                           HorizontalTextAlignment="Center"
+                           Text="{Binding LiveConditionText}" />
+                    <Label Grid.Row="1" Grid.Column="2"
+                           Style="{StaticResource CaptionLabel}"
+                           HorizontalTextAlignment="Center"
+                           Text="{Binding ResultsConditionText}" />
                 </Grid>
+            </VerticalStackLayout>
+
+            <!-- Var ligger tävlingen? En tävling är en plats innan den är något annat. -->
+            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasArena}">
+                <Label Style="{StaticResource SectionLabel}" Text="Arenan" />
+                <Border Stroke="{DynamicResource Outline}" StrokeThickness="1" Padding="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="12" />
+                    </Border.StrokeShape>
+                    <events:ArenaMap HeightRequest="170" Arena="{Binding Arena}" />
+                </Border>
             </VerticalStackLayout>
 
             <!-- ============ PM-briefing ============ -->
@@ -270,26 +287,10 @@
             <VerticalStackLayout Spacing="8" IsVisible="{Binding HasLivelox}">
                 <Label Style="{StaticResource SectionLabel}" Text="Vägval" />
 
-                <Border Style="{StaticResource Card}" Padding="14,12"
-                        SemanticProperties.Hint="Öppnas i Livelox utanför appen">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <VerticalStackLayout Grid.Column="0" Spacing="1">
-                            <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding LiveloxText}" />
-                            <Label Style="{StaticResource CaptionLabel}"
-                                   Text="Kartor och rutter visas av Livelox" />
-                        </VerticalStackLayout>
-                        <Label Grid.Column="1"
-                               Style="{StaticResource BodyLabel}"
-                               TextColor="{DynamicResource TextSecondary}"
-                               VerticalOptions="Center"
-                               AutomationProperties.IsInAccessibleTree="False"
-                               Text="&#x2197;&#xFE0E;" />
-                    </Grid>
-
-                    <Border.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding OpenLiveloxCommand}" />
-                    </Border.GestureRecognizers>
-                </Border>
+                <HandoffCard Title="{Binding LiveloxText}"
+                             Destination="Livelox"
+                             Transfers="Kartor och rutter visas av Livelox"
+                             Command="{Binding OpenLiveloxCommand}" />
             </VerticalStackLayout>
 
             <VerticalStackLayout Spacing="8" IsVisible="{Binding HasDocuments}">
@@ -298,28 +299,10 @@
                 <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Documents}">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="DocumentItem">
-                            <Border Style="{StaticResource Card}" Padding="14,12"
-                                    SemanticProperties.Description="{Binding Accessibility}"
-                                    SemanticProperties.Hint="Öppnas utanför appen">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <VerticalStackLayout Grid.Column="0" Spacing="1">
-                                        <Label Style="{StaticResource BodyStrongLabel}" Text="{Binding Title}" />
-                                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding Meta}" />
-                                    </VerticalStackLayout>
-                                    <Label Grid.Column="1"
-                                           Style="{StaticResource BodyLabel}"
-                                           TextColor="{DynamicResource TextSecondary}"
-                                           VerticalOptions="Center"
-                                           AutomationProperties.IsInAccessibleTree="False"
-                                           Text="&#x2197;&#xFE0E;" />
-                                </Grid>
-
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer
-                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenExternalCommand}"
-                                        CommandParameter="{Binding Url}" />
-                                </Border.GestureRecognizers>
-                            </Border>
+                            <HandoffCard Title="{Binding Title}"
+                                         Destination="{Binding Meta}"
+                                         Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenExternalCommand}"
+                                         CommandParameter="{Binding Url}" />
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
                 </VerticalStackLayout>
@@ -328,9 +311,27 @@
         </VerticalStackLayout>
         </ScrollView>
 
-        <ActivityIndicator Style="{StaticResource PageLoading}"
-                           IsRunning="{Binding IsLoading}"
-                           IsVisible="{Binding IsLoading}" />
+        <!--
+            Skelett i innehållets egen form, inte en snurra ovanpå det (P10): hero, rubrik,
+            metarad och två kort — sidans egna proportioner, så att den inte hoppar när
+            innehållet kommer.
+        -->
+        <VerticalStackLayout Padding="{StaticResource ScreenPadding}" Spacing="20"
+                             IsVisible="{Binding IsLoading}"
+                             InputTransparent="True">
+            <BoxView HeightRequest="180" CornerRadius="0" Margin="-16,-12,-16,0"
+                     Color="{DynamicResource SkeletonBase}" />
+            <VerticalStackLayout Spacing="8">
+                <BoxView HeightRequest="12" WidthRequest="140" CornerRadius="4"
+                         HorizontalOptions="Start" Color="{DynamicResource SkeletonBase}" />
+                <BoxView HeightRequest="26" WidthRequest="240" CornerRadius="6"
+                         HorizontalOptions="Start" Color="{DynamicResource SkeletonBase}" />
+                <BoxView HeightRequest="14" WidthRequest="180" CornerRadius="4"
+                         HorizontalOptions="Start" Color="{DynamicResource SkeletonBase}" />
+            </VerticalStackLayout>
+            <BoxView HeightRequest="150" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+            <BoxView HeightRequest="110" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+        </VerticalStackLayout>
 
     </Grid>
 
