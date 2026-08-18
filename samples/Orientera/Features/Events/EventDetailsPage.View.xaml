@@ -308,6 +308,12 @@
                 </VerticalStackLayout>
             </VerticalStackLayout>
 
+
+            <!-- Tabbaren flyter ovanpå innehållet, så sidan betalar för dess höjd själv. -->
+            <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
+                     Margin="{Binding SafeAreaInsets}"
+                     Color="Transparent" />
+
         </VerticalStackLayout>
         </ScrollView>
 

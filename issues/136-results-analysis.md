@@ -105,3 +105,19 @@ Valbos nationella (16 aug, finns i kalendern) laddar helt:
 
 **Kvar osett:** jämförelsens rubrikrad, som ligger längre ned i Analys-fliken.
 **Kvar olagat:** "Stabilitet 0,36" är fortfarande ett tal utan skala.
+
+## Tabbaren flyter — och sidorna måste betala för den
+
+Tabbaren ligger avsiktligt ovanpå innehållet (`MauiProgram`: `TabDefaults.SafeAreaEdges` utan
+`Bottom`, så iOS 26 kan rita den som Liquid Glass med något bakom sig). Priset är att varje
+rullande sida själv måste lägga till baren höjd i botten.
+
+De fem flikrötterna gör det — Hem, Tävlingar, Live, Resultat, Jag — med `ListBottomSpacer` plus
+`SafeAreaInsets`. **De pushade sidorna gjorde det inte**, och därför kapades sista raden i
+Analys-flikens förklaringstext ("De utgår från din egen fart på övriga sträckor") bakom baren.
+
+Tillagt på `ResultsDetailPage`, `EventDetailsPage` och designsystemsidan — samma mönster som
+rötterna redan använder.
+
+Byggverifierat. Inte sett i appen: kontots resultatlista hann tömmas igen mellan omstarterna
+(Eventor-sessionen läses om per körning), så detaljsidan gick inte att nå för en sista blick.
