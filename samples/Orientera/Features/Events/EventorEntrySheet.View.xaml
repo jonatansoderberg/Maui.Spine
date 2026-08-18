@@ -10,10 +10,14 @@
         <Label Grid.Row="0"
                Style="{StaticResource CaptionLabel}"
                Padding="16,4,16,10"
-               Text="Anmälan sker hos Eventor. Du är redan inloggad här." />
+               Text="{Binding SessionText}" />
 
-        <!-- Eventors egen anmälningssida, i appens web view — där sessionen finns. -->
-        <WebView Grid.Row="1" Source="{Binding EntryUrl}" />
+        <!--
+            Eventors egen anmälningssida, i appens web view — där sessionen finns. Sidhuvud, meny
+            och annonsytor döljs efter varje navigering (se EventorEntryChrome); själva formuläret
+            och allt Eventor gör med det är orört.
+        -->
+        <WebView x:Name="Form" Grid.Row="1" Source="{Binding EntryUrl}" />
 
         <Button Grid.Row="2"
                 Style="{StaticResource SecondaryButton}"

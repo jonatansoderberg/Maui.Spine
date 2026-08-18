@@ -509,7 +509,8 @@ public partial class EventDetailsPageViewModel(
 
         // In the app, not Safari: the Eventor session lives in the app's own web view store, and
         // an entry page opened externally is an entry page that says you are not logged in.
-        await _navigation.NavigateToAsync<EventorEntrySheet, CompetitionId>(_competition.Id);
+        await _navigation.NavigateToAsync<EventorEntrySheet, EventorEntry>(
+            new EventorEntry(_competition.Id, MyClass));
     }
 
     [RelayCommand]
