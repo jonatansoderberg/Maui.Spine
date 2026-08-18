@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
+using Orientera.Presentation;
 using Orientera.Services.Sources;
 
 namespace Orientera.Features.Events;
@@ -36,9 +36,6 @@ public partial class ChooseClassSheetViewModel(
     INavigationService _navigation,
     IPeopleSource _people) : ViewModelBase, IReceivesNavigationParameter<ClassChoice>
 {
-    /// <summary>D21, H45, H14 — a letter for the class and an age. Everything else is a course.</summary>
-    private static readonly Regex AgeClass = new(@"^[DHdh]\s?\d{1,3}$", RegexOptions.Compiled);
-
     private IReadOnlyList<string> _classes = [];
     private string? _selected;
 
@@ -71,10 +68,10 @@ public partial class ChooseClassSheetViewModel(
         AgeClasses.Clear();
         Courses.Clear();
 
-        foreach (var name in Order(_classes.Where(c => AgeClass.IsMatch(c)), myClass))
+        foreach (var name in Order(_classes.Where(c => Format.IsAgeClass(c)), myClass))
             AgeClasses.Add(new ClassRow(name, name == _selected));
 
-        foreach (var name in Order(_classes.Where(c => !AgeClass.IsMatch(c)), myClass))
+        foreach (var name in Order(_classes.Where(c => !Format.IsAgeClass(c)), myClass))
             Courses.Add(new ClassRow(name, name == _selected));
 
         HasAgeClasses = AgeClasses.Count > 0;

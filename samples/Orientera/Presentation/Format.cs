@@ -160,6 +160,22 @@ public static class Format
             : $"{first.ToString("d MMM", Sv)}–{last.ToString("d MMM", Sv)}";
     }
 
+    /// <summary>
+    /// An age class — D21, H45 — as against a course, which is what everything else is.
+    /// </summary>
+    /// <remarks>
+    /// The two live in the same field on a result, and the list showed them in the same position
+    /// without saying which was which: H21, H45, "Svår", "Blå 4 km", four ideas in one column.
+    /// The shape is the only thing that tells them apart, and it is the same shape the class
+    /// picker groups by, so the rule lives here rather than in each of them.
+    /// </remarks>
+    public static bool IsAgeClass(string name) =>
+        System.Text.RegularExpressions.Regex.IsMatch(name, @"^[DHdh]\s?\d{1,3}$");
+
+    /// <summary>A class said as itself, a course said as a course.</summary>
+    public static string ClassOrCourse(string name) =>
+        string.IsNullOrWhiteSpace(name) || IsAgeClass(name) ? name : $"bana: {name}";
+
     /// <summary>"12 sek", "3 min" — how stale the live data is.</summary>
     public static string Age(TimeSpan age) =>
         age.TotalMinutes < 1

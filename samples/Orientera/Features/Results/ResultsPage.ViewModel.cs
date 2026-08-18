@@ -32,9 +32,46 @@ public sealed record MyResultRow
     public required string PlaceText { get; init; }
     public required string TimeText { get; init; }
     public required string BehindText { get; init; }
+
+    /// <summary>
+    /// Whether the gap to the winner is worth marking. Everything below it stays neutral.
+    /// </summary>
+    /// <remarks>
+    /// Red on every difference — including +0:55 for a second place — meant red only ever said
+    /// "not the winner", which the reader already knew from the placing beside it. A mark that
+    /// applies to all but one row carries nothing.
+    /// <para>
+    /// The boundary is a tenth of the winner's time: it scales, which an absolute number cannot —
+    /// a minute is a rout over a sprint and a decent run over a long distance. Ten per cent is a
+    /// chosen line rather than a measured one, and it is one number in one place if it moves.
+    /// </para>
+    /// </remarks>
+    public required bool HasMaterialGap { get; init; }
+
+    /// <summary>A gap that is there but not worth a colour.</summary>
+    public bool HasNeutralGap => BehindText.Length > 0 && !HasMaterialGap;
     public required bool HasSplits { get; init; }
     public required bool IsPreliminary { get; init; }
     public required string Accessibility { get; init; }
+
+    /// <summary>The season the result belongs to, for the list's headings.</summary>
+    public required int Year { get; init; }
+}
+
+/// <summary>
+/// One season of results, with what the season came to as its heading.
+/// </summary>
+/// <remarks>
+/// The list ran from this August straight back through every year without a break, so nothing
+/// said where one season ended and the next began — and a season is the unit a runner thinks in.
+/// </remarks>
+public sealed class ResultSeason(int year, IEnumerable<MyResultRow> results) : List<MyResultRow>(results)
+{
+    public int Year { get; } = year;
+
+    public string Heading => Year > 0 ? Year.ToString(Format.Culture) : "Utan datum";
+
+    public string Summary => Count == 1 ? "1 tävling" : $"{Count} tävlingar";
 }
 
 public partial class ResultsPageViewModel(
@@ -45,12 +82,31 @@ public partial class ResultsPageViewModel(
 {
     public ObservableCollection<MyResultRow> Results { get; } = [];
 
+    /// <summary>The same results, under the season they were run in.</summary>
+    public ObservableCollection<ResultSeason> Seasons { get; } = [];
+
     [ObservableProperty] public partial bool IsEmpty { get; set; }
+
     [ObservableProperty] public partial bool HasResults { get; set; }
+
+    /// <summary>
+    /// Skeleton rows stand in for a list that is not there yet — never on top of one that is.
+    /// </summary>
+    /// <remarks>
+    /// A reload keeps the results on screen while it runs, so <c>IsLoading</c> alone drew the
+    /// skeleton over the rows it was standing in for: two states at once, which is the thing P10
+    /// exists to prevent.
+    /// </remarks>
+    [ObservableProperty] public partial bool ShowSkeleton { get; set; }
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
+        // Only when there is nothing to stand in for. A reload keeps the rows on screen.
+        ShowSkeleton = !HasResults;
+
         await LoadAsync(BuildAsync);
+
+        ShowSkeleton = false;
 
         if (IsOffline)
         {
@@ -103,7 +159,7 @@ public partial class ResultsPageViewModel(
             {
                 Competition = result.Competition,
                 Name = name,
-                Meta = $"{date:d MMM} · {result.Class}",
+                Meta = $"{date:d MMM} · {Format.ClassOrCourse(result.Class)}",
                 DisciplineText = discipline is { } d ? Format.Discipline(d) : string.Empty,
                 DisciplineShape = DisciplineShape.For(discipline),
                 DisciplineKey = discipline?.ToString() ?? string.Empty,
@@ -111,14 +167,21 @@ public partial class ResultsPageViewModel(
                 PlaceText = Format.Place(result.Place),
                 TimeText = Format.Time(result.Time),
                 BehindText = result.BehindWinner is { } behind ? Format.Delta(behind) : string.Empty,
+                HasMaterialGap = result.BehindWinner is { } gap
+                                 && gap > TimeSpan.Zero
+                                 && result.Time - gap is { Ticks: > 0 } winner
+                                 && gap.TotalSeconds >= winner.TotalSeconds * 0.10,
                 HasSplits = result.Splits.Count > 0,
                 IsPreliminary = result.Status == ResultStatus.Preliminary,
+                // A result with no date of its own and no competition to borrow one from cannot
+                // be placed in a season; it lands under 0, which sorts last and says as much.
+                Year = date?.Year ?? 0,
                 Accessibility = string.Join(", ",
                     new[]
                     {
                         name,
                         $"{date:d MMMM}",
-                        $"klass {result.Class}",
+                        Format.IsAgeClass(result.Class) ? $"klass {result.Class}" : $"bana {result.Class}",
                         discipline is { } spoken ? Format.Discipline(spoken) : string.Empty,
                         Format.SpokenPlace(result.Place),
                         Format.SpokenTime(result.Time),
@@ -127,6 +190,13 @@ public partial class ResultsPageViewModel(
                     }.Where(part => part.Length > 0)),
             });
         }
+
+        Seasons.Clear();
+
+        // The order the results already have is the order inside a season; grouping must not
+        // resort them.
+        foreach (var season in Results.GroupBy(r => r.Year).OrderByDescending(g => g.Key))
+            Seasons.Add(new ResultSeason(season.Key, season));
 
         HasResults = Results.Count > 0;
         IsEmpty = !HasResults;

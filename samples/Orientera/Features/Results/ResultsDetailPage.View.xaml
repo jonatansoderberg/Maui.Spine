@@ -17,13 +17,14 @@
                       Command="{Binding SelectTabCommand}" CommandParameter="Analysis" />
         </HorizontalStackLayout>
 
-        <!-- Inget resultat ännu -->
-        <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="8" VerticalOptions="Center">
-            <VerticalStackLayout.Triggers>
-                <DataTrigger TargetType="VerticalStackLayout" Binding="{Binding HasResult}" Value="True">
-                    <Setter Property="IsVisible" Value="False" />
-                </DataTrigger>
-            </VerticalStackLayout.Triggers>
+        <!--
+            Tomt läge är ett svar, inte ett väntrum (P10). Det stod "Inget resultat ännu" under
+            hämtningen, med snurran ovanpå texten, och fyra sekunder senare fanns hela resultatet:
+            två påståenden som motsade varandra samtidigt. IsIdle är sant först när en hämtning
+            är klar och inget kom.
+        -->
+        <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="8" VerticalOptions="Center"
+                             IsVisible="{Binding IsIdle}">
             <Label Style="{StaticResource Heading2Label}" SemanticProperties.HeadingLevel="Level2"
                    HorizontalTextAlignment="Center" Text="Inget resultat ännu" />
             <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center" Text="{Binding EmptyMessage}" />
@@ -56,19 +57,29 @@
                                            SemanticProperties.Description="{Binding TimeSpoken}"
                                            Text="{Binding TimeText}" />
                                 </VerticalStackLayout>
+                                <!--
+                                    Tre färdigstylade etiketter i stället för en trigger, av samma
+                                    skäl som ChipView. Marginalen före tvåan är grön, ett verkligt
+                                    tapp mot vinnaren är SignalUrgent — en av dess tre tillåtna
+                                    användningar (D1) — och allt däremellan står neutralt. Rött på
+                                    varje differens sa bara "inte vinnare".
+                                -->
                                 <VerticalStackLayout Grid.Column="1">
                                     <Label Style="{StaticResource CaptionLabel}" Text="{Binding BehindLabel}" />
                                     <Label Style="{StaticResource NumericHeading2Label}"
-                                           TextColor="{DynamicResource NegativeDelta}"
+                                           TextColor="{DynamicResource PositiveDelta}"
+                                           IsVisible="{Binding IsWinner}"
                                            SemanticProperties.Description="{Binding BehindSpoken}"
-                                           Text="{Binding BehindText}">
-                                        <!-- Rött är tid man tappat; en marginal före tvåan är motsatsen -->
-                                        <Label.Triggers>
-                                            <DataTrigger TargetType="Label" Binding="{Binding IsWinner}" Value="True">
-                                                <Setter Property="TextColor" Value="{DynamicResource PositiveDelta}" />
-                                            </DataTrigger>
-                                        </Label.Triggers>
-                                    </Label>
+                                           Text="{Binding BehindText}" />
+                                    <Label Style="{StaticResource NumericHeading2Label}"
+                                           TextColor="{DynamicResource SignalUrgent}"
+                                           IsVisible="{Binding HasMaterialGap}"
+                                           SemanticProperties.Description="{Binding BehindSpoken}"
+                                           Text="{Binding BehindText}" />
+                                    <Label Style="{StaticResource NumericHeading2Label}"
+                                           IsVisible="{Binding HasNeutralGap}"
+                                           SemanticProperties.Description="{Binding BehindSpoken}"
+                                           Text="{Binding BehindText}" />
                                 </VerticalStackLayout>
                                 <VerticalStackLayout Grid.Column="2">
                                     <Label Style="{StaticResource CaptionLabel}" Text="Status" />
@@ -181,6 +192,15 @@
 
                 <!-- ============ Sträckor ============ -->
                 <VerticalStackLayout Spacing="4" IsVisible="{Binding IsLegs}">
+
+                    <!--
+                        Rubrikerna förklaras en gång i stället för att skrivas ut i sina kolumner:
+                        de är fyra och sex tecken breda och rymmer inte "Sträcka" och "Totalt" utan
+                        att radbrytas mitt i ordet — vilket är svårare att läsa än förkortningen var.
+                    -->
+                    <Label Style="{StaticResource CaptionLabel}"
+                           Padding="14,0,14,4"
+                           Text="Str = placering på sträckan · Tot = placering totalt · Tapp = mot din egen fart" />
 
                     <Grid ColumnDefinitions="72,*,44,44,72" Padding="14,0,14,6" ColumnSpacing="6">
                         <Label Grid.Column="0" Style="{StaticResource SectionLabel}" Text="Kontroll" />
@@ -297,7 +317,19 @@
                             Command="{Binding CompareCommand}" />
 
                     <Border Style="{StaticResource Card}" Padding="0" IsVisible="{Binding Comparison.Count}">
-                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Comparison}">
+                        <VerticalStackLayout>
+
+                            <!-- Rubrikraden: tre tidskolumner utan namn gick inte att läsa. -->
+                            <Grid ColumnDefinitions="76,*,*,72" Padding="14,10,14,6" ColumnSpacing="6">
+                                <Label Grid.Column="0" Style="{StaticResource SectionLabel}" Text="Sträcka" />
+                                <Label Grid.Column="1" Style="{StaticResource SectionLabel}" Text="{Binding MineHeading}" />
+                                <Label Grid.Column="2" Style="{StaticResource SectionLabel}" Text="{Binding TheirsHeading}" />
+                                <Label Grid.Column="3" Style="{StaticResource SectionLabel}"
+                                       HorizontalTextAlignment="End" Text="Diff" />
+                            </Grid>
+                            <BoxView Style="{StaticResource Divider}" Margin="14,0" />
+
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Comparison}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="ComparisonRow">
                                     <Grid ColumnDefinitions="76,*,*,72" Padding="14,7" ColumnSpacing="6"
@@ -317,12 +349,18 @@
                                         </Label>
                                     </Grid>
                                 </DataTemplate>
-                            </BindableLayout.ItemTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
                         </VerticalStackLayout>
                     </Border>
 
                 </VerticalStackLayout>
 
+
+                <!-- Tabbaren flyter ovanpå innehållet, så sidan betalar för dess höjd själv. -->
+                <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
+                         Margin="{Binding SafeAreaInsets}"
+                         Color="Transparent" />
             </VerticalStackLayout>
         </ScrollView>
 

@@ -96,7 +96,20 @@ public partial class ResultsDetailPageViewModel(
     /// <summary>"Efter vinnaren", or "Före tvåan" for the runner who won.</summary>
     [ObservableProperty] public partial string BehindLabel { get; set; } = "Efter vinnaren";
 
-    [ObservableProperty] public partial bool IsWinner { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNeutralGap))]
+    public partial bool IsWinner { get; set; }
+
+    /// <summary>
+    /// A gap to the winner big enough to be worth marking — a tenth of the winner's time. The
+    /// same line the results list draws, so the two pages cannot disagree about the same race.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNeutralGap))]
+    public partial bool HasMaterialGap { get; set; }
+
+    /// <summary>Behind, but not by enough to say anything the placing does not already say.</summary>
+    public bool HasNeutralGap => !IsWinner && !HasMaterialGap;
     [ObservableProperty] public partial string StatusText { get; set; } = string.Empty;
     [ObservableProperty] public partial string PredictionText { get; set; } = string.Empty;
     [ObservableProperty] public partial string PredictionOutcomeText { get; set; } = string.Empty;
@@ -119,6 +132,14 @@ public partial class ResultsDetailPageViewModel(
     [ObservableProperty] public partial bool HasMistakes { get; set; }
     [ObservableProperty] public partial string CompareTargetText { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The two names over the two time columns. Without them the table showed three unlabelled
+    /// time columns and the reader had to work out which one was theirs.
+    /// </summary>
+    [ObservableProperty] public partial string MineHeading { get; set; } = "Du";
+
+    [ObservableProperty] public partial string TheirsHeading { get; set; } = string.Empty;
+
     // ---- race story ----
 
     /// <summary>The race written back as a few sentences, or empty when nobody wrote it.</summary>
@@ -131,6 +152,17 @@ public partial class ResultsDetailPageViewModel(
 
     /// <summary>The competition has a published result list — the page has something to show.</summary>
     [ObservableProperty] public partial bool HasResult { get; set; }
+
+    /// <summary>
+    /// Nothing came back, and nothing is on its way.
+    /// </summary>
+    /// <remarks>
+    /// Set when a fetch finishes rather than derived from <see cref="HasResult"/>, which is false
+    /// for the whole four seconds a fetch takes. The page said "Inget resultat ännu" during the
+    /// wait, with the spinner drawn on top of that sentence — two answers at once, and the true
+    /// one arrived last.
+    /// </remarks>
+    [ObservableProperty] public partial bool IsIdle { get; set; }
 
     /// <summary>The user is in that list. Without it there is a field but no analysis.</summary>
     [ObservableProperty] public partial bool HasMine { get; set; }
@@ -160,11 +192,15 @@ public partial class ResultsDetailPageViewModel(
         if (navigationDirection == NavigationDirection.Back)
             return;
 
+        IsIdle = false;
+
         if (!await LoadAsync(BuildAsync))
         {
             HasResult = false;
             EmptyMessage = "Ingen anslutning. Resultat och sträcktider behöver nätverk.";
         }
+
+        IsIdle = !HasResult;
     }
 
     private async Task BuildAsync()
@@ -300,7 +336,7 @@ public partial class ResultsDetailPageViewModel(
 
         try
         {
-            var facts = RaceStoryFacts.From(_mine, _legs, _field);
+            var facts = RaceStoryFacts.From(_mine, _legs);
             var story = await _stories.WriteAsync(new RaceStoryRequest { Class = facts.Class, Lines = facts.Lines });
 
             StoryText = story?.Text ?? string.Empty;
@@ -363,6 +399,12 @@ public partial class ResultsDetailPageViewModel(
         // The winner has no time behind the winner. What a winner wants to know is the margin
         // down to second.
         IsWinner = mine.Place == 1;
+
+        HasMaterialGap = !IsWinner
+                         && mine.BehindWinner is { } gap
+                         && gap > TimeSpan.Zero
+                         && mine.Time - gap is { Ticks: > 0 } winnerTime
+                         && gap.TotalSeconds >= winnerTime.TotalSeconds * 0.10;
 
         if (IsWinner)
         {
@@ -469,6 +511,11 @@ public partial class ResultsDetailPageViewModel(
             return;
 
         CompareTargetText = $"Jämför med {other.Name}";
+
+        // The first name is enough over a column, and the surname is what makes it wrap.
+        MineHeading = _me?.Name.Split(' ')[0] ?? "Du";
+        TheirsHeading = other.Name.Split(' ')[0];
+
         Comparison.Clear();
 
         int count = Math.Min(_mine.Splits.Count, other.Splits.Count);
