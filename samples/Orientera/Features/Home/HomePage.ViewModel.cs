@@ -89,8 +89,10 @@ public partial class HomePageViewModel(
         {
             var choice = await _navigation.NavigateToWithResultAsync<WelcomeSheet, WelcomeChoice>();
 
+            // Appens egna fält, samma väg in som Jag erbjuder (#142). Den första inloggningen en
+            // användare möter ska inte vara den vi valt bort.
             if (choice is { IsSuccess: true, Value.WantsLogin: true })
-                await _navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorWebSession>();
+                await _navigation.NavigateToWithResultAsync<AppLoginSheet, EventorWebSession>();
 
             await ReloadAsync();
         });
