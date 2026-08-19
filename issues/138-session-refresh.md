@@ -49,8 +49,29 @@ lösenordet är borta, eller när det inte längre fungerar.
 
 **Verifierat:** build grön, `dotnet test` 393 gröna.
 
-## Kvar
+## Kört skarpt
 
-- **Inte kört skarpt.** Sessionen i simulatorn är giltig, så `Expired`-vägen har inte utlösts på
-  riktigt. Den behöver provas med en död session — enklast genom att tömma sessionsfilen och
-  behålla lösenordet.
+Sessionens tre inloggningskakor (`ple`, `pld`, `ASP.NET_SessionId`) fick döda värden i
+`eventor-session.json`, så filen fanns kvar men Eventor kände inte igen den — vilket är `Expired`
+och inte `NoSession`, alltså precis det läge förnyelsen finns för.
+
+Appen öppnades på **Resultat**, inte på Hem. Det är hela poängen: före den här ändringen hade
+ingenting hänt förrän man råkade öppna Hem.
+
+1. Resultatfliken utlöste förnyelsen direkt.
+2. Arket "Loggar in dig igen på Eventor. Fyll i själv om sidan frågar." öppnades och fyllde
+   Eventors egen sida.
+3. Det stängde sig självt, och Jag visade "Inloggad som Jonatan Söderberg, Gävle OK" med
+   Sverigelistan omläst — placeringen hade flyttat sig 1921 → 1926, så siffrorna var nya.
+
+Ingenting skrevs för hand.
+
+## Kvar: en kapplöpning vid återkomsten
+
+Resultatlistan var tom direkt efter förnyelsen, med den generella texten. Arket sparar sessionen,
+tömmer läsarens cache och läser *sedan* kontot, medan sidan laddar om så fort arket returnerar — så
+omladdningen kan hinna före den sista sparningen. Nästa visning är korrekt, men den första är det
+inte.
+
+Rätt form är troligen att arket returnerar först när det är klart med allt, eller att sidan lyssnar
+på att sessionen ändrats i stället för att ladda om på returen. Inte utrett.
