@@ -307,13 +307,29 @@ internal sealed class PageCache
     private readonly Dictionary<string, (DateTimeOffset Until, object? Value)> _entries = [];
     private readonly Lock _gate = new();
 
+    /// <summary>
+    /// Which session the entries belong to. Counted up by <see cref="Clear"/>.
+    /// </summary>
+    /// <remarks>
+    /// Emptying the dictionary is not enough on its own: a fetch that was already in the air when
+    /// the login replaced the session writes its answer afterwards, into the cache the login just
+    /// emptied. Two tabs read <c>Home/Index</c> at start, so the logged-out start page could land
+    /// on top of the fresh one and stand there for its five minutes — every page empty, with a
+    /// session that works (#140).
+    /// </remarks>
+    private int _generation;
+
     public async Task<T?> GetOrAddAsync<T>(
         string key, TimeSpan lifetime, Func<CancellationToken, Task<T?>> read, CancellationToken cancellationToken)
     {
+        int generation;
+
         lock (_gate)
         {
             if (_entries.TryGetValue(key, out var cached) && cached.Until > DateTimeOffset.UtcNow)
                 return (T?)cached.Value;
+
+            generation = _generation;
         }
 
         var value = await read(cancellationToken);
@@ -323,7 +339,10 @@ internal sealed class PageCache
             return value;
 
         lock (_gate)
-            _entries[key] = (DateTimeOffset.UtcNow + lifetime, value);
+        {
+            if (_generation == generation)
+                _entries[key] = (DateTimeOffset.UtcNow + lifetime, value);
+        }
 
         return value;
     }
@@ -331,6 +350,9 @@ internal sealed class PageCache
     public void Clear()
     {
         lock (_gate)
+        {
             _entries.Clear();
+            _generation++;
+        }
     }
 }
