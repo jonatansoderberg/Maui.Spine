@@ -114,17 +114,23 @@ public partial class ResultsPageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
+        var session = _resume.Generation;
+
         // Only when there is nothing to stand in for. A reload keeps the rows on screen.
         ShowSkeleton = !HasResults;
 
         await LoadAsync(BuildAsync);
 
-        // The results are read with the runner's own Eventor session, so an expired one empties
-        // this page. Reviving it here rather than only on Hem is the whole point of the service.
-        if (await _resume.TryResumeAsync(_navigation))
-            await LoadAsync(BuildAsync);
-
         ShowSkeleton = false;
+
+        // The results are read with the runner's own Eventor session, so an expired one empties
+        // this page. Reviving it here rather than only on Hem is the whole point of the service —
+        // and reading again is decided by whether the session changed, not by who the login
+        // happened to be triggered by (#140).
+        await _resume.EnsureAsync(_navigation);
+
+        if (_resume.Generation != session)
+            await LoadAsync(BuildAsync);
 
         await ExplainEmptinessAsync();
 

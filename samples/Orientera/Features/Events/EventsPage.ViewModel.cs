@@ -96,11 +96,15 @@ public partial class EventsPageViewModel(
     {
         ShowFilterAction();
 
+        var session = _resume.Generation;
+
         await ReloadAsync();
 
         // Startfältet på tävlingssidan läses med löparens egen inloggning, så den här fliken är
         // ofta den första man öppnar efter att sessionen dött.
-        if (await _resume.TryResumeAsync(_navigation))
+        await _resume.EnsureAsync(_navigation);
+
+        if (_resume.Generation != session)
             await ReloadAsync();
     }
 

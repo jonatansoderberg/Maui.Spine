@@ -45,9 +45,11 @@ public partial class HomePageViewModel(
 
         ScheduleWelcome();
 
+        var session = _resume.Generation;
+
         await ReloadAsync();
 
-        await ResumeEventorAsync();
+        await ResumeEventorAsync(session);
     }
 
     /// <summary>
@@ -56,11 +58,14 @@ public partial class HomePageViewModel(
     /// <remarks>
     /// The work lives in <see cref="EventorSessionResume"/> so every tab can ask for it — a
     /// session that died while the runner was reading results used to stay dead until they
-    /// happened to open Hem.
+    /// happened to open Hem. Read again only when the session the blocks were built from is no
+    /// longer the app's, whoever the login was triggered by.
     /// </remarks>
-    private async Task ResumeEventorAsync()
+    private async Task ResumeEventorAsync(int session)
     {
-        if (await _resume.TryResumeAsync(_navigation))
+        await _resume.EnsureAsync(_navigation);
+
+        if (_resume.Generation != session)
             await ReloadAsync();
     }
 

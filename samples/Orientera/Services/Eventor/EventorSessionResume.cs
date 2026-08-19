@@ -27,28 +27,42 @@ public sealed class EventorSessionResume(
     EventorReader _eventor,
     EventorCredentialStore _credentials)
 {
-    private bool _tried;
+    private Task? _attempt;
 
     /// <summary>
-    /// Revives the session if it has expired and there is a password to replay.
+    /// Which session the app is on. Counts up when a login has replaced the one before it.
     /// </summary>
-    /// <returns>True when a login was attempted, so the caller knows to read again.</returns>
-    public async Task<bool> TryResumeAsync(INavigationService navigation)
+    /// <remarks>
+    /// The answer used to be a bool returned to whoever asked, and only one page could get it:
+    /// Hem is realized first and reached the ask within a second of start, so the page the runner
+    /// was actually looking at was told "no" and kept the list it had read with the dead session
+    /// (#140). Whether a page needs to read again is not about who triggered the login — it is
+    /// about whether the session it read with is still the app's, and that is a question every
+    /// page can answer for itself.
+    /// </remarks>
+    public int Generation { get; private set; }
+
+    /// <summary>
+    /// Revives the session if it has expired and there is a password to replay. Started once per
+    /// app run; everyone who asks after that waits for the same attempt.
+    /// </summary>
+    public Task EnsureAsync(INavigationService navigation) => _attempt ??= AttemptAsync(navigation);
+
+    private async Task AttemptAsync(INavigationService navigation)
     {
-        if (_tried)
-            return false;
-
-        _tried = true;
-
         if (await _eventor.AccessAsync() is not EventorAccess.Expired)
-            return false;
+            return;
 
         if (await _credentials.ReadAsync() is null)
-            return false;
+            return;
 
-        await navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorLoginRequest, EventorWebSession>(
-            new EventorLoginRequest(UseSavedPassword: true));
+        var session = await navigation
+            .NavigateToWithResultAsync<EventorLoginSheet, EventorLoginRequest, EventorWebSession>(
+                new EventorLoginRequest(UseSavedPassword: true));
 
-        return true;
+        // Only a login that finished changes anything. A cancelled sheet, or one left standing
+        // open because the password no longer works, leaves every page reading what it already had.
+        if (session.IsSuccess)
+            Generation++;
     }
 }

@@ -253,11 +253,30 @@ public partial class LivePageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
+        var session = _resume.Generation;
+
+        await ReloadFieldAsync();
+
         // Live läser inte Eventor själv, men klubblistan och den egna klassen kommer därifrån —
         // och en flik man står på länge är en bra plats att märka att sessionen dött.
-        await _resume.TryResumeAsync(_navigation);
+        await _resume.EnsureAsync(_navigation);
 
-        await LoadAsync(async () =>
+        if (_resume.Generation != session)
+        {
+            // En ny inloggning kan säga att appen läser som någon annan, och det är den frågan
+            // _me håller svaret på.
+            _me = null;
+            await ReloadFieldAsync();
+        }
+
+        if (IsOffline)
+            ShowOffline();
+
+        StartPolling();
+    }
+
+    private Task ReloadFieldAsync() =>
+        LoadAsync(async () =>
         {
             _me ??= await _people.GetMeAsync();
 
@@ -271,12 +290,6 @@ public partial class LivePageViewModel(
 
             await RefreshAsync();
         });
-
-        if (IsOffline)
-            ShowOffline();
-
-        StartPolling();
-    }
 
     public override Task OnDisappearingAsync(NavigationDirection navigationDirection)
     {
