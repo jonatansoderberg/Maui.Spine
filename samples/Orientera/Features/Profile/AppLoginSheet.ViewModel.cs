@@ -6,18 +6,18 @@ namespace Orientera.Features.Profile;
 /// Eventor-inloggning med appens egna fält, till skillnad från Eventors egen sida.
 /// </summary>
 /// <remarks>
-/// Byggd för att utvärderas mot <see cref="EventorLoginSheet"/>, inte för att ersätta den utan
-/// vidare. Skillnaden är inte var lösenordet hamnar — båda vägarna sparar det i telefonens
-/// säkra lager och skickar det till Eventors eget formulär — utan var det skrivs in.
+/// Vägen in sedan #142, efter att ha vägts mot <see cref="EventorLoginSheet"/> på riktigt (#123).
+/// Skillnaden är inte var lösenordet hamnar — båda vägarna sparar det i telefonens säkra lager och
+/// skickar det till Eventors eget formulär — utan var det skrivs in. Två fält och en knapp i
+/// stället för en helsida webb, och iOS erbjuder nyckelringen direkt i fälten.
 ///
-/// Det som talar för: två fält och en knapp i stället för en helsida webb, och iOS erbjuder
-/// nyckelringen direkt i fälten.
+/// Priset är betalt med öppna ögon: en löpare som lärt sig skriva sitt Eventor-lösenord i en app
+/// som inte är Eventor har lärt sig den vana nätfiske lever på, och sidan som tar emot lösenordet
+/// syns inte längre, så adressfältet kan inte kontrolleras.
 ///
-/// Det som talar emot, och som är värt att väga: en runa som lärt sig skriva sitt Eventor-lösenord
-/// i en app som inte är Eventor har lärt sig fel vana, och det är vanan nätfiske lever på. Sidan
-/// som tar emot lösenordet syns inte längre, så adressfältet kan inte kontrolleras. Och den dag
-/// förbundet lägger till tvåfaktor eller en utmaning som kräver interaktion har de här fälten
-/// ingenstans att visa den — Eventors egen sida har det.
+/// Det som inte offras är utmaningen. Fälten loggar inte in — de skriver ned lösenordet och lämnar
+/// över till Eventors egen sida, som fyller i och skickar. Den dagen förbundet lägger till
+/// tvåfaktor står den sidan redan framme för att visa den.
 /// </remarks>
 public partial class AppLoginSheetViewModel(
     INavigationService _navigation,
