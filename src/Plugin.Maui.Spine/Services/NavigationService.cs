@@ -165,6 +165,20 @@ internal sealed class NavigationService : INavigationService
             if (viewModel is not null)
                 await viewModel.SendAppearingAsync(NavigationDirection.None);
 
+            // A sheet opened while a sheet is up is a page pushed onto the one already there, not
+            // a second sheet over it — the same rule the parameterless overload has always had.
+            // Both draw their content from the one sheet region, so presenting again moved the
+            // view out of the standing sheet and left it blank; and by the time the new one was
+            // dismissed the coordinator had already cleared IsSheetActive, so ReturnAsync looked
+            // in the tab's region and never closed what was left (#148). The pending result needs
+            // no dismissal watcher here: going back cancels it, and so does closing.
+            if (_host.ActiveRegionViewModel.Presentation is NavigationPresentation.Sheet)
+            {
+                await _host.ActiveRegionViewModel.NavigateToAsync(view);
+
+                return ResolveResult<TResult>(await tcs.Task);
+            }
+
             var message = BuildSheetMessage(view, meta);
 
             // Chain a continuation on the sheet task
