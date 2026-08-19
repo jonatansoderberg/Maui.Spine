@@ -163,7 +163,7 @@ internal sealed class NavigationService : INavigationService
         if (meta.Presentation is NavigationPresentation.Sheet)
         {
             if (viewModel is not null)
-                await viewModel.OnAppearingAsync(NavigationDirection.None);
+                await viewModel.SendAppearingAsync(NavigationDirection.None);
 
             var message = BuildSheetMessage(view, meta);
 
@@ -270,7 +270,7 @@ internal sealed class NavigationService : INavigationService
         {
             var viewModel = view.BindingContext as ViewModelBase;
             if (viewModel is not null)
-                await viewModel.OnAppearingAsync(NavigationDirection.None);
+                await viewModel.SendAppearingAsync(NavigationDirection.None);
 
             // If a sheet is already open, navigate within the sheet region.
             if (_host.ActiveRegionViewModel.Presentation is NavigationPresentation.Sheet)
