@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/140
 **Branch:** issue/140-empty-page-after-resume
-**Status:** In Progress
+**Status:** Completed
 
 ## Mätt först
 
@@ -116,6 +116,46 @@ generation, och `GetOrAddAsync` sparar inte ett svar som lästes i en tidigare.
 för maccatalyst. Kört skarpt på maccatalyst med samma spårutskrifter som mätningen: Hem annonseras en
 gång vid start i stället för två, ett ark en gång per öppning i stället för två, och varje flikbyte
 ger fortfarande exakt en omgång.
+
+## Kört skarpt
+
+På iOS-simulatorn, mot backenden på 7071 och Eventors riktiga sida, med sessionens tre
+inloggningskakor dödade i `eventor-session.json`. Resultatfliken öppnades **medan** förnyelsen
+pågick, vilket är det läge issuen beskriver:
+
+```
+Home appearing IN                 10:36:42.751   ← Hem tar förnyelsen, som alltid
+Resume access=Expired / credentials=finns
+Results appearing IN              10:36:44.907   ← Resultat öppnas medan den pågår
+Results load#1 count=0                           ← den döda sessionen tömmer listan
+Resume asked started=True gen=0                  ← får inte nej, väntar in samma försök
+Resume sheet returned success=True 10:37:06.936
+Results appearing OUT count=39 gen=1/0           ← generationen bytte, sidan läste om
+```
+
+Skärmen visar "2026 · 39 tävlingar". Rad fem är rättningen: med `TryResumeAsync` gav den `false`
+och sidan blev stående på `count=0` med "Inga resultat ännu".
+
+Andra halvan mättes också: en flik som öppnas *efter* att förnyelsen är klar läser `gen=1/1` och
+laddar alltså inte om i onödan.
+
+Kapplöpningsfönstret vidgades med en fördröjning före arket för att hinna byta flik. Ren
+mätinstrumentering — den satt bara i den lokala byggningen och rör inte logiken som testades.
+
+## Hittat under körningen, egna fel
+
+- **`SecureStorage` kastar `MissingEntitlement` på maccatalyst.** Appen är sandlådad utan
+  `keychain-access-groups`, så lösenordet kan aldrig sparas — och därför kan den tysta
+  återinloggningen aldrig göra något på den plattformen. Kastet gick tyst: i `AppLoginSheet` i en
+  `RelayCommand`, och i webbarkets `OnPageAsync` *före* `_sessions.Save`, så en inloggning där
+  lösenordet skrevs in avbröts helt och arket blev stående öppet. Att lägga till entitlementet rakt
+  av gjorde det värre — med tomt `$(AppIdentifierPrefix)` vägrade macOS starta appen. Det är en
+  signeringsfråga.
+- **Webbarket stänger sig vid varje navigering där hälsningen finns**, så det går inte att logga ut
+  inuti det.
+- **Webbvägen sparar bara lösenordet om det skrivits i Eventors formulär.** Är webbvyn redan
+  inloggad fångas en session men inget lösenord, och appen får en session den aldrig kan förnya —
+  vilket är just det hål #138 skulle täppa till.
 
 ## Decisions
 
