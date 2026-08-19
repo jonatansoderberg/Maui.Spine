@@ -63,9 +63,15 @@ public partial class AppLoginSheetViewModel(
 
         IsWorking = false;
 
-        await _navigation.ReturnAsync(session is { IsSuccess: true } ? session.Value : null!);
+        // A sheet that has nothing to hand back closes rather than returns. ReturnAsync is
+        // contracted to deliver a result and throws on null, and the throw lands in a command
+        // where nothing catches it — the sheet animated away and then the app was gone (#146).
+        if (session is { IsSuccess: true, Value: { } captured })
+            await _navigation.ReturnAsync(captured);
+        else
+            await _navigation.BackAsync();
     }
 
     [RelayCommand]
-    private async Task Cancel() => await _navigation.ReturnAsync(null!);
+    private async Task Cancel() => await _navigation.BackAsync();
 }
