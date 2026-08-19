@@ -11,9 +11,9 @@
         <VerticalStackLayout Padding="32" Spacing="8" VerticalOptions="Center"
                              IsVisible="{Binding IsEmpty}">
             <Label Style="{StaticResource Heading2Label}" SemanticProperties.HeadingLevel="Level2"
-                   HorizontalTextAlignment="Center" Text="Inga resultat ännu" />
+                   HorizontalTextAlignment="Center" Text="{Binding EmptyHeading}" />
             <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center"
-                   Text="Dina resultat dyker upp här när de publicerats." />
+                   Text="{Binding EmptyDetail}" />
         </VerticalStackLayout>
 
         <CollectionView ItemsSource="{Binding Seasons}" IsGrouped="True"

@@ -209,7 +209,17 @@ public partial class ResultsDetailPageViewModel(
         _me = await _people.GetMeAsync();
 
         if (competition is null || _me is null)
+        {
+            // The results list reaches back through the runner's whole Eventor history; the
+            // calendar the app reads competitions from covers a few months. A race older than that
+            // window is not an outage and must not be reported as one — the page said "Ingen
+            // anslutning" while the list behind it had just loaded over the same network.
+            CompetitionName = string.Empty;
+            Title = string.Empty;
+            EmptyMessage = "Den här tävlingen ligger utanför kalendern appen läser, så resultatet "
+                         + "går inte att öppna här. Raden i listan visar tid och placering.";
             return;
+        }
 
         CompetitionName = competition.Name;
         Title = competition.Name;

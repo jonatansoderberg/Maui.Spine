@@ -30,13 +30,27 @@ Ingen ny mekanik behövdes alltså. Det som behövdes var att flytta den ut ur e
 
 **Verifierat:** build grön för maccatalyst, `dotnet test` 393 gröna.
 
+## Andra halvan: ett läge i stället för fyra halvsanningar
+
+Förnyelsen tar bort de flesta fallen innan någon ser dem. Det här är för när den inte kan — när
+lösenordet är borta, eller när det inte längre fungerar.
+
+- **`EventorMessage`** — en rubrik och en förklaring per läge (`NoSession`, `Expired`,
+  `Unreachable`), på ett ställe. Sidorna hittar inte längre på var sin mening om samma faktum.
+- **Resultatlistan** säger "Inloggningen har gått ut" i stället för "Inga resultat ännu" när det är
+  inloggningen som fattas. Frågan ställs bara när sidan är tom — en full lista behöver ingen
+  förklaring, och frågan kostar ett anrop.
+- **Startfältet** sa "0 av 36 finns på listan" både när ingen var rankad och när ingen kunde läsas.
+  Är det inloggningen som fattas står det, med samma ord som resten av appen.
+- **Resultatsidan** sa "Ingen anslutning" om en tävling som ligger utanför kalenderns fönster —
+  över samma nätverk som listan bakom just laddats med. Den säger nu vad som faktiskt gäller: att
+  tävlingen är äldre än kalendern appen läser, och att raden i listan har tid och placering.
+- **Tävlingar och Live** ber nu också om förnyelsen.
+
+**Verifierat:** build grön, `dotnet test` 393 gröna.
+
 ## Kvar
 
-- **Tävlingar och Live** ber inte om förnyelsen. De läser inte Eventor direkt i dag, men startfältet
-  på tävlingsdetaljsidan gör det. Ett anrop till på var sida.
-- **Inte kört i appen.** Sessionen i simulatorn är giltig just nu, så `Expired`-vägen har inte
-  utlösts skarpt. Den behöver provas med en död session — enklast genom att låta den ligga tills
-  Eventor släpper den, eller genom att tömma sessionsfilen och behålla lösenordet.
-- **Ett läge i stället för fyra halvsanningar.** När förnyelsen inte lyckas säger sidorna
-  fortfarande var sin sak ("Ingen anslutning", "Inga resultat ännu"). Det är den andra halvan av
-  issuet och rör ordval på fyra sidor.
+- **Inte kört skarpt.** Sessionen i simulatorn är giltig, så `Expired`-vägen har inte utlösts på
+  riktigt. Den behöver provas med en död session — enklast genom att tömma sessionsfilen och
+  behålla lösenordet.

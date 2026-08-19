@@ -80,7 +80,8 @@ public partial class ResultsPageViewModel(
     IEventSource _events,
     IPeopleSource _people,
     IParticipationSource _participation,
-    EventorSessionResume _resume) : OrienteraViewModel
+    EventorSessionResume _resume,
+    EventorReader _eventor) : OrienteraViewModel
 {
     public ObservableCollection<MyResultRow> Results { get; } = [];
 
@@ -88,6 +89,16 @@ public partial class ResultsPageViewModel(
     public ObservableCollection<ResultSeason> Seasons { get; } = [];
 
     [ObservableProperty] public partial bool IsEmpty { get; set; }
+
+    /// <summary>
+    /// The empty state's own words. The list is read with the runner's Eventor session, so when
+    /// that is what is missing the page says so instead of "dina resultat dyker upp här" — which
+    /// is true, and useless, and leaves them waiting for something that will never arrive.
+    /// </summary>
+    [ObservableProperty] public partial string EmptyHeading { get; set; } = "Inga resultat ännu";
+
+    [ObservableProperty]
+    public partial string EmptyDetail { get; set; } = "Dina resultat dyker upp här när de publicerats.";
 
     [ObservableProperty] public partial bool HasResults { get; set; }
 
@@ -115,6 +126,8 @@ public partial class ResultsPageViewModel(
 
         ShowSkeleton = false;
 
+        await ExplainEmptinessAsync();
+
         if (IsOffline)
         {
             Results.Clear();
@@ -124,6 +137,24 @@ public partial class ResultsPageViewModel(
     }
 
     protected override void ClearEmptyState() => IsEmpty = false;
+
+    /// <summary>
+    /// Names the login as the reason when it is one. Asked only when the page has nothing to show:
+    /// a full list needs no explanation, and the question costs a request to Eventor.
+    /// </summary>
+    private async Task ExplainEmptinessAsync()
+    {
+        if (!IsEmpty)
+            return;
+
+        var access = await _eventor.AccessAsync();
+
+        if (!EventorMessage.Explains(access))
+            return;
+
+        EmptyHeading = EventorMessage.Heading(access);
+        EmptyDetail = EventorMessage.Detail(access, "Dina resultat");
+    }
 
     private async Task BuildAsync()
     {

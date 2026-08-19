@@ -6,6 +6,7 @@ using Orientera.Services.Grouping;
 using Orientera.Services.Local;
 using Orientera.Services.Offline;
 using Orientera.Services.Relevance;
+using Orientera.Services.Eventor;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 
@@ -25,6 +26,7 @@ public sealed partial class FilterChip : ObservableObject
 
 public partial class EventsPageViewModel(
     INavigationService _navigation,
+    EventorSessionResume _resume,
     IClock _clock,
     IEventSource _events,
     IPeopleSource _people,
@@ -95,6 +97,11 @@ public partial class EventsPageViewModel(
         ShowFilterAction();
 
         await ReloadAsync();
+
+        // Startfältet på tävlingssidan läses med löparens egen inloggning, så den här fliken är
+        // ofta den första man öppnar efter att sessionen dött.
+        if (await _resume.TryResumeAsync(_navigation))
+            await ReloadAsync();
     }
 
     public override Task OnTabReselectedAsync()
