@@ -148,6 +148,10 @@ public partial class EventorLoginSheetViewModel(
         }
     }
 
+    /// <summary>
+    /// Closes without a session. <see cref="INavigationService.ReturnAsync"/> is for handing one
+    /// back and throws on null; closing is what leaves the waiting caller cancelled (#146).
+    /// </summary>
     [RelayCommand]
-    private async Task Cancel() => await _navigation.ReturnAsync(null!);
+    private async Task Cancel() => await _navigation.BackAsync();
 }
