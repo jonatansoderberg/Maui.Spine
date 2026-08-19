@@ -72,6 +72,58 @@ public static class EventorLoginForm
         """;
 
     /// <summary>
+    /// Answers Eventor's consent dialog with "avböj", so the form underneath can be reached.
+    /// </summary>
+    /// <remarks>
+    /// A web view that has not answered yet gets the dialog laid over the page: measured on the
+    /// live page, the login form is in the DOM the whole time, but <c>elementFromPoint</c> over the
+    /// username field answers <c>qc-cmp-cleanslate</c>. The silent re-login sets values and clicks
+    /// through it without noticing; a runner who wants to type cannot (#144).
+    /// <para>
+    /// Only the declining button, ever. Answering a consent question for somebody else is a
+    /// decision, and the one answer that can be taken on their behalf is the one that gives nothing
+    /// away — so the accepting button's id is not in this file. The ids belong to InMobi's CMP and
+    /// do not change with the page's language, which the button labels do.
+    /// </para>
+    /// <para>
+    /// The dialog is injected after the page reports itself loaded, so one look is usually too
+    /// early. Missing it leaves the question standing in front of the runner, which is the right
+    /// way to fail — and what happens anyway the day the federation changes CMP.
+    /// </para>
+    /// </remarks>
+    public const string DeclineConsentScript = """
+        (function () {
+            function decline() {
+                var button = document.getElementById('disagree-btn');
+                if (!button) return false;
+                button.click();
+                return true;
+            }
+
+            if (decline()) return 'declined';
+            if (window.orienteraConsent) return 'waiting';
+
+            window.orienteraConsent = 1;
+
+            var watch = new MutationObserver(function () {
+                if (decline()) {
+                    watch.disconnect();
+                    window.orienteraConsent = 0;
+                }
+            });
+
+            watch.observe(document.documentElement, { childList: true, subtree: true });
+
+            setTimeout(function () {
+                watch.disconnect();
+                window.orienteraConsent = 0;
+            }, 8000);
+
+            return 'waiting';
+        })()
+        """;
+
+    /// <summary>
     /// Scrolls Eventor's personal login into view and puts the cursor in it.
     /// </summary>
     /// <remarks>
