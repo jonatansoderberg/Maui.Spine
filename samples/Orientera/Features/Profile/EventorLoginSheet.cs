@@ -28,6 +28,10 @@ public partial class EventorLoginSheet :
             if (BindingContext is not EventorLoginSheetViewModel model)
                 return;
 
+            // Before anything else: the consent dialog lies over the form, and a runner who wants
+            // to type cannot get past it. Declined, never accepted (#144).
+            await Browser.EvaluateJavaScriptAsync(EventorLoginForm.DeclineConsentScript);
+
             // Hooked on every page, because the login form is not always the first one shown and
             // the values have to be caught as they are submitted — afterwards the page is gone.
             await Browser.EvaluateJavaScriptAsync(EventorLoginForm.RememberScript);
