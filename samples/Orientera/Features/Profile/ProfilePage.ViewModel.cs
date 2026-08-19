@@ -140,11 +140,15 @@ public partial class ProfilePageViewModel(
         if (PageActions.Count == 0)
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
 
+        var session = _resume.Generation;
+
         await ReloadAsync();
 
         // Jag är sidan som säger vem Eventor tror att du är. Att den skulle vara den enda som
         // inte försöker väcka en somnad session vore bakvänt.
-        if (await _resume.TryResumeAsync(_navigation))
+        await _resume.EnsureAsync(_navigation);
+
+        if (_resume.Generation != session)
             await ReloadAsync();
     }
 

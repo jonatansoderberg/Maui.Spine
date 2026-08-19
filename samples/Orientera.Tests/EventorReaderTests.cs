@@ -106,6 +106,34 @@ public class EventorReaderTests
         Assert.Equal("H21", account.DefaultClass);
     }
 
+    /// <summary>
+    /// The login empties what was read with the dead session — including a read that was already
+    /// in the air when it did.
+    /// </summary>
+    /// <remarks>
+    /// Two tabs read the start page at once when the app opens, so a logged-out answer could land
+    /// in the cache the login had just emptied and stand there for its five minutes: a session
+    /// that works, and every page that depends on it empty (#140).
+    /// </remarks>
+    [Fact]
+    public async Task A_read_started_before_the_login_does_not_land_in_the_cache_after_it()
+    {
+        var cache = new PageCache();
+        var lifetime = TimeSpan.FromMinutes(5);
+        var inTheAir = new TaskCompletionSource<string?>();
+
+        var reading = cache.GetOrAddAsync("home", lifetime, _ => inTheAir.Task, CancellationToken.None);
+
+        cache.Clear();
+        inTheAir.SetResult("utloggad");
+
+        // Its own caller still gets its answer; it is only the writing down that is refused.
+        Assert.Equal("utloggad", await reading);
+
+        Assert.Equal("inloggad", await cache.GetOrAddAsync(
+            "home", lifetime, _ => Task.FromResult<string?>("inloggad"), CancellationToken.None));
+    }
+
     /// <summary>A start field is points from one club page per club, not one per runner.</summary>
     [Fact]
     public async Task A_start_fields_points_come_from_the_club_pages()

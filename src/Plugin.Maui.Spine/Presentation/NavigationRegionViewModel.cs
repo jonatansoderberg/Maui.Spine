@@ -330,10 +330,10 @@ internal partial class NavigationRegionViewModel : ObservableObject
         _frameTransition.AnimateInteractiveBackCancelAsync(front, back);
 
     internal void InvokeOnAppearing(NavigationDirection navigationDirection = NavigationDirection.None) =>
-        CurrentRegionViewModel?.OnAppearingAsync(navigationDirection).SafeFireAndForget();
+        CurrentRegionViewModel?.SendAppearingAsync(navigationDirection).SafeFireAndForget();
 
     internal void InvokeOnDisappearing(NavigationDirection navigationDirection = NavigationDirection.None) =>
-        CurrentRegionViewModel?.OnDisappearingAsync(navigationDirection).SafeFireAndForget();
+        CurrentRegionViewModel?.SendDisappearingAsync(navigationDirection).SafeFireAndForget();
 
     internal void PrepareBackViewForInteractiveBack()
     {
@@ -395,6 +395,11 @@ internal partial class NavigationRegionViewModel : ObservableObject
     /// </summary>
     public async Task ResetAsync(View root)
     {
+        // The page being replaced is never told it disappeared — the stack is emptied under it —
+        // so it is told here, or it would never appear again if it came back.
+        if (_stack.TryPeek(out var replaced) && replaced.BindingContext is ViewModelBase replacedVm)
+            replacedVm.ForgetAppearance();
+
         _stack.Clear();
         _stack.Push(root);
         FrontView.Content = root;

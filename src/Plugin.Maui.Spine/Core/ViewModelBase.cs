@@ -109,6 +109,49 @@ public abstract partial class ViewModelBase : ObservableObject
     public virtual Task OnDisappearingAsync(NavigationDirection navigationDirection) => Task.CompletedTask;
 
     /// <summary>
+    /// Whether this page has already been told it is showing.
+    /// </summary>
+    /// <remarks>
+    /// One appearance is one announcement. Two announcements mean two rounds of
+    /// <see cref="OnAppearingAsync"/> running at once and writing the same properties in an order
+    /// neither of them decides — measured on Mac Catalyst, where realizing the first tab announced
+    /// it and the host page's own <c>OnAppearing</c> announced it again, and where every sheet was
+    /// announced once before it was presented and once more when its region took it (#140).
+    /// </remarks>
+    private bool _appeared;
+
+    /// <summary>
+    /// Announces the appearing, unless this page has already been told.
+    /// </summary>
+    internal Task SendAppearingAsync(NavigationDirection navigationDirection)
+    {
+        if (_appeared)
+            return Task.CompletedTask;
+
+        _appeared = true;
+
+        return OnAppearingAsync(navigationDirection);
+    }
+
+    /// <summary>Announces the disappearing, which begins the next appearance.</summary>
+    internal Task SendDisappearingAsync(NavigationDirection navigationDirection)
+    {
+        _appeared = false;
+
+        return OnDisappearingAsync(navigationDirection);
+    }
+
+    /// <summary>
+    /// Forgets that this page was told it is showing, so the next announcement lands.
+    /// </summary>
+    /// <remarks>
+    /// A page replaced as a region's root is never told it disappeared — the stack is simply
+    /// emptied under it — and would otherwise carry a stale "already showing" for the rest of the
+    /// run and never appear again.
+    /// </remarks>
+    internal void ForgetAppearance() => _appeared = false;
+
+    /// <summary>
     /// Called when the page is dismissed (via back navigation or sheet close) without an explicit
     /// result being returned via <see cref="INavigationService.ReturnAsync"/>.
     /// Override to perform cleanup or default-result logic.
