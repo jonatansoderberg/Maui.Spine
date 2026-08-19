@@ -4,6 +4,7 @@ using Orientera.Features.Events;
 using Orientera.Presentation;
 using Orientera.Services.Local;
 using Orientera.Services.Context;
+using Orientera.Services.Eventor;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 
@@ -141,6 +142,7 @@ public partial class LivePageViewModel(
     IEventSource _events,
     IPeopleSource _people,
     INavigationService _navigation,
+    EventorSessionResume _resume,
     CompetitionClassStore _classes,
     LiveSelection _selection) : OrienteraViewModel
 {
@@ -251,6 +253,10 @@ public partial class LivePageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
+        // Live läser inte Eventor själv, men klubblistan och den egna klassen kommer därifrån —
+        // och en flik man står på länge är en bra plats att märka att sessionen dött.
+        await _resume.TryResumeAsync(_navigation);
+
         await LoadAsync(async () =>
         {
             _me ??= await _people.GetMeAsync();

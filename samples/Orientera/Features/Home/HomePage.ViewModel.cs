@@ -27,8 +27,7 @@ public partial class HomePageViewModel(
     ILiveSource _live,
     IProgressSource _progress,
     FirstRunStore _firstRun,
-    EventorReader _eventorReader,
-    EventorCredentialStore _credentials,
+    EventorSessionResume _resume,
     CompetitionContextService _context) : OrienteraViewModel
 {
     /// <summary>Hem has few large blocks, not a dense dashboard.</summary>
@@ -52,38 +51,18 @@ public partial class HomePageViewModel(
     }
 
     /// <summary>
-    /// Logs the runner back in to Eventor when it has forgotten them, if they let the app remember.
+    /// Revives an expired Eventor session, if the runner let the app remember the password.
     /// </summary>
     /// <remarks>
-    /// Measured twice on #123: Eventor issues a session cookie with no expiry and "kom ihåg mig"
-    /// adds nothing, so the login dies when the server drops it — after two days once, after an
-    /// hour and a half the next time. Nothing about that is the runner's fault and nothing about
-    /// it is worth a screen, so the app quietly does again what it did the first time.
-    ///
-    /// Once per appearance and never in a loop: if the saved password no longer works, the sheet
-    /// is standing open on Eventor's own page for the runner to sort out, which is the one thing
-    /// that can actually fix it.
+    /// The work lives in <see cref="EventorSessionResume"/> so every tab can ask for it — a
+    /// session that died while the runner was reading results used to stay dead until they
+    /// happened to open Hem.
     /// </remarks>
     private async Task ResumeEventorAsync()
     {
-        if (_resumedEventor)
-            return;
-
-        _resumedEventor = true;
-
-        if (await _eventorReader.AccessAsync() is not EventorAccess.Expired)
-            return;
-
-        if (await _credentials.ReadAsync() is null)
-            return;
-
-        await _navigation.NavigateToWithResultAsync<EventorLoginSheet, EventorLoginRequest, EventorWebSession>(
-            new EventorLoginRequest(UseSavedPassword: true));
-
-        await ReloadAsync();
+        if (await _resume.TryResumeAsync(_navigation))
+            await ReloadAsync();
     }
-
-    private bool _resumedEventor;
 
     /// <summary>
     /// The first launch asks the one question the app cannot answer for the user, and then never

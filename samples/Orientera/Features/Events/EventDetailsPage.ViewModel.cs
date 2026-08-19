@@ -63,7 +63,8 @@ public partial class EventDetailsPageViewModel(
     OfflinePackageService _offline,
     CompetitionContextService _context,
     CompetitionClassStore _classes,
-    LiveSelection _liveSelection) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
+    LiveSelection _liveSelection,
+    EventorReader _eventor) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
 {
     private CompetitionId _id;
     private Competition? _competition;
@@ -438,9 +439,18 @@ public partial class EventDetailsPageViewModel(
         // nobody has points here — the entry list carries no club ids to look them up by — so a
         // "0 av 36 finns på listan" would read as a broken Sverigelistan rather than as a field
         // that has not been drawn.
+        // "0 av 36 finns på listan" är sant både när ingen är rankad och när ingen kan läsas —
+        // och de två betyder helt olika saker för den som läser. Är det inloggningen som fattas
+        // säger raden det, med samma ord som resten av appen.
+        var access = ranked == 0 && !IsEntryList
+            ? await _eventor.AccessAsync()
+            : EventorAccess.Available;
+
         StartFieldCaption = IsEntryList
             ? $"{field.Count} anmälda i {className}. Startlistan är inte lottad än."
-            : $"{ranked} av {field.Count} finns på listan";
+            : EventorMessage.Explains(access)
+                ? EventorMessage.Detail(access, "Sverigelistan")
+                : $"{ranked} av {field.Count} finns på listan";
 
         HasStartField = true;
     }

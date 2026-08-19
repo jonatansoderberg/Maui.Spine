@@ -128,6 +128,9 @@ public static class MauiProgram
         // The Eventor login lives on the phone: credentials in the platform's secure store, the
         // captured session beside the other local files. Neither ever reaches the backend (#123).
         services.AddSingleton<EventorCredentialStore>();
+
+        // Singleton: the "once per app run" promise is the service's, not each page's.
+        services.AddSingleton<EventorSessionResume>();
         services.AddSingleton(_ => new EventorSessionStore(
             Path.Combine(FileSystem.AppDataDirectory, "eventor-session.json")));
 
