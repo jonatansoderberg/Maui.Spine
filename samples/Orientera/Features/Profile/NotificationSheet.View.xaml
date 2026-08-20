@@ -12,10 +12,15 @@
                Style="{StaticResource CaptionLabel}"
                Text="{Binding StatusText}" />
 
-        <CollectionView Grid.Row="1" Margin="16,0,16,16" ItemsSource="{Binding Rows}" SelectionMode="None">
+        <CollectionView Grid.Row="1" Margin="16,0,16,0" ItemsSource="{Binding Rows}" SelectionMode="None">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Vertical" ItemSpacing="6" />
             </CollectionView.ItemsLayout>
+
+            <CollectionView.Footer>
+                <!-- The height is the home indicator's own — the sheet no longer pads for it. -->
+                <BoxView HeightRequest="{Binding SafeAreaInsets.Bottom}" Color="Transparent" />
+            </CollectionView.Footer>
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="NotificationRow">
