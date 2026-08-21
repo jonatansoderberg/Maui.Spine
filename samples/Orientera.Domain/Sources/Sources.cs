@@ -52,6 +52,18 @@ public interface IParticipationSource
 
     Task<IReadOnlyList<CompetitionResult>> GetResultsForPersonAsync(PersonId person, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// One person's own rows in the given competitions' result lists.
+    /// </summary>
+    /// <remarks>
+    /// Not the same question as <see cref="GetResultsForPersonAsync(PersonId, CancellationToken)"/>,
+    /// which answers "which races were mine" and is read from the runner's own Eventor pages. This
+    /// one starts from races already known and asks what the result lists say about them — the
+    /// placement, and the size of the class it was made in. Narrow on purpose: the whole result
+    /// list of a large competition is tens of megabytes, and none of it was wanted.
+    /// </remarks>
+    Task<IReadOnlyList<CompetitionResult>> GetOwnResultsAsync(PersonId person, IReadOnlyList<CompetitionId> competitions, bool splits = false, CancellationToken cancellationToken = default);
+
     Task<Prediction?> GetPredictionAsync(CompetitionId competition, PersonId person, CancellationToken cancellationToken = default);
 }
 

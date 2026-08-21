@@ -43,6 +43,16 @@
         <Setter Property="FontFamily" Value="{StaticResource FontNumericSemiBold}" />
     </Style>
 
+    <!--
+        The medal stands in for a podium placement rather than annotating it, so it carries the
+        weight the number would have had. Its own size and not a step on the type scale: an emoji
+        at a given point size draws larger than a digit at the same one.
+    -->
+    <Style x:Key="MedalLabel" TargetType="Label">
+        <Setter Property="FontSize" Value="24" />
+        <Setter Property="LineHeight" Value="1.1" />
+    </Style>
+
     <Style x:Key="Heading1Label" TargetType="Label">
         <Setter Property="SemanticProperties.HeadingLevel" Value="Level1" />
         <Setter Property="FontFamily" Value="{StaticResource FontSemiBold}" />

@@ -22,6 +22,7 @@
 	<ItemGroup>
 		<Compile Include="..\Orientera\Presentation\Format.cs" LinkBase="Linked\Presentation" />
 		<Compile Include="..\Orientera\Presentation\DisciplineGlyph.cs" LinkBase="Linked\Presentation" />
+		<Compile Include="..\Orientera\Presentation\ClassOrder.cs" LinkBase="Linked\Presentation" />
 		<Compile Include="..\Orientera\Services\Analysis\**\*.cs" LinkBase="Linked\Services\Analysis" />
 		<Compile Include="..\Orientera\Services\Context\ContextEngine.cs" LinkBase="Linked\Services\Context" />
 		<Compile Include="..\Orientera\Services\FakeData\**\*.cs" LinkBase="Linked\Services\FakeData" />

@@ -135,8 +135,27 @@ public sealed class BackendSource(
     public Task<IReadOnlyList<Start>> GetStartsAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
         ListAsync<Start>($"competitions/{Uri.EscapeDataString(competition.Value)}/starts", cancellationToken);
 
-    public Task<IReadOnlyList<CompetitionResult>> GetResultsAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
-        ListAsync<CompetitionResult>($"competitions/{Uri.EscapeDataString(competition.Value)}/results", cancellationToken);
+    public Task<IReadOnlyList<CompetitionResult>> GetResultsAsync(
+        CompetitionId competition, CancellationToken cancellationToken = default) =>
+        ListAsync<CompetitionResult>(
+            $"competitions/{Uri.EscapeDataString(competition.Value)}/results", cancellationToken);
+
+    /// <summary>
+    /// The reader's own rows in a set of result lists, fetched as exactly that.
+    /// </summary>
+    /// <remarks>
+    /// One request for a whole season. Eventor answers a person and a list of events directly,
+    /// so the app no longer pulls a competition at a time to find one row in it.
+    /// </remarks>
+    public Task<IReadOnlyList<CompetitionResult>> GetOwnResultsAsync(
+        PersonId person, IReadOnlyList<CompetitionId> competitions, bool splits = false, CancellationToken cancellationToken = default) =>
+        competitions.Count == 0
+            ? Task.FromResult<IReadOnlyList<CompetitionResult>>([])
+            : ListAsync<CompetitionResult>(
+                $"results/person?person={Uri.EscapeDataString(person.Value)}"
+                    + $"&events={Uri.EscapeDataString(string.Join(',', competitions.Select(c => c.Value).Distinct()))}"
+                    + (splits ? "&splits=true" : string.Empty),
+                cancellationToken);
 
     /// <summary>
     /// The reader's own season, from Eventor's "Mina tävlingar" on this phone.

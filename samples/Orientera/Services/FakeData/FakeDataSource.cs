@@ -147,8 +147,14 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
         return Task.FromResult<IReadOnlyList<Start>>(starts);
     }
 
-    public Task<IReadOnlyList<CompetitionResult>> GetResultsAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
+    public Task<IReadOnlyList<CompetitionResult>> GetResultsAsync(
+        CompetitionId competition, CancellationToken cancellationToken = default) =>
         Task.FromResult(ResultsFor(competition));
+
+    public Task<IReadOnlyList<CompetitionResult>> GetOwnResultsAsync(
+        PersonId person, IReadOnlyList<CompetitionId> competitions, bool splits = false, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<CompetitionResult>>(
+            [.. competitions.Distinct().SelectMany(ResultsFor).Where(r => r.Person == person)]);
 
     public Task<IReadOnlyList<CompetitionResult>> GetResultsForPersonAsync(PersonId person, CancellationToken cancellationToken = default)
     {

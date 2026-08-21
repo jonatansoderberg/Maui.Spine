@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Orientera.Domain;
 using Orientera.Presentation;
 using Orientera.Services.Analysis;
+using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 
 namespace Orientera.Features.Results;
@@ -194,7 +195,10 @@ public partial class ResultsDetailPageViewModel(
 
         IsIdle = false;
 
-        if (!await LoadAsync(BuildAsync))
+        // Twice before calling it an outage. The backend does not abandon a fetch when the caller
+        // hangs up — it keeps loading and holds the result — so a first ask that runs into the
+        // app's twenty-second timeout is usually followed by one that answers in under a second.
+        if (!await LoadAsync(BuildAsync) && !await LoadAsync(BuildAsync))
         {
             HasResult = false;
             EmptyMessage = "Ingen anslutning. Resultat och sträcktider behöver nätverk.";
@@ -203,10 +207,56 @@ public partial class ResultsDetailPageViewModel(
         IsIdle = !HasResult;
     }
 
+    /// <summary>The whole competition's results, or none where they cannot be had.</summary>
+    private async Task<IReadOnlyList<CompetitionResult>> FieldAsync()
+    {
+        try
+        {
+            return await _participation.GetResultsAsync(_id);
+        }
+        catch (SourceUnavailableException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// My own rows in this competition, or none when nobody is signed in and none when the
+    /// question cannot be asked. A missing answer costs the page nothing: it falls back to the
+    /// whole result list, which is what it read before.
+    /// </summary>
+    private async Task<IReadOnlyList<CompetitionResult>> OwnAsync()
+    {
+        if (_me is null)
+            return [];
+
+        try
+        {
+            return await _participation.GetOwnResultsAsync(_me.Id, [_id], splits: true);
+        }
+        catch (SourceUnavailableException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>Keeps an abandoned request from becoming an unhandled failure.</summary>
+    private static void Forget(Task task) =>
+        task.ContinueWith(static t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+
     private async Task BuildAsync()
     {
-        var competition = await _events.GetCompetitionAsync(_id);
+        // Both at once. The competition costs five upstream calls to Eventor — the event, its
+        // documents, its classes, the schedule and the first start — and my own row one; in turn
+        // they were the page's wait, and a cold competition alone can outlast the twenty seconds
+        // the app gives its backend.
+        var competitionTask = _events.GetCompetitionAsync(_id);
+
         _me = await _people.GetMeAsync();
+
+        var ownTask = OwnAsync();
+
+        var competition = await competitionTask;
 
         if (competition is null || _me is null)
         {
@@ -218,13 +268,29 @@ public partial class ResultsDetailPageViewModel(
             Title = string.Empty;
             EmptyMessage = "Den här tävlingen ligger utanför kalendern appen läser, så resultatet "
                          + "går inte att öppna här. Raden i listan visar tid och placering.";
+
+            // The request is on its way and nobody is going to read it. Observed rather than
+            // abandoned, so its failure is not an unhandled one.
+            Forget(ownTask);
             return;
         }
 
         CompetitionName = competition.Name;
         Title = competition.Name;
 
-        _field = await _participation.GetResultsAsync(_id);
+        // The whole result list is what this page reads, and for all but the largest competitions
+        // it is a few hundred kilobytes. O-Ringen's is 86 MB and ninety-seven seconds of it, and
+        // Eventor has no way to ask for one class of a normal event — so where the list cannot be
+        // had, my own rows can: eight kilobytes, and a placement out of a field is most of what
+        // the page exists to say.
+        var own = await ownTask;
+
+        _field = await FieldAsync();
+
+        bool ownOnly = _field.Count == 0 && own.Count > 0;
+
+        if (ownOnly)
+            _field = own;
 
         // The result list carries names and clubs; the person ids in it are Eventor's, and the
         // user's identity is local. Name and club is the only comparison that spans both, the
@@ -246,20 +312,24 @@ public partial class ResultsDetailPageViewModel(
             return;
         }
 
-        BuildField(me);
+        BuildField(me, competition);
 
         // The field is worth showing on its own: opening a competition you did not run is the
         // normal case, not an error.
-        NotInFieldText = HasMine
-            ? string.Empty
-            : $"Du är inte med i den här resultatlistan. {_field.Count} resultat totalt.";
+        NotInFieldText = ownOnly
+            ? "Hela resultatlistan är för stor för att hämtas till telefonen. Det här är din egen rad."
+            : HasMine
+                ? string.Empty
+                : $"Du är inte med i den här resultatlistan. {_field.Count} resultat totalt.";
 
         if (_mine is null)
             return;
 
         BuildOverview(competition, _mine);
 
-        _legs = SplitAnalyzer.Analyse(_mine, _field);
+        // Sträcktider mäts mot klassen. Med bara den egna raden i handen blir varje sträcka
+        // "bäst i klassen", vilket är en siffra som ser ut som en analys utan att vara en.
+        _legs = ownOnly ? [] : SplitAnalyzer.Analyse(_mine, _field);
         HasSplits = _legs.Count > 0;
 
         if (HasSplits)
@@ -273,15 +343,21 @@ public partial class ResultsDetailPageViewModel(
     /// The field class by class. The user's own class comes first — it is the one they opened the
     /// page for, and a championship has forty of them.
     /// </summary>
-    private void BuildField(RunnerIdentity me)
+    private void BuildField(RunnerIdentity me, Competition competition)
     {
         Field.Clear();
 
         string mine = _mine?.Class ?? _me?.DefaultClass ?? string.Empty;
 
+        // The organiser's own order, and their names for the classes, is the one a runner has
+        // already read on the entry form. Alphabetical put "Blå 3,0" above D10 and D2 nowhere
+        // near D21.
+        var order = ClassOrder.For(competition.Classes);
+
         var classes = _field
             .GroupBy(r => r.Class)
             .OrderByDescending(g => g.Key == mine)
+            .ThenBy(g => order.Rank(g.Key))
             .ThenBy(g => g.Key, StringComparer.CurrentCulture);
 
         foreach (var byClass in classes)

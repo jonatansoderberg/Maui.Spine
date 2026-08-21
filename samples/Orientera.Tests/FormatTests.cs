@@ -60,6 +60,36 @@ public class FormatTests
         Assert.Equal("ingen placering", Format.SpokenPlace(null));
     }
 
+    /// <summary>
+    /// The results list puts the placement in a column of its own, where the ordinal ending says
+    /// the same thing on every row and only costs the number a fixed width.
+    /// </summary>
+    [Fact]
+    public void A_placement_in_a_column_is_a_bare_number()
+    {
+        Assert.Equal("1", Format.PlaceNumber(1));
+        Assert.Equal("109", Format.PlaceNumber(109));
+        Assert.Equal("—", Format.PlaceNumber(null));
+    }
+
+    [Fact]
+    public void Only_the_podium_gets_a_medal()
+    {
+        Assert.Equal("🥇", Format.Medal(1));
+        Assert.Equal("🥈", Format.Medal(2));
+        Assert.Equal("🥉", Format.Medal(3));
+        Assert.Equal(string.Empty, Format.Medal(4));
+        Assert.Equal(string.Empty, Format.Medal(null));
+    }
+
+    /// <summary>A field of nobody is a field the source did not state — say nothing, not "av 0".</summary>
+    [Fact]
+    public void The_field_is_named_only_when_its_size_is_known()
+    {
+        Assert.Equal("av 91", Format.OutOf(91));
+        Assert.Equal(string.Empty, Format.OutOf(0));
+    }
+
     [Theory]
     [InlineData(0, 31, 12, "31:12")]
     [InlineData(1, 4, 59, "1:04:59")]

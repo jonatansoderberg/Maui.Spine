@@ -51,10 +51,23 @@
                                 SemanticProperties.Hint="Öppnar resultatet">
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
 
-                                <Label Grid.Column="0"
-                                       Style="{StaticResource DisplayNumberLabel}"
-                                       VerticalOptions="Center"
-                                       Text="{Binding PlaceText}" />
+                                <VerticalStackLayout Grid.Column="0"
+                                                     WidthRequest="{StaticResource PlaceColumnWidth}"
+                                                     VerticalOptions="Center">
+                                    <Label Style="{StaticResource MedalLabel}"
+                                           HorizontalTextAlignment="Center"
+                                           IsVisible="{Binding HasMedal}"
+                                           Text="{Binding MedalText}" />
+                                    <!-- En medalj säger redan vilken av de tre det var. -->
+                                    <Label Style="{StaticResource DisplayNumberLabel}"
+                                           HorizontalTextAlignment="Center"
+                                           IsVisible="{Binding HasPlaceNumber}"
+                                           Text="{Binding PlaceText}" />
+                                    <Label Style="{StaticResource CaptionLabel}"
+                                           HorizontalTextAlignment="Center"
+                                           IsVisible="{Binding HasField}"
+                                           Text="{Binding FieldText}" />
+                                </VerticalStackLayout>
 
                                 <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
                                     <Label Style="{StaticResource Heading2Label}" Text="{Binding Name}" />

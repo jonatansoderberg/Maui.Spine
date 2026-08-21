@@ -12,6 +12,9 @@ public class RunnerIdentityTests
     [InlineData("Elin Nordqvist", "Nordqvist, Elin")]
     [InlineData("Jennie Börjesson Eriksson", "jennie börjesson eriksson")]
     [InlineData("Per-Olof Ek", "Per Olof Ek")]
+    // Eventor's result lists put the surname first, without a comma to say so.
+    [InlineData("Jonatan Söderberg", "Söderberg Jonatan")]
+    [InlineData("Jennie Börjesson Eriksson", "Börjesson Eriksson Jennie")]
     public void The_same_runner_written_differently_is_the_same_runner(string left, string right) =>
         Assert.True(RunnerIdentity.Of(left).Matches(RunnerIdentity.Of(right)));
 
