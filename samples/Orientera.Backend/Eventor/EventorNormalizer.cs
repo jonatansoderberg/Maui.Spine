@@ -333,10 +333,43 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
         return [.. starts.OrderBy(s => s.StartTime)];
     }
 
+    /// <summary>
+    /// One person's own results across several events, as <c>results/person</c> answers: a list
+    /// of result lists, each naming the event it belongs to.
+    /// </summary>
+    public IReadOnlyList<CompetitionResult> PersonResults(
+        XElement resultListList,
+        OrganisationDirectory? organisations = null)
+    {
+        var lists = resultListList.Name.LocalName == "ResultList"
+            ? [resultListList]
+            : resultListList.Deep("ResultList").ToList();
+
+        var results = new List<CompetitionResult>();
+
+        foreach (var resultList in lists)
+        {
+            // The event names itself inside its own list; without it a result has nothing to
+            // belong to, and a result nobody can place is not one the app can use.
+            if (resultList.Child("Event").Text("EventId") is not { Length: > 0 } id)
+                continue;
+
+            results.AddRange(Results(resultList, new CompetitionId(id), organisations, partial: true));
+        }
+
+        return results;
+    }
+
+    /// <param name="partial">
+    /// True when the list holds a selection rather than everyone — <c>results/person</c> answers
+    /// with one runner's rows. A class' size cannot be counted from a list like that, and counting
+    /// it anyway would report a field of one.
+    /// </param>
     public IReadOnlyList<CompetitionResult> Results(
         XElement resultList,
         CompetitionId competition,
-        OrganisationDirectory? organisations = null)
+        OrganisationDirectory? organisations = null,
+        bool partial = false)
     {
         var results = new List<CompetitionResult>();
 
@@ -366,9 +399,14 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
                     info => EventorXml.Integer(info.Attr("noOfStarts"))
                         ?? EventorXml.Integer(info.Attr("noOfEntries")));
 
-            int classStarters = EventorXml.Integer(classResult.Attr("numberOfStarts"))
-                ?? EventorXml.Integer(classResult.Attr("numberOfEntries"))
-                ?? classResult.Children("PersonResult").Count();
+            // The class' own number counts every race in the event, not one of them: Karlstad
+            // Indoor's Herrar says 91 for two races of 44 and 47, and O-Ringen's H45 says 935 for
+            // five of about 187. It is a field only where there is one race to be the field of.
+            int? classStarters = manyRaces
+                ? null
+                : EventorXml.Integer(classResult.Attr("numberOfStarts"))
+                    ?? EventorXml.Integer(classResult.Attr("numberOfEntries"))
+                    ?? (partial ? null : classResult.Children("PersonResult").Count());
 
             foreach (var personResult in classResult.Children("PersonResult"))
             {
@@ -400,7 +438,11 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
                             Time = EventorXml.Duration(result.Text("Time")),
                             Place = EventorXml.Integer(result.Text("ResultPosition")),
                             BehindWinner = EventorXml.Duration(result.Text("TimeDiff")),
-                            Starters = (raceId is { } key ? perRace.GetValueOrDefault(key) : null) ?? classStarters,
+                            // Nothing rather than a number from the wrong race: a placement out
+                            // of a field that never ran together says less than a placement alone.
+                            Starters = (raceId is { } key ? perRace.GetValueOrDefault(key) : null)
+                                ?? classStarters
+                                ?? 0,
                             Splits = SplitsOf(result),
                         });
                     }

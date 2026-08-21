@@ -50,6 +50,31 @@ public sealed class ChipView : ContentView
         });
 
         ApplySelection();
+        ApplyAvailability();
+    }
+
+    /// <summary>
+    /// A chip that cannot be tapped has to look like one.
+    /// </summary>
+    /// <remarks>
+    /// <c>IsEnabled="False"</c> stops the tap at the platform view, so a disabled chip was a word
+    /// that did nothing when pressed and looked exactly like the one beside it that worked —
+    /// "Sträckor" on a race with no split times reads as a broken button, not an absent one.
+    /// Opacity rather than a colour: the chip's own colours are swapped between two pre-built
+    /// Borders precisely so that no trigger has to remember one.
+    /// </remarks>
+    private void ApplyAvailability()
+    {
+        Opacity = IsEnabled ? 1 : 0.4;
+        ApplySemantics();
+    }
+
+    protected override void OnPropertyChanged(string? propertyName = null)
+    {
+        base.OnPropertyChanged(propertyName);
+
+        if (propertyName == IsEnabledProperty.PropertyName)
+            ApplyAvailability();
     }
 
     /// <summary>
@@ -62,6 +87,7 @@ public sealed class ChipView : ContentView
             IsSelected ? $"{Text}, valt filter" : Text);
 
         SemanticProperties.SetHint(this,
+            !IsEnabled ? "Inte tillgängligt" :
             IsSelected ? string.Empty : $"Visa {Text}");
     }
 

@@ -79,10 +79,37 @@ public readonly record struct RunnerIdentity
     /// </summary>
     public bool Matches(RunnerIdentity other)
     {
-        if (Name.Length == 0 || Name != other.Name)
+        if (Name.Length == 0 || !SameName(Name, other.Name))
             return false;
 
         return Club.Length == 0 || other.Club.Length == 0 || Club == other.Club;
+    }
+
+    /// <summary>
+    /// The same parts in either order. Eventor's result lists are written surname first —
+    /// "Söderberg Jonatan" — with no comma to say so, and a runner reading their own result was
+    /// told they were not in a list they had won.
+    /// </summary>
+    /// <remarks>
+    /// Two runners whose names are permutations of each other would be merged by this, which is
+    /// a name like "Anna Karin" against "Karin Anna" in the same club. That is rarer than a
+    /// result list written the other way round, which is every result list.
+    /// </remarks>
+    private static bool SameName(string left, string right)
+    {
+        if (left == right)
+            return true;
+
+        var mine = left.Split(' ');
+        var theirs = right.Split(' ');
+
+        if (mine.Length != theirs.Length)
+            return false;
+
+        Array.Sort(mine, StringComparer.Ordinal);
+        Array.Sort(theirs, StringComparer.Ordinal);
+
+        return mine.SequenceEqual(theirs, StringComparer.Ordinal);
     }
 
     public override string ToString() => Key;

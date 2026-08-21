@@ -124,6 +124,42 @@ public sealed class EventorSource(EventorClient _client, ResponseCache _cache, I
     }
 
     /// <summary>
+    /// A person's own results in the given events — their row, and the size of the class it
+    /// stood in, for every event in one request.
+    /// </summary>
+    /// <remarks>
+    /// The narrow question, and the one the results list actually asks: it wants "how large was
+    /// the field" for a season of races, and was answering it by fetching each competition whole.
+    /// Split times are left out; a placement and a field size need none of them.
+    /// </remarks>
+    public async Task<IReadOnlyList<CompetitionResult>> GetPersonResultsAsync(
+        string personId,
+        IReadOnlyList<CompetitionId> events,
+        int? top = null,
+        bool splits = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (personId.Length == 0)
+            return [];
+
+        var ids = string.Join(',', events.Select(e => e.Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
+
+        var results = await _cache.GetOrAddAsync(
+            $"person-results:{personId}:{ids}:{top}:{splits}",
+            ResultLifetime,
+            token => _client.GetAsync("results/person", new Dictionary<string, string?>
+            {
+                ["personId"] = personId,
+                ["eventIds"] = ids.Length > 0 ? ids : null,
+                ["includeSplitTimes"] = splits ? "true" : "false",
+                ["top"] = top?.ToString(CultureInfo.InvariantCulture),
+            }, token),
+            cancellationToken);
+
+        return _normalizer.PersonResults(results, await DirectoryAsync(cancellationToken));
+    }
+
+    /// <summary>
     /// Split times are published separately from results, and the calendar does not say when.
     /// One result is enough to find out, and it is the same cached document the analysis view
     /// will ask for.

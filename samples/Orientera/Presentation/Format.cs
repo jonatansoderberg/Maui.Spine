@@ -74,6 +74,26 @@ public static class Format
 
     public static string Place(int? place) => place is { } p ? Place(p) : "—";
 
+    /// <summary>The placement as a bare number — "33" — or an em dash where there is none.</summary>
+    /// <remarks>
+    /// For a column that carries nothing but placements. The ordinal ending is what a sentence
+    /// needs and a column does not: it says the same thing on every row, and it makes "1:a" and
+    /// "109:e" two different widths for one kind of fact.
+    /// </remarks>
+    public static string PlaceNumber(int? place) => place is { } p ? p.ToString(Sv) : "—";
+
+    /// <summary>Gold, silver or bronze for a podium place; nothing for the rest of the field.</summary>
+    public static string Medal(int? place) => place switch
+    {
+        1 => "🥇",
+        2 => "🥈",
+        3 => "🥉",
+        _ => string.Empty,
+    };
+
+    /// <summary>"av 91" — the field a placement is out of, or nothing when its size is unknown.</summary>
+    public static string OutOf(int starters) => starters > 0 ? $"av {starters}" : string.Empty;
+
     /// <summary>
     /// Which half of a club's list a place is in. Said out loud because a club place is counted
     /// per section — 17th in a club means 17th among its men, not 17th of everyone.

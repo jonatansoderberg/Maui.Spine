@@ -23,6 +23,13 @@
 
     <!-- Breathing room under the last row of a list. -->
     <x:Double x:Key="ListBottomSpacer">16</x:Double>
+
+    <!--
+        The placement column. Fixed, because a placement is one to three digits and a column that
+        sizes to its content moves the race name sideways on every row — the one thing a list of
+        results is read down. Wide enough for three digits at SizeDisplay.
+    -->
+    <x:Double x:Key="PlaceColumnWidth">56</x:Double>
     <Thickness x:Key="CardPadding">16</Thickness>
 
     <!-- Card -->
