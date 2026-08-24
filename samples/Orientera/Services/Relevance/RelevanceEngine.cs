@@ -15,9 +15,14 @@ public sealed record RelevanceContext
     public IReadOnlySet<CompetitionId> Interests { get; init; } = new HashSet<CompetitionId>();
     public IReadOnlySet<SeriesId> FollowedSeries { get; init; } = new HashSet<SeriesId>();
     public IReadOnlySet<string> FollowedOrganisers { get; init; } = new HashSet<string>();
+
+    /// <summary>
+    /// The kinds of race the reader would rather be at, best first. Empty when they have not said.
+    /// </summary>
+    public IReadOnlyList<RacePreference> Favourites { get; init; } = [];
 }
 
-/// <summary>The five sub-scores, each 0–1, plus the weighted total.</summary>
+/// <summary>The six sub-scores, each 0–1, plus the weighted total.</summary>
 public sealed record RelevanceScore
 {
     public required double Importance { get; init; }
@@ -26,12 +31,16 @@ public sealed record RelevanceScore
     public required double Temporal { get; init; }
     public required double Urgency { get; init; }
 
+    /// <summary>How near the top of the reader's own list this kind of race is.</summary>
+    public required double Preference { get; init; }
+
     public double Total =>
         Importance * RelevanceEngine.ImportanceWeight
         + Personal * RelevanceEngine.PersonalWeight
         + Geographic * RelevanceEngine.GeographicWeight
         + Temporal * RelevanceEngine.TemporalWeight
-        + Urgency * RelevanceEngine.UrgencyWeight;
+        + Urgency * RelevanceEngine.UrgencyWeight
+        + Preference * RelevanceEngine.PreferenceWeight;
 }
 
 /// <summary>
@@ -59,6 +68,17 @@ public static class RelevanceEngine
     public const double TemporalWeight = 0.10;
     public const double UrgencyWeight = 0.10;
 
+    /// <summary>
+    /// What the reader says they would rather run.
+    /// </summary>
+    /// <remarks>
+    /// Added on top of the five rather than carved out of them. The weights above sum to one and
+    /// the balance between them was argued for and measured; a sixth weight scales all five
+    /// equally, which leaves that balance exactly as it was and gives taste a sixth of the total.
+    /// Dividing the existing five to make room would have quietly undone the urgency fix.
+    /// </remarks>
+    public const double PreferenceWeight = 0.20;
+
     /// <summary>Distance at which the geographic score reaches zero.</summary>
     public const double MaxDistanceKm = 250.0;
 
@@ -76,7 +96,34 @@ public static class RelevanceEngine
         Geographic = GeographicScore(competition, context),
         Temporal = TemporalScore(competition, context),
         Urgency = UrgencyScore(competition, context),
+        Preference = PreferenceScore(competition, context),
     };
+
+    /// <summary>
+    /// Where this kind of race sits on the reader's own list, as a score.
+    /// </summary>
+    /// <remarks>
+    /// The position is the weight — first place is worth twice second, which is worth half again
+    /// as much as third. The curve does not depend on how long the list is: adding a sixth
+    /// favourite must not make the first one matter less, or a runner who fills the list in
+    /// carefully ends up with a flatter calendar than one who named a single race.
+    /// <para>
+    /// Nothing at all for a kind that is not on the list. It is a preference and not a filter —
+    /// the race still appears, further down.
+    /// </para>
+    /// </remarks>
+    public static double PreferenceScore(Competition competition, RelevanceContext context)
+    {
+        var wanted = new RacePreference(competition.Sport, competition.Discipline);
+
+        for (int i = 0; i < context.Favourites.Count; i++)
+        {
+            if (context.Favourites[i] == wanted)
+                return 1.0 / (1.0 + i);
+        }
+
+        return 0.0;
+    }
 
     /// <summary>
     /// How precisely relevance is worth believing.

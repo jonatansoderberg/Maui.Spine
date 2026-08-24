@@ -29,6 +29,7 @@ public partial class HomePageViewModel(
     IProgressSource _progress,
     FirstRunStore _firstRun,
     EventorSessionResume _resume,
+    RacePreferenceStore _preferences,
     CompetitionContextService _context) : OrienteraViewModel
 {
     /// <summary>Hem has few large blocks, not a dense dashboard.</summary>
@@ -180,7 +181,8 @@ public partial class HomePageViewModel(
         if (BuildGroup(competitions, groupEntries, group, today) is { } groupBlock)
             blocks.Add(groupBlock);
 
-        if (BuildDiscovery(competitions, me, myEntries, groupEntries, now, today) is { } discovery)
+        if (BuildDiscovery(competitions, _preferences.Load(), me, myEntries, groupEntries, now, today)
+            is { } discovery)
             blocks.Add(discovery);
 
         if (await BuildDevelopmentAsync(me) is { } development)
@@ -393,6 +395,7 @@ public partial class HomePageViewModel(
 
     private static DiscoveryBlock? BuildDiscovery(
         IReadOnlyList<Competition> competitions,
+        RacePreferences preferences,
         Person me,
         IReadOnlySet<CompetitionId> myEntries,
         IReadOnlySet<CompetitionId> groupEntries,
@@ -407,12 +410,14 @@ public partial class HomePageViewModel(
             MyClass = me.DefaultClass,
             MyEntries = myEntries,
             GroupEntries = groupEntries,
+            Favourites = preferences.Favourites,
         };
 
         // Ranking, not Score().Total, and the same date tiebreak the list uses: two races of the
         // same championship score identically to five decimals, and picking on the raw total put
         // Sunday's above Saturday's here while the list had them the right way round.
         var candidate = competitions
+            .Where(c => preferences.Allows(c.Sport))
             .Where(c => !myEntries.Contains(c.Id) && !c.IsLowPriority && c.FirstStart > now)
             .Select(c => (Competition: c, Score: RelevanceEngine.Ranking(c, context)))
             .OrderByDescending(x => x.Score)

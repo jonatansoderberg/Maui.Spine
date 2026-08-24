@@ -163,6 +163,11 @@ public static class MauiProgram
         services.AddSingleton(_ => new DistrictStore(
             Path.Combine(FileSystem.AppDataDirectory, "districts.json")));
 
+        // Vilka grenar man håller på med och vilka lopp man helst är på. Står kvar mellan körningar
+        // och gäller före allt som filterarket säger.
+        services.AddSingleton(_ => new RacePreferenceStore(
+            Path.Combine(FileSystem.AppDataDirectory, "race-preferences.json")));
+
         services.AddSingleton(_ => new CompetitionClassStore(
             Path.Combine(FileSystem.AppDataDirectory, "live-classes.json")));
 

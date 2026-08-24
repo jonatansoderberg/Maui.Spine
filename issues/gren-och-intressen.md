@@ -2,7 +2,7 @@
 
 **GitHub:** _issue ej skapad än_
 **Branch:** issue/okand-arena (staplad)
-**Status:** Steg 1 klart (gren som axel). Steg 2 kvar (Jag-inställningarna).
+**Status:** Steg 1 och 2 klara. Onboarding-steget kvar.
 
 ## Problemet
 
@@ -129,10 +129,50 @@ avserialiseras i ett stycke, och ett enda ord den nya versionen inte känner ige
 listan. Ett värde vi inte kan namnge är ett fält som blir fel; att kasta är hela skärmen.
 `TolerantEnumConverter` i `OrienteraJson`, med två testfall.
 
-## Kvar — steg 2
+## Changes — steg 2: mina grenar och viktade intressen
 
-- **Onboarding:** ett steg "Vilka grenar håller du på med?" med OL förkryssat.
-- **Jag:** *Mina grenar* (hårt filter, går in i `EventFilter` som ett stående förval) och
-  *Det jag helst springer* (sorterbar lista av gren+distans-par).
-- **`RelevanceEngine`:** en term som läser positionen i den listan, bredvid geografi, tid och nivå.
-- **Hem:** samma ordning i blockens sortering.
+- `RacePreference` i domänen: en gren och en distans tillsammans.
+- `RacePreferenceStore` (`race-preferences.json`) med `Sports` (mängd) och `Favourites` (ordnad
+  lista). `RacePreferences.Allows(sport)` är det hårda filtret; tom mängd betyder alla.
+- **Jag:** kortet "Grenar och former" som säger vad som är satt, och arket
+  `RacePreferenceSheet` — grenchips, den ordnade listan med ↑↓ och positionsnummer, och ett
+  rutnät att lägga till ur.
+- **`RelevanceEngine.PreferenceScore`** som en sjätte axel, plus `Favourites` i
+  `RelevanceContext`.
+- **Tävlingar och Hem** filtrerar bort grenar man inte valt innan något annat händer, och båda
+  läser samma vikt eftersom båda redan gick genom `RelevanceEngine.Ranking`.
+- `FilterOption`/`FilterOptionGroup` flyttade till `Controls/ChipGroup.cs` som `ChipOption`/
+  `ChipGroup`: de är modelldelen av en chiprad, inte något filterspecifikt, och ett ark under Jag
+  ska inte behöva bero på `Features.Events`.
+
+## Decisions — steg 2
+
+**Vikten är på plats ett, inte i en skala.** `1 / (1 + index)` — första platsen väger dubbelt mot
+andra. Kurvan beror inte på hur lång listan är: att lägga till en sjätte favorit får inte göra den
+första mindre värd, för då får den som fyller i noggrant en plattare kalender än den som skrev en
+enda rad.
+
+**Den sjätte vikten lades ovanpå de fem, inte ur dem.** De fem summerar till ett och balansen
+mellan dem är argumenterad och uppmätt; en sjätte vikt skalar alla fem lika mycket, vilket lämnar
+balansen exakt som den var. Att dela upp dem hade tyst rivit upp brådskefixen.
+
+**Knappar och inte dra-och-släpp.** En `CollectionView` med `CanReorderItems` mäter sig inte inne
+i en lodrät `ScrollView`, och ett långtryck är dessutom det enda sätt att sortera som en
+skärmläsare inte kan utföra. `↑`/`↓` med positionsnumret bredvid säger dessutom vad ordningen
+betyder utan att man behöver prova.
+
+**Rutnätet byggs av valda grenar, inte alla sex.** En gren ger sex chips och ett rutnät någon kan
+läsa; sex grenar hade gett trettiosex. Slår man av en gren försvinner dess favoriter med den — en
+favorit-MTBO-sprint hos någon som just sagt att de inte cyklar är en preferens som aldrig kan
+gälla.
+
+**Nytt val hamnar sist.** Att lägga det överst hade sorterat om en lista läsaren själv ordnat.
+
+**Arket sparar medan man väljer.** Det finns ingen "spara": varje tryck är redan svaret, och
+"Klar" stänger bara.
+
+## Kvar
+
+- **Onboarding:** ett steg "Vilka grenar håller du på med?" med OL förkryssat, så att den som
+  cyklar aldrig blir av med sina tävlingar utan att ha sagt något. Vägen in för den som redan kört
+  appen finns nu — kortet under Jag.

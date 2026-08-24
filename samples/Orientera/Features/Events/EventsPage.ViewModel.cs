@@ -33,6 +33,7 @@ public partial class EventsPageViewModel(
     IParticipationSource _participation,
     IOfflineStore _offlineStore,
     DistrictStore _districts,
+    RacePreferenceStore _preferences,
     CompetitionContextService _context) : OrienteraViewModel
 {
     private IReadOnlyList<Competition> _all = [];
@@ -319,6 +320,8 @@ public partial class EventsPageViewModel(
         var mine = entries.Where(e => e.Person == _me.Id).Select(e => e.Competition).ToHashSet();
         var groupEntries = entries.Where(e => groupIds.Contains(e.Person)).Select(e => e.Competition).ToHashSet();
 
+        var preferences = _preferences.Load();
+
         var relevance = new RelevanceContext
         {
             Now = now,
@@ -328,9 +331,14 @@ public partial class EventsPageViewModel(
             MyEntries = mine,
             GroupEntries = groupEntries,
             Interests = _interests,
+            Favourites = preferences.Favourites,
         };
 
+        // The sports the runner does, before anything else. A standing preference and not a
+        // filter: it never shows as a chip above the list, because there is nothing there for
+        // them to take off — they still do not own a bike tomorrow.
         _quickMatches = _all
+            .Where(c => preferences.Allows(c.Sport))
             .Where(c => PassesQuick(c, now, today, mine, groupEntries))
             .ToList();
 

@@ -101,6 +101,30 @@
                 </Grid>
             </Border>
 
+            <Border Style="{StaticResource Card}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <VerticalStackLayout Grid.Column="0" Spacing="1" VerticalOptions="Center">
+                        <Label Style="{StaticResource SectionLabel}" Text="Grenar och former" />
+                        <Label Style="{StaticResource BodyLabel}"
+                               LineBreakMode="TailTruncation"
+                               Text="{Binding SportsText}" />
+                        <Label Style="{StaticResource CaptionLabel}"
+                               LineBreakMode="TailTruncation"
+                               Text="{Binding FavouritesText}" />
+                    </VerticalStackLayout>
+
+                    <Button Grid.Column="1"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="14,0"
+                            HeightRequest="36"
+                            FontSize="{StaticResource SizeCaption}"
+                            Text="Ändra"
+                            VerticalOptions="Center"
+                            SemanticProperties.Description="Välj vilka grenar du håller på med och vilka lopp du helst springer"
+                            Command="{Binding OpenRacePreferencesCommand}" />
+                </Grid>
+            </Border>
+
             <!--
                 Sverigelistan saknas oftare än den finns: den kräver en egen inloggning och en
                 klubb som betalat avgiften. Då står det varför, i stället för att kortet bara

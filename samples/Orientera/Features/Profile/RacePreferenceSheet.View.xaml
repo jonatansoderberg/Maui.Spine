@@ -1,0 +1,123 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Profile.RacePreferenceSheet"
+    x:TypeArguments="RacePreferenceSheetViewModel"
+    x:DataType="RacePreferenceSheetViewModel">
+
+    <Grid RowDefinitions="*,Auto">
+
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="16,36,16,16" Spacing="20">
+
+                <VerticalStackLayout Spacing="8">
+                    <Label Style="{StaticResource SectionLabel}" Text="Mina grenar" />
+                    <Label Style="{StaticResource CaptionLabel}"
+                           Text="Grenar du inte väljer syns inte alls. Inget valt betyder alla." />
+
+                    <WrapLayout Spacing="8" LineSpacing="8"
+                                BindableLayout.ItemsSource="{Binding SportGroup.Options}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="ChipOption">
+                                <ChipView IsCompact="True"
+                                          Text="{Binding Label}"
+                                          IsSelected="{Binding IsSelected}"
+                                          Command="{Binding ToggleCommand}" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </WrapLayout>
+                </VerticalStackLayout>
+
+                <BoxView Style="{StaticResource Divider}" />
+
+                <VerticalStackLayout Spacing="8">
+                    <Label Style="{StaticResource SectionLabel}" Text="Det jag helst springer" />
+                    <!--
+                        Ordningen är hela poängen: plats ett väger dubbelt så mycket som plats två.
+                        Det står här i klartext, för en lista som går att sortera säger inte av sig
+                        själv att sorteringen betyder något.
+                    -->
+                    <Label Style="{StaticResource CaptionLabel}"
+                           Text="Ordningen är vikten. Det översta väger tyngst i För dig och på Hem." />
+
+                    <VerticalStackLayout Spacing="0" IsVisible="{Binding HasFavourites}"
+                                         BindableLayout.ItemsSource="{Binding Favourites}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="FavouriteRow">
+                                <Grid ColumnDefinitions="28,*,44,44" MinimumHeightRequest="44"
+                                      SemanticProperties.Description="{Binding Accessibility}">
+                                    <Label Grid.Column="0"
+                                           Style="{StaticResource NumericCaptionLabel}"
+                                           VerticalOptions="Center"
+                                           Text="{Binding Position}" />
+
+                                    <Label Grid.Column="1"
+                                           Style="{StaticResource BodyLabel}"
+                                           VerticalOptions="Center"
+                                           LineBreakMode="TailTruncation"
+                                           Text="{Binding Label}" />
+
+                                    <!--
+                                        Knappar och inte dra-och-släpp. En CollectionView med
+                                        CanReorderItems mäter sig inte inne i en lodrät ScrollView,
+                                        och ett långtryck är dessutom det enda sättet att sortera
+                                        som en skärmläsare inte kan utföra.
+                                    -->
+                                    <Button Grid.Column="2"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="0" HeightRequest="36" WidthRequest="36"
+                                            FontSize="{StaticResource SizeBody}"
+                                            VerticalOptions="Center"
+                                            Text="↑"
+                                            IsEnabled="{Binding CanMoveUp}"
+                                            SemanticProperties.Description="Flytta upp"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.MoveUpCommand}"
+                                            CommandParameter="{Binding .}" />
+
+                                    <Button Grid.Column="3"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Padding="0" HeightRequest="36" WidthRequest="36"
+                                            FontSize="{StaticResource SizeBody}"
+                                            VerticalOptions="Center"
+                                            Text="↓"
+                                            IsEnabled="{Binding CanMoveDown}"
+                                            SemanticProperties.Description="Flytta ned"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.MoveDownCommand}"
+                                            CommandParameter="{Binding .}" />
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+
+                    <Label Style="{StaticResource CaptionLabel}"
+                           IsVisible="{Binding HasNoFavourites}"
+                           Text="Inget valt än. Välj nedan." />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="8">
+                    <Label Style="{StaticResource SectionLabel}" Text="Lägg till" />
+
+                    <WrapLayout Spacing="8" LineSpacing="8"
+                                BindableLayout.ItemsSource="{Binding PairGroup.Options}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="ChipOption">
+                                <ChipView IsCompact="True"
+                                          Text="{Binding Label}"
+                                          IsSelected="{Binding IsSelected}"
+                                          Command="{Binding ToggleCommand}" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </WrapLayout>
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Button Grid.Row="1"
+                Style="{StaticResource PrimaryButton}"
+                Margin="16,8,16,16"
+                Text="Klar"
+                Command="{Binding DoneCommand}" />
+
+    </Grid>
+</SpinePage>

@@ -28,7 +28,7 @@
                         <WrapLayout Spacing="8" LineSpacing="8"
                                     BindableLayout.ItemsSource="{Binding DistrictGroup.Options}">
                             <BindableLayout.ItemTemplate>
-                                <DataTemplate x:DataType="FilterOption">
+                                <DataTemplate x:DataType="ChipOption">
                                     <ChipView IsCompact="True"
                                               Text="{Binding Label}"
                                               IsSelected="{Binding IsSelected}"
@@ -45,7 +45,7 @@
                     <WrapLayout Spacing="8" LineSpacing="8"
                                 BindableLayout.ItemsSource="{Binding PeriodGroup.Options}">
                         <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="FilterOption">
+                            <DataTemplate x:DataType="ChipOption">
                                 <ChipView IsCompact="True"
                                           Text="{Binding Label}"
                                           IsSelected="{Binding IsSelected}"
@@ -63,7 +63,7 @@
                         <WrapLayout Spacing="8" LineSpacing="8"
                                     BindableLayout.ItemsSource="{Binding LevelGroup.Options}">
                             <BindableLayout.ItemTemplate>
-                                <DataTemplate x:DataType="FilterOption">
+                                <DataTemplate x:DataType="ChipOption">
                                     <ChipView IsCompact="True"
                                               Text="{Binding Label}"
                                               IsSelected="{Binding IsSelected}"
@@ -84,7 +84,7 @@
                     <WrapLayout Spacing="8" LineSpacing="8"
                                 BindableLayout.ItemsSource="{Binding SportGroup.Options}">
                         <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="FilterOption">
+                            <DataTemplate x:DataType="ChipOption">
                                 <ChipView IsCompact="True"
                                           Text="{Binding Label}"
                                           IsSelected="{Binding IsSelected}"
@@ -100,7 +100,7 @@
                     <WrapLayout Spacing="8" LineSpacing="8"
                                 BindableLayout.ItemsSource="{Binding DisciplineGroup.Options}">
                         <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="FilterOption">
+                            <DataTemplate x:DataType="ChipOption">
                                 <ChipView IsCompact="True"
                                           Text="{Binding Label}"
                                           IsSelected="{Binding IsSelected}"
