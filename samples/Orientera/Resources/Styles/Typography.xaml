@@ -133,6 +133,23 @@
         <Setter Property="CharacterSpacing" Value="0.6" />
     </Style>
 
+    <!--
+        Sidans och arkets rubrik. Spine slår upp exakt nyckeln "HeaderBarTitle" i appens resurser
+        och sätter stilen på rubriketiketten; utan den ritas titeln i MAUI:s standardetikett, vilket
+        är varför "Filter" stod i systemets typsnitt över ett ark där allt annat är Inter.
+
+        Versal, som i Spines eget exempel. Textfärgen står inte här: PagePresenter sätter svart
+        eller vitt direkt på etiketten efter plattformens tema, eftersom en AppThemeBinding inne i
+        en nyckelstil läser fel värde i Androids ark. En Setter här hade aldrig vunnit.
+    -->
+    <Style x:Key="HeaderBarTitle" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontSemiBold}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeH2}" />
+        <Setter Property="TextTransform" Value="Uppercase" />
+        <Setter Property="CharacterSpacing" Value="1.4" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
+    </Style>
+
     <!-- Section label — "LIVE NU", "SENASTE RESULTAT". Structure without heading weight. -->
     <Style x:Key="SectionLabel" TargetType="Label">
         <Setter Property="SemanticProperties.HeadingLevel" Value="Level2" />

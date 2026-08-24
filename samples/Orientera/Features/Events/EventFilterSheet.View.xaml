@@ -95,10 +95,6 @@
                 <!-- Avståndet är det Eventor inte kan: kalendern där vet inte var man bor. -->
                 <FilterSection Title="Avstånd hemifrån" Summary="{Binding DistanceSummary}">
                     <VerticalStackLayout Spacing="4">
-                        <Label Style="{StaticResource NumericHeading2Label}"
-                               HorizontalOptions="Center"
-                               Text="{Binding DistanceSummary}" />
-
                         <!--
                             Reglaget läser upp sitt värde som andel av skalan, inte som mil. Därför
                             bär det avståndet i ord i stället, och uppdaterar dem medan det dras.

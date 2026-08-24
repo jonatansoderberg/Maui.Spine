@@ -150,6 +150,20 @@ byggt vågräta rullningar för att `FlexLayout` med `Wrap` ritar chippen utanf�
 plattformen träffytetestar mätningen. En egen layout mäter och placerar i samma pass, så höjden
 som rapporteras är höjden som används.
 
+## Efter genomgången (tillägg)
+
+- **Avståndet blev ett reglage.** Fem chips för ett kontinuum var fel kontroll. Skalan går från
+  5 km till "Alla" — dess övre ände är inte ett tal utan frånvaron av gräns — och stegar fem
+  kilometer under tio mil, tio över.
+- **Avläsningen står bara i sektionshuvudet.** Den stora texten över reglaget sa samma sak en
+  gång till.
+- **`HeaderBarTitle`.** Orientera saknade nyckeln helt, så Spine ritade sid- och arkrubriker i
+  MAUI:s standardetikett — "Filter" i systemets typsnitt över ett ark där allt annat är Inter.
+  Nu versal med teckenmellanrum, samma stil som i Spines eget exempel, men i Inter SemiBold i
+  stället för Brandon Grotesque: Orientera har inte det typsnittet, och hela dess typskala är
+  Inter. **Nyckeln gäller både sidor och ark** — det finns bara en i Spine — så "TÄVLINGAR" och
+  "HEM" är också versala nu.
+
 ## Kvar
 
 `val likt bild 3 — bör implementeras på start/live/resultat också som filter/sortering/val`:
