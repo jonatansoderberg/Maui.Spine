@@ -78,6 +78,10 @@ public static class MauiProgram
                 fonts.AddFont("InterTabular-Medium.ttf", "InterTabularMedium");
                 fonts.AddFont("InterTabular-SemiBold.ttf", "InterTabularSemiBold");
                 fonts.AddFont("InterTabular-Bold.ttf", "InterTabularBold");
+
+                // Rubrikernas egen skärning, versal, som i Spines eget exempel. Bara den —
+                // resten av skalan är Inter, och två brödtextsnitt är inte en typografi.
+                fonts.AddFont("BrandonGrotesqueBlack.otf", "BrandonGrotesqueBlack");
             });
 
         // Mapsui ritar kartan med SkiaSharp och behöver dess handlers registrerade.

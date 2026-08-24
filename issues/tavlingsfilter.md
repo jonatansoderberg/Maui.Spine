@@ -159,10 +159,14 @@ som rapporteras är höjden som används.
   gång till.
 - **`HeaderBarTitle`.** Orientera saknade nyckeln helt, så Spine ritade sid- och arkrubriker i
   MAUI:s standardetikett — "Filter" i systemets typsnitt över ett ark där allt annat är Inter.
-  Nu versal med teckenmellanrum, samma stil som i Spines eget exempel, men i Inter SemiBold i
-  stället för Brandon Grotesque: Orientera har inte det typsnittet, och hela dess typskala är
-  Inter. **Nyckeln gäller både sidor och ark** — det finns bara en i Spine — så "TÄVLINGAR" och
+  Nu versal med teckenmellanrum i **Brandon Grotesque Black**, samma skärning som i Spines eget
+  exempel. **Nyckeln gäller både sidor och ark** — det finns bara en i Spine — så "TÄVLINGAR" och
   "HEM" är också versala nu.
+- Typsnittet kopierades in och registrerades. Två fällor: `MauiFont`-globben i `Orientera.csproj`
+  tog bara `*.ttf`, så en `.otf` hade tystnat utan ett ord; och den listas per ändelse i stället
+  för `Fonts\*` så att licenstexten bredvid filerna inte lämnas till typsnittspaketeraren som ett
+  typsnitt. Brandon Grotesque är licensierat från HVD Fonts, inte OFL som Inter — det står i
+  csproj bredvid raden.
 
 ## Kvar
 
