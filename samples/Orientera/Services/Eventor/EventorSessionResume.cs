@@ -27,10 +27,16 @@ namespace Orientera.Services.Eventor;
 /// </para>
 /// <para>
 /// The details are saved, so the app logs in every time the session dies. The only thing it will
-/// not do is replay details that have already been turned down: those it tries once, leaves the
-/// sheet standing open on Eventor's own page for the runner to sort out — which is the one thing
-/// that can fix it, and what keeps working the day the federation adds a second factor — and does
-/// not try again until the saved details have changed.
+/// not do is replay details that have already been turned down: those it tries once, then puts
+/// Eventor's own page in front of the runner to sort out — which is the one thing that can fix it,
+/// and what keeps working the day the federation adds a second factor — and does not try again
+/// until the saved details have changed.
+/// </para>
+/// <para>
+/// Two sheets, because the two halves are not the same thing to look at. The replay is the app
+/// working and shows a spinner; the page is the runner working and shows the page. Sending a
+/// full-screen browser up over whatever they were reading, for a form they were never going to
+/// touch, was the app losing its place in front of them.
 /// </para>
 /// </remarks>
 public sealed class EventorSessionResume(
@@ -89,13 +95,33 @@ public sealed class EventorSessionResume(
         if (_turnedDown == saved.GetHashCode())
             return;
 
-        var session = await navigation
-            .NavigateToWithResultAsync<EventorLoginSheet, EventorLoginRequest, EventorWebSession>(
+        // The quiet attempt first: a spinner and a sentence, with Eventor's page driven out of
+        // sight behind it. Nothing on that page needs the runner, so nothing about it needs a
+        // screen.
+        var quiet = await navigation
+            .NavigateToWithResultAsync<EventorResumeSheet, EventorLoginRequest, EventorWebSession>(
                 new EventorLoginRequest(UseSavedPassword: true));
 
-        // Only a login that finished changes anything. A cancelled sheet, or one left standing
-        // open because the password no longer works, leaves every page reading what it already had.
-        if (session.IsSuccess)
+        if (quiet.IsSuccess)
+        {
+            _turnedDown = null;
+            Generation++;
+            return;
+        }
+
+        // It did not get through. Now the page is worth showing, because now there is something on
+        // it to do — a refused password, a consent question, or whatever the federation has put in
+        // front of the form this week.
+        //
+        // Opened without the saved password: the app has just sent it and been turned away, and
+        // sending it a second time only spends another attempt against an account that may lock.
+        var visible = await navigation
+            .NavigateToWithResultAsync<EventorLoginSheet, EventorLoginRequest, EventorWebSession>(
+                new EventorLoginRequest(UseSavedPassword: false));
+
+        // Only a login that finished changes anything. A cancelled sheet leaves every page reading
+        // what it already had.
+        if (visible.IsSuccess)
         {
             _turnedDown = null;
             Generation++;

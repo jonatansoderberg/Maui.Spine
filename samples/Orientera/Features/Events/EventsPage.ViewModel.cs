@@ -33,9 +33,17 @@ public partial class EventsPageViewModel(
     IParticipationSource _participation,
     IOfflineStore _offlineStore,
     DistrictStore _districts,
+    RacePreferenceStore _preferences,
     CompetitionContextService _context) : OrienteraViewModel
 {
     private IReadOnlyList<Competition> _all = [];
+
+    /// <summary>
+    /// What the selected quick filter leaves, before the sheet's filter narrows it further. The
+    /// sheet counts against this: a count of the whole calendar would promise rows that "Mina"
+    /// or "Denna vecka" is going to take away again.
+    /// </summary>
+    private IReadOnlyList<Competition> _quickMatches = [];
     private Person? _me;
     private IReadOnlySet<CompetitionId> _interests = new HashSet<CompetitionId>();
 
@@ -58,6 +66,16 @@ public partial class EventsPageViewModel(
     /// <summary>The list, in dated sections. "För dig" is one section, since it is ranked.</summary>
     public ObservableCollection<EventSection> Sections { get; } = [];
 
+    /// <summary>
+    /// What the filter sheet has narrowed the list by, one removable chip each. Shown only when
+    /// something is set: seeing "Filter (3)" without seeing *which* three is the state a short
+    /// list gets mistaken for a broken calendar in.
+    /// </summary>
+    public ObservableCollection<FilterFacet> ActiveFacets { get; } = [];
+
+    [ObservableProperty]
+    public partial bool HasActiveFacets { get; set; }
+
     [ObservableProperty]
     public partial string EmptyMessage { get; set; } = string.Empty;
 
@@ -66,9 +84,6 @@ public partial class EventsPageViewModel(
 
     [ObservableProperty]
     public partial bool HasCards { get; set; }
-
-    [ObservableProperty]
-    public partial string FilterLabel { get; set; } = "Filter";
 
     /// <summary>
     /// The search box, on the page rather than in the sheet: you type and see, instead of typing,
@@ -124,32 +139,58 @@ public partial class EventsPageViewModel(
     }
 
     /// <summary>
-    /// The header button says how many choices are set. Without the count an active filter is
-    /// invisible, and a short list reads as a broken calendar rather than as a filtered one —
-    /// which matters more now that a district or a period can hide most of it.
+    /// Puts what the filter has narrowed by on the page, as chips that can be taken back off.
     /// </summary>
+    /// <remarks>
+    /// The header button used to carry a count — "Filter (3)". It said how many choices were set
+    /// but never which, and it only ever refreshed on re-entering the tab: the header reads
+    /// <c>PageActions</c> when the page appears and is not told when the collection changes. The
+    /// chips say which, and say it when it happens.
+    /// </remarks>
     private void ShowFilterAction()
     {
-        FilterLabel = _filter.IsActive ? $"Filter ({_filter.ActiveCount})" : "Filter";
+        if (PageActions.Count == 0)
+            PageActions.Add(new PageAction(text: "Filter", command: OpenFilterCommand));
 
-        PageActions.Clear();
-        PageActions.Add(new PageAction(text: FilterLabel, command: OpenFilterCommand));
+        ActiveFacets.Clear();
+
+        foreach (var facet in _filter.Facets)
+            ActiveFacets.Add(facet);
+
+        HasActiveFacets = ActiveFacets.Count > 0;
+    }
+
+    /// <summary>
+    /// Takes one choice back out. The facet carries the filter without itself, so the page never
+    /// has to know how any particular choice was stored.
+    /// </summary>
+    [RelayCommand]
+    private async Task RemoveFacet(FilterFacet facet)
+    {
+        _filter = facet.Without;
+        _districts.Save(_filter.Districts);
+        ShowFilterAction();
+        await LoadAsync(BuildAsync);
+    }
+
+    /// <summary>
+    /// Clears the sheet's choices and leaves the search box alone — it is its own control, in
+    /// view, with its own clear button, and it is not one of the chips being cleared.
+    /// </summary>
+    [RelayCommand]
+    private async Task ClearFacets()
+    {
+        _filter = EventFilter.Default with { Query = _filter.Query };
+        _districts.Save(_filter.Districts);
+        ShowFilterAction();
+        await LoadAsync(BuildAsync);
     }
 
     [RelayCommand]
     private async Task OpenFilter()
     {
-        // The sheet opens showing what is set. Districts are offered from the calendar in hand,
-        // so the list is the ones there are competitions in rather than every district in Sweden.
-        var districts = _all
-            .Select(c => c.District)
-            .Where(d => d.Length > 0)
-            .Distinct()
-            .OrderBy(d => d, StringComparer.CurrentCulture)
-            .ToList();
-
         var result = await _navigation.NavigateToWithResultAsync<EventFilterSheet, FilterRequest, EventFilter>(
-            new FilterRequest(_filter, districts));
+            new FilterRequest(_filter, _all, _quickMatches, _me, _clock.Now));
 
         if (result is { IsSuccess: true, Value: { } filter })
         {
@@ -226,19 +267,29 @@ public partial class EventsPageViewModel(
         {
             var competition = package.Competition;
 
-            saved.Add(new EventCard
+            saved.Append(new EventCard
             {
                 Competition = competition.Id,
                 Title = competition.Name,
-                DateLabel = Format.RelativeDate(competition.Date, today),
+                Date = competition.Date,
+                DayLabel = Format.DayNumber(competition.Date),
+                WeekdayLabel = Format.Weekday(competition.Date),
+                MonthLabel = Format.MonthShort(competition.Date),
+                SpokenDate = Format.RelativeDate(competition.Date, today),
+                SpanLabel = LastDayOf(competition) > competition.Date
+                    ? Format.DateRange(competition.Date, LastDayOf(competition))
+                    : string.Empty,
                 PlaceLabel = $"{competition.Organiser} · {competition.Place}",
                 OrganiserLogo = competition.OrganiserLogo,
-                DisciplineLabel = Format.Discipline(competition.Discipline),
+                SportLabel = Format.Sport(competition.Sport),
+                DisciplineLabel = SportDistances.HasDistances(competition.Sport)
+                    ? Format.Discipline(competition.Discipline)
+                    : string.Empty,
                 LevelLabel = Format.Level(competition.Level),
                 LevelShape = DisciplineShape.For(competition.Level),
                 DisciplineShape = DisciplineShape.For(competition.Discipline),
                 DisciplineKey = competition.Discipline.ToString(),
-                DistanceLabel = _me is null ? string.Empty : Format.Distance(_me.Home.DistanceKmTo(competition.Location)),
+                DistanceKm = _me is null ? null : competition.DistanceFrom(_me.Home),
                 ContextLabel = "Sparad offline",
                 ShowContextBadge = true,
                 IsRegistered = package.MyEntryRegisteredAt is not null,
@@ -271,6 +322,8 @@ public partial class EventsPageViewModel(
         var mine = entries.Where(e => e.Person == _me.Id).Select(e => e.Competition).ToHashSet();
         var groupEntries = entries.Where(e => groupIds.Contains(e.Person)).Select(e => e.Competition).ToHashSet();
 
+        var preferences = _preferences.Load();
+
         var relevance = new RelevanceContext
         {
             Now = now,
@@ -280,11 +333,19 @@ public partial class EventsPageViewModel(
             MyEntries = mine,
             GroupEntries = groupEntries,
             Interests = _interests,
+            Favourites = preferences.Favourites,
         };
 
-        var candidates = _all
-            .Where(c => PassesAdvanced(c, relevance, today))
+        // The sports the runner does, before anything else. A standing preference and not a
+        // filter: it never shows as a chip above the list, because there is nothing there for
+        // them to take off — they still do not own a bike tomorrow.
+        _quickMatches = _all
+            .Where(c => preferences.Allows(c.Sport))
             .Where(c => PassesQuick(c, now, today, mine, groupEntries))
+            .ToList();
+
+        var candidates = _quickMatches
+            .Where(c => _filter.Includes(c, _me, now))
             .ToList();
 
         // Group first, then order: a recurring series must occupy one slot, not six.
@@ -326,7 +387,7 @@ public partial class EventsPageViewModel(
             if (built.Count == 0 || built[^1].Name != name)
                 built.Add(new EventSection(name));
 
-            built[^1].Add(card);
+            built[^1].Append(card);
         }
 
         Sections.Clear();
@@ -337,46 +398,6 @@ public partial class EventsPageViewModel(
         IsEmpty = Sections.Count == 0;
         HasCards = !IsEmpty;
         EmptyMessage = EmptyMessageFor(Selected);
-    }
-
-    private bool PassesAdvanced(Competition competition, RelevanceContext relevance, DateOnly today)
-    {
-        if (_filter.Districts.Count > 0 && !_filter.Districts.Contains(competition.District))
-            return false;
-
-        if (!_filter.Matches(competition))
-            return false;
-
-        if (_filter.Window(today) is { } window
-            && (competition.Date < window.From || competition.Date > window.To))
-        {
-            return false;
-        }
-
-        // Training and recreational events are hidden unless explicitly asked for — the spec's
-        // "minska Eventor-bruset" applied at its most common source.
-        if (competition.IsLowPriority && !_filter.ShowTraining)
-            return false;
-
-        if (_filter.MinimumLevel is { } level && competition.Level > level)
-            return false;
-
-        if (_filter.Discipline is { } discipline && competition.Discipline != discipline)
-            return false;
-
-        if (_filter.MaxDistanceKm is { } maxDistance
-            && relevance.Home.DistanceKmTo(competition.Location) > maxDistance)
-            return false;
-
-        if (_filter.OnlyMyClass
-            && competition.Classes.Count > 0
-            && !competition.Classes.Contains(relevance.MyClass))
-            return false;
-
-        if (_filter.OnlyRegisterable && !IsRegisterable(competition, relevance.Now))
-            return false;
-
-        return true;
     }
 
     private bool PassesQuick(
@@ -390,7 +411,8 @@ public partial class EventsPageViewModel(
             // has already been decided cannot be the most relevant thing on the list.
             QuickFilter.ForYou => true,
             QuickFilter.Past => true,
-            QuickFilter.Near => _me!.Home.DistanceKmTo(competition.Location) <= 60,
+            // An arena with no position cannot be claimed to be nearby.
+            QuickFilter.Near => competition.DistanceFrom(_me!.Home) is { } km && km <= 60,
             QuickFilter.District => competition.District == _me!.District,
             QuickFilter.Bigger => competition.Level <= CompetitionLevel.National,
             QuickFilter.ThisWeek => competition.Date >= today && competition.Date <= today.AddDays(7),
@@ -399,10 +421,29 @@ public partial class EventsPageViewModel(
             _ => true,
         };
 
-    private static bool IsRegisterable(Competition competition, DateTimeOffset now) =>
-        competition.Schedule is { RegistrationOpensAt: { } opens, EntryDeadline: { } deadline }
-        && opens <= now
-        && now <= deadline;
+    /// <summary>
+    /// Arrangemangets sista dag som läsaren räknar den. En målgång i småtimmarna hör till
+    /// kvällen innan — en kvällstävling som stänger målet 00:30 är en endagstävling — så sex
+    /// timmar dras av innan dagen läses av. En final som avgörs 16:00 nästa dag står kvar
+    /// som sin egen dag.
+    /// </summary>
+    private static DateOnly LastDayOf(Competition competition)
+    {
+        var lastDay = DateOnly.FromDateTime(competition.LastFinish.DateTime.AddHours(-6).Date);
+        return lastDay > competition.Date ? lastDay : competition.Date;
+    }
+
+    private static DateOnly LastDayOf(EventGroup eventGroup)
+    {
+        var last = eventGroup.LastDate;
+        foreach (var competition in eventGroup.Occurrences)
+        {
+            var day = LastDayOf(competition);
+            if (day > last)
+                last = day;
+        }
+        return last;
+    }
 
     private async Task<EventCard> BuildCardAsync(
         EventGroup eventGroup,
@@ -413,24 +454,39 @@ public partial class EventsPageViewModel(
     {
         var primary = eventGroup.First;
         var decision = await _context.EvaluateAsync(primary);
-        double distance = me.Home.DistanceKmTo(primary.Location);
+        double? distance = primary.DistanceFrom(me.Home);
 
         return new EventCard
         {
             Competition = primary.Id,
             Title = eventGroup.Title,
-            DateLabel = eventGroup.IsRecurring
-                ? Format.DateRange(eventGroup.FirstDate, eventGroup.LastDate)
-                : Format.RelativeDate(eventGroup.FirstDate, today),
+            Date = eventGroup.FirstDate,
+            DayLabel = Format.DayNumber(eventGroup.FirstDate),
+            WeekdayLabel = Format.Weekday(eventGroup.FirstDate),
+            MonthLabel = Format.MonthShort(eventGroup.FirstDate),
+            SpokenDate = Format.RelativeDate(eventGroup.FirstDate, today),
+            // Ett arrangemang som spänner flera dagar visas med sitt spann: SM-medelns kval
+            // går ena dagen och finalen nästa, och en rad som säger "idag" om helgens
+            // huvudlopp lurar läsaren (upptäckt i skarptestet). Datumkolumnen bär en dag —
+            // spannet står i ord där undantagen redan står.
+            SpanLabel = eventGroup.IsRecurring
+                ? $"{eventGroup.Occurrences.Count} tillfällen"
+                : LastDayOf(eventGroup) > eventGroup.FirstDate
+                    ? Format.DateRange(eventGroup.FirstDate, LastDayOf(eventGroup))
+                    : string.Empty,
             PlaceLabel = $"{eventGroup.Organiser} · {eventGroup.Place}",
             OrganiserLogo = primary.OrganiserLogo,
-            DisciplineLabel = Format.Discipline(eventGroup.Discipline),
+            SportLabel = Format.Sport(eventGroup.Sport),
+            // Indoor has no distances, so "Indoor · Sprint" is the same word twice: Eventor
+            // classifies every indoor race as a sprint because there is nothing else to call it.
+            DisciplineLabel = SportDistances.HasDistances(eventGroup.Sport)
+                ? Format.Discipline(eventGroup.Discipline)
+                : string.Empty,
             LevelLabel = Format.Level(eventGroup.Level),
             LevelShape = DisciplineShape.For(eventGroup.Level),
             DisciplineShape = DisciplineShape.For(eventGroup.Discipline),
             DisciplineKey = eventGroup.Discipline.ToString(),
-            DistanceLabel = Format.Distance(distance),
-            OccurrenceLabel = eventGroup.IsRecurring ? $"{eventGroup.Occurrences.Count} tillfällen" : string.Empty,
+            DistanceKm = distance,
             ContextLabel = decision.StateText,
             ShowContextBadge = decision.State is not (ContextState.Live or ContextState.Registered),
             IsLive = decision.State == ContextState.Live,

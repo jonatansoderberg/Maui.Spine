@@ -84,7 +84,6 @@
     <Color x:Key="DisciplineNight">#3730A3</Color>
     <Color x:Key="DisciplineRelay">#EF4444</Color>
     <Color x:Key="LevelChampionship">#CA8A04</Color>
-    <Color x:Key="DisciplineIndoor">#0D9488</Color>
 
     <SolidColorBrush x:Key="AccentActionBrush" Color="{StaticResource AccentAction}" />
 

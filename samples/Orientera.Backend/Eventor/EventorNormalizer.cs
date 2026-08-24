@@ -93,6 +93,7 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
             Place = PlaceOf(race, name, district),
             Location = PositionOf(race),
             Discipline = DisciplineOf(element, race),
+            Sport = SportOf(element),
             Level = LevelOf(element.Text("EventClassificationId")),
             FirstStart = firstStart,
             LastFinish = LastFinishOf(element, firstStart),
@@ -142,11 +143,6 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
         if (race.Attr("raceLightCondition") is "Night")
             return Discipline.Night;
 
-        // Indoor is not a classification Eventor has — it calls these sprints. The name is the
-        // only place it is stated, and to a runner it is a different sport in a school corridor.
-        if (element.Text("Name") is { } name && name.Contains("indoor", StringComparison.OrdinalIgnoreCase))
-            return Discipline.Indoor;
-
         return race.Attr("raceDistance") switch
         {
             "Sprint" or "KnockOutSprint" => Discipline.Sprint,
@@ -155,6 +151,35 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
             "Relay" or "SprintRelay" or "MixedRelay" => Discipline.Relay,
             _ => Discipline.Middle,
         };
+    }
+
+    /// <summary>
+    /// Which sport the event is. Eventor's newer model carries this as a <c>disciplines</c> array
+    /// on the event; the calendar endpoint this reads does not hand it over, so the name is where
+    /// it is read from — the same place the indoor rule used to look, and for the same reason.
+    /// </summary>
+    /// <remarks>
+    /// The <c>DisciplineId</c> element is read first where it is present, so the day the calendar
+    /// starts carrying it the guess stops being used. Both roads end at <see cref="Sport.Foot"/>,
+    /// which is what an event that says nothing is: nine calendar rows in ten, and the only answer
+    /// that cannot hide a race from someone who could have run it.
+    /// </remarks>
+    private static Sport SportOf(XElement element)
+    {
+        var stated = element.Elements("DisciplineId").Select(d => d.Value.Trim()).ToList();
+
+        if (stated.Count > 0)
+        {
+            // Eventor's own calendar picks one icon by this precedence when an event has several.
+            if (stated.Contains("Indoor")) return Sport.Indoor;
+            if (stated.Contains("Foot")) return Sport.Foot;
+            if (stated.Contains("Ski")) return Sport.Ski;
+            if (stated.Contains("MountainBike")) return Sport.MountainBike;
+            if (stated.Contains("PreO")) return Sport.PreO;
+            if (stated.Contains("Shooting")) return Sport.Shooting;
+        }
+
+        return (element.Text("Name") is { } name ? SportNames.In(name) : null) ?? Sport.Foot;
     }
 
     /// <summary>

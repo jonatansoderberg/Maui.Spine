@@ -8,89 +8,172 @@
     <Grid RowDefinitions="*,Auto">
 
         <ScrollView Grid.Row="0">
-            <VerticalStackLayout Padding="16,4,16,16" Spacing="16">
+            <!--
+                Överkanten lämnar plats åt arkets egen stängningsknapp. Innehållet flyter under
+                arkets krom, och första sektionens chevron hamnar annars rakt under krysset.
+            -->
+            <VerticalStackLayout Padding="16,36,16,16" Spacing="4">
 
-                <!-- Distrikten kommer ur kalendern i handen, så listan är de som finns något i -->
-                <VerticalStackLayout Spacing="6" IsVisible="{Binding HasDistricts}">
-                    <Label Style="{StaticResource SectionLabel}" Text="Distrikt" />
-                    <Label Style="{StaticResource CaptionLabel}"
-                           Text="Inget valt betyder alla distrikt." />
+                <!--
+                    Fem hopfällda grupper i stället för fyra Picker och fem vågräta rullningar.
+                    Var grupp säger i sitt huvud vad som är valt, så inget som är satt göms — bara
+                    de tjugofyra chippen det valdes ur. Utfälld radbryter WrapLayout dem: alla på
+                    skärmen samtidigt, ingen sidled att svepa i.
+                -->
 
-                    <!--
-                        Samma konstruktion som chippraden på Tävlingar. En FlexLayout med Wrap
-                        ritade chippen men tog inte emot tryck: barnen hamnade utanför dess mätta
-                        yta i den lodräta ScrollView:en, och träffytan följde mätningen, inte det
-                        som syntes.
-                    -->
-                    <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
-                        <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Districts}">
+                <FilterSection Title="Distrikt" Summary="{Binding DistrictGroup.Summary}"
+                               IsVisible="{Binding HasDistricts}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding DistrictHint}" />
+                        <WrapLayout Spacing="8" LineSpacing="8"
+                                    BindableLayout.ItemsSource="{Binding DistrictGroup.Options}">
                             <BindableLayout.ItemTemplate>
-                                <DataTemplate x:DataType="DistrictOption">
-                                    <ChipView Text="{Binding Name}"
+                                <DataTemplate x:DataType="ChipOption">
+                                    <ChipView IsCompact="True"
+                                              Text="{Binding Label}"
                                               IsSelected="{Binding IsSelected}"
                                               Command="{Binding ToggleCommand}" />
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
-                        </HorizontalStackLayout>
-                    </ScrollView>
-                </VerticalStackLayout>
+                        </WrapLayout>
+                    </VerticalStackLayout>
+                </FilterSection>
 
-                <VerticalStackLayout Spacing="6">
-                    <Label Style="{StaticResource SectionLabel}" Text="Tidsintervall" />
-                    <Picker ItemsSource="{Binding PeriodOptions}" SelectedIndex="{Binding SelectedPeriod}" />
-                </VerticalStackLayout>
+                <BoxView Style="{StaticResource Divider}" />
 
-                <VerticalStackLayout Spacing="6">
-                    <Label Style="{StaticResource SectionLabel}" Text="Tävlingsnivå" />
-                    <Picker ItemsSource="{Binding LevelOptions}" SelectedIndex="{Binding SelectedLevel}" />
-                </VerticalStackLayout>
+                <FilterSection Title="Tidsintervall" Summary="{Binding PeriodGroup.Summary}">
+                    <WrapLayout Spacing="8" LineSpacing="8"
+                                BindableLayout.ItemsSource="{Binding PeriodGroup.Options}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="ChipOption">
+                                <ChipView IsCompact="True"
+                                          Text="{Binding Label}"
+                                          IsSelected="{Binding IsSelected}"
+                                          Command="{Binding ToggleCommand}" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </WrapLayout>
+                </FilterSection>
 
-                <VerticalStackLayout Spacing="6">
-                    <Label Style="{StaticResource SectionLabel}" Text="Disciplin" />
-                    <Picker ItemsSource="{Binding DisciplineOptions}" SelectedIndex="{Binding SelectedDiscipline}" />
-                </VerticalStackLayout>
+                <BoxView Style="{StaticResource Divider}" />
 
-                <VerticalStackLayout Spacing="6">
-                    <Label Style="{StaticResource SectionLabel}" Text="Avstånd hemifrån" />
-                    <Picker ItemsSource="{Binding DistanceOptions}" SelectedIndex="{Binding SelectedDistance}" />
-                </VerticalStackLayout>
+                <FilterSection Title="Tävlingsnivå" Summary="{Binding LevelGroup.Summary}">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Style="{StaticResource CaptionLabel}" Text="Flera går att välja." />
+                        <WrapLayout Spacing="8" LineSpacing="8"
+                                    BindableLayout.ItemsSource="{Binding LevelGroup.Options}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="ChipOption">
+                                    <ChipView IsCompact="True"
+                                              Text="{Binding Label}"
+                                              IsSelected="{Binding IsSelected}"
+                                              Command="{Binding ToggleCommand}" />
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </WrapLayout>
+                    </VerticalStackLayout>
+                </FilterSection>
 
-                <Border Style="{StaticResource Card}">
+                <BoxView Style="{StaticResource Divider}" />
+
+                <!--
+                    Grenen är en egen axel, inte ett av distansens värden. "Sprint" svarar på hur
+                    långt; "MTBO" på vad man tar sig fram med.
+                -->
+                <FilterSection Title="Gren" Summary="{Binding SportGroup.Summary}">
+                    <WrapLayout Spacing="8" LineSpacing="8"
+                                BindableLayout.ItemsSource="{Binding SportGroup.Options}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="ChipOption">
+                                <ChipView IsCompact="True"
+                                          Text="{Binding Label}"
+                                          IsSelected="{Binding IsSelected}"
+                                          Command="{Binding ToggleCommand}" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </WrapLayout>
+                </FilterSection>
+
+                <BoxView Style="{StaticResource Divider}" />
+
+                <FilterSection Title="Disciplin" Summary="{Binding DisciplineGroup.Summary}">
+                    <WrapLayout Spacing="8" LineSpacing="8"
+                                BindableLayout.ItemsSource="{Binding DisciplineGroup.Options}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="ChipOption">
+                                <ChipView IsCompact="True"
+                                          Text="{Binding Label}"
+                                          IsSelected="{Binding IsSelected}"
+                                          Command="{Binding ToggleCommand}" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </WrapLayout>
+                </FilterSection>
+
+                <BoxView Style="{StaticResource Divider}" />
+
+                <!-- Avståndet är det Eventor inte kan: kalendern där vet inte var man bor. -->
+                <FilterSection Title="Avstånd hemifrån" Summary="{Binding DistanceSummary}">
                     <VerticalStackLayout Spacing="4">
-                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
-                            <VerticalStackLayout Grid.Column="0" VerticalOptions="Center">
-                                <Label Style="{StaticResource BodyLabel}" Text="Visa träningar" />
-                                <Label Style="{StaticResource CaptionLabel}" Text="Motion och återkommande träning" />
-                            </VerticalStackLayout>
-                            <Switch Grid.Column="1" VerticalOptions="Center" IsToggled="{Binding ShowTraining}" />
-                        </Grid>
+                        <!--
+                            Reglaget läser upp sitt värde som andel av skalan, inte som mil. Därför
+                            bär det avståndet i ord i stället, och uppdaterar dem medan det dras.
+                        -->
+                        <Slider Minimum="5" Maximum="200"
+                                Value="{Binding DistanceKm}"
+                                MinimumTrackColor="{DynamicResource AccentAction}"
+                                ThumbColor="{DynamicResource AccentAction}"
+                                SemanticProperties.Description="Avstånd hemifrån"
+                                SemanticProperties.Hint="{Binding DistanceSummary}" />
 
-                        <BoxView Style="{StaticResource Divider}" />
-
-                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
-                            <Label Grid.Column="0" Style="{StaticResource BodyLabel}"
-                                   VerticalOptions="Center" Text="Endast där min klass finns" />
-                            <Switch Grid.Column="1" VerticalOptions="Center" IsToggled="{Binding OnlyMyClass}" />
-                        </Grid>
-
-                        <BoxView Style="{StaticResource Divider}" />
-
-                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
-                            <Label Grid.Column="0" Style="{StaticResource BodyLabel}"
-                                   VerticalOptions="Center" Text="Endast anmälningsbara" />
-                            <Switch Grid.Column="1" VerticalOptions="Center" IsToggled="{Binding OnlyRegisterable}" />
+                        <Grid ColumnDefinitions="*,*">
+                            <Label Style="{StaticResource CaptionLabel}" Text="5 km" />
+                            <Label Grid.Column="1" Style="{StaticResource CaptionLabel}"
+                                   HorizontalTextAlignment="End" Text="Alla" />
                         </Grid>
                     </VerticalStackLayout>
-                </Border>
+                </FilterSection>
 
-                <Label Style="{StaticResource CaptionLabel}"
-                       Text="Datumintervall, distrikt, restid och serie kommer när kalendern går på riktig data (M1)." />
+                <BoxView Style="{StaticResource Divider}" />
+
+                <VerticalStackLayout Spacing="4" Margin="0,8,0,0">
+                    <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
+                        <VerticalStackLayout Grid.Column="0" VerticalOptions="Center">
+                            <Label Style="{StaticResource BodyLabel}" Text="Visa träningar" />
+                            <Label Style="{StaticResource CaptionLabel}" Text="Motion och återkommande träning" />
+                        </VerticalStackLayout>
+                        <Switch Grid.Column="1" VerticalOptions="Center" IsToggled="{Binding ShowTraining}" />
+                    </Grid>
+
+                    <BoxView Style="{StaticResource Divider}" />
+
+                    <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
+                        <Label Grid.Column="0" Style="{StaticResource BodyLabel}"
+                               VerticalOptions="Center" Text="Endast där min klass finns" />
+                        <Switch Grid.Column="1" VerticalOptions="Center" IsToggled="{Binding OnlyMyClass}" />
+                    </Grid>
+
+                    <BoxView Style="{StaticResource Divider}" />
+
+                    <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
+                        <Label Grid.Column="0" Style="{StaticResource BodyLabel}"
+                               VerticalOptions="Center" Text="Endast anmälningsbara" />
+                        <Switch Grid.Column="1" VerticalOptions="Center" IsToggled="{Binding OnlyRegisterable}" />
+                    </Grid>
+                </VerticalStackLayout>
 
             </VerticalStackLayout>
         </ScrollView>
 
-        <VerticalStackLayout Grid.Row="1" Padding="16,0,16,16" Spacing="8">
-            <Button Style="{StaticResource PrimaryButton}" Text="Visa tävlingar" Command="{Binding ApplyCommand}" />
+        <VerticalStackLayout Grid.Row="1" Padding="16,8,16,16" Spacing="8">
+            <!--
+                Knappen räknar. Eventor har sin kalender kvar bakom filterlådan; ett ark kan inte
+                det, så antalet står här — och det är det enda som fångar en kombination som inte
+                ger något innan man stängt arket för att se det.
+            -->
+            <Button Style="{StaticResource PrimaryButton}"
+                    Text="{Binding ApplyLabel}"
+                    Command="{Binding ApplyCommand}" />
             <Button Style="{StaticResource SecondaryButton}" Text="Rensa filter" Command="{Binding ClearCommand}" />
         </VerticalStackLayout>
 

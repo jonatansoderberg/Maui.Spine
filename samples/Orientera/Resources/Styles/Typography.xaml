@@ -21,6 +21,9 @@
     <x:String x:Key="FontNumericSemiBold">InterTabularSemiBold</x:String>
     <x:String x:Key="FontNumericBold">InterTabularBold</x:String>
 
+    <!-- Rubrikraden, och ingenting annat. -->
+    <x:String x:Key="FontHeader">BrandonGrotesqueBlack</x:String>
+
     <!-- Scale -->
     <x:Double x:Key="SizeDisplay">28</x:Double>
     <x:Double x:Key="SizeH1">22</x:Double>
@@ -119,6 +122,36 @@
     <Style x:Key="NumericHeading2Label" TargetType="Label" BasedOn="{StaticResource Heading2Label}">
         <Setter Property="SemanticProperties.HeadingLevel" Value="None" />
         <Setter Property="FontFamily" Value="{StaticResource FontNumericSemiBold}" />
+    </Style>
+
+    <!--
+        Under the weekday in a list's date column. Smaller than the caption above it, because a
+        month that only appears where it changes is a second-order support, not a second label.
+    -->
+    <Style x:Key="MicroLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeMicro}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="TextTransform" Value="Uppercase" />
+        <Setter Property="CharacterSpacing" Value="0.6" />
+    </Style>
+
+    <!--
+        Sidans och arkets rubrik. Spine slår upp exakt nyckeln "HeaderBarTitle" i appens resurser
+        och sätter stilen på rubriketiketten; utan den ritas titeln i MAUI:s standardetikett, vilket
+        är varför "Filter" stod i systemets typsnitt över ett ark där allt annat är Inter.
+
+        Versal och i Brandon Grotesque, samma skärning som i Spines eget exempel. Textfärgen står
+        inte här: PagePresenter sätter svart eller vitt direkt på etiketten efter plattformens tema,
+        eftersom en AppThemeBinding inne i en nyckelstil läser fel värde i Androids ark. En Setter
+        här hade aldrig vunnit.
+    -->
+    <Style x:Key="HeaderBarTitle" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontHeader}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="TextTransform" Value="Uppercase" />
+        <Setter Property="CharacterSpacing" Value="1.4" />
+        <Setter Property="VerticalTextAlignment" Value="Center" />
     </Style>
 
     <!-- Section label — "LIVE NU", "SENASTE RESULTAT". Structure without heading weight. -->

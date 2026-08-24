@@ -1,0 +1,47 @@
+{
+  "kommentar": "Facit för C#-porten. Se docs/arenabilder-till-csharp.md.",
+  "tavling": {
+    "id": 59691,
+    "namn": "Trimtex Cup #4",
+    "tid": "2026-08-24T18:30:00"
+  },
+  "projektion": {
+    "arena_wgs84": [
+      60.6032363729466,
+      16.9686012288786
+    ],
+    "arena_sweref99tm": [
+      607787.899,
+      6720208.86
+    ],
+    "tolerans_m": 1.0
+  },
+  "sol": {
+    "hojd_grader": 12.5042,
+    "azimut_grader": 270.1159,
+    "tolerans_grader": 0.05,
+    "arstid": "sommar"
+  },
+  "ram_sweref99tm": [
+    606320.87,
+    6718043.58,
+    608712.5,
+    6721150.29
+  ],
+  "hojdmodell": {
+    "grid": [
+      2485,
+      1913
+    ],
+    "upplosning_m": 1.25,
+    "min_m": 52.343,
+    "max_m": 82.201,
+    "medel_m": 63.717,
+    "std_m": 4.422,
+    "tolerans_m": 0.01
+  },
+  "bild": {
+    "fil": "trimtex-24aug-naken.png",
+    "matt": "kantkorrelation mot porten, krav > 0.98"
+  }
+}

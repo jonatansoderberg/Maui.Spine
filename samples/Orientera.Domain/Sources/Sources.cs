@@ -50,6 +50,24 @@ public interface IParticipationSource
 
     Task<IReadOnlyList<CompetitionResult>> GetResultsAsync(CompetitionId competition, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// One class' result list — the participant list's last mode.
+    /// </summary>
+    /// <remarks>
+    /// Its own question rather than a filter the caller applies, because the narrowing has to
+    /// happen on the other side of the wire. Eventor publishes a result list whole and nothing
+    /// smaller, and O-Ringen's is 86 MB; a phone that asked for all of it to read one class would
+    /// spend a minute and a half doing so. The backend keeps one copy and serves the class out
+    /// of it.
+    /// </remarks>
+    /// <param name="splits">
+    /// Whether the rows carry their split times. Off for a participant list, which wants a placing
+    /// and a time; on for the analysis behind one runner's row, which needs the whole class' legs
+    /// to say where a leg was lost.
+    /// </param>
+    Task<IReadOnlyList<CompetitionResult>> GetClassResultsAsync(
+        CompetitionId competition, string className, bool splits = false, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<CompetitionResult>> GetResultsForPersonAsync(PersonId person, CancellationToken cancellationToken = default);
 
     /// <summary>

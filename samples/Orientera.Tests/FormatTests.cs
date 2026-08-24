@@ -163,4 +163,16 @@ public class FormatTests
 
         Assert.Contains(expected, Format.Deadline(date, date.AddDays(-1)));
     }
+
+    /// <summary>
+    /// The column says it does not know, in the same em dash every other column in the app uses.
+    /// The alternative was 6905 km — the distance to the Gulf of Guinea, where a competition with
+    /// no published arena appears to be.
+    /// </summary>
+    [Fact]
+    public void An_unknown_distance_is_an_em_dash()
+    {
+        Assert.Equal("—", Format.Distance((double?)null));
+        Assert.Equal("41 km", Format.Distance((double?)41));
+    }
 }

@@ -1,0 +1,32 @@
+Photorealistic oblique aerial photograph of late-summer Swedish countryside, deep green forest, dry sandy ground, near Gästrikland, Sweden. sunlit day, sun 13 degrees above the horizon at azimuth 270 degrees, long raking shadows and warm golden light. Shot on a full-frame camera with a long lens from a helicopter. High dynamic range: open shadows, controlled highlights, rich but natural colour. Sharp micro-detail in vegetation and ground texture.
+
+The source image is draped with a flat orthophoto taken straight from above,
+so its trees and buildings look pressed into the ground. Give them back their height.
+Seen from this low oblique angle every tree is a standing volume: a rounded sunlit
+crown on the side facing the sun and a clearly shaded far side, visible trunks and
+canopy depth at forest edges, and mature forest rising well above the open ground.
+Buildings rise from their footprints as solid houses with visible walls, gable ends,
+roof pitch and eaves. Every tree and building is anchored by a shadow cast onto the
+ground consistent with the stated light direction, falling towards the east and stretched long by the low sun.
+Make the relief unmistakable rather than subtle — but change only how the existing
+objects are rendered, never where they are. Their positions, extents and outlines
+come from the photograph and are fixed.
+
+A continuous orange wall stands on the ground exactly along the orange
+band already drawn in the image, enclosing the competition area. Render it as a real
+physical barrier of semi-transparent safety-orange material, like tinted glass: the
+terrain and vegetation behind it stay visible through the face, dimmed and tinted
+orange, while the wall keeps a lighter orange cap along its top edge, casts a soft
+shadow on the ground beside it, and follows the rise and fall of the terrain it
+stands on. It is roughly fifteen metres tall and unbroken — no gates, gaps, posts,
+fencing, mesh or panels. Keep it precisely where the orange band already is: do not
+move, straighten, shorten, extend or re-route it, and do not add any other wall,
+fence or barrier in the frame.
+
+Preserve the photographed terrain exactly. Do not add, remove, move or reshape
+any landform, road, track, path, field boundary, treeline, clearing, building, water body
+or quarry bench. Do not invent vegetation: forest stays where it is and open ground stays
+open. Do not draw any text, letters, numbers, logos, flags, banners, arrows, outlines or
+map symbols anywhere in the frame. Keep the camera, framing and horizon identical.
+
+Scene: Trimtex Cup #4, 24 augusti 2026.

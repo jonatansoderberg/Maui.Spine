@@ -47,7 +47,7 @@ public partial class EventorLoginSheet :
 
             var greeting = await Browser.EvaluateJavaScriptAsync(EventorLoginSheetViewModel.LoggedInScript);
 
-            await model.OnPageAsync(
+            _ = await model.OnPageAsync(
                 greeting,
                 () => EventorCookies.ReadAsync(Browser),
                 script => Browser.EvaluateJavaScriptAsync(script));

@@ -45,12 +45,26 @@ Orientera ska vara den ultimata personliga orienteringsappen för Sverige. Den s
 | Min grupp | Barn, familj, vänner, klubbkompisar och valfria favoriter som kan följas i start/live/resultat. |
 | Avancerad analys | Historik, predictions, jämförelser, karta/GPS och vägvalsanalys. |
 
-## Huvudnavigation — fem flikar
+## Huvudnavigation — tre flikar
+
+Beslut **D7** i [redesign-03-deltagare.md](../design/redesign-03-deltagare.md), som ersätter D4
+och det ursprungliga femtalet.
 
 | Flik | Primärt jobb | Innehåll |
 |------|--------------|----------|
-| **Hem** | Vad behöver jag veta eller göra just nu? | Kontextstyrt: Nästa för mig, Live nu, Senaste resultat |
+| **Hem** | Vad behöver jag veta eller göra just nu? | Kontextstyrt: Live nu (ett block per pågående tävling du har någon i), Nästa för dig, Senaste resultat |
 | **Tävlingar** | Hitta rätt tävling – lista, karta, filter, relevans. | Lista + karta, För dig/Nära, Distrikt/Större, avancerade filter |
-| **Live** | Följ mig, Min grupp, min klass eller valfria löpare. | Pågår nu, Min grupp, Min klass, Favoriter |
-| **Resultat** | Resultat, splits och WinSplits++-analys. | Översikt + analys, Splits, Vägval, Jämför |
-| **Jag** | Profil, Sverigelistan, serier, favoriter och utveckling. | Profil, Sverigelistan, Serier, Utveckling |
+| **Jag** | Profil, Sverigelistan, serier, favoriter och utveckling. | Profil, **Mina resultat**, Sverigelistan, Serier, Favoriter, Notiser |
+
+**Live och Resultat är inte platser i appen.** De är två av fyra lägen hos en tävlings
+deltagarlista — *anmälda · startlista · live · resultat* — och man byter läge i stället för att
+navigera till en annan del av appen. Allt ligger under respektive tävling.
+
+| Nivå | Sida | Handlar om |
+|------|------|-----------|
+| 1 | Tävlingen | Hela tävlingen: hjälte, PM, arena, dokument, och ett deltagarkort |
+| 2 | Deltagare | Fältet, i det läge tävlingen nått. Urval: min grupp, min klass, vald klass |
+| 3 | Löparen | Ett lopp: översikt, sträckor, analys, jämförelse |
+
+Mina resultat under Jag är säsongens lista; en rad där öppnar nivå 2 för den tävlingen, i
+resultatläget och i den klass raden gällde.

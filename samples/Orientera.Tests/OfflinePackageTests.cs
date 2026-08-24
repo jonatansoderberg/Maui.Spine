@@ -35,6 +35,31 @@ public class OfflinePackageTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// The three answers have to stay apart. Mina resultat reaches back through the runner's whole
+    /// Eventor history while the calendar covers a few months, so opening a race from last winter
+    /// is a normal thing to do — and a page that called it an outage would contradict the list it
+    /// was opened from, over the same connection that had just served it.
+    /// </summary>
+    [Fact]
+    public async Task A_competition_the_calendar_does_not_carry_is_missing_not_unavailable()
+    {
+        var snapshot = await _service.GetAsync(new CompetitionId("finns-inte"));
+
+        Assert.Equal(DataOrigin.Missing, snapshot.Origin);
+        Assert.Null(snapshot.Competition);
+    }
+
+    [Fact]
+    public async Task A_source_that_cannot_be_reached_is_unavailable()
+    {
+        _connectivity.IsOffline = true;
+
+        var snapshot = await _service.GetAsync(new CompetitionId("finns-inte"));
+
+        Assert.Equal(DataOrigin.Unavailable, snapshot.Origin);
+    }
+
     [Fact]
     public async Task A_reachable_source_serves_live_data()
     {

@@ -109,6 +109,15 @@ public static class Format
     public static string PlaceOf(int? place, int starters) =>
         place is { } p ? $"{p} / {starters}" : $"— / {starters}";
 
+    /// <summary>
+    /// "33 av 67" — placeringen med fältet den vanns i. Ändelsen ":e" säger ingenting som
+    /// talet inte redan säger; fältets storlek är det som gör placeringen läsbar. Utan känt
+    /// fält står talet ensamt.
+    /// </summary>
+    public static string PlaceAmong(int? place, int starters) => place is { } p
+        ? starters > 0 ? $"{p} av {starters}" : p.ToString(Sv)
+        : "—";
+
     public static string Clock(DateTimeOffset instant) => instant.ToString("HH:mm", Sv);
 
     /// <summary>"idag", "imorgon", "lör 15 aug" — dates as a person would say them.</summary>
@@ -169,6 +178,15 @@ public static class Format
     public static string DateInSentence(DateOnly date) =>
         date.ToString("d MMM", Sv).TrimEnd('.');
 
+    /// <summary>The day number alone — the top line of a list's date column.</summary>
+    public static string DayNumber(DateOnly date) => date.Day.ToString(Sv);
+
+    /// <summary>"mån" — the weekday under the day number.</summary>
+    public static string Weekday(DateOnly date) => date.ToString("ddd", Sv).TrimEnd('.');
+
+    /// <summary>"aug" — the month under the weekday, for the row where it changes.</summary>
+    public static string MonthShort(DateOnly date) => date.ToString("MMM", Sv).TrimEnd('.');
+
     /// <summary>"4–9 aug" for a range, a single date otherwise.</summary>
     public static string DateRange(DateOnly first, DateOnly last)
     {
@@ -210,9 +228,50 @@ public static class Format
         Domain.Discipline.UltraLong => "Ultralång",
         Domain.Discipline.Night => "Natt",
         Domain.Discipline.Relay => "Stafett",
-        Domain.Discipline.Indoor => "Indoor",
         _ => string.Empty,
     };
+
+    /// <summary>
+    /// The sport in the words the federation uses. <see cref="Sport.Foot"/> has none: it is what
+    /// a competition is unless it says otherwise, and writing "OL" on nine rows in ten is the
+    /// noise the sport column exists to remove.
+    /// </summary>
+    public static string Sport(Sport sport) => sport switch
+    {
+        Domain.Sport.Indoor => "Indoor",
+        Domain.Sport.MountainBike => "MTBO",
+        Domain.Sport.Ski => "Skid-O",
+        Domain.Sport.PreO => "PreO",
+        Domain.Sport.Shooting => "Orienteringsskytte",
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// The sport with a word for foot orienteering too. A row leaves it out because it is the
+    /// default; a chip that offers the choice has to be able to name it.
+    /// </summary>
+    public static string SportOrDefault(Sport sport) =>
+        sport == Domain.Sport.Foot ? "Orienteringslöpning" : Sport(sport);
+
+    /// <summary>
+    /// A kind of race in the words a runner would use: "Medel", "MTBO lång", "Indoor".
+    /// </summary>
+    /// <remarks>
+    /// The distance is the word, and the sport is said only when it is in question — foot
+    /// orienteering is what a race is unless stated. A sport with no distances is the whole
+    /// answer on its own.
+    /// </remarks>
+    public static string RacePreference(RacePreference preference)
+    {
+        if (preference.Discipline is not { } distance)
+            return SportOrDefault(preference.Sport);
+
+        string word = Discipline(distance);
+
+        return preference.Sport == Domain.Sport.Foot
+            ? word
+            : $"{Sport(preference.Sport)} {word.ToLower(Sv)}";
+    }
 
     public static string Level(CompetitionLevel level) => level switch
     {
@@ -243,6 +302,12 @@ public static class Format
         Domain.FollowReason.Favourite => "Favorit",
         _ => string.Empty,
     };
+
+    /// <summary>
+    /// An em dash where there is no distance, the same as every other column in the app. A
+    /// competition whose arena has no position must not claim a number for it.
+    /// </summary>
+    public static string Distance(double? kilometres) => kilometres is { } km ? Distance(km) : "—";
 
     /// <summary>"1,2 mil" reads better than "12 km" in Swedish sport contexts under 10 km.</summary>
     public static string Distance(double kilometres) =>

@@ -151,6 +151,13 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
         CompetitionId competition, CancellationToken cancellationToken = default) =>
         Task.FromResult(ResultsFor(competition));
 
+    public Task<IReadOnlyList<CompetitionResult>> GetClassResultsAsync(
+        CompetitionId competition, string className, bool splits = false, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<CompetitionResult>>(
+            className.Length == 0
+                ? []
+                : [.. ResultsFor(competition).Where(result => result.Class == className)]);
+
     public Task<IReadOnlyList<CompetitionResult>> GetOwnResultsAsync(
         PersonId person, IReadOnlyList<CompetitionId> competitions, bool splits = false, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<CompetitionResult>>(
@@ -261,6 +268,13 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
     /// </summary>
     public Task<LiveloxLink?> GetLiveloxAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
         Task.FromResult<LiveloxLink?>(null);
+
+    /// <summary>
+    /// Ingen. De seedade tävlingarna har ingen verklig arena att rendera, och hjälten faller
+    /// tillbaka på terrängbilden — precis som för en riktig tävling vars bild inte blivit till.
+    /// </summary>
+    public Task<ArenaImage?> GetArenaImageAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
+        Task.FromResult<ArenaImage?>(null);
 
     // ---------------------------------------------------------------- IProgressSource
 

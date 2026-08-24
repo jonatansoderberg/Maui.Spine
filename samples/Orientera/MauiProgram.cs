@@ -78,6 +78,10 @@ public static class MauiProgram
                 fonts.AddFont("InterTabular-Medium.ttf", "InterTabularMedium");
                 fonts.AddFont("InterTabular-SemiBold.ttf", "InterTabularSemiBold");
                 fonts.AddFont("InterTabular-Bold.ttf", "InterTabularBold");
+
+                // Rubrikernas egen skärning, versal, som i Spines eget exempel. Bara den —
+                // resten av skalan är Inter, och två brödtextsnitt är inte en typografi.
+                fonts.AddFont("BrandonGrotesqueBlack.otf", "BrandonGrotesqueBlack");
             });
 
         // Mapsui ritar kartan med SkiaSharp och behöver dess handlers registrerade.
@@ -159,6 +163,11 @@ public static class MauiProgram
         services.AddSingleton(_ => new DistrictStore(
             Path.Combine(FileSystem.AppDataDirectory, "districts.json")));
 
+        // Vilka grenar man håller på med och vilka lopp man helst är på. Står kvar mellan körningar
+        // och gäller före allt som filterarket säger.
+        services.AddSingleton(_ => new RacePreferenceStore(
+            Path.Combine(FileSystem.AppDataDirectory, "race-preferences.json")));
+
         services.AddSingleton(_ => new CompetitionClassStore(
             Path.Combine(FileSystem.AppDataDirectory, "live-classes.json")));
 
@@ -191,6 +200,7 @@ public static class MauiProgram
         services.AddSingleton<ILiveSource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<IProgressSource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<ILiveloxSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<IArenaImageSource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<IClubActivitySource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<IStartFieldSource>(sp => sp.GetRequiredService<UnreliableSource>());
 
@@ -199,7 +209,6 @@ public static class MauiProgram
         services.AddSingleton<OfflinePackageService>();
 
         services.AddSingleton<CompetitionContextService>();
-        services.AddSingleton<LiveSelection>();
 
         // Notifications are planned from data the app already has, and delivered by whatever
         // the platform offers.

@@ -25,6 +25,7 @@
 		<Compile Include="..\Orientera\Presentation\ClassOrder.cs" LinkBase="Linked\Presentation" />
 		<Compile Include="..\Orientera\Services\Analysis\**\*.cs" LinkBase="Linked\Services\Analysis" />
 		<Compile Include="..\Orientera\Services\Context\ContextEngine.cs" LinkBase="Linked\Services\Context" />
+		<Compile Include="..\Orientera\Services\Context\ParticipantModeEngine.cs" LinkBase="Linked\Services\Context" />
 		<Compile Include="..\Orientera\Services\FakeData\**\*.cs" LinkBase="Linked\Services\FakeData" />
 		<Compile Include="..\Orientera\Services\Notifications\**\*.cs" LinkBase="Linked\Services\Notifications" />
 		<Compile Include="..\Orientera\Services\Offline\**\*.cs" LinkBase="Linked\Services\Offline" />
