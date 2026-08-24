@@ -132,7 +132,37 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
 
     public FilterOptionGroup DisciplineGroup { get; } = new(single: false, "Alla discipliner");
 
-    public FilterOptionGroup DistanceGroup { get; } = new(single: true, "Valfritt avstånd");
+    /// <summary>
+    /// The radius as a distance rather than as five buttons. A distance is a continuous quantity
+    /// and a slider says so; the chips could only ever offer the four someone had thought of.
+    /// The far end is no limit at all, which is why the scale ends in a word and not a number.
+    /// </summary>
+    [ObservableProperty]
+    public partial double DistanceKm { get; set; } = MaxDistance;
+
+    /// <summary>Past this the filter stops asking — the slider is at "Alla".</summary>
+    public const double MaxDistance = 200;
+
+    public const double MinDistance = 5;
+
+    partial void OnDistanceKmChanged(double value)
+    {
+        DistanceSummary = SelectedDistance is { } km ? $"Inom {Format.Distance(km)}" : "Valfritt avstånd";
+        Recount();
+    }
+
+    /// <summary>
+    /// The radius the filter gets, snapped: five-kilometre steps where five kilometres is a
+    /// decision, ten where it is not. Null at the top of the scale.
+    /// </summary>
+    private double? SelectedDistance => DistanceKm >= MaxDistance
+        ? null
+        : DistanceKm < 100
+            ? Math.Round(DistanceKm / 5) * 5
+            : Math.Round(DistanceKm / 10) * 10;
+
+    [ObservableProperty]
+    public partial string DistanceSummary { get; set; } = "Valfritt avstånd";
 
     [ObservableProperty]
     public partial bool HasDistricts { get; set; }
@@ -194,11 +224,9 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
         foreach (var discipline in Enum.GetValues<Discipline>())
             DisciplineGroup.Add(Format.Discipline(discipline), discipline, filter.Disciplines.Contains(discipline));
 
-        DistanceGroup.Options.Clear();
-        DistanceGroup.Add("Valfritt avstånd", null, filter.MaxDistanceKm is null);
-
-        foreach (double radius in new double[] { 25, 50, 100, 200 })
-            DistanceGroup.Add($"Inom {radius:0} km", radius, filter.MaxDistanceKm == radius);
+        DistanceKm = filter.MaxDistanceKm is { } radius
+            ? Math.Clamp(radius, MinDistance, MaxDistance)
+            : MaxDistance;
 
         ShowTraining = filter.ShowTraining;
         OnlyMyClass = filter.OnlyMyClass;
@@ -245,7 +273,7 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
     }
 
     private IEnumerable<FilterOptionGroup> Groups =>
-        [DistrictGroup, PeriodGroup, LevelGroup, DisciplineGroup, DistanceGroup];
+        [DistrictGroup, PeriodGroup, LevelGroup, DisciplineGroup];
 
     private void Recount()
     {
@@ -282,6 +310,7 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
         foreach (var group in Groups)
             group.Reset();
 
+        DistanceKm = MaxDistance;
         ShowTraining = false;
         OnlyMyClass = false;
         OnlyRegisterable = false;
@@ -296,7 +325,7 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
         Period = PeriodGroup.Selected.Select(o => (EventPeriod)o.Value!).FirstOrDefault(),
         Levels = LevelGroup.Selected.Select(o => (CompetitionLevel)o.Value!).ToHashSet(),
         Disciplines = DisciplineGroup.Selected.Select(o => (Discipline)o.Value!).ToHashSet(),
-        MaxDistanceKm = DistanceGroup.Selected.Select(o => o.Value).FirstOrDefault() as double?,
+        MaxDistanceKm = SelectedDistance,
         ShowTraining = ShowTraining,
         OnlyMyClass = OnlyMyClass,
         OnlyRegisterable = OnlyRegisterable,

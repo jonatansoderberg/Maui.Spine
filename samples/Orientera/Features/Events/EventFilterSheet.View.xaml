@@ -93,18 +93,29 @@
                 <BoxView Style="{StaticResource Divider}" />
 
                 <!-- Avståndet är det Eventor inte kan: kalendern där vet inte var man bor. -->
-                <FilterSection Title="Avstånd hemifrån" Summary="{Binding DistanceGroup.Summary}">
-                    <WrapLayout Spacing="8" LineSpacing="8"
-                                BindableLayout.ItemsSource="{Binding DistanceGroup.Options}">
-                        <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="FilterOption">
-                                <ChipView IsCompact="True"
-                                          Text="{Binding Label}"
-                                          IsSelected="{Binding IsSelected}"
-                                          Command="{Binding ToggleCommand}" />
-                            </DataTemplate>
-                        </BindableLayout.ItemTemplate>
-                    </WrapLayout>
+                <FilterSection Title="Avstånd hemifrån" Summary="{Binding DistanceSummary}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Style="{StaticResource NumericHeading2Label}"
+                               HorizontalOptions="Center"
+                               Text="{Binding DistanceSummary}" />
+
+                        <!--
+                            Reglaget läser upp sitt värde som andel av skalan, inte som mil. Därför
+                            bär det avståndet i ord i stället, och uppdaterar dem medan det dras.
+                        -->
+                        <Slider Minimum="5" Maximum="200"
+                                Value="{Binding DistanceKm}"
+                                MinimumTrackColor="{DynamicResource AccentAction}"
+                                ThumbColor="{DynamicResource AccentAction}"
+                                SemanticProperties.Description="Avstånd hemifrån"
+                                SemanticProperties.Hint="{Binding DistanceSummary}" />
+
+                        <Grid ColumnDefinitions="*,*">
+                            <Label Style="{StaticResource CaptionLabel}" Text="5 km" />
+                            <Label Grid.Column="1" Style="{StaticResource CaptionLabel}"
+                                   HorizontalTextAlignment="End" Text="Alla" />
+                        </Grid>
+                    </VerticalStackLayout>
                 </FilterSection>
 
                 <BoxView Style="{StaticResource Divider}" />
