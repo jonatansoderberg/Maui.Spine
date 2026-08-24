@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Orientera.Backend.Caching;
 using Orientera.Backend.Configuration;
 using Orientera.Domain;
+using Orientera.Services.Sources;
 
 namespace Orientera.Backend.Arena;
 
@@ -91,7 +92,12 @@ public sealed class ArenaImageStore(
             var container = new BlobContainerClient(options.ConnectionString, options.Container);
             var blob = container.GetBlobClient(key.BlobName);
 
-            if (!await blob.ExistsAsync(cancellationToken))
+            Azure.Response<Azure.Storage.Blobs.Models.BlobProperties> properties;
+            try
+            {
+                properties = await blob.GetPropertiesAsync(cancellationToken: cancellationToken);
+            }
+            catch (RequestFailedException exception) when (exception.Status == 404)
             {
                 await OrderAsync(key, options, cancellationToken);
 
@@ -102,7 +108,12 @@ public sealed class ArenaImageStore(
 
             return new ArenaImage
             {
-                Url = blob.Uri.ToString(),
+                // Ändringstiden i urlen: appen cachar bilden länge på enheten med urlen som
+                // nyckel, och det är bara sant att innehållet aldrig ändras så länge en
+                // omgjord blob under samma namn också blir en ny url. Utan detta serverade
+                // telefonen en gammal bild i halvåret efter en omgenerering.
+                Url = string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                    $"{blob.Uri}?v={properties.Value.LastModified.ToUnixTimeSeconds()}"),
                 Season = key.Season,
                 Night = key.Night,
                 Attribution = generic ? GenericCredit : Credit,

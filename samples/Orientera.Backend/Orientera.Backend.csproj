@@ -19,16 +19,32 @@
 	<ItemGroup>
 		<PackageReference Include="Anthropic" Version="12.40.0" />
 		<PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
+		<PackageReference Include="BitMiracle.LibTiff.NET" Version="2.4.660" />
+		<PackageReference Include="ProjNET" Version="2.1.0" />
+		<!--
+			SkiaSharp och inte ImageSharp: från och med v4 kräver Six Labors licensnyckel vid
+			bygge och Release-bygget stoppar utan den. Skia är MIT. Linux-paketet är för
+			Function-appen i molnet — utan det saknar Linux-värden den nativa binären.
+		-->
+		<PackageReference Include="SkiaSharp" Version="4.151.1" />
+		<PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
 		<PackageReference Include="Azure.Storage.Queues" Version="12.27.1" />
 		<PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />
 		<PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.1.0" />
 		<PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.1" />
+		<PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" Version="5.5.0" />
 		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
+		<PackageReference Include="OpenAI" Version="2.13.0" />
 		<PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\Orientera.Domain\Orientera.Domain.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Vimpeln är en förvaltad bildfil, genererad av prototypens flag_tile. Se Flag.cs. -->
+		<EmbeddedResource Include="Arena\Assets\vimpel.png" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -33,6 +33,8 @@ builder.Services.AddScoped<RaceStoryWriter>();
 builder.Services.AddScoped<PeopleSearch>();
 builder.Services.AddScoped<StartFieldSource>();
 builder.Services.AddScoped<ArenaImageStore>();
+builder.Services.AddScoped<TerrainSource>();
+builder.Services.AddScoped<ArenaComposer>();
 
 // The organisation list is fetched while the host starts rather than by whoever asks first.
 builder.Services.AddHostedService<DirectoryWarmup>();
@@ -62,6 +64,25 @@ builder.Services.AddHttpClient<EntryListSource>((sp, client) =>
 {
     client.BaseAddress = new Uri(sp.GetRequiredService<IOptions<RankingOptions>>().Value.BaseAddress);
     client.Timeout = TimeSpan.FromSeconds(20);
+});
+
+// Höjdrutorna är stora och dl1 svarar långsamt under last, så gränsen ligger i minuter.
+builder.Services.AddHttpClient<LantmaterietClient>(client =>
+    {
+        client.Timeout = TimeSpan.FromMinutes(5);
+    })
+    .AddTypedClient((http, provider) => new LantmaterietClient(
+        http,
+        provider.GetRequiredService<IOptions<ArenaImageOptions>>().Value.CacheDirectory
+            is { Length: > 0 } directory
+            ? directory
+            : Path.Combine(Path.GetTempPath(), "arenabild-cache"),
+        GeotorgetCredentials.Find(),
+        provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LantmaterietClient>>()));
+
+builder.Services.AddHttpClient<EventorArenaPage>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(45);
 });
 
 builder.Services.AddHttpClient<LiveResultsClient>(client =>

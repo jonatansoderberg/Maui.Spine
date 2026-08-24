@@ -1,6 +1,0 @@
-numpy==2.0.2
-pillow==11.3.0
-rasterio==1.4.3
-pyproj==3.6.1
-openai>=2.13
-laspy[lazrs]==2.6.1

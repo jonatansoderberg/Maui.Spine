@@ -1,23 +1,16 @@
 using Orientera.Domain;
+using Orientera.Services.Sources;
 
 namespace Orientera.Backend.Arena;
-
-/// <summary>Årstiden en arenabild visar. Den följer tävlingens datum, inte betraktarens.</summary>
-public enum ArenaSeason
-{
-    Var,
-    Sommar,
-    Host,
-    Vinter,
-
-    /// <summary>Inomhus: ingen terräng att visa, utan en bild ur ett generiskt bibliotek.</summary>
-    Inomhus,
-}
 
 /// <summary>
 /// Vilken bild en tävling ska ha. Nyckeln är hela identiteten — två tävlingar som ger samma
 /// nyckel får samma bild, och det är meningen: samma arena i samma årstid ser likadan ut.
 /// </summary>
+/// <remarks>
+/// Bilden själv — <see cref="ArenaImage"/> — och årstiden bor i domänens källkontrakt, så att
+/// appen läser exakt den form backend serverar.
+/// </remarks>
 /// <param name="EventId">Eventors id. Arena och tävlingsområde hämtas därifrån vid generering.</param>
 /// <param name="Season">Följer tävlingsdatumet, så en februaritävling visas i snö.</param>
 /// <param name="Night">Nattävlingar renderas i månljus, med arenan upplyst.</param>
@@ -54,25 +47,16 @@ public readonly record struct ArenaImageKey(
         5 or 6 or 7 or 8 => ArenaSeason.Sommar,
         _ => ArenaSeason.Host,
     };
-}
-
-/// <summary>En färdig arenabild, som appen hämtar direkt från lagringen.</summary>
-public sealed record ArenaImage
-{
-    public required string Url { get; init; }
-    public required ArenaSeason Season { get; init; }
-    public required bool Night { get; init; }
 
     /// <summary>
-    /// Ortofoto och höjdmodell är CC BY 4.0. Bilden bär ingen text alls, så attributionen kan
-    /// inte följa med i den — den måste följa med hit och visas bredvid bilden i appen. Utan
-    /// den är visningen inte licensenlig, och det är inget appen kan gissa sig till.
+    /// Tidpunkten bilden ljussätts för. Saknar tävlingen klockslag står <c>FirstStart</c> vid
+    /// midnatt, solen under horisonten — och en dagtävling blev en nattbild. Då antas mitt på
+    /// dagen, utom för nattävlingar som får 21:00: en gissning, men en betydligt bättre än
+    /// 12:00 för ett lopp vars hela idé är att det är mörkt.
     /// </summary>
-    public required string Attribution { get; init; }
-
-    /// <summary>
-    /// Sant för inomhusbilder, som föreställer en skola i allmänhet och ingen i synnerhet.
-    /// Appen måste kunna säga det, annars läser betraktaren den som en bild av just sin skola.
-    /// </summary>
-    public required bool IsGeneric { get; init; }
+    internal static DateTime RenderTimeOf(Competition competition) =>
+        competition.HasFirstStart
+            ? competition.FirstStart.DateTime
+            : competition.FirstStart.Date
+                + TimeSpan.FromHours(competition.Discipline == Discipline.Night ? 21 : 12);
 }

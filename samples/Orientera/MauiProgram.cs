@@ -191,6 +191,7 @@ public static class MauiProgram
         services.AddSingleton<ILiveSource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<IProgressSource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<ILiveloxSource>(sp => sp.GetRequiredService<UnreliableSource>());
+        services.AddSingleton<IArenaImageSource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<IClubActivitySource>(sp => sp.GetRequiredService<UnreliableSource>());
         services.AddSingleton<IStartFieldSource>(sp => sp.GetRequiredService<UnreliableSource>());
 

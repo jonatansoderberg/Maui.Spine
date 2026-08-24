@@ -49,6 +49,22 @@ public class ArenaImageKeyTests
                                  Discipline.Indoor), 1).Season);
 
     /// <summary>
+    /// Utan klockslag står FirstStart vid midnatt och solen under horisonten — en dagtävling
+    /// blev en nattbild. Mitt på dagen antas i stället, och 21:00 för nattävlingar.
+    /// </summary>
+    [Fact]
+    public void Missing_start_time_is_rendered_at_noon_not_midnight()
+    {
+        var unset = At(new DateTimeOffset(2026, 8, 30, 0, 0, 0, TimeSpan.Zero));
+        var set = At(new DateTimeOffset(2026, 8, 30, 10, 15, 0, TimeSpan.Zero));
+        var night = At(new DateTimeOffset(2026, 11, 14, 0, 0, 0, TimeSpan.Zero), Discipline.Night);
+
+        Assert.Equal(new DateTime(2026, 8, 30, 12, 0, 0), ArenaImageKey.RenderTimeOf(unset));
+        Assert.Equal(new DateTime(2026, 8, 30, 10, 15, 0), ArenaImageKey.RenderTimeOf(set));
+        Assert.Equal(new DateTime(2026, 11, 14, 21, 0, 0), ArenaImageKey.RenderTimeOf(night));
+    }
+
+    /// <summary>
     /// Renderare och prompt utvecklas. Höjs versionen utan att blobnamnet ändras serveras
     /// gamla bilder tyst vidare, och det syns inte förrän någon jämför två tävlingar.
     /// </summary>

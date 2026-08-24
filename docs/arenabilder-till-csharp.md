@@ -1,5 +1,9 @@
 # Plan: flytta arenabildsrenderingen till C#
 
+> **Genomförd.** Kedjan bor i `Orientera.Backend` sedan `issues/arenabild-till-csharp.md`,
+> och Python-prototypen den här planen mäter mot är borttagen. Dokumentet står kvar som
+> beskrivning av hur porten gjordes och varför biblioteken valdes som de valdes.
+
 Prototypen är skriven i Python (numpy, rasterio, PIL). Frågan är om hela kedjan kan bo i
 `Orientera.Backend` i stället, så att det blir en deploy, ett språk och en CI.
 
@@ -12,7 +16,7 @@ beroendena är provkörda mot riktig data innan planen skrevs.
 |---|---|---|
 | rasterio/GDAL, läsa COG | `BitMiracle.LibTiff.NET` 2.4.660 | **Provkörd** mot Lantmäteriets ruta: 2500×2500 float32, DEFLATE, kakel 512×512. Kakel avläst, georeferens tolkad ur tagg 33550/33922. |
 | pyproj, WGS84 → SWEREF99 TM | `ProjNET` 2.1.0 | **Provkörd** mot pyproj: 0 m avvikelse i Malmö, Valbo och på centralmeridianen, 1 m i Kiruna. |
-| PIL, bildritning | `SixLabors.ImageSharp` 4.1.1 | Finns, moget, plattformsoberoende. |
+| PIL, bildritning | ~~`SixLabors.ImageSharp` 4.1.1~~ `SkiaSharp` 4.151.1 | Ändrat under porten: ImageSharp 4.x kräver licensnyckel vid bygge och stoppar Release utan den. SkiaSharp är MIT; Lanczos-omsamplingen, som Skia saknar, skrevs för hand. Se `issues/arenabild-till-csharp.md`. |
 | OpenAI-klient | `OpenAI` 2.13.0 | Officiell .NET-SDK. |
 | laspy, punktmoln | — | Behövs inte. Byggnadshöjder kom från bildmodellen i stället. |
 

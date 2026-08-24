@@ -262,6 +262,13 @@ public sealed class FakeDataSource(IClock _clock, LocalIdentityStore? _identity 
     public Task<LiveloxLink?> GetLiveloxAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
         Task.FromResult<LiveloxLink?>(null);
 
+    /// <summary>
+    /// Ingen. De seedade tävlingarna har ingen verklig arena att rendera, och hjälten faller
+    /// tillbaka på terrängbilden — precis som för en riktig tävling vars bild inte blivit till.
+    /// </summary>
+    public Task<ArenaImage?> GetArenaImageAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
+        Task.FromResult<ArenaImage?>(null);
+
     // ---------------------------------------------------------------- IProgressSource
 
     public Task<RankingSnapshot?> GetRankingAsync(PersonId person, CancellationToken cancellationToken = default) =>

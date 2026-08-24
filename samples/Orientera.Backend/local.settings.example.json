@@ -15,6 +15,12 @@
     "Livelox__BaseAddress": "https://api.livelox.com/",
 
     "//Ranking": "Sverigelistan läses inte här. Den ligger bakom en personlig inloggning, och sedan #123 är det läsarens egen, på deras telefon.",
-    "Ranking__BaseAddress": "https://eventor.orientering.se/"
+    "Ranking__BaseAddress": "https://eventor.orientering.se/",
+
+    "//ArenaImage": "Arbetaren behöver dessutom LM_USER/LM_PASS (Geotorget, Markhöjdmodell Nedladdning) och OPENAI_API_KEY — lokalt läses de ur ~/.config/lantmateriet.env och ~/.config/openai.env om miljövariablerna saknas.",
+    "ArenaImage__ConnectionString": "",
+    "ArenaImage__ImageModel": "gpt-image-2",
+    "//ArenaImage__CacheDirectory": "Tom i drift (temp). Peka den på tools/arenabild/cache lokalt, så fyller en körning cachen facittesterna läser.",
+    "ArenaImage__CacheDirectory": ""
   }
 }

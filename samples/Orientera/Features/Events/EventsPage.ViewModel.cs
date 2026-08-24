@@ -230,7 +230,9 @@ public partial class EventsPageViewModel(
             {
                 Competition = competition.Id,
                 Title = competition.Name,
-                DateLabel = Format.RelativeDate(competition.Date, today),
+                DateLabel = LastDayOf(competition) > competition.Date
+                    ? Format.DateRange(competition.Date, LastDayOf(competition))
+                    : Format.RelativeDate(competition.Date, today),
                 PlaceLabel = $"{competition.Organiser} · {competition.Place}",
                 OrganiserLogo = competition.OrganiserLogo,
                 DisciplineLabel = Format.Discipline(competition.Discipline),
@@ -404,6 +406,30 @@ public partial class EventsPageViewModel(
         && opens <= now
         && now <= deadline;
 
+    /// <summary>
+    /// Arrangemangets sista dag som läsaren räknar den. En målgång i småtimmarna hör till
+    /// kvällen innan — en kvällstävling som stänger målet 00:30 är en endagstävling — så sex
+    /// timmar dras av innan dagen läses av. En final som avgörs 16:00 nästa dag står kvar
+    /// som sin egen dag.
+    /// </summary>
+    private static DateOnly LastDayOf(Competition competition)
+    {
+        var lastDay = DateOnly.FromDateTime(competition.LastFinish.DateTime.AddHours(-6).Date);
+        return lastDay > competition.Date ? lastDay : competition.Date;
+    }
+
+    private static DateOnly LastDayOf(EventGroup eventGroup)
+    {
+        var last = eventGroup.LastDate;
+        foreach (var competition in eventGroup.Occurrences)
+        {
+            var day = LastDayOf(competition);
+            if (day > last)
+                last = day;
+        }
+        return last;
+    }
+
     private async Task<EventCard> BuildCardAsync(
         EventGroup eventGroup,
         DateOnly today,
@@ -419,8 +445,11 @@ public partial class EventsPageViewModel(
         {
             Competition = primary.Id,
             Title = eventGroup.Title,
-            DateLabel = eventGroup.IsRecurring
-                ? Format.DateRange(eventGroup.FirstDate, eventGroup.LastDate)
+            // Ett arrangemang som spänner flera dagar visas med sitt spann: SM-medelns kval
+            // går ena dagen och finalen nästa, och ett kort som säger "idag" om helgens
+            // huvudlopp lurar läsaren (upptäckt i skarptestet).
+            DateLabel = eventGroup.IsRecurring || LastDayOf(eventGroup) > eventGroup.FirstDate
+                ? Format.DateRange(eventGroup.FirstDate, LastDayOf(eventGroup))
                 : Format.RelativeDate(eventGroup.FirstDate, today),
             PlaceLabel = $"{eventGroup.Organiser} · {eventGroup.Place}",
             OrganiserLogo = primary.OrganiserLogo,

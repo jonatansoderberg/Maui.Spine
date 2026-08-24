@@ -109,6 +109,15 @@ public static class Format
     public static string PlaceOf(int? place, int starters) =>
         place is { } p ? $"{p} / {starters}" : $"— / {starters}";
 
+    /// <summary>
+    /// "33 av 67" — placeringen med fältet den vanns i. Ändelsen ":e" säger ingenting som
+    /// talet inte redan säger; fältets storlek är det som gör placeringen läsbar. Utan känt
+    /// fält står talet ensamt.
+    /// </summary>
+    public static string PlaceAmong(int? place, int starters) => place is { } p
+        ? starters > 0 ? $"{p} av {starters}" : p.ToString(Sv)
+        : "—";
+
     public static string Clock(DateTimeOffset instant) => instant.ToString("HH:mm", Sv);
 
     /// <summary>"idag", "imorgon", "lör 15 aug" — dates as a person would say them.</summary>

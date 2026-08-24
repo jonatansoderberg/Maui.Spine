@@ -241,6 +241,16 @@ public sealed class BackendSource(
     public Task<LiveloxLink?> GetLiveloxAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
         GetAsync<LiveloxLink>($"competitions/{Uri.EscapeDataString(competition.Value)}/livelox", cancellationToken);
 
+    // ---------------------------------------------------------------- IArenaImageSource
+
+    /// <summary>
+    /// Tävlingens arenabild. 404 betyder "inte genererad än" — backend lägger själv
+    /// beställningen vid uppslaget, så nästa besök hittar den färdiga bilden. Svaret cachas
+    /// därför inte här: det som ändras är inte bilden utan huruvida den hunnit bli till.
+    /// </summary>
+    public Task<ArenaImage?> GetArenaImageAsync(CompetitionId competition, CancellationToken cancellationToken = default) =>
+        GetAsync<ArenaImage>($"competitions/{Uri.EscapeDataString(competition.Value)}/arenabild", cancellationToken);
+
     // ---------------------------------------------------------------- IProgressSource
 
     /// <summary>
