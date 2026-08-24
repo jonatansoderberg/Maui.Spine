@@ -140,6 +140,9 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial string OpensText { get; set; } = string.Empty;
 
     [ObservableProperty] public partial bool HasOpens { get; set; }
+    /// <summary>False when the arena has no published position and the journey cannot be guessed.</summary>
+    [ObservableProperty] public partial bool HasTravel { get; set; }
+
     [ObservableProperty] public partial string TravelText { get; set; } = string.Empty;
 
     /// <summary>The time, kept apart from the distance so only it carries the estimate colour.</summary>
@@ -723,14 +726,28 @@ public partial class EventDetailsPageViewModel(
             ? $"Anmälan öppnar {Format.Deadline(DateOnly.FromDateTime(competition.Schedule.RegistrationOpensAt!.Value.Date), today)}"
             : string.Empty;
 
-        double distance = TravelEstimate.DistanceKm(me.Home, competition.Location);
-        var duration = TravelEstimate.Duration(me.Home, competition.Location);
+        // Without a published arena there is no journey to estimate. The block goes rather than
+        // standing there saying "okänt": it is one tile in a row of facts, and its absence is
+        // quieter than a tile whose only content is that it has none.
+        HasTravel = competition.DistanceFrom(me.Home) is not null;
 
-        // "Fågelvägen" is the whole caveat in one word: it is the distance the app can compute,
-        // and every driver knows the road is longer.
-        TravelText = $"ca {Format.Distance(distance)} fågelvägen";
-        TravelDurationText = $"~{duration.TotalMinutes:0} min";
-        TravelSpoken = $"uppskattat {Format.Distance(distance)} fågelvägen, ungefär {duration.TotalMinutes:0} minuter";
+        if (HasTravel)
+        {
+            double distance = TravelEstimate.DistanceKm(me.Home, competition.Location);
+            var duration = TravelEstimate.Duration(me.Home, competition.Location);
+
+            // "Fågelvägen" is the whole caveat in one word: it is the distance the app can
+            // compute, and every driver knows the road is longer.
+            TravelText = $"ca {Format.Distance(distance)} fågelvägen";
+            TravelDurationText = $"~{duration.TotalMinutes:0} min";
+            TravelSpoken = $"uppskattat {Format.Distance(distance)} fågelvägen, ungefär {duration.TotalMinutes:0} minuter";
+        }
+        else
+        {
+            TravelText = string.Empty;
+            TravelDurationText = string.Empty;
+            TravelSpoken = string.Empty;
+        }
 
         var prediction = IsFromCache
             ? snapshot.Prediction

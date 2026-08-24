@@ -285,7 +285,7 @@ public partial class EventsPageViewModel(
                 LevelShape = DisciplineShape.For(competition.Level),
                 DisciplineShape = DisciplineShape.For(competition.Discipline),
                 DisciplineKey = competition.Discipline.ToString(),
-                DistanceLabel = _me is null ? string.Empty : Format.Distance(_me.Home.DistanceKmTo(competition.Location)),
+                DistanceKm = _me is null ? null : competition.DistanceFrom(_me.Home),
                 ContextLabel = "Sparad offline",
                 ShowContextBadge = true,
                 IsRegistered = package.MyEntryRegisteredAt is not null,
@@ -400,7 +400,8 @@ public partial class EventsPageViewModel(
             // has already been decided cannot be the most relevant thing on the list.
             QuickFilter.ForYou => true,
             QuickFilter.Past => true,
-            QuickFilter.Near => _me!.Home.DistanceKmTo(competition.Location) <= 60,
+            // An arena with no position cannot be claimed to be nearby.
+            QuickFilter.Near => competition.DistanceFrom(_me!.Home) is { } km && km <= 60,
             QuickFilter.District => competition.District == _me!.District,
             QuickFilter.Bigger => competition.Level <= CompetitionLevel.National,
             QuickFilter.ThisWeek => competition.Date >= today && competition.Date <= today.AddDays(7),
@@ -442,7 +443,7 @@ public partial class EventsPageViewModel(
     {
         var primary = eventGroup.First;
         var decision = await _context.EvaluateAsync(primary);
-        double distance = me.Home.DistanceKmTo(primary.Location);
+        double? distance = primary.DistanceFrom(me.Home);
 
         return new EventCard
         {
@@ -469,7 +470,7 @@ public partial class EventsPageViewModel(
             LevelShape = DisciplineShape.For(eventGroup.Level),
             DisciplineShape = DisciplineShape.For(eventGroup.Discipline),
             DisciplineKey = eventGroup.Discipline.ToString(),
-            DistanceLabel = Format.Distance(distance),
+            DistanceKm = distance,
             ContextLabel = decision.StateText,
             ShowContextBadge = decision.State is not (ContextState.Live or ContextState.Registered),
             IsLive = decision.State == ContextState.Live,

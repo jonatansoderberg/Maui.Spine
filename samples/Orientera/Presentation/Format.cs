@@ -262,6 +262,12 @@ public static class Format
         _ => string.Empty,
     };
 
+    /// <summary>
+    /// An em dash where there is no distance, the same as every other column in the app. A
+    /// competition whose arena has no position must not claim a number for it.
+    /// </summary>
+    public static string Distance(double? kilometres) => kilometres is { } km ? Distance(km) : "—";
+
     /// <summary>"1,2 mil" reads better than "12 km" in Swedish sport contexts under 10 km.</summary>
     public static string Distance(double kilometres) =>
         kilometres < 10

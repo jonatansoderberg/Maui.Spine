@@ -217,4 +217,22 @@ public class EventFilterTests
         Assert.True(period.Without.OnlyRegisterable);
     }
 
+    /// <summary>
+    /// A radius is a claim about where something is. Before this, an arena Eventor had not placed
+    /// sat at (0,0) and measured 6905 km from Gävle — so it was excluded, but by accident rather
+    /// than on purpose, and every other consumer of that number was wrong.
+    /// </summary>
+    [Fact]
+    public void An_unplaced_arena_is_not_inside_any_radius()
+    {
+        // What a source that has no coordinate leaves behind.
+        var unplaced = Competition("Utan arena", "Gästrikland", Today, location: new GeoPoint(0, 0));
+
+        Assert.Null(unplaced.DistanceFrom(Me.Home));
+        Assert.False(new EventFilter { MaxDistanceKm = 25 }.Includes(unplaced, Me, Now));
+        Assert.False(new EventFilter { MaxDistanceKm = 1000 }.Includes(unplaced, Me, Now));
+
+        // And it is not hidden from a filter that never asked about distance.
+        Assert.True(EventFilter.Default.Includes(unplaced, Me, Now));
+    }
 }

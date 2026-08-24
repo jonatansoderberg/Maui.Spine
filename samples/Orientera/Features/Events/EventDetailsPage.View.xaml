@@ -107,7 +107,8 @@
                                 <Label Style="{StaticResource NumericHeading2Label}" Text="{Binding MyStartText}" />
                             </VerticalStackLayout>
 
-                            <VerticalStackLayout Grid.Row="0" Grid.Column="{Binding TravelColumn}" Grid.ColumnSpan="{Binding TravelColumnSpan}">
+                            <VerticalStackLayout Grid.Row="0" Grid.Column="{Binding TravelColumn}" Grid.ColumnSpan="{Binding TravelColumnSpan}"
+                                                 IsVisible="{Binding HasTravel}">
                                 <Label Style="{StaticResource CaptionLabel}" Text="Resa" />
                                 <!-- Uppskattat, inte uppmätt: EstimateInk säger samma sak som bomtiden i Analys. -->
                                 <Label Style="{StaticResource NumericStrongLabel}"

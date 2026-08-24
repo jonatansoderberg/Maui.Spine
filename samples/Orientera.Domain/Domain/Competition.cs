@@ -124,4 +124,19 @@ public sealed record Competition
 
     [JsonIgnore]
     public bool IsLowPriority => Level is CompetitionLevel.Training or CompetitionLevel.Recreational;
+
+    /// <summary>Whether the arena has a position. Eventor publishes many competitions without one.</summary>
+    [JsonIgnore]
+    public bool HasArena => Location.IsKnown;
+
+    /// <summary>
+    /// How far the arena is from a runner's home, or null when either end is unplaced.
+    /// </summary>
+    /// <remarks>
+    /// The guard belongs here rather than at each of the six places that ask. An unplaced arena
+    /// is not far away — it is unknown, and every one of those places has to say something
+    /// different about the two.
+    /// </remarks>
+    public double? DistanceFrom(GeoPoint home) =>
+        HasArena && home.IsKnown ? home.DistanceKmTo(Location) : null;
 }

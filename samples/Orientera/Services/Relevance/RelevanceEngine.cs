@@ -160,8 +160,11 @@ public static class RelevanceEngine
         if (context.MyEntries.Contains(competition.Id))
             return 1.0;
 
-        double distance = context.Home.DistanceKmTo(competition.Location);
-        double byDistance = Clamp(1.0 - (distance / MaxDistanceKm));
+        // An arena with no published position scores nothing on distance. It is not near — we
+        // cannot say that — and the district share below is what it still has to stand on.
+        double byDistance = competition.DistanceFrom(context.Home) is { } distance
+            ? Clamp(1.0 - (distance / MaxDistanceKm))
+            : 0.0;
 
         // The chosen district takes a fixed share of the score rather than being added on top:
         // an additive boost would saturate every nearby competition at 1.0 and flatten the

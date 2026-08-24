@@ -1,5 +1,6 @@
 using Microsoft.Maui.Controls.Shapes;
 using Orientera.Domain;
+using Orientera.Presentation;
 
 namespace Orientera.Features.Events;
 
@@ -65,7 +66,16 @@ public sealed partial class EventCard : ObservableObject
     /// <summary>The row's second line: the discipline as a word, then who and where.</summary>
     public string MetaLine => $"{DisciplineLabel} · {PlaceLabel}";
 
-    public required string DistanceLabel { get; init; }
+    /// <summary>How far the arena is, or null when it has no published position.</summary>
+    public required double? DistanceKm { get; init; }
+
+    public string DistanceLabel => Format.Distance(DistanceKm);
+
+    /// <summary>
+    /// The em dash the column shows is read as "dash", or as nothing at all. A reader hearing the
+    /// row as one sentence needs the words.
+    /// </summary>
+    private string SpokenDistance => DistanceKm is null ? "avstånd okänt" : DistanceLabel;
 
     /// <summary>The discipline's mark, and the name the style picks its colour by.</summary>
     /// <remarks>
@@ -133,7 +143,7 @@ public sealed partial class EventCard : ObservableObject
     {
         get
         {
-            var parts = new List<string> { SpokenDate, Title, PlaceLabel, MetaLabel, DistanceLabel };
+            var parts = new List<string> { SpokenDate, Title, PlaceLabel, MetaLabel, SpokenDistance };
 
             if (HasSpan)
                 parts.Add(SpanLabel);

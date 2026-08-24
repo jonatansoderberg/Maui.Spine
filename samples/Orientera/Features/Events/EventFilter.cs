@@ -139,8 +139,13 @@ public sealed record EventFilter
         if (Disciplines.Count > 0 && !Disciplines.Contains(competition.Discipline))
             return false;
 
-        if (MaxDistanceKm is { } maxDistance && me.Home.DistanceKmTo(competition.Location) > maxDistance)
+        // A radius is a claim about where something is. An arena with no published position
+        // cannot be inside one, so asking for a radius excludes it rather than guessing.
+        if (MaxDistanceKm is { } maxDistance
+            && (competition.DistanceFrom(me.Home) is not { } distance || distance > maxDistance))
+        {
             return false;
+        }
 
         if (OnlyMyClass && competition.Classes.Count > 0 && !competition.Classes.Contains(me.DefaultClass))
             return false;
