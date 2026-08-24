@@ -13,65 +13,72 @@
             inte viker sig för BackgroundColor, och en svart platta över appens yta är inte designen.
         -->
         <Entry Grid.Row="0"
-               Margin="16,0,16,8"
+               Margin="16,6,16,10"
                ClearButtonVisibility="WhileEditing"
                ReturnType="Search"
                Placeholder="Sök tävling, arrangör eller plats"
                SemanticProperties.Description="Sök bland tävlingar på namn, arrangör eller plats"
                Text="{Binding Query}" />
 
-        <!-- Snabbfilter: en rad, horisontellt scrollbar, vald chip = accentfyllning -->
-        <ScrollView Grid.Row="1"
-                    Orientation="Horizontal"
-                    HorizontalScrollBarVisibility="Never"
-                    Padding="16,4,16,10">
-            <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Chips}">
-                <BindableLayout.ItemTemplate>
-                    <DataTemplate x:DataType="FilterChip">
-                        <ChipView Text="{Binding Label}"
-                                  IsSelected="{Binding IsSelected}"
-                                  Command="{Binding Source={RelativeSource AncestorType={x:Type HorizontalStackLayout}}, Path=BindingContext.SelectChipCommand}"
-                                  CommandParameter="{Binding .}" />
-                    </DataTemplate>
-                </BindableLayout.ItemTemplate>
-            </HorizontalStackLayout>
-        </ScrollView>
+        <!--
+            Snabbfilter, radbrutna. Åtta chips i en vågrät rullning betyder att "Tidigare" och
+            "Intresserad" ligger bakom en gest ingen gör; radbrutna syns alla på en gång och
+            kostar en rad extra. Kompakta, för att den raden ska bli så billig som möjligt.
+        -->
+        <WrapLayout Grid.Row="1"
+                    Padding="16,0,16,10"
+                    Spacing="8" LineSpacing="8"
+                    BindableLayout.ItemsSource="{Binding Chips}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="FilterChip">
+                    <ChipView IsCompact="True"
+                              Text="{Binding Label}"
+                              IsSelected="{Binding IsSelected}"
+                              Command="{Binding Source={RelativeSource AncestorType={x:Type WrapLayout}}, Path=BindingContext.SelectChipCommand}"
+                              CommandParameter="{Binding .}" />
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </WrapLayout>
 
         <!--
             Aktiva filter: vad arket har smalnat av med, ett borttagbart chip i taget. Ritas bara
             när något är satt — "Filter (3)" säger antalet men inte vilka, och en kort lista utan
             synlig orsak läses som en trasig kalender.
         -->
-        <ScrollView Grid.Row="2"
-                    Orientation="Horizontal"
-                    HorizontalScrollBarVisibility="Never"
-                    Padding="16,0,16,10"
-                    IsVisible="{Binding HasActiveFacets}">
-            <HorizontalStackLayout Spacing="8">
-                <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding ActiveFacets}">
-                    <BindableLayout.ItemTemplate>
-                        <DataTemplate x:DataType="FilterFacet">
-                            <Border Style="{StaticResource Chip}"
-                                    SemanticProperties.Description="{Binding Accessibility}">
-                                <HorizontalStackLayout Spacing="6">
-                                    <Label Style="{StaticResource ChipLabel}" Text="{Binding Label}" />
-                                    <Label Style="{StaticResource ChipLabel}"
-                                           TextColor="{DynamicResource TextSecondary}"
-                                           Text="✕" />
-                                </HorizontalStackLayout>
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer
-                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.RemoveFacetCommand}"
-                                        CommandParameter="{Binding .}" />
-                                </Border.GestureRecognizers>
-                            </Border>
-                        </DataTemplate>
-                    </BindableLayout.ItemTemplate>
-                </HorizontalStackLayout>
+        <Grid Grid.Row="2"
+              ColumnDefinitions="*,Auto" ColumnSpacing="8"
+              Padding="16,0,16,10"
+              IsVisible="{Binding HasActiveFacets}">
 
-                <ChipView Text="Rensa" Command="{Binding ClearFacetsCommand}" />
-            </HorizontalStackLayout>
-        </ScrollView>
+            <WrapLayout Spacing="8" LineSpacing="8"
+                        BindableLayout.ItemsSource="{Binding ActiveFacets}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="FilterFacet">
+                        <Border Style="{StaticResource ChipCompact}"
+                                SemanticProperties.Description="{Binding Accessibility}">
+                            <HorizontalStackLayout Spacing="6">
+                                <Label Style="{StaticResource ChipLabel}" Text="{Binding Label}" />
+                                <Label Style="{StaticResource ChipLabel}"
+                                       TextColor="{DynamicResource TextSecondary}"
+                                       Text="✕" />
+                            </HorizontalStackLayout>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type Grid}}, Path=BindingContext.RemoveFacetCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </WrapLayout>
+
+            <!-- Står kvar uppe till höger när fasetterna radbryts under den. -->
+            <ChipView Grid.Column="1"
+                      IsCompact="True"
+                      VerticalOptions="Start"
+                      Text="Rensa"
+                      Command="{Binding ClearFacetsCommand}" />
+        </Grid>
 
         <!-- Tomt läge är ett designat läge, inte en spinner -->
         <VerticalStackLayout Grid.Row="3"
