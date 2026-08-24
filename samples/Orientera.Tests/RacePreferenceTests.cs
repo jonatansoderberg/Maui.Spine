@@ -1,3 +1,4 @@
+using Orientera.Presentation;
 using Orientera.Services.Local;
 using Orientera.Services.Relevance;
 
@@ -109,5 +110,83 @@ public class RacePreferenceTests
     {
         Assert.Equal(0.0, RelevanceEngine.PreferenceScore(
             Competition(Sport.Foot, Discipline.Relay), Context()));
+    }
+
+    /// <summary>
+    /// The two axes do not multiply out. Indoor has no ultralong and no relay — Eventor calls
+    /// every indoor race a sprint because there is nothing else to call it.
+    /// </summary>
+    [Fact]
+    public void Only_the_distances_a_sport_actually_races_are_offered()
+    {
+        Assert.Equal(6, SportDistances.For(Sport.Foot).Count);
+
+        Assert.Equal(
+            [Discipline.Sprint, Discipline.Middle, Discipline.Long, Discipline.Relay],
+            SportDistances.For(Sport.MountainBike));
+
+        Assert.Equal(SportDistances.For(Sport.MountainBike), SportDistances.For(Sport.Ski));
+
+        Assert.Empty(SportDistances.For(Sport.Indoor));
+        Assert.Empty(SportDistances.For(Sport.PreO));
+        Assert.Empty(SportDistances.For(Sport.Shooting));
+
+        Assert.True(SportDistances.HasDistances(Sport.Foot));
+        Assert.False(SportDistances.HasDistances(Sport.Indoor));
+    }
+
+    /// <summary>
+    /// A favourite with no distance is the sport itself. "Indoor" has to match the indoor race
+    /// whatever Eventor happened to classify its distance as.
+    /// </summary>
+    [Fact]
+    public void A_sport_without_distances_is_the_whole_preference()
+    {
+        var context = Context(new RacePreference(Sport.Indoor));
+
+        Assert.Equal(1.0, RelevanceEngine.PreferenceScore(Competition(Sport.Indoor, Discipline.Sprint), context));
+        Assert.Equal(1.0, RelevanceEngine.PreferenceScore(Competition(Sport.Indoor, Discipline.Middle), context));
+
+        // And it says nothing about racing outdoors.
+        Assert.Equal(0.0, RelevanceEngine.PreferenceScore(Competition(Sport.Foot, Discipline.Sprint), context));
+    }
+
+    [Fact]
+    public void A_kind_of_race_reads_as_a_runner_would_say_it()
+    {
+        Assert.Equal("Medel", Format.RacePreference(new RacePreference(Sport.Foot, Discipline.Middle)));
+        Assert.Equal("MTBO lång", Format.RacePreference(new RacePreference(Sport.MountainBike, Discipline.Long)));
+        Assert.Equal("Indoor", Format.RacePreference(new RacePreference(Sport.Indoor)));
+    }
+
+    /// <summary>
+    /// Answers written before indoor was known to have no distances. Left as they were they
+    /// would sit on the list with no chip to take them off with.
+    /// </summary>
+    [Fact]
+    public void An_old_answer_is_read_the_way_this_version_means_it()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+
+        File.WriteAllText(path, """
+            {"sports":["Foot","Indoor"],
+             "favourites":[{"sport":"Indoor","discipline":"Sprint"},
+                           {"sport":"Indoor","discipline":"Middle"},
+                           {"sport":"Foot","discipline":"Long"}]}
+            """);
+
+        try
+        {
+            var loaded = new RacePreferenceStore(path).Load();
+
+            // The two indoor answers were the same answer all along, and it keeps the first place.
+            Assert.Equal(
+                [new RacePreference(Sport.Indoor), new RacePreference(Sport.Foot, Discipline.Long)],
+                loaded.Favourites);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }

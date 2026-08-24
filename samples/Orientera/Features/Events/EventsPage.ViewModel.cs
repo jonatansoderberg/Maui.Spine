@@ -282,7 +282,9 @@ public partial class EventsPageViewModel(
                 PlaceLabel = $"{competition.Organiser} · {competition.Place}",
                 OrganiserLogo = competition.OrganiserLogo,
                 SportLabel = Format.Sport(competition.Sport),
-                DisciplineLabel = Format.Discipline(competition.Discipline),
+                DisciplineLabel = SportDistances.HasDistances(competition.Sport)
+                    ? Format.Discipline(competition.Discipline)
+                    : string.Empty,
                 LevelLabel = Format.Level(competition.Level),
                 LevelShape = DisciplineShape.For(competition.Level),
                 DisciplineShape = DisciplineShape.For(competition.Discipline),
@@ -475,7 +477,11 @@ public partial class EventsPageViewModel(
             PlaceLabel = $"{eventGroup.Organiser} · {eventGroup.Place}",
             OrganiserLogo = primary.OrganiserLogo,
             SportLabel = Format.Sport(eventGroup.Sport),
-            DisciplineLabel = Format.Discipline(eventGroup.Discipline),
+            // Indoor has no distances, so "Indoor · Sprint" is the same word twice: Eventor
+            // classifies every indoor race as a sprint because there is nothing else to call it.
+            DisciplineLabel = SportDistances.HasDistances(eventGroup.Sport)
+                ? Format.Discipline(eventGroup.Discipline)
+                : string.Empty,
             LevelLabel = Format.Level(eventGroup.Level),
             LevelShape = DisciplineShape.For(eventGroup.Level),
             DisciplineShape = DisciplineShape.For(eventGroup.Discipline),

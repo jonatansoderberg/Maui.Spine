@@ -278,11 +278,7 @@ public partial class ProfilePageViewModel(
 
         FavouritesText = preferences.Favourites.Count == 0
             ? "Ingen favoritform vald"
-            : "Helst: " + string.Join(", ", preferences.Favourites
-                .Take(3)
-                .Select(f => f.Sport == Sport.Foot
-                    ? Format.Discipline(f.Discipline)
-                    : $"{Format.Sport(f.Sport)} {Format.Discipline(f.Discipline).ToLower(Format.Culture)}"));
+            : "Helst: " + string.Join(", ", preferences.Favourites.Take(3).Select(Format.RacePreference));
     }
 
     [RelayCommand]

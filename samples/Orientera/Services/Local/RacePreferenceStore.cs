@@ -39,6 +39,17 @@ public sealed record RacePreferences(
 /// </remarks>
 public sealed class RacePreferenceStore(string _path)
 {
+    /// <summary>
+    /// The file's own shape, in types the serializer can build.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="RacePreferences"/> exposes <c>IReadOnlySet</c> because that is what a caller
+    /// should get, and <c>System.Text.Json</c> cannot instantiate one: reading the file straight
+    /// into the record threw <c>NotSupportedException</c> on the first cold start after anything
+    /// had been saved — past the catch, and on the launch path.
+    /// </remarks>
+    private sealed record Stored(HashSet<Sport> Sports, List<RacePreference> Favourites);
+
     private RacePreferences? _preferences;
 
     public RacePreferences Load()
@@ -49,8 +60,9 @@ public sealed class RacePreferenceStore(string _path)
         try
         {
             _preferences = File.Exists(_path)
-                ? JsonSerializer.Deserialize<RacePreferences>(File.ReadAllText(_path), OrienteraJson.Options)
-                  ?? RacePreferences.None
+                && JsonSerializer.Deserialize<Stored>(File.ReadAllText(_path), OrienteraJson.Options)
+                   is { } stored
+                ? new RacePreferences(stored.Sports, stored.Favourites)
                 : RacePreferences.None;
         }
         catch (Exception exception) when (exception is IOException or JsonException)
@@ -58,7 +70,39 @@ public sealed class RacePreferenceStore(string _path)
             _preferences = RacePreferences.None;
         }
 
+        _preferences = Normalised(_preferences);
+
         return _preferences;
+    }
+
+    /// <summary>
+    /// Old answers, read the way this version means them.
+    /// </summary>
+    /// <remarks>
+    /// A favourite saved as "Indoor sprint" before indoor was known to have no distances is
+    /// simply "Indoor" now. Left alone it would sit on the list and be impossible to take off —
+    /// the grid it would have to be tapped out of no longer offers it — and the first tap on any
+    /// other chip would have deleted it without a word. Duplicates that collapse into the same
+    /// answer keep the earliest place, because that is the one the reader arranged.
+    /// </remarks>
+    private static RacePreferences Normalised(RacePreferences preferences)
+    {
+        var favourites = new List<RacePreference>();
+
+        foreach (var favourite in preferences.Favourites)
+        {
+            var settled = SportDistances.HasDistances(favourite.Sport)
+                ? favourite
+                : new RacePreference(favourite.Sport);
+
+            if (!favourites.Contains(settled))
+                favourites.Add(settled);
+        }
+
+        return favourites.Count == preferences.Favourites.Count
+               && favourites.SequenceEqual(preferences.Favourites)
+            ? preferences
+            : preferences with { Favourites = favourites };
     }
 
     public void Save(RacePreferences preferences)
@@ -67,7 +111,9 @@ public sealed class RacePreferenceStore(string _path)
 
         try
         {
-            File.WriteAllText(_path, JsonSerializer.Serialize(preferences, OrienteraJson.Options));
+            var stored = new Stored([.. preferences.Sports], [.. preferences.Favourites]);
+
+            File.WriteAllText(_path, JsonSerializer.Serialize(stored, OrienteraJson.Options));
         }
         catch (IOException)
         {

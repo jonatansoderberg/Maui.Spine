@@ -140,37 +140,31 @@ public partial class RacePreferenceSheetViewModel(
 
         foreach (var sport in sports)
         {
-            foreach (var discipline in Enum.GetValues<Discipline>())
+            // A sport with no distances is the whole choice on its own. Indoor has no ultralong
+            // and no relay, and offering them made six chips that describe nothing.
+            var distances = SportDistances.For(sport);
+
+            if (distances.Count == 0)
             {
-                var preference = new RacePreference(sport, discipline);
-
-                PairGroup.Add(
-                    Label(preference, sports.Count > 1),
-                    preference,
-                    Favourites.Any(r => r.Preference == preference));
+                Add(new RacePreference(sport));
+                continue;
             }
+
+            foreach (var distance in distances)
+                Add(new RacePreference(sport, distance));
         }
-    }
 
-    /// <summary>
-    /// "Medel" where there is only one sport to confuse it with, "Indoor sprint" where there is
-    /// more than one. The word for a race is its distance; the sport is what has to be said only
-    /// when it is in question.
-    /// </summary>
-    private static string Label(RacePreference preference, bool withSport)
-    {
-        string distance = Format.Discipline(preference.Discipline);
-
-        if (!withSport || preference.Sport == Sport.Foot)
-            return distance;
-
-        return $"{Format.Sport(preference.Sport)} {distance.ToLower(Format.Culture)}";
+        void Add(RacePreference preference) =>
+            PairGroup.Add(
+                Format.RacePreference(preference),
+                preference,
+                Favourites.Any(r => r.Preference == preference));
     }
 
     private FavouriteRow Row(RacePreference preference) => new()
     {
         Preference = preference,
-        Label = Label(preference, withSport: true),
+        Label = Format.RacePreference(preference),
     };
 
     private void Renumber()

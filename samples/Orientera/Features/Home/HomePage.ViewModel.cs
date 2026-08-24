@@ -99,6 +99,10 @@ public partial class HomePageViewModel(
             if (choice is { IsSuccess: true, Value.WantsLogin: true })
                 await _navigation.NavigateToWithResultAsync<AppLoginSheet, EventorWebSession>();
 
+            // Efter inloggningen, för då vet frågan vem som svarar — och före första listan, så att
+            // en MTBO-åkare aldrig ser en kalender som saknar deras tävlingar utan att veta varför.
+            await _navigation.NavigateToAsync<SportChoiceSheet>();
+
             await ReloadAsync();
         });
     }

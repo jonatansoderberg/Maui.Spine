@@ -114,16 +114,22 @@ public static class RelevanceEngine
     /// </remarks>
     public static double PreferenceScore(Competition competition, RelevanceContext context)
     {
-        var wanted = new RacePreference(competition.Sport, competition.Discipline);
-
         for (int i = 0; i < context.Favourites.Count; i++)
         {
-            if (context.Favourites[i] == wanted)
+            if (Matches(context.Favourites[i], competition))
                 return 1.0 / (1.0 + i);
         }
 
         return 0.0;
     }
+
+    /// <summary>
+    /// A favourite with no distance is the sport itself, and matches every race in it — which is
+    /// the only thing "Indoor" can mean, since indoor races have no distances to choose between.
+    /// </summary>
+    private static bool Matches(RacePreference favourite, Competition competition) =>
+        favourite.Sport == competition.Sport
+        && (favourite.Discipline is not { } distance || distance == competition.Discipline);
 
     /// <summary>
     /// How precisely relevance is worth believing.

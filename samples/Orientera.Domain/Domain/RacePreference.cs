@@ -8,4 +8,8 @@ namespace Orientera.Domain;
 /// wants. Someone who likes indoor sprints has said nothing about sprints in a forest, and two
 /// separate lists would have given them both.
 /// </remarks>
-public readonly record struct RacePreference(Sport Sport, Discipline Discipline);
+/// <param name="Discipline">
+/// Null where the sport does not race distances — indoor, trail-O, orienteering shooting. There
+/// the sport is the whole preference, and a null matches every race in it.
+/// </param>
+public readonly record struct RacePreference(Sport Sport, Discipline? Discipline = null);

@@ -64,17 +64,20 @@ public sealed partial class EventCard : ObservableObject
     /// beside the mark and the title already opens with "DM". A screen reader has neither the
     /// cup in view nor the chips, so it hears the level on every row.
     /// </remarks>
-    public string MetaLabel => SportLabel.Length > 0
-        ? $"{SportLabel} · {DisciplineLabel} · {LevelLabel}"
-        : $"{DisciplineLabel} · {LevelLabel}";
+    public string MetaLabel => Join(SportLabel, DisciplineLabel, LevelLabel);
 
     /// <summary>
     /// The row's second line: the sport where it is not the obvious one, the discipline as a
     /// word, then who and where. "MTBO · Sprint · OK Kåre" against "Sprint · OK Kåre".
     /// </summary>
-    public string MetaLine => SportLabel.Length > 0
-        ? $"{SportLabel} · {DisciplineLabel} · {PlaceLabel}"
-        : $"{DisciplineLabel} · {PlaceLabel}";
+    public string MetaLine => Join(SportLabel, DisciplineLabel, PlaceLabel);
+
+    /// <summary>
+    /// The parts that have something to say. Both the sport and the distance can be silent — the
+    /// sport when it is the one nine rows in ten are, the distance when the sport has none.
+    /// </summary>
+    private static string Join(params string[] parts) =>
+        string.Join(" · ", parts.Where(p => p.Length > 0));
 
     /// <summary>How far the arena is, or null when it has no published position.</summary>
     public required double? DistanceKm { get; init; }

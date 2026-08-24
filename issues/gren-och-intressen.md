@@ -2,7 +2,7 @@
 
 **GitHub:** _issue ej skapad än_
 **Branch:** issue/okand-arena (staplad)
-**Status:** Steg 1 och 2 klara. Onboarding-steget kvar.
+**Status:** Completed
 
 ## Problemet
 
@@ -171,8 +171,37 @@ gälla.
 **Arket sparar medan man väljer.** Det finns ingen "spara": varje tryck är redan svaret, och
 "Klar" stänger bara.
 
-## Kvar
+## Changes — steg 3: giltiga kombinationer och onboarding
 
-- **Onboarding:** ett steg "Vilka grenar håller du på med?" med OL förkryssat, så att den som
-  cyklar aldrig blir av med sina tävlingar utan att ha sagt något. Vägen in för den som redan kört
-  appen finns nu — kortet under Jag.
+- `SportDistances.For(sport)` i domänen. De två axlarna multipliceras inte ut: indoor har ingen
+  ultralång och ingen stafett, MTBO och skid-O kör sprint, medel, lång och stafett, och PreO och
+  orienteringsskytte har distanser (PreO, TempO) som den här appen inte modellerar alls.
+- `RacePreference.Discipline` blev `Discipline?`. En gren utan distanser **är** hela valet, och
+  ett null matchar varje lopp i grenen.
+- Rutnätet erbjuder bara det som finns: sju val för OL + Indoor i stället för tolv, fyra för MTBO
+  i stället för sex.
+- `Format.RacePreference` — en enda etikettregel, använd av arket, listan och kortet under Jag.
+- Radens metarad skriver inte längre ut distansen för en gren som saknar sådana: "Indoor · Gävle
+  OK", inte "Indoor · Sprint · Gävle OK". Eventor kallar varje inomhuslopp en sprint för att det
+  inte finns något annat att kalla det.
+- **Onboarding:** `SportChoiceSheet` efter välkomstarket, med orienteringslöpning förkryssat.
+- `RacePreferenceStore.Load` normaliserar gamla svar: en sparad "Indoor sprint" läses som
+  "Indoor" och behåller sin plats i listan.
+
+## Decisions — steg 3
+
+**Tabellen är avsiktligt snäv, och styr bara vad som går att *välja*.** En natt-MTBO är sällsynt i
+Sverige och erbjuds inte som favoritform; publiceras en så syns den ändå i listan, den kan bara
+inte vara någons favorit. Listan är lätt att utöka den dagen det visar sig behövas.
+
+**Gamla svar migreras vid inläsning, inte vid nästa tryck.** En favorit sparad som "Indoor sprint"
+hade annars legat kvar i listan utan något chip att ta bort den med — och första trycket på vilket
+annat chip som helst hade raderat den utan ett ord.
+
+**`IReadOnlySet` går inte att avserialisera.** Testet av migreringen var det som visade det:
+`System.Text.Json` kan inte instansiera gränssnittet, så inläsningen kastade
+`NotSupportedException` — förbi fångsten, på uppstartsvägen — vid första kallstarten efter att
+något sparats. Filen läses nu genom en egen `Stored`-form med typer serialiseraren kan bygga.
+
+**Onboarding-steget respekterar ett redan givet svar.** Det förkryssar orienteringslöpning bara
+när ingenting är sparat sedan tidigare; annars visar det vad som redan står.

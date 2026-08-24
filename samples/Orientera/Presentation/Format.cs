@@ -253,6 +253,26 @@ public static class Format
     public static string SportOrDefault(Sport sport) =>
         sport == Domain.Sport.Foot ? "Orienteringslöpning" : Sport(sport);
 
+    /// <summary>
+    /// A kind of race in the words a runner would use: "Medel", "MTBO lång", "Indoor".
+    /// </summary>
+    /// <remarks>
+    /// The distance is the word, and the sport is said only when it is in question — foot
+    /// orienteering is what a race is unless stated. A sport with no distances is the whole
+    /// answer on its own.
+    /// </remarks>
+    public static string RacePreference(RacePreference preference)
+    {
+        if (preference.Discipline is not { } distance)
+            return SportOrDefault(preference.Sport);
+
+        string word = Discipline(distance);
+
+        return preference.Sport == Domain.Sport.Foot
+            ? word
+            : $"{Sport(preference.Sport)} {word.ToLower(Sv)}";
+    }
+
     public static string Level(CompetitionLevel level) => level switch
     {
         CompetitionLevel.International => "Internationell",
