@@ -144,7 +144,9 @@ public partial class HomePageViewModel(
         var today = DateOnly.FromDateTime(now.Date);
         var me = await _people.GetMeAsync();
 
-        Greeting = $"Hej {me.Name.Split(' ')[0]}";
+        // Klockan från _clock, inte systemet: tidsmaskinen under Jag flyttar hela appens dygn,
+        // och en hälsning som stod kvar på "God morgon" hade varit det enda som inte följde med.
+        Greeting = $"{Format.Salutation(now)} {me.Name.Split(' ')[0]}";
         TodayText = now.ToString("dddd d MMMM");
 
         var competitions = await _events.GetCompetitionsAsync();

@@ -120,6 +120,25 @@ public static class Format
 
     public static string Clock(DateTimeOffset instant) => instant.ToString("HH:mm", Sv);
 
+    /// <summary>
+    /// How to say hello at this hour: "God morgon", "Hej", "God kväll".
+    /// </summary>
+    /// <remarks>
+    /// Morning starts at four. An orienteer up at half past four is not up early by accident —
+    /// they are driving to a start — and being greeted with "Hej" at that hour reads as an app
+    /// that has not noticed.
+    /// <para>
+    /// The small hours get the neutral word rather than "God natt", which is a goodbye and not a
+    /// greeting, and would be exactly wrong said to somebody on their way to a night race.
+    /// </para>
+    /// </remarks>
+    public static string Salutation(DateTimeOffset instant) => instant.Hour switch
+    {
+        >= 4 and < 10 => "God morgon",
+        >= 17 and < 23 => "God kväll",
+        _ => "Hej",
+    };
+
     /// <summary>"idag", "imorgon", "lör 15 aug" — dates as a person would say them.</summary>
     public static string RelativeDate(DateOnly date, DateOnly today)
     {
