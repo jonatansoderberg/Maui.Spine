@@ -48,6 +48,14 @@ monterad i `Application.Resources`. **Konsumera alltid tokens med `{DynamicResou
 | `HeroScrim` | `#B3000000` | `#CC000000` | Gradientens nedre stopp under hero — dekor |
 | `SkeletonBase` | `#ECECE8` | `#262A2E` | Skelettrader — dekor |
 | `AvatarBackground` | `#E6EDE9` | `#2A322D` | Platsen bakom profilbild och klubbmärke |
+| `SurfaceLive` | `#10553A` | `#0E4632` | Live-kortets yta — mörk i **båda** teman |
+| `TextOnDark` | `#FFFFFF` | `#EAF3EE` | Text på mörk yta: live-kortet och hjältefotot |
+| `TextOnDarkMuted` | `#C8E6D5` | `#B7D8C6` | Sekundär text på samma ytor |
+| `SurfaceLiveAction` | `#FFFFFF` | `#EAF3EE` | Knappen på live-kortet |
+| `TextOnLiveAction` | `#0F4D34` | `#0B3A28` | Knappens text |
+| `SignalOnDark` | `#FF7A33` | `#FF7A33` | Live-märket på grönt — **samma i båda teman** |
+| `TextOnSignalDark` | `#1A1208` | `#1A1208` | Märkets text — **samma i båda teman** |
+| `TopoInk` | `#33FFFFFF` | `#29FFFFFF` | Banmärket i live-kortets bakgrund — dekor |
 | `BrandTint` | `#2E8B57` | `#2E8B57` | Tabbtint, appikon, splash — **samma i båda teman** |
 | `Primary` / `PrimaryDark` | `#1B5E3F` / `#58C99A` | samma par | Läses av Spines `PageActionView`; båda deklareras i båda teman |
 
@@ -135,12 +143,23 @@ med den gröna paletten ommätt 2026-08-17:
 | `EstimateInk` on `SurfaceCard` | 5.82 | 6.30 |
 | `LinkInk` on `SurfaceCard` | 6.70 | 7.75 |
 | `TextPrimary` on `AvatarBackground` | 14.22 | 11.87 |
+| `TextOnDark` on `SurfaceLive` | 8.81 | 9.56 |
+| `TextOnDarkMuted` on `SurfaceLive` | 6.60 | 7.03 |
+| `TextOnLiveAction` on `SurfaceLiveAction` | 9.85 | 11.24 |
+| `TextOnSignalDark` on `SignalOnDark` | 7.13 | 7.13 |
+| `SignalOnDark` mot `SurfaceLive` (yta mot yta) | 3.39 | 4.17 |
 
 PM-märket var det svagaste paret i mörkt läge (`AccentAction` på `AccentSubtle`, testkörningens
 fynd på designsystemsidan). Med den gröna paletten går det från 5.28 till 6.94 — problemet
 försvinner med bytet i stället för att behöva en egen justering.
 
-`HeroScrim`, `SkeletonBase` och `MapInk` är dekor och bär aldrig text. Skelettraderna ligger
+Live-märket är den andra färgen som inte kan byta med temat, av samma skäl som `BrandTint`: ytan
+under den är grön i båda teman. Ljusa temats `SignalUrgent` (`#C2410C`) ger 1.70:1 mot
+`SurfaceLive` och försvinner i kortet; mörka temats nyans klarar 3:1 mot båda gröna och används
+därför i båda. Det är fortfarande SignalUrgents första tillåtna användning — live pågår — och inte
+en fjärde.
+
+`HeroScrim`, `SkeletonBase`, `TopoInk` och `MapInk` är dekor och bär aldrig text. Skelettraderna ligger
 avsiktligt nära kortytan (1.18 / 1.16) — de är platshållare, inte innehåll.
 
 `MapInk` är undantaget: den är en dekorativ texturton (höjdkurvemönster bakom hero och

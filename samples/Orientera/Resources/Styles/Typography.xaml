@@ -25,6 +25,12 @@
     <x:String x:Key="FontHeader">BrandonGrotesqueBlack</x:String>
 
     <!-- Scale -->
+    <!--
+        Ett steg över Display, och bara till hälsningen på Hem. Brandon Grotesque Black sätts på
+        sin versalhöjd och läser mindre än Inter vid samma punktstorlek; på 28 blev hälsningen
+        mindre än den DisplayLabel den ersatte, trots tyngre skärning.
+    -->
+    <x:Double x:Key="SizeHero">34</x:Double>
     <x:Double x:Key="SizeDisplay">28</x:Double>
     <x:Double x:Key="SizeH1">22</x:Double>
     <x:Double x:Key="SizeH2">17</x:Double>
@@ -152,6 +158,60 @@
         <Setter Property="TextTransform" Value="Uppercase" />
         <Setter Property="CharacterSpacing" Value="1.4" />
         <Setter Property="VerticalTextAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        Hälsningen på Hem, ovanpå fotot. Rubrikfonten, samma skärning som sidornas och arkens
+        rubriker bär (beslut D16) — hälsningen *är* sidans rubrik. Till skillnad från
+        HeaderBarTitle inte versal och nästan utan knipning: den stilen är versal för att en
+        rubrikrad är en etikett, och en hälsning som skriks i versaler är ingen hälsning.
+
+        TextOnDark, inte TextPrimary: ytan under är ett fotografi med en gradient över, lika mörk
+        i båda temana.
+    -->
+    <Style x:Key="HeroGreetingLabel" TargetType="Label">
+        <Setter Property="SemanticProperties.HeadingLevel" Value="Level1" />
+        <Setter Property="FontFamily" Value="{StaticResource FontHeader}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeHero}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextOnDark}" />
+        <Setter Property="CharacterSpacing" Value="0.4" />
+        <Setter Property="LineHeight" Value="1.05" />
+    </Style>
+
+    <!-- Datumet och vädret under hälsningen, på samma foto. -->
+    <Style x:Key="HeroMetaLabel" TargetType="Label" BasedOn="{StaticResource BodyLabel}">
+        <Setter Property="TextColor" Value="{DynamicResource TextOnDarkMuted}" />
+    </Style>
+
+    <!--
+        Handlingen till höger om en sektionsrubrik: "Visa kalender", "Se alla". En länk och inte
+        en knapp — den byter vy, den utför inget, och en andra knapp bredvid varje rubrik hade
+        gjort sidans enda primära CTA till en av åtta (§2.2).
+    -->
+    <Style x:Key="LinkActionLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeCaption}" />
+        <Setter Property="TextColor" Value="{DynamicResource AccentAction}" />
+        <Setter Property="VerticalOptions" Value="Center" />
+    </Style>
+
+    <!--
+        Nyckeltalen i en StatRow: värdet över, vad det är under. Värdet i H1-storlek snarare än
+        Display — tre tal bredvid varandra i Display blir tre rubriker, och raden ska läsas som
+        en enhet. Etiketten i gemener och inte MicroLabel: "Placering" är ett ord under ett tal,
+        inte en avdelare i en lista.
+    -->
+    <Style x:Key="StatValueLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontNumericSemiBold}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeH1}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="LineHeight" Value="1.15" />
+    </Style>
+
+    <Style x:Key="StatCaptionLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontRegular}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeMicro}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
     </Style>
 
     <!-- Section label — "LIVE NU", "SENASTE RESULTAT". Structure without heading weight. -->
