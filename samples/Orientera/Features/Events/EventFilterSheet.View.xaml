@@ -76,6 +76,26 @@
 
                 <BoxView Style="{StaticResource Divider}" />
 
+                <!--
+                    Grenen är en egen axel, inte ett av distansens värden. "Sprint" svarar på hur
+                    långt; "MTBO" på vad man tar sig fram med.
+                -->
+                <FilterSection Title="Gren" Summary="{Binding SportGroup.Summary}">
+                    <WrapLayout Spacing="8" LineSpacing="8"
+                                BindableLayout.ItemsSource="{Binding SportGroup.Options}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="FilterOption">
+                                <ChipView IsCompact="True"
+                                          Text="{Binding Label}"
+                                          IsSelected="{Binding IsSelected}"
+                                          Command="{Binding ToggleCommand}" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </WrapLayout>
+                </FilterSection>
+
+                <BoxView Style="{StaticResource Divider}" />
+
                 <FilterSection Title="Disciplin" Summary="{Binding DisciplineGroup.Summary}">
                     <WrapLayout Spacing="8" LineSpacing="8"
                                 BindableLayout.ItemsSource="{Binding DisciplineGroup.Options}">

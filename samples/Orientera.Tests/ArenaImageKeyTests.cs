@@ -6,7 +6,10 @@ namespace Orientera.Tests;
 
 public class ArenaImageKeyTests
 {
-    private static Competition At(DateTimeOffset start, Discipline discipline = Discipline.Middle) => new()
+    private static Competition At(
+        DateTimeOffset start,
+        Discipline discipline = Discipline.Middle,
+        Sport sport = Sport.Foot) => new()
     {
         Id = new CompetitionId("59691"),
         Name = "Trimtex Cup #4",
@@ -15,6 +18,7 @@ public class ArenaImageKeyTests
         Place = "Valbo",
         Location = new GeoPoint(60.6032, 16.9686),
         Discipline = discipline,
+        Sport = sport,
         Level = CompetitionLevel.Local,
         FirstStart = start,
         LastFinish = start.AddHours(2),
@@ -42,11 +46,12 @@ public class ArenaImageKeyTests
         Assert.NotEqual(day.BlobName, night.BlobName);
     }
 
+    /// <summary>Indoor is a sport now, and the arena picture reads it from there.</summary>
     [Fact]
     public void Indoor_has_no_season_because_it_has_no_terrain() =>
         Assert.Equal(ArenaSeason.Inomhus,
             ArenaImageKey.For(At(new DateTimeOffset(2026, 11, 14, 10, 0, 0, TimeSpan.Zero),
-                                 Discipline.Indoor), 1).Season);
+                                 sport: Sport.Indoor), 1).Season);
 
     /// <summary>
     /// Utan klockslag står FirstStart vid midnatt och solen under horisonten — en dagtävling

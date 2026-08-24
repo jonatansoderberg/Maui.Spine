@@ -245,9 +245,6 @@
             <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="Relay">
                 <Setter Property="Stroke" Value="{DynamicResource DisciplineRelay}" />
             </DataTrigger>
-            <DataTrigger TargetType="Path" Binding="{Binding DisciplineKey}" Value="Indoor">
-                <Setter Property="Stroke" Value="{DynamicResource DisciplineIndoor}" />
-            </DataTrigger>
         </Style.Triggers>
     </Style>
 

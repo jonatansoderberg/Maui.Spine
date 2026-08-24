@@ -30,7 +30,7 @@ public readonly record struct ArenaImageKey(
 
     public static ArenaImageKey For(Competition competition, int version) =>
         new(competition.Id.Value,
-            competition.Discipline == Discipline.Indoor
+            competition.Sport == Sport.Indoor
                 ? ArenaSeason.Inomhus
                 : SeasonOf(competition.FirstStart),
             competition.Discipline == Discipline.Night,

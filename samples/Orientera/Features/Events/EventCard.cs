@@ -50,6 +50,9 @@ public sealed partial class EventCard : ObservableObject
     public string? OrganiserLogo { get; init; }
 
     public bool HasOrganiserLogo => !string.IsNullOrEmpty(OrganiserLogo);
+    /// <summary>The sport, or empty for orienteering on foot — which is what a row is by default.</summary>
+    public required string SportLabel { get; init; }
+
     public required string DisciplineLabel { get; init; }
 
     public required string LevelLabel { get; init; }
@@ -61,10 +64,17 @@ public sealed partial class EventCard : ObservableObject
     /// beside the mark and the title already opens with "DM". A screen reader has neither the
     /// cup in view nor the chips, so it hears the level on every row.
     /// </remarks>
-    public string MetaLabel => $"{DisciplineLabel} · {LevelLabel}";
+    public string MetaLabel => SportLabel.Length > 0
+        ? $"{SportLabel} · {DisciplineLabel} · {LevelLabel}"
+        : $"{DisciplineLabel} · {LevelLabel}";
 
-    /// <summary>The row's second line: the discipline as a word, then who and where.</summary>
-    public string MetaLine => $"{DisciplineLabel} · {PlaceLabel}";
+    /// <summary>
+    /// The row's second line: the sport where it is not the obvious one, the discipline as a
+    /// word, then who and where. "MTBO · Sprint · OK Kåre" against "Sprint · OK Kåre".
+    /// </summary>
+    public string MetaLine => SportLabel.Length > 0
+        ? $"{SportLabel} · {DisciplineLabel} · {PlaceLabel}"
+        : $"{DisciplineLabel} · {PlaceLabel}";
 
     /// <summary>How far the arena is, or null when it has no published position.</summary>
     public required double? DistanceKm { get; init; }

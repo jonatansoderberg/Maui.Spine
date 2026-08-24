@@ -130,6 +130,8 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
 
     public FilterOptionGroup LevelGroup { get; } = new(single: false, "Alla nivåer");
 
+    public FilterOptionGroup SportGroup { get; } = new(single: false, "Alla grenar");
+
     public FilterOptionGroup DisciplineGroup { get; } = new(single: false, "Alla discipliner");
 
     /// <summary>
@@ -219,6 +221,11 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
         foreach (var level in Enum.GetValues<CompetitionLevel>())
             LevelGroup.Add(Format.Level(level), level, filter.Levels.Contains(level));
 
+        SportGroup.Options.Clear();
+
+        foreach (var sport in Enum.GetValues<Sport>())
+            SportGroup.Add(Format.SportOrDefault(sport), sport, filter.Sports.Contains(sport));
+
         DisciplineGroup.Options.Clear();
 
         foreach (var discipline in Enum.GetValues<Discipline>())
@@ -273,7 +280,7 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
     }
 
     private IEnumerable<FilterOptionGroup> Groups =>
-        [DistrictGroup, PeriodGroup, LevelGroup, DisciplineGroup];
+        [DistrictGroup, PeriodGroup, LevelGroup, SportGroup, DisciplineGroup];
 
     private void Recount()
     {
@@ -325,6 +332,7 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
         Period = PeriodGroup.Selected.Select(o => (EventPeriod)o.Value!).FirstOrDefault(),
         Levels = LevelGroup.Selected.Select(o => (CompetitionLevel)o.Value!).ToHashSet(),
         Disciplines = DisciplineGroup.Selected.Select(o => (Discipline)o.Value!).ToHashSet(),
+        Sports = SportGroup.Selected.Select(o => (Sport)o.Value!).ToHashSet(),
         MaxDistanceKm = SelectedDistance,
         ShowTraining = ShowTraining,
         OnlyMyClass = OnlyMyClass,

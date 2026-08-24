@@ -76,6 +76,12 @@ public sealed record EventFilter
     /// <summary>The disciplines to keep, empty for all of them.</summary>
     public IReadOnlySet<Discipline> Disciplines { get; init; } = new HashSet<Discipline>();
 
+    /// <summary>
+    /// The sports to keep, empty for all of them. Its own axis, because "sprint" answers a
+    /// different question from "on foot or on a bike".
+    /// </summary>
+    public IReadOnlySet<Sport> Sports { get; init; } = new HashSet<Sport>();
+
     public double? MaxDistanceKm { get; init; }
 
     /// <summary>Training and recreational events are noise for most users, so they hide by default.</summary>
@@ -139,6 +145,9 @@ public sealed record EventFilter
         if (Disciplines.Count > 0 && !Disciplines.Contains(competition.Discipline))
             return false;
 
+        if (Sports.Count > 0 && !Sports.Contains(competition.Sport))
+            return false;
+
         // A radius is a claim about where something is. An arena with no published position
         // cannot be inside one, so asking for a radius excludes it rather than guessing.
         if (MaxDistanceKm is { } maxDistance
@@ -190,6 +199,13 @@ public sealed record EventFilter
                 facets.Add(new FilterFacet(
                     Format.Level(level),
                     this with { Levels = Levels.Where(l => l != level).ToHashSet() }));
+            }
+
+            foreach (var sport in Sports.OrderBy(s => s))
+            {
+                facets.Add(new FilterFacet(
+                    Format.SportOrDefault(sport),
+                    this with { Sports = Sports.Where(s => s != sport).ToHashSet() }));
             }
 
             foreach (var discipline in Disciplines.OrderBy(d => d))

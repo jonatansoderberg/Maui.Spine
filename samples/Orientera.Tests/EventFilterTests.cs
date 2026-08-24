@@ -30,7 +30,8 @@ public class EventFilterTests
         DateOnly date,
         CompetitionLevel level = CompetitionLevel.National,
         Discipline discipline = Discipline.Middle,
-        GeoPoint? location = null) => new()
+        GeoPoint? location = null,
+        Sport sport = Sport.Foot) => new()
     {
         Id = new CompetitionId($"c-{name}"),
         Name = name,
@@ -39,6 +40,7 @@ public class EventFilterTests
         Place = "Hemlingby",
         Location = location ?? new GeoPoint(60.6, 17.1),
         Discipline = discipline,
+        Sport = sport,
         Level = level,
         FirstStart = new DateTimeOffset(date.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(2)),
         LastFinish = new DateTimeOffset(date.ToDateTime(new TimeOnly(15, 0)), TimeSpan.FromHours(2)),
@@ -234,5 +236,44 @@ public class EventFilterTests
 
         // And it is not hidden from a filter that never asked about distance.
         Assert.True(EventFilter.Default.Includes(unplaced, Me, Now));
+    }
+
+    /// <summary>
+    /// The sport is its own axis. "MTBO-träning Källviken" was a Sprint and nothing else, so it
+    /// arrived in the list of a runner who had asked for sprints and does not own a bike.
+    /// </summary>
+    [Fact]
+    public void The_sport_filters_separately_from_the_distance()
+    {
+        var mtboSprint = Competition("MTBO-träning", "Dalarna", Today,
+            discipline: Discipline.Sprint, sport: Sport.MountainBike);
+        var footSprint = Competition("Vårsprinten", "Gästrikland", Today,
+            discipline: Discipline.Sprint);
+
+        var onFoot = new EventFilter { Sports = new HashSet<Sport> { Sport.Foot } };
+
+        Assert.False(onFoot.Includes(mtboSprint, Me, Now));
+        Assert.True(onFoot.Includes(footSprint, Me, Now));
+
+        // Asking for sprints says nothing about what you ride, so both are still sprints.
+        var sprints = new EventFilter { Disciplines = new HashSet<Discipline> { Discipline.Sprint } };
+
+        Assert.True(sprints.Includes(mtboSprint, Me, Now));
+        Assert.True(sprints.Includes(footSprint, Me, Now));
+
+        // And a filter that names no sport keeps every one of them.
+        Assert.True(EventFilter.Default.Includes(mtboSprint, Me, Now));
+    }
+
+    [Fact]
+    public void A_chosen_sport_is_its_own_removable_chip()
+    {
+        var filter = new EventFilter
+        {
+            Sports = new HashSet<Sport> { Sport.MountainBike, Sport.Ski },
+        };
+
+        Assert.Equal(["MTBO", "Skid-O"], filter.Facets.Select(f => f.Label));
+        Assert.Equal([Sport.Ski], filter.Facets[0].Without.Sports);
     }
 }

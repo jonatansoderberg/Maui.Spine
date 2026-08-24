@@ -618,7 +618,6 @@ public class ResultDisciplineTests
     [InlineData("O-Ringen Göteborg, etapp 3, medel", Discipline.Middle)]
     [InlineData("O-Ringen Göteborg, etapp 5, lång", Discipline.Long)]
     [InlineData("DM, ultralång, Gästrikland + Hälsingland", Discipline.UltraLong)]
-    [InlineData("Karlstad Indoor , etapp 1", Discipline.Indoor)]
     [InlineData("Vårsprinten", Discipline.Sprint)]
     [InlineData("DM, stafett, Gästrikland", Discipline.Relay)]
     [InlineData("Nattcupen, deltävling 2", Discipline.Night)]
@@ -634,11 +633,20 @@ public class ResultDisciplineTests
         Assert.Equal(Discipline.UltraLong, Of("DM, ultralång"));
     }
 
-    /// <summary>Indoor is a sprint by Eventor's classification and a different sport to a runner.</summary>
+    /// <summary>
+    /// Indoor moved to the sport axis, where Eventor keeps it. The distance the name states is
+    /// still the sprint it is — "Hallsberg Indoor sprint" is a sprint, indoors.
+    /// </summary>
     [Fact]
-    public void Indoor_wins_over_the_sprint_it_is_classified_as()
+    public void Indoor_is_a_sport_and_the_name_still_states_its_distance()
     {
-        Assert.Equal(Discipline.Indoor, Of("Hallsberg Indoor sprint, dag 1"));
+        Assert.Equal(Discipline.Sprint, Of("Hallsberg Indoor sprint, dag 1"));
+        Assert.Equal(Sport.Indoor, SportNames.In("Hallsberg Indoor sprint, dag 1"));
+        Assert.Equal(Sport.MountainBike, SportNames.In("MTBO-träning Källviken"));
+        Assert.Equal(Sport.Ski, SportNames.In("Skid-O SM, medel"));
+
+        // A foot race says nothing, and the absence is the statement.
+        Assert.Null(SportNames.In("DM, medel, Gästrikland"));
     }
 
     [Fact]

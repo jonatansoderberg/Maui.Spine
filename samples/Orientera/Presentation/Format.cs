@@ -228,9 +228,30 @@ public static class Format
         Domain.Discipline.UltraLong => "Ultralång",
         Domain.Discipline.Night => "Natt",
         Domain.Discipline.Relay => "Stafett",
-        Domain.Discipline.Indoor => "Indoor",
         _ => string.Empty,
     };
+
+    /// <summary>
+    /// The sport in the words the federation uses. <see cref="Sport.Foot"/> has none: it is what
+    /// a competition is unless it says otherwise, and writing "OL" on nine rows in ten is the
+    /// noise the sport column exists to remove.
+    /// </summary>
+    public static string Sport(Sport sport) => sport switch
+    {
+        Domain.Sport.Indoor => "Indoor",
+        Domain.Sport.MountainBike => "MTBO",
+        Domain.Sport.Ski => "Skid-O",
+        Domain.Sport.PreO => "PreO",
+        Domain.Sport.Shooting => "Orienteringsskytte",
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// The sport with a word for foot orienteering too. A row leaves it out because it is the
+    /// default; a chip that offers the choice has to be able to name it.
+    /// </summary>
+    public static string SportOrDefault(Sport sport) =>
+        sport == Domain.Sport.Foot ? "Orienteringslöpning" : Sport(sport);
 
     public static string Level(CompetitionLevel level) => level switch
     {
