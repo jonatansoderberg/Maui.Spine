@@ -39,6 +39,33 @@
 - **Den ursprungliga orangen bar inte text.** Fyra ljusa nyanser fick justeras för WCAG AA.
   `#E8590C` lever kvar där den inte bär text — appikon, splash och tab-barens tint.
 
+## Vad omläggningen till deltagarlägen gjorde med fynden
+
+Tillagt 2026-08-22, efter [redesign-03-deltagare.md](redesign-03-deltagare.md). Omläggningen tog
+bort Live- och Resultat-flikarna och samlade fältet i en deltagarlista under varje tävling.
+
+| Fynd ovan | Vad som hände |
+|-----------|---------------|
+| **`DataTrigger` för temafärger** | Bekräftat en gång till, från andra hållet. `ChipView` och `ListRow` byter mellan två förbyggda utseenden och klarade omläggningen utan en rad ändring. Regeln höll. |
+| **44 pt-mål intill rubriker** | Stjärnan på tävlingssidan visade sig inte göra något alls: vyn band `FavouriteGlyph`, `FavouriteDescription` och `ToggleFavouriteCommand`, som aldrig funnits på vy-modellen. Lagat i etapp 4 enligt D6. Bindningskontrollen (MAUIG2045) hittade alla tre — den fanns inte när fyndet först skrevs. |
+| **En primär CTA per vy** | Höll, och blev enklare. `PrimaryAction` hade fyra grenar som ledde till tre olika sidor; nu leder `ShowMyStart`, `FollowLive`, `ShowPreliminary` och `ShowMyResult` alla till samma sida i olika lägen. Att arkitekturen bestämmer CTA:n var rätt — det som saknades var att destinationerna också skulle vara en. |
+| **`EstimateInk` bär mer än den skulle** | Oförändrat, men fick sällskap: "Preliminärt" är samma sorts påstående om källan och märks med ord i en badge, aldrig med enbart stil (D11). |
+
+### Nya fynd ur den här vändan
+
+- **Kontroller som byggs en gång håller inte automatiskt när data kommer sent.** `SegmentBar`
+  ritade en tom rad: den byggde bara om sig när `ItemsSource` *byttes*, och en horisontell
+  `ScrollView` tar sin innehållsstorlek när innehållet *sätts*. Båda felen var osynliga så länge
+  segmenten var en fast lista, vilket de varit sedan etapp B. Ingen av dem syntes i bygget eller
+  i testerna — bara i att köra appen.
+- **"Ingen anslutning" är en mening som lätt hamnar fel.** Deltagarsidan sa det om en tävling
+  utanför kalenderfönstret, på en fungerande uppkoppling — exakt den regression
+  `ResultsDetailPage` en gång fått lagad. `DataOrigin` har nu ett `Missing` bredvid
+  `Unavailable`, så de två svaren inte längre kan formuleras likadant.
+- **Skelett i sidans egen form är fortfarande rätt**, men bara där sidan vet sin form. Den nya
+  deltagarsidan har fyra möjliga innehåll och visar snurra; det är ärligare än ett skelett som
+  påstår en lista den kanske inte får.
+
 ## Rekommendation inför M1
 
 1. **Behåll riktningen.** Nordic + Performance är bekräftad; Map-inslaget bedöms när

@@ -1,12 +1,13 @@
 using System.Collections.ObjectModel;
 using Microsoft.Maui.Controls.Shapes;
 using Orientera.Domain;
+using Orientera.Features.Events.Participants;
 using Orientera.Presentation;
 using Orientera.Services.Offline;
 using Orientera.Services.Eventor;
 using Orientera.Services.Sources;
 
-namespace Orientera.Features.Results;
+namespace Orientera.Features.Profile;
 
 /// <summary>
 /// One race in the runner's own season.
@@ -149,7 +150,7 @@ public sealed class ResultSeason(int year, IEnumerable<MyResultRow> results) : L
     public string Summary => Count == 1 ? "1 tävling" : $"{Count} tävlingar";
 }
 
-public partial class ResultsPageViewModel(
+public partial class MyResultsPageViewModel(
     INavigationService _navigation,
     IEventSource _events,
     IPeopleSource _people,
@@ -511,7 +512,17 @@ public partial class ResultsPageViewModel(
         }
     }
 
+    /// <summary>
+    /// Opens the race the row is about — under the competition, not beside it.
+    /// </summary>
+    /// <remarks>
+    /// The participant list in its result mode, opened on the class this result was run in. A
+    /// result read outside its own competition is the split the redesign exists to close: the
+    /// reader lands in the field they ran against, with their own row marked, and the runner's
+    /// own analysis one tap further in.
+    /// </remarks>
     [RelayCommand]
     private async Task OpenResult(MyResultRow row) =>
-        await _navigation.NavigateToAsync<ResultsDetailPage, CompetitionId>(row.Competition);
+        await _navigation.NavigateToAsync<ParticipantsPage, ParticipantsTarget>(
+            new ParticipantsTarget(row.Competition, row.Class, ParticipantMode.Results));
 }

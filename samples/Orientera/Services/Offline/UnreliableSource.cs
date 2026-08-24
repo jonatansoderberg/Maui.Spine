@@ -74,6 +74,10 @@ public sealed class UnreliableSource(IOrienteraSource _inner, ConnectivitySwitch
         CompetitionId competition, CancellationToken cancellationToken = default) =>
         Through(() => _inner.GetResultsAsync(competition, cancellationToken));
 
+    public Task<IReadOnlyList<CompetitionResult>> GetClassResultsAsync(
+        CompetitionId competition, string className, bool splits = false, CancellationToken cancellationToken = default) =>
+        Through(() => _inner.GetClassResultsAsync(competition, className, splits, cancellationToken));
+
     public Task<IReadOnlyList<CompetitionResult>> GetOwnResultsAsync(
         PersonId person, IReadOnlyList<CompetitionId> competitions, bool splits = false, CancellationToken cancellationToken = default) =>
         Through(() => _inner.GetOwnResultsAsync(person, competitions, splits, cancellationToken));

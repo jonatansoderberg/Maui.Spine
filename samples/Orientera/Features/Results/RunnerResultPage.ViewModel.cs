@@ -33,31 +33,6 @@ public sealed record LegRow
     public required string Accessibility { get; init; }
 }
 
-/// <summary>One runner in the competition's own result list.</summary>
-public sealed record ResultRow
-{
-    public required string PlaceText { get; init; }
-    public required string Name { get; init; }
-    public required string Club { get; init; }
-    public string? ClubLogo { get; init; }
-    public bool HasClubLogo => !string.IsNullOrEmpty(ClubLogo);
-    public required string TimeText { get; init; }
-    public required string BehindText { get; init; }
-
-    /// <summary>The user's own row, marked the same way the live list marks it.</summary>
-    public required bool IsMe { get; init; }
-
-    public required string Accessibility { get; init; }
-}
-
-/// <summary>One class' result list, with the class as the heading.</summary>
-public sealed class ResultClassGroup(string _name) : List<ResultRow>
-{
-    public string Name => _name;
-
-    public string Accessibility => $"Klass {_name}";
-}
-
 public sealed record ComparisonRow
 {
     public required string Label { get; init; }
@@ -68,13 +43,22 @@ public sealed record ComparisonRow
     public required string Accessibility { get; init; }
 }
 
-public partial class ResultsDetailPageViewModel(
+/// <summary>Whose race to open: the competition, the class it was run in, and the runner.</summary>
+/// <param name="Person">
+/// The runner, or null for the reader's own row. Null rather than the reader's id because the
+/// reader's identity is local and the result lists carry Eventor's — the page matches them the
+/// way every other list does, by name and club (SP-04).
+/// </param>
+public sealed record RunnerResultTarget(CompetitionId Competition, string Class, PersonId? Person = null);
+
+public partial class RunnerResultPageViewModel(
     INavigationService _navigation,
     IEventSource _events,
     IPeopleSource _people,
     IParticipationSource _participation,
-    IRaceStorySource _stories) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
+    IRaceStorySource _stories) : OrienteraViewModel, IReceivesNavigationParameter<RunnerResultTarget>
 {
+    private RunnerResultTarget _target = new(new CompetitionId(string.Empty), string.Empty);
     private CompetitionId _id;
     private Person? _me;
     private CompetitionResult? _mine;
@@ -171,20 +155,18 @@ public partial class ResultsDetailPageViewModel(
     [ObservableProperty] public partial bool HasSplits { get; set; }
     [ObservableProperty] public partial string EmptyMessage { get; set; } = string.Empty;
 
-    /// <summary>Said once, above the list, when the user is not in the result.</summary>
-    [ObservableProperty] public partial string NotInFieldText { get; set; } = string.Empty;
 
     public ObservableCollection<LegRow> Legs { get; } = [];
     public ObservableCollection<ComparisonRow> Comparison { get; } = [];
 
-    /// <summary>The whole field, class by class, with the user's own class first.</summary>
-    public ObservableCollection<ResultClassGroup> Field { get; } = [];
+
 
     private Prediction? _prediction;
 
-    public Task OnNavigationParameterAsync(CompetitionId param)
+    public Task OnNavigationParameterAsync(RunnerResultTarget param)
     {
-        _id = param;
+        _target = param;
+        _id = param.Competition;
         return Task.CompletedTask;
     }
 
@@ -207,12 +189,23 @@ public partial class ResultsDetailPageViewModel(
         IsIdle = !HasResult;
     }
 
-    /// <summary>The whole competition's results, or none where they cannot be had.</summary>
+    /// <summary>
+    /// The class this race was run in, with its split times — or none where they cannot be had.
+    /// </summary>
+    /// <remarks>
+    /// The class rather than the competition, which is the whole difference between a page that
+    /// opens and one that times out: O-Ringen's result list is 86 MB with splits and its H45 is
+    /// a couple of hundred rows of it. Splits are asked for here and nowhere else — a leg is only
+    /// a good or a bad leg compared to the class that ran it, so the analysis needs everyone's.
+    /// </remarks>
     private async Task<IReadOnlyList<CompetitionResult>> FieldAsync()
     {
+        if (_target.Class.Length == 0)
+            return [];
+
         try
         {
-            return await _participation.GetResultsAsync(_id);
+            return await _participation.GetClassResultsAsync(_id, _target.Class, splits: true);
         }
         catch (SourceUnavailableException)
         {
@@ -292,11 +285,14 @@ public partial class ResultsDetailPageViewModel(
         if (ownOnly)
             _field = own;
 
-        // The result list carries names and clubs; the person ids in it are Eventor's, and the
-        // user's identity is local. Name and club is the only comparison that spans both, the
-        // same one the live list is matched through (SP-04).
+        // A named runner is found by id, which the row they were tapped on already carried. The
+        // reader themselves is found by name and club: their identity is local and the result
+        // list carries Eventor's, and that is the only comparison spanning both (SP-04).
         var me = RunnerIdentity.Of(_me.Name, _me.Club);
-        _mine = _field.FirstOrDefault(r => me.Matches(RunnerIdentity.Of(r.Name, r.Club)));
+
+        _mine = _target.Person is { } person
+            ? _field.FirstOrDefault(r => r.Person == person)
+            : _field.FirstOrDefault(r => me.Matches(RunnerIdentity.Of(r.Name, r.Club)));
         _prediction = await _participation.GetPredictionAsync(_id, _me.Id);
 
         HasResult = _field.Count > 0;
@@ -312,18 +308,19 @@ public partial class ResultsDetailPageViewModel(
             return;
         }
 
-        BuildField(me, competition);
-
-        // The field is worth showing on its own: opening a competition you did not run is the
-        // normal case, not an error.
-        NotInFieldText = ownOnly
-            ? "Hela resultatlistan är för stor för att hämtas till telefonen. Det här är din egen rad."
-            : HasMine
-                ? string.Empty
-                : $"Du är inte med i den här resultatlistan. {_field.Count} resultat totalt.";
-
         if (_mine is null)
+        {
+            // The page is about one runner, so a runner who is not in the list leaves nothing to
+            // draw. The field itself is one step back, where it belongs.
+            HasResult = false;
+            EmptyMessage = _target.Person is null
+                ? $"Du är inte med i resultatlistan för {_target.Class}."
+                : "Löparen finns inte i den här resultatlistan.";
             return;
+        }
+
+        // Whose race this is, once it is known to be somebody's.
+        Title = _target.Person is null ? competition.Name : $"{_mine.Name} — {competition.Name}";
 
         BuildOverview(competition, _mine);
 
@@ -339,61 +336,6 @@ public partial class ResultsDetailPageViewModel(
         }
     }
 
-    /// <summary>
-    /// The field class by class. The user's own class comes first — it is the one they opened the
-    /// page for, and a championship has forty of them.
-    /// </summary>
-    private void BuildField(RunnerIdentity me, Competition competition)
-    {
-        Field.Clear();
-
-        string mine = _mine?.Class ?? _me?.DefaultClass ?? string.Empty;
-
-        // The organiser's own order, and their names for the classes, is the one a runner has
-        // already read on the entry form. Alphabetical put "Blå 3,0" above D10 and D2 nowhere
-        // near D21.
-        var order = ClassOrder.For(competition.Classes);
-
-        var classes = _field
-            .GroupBy(r => r.Class)
-            .OrderByDescending(g => g.Key == mine)
-            .ThenBy(g => order.Rank(g.Key))
-            .ThenBy(g => g.Key, StringComparer.CurrentCulture);
-
-        foreach (var byClass in classes)
-        {
-            var group = new ResultClassGroup(byClass.Key);
-
-            foreach (var result in byClass.OrderBy(r => r.Place ?? int.MaxValue).ThenBy(r => r.Time))
-            {
-                bool isMe = me.Matches(RunnerIdentity.Of(result.Name, result.Club));
-
-                group.Add(new ResultRow
-                {
-                    PlaceText = result.Place is { } place ? Format.Place(place) : "—",
-                    Name = result.Name,
-                    Club = result.Club,
-                    ClubLogo = result.ClubLogo,
-                    TimeText = result.Status == ResultStatus.Ok ? Format.Time(result.Time) : Format.ResultStatus(result.Status),
-                    // The winner's own row says nothing by saying "+0:00".
-                    BehindText = result.Place == 1 || result.BehindWinner is not { } behind
-                        ? string.Empty
-                        : Format.Delta(behind),
-                    IsMe = isMe,
-                    Accessibility = string.Join(", ", new[]
-                    {
-                        isMe ? "du" : null,
-                        result.Name,
-                        $"{result.Club}, klass {result.Class}",
-                        result.Place is not null ? Format.SpokenPlace(result.Place) : Format.ResultStatus(result.Status),
-                        result.Status == ResultStatus.Ok ? Format.SpokenTime(result.Time) : null,
-                    }.OfType<string>()),
-                });
-            }
-
-            Field.Add(group);
-        }
-    }
 
     [RelayCommand]
     private void SelectTab(string tab)

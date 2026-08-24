@@ -1,9 +1,9 @@
 <SpinePage
     xmlns="http://schemas.microsoft.com/dotnet/maui/global"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    x:Class="Orientera.Features.Results.ResultsDetailPage"
-    x:TypeArguments="ResultsDetailPageViewModel"
-    x:DataType="ResultsDetailPageViewModel">
+    x:Class="Orientera.Features.Results.RunnerResultPage"
+    x:TypeArguments="RunnerResultPageViewModel"
+    x:DataType="RunnerResultPageViewModel">
 
     <Grid RowDefinitions="Auto,*">
 
@@ -113,80 +113,10 @@
                         </VerticalStackLayout>
                     </Border>
 
-                    <!-- Resultatlistan: det man kom för att se även när man inte är med själv -->
-                    <Label Style="{StaticResource BodySecondaryLabel}"
-                           IsVisible="{Binding NotInFieldText.Length}"
-                           Text="{Binding NotInFieldText}" />
-
-                    <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding Field}">
-                        <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="ResultClassGroup">
-                                <VerticalStackLayout Spacing="4">
-                                    <Label Style="{StaticResource SectionLabel}"
-                                           Margin="0,8,0,0"
-                                           SemanticProperties.HeadingLevel="Level2"
-                                           SemanticProperties.Description="{Binding Accessibility}"
-                                           Text="{Binding Name}" />
-
-                                    <Border Style="{StaticResource Card}" Padding="0">
-                                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding .}">
-                                            <BindableLayout.ItemTemplate>
-                                                <DataTemplate x:DataType="ResultRow">
-                                                    <VerticalStackLayout>
-                                                        <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10"
-                                                              Padding="14,8"
-                                                              SemanticProperties.Description="{Binding Accessibility}">
-
-                                                            <Label Grid.Column="0"
-                                                                   Style="{StaticResource NumericStrongLabel}"
-                                                                   LineBreakMode="NoWrap"
-                                                                   VerticalOptions="Center"
-                                                                   Text="{Binding PlaceText}" />
-
-                                                            <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
-                                                                <Label Style="{StaticResource BodyStrongLabel}"
-                                                                       LineBreakMode="TailTruncation"
-                                                                       Text="{Binding Name}" />
-                                                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
-                                                                    <Border Style="{StaticResource ClubBadge}" IsVisible="{Binding HasClubLogo}">
-                                                                        <Image WidthRequest="14" HeightRequest="14"
-                                                                               AutomationProperties.IsInAccessibleTree="False"
-                                                                               Source="{Binding ClubLogo}" />
-                                                                    </Border>
-                                                                    <Label Grid.Column="1"
-                                                                           Style="{StaticResource CaptionLabel}"
-                                                                           LineBreakMode="TailTruncation"
-                                                                           Text="{Binding Club}" />
-                                                                </Grid>
-                                                            </VerticalStackLayout>
-
-                                                            <VerticalStackLayout Grid.Column="2" Spacing="1" VerticalOptions="Center">
-                                                                <Label Style="{StaticResource NumericStrongLabel}"
-                                                                       HorizontalTextAlignment="End"
-                                                                       Text="{Binding TimeText}" />
-                                                                <Label Style="{StaticResource NumericCaptionLabel}"
-                                                                       HorizontalTextAlignment="End"
-                                                                       Text="{Binding BehindText}" />
-                                                            </VerticalStackLayout>
-
-                                                            <!-- Jag-raden får samma accentton som i livelistan -->
-                                                            <Grid.Triggers>
-                                                                <DataTrigger TargetType="Grid" Binding="{Binding IsMe}" Value="True">
-                                                                    <Setter Property="BackgroundColor" Value="{DynamicResource AccentSubtle}" />
-                                                                </DataTrigger>
-                                                            </Grid.Triggers>
-                                                        </Grid>
-
-                                                        <BoxView Style="{StaticResource Divider}" />
-                                                    </VerticalStackLayout>
-                                                </DataTemplate>
-                                            </BindableLayout.ItemTemplate>
-                                        </VerticalStackLayout>
-                                    </Border>
-                                </VerticalStackLayout>
-                            </DataTemplate>
-                        </BindableLayout.ItemTemplate>
-                    </VerticalStackLayout>
+                    <!--
+                        Fältet står inte här längre. Den här sidan handlar om ett lopp, och
+                        resultatlistan är deltagarlistans läge — vägen hit gick genom den.
+                    -->
 
                 </VerticalStackLayout>
 

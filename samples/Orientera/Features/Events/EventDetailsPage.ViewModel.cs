@@ -1,11 +1,10 @@
 using System.Collections.ObjectModel;
 using Microsoft.Maui.Controls.Shapes;
 using Orientera.Domain;
-using Orientera.Features.Live;
+using Orientera.Features.Events.Participants;
 using Orientera.Features.Results;
 using Orientera.Presentation;
 using Orientera.Services.Context;
-using Orientera.Services.Eventor;
 using Orientera.Services.Local;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
@@ -34,21 +33,23 @@ public sealed record DocumentItem
     public string Accessibility => $"{Title}, {Meta}";
 }
 
-/// <summary>One line of the start field, as Sverigelistan ranks it.</summary>
-public sealed record StartFieldRow
+/// <summary>
+/// One line of the competition page's participant card — a glimpse of the list, not the list.
+/// </summary>
+/// <remarks>
+/// The full anatomy lives on <c>ParticipantsPage</c>. What belongs here is the top of whichever
+/// mode the competition has reached, so the card says what kind of list there is and that it has
+/// people in it. Five names is a glimpse; forty is a page nobody scrolls to the bottom of.
+/// </remarks>
+public sealed record ParticipantPreview
 {
-    public required string Order { get; init; }
     public required string Name { get; init; }
     public required string Club { get; init; }
-    public required string PointsText { get; init; }
-    public required string RankText { get; init; }
-    public required bool IsMe { get; init; }
 
-    /// <summary>
-    /// False on an entry list, where the order and the points do not exist yet. Carried on the row
-    /// rather than read off the page's own state so the template stays bound to one thing.
-    /// </summary>
-    public bool ShowRanking { get; init; } = true;
+    /// <summary>The start time, the placing's time — whatever the mode's own value is.</summary>
+    public required string Value { get; init; }
+
+    public required bool IsMe { get; init; }
 }
 
 public partial class EventDetailsPageViewModel(
@@ -63,13 +64,18 @@ public partial class EventDetailsPageViewModel(
     OfflinePackageService _offline,
     CompetitionContextService _context,
     CompetitionClassStore _classes,
-    LiveSelection _liveSelection,
-    EventorReader _eventor) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
+    IArenaImageSource _arenaImages) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
 {
     private CompetitionId _id;
     private Competition? _competition;
     private Person? _me;
     private ContextDecision? _decision;
+
+    /// <summary>Which list the card is showing, and therefore which one its tap opens.</summary>
+    private ParticipantMode _participantMode = ParticipantMode.Entries;
+
+    /// <summary>Five names is a glimpse of a list; forty is a second copy of it.</summary>
+    private const int PreviewRows = 5;
 
     // ---- hero ----
     [ObservableProperty]
@@ -140,66 +146,18 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial string TravelDurationText { get; set; } = string.Empty;
 
     [ObservableProperty] public partial string TravelSpoken { get; set; } = string.Empty;
-    [ObservableProperty] public partial bool HasStartField { get; set; }
-    [ObservableProperty] public partial string StartFieldCaption { get; set; } = string.Empty;
+    // ---- deltagare ----
 
-    /// <summary>
-    /// Whether the list below is who has entered rather than who has been drawn. It changes the
-    /// heading and hides the ranking columns, which are empty before the draw and would otherwise
-    /// read as a Sverigelistan that failed to load.
-    /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StartFieldHeading))]
-    public partial bool IsEntryList { get; set; }
+    /// <summary>Which of the four lists there is to show: "Anmälda", "Startlista", "Live", "Resultat".</summary>
+    [ObservableProperty] public partial string ParticipantModeText { get; set; } = string.Empty;
 
-    public string StartFieldHeading => IsEntryList ? "ANMÄLDA" : "STARTFÄLT";
+    /// <summary>How many, in which class — or why there is nothing yet.</summary>
+    [ObservableProperty] public partial string ParticipantCaption { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Fetches the entry list on demand and folds it out under the start field.
-    /// </summary>
-    /// <remarks>
-    /// On demand rather than always: the two lists say almost the same thing once the draw is out,
-    /// and a page that shows both at full length twice is a page nobody scrolls to the bottom of.
-    /// </remarks>
-    [RelayCommand]
-    private async Task ToggleEntrants()
-    {
-        ShowEntrants = !ShowEntrants;
+    [ObservableProperty] public partial bool HasParticipants { get; set; }
 
-        if (!ShowEntrants || Entrants.Count > 0 || _competition is null || _me is null)
-            return;
-
-        var entrants = await _field.GetEntryListAsync(_competition.Id, MyClass);
-
-        foreach (var runner in entrants)
-        {
-            Entrants.Add(new StartFieldRow
-            {
-                Order = "—",
-                Name = runner.Name,
-                Club = runner.Club,
-                PointsText = string.Empty,
-                RankText = string.Empty,
-                IsMe = RunnerIdentity.Of(runner.Name, runner.Club)
-                    .Matches(RunnerIdentity.Of(_me.Name, _me.Club)),
-                ShowRanking = false,
-            });
-        }
-
-        EntrantsCaption = $"{Entrants.Count} anmälda i {MyClass}";
-    }
-
-    /// <summary>Whether the entry list is worth offering as a separate list of its own.</summary>
-    [ObservableProperty] public partial bool HasEntryList { get; set; }
-
-    /// <summary>The entry list, opened on demand once the start list has taken its place.</summary>
-    public ObservableCollection<StartFieldRow> Entrants { get; } = [];
-
-    [ObservableProperty] public partial bool ShowEntrants { get; set; }
-
-    [ObservableProperty] public partial string EntrantsCaption { get; set; } = string.Empty;
-
-    public ObservableCollection<StartFieldRow> StartField { get; } = [];
+    /// <summary>The top of the list. The whole of it is one tap away.</summary>
+    public ObservableCollection<ParticipantPreview> Participants { get; } = [];
 
     [ObservableProperty] public partial string PredictionText { get; set; } = string.Empty;
     [ObservableProperty] public partial bool HasPrediction { get; set; }
@@ -218,21 +176,22 @@ public partial class EventDetailsPageViewModel(
     [ObservableProperty] public partial bool HasLivelox { get; set; }
 
     [ObservableProperty] public partial string LiveloxText { get; set; } = string.Empty;
-    [ObservableProperty] public partial bool CanFollowLive { get; set; }
-    [ObservableProperty] public partial bool HasResults { get; set; }
-
-    /// <summary>Why a quick action is unavailable. Empty when it is available.</summary>
-    [ObservableProperty] public partial string LiveConditionText { get; set; } = string.Empty;
-
-    /// <inheritdoc cref="LiveConditionText" />
-    [ObservableProperty] public partial string ResultsConditionText { get; set; } = string.Empty;
 
     /// <summary>Which bundled terrain picture the hero looks up — the discipline, in lower case.</summary>
     [ObservableProperty] public partial string HeroDiscipline { get; set; } = string.Empty;
 
+    /// <summary>Tävlingens egen arenabild när den hunnit genereras; annars står terrängbilden kvar.</summary>
+    [ObservableProperty] public partial string? ArenaImageUrl { get; set; }
+
+    /// <summary>CC BY-krediteringen som måste visas bredvid arenabilden.</summary>
+    [ObservableProperty] public partial string ArenaImageAttribution { get; set; } = string.Empty;
+
     // ---- offline ----
     [ObservableProperty] public partial bool IsFromCache { get; set; }
     [ObservableProperty] public partial bool IsUnavailable { get; set; }
+
+    /// <summary>Why the page has no competition — an outage, or one the calendar does not carry.</summary>
+    [ObservableProperty] public partial string UnavailableText { get; set; } = string.Empty;
     [ObservableProperty] public partial string CacheLabel { get; set; } = string.Empty;
 
     public ObservableCollection<BriefingItem> Briefing { get; } = [];
@@ -267,7 +226,17 @@ public partial class EventDetailsPageViewModel(
         var snapshot = await _offline.GetAsync(_id);
 
         IsFromCache = snapshot.Origin == DataOrigin.Cache;
-        IsUnavailable = snapshot.Origin == DataOrigin.Unavailable;
+        IsUnavailable = snapshot.Origin is DataOrigin.Unavailable or DataOrigin.Missing;
+
+        UnavailableText = snapshot.Origin switch
+        {
+            DataOrigin.Missing =>
+                "Den här tävlingen ligger utanför kalendern appen läser, så den går inte att öppna här.",
+            DataOrigin.Unavailable =>
+                "Ingen anslutning, och tävlingen finns inte sparad offline. Den sparas automatiskt "
+                + "när du är anmäld, följer den eller markerar dig som intresserad.",
+            _ => string.Empty,
+        };
 
         CacheLabel = snapshot is { Origin: DataOrigin.Cache, CachedAt: { } cachedAt }
             ? $"Offline — sparat {Format.Clock(cachedAt)}"
@@ -292,18 +261,25 @@ public partial class EventDetailsPageViewModel(
         // The context state decides the verb; the detail page just routes it.
         switch (_decision.PrimaryAction)
         {
+            // Every one of these is the participant list, opened at the right moment of it.
+            case ContextAction.ShowMyStart:
+                await ShowParticipantsAsync(ParticipantMode.StartList);
+                break;
+
             case ContextAction.FollowLive:
-                // A tab root takes no navigation parameter, so the competition is left where the
-                // live tab looks for it rather than guessed at from whatever is running.
-                _liveSelection.Select(_competition.Id);
-                await _navigation.SwitchToTabAsync<LivePage>();
+                await ShowParticipantsAsync(ParticipantMode.Live);
                 break;
 
             case ContextAction.ShowMyResult:
+            case ContextAction.ShowPreliminary:
+                await ShowParticipantsAsync(ParticipantMode.Results);
+                break;
+
+            // These two are about one runner rather than the field, so they go to the runner.
             case ContextAction.Analyse:
             case ContextAction.ShowRouteChoice:
-            case ContextAction.ShowPreliminary:
-                await _navigation.NavigateToAsync<ResultsDetailPage, CompetitionId>(_competition.Id);
+                await _navigation.NavigateToAsync<RunnerResultPage, RunnerResultTarget>(
+                    new RunnerResultTarget(_competition.Id, MyClass));
                 break;
 
             case ContextAction.Navigate:
@@ -374,100 +350,159 @@ public partial class EventDetailsPageViewModel(
     /// right now is the same list the live tab reads, so asking costs one cached request.
     /// </remarks>
     /// <summary>
-    /// The field, as Sverigelistan ranks it. Not a forecast — three measurements said an honest
-    /// placement interval covers half the field (#113, #117), so this shows what the interval was
-    /// made of and lets the reader draw their own conclusion.
+    /// The top of whichever list the competition has reached.
     /// </summary>
-    private async Task LoadStartFieldAsync(CompetitionId competition, string className, Person me)
+    /// <remarks>
+    /// One request, and the calendar decides which one it is. The full page observes what every
+    /// source says and settles the mode on facts (D10); a card that did the same would make four
+    /// requests to draw five names. Where the calendar turns out to be wrong the card says what
+    /// it found — an empty answer becomes the mode's own condition rather than a blank space.
+    /// </remarks>
+    private async Task LoadParticipantsAsync(Competition competition, string className, Person me)
     {
-        StartField.Clear();
-        Entrants.Clear();
-        HasStartField = false;
-        HasEntryList = false;
-        ShowEntrants = false;
+        Participants.Clear();
+        HasParticipants = false;
+
+        var decision = ParticipantModeEngine.Decide(new ParticipantInput { State = _decision!.State });
+        var mode = decision.Default;
+        _participantMode = mode;
+        ParticipantModeText = decision[mode].Text;
 
         if (string.IsNullOrWhiteSpace(className))
-            return;
-
-        var field = await _field.GetStartFieldAsync(competition, className);
-
-        // Before the draw the start list is empty and the entry list is the whole answer to "who
-        // else is going?" — the question people actually ask in the weeks they are deciding.
-        IsEntryList = field.Count == 0;
-
-        if (IsEntryList)
-            field = await _field.GetEntryListAsync(competition, className);
-
-        // Everyone who has entered stays reachable after the draw too. A start list is ordered by
-        // time and stops at the class you are in; the entry list answers a different question —
-        // who is coming at all — and losing it the moment the times are drawn was an either/or
-        // nobody asked for.
-        HasEntryList = !IsEntryList;
-
-        if (field.Count == 0)
-            return;
-
-        int ranked = 0;
-
-        foreach (var runner in field)
         {
-            if (runner.Points is not null)
-                ranked++;
-
-            StartField.Add(new StartFieldRow
-            {
-                Order = runner.Points is null ? "—" : ranked.ToString(Format.Culture),
-                Name = runner.Name,
-                Club = runner.Club,
-                PointsText = runner.Points is { } points ? points.ToString("N2", Format.Culture) : "—",
-
-                // "utan ranking" på varje rad var en kolumn som mest sa att den var tom. Raden
-                // visar riksplaceringen när den finns och tiger annars — och före lottningen,
-                // när listan är anmälda och inte startande, finns den inte för någon.
-                RankText = !IsEntryList && runner.NationalRank is { } rank ? $"riks {rank}" : string.Empty,
-
-                // The entry list has no person ids, so the reader is found the way the live lists
-                // find them — by name and club (#75).
-                IsMe = IsEntryList
-                    ? RunnerIdentity.Of(runner.Name, runner.Club).Matches(RunnerIdentity.Of(me.Name, me.Club))
-                    : runner.Person == me.Id,
-                ShowRanking = !IsEntryList,
-            });
+            ParticipantCaption = "Välj klass för att se vilka som är med.";
+            return;
         }
 
-        // Two different sentences because they answer two different questions. Before the draw
-        // nobody has points here — the entry list carries no club ids to look them up by — so a
-        // "0 av 36 finns på listan" would read as a broken Sverigelistan rather than as a field
-        // that has not been drawn.
-        // "0 av 36 finns på listan" är sant både när ingen är rankad och när ingen kan läsas —
-        // och de två betyder helt olika saker för den som läser. Är det inloggningen som fattas
-        // säger raden det, med samma ord som resten av appen.
-        var access = ranked == 0 && !IsEntryList
-            ? await _eventor.AccessAsync()
-            : EventorAccess.Available;
-
-        StartFieldCaption = IsEntryList
-            ? $"{field.Count} anmälda i {className}. Startlistan är inte lottad än."
-            : EventorMessage.Explains(access)
-                ? EventorMessage.Detail(access, "Sverigelistan")
-                : $"{ranked} av {field.Count} finns på listan";
-
-        HasStartField = true;
-    }
-
-    private async Task<bool> HasLiveSourceAsync(CompetitionId competition)
-    {
         try
         {
-            var live = await _live.GetLiveCompetitionsAsync();
+            var (rows, caption) = mode switch
+            {
+                ParticipantMode.Entries => await EntriesPreviewAsync(competition, className, me),
+                ParticipantMode.StartList => await StartListPreviewAsync(competition, className, me),
+                ParticipantMode.Results => await ResultsPreviewAsync(competition, className, me),
+                _ => await LivePreviewAsync(competition, className, me),
+            };
 
-            return live.Any(c => c.Id == competition);
+            foreach (var row in rows.Take(PreviewRows))
+                Participants.Add(row);
+
+            HasParticipants = Participants.Count > 0;
+
+            // An empty list is the source saying there is nothing yet, and the mode already knows
+            // how to phrase that. A blank card would leave the reader guessing.
+            ParticipantCaption = HasParticipants
+                ? caption
+                : $"Listan {decision[mode].ConditionText}.";
         }
-        // Not knowing is not the same as knowing there is none. Offline, the button stays and
-        // fails the way everything else does.
         catch (SourceUnavailableException)
         {
-            return true;
+            ParticipantCaption = "Deltagarlistan behöver nätverk.";
+        }
+    }
+
+    private async Task<(IEnumerable<ParticipantPreview>, string)> EntriesPreviewAsync(
+        Competition competition, string className, Person me)
+    {
+        var entrants = await _field.GetEntryListAsync(competition.Id, className);
+
+        return (
+            entrants.Select(runner => new ParticipantPreview
+            {
+                Name = runner.Name,
+                Club = runner.Club,
+                Value = string.Empty,
+
+                // The entry list carries no person ids, so the reader is found the way the live
+                // lists find them — by name and club (#75).
+                IsMe = RunnerIdentity.Of(runner.Name, runner.Club)
+                    .Matches(RunnerIdentity.Of(me.Name, me.Club)),
+            }),
+            $"{entrants.Count} anmälda i {className}");
+    }
+
+    private async Task<(IEnumerable<ParticipantPreview>, string)> StartListPreviewAsync(
+        Competition competition, string className, Person me)
+    {
+        var field = await _field.GetStartFieldAsync(competition.Id, className);
+
+        // The first starters, because that is what a card of five rows can honestly be about.
+        // Who the field is, ranked, is a question the list itself answers.
+        return (
+            field
+                .OrderBy(runner => runner.StartTime ?? DateTimeOffset.MaxValue)
+                .Select(runner => new ParticipantPreview
+                {
+                    Name = runner.Name,
+                    Club = runner.Club,
+                    Value = runner.StartTime is { } start ? Format.Clock(start) : "—",
+                    IsMe = runner.Person == me.Id,
+                }),
+            $"{field.Count} startande i {className}");
+    }
+
+    private async Task<(IEnumerable<ParticipantPreview>, string)> LivePreviewAsync(
+        Competition competition, string className, Person me)
+    {
+        var snapshot = await _live.GetSnapshotAsync(competition.Id, className);
+
+        var running = snapshot.Entries
+            .Where(entry => entry.Class == className)
+            .OrderBy(entry => entry.Position ?? int.MaxValue)
+            .ToList();
+
+        return (
+            running.Select(entry => new ParticipantPreview
+            {
+                Name = entry.Name,
+                Club = entry.Club,
+                Value = entry.Position is { } position ? Format.Place(position) : string.Empty,
+                IsMe = RunnerIdentity.Of(entry.Name, entry.Club).Matches(RunnerIdentity.Of(me.Name, me.Club)),
+            }),
+            $"{running.Count(e => e.Status == LiveStatus.Running)} ute på banan i {className}");
+    }
+
+    private async Task<(IEnumerable<ParticipantPreview>, string)> ResultsPreviewAsync(
+        Competition competition, string className, Person me)
+    {
+        var results = await _participation.GetClassResultsAsync(competition.Id, className);
+
+        return (
+            results.Select(result => new ParticipantPreview
+            {
+                Name = result.Name,
+                Club = result.Club,
+                Value = Format.Time(result.Time),
+                IsMe = result.Person == me.Id,
+            }),
+            $"{results.Count} i mål i {className}");
+    }
+
+    /// <summary>
+    /// Tävlingens egen arenabild, om den hunnit bli till.
+    /// </summary>
+    /// <remarks>
+    /// Ett nej är också ett svar: hjälten behåller den medföljande terrängbilden, och själva
+    /// frågan är beställningen — backend lägger genereringen på kön vid uppslaget, så nästa
+    /// besök kan ha den riktiga bilden. Därför cachas ingenting av ett nej i appen, medan en
+    /// url som väl kommit får ligga länge i bildcachen: innehållet bakom den ändras aldrig.
+    /// </remarks>
+    private async Task LoadArenaImageAsync(CompetitionId competition)
+    {
+        ArenaImageUrl = null;
+        ArenaImageAttribution = string.Empty;
+
+        try
+        {
+            if (await _arenaImages.GetArenaImageAsync(competition) is { } image)
+            {
+                ArenaImageUrl = image.Url;
+                ArenaImageAttribution = image.Attribution;
+            }
+        }
+        catch (SourceUnavailableException)
+        {
+            // Offline ser hjälten ut precis som när bilden inte finns än: terrängbilden.
         }
     }
 
@@ -558,15 +593,24 @@ public partial class EventDetailsPageViewModel(
             await _navigation.NavigateToAsync<PredictionInfoSheet, Prediction>(prediction);
     }
 
+    /// <summary>
+    /// Opens the whole list, in whichever mode the card is showing.
+    /// </summary>
+    /// <remarks>
+    /// One way in where there used to be two. "Live" and "Resultat" were the same list asked at
+    /// two moments, and offering them as separate destinations is what made the app feel like a
+    /// set of systems rather than one competition.
+    /// </remarks>
     [RelayCommand]
-    private async Task OpenLive() => await _navigation.SwitchToTabAsync<LivePage>();
-
-    [RelayCommand]
-    private async Task OpenResults()
+    private async Task OpenParticipants()
     {
         if (_competition is not null)
-            await _navigation.NavigateToAsync<ResultsDetailPage, CompetitionId>(_competition.Id);
+            await ShowParticipantsAsync(_participantMode);
     }
+
+    private Task ShowParticipantsAsync(ParticipantMode mode) =>
+        _navigation.NavigateToAsync<ParticipantsPage, ParticipantsTarget>(
+            new ParticipantsTarget(_competition!.Id, MyClass, mode));
 
     [RelayCommand]
     private async Task ToggleInterest()
@@ -703,26 +747,22 @@ public partial class EventDetailsPageViewModel(
               + $"av {prediction.FieldSize} anmälda"
             : string.Empty;
 
-        await LoadStartFieldAsync(competition.Id, MyClass, me);
-
-        CanFollowLive = _decision.State == ContextState.Live && await HasLiveSourceAsync(competition.Id);
+        await LoadParticipantsAsync(competition, MyClass, me);
 
         await LoadLiveloxAsync(competition.Id);
 
-        // The big button routes through the same action, so it lies in the same way. A race with
-        // no live source has nothing to offer here; the quick actions below still do.
-        //
+        await LoadArenaImageAsync(competition.Id);
+
         // ShowCompetition is dropped outright: its label is "Visa tävling", and this is the
         // competition. A primary action that leads to the page it is standing on is not an action,
         // and the deadline block above already says what there is to know before entry opens.
+        //
+        // "Följ live" needs the same guard it always did (#89): the calendar knows the race is on,
+        // it does not know LiveResults has it. The card's own request is that guard now — an empty
+        // class is a race with no live list behind it, and the button goes rather than landing the
+        // runner in someone else's race.
         HasPrimaryAction = _decision.PrimaryAction is not ContextAction.ShowCompetition
-                           && (_decision.PrimaryAction != ContextAction.FollowLive || CanFollowLive);
-
-        HasResults = _decision.State >= ContextState.ResultsPublished;
-
-        // A greyed button with no reason reads as a broken button (testkörningen, skärm 17).
-        LiveConditionText = CanFollowLive ? string.Empty : "finns när tävlingen startat";
-        ResultsConditionText = HasResults ? string.Empty : "finns efter målgång";
+                           && (_decision.PrimaryAction != ContextAction.FollowLive || HasParticipants);
 
         BuildBriefing(competition, MyClass);
         BuildDocuments(competition, now);

@@ -9,15 +9,20 @@ namespace Orientera.Features.Dev;
 /// </summary>
 public partial class DesignSystemPageViewModel : ViewModelBase
 {
-    /// <summary>The segment bar's specimen, with a disabled one to show what that looks like.</summary>
+    /// <summary>
+    /// The segment bar's specimen: the participant list's four modes, which is what the bar is
+    /// for. The last one is disabled to show what a mode with nothing behind it looks like —
+    /// dimmed and readable, never hidden, so the reader can see what is coming.
+    /// </summary>
     public IReadOnlyList<Segment> Segments { get; } =
     [
-        new("Översikt"),
-        new("Sträckor"),
-        new("Analys", IsEnabled: false),
+        new("Anmälda"),
+        new("Startlista"),
+        new("Live"),
+        new("Resultat", IsEnabled: false),
     ];
 
-    [ObservableProperty] public partial object? SelectedSegment { get; set; } = "Översikt";
+    [ObservableProperty] public partial object? SelectedSegment { get; set; } = "Startlista";
 
     [RelayCommand]
     private void SelectSegment(object? value) => SelectedSegment = value;

@@ -170,11 +170,115 @@ public class EventorSourceTests
     }
 
     /// <summary>Eventor as the fixtures describe it, and a switch for when it is not there.</summary>
+    // ---------------------------------------------------------------- one class at a time
+
+    [Fact]
+    public async Task A_class_is_served_out_of_the_competitions_own_list()
+    {
+        var results = await _source.GetClassResultsAsync(new CompetitionId("53683"), "H21");
+
+        Assert.NotEmpty(results);
+        Assert.All(results, result => Assert.Equal("H21", result.Class));
+    }
+
+    [Fact]
+    public async Task A_class_nobody_ran_comes_back_empty_rather_than_missing()
+    {
+        var results = await _source.GetClassResultsAsync(new CompetitionId("53683"), "D45");
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task An_unnamed_class_asks_nothing_of_eventor()
+    {
+        Assert.Empty(await _source.GetClassResultsAsync(new CompetitionId("53683"), string.Empty));
+        Assert.DoesNotContain(_eventor.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("/results/event"));
+    }
+
+    /// <summary>
+    /// The weight is in the split times — 86 MB of O-Ringen — and a participant list wants a
+    /// placing and a time, never a leg.
+    /// </summary>
+    [Fact]
+    public async Task The_class_list_is_fetched_without_split_times()
+    {
+        await _source.GetClassResultsAsync(new CompetitionId("53683"), "H21");
+
+        var fetch = _eventor.Requests.Last(request => request.RequestUri!.AbsolutePath.EndsWith("/results/event"));
+
+        Assert.Contains("includeSplitTimes=false", fetch.RequestUri!.Query);
+    }
+
+    /// <summary>
+    /// The analysis behind one runner's row does need the legs — of the whole class, because a
+    /// leg is only good or bad compared to the people who ran it. It is still one class and not
+    /// the competition, which is the difference between a page that opens and one that times out.
+    /// </summary>
+    [Fact]
+    public async Task Split_times_are_asked_for_only_when_the_caller_wants_them()
+    {
+        await _source.GetClassResultsAsync(new CompetitionId("53683"), "H21", splits: true);
+
+        var fetch = _eventor.Requests.Last(request => request.RequestUri!.AbsolutePath.EndsWith("/results/event"));
+
+        Assert.Contains("includeSplitTimes=true", fetch.RequestUri!.Query);
+    }
+
+    /// <summary>
+    /// With and without legs are two different copies. Serving a split-less list to the analysis
+    /// would give it a class where nobody has any legs, which reads as a race nobody ran.
+    /// </summary>
+    [Fact]
+    public async Task The_two_copies_do_not_stand_in_for_each_other()
+    {
+        await _source.GetClassResultsAsync(new CompetitionId("53683"), "H21");
+
+        int fetched = _eventor.Requests.Count(request => request.RequestUri!.AbsolutePath.EndsWith("/results/event"));
+
+        await _source.GetClassResultsAsync(new CompetitionId("53683"), "H21", splits: true);
+
+        Assert.True(_eventor.Requests.Count(request => request.RequestUri!.AbsolutePath.EndsWith("/results/event")) > fetched);
+    }
+
+    /// <summary>Every class comes out of one copy: the second class costs no upstream request.</summary>
+    [Fact]
+    public async Task A_second_class_is_served_from_the_copy_the_first_one_fetched()
+    {
+        await _source.GetClassResultsAsync(new CompetitionId("53683"), "H21");
+
+        int fetched = _eventor.Requests.Count(request => request.RequestUri!.AbsolutePath.EndsWith("/results/event"));
+
+        await _source.GetClassResultsAsync(new CompetitionId("53683"), "D21");
+
+        Assert.Equal(fetched, _eventor.Requests.Count(request => request.RequestUri!.AbsolutePath.EndsWith("/results/event")));
+    }
+
+    /// <summary>
+    /// Karlstad Indoor is one class over two races, and Eventor names the rows after the race.
+    /// Both stages are the same class and both belong in the list.
+    /// </summary>
+    [Fact]
+    public async Task A_class_run_as_several_races_keeps_all_its_stages()
+    {
+        _eventor.ResultsFixture = "results-flerlopp.xml";
+
+        var results = await _source.GetClassResultsAsync(new CompetitionId("53683"), "Herrar");
+
+        Assert.NotEmpty(results);
+        Assert.All(results, result => Assert.StartsWith("Herrar", result.Class));
+        Assert.Contains(results, result => result.Class == "Herrar, Etapp 1");
+        Assert.Contains(results, result => result.Class == "Herrar, Etapp 2");
+    }
+
     private sealed class EventorStub : HttpMessageHandler
     {
         private readonly List<HttpRequestMessage> _requests = [];
 
         public bool Fail { get; set; }
+
+        /// <summary>Which result fixture to answer with — a multi-race event is a different shape.</summary>
+        public string ResultsFixture { get; set; } = "results.xml";
 
         public IReadOnlyList<HttpRequestMessage> Requests => _requests;
 
@@ -195,7 +299,7 @@ public class EventorSourceTests
                 var p when p.EndsWith("/eventclasses") => "eventclasses.xml",
                 var p when p.EndsWith("/organisations") => "organisations.xml",
                 var p when p.EndsWith("/starts/event") => "starts.xml",
-                var p when p.EndsWith("/results/event") => "results.xml",
+                var p when p.EndsWith("/results/event") => ResultsFixture,
                 _ => null,
             };
 

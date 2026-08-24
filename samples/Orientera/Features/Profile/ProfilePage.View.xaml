@@ -49,6 +49,18 @@
                         Command="{Binding OpenIdentityCommand}" />
             </Grid>
 
+            <!-- ============ Mina resultat ============ -->
+            <!--
+                Säsongen är en undersida till Jag, inte en egen del av appen: ett resultat hör
+                till tävlingen det sprangs i, och listan är vägen tillbaka dit.
+            -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Resultat" />
+                <Button Style="{StaticResource SecondaryButton}"
+                        Text="Mina resultat"
+                        Command="{Binding OpenMyResultsCommand}" />
+            </VerticalStackLayout>
+
             <!-- ============ Eventor-inloggning ============ -->
             <VerticalStackLayout Spacing="8">
                 <Label Style="{StaticResource SectionLabel}" Text="Eventor" />

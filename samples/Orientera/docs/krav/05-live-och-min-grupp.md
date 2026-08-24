@@ -1,5 +1,12 @@
 # 5. Live och Min grupp
 
+> **Omläggning (D7).** Live är inte längre en flik utan ett läge i tävlingens deltagarlista.
+> Allt nedan gäller fortfarande — skoporna, splittabellen, pollningen, matchningen mot
+> LiveResults — men de bor på `ParticipantsPage` under respektive tävling. Att välja *vilken*
+> tävling är inte längre en fråga sidan ställer: man kom dit från tävlingen. Att följa Min grupp
+> i flera samtidiga tävlingar ligger på Hem, som ger ett Live nu-block per tävling.
+> Se [redesign-03-deltagare.md](../design/redesign-03-deltagare.md).
+
 ## Live
 
 LiveResults har ett **publikt JSON-API utan autentisering, med hashstöd och 15 sekunders cache** [K2]. Det gör tjänsten väl lämpad som live-källa, förutsatt att Orientera matchar rätt Eventor-event mot rätt LiveResults-tävling (spike SP-04).

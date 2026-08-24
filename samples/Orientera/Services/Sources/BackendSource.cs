@@ -140,6 +140,16 @@ public sealed class BackendSource(
         ListAsync<CompetitionResult>(
             $"competitions/{Uri.EscapeDataString(competition.Value)}/results", cancellationToken);
 
+    public Task<IReadOnlyList<CompetitionResult>> GetClassResultsAsync(
+        CompetitionId competition, string className, bool splits = false, CancellationToken cancellationToken = default) =>
+        className.Length == 0
+            ? Task.FromResult<IReadOnlyList<CompetitionResult>>([])
+            : ListAsync<CompetitionResult>(
+                $"competitions/{Uri.EscapeDataString(competition.Value)}/results"
+                    + $"?class={Uri.EscapeDataString(className)}"
+                    + (splits ? "&splits=true" : string.Empty),
+                cancellationToken);
+
     /// <summary>
     /// The reader's own rows in a set of result lists, fetched as exactly that.
     /// </summary>

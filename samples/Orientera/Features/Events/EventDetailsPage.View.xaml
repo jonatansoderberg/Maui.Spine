@@ -26,8 +26,7 @@
 
             <VerticalStackLayout Spacing="6" IsVisible="{Binding IsUnavailable}">
                 <Label Style="{StaticResource Heading2Label}" Text="Kunde inte hämta tävlingen" />
-                <Label Style="{StaticResource BodySecondaryLabel}"
-                       Text="Ingen anslutning, och tävlingen finns inte sparad offline. Den sparas automatiskt när du är anmäld, följer den eller markerar dig som intresserad." />
+                <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding UnavailableText}" />
             </VerticalStackLayout>
 
             <!--
@@ -35,7 +34,11 @@
                 platsen. Utan bild degraderar den till kartrutan — inte till en tom yta — och
                 kartan står kvar längre ned i sidan, där den är information och inte dekor.
             -->
-            <HeroImage Discipline="{Binding HeroDiscipline}" HeightRequest="180" Margin="-16,-12,-16,0" />
+            <!-- 224 pt är arenabildens egna 16:9 på skärmbredden — ingen synlig beskärning. -->
+            <HeroImage Discipline="{Binding HeroDiscipline}"
+                       ArenaSource="{Binding ArenaImageUrl}"
+                       Attribution="{Binding ArenaImageAttribution}"
+                       HeightRequest="224" Margin="-16,-12,-16,0" />
 
             <!--
                 Stjärnan delar rad med den korta metaraden, inte med titeln. Ett 44 pt-mål
@@ -61,10 +64,10 @@
                            TextColor="{DynamicResource AccentAction}"
                            WidthRequest="44" HeightRequest="44"
                            HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
-                           SemanticProperties.Description="{Binding FavouriteDescription}"
-                           Text="{Binding FavouriteGlyph}">
+                           SemanticProperties.Description="{Binding InterestDescription}"
+                           Text="{Binding InterestGlyph}">
                         <Label.GestureRecognizers>
-                            <TapGestureRecognizer Command="{Binding ToggleFavouriteCommand}" />
+                            <TapGestureRecognizer Command="{Binding ToggleInterestCommand}" />
                         </Label.GestureRecognizers>
                     </Label>
                 </Grid>
@@ -160,38 +163,43 @@
                 </Border>
             </VerticalStackLayout>
 
-            <!-- ============ Startfältet enligt Sverigelistan ============ -->
-            <VerticalStackLayout Spacing="8" IsVisible="{Binding HasStartField}">
-                <Label Style="{StaticResource SectionLabel}" Text="Fältet enligt Sverigelistan" />
+            <!-- ============ Deltagare ============ -->
+            <!--
+                Ett fält, fyra lägen. Kortet säger vilket läge tävlingen nått, hur många som är
+                med och de fem översta raderna; hela listan — och växlingen mellan lägena —
+                ligger på deltagarsidan.
+            -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Deltagare" />
 
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="10">
-                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding StartFieldCaption}" />
+                        <HorizontalStackLayout Spacing="8">
+                            <Border Style="{StaticResource BadgeAccent}">
+                                <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding ParticipantModeText}" />
+                            </Border>
+                            <Label Style="{StaticResource CaptionLabel}"
+                                   VerticalOptions="Center"
+                                   Text="{Binding ParticipantCaption}" />
+                        </HorizontalStackLayout>
 
-                        <!--
-                            Samma anatomi som varje annan lista (P9). Ordningstalet står i
-                            identitetens plats, poängen i värdets, och riksplaceringen på raden
-                            under värdet — men bara när den finns.
-                        -->
-                        <VerticalStackLayout Spacing="7" BindableLayout.ItemsSource="{Binding StartField}">
+                        <VerticalStackLayout Spacing="7"
+                                             IsVisible="{Binding HasParticipants}"
+                                             BindableLayout.ItemsSource="{Binding Participants}">
                             <BindableLayout.ItemTemplate>
-                                <DataTemplate x:DataType="StartFieldRow">
+                                <DataTemplate x:DataType="ParticipantPreview">
                                     <ListRow Primary="{Binding Name}"
                                              Secondary="{Binding Club}"
-                                             Value="{Binding PointsText}"
-                                             ValueDetail="{Binding RankText}"
+                                             Value="{Binding Value}"
                                              IsHighlighted="{Binding IsMe}"
-                                             ShowChevron="False">
-                                        <ListRow.Identity>
-                                            <Label Style="{StaticResource NumericCaptionLabel}"
-                                                   WidthRequest="28"
-                                                   VerticalOptions="Center"
-                                                   Text="{Binding Order}" />
-                                        </ListRow.Identity>
-                                    </ListRow>
+                                             ShowChevron="False" />
                                 </DataTemplate>
                             </BindableLayout.ItemTemplate>
                         </VerticalStackLayout>
+
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Text="Visa hela listan"
+                                Command="{Binding OpenParticipantsCommand}" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
@@ -203,22 +211,11 @@
             -->
             <VerticalStackLayout Spacing="8">
                 <Label Style="{StaticResource SectionLabel}" Text="Snabbhandlingar" />
-                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
-                    <Button Grid.Row="0" Grid.Column="0" Style="{StaticResource SecondaryButton}" Text="Klass"
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Button Style="{StaticResource SecondaryButton}" Text="Klass"
                             Command="{Binding OpenChooseClassCommand}" />
-                    <Button Grid.Row="0" Grid.Column="1" Style="{StaticResource SecondaryButton}" Text="Live"
-                            IsEnabled="{Binding CanFollowLive}" Command="{Binding OpenLiveCommand}" />
-                    <Button Grid.Row="0" Grid.Column="2" Style="{StaticResource SecondaryButton}" Text="Resultat"
-                            IsEnabled="{Binding HasResults}" Command="{Binding OpenResultsCommand}" />
-
-                    <Label Grid.Row="1" Grid.Column="1"
-                           Style="{StaticResource CaptionLabel}"
-                           HorizontalTextAlignment="Center"
-                           Text="{Binding LiveConditionText}" />
-                    <Label Grid.Row="1" Grid.Column="2"
-                           Style="{StaticResource CaptionLabel}"
-                           HorizontalTextAlignment="Center"
-                           Text="{Binding ResultsConditionText}" />
+                    <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Text="Deltagare"
+                            Command="{Binding OpenParticipantsCommand}" />
                 </Grid>
             </VerticalStackLayout>
 

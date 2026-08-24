@@ -200,7 +200,6 @@ public static class MauiProgram
         services.AddSingleton<OfflinePackageService>();
 
         services.AddSingleton<CompetitionContextService>();
-        services.AddSingleton<LiveSelection>();
 
         // Notifications are planned from data the app already has, and delivered by whatever
         // the platform offers.

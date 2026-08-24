@@ -244,6 +244,9 @@ public partial class ProfilePageViewModel(
         session?.ExpiresAt is { } expires ? $" · giltig till {expires:d MMM yyyy}" : string.Empty;
 
     [RelayCommand]
+    private async Task OpenMyResults() => await _navigation.NavigateToAsync<MyResultsPage>();
+
+    [RelayCommand]
     private async Task OpenNotifications() => await _navigation.NavigateToAsync<NotificationSheet>();
 
     [RelayCommand]

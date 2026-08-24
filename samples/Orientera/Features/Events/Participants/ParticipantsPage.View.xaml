@@ -1,67 +1,166 @@
 <SpinePage
     xmlns="http://schemas.microsoft.com/dotnet/maui/global"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    x:Class="Orientera.Features.Live.LivePage"
-    x:TypeArguments="LivePageViewModel"
-    x:DataType="LivePageViewModel">
+    x:Class="Orientera.Features.Events.Participants.ParticipantsPage"
+    x:TypeArguments="ParticipantsPageViewModel"
+    x:DataType="ParticipantsPageViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,*">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
 
-        <!-- Vilken tävling och hur färsk datan är -->
-        <VerticalStackLayout Grid.Row="0" Padding="16,4,16,8" Spacing="2" IsVisible="{Binding HasLive}">
-            <!-- Namnet blir valbart först när det finns en till tävling att byta till -->
-            <HorizontalStackLayout Spacing="6">
-                <Label Style="{StaticResource Heading2Label}"
-                       SemanticProperties.HeadingLevel="Level1"
-                       Text="{Binding CompetitionName}" />
-                <Label Style="{StaticResource Heading2Label}"
-                       VerticalOptions="Center"
-                       IsVisible="{Binding CanPickCompetition}"
-                       TextColor="{DynamicResource AccentAction}"
-                       Text="▾" />
+        <!-- Vilken tävling, och hur färsk listan är -->
+        <VerticalStackLayout Grid.Row="0" Padding="16,4,16,8" Spacing="4">
+            <Label Style="{StaticResource Heading2Label}"
+                   SemanticProperties.HeadingLevel="Level1"
+                   Text="{Binding CompetitionName}" />
 
-                <HorizontalStackLayout.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding PickCompetitionCommand}" />
-                </HorizontalStackLayout.GestureRecognizers>
-            </HorizontalStackLayout>
             <HorizontalStackLayout Spacing="8">
                 <Border Style="{StaticResource BadgeLive}" IsVisible="{Binding IsRunningNow}">
                     <Label Style="{StaticResource BadgeOnSignalLabel}" Text="Live" />
                 </Border>
+                <!--
+                    Preliminärt är ett påstående om källan, inte en stilnyans (D11): samma läge
+                    visar den publicerade listan och den som fylls på medan folk kommer i mål,
+                    och skillnaden får aldrig bara ligga i färgen.
+                -->
+                <Border Style="{StaticResource Badge}" IsVisible="{Binding IsPreliminary}">
+                    <Label Style="{StaticResource BadgeLabel}" Text="Preliminärt" />
+                </Border>
                 <Label Style="{StaticResource NumericCaptionLabel}"
                        VerticalOptions="Center"
+                       IsVisible="{Binding UpdatedText.Length}"
                        Text="{Binding UpdatedText}" />
             </HorizontalStackLayout>
+
+            <Border Style="{StaticResource BadgeAccent}"
+                    HorizontalOptions="Fill" Padding="12,8"
+                    IsVisible="{Binding IsFromCache}">
+                <Label Style="{StaticResource CaptionStrongLabel}"
+                       TextColor="{DynamicResource AccentAction}"
+                       Text="{Binding CacheLabel}" />
+            </Border>
         </VerticalStackLayout>
 
-        <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="16,4,16,10" IsVisible="{Binding HasLive}">
-            <ChipView Text="Favoriter" IsSelected="{Binding IsMyGroup}"
-                      Command="{Binding SelectScopeCommand}" CommandParameter="MyGroup" />
-            <ChipView Text="Min klass" IsSelected="{Binding IsMyClass}"
-                      Command="{Binding SelectScopeCommand}" CommandParameter="MyClass" />
-            <!-- Klasschipet är en väljare: att trycka på det frågar alltid vilken klass -->
-            <ChipView Text="{Binding ClassChipText}" IsSelected="{Binding IsClass}"
-                      IsVisible="{Binding CanPickClass}"
-                      Command="{Binding PickClassCommand}" />
-        </HorizontalStackLayout>
+        <!-- Lägena: anmälda → startlista → live → resultat -->
+        <SegmentBar Grid.Row="1" Margin="16,0,16,8"
+                    IsVisible="{Binding HasCompetition}"
+                    ItemsSource="{Binding Modes}"
+                    SelectedValue="{Binding Mode}"
+                    Command="{Binding SelectModeCommand}" />
 
-        <VerticalStackLayout Grid.Row="2" Padding="32" Spacing="8" VerticalOptions="Center"
+        <!-- Urvalet inuti läget, och startlistans egen ordning -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Padding="16,0,16,8" ColumnSpacing="8"
+              IsVisible="{Binding HasCompetition}">
+            <HorizontalStackLayout Spacing="8">
+                <ChipView Text="Min grupp" IsSelected="{Binding IsMyGroup}"
+                          IsVisible="{Binding CanScopeToGroup}"
+                          Command="{Binding SelectScopeCommand}" CommandParameter="MyGroup" />
+                <ChipView Text="Min klass" IsSelected="{Binding IsMyClass}"
+                          Command="{Binding SelectScopeCommand}" CommandParameter="MyClass" />
+                <!-- Klasschipet är en väljare: att trycka på det frågar alltid vilken klass -->
+                <ChipView Text="{Binding ClassChipText}" IsSelected="{Binding IsClass}"
+                          IsVisible="{Binding CanPickClass}"
+                          Command="{Binding PickClassCommand}" />
+            </HorizontalStackLayout>
+
+            <!--
+                "När går jag" och "vilka är fältet" är två frågor till samma lista. Växeln ligger
+                i listans huvud i stället för som ett tredje chip: raden ovanför är redan två
+                kontroller djup på en telefonskärm.
+            -->
+            <Label Grid.Column="1"
+                   Style="{StaticResource CaptionStrongLabel}"
+                   TextColor="{DynamicResource AccentAction}"
+                   VerticalOptions="Center"
+                   IsVisible="{Binding IsStartList}"
+                   SemanticProperties.Hint="Byt listans ordning"
+                   Text="{Binding SortText}">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ToggleSortCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+        </Grid>
+
+        <Label Grid.Row="3" Style="{StaticResource BodySecondaryLabel}"
+               Padding="16,0,16,8"
+               IsVisible="{Binding CaptionText.Length}"
+               Text="{Binding CaptionText}" />
+
+        <!-- Tomt läge är ett svar, inte ett väntrum (P10) -->
+        <VerticalStackLayout Grid.Row="4" Padding="32" Spacing="8" VerticalOptions="Center"
                              IsVisible="{Binding IsEmpty}">
             <Label Style="{StaticResource Heading2Label}" SemanticProperties.HeadingLevel="Level2"
-                   HorizontalTextAlignment="Center" Text="Inget live just nu" />
+                   HorizontalTextAlignment="Center" Text="{Binding EmptyHeading}" />
             <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center"
                    Text="{Binding EmptyMessage}" />
         </VerticalStackLayout>
 
-        <!--
-            Sträcktabellen: en kolumn per radiokontroll. Namnkolumnen ligger sist i varje rad
-            och skjuts tillbaka med tabellens scrollposition, så den står stilla medan
-            kontrollerna passerar under den.
-        -->
-        <ScrollView Grid.Row="2" x:Name="Table"
+        <!-- ============ Anmälda / Startlista / Resultat: en rad per löpare ============ -->
+        <CollectionView Grid.Row="4"
+                        ItemsSource="{Binding Groups}"
+                        IsGrouped="True" SelectionMode="None"
+                        IsVisible="{Binding IsList}">
+
+            <CollectionView.GroupHeaderTemplate>
+                <DataTemplate x:DataType="ParticipantClassGroup">
+                    <Label Style="{StaticResource SectionLabel}"
+                           Padding="16,14,16,6"
+                           SemanticProperties.HeadingLevel="Level2"
+                           Text="{Binding Name}" />
+                </DataTemplate>
+            </CollectionView.GroupHeaderTemplate>
+
+            <CollectionView.Footer>
+                <VerticalStackLayout Padding="16,8,16,0" Spacing="12">
+                    <!-- Livelox är en dörr och inget annat: kartor och vägval är deras (P11) -->
+                    <HandoffCard IsVisible="{Binding HasLivelox}"
+                                 Title="{Binding LiveloxText}"
+                                 Destination="Livelox"
+                                 Command="{Binding OpenLiveloxCommand}" />
+
+                    <!-- Margin carries the tab bar's own height; the height is the breathing room. -->
+                    <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
+                             Margin="{Binding SafeAreaInsets}"
+                             Color="Transparent" />
+                </VerticalStackLayout>
+            </CollectionView.Footer>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="ParticipantRow">
+                    <VerticalStackLayout>
+                        <ListRow Padding="16,6"
+                                 Primary="{Binding Name}"
+                                 Secondary="{Binding Club}"
+                                 Value="{Binding ValueText}"
+                                 ValueDetail="{Binding ValueDetailText}"
+                                 ShowChevron="{Binding CanOpen}"
+                                 IsHighlighted="{Binding IsMe}"
+                                 Description="{Binding Accessibility}"
+                                 Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenRunnerCommand}"
+                                 CommandParameter="{Binding .}">
+                            <ListRow.Identity>
+                                <Grid WidthRequest="{StaticResource PlaceColumnWidth}">
+                                    <Label Style="{StaticResource NumericStrongLabel}"
+                                           HorizontalTextAlignment="Center"
+                                           IsVisible="{Binding LeadText.Length}"
+                                           Text="{Binding LeadText}" />
+                                    <Label Style="{StaticResource Heading2Label}"
+                                           HorizontalTextAlignment="Center"
+                                           IsVisible="{Binding HasMedal}"
+                                           Text="{Binding MedalText}" />
+                                </Grid>
+                            </ListRow.Identity>
+                        </ListRow>
+                        <BoxView Style="{StaticResource Divider}" Margin="16,0" />
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- ============ Live: en kolumn per radiokontroll ============ -->
+        <ScrollView Grid.Row="4" x:Name="Table"
                     Orientation="Horizontal"
                     BackgroundColor="{DynamicResource SurfaceCard}"
-                    IsVisible="{Binding HasRows}">
+                    IsVisible="{Binding IsLive}">
 
             <CollectionView WidthRequest="{Binding TableWidth}"
                             HeightRequest="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=Height}"
@@ -69,15 +168,13 @@
                             IsGrouped="True" SelectionMode="None">
 
                 <CollectionView.GroupHeaderTemplate>
-                    <DataTemplate x:DataType="LiveClassGroup">
+                    <DataTemplate x:DataType="ParticipantClassGroup">
                         <Grid ColumnDefinitions="156,*" Padding="0,14,0,6">
 
                             <HorizontalStackLayout Grid.Column="1"
                                                    BindableLayout.ItemsSource="{Binding Columns}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="x:String">
-                                        <!-- Kolumnbredden växer så att den bredaste klassen fyller
-                                             raden; smalare klasser slutar där deras kontroller tar slut -->
                                         <Label Style="{StaticResource SectionLabel}"
                                                WidthRequest="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.CellWidth}"
                                                Margin="0,0,10,0"
@@ -100,14 +197,13 @@
                 </CollectionView.GroupHeaderTemplate>
 
                 <CollectionView.Footer>
-                    <!-- Margin carries the tab bar's own height; the height is the breathing room. -->
                     <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
                              Margin="{Binding SafeAreaInsets}"
                              Color="Transparent" />
                 </CollectionView.Footer>
 
                 <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="LiveRow">
+                    <DataTemplate x:DataType="ParticipantRow">
                         <Grid ColumnDefinitions="156,*" RowDefinitions="Auto,Auto">
 
                             <Grid.Triggers>
@@ -116,12 +212,11 @@
                                 </DataTrigger>
                             </Grid.Triggers>
 
-
                             <HorizontalStackLayout Grid.Column="1" Grid.Row="0"
                                                    Padding="0,7" VerticalOptions="Center"
                                                    BindableLayout.ItemsSource="{Binding Cells}">
                                 <BindableLayout.ItemTemplate>
-                                    <DataTemplate x:DataType="LiveCell">
+                                    <DataTemplate x:DataType="ParticipantCell">
                                         <VerticalStackLayout Margin="0,0,10,0"
                                                              WidthRequest="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.CellWidth}"
                                                              SemanticProperties.Description="{Binding Accessibility}">
@@ -149,12 +244,6 @@
                                   TranslationX="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=ScrollX}"
                                   SemanticProperties.Description="{Binding Accessibility}">
 
-                                <!--
-                                    Ingen placeringskolumn: en placering hör till den kontroll
-                                    den mättes vid, och tre löpare kan alla vara etta vid var
-                                    sin. Ordningen i listan är rangordningen; siffrorna står i
-                                    kolumnen de gäller.
-                                -->
                                 <VerticalStackLayout Spacing="1" VerticalOptions="Center">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                                         <Label Style="{StaticResource BodyStrongLabel}"
@@ -166,8 +255,6 @@
                                                VerticalOptions="Center"
                                                Text="{Binding GroupGlyph}" />
                                     </Grid>
-                                    <!-- The class is the group heading; repeating it on every row
-                                         is noise. It stays in the row's spoken description. -->
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
                                         <Border Style="{StaticResource ClubBadge}" IsVisible="{Binding HasClubLogo}">
                                             <Image WidthRequest="14" HeightRequest="14"
@@ -184,7 +271,6 @@
                                            Text="{Binding StatusText}" />
                                 </VerticalStackLayout>
 
-                                <!-- Jag-raden får en accentton, aldrig bara en färg utan text -->
                                 <Grid.Triggers>
                                     <DataTrigger TargetType="Grid" Binding="{Binding IsMe}" Value="True">
                                         <Setter Property="BackgroundColor" Value="{DynamicResource AccentSubtle}" />
@@ -199,11 +285,10 @@
             </CollectionView>
         </ScrollView>
 
-    
-        <ActivityIndicator Style="{StaticResource PageLoading}"
+        <ActivityIndicator Grid.Row="4"
+                           Style="{StaticResource PageLoading}"
                            IsRunning="{Binding IsLoading}"
                            IsVisible="{Binding IsLoading}" />
-
-</Grid>
+    </Grid>
 
 </SpinePage>
