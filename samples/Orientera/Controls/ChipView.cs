@@ -22,6 +22,13 @@ public sealed class ChipView : ContentView
         BindableProperty.Create(nameof(IsSelected), typeof(bool), typeof(ChipView), false,
             propertyChanged: (b, _, _) => ((ChipView)b).ApplySelection());
 
+    /// <summary>
+    /// The dense variant, for a grid of choices rather than a row of presets.
+    /// </summary>
+    public static readonly BindableProperty IsCompactProperty =
+        BindableProperty.Create(nameof(IsCompact), typeof(bool), typeof(ChipView), false,
+            propertyChanged: (b, _, _) => ((ChipView)b).ApplyDensity());
+
     public static readonly BindableProperty CommandProperty =
         BindableProperty.Create(nameof(Command), typeof(ICommand), typeof(ChipView));
 
@@ -51,6 +58,27 @@ public sealed class ChipView : ContentView
 
         ApplySelection();
         ApplyAvailability();
+        ApplyDensity();
+    }
+
+    public bool IsCompact
+    {
+        get => (bool)GetValue(IsCompactProperty);
+        set => SetValue(IsCompactProperty, value);
+    }
+
+    /// <summary>
+    /// Swaps the four styles rather than the two Borders. The pre-built pair is there so no
+    /// trigger has to remember a colour across a theme swap; density is orthogonal to that, and
+    /// four dynamic resources keep every colour resolving the same way.
+    /// </summary>
+    private void ApplyDensity()
+    {
+        _rest.SetDynamicResource(StyleProperty, IsCompact ? "ChipCompact" : "Chip");
+        _selected.SetDynamicResource(StyleProperty, IsCompact ? "ChipCompactSelected" : "ChipSelected");
+        _restLabel.SetDynamicResource(StyleProperty, IsCompact ? "ChipCompactLabel" : "ChipLabel");
+        _selectedLabel.SetDynamicResource(StyleProperty,
+            IsCompact ? "ChipCompactSelectedLabel" : "ChipSelectedLabel");
     }
 
     /// <summary>

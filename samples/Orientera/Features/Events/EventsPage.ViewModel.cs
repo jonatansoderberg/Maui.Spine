@@ -36,6 +36,13 @@ public partial class EventsPageViewModel(
     CompetitionContextService _context) : OrienteraViewModel
 {
     private IReadOnlyList<Competition> _all = [];
+
+    /// <summary>
+    /// What the selected quick filter leaves, before the sheet's filter narrows it further. The
+    /// sheet counts against this: a count of the whole calendar would promise rows that "Mina"
+    /// or "Denna vecka" is going to take away again.
+    /// </summary>
+    private IReadOnlyList<Competition> _quickMatches = [];
     private Person? _me;
     private IReadOnlySet<CompetitionId> _interests = new HashSet<CompetitionId>();
 
@@ -58,6 +65,16 @@ public partial class EventsPageViewModel(
     /// <summary>The list, in dated sections. "För dig" is one section, since it is ranked.</summary>
     public ObservableCollection<EventSection> Sections { get; } = [];
 
+    /// <summary>
+    /// What the filter sheet has narrowed the list by, one removable chip each. Shown only when
+    /// something is set: seeing "Filter (3)" without seeing *which* three is the state a short
+    /// list gets mistaken for a broken calendar in.
+    /// </summary>
+    public ObservableCollection<FilterFacet> ActiveFacets { get; } = [];
+
+    [ObservableProperty]
+    public partial bool HasActiveFacets { get; set; }
+
     [ObservableProperty]
     public partial string EmptyMessage { get; set; } = string.Empty;
 
@@ -66,9 +83,6 @@ public partial class EventsPageViewModel(
 
     [ObservableProperty]
     public partial bool HasCards { get; set; }
-
-    [ObservableProperty]
-    public partial string FilterLabel { get; set; } = "Filter";
 
     /// <summary>
     /// The search box, on the page rather than in the sheet: you type and see, instead of typing,
@@ -124,32 +138,58 @@ public partial class EventsPageViewModel(
     }
 
     /// <summary>
-    /// The header button says how many choices are set. Without the count an active filter is
-    /// invisible, and a short list reads as a broken calendar rather than as a filtered one —
-    /// which matters more now that a district or a period can hide most of it.
+    /// Puts what the filter has narrowed by on the page, as chips that can be taken back off.
     /// </summary>
+    /// <remarks>
+    /// The header button used to carry a count — "Filter (3)". It said how many choices were set
+    /// but never which, and it only ever refreshed on re-entering the tab: the header reads
+    /// <c>PageActions</c> when the page appears and is not told when the collection changes. The
+    /// chips say which, and say it when it happens.
+    /// </remarks>
     private void ShowFilterAction()
     {
-        FilterLabel = _filter.IsActive ? $"Filter ({_filter.ActiveCount})" : "Filter";
+        if (PageActions.Count == 0)
+            PageActions.Add(new PageAction(text: "Filter", command: OpenFilterCommand));
 
-        PageActions.Clear();
-        PageActions.Add(new PageAction(text: FilterLabel, command: OpenFilterCommand));
+        ActiveFacets.Clear();
+
+        foreach (var facet in _filter.Facets)
+            ActiveFacets.Add(facet);
+
+        HasActiveFacets = ActiveFacets.Count > 0;
+    }
+
+    /// <summary>
+    /// Takes one choice back out. The facet carries the filter without itself, so the page never
+    /// has to know how any particular choice was stored.
+    /// </summary>
+    [RelayCommand]
+    private async Task RemoveFacet(FilterFacet facet)
+    {
+        _filter = facet.Without;
+        _districts.Save(_filter.Districts);
+        ShowFilterAction();
+        await LoadAsync(BuildAsync);
+    }
+
+    /// <summary>
+    /// Clears the sheet's choices and leaves the search box alone — it is its own control, in
+    /// view, with its own clear button, and it is not one of the chips being cleared.
+    /// </summary>
+    [RelayCommand]
+    private async Task ClearFacets()
+    {
+        _filter = EventFilter.Default with { Query = _filter.Query };
+        _districts.Save(_filter.Districts);
+        ShowFilterAction();
+        await LoadAsync(BuildAsync);
     }
 
     [RelayCommand]
     private async Task OpenFilter()
     {
-        // The sheet opens showing what is set. Districts are offered from the calendar in hand,
-        // so the list is the ones there are competitions in rather than every district in Sweden.
-        var districts = _all
-            .Select(c => c.District)
-            .Where(d => d.Length > 0)
-            .Distinct()
-            .OrderBy(d => d, StringComparer.CurrentCulture)
-            .ToList();
-
         var result = await _navigation.NavigateToWithResultAsync<EventFilterSheet, FilterRequest, EventFilter>(
-            new FilterRequest(_filter, districts));
+            new FilterRequest(_filter, _all, _quickMatches, _me, _clock.Now));
 
         if (result is { IsSuccess: true, Value: { } filter })
         {
@@ -289,9 +329,12 @@ public partial class EventsPageViewModel(
             Interests = _interests,
         };
 
-        var candidates = _all
-            .Where(c => PassesAdvanced(c, relevance, today))
+        _quickMatches = _all
             .Where(c => PassesQuick(c, now, today, mine, groupEntries))
+            .ToList();
+
+        var candidates = _quickMatches
+            .Where(c => _filter.Includes(c, _me, now))
             .ToList();
 
         // Group first, then order: a recurring series must occupy one slot, not six.
@@ -346,46 +389,6 @@ public partial class EventsPageViewModel(
         EmptyMessage = EmptyMessageFor(Selected);
     }
 
-    private bool PassesAdvanced(Competition competition, RelevanceContext relevance, DateOnly today)
-    {
-        if (_filter.Districts.Count > 0 && !_filter.Districts.Contains(competition.District))
-            return false;
-
-        if (!_filter.Matches(competition))
-            return false;
-
-        if (_filter.Window(today) is { } window
-            && (competition.Date < window.From || competition.Date > window.To))
-        {
-            return false;
-        }
-
-        // Training and recreational events are hidden unless explicitly asked for — the spec's
-        // "minska Eventor-bruset" applied at its most common source.
-        if (competition.IsLowPriority && !_filter.ShowTraining)
-            return false;
-
-        if (_filter.MinimumLevel is { } level && competition.Level > level)
-            return false;
-
-        if (_filter.Discipline is { } discipline && competition.Discipline != discipline)
-            return false;
-
-        if (_filter.MaxDistanceKm is { } maxDistance
-            && relevance.Home.DistanceKmTo(competition.Location) > maxDistance)
-            return false;
-
-        if (_filter.OnlyMyClass
-            && competition.Classes.Count > 0
-            && !competition.Classes.Contains(relevance.MyClass))
-            return false;
-
-        if (_filter.OnlyRegisterable && !IsRegisterable(competition, relevance.Now))
-            return false;
-
-        return true;
-    }
-
     private bool PassesQuick(
         Competition competition,
         DateTimeOffset now,
@@ -405,11 +408,6 @@ public partial class EventsPageViewModel(
             QuickFilter.Interested => _interests.Contains(competition.Id),
             _ => true,
         };
-
-    private static bool IsRegisterable(Competition competition, DateTimeOffset now) =>
-        competition.Schedule is { RegistrationOpensAt: { } opens, EntryDeadline: { } deadline }
-        && opens <= now
-        && now <= deadline;
 
     /// <summary>
     /// Arrangemangets sista dag som läsaren räknar den. En målgång i småtimmarna hör till

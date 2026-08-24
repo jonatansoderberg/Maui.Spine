@@ -69,6 +69,28 @@
         </Setter>
     </Style>
 
+    <!--
+        Kompakt chip, för valrutnät: tjugofyra distrikt eller sju nivåer som ska rymmas i en
+        radbruten yta i stället för bakom en vågrät rullning. Ingen MinimumHeightRequest — den
+        är vad som gör det stora chippets padding osymmetrisk, och utan den räcker en symmetrisk
+        padding för att centrera. Höjden blir ~35 pt mot 44: under principens mått för
+        kärnhandlingar, och ett medvetet undantag för ett valrutnät inne i ett ark.
+    -->
+    <Style x:Key="ChipCompact" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" />
+        <Setter Property="Stroke" Value="{DynamicResource OutlineBrush}" />
+        <Setter Property="StrokeThickness" Value="1" />
+        <Setter Property="Padding" Value="12,9" />
+        <Setter Property="StrokeShape">
+            <RoundRectangle CornerRadius="10" />
+        </Setter>
+    </Style>
+
+    <Style x:Key="ChipCompactSelected" TargetType="Border" BasedOn="{StaticResource ChipCompact}">
+        <Setter Property="BackgroundColor" Value="{DynamicResource AccentAction}" />
+        <Setter Property="Stroke" Value="{DynamicResource AccentActionBrush}" />
+    </Style>
+
     <Style x:Key="ChipSelected" TargetType="Border" BasedOn="{StaticResource Chip}">
         <Setter Property="BackgroundColor" Value="{DynamicResource AccentAction}" />
         <Setter Property="Stroke" Value="{DynamicResource AccentActionBrush}" />
@@ -79,6 +101,12 @@
         <Setter Property="FontSize" Value="{StaticResource SizeCaption}" />
         <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="VerticalOptions" Value="Center" />
+    </Style>
+
+    <Style x:Key="ChipCompactLabel" TargetType="Label" BasedOn="{StaticResource ChipLabel}" />
+
+    <Style x:Key="ChipCompactSelectedLabel" TargetType="Label" BasedOn="{StaticResource ChipLabel}">
+        <Setter Property="TextColor" Value="{DynamicResource TextOnAccent}" />
     </Style>
 
     <Style x:Key="ChipSelectedLabel" TargetType="Label" BasedOn="{StaticResource ChipLabel}">

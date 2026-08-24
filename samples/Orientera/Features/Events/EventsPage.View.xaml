@@ -5,7 +5,7 @@
     x:TypeArguments="EventsPageViewModel"
     x:DataType="EventsPageViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,*">
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
 
         <!-- Sökrutan står på sidan, inte i filterarket: man skriver och ser, utan att stänga något -->
         <!--
@@ -37,8 +37,44 @@
             </HorizontalStackLayout>
         </ScrollView>
 
+        <!--
+            Aktiva filter: vad arket har smalnat av med, ett borttagbart chip i taget. Ritas bara
+            när något är satt — "Filter (3)" säger antalet men inte vilka, och en kort lista utan
+            synlig orsak läses som en trasig kalender.
+        -->
+        <ScrollView Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalScrollBarVisibility="Never"
+                    Padding="16,0,16,10"
+                    IsVisible="{Binding HasActiveFacets}">
+            <HorizontalStackLayout Spacing="8">
+                <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding ActiveFacets}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="FilterFacet">
+                            <Border Style="{StaticResource Chip}"
+                                    SemanticProperties.Description="{Binding Accessibility}">
+                                <HorizontalStackLayout Spacing="6">
+                                    <Label Style="{StaticResource ChipLabel}" Text="{Binding Label}" />
+                                    <Label Style="{StaticResource ChipLabel}"
+                                           TextColor="{DynamicResource TextSecondary}"
+                                           Text="✕" />
+                                </HorizontalStackLayout>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.RemoveFacetCommand}"
+                                        CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </HorizontalStackLayout>
+
+                <ChipView Text="Rensa" Command="{Binding ClearFacetsCommand}" />
+            </HorizontalStackLayout>
+        </ScrollView>
+
         <!-- Tomt läge är ett designat läge, inte en spinner -->
-        <VerticalStackLayout Grid.Row="2"
+        <VerticalStackLayout Grid.Row="3"
                              Padding="32"
                              Spacing="8"
                              VerticalOptions="Center"
@@ -52,7 +88,7 @@
                    Text="{Binding EmptyMessage}" />
         </VerticalStackLayout>
 
-        <CollectionView Grid.Row="2"
+        <CollectionView Grid.Row="3"
                         ItemsSource="{Binding Sections}"
                         IsGrouped="True"
                         SelectionMode="None"
@@ -201,7 +237,7 @@
         </CollectionView>
 
     
-        <ActivityIndicator Grid.Row="2" Style="{StaticResource PageLoading}"
+        <ActivityIndicator Grid.Row="3" Style="{StaticResource PageLoading}"
                            IsRunning="{Binding IsLoading}"
                            IsVisible="{Binding IsLoading}" />
 
