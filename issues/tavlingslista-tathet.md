@@ -2,7 +2,7 @@
 
 **GitHub:** _issue ej skapad än_
 **Branch:** issue/tavlingslista-tathet
-**Status:** Not started
+**Status:** Completed
 
 > Det här är en **uppdragsbeskrivning**, skriven för att kunna utföras utan kännedom om
 > samtalet den kom ur. Läs `CLAUDE.md` först — kodstandard, commit-språk och
@@ -100,11 +100,13 @@ relevanspremissen:
 `[identitet] [primär/sekundär] [värde] [→]`, men den här raden behöver *två* ledande kolumner
 (datum och märke) och ingen värdekolumn. Bedöm — tvinga inte in den.
 
-## Öppen fråga att ta ställning till
+## Öppen fråga att ta ställning till — **avgjord: ingen bandhuvud**
 
 Nya Eventor har ett **band** som sektionshuvud: mörkblå rad med "v 34" och "Augusti". Vårt
 sektionshuvud är en diskret `SectionLabel`. Ett band ger listan tydligare ryggrad men mer
 färg. Avgör när raderna är byggda och det går att se dem tillsammans — inte innan.
+
+Sett tillsammans med raderna: **behåll etiketten.** Se `## Decisions`.
 
 ## Krav
 
@@ -127,8 +129,133 @@ färg. Avgör när raderna är byggda och det går att se dem tillsammans — in
 5. Den här filen har en `## Changes` och en `## Decisions` enligt `CLAUDE.md`.
 
 ## Plan
-<!-- Skrivs innan kod. -->
+
+Raden byggs i XAML i `ItemTemplate`, inte på `Controls/ListRow.cs`. `ListRow` har en ledande
+kolumn, en textkolumn, en värdekolumn och en chevron. Den här raden har *två* ledande kolumner
+(datum, märke), ingen chevron och en badgerad som bara ibland finns. Att göra `ListRow` generisk
+nog vore en abstraktion för ett enda anrop.
+
+**Rutnätet** (innehållet, med stjärnan som syskon utanför precis som i dag):
+
+```
+kolumner:  44        Auto   *                        Auto     44 (stjärnans yta)
+rad 0:     [24]      [◆]    Trimtex Cup #4
+rad 1:     [mån]     [♛]    Medel · Valbo AIF · …    12 km
+rad 2:                      ANMÄLD  MIN GRUPP
+```
+
+- Datumkolumnen och märkeskolumnen spänner raderna och toppjusteras.
+- Titeln och metaraden får `TailTruncation`.
+- Avståndet flyttar ut till höger i egen kolumn. Det är relevanspremissen och får inte vara
+  det som trunkeras bort — högerställt bildar det dessutom en läsbar kolumn nedför listan.
+- Badgeraden ritas bara när det finns en badge (`HasBadges`).
+
+**Kortet försvinner.** `CollectionView` får `SurfaceCard` som bakgrund och går kant till kant,
+`ItemSpacing` blir 0, och varje rad avslutas med en hårfin `Divider`. Det är den delade ytan.
+
+**Datumets kollapsregel.** `EventCard.ShowDate` sätts när sektionerna byggs: rita datumet om
+det skiljer sig från raden ovanför, och alltid på sektionens första rad. Samma regel för alla
+filter — `ForYou` kollapsar nästan aldrig, en kalender kollapsar hårt.
+
+**Månaden.** Ett blott dagnummer räcker i en kalender där sektionshuvudet säger "September",
+men inte i "Mest relevant", som varken har månad i huvudet eller ordning i datumen. Därför en
+tredje mikrorad i datumkolumnen — månadens förkortning — ritad efter *samma* regel: när den
+skiljer sig från raden ovanför. I en kalender syns den en gång per månad, i "För dig" när
+månaden hoppar.
+
+**Nivåordet.** Punkt 4 i mätningen är att Eventor bara visar det som gäller. "Nationell" på var
+tredje rad säger inget som filtret inte redan säger. Nivån skrivs ut som ord bara när den
+skiljer ut sig — mästerskap och internationell — och står då bredvid pokalen (P8). Nivån finns
+kvar i skärmläsarmeningen för varje rad.
+
+**Disciplinen** behåller sitt ord (P8) som metaradens första led, rakt under sitt märke.
+
+**Skärmläsaren.** `Accessibility` är oförändrad i sin form och läser fortfarande hela datumet
+via `DateLabel`, som blir en ren talsträng och slutar ritas. Stjärnan förblir syskon.
 
 ## Changes
 
+- `EventsPage.View.xaml` — kortet ersatt av en rad på en delad yta. `CollectionView` fick
+  `SurfaceCard` som bakgrund och går kant till kant, `ItemSpacing` är 0, och varje rad slutar
+  med en hårfin `Divider`. Rutnätet är `40 / 20 / * / 44`: datumkolumn, märkeskolumn, innehåll,
+  och 44 pt reserverade åt stjärnan.
+- Titeln fick `TailTruncation` och `BodyStrongLabel` i stället för `Heading2Label`.
+- Metaraden är *en* rad — disciplinen som ord, klubbmärket, klubben och distriktet — med
+  **avståndet högerställt i egen kolumn**, så att trunkeringen äter distriktet och aldrig km.
+- Badgeraden ritas bara när det finns en badge (`HasBadges`).
+- `EventCard` — `DateLabel` ersatt av `DayLabel`, `WeekdayLabel`, `MonthLabel` för kolumnen och
+  `SpokenDate` för skärmläsaren. Nya `Date`, `ShowDate`, `ShowMonth`, `MetaLine`, `HasBadges`.
+  `OccurrenceLabel`/`IsRecurring` blev `SpanLabel`/`HasSpan` och bär nu både "6 tillfällen" och
+  "25–30 aug." — allt datumkolumnen inte kan hålla.
+- `EventTimeline` — kollapsregeln som `DrawsDate`/`DrawsMonth`, två rena funktioner över två
+  datum. `EventSection.Append` sätter flaggorna från dem när raden läggs in.
+- `Format` — `DayNumber`, `Weekday`, `MonthShort`.
+- `Typography.xaml` — `MicroLabel` för månaden under veckodagen.
+- `EventTimelineTests` — fem fall för kollapsregeln (första raden, samma dag, ny dag i samma
+  månad, månadsbyte åt båda hållen, samma månad ett år senare).
+
 ## Decisions
+
+**Raden byggdes inte på `ListRow`.** `ListRow` är `[identitet] [primär/sekundär] [värde] [→]`.
+Den här raden har två ledande kolumner, ingen chevron och en badgerad som ibland saknas. Att
+göra `ListRow` generisk nog hade varit en abstraktion för ett enda anrop.
+
+**Nivåordet togs bort ur raden.** Det var punkt 4 i mätningen — "bara det som gäller visas" —
+och den första versionen som behöll ordet visade `Natt · Mästerskap · OK Ha…`: nivån trängde ut
+arrangören. Nivån säger dessutom ingenting nytt just där den är intressant, eftersom pokalen
+står i märkeskolumnen och titeln redan börjar med "DM". "Nationell" på varannan rad säger det
+filterchipsen säger. **Ordet finns kvar i skärmläsarmeningen** (`MetaLabel`), som varken har
+pokalen i synfältet eller chipsen. Disciplinen behöll sitt ord — den var uttryckligen skyddad.
+
+**En tredje mikrorad i datumkolumnen: månaden.** Uppdragsbeskrivningens anatomi har två rader,
+och de räcker i en kalender där sektionshuvudet säger "September". De räcker inte i "Mest
+relevant", som varken har månad i huvudet eller ordning i datumen — där stod annars "4", "6",
+"24" utan att något sa att de två första är september. Månaden ritas efter *samma* regel som
+datumet: när den skiljer sig från raden ovanför. I en kalender syns den en gång per månad.
+
+**Året jämförs, inte bara månadsnumret.** Augusti 2027 under augusti 2026 hade annars lämnat
+"24 mån" stående för ett datum tolv månader bort. Egen testfall.
+
+**Datumkolumnen bär en dag, inte ett spann.** Ett flerdagarsarrangemang och en serie får sitt
+spann som badge ("25–30 aug.", "6 tillfällen") i stället för i kolumnen. En ryggrad som byter
+bredd rad för rad är ingen ryggrad, och "24–26" i tabulär siffra gör kolumnen bredare för alla.
+
+**Kollapsregeln bor i `EventTimeline`, inte i vyn.** Testprojektet länkar in `Services/Grouping`
+men kan inte referera MAUI-typerna, så en regel som satt i `EventSection` inte hade gått att
+testa. Två rena funktioner över `DateOnly?` och `DateOnly` gick.
+
+**Klubbmärket behölls.** Det är dekor i tillgänglighetsträdet och kostar 26 pt på en rad som
+trunkerar, men det lades dit medvetet (#46). Kolumnen är fast 20 pt så att metaraden börjar på
+samma x oavsett om klubben har ett märke — en `Auto`-kolumn hade fått texten att vandra i sidled
+nedför listan.
+
+**Sektionshuvudet förblir en diskret `SectionLabel` — inget mörkblått band.** Frågan gick att
+avgöra först med raderna på plats, och svaret raderna ger är att bandet inte behövs: **listan
+har redan fått sin ryggrad**, och den är datumkolumnen. Ett band hade lagt en andra, konkurrerande
+struktur ovanpå den. Eventor behöver bandet just för att deras datumkolumn är svagare — deras
+sektion är en vecka, vår är "Denna vecka" och "September", som är samma information i ord. Till
+det kommer D1: mättad färg bär handling och det som brinner, och ett fält som återkommer var
+sjätte rad är varken. Beslutet är billigt att riva upp — det är en `Style` i
+`GroupHeaderTemplate`.
+
+## Mätning (iPhone 17, simulator, "För dig")
+
+| | Tävlingar helt synliga per skärm |
+|---|---|
+| Före | **3** (fjärde delvis) |
+| Efter | **6** (sjunde delvis) |
+
+Raden gick från ~167 pt till ~93 pt. Kravet var minst en fördubbling.
+
+Verifierat i körning utöver antalet: kollapsen (två tävlingar 30 aug under "Gästrikland" — den
+andra lämnar kolumnen tom), månadsbytet i "Mest relevant" (SEP → AUG), spannbadgen
+("25–30 aug."), mörkt tema, att stjärnan fortfarande växlar utan att öppna tävlingen, och att
+raden i övrigt öppnar den.
+
+## Kvar att titta på (utanför det här uppdraget)
+
+- `Format.DateRange` behåller månadsförkortningens punkt — "25–30 AUG." i versal badge. Samma
+  sort som #115; `DateInSentence` och `Deadline` trimmar den redan. Har ett testfall som låser
+  nuvarande beteende, och flera anropare.
+- "DM, lång, Gästrikland" (Storviks IF) visar **6905 km**. Fanns före det här arbetet och ser ut
+  som en tävling utan koordinater.

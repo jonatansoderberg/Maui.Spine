@@ -35,6 +35,26 @@ public static class EventTimeline
     public static DateOnly SortDate(EventGroup group, DateOnly today) =>
         group.Occurrences.Select(c => c.Date).Where(d => d >= today).DefaultIfEmpty(group.LastDate).Min();
 
+    /// <summary>
+    /// Whether a row draws its own date, given the date on the row above it. The date column is
+    /// a spine, and a spine that says the same day on four rows running is a column of noise.
+    /// The first row of a section has nothing above it and always draws.
+    /// </summary>
+    /// <remarks>
+    /// One rule for both orderings the list has. A calendar collapses hard — most competition
+    /// days carry several — and "Mest relevant" is ranked rather than dated and almost never
+    /// collapses at all. Neither has to know about the other.
+    /// </remarks>
+    public static bool DrawsDate(DateOnly? above, DateOnly date) => above != date;
+
+    /// <summary>
+    /// The same rule one step up, for the month under the weekday. A bare day number is enough
+    /// under a heading that says "September"; under "Mest relevant", which has neither a month
+    /// in the heading nor an order to its dates, it is not.
+    /// </summary>
+    public static bool DrawsMonth(DateOnly? above, DateOnly date) =>
+        above is not { } previous || previous.Month != date.Month || previous.Year != date.Year;
+
     public static string NameFor(EventGroup group, DateOnly today)
     {
         if (IsPast(group, today))

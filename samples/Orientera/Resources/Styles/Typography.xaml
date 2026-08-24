@@ -121,6 +121,18 @@
         <Setter Property="FontFamily" Value="{StaticResource FontNumericSemiBold}" />
     </Style>
 
+    <!--
+        Under the weekday in a list's date column. Smaller than the caption above it, because a
+        month that only appears where it changes is a second-order support, not a second label.
+    -->
+    <Style x:Key="MicroLabel" TargetType="Label">
+        <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
+        <Setter Property="FontSize" Value="{StaticResource SizeMicro}" />
+        <Setter Property="TextColor" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="TextTransform" Value="Uppercase" />
+        <Setter Property="CharacterSpacing" Value="0.6" />
+    </Style>
+
     <!-- Section label — "LIVE NU", "SENASTE RESULTAT". Structure without heading weight. -->
     <Style x:Key="SectionLabel" TargetType="Label">
         <Setter Property="SemanticProperties.HeadingLevel" Value="Level2" />

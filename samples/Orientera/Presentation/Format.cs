@@ -178,6 +178,15 @@ public static class Format
     public static string DateInSentence(DateOnly date) =>
         date.ToString("d MMM", Sv).TrimEnd('.');
 
+    /// <summary>The day number alone — the top line of a list's date column.</summary>
+    public static string DayNumber(DateOnly date) => date.Day.ToString(Sv);
+
+    /// <summary>"mån" — the weekday under the day number.</summary>
+    public static string Weekday(DateOnly date) => date.ToString("ddd", Sv).TrimEnd('.');
+
+    /// <summary>"aug" — the month under the weekday, for the row where it changes.</summary>
+    public static string MonthShort(DateOnly date) => date.ToString("MMM", Sv).TrimEnd('.');
+
     /// <summary>"4–9 aug" for a range, a single date otherwise.</summary>
     public static string DateRange(DateOnly first, DateOnly last)
     {

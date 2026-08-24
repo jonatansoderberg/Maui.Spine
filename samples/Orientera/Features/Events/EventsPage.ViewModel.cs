@@ -226,13 +226,18 @@ public partial class EventsPageViewModel(
         {
             var competition = package.Competition;
 
-            saved.Add(new EventCard
+            saved.Append(new EventCard
             {
                 Competition = competition.Id,
                 Title = competition.Name,
-                DateLabel = LastDayOf(competition) > competition.Date
+                Date = competition.Date,
+                DayLabel = Format.DayNumber(competition.Date),
+                WeekdayLabel = Format.Weekday(competition.Date),
+                MonthLabel = Format.MonthShort(competition.Date),
+                SpokenDate = Format.RelativeDate(competition.Date, today),
+                SpanLabel = LastDayOf(competition) > competition.Date
                     ? Format.DateRange(competition.Date, LastDayOf(competition))
-                    : Format.RelativeDate(competition.Date, today),
+                    : string.Empty,
                 PlaceLabel = $"{competition.Organiser} · {competition.Place}",
                 OrganiserLogo = competition.OrganiserLogo,
                 DisciplineLabel = Format.Discipline(competition.Discipline),
@@ -328,7 +333,7 @@ public partial class EventsPageViewModel(
             if (built.Count == 0 || built[^1].Name != name)
                 built.Add(new EventSection(name));
 
-            built[^1].Add(card);
+            built[^1].Append(card);
         }
 
         Sections.Clear();
@@ -445,12 +450,20 @@ public partial class EventsPageViewModel(
         {
             Competition = primary.Id,
             Title = eventGroup.Title,
+            Date = eventGroup.FirstDate,
+            DayLabel = Format.DayNumber(eventGroup.FirstDate),
+            WeekdayLabel = Format.Weekday(eventGroup.FirstDate),
+            MonthLabel = Format.MonthShort(eventGroup.FirstDate),
+            SpokenDate = Format.RelativeDate(eventGroup.FirstDate, today),
             // Ett arrangemang som spänner flera dagar visas med sitt spann: SM-medelns kval
-            // går ena dagen och finalen nästa, och ett kort som säger "idag" om helgens
-            // huvudlopp lurar läsaren (upptäckt i skarptestet).
-            DateLabel = eventGroup.IsRecurring || LastDayOf(eventGroup) > eventGroup.FirstDate
-                ? Format.DateRange(eventGroup.FirstDate, LastDayOf(eventGroup))
-                : Format.RelativeDate(eventGroup.FirstDate, today),
+            // går ena dagen och finalen nästa, och en rad som säger "idag" om helgens
+            // huvudlopp lurar läsaren (upptäckt i skarptestet). Datumkolumnen bär en dag —
+            // spannet står i ord där undantagen redan står.
+            SpanLabel = eventGroup.IsRecurring
+                ? $"{eventGroup.Occurrences.Count} tillfällen"
+                : LastDayOf(eventGroup) > eventGroup.FirstDate
+                    ? Format.DateRange(eventGroup.FirstDate, LastDayOf(eventGroup))
+                    : string.Empty,
             PlaceLabel = $"{eventGroup.Organiser} · {eventGroup.Place}",
             OrganiserLogo = primary.OrganiserLogo,
             DisciplineLabel = Format.Discipline(eventGroup.Discipline),
@@ -459,7 +472,6 @@ public partial class EventsPageViewModel(
             DisciplineShape = DisciplineShape.For(eventGroup.Discipline),
             DisciplineKey = eventGroup.Discipline.ToString(),
             DistanceLabel = Format.Distance(distance),
-            OccurrenceLabel = eventGroup.IsRecurring ? $"{eventGroup.Occurrences.Count} tillfällen" : string.Empty,
             ContextLabel = decision.StateText,
             ShowContextBadge = decision.State is not (ContextState.Live or ContextState.Registered),
             IsLive = decision.State == ContextState.Live,
