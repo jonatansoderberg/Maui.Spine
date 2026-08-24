@@ -45,9 +45,6 @@ public partial class HomePageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
-        if (PageActions.Count == 0)
-            PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
-
         ScheduleWelcome();
 
         var session = _resume.Generation;
@@ -115,13 +112,6 @@ public partial class HomePageViewModel(
             Blocks.Clear();
 
         HasContent = Blocks.Count > 0;
-    }
-
-    [RelayCommand]
-    private async Task OpenTimeMachine()
-    {
-        await _navigation.NavigateToAsync<TimeMachineSheet>();
-        await ReloadAsync();
     }
 
     [RelayCommand]
