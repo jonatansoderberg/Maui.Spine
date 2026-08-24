@@ -62,13 +62,18 @@ public partial class EventorLoginSheetViewModel(
     /// Called after every navigation with whatever the page said about the reader. The sheet closes
     /// the moment Eventor greets somebody by name.
     /// </summary>
-    public async Task OnPageAsync(
+    /// <returns>
+    /// True once a session has been handed back and the sheet is closing. The quiet sheet needs
+    /// the answer: everything it does after this — deciding the password was refused, giving up on
+    /// a timer — would be acting on a page that has already served its purpose.
+    /// </returns>
+    public async Task<bool> OnPageAsync(
         string? greeting,
         Func<Task<IReadOnlyList<SessionCookie>>> cookies,
         Func<string, Task<string?>> typed)
     {
         if (Clean(greeting) is not { Length: > 0 })
-            return;
+            return false;
 
         // Remembered only once the login has actually worked. Storing what was typed before
         // Eventor accepted it would save a wrong password and replay it forever.
@@ -81,7 +86,7 @@ public partial class EventorLoginSheetViewModel(
         var captured = await cookies();
 
         if (captured.Count == 0)
-            return;
+            return false;
 
         var session = new EventorWebSession
         {
@@ -103,7 +108,15 @@ public partial class EventorLoginSheetViewModel(
             Adopt(account);
 
         await _navigation.ReturnAsync(session);
+
+        return true;
     }
+
+    /// <summary>
+    /// Closes the quiet attempt with nothing, which is what puts Eventor's own page in front of
+    /// the runner instead. The same door as <see cref="Cancel"/>, under the name the caller means.
+    /// </summary>
+    public Task GiveUpAsync() => _navigation.BackAsync();
 
     /// <summary>
     /// The login says who the user is. Until now that was typed in by hand (#75), because there was
