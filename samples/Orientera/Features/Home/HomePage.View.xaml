@@ -349,40 +349,81 @@
 
         </Grid>
 
-        <!-- Offline utan sparade block: ett designat läge, inte en tom lista -->
-        <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsOffline}">
-            <Label Style="{StaticResource Heading2Label}" HorizontalTextAlignment="Center"
-                   Text="Ingen anslutning" />
-            <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center"
-                   Text="Tävlingar du sparat offline finns kvar under Tävlingar — PM, din starttid och arenan fungerar utan nätverk." />
-        </VerticalStackLayout>
+        <!--
+            Fyra lägen, ett värde (P10). Hjälten står kvar i alla fyra — hälsningen är sann utan
+            nätverk, och en sida som tappar sin rubrik när hämtningen misslyckas ser trasig ut
+            snarare än offline.
+        -->
+        <StateView Grid.Row="1"
+                   State="{Binding State}"
+                   ErrorMessage="Ingen anslutning"
+                   ErrorDetail="Tävlingar du sparat offline finns kvar under Tävlingar — PM, din starttid och arenan fungerar utan nätverk."
+                   RetryCommand="{Binding ReloadCommand}">
 
-        <CollectionView Grid.Row="1"
-                    ItemsSource="{Binding Blocks}"
-                    ItemTemplate="{StaticResource BlockSelector}"
-                    Margin="16,0"
-                    SelectionMode="None">
+            <!--
+                Skelettet har blockens form och inte en listas: ett högt kort, sedan två med var
+                sin rubrik ovanför. Ett skelett av fel form är en grå låda, och sidan hoppar när
+                korten kommer.
+            -->
+            <StateView.Skeleton>
+                <VerticalStackLayout Padding="16,0" Spacing="12">
+                    <BoxView HeightRequest="230" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
 
-        <CollectionView.ItemsLayout>
-            <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
-        </CollectionView.ItemsLayout>
+                    <BoxView HeightRequest="17" WidthRequest="130" CornerRadius="4"
+                             HorizontalOptions="Start" Margin="0,8,0,0"
+                             Color="{DynamicResource SkeletonBase}" />
+                    <BoxView HeightRequest="170" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
 
-        <CollectionView.Footer>
-            <!-- Margin carries the tab bar's own height; the height is the breathing room.
-                 Bara underkanten: sedan hjälten tog över toppen bär SafeAreaInsets statusfältet
-                 också, och hela tjockleken här hade lagt 59 punkter luft under sista kortet. -->
-            <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
-                     Margin="{Binding ListBottomInset}"
-                     Color="Transparent" />
-        </CollectionView.Footer>
+                    <BoxView HeightRequest="17" WidthRequest="160" CornerRadius="4"
+                             HorizontalOptions="Start" Margin="0,8,0,0"
+                             Color="{DynamicResource SkeletonBase}" />
+                    <BoxView HeightRequest="140" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+                </VerticalStackLayout>
+            </StateView.Skeleton>
 
-        </CollectionView>
+            <StateView.Body>
+                <CollectionView ItemsSource="{Binding Blocks}"
+                                ItemTemplate="{StaticResource BlockSelector}"
+                                Margin="16,0"
+                                SelectionMode="None">
 
-    
-        <ActivityIndicator Style="{StaticResource PageLoading}"
-                           IsRunning="{Binding IsLoading}"
-                           IsVisible="{Binding IsLoading}" />
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="16" />
+                    </CollectionView.ItemsLayout>
 
-</Grid>
+                    <CollectionView.Footer>
+                        <!-- Margin carries the tab bar's own height; the height is the breathing room.
+                             Bara underkanten: sedan hjälten tog över toppen bär SafeAreaInsets statusfältet
+                             också, och hela tjockleken här hade lagt 59 punkter luft under sista kortet. -->
+                        <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
+                                 Margin="{Binding ListBottomInset}"
+                                 Color="Transparent" />
+                    </CollectionView.Footer>
+
+                </CollectionView>
+            </StateView.Body>
+
+            <!--
+                Tomt läge får en väg vidare och inte bara en mening. Den som saknar block har
+                inget att göra på Hem, och kalendern är svaret — inte en uppmaning att vänta.
+            -->
+            <StateView.EmptyView>
+                <VerticalStackLayout Padding="32" Spacing="10" VerticalOptions="Center">
+                    <Label Style="{StaticResource Heading2Label}"
+                           HorizontalTextAlignment="Center"
+                           Text="Inget att visa än" />
+                    <Label Style="{StaticResource BodySecondaryLabel}"
+                           HorizontalTextAlignment="Center"
+                           Text="När du anmält dig till något står det här, tillsammans med dina resultat och dem du följer." />
+                    <Button Style="{StaticResource PrimaryButton}"
+                            HorizontalOptions="Center"
+                            Text="Visa tävlingar"
+                            Command="{Binding OpenEventsCommand}" />
+                </VerticalStackLayout>
+            </StateView.EmptyView>
+
+        </StateView>
+
+    </Grid>
 
 </SpinePage>

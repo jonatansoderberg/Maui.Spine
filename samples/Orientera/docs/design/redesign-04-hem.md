@@ -1,7 +1,13 @@
 # Orientera — designriktning 04 "Hem"
 
-**Status:** förslag · **Datum:** 2026-08-24 · **Föregås av:**
+**Status:** genomförd · **Datum:** 2026-08-25 · **Föregås av:**
 [redesign-03-deltagare.md](redesign-03-deltagare.md)
+
+**Changelogar:** [tokens och typografi](../../../../issues/151-hem-tokens-och-typografi-for-den-nya-kortanatomin.md) ·
+[komponenterna](../../../../issues/152-hem-komponenterna-bakom-den-nya-kortanatomin.md) ·
+[sidan](../../../../issues/153-hem-ritas-om-hjalte-live-yta-och-sektionsrubriker.md) ·
+[vädret](../../../../issues/vadret-pa-halsningsraden.md) ·
+[fyra lägen](../../../../issues/154-hem-ritas-i-fyra-lagen.md)
 
 En konceptbild av Hem. Den ändrar inte vad sidan svarar på — ordningen kommer fortfarande från
 Context Engine, blocken är fortfarande få och stora — utan hur svaret ser ut: en hjältebild bakom

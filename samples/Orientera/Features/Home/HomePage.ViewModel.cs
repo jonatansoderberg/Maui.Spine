@@ -18,6 +18,10 @@ using Orientera.Services.Sources;
 using Orientera.Services.Time;
 using Orientera.Services.Weather;
 
+// MAUI har ett eget ViewState — dess är en tillståndsgrupp för visuella tillstånd, vårt är de
+// fyra lägena i P10. Aliaset säger vilket som avses här.
+using ViewState = Orientera.Controls.ViewState;
+
 namespace Orientera.Features.Home;
 
 public partial class HomePageViewModel(
@@ -57,6 +61,26 @@ public partial class HomePageViewModel(
     partial void OnWeatherTextChanged(string value) => OnPropertyChanged(nameof(HasWeather));
 
     /// <summary>
+    /// Vilket av de fyra lägena sidan står i (P10).
+    /// </summary>
+    /// <remarks>
+    /// Ett värde och inte tre <c>IsVisible</c> som råkar vara falska samtidigt. Ordningen är
+    /// regeln: ingenting är tomt medan svaret är okänt, och ingenting är offline medan en
+    /// hämtning fortfarande pågår. Det var precis den kombinationen testkörningen hittade — ett
+    /// tomt läge uppritat ovanpå en pågående laddning — och med ett enda värde kan den inte uppstå.
+    /// <para>
+    /// Offline är sidans fel-läge och inte ett femte. Det som gick fel är nätet, det som ändå
+    /// fungerar står utskrivet, och knappen försöker igen: samma tre delar som P10 kräver av ett
+    /// fel, med orden som hör till just det här felet.
+    /// </para>
+    /// </remarks>
+    public ViewState State =>
+        IsLoading ? ViewState.Loading
+        : IsOffline ? ViewState.Error
+        : HasContent ? ViewState.Content
+        : ViewState.Empty;
+
+    /// <summary>
     /// Hälsningens plats i hjälten. Bilden går under statusfältet (sidan har lämnat toppen ur
     /// sina SafeAreaEdges), så texten måste hålla sig undan det själv — och höjden är mätt,
     /// aldrig gissad: en ö och ett hack är inte lika höga.
@@ -70,12 +94,16 @@ public partial class HomePageViewModel(
     public Thickness ListBottomInset => new(0, 0, 0, SafeAreaInsets.Bottom);
 
     /// <summary>
-    /// De två härledda tjocklekarna räknas om när Spine har mätt sidans insets, vilket sker
+    /// De härledda egenskaperna räknas om när det de vilar på ändras: läget när en hämtning
+    /// börjar eller slutar, och tjocklekarna när Spine har mätt sidans insets — vilket sker
     /// efter att vyn bundit dem.
     /// </summary>
     protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
+
+        if (e.PropertyName is nameof(IsLoading) or nameof(IsOffline) or nameof(HasContent))
+            OnPropertyChanged(nameof(State));
 
         if (e.PropertyName != nameof(SafeAreaInsets))
             return;
@@ -200,6 +228,10 @@ public partial class HomePageViewModel(
 
         HasContent = Blocks.Count > 0;
     }
+
+    /// <summary>Knappen i offline-läget. Samma väg in som när sidan visas.</summary>
+    [RelayCommand]
+    private async Task Reload() => await ReloadAsync();
 
     [RelayCommand]
     private async Task OpenCompetition(CompetitionId competition) =>
