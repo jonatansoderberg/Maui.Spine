@@ -7,123 +7,202 @@
 
     <SpinePage.Resources>
 
+        <!--
+            Disciplinraden — distansen och nivån, samma två fakta som listan i Tävlingar visar,
+            ritade likadant. Två varianter, för att märkets färg inte kan följa med till en mörk
+            yta: distansernas nyanser är valda mot kort och sida.
+        -->
         <DataTemplate x:Key="LiveNowTemplate" x:DataType="LiveNowBlock">
-            <Border Style="{StaticResource Card}">
-                <VerticalStackLayout Spacing="10">
-                    <HorizontalStackLayout Spacing="8">
-                        <Border Style="{StaticResource BadgeLive}">
-                            <Label Style="{StaticResource BadgeOnSignalLabel}" Text="Live nu" />
-                        </Border>
-                    </HorizontalStackLayout>
+            <Border Style="{StaticResource Card}"
+                    BackgroundColor="{DynamicResource SurfaceLive}"
+                    Stroke="Transparent">
+                <Grid>
+                    <!-- Banan i bakgrunden: samma vokabulär som märket i raden, i kortformat. -->
+                    <CourseMark Size="180"
+                                HorizontalOptions="End" VerticalOptions="Start"
+                                Margin="0,-14,-52,0" />
 
-                    <Label Style="{StaticResource Heading1Label}" Text="{Binding Title}" />
+                    <VerticalStackLayout Spacing="10">
+                        <Border Style="{StaticResource Badge}"
+                                BackgroundColor="{DynamicResource SignalOnDark}"
+                                HorizontalOptions="Start">
+                            <Label Style="{StaticResource BadgeLabel}"
+                                   TextColor="{DynamicResource TextOnSignalDark}"
+                                   Text="Live nu" />
+                        </Border>
+
+                        <Label Style="{StaticResource Heading1Label}"
+                               TextColor="{DynamicResource TextOnDark}"
+                               Text="{Binding Title}" />
+
+                        <Label Style="{StaticResource CaptionLabel}"
+                               TextColor="{DynamicResource TextOnDarkMuted}"
+                               Text="{Binding Subtitle}" />
 
                         <HorizontalStackLayout Spacing="5" IsVisible="{Binding HasDisciplineShape}">
-                            <Path Style="{StaticResource DisciplineGlyph}"
+                            <Path Style="{StaticResource DisciplineGlyphOnDark}"
                                   Data="{Binding DisciplineShape}" />
                             <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                   TextColor="{DynamicResource TextOnDarkMuted}"
                                    Text="{Binding DisciplineLabel}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
+                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                   TextColor="{DynamicResource TextOnDarkMuted}" Text="·" />
                             <Path Style="{StaticResource LevelGlyph}"
                                   Data="{Binding LevelShape}"
                                   IsVisible="{Binding HasLevelShape}" />
                             <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                   TextColor="{DynamicResource TextOnDarkMuted}"
                                    Text="{Binding LevelLabel}" />
                         </HorizontalStackLayout>
-                    <Label Style="{StaticResource CaptionLabel}" Text="{Binding Subtitle}" />
-                    <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding MyStatus}" />
 
-                    <Button Style="{StaticResource PrimaryButton}"
-                            Text="{Binding ActionText}"
-                            Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenLiveCommand}"
-                            CommandParameter="{Binding Competition}" />
-                </VerticalStackLayout>
+                        <Label Style="{StaticResource NumericStrongLabel}"
+                               TextColor="{DynamicResource TextOnDark}"
+                               Text="{Binding MyStatus}" />
+
+                        <AvatarStack Faces="{Binding Faces}"
+                                     Total="{Binding FieldSize}"
+                                     IsVisible="{Binding HasFaces}"
+                                     RingColor="{DynamicResource SurfaceLive}"
+                                     Description="{Binding FieldText}" />
+
+                        <Button Style="{StaticResource PrimaryButton}"
+                                BackgroundColor="{DynamicResource SurfaceLiveAction}"
+                                TextColor="{DynamicResource TextOnLiveAction}"
+                                Text="{Binding ActionText}"
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenLiveCommand}"
+                                CommandParameter="{Binding Competition}" />
+                    </VerticalStackLayout>
+                </Grid>
             </Border>
         </DataTemplate>
 
         <DataTemplate x:Key="NextForMeTemplate" x:DataType="NextForMeBlock">
-            <VerticalStackLayout Spacing="7">
-                <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
+            <VerticalStackLayout Spacing="8">
+                <SectionHeader Title="{Binding SectionLabel}"
+                               ActionText="Visa kalender"
+                               Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenEventsCommand}" />
+
                 <Border Style="{StaticResource Card}">
-                    <VerticalStackLayout Spacing="10">
-                        <Label Style="{StaticResource Heading1Label}" Text="{Binding Title}" />
+                    <VerticalStackLayout Spacing="12">
 
-                        <HorizontalStackLayout Spacing="5" IsVisible="{Binding HasDisciplineShape}">
-                            <Path Style="{StaticResource DisciplineGlyph}"
-                                  Data="{Binding DisciplineShape}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
-                                   Text="{Binding DisciplineLabel}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
-                            <Path Style="{StaticResource LevelGlyph}"
-                                  Data="{Binding LevelShape}"
-                                  IsVisible="{Binding HasLevelShape}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
-                                   Text="{Binding LevelLabel}" />
-                        </HorizontalStackLayout>
-                        <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding WhenText}" />
-                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlaceText}" />
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                            <Border Grid.Column="0" Style="{StaticResource GlyphPlate}"
+                                    IsVisible="{Binding HasDisciplineShape}">
+                                <Path Style="{StaticResource DisciplineGlyph}"
+                                      WidthRequest="22" HeightRequest="22"
+                                      HorizontalOptions="Center" VerticalOptions="Center"
+                                      Data="{Binding DisciplineShape}" />
+                            </Border>
 
-                        <HorizontalStackLayout Spacing="8">
-                            <Border Style="{StaticResource BadgeAccent}">
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Label Style="{StaticResource Heading2Label}" Text="{Binding Title}" />
+
+                                <HorizontalStackLayout Spacing="5" IsVisible="{Binding HasDisciplineShape}">
+                                    <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                           Text="{Binding DisciplineLabel}" />
+                                    <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
+                                    <Path Style="{StaticResource LevelGlyph}"
+                                          Data="{Binding LevelShape}"
+                                          IsVisible="{Binding HasLevelShape}" />
+                                    <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                           Text="{Binding LevelLabel}" />
+                                </HorizontalStackLayout>
+
+                                <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding WhenText}" />
+                                <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlaceText}" />
+                            </VerticalStackLayout>
+
+                            <!-- Terrängen tävlingen går i, inte platsen den går på (P7). -->
+                            <Border Grid.Column="2"
+                                    WidthRequest="64" HeightRequest="64"
+                                    VerticalOptions="Start"
+                                    Stroke="Transparent" StrokeThickness="0" Padding="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="12" />
+                                </Border.StrokeShape>
+                                <HeroImage Discipline="{Binding TerrainKey}"
+                                           WidthRequest="64" HeightRequest="64" />
+                            </Border>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                            <Border Grid.Column="0" Style="{StaticResource BadgeAccent}" VerticalOptions="Center">
                                 <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding StateText}" />
                             </Border>
-                            <Label Style="{StaticResource NumericStrongLabel}"
+
+                            <Label Grid.Column="1" Style="{StaticResource NumericStrongLabel}"
                                    VerticalOptions="Center"
                                    IsVisible="{Binding HasStart}"
                                    Text="{Binding StartText}" />
-                        </HorizontalStackLayout>
 
-                        <Button Style="{StaticResource PrimaryButton}"
-                                Text="{Binding ActionText}"
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenCompetitionCommand}"
-                                CommandParameter="{Binding Competition}" />
+                            <Button Grid.Column="2"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Text="{Binding ActionText}"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenCompetitionCommand}"
+                                    CommandParameter="{Binding Competition}" />
+                        </Grid>
+
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
         </DataTemplate>
 
         <DataTemplate x:Key="LatestResultTemplate" x:DataType="LatestResultBlock">
-            <VerticalStackLayout Spacing="7">
-                <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
+            <VerticalStackLayout Spacing="8">
+                <SectionHeader Title="{Binding SectionLabel}"
+                               ActionText="Se alla"
+                               Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenMyResultsCommand}" />
+
                 <Border Style="{StaticResource Card}">
-                    <VerticalStackLayout Spacing="10">
-                        <Label Style="{StaticResource Heading2Label}" Text="{Binding Title}" />
+                    <VerticalStackLayout Spacing="12">
 
-                        <HorizontalStackLayout Spacing="5" IsVisible="{Binding HasDisciplineShape}">
-                            <Path Style="{StaticResource DisciplineGlyph}"
-                                  Data="{Binding DisciplineShape}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
-                                   Text="{Binding DisciplineLabel}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
-                            <Path Style="{StaticResource LevelGlyph}"
-                                  Data="{Binding LevelShape}"
-                                  IsVisible="{Binding HasLevelShape}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
-                                   Text="{Binding LevelLabel}" />
-                        </HorizontalStackLayout>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <Border Grid.Column="0" Style="{StaticResource GlyphPlate}"
+                                    IsVisible="{Binding HasDisciplineShape}">
+                                <Path Style="{StaticResource DisciplineGlyph}"
+                                      WidthRequest="22" HeightRequest="22"
+                                      HorizontalOptions="Center" VerticalOptions="Center"
+                                      Data="{Binding DisciplineShape}" />
+                            </Border>
 
-                        <HorizontalStackLayout Spacing="12" VerticalOptions="End">
-                            <Label Style="{StaticResource DisplayNumberLabel}" Text="{Binding PlaceText}" />
-                            <VerticalStackLayout VerticalOptions="End" Margin="0,0,0,4">
-                                <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding TimeText}" />
-                                <Label Style="{StaticResource NumericCaptionLabel}"
-                                       TextColor="{DynamicResource NegativeDelta}"
-                                       Text="{Binding BehindText}" />
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Label Style="{StaticResource Heading2Label}" Text="{Binding Title}" />
+                                <HorizontalStackLayout Spacing="5" IsVisible="{Binding HasDisciplineShape}">
+                                    <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                           Text="{Binding DisciplineLabel}" />
+                                    <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
+                                    <Path Style="{StaticResource LevelGlyph}"
+                                          Data="{Binding LevelShape}"
+                                          IsVisible="{Binding HasLevelShape}" />
+                                    <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                           Text="{Binding LevelLabel}" />
+                                </HorizontalStackLayout>
                             </VerticalStackLayout>
-                        </HorizontalStackLayout>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <StatRow Grid.Column="0" Stats="{Binding Stats}" VerticalOptions="Center" />
+
+                            <Border Grid.Column="1" Style="{StaticResource BadgeAccent}"
+                                    VerticalOptions="Center"
+                                    IsVisible="{Binding HasTrend}">
+                                <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding TrendText}" />
+                            </Border>
+                        </Grid>
 
                         <Button Style="{StaticResource SecondaryButton}"
                                 Text="{Binding ActionText}"
                                 Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenResultCommand}"
                                 CommandParameter="{Binding Competition}" />
+
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
         </DataTemplate>
 
         <DataTemplate x:Key="GroupTemplate" x:DataType="GroupBlock">
-            <VerticalStackLayout Spacing="7">
-                <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
+            <VerticalStackLayout Spacing="8">
+                <SectionHeader Title="{Binding SectionLabel}" />
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="8">
                         <Label Style="{StaticResource Heading2Label}" Text="{Binding Summary}" />
@@ -141,39 +220,64 @@
         </DataTemplate>
 
         <DataTemplate x:Key="DiscoveryTemplate" x:DataType="DiscoveryBlock">
-            <VerticalStackLayout Spacing="7">
-                <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
-                <Border Style="{StaticResource Card}">
-                    <VerticalStackLayout Spacing="8">
-                        <Label Style="{StaticResource Heading2Label}" Text="{Binding Title}" />
+            <VerticalStackLayout Spacing="8">
+                <SectionHeader Title="{Binding SectionLabel}"
+                               ActionText="Visa kalender"
+                               Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenEventsCommand}" />
 
-                        <HorizontalStackLayout Spacing="5" IsVisible="{Binding HasDisciplineShape}">
-                            <Path Style="{StaticResource DisciplineGlyph}"
-                                  Data="{Binding DisciplineShape}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
-                                   Text="{Binding DisciplineLabel}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
-                            <Path Style="{StaticResource LevelGlyph}"
-                                  Data="{Binding LevelShape}"
-                                  IsVisible="{Binding HasLevelShape}" />
-                            <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
-                                   Text="{Binding LevelLabel}" />
-                        </HorizontalStackLayout>
-                        <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding WhenText}" />
-                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding ReasonText}" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="12">
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                            <Border Grid.Column="0" Style="{StaticResource GlyphPlate}"
+                                    IsVisible="{Binding HasDisciplineShape}">
+                                <Path Style="{StaticResource DisciplineGlyph}"
+                                      WidthRequest="22" HeightRequest="22"
+                                      HorizontalOptions="Center" VerticalOptions="Center"
+                                      Data="{Binding DisciplineShape}" />
+                            </Border>
+
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Label Style="{StaticResource Heading2Label}" Text="{Binding Title}" />
+                                <HorizontalStackLayout Spacing="5" IsVisible="{Binding HasDisciplineShape}">
+                                    <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                           Text="{Binding DisciplineLabel}" />
+                                    <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
+                                    <Path Style="{StaticResource LevelGlyph}"
+                                          Data="{Binding LevelShape}"
+                                          IsVisible="{Binding HasLevelShape}" />
+                                    <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
+                                           Text="{Binding LevelLabel}" />
+                                </HorizontalStackLayout>
+                                <Label Style="{StaticResource NumericStrongLabel}" Text="{Binding WhenText}" />
+                                <Label Style="{StaticResource CaptionLabel}" Text="{Binding ReasonText}" />
+                            </VerticalStackLayout>
+
+                            <Border Grid.Column="2"
+                                    WidthRequest="64" HeightRequest="64"
+                                    VerticalOptions="Start"
+                                    Stroke="Transparent" StrokeThickness="0" Padding="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="12" />
+                                </Border.StrokeShape>
+                                <HeroImage Discipline="{Binding TerrainKey}"
+                                           WidthRequest="64" HeightRequest="64" />
+                            </Border>
+                        </Grid>
 
                         <Button Style="{StaticResource SecondaryButton}"
                                 Text="Visa tävling"
                                 Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenCompetitionCommand}"
                                 CommandParameter="{Binding Competition}" />
+
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>
         </DataTemplate>
 
         <DataTemplate x:Key="DevelopmentTemplate" x:DataType="DevelopmentBlock">
-            <VerticalStackLayout Spacing="7">
-                <Label Style="{StaticResource SectionLabel}" Text="{Binding SectionLabel}" />
+            <VerticalStackLayout Spacing="8">
+                <SectionHeader Title="{Binding SectionLabel}" />
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="6">
 
@@ -204,15 +308,46 @@
     <Grid RowDefinitions="Auto,*">
 
         <!--
-            Hälsningen står utanför listan. Som CollectionView.Header mättes den innan texten
+            Hjälten står utanför listan. Som CollectionView.Header mättes hälsningen innan texten
             fanns, och en header som en gång mätts som tom växer inte när innehållet kommer —
             rubriken klipptes och första kortet ritades ovanpå den.
         -->
-        <VerticalStackLayout Grid.Row="0" Padding="16,4,16,12" Spacing="2">
-            <Label Style="{StaticResource DisplayLabel}" SemanticProperties.HeadingLevel="Level1"
-                   Text="{Binding Greeting}" />
-            <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding TodayText}" />
-        </VerticalStackLayout>
+        <Grid Grid.Row="0" HeightRequest="250">
+
+            <!--
+                Bilden är stämning och inte plats (beslut D12) — det enda undantaget från P7, och
+                ett räknebart: exakt en bundlad icke-terrängbild, på exakt den här ytan.
+            -->
+            <Image Source="hero_home.jpg" Aspect="AspectFill"
+                   AutomationProperties.IsInAccessibleTree="False" />
+
+            <!--
+                Gradienten, inte bilden, är det som gör vit text läsbar. Mätt mot bildens ljusaste
+                pixel under texten: 2.25:1 utan den, 6.4:1 med. Klarar en bild inte kravet byts
+                bilden — aldrig texten.
+            -->
+            <Border StrokeThickness="0" InputTransparent="True">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Offset="0" Color="{DynamicResource HeroScrim}" />
+                        <GradientStop Offset="1" Color="Transparent" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Bilden går under statusfältet, texten insetar sig själv. -->
+            <VerticalStackLayout Padding="{Binding HeroPadding}" Spacing="2" VerticalOptions="Start">
+                <Label Style="{StaticResource HeroGreetingLabel}" Text="{Binding Greeting}" />
+                <Label Style="{StaticResource HeroMetaLabel}" Text="{Binding TodayText}" />
+
+                <!-- Ingen rad alls hellre än en gissad: tom text fäller ihop etiketten. -->
+                <Label Style="{StaticResource HeroMetaLabel}"
+                       IsVisible="{Binding HasWeather}"
+                       Text="{Binding WeatherText}"
+                       SemanticProperties.Description="{Binding WeatherDescription}" />
+            </VerticalStackLayout>
+
+        </Grid>
 
         <!-- Offline utan sparade block: ett designat läge, inte en tom lista -->
         <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsOffline}">
@@ -233,9 +368,11 @@
         </CollectionView.ItemsLayout>
 
         <CollectionView.Footer>
-            <!-- Margin carries the tab bar's own height; the height is the breathing room. -->
+            <!-- Margin carries the tab bar's own height; the height is the breathing room.
+                 Bara underkanten: sedan hjälten tog över toppen bär SafeAreaInsets statusfältet
+                 också, och hela tjockleken här hade lagt 59 punkter luft under sista kortet. -->
             <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
-                     Margin="{Binding SafeAreaInsets}"
+                     Margin="{Binding ListBottomInset}"
                      Color="Transparent" />
         </CollectionView.Footer>
 

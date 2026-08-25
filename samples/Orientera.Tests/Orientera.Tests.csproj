@@ -45,6 +45,14 @@
 		<Compile Include="..\Orientera\Services\Eventor\EventorLoginForm.cs" LinkBase="Linked\Services\Eventor" />
 		<Compile Include="..\Orientera\Services\Sources\**\*.cs" LinkBase="Linked\Services\Sources" />
 		<Compile Include="..\Orientera\Services\Time\**\*.cs" LinkBase="Linked\Services\Time" />
+		<!--
+			Vädret delar sig som Eventor-läsningen: svaret och åldern är HttpClient och regler,
+			och kompileras här. Positionen och tillståndsfrågan är plattform och bor i
+			WeatherService.cs, som lämnas utanför.
+		-->
+		<Compile Include="..\Orientera\Services\Weather\CurrentWeather.cs" LinkBase="Linked\Services\Weather" />
+		<Compile Include="..\Orientera\Services\Weather\MetForecast.cs" LinkBase="Linked\Services\Weather" />
+		<Compile Include="..\Orientera\Services\Weather\WeatherStore.cs" LinkBase="Linked\Services\Weather" />
 	</ItemGroup>
 
 	<ItemGroup>

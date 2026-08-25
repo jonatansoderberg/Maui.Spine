@@ -118,6 +118,14 @@ public static class Format
         ? starters > 0 ? $"{p} av {starters}" : p.ToString(Sv)
         : "—";
 
+    /// <summary>
+    /// "5:21" — tiden per kilometer. Tom sträng utan känd banlängd: ett snitt räknat mot en
+    /// gissad nämnare är ett påstående appen inte kan stå för.
+    /// </summary>
+    public static string Pace(TimeSpan time, double lengthKm) => lengthKm > 0
+        ? Time(TimeSpan.FromSeconds(time.TotalSeconds / lengthKm))
+        : string.Empty;
+
     public static string Clock(DateTimeOffset instant) => instant.ToString("HH:mm", Sv);
 
     /// <summary>

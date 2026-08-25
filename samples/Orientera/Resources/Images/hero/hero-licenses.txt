@@ -1,0 +1,25 @@
+Hjältebilden på Hem — källa och licens
+======================================
+
+En rad per bild. Ingen bild läggs i katalogen utan sin rad här.
+
+Format:
+  <filnamn>
+      Källa:      <URL eller arkiv>
+      Upphov:     <fotograf>
+      Licens:     <licens och version>
+      Hämtad:     <datum>
+      Ändringar:  <beskärning, komprimering, inget>
+
+----------------------------------------------------------------------
+
+  hero_home.jpg
+      Källa:      genererad i projektet, generate-placeholder.py
+      Upphov:     —
+      Licens:     —
+      Hämtad:     2026-08-25
+      Ändringar:  —
+
+      PROVISORISK. Inget fotografi, inga tredjepartsrättigheter. Ersätts av
+      en kurerad bild enligt beslut D12; då byts den här raden mot källa,
+      upphov och licens för den bilden.

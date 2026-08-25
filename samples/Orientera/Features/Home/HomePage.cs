@@ -1,7 +1,7 @@
 namespace Orientera.Features.Home;
 
 /// <summary>
-/// Hem, utan rubrikrad.
+/// Hem, utan rubrikrad och utan toppinset.
 /// </summary>
 /// <remarks>
 /// Sidan säger redan vem den talar till — "Hej Jonatan" står först på den — och "HEM" ovanför det
@@ -13,5 +13,10 @@ namespace Orientera.Features.Home;
     Title = "Hem",
     Icon = "tab_home.svg",
     Order = 0,
-    IsHeaderBarVisible = false)]
+    IsHeaderBarVisible = false,
+    // Hjälten går under statusfältet. Spine paddar annars toppen ur UIWindow.SafeAreaInsets, och
+    // MAUI-nivåns SafeAreaEdges kommer inte åt den paddingen — den sitter på Spines innehållsvärd.
+    // Med toppen borttagen rapporteras statusfältets höjd i SafeAreaInsets i stället, och
+    // hälsningen paddar sig själv med den.
+    SafeAreaEdges = SafeAreaEdges.Left | SafeAreaEdges.Right)]
 public partial class HomePage { public HomePage() => InitializeComponent(); }
