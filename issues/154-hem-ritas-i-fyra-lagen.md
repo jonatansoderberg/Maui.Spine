@@ -81,8 +81,15 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
   band över vita kort i ljust läge och är inte byggt.
 
 - **Överlappet är en andel och inte ett punktmått**, av samma skäl som höjden: halva hjälten är
-  halva hjälten på varje skärm. Bilden ritas i hela sin höjd — det är kortet som lägger sig över
-  dess nedre hälft, inte bilden som krymper.
+  halva hjälten på varje skärm.
+
+- **`CollectionView` byttes mot en `ScrollView` med en stapel.** Huvudcellen beskär sitt innehåll
+  till den höjd marginalen lämnar, så hjälten kapades exakt vid första kortets överkant: bilden
+  slutade där kortet började och kortet stod på sidans yta i stället för på fotot. Överlappet var
+  alltså bara ett högre startläge. En stapel beskär inte sina barn, och den negativa marginalen
+  sitter numera på blockstapelns överkant i stället för på hjältens underkant. Hem visar högst
+  fyra block, så virtualiseringen kostar ingenting att ge upp — sidan är per sin egen definition
+  få stora block och aldrig en tät instrumentpanel.
 
 - **Höjden är 46 % av skärmen och inte ett punktmått.** "Knappt halva skärmen" är ett förhållande:
   fyrahundra punkter är nästan hela en iPhone SE och en tredjedel av en iPad.

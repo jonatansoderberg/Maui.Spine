@@ -70,7 +70,7 @@
                                 BackgroundColor="{DynamicResource SurfaceLiveAction}"
                                 TextColor="{DynamicResource TextOnLiveAction}"
                                 Text="{Binding ActionText}"
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenLiveCommand}"
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenLiveCommand}"
                                 CommandParameter="{Binding Competition}" />
                     </VerticalStackLayout>
                 </Grid>
@@ -81,7 +81,7 @@
             <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}"
                                ActionText="Visa kalender"
-                               Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenEventsCommand}" />
+                               Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenEventsCommand}" />
 
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="12">
@@ -139,7 +139,7 @@
                             <Button Grid.Column="2"
                                     Style="{StaticResource PrimaryButton}"
                                     Text="{Binding ActionText}"
-                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenCompetitionCommand}"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenCompetitionCommand}"
                                     CommandParameter="{Binding Competition}" />
                         </Grid>
 
@@ -152,7 +152,7 @@
             <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}"
                                ActionText="Se alla"
-                               Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenMyResultsCommand}" />
+                               Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenMyResultsCommand}" />
 
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="12">
@@ -193,7 +193,7 @@
 
                         <Button Style="{StaticResource SecondaryButton}"
                                 Text="{Binding ActionText}"
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenResultCommand}"
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenResultCommand}"
                                 CommandParameter="{Binding Competition}" />
 
                     </VerticalStackLayout>
@@ -224,7 +224,7 @@
             <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}"
                                ActionText="Visa kalender"
-                               Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenEventsCommand}" />
+                               Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenEventsCommand}" />
 
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="12">
@@ -268,7 +268,7 @@
 
                         <Button Style="{StaticResource SecondaryButton}"
                                 Text="Visa tävling"
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenCompetitionCommand}"
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenCompetitionCommand}"
                                 CommandParameter="{Binding Competition}" />
 
                     </VerticalStackLayout>
@@ -337,30 +337,33 @@
                 </Grid>
             </StateView.Skeleton>
 
+            <!--
+                En skrollvy och inte en CollectionView. Hjälten måste rita hela sin höjd medan
+                blocken ligger över dess nedre hälft, och listans huvudcell beskär sitt innehåll
+                till den höjd marginalen lämnar — bilden kapades vid första kortets överkant och
+                kortet stod på sidans yta i stället för på fotot. En stapel beskär inte sina barn.
+                Hem visar högst fyra block, så det virtualiseringen kostar är ingenting här.
+            -->
             <StateView.Body>
-                <CollectionView ItemsSource="{Binding Blocks}"
-                                ItemTemplate="{StaticResource BlockSelector}"
-                                SelectionMode="None">
+                <ScrollView>
+                    <VerticalStackLayout>
 
-                    <CollectionView.Header>
-                        <!-- Den negativa underkanten är överlappet: nästa element dras upp på bilden. -->
-                        <HomeHero Margin="{Binding HeroOverlap}" />
-                    </CollectionView.Header>
+                        <HomeHero />
 
-                    <CollectionView.ItemsLayout>
-                        <LinearItemsLayout Orientation="Vertical" ItemSpacing="16" />
-                    </CollectionView.ItemsLayout>
+                        <VerticalStackLayout Margin="{Binding HeroOverlap}"
+                                             Spacing="16"
+                                             BindableLayout.ItemsSource="{Binding Blocks}"
+                                             BindableLayout.ItemTemplateSelector="{StaticResource BlockSelector}" />
 
-                    <CollectionView.Footer>
                         <!-- Margin carries the tab bar's own height; the height is the breathing room.
                              Bara underkanten: sedan hjälten tog över toppen bär SafeAreaInsets statusfältet
                              också, och hela tjockleken här hade lagt 59 punkter luft under sista kortet. -->
                         <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
                                  Margin="{Binding ListBottomInset}"
                                  Color="Transparent" />
-                    </CollectionView.Footer>
 
-                </CollectionView>
+                    </VerticalStackLayout>
+                </ScrollView>
             </StateView.Body>
 
             <!--

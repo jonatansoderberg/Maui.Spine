@@ -117,20 +117,22 @@ public partial class HomePageViewModel(
     }
 
     /// <summary>
-    /// Hur långt första kortet får gå upp på bilden.
+    /// Hur långt blocken får gå upp på bilden: halva hjälten.
     /// </summary>
     /// <remarks>
-    /// Negativ underkant på listans huvud: det drar in nästa element över hjälten, och korten
-    /// ritas efter huvudet och hamnar därmed ovanpå. Att i stället låta hjälten stå still och
-    /// listan börja högre hade tvingat korten att klippas mot listans överkant på väg upp — mitt
-    /// på ett fotografi, vilket läser som trasigt snarare än som djup.
+    /// Negativ överkant på blockstapeln, inte på hjälten. Hjälten ligger kvar i skrollvyn med hela
+    /// sin höjd och ritas hel; det är blocken som dras upp och läggs ovanpå dess nedre hälft, så
+    /// bilden fortsätter bakom och bredvid korten i stället för att sluta vid det första.
     /// <para>
-    /// Halva hjälten, och därmed en andel av samma slag som höjden. Bilden ritas fortfarande i
-    /// hela sin höjd — det är kortet som lägger sig över dess nedre hälft, inte bilden som
-    /// krymper — så hälsningen har kvar sin luft ned till kortets överkant.
+    /// Det var precis det som gick fel med hjälten i <c>CollectionView.Header</c>: huvudets cell
+    /// beskär sitt innehåll till den höjd marginalen lämnar, så bilden kapades vid kortets
+    /// överkant och kortet stod på sidans yta i stället för på fotot.
+    /// </para>
+    /// <para>
+    /// En andel av samma slag som höjden: halva hjälten är halva hjälten på varje skärm.
     /// </para>
     /// </remarks>
-    public Thickness HeroOverlap => new(0, 0, 0, -Math.Round(HeroHeight * 0.5));
+    public Thickness HeroOverlap => new(0, -Math.Round(HeroHeight * 0.5), 0, 0);
 
     /// <summary>
     /// Luften under sista kortet. Bara underkanten: SafeAreaInsets bär numera statusfältet

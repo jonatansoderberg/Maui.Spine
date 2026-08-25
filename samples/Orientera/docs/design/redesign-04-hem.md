@@ -70,15 +70,19 @@ bilden, aldrig texten.
 punkter är nästan hela en iPhone SE och en tredjedel av en iPad; "knappt halva skärmen" är samma
 sak på båda.
 
-**Hjälten skrollar med korten, och därför ligger den i `CollectionView.Header`.** Det är
-överlappet som kräver det: en hjälte som står still tvingar korten att antingen klippas mot dess
-underkant på väg upp — mitt på ett fotografi, vilket läser som trasigt snarare än som djup — eller
-att täcka hälsningen. Överlappet självt är en negativ underkant på huvudet, som drar upp nästa
-element på bilden; korten ritas efter huvudet och hamnar därmed ovanpå.
+**Hjälten skrollar med blocken.** Det är överlappet som kräver det: en hjälte som står still
+tvingar korten att antingen klippas mot dess underkant på väg upp — mitt på ett fotografi, vilket
+läser som trasigt snarare än som djup — eller att täcka hälsningen.
 
-**Överlappet är halva hjälten**, och alltså en andel av samma slag som höjden. Bilden ritas
-fortfarande i hela sin höjd — det är kortet som lägger sig över dess nedre hälft, inte bilden som
-krymper.
+**Överlappet är halva hjälten**, och alltså en andel av samma slag som höjden. Bilden ritas i hela
+sin höjd och fortsätter bakom och bredvid korten; det är blocken som dras upp med en negativ
+överkant, inte bilden som krymper.
+
+**Sidan är en `ScrollView` med en stapel, inte en `CollectionView`.** Listans huvudcell beskär sitt
+innehåll till den höjd marginalen lämnar, så hjälten kapades exakt vid första kortets överkant och
+kortet stod på sidans yta i stället för på fotot — ett överlapp som bara var ett högre startläge.
+En stapel beskär inte sina barn. Hem visar högst fyra block, så det virtualiseringen kostar är
+ingenting här.
 
 Fällan som stod dokumenterad i koden — *en header som mätts som tom växer inte när texten kommer,
 så rubriken klipps och första kortet ritas ovanpå den* — undviks av att hjältens höjd är satt och
