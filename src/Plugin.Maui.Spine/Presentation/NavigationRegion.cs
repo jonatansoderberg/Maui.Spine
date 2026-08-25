@@ -118,9 +118,13 @@ public sealed class NavigationRegion : ContentView
 
     /// <summary>
     /// Computes the container margin from measured system bar insets.
-    /// On Android this offsets the container so it renders behind the status bar (edge-to-edge).
-    /// On other platforms the margin is zero.
     /// </summary>
+    /// <remarks>
+    /// On iOS and Android the platform offsets the page content by the system bars whatever the
+    /// page asked for, so the margin counteracts that offset and lets
+    /// <see cref="ApplySafeAreaPadding"/> put the insets back per page. On the other platforms the
+    /// margin is zero.
+    /// </remarks>
     private void UpdateContainerMargin()
     {
         var insets = _insetsProvider.SystemBarInsets;
@@ -131,6 +135,19 @@ public sealed class NavigationRegion : ContentView
         // Counteract that offset with a negative margin so _container fills the full window,
         // allowing Spine to apply insets explicitly via ApplySafeAreaPadding.
         _container.Margin = new Thickness(-insets.Left, -insets.Top, -insets.Right, -insets.Bottom);
+#endif
+
+#if ANDROID
+        // Same story as iOS at the top: the platform offsets the page content by the status bar
+        // whatever the page asked for, so a page that excluded the top edge never got to draw
+        // behind it. Counteract the offset and let ApplySafeAreaPadding put it back for the
+        // pages that did ask for it.
+        //
+        // The top only. The bottom belongs to the Material bar: it applies the navigation inset
+        // to itself and reports its own height as each tab's bottom inset (ApplyTabBarInset), so
+        // pulling the container down there would drag content under a bar that is not painted to
+        // be drawn under.
+        _container.Margin = new Thickness(0, -insets.Top, 0, 0);
 #endif
 
 #if MACCATALYST
