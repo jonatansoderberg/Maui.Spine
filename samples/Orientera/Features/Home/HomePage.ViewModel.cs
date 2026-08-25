@@ -81,11 +81,56 @@ public partial class HomePageViewModel(
         : ViewState.Empty;
 
     /// <summary>
-    /// Hälsningens plats i hjälten. Bilden går under statusfältet (sidan har lämnat toppen ur
-    /// sina SafeAreaEdges), så texten måste hålla sig undan det själv — och höjden är mätt,
-    /// aldrig gissad: en ö och ett hack är inte lika höga.
+    /// Hälsningens plats i hjälten.
     /// </summary>
-    public Thickness HeroPadding => new(16, SafeAreaInsets.Top + 8, 16, 0);
+    /// <remarks>
+    /// Bilden går under statusfältet — sidan har lämnat toppen ur sina <c>SafeAreaEdges</c> — så
+    /// texten måste hålla sig undan det själv. Höjden är mätt och aldrig gissad: en ö och ett
+    /// hack är inte lika höga.
+    /// <para>
+    /// Följden är att korten passerar under statusfältet när listan skrollas, eftersom hjälten
+    /// skrollar med dem. Det är hur en helbleed-sida beter sig på iOS, och priset för att bilden
+    /// ska nå ända upp.
+    /// </para>
+    /// </remarks>
+    public Thickness HeroPadding => new(16, SafeAreaInsets.Top + 12, 16, 0);
+
+    /// <summary>
+    /// Hur högt bilden går: knappt halva skärmen.
+    /// </summary>
+    /// <remarks>
+    /// Räknat ur skärmen och inte satt i punkter, eftersom "knappt halva" är ett förhållande och
+    /// inte ett mått — 400 punkter är nästan hela en iPhone SE och en tredjedel av en iPad. Läses
+    /// en gång, för hjälten ligger i listans huvud där stjärnhöjder inte finns, och en telefon som
+    /// vrids på Hem är inte fallet den här sidan är byggd för.
+    /// </remarks>
+    public double HeroHeight
+    {
+        get
+        {
+            var display = DeviceDisplay.MainDisplayInfo;
+            var points = display.Density > 0 ? display.Height / display.Density : 0;
+
+            // Innan skärmen är mätt är svaret noll, och en hjälte utan höjd är ingen hjälte.
+            return points > 0 ? Math.Round(points * 0.46) : 360;
+        }
+    }
+
+    /// <summary>
+    /// Hur långt första kortet får gå upp på bilden.
+    /// </summary>
+    /// <remarks>
+    /// Negativ underkant på listans huvud: det drar in nästa element över hjälten, och korten
+    /// ritas efter huvudet och hamnar därmed ovanpå. Att i stället låta hjälten stå still och
+    /// listan börja högre hade tvingat korten att klippas mot listans överkant på väg upp — mitt
+    /// på ett fotografi, vilket läser som trasigt snarare än som djup.
+    /// <para>
+    /// Halva hjälten, och därmed en andel av samma slag som höjden. Bilden ritas fortfarande i
+    /// hela sin höjd — det är kortet som lägger sig över dess nedre hälft, inte bilden som
+    /// krymper — så hälsningen har kvar sin luft ned till kortets överkant.
+    /// </para>
+    /// </remarks>
+    public Thickness HeroOverlap => new(0, 0, 0, -Math.Round(HeroHeight * 0.5));
 
     /// <summary>
     /// Luften under sista kortet. Bara underkanten: SafeAreaInsets bär numera statusfältet

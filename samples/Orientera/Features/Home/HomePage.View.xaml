@@ -14,6 +14,7 @@
         -->
         <DataTemplate x:Key="LiveNowTemplate" x:DataType="LiveNowBlock">
             <Border Style="{StaticResource Card}"
+                    Margin="16,0"
                     BackgroundColor="{DynamicResource SurfaceLive}"
                     Stroke="Transparent">
                 <Grid>
@@ -77,7 +78,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="NextForMeTemplate" x:DataType="NextForMeBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}"
                                ActionText="Visa kalender"
                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenEventsCommand}" />
@@ -148,7 +149,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="LatestResultTemplate" x:DataType="LatestResultBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}"
                                ActionText="Se alla"
                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenMyResultsCommand}" />
@@ -201,7 +202,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="GroupTemplate" x:DataType="GroupBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}" />
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="8">
@@ -220,7 +221,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="DiscoveryTemplate" x:DataType="DiscoveryBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}"
                                ActionText="Visa kalender"
                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenEventsCommand}" />
@@ -276,7 +277,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="DevelopmentTemplate" x:DataType="DevelopmentBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}" />
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="6">
@@ -305,60 +306,16 @@
 
     </SpinePage.Resources>
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid>
 
         <!--
-            Hjälten står utanför listan. Som CollectionView.Header mättes hälsningen innan texten
-            fanns, och en header som en gång mätts som tom växer inte när innehållet kommer —
-            rubriken klipptes och första kortet ritades ovanpå den.
-        -->
-        <Grid Grid.Row="0" HeightRequest="250">
-
-            <!--
-                Bilden är stämning och inte plats (beslut D12) — det enda undantaget från P7, och
-                ett räknebart: exakt en bundlad icke-terrängbild, på exakt den här ytan.
-            -->
-            <Image Source="hero_home.jpg" Aspect="AspectFill"
-                   AutomationProperties.IsInAccessibleTree="False" />
-
-            <!--
-                Gradienten, inte bilden, är det som gör vit text läsbar. Mätt mot bildens ljusaste
-                pixel under texten: 2.25:1 utan den, 6.4:1 med. Klarar en bild inte kravet byts
-                bilden — aldrig texten.
-            -->
-            <Border StrokeThickness="0" InputTransparent="True">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Offset="0" Color="{DynamicResource HeroScrim}" />
-                        <GradientStop Offset="1" Color="Transparent" />
-                    </LinearGradientBrush>
-                </Border.Background>
-            </Border>
-
-            <!-- Bilden går under statusfältet, texten insetar sig själv. -->
-            <VerticalStackLayout Padding="{Binding HeroPadding}" Spacing="2" VerticalOptions="Start">
-                <Label Style="{StaticResource HeroGreetingLabel}" Text="{Binding Greeting}" />
-                <Label Style="{StaticResource HeroMetaLabel}" Text="{Binding TodayText}" />
-
-                <!-- Ingen rad alls hellre än en gissad: tom text fäller ihop etiketten. -->
-                <Label Style="{StaticResource HeroMetaLabel}"
-                       IsVisible="{Binding HasWeather}"
-                       Text="{Binding WeatherText}"
-                       SemanticProperties.Description="{Binding WeatherDescription}" />
-            </VerticalStackLayout>
-
-        </Grid>
-
-        <!--
-            Fyra lägen, ett värde (P10). Hjälten står kvar i alla fyra — hälsningen är sann utan
+            Fyra lägen, ett värde (P10). Hjälten står överst i alla fyra — hälsningen är sann utan
             nätverk, och en sida som tappar sin rubrik när hämtningen misslyckas ser trasig ut
-            snarare än offline.
+            snarare än offline. I innehållsläget ligger den i listans huvud och skrollar bort med
+            korten; det är det som låter första kortet ligga över bilden i stället för att klippas
+            mot en kant mitt på den.
         -->
-        <StateView Grid.Row="1"
-                   State="{Binding State}"
-                   ErrorMessage="Ingen anslutning"
-                   ErrorDetail="Tävlingar du sparat offline finns kvar under Tävlingar — PM, din starttid och arenan fungerar utan nätverk."
-                   RetryCommand="{Binding ReloadCommand}">
+        <StateView State="{Binding State}">
 
             <!--
                 Skelettet har blockens form och inte en listas: ett högt kort, sedan två med var
@@ -366,26 +323,29 @@
                 korten kommer.
             -->
             <StateView.Skeleton>
-                <VerticalStackLayout Padding="16,0" Spacing="12">
-                    <BoxView HeightRequest="230" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+                <Grid RowDefinitions="Auto,*">
+                    <HomeHero Grid.Row="0" />
 
-                    <BoxView HeightRequest="17" WidthRequest="130" CornerRadius="4"
-                             HorizontalOptions="Start" Margin="0,8,0,0"
-                             Color="{DynamicResource SkeletonBase}" />
-                    <BoxView HeightRequest="170" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+                    <VerticalStackLayout Grid.Row="1" Padding="16,16,16,0" Spacing="12">
+                        <BoxView HeightRequest="230" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
 
-                    <BoxView HeightRequest="17" WidthRequest="160" CornerRadius="4"
-                             HorizontalOptions="Start" Margin="0,8,0,0"
-                             Color="{DynamicResource SkeletonBase}" />
-                    <BoxView HeightRequest="140" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
-                </VerticalStackLayout>
+                        <BoxView HeightRequest="17" WidthRequest="130" CornerRadius="4"
+                                 HorizontalOptions="Start" Margin="0,8,0,0"
+                                 Color="{DynamicResource SkeletonBase}" />
+                        <BoxView HeightRequest="170" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+                    </VerticalStackLayout>
+                </Grid>
             </StateView.Skeleton>
 
             <StateView.Body>
                 <CollectionView ItemsSource="{Binding Blocks}"
                                 ItemTemplate="{StaticResource BlockSelector}"
-                                Margin="16,0"
                                 SelectionMode="None">
+
+                    <CollectionView.Header>
+                        <!-- Den negativa underkanten är överlappet: nästa element dras upp på bilden. -->
+                        <HomeHero Margin="{Binding HeroOverlap}" />
+                    </CollectionView.Header>
 
                     <CollectionView.ItemsLayout>
                         <LinearItemsLayout Orientation="Vertical" ItemSpacing="16" />
@@ -408,19 +368,42 @@
                 inget att göra på Hem, och kalendern är svaret — inte en uppmaning att vänta.
             -->
             <StateView.EmptyView>
-                <VerticalStackLayout Padding="32" Spacing="10" VerticalOptions="Center">
-                    <Label Style="{StaticResource Heading2Label}"
-                           HorizontalTextAlignment="Center"
-                           Text="Inget att visa än" />
-                    <Label Style="{StaticResource BodySecondaryLabel}"
-                           HorizontalTextAlignment="Center"
-                           Text="När du anmält dig till något står det här, tillsammans med dina resultat och dem du följer." />
-                    <Button Style="{StaticResource PrimaryButton}"
-                            HorizontalOptions="Center"
-                            Text="Visa tävlingar"
-                            Command="{Binding OpenEventsCommand}" />
-                </VerticalStackLayout>
+                <Grid RowDefinitions="Auto,*">
+                    <HomeHero Grid.Row="0" />
+
+                    <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="10" VerticalOptions="Center">
+                        <Label Style="{StaticResource Heading2Label}"
+                               HorizontalTextAlignment="Center"
+                               Text="Inget att visa än" />
+                        <Label Style="{StaticResource BodySecondaryLabel}"
+                               HorizontalTextAlignment="Center"
+                               Text="När du anmält dig till något står det här, tillsammans med dina resultat och dem du följer." />
+                        <Button Style="{StaticResource PrimaryButton}"
+                                HorizontalOptions="Center"
+                                Text="Visa tävlingar"
+                                Command="{Binding OpenEventsCommand}" />
+                    </VerticalStackLayout>
+                </Grid>
             </StateView.EmptyView>
+
+            <StateView.ErrorView>
+                <Grid RowDefinitions="Auto,*">
+                    <HomeHero Grid.Row="0" />
+
+                    <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="12" VerticalOptions="Center">
+                        <Label Style="{StaticResource Heading2Label}"
+                               HorizontalTextAlignment="Center"
+                               Text="Ingen anslutning" />
+                        <Label Style="{StaticResource BodySecondaryLabel}"
+                               HorizontalTextAlignment="Center"
+                               Text="Tävlingar du sparat offline finns kvar under Tävlingar — PM, din starttid och arenan fungerar utan nätverk." />
+                        <Button Style="{StaticResource SecondaryButton}"
+                                HorizontalOptions="Center"
+                                Text="Försök igen"
+                                Command="{Binding ReloadCommand}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </StateView.ErrorView>
 
         </StateView>
 
