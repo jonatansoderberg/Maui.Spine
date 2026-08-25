@@ -249,6 +249,41 @@
     </Style>
 
     <!--
+        Disciplinmärket på en yta som är mörk i båda temana. Distansernas färger är valda mot kort
+        och sida och blir grumliga på mörkgrönt — här bär ordet bredvid märket meningen ändå, så
+        märket får ytans eget dämpade bläck. Inte BasedOn DisciplineGlyph: den stilens triggrar
+        skulle måla tillbaka distansens färg.
+    -->
+    <Style x:Key="DisciplineGlyphOnDark" TargetType="Path">
+        <Setter Property="Aspect" Value="Uniform" />
+        <Setter Property="WidthRequest" Value="16" />
+        <Setter Property="HeightRequest" Value="16" />
+        <Setter Property="StrokeThickness" Value="1.5" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeLineJoin" Value="Round" />
+        <Setter Property="VerticalOptions" Value="Center" />
+        <Setter Property="Stroke" Value="{DynamicResource TextOnDarkMuted}" />
+        <Setter Property="AutomationProperties.IsInAccessibleTree" Value="False" />
+    </Style>
+
+    <!--
+        Brickan ett kort inleds med: disciplinens märke i en rund platta, på samma yta som en
+        avatar står på. Det är den som gör att ett kort och en listrad har samma anatomi —
+        [identitet] först, oavsett om identiteten är en person eller en distans.
+    -->
+    <Style x:Key="GlyphPlate" TargetType="Border">
+        <Setter Property="BackgroundColor" Value="{DynamicResource AvatarBackground}" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="StrokeThickness" Value="0" />
+        <Setter Property="WidthRequest" Value="44" />
+        <Setter Property="HeightRequest" Value="44" />
+        <Setter Property="VerticalOptions" Value="Start" />
+        <Setter Property="StrokeShape">
+            <RoundRectangle CornerRadius="22" />
+        </Setter>
+    </Style>
+
+    <!--
         Shown while a page is reading. Centred over the whole surface rather than at the top:
         a spinner where the first row will be reads as a row that failed to arrive.
     -->

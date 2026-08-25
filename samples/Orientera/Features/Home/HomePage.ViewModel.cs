@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using Orientera.Controls;
 using Orientera.Domain;
 using Orientera.Features.Events.Participants;
 using Orientera.Features.Dev;
@@ -163,6 +164,13 @@ public partial class HomePageViewModel(
     [RelayCommand]
     private async Task OpenEvents() => await _navigation.SwitchToTabAsync<EventsPage>();
 
+    /// <summary>
+    /// Hela säsongen, pushad här och inte via Jag: "Se alla" står bredvid det senaste resultatet
+    /// och ska svara på det, inte lämna över läsaren till en flik att leta i.
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenMyResults() => await _navigation.NavigateToAsync<MyResultsPage>();
+
     [RelayCommand]
     private async Task OpenProfile() => await _navigation.SwitchToTabAsync<Profile.ProfilePage>();
 
@@ -244,15 +252,23 @@ public partial class HomePageViewModel(
 
         _tabBadges.SetBadge<EventsPage>(relevant.Count > 0 ? string.Empty : null);
 
+        var group = await _people.GetMyGroupAsync();
+
         var blocks = new List<LiveNowBlock>(relevant.Count);
 
         foreach (var competition in relevant)
-            blocks.Add(await LiveBlockAsync(me, competition));
+            blocks.Add(await LiveBlockAsync(me, competition, group));
 
         return blocks;
     }
 
-    private async Task<LiveNowBlock> LiveBlockAsync(Person me, Competition relevant)
+    /// <summary>Hur många ansikten kortet visar innan resten blir ett tal.</summary>
+    private const int MaxFaces = 4;
+
+    private async Task<LiveNowBlock> LiveBlockAsync(
+        Person me,
+        Competition relevant,
+        IReadOnlyList<FollowedPerson> group)
     {
         var snapshot = await _live.GetSnapshotAsync(relevant.Id);
         var mine = snapshot.Entries.FirstOrDefault(e => e.Person == me.Id);
@@ -272,9 +288,25 @@ public partial class HomePageViewModel(
             _ => $"{snapshot.Entries.Count(e => e.Status == LiveStatus.Running)} löpare i skogen",
         };
 
+        // Dem läsaren följer som faktiskt står i det här fältet — inte hela följningslistan.
+        // Det är skillnaden mellan "din grupp" och "din grupp i den här tävlingen", och kortet
+        // handlar om den andra.
+        var entered = snapshot.Entries.Select(e => e.Person).ToHashSet();
+
+        var faces = group
+            .Where(f => entered.Contains(f.Person.Id))
+            .Take(MaxFaces)
+            .Select(f => new Face(null, f.Person.Initials))
+            .ToList();
+
         return new LiveNowBlock
         {
             SectionLabel = "Live nu",
+            Faces = faces,
+            FieldSize = snapshot.Entries.Count,
+            FieldText = faces.Count > 0
+                ? $"{faces.Count} du följer och {Math.Max(0, snapshot.Entries.Count - faces.Count)} till i fältet"
+                : string.Empty,
             Competition = relevant.Id,
             DisciplineShape = DisciplineShape.For(relevant.Discipline),
             DisciplineKey = relevant.Discipline.ToString(),
@@ -384,12 +416,67 @@ public partial class HomePageViewModel(
             LevelShape = DisciplineShape.For(competition.Level),
             LevelLabel = Format.Level(competition.Level),
             Title = competition.Name,
-            PlaceText = Format.PlaceAmong(latest.Place, await StartersOfAsync(latest, me)),
-            TimeText = Format.Time(latest.Time),
-            BehindText = latest.BehindWinner is { } behind ? Format.Delta(behind) : string.Empty,
+            Stats = await StatsOfAsync(latest, me),
+            TrendText = BestPlaceOfYear(results, latest) ? "Bästa placering i år" : string.Empty,
             HasSplits = latest.Splits.Count > 0,
             ActionText = latest.Splits.Count > 0 ? "Analysera" : "Mitt resultat",
         };
+    }
+
+    /// <summary>
+    /// Resultatets tre nyckeltal. Det tredje är snittet när banlängden är känd och tappet mot
+    /// vinnaren när den inte är det — aldrig ett snitt räknat mot en gissad nämnare.
+    /// </summary>
+    private async Task<IReadOnlyList<Stat>> StatsOfAsync(CompetitionResult latest, Person me)
+    {
+        // Placeringen med fältet under sig. Talet ensamt säger inte om 33 är bra: "av 67" är
+        // det som gör det läsbart, och enhetsraden är precis den plats StatRow har för det.
+        var stats = new List<Stat>(3)
+        {
+            new("Placering", Format.PlaceNumber(latest.Place), Format.OutOf(await StartersOfAsync(latest, me))),
+            new("Tid", Format.Time(latest.Time)),
+        };
+
+        if (latest.Time is { } time && await CourseLengthAsync(latest) is { } km
+            && Format.Pace(time, km) is { Length: > 0 } pace)
+            stats.Add(new Stat("Snitt", pace, "min/km"));
+        else if (latest.BehindWinner is { } behind)
+            stats.Add(new Stat("Efter", Format.Delta(behind)));
+
+        return stats;
+    }
+
+    private async Task<double?> CourseLengthAsync(CompetitionResult latest)
+    {
+        try
+        {
+            var course = await _events.GetCourseAsync(latest.Competition, latest.Class);
+            return course?.LengthKm;
+        }
+        catch (SourceUnavailableException)
+        {
+            // Att inte veta banlängden är inte att veta att den saknas — kortet faller till
+            // tappet mot vinnaren i stället, och säger inget om något snitt.
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Om det här resultatet är årets bästa placering. Ett påstående om placeringar och
+    /// ingenting annat: fälten skiljer sig åt mellan tävlingar, och en jämförelse av tider
+    /// mellan två banor vore ingen jämförelse alls.
+    /// </summary>
+    private static bool BestPlaceOfYear(IReadOnlyList<CompetitionResult> results, CompetitionResult latest)
+    {
+        // Utan känt datum finns inget "i år" att jämföra inom, och då sägs ingenting alls.
+        if (latest.Place is not { } place || latest.CompetitionDate is not { } date)
+            return false;
+
+        var year = results
+            .Where(r => r.CompetitionDate?.Year == date.Year && r.Place is not null)
+            .ToList();
+
+        return year.Count > 1 && year.All(r => r.Place >= place);
     }
 
     private static GroupBlock? BuildGroup(
