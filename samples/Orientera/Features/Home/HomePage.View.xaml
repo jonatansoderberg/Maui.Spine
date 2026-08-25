@@ -422,6 +422,32 @@
 
         </StateView>
 
+        <!--
+            Ligger efter StateView och ritas därmed ovanpå den. Opaciteten sätts av skrollningen,
+            inte här: bandet ska vara borta när hjälten står orörd, för då är dess egen nedtoning
+            redan det som gör klockan läsbar.
+        -->
+        <EdgeBlur x:Name="TopBlur"
+                  Opacity="0"
+                  VerticalOptions="Start"
+                  HeightRequest="{Binding TopBlurHeight}" />
+
+        <!--
+            Hälsningen igen, hopfälld. Den stora står kvar i hjälten och skrollar bort; den här
+            tonas in i dess ställe, centrerad och i rubrikradens skärning — samma rubrik som
+            Tävlingar bär, på den plats där ögat letar efter den när den stora är borta.
+        -->
+        <Label x:Name="TopTitle"
+               Opacity="0"
+               VerticalOptions="Start"
+               HorizontalOptions="Center"
+               HorizontalTextAlignment="Center"
+               Style="{StaticResource HeaderBarTitle}"
+               TextColor="{DynamicResource TextPrimary}"
+               HeightRequest="{Binding TopTitleHeight}"
+               Margin="{Binding TopTitleMargin}"
+               Text="{Binding Greeting}" />
+
     </Grid>
 
 </SpinePage>

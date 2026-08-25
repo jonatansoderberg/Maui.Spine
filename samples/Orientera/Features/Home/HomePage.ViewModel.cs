@@ -135,6 +135,23 @@ public partial class HomePageViewModel(
     /// </remarks>
     public Thickness HeroOverlap => new(0, -Math.Round(HeroHeight / 3), 0, 0);
 
+    /// <summary>Den hopfällda rubrikradens höjd, under statusfältet.</summary>
+    public double TopTitleHeight => 40;
+
+    /// <summary>Rubrikradens plats: precis under statusfältet, i bandets ogenomskinliga del.</summary>
+    public Thickness TopTitleMargin => new(16, SafeAreaInsets.Top, 16, 0);
+
+    /// <summary>
+    /// Höjden på oskärpan bakom statusfältet: fältet självt, rubrikraden, och den sträcka bandet
+    /// tonar ut över.
+    /// </summary>
+    /// <remarks>
+    /// Uttoningen måste rymmas inom bandet — ett lager kan inte tona utanför sin egen ram — så den
+    /// läggs till här i stället för att ätas ur det som ska vara tätt. Måttet kommer från
+    /// <see cref="EdgeBlur.DefaultFadeHeight"/>, så det bara finns på ett ställe.
+    /// </remarks>
+    public double TopBlurHeight => SafeAreaInsets.Top + TopTitleHeight + EdgeBlur.DefaultFadeHeight;
+
     /// <summary>
     /// Luften under sista kortet. Bara underkanten: SafeAreaInsets bär numera statusfältet
     /// också, och hela tjockleken hade lagt lika mycket luft under listan som ovanför den.
@@ -158,6 +175,8 @@ public partial class HomePageViewModel(
 
         OnPropertyChanged(nameof(HeroPadding));
         OnPropertyChanged(nameof(ListBottomInset));
+        OnPropertyChanged(nameof(TopBlurHeight));
+        OnPropertyChanged(nameof(TopTitleMargin));
     }
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)

@@ -27,6 +27,18 @@ public partial class HomePage
     /// </summary>
     private const double ParallaxFactor = 0.5;
 
+    /// <summary>
+    /// Var oskärpan bakom statusfältet börjar respektive är helt inne, mätt i skrollsträcka.
+    /// </summary>
+    /// <remarks>
+    /// Den stora hälsningen rör sig halva skrollsträckan, så dess underkant möter statusfältet
+    /// efter dryga hundra punkters skroll. Bandet och den lilla rubriken är helt inne strax innan
+    /// dess — de ska ligga där när den stora texten passerar, inte tona fram medan den redan är i
+    /// vägen.
+    /// </remarks>
+    private const double BlurFadeStart = 60;
+    private const double BlurFadeEnd = 100;
+
     public HomePage() => InitializeComponent();
 
     /// <summary>
@@ -45,6 +57,12 @@ public partial class HomePage
     /// nedåt är det mer av fotografiet som kommer fram, vilket är vad gesten borde ge.
     /// </para>
     /// </remarks>
-    private void OnScrolled(object? sender, ScrolledEventArgs e) =>
+    private void OnScrolled(object? sender, ScrolledEventArgs e)
+    {
         Hero.TranslationY = e.ScrollY < 0 ? e.ScrollY : e.ScrollY * ParallaxFactor;
+
+        // Bandet och rubriken är en och samma sak för ögat, och tonas därför som en.
+        TopBlur.Opacity = TopTitle.Opacity = Math.Clamp(
+            (e.ScrollY - BlurFadeStart) / (BlurFadeEnd - BlurFadeStart), 0, 1);
+    }
 }

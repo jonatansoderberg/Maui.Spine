@@ -74,6 +74,15 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
   där finns ingen padding att flytta.
 - **`Features/Home/HomePage.cs`** + **`.View.xaml`** — hjälten följer halva skrollsträckan.
 
+### Efterjustering — kanten mot statusfältet ✅
+
+- **`Controls/EdgeBlur.cs`** — Apples scroll edge-effekt: `UIVisualEffectView` med systemets
+  ultratunna material, maskad med en gradient så underkanten tonar ut. Där ingen oskärpa finns att
+  låna ritas ett band i sidans färg med samma uttoning.
+- **`Features/Home/HomePage.View.xaml` + `.cs`** — bandet och en hopfälld, centrerad rubrik tonas
+  in tillsammans när den stora hälsningen är på väg under statusfältet.
+- **`HomePage.ViewModel.cs`** — `TopBlurHeight`, `TopTitleHeight`, `TopTitleMargin`.
+
 ## Decisions
 
 - **Offline är sidans fel-läge, inte ett femte.** P10:s fel-läge kräver vad som gick fel, vad som
@@ -151,6 +160,21 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
 
   *Verifierad genom resonemang och inte på skärm:* studsen går inte att fånga i en skärmdump med
   simulatorns gestverktyg, eftersom bilden tas efter att gesten släppts.
+
+- **Oskärpan är plattformens egen, inte en målad platta.** MAUI exponerar ingen oskärpa, så
+  `EdgeBlur` lägger en `UIVisualEffectView` i den plattformsvy MAUI redan skapat i stället för att
+  byta ut hela handlern. Materialet är det **ultratunna**: det tunna lägger till en ljus ton som
+  gör bandet till en platta, och hela poängen är att se vad som passerar under. Där ingen oskärpa
+  finns — Android, Windows — ritas sidans färg med samma uttoning.
+
+- **Underkanten tonas ut med en gradientmask.** Utan den slutar oskärpan i en rak linje tvärs över
+  innehållet, och en skarp kant mitt på ett fotografi läses som ett fel snarare än som en yta.
+  Masken är ett lager och följer därför inte med autoresizing som vyer gör; dess ram och stopp
+  sätts om när bandet byter storlek, utan implicita animationer så den inte glider efter layouten.
+
+- **Den stora hälsningen fälls ihop till en liten centrerad rubrik.** Samma skärning som Tävlingar
+  bär, på den plats ögat letar när den stora är borta. Den tonas in tillsammans med bandet — de är
+  en och samma sak för ögat.
 
 - **Badgetexten och initialerna bär rubrikfonten.** Två versaler i en cirkel och ett ord i ett
   piller är märken, inte text — vilket är vad Brandon Grotesque är ritad för. Textjusteringen står
