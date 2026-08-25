@@ -80,8 +80,8 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
   Alternativet, en permanent mörk remsa bakom statusfältet (Apples scroll edge), kostar ett mörkt
   band över vita kort i ljust läge och är inte byggt.
 
-- **Överlappet är en andel och inte ett punktmått**, av samma skäl som höjden: halva hjälten är
-  halva hjälten på varje skärm.
+- **Överlappet är en andel och inte ett punktmått**, av samma skäl som höjden: en tredjedel är en
+  tredjedel på varje skärm. Två tredjedelar av bilden står fria, den nedersta ligger bakom kortet.
 
 - **`CollectionView` byttes mot en `ScrollView` med en stapel.** Huvudcellen beskär sitt innehåll
   till den höjd marginalen lämnar, så hjälten kapades exakt vid första kortets överkant: bilden

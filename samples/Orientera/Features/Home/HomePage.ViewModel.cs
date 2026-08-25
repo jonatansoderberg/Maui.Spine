@@ -117,7 +117,8 @@ public partial class HomePageViewModel(
     }
 
     /// <summary>
-    /// Hur långt blocken får gå upp på bilden: halva hjälten.
+    /// Hur långt blocken får gå upp på bilden: en tredjedel av hjälten, så två tredjedelar av
+    /// bilden står fria.
     /// </summary>
     /// <remarks>
     /// Negativ överkant på blockstapeln, inte på hjälten. Hjälten ligger kvar i skrollvyn med hela
@@ -129,10 +130,10 @@ public partial class HomePageViewModel(
     /// överkant och kortet stod på sidans yta i stället för på fotot.
     /// </para>
     /// <para>
-    /// En andel av samma slag som höjden: halva hjälten är halva hjälten på varje skärm.
+    /// En andel av samma slag som höjden: en tredjedel är en tredjedel på varje skärm.
     /// </para>
     /// </remarks>
-    public Thickness HeroOverlap => new(0, -Math.Round(HeroHeight * 0.5), 0, 0);
+    public Thickness HeroOverlap => new(0, -Math.Round(HeroHeight / 3), 0, 0);
 
     /// <summary>
     /// Luften under sista kortet. Bara underkanten: SafeAreaInsets bär numera statusfältet

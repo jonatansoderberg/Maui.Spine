@@ -24,7 +24,7 @@ den här riktningen, och varför står i §6.
 
 | | I dag | Efter |
 |---|---|---|
-| Hälsning | Två etiketter på sidans yta | Foto i helbleed till knappt halva skärmen, hälsning i vitt ovanpå, och första kortet över bildens nedre hälft |
+| Hälsning | Två etiketter på sidans yta | Foto i helbleed till knappt halva skärmen, hälsning i vitt ovanpå, och första kortet över bildens nedersta tredjedel |
 | Väder | Finns inte | `☀ 18° i Gävle` under datumet, från position |
 | Sektionsrubrik | Versal mikrotext **inne i** varje kort | Rubrik i H2 **ovanför** kortet, med handlingslänk till höger |
 | Live nu | Vitt kort, orange märke, grön knapp | Grön yta, orange märke, **vit** knapp, banmärke i bakgrunden |
@@ -58,8 +58,8 @@ D12–D16 tagna 2026-08-24.
 ## 3. Hjälten
 
 Bilden går från skärmens överkant, under statusfältet, och ned till knappt halva skärmen.
-Hälsningen står i vitt överst på den, och första kortet lägger sig över dess nedre hälft. Tre
-saker avgör om det fungerar:
+Hälsningen står i vitt överst på den, och första kortet lägger sig över dess nedersta tredjedel.
+Tre saker avgör om det fungerar:
 
 **Kontrasten.** Vit text på ett foto klarar inte 4.5:1 av sig själv. En linjär gradient uppifrån
 i `HeroScrim` (finns redan, `#B3000000`) läggs mellan bilden och texten, och kontrasten mäts mot
@@ -74,8 +74,9 @@ sak på båda.
 tvingar korten att antingen klippas mot dess underkant på väg upp — mitt på ett fotografi, vilket
 läser som trasigt snarare än som djup — eller att täcka hälsningen.
 
-**Överlappet är halva hjälten**, och alltså en andel av samma slag som höjden. Bilden ritas i hela
-sin höjd och fortsätter bakom och bredvid korten; det är blocken som dras upp med en negativ
+**Överlappet är en tredjedel av hjälten**, och alltså en andel av samma slag som höjden: två
+tredjedelar av bilden står fria, den nedersta tredjedelen ligger bakom första kortet. Bilden ritas
+i hela sin höjd och fortsätter bakom och bredvid korten; det är blocken som dras upp med en negativ
 överkant, inte bilden som krymper.
 
 **Sidan är en `ScrollView` med en stapel, inte en `CollectionView`.** Listans huvudcell beskär sitt
