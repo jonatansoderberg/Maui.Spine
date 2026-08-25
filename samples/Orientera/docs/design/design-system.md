@@ -45,7 +45,8 @@ monterad i `Application.Resources`. **Konsumera alltid tokens med `{DynamicResou
 | `EstimateInk` | `#9C36B5` | `#DA77F2` | Modellerade/uppskattade värden |
 | `LinkInk` | `#1D4ED8` | `#7FB2FF` | Länk ut ur en text |
 | `MapInk` | `#8A7B5C` | `#4A5240` | Kartidentitet — **dekor, aldrig text** |
-| `HeroScrim` | `#B3000000` | `#CC000000` | Gradientens nedre stopp under hero — dekor |
+| `HeroScrim` | `#B3000000` | `#CC000000` | Gradientens övre stopp över hjältebilden — dekor |
+| `HeroScrimSoft` | `#8C000000` | `#A0000000` | Gradientens andra stopp, vid 40 % — dekor |
 | `SkeletonBase` | `#ECECE8` | `#262A2E` | Skelettrader — dekor |
 | `AvatarBackground` | `#E6EDE9` | `#2A322D` | Platsen bakom profilbild och klubbmärke |
 | `SurfaceLive` | `#10553A` | `#0E4632` | Live-kortets yta — mörk i **båda** teman |
@@ -159,7 +160,10 @@ under den är grön i båda teman. Ljusa temats `SignalUrgent` (`#C2410C`) ger 1
 därför i båda. Det är fortfarande SignalUrgents första tillåtna användning — live pågår — och inte
 en fjärde.
 
-`HeroScrim`, `SkeletonBase`, `TopoInk` och `MapInk` är dekor och bär aldrig text. Skelettraderna ligger
+`HeroScrim`, `HeroScrimSoft`, `SkeletonBase`, `TopoInk` och `MapInk` är dekor och bär aldrig text
+själva — men de två första är vad som *gör* text läsbar. Hjältebildens mätning görs mot den
+ljusaste pixeln inom varje textrads egen bredd, inte inom en ruta runt den: med bilden som ligger
+där nu ger en rak toning 3.84:1 på den svagaste raden, och med det mjuka andra stoppet 5.69:1. Skelettraderna ligger
 avsiktligt nära kortytan (1.18 / 1.16) — de är platshållare, inte innehåll.
 
 `MapInk` är undantaget: den är en dekorativ texturton (höjdkurvemönster bakom hero och

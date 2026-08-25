@@ -53,6 +53,7 @@
 		<MauiImage Include="Resources\Images\*" />
 		<MauiImage Include="Resources\Images\terrain\*.jpg" />
 		<MauiImage Include="Resources\Images\hero\*.jpg" />
+		<MauiImage Include="Resources\Images\surfaces\*.jpg" />
 
 		<!-- Embedded SVGs (tab icons, resolved via the SvgIcon pipeline) -->
 		<EmbeddedResource Include="Resources\Svg\*.svg" />

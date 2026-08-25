@@ -46,16 +46,24 @@ public sealed class IdentityView : ContentView
     private readonly Border _frame = new();
     private readonly RoundRectangle _corners = new();
     private readonly Image _image = new() { Aspect = Aspect.AspectFill };
+    /// <summary>
+    /// Initialerna i plattan. Rubrikfonten, samma skärning som sidornas och arkens rubriker —
+    /// två versaler i en cirkel är ett märke och inte en text, vilket är vad den skärningen är
+    /// ritad för. Textjusteringen står bredvid layoutjusteringen: den ena centrerar etiketten i
+    /// plattan, den andra raden inuti etiketten, och utan båda hamnar bokstäverna för högt.
+    /// </summary>
     private readonly Label _initials = new()
     {
         HorizontalOptions = LayoutOptions.Center,
         VerticalOptions = LayoutOptions.Center,
+        HorizontalTextAlignment = TextAlignment.Center,
+        VerticalTextAlignment = TextAlignment.Center,
     };
 
     public IdentityView()
     {
         _initials.SetDynamicResource(Label.TextColorProperty, "AccentAction");
-        _initials.SetDynamicResource(Label.FontFamilyProperty, "FontSemiBold");
+        _initials.SetDynamicResource(Label.FontFamilyProperty, "FontHeader");
 
         // The identity is decoration on a row that already reads its own name aloud; announcing it
         // separately turns one row into two swipes.
@@ -131,6 +139,12 @@ public sealed class IdentityView : ContentView
 
         _initials.Text = Fallback;
         _initials.FontSize = Size * 0.38;
+
+        // Optisk centrering, se Components.xaml: en etikett centreras på sin radhöjd, och
+        // versaler använder varken luften ovanför ascendern eller djupet under baslinjen. Här
+        // sitter rättelsen som marginal, för det finns ingen padding att flytta — nio procent av
+        // plattans storlek, vilket är den uppmätta skillnaden vid den textstorlek som används.
+        _initials.Margin = new Thickness(0, -Size * 0.09, 0, Size * 0.09);
         _initials.IsVisible = !hasImage && hasFallback;
 
         // With neither a picture nor initials there is nothing to be identified by, and P8 rules

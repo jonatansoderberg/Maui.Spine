@@ -41,6 +41,8 @@
 
     <!-- Ytor som konceptet kräver -->
     <Color x:Key="HeroScrim">#CC000000</Color>
+    <!-- Gradientens andra stopp, se LightTheme.xaml -->
+    <Color x:Key="HeroScrimSoft">#A0000000</Color>
     <Color x:Key="SkeletonBase">#262A2E</Color>
     <Color x:Key="AvatarBackground">#2A322D</Color>
 

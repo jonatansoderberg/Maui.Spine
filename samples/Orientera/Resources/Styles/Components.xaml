@@ -32,6 +32,21 @@
     <x:Double x:Key="PlaceColumnWidth">56</x:Double>
     <Thickness x:Key="CardPadding">16</Thickness>
 
+    <!--
+        Optisk centrering i piller och plattor.
+
+        En etikett centreras på sin *radhöjd*, som går från typsnittets översta ascender till dess
+        understa descender. Versaler når varken den ena eller den andra: ovanför dem finns luften
+        som prickarna över Ä och Ö behöver, under dem hela descenderdjupet som inget av tecknen
+        använder. Centrerad radhöjd betyder därför text som sitter för lågt — uppmätt 5 pt för
+        lågt i badgen och lika mycket i det kompakta chippet, på iOS.
+
+        Rättelsen är osymmetrisk padding: halva skillnaden bort från överkanten och lika mycket
+        till underkanten, vilket flyttar texten upp utan att ändra pillrets höjd. Samma sak i
+        cirklarna, där den sitter som en marginal på etiketten eftersom det inte finns någon
+        padding att flytta (IdentityView, AvatarStack).
+    -->
+
     <!-- Card -->
     <Style x:Key="Card" TargetType="Border">
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceCard}" />
@@ -80,7 +95,7 @@
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" />
         <Setter Property="Stroke" Value="{DynamicResource OutlineBrush}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="12,9" />
+        <Setter Property="Padding" Value="12,6.5,12,11.5" />
         <Setter Property="StrokeShape">
             <RoundRectangle CornerRadius="10" />
         </Setter>
@@ -121,7 +136,7 @@
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" />
         <Setter Property="Stroke" Value="Transparent" />
         <Setter Property="StrokeThickness" Value="0" />
-        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="Padding" Value="8,0.5,8,5.5" />
         <Setter Property="StrokeShape">
             <RoundRectangle CornerRadius="8" />
         </Setter>
@@ -160,9 +175,13 @@
         10,0 pt luft ovanför texten mot 3,3 pt under, i en badge som blivit 24 pt hög av en
         padding på 3. Centrerad etikett med centrerad text ger 3,0 mot 3,3 i en badge på 17 pt,
         vilket är den storlek paddingen beskriver.
+
+        Rubrikfonten, samma skärning som sidornas och arkens rubriker bär. En badge är en etikett
+        i versaler, vilket är precis vad Brandon Grotesque är ritad för — och den binder ihop
+        märket med rubrikraden i stället för att låta det låna brödtextens snitt.
     -->
     <Style x:Key="BadgeLabel" TargetType="Label">
-        <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
+        <Setter Property="FontFamily" Value="{StaticResource FontHeader}" />
         <Setter Property="FontSize" Value="{StaticResource SizeMicro}" />
         <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="TextTransform" Value="Uppercase" />

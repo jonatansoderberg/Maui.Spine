@@ -143,16 +143,23 @@ public sealed class AvatarStack : ContentView
 
     private View Overflow(int rest)
     {
+        // Samma skärning och samma centrering som initialerna bredvid: talet är den sista av
+        // ansiktena, inte ett värde i en kolumn, så det behöver inte de tabulära siffrorna.
         var label = new Label
         {
             Text = $"+{rest}",
             FontSize = Size * 0.34,
             HorizontalOptions = LayoutOptions.Center,
             VerticalOptions = LayoutOptions.Center,
+            HorizontalTextAlignment = TextAlignment.Center,
+            VerticalTextAlignment = TextAlignment.Center,
+
+            // Optisk centrering, av samma skäl och med samma mått som initialerna bredvid.
+            Margin = new Thickness(0, -Size * 0.09, 0, Size * 0.09),
         };
 
         label.SetDynamicResource(Label.TextColorProperty, "AccentAction");
-        label.SetDynamicResource(Label.FontFamilyProperty, "FontNumericSemiBold");
+        label.SetDynamicResource(Label.FontFamilyProperty, "FontHeader");
 
         // The same plate the faces without a picture stand on, so the count reads as the last of
         // them rather than as a badge stuck on the end.

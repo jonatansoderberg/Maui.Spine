@@ -13,16 +13,29 @@
             yta: distansernas nyanser är valda mot kort och sida.
         -->
         <DataTemplate x:Key="LiveNowTemplate" x:DataType="LiveNowBlock">
+            <!--
+                Ytan är en bild och inte bara en färg. Padding noll på ramen, så att kartbilden går
+                ut i kanterna; innehållet bär kortets padding själv i stället. SurfaceLive ligger
+                kvar under bilden — den är ytans färg medan bilden laddas, och den ringen
+                avatarerna står i.
+            -->
             <Border Style="{StaticResource Card}"
+                    Margin="16,0"
+                    Padding="0"
                     BackgroundColor="{DynamicResource SurfaceLive}"
                     Stroke="Transparent">
                 <Grid>
-                    <!-- Banan i bakgrunden: samma vokabulär som märket i raden, i kortformat. -->
-                    <CourseMark Size="180"
-                                HorizontalOptions="End" VerticalOptions="Start"
-                                Margin="0,-14,-52,0" />
+                    <!--
+                        HeightRequest 1 och Fill: bilden ska täcka kortets yta, inte bestämma
+                        den. Utan det mäts den på sin egen storlek — elvahundra punkter — och
+                        kortet växte till en skärmhög grön platta.
+                    -->
+                    <Image Source="surface_live.jpg" Aspect="AspectFill"
+                           HeightRequest="1" WidthRequest="1"
+                           VerticalOptions="Fill" HorizontalOptions="Fill"
+                           AutomationProperties.IsInAccessibleTree="False" />
 
-                    <VerticalStackLayout Spacing="10">
+                    <VerticalStackLayout Padding="{StaticResource CardPadding}" Spacing="10">
                         <Border Style="{StaticResource Badge}"
                                 BackgroundColor="{DynamicResource SignalOnDark}"
                                 HorizontalOptions="Start">
@@ -69,7 +82,7 @@
                                 BackgroundColor="{DynamicResource SurfaceLiveAction}"
                                 TextColor="{DynamicResource TextOnLiveAction}"
                                 Text="{Binding ActionText}"
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenLiveCommand}"
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenLiveCommand}"
                                 CommandParameter="{Binding Competition}" />
                     </VerticalStackLayout>
                 </Grid>
@@ -77,10 +90,10 @@
         </DataTemplate>
 
         <DataTemplate x:Key="NextForMeTemplate" x:DataType="NextForMeBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}"
                                ActionText="Visa kalender"
-                               Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenEventsCommand}" />
+                               Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenEventsCommand}" />
 
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="12">
@@ -138,7 +151,7 @@
                             <Button Grid.Column="2"
                                     Style="{StaticResource PrimaryButton}"
                                     Text="{Binding ActionText}"
-                                    Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenCompetitionCommand}"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenCompetitionCommand}"
                                     CommandParameter="{Binding Competition}" />
                         </Grid>
 
@@ -148,10 +161,10 @@
         </DataTemplate>
 
         <DataTemplate x:Key="LatestResultTemplate" x:DataType="LatestResultBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}"
                                ActionText="Se alla"
-                               Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenMyResultsCommand}" />
+                               Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenMyResultsCommand}" />
 
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="12">
@@ -192,7 +205,7 @@
 
                         <Button Style="{StaticResource SecondaryButton}"
                                 Text="{Binding ActionText}"
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenResultCommand}"
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenResultCommand}"
                                 CommandParameter="{Binding Competition}" />
 
                     </VerticalStackLayout>
@@ -201,7 +214,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="GroupTemplate" x:DataType="GroupBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}" />
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="8">
@@ -220,10 +233,10 @@
         </DataTemplate>
 
         <DataTemplate x:Key="DiscoveryTemplate" x:DataType="DiscoveryBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}"
                                ActionText="Visa kalender"
-                               Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenEventsCommand}" />
+                               Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenEventsCommand}" />
 
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="12">
@@ -267,7 +280,7 @@
 
                         <Button Style="{StaticResource SecondaryButton}"
                                 Text="Visa tävling"
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenCompetitionCommand}"
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.OpenCompetitionCommand}"
                                 CommandParameter="{Binding Competition}" />
 
                     </VerticalStackLayout>
@@ -276,7 +289,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="DevelopmentTemplate" x:DataType="DevelopmentBlock">
-            <VerticalStackLayout Spacing="8">
+            <VerticalStackLayout Spacing="8" Margin="16,0">
                 <SectionHeader Title="{Binding SectionLabel}" />
                 <Border Style="{StaticResource Card}">
                     <VerticalStackLayout Spacing="6">
@@ -305,84 +318,136 @@
 
     </SpinePage.Resources>
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid>
 
         <!--
-            Hjälten står utanför listan. Som CollectionView.Header mättes hälsningen innan texten
-            fanns, och en header som en gång mätts som tom växer inte när innehållet kommer —
-            rubriken klipptes och första kortet ritades ovanpå den.
+            Fyra lägen, ett värde (P10). Hjälten står överst i alla fyra — hälsningen är sann utan
+            nätverk, och en sida som tappar sin rubrik när hämtningen misslyckas ser trasig ut
+            snarare än offline. I innehållsläget ligger den i listans huvud och skrollar bort med
+            korten; det är det som låter första kortet ligga över bilden i stället för att klippas
+            mot en kant mitt på den.
         -->
-        <Grid Grid.Row="0" HeightRequest="250">
+        <StateView State="{Binding State}">
 
             <!--
-                Bilden är stämning och inte plats (beslut D12) — det enda undantaget från P7, och
-                ett räknebart: exakt en bundlad icke-terrängbild, på exakt den här ytan.
+                Skelettet har blockens form och inte en listas: ett högt kort, sedan två med var
+                sin rubrik ovanför. Ett skelett av fel form är en grå låda, och sidan hoppar när
+                korten kommer.
             -->
-            <Image Source="hero_home.jpg" Aspect="AspectFill"
-                   AutomationProperties.IsInAccessibleTree="False" />
+            <StateView.Skeleton>
+                <Grid RowDefinitions="Auto,*">
+                    <HomeHero Grid.Row="0" />
+
+                    <VerticalStackLayout Grid.Row="1" Padding="16,16,16,0" Spacing="12">
+                        <BoxView HeightRequest="230" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+
+                        <BoxView HeightRequest="17" WidthRequest="130" CornerRadius="4"
+                                 HorizontalOptions="Start" Margin="0,8,0,0"
+                                 Color="{DynamicResource SkeletonBase}" />
+                        <BoxView HeightRequest="170" CornerRadius="16" Color="{DynamicResource SkeletonBase}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </StateView.Skeleton>
 
             <!--
-                Gradienten, inte bilden, är det som gör vit text läsbar. Mätt mot bildens ljusaste
-                pixel under texten: 2.25:1 utan den, 6.4:1 med. Klarar en bild inte kravet byts
-                bilden — aldrig texten.
+                En skrollvy och inte en CollectionView. Hjälten måste rita hela sin höjd medan
+                blocken ligger över dess nedre hälft, och listans huvudcell beskär sitt innehåll
+                till den höjd marginalen lämnar — bilden kapades vid första kortets överkant och
+                kortet stod på sidans yta i stället för på fotot. En stapel beskär inte sina barn.
+                Hem visar högst fyra block, så det virtualiseringen kostar är ingenting här.
             -->
-            <Border StrokeThickness="0" InputTransparent="True">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Offset="0" Color="{DynamicResource HeroScrim}" />
-                        <GradientStop Offset="1" Color="Transparent" />
-                    </LinearGradientBrush>
-                </Border.Background>
-            </Border>
+            <StateView.Body>
+                <ScrollView x:Name="Scroll" Scrolled="OnScrolled">
+                    <VerticalStackLayout>
 
-            <!-- Bilden går under statusfältet, texten insetar sig själv. -->
-            <VerticalStackLayout Padding="{Binding HeroPadding}" Spacing="2" VerticalOptions="Start">
-                <Label Style="{StaticResource HeroGreetingLabel}" Text="{Binding Greeting}" />
-                <Label Style="{StaticResource HeroMetaLabel}" Text="{Binding TodayText}" />
+                        <HomeHero x:Name="Hero" />
 
-                <!-- Ingen rad alls hellre än en gissad: tom text fäller ihop etiketten. -->
-                <Label Style="{StaticResource HeroMetaLabel}"
-                       IsVisible="{Binding HasWeather}"
-                       Text="{Binding WeatherText}"
-                       SemanticProperties.Description="{Binding WeatherDescription}" />
-            </VerticalStackLayout>
+                        <VerticalStackLayout Margin="{Binding HeroOverlap}"
+                                             Spacing="16"
+                                             BindableLayout.ItemsSource="{Binding Blocks}"
+                                             BindableLayout.ItemTemplateSelector="{StaticResource BlockSelector}" />
 
-        </Grid>
+                        <!-- Margin carries the tab bar's own height; the height is the breathing room.
+                             Bara underkanten: sedan hjälten tog över toppen bär SafeAreaInsets statusfältet
+                             också, och hela tjockleken här hade lagt 59 punkter luft under sista kortet. -->
+                        <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
+                                 Margin="{Binding ListBottomInset}"
+                                 Color="Transparent" />
 
-        <!-- Offline utan sparade block: ett designat läge, inte en tom lista -->
-        <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsOffline}">
-            <Label Style="{StaticResource Heading2Label}" HorizontalTextAlignment="Center"
-                   Text="Ingen anslutning" />
-            <Label Style="{StaticResource BodySecondaryLabel}" HorizontalTextAlignment="Center"
-                   Text="Tävlingar du sparat offline finns kvar under Tävlingar — PM, din starttid och arenan fungerar utan nätverk." />
-        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </StateView.Body>
 
-        <CollectionView Grid.Row="1"
-                    ItemsSource="{Binding Blocks}"
-                    ItemTemplate="{StaticResource BlockSelector}"
-                    Margin="16,0"
-                    SelectionMode="None">
+            <!--
+                Tomt läge får en väg vidare och inte bara en mening. Den som saknar block har
+                inget att göra på Hem, och kalendern är svaret — inte en uppmaning att vänta.
+            -->
+            <StateView.EmptyView>
+                <Grid RowDefinitions="Auto,*">
+                    <HomeHero Grid.Row="0" />
 
-        <CollectionView.ItemsLayout>
-            <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
-        </CollectionView.ItemsLayout>
+                    <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="10" VerticalOptions="Center">
+                        <Label Style="{StaticResource Heading2Label}"
+                               HorizontalTextAlignment="Center"
+                               Text="Inget att visa än" />
+                        <Label Style="{StaticResource BodySecondaryLabel}"
+                               HorizontalTextAlignment="Center"
+                               Text="När du anmält dig till något står det här, tillsammans med dina resultat och dem du följer." />
+                        <Button Style="{StaticResource PrimaryButton}"
+                                HorizontalOptions="Center"
+                                Text="Visa tävlingar"
+                                Command="{Binding OpenEventsCommand}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </StateView.EmptyView>
 
-        <CollectionView.Footer>
-            <!-- Margin carries the tab bar's own height; the height is the breathing room.
-                 Bara underkanten: sedan hjälten tog över toppen bär SafeAreaInsets statusfältet
-                 också, och hela tjockleken här hade lagt 59 punkter luft under sista kortet. -->
-            <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
-                     Margin="{Binding ListBottomInset}"
-                     Color="Transparent" />
-        </CollectionView.Footer>
+            <StateView.ErrorView>
+                <Grid RowDefinitions="Auto,*">
+                    <HomeHero Grid.Row="0" />
 
-        </CollectionView>
+                    <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="12" VerticalOptions="Center">
+                        <Label Style="{StaticResource Heading2Label}"
+                               HorizontalTextAlignment="Center"
+                               Text="Ingen anslutning" />
+                        <Label Style="{StaticResource BodySecondaryLabel}"
+                               HorizontalTextAlignment="Center"
+                               Text="Tävlingar du sparat offline finns kvar under Tävlingar — PM, din starttid och arenan fungerar utan nätverk." />
+                        <Button Style="{StaticResource SecondaryButton}"
+                                HorizontalOptions="Center"
+                                Text="Försök igen"
+                                Command="{Binding ReloadCommand}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </StateView.ErrorView>
 
-    
-        <ActivityIndicator Style="{StaticResource PageLoading}"
-                           IsRunning="{Binding IsLoading}"
-                           IsVisible="{Binding IsLoading}" />
+        </StateView>
 
-</Grid>
+        <!--
+            Ligger efter StateView och ritas därmed ovanpå den. Opaciteten sätts av skrollningen,
+            inte här: bandet ska vara borta när hjälten står orörd, för då är dess egen nedtoning
+            redan det som gör klockan läsbar.
+        -->
+        <EdgeBlur x:Name="TopBlur"
+                  Opacity="0"
+                  VerticalOptions="Start"
+                  HeightRequest="{Binding TopBlurHeight}" />
+
+        <!--
+            Hälsningen igen, hopfälld. Den stora står kvar i hjälten och skrollar bort; den här
+            tonas in i dess ställe, centrerad och i rubrikradens skärning — samma rubrik som
+            Tävlingar bär, på den plats där ögat letar efter den när den stora är borta.
+        -->
+        <Label x:Name="TopTitle"
+               Opacity="0"
+               VerticalOptions="Start"
+               HorizontalOptions="Center"
+               HorizontalTextAlignment="Center"
+               Style="{StaticResource HeaderBarTitle}"
+               TextColor="{DynamicResource TextPrimary}"
+               HeightRequest="{Binding TopTitleHeight}"
+               Margin="{Binding TopTitleMargin}"
+               Text="{Binding Greeting}" />
+
+    </Grid>
 
 </SpinePage>

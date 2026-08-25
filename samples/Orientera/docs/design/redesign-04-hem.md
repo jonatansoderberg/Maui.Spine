@@ -1,7 +1,13 @@
 # Orientera — designriktning 04 "Hem"
 
-**Status:** förslag · **Datum:** 2026-08-24 · **Föregås av:**
+**Status:** genomförd · **Datum:** 2026-08-25 · **Föregås av:**
 [redesign-03-deltagare.md](redesign-03-deltagare.md)
+
+**Changelogar:** [tokens och typografi](../../../../issues/151-hem-tokens-och-typografi-for-den-nya-kortanatomin.md) ·
+[komponenterna](../../../../issues/152-hem-komponenterna-bakom-den-nya-kortanatomin.md) ·
+[sidan](../../../../issues/153-hem-ritas-om-hjalte-live-yta-och-sektionsrubriker.md) ·
+[vädret](../../../../issues/vadret-pa-halsningsraden.md) ·
+[fyra lägen](../../../../issues/154-hem-ritas-i-fyra-lagen.md)
 
 En konceptbild av Hem. Den ändrar inte vad sidan svarar på — ordningen kommer fortfarande från
 Context Engine, blocken är fortfarande få och stora — utan hur svaret ser ut: en hjältebild bakom
@@ -18,7 +24,7 @@ den här riktningen, och varför står i §6.
 
 | | I dag | Efter |
 |---|---|---|
-| Hälsning | Två etiketter på sidans yta | Foto i helbleed, hälsning i vitt ovanpå, datum och väder under |
+| Hälsning | Två etiketter på sidans yta | Foto i helbleed till knappt halva skärmen, hälsning i vitt ovanpå, och första kortet över bildens nedersta tredjedel |
 | Väder | Finns inte | `☀ 18° i Gävle` under datumet, från position |
 | Sektionsrubrik | Versal mikrotext **inne i** varje kort | Rubrik i H2 **ovanför** kortet, med handlingslänk till höger |
 | Live nu | Vitt kort, orange märke, grön knapp | Grön yta, orange märke, **vit** knapp, banmärke i bakgrunden |
@@ -51,27 +57,47 @@ D12–D16 tagna 2026-08-24.
 
 ## 3. Hjälten
 
-Bilden ligger i helbleed under statusfältet, hälsningen i vitt ovanpå. Två saker avgör om det
-fungerar:
+Bilden går från skärmens överkant, under statusfältet, och ned till knappt halva skärmen.
+Hälsningen står i vitt överst på den, och första kortet lägger sig över dess nedersta tredjedel.
+Tre saker avgör om det fungerar:
 
 **Kontrasten.** Vit text på ett foto klarar inte 4.5:1 av sig själv. En linjär gradient uppifrån
 i `HeroScrim` (finns redan, `#B3000000`) läggs mellan bilden och texten, och kontrasten mäts mot
 bildens *ljusaste* pixel under textens yta — inte mot medelvärdet. Klarar en bild inte kravet byts
 bilden, aldrig texten.
 
-**Höjden.** Hjälten kostar yta ovanför första kortet. Måttet sätts så att live-kortets rubrik och
-dess knapp syns utan att man skrollar på en iPhone 13 mini (812 pt) — det är sidans hela poäng att
-det översta blocket är svaret. Riktvärde 240–280 pt inklusive statusfältet, verifierat på riktig
-enhet innan det låses.
+**Höjden är ett förhållande, inte ett mått.** 46 % av skärmen, räknat ur `DeviceDisplay`. Fyrahundra
+punkter är nästan hela en iPhone SE och en tredjedel av en iPad; "knappt halva skärmen" är samma
+sak på båda.
 
-**Hjälten skrollar inte med.** Den står i `Grid.Row="0"` där hälsningen står i dag. Att lägga den i
-`CollectionView.Header` är samma fälla som redan är dokumenterad i `HomePage.View.xaml`: en header
-som mätts som tom växer inte när innehållet kommer, och rubriken klipptes.
+**Hjälten skrollar med blocken.** Det är överlappet som kräver det: en hjälte som står still
+tvingar korten att antingen klippas mot dess underkant på väg upp — mitt på ett fotografi, vilket
+läser som trasigt snarare än som djup — eller att täcka hälsningen.
+
+**Överlappet är en tredjedel av hjälten**, och alltså en andel av samma slag som höjden: två
+tredjedelar av bilden står fria, den nedersta tredjedelen ligger bakom första kortet. Bilden ritas
+i hela sin höjd och fortsätter bakom och bredvid korten; det är blocken som dras upp med en negativ
+överkant, inte bilden som krymper.
+
+**Sidan är en `ScrollView` med en stapel, inte en `CollectionView`.** Listans huvudcell beskär sitt
+innehåll till den höjd marginalen lämnar, så hjälten kapades exakt vid första kortets överkant och
+kortet stod på sidans yta i stället för på fotot — ett överlapp som bara var ett högre startläge.
+En stapel beskär inte sina barn. Hem visar högst fyra block, så det virtualiseringen kostar är
+ingenting här.
+
+Fällan som stod dokumenterad i koden — *en header som mätts som tom växer inte när texten kommer,
+så rubriken klipps och första kortet ritas ovanpå den* — undviks av att hjältens höjd är satt och
+känd innan något bundits.
+
+**Priset för helbleeden betalas vid skroll.** Hjälten skrollar, och därmed skrollar allt annat
+också — under statusfältet, där klockan hamnar ovanpå ett kort. Det är hur en helbleed-sida beter
+sig på iOS, och det är valt medvetet: bilden ska nå ända upp. Vill man ha bort det finns två
+vägar, och båda kostar något — låta bilden börja under statusfältet, eller lägga en permanent
+mörk remsa bakom fältet, Apples egen scroll edge, som i ljust läge blir ett mörkt band över vita
+kort.
 
 För skärmläsaren är bilden dekoration (`IsInAccessibleTree=False`), hälsningen är sidans H1, och
-väderraden läses som en mening: "18 grader i Gävle, soligt".
-
----
+väderraden läses som en mening: "18 grader i Gävle, klart".
 
 ## 4. Vädret
 
@@ -219,7 +245,7 @@ Hem ritas i sina fyra lägen med den nya anatomin:
 | # | Risk | Hantering |
 |---|---|---|
 | H1 | Vit text på foto klarar inte kontrastkravet i ljusa partier | Gradient + mätning mot ljusaste pixeln under texten. Klarar bilden inte kravet byts **bilden** |
-| H2 | Hjälten trycker ned live-kortet under skärmkanten | Höjden mäts mot iPhone 13 mini innan den låses; översta blockets rubrik och knapp ska synas utan skroll |
+| H2 | Hjälten trycker ned live-kortet under skärmkanten | Höjden är 46 % av skärmen och kortet överlappar den, så översta blockets rubrik och knapp syns utan skroll på varje storlek — inte bara den som mättes |
 | H3 | "Snitt 5:21 min/km" saknar banlängd i datat | Tredje nyckeltalet blir Snitt **när banlängden är känd**, annars "Efter" (`BehindWinner`, finns redan). Aldrig en gissad nämnare |
 | H4 | Positionsdialogen krockar med första startens två ark | Frågan ställs först i andra sessionen (§4) |
 | H5 | D12 blir en spricka i P7 som växer | Undantaget är räknebart precis som `SignalUrgent`: exakt en bundlad icke-terrängbild, på exakt en yta. Varje användning går att räkna efter |
