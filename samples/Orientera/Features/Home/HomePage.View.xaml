@@ -357,10 +357,10 @@
                 Hem visar högst fyra block, så det virtualiseringen kostar är ingenting här.
             -->
             <StateView.Body>
-                <ScrollView>
+                <ScrollView x:Name="Scroll" Scrolled="OnScrolled">
                     <VerticalStackLayout>
 
-                        <HomeHero />
+                        <HomeHero x:Name="Hero" />
 
                         <VerticalStackLayout Margin="{Binding HeroOverlap}"
                                              Spacing="16"

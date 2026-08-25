@@ -66,6 +66,14 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
 - **`Resources/Styles/Components.xaml`**, **`Controls/IdentityView.cs`**, **`Controls/AvatarStack.cs`**
   — badgetexten och initialerna i rubrikfonten, centrerade.
 
+### Efterjustering — optisk centrering och parallax ✅
+
+- **`Resources/Styles/Components.xaml`** — `Badge` och `ChipCompact` fick osymmetrisk padding, med
+  orsaken förklarad en gång ovanför stilarna.
+- **`Controls/IdentityView.cs`**, **`Controls/AvatarStack.cs`** — samma rättelse som marginal, för
+  där finns ingen padding att flytta.
+- **`Features/Home/HomePage.cs`** + **`.View.xaml`** — hjälten följer halva skrollsträckan.
+
 ## Decisions
 
 - **Offline är sidans fel-läge, inte ett femte.** P10:s fel-läge kräver vad som gick fel, vad som
@@ -121,6 +129,20 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
 - **`CourseMark` togs bort från live-kortet.** Höjdkurvorna i ytbilden säger samma sak, och två
   kartmotiv på ett kort är ett för mycket. Komponenten finns kvar och visas på designsystemsidan,
   men har därmed ingen sida som använder den.
+
+- **Texten i piller och plattor satt genomgående för lågt, och orsaken är en.** En etikett
+  centreras på sin radhöjd, som går från typsnittets översta ascender till dess understa
+  descender. Versaler når varken den ena eller den andra: ovanför dem ligger luften som prickarna
+  över Ä och Ö behöver, under dem hela descenderdjupet som inget tecken använder. Uppmätt på iOS
+  5 pt för lågt i badgen och lika mycket i det kompakta chippet — alltså samma fel oavsett typsnitt
+  och storlek, vilket är varför det inte gick att lösa genom att byta font. Rättelsen är halva
+  skillnaden bort från överkanten och lika mycket till underkanten: texten flyttas upp, höjden står
+  kvar. Det höga chippet rörs inte; dess padding vilar på en egen uppmätning som står i koden.
+
+- **Parallaxen är en översättning nedåt och inte en egen skrollvy.** Hjälten ligger i skrollytan och
+  flyttas alltså redan uppåt med hela sträckan; hälften tas tillbaka. Att översättningen aldrig
+  överstiger sträckan är vad som gör att bildens överkant inte kan hamna nedanför skärmkanten och
+  lämna en glipa. Klämd vid noll för studsen i överkanten, där sträckan är negativ.
 
 - **Badgetexten och initialerna bär rubrikfonten.** Två versaler i en cirkel och ett ord i ett
   piller är märken, inte text — vilket är vad Brandon Grotesque är ritad för. Textjusteringen står

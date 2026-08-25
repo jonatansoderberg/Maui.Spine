@@ -32,6 +32,21 @@
     <x:Double x:Key="PlaceColumnWidth">56</x:Double>
     <Thickness x:Key="CardPadding">16</Thickness>
 
+    <!--
+        Optisk centrering i piller och plattor.
+
+        En etikett centreras på sin *radhöjd*, som går från typsnittets översta ascender till dess
+        understa descender. Versaler når varken den ena eller den andra: ovanför dem finns luften
+        som prickarna över Ä och Ö behöver, under dem hela descenderdjupet som inget av tecknen
+        använder. Centrerad radhöjd betyder därför text som sitter för lågt — uppmätt 5 pt för
+        lågt i badgen och lika mycket i det kompakta chippet, på iOS.
+
+        Rättelsen är osymmetrisk padding: halva skillnaden bort från överkanten och lika mycket
+        till underkanten, vilket flyttar texten upp utan att ändra pillrets höjd. Samma sak i
+        cirklarna, där den sitter som en marginal på etiketten eftersom det inte finns någon
+        padding att flytta (IdentityView, AvatarStack).
+    -->
+
     <!-- Card -->
     <Style x:Key="Card" TargetType="Border">
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceCard}" />
@@ -80,7 +95,7 @@
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" />
         <Setter Property="Stroke" Value="{DynamicResource OutlineBrush}" />
         <Setter Property="StrokeThickness" Value="1" />
-        <Setter Property="Padding" Value="12,9" />
+        <Setter Property="Padding" Value="12,6.5,12,11.5" />
         <Setter Property="StrokeShape">
             <RoundRectangle CornerRadius="10" />
         </Setter>
@@ -121,7 +136,7 @@
         <Setter Property="BackgroundColor" Value="{DynamicResource SurfaceSubtle}" />
         <Setter Property="Stroke" Value="Transparent" />
         <Setter Property="StrokeThickness" Value="0" />
-        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="Padding" Value="8,0.5,8,5.5" />
         <Setter Property="StrokeShape">
             <RoundRectangle CornerRadius="8" />
         </Setter>

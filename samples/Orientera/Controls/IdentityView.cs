@@ -139,6 +139,12 @@ public sealed class IdentityView : ContentView
 
         _initials.Text = Fallback;
         _initials.FontSize = Size * 0.38;
+
+        // Optisk centrering, se Components.xaml: en etikett centreras på sin radhöjd, och
+        // versaler använder varken luften ovanför ascendern eller djupet under baslinjen. Här
+        // sitter rättelsen som marginal, för det finns ingen padding att flytta — nio procent av
+        // plattans storlek, vilket är den uppmätta skillnaden vid den textstorlek som används.
+        _initials.Margin = new Thickness(0, -Size * 0.09, 0, Size * 0.09);
         _initials.IsVisible = !hasImage && hasFallback;
 
         // With neither a picture nor initials there is nothing to be identified by, and P8 rules

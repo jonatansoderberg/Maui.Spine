@@ -153,6 +153,9 @@ public sealed class AvatarStack : ContentView
             VerticalOptions = LayoutOptions.Center,
             HorizontalTextAlignment = TextAlignment.Center,
             VerticalTextAlignment = TextAlignment.Center,
+
+            // Optisk centrering, av samma skäl och med samma mått som initialerna bredvid.
+            Margin = new Thickness(0, -Size * 0.09, 0, Size * 0.09),
         };
 
         label.SetDynamicResource(Label.TextColorProperty, "AccentAction");
