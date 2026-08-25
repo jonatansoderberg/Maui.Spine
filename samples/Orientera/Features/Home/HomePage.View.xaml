@@ -339,6 +339,12 @@
             <VerticalStackLayout Padding="{Binding HeroPadding}" Spacing="2" VerticalOptions="Start">
                 <Label Style="{StaticResource HeroGreetingLabel}" Text="{Binding Greeting}" />
                 <Label Style="{StaticResource HeroMetaLabel}" Text="{Binding TodayText}" />
+
+                <!-- Ingen rad alls hellre än en gissad: tom text fäller ihop etiketten. -->
+                <Label Style="{StaticResource HeroMetaLabel}"
+                       IsVisible="{Binding HasWeather}"
+                       Text="{Binding WeatherText}"
+                       SemanticProperties.Description="{Binding WeatherDescription}" />
             </VerticalStackLayout>
 
         </Grid>

@@ -40,7 +40,7 @@ D1–D11 står kvar. D12 skriver om P7.
 | # | Beslut | Utfall | Följd |
 |---|---|---|---|
 | **D12** | Hjältebilden på Hem | **Ett kurerat löparfoto, som i konceptet** | P7 ("bilden bär sammanhang, aldrig dekoration") får ett räknebart undantag: **exakt en** bundlad bild som inte är terräng, `hero_home.jpg`, och den får bara ligga bakom hälsningen på Hem. Överallt annars gäller P7 oförändrad — terrängbild vald på disciplin, kartrutan som fallback |
-| **D13** | Vädret | **Riktig prognos från position** | SMHI:s öppna API, position från enheten med `Person.Home` som fallback. Ingen rad alls hellre än en gissad — se §4 |
+| **D13** | Vädret | **Riktig prognos från position** | Position från enheten med `Person.Home` som fallback. Ingen rad alls hellre än en gissad — se §4. *Källan blev MET Norway och inte SMHI: deras endpoint finns inte längre, se §4.* |
 | **D14** | Snabbfilter på Hem | **Byggs inte** | Hem svarar, Tävlingar filtrerar. Chipsen i konceptet finns redan på Tävlingar, och en andra uppsättning på Hem hade gjort Context Engine till en vy-inställning |
 | **D15** | Notisklockan | **Byggs inte nu** | Pricken i konceptet lovar ett notisflöde med händelser från andra, vilket är M5 (konto + push). En klocka som öppnar notis*inställningar* är fel löfte, och ett flöde som bara innehåller appens egna påminnelser är inte det bilden visar |
 | **D16** | Hälsningens typsnitt | **Brandon Grotesque Black — rubrikfonten** | Konceptets serif blir ett tredje typsnitt och därmed en typografiändring för hela appen. `FontHeader` finns redan och bär sidornas och arkens rubriker; hälsningen *är* sidans rubrik, så den ärver den skärningen i stället för att införa en ny |
@@ -77,9 +77,20 @@ väderraden läses som en mening: "18 grader i Gävle, soligt".
 
 En rad, tre fakta: symbol, temperatur, ortnamn. Ny tjänst under `Services/Weather/`.
 
-**Källa: SMHI:s öppna API** (`opendata-download-metfcst`). Nyckelfritt, fritt, svensk täckning —
-och till skillnad från yr.no ställer det inga krav på identifierande User-Agent. Yr.no blir
-alternativet om appen någon gång ska visa väder utanför Sverige.
+**Källa: MET Norway, Locationforecast 2.0** (`api.met.no`). Nyckelfri och fri, med nordisk
+täckning som är bättre än vad appen behöver.
+
+Riktningen pekade först ut SMHI:s `opendata-download-metfcst`. Den adressen svarar **404 på hela
+värden**, API-roten inräknad — tjänsten ligger inte kvar där, oavsett vad dokumentationen säger.
+MET:s kostar två saker till, och båda är gjorda:
+
+- **En User-Agent som säger vem som frågar.** Deras villkor kräver den, och ett anonymt anrop är
+  det de stryper först. Sätts på klienten i `MauiProgram`.
+- **En kreditering.** Står permanent på Jag-sidan — en licensrad som bara syns i utvecklingsläget
+  är ingen licensrad. Samma skäl som arenabildens kreditering står bredvid bilden.
+
+Cachen på trettio minuter är också ett svar på deras villkor: de ber uttryckligen om att man inte
+frågar oftare än datat ändras.
 
 **Position, i fallande ordning:**
 
@@ -94,9 +105,11 @@ sportvalet i kö; en positionsdialog som tredje ruta i följd är hur man lär a
 "Neka". Frågan ställs vid andra sessionen, och nekas den ställs den aldrig igen — appen faller
 tillbaka på hemorten och raden ser likadan ut.
 
-**Cache och offline:** svaret sparas i `weather.json` med 30 minuters livslängd. Offline visas det
-sparade svaret med sin tidsstämpel underförstådd; finns inget sparat ritas ingen rad. En tom rad
-är bättre än en snurra i en hälsning.
+**Cache och offline:** svaret sparas i `weather.json`. Två åldrar och inte en — under trettio
+minuter används det sparade svaret utan att fråga nätet, och mellan trettio minuter och tolv
+timmar bara när hämtningen misslyckades, vilket är vad "offline" betyder här. Äldre än så ritas
+ingen rad: gårdagens tolv grader är ett påstående om i dag som ingen bett om. En tom rad är bättre
+än en snurra i en hälsning.
 
 **Plattform:** `ACCESS_COARSE_LOCATION` i `AndroidManifest.xml`,
 `NSLocationWhenInUseUsageDescription` i iOS `Info.plist` med en mening som säger varför —

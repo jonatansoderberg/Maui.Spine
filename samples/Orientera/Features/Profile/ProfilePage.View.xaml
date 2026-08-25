@@ -342,6 +342,14 @@
                        Text="{Binding SourceDescription}" />
             </VerticalStackLayout>
 
+            <!--
+                Krediteringen MET Norways villkor kräver för vädret på Hem. Permanent och utanför
+                utvecklingsläget: en licensrad som bara syns i debug är ingen licensrad. Samma
+                skäl som arenabildens kreditering står bredvid bilden i HeroImage.
+            -->
+            <Label Style="{StaticResource CaptionLabel}"
+                   Text="Vädret på startsidan kommer från MET Norway (Yr), fritt enligt NLOD." />
+
         </VerticalStackLayout>
         </ScrollView>
 

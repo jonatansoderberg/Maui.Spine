@@ -16,6 +16,7 @@ using Orientera.Services.Offline;
 using Orientera.Services.Relevance;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
+using Orientera.Services.Weather;
 
 namespace Orientera.Features.Home;
 
@@ -31,6 +32,7 @@ public partial class HomePageViewModel(
     FirstRunStore _firstRun,
     EventorSessionResume _resume,
     RacePreferenceStore _preferences,
+    WeatherService _weather,
     CompetitionContextService _context) : OrienteraViewModel
 {
     /// <summary>Hem has few large blocks, not a dense dashboard.</summary>
@@ -43,6 +45,16 @@ public partial class HomePageViewModel(
 
     [ObservableProperty] public partial string Greeting { get; set; } = string.Empty;
     [ObservableProperty] public partial string TodayText { get; set; } = string.Empty;
+
+    /// <summary>"☀️ 18° i Gävle". Tom när det inte finns något väder att stå för — se WeatherStore.</summary>
+    [ObservableProperty] public partial string WeatherText { get; set; } = string.Empty;
+
+    /// <summary>Samma rad i ord, för den som får den uppläst. Symbolen säger ingenting högt.</summary>
+    [ObservableProperty] public partial string WeatherDescription { get; set; } = string.Empty;
+
+    public bool HasWeather => WeatherText.Length > 0;
+
+    partial void OnWeatherTextChanged(string value) => OnPropertyChanged(nameof(HasWeather));
 
     /// <summary>
     /// Hälsningens plats i hjälten. Bilden går under statusfältet (sidan har lämnat toppen ur
@@ -74,13 +86,59 @@ public partial class HomePageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
+        // Läses före ScheduleWelcome, som besvarar frågan i samma andetag: det här är det enda
+        // som skiljer första körningen från alla senare, och positionsdialogen får inte ställas
+        // i den. Se WeatherService.HasLocationPermissionAsync.
+        var isFirstRun = !_firstRun.IsAnswered;
+
         ScheduleWelcome();
 
         var session = _resume.Generation;
 
         await ReloadAsync();
 
+        await LoadWeatherAsync(mayAskForLocation: !isFirstRun);
+
         await ResumeEventorAsync(session);
+    }
+
+    /// <summary>
+    /// Vädret hämtas efter blocken och aldrig före dem. Det är en utsmyckning på en hälsning, och
+    /// en sida som väntar på SMHI innan den visar dagens tävling har fel ordning på sina svar.
+    /// </summary>
+    private async Task LoadWeatherAsync(bool mayAskForLocation)
+    {
+        Person me;
+
+        try
+        {
+            me = await _people.GetMeAsync();
+        }
+        catch (SourceUnavailableException)
+        {
+            // Hemorten är det enda vädret behöver av källorna, och utan den finns ingen rad. Att
+            // låta det slå igenom hade tagit ned hela OnAppearing för en utsmyckning.
+            WeatherText = string.Empty;
+            WeatherDescription = string.Empty;
+            return;
+        }
+
+        if (await _weather.LoadAsync(me, mayAskForLocation) is not { } weather)
+        {
+            WeatherText = string.Empty;
+            WeatherDescription = string.Empty;
+            return;
+        }
+
+        var degrees = (int)Math.Round(weather.TemperatureC);
+
+        WeatherText = $"{WeatherWords.Symbol(weather.Symbol)} {degrees.ToString(Format.Culture)}° i {weather.Place}";
+
+        WeatherDescription = string.Join(", ", new[]
+        {
+            $"{degrees.ToString(Format.Culture)} grader i {weather.Place}",
+            WeatherWords.Spoken(weather.Symbol),
+        }.Where(s => s.Length > 0));
     }
 
     /// <summary>

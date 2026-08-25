@@ -11,6 +11,7 @@ using Orientera.Resources.Styles;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
+using Orientera.Services.Weather;
 using Plugin.Maui.Spine.Extensions;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 
@@ -209,6 +210,26 @@ public static class MauiProgram
         services.AddSingleton<OfflinePackageService>();
 
         services.AddSingleton<CompetitionContextService>();
+
+        // Vädret på hälsningsraden, från MET Norway (Yr). Fri och nyckellös, men deras villkor
+        // kräver en User-Agent som säger vem som frågar — ett anonymt anrop är det de stryper
+        // först. Kort timeout: raden får utebli, den får inte hålla upp Hem.
+        services.AddSingleton(_ => new WeatherStore(
+            Path.Combine(FileSystem.AppDataDirectory, "weather.json")));
+
+        services.AddSingleton(sp =>
+        {
+            var http = new HttpClient
+            {
+                BaseAddress = new Uri("https://api.met.no/"),
+                Timeout = TimeSpan.FromSeconds(8),
+            };
+
+            http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Orientera/0.1 (+https://github.com/jonatansoderberg/Maui.Spine)");
+
+            return new WeatherService(http, sp.GetRequiredService<WeatherStore>());
+        });
 
         // Notifications are planned from data the app already has, and delivered by whatever
         // the platform offers.
