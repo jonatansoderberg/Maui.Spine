@@ -39,10 +39,12 @@ public partial class HomePage
     /// översättningen aldrig överstiger sträckan kan bildens överkant inte hamna nedanför
     /// skärmkanten och lämna en glipa efter sig.
     /// <para>
-    /// Klämd vid noll för studsen i överkanten: där är sträckan negativ, och en negativ
-    /// översättning hade dragit upp bilden och blottat ytan ovanför den.
+    /// I studsen ovanför toppen är sträckan negativ, och då tas den tillbaka helt i stället för
+    /// till hälften: hjälten står stilla i överkanten medan korten dras nedåt. Utan det följer den
+    /// med studsen ned och blottar sidans tomma yta ovanför sig — och eftersom korten fortsätter
+    /// nedåt är det mer av fotografiet som kommer fram, vilket är vad gesten borde ge.
     /// </para>
     /// </remarks>
     private void OnScrolled(object? sender, ScrolledEventArgs e) =>
-        Hero.TranslationY = Math.Max(0, e.ScrollY) * ParallaxFactor;
+        Hero.TranslationY = e.ScrollY < 0 ? e.ScrollY : e.ScrollY * ParallaxFactor;
 }

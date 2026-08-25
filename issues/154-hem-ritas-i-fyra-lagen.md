@@ -142,7 +142,15 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
 - **Parallaxen är en översättning nedåt och inte en egen skrollvy.** Hjälten ligger i skrollytan och
   flyttas alltså redan uppåt med hela sträckan; hälften tas tillbaka. Att översättningen aldrig
   överstiger sträckan är vad som gör att bildens överkant inte kan hamna nedanför skärmkanten och
-  lämna en glipa. Klämd vid noll för studsen i överkanten, där sträckan är negativ.
+  lämna en glipa.
+
+- **I studsen ovanför toppen tas sträckan tillbaka helt, inte till hälften.** Först klämdes den
+  bara vid noll, och då följde hjälten med studsen nedåt och blottade sidans tomma yta ovanför
+  sig. Med hela sträckan återtagen står den stilla i överkanten medan korten dras ned — vilket
+  dessutom ger mer av fotografiet, som är vad gesten borde ge.
+
+  *Verifierad genom resonemang och inte på skärm:* studsen går inte att fånga i en skärmdump med
+  simulatorns gestverktyg, eftersom bilden tas efter att gesten släppts.
 
 - **Badgetexten och initialerna bär rubrikfonten.** Två versaler i en cirkel och ett ord i ett
   piller är märken, inte text — vilket är vad Brandon Grotesque är ritad för. Textjusteringen står
