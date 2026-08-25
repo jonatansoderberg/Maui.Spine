@@ -135,10 +135,32 @@ public partial class HomePageViewModel(
     /// </remarks>
     public Thickness HeroOverlap => new(0, -Math.Round(HeroHeight / 3), 0, 0);
 
-    /// <summary>Den hopfällda rubrikradens höjd, under statusfältet.</summary>
-    public double TopTitleHeight => 40;
+    /// <summary>
+    /// Den hopfällda rubrikradens höjd, under statusfältet.
+    /// </summary>
+    /// <remarks>
+    /// Samma höjd som Spines egen rubrikrad, så den lilla rubriken hamnar på exakt den plats
+    /// "TÄVLINGAR" har på sin sida — uppmätt till 76 punkter från skärmens överkant, och det är
+    /// den här höjden som avgör det, eftersom texten centreras i raden.
+    /// <para>
+    /// Talen är avskrivna och inte lånade: <c>HeaderBarConstants</c> är internal i Spine. Ändras
+    /// de där måste de ändras här.
+    /// </para>
+    /// </remarks>
+#if ANDROID
+    public double TopTitleHeight => 48;
+#else
+    public double TopTitleHeight => 32;
+#endif
 
-    /// <summary>Rubrikradens plats: precis under statusfältet, i bandets ogenomskinliga del.</summary>
+    /// <summary>
+    /// Rubrikradens plats: direkt under statusfältet, precis som Spines egen.
+    /// </summary>
+    /// <remarks>
+    /// Ingen extra luft ovanför. Raden börjar där statusfältet slutar och texten centreras i den,
+    /// vilket lägger bläcket 76 punkter från skärmens överkant — uppmätt till samma punkt som
+    /// "TÄVLINGAR" står på sin sida.
+    /// </remarks>
     public Thickness TopTitleMargin => new(16, SafeAreaInsets.Top, 16, 0);
 
     /// <summary>

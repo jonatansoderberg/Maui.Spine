@@ -26,6 +26,20 @@ namespace Orientera.Features.Home;
 /// </remarks>
 public sealed class HomeHero : ContentView
 {
+    /// <summary>
+    /// Hälsningsblockets genomskinlighet, satt av den som skrollar.
+    /// </summary>
+    /// <remarks>
+    /// Bara texten och inte hjälten: bilden ska ligga kvar och glida förbi i sin egen takt medan
+    /// den stora hälsningen lämnar över till den lilla i statusfältets kant. Tonas de inte mot
+    /// varandra står samma ord skrivet två gånger på skärmen samtidigt.
+    /// </remarks>
+    public static readonly BindableProperty TextOpacityProperty =
+        BindableProperty.Create(nameof(TextOpacity), typeof(double), typeof(HomeHero), 1.0,
+            propertyChanged: (b, _, v) => ((HomeHero)b)._text.Opacity = (double)v);
+
+    private readonly View _text = Text();
+
     public HomeHero()
     {
         // Bilden är stämning och inte plats (beslut D12) — det enda undantaget från P7, och ett
@@ -38,7 +52,7 @@ public sealed class HomeHero : ContentView
 
         AutomationProperties.SetIsInAccessibleTree(image, false);
 
-        Content = new Grid { Children = { image, Scrim(), Fade(), Text() } };
+        Content = new Grid { Children = { image, Scrim(), Fade(), _text } };
 
         SetBinding(HeightRequestProperty, new Binding(nameof(HomePageViewModel.HeroHeight)));
     }
@@ -115,6 +129,12 @@ public sealed class HomeHero : ContentView
                 ],
             },
         };
+    }
+
+    public double TextOpacity
+    {
+        get => (double)GetValue(TextOpacityProperty);
+        set => SetValue(TextOpacityProperty, value);
     }
 
     /// <summary>Bilden går under statusfältet; texten insetar sig själv med den mätta höjden.</summary>

@@ -173,8 +173,18 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
   sätts om när bandet byter storlek, utan implicita animationer så den inte glider efter layouten.
 
 - **Den stora hälsningen fälls ihop till en liten centrerad rubrik.** Samma skärning som Tävlingar
-  bär, på den plats ögat letar när den stora är borta. Den tonas in tillsammans med bandet — de är
-  en och samma sak för ögat.
+  bär, på den plats ögat letar när den stora är borta.
+
+- **Rubrikraden är 32 punkter hög, avskriven ur Spines egen.** Det är höjden som avgör var texten
+  hamnar, eftersom den centreras i raden: med 40 låg bläcket 4 punkter under Spines rubrik, med 32
+  ligger det på exakt samma 76 punkter från skärmens överkant. Talen är avskrivna och inte lånade —
+  `HeaderBarConstants` är internal i Spine, så ändras de där måste de ändras här. Android har 48
+  av samma skäl.
+
+- **De två hälsningarna korsar varandra, och överlämningen följer fingret.** Utan det står samma
+  ord skrivet två gånger på skärmen samtidigt. En animation med egen längd hinner ifatt sig själv
+  när man skrollar upp igen; en andel av skrollsträckan gör det inte, och den är dessutom
+  reversibel utan att något behöver startas om.
 
 - **Badgetexten och initialerna bär rubrikfonten.** Två versaler i en cirkel och ett ord i ett
   piller är märken, inte text — vilket är vad Brandon Grotesque är ritad för. Textjusteringen står

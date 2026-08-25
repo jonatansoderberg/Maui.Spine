@@ -61,8 +61,13 @@ public partial class HomePage
     {
         Hero.TranslationY = e.ScrollY < 0 ? e.ScrollY : e.ScrollY * ParallaxFactor;
 
-        // Bandet och rubriken är en och samma sak för ögat, och tonas därför som en.
-        TopBlur.Opacity = TopTitle.Opacity = Math.Clamp(
-            (e.ScrollY - BlurFadeStart) / (BlurFadeEnd - BlurFadeStart), 0, 1);
+        // Bandet och den lilla rubriken är en och samma sak för ögat, och tonas därför som en.
+        // Den stora hälsningen tonas mot dem: när den ena är inne är den andra borta, och
+        // överlämningen följer fingret i stället för att spelas upp som en egen animation — en
+        // animation med egen längd hinner ifatt sig själv när man skrollar upp igen.
+        var collapsed = Math.Clamp((e.ScrollY - BlurFadeStart) / (BlurFadeEnd - BlurFadeStart), 0, 1);
+
+        TopBlur.Opacity = TopTitle.Opacity = collapsed;
+        Hero.TextOpacity = 1 - collapsed;
     }
 }
