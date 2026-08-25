@@ -24,6 +24,36 @@ public partial class DesignSystemPageViewModel : ViewModelBase
 
     [ObservableProperty] public partial object? SelectedSegment { get; set; } = "Startlista";
 
+    /// <summary>
+    /// The result card's three figures. The third carries a unit, because a pace without one is
+    /// a time — the specimen has to show the case that needs the extra line.
+    /// </summary>
+    public IReadOnlyList<Stat> Stats { get; } =
+    [
+        new("Placering", "33"),
+        new("Tid", "1:12:48"),
+        new("Snitt", "5:21", "min/km"),
+    ];
+
+    /// <summary>Två, för att avdelaren ska gå att granska utan att raden blir tre.</summary>
+    public IReadOnlyList<Stat> TwoStats { get; } =
+    [
+        new("Poäng", "63,74"),
+        new("I Sverige", "412:a"),
+    ];
+
+    /// <summary>
+    /// Faces without pictures, which is the case that has to look right: following is local and
+    /// nobody's photo is on this phone until they put it there (beslut D3).
+    /// </summary>
+    public IReadOnlyList<Face> Faces { get; } =
+    [
+        new(null, "EN"),
+        new(null, "JS"),
+        new(null, "AL"),
+        new(null, "MK"),
+    ];
+
     [RelayCommand]
     private void SelectSegment(object? value) => SelectedSegment = value;
 
