@@ -43,6 +43,34 @@ public partial class HomePageViewModel(
     [ObservableProperty] public partial string Greeting { get; set; } = string.Empty;
     [ObservableProperty] public partial string TodayText { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Hälsningens plats i hjälten. Bilden går under statusfältet (sidan har lämnat toppen ur
+    /// sina SafeAreaEdges), så texten måste hålla sig undan det själv — och höjden är mätt,
+    /// aldrig gissad: en ö och ett hack är inte lika höga.
+    /// </summary>
+    public Thickness HeroPadding => new(16, SafeAreaInsets.Top + 8, 16, 0);
+
+    /// <summary>
+    /// Luften under sista kortet. Bara underkanten: SafeAreaInsets bär numera statusfältet
+    /// också, och hela tjockleken hade lagt lika mycket luft under listan som ovanför den.
+    /// </summary>
+    public Thickness ListBottomInset => new(0, 0, 0, SafeAreaInsets.Bottom);
+
+    /// <summary>
+    /// De två härledda tjocklekarna räknas om när Spine har mätt sidans insets, vilket sker
+    /// efter att vyn bundit dem.
+    /// </summary>
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+
+        if (e.PropertyName != nameof(SafeAreaInsets))
+            return;
+
+        OnPropertyChanged(nameof(HeroPadding));
+        OnPropertyChanged(nameof(ListBottomInset));
+    }
+
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
         ScheduleWelcome();

@@ -204,15 +204,40 @@
     <Grid RowDefinitions="Auto,*">
 
         <!--
-            Hälsningen står utanför listan. Som CollectionView.Header mättes den innan texten
+            Hjälten står utanför listan. Som CollectionView.Header mättes hälsningen innan texten
             fanns, och en header som en gång mätts som tom växer inte när innehållet kommer —
             rubriken klipptes och första kortet ritades ovanpå den.
         -->
-        <VerticalStackLayout Grid.Row="0" Padding="16,4,16,12" Spacing="2">
-            <Label Style="{StaticResource DisplayLabel}" SemanticProperties.HeadingLevel="Level1"
-                   Text="{Binding Greeting}" />
-            <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding TodayText}" />
-        </VerticalStackLayout>
+        <Grid Grid.Row="0" HeightRequest="250">
+
+            <!--
+                Bilden är stämning och inte plats (beslut D12) — det enda undantaget från P7, och
+                ett räknebart: exakt en bundlad icke-terrängbild, på exakt den här ytan.
+            -->
+            <Image Source="hero_home.jpg" Aspect="AspectFill"
+                   AutomationProperties.IsInAccessibleTree="False" />
+
+            <!--
+                Gradienten, inte bilden, är det som gör vit text läsbar. Mätt mot bildens ljusaste
+                pixel under texten: 2.25:1 utan den, 6.4:1 med. Klarar en bild inte kravet byts
+                bilden — aldrig texten.
+            -->
+            <Border StrokeThickness="0" InputTransparent="True">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Offset="0" Color="{DynamicResource HeroScrim}" />
+                        <GradientStop Offset="1" Color="Transparent" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Bilden går under statusfältet, texten insetar sig själv. -->
+            <VerticalStackLayout Padding="{Binding HeroPadding}" Spacing="2" VerticalOptions="Start">
+                <Label Style="{StaticResource HeroGreetingLabel}" Text="{Binding Greeting}" />
+                <Label Style="{StaticResource HeroMetaLabel}" Text="{Binding TodayText}" />
+            </VerticalStackLayout>
+
+        </Grid>
 
         <!-- Offline utan sparade block: ett designat läge, inte en tom lista -->
         <VerticalStackLayout Grid.Row="1" Padding="32" Spacing="8" VerticalOptions="Center" IsVisible="{Binding IsOffline}">
@@ -233,9 +258,11 @@
         </CollectionView.ItemsLayout>
 
         <CollectionView.Footer>
-            <!-- Margin carries the tab bar's own height; the height is the breathing room. -->
+            <!-- Margin carries the tab bar's own height; the height is the breathing room.
+                 Bara underkanten: sedan hjälten tog över toppen bär SafeAreaInsets statusfältet
+                 också, och hela tjockleken här hade lagt 59 punkter luft under sista kortet. -->
             <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
-                     Margin="{Binding SafeAreaInsets}"
+                     Margin="{Binding ListBottomInset}"
                      Color="Transparent" />
         </CollectionView.Footer>
 
