@@ -40,26 +40,50 @@ public partial class SpineTabbedHostPage
         ApplyTabBarInset();
 
     /// <summary>
-    /// Reports the Material bar's height to every tab as its bottom safe-area inset.
+    /// Reports how much of the Material bar actually covers each tab's content as that tab's
+    /// bottom safe-area inset.
     /// </summary>
     /// <remarks>
-    /// Tab pages render edge-to-edge — <see cref="SpineTabPage"/> zeroes their native padding
-    /// and consumes the window insets — so the page's content area runs the full height of the
-    /// window, underneath the bar. The bar is opaque and draws over that area, which makes its
-    /// height exactly the padding a region owes at the bottom. The bar applies the system
-    /// navigation inset to itself, so its measured height already includes it and must not be
-    /// added twice.
+    /// The overlap, and not the bar's height. Whether the bar covers content or stands beside it
+    /// is MAUI's decision, not Spine's: measured on Android 17 the tab page is 872 dp of a
+    /// 952 dp window, ending exactly where the bar begins — the bar takes its own space, and a
+    /// page told to reserve its height would reserve it a second time. That was a visible band of
+    /// empty list above the bar on every scrolling page.
+    /// <para>
+    /// Measuring the overlap covers both arrangements without asking which one is in force. Where
+    /// the bar does draw over the content the whole height comes back, which is what the earlier
+    /// unconditional value assumed.
+    /// </para>
+    /// <para>
+    /// The bar applies the system navigation inset to itself, so whatever it covers already
+    /// includes it and must not be added twice.
+    /// </para>
     /// </remarks>
     private void ApplyTabBarInset()
     {
-        if (_bottomNav is not { } bottomNav)
+        if (_bottomNav is not { IsAttachedToWindow: true } bottomNav)
             return;
 
         var density = bottomNav.Context?.Resources?.DisplayMetrics?.Density ?? 1f;
-        double bottom = density > 0 ? bottomNav.Height / density : 0;
+        if (density <= 0)
+            return;
+
+        var barLocation = new int[2];
+        bottomNav.GetLocationOnScreen(barLocation);
+        var barTop = barLocation[1];
 
         foreach (var slot in _slots)
-            slot.Insets.SetBottomOverride(bottom);
+        {
+            if (slot.Page.Handler?.PlatformView is not Android.Views.View pageView)
+                continue;
+
+            var pageLocation = new int[2];
+            pageView.GetLocationOnScreen(pageLocation);
+
+            var covered = pageLocation[1] + pageView.Height - barTop;
+
+            slot.Insets.SetBottomOverride(covered > 0 ? covered / density : 0);
+        }
     }
 
     /// <summary>
