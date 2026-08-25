@@ -44,6 +44,19 @@
     <Color x:Key="SkeletonBase">#262A2E</Color>
     <Color x:Key="AvatarBackground">#2A322D</Color>
 
+    <!-- Live-kortet: mörk yta i båda temana, se LightTheme.xaml -->
+    <Color x:Key="SurfaceLive">#0E4632</Color>
+    <Color x:Key="TextOnDark">#EAF3EE</Color>
+    <Color x:Key="TextOnDarkMuted">#B7D8C6</Color>
+    <Color x:Key="SurfaceLiveAction">#EAF3EE</Color>
+    <Color x:Key="TextOnLiveAction">#0B3A28</Color>
+
+    <!-- Samma i båda temana, se LightTheme.xaml -->
+    <Color x:Key="SignalOnDark">#FF7A33</Color>
+    <Color x:Key="TextOnSignalDark">#1A1208</Color>
+
+    <Color x:Key="TopoInk">#29FFFFFF</Color>
+
     <!-- Temaoberoende, se LightTheme.xaml -->
     <Color x:Key="BrandTint">#2E8B57</Color>
     <Color x:Key="Primary">#1B5E3F</Color>
@@ -65,7 +78,6 @@
     <Color x:Key="DisciplineNight">#818CF8</Color>
     <Color x:Key="DisciplineRelay">#F87171</Color>
     <Color x:Key="LevelChampionship">#FBBF24</Color>
-    <Color x:Key="DisciplineIndoor">#2DD4BF</Color>
 
     <SolidColorBrush x:Key="AccentActionBrush" Color="{StaticResource AccentAction}" />
 

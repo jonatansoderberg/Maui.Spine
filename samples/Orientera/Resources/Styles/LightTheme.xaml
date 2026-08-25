@@ -53,6 +53,32 @@
     <Color x:Key="AvatarBackground">#E6EDE9</Color>
 
     <!--
+        Live-kortets yta, och den enda ytan i appen som är mörk i *båda* temana. Ett kort som
+        vänder om ljusheten behöver därför sitt eget bläck: TextOnAccent duger inte, för i mörkt
+        tema är accenten mintgrön och dess text nästan svart. Nyanserna nedan är desamma i båda
+        temafilerna där kortet inte har någon anledning att skilja sig — orange märke och dess
+        text — och skiljer sig bara där en helvit yta hade glött i mörkt läge.
+    -->
+    <Color x:Key="SurfaceLive">#10553A</Color>
+    <Color x:Key="TextOnDark">#FFFFFF</Color>
+    <Color x:Key="TextOnDarkMuted">#C8E6D5</Color>
+    <Color x:Key="SurfaceLiveAction">#FFFFFF</Color>
+    <Color x:Key="TextOnLiveAction">#0F4D34</Color>
+
+    <!--
+        Live-märket på den gröna ytan. Fortfarande SignalUrgents första tillåtna användning
+        (live pågår, beslut D1) — men ljusa temats #C2410C ger bara 1.7:1 mot kortet och
+        försvinner i det. Mörka temats nyans klarar 3.39 mot ljus grön och 4.17 mot mörk, och
+        används därför i båda temana av samma skäl som BrandTint: ytan under den byter inte
+        med temat.
+    -->
+    <Color x:Key="SignalOnDark">#FF7A33</Color>
+    <Color x:Key="TextOnSignalDark">#1A1208</Color>
+
+    <!-- Banmärket i live-kortets bakgrund: vitt på låg opacitet, aldrig bärare av mening. -->
+    <Color x:Key="TopoInk">#33FFFFFF</Color>
+
+    <!--
         BrandTint är den enda färgen som inte kan byta med temat: tabbarens tint sätts vid
         handler-creation, och appikon och splash bakas vid build. Samma värde i båda temafilerna.
         Uppmätt 4.25:1 mot den ljusa baren och 3.94:1 mot den mörka — AccentAction klarar bara
@@ -84,7 +110,6 @@
     <Color x:Key="DisciplineNight">#3730A3</Color>
     <Color x:Key="DisciplineRelay">#EF4444</Color>
     <Color x:Key="LevelChampionship">#CA8A04</Color>
-    <Color x:Key="DisciplineIndoor">#0D9488</Color>
 
     <SolidColorBrush x:Key="AccentActionBrush" Color="{StaticResource AccentAction}" />
 

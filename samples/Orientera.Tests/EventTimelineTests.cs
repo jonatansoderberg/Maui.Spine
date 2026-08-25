@@ -94,4 +94,48 @@ public class EventTimelineTests
         Assert.True(EventTimeline.IsPast(series, Today));
         Assert.Equal(Today.AddDays(-3), EventTimeline.SortDate(series, Today));
     }
+
+    [Fact]
+    public void The_first_row_of_a_section_carries_its_date()
+    {
+        Assert.True(EventTimeline.DrawsDate(null, Today));
+        Assert.True(EventTimeline.DrawsMonth(null, Today));
+    }
+
+    [Fact]
+    public void A_second_competition_on_the_same_day_leaves_the_column_empty()
+    {
+        Assert.False(EventTimeline.DrawsDate(Today, Today));
+        Assert.False(EventTimeline.DrawsMonth(Today, Today));
+    }
+
+    [Fact]
+    public void A_new_day_in_the_same_month_draws_the_day_but_not_the_month()
+    {
+        var above = new DateOnly(2026, 8, 24);
+
+        Assert.True(EventTimeline.DrawsDate(above, new DateOnly(2026, 8, 25)));
+        Assert.False(EventTimeline.DrawsMonth(above, new DateOnly(2026, 8, 25)));
+    }
+
+    /// <summary>"Mest relevant" is ranked, so the month can go backwards as well as forwards.</summary>
+    [Fact]
+    public void A_month_that_changes_in_either_direction_is_named_again()
+    {
+        Assert.True(EventTimeline.DrawsMonth(new DateOnly(2026, 9, 4), new DateOnly(2026, 8, 24)));
+        Assert.True(EventTimeline.DrawsMonth(new DateOnly(2026, 8, 24), new DateOnly(2026, 9, 4)));
+    }
+
+    /// <summary>
+    /// Same day and month, a year apart. Comparing the month alone would leave "24 mån" standing
+    /// for a date twelve months from the one above it.
+    /// </summary>
+    [Fact]
+    public void The_same_month_in_another_year_is_named_again()
+    {
+        var above = new DateOnly(2026, 8, 24);
+
+        Assert.True(EventTimeline.DrawsDate(above, new DateOnly(2027, 8, 24)));
+        Assert.True(EventTimeline.DrawsMonth(above, new DateOnly(2027, 8, 24)));
+    }
 }

@@ -46,39 +46,48 @@ public sealed class HeroImage : ContentView
         BindableProperty.Create(nameof(Fallback), typeof(View), typeof(HeroImage), null,
             propertyChanged: (b, _, _) => ((HeroImage)b).Apply());
 
+    public static readonly BindableProperty ArenaSourceProperty =
+        BindableProperty.Create(nameof(ArenaSource), typeof(string), typeof(HeroImage), null,
+            propertyChanged: (b, _, _) => ((HeroImage)b).Apply());
+
+    public static readonly BindableProperty AttributionProperty =
+        BindableProperty.Create(nameof(Attribution), typeof(string), typeof(HeroImage), string.Empty,
+            propertyChanged: (b, _, _) => ((HeroImage)b).Apply());
+
     private readonly Image _image = new() { Aspect = Aspect.AspectFill };
     private readonly ContentView _fallbackSlot = new();
-    private readonly Border _scrim = new()
-    {
-        StrokeThickness = 0,
-        InputTransparent = true,
-        VerticalOptions = LayoutOptions.Fill,
-    };
-
     private readonly Grid _stack;
 
+    /// <summary>
+    /// CC BY 4.0 kräver att krediteringen står bredvid bilden, och bilden bär ingen text
+    /// själv — så raden bor i hjälten. Diskret: liten, vit med skuggkant för läsbarheten,
+    /// i stället för en gradient som skulle mörka ned själva bilden.
+    /// </summary>
+    private readonly Label _attribution = new()
+    {
+        FontSize = 8,
+        TextColor = Colors.White,
+        HorizontalOptions = LayoutOptions.End,
+        VerticalOptions = LayoutOptions.End,
+        Margin = new Thickness(12, 0, 12, 5),
+        LineBreakMode = LineBreakMode.TailTruncation,
+        Shadow = new Shadow
+        {
+            Brush = new SolidColorBrush(Colors.Black),
+            Radius = 3,
+            Opacity = 0.7f,
+            Offset = new Point(0, 1),
+        },
+    };
+
+    // Ingen skymningsgradient över bilden: den fanns för märken ovanpå fotot, men inget
+    // ligger där längre, och den mörkade ned varje hjälte i onödan. Krediteringen bär sin
+    // egen skugga i stället.
     public HeroImage()
     {
-        // The gradient is what lets a badge sit on top of a photograph and still clear its contrast
-        // requirement, so it belongs to the hero rather than to whoever puts something on it.
-        var fade = new LinearGradientBrush
-        {
-            StartPoint = new Point(0, 0),
-            EndPoint = new Point(0, 1),
-        };
-
-        var clear = new GradientStop { Offset = 0.45f, Color = Colors.Transparent };
-        var dark = new GradientStop { Offset = 1f };
-        dark.SetDynamicResource(GradientStop.ColorProperty, "HeroScrim");
-
-        fade.GradientStops.Add(clear);
-        fade.GradientStops.Add(dark);
-        _scrim.Background = fade;
-
-        _stack = new Grid { Children = { _fallbackSlot, _image, _scrim } };
+        _stack = new Grid { Children = { _fallbackSlot, _image, _attribution } };
 
         AutomationProperties.SetIsInAccessibleTree(_image, false);
-        AutomationProperties.SetIsInAccessibleTree(_scrim, false);
 
         HeightRequest = 220;
         Content = _stack;
@@ -107,23 +116,57 @@ public sealed class HeroImage : ContentView
         set => SetValue(FallbackProperty, value);
     }
 
+    /// <summary>
+    /// Url till tävlingens egen arenabild, när den hunnit genereras. Tom betyder att den
+    /// medföljande terrängbilden står kvar som platshållare — den cachas inte, för nästa
+    /// besök kan ha en riktig bild att visa. Bloburlen bär renderarens version i sökvägen,
+    /// så innehållet bakom en given url ändras aldrig och får cachas länge på enheten.
+    /// </summary>
+    public string? ArenaSource
+    {
+        get => (string?)GetValue(ArenaSourceProperty);
+        set => SetValue(ArenaSourceProperty, value);
+    }
+
+    /// <summary>Krediteringen som måste följa arenabilden. Tom när ingen arenabild visas.</summary>
+    public string Attribution
+    {
+        get => (string)GetValue(AttributionProperty);
+        set => SetValue(AttributionProperty, value);
+    }
+
     private void Apply()
     {
         _fallbackSlot.Content = Fallback;
 
+        var arena = ArenaSource;
         var name = Resolve();
-        _image.Source = name is null ? null : ImageSource.FromFile($"terrain_{name}.jpg");
-        _image.IsVisible = name is not null;
+
+        if (!string.IsNullOrEmpty(arena) && Uri.TryCreate(arena, UriKind.Absolute, out var uri))
+        {
+            _image.Source = new UriImageSource
+            {
+                Uri = uri,
+                CachingEnabled = true,
+                CacheValidity = TimeSpan.FromDays(180),
+            };
+        }
+        else
+        {
+            arena = null;
+            _image.Source = name is null ? null : ImageSource.FromFile($"terrain_{name}.jpg");
+        }
+        _image.IsVisible = arena is not null || name is not null;
+
+        _attribution.Text = Attribution;
+        _attribution.IsVisible = arena is not null && !string.IsNullOrEmpty(Attribution);
 
         // Hidden rather than merely covered: a fallback left alive behind the picture is a second
         // map fetching its own tiles for a view nobody sees.
-        _fallbackSlot.IsVisible = name is null && Fallback is not null;
-
-        // Nothing to darken, and a scrim over a map tile only makes the map harder to read.
-        _scrim.IsVisible = name is not null;
+        _fallbackSlot.IsVisible = !_image.IsVisible && Fallback is not null;
 
         // Neither a picture nor a fallback is a blank band across the top of the page.
-        IsVisible = name is not null || Fallback is not null;
+        IsVisible = _image.IsVisible || Fallback is not null;
     }
 
     private string? Resolve()

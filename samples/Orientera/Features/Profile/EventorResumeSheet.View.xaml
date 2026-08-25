@@ -1,0 +1,44 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Profile.EventorResumeSheet"
+    x:TypeArguments="EventorLoginSheetViewModel"
+    x:DataType="EventorLoginSheetViewModel">
+
+    <Grid>
+
+        <!--
+            Eventors egen sida, laddad men osedd. Inloggningen måste ske i en webbvy — sessionens
+            kaka är HttpOnly och bara plattformens webbvy-lager når den — men det finns inget här
+            för läsaren att göra, så det finns ingen anledning att visa sidan.
+
+            Opacity och inte IsVisible: en hopfälld vy mäts till noll, och sidan ska ha samma
+            storlek att lägga ut sig i som den skulle haft synlig. Skripten som söker upp
+            formuläret och avböjer samtyckesrutan arbetar på en layout, inte på en bild av den.
+        -->
+        <WebView x:Name="Browser"
+                 Source="{Binding LoginUrl}"
+                 Opacity="0"
+                 InputTransparent="True"
+                 AutomationProperties.IsInAccessibleTree="False" />
+
+        <VerticalStackLayout Padding="32,8" Spacing="12"
+                             VerticalOptions="Center" HorizontalOptions="Center">
+            <ActivityIndicator Style="{StaticResource PageLoading}" IsRunning="True" />
+
+            <Label Style="{StaticResource BodyStrongLabel}"
+                   HorizontalTextAlignment="Center"
+                   SemanticProperties.HeadingLevel="Level1"
+                   Text="Loggar in dig på Eventor igen" />
+
+            <!--
+                Varför, inte bara vad. Eventor släpper sessionen efter någon timme och det är
+                ingenting läsaren har gjort — men en spinner utan förklaring läses som ett fel.
+            -->
+            <Label Style="{StaticResource CaptionLabel}"
+                   HorizontalTextAlignment="Center"
+                   Text="Sessionen tog slut. Det tar ett par sekunder." />
+        </VerticalStackLayout>
+
+    </Grid>
+</SpinePage>

@@ -5,6 +5,17 @@ public readonly record struct GeoPoint(double Latitude, double Longitude)
 {
     private const double EarthRadiusKm = 6371.0;
 
+    /// <summary>
+    /// Whether this is a real place at all.
+    /// </summary>
+    /// <remarks>
+    /// A source that has no coordinate leaves the pair at zero, and (0,0) is a point in the Gulf
+    /// of Guinea — no arena, no home, and 6905 km from Gävle, which is the distance a competition
+    /// without a published arena was claiming in the calendar. Reading zero as "unset" is reading
+    /// the encoding the sources already use, the same way <c>HasFirstStart</c> reads midnight.
+    /// </remarks>
+    public bool IsKnown => Latitude != 0 || Longitude != 0;
+
     /// <summary>Great-circle distance in kilometres.</summary>
     public double DistanceKmTo(GeoPoint other)
     {

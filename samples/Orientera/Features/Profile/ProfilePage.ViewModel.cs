@@ -3,6 +3,7 @@ using Microsoft.Maui.Controls.Shapes;
 using Orientera.Domain;
 using Orientera.Features.Dev;
 using Orientera.Presentation;
+using Orientera.Services.Local;
 using Orientera.Services.Eventor;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
@@ -67,10 +68,15 @@ public partial class ProfilePageViewModel(
     EventorSessionResume _resume,
     EventorCredentialStore _credentials,
     EventorReader _eventor,
+    RacePreferenceStore _racePreferences,
     DataSourceInfo _source) : OrienteraViewModel
 {
     /// <summary>Which data source this run is against — a demo must not read as live data.</summary>
     public string SourceDescription => _source.Description;
+
+    [ObservableProperty] public partial string SportsText { get; set; } = string.Empty;
+
+    [ObservableProperty] public partial string FavouritesText { get; set; } = string.Empty;
 
     [ObservableProperty] public partial string Name { get; set; } = string.Empty;
     [ObservableProperty] public partial string Meta { get; set; } = string.Empty;
@@ -139,6 +145,8 @@ public partial class ProfilePageViewModel(
     {
         if (PageActions.Count == 0)
             PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
+
+        ShowRacePreferences();
 
         var session = _resume.Generation;
 
@@ -244,7 +252,34 @@ public partial class ProfilePageViewModel(
         session?.ExpiresAt is { } expires ? $" · giltig till {expires:d MMM yyyy}" : string.Empty;
 
     [RelayCommand]
+    private async Task OpenMyResults() => await _navigation.NavigateToAsync<MyResultsPage>();
+
+    [RelayCommand]
     private async Task OpenNotifications() => await _navigation.NavigateToAsync<NotificationSheet>();
+
+    [RelayCommand]
+    private async Task OpenRacePreferences()
+    {
+        await _navigation.NavigateToAsync<RacePreferenceSheet>();
+        ShowRacePreferences();
+    }
+
+    /// <summary>
+    /// The card says what is set, in the words the sheet uses. Two lines, because the two settings
+    /// do different things: the sports decide what exists, the favourites only what comes first.
+    /// </summary>
+    private void ShowRacePreferences()
+    {
+        var preferences = _racePreferences.Load();
+
+        SportsText = preferences.Sports.Count == 0
+            ? "Alla grenar"
+            : string.Join(", ", preferences.Sports.OrderBy(s => s).Select(Format.SportOrDefault));
+
+        FavouritesText = preferences.Favourites.Count == 0
+            ? "Ingen favoritform vald"
+            : "Helst: " + string.Join(", ", preferences.Favourites.Take(3).Select(Format.RacePreference));
+    }
 
     [RelayCommand]
     private async Task OpenIdentity()

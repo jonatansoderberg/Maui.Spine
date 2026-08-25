@@ -20,16 +20,39 @@ public enum Discipline
 
     Night,
     Relay,
+}
+
+/// <summary>
+/// The sport — <em>grenen</em> — as against the distance run in it.
+/// </summary>
+/// <remarks>
+/// Eventor keeps the two apart and so does this: their event carries a <c>disciplines</c> array
+/// over <c>Foot, Indoor, MountainBike, PreO, Shooting, Ski</c> and a separate <c>distance</c>
+/// over <c>Sprint, Middle, Long, UltraLong, …</c>. Folding them together is what made
+/// "MTBO-träning Källviken" appear in the calendar as a sprint, indistinguishable from a sprint
+/// on foot, and unfilterable by someone who does not own a bike.
+/// <para>
+/// One value rather than Eventor's array. An event that is both — a foot race with an MTBO class —
+/// takes the first of <c>Indoor, Foot, Ski, MountainBike, PreO</c> that applies, which is the
+/// precedence Eventor's own calendar uses to pick the icon it draws. That resolves towards Foot,
+/// which is the safe direction: nobody who has switched MTBO off loses a race they could run.
+/// </para>
+/// </remarks>
+public enum Sport
+{
+    /// <summary>Orienteringslöpning. What nine calendar rows in ten are, and the default.</summary>
+    Foot,
 
     /// <summary>
-    /// Indoor orienteering, which the federation does not classify at all.
+    /// Inomhusorientering. A sport to Eventor and to a runner in a school corridor; a sprint to
+    /// the <c>raceDistance</c> field, which is why it used to sit on the distance axis here.
     /// </summary>
-    /// <remarks>
-    /// There is no <c>raceDistance</c> for it: Eventor calls Karlstad Indoor a sprint like any
-    /// other. The name is the only thing that says otherwise, so this is read from it and is
-    /// marked as unofficial wherever it is shown.
-    /// </remarks>
     Indoor,
+
+    MountainBike,
+    Ski,
+    PreO,
+    Shooting,
 }
 
 /// <summary>
@@ -92,6 +115,12 @@ public sealed record Competition
     public required string District { get; init; }
     public required string Place { get; init; }
     public required GeoPoint Location { get; init; }
+
+    /// <summary>
+    /// The sport. Defaults to <see cref="Sport.Foot"/> — a source that says nothing is describing
+    /// a foot race, and the alternative is a calendar where nothing can be told apart.
+    /// </summary>
+    public Sport Sport { get; init; } = Sport.Foot;
     public required Discipline Discipline { get; init; }
     public required CompetitionLevel Level { get; init; }
 
@@ -124,4 +153,19 @@ public sealed record Competition
 
     [JsonIgnore]
     public bool IsLowPriority => Level is CompetitionLevel.Training or CompetitionLevel.Recreational;
+
+    /// <summary>Whether the arena has a position. Eventor publishes many competitions without one.</summary>
+    [JsonIgnore]
+    public bool HasArena => Location.IsKnown;
+
+    /// <summary>
+    /// How far the arena is from a runner's home, or null when either end is unplaced.
+    /// </summary>
+    /// <remarks>
+    /// The guard belongs here rather than at each of the six places that ask. An unplaced arena
+    /// is not far away — it is unknown, and every one of those places has to say something
+    /// different about the two.
+    /// </remarks>
+    public double? DistanceFrom(GeoPoint home) =>
+        HasArena && home.IsKnown ? home.DistanceKmTo(Location) : null;
 }

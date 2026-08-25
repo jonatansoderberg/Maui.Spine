@@ -1,0 +1,36 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Orientera.Features.Onboarding.SportChoiceSheet"
+    x:TypeArguments="SportChoiceSheetViewModel"
+    x:DataType="SportChoiceSheetViewModel">
+
+    <Grid RowDefinitions="*,Auto" Padding="24,36,24,24">
+
+        <VerticalStackLayout Grid.Row="0" Spacing="16" VerticalOptions="Center">
+            <Label Style="{StaticResource Heading2Label}"
+                   SemanticProperties.HeadingLevel="Level1"
+                   Text="Vilka grenar håller du på med?" />
+
+            <Label Style="{StaticResource BodySecondaryLabel}" Text="{Binding Explanation}" />
+
+            <WrapLayout Spacing="8" LineSpacing="8"
+                        BindableLayout.ItemsSource="{Binding SportGroup.Options}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="ChipOption">
+                        <ChipView IsCompact="True"
+                                  Text="{Binding Label}"
+                                  IsSelected="{Binding IsSelected}"
+                                  Command="{Binding ToggleCommand}" />
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </WrapLayout>
+        </VerticalStackLayout>
+
+        <Button Grid.Row="1"
+                Style="{StaticResource PrimaryButton}"
+                Text="Fortsätt"
+                Command="{Binding ContinueCommand}" />
+    </Grid>
+
+</SpinePage>

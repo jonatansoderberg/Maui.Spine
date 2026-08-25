@@ -74,7 +74,9 @@ public static class NotificationPlanner
                     "Startlistan är publicerad.");
             }
 
-            if (mine && context.MyStarts.TryGetValue(competition.Id, out var myStart))
+            // "Dags att åka" is a time computed from a journey. Without a published arena the
+            // journey is 6905 km of open ocean, and the alarm lands three days early.
+            if (mine && competition.HasArena && context.MyStarts.TryGetValue(competition.Id, out var myStart))
             {
                 var leave = TravelEstimate.LeaveAt(context.Me.Home, competition.Location, myStart);
 

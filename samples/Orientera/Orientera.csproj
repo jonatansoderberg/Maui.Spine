@@ -62,6 +62,14 @@
 		<!-- Custom Fonts (Inter, SIL OFL 1.1 — see Resources\Fonts\Inter-OFL.txt) -->
 		<MauiFont Include="Resources\Fonts\*.ttf" />
 
+		<!--
+			Brandon Grotesque is licensed from HVD Fonts, not OFL like Inter, and it is here for
+			one thing: the header title, the same face Spine's own sample uses.
+			Listed by extension rather than as "Fonts\*" so the licence text beside the files is
+			not handed to the font packer as a font.
+		-->
+		<MauiFont Include="Resources\Fonts\*.otf" />
+
 		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>

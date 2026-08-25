@@ -9,6 +9,17 @@ public enum DataOrigin
 {
     Live,
     Cache,
+
+    /// <summary>The source answered, and it has no such competition.</summary>
+    /// <remarks>
+    /// Not an outage, and it must never be reported as one. The results list reaches back through
+    /// the runner's whole Eventor history while the calendar the app reads covers a few months, so
+    /// a race older than that window is a normal thing to open — and saying "ingen anslutning"
+    /// about it is a page contradicting the list that just loaded over the same network.
+    /// </remarks>
+    Missing,
+
+    /// <summary>The source could not be reached, and nothing was saved.</summary>
     Unavailable,
 }
 
@@ -30,6 +41,8 @@ public sealed record CompetitionSnapshot
     public DateTimeOffset? CachedAt { get; init; }
 
     public static CompetitionSnapshot Unavailable() => new() { Origin = DataOrigin.Unavailable };
+
+    public static CompetitionSnapshot Missing() => new() { Origin = DataOrigin.Missing };
 }
 
 /// <summary>
@@ -48,9 +61,14 @@ public sealed class OfflinePackageService(
     IOfflineStore _store)
 {
     /// <summary>
-    /// Reads a competition live, falling back to the stored package. Returns
-    /// <see cref="DataOrigin.Unavailable"/> only when the source is down *and* nothing was cached.
+    /// Reads a competition live, falling back to the stored package.
     /// </summary>
+    /// <remarks>
+    /// Three answers, kept apart because they mean three different things to whoever is reading:
+    /// <see cref="DataOrigin.Live"/> or <see cref="DataOrigin.Cache"/> when there is a
+    /// competition, <see cref="DataOrigin.Missing"/> when the source answered and has none, and
+    /// <see cref="DataOrigin.Unavailable"/> only when the source is down *and* nothing was cached.
+    /// </remarks>
     public async Task<CompetitionSnapshot> GetAsync(
         CompetitionId competition,
         CancellationToken cancellationToken = default)
@@ -59,8 +77,9 @@ public sealed class OfflinePackageService(
         {
             var live = await BuildAsync(competition, cancellationToken);
 
+            // The source answered. There is simply no such competition in the calendar it reads.
             if (live is null)
-                return CompetitionSnapshot.Unavailable();
+                return CompetitionSnapshot.Missing();
 
             // Reading it is also the cheapest moment to refresh what is stored.
             await _store.SaveAsync(live, cancellationToken);

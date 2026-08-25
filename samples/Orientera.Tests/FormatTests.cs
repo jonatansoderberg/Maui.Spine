@@ -163,4 +163,37 @@ public class FormatTests
 
         Assert.Contains(expected, Format.Deadline(date, date.AddDays(-1)));
     }
+
+    /// <summary>
+    /// The column says it does not know, in the same em dash every other column in the app uses.
+    /// The alternative was 6905 km — the distance to the Gulf of Guinea, where a competition with
+    /// no published arena appears to be.
+    /// </summary>
+    [Fact]
+    public void An_unknown_distance_is_an_em_dash()
+    {
+        Assert.Equal("—", Format.Distance((double?)null));
+        Assert.Equal("41 km", Format.Distance((double?)41));
+    }
+
+    /// <summary>
+    /// Morning starts at four because an orienteer up at half past four is driving to a start,
+    /// and the small hours get "Hej" — "God natt" is a goodbye, and the wrong thing to say to
+    /// somebody on their way to a night race.
+    /// </summary>
+    [Theory]
+    [InlineData(3, "Hej")]
+    [InlineData(4, "God morgon")]
+    [InlineData(9, "God morgon")]
+    [InlineData(10, "Hej")]
+    [InlineData(16, "Hej")]
+    [InlineData(17, "God kväll")]
+    [InlineData(22, "God kväll")]
+    [InlineData(23, "Hej")]
+    public void The_greeting_follows_the_hour(int hour, string expected)
+    {
+        var instant = new DateTimeOffset(2026, 8, 24, hour, 30, 0, TimeSpan.FromHours(2));
+
+        Assert.Equal(expected, Format.Salutation(instant));
+    }
 }

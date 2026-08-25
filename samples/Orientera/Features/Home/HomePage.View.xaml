@@ -35,7 +35,8 @@
 
                     <Button Style="{StaticResource PrimaryButton}"
                             Text="{Binding ActionText}"
-                            Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenLiveCommand}" />
+                            Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenLiveCommand}"
+                            CommandParameter="{Binding Competition}" />
                 </VerticalStackLayout>
             </Border>
         </DataTemplate>

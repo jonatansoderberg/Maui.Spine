@@ -45,16 +45,12 @@ public static class DisciplineGlyph
             "M2.6,20.8 L6,20.8 C11.4,20.8 12.8,18.4 10,16.6 C7.2,14.8 7,13.2 9.8,12.5 "
             + "C11.3,12.15 12,11.7 12.6,11.2 " + Control,
 
-        // Night and relay and indoor are not lengths, so they are not routes. A moon, a handover
-        // between two runners, a roof — three different kinds of thing, which is what a shape can
-        // actually show. Relay's two rings differ in size because the legs are not interchangeable.
+        // Night and relay are not lengths, so they are not routes. A moon and a handover between
+        // two runners — two different kinds of thing, which is what a shape can actually show.
+        // Relay's two rings differ in size because the legs are not interchangeable.
         Discipline.Night => $"M10.4,12.6 A4.6,4.6 0 1,1 5.2,19.2 A3.6,3.6 0 0,0 10.4,12.6 {Control}",
         Discipline.Relay =>
             $"M6,17.6 m-2.3,0 a2.3,2.3 0 1,0 4.6,0 a2.3,2.3 0 1,0 -4.6,0 M8.6,15.1 L13.6,10.1 {Control}",
-        Discipline.Indoor =>
-            "M3.8,12.2 L12,5 L20.2,12.2 M6,10.6 L6,19.4 L18,19.4 L18,10.6 "
-            + "M12,14.3 m-2.3,0 a2.3,2.3 0 1,0 4.6,0 a2.3,2.3 0 1,0 -4.6,0",
-
         _ => string.Empty,
     };
 

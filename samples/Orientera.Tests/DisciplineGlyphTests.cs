@@ -22,7 +22,6 @@ public class DisciplineGlyphTests
         [Discipline.UltraLong] = "discipline_ultralong.svg",
         [Discipline.Night] = "discipline_night.svg",
         [Discipline.Relay] = "discipline_relay.svg",
-        [Discipline.Indoor] = "discipline_indoor.svg",
     };
 
     [Theory]
@@ -32,7 +31,6 @@ public class DisciplineGlyphTests
     [InlineData(Discipline.UltraLong)]
     [InlineData(Discipline.Night)]
     [InlineData(Discipline.Relay)]
-    [InlineData(Discipline.Indoor)]
     public void The_app_draws_exactly_what_the_design_file_draws(Discipline discipline)
     {
         var svg = File.ReadAllText(Path.Combine(Folder, Files[discipline]));
@@ -74,15 +72,13 @@ public class DisciplineGlyphTests
 
     /// <summary>
     /// The marks share one control ring in one place, so a list of them lines up rather than
-    /// wobbling. Indoor is the exception: its control is inside the building, not at the end of a
-    /// route into it.
+    /// wobbling. Every distance is a route to the same control — which became true of all of them
+    /// when indoor moved to the sport axis and took its roof with it.
     /// </summary>
     [Fact]
     public void Every_route_ends_at_the_same_control()
     {
-        var routes = Enum.GetValues<Discipline>()
-            .Where(d => d != Discipline.Indoor)
-            .Select(DisciplineGlyph.Path);
+        var routes = Enum.GetValues<Discipline>().Select(DisciplineGlyph.Path);
 
         Assert.All(routes, path => Assert.Contains("M17,6.8 m-3.4,0", path));
     }

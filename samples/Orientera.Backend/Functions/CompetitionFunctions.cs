@@ -38,19 +38,27 @@ public sealed class CompetitionFunctions(EventorSource _source, ILogger<Competit
         Bff.ServeAsync(_logger, () => _source.GetStartsAsync(new CompetitionId(id), cancellationToken));
 
     /// <summary>
-    /// A competition's whole result list.
+    /// A competition's result list, whole or for one class.
     /// </summary>
     /// <remarks>
-    /// Whole, because Eventor offers nothing narrower for an ordinary event: <c>results/event</c>
-    /// takes no class, and <c>wrsresults/event</c> — which does — answers 404 for anything outside
-    /// the world ranking. A caller who only wants its own row asks <c>results/person</c> instead.
+    /// Eventor offers nothing narrower for an ordinary event: <c>results/event</c> takes no class,
+    /// and <c>wrsresults/event</c> — which does — answers 404 for anything outside the world
+    /// ranking. <c>?class=</c> is therefore served by this side, out of one cached copy of the
+    /// list, and never by making the app hold the whole thing. A caller who only wants its own
+    /// row asks <c>results/person</c> instead.
     /// </remarks>
     [Function("GetResults")]
     public Task<IResult> GetResults(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "competitions/{id}/results")] HttpRequest request,
         string id,
         CancellationToken cancellationToken) =>
-        Bff.ServeAsync(_logger, () => _source.GetResultsAsync(new CompetitionId(id), cancellationToken));
+        request.Query["class"].ToString() is { Length: > 0 } className
+            ? Bff.ServeAsync(_logger, () => _source.GetClassResultsAsync(
+                new CompetitionId(id),
+                className,
+                bool.TryParse(request.Query["splits"], out bool splits) && splits,
+                cancellationToken))
+            : Bff.ServeAsync(_logger, () => _source.GetResultsAsync(new CompetitionId(id), cancellationToken));
 
     /// <summary>
     /// One person's own results in a list of events — the narrow question behind "how large was

@@ -5,7 +5,7 @@
     x:TypeArguments="EventsPageViewModel"
     x:DataType="EventsPageViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,*">
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
 
         <!-- Sökrutan står på sidan, inte i filterarket: man skriver och ser, utan att stänga något -->
         <!--
@@ -13,32 +13,75 @@
             inte viker sig för BackgroundColor, och en svart platta över appens yta är inte designen.
         -->
         <Entry Grid.Row="0"
-               Margin="16,0,16,8"
+               Margin="16,6,16,10"
                ClearButtonVisibility="WhileEditing"
                ReturnType="Search"
                Placeholder="Sök tävling, arrangör eller plats"
                SemanticProperties.Description="Sök bland tävlingar på namn, arrangör eller plats"
                Text="{Binding Query}" />
 
-        <!-- Snabbfilter: en rad, horisontellt scrollbar, vald chip = accentfyllning -->
-        <ScrollView Grid.Row="1"
-                    Orientation="Horizontal"
-                    HorizontalScrollBarVisibility="Never"
-                    Padding="16,4,16,10">
-            <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Chips}">
+        <!--
+            Snabbfilter, radbrutna. Åtta chips i en vågrät rullning betyder att "Tidigare" och
+            "Intresserad" ligger bakom en gest ingen gör; radbrutna syns alla på en gång och
+            kostar en rad extra. Kompakta, för att den raden ska bli så billig som möjligt.
+        -->
+        <WrapLayout Grid.Row="1"
+                    Padding="16,0,16,10"
+                    Spacing="8" LineSpacing="8"
+                    BindableLayout.ItemsSource="{Binding Chips}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="FilterChip">
+                    <ChipView IsCompact="True"
+                              Text="{Binding Label}"
+                              IsSelected="{Binding IsSelected}"
+                              Command="{Binding Source={RelativeSource AncestorType={x:Type WrapLayout}}, Path=BindingContext.SelectChipCommand}"
+                              CommandParameter="{Binding .}" />
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </WrapLayout>
+
+        <!--
+            Aktiva filter: vad arket har smalnat av med, ett borttagbart chip i taget. Ritas bara
+            när något är satt — "Filter (3)" säger antalet men inte vilka, och en kort lista utan
+            synlig orsak läses som en trasig kalender.
+        -->
+        <Grid Grid.Row="2"
+              ColumnDefinitions="*,Auto" ColumnSpacing="8"
+              Padding="16,0,16,10"
+              IsVisible="{Binding HasActiveFacets}">
+
+            <WrapLayout Spacing="8" LineSpacing="8"
+                        BindableLayout.ItemsSource="{Binding ActiveFacets}">
                 <BindableLayout.ItemTemplate>
-                    <DataTemplate x:DataType="FilterChip">
-                        <ChipView Text="{Binding Label}"
-                                  IsSelected="{Binding IsSelected}"
-                                  Command="{Binding Source={RelativeSource AncestorType={x:Type HorizontalStackLayout}}, Path=BindingContext.SelectChipCommand}"
-                                  CommandParameter="{Binding .}" />
+                    <DataTemplate x:DataType="FilterFacet">
+                        <Border Style="{StaticResource ChipCompact}"
+                                SemanticProperties.Description="{Binding Accessibility}">
+                            <HorizontalStackLayout Spacing="6">
+                                <Label Style="{StaticResource ChipLabel}" Text="{Binding Label}" />
+                                <Label Style="{StaticResource ChipLabel}"
+                                       TextColor="{DynamicResource TextSecondary}"
+                                       Text="✕" />
+                            </HorizontalStackLayout>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type Grid}}, Path=BindingContext.RemoveFacetCommand}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                        </Border>
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
-            </HorizontalStackLayout>
-        </ScrollView>
+            </WrapLayout>
+
+            <!-- Står kvar uppe till höger när fasetterna radbryts under den. -->
+            <ChipView Grid.Column="1"
+                      IsCompact="True"
+                      VerticalOptions="Start"
+                      Text="Rensa"
+                      Command="{Binding ClearFacetsCommand}" />
+        </Grid>
 
         <!-- Tomt läge är ett designat läge, inte en spinner -->
-        <VerticalStackLayout Grid.Row="2"
+        <VerticalStackLayout Grid.Row="3"
                              Padding="32"
                              Spacing="8"
                              VerticalOptions="Center"
@@ -52,13 +95,15 @@
                    Text="{Binding EmptyMessage}" />
         </VerticalStackLayout>
 
-        <CollectionView Grid.Row="2"
+        <CollectionView Grid.Row="3"
                         ItemsSource="{Binding Sections}"
                         IsGrouped="True"
                         SelectionMode="None"
+                        BackgroundColor="{DynamicResource SurfaceCard}"
                         IsVisible="{Binding HasCards}">
+            <!-- Rader på en delad yta, inte ett kort per tävling: avdelarna bär listan. -->
             <CollectionView.ItemsLayout>
-                <LinearItemsLayout Orientation="Vertical" ItemSpacing="8" />
+                <LinearItemsLayout Orientation="Vertical" ItemSpacing="0" />
             </CollectionView.ItemsLayout>
 
             <CollectionView.Footer>
@@ -70,9 +115,8 @@
 
             <CollectionView.GroupHeaderTemplate>
                 <DataTemplate x:DataType="EventSection">
-                    <!-- Vänsterkanten följer kortens, inte listans -->
                     <Label Style="{StaticResource SectionLabel}"
-                           Padding="16,14,0,4"
+                           Padding="16,16,16,6"
                            SemanticProperties.Description="{Binding Accessibility}"
                            Text="{Binding Name}" />
                 </DataTemplate>
@@ -81,89 +125,109 @@
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="EventCard">
                     <!--
-                        Stjärnan ligger utanför kortets Border. Kortet är ett element för
-                        skärmläsaren — annars blir varje kort sex svep — och en Description på
-                        Bordern gör dess barn oåtkomliga på iOS. Stjärnan måste därför
+                        Stjärnan ligger utanför radens Grid. Raden är ett element för
+                        skärmläsaren — annars blir varje rad sex svep — och en Description på
+                        radens layout gör dess barn oåtkomliga på iOS. Stjärnan måste därför
                         vara ett syskon för att gå att nå.
                     -->
-                    <Grid Padding="16,0">
-                        <Border Style="{StaticResource Card}"
-                                SemanticProperties.Description="{Binding Accessibility}"
-                                SemanticProperties.Hint="Öppnar tävlingen">
-                            <Grid ColumnDefinitions="*,44" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <Grid ColumnDefinitions="40,20,*,44" RowDefinitions="Auto,Auto,Auto"
+                              ColumnSpacing="10" RowSpacing="2"
+                              Padding="16,9,4,9"
+                              SemanticProperties.Description="{Binding Accessibility}"
+                              SemanticProperties.Hint="Öppnar tävlingen">
 
-                                <Label Grid.Row="0" Grid.Column="0"
-                                       Style="{StaticResource SectionLabel}"
-                                       Text="{Binding DateLabel}" />
+                            <!--
+                                Datumryggraden. Ritas på raden där datumet byter och lämnas tom
+                                under de tävlingar som delar den dagen; månaden på samma villkor
+                                ett steg upp, eftersom "Mest relevant" varken har månad i
+                                sektionshuvudet eller ordning i datumen.
+                            -->
+                            <VerticalStackLayout Grid.Row="0" Grid.RowSpan="3" Grid.Column="0"
+                                                 Spacing="0"
+                                                 IsVisible="{Binding ShowDate}">
+                                <Label Style="{StaticResource NumericHeading2Label}"
+                                       Text="{Binding DayLabel}" />
+                                <Label Style="{StaticResource CaptionLabel}"
+                                       Text="{Binding WeekdayLabel}" />
+                                <Label Style="{StaticResource MicroLabel}"
+                                       IsVisible="{Binding ShowMonth}"
+                                       Text="{Binding MonthLabel}" />
+                            </VerticalStackLayout>
 
-                                <Label Grid.Row="1" Grid.Column="0"
-                                       Style="{StaticResource Heading2Label}"
-                                       Text="{Binding Title}" />
+                            <VerticalStackLayout Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
+                                                 Spacing="4" Margin="0,3,0,0">
+                                <Path Style="{StaticResource DisciplineGlyph}"
+                                      Data="{Binding DisciplineShape}" />
+                                <Path Style="{StaticResource LevelGlyph}"
+                                      Data="{Binding LevelShape}"
+                                      IsVisible="{Binding HasLevelShape}" />
+                            </VerticalStackLayout>
 
-                                <VerticalStackLayout Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Spacing="2">
-                                    <HorizontalStackLayout Spacing="6">
-                                        <Border Style="{StaticResource ClubBadge}" IsVisible="{Binding HasOrganiserLogo}">
-                                            <Image WidthRequest="15" HeightRequest="15"
-                                                   AutomationProperties.IsInAccessibleTree="False"
-                                                   Source="{Binding OrganiserLogo}" />
-                                        </Border>
-                                        <Label Style="{StaticResource CaptionLabel}" Text="{Binding PlaceLabel}" />
-                                    </HorizontalStackLayout>
-                                    <!--
-                                        Separate labels rather than one FormattedString: a mark has
-                                        to stand beside the word it belongs to, and a Span cannot
-                                        hold a shape.
-                                    -->
-                                    <HorizontalStackLayout Spacing="5">
-                                        <Path Style="{StaticResource DisciplineGlyph}"
-                                              Data="{Binding DisciplineShape}" />
-                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
-                                               Text="{Binding DisciplineLabel}" />
-                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
-                                        <Path Style="{StaticResource LevelGlyph}"
-                                              Data="{Binding LevelShape}"
-                                              IsVisible="{Binding HasLevelShape}" />
-                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
-                                               Text="{Binding LevelLabel}" />
-                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center" Text="·" />
-                                        <Label Style="{StaticResource CaptionLabel}" VerticalOptions="Center"
-                                               Text="{Binding DistanceLabel}" />
-                                    </HorizontalStackLayout>
-                                </VerticalStackLayout>
+                            <Label Grid.Row="0" Grid.Column="2"
+                                   Style="{StaticResource BodyStrongLabel}"
+                                   LineBreakMode="TailTruncation"
+                                   Text="{Binding Title}" />
 
-                                <HorizontalStackLayout Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
-                                                       Spacing="6" Margin="0,6,0,0">
-                                    <Border Style="{StaticResource BadgeLive}" IsVisible="{Binding IsLive}">
-                                        <Label Style="{StaticResource BadgeOnSignalLabel}" Text="Live" />
-                                    </Border>
-                                    <Border Style="{StaticResource BadgePositive}" IsVisible="{Binding IsRegistered}">
-                                        <Label Style="{StaticResource BadgeOnFillLabel}" Text="Anmäld" />
-                                    </Border>
-                                    <Border Style="{StaticResource Badge}" IsVisible="{Binding HasGroupEntry}">
-                                        <Label Style="{StaticResource BadgeLabel}" Text="Min grupp" />
-                                    </Border>
-                                    <Border Style="{StaticResource Badge}" IsVisible="{Binding IsRecurring}">
-                                        <Label Style="{StaticResource BadgeLabel}" Text="{Binding OccurrenceLabel}" />
-                                    </Border>
-                                    <Border Style="{StaticResource BadgeAccent}" IsVisible="{Binding ShowContextBadge}">
-                                        <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding ContextLabel}" />
-                                    </Border>
-                                </HorizontalStackLayout>
+                            <!--
+                                Avståndet står i egen kolumn i stället för sist i metameningen.
+                                Det är relevanspremissen — det enda listan vet som Eventor inte
+                                vet — och får inte vara det som trunkeras bort.
+                            -->
+                            <Grid Grid.Row="1" Grid.Column="2"
+                                  ColumnDefinitions="20,*,Auto" ColumnSpacing="6">
+                                <Border Grid.Column="0"
+                                        Style="{StaticResource ClubBadge}"
+                                        IsVisible="{Binding HasOrganiserLogo}">
+                                    <Image WidthRequest="14" HeightRequest="14"
+                                           AutomationProperties.IsInAccessibleTree="False"
+                                           Source="{Binding OrganiserLogo}" />
+                                </Border>
+                                <Label Grid.Column="1"
+                                       Style="{StaticResource CaptionLabel}"
+                                       VerticalOptions="Center"
+                                       LineBreakMode="TailTruncation"
+                                       Text="{Binding MetaLine}" />
+                                <Label Grid.Column="2"
+                                       Style="{StaticResource NumericCaptionLabel}"
+                                       VerticalOptions="Center"
+                                       HorizontalTextAlignment="End"
+                                       Text="{Binding DistanceLabel}" />
                             </Grid>
 
-                            <Border.GestureRecognizers>
+                            <HorizontalStackLayout Grid.Row="2" Grid.Column="2"
+                                                   Spacing="6" Margin="0,2,0,0"
+                                                   IsVisible="{Binding HasBadges}">
+                                <Border Style="{StaticResource BadgeLive}" IsVisible="{Binding IsLive}">
+                                    <Label Style="{StaticResource BadgeOnSignalLabel}" Text="Live" />
+                                </Border>
+                                <Border Style="{StaticResource BadgePositive}" IsVisible="{Binding IsRegistered}">
+                                    <Label Style="{StaticResource BadgeOnFillLabel}" Text="Anmäld" />
+                                </Border>
+                                <Border Style="{StaticResource Badge}" IsVisible="{Binding HasGroupEntry}">
+                                    <Label Style="{StaticResource BadgeLabel}" Text="Min grupp" />
+                                </Border>
+                                <Border Style="{StaticResource Badge}" IsVisible="{Binding HasSpan}">
+                                    <Label Style="{StaticResource BadgeLabel}" Text="{Binding SpanLabel}" />
+                                </Border>
+                                <Border Style="{StaticResource BadgeAccent}" IsVisible="{Binding ShowContextBadge}">
+                                    <Label Style="{StaticResource BadgeAccentLabel}" Text="{Binding ContextLabel}" />
+                                </Border>
+                            </HorizontalStackLayout>
+
+                            <Grid.GestureRecognizers>
                                 <TapGestureRecognizer
                                     Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.OpenDetailsCommand}"
                                     CommandParameter="{Binding .}" />
-                            </Border.GestureRecognizers>
-                        </Border>
+                            </Grid.GestureRecognizers>
+                        </Grid>
 
-                        <Label Style="{StaticResource Heading2Label}"
+                        <Label Grid.Row="0"
+                               Style="{StaticResource Heading2Label}"
                                TextColor="{DynamicResource AccentAction}"
                                HorizontalOptions="End" VerticalOptions="Start"
                                HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
                                WidthRequest="44" HeightRequest="44"
-                               Margin="0,4,6,0"
                                SemanticProperties.Description="{Binding InterestDescription}"
                                Text="{Binding InterestGlyph}">
                             <Label.GestureRecognizers>
@@ -172,13 +236,15 @@
                                     CommandParameter="{Binding .}" />
                             </Label.GestureRecognizers>
                         </Label>
+
+                        <BoxView Grid.Row="1" Style="{StaticResource Divider}" />
                     </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
 
     
-        <ActivityIndicator Grid.Row="2" Style="{StaticResource PageLoading}"
+        <ActivityIndicator Grid.Row="3" Style="{StaticResource PageLoading}"
                            IsRunning="{Binding IsLoading}"
                            IsVisible="{Binding IsLoading}" />
 

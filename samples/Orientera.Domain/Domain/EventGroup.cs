@@ -24,4 +24,6 @@ public sealed record EventGroup
     public CompetitionLevel Level => Occurrences.Min(c => c.Level);
 
     public Discipline Discipline => First.Discipline;
+
+    public Sport Sport => First.Sport;
 }

@@ -1,4 +1,5 @@
 using Orientera.Domain;
+using Orientera.Presentation;
 
 namespace Orientera.Features.Events;
 
@@ -32,6 +33,20 @@ public enum EventPeriod
     RestOfYear,
 }
 
+/// <summary>
+/// One choice the user has made, and the filter with that choice taken back out.
+/// </summary>
+/// <remarks>
+/// The chip row above the list removes one facet at a time, and carrying the result rather than a
+/// discriminator keeps every "how do I unset this" in one place — the same place that decided how
+/// to set it.
+/// </remarks>
+public sealed record FilterFacet(string Label, EventFilter Without)
+{
+    /// <summary>The chip is a remove button, and has to say so rather than read as a word.</summary>
+    public string Accessibility => $"Ta bort filtret {Label}";
+}
+
 /// <summary>The advanced filter, returned as a typed result from <see cref="EventFilterSheet"/>.</summary>
 public sealed record EventFilter
 {
@@ -48,10 +63,24 @@ public sealed record EventFilter
 
     public EventPeriod Period { get; init; }
 
-    /// <summary>Competitions at this level or more significant. Null means any level.</summary>
-    public CompetitionLevel? MinimumLevel { get; init; }
+    /// <summary>
+    /// The levels to keep, empty for all of them.
+    /// </summary>
+    /// <remarks>
+    /// A set rather than the ladder cut this used to be ("this level and above"). A ladder cannot
+    /// say "only närtävlingar" — the one thing a runner looking for something small and close on a
+    /// Tuesday is asking for — and it could only ever reach four of the seven rungs.
+    /// </remarks>
+    public IReadOnlySet<CompetitionLevel> Levels { get; init; } = new HashSet<CompetitionLevel>();
 
-    public Discipline? Discipline { get; init; }
+    /// <summary>The disciplines to keep, empty for all of them.</summary>
+    public IReadOnlySet<Discipline> Disciplines { get; init; } = new HashSet<Discipline>();
+
+    /// <summary>
+    /// The sports to keep, empty for all of them. Its own axis, because "sprint" answers a
+    /// different question from "on foot or on a bike".
+    /// </summary>
+    public IReadOnlySet<Sport> Sports { get; init; } = new HashSet<Sport>();
 
     public double? MaxDistanceKm { get; init; }
 
@@ -61,17 +90,6 @@ public sealed record EventFilter
     public bool OnlyMyClass { get; init; }
 
     public bool OnlyRegisterable { get; init; }
-
-    public bool IsActive =>
-        Districts.Count > 0
-        || Query.Length > 0
-        || Period != EventPeriod.Any
-        || MinimumLevel is not null
-        || Discipline is not null
-        || MaxDistanceKm is not null
-        || ShowTraining
-        || OnlyMyClass
-        || OnlyRegisterable;
 
     /// <summary>The window the period asks for, or null for any date.</summary>
     public (DateOnly From, DateOnly To)? Window(DateOnly today) => Period switch
@@ -96,14 +114,129 @@ public sealed record EventFilter
         || competition.Place.Contains(Query, StringComparison.OrdinalIgnoreCase)
         || competition.District.Contains(Query, StringComparison.OrdinalIgnoreCase);
 
-    public int ActiveCount =>
-        (Districts.Count > 0 ? 1 : 0)
-        + (Query.Length > 0 ? 1 : 0)
-        + (Period != EventPeriod.Any ? 1 : 0)
-        + (MinimumLevel is not null ? 1 : 0)
-        + (Discipline is not null ? 1 : 0)
-        + (MaxDistanceKm is not null ? 1 : 0)
-        + (ShowTraining ? 1 : 0)
-        + (OnlyMyClass ? 1 : 0)
-        + (OnlyRegisterable ? 1 : 0);
+    /// <summary>
+    /// Whether the competition survives every rule in the filter. The reader is needed because
+    /// three of the rules are about them: where they live, what class they run, and whether the
+    /// entry is open now.
+    /// </summary>
+    public bool Includes(Competition competition, Person me, DateTimeOffset now)
+    {
+        if (Districts.Count > 0 && !Districts.Contains(competition.District))
+            return false;
+
+        if (!Matches(competition))
+            return false;
+
+        if (Window(DateOnly.FromDateTime(now.Date)) is { } window
+            && (competition.Date < window.From || competition.Date > window.To))
+        {
+            return false;
+        }
+
+        // Training and recreational events are hidden unless explicitly asked for — the spec's
+        // "minska Eventor-bruset" applied at its most common source. Asking for those levels by
+        // name is asking for them, so the switch does not get to overrule the choice.
+        if (competition.IsLowPriority && !ShowTraining && !Levels.Contains(competition.Level))
+            return false;
+
+        if (Levels.Count > 0 && !Levels.Contains(competition.Level))
+            return false;
+
+        if (Disciplines.Count > 0 && !Disciplines.Contains(competition.Discipline))
+            return false;
+
+        if (Sports.Count > 0 && !Sports.Contains(competition.Sport))
+            return false;
+
+        // A radius is a claim about where something is. An arena with no published position
+        // cannot be inside one, so asking for a radius excludes it rather than guessing.
+        if (MaxDistanceKm is { } maxDistance
+            && (competition.DistanceFrom(me.Home) is not { } distance || distance > maxDistance))
+        {
+            return false;
+        }
+
+        if (OnlyMyClass && competition.Classes.Count > 0 && !competition.Classes.Contains(me.DefaultClass))
+            return false;
+
+        if (OnlyRegisterable && !IsRegisterable(competition, now))
+            return false;
+
+        return true;
+    }
+
+    private static bool IsRegisterable(Competition competition, DateTimeOffset now) =>
+        competition.Schedule is { RegistrationOpensAt: { } opens, EntryDeadline: { } deadline }
+        && opens <= now
+        && now <= deadline;
+
+    /// <summary>
+    /// Every set choice as its own removable chip, in the order the sheet asks for them.
+    /// </summary>
+    /// <remarks>
+    /// The query is deliberately not among them. It is already visible in the search box on the
+    /// page, with its own clear button, and a chip that says "DM" beside a field that says "DM"
+    /// is two controls for one fact.
+    /// </remarks>
+    public IReadOnlyList<FilterFacet> Facets
+    {
+        get
+        {
+            var facets = new List<FilterFacet>();
+
+            foreach (var district in Districts.OrderBy(d => d, StringComparer.CurrentCulture))
+            {
+                facets.Add(new FilterFacet(
+                    district,
+                    this with { Districts = Districts.Where(d => d != district).ToHashSet() }));
+            }
+
+            if (Period != EventPeriod.Any)
+                facets.Add(new FilterFacet(PeriodLabel(Period), this with { Period = EventPeriod.Any }));
+
+            foreach (var level in Levels.OrderBy(l => l))
+            {
+                facets.Add(new FilterFacet(
+                    Format.Level(level),
+                    this with { Levels = Levels.Where(l => l != level).ToHashSet() }));
+            }
+
+            foreach (var sport in Sports.OrderBy(s => s))
+            {
+                facets.Add(new FilterFacet(
+                    Format.SportOrDefault(sport),
+                    this with { Sports = Sports.Where(s => s != sport).ToHashSet() }));
+            }
+
+            foreach (var discipline in Disciplines.OrderBy(d => d))
+            {
+                facets.Add(new FilterFacet(
+                    Format.Discipline(discipline),
+                    this with { Disciplines = Disciplines.Where(d => d != discipline).ToHashSet() }));
+            }
+
+            if (MaxDistanceKm is { } distance)
+                facets.Add(new FilterFacet($"Inom {distance:0} km", this with { MaxDistanceKm = null }));
+
+            if (ShowTraining)
+                facets.Add(new FilterFacet("Med träningar", this with { ShowTraining = false }));
+
+            if (OnlyMyClass)
+                facets.Add(new FilterFacet("Min klass", this with { OnlyMyClass = false }));
+
+            if (OnlyRegisterable)
+                facets.Add(new FilterFacet("Anmälningsbara", this with { OnlyRegisterable = false }));
+
+            return facets;
+        }
+    }
+
+    public static string PeriodLabel(EventPeriod period) => period switch
+    {
+        EventPeriod.ThisMonth => "Denna månad",
+        EventPeriod.NextMonth => "Nästa månad",
+        EventPeriod.ThreeMonths => "Inom tre månader",
+        EventPeriod.RestOfYear => "Resten av året",
+        _ => "Valfri tid",
+    };
 }

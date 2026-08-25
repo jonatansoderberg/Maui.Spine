@@ -49,6 +49,18 @@
                         Command="{Binding OpenIdentityCommand}" />
             </Grid>
 
+            <!-- ============ Mina resultat ============ -->
+            <!--
+                Säsongen är en undersida till Jag, inte en egen del av appen: ett resultat hör
+                till tävlingen det sprangs i, och listan är vägen tillbaka dit.
+            -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Resultat" />
+                <Button Style="{StaticResource SecondaryButton}"
+                        Text="Mina resultat"
+                        Command="{Binding OpenMyResultsCommand}" />
+            </VerticalStackLayout>
+
             <!-- ============ Eventor-inloggning ============ -->
             <VerticalStackLayout Spacing="8">
                 <Label Style="{StaticResource SectionLabel}" Text="Eventor" />
@@ -86,6 +98,30 @@
                             VerticalOptions="Center"
                             SemanticProperties.Description="Välj vilken klass du oftast springer"
                             Command="{Binding OpenIdentityCommand}" />
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <VerticalStackLayout Grid.Column="0" Spacing="1" VerticalOptions="Center">
+                        <Label Style="{StaticResource SectionLabel}" Text="Grenar och former" />
+                        <Label Style="{StaticResource BodyLabel}"
+                               LineBreakMode="TailTruncation"
+                               Text="{Binding SportsText}" />
+                        <Label Style="{StaticResource CaptionLabel}"
+                               LineBreakMode="TailTruncation"
+                               Text="{Binding FavouritesText}" />
+                    </VerticalStackLayout>
+
+                    <Button Grid.Column="1"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="14,0"
+                            HeightRequest="36"
+                            FontSize="{StaticResource SizeCaption}"
+                            Text="Ändra"
+                            VerticalOptions="Center"
+                            SemanticProperties.Description="Välj vilka grenar du håller på med och vilka lopp du helst springer"
+                            Command="{Binding OpenRacePreferencesCommand}" />
                 </Grid>
             </Border>
 

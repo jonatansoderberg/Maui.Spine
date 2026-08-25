@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Orientera.Domain;
+using Orientera.Features.Events.Participants;
 using Orientera.Features.Dev;
 using Orientera.Features.Events;
-using Orientera.Features.Live;
 using Orientera.Features.Onboarding;
 using Orientera.Features.Profile;
 using Orientera.Features.Results;
@@ -11,6 +11,7 @@ using Orientera.Presentation;
 using Orientera.Services.Context;
 using Orientera.Services.Eventor;
 using Orientera.Services.Local;
+using Orientera.Services.Offline;
 using Orientera.Services.Relevance;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
@@ -28,10 +29,14 @@ public partial class HomePageViewModel(
     IProgressSource _progress,
     FirstRunStore _firstRun,
     EventorSessionResume _resume,
+    RacePreferenceStore _preferences,
     CompetitionContextService _context) : OrienteraViewModel
 {
     /// <summary>Hem has few large blocks, not a dense dashboard.</summary>
     private const int MaxBlocks = 4;
+
+    /// <summary>How many simultaneous races Hem will lead with before it stops being a summary.</summary>
+    private const int MaxLiveBlocks = 3;
 
     public ObservableCollection<HomeBlock> Blocks { get; } = [];
 
@@ -40,9 +45,6 @@ public partial class HomePageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
-        if (PageActions.Count == 0)
-            PageActions.Add(new PageAction(text: "Tid", command: OpenTimeMachineCommand));
-
         ScheduleWelcome();
 
         var session = _resume.Generation;
@@ -94,6 +96,10 @@ public partial class HomePageViewModel(
             if (choice is { IsSuccess: true, Value.WantsLogin: true })
                 await _navigation.NavigateToWithResultAsync<AppLoginSheet, EventorWebSession>();
 
+            // Efter inloggningen, för då vet frågan vem som svarar — och före första listan, så att
+            // en MTBO-åkare aldrig ser en kalender som saknar deras tävlingar utan att veta varför.
+            await _navigation.NavigateToAsync<SportChoiceSheet>();
+
             await ReloadAsync();
         });
     }
@@ -109,22 +115,22 @@ public partial class HomePageViewModel(
     }
 
     [RelayCommand]
-    private async Task OpenTimeMachine()
-    {
-        await _navigation.NavigateToAsync<TimeMachineSheet>();
-        await ReloadAsync();
-    }
-
-    [RelayCommand]
     private async Task OpenCompetition(CompetitionId competition) =>
         await _navigation.NavigateToAsync<EventDetailsPage, CompetitionId>(competition);
 
+    /// <summary>
+    /// Into the race itself, not into a section about races. The block already knows which
+    /// competition it is about, so the list opens on it — in live mode, in the reader's class.
+    /// </summary>
     [RelayCommand]
-    private async Task OpenLive() => await _navigation.SwitchToTabAsync<LivePage>();
+    private async Task OpenLive(CompetitionId competition) =>
+        await _navigation.NavigateToAsync<ParticipantsPage, ParticipantsTarget>(
+            new ParticipantsTarget(competition, Mode: ParticipantMode.Live));
 
     [RelayCommand]
     private async Task OpenResult(CompetitionId competition) =>
-        await _navigation.NavigateToAsync<ResultsDetailPage, CompetitionId>(competition);
+        await _navigation.NavigateToAsync<ParticipantsPage, ParticipantsTarget>(
+            new ParticipantsTarget(competition, Mode: ParticipantMode.Results));
 
     [RelayCommand]
     private async Task OpenEvents() => await _navigation.SwitchToTabAsync<EventsPage>();
@@ -138,7 +144,9 @@ public partial class HomePageViewModel(
         var today = DateOnly.FromDateTime(now.Date);
         var me = await _people.GetMeAsync();
 
-        Greeting = $"Hej {me.Name.Split(' ')[0]}";
+        // Klockan från _clock, inte systemet: tidsmaskinen under Jag flyttar hela appens dygn,
+        // och en hälsning som stod kvar på "God morgon" hade varit det enda som inte följde med.
+        Greeting = $"{Format.Salutation(now)} {me.Name.Split(' ')[0]}";
         TodayText = now.ToString("dddd d MMMM");
 
         var competitions = await _events.GetCompetitionsAsync();
@@ -154,14 +162,13 @@ public partial class HomePageViewModel(
         // Prioriteringsregeln, i ordning:
         // 1. Något relevant live → högst upp. 2. Annars Nästa för mig.
         // 3. Sedan senaste resultat, discovery, Min grupp och utveckling.
-        var liveBlock = await BuildLiveAsync(me, myEntries, groupEntries);
+        var liveBlocks = await BuildLiveAsync(me, myEntries, groupEntries);
 
-        if (liveBlock is not null)
-            blocks.Add(liveBlock);
+        blocks.AddRange(liveBlocks);
 
         // A competition already shown as "Live nu" must not come back as "Nästa för mig" —
         // two blocks about the same event is exactly the dashboard clutter the rule avoids.
-        if (await BuildNextForMeAsync(competitions, myEntries, now, today, liveBlock?.Competition) is { } next)
+        if (await BuildNextForMeAsync(competitions, myEntries, now, today, [.. liveBlocks.Select(b => b.Competition)]) is { } next)
             blocks.Add(next);
 
         if (await BuildLatestResultAsync(me, competitions) is { } latest)
@@ -170,7 +177,8 @@ public partial class HomePageViewModel(
         if (BuildGroup(competitions, groupEntries, group, today) is { } groupBlock)
             blocks.Add(groupBlock);
 
-        if (BuildDiscovery(competitions, me, myEntries, groupEntries, now, today) is { } discovery)
+        if (BuildDiscovery(competitions, _preferences.Load(), me, myEntries, groupEntries, now, today)
+            is { } discovery)
             blocks.Add(discovery);
 
         if (await BuildDevelopmentAsync(me) is { } development)
@@ -182,7 +190,16 @@ public partial class HomePageViewModel(
             Blocks.Add(block);
     }
 
-    private async Task<LiveNowBlock?> BuildLiveAsync(
+    /// <summary>
+    /// Every competition running right now that the reader has someone in.
+    /// </summary>
+    /// <remarks>
+    /// Every one, not the first. Following two runners in two races at once was the live tab's
+    /// one job that no competition's own page can do, and with the tab gone this is where it
+    /// lands: a championship weekend, or a parent with children in different races, gets a block
+    /// each rather than whichever competition happened to sort first.
+    /// </remarks>
+    private async Task<IReadOnlyList<LiveNowBlock>> BuildLiveAsync(
         Person me,
         IReadOnlySet<CompetitionId> myEntries,
         IReadOnlySet<CompetitionId> groupEntries)
@@ -191,16 +208,24 @@ public partial class HomePageViewModel(
 
         // "Relevant" means me or someone I follow is in it — not merely that something is live.
         var relevant = liveCompetitions
-            .FirstOrDefault(c => myEntries.Contains(c.Id) || groupEntries.Contains(c.Id));
+            .Where(c => myEntries.Contains(c.Id) || groupEntries.Contains(c.Id))
+            // Hem is a few large blocks, never a dense dashboard. Past three simultaneous races
+            // the page stops being a summary of the day and becomes a list of them.
+            .Take(MaxLiveBlocks)
+            .ToList();
 
-        if (relevant is null)
-        {
-            _tabBadges.SetBadge<LivePage>(null);
-            return null;
-        }
+        _tabBadges.SetBadge<EventsPage>(relevant.Count > 0 ? string.Empty : null);
 
-        _tabBadges.SetBadge<LivePage>("");
+        var blocks = new List<LiveNowBlock>(relevant.Count);
 
+        foreach (var competition in relevant)
+            blocks.Add(await LiveBlockAsync(me, competition));
+
+        return blocks;
+    }
+
+    private async Task<LiveNowBlock> LiveBlockAsync(Person me, Competition relevant)
+    {
         var snapshot = await _live.GetSnapshotAsync(relevant.Id);
         var mine = snapshot.Entries.FirstOrDefault(e => e.Person == me.Id);
 
@@ -246,11 +271,13 @@ public partial class HomePageViewModel(
         IReadOnlySet<CompetitionId> myEntries,
         DateTimeOffset now,
         DateOnly today,
-        CompetitionId? alreadyShown)
+        IReadOnlyList<CompetitionId> alreadyShown)
     {
         var next = competitions
             .Where(c => myEntries.Contains(c.Id) && c.LastFinish > now)
-            .Where(c => alreadyShown is not { } shown || c.Id != shown)
+            // A competition already up as "Live nu" must not come back as "Nästa för dig" — two
+            // blocks about the same race is exactly the clutter the priority rule avoids.
+            .Where(c => !alreadyShown.Contains(c.Id))
             .OrderBy(c => c.FirstStart)
             .FirstOrDefault();
 
@@ -281,6 +308,27 @@ public partial class HomePageViewModel(
         };
     }
 
+    /// <summary>
+    /// Fältets storlek för ett resultat. Eventors "mina resultat"-sida bär den inte, så den
+    /// hämtas ur tävlingens egen resultatlista — samma källa som resultatsidan läser. Utan
+    /// känt fält visas placeringen ensam hellre än mot en gissad nämnare.
+    /// </summary>
+    private async Task<int> StartersOfAsync(CompetitionResult latest, Person me)
+    {
+        try
+        {
+            var field = await _participation.GetResultsAsync(latest.Competition);
+
+            var mine = field.FirstOrDefault(r => r.Person == me.Id && r.Place == latest.Place)
+                ?? field.FirstOrDefault(r => r.Person == me.Id);
+            return mine?.Starters ?? 0;
+        }
+        catch (SourceUnavailableException)
+        {
+            return 0;
+        }
+    }
+
     private async Task<LatestResultBlock?> BuildLatestResultAsync(Person me, IReadOnlyList<Competition> competitions)
     {
         var results = await _participation.GetResultsForPersonAsync(me.Id);
@@ -308,7 +356,7 @@ public partial class HomePageViewModel(
             LevelShape = DisciplineShape.For(competition.Level),
             LevelLabel = Format.Level(competition.Level),
             Title = competition.Name,
-            PlaceText = Format.Place(latest.Place),
+            PlaceText = Format.PlaceAmong(latest.Place, await StartersOfAsync(latest, me)),
             TimeText = Format.Time(latest.Time),
             BehindText = latest.BehindWinner is { } behind ? Format.Delta(behind) : string.Empty,
             HasSplits = latest.Splits.Count > 0,
@@ -343,6 +391,7 @@ public partial class HomePageViewModel(
 
     private static DiscoveryBlock? BuildDiscovery(
         IReadOnlyList<Competition> competitions,
+        RacePreferences preferences,
         Person me,
         IReadOnlySet<CompetitionId> myEntries,
         IReadOnlySet<CompetitionId> groupEntries,
@@ -357,12 +406,14 @@ public partial class HomePageViewModel(
             MyClass = me.DefaultClass,
             MyEntries = myEntries,
             GroupEntries = groupEntries,
+            Favourites = preferences.Favourites,
         };
 
         // Ranking, not Score().Total, and the same date tiebreak the list uses: two races of the
         // same championship score identically to five decimals, and picking on the raw total put
         // Sunday's above Saturday's here while the list had them the right way round.
         var candidate = competitions
+            .Where(c => preferences.Allows(c.Sport))
             .Where(c => !myEntries.Contains(c.Id) && !c.IsLowPriority && c.FirstStart > now)
             .Select(c => (Competition: c, Score: RelevanceEngine.Ranking(c, context)))
             .OrderByDescending(x => x.Score)

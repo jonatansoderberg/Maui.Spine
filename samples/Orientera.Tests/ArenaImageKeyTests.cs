@@ -1,0 +1,84 @@
+using Orientera.Backend.Arena;
+using Orientera.Domain;
+using Xunit;
+
+namespace Orientera.Tests;
+
+public class ArenaImageKeyTests
+{
+    private static Competition At(
+        DateTimeOffset start,
+        Discipline discipline = Discipline.Middle,
+        Sport sport = Sport.Foot) => new()
+    {
+        Id = new CompetitionId("59691"),
+        Name = "Trimtex Cup #4",
+        Organiser = "Valbo AIF",
+        District = "Gästrikland",
+        Place = "Valbo",
+        Location = new GeoPoint(60.6032, 16.9686),
+        Discipline = discipline,
+        Sport = sport,
+        Level = CompetitionLevel.Local,
+        FirstStart = start,
+        LastFinish = start.AddHours(2),
+    };
+
+    [Theory]
+    [InlineData(1, ArenaSeason.Vinter)]
+    [InlineData(3, ArenaSeason.Vinter)]
+    [InlineData(4, ArenaSeason.Var)]
+    [InlineData(8, ArenaSeason.Sommar)]
+    [InlineData(10, ArenaSeason.Host)]
+    [InlineData(12, ArenaSeason.Vinter)]
+    public void Season_follows_the_month_of_the_race(int month, ArenaSeason expected) =>
+        Assert.Equal(expected, ArenaImageKey.SeasonOf(new DateTimeOffset(2026, month, 15, 12, 0, 0, TimeSpan.Zero)));
+
+    [Fact]
+    public void Night_races_get_their_own_image()
+    {
+        var day = ArenaImageKey.For(At(new DateTimeOffset(2026, 8, 24, 18, 30, 0, TimeSpan.Zero)), 1);
+        var night = ArenaImageKey.For(
+            At(new DateTimeOffset(2026, 8, 24, 21, 0, 0, TimeSpan.Zero), Discipline.Night), 1);
+
+        Assert.False(day.Night);
+        Assert.True(night.Night);
+        Assert.NotEqual(day.BlobName, night.BlobName);
+    }
+
+    /// <summary>Indoor is a sport now, and the arena picture reads it from there.</summary>
+    [Fact]
+    public void Indoor_has_no_season_because_it_has_no_terrain() =>
+        Assert.Equal(ArenaSeason.Inomhus,
+            ArenaImageKey.For(At(new DateTimeOffset(2026, 11, 14, 10, 0, 0, TimeSpan.Zero),
+                                 sport: Sport.Indoor), 1).Season);
+
+    /// <summary>
+    /// Utan klockslag står FirstStart vid midnatt och solen under horisonten — en dagtävling
+    /// blev en nattbild. Mitt på dagen antas i stället, och 21:00 för nattävlingar.
+    /// </summary>
+    [Fact]
+    public void Missing_start_time_is_rendered_at_noon_not_midnight()
+    {
+        var unset = At(new DateTimeOffset(2026, 8, 30, 0, 0, 0, TimeSpan.Zero));
+        var set = At(new DateTimeOffset(2026, 8, 30, 10, 15, 0, TimeSpan.Zero));
+        var night = At(new DateTimeOffset(2026, 11, 14, 0, 0, 0, TimeSpan.Zero), Discipline.Night);
+
+        Assert.Equal(new DateTime(2026, 8, 30, 12, 0, 0), ArenaImageKey.RenderTimeOf(unset));
+        Assert.Equal(new DateTime(2026, 8, 30, 10, 15, 0), ArenaImageKey.RenderTimeOf(set));
+        Assert.Equal(new DateTime(2026, 11, 14, 21, 0, 0), ArenaImageKey.RenderTimeOf(night));
+    }
+
+    /// <summary>
+    /// Renderare och prompt utvecklas. Höjs versionen utan att blobnamnet ändras serveras
+    /// gamla bilder tyst vidare, och det syns inte förrän någon jämför två tävlingar.
+    /// </summary>
+    [Fact]
+    public void A_new_renderer_version_is_a_new_image()
+    {
+        var when = new DateTimeOffset(2026, 8, 24, 18, 30, 0, TimeSpan.Zero);
+
+        Assert.NotEqual(ArenaImageKey.For(At(when), 1).BlobName,
+                        ArenaImageKey.For(At(when), 2).BlobName);
+    }
+}

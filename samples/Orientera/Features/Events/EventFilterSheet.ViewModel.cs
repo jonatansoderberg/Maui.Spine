@@ -1,32 +1,21 @@
 using System.Collections.ObjectModel;
+using Orientera.Controls;
 using Orientera.Domain;
 using Orientera.Presentation;
 
 namespace Orientera.Features.Events;
 
 /// <summary>
-/// What the sheet needs to open with: the filter as it stands, and the districts there are
-/// actually competitions in.
+/// What the sheet needs to open with: the filter as it stands, the calendar the district list is
+/// drawn from, the competitions the active quick filter leaves — which is what the count on the
+/// button counts — and the reader three of the rules are about.
 /// </summary>
-public sealed record FilterRequest(EventFilter Current, IReadOnlyList<string> Districts);
-
-/// <summary>One district, and whether it is kept.</summary>
-/// <remarks>
-/// The toggle sits on the row rather than on the sheet, so the chip binds to itself. Reaching the
-/// sheet's command through <c>RelativeSource AncestorType</c> from inside a bindable layout in a
-/// FlexLayout resolved to nothing, and a chip that silently does not toggle is worse than one line
-/// of command here.
-/// </remarks>
-public sealed partial class DistrictOption : ObservableObject
-{
-    public required string Name { get; init; }
-
-    [ObservableProperty]
-    public partial bool IsSelected { get; set; }
-
-    [RelayCommand]
-    private void Toggle() => IsSelected = !IsSelected;
-}
+public sealed record FilterRequest(
+    EventFilter Current,
+    IReadOnlyList<Competition> Catalogue,
+    IReadOnlyList<Competition> Matching,
+    Person? Me,
+    DateTimeOffset Now);
 
 /// <summary>
 /// Advanced filters. Secondary decisions belong in a bottom sheet — the user never leaves the
@@ -35,90 +24,68 @@ public sealed partial class DistrictOption : ObservableObject
 public partial class EventFilterSheetViewModel(INavigationService _navigation)
     : ViewModelBase, IReceivesNavigationParameter<FilterRequest>
 {
-    public IReadOnlyList<string> PeriodOptions { get; } =
-        ["Valfri tid", "Denna månad", "Nästa månad", "Inom tre månader", "Resten av året"];
+    private IReadOnlyList<Competition> _matching = [];
+    private Person? _me;
+    private DateTimeOffset _now;
+    private string _query = string.Empty;
 
     /// <summary>Every district there is something to see in, not every district in Sweden.</summary>
-    public ObservableCollection<DistrictOption> Districts { get; } = [];
+    public ChipGroup DistrictGroup { get; } = new(single: false, "Alla distrikt");
+
+    public ChipGroup PeriodGroup { get; } = new(single: true, "Valfri tid");
+
+    public ChipGroup LevelGroup { get; } = new(single: false, "Alla nivåer");
+
+    public ChipGroup SportGroup { get; } = new(single: false, "Alla grenar");
+
+    public ChipGroup DisciplineGroup { get; } = new(single: false, "Alla discipliner");
+
+    /// <summary>
+    /// The radius as a distance rather than as five buttons. A distance is a continuous quantity
+    /// and a slider says so; the chips could only ever offer the four someone had thought of.
+    /// The far end is no limit at all, which is why the scale ends in a word and not a number.
+    /// </summary>
+    [ObservableProperty]
+    public partial double DistanceKm { get; set; } = MaxDistance;
+
+    /// <summary>Past this the filter stops asking — the slider is at "Alla".</summary>
+    public const double MaxDistance = 200;
+
+    public const double MinDistance = 5;
+
+    partial void OnDistanceKmChanged(double value)
+    {
+        DistanceSummary = SelectedDistance is { } km ? $"Inom {Format.Distance(km)}" : "Valfritt avstånd";
+        Recount();
+    }
+
+    /// <summary>
+    /// The radius the filter gets, snapped: five-kilometre steps where five kilometres is a
+    /// decision, ten where it is not. Null at the top of the scale.
+    /// </summary>
+    private double? SelectedDistance => DistanceKm >= MaxDistance
+        ? null
+        : DistanceKm < 100
+            ? Math.Round(DistanceKm / 5) * 5
+            : Math.Round(DistanceKm / 10) * 10;
+
+    [ObservableProperty]
+    public partial string DistanceSummary { get; set; } = "Valfritt avstånd";
 
     [ObservableProperty]
     public partial bool HasDistricts { get; set; }
 
+    /// <summary>"Mitt distrikt är Gästrikland. Inget valt betyder alla."</summary>
     [ObservableProperty]
-    public partial int SelectedPeriod { get; set; }
+    public partial string DistrictHint { get; set; } = "Inget valt betyder alla distrikt.";
 
     /// <summary>
-    /// The sheet opens showing what is set. Without this it opened blank over an active filter,
-    /// and applying it silently cleared everything the user had chosen.
+    /// What the primary button says. Eventor keeps its calendar visible behind the filter drawer;
+    /// a sheet cannot, so the count comes to the button instead — and it is the only thing that
+    /// catches a combination that would show nothing before the user commits to it.
     /// </summary>
-    public Task OnNavigationParameterAsync(FilterRequest request)
-    {
-        var filter = request.Current;
-
-        Districts.Clear();
-
-        foreach (var district in request.Districts)
-        {
-            Districts.Add(new DistrictOption
-            {
-                Name = district,
-                IsSelected = filter.Districts.Contains(district),
-            });
-        }
-
-        HasDistricts = Districts.Count > 0;
-        SelectedPeriod = (int)filter.Period;
-
-        SelectedLevel = filter.MinimumLevel switch
-        {
-            CompetitionLevel.Championship => 1,
-            CompetitionLevel.National => 2,
-            CompetitionLevel.District => 3,
-            _ => 0,
-        };
-
-        SelectedDiscipline = filter.Discipline switch
-        {
-            Domain.Discipline.Sprint => 1,
-            Domain.Discipline.Middle => 2,
-            Domain.Discipline.Long => 3,
-            Domain.Discipline.Night => 4,
-            _ => 0,
-        };
-
-        SelectedDistance = filter.MaxDistanceKm switch
-        {
-            25 => 1,
-            50 => 2,
-            100 => 3,
-            _ => 0,
-        };
-
-        ShowTraining = filter.ShowTraining;
-        OnlyMyClass = filter.OnlyMyClass;
-        OnlyRegisterable = filter.OnlyRegisterable;
-
-        return Task.CompletedTask;
-    }
-
-
-    public IReadOnlyList<string> LevelOptions { get; } =
-        ["Alla nivåer", "Mästerskap", "Nationell och uppåt", "Distrikt och uppåt"];
-
-    public IReadOnlyList<string> DisciplineOptions { get; } =
-        ["Alla discipliner", "Sprint", "Medel", "Lång", "Natt"];
-
-    public IReadOnlyList<string> DistanceOptions { get; } =
-        ["Valfritt avstånd", "Inom 25 km", "Inom 50 km", "Inom 100 km"];
-
     [ObservableProperty]
-    public partial int SelectedLevel { get; set; }
-
-    [ObservableProperty]
-    public partial int SelectedDiscipline { get; set; }
-
-    [ObservableProperty]
-    public partial int SelectedDistance { get; set; }
+    public partial string ApplyLabel { get; set; } = "Visa tävlingar";
 
     [ObservableProperty]
     public partial bool ShowTraining { get; set; }
@@ -129,20 +96,135 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
     [ObservableProperty]
     public partial bool OnlyRegisterable { get; set; }
 
+    partial void OnShowTrainingChanged(bool value) => Recount();
+
+    partial void OnOnlyMyClassChanged(bool value) => Recount();
+
+    partial void OnOnlyRegisterableChanged(bool value) => Recount();
+
+    /// <summary>
+    /// The sheet opens showing what is set. Without this it opened blank over an active filter,
+    /// and applying it silently cleared everything the user had chosen.
+    /// </summary>
+    public Task OnNavigationParameterAsync(FilterRequest request)
+    {
+        var filter = request.Current;
+
+        _matching = request.Matching;
+        _me = request.Me;
+        _now = request.Now;
+        _query = filter.Query;
+
+        BuildDistricts(request, filter);
+
+        PeriodGroup.Options.Clear();
+
+        foreach (var period in Enum.GetValues<EventPeriod>())
+            PeriodGroup.Add(EventFilter.PeriodLabel(period), period, filter.Period == period);
+
+        LevelGroup.Options.Clear();
+
+        foreach (var level in Enum.GetValues<CompetitionLevel>())
+            LevelGroup.Add(Format.Level(level), level, filter.Levels.Contains(level));
+
+        SportGroup.Options.Clear();
+
+        foreach (var sport in Enum.GetValues<Sport>())
+            SportGroup.Add(Format.SportOrDefault(sport), sport, filter.Sports.Contains(sport));
+
+        DisciplineGroup.Options.Clear();
+
+        foreach (var discipline in Enum.GetValues<Discipline>())
+            DisciplineGroup.Add(Format.Discipline(discipline), discipline, filter.Disciplines.Contains(discipline));
+
+        DistanceKm = filter.MaxDistanceKm is { } radius
+            ? Math.Clamp(radius, MinDistance, MaxDistance)
+            : MaxDistance;
+
+        ShowTraining = filter.ShowTraining;
+        OnlyMyClass = filter.OnlyMyClass;
+        OnlyRegisterable = filter.OnlyRegisterable;
+
+        foreach (var group in Groups)
+            group.Changed = Recount;
+
+        Recount();
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The user's own district is lifted out of A–Ö and put first. Nine times in ten it is the
+    /// answer, and in an alphabetical row it is wherever the alphabet happens to have left it —
+    /// Östergötland is behind twenty chips of horizontal scrolling.
+    /// </summary>
+    private void BuildDistricts(FilterRequest request, EventFilter filter)
+    {
+        var districts = request.Catalogue
+            .Select(c => c.District)
+            .Where(d => d.Length > 0)
+            .Distinct()
+            .OrderBy(d => d, StringComparer.CurrentCulture)
+            .ToList();
+
+        string? mine = request.Me?.District is { Length: > 0 } d && districts.Contains(d) ? d : null;
+
+        DistrictGroup.Options.Clear();
+
+        if (mine is not null)
+            DistrictGroup.Add("Mitt distrikt", mine, filter.Districts.Contains(mine));
+
+        foreach (var district in districts.Where(district => district != mine))
+            DistrictGroup.Add(district, district, filter.Districts.Contains(district));
+
+        HasDistricts = DistrictGroup.Options.Count > 0;
+
+        // The chip says "Mitt distrikt" and not which, so the line under the heading does.
+        DistrictHint = mine is null
+            ? "Inget valt betyder alla distrikt."
+            : $"Mitt distrikt är {mine}. Inget valt betyder alla.";
+    }
+
+    private IEnumerable<ChipGroup> Groups =>
+        [DistrictGroup, PeriodGroup, LevelGroup, SportGroup, DisciplineGroup];
+
+    private void Recount()
+    {
+        // Nothing to count against: the identity or the calendar has not arrived yet. Saying
+        // "Inget matchar filtret" over an empty catalogue is a lie, and it disables the button
+        // that closes the sheet — which is how opening the filter during the first load left it
+        // with no way out.
+        if (_me is null || _matching.Count == 0)
+        {
+            ApplyLabel = "Visa tävlingar";
+            return;
+        }
+
+        var filter = Build();
+        int count = _matching.Count(c => filter.Includes(c, _me, _now));
+
+        // Enabled even at zero. The empty list is a designed state that explains itself, and a
+        // disabled primary button on the only way out of the sheet is the dead end ChipView
+        // already documents: a control that looks like the working one beside it and is not.
+        ApplyLabel = count switch
+        {
+            0 => "Inget matchar filtret",
+            1 => "Visa 1 tävling",
+            _ => $"Visa {count} tävlingar",
+        };
+    }
+
     [RelayCommand]
     private async Task Apply() => await _navigation.ReturnAsync(Build());
 
     [RelayCommand]
     private async Task Clear()
     {
-        SelectedLevel = 0;
-        SelectedDiscipline = 0;
-        SelectedDistance = 0;
-        SelectedPeriod = 0;
-        ShowTraining = false;
+        foreach (var group in Groups)
+            group.Reset();
 
-        foreach (var district in Districts)
-            district.IsSelected = false;
+        DistanceKm = MaxDistance;
+        ShowTraining = false;
         OnlyMyClass = false;
         OnlyRegisterable = false;
 
@@ -151,30 +233,13 @@ public partial class EventFilterSheetViewModel(INavigationService _navigation)
 
     private EventFilter Build() => new()
     {
-        Districts = Districts.Where(d => d.IsSelected).Select(d => d.Name).ToHashSet(),
-        Period = (EventPeriod)SelectedPeriod,
-        MinimumLevel = SelectedLevel switch
-        {
-            1 => CompetitionLevel.Championship,
-            2 => CompetitionLevel.National,
-            3 => CompetitionLevel.District,
-            _ => null,
-        },
-        Discipline = SelectedDiscipline switch
-        {
-            1 => Domain.Discipline.Sprint,
-            2 => Domain.Discipline.Middle,
-            3 => Domain.Discipline.Long,
-            4 => Domain.Discipline.Night,
-            _ => null,
-        },
-        MaxDistanceKm = SelectedDistance switch
-        {
-            1 => 25,
-            2 => 50,
-            3 => 100,
-            _ => null,
-        },
+        Districts = DistrictGroup.Selected.Select(o => (string)o.Value!).ToHashSet(),
+        Query = _query,
+        Period = PeriodGroup.Selected.Select(o => (EventPeriod)o.Value!).FirstOrDefault(),
+        Levels = LevelGroup.Selected.Select(o => (CompetitionLevel)o.Value!).ToHashSet(),
+        Disciplines = DisciplineGroup.Selected.Select(o => (Discipline)o.Value!).ToHashSet(),
+        Sports = SportGroup.Selected.Select(o => (Sport)o.Value!).ToHashSet(),
+        MaxDistanceKm = SelectedDistance,
         ShowTraining = ShowTraining,
         OnlyMyClass = OnlyMyClass,
         OnlyRegisterable = OnlyRegisterable,

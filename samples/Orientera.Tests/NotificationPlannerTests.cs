@@ -228,4 +228,24 @@ public class NotificationPlannerTests
 
         Assert.Equal(planned.OrderBy(n => n.At), planned);
     }
+
+    /// <summary>
+    /// "Dags att åka" is a time counted backwards from a journey. With no published arena the
+    /// journey was 6905 km of open ocean, and the alarm would have gone off three days early.
+    /// </summary>
+    [Fact]
+    public void No_time_to_leave_without_an_arena()
+    {
+        var start = Now.AddDays(5).AddHours(2);
+
+        var competition = Competition() with { Location = default };
+
+        var planned = NotificationPlanner.Plan(
+            Context(competition, entered: true, myStart: start));
+
+        Assert.DoesNotContain(planned, n => n.Kind == NotificationKind.TimeToLeave);
+
+        // The rest of the competition still notifies — only the journey is unknown.
+        Assert.Contains(planned, n => n.Kind == NotificationKind.LiveStarted);
+    }
 }

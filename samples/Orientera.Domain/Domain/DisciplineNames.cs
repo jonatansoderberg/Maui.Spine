@@ -24,14 +24,52 @@ public static class DisciplineNames
     {
         var text = name.ToLowerInvariant();
 
-        // Longest first: "ultralång" contains "lång", and indoor is a sprint that is not one.
-        if (text.Contains("indoor")) return Discipline.Indoor;
+        // Longest first: "ultralång" contains "lång".
         if (text.Contains("ultralång")) return Discipline.UltraLong;
         if (text.Contains("stafett")) return Discipline.Relay;
         if (text.Contains("natt")) return Discipline.Night;
         if (text.Contains("sprint")) return Discipline.Sprint;
         if (text.Contains("medel")) return Discipline.Middle;
         if (text.Contains("lång")) return Discipline.Long;
+
+        return null;
+    }
+}
+
+/// <summary>
+/// The sport a competition's own name states, for the calendar rows where the source does not.
+/// </summary>
+/// <remarks>
+/// Swedish organisers put the sport in the title whenever it is not foot orienteering, because
+/// their entrants need to know before they read anything else: "MTBO-träning Källviken",
+/// "Skid-O SM", "Hallsberg Indoor sprint". Foot races almost never say "OL" — the absence is the
+/// statement, which is why <see cref="In"/> answers null rather than <c>Foot</c> and leaves the
+/// default to the caller.
+/// </remarks>
+public static class SportNames
+{
+    public static Sport? In(string name)
+    {
+        var text = name.ToLowerInvariant();
+
+        if (text.Contains("indoor") || text.Contains("inomhus")) return Sport.Indoor;
+
+        // "mtb-o", "mtbo" and the full word. Not bare "mtb": a foot race across a bike trail
+        // centre is not mountain bike orienteering.
+        if (text.Contains("mtbo") || text.Contains("mtb-o") || text.Contains("mountainbike"))
+            return Sport.MountainBike;
+
+        if (text.Contains("skid-o") || text.Contains("skido") || text.Contains("skidorientering"))
+            return Sport.Ski;
+
+        if (text.Contains("prego") || text.Contains("pre-o") || text.Contains("preo")
+            || text.Contains("tempo-o") || text.Contains("trail-o"))
+        {
+            return Sport.PreO;
+        }
+
+        if (text.Contains("orienteringsskytte") || text.Contains("skytteorientering"))
+            return Sport.Shooting;
 
         return null;
     }

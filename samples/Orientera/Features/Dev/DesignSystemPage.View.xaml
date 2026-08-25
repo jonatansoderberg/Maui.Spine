@@ -62,6 +62,38 @@
                 </Border>
             </VerticalStackLayout>
 
+            <!-- ============ Mörk yta i båda temana ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="Live-kortets yta" />
+                <Border Style="{StaticResource Card}"
+                        BackgroundColor="{DynamicResource SurfaceLive}"
+                        Stroke="Transparent">
+                    <VerticalStackLayout Spacing="10">
+                        <Border Style="{StaticResource Badge}"
+                                BackgroundColor="{DynamicResource SignalOnDark}"
+                                HorizontalOptions="Start">
+                            <Label Style="{StaticResource BadgeLabel}"
+                                   TextColor="{DynamicResource TextOnSignalDark}"
+                                   Text="Live nu" />
+                        </Border>
+                        <Label Style="{StaticResource Heading1Label}"
+                               TextColor="{DynamicResource TextOnDark}"
+                               Text="TextOnDark — rubrik på mörk yta" />
+                        <Label Style="{StaticResource BodyLabel}"
+                               TextColor="{DynamicResource TextOnDarkMuted}"
+                               Text="TextOnDarkMuted — arrangör, distrikt, antal löpare" />
+                        <Button Text="SurfaceLiveAction + TextOnLiveAction"
+                                Style="{StaticResource PrimaryButton}"
+                                BackgroundColor="{DynamicResource SurfaceLiveAction}"
+                                TextColor="{DynamicResource TextOnLiveAction}" />
+                        <BoxView HeightRequest="24" CornerRadius="4" Color="{DynamicResource TopoInk}" />
+                        <Label Style="{StaticResource CaptionLabel}"
+                               TextColor="{DynamicResource TextOnDarkMuted}"
+                               Text="TopoInk — banmärket i bakgrunden, aldrig bärare av mening" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
             <!-- ============ Typografi ============ -->
             <VerticalStackLayout Spacing="8">
                 <Label Style="{StaticResource SectionLabel}" Text="Typografi" />
@@ -73,6 +105,27 @@
                         <Label Style="{StaticResource BodyLabel}" Text="Body 15 — Norrlandsmästerskapen, Hemlingby, Gävle" />
                         <Label Style="{StaticResource CaptionLabel}" Text="Caption 13 — arrangör och distrikt" />
                         <Label Style="{StaticResource SectionLabel}" Text="Micro 11 · sektionsetikett" />
+                        <Label Style="{StaticResource LinkActionLabel}" Text="Visa kalender ›" />
+                        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="20">
+                            <VerticalStackLayout Grid.Column="0">
+                                <Label Style="{StaticResource StatValueLabel}" Text="33" />
+                                <Label Style="{StaticResource StatCaptionLabel}" Text="Placering" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1">
+                                <Label Style="{StaticResource StatValueLabel}" Text="1:12:48" />
+                                <Label Style="{StaticResource StatCaptionLabel}" Text="Tid" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Hjälten sätts på sin egen mörka yta: stilarna är vita och syns inte på kort. -->
+                <Border Style="{StaticResource Card}"
+                        BackgroundColor="{DynamicResource SurfaceLive}"
+                        Stroke="Transparent">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Style="{StaticResource HeroGreetingLabel}" Text="Hej Jonatan" />
+                        <Label Style="{StaticResource HeroMetaLabel}" Text="måndag 24 augusti" />
                     </VerticalStackLayout>
                 </Border>
             </VerticalStackLayout>

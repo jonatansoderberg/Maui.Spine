@@ -21,7 +21,7 @@
     "Orientera.Features.Events")]
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
-    "Orientera.Features.Live")]
+    "Orientera.Features.Events.Participants")]
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "Orientera.Features.Results")]
