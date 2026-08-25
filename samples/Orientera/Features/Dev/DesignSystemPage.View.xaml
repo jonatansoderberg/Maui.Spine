@@ -324,6 +324,69 @@
             </VerticalStackLayout>
 
 
+            <!-- ============ Komponenter (etapp 2, riktning 04) ============ -->
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="SectionHeader" />
+                <SectionHeader Title="Nästa för dig"
+                               ActionText="Visa kalender"
+                               Command="{Binding ToggleThemeCommand}" />
+                <SectionHeader Title="Utveckling" />
+                <Label Style="{StaticResource CaptionLabel}"
+                       Text="Rubriken utanför kortet, med vägen till resten bredvid. Utan handling blir raden bara rubrik." />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="StatRow" />
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <StatRow Stats="{Binding Stats}" />
+                        <BoxView Style="{StaticResource Divider}" />
+                        <StatRow Stats="{Binding TwoStats}" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Style="{StaticResource SectionLabel}" Text="AvatarStack och CourseMark" />
+                <Border Style="{StaticResource Card}"
+                        BackgroundColor="{DynamicResource SurfaceLive}"
+                        Stroke="Transparent">
+                    <Grid>
+                        <!-- Banmärket ligger under texten, i kortets eget hörn. -->
+                        <CourseMark Size="150"
+                                    HorizontalOptions="End"
+                                    VerticalOptions="Start"
+                                    Margin="0,-8,-24,0" />
+
+                        <VerticalStackLayout Spacing="12">
+                            <Label Style="{StaticResource Heading1Label}"
+                                   TextColor="{DynamicResource TextOnDark}"
+                                   Text="Trimtex Cup #4" />
+                            <AvatarStack Faces="{Binding Faces}"
+                                         Total="28"
+                                         RingColor="{DynamicResource SurfaceLive}"
+                                         Description="Fyra du följer och 24 till i fältet" />
+                            <Label Style="{StaticResource CaptionLabel}"
+                                   TextColor="{DynamicResource TextOnDarkMuted}"
+                                   Text="Ringen är kortets egen yta som lyser igenom — utan den läses cirklarna som en form." />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <VerticalStackLayout Spacing="10">
+                        <AvatarStack Faces="{Binding Faces}"
+                                     Total="4"
+                                     Size="28"
+                                     RingColor="{DynamicResource SurfaceCard}"
+                                     Description="Fyra personer du följer" />
+                        <Label Style="{StaticResource CaptionLabel}"
+                               Text="Samma stack på kortets yta, utan överskott: ringen följer ytan, inte komponenten." />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
+
+
             <!-- Tabbaren flyter ovanpå innehållet, så sidan betalar för dess höjd själv. -->
             <BoxView HeightRequest="{StaticResource ListBottomSpacer}"
                      Margin="{Binding SafeAreaInsets}"
