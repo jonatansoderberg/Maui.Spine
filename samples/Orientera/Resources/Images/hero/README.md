@@ -8,8 +8,8 @@ räknebart precis som `SignalUrgent`: exakt en bundlad icke-terrängbild, på ex
 annars gäller P7 oförändrad, och `HeroImage` slår upp terräng på disciplin med kartrutan som
 fallback.
 
-Bilden påstår aldrig att den är någonstans. Den har ingen text, ingen arena och ingen löpare som
-går att känna igen.
+Bilden påstår aldrig att den är någonstans. Den har ingen arena och ingen löpare som går att känna
+igen — ryggtavla i motljus, inget ansikte.
 
 ## Filen
 
@@ -19,27 +19,30 @@ hero_home.jpg
 
 Namnet är fast och slås inte upp — det finns en hjälte på Hem och den byter inte med något.
 
-## Provisorisk
-
-`hero_home.jpg` är i dag **inte ett fotografi**. Den är stiliserade lager genererade av
-[`generate-placeholder.py`](generate-placeholder.py) — deterministiskt, så samma kommando ger
-samma fil:
-
-```
-python3 generate-placeholder.py
-```
-
-Att den uppenbart inte är ett fotografi är en fördel så länge den ligger kvar: ingen kan missta
-den för en plats. D12 gäller fortfarande — den ska bytas mot en kurerad bild.
-
 ## Kontrastkravet
 
-Hälsningen står i vitt ovanpå bilden. Det är **gradienten** som gör texten läsbar, inte bilden:
-uppmätt mot bildens ljusaste pixel under textytan ger bilden ensam 2.25:1, och med `HeroScrim`
-över sig 6.4:1.
+Hälsningen står i vitt ovanpå bilden. Det är **gradienten** som gör texten läsbar, inte bilden.
+
+Mätningen görs mot den ljusaste pixeln **inom varje textrads egen bredd** — inte inom en generös
+ruta runt den, vilket mäter sådant texten aldrig ligger på. Med den här bilden ger en rak toning
+3.84:1 på väderraden, som är den svagaste; ett mjukt andra stopp vid 40 % (`HeroScrimSoft`) lyfter
+den till 5.69:1. Att i stället hålla `HeroScrim` genom hela textbandet hade gett 9.38:1 och en bild
+man inte ser.
 
 Kravet gäller bilden som byter in också. Klarar en bild inte 4.5:1 mot vitt under texten, med
 gradienten inräknad, byts **bilden** — aldrig texten.
+
+## Uttoningen i underkanten
+
+Originalet kom med en uttoning mot vitt, så att bilden skulle lösas upp i sidans yta i stället för
+att kapas. Rätt tanke, fel plats: en **vit** uttoning är rätt i exakt ett av två teman, och i mörkt
+läge hade den lyst som ett band längs kanten.
+
+Den bakade uttoningen är därför bortbeskuren — bilden är klippt till 1254×990, ovanför den — och
+uttoningen ritas i stället i `HomeHero`, mot `SurfacePage`. Då går den mot det som faktiskt ligger
+under bilden, vilket tema den än råkar visas i.
+
+En bild som byter in behöver alltså ingen egen uttoning. Har den en bör den beskäras bort.
 
 ## Licens
 

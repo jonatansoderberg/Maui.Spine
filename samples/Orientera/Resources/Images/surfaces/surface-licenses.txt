@@ -1,0 +1,24 @@
+Ytbilder — källa och licens
+===========================
+
+En rad per bild. Ingen bild läggs i katalogen utan sin rad här.
+
+Format:
+  <filnamn>
+      Källa:      <URL eller arkiv>
+      Upphov:     <upphovsperson>
+      Licens:     <licens och version>
+      Hämtad:     <datum>
+      Ändringar:  <beskärning, komprimering, inget>
+
+----------------------------------------------------------------------
+
+  surface_live.jpg
+      Källa:      genererad med ChatGPT, levererad av projektägaren
+      Upphov:     syntetisk bild, ingen upphovsperson
+      Licens:     projektägarens, ingen tredjepartsrätt gör anspråk
+      Hämtad:     2026-08-25
+      Ändringar:  skalad till 1100x1100, sparad som JPEG kvalitet 92
+
+      Ett höjdkurvemönster utan förlaga. Den avbildar ingen verklig karta
+      och inget verkligt område.

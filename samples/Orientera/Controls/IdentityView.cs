@@ -46,16 +46,24 @@ public sealed class IdentityView : ContentView
     private readonly Border _frame = new();
     private readonly RoundRectangle _corners = new();
     private readonly Image _image = new() { Aspect = Aspect.AspectFill };
+    /// <summary>
+    /// Initialerna i plattan. Rubrikfonten, samma skärning som sidornas och arkens rubriker —
+    /// två versaler i en cirkel är ett märke och inte en text, vilket är vad den skärningen är
+    /// ritad för. Textjusteringen står bredvid layoutjusteringen: den ena centrerar etiketten i
+    /// plattan, den andra raden inuti etiketten, och utan båda hamnar bokstäverna för högt.
+    /// </summary>
     private readonly Label _initials = new()
     {
         HorizontalOptions = LayoutOptions.Center,
         VerticalOptions = LayoutOptions.Center,
+        HorizontalTextAlignment = TextAlignment.Center,
+        VerticalTextAlignment = TextAlignment.Center,
     };
 
     public IdentityView()
     {
         _initials.SetDynamicResource(Label.TextColorProperty, "AccentAction");
-        _initials.SetDynamicResource(Label.FontFamilyProperty, "FontSemiBold");
+        _initials.SetDynamicResource(Label.FontFamilyProperty, "FontHeader");
 
         // The identity is decoration on a row that already reads its own name aloud; announcing it
         // separately turns one row into two swipes.

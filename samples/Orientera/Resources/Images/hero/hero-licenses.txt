@@ -14,12 +14,15 @@ Format:
 ----------------------------------------------------------------------
 
   hero_home.jpg
-      Källa:      genererad i projektet, generate-placeholder.py
-      Upphov:     —
-      Licens:     —
+      Källa:      genererad med ChatGPT, levererad av projektägaren
+      Upphov:     syntetisk bild, ingen fotograf
+      Licens:     projektägarens, ingen tredjepartsrätt gör anspråk
       Hämtad:     2026-08-25
-      Ändringar:  —
+      Ändringar:  beskuren till 1254x990 (den genomskinliga uttoningen i
+                  underkanten bortklippt), sparad som JPEG kvalitet 88
 
-      PROVISORISK. Inget fotografi, inga tredjepartsrättigheter. Ersätts av
-      en kurerad bild enligt beslut D12; då byts den här raden mot källa,
-      upphov och licens för den bilden.
+      ATT NOTERA FÖRE PUBLICERING: löparens tröja bär texten "Gävle
+      orienteringsklubb" och ett klubbmärke. Klubben finns på riktigt och
+      har inte medverkat till bilden. Det är en syntetisk person i en
+      verklig förenings dräkt, och innan appen släpps bör klubben antingen
+      ha sagt ja eller märket och namnet retuscheras bort.

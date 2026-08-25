@@ -55,6 +55,17 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
   mallarna bär sin egen sidmarginal i stället.
 - **`HomePage.cs`** — flikattributets `SafeAreaEdges` tillbaka till standard, se nedan.
 
+### Efterjustering — riktiga bilder ✅
+
+- **`Resources/Images/hero/hero_home.jpg`** — den genererade platshållaren ersatt av projektägarens
+  bild. Generatorn borttagen; README och licensfil omskrivna.
+- **`Resources/Images/surfaces/surface_live.jpg`** — live-kortets yta är en höjdkurvebild i stället
+  för en enfärgad platta. Egen katalog med README och licensfil, som terräng och hjälte.
+- **`HeroScrimSoft`** — nytt token i båda temana, gradientens andra stopp.
+- **`Features/Home/HomeHero.cs`** — uttoning mot `SurfacePage` i underkanten.
+- **`Resources/Styles/Components.xaml`**, **`Controls/IdentityView.cs`**, **`Controls/AvatarStack.cs`**
+  — badgetexten och initialerna i rubrikfonten, centrerade.
+
 ## Decisions
 
 - **Offline är sidans fel-läge, inte ett femte.** P10:s fel-läge kräver vad som gick fel, vad som
@@ -93,6 +104,28 @@ Bilden ska gå ned till knappt halva skärmen och första kortet ska överlappa 
 
 - **Höjden är 46 % av skärmen och inte ett punktmått.** "Knappt halva skärmen" är ett förhållande:
   fyrahundra punkter är nästan hela en iPhone SE och en tredjedel av en iPad.
+
+- **Bilden mäts mot textens egen bredd, inte mot en ruta runt den.** Första mätningen tog en ruta
+  dubbelt så bred som texten, fick träff på solen i bilden och sa 1.0:1 — vilket hade motiverat en
+  nedtoning som gjort fotot till en yta. Mot radernas verkliga bredd är svaret 3.84:1 på den
+  svagaste raden, och ett mjukt andra stopp i gradienten räcker: 5.69:1.
+
+- **Uttoningen i underkanten ritas, den är inte inbakad.** Originalbilden kom med en uttoning mot
+  vitt, vilket är rätt i exakt ett av två teman. Den är bortbeskuren, och `HomeHero` tonar mot
+  `SurfacePage` i stället — mot det som faktiskt ligger under bilden.
+
+- **Ytbilden får inte bestämma kortets storlek.** Mätt på sin egen storlek — elvahundra punkter —
+  växte live-kortet till en skärmhög grön platta. `HeightRequest="1"` med `VerticalOptions="Fill"`
+  gör att den bidrar med ingenting i mätningen och fyller ytan i arrangemanget.
+
+- **`CourseMark` togs bort från live-kortet.** Höjdkurvorna i ytbilden säger samma sak, och två
+  kartmotiv på ett kort är ett för mycket. Komponenten finns kvar och visas på designsystemsidan,
+  men har därmed ingen sida som använder den.
+
+- **Badgetexten och initialerna bär rubrikfonten.** Två versaler i en cirkel och ett ord i ett
+  piller är märken, inte text — vilket är vad Brandon Grotesque är ritad för. Textjusteringen står
+  bredvid layoutjusteringen: den ena centrerar etiketten i plattan, den andra raden inuti
+  etiketten, och utan båda hamnar bokstäverna för högt.
 
 - **Skelettet ritar två block, inte fyra.** Hem visar högst fyra, men med hjälten på halva skärmen
   ligger redan det tredje under kanten — ett skelett för något som ändå inte syns är en rad kod som

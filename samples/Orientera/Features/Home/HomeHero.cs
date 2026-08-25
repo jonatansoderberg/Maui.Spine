@@ -18,9 +18,10 @@ namespace Orientera.Features.Home;
 /// texten kommer — undviks av att höjden är satt och känd innan något bundits.
 /// </para>
 /// <para>
-/// Det är gradienten och inte bilden som gör vit text läsbar. Mätt mot bildens ljusaste pixel
-/// under textytan: 2.25:1 utan den, 6.4:1 med. Klarar en bild inte kravet byts bilden, aldrig
-/// texten.
+/// Det är gradienten och inte bilden som gör vit text läsbar. Mätt mot den ljusaste pixeln inom
+/// varje textrads egen bredd — inte inom en generös ruta runt den, vilket mäter sådant texten
+/// aldrig ligger på: 3.84:1 på den svagaste raden utan det mjuka stoppet, 5.69:1 med. Klarar en
+/// bild inte kravet ens med nedtoningen byts bilden, aldrig texten.
 /// </para>
 /// </remarks>
 public sealed class HomeHero : ContentView
@@ -37,15 +38,31 @@ public sealed class HomeHero : ContentView
 
         AutomationProperties.SetIsInAccessibleTree(image, false);
 
-        Content = new Grid { Children = { image, Scrim(), Text() } };
+        Content = new Grid { Children = { image, Scrim(), Fade(), Text() } };
 
         SetBinding(HeightRequestProperty, new Binding(nameof(HomePageViewModel.HeroHeight)));
     }
 
+    /// <summary>
+    /// Nedtoningen som gör vit text läsbar.
+    /// </summary>
+    /// <remarks>
+    /// Tre stopp och inte två. En rak toning från toppen är som svagast just där väderraden står,
+    /// och där mäter bilden en solbelyst prick som ger 3.84:1 — under kravet. Ett andra stopp vid
+    /// 40 % lyfter raden till 5.69:1.
+    /// <para>
+    /// Stoppet är mjukt och inte fullt: att hålla <c>HeroScrim</c> hela vägen genom textbandet
+    /// hade gett 9.38:1 och en bild man inte ser. Nedtoningen ska göra texten läsbar, inte göra
+    /// fotografiet till en yta.
+    /// </para>
+    /// </remarks>
     private static Border Scrim()
     {
         var top = new GradientStop { Offset = 0 };
         top.SetDynamicResource(GradientStop.ColorProperty, "HeroScrim");
+
+        var soft = new GradientStop { Offset = 0.40f };
+        soft.SetDynamicResource(GradientStop.ColorProperty, "HeroScrimSoft");
 
         return new Border
         {
@@ -58,7 +75,43 @@ public sealed class HomeHero : ContentView
                 GradientStops =
                 [
                     top,
+                    soft,
                     new GradientStop { Color = Colors.Transparent, Offset = 1 },
+                ],
+            },
+        };
+    }
+
+    /// <summary>
+    /// Uttoningen i underkanten, som löser upp fotot i sidans yta i stället för att kapa det.
+    /// </summary>
+    /// <remarks>
+    /// Ritad och inte inbakad i bilden. Originalet kom med en uttoning mot vitt, och en vit
+    /// uttoning är rätt i exakt ett av två teman — i mörkt läge hade den lyst som ett band längs
+    /// kanten. Den bakade uttoningen är därför bortbeskuren, och den här toningen går mot
+    /// <c>SurfacePage</c>, vilket är vad som faktiskt ligger under bilden i båda temana.
+    /// <para>
+    /// Det som syns av den är de sexton punkterna på var sida om första kortet, och kanten under
+    /// det. Det är precis där bilden annars slutar tvärt.
+    /// </para>
+    /// </remarks>
+    private static Border Fade()
+    {
+        var bottom = new GradientStop { Offset = 1 };
+        bottom.SetDynamicResource(GradientStop.ColorProperty, "SurfacePage");
+
+        return new Border
+        {
+            StrokeThickness = 0,
+            InputTransparent = true,
+            Background = new LinearGradientBrush
+            {
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(0, 1),
+                GradientStops =
+                [
+                    new GradientStop { Color = Colors.Transparent, Offset = 0.62f },
+                    bottom,
                 ],
             },
         };

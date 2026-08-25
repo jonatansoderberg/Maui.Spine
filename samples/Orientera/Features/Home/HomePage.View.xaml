@@ -13,17 +13,29 @@
             yta: distansernas nyanser är valda mot kort och sida.
         -->
         <DataTemplate x:Key="LiveNowTemplate" x:DataType="LiveNowBlock">
+            <!--
+                Ytan är en bild och inte bara en färg. Padding noll på ramen, så att kartbilden går
+                ut i kanterna; innehållet bär kortets padding själv i stället. SurfaceLive ligger
+                kvar under bilden — den är ytans färg medan bilden laddas, och den ringen
+                avatarerna står i.
+            -->
             <Border Style="{StaticResource Card}"
                     Margin="16,0"
+                    Padding="0"
                     BackgroundColor="{DynamicResource SurfaceLive}"
                     Stroke="Transparent">
                 <Grid>
-                    <!-- Banan i bakgrunden: samma vokabulär som märket i raden, i kortformat. -->
-                    <CourseMark Size="180"
-                                HorizontalOptions="End" VerticalOptions="Start"
-                                Margin="0,-14,-52,0" />
+                    <!--
+                        HeightRequest 1 och Fill: bilden ska täcka kortets yta, inte bestämma
+                        den. Utan det mäts den på sin egen storlek — elvahundra punkter — och
+                        kortet växte till en skärmhög grön platta.
+                    -->
+                    <Image Source="surface_live.jpg" Aspect="AspectFill"
+                           HeightRequest="1" WidthRequest="1"
+                           VerticalOptions="Fill" HorizontalOptions="Fill"
+                           AutomationProperties.IsInAccessibleTree="False" />
 
-                    <VerticalStackLayout Spacing="10">
+                    <VerticalStackLayout Padding="{StaticResource CardPadding}" Spacing="10">
                         <Border Style="{StaticResource Badge}"
                                 BackgroundColor="{DynamicResource SignalOnDark}"
                                 HorizontalOptions="Start">

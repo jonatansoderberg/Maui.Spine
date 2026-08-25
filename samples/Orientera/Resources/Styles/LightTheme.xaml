@@ -49,6 +49,13 @@
 
     <!-- Ytor som konceptet kräver: hero-gradient, skelettrader, avatarplats -->
     <Color x:Key="HeroScrim">#B3000000</Color>
+    <!--
+        Gradientens andra stopp över hjältebilden. En rak toning från toppen är som svagast just
+        där väderraden står, och den raden mätte 3.84:1 mot ett solbelyst prick i bilden. Med det
+        här stoppet på 40 % blir den 5.69:1, och fotot mörknar knappt — att i stället hålla
+        HeroScrim hela vägen hade gett 9.38 och en bild man inte ser.
+    -->
+    <Color x:Key="HeroScrimSoft">#8C000000</Color>
     <Color x:Key="SkeletonBase">#ECECE8</Color>
     <Color x:Key="AvatarBackground">#E6EDE9</Color>
 

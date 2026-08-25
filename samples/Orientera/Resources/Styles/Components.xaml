@@ -160,9 +160,13 @@
         10,0 pt luft ovanför texten mot 3,3 pt under, i en badge som blivit 24 pt hög av en
         padding på 3. Centrerad etikett med centrerad text ger 3,0 mot 3,3 i en badge på 17 pt,
         vilket är den storlek paddingen beskriver.
+
+        Rubrikfonten, samma skärning som sidornas och arkens rubriker bär. En badge är en etikett
+        i versaler, vilket är precis vad Brandon Grotesque är ritad för — och den binder ihop
+        märket med rubrikraden i stället för att låta det låna brödtextens snitt.
     -->
     <Style x:Key="BadgeLabel" TargetType="Label">
-        <Setter Property="FontFamily" Value="{StaticResource FontMedium}" />
+        <Setter Property="FontFamily" Value="{StaticResource FontHeader}" />
         <Setter Property="FontSize" Value="{StaticResource SizeMicro}" />
         <Setter Property="TextColor" Value="{DynamicResource TextPrimary}" />
         <Setter Property="TextTransform" Value="Uppercase" />
