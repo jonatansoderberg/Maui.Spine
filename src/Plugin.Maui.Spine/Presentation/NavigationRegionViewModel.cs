@@ -41,6 +41,20 @@ internal partial class NavigationRegionViewModel : ObservableObject
     [ObservableProperty]
     public partial NavigationPresentation Presentation { get; set; } = NavigationPresentation.RegionPresentation;
 
+    /// <summary>
+    /// How far the leading action reaches in from the left edge of the header bar, measured after
+    /// layout, or 0 when there is no leading action. The title keeps this space free.
+    /// </summary>
+    [ObservableProperty]
+    public partial double PrimaryActionSlot { get; set; }
+
+    /// <summary>
+    /// How far the trailing action reaches in from the right edge of the header bar, measured
+    /// after layout, or 0 when there is no trailing action.
+    /// </summary>
+    [ObservableProperty]
+    public partial double SecondaryActionSlot { get; set; }
+
     PageAction? GetExplicitAction(PageActionPlacement placement)
     {
         var vm = CurrentRegionViewModel;

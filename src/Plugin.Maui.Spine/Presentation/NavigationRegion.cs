@@ -98,6 +98,15 @@ public sealed class NavigationRegion : ContentView
         _frameActionView.SetBinding(HeaderBar.PrimaryPageActionProperty, new Binding(nameof(NavigationRegionViewModel.PrimaryPageAction), source: viewModel));
         _frameActionView.SetBinding(HeaderBar.DefaultPageActionProperty, new Binding(nameof(NavigationRegionViewModel.SecondaryPageAction), source: viewModel));
 
+        // The header bar is the only thing that knows how wide its actions ended up. The title
+        // lives in the page content, one visual tree away, so the measurement is routed through
+        // the region view model that both of them already share.
+        _frameActionView.ActionSlotsChanged += () =>
+        {
+            viewModel.PrimaryActionSlot = _frameActionView.PrimaryActionSlot;
+            viewModel.SecondaryActionSlot = _frameActionView.SecondaryActionSlot;
+        };
+
         _container.Children.Add(_frameActionView);
 
         _originalFrontBackground = _contentHostFront.BackgroundColor;
@@ -204,9 +213,19 @@ public sealed class NavigationRegion : ContentView
     internal void ApplySafeAreaPadding(ContentView host, SpineSafeArea safeAreaEdges)
     {
         var insets = _insetsProvider.SystemBarInsets;
+
+        // A sheet starts below its own drag handle, not at the card's edge. Android gets this
+        // from the handle wrapper that sits above the MAUI content; on iOS nothing does it, so
+        // the same offset the header bar gets has to reach the content too — otherwise the title
+        // (page content) and the actions (header overlay) sit on different rows. Not a safe-area
+        // edge, so it applies even when the page excludes Top.
+        var sheetTop = ViewModel.Presentation is NavigationPresentation.Sheet
+            ? HeaderBarConstants.SheetTopPadding
+            : 0;
+
         host.Padding = new Thickness(
             (safeAreaEdges & SpineSafeArea.Left)   != 0 ? insets.Left   : 0,
-            (safeAreaEdges & SpineSafeArea.Top)    != 0 ? insets.Top    : 0,
+            ((safeAreaEdges & SpineSafeArea.Top)   != 0 ? insets.Top    : 0) + sheetTop,
             (safeAreaEdges & SpineSafeArea.Right)  != 0 ? insets.Right  : 0,
             (safeAreaEdges & SpineSafeArea.Bottom) != 0 ? insets.Bottom : 0);
     }

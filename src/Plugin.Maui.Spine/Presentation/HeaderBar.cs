@@ -42,6 +42,20 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
     readonly PageActionView _primaryPageActionView;
     readonly PageActionView _secondaryPageActionView;
 
+    /// <summary>
+    /// Raised when <see cref="PrimaryActionSlot"/> or <see cref="SecondaryActionSlot"/> changes.
+    /// </summary>
+    public event Action? ActionSlotsChanged;
+
+    /// <summary>
+    /// How far the leading action reaches in from the left edge of the bar, or 0 when it is
+    /// hidden. Measured after layout so a text action reports the width it actually took.
+    /// </summary>
+    public double PrimaryActionSlot { get; private set; }
+
+    /// <summary>How far the trailing action reaches in from the right edge of the bar, or 0.</summary>
+    public double SecondaryActionSlot { get; private set; }
+
     public bool IsBackButtonVisible
     {
         get => (bool)GetValue(IsBackButtonVisibleProperty);
@@ -189,6 +203,42 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
         _ = AnimateVisibility(_secondaryPageActionView, shouldShow);
     }
 
+    /// <summary>
+    /// Publishes how much room each action takes, so the page title can keep exactly that much
+    /// free — no more, and no less for a text action that is wider than an icon.
+    /// </summary>
+    void PublishActionSlots()
+    {
+        var primary = SlotFor(_primaryPageActionView, leading: true);
+        var secondary = SlotFor(_secondaryPageActionView, leading: false);
+
+        if (primary.Equals(PrimaryActionSlot) && secondary.Equals(SecondaryActionSlot))
+            return;
+
+        PrimaryActionSlot = primary;
+        SecondaryActionSlot = secondary;
+
+        ActionSlotsChanged?.Invoke();
+    }
+
+    double SlotFor(PageActionView view, bool leading)
+    {
+        if (!view.IsVisible)
+            return 0;
+
+        // The arranged frame is the honest answer: it already carries the side margin, the
+        // button's own padding and — for a text action — the width the text actually needed.
+        var bounds = view.Bounds;
+        if (bounds.Width > 0 && Width > 0)
+            return Math.Max(0, leading ? bounds.Right : Width - bounds.Left);
+
+        // Before the first layout there is no frame yet. An icon action has a known width, so
+        // seed with that rather than let the title start full-width and jump on the next pass.
+        return Presentation is NavigationPresentation.Sheet
+            ? HeaderBarConstants.SheetSideMargin + HeaderBarConstants.SheetButtonWidth
+            : HeaderBarConstants.RegionSideMargin + HeaderBarConstants.RegionButtonWidth;
+    }
+
     void UpdateActionWidth(PageActionView pageActionView)
     {
         pageActionView.WidthRequest = string.IsNullOrEmpty(pageActionView?.Action?.Svg)
@@ -230,8 +280,10 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
             ? new Thickness(HeaderBarConstants.SheetButtonPadding)
             : new Thickness(HeaderBarConstants.RegionButtonPadding);
 
-        var actionTopMargin = Presentation is NavigationPresentation.Sheet ? HeaderBarConstants.SheetTopPadding : 0;
-        _primaryPageActionView.Margin = new Thickness(HeaderBarConstants.SheetButtonPadding, actionTopMargin, -HeaderBarConstants.SheetButtonPadding, 0);
+        // No top margin here: NavigationRegion already offsets the whole header bar by
+        // SheetTopPadding. Adding it a second time on each action pushed the buttons a full
+        // row below the title, which lives in the page content and never got the offset.
+        _primaryPageActionView.Margin = new Thickness(HeaderBarConstants.SheetButtonPadding, 0, -HeaderBarConstants.SheetButtonPadding, 0);
 
         _secondaryPageActionView.HeightRequest = HeaderBarConstants.Height;
 
@@ -239,7 +291,7 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
             ? new Thickness(HeaderBarConstants.SheetButtonPadding)
             : new Thickness(HeaderBarConstants.RegionButtonPadding);
 
-        _secondaryPageActionView.Margin = new Thickness(HeaderBarConstants.SheetButtonPadding, actionTopMargin, -HeaderBarConstants.SheetButtonPadding, 0);
+        _secondaryPageActionView.Margin = new Thickness(HeaderBarConstants.SheetButtonPadding, 0, -HeaderBarConstants.SheetButtonPadding, 0);
 
 
         UpdateSecondaryActionVisibility();
@@ -361,6 +413,10 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
 
         Content = buttonGrid;
 
+        _primaryPageActionView.SizeChanged += (_, _) => PublishActionSlots();
+        _secondaryPageActionView.SizeChanged += (_, _) => PublishActionSlots();
+        SizeChanged += (_, _) => PublishActionSlots();
+
         UpdatePresentationSizes();
     }
 
@@ -372,12 +428,14 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
         if (show)
         {
             target.IsVisible = true;
+            PublishActionSlots();
             await target.FadeToAsync(1, HeaderBarConstants.FadeInDuration, Easing.SinIn);
         }
         else
         {
             await target.FadeToAsync(0, HeaderBarConstants.FadeOutDuration, Easing.SinOut);
             target.IsVisible = false;
+            PublishActionSlots();
         }
     }
 }
