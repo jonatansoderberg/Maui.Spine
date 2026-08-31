@@ -81,6 +81,7 @@ internal sealed class PagePresenter : Grid
         };
 
         _titleLabel.HandlerChanged += (_, _) => ApplyResources();
+        _titleLabel.SizeChanged += (_, _) => ApplyTitleCapOffset();
 
         // Keep the colour in sync when the user switches light/dark theme at runtime.
         if (Application.Current is { } app)
@@ -103,6 +104,23 @@ internal sealed class PagePresenter : Grid
         // dark mode when the label lives inside a BottomSheetDialog on Android.
         // A direct SetValue always wins over the style and uses the real platform theme.
         ApplyTitleTextColor();
+
+        ApplyTitleCapOffset();
+    }
+
+    /// <summary>
+    /// Centres the title's capitals on the row rather than its line box, so it lines up with the
+    /// action beside it. Applied as a translation because it is a rendering correction, not a
+    /// layout one — the label keeps the whole row and only its glyphs move.
+    /// </summary>
+    private void ApplyTitleCapOffset()
+    {
+        if (_titleLabel is null)
+            return;
+
+        var offset = TitleCapOffset.For(_titleLabel);
+        if (!_titleLabel.TranslationY.Equals(offset))
+            _titleLabel.TranslationY = offset;
     }
 
 
