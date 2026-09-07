@@ -42,6 +42,15 @@ public readonly record struct WidgetColor
         return new WidgetColor(value.ToUpperInvariant());
     }
 
+    /// <summary>
+    /// A fixed color from a <see cref="System.Drawing.Color"/>. The BCL type, so a server that
+    /// builds trees without MAUI has a color input other than <see cref="FromHex"/>. There is no
+    /// conversion between this and MAUI's <c>Color</c>; the app-side overload lives in
+    /// <c>Plugin.Maui.Spine.Widgets</c>.
+    /// </summary>
+    public static WidgetColor From(System.Drawing.Color color) =>
+        FromHex($"#{color.R:X2}{color.G:X2}{color.B:X2}");
+
     /// <inheritdoc />
     public override string ToString() => Value;
 }
