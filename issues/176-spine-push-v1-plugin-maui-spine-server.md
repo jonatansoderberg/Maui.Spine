@@ -90,9 +90,23 @@ Inga öppna. Avgjorda 2026-09-08:
 - `AddSpinePush(o => …)` registrerar options och registret som singletons.
 - 20 nya tester: registrets sex operationer, utgång mot en `FakeTimeProvider`, plattformsfiltret, och att en felkonfigurerad server avvisas med ett meddelande som pekar ut vad som fattas.
 
+### Steg 3 — IPushSender och payloadbyggarna
+
+- `PushTarget` med `Tags`, `Installation`, `User` och `All`. `User(id)` är taggen `user:<id>`; `Installation` är ett eget fall i stället för ANH:s `$InstallationId:`-tagg, så registret kan slå upp direkt.
+- `PushNotification`, `PushAlert`, `PushPriority`, `PushInterruption`, `LiveActivityEvent`, `LiveActivityOptions`.
+- `PushResult` med en `PushDelivery` per installation och räknare för `Sent`, `Invalid`, `Throttled`, `Failed`.
+- `IPushTransport` och `PushEnvelope` — sömmen som gör att ANH eller OneSignal kan läggas till senare.
+- `ApnsPayload` och `FcmMessage` som muterbara byggare, nåbara från `PushNotification.Apple` och `.Android`.
+- `PushPayloads` med alert, tyst, Live Activity och widgetuppdatering per plattform, plus en storleksvakt mot APNs 4 KB.
+- `PushSender` som löser upp målet mot registret, grupperar på plattform, bygger en payload per plattform och tar bort de registreringar en transport rapporterar döda.
+- 33 nya tester, 80 totalt. Bland dem att båda plattformarna bär samma `spine.*`-nycklar, att Live Activity-kuvertet får rätt topic, event och `stale-date`, och att Orienteras verkliga layout ryms med marginal.
+
 ## Decisions
 
 - **Kompakt JSON-form för `LiveActivityLayout` behövs inte i v1.** Issuets tredje fråga skulle avgöras när Orienteras layout mätts mot 4 KB. Mätt: `MyStartActivity.Layout` med verkliga strängar ger **1225 byte** `content-state`, och **1315 byte** för hela APNs-payloaden inklusive `timestamp`, `event` och `stale-date`. Det är 32 % av taket, med 2781 byte kvar — layouten skulle behöva tredubblas för att slå i det. Ingen `Patch`-form och inga korta nyckelnamn i v1; storleksvakten i steg 3 fångar det den dag en layout växer sig för stor.
+- **`PushKeys` fick tre nycklar till: `spine.title`, `spine.body` och `spine.collapse`.** Issuet räknar upp sex, men Android skickas data-only enligt §5.2 — paketet ritar notisen själv så att förgrund och bakgrund beter sig lika och Spine väljer kanalen. Då måste titel, text och collapse-id resa som data, annars kan `PushMessage` inte fyllas i på Android. `Kinds` fick av samma skäl `alert` och `silent`, som §5.2:s `PushKind` räknar upp.
+- **`RefreshWidgetsAsync` är en tyst push på iOS, inte pushtypen `widgets`.** Den senare kräver att widget-extensionet byggs mot iOS 26-SDK:n som `pushHandler`, vilket §6.2 lägger i v2. Tills dess väcker en tyst push appen som bygger om widgetarna — best effort, precis som §6.2 beskriver.
+- **Storleksvakten kastar i stället för att varna.** En för stor payload ger annars en 413 från APNs långt från orsaken. `PushPayloads` mäter den byggda payloaden och kastar med byteantalet och gränsen i meddelandet. Ett test håller dessutom Orienteras layout under halva budgeten, så att marginalen inte tyst äts upp.
 - **`InternalsVisibleTo` till testprojektet.** `SpinePushOptions.FilterTags` är det endpointsen anropar, inte något konsumenter rör, men regeln är värd att testa direkt i stället för genom HTTP. `Orientera.Backend` gör redan samma sak för sin startlisteläsare, så mönstret finns i repot. Det här är inte samma sak som beslutet i #175, som gällde publik yta i `Common`.
 - **Registret utelämnar utgångna installationer i `QueryAsync`, men tar inte bort dem.** Borttagningen är `PruneAsync` sak, som körs när backenden vill. En utgången registrering får alltså aldrig en push, men den ligger kvar tills någon städar — annars hade en läsning haft en sidoeffekt.
 - **Taggar jämförs ordinalt.** `user:ABC` och `user:abc` är olika taggar. Alternativet, att jämföra utan skiftlägeshänsyn, döljer att en tagg är en ogenomskinlig sträng som klienten och servern måste komma överens om tecken för tecken. Testat.

@@ -24,6 +24,11 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton(options);
         services.AddSingleton(sp => options.StoreFactory!(sp));
+        services.AddSingleton<IPushSender>(sp => new PushSender(
+            sp.GetRequiredService<IPushInstallationStore>(),
+            sp.GetServices<IPushTransport>(),
+            options,
+            sp.GetService<TimeProvider>()));
 
         return services;
     }

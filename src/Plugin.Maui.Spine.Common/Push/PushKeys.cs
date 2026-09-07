@@ -10,6 +10,15 @@ public static class PushKeys
     /// <summary>What the message is: one of the values in <see cref="Kinds"/>.</summary>
     public const string Kind = "spine.kind";
 
+    /// <summary>
+    /// The notification's first line. Present because Android is sent data-only — the package draws
+    /// the notification itself so foreground and background behave alike and Spine picks the channel.
+    /// </summary>
+    public const string Title = "spine.title";
+
+    /// <summary>The notification's body text. Present for the same reason as <see cref="Title"/>.</summary>
+    public const string Body = "spine.body";
+
     /// <summary>The page to navigate to when the notification is opened.</summary>
     public const string Route = "spine.route";
 
@@ -25,9 +34,21 @@ public static class PushKeys
     /// <summary>The widget kind a <see cref="Kinds.Widget"/> message should refresh; all of them when absent.</summary>
     public const string Widget = "spine.widget";
 
+    /// <summary>
+    /// The id an undelivered message is replaced by. On APNs this is the <c>apns-collapse-id</c>
+    /// header, which the device does not pass on, so it travels as data too.
+    /// </summary>
+    public const string Collapse = "spine.collapse";
+
     /// <summary>The values <see cref="Kind"/> takes.</summary>
     public static class Kinds
     {
+        /// <summary>A user-visible notification.</summary>
+        public const string Alert = "alert";
+
+        /// <summary>A silent message; the handler runs, nothing is shown.</summary>
+        public const string Silent = "silent";
+
         /// <summary>Start, update, or end a Live Activity.</summary>
         public const string LiveActivity = "liveactivity";
 
