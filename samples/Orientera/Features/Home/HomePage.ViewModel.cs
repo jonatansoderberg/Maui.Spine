@@ -1,9 +1,10 @@
-using System.Collections.ObjectModel;
-using System.Globalization;
+
+// MAUI har ett eget ViewState — dess är en tillståndsgrupp för visuella tillstånd, vårt är de
+// fyra lägena i P10. Aliaset säger vilket som avses här.
 using Orientera.Controls;
 using Orientera.Domain;
-using Orientera.Features.Events.Participants;
 using Orientera.Features.Dev;
+using Orientera.Features.Events.Participants;
 using Orientera.Features.Events;
 using Orientera.Features.Onboarding;
 using Orientera.Features.Profile;
@@ -18,10 +19,10 @@ using Orientera.Services.Sources;
 using Orientera.Services.Time;
 using Orientera.Services.Weather;
 using Orientera.Widgets;
+using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Widgets;
-
-// MAUI har ett eget ViewState — dess är en tillståndsgrupp för visuella tillstånd, vårt är de
-// fyra lägena i P10. Aliaset säger vilket som avses här.
+using System.Collections.ObjectModel;
+using System.Globalization;
 using ViewState = Orientera.Controls.ViewState;
 
 namespace Orientera.Features.Home;

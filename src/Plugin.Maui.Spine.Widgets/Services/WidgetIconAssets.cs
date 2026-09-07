@@ -1,4 +1,5 @@
-using Plugin.Maui.SvgImage;
+using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.Svg;
 using SkiaSharp;
 using Svg.Skia;
 
@@ -6,7 +7,7 @@ namespace Plugin.Maui.Spine.Widgets.Services;
 
 /// <summary>
 /// Turns every <see cref="IconNode"/> in a tree into a bitmap the renderers can show. Icons come
-/// from SVGs in the resource cache Spine fills — the ones bundled with <c>Plugin.Maui.SvgImage</c>
+/// from SVGs in the resource cache Spine fills — the ones bundled with <c>Plugin.Maui.Spine.Svg</c>
 /// and any the app embeds — named after the symbol with dots as underscores. The shape is rendered
 /// white, so the renderer tints it with the node's color in light and dark alike, and stored as
 /// <c>icons/&lt;name&gt;.png</c> beside the app's own assets before the tree is written.

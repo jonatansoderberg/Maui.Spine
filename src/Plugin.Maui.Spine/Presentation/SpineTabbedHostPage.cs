@@ -2,7 +2,7 @@ using AsyncAwaitBestPractices;
 using Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific;
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Services;
-using Plugin.Maui.SvgImage;
+using Plugin.Maui.Spine.Svg;
 using AndroidPlatform = Microsoft.Maui.Controls.PlatformConfiguration.Android;
 using TabbedPage = Microsoft.Maui.Controls.TabbedPage;
 

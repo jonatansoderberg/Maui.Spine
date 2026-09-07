@@ -10,7 +10,7 @@
  
     <Grid>
 
-        <SpineCollectionView 
+        <HeroCollectionView 
             EnableAdaptiveOverlay="True"
             AdaptiveCaptionButtons="True"
             EnableHeaderAsDragRegionOnWindows="True"
@@ -23,16 +23,16 @@
             HeaderMaxHeight="230"
             HeaderMinHeight="{Binding HeaderMinHeight}">
 
-            <SpineCollectionView.HeaderOverlayContent>
+            <HeroCollectionView.HeaderOverlayContent>
                 <sharpnado:MaterialFrame
                     CornerRadius="0"
                     Elevation="0"
                     Opacity="0.0"
                     LightThemeBackgroundColor="{DynamicResource DynamicLightThemeColor}"
                     MaterialTheme="{DynamicResource DynamicMaterialTheme}"/>
-            </SpineCollectionView.HeaderOverlayContent>
+            </HeroCollectionView.HeaderOverlayContent>
 
-            <SpineCollectionView.HeaderTopContent>
+            <HeroCollectionView.HeaderTopContent>
                 <AbsoluteLayout InputTransparent="True" CascadeInputTransparent="False">
 
                     <ImageButton
@@ -48,9 +48,9 @@
                         AbsoluteLayout.LayoutFlags="PositionProportional" />
 
                 </AbsoluteLayout>
-            </SpineCollectionView.HeaderTopContent>
+            </HeroCollectionView.HeaderTopContent>
 
-            <SpineCollectionView.HeaderBottomContent>
+            <HeroCollectionView.HeaderBottomContent>
                 <AbsoluteLayout InputTransparent="True" CascadeInputTransparent="False">
 
                     <Label
@@ -73,9 +73,9 @@
                     </Label>
 
                 </AbsoluteLayout>
-            </SpineCollectionView.HeaderBottomContent>
+            </HeroCollectionView.HeaderBottomContent>
             
-            <SpineCollectionView.ItemTemplate>
+            <HeroCollectionView.ItemTemplate>
                 <DataTemplate x:DataType="Item">
                     <local:ContextItem
                         Icon="{Binding Icon}"
@@ -84,13 +84,13 @@
                         TapCommand="{Binding BindingContext.ItemTappedCommand, Source={x:Reference Page}}"
                         TapCommandParameter="{Binding .}" />
                 </DataTemplate>
-            </SpineCollectionView.ItemTemplate>
+            </HeroCollectionView.ItemTemplate>
 
-            <SpineCollectionView.Footer>
+            <HeroCollectionView.Footer>
                 <BoxView HeightRequest="{Binding FooterHeight}" BackgroundColor="Transparent"/>
-            </SpineCollectionView.Footer>
+            </HeroCollectionView.Footer>
 
-        </SpineCollectionView>
+        </HeroCollectionView>
 
     </Grid>
     

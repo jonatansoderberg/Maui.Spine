@@ -12,7 +12,7 @@ This workspace contains the **Plugin.Maui.Spine** library (a .NET 10 MAUI naviga
 |---|---|
 | MVVM source generation | `CommunityToolkit.Mvvm` |
 | Navigation / shell | `Plugin.Maui.Spine` |
-| SVG images | `Plugin.Maui.SvgImage` |
+| SVG images | `Plugin.Maui.Spine.Svg` |
 | Async helpers | `AsyncAwaitBestPractices` |
 
 ---
@@ -80,7 +80,7 @@ Root element is always `<SpinePage>`. Bind the ViewModel via `x:TypeArguments` a
 </SpinePage>
 ```
 
-The global MAUI xmlns already includes `Plugin.Maui.Spine.Core`, `Plugin.Maui.Spine.Presentation`, `Plugin.Maui.SvgImage`, `App.Pages`, and `App.Pages.Settings` (see `GlobalXmlns.cs`).
+The global MAUI xmlns already includes `Plugin.Maui.Spine.Core`, `Plugin.Maui.Spine.Presentation`, `Plugin.Maui.Spine.Svg`, `App.Pages`, and `App.Pages.Settings` (see `GlobalXmlns.cs`).
 
 ### `MyPage.ViewModel.cs` — ViewModel
 

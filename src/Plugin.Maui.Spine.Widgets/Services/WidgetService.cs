@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
-using Plugin.Maui.Spine.Widgets.Serialization;
+using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.Common.Serialization;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 

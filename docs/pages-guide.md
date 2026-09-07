@@ -78,7 +78,7 @@ The global MAUI xmlns (`http://schemas.microsoft.com/dotnet/maui/global`) alread
 |---|---|
 | `Plugin.Maui.Spine.Core` | `Plugin.Maui.Spine` assembly |
 | `Plugin.Maui.Spine.Presentation` | `Plugin.Maui.Spine` assembly |
-| `Plugin.Maui.SvgImage` | `Plugin.Maui.SvgImage` assembly |
+| `Plugin.Maui.Spine.Svg` | `Plugin.Maui.Spine.Svg` assembly |
 | `App.Pages` | this project |
 | `App.Pages.Settings` | this project |
 

@@ -1,7 +1,7 @@
 using AsyncAwaitBestPractices;
 using Foundation;
 using ObjCRuntime;
-using Plugin.Maui.SvgIcon;
+using Plugin.Maui.Spine.Svg;
 using System.Runtime.InteropServices;
 
 namespace Plugin.Maui.Spine.Core;

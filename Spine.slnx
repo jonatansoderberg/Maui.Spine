@@ -8,10 +8,10 @@
   <Project Path="samples/Orientera.Backend/Orientera.Backend.csproj" />
   <Project Path="samples/Orientera.Domain/Orientera.Domain.csproj" />
   <Project Path="samples/Orientera.Tests/Orientera.Tests.csproj" />
-  <Project Path="src/Plugin.Maui.AnimatedLabel/Plugin.Maui.AnimatedLabel.csproj" Id="39cb0bc0-a3d4-45a1-ba1c-fd0cbdbddc8a" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.AnimatedLabel/Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" Id="39cb0bc0-a3d4-45a1-ba1c-fd0cbdbddc8a" />
+  <Project Path="src/Plugin.Maui.Spine.Common/Plugin.Maui.Spine.Common.csproj" />
   <Project Path="src/Plugin.Maui.Spine/Plugin.Maui.Spine.csproj" />
-  <Project Path="src/Plugin.Maui.SvgImage/Plugin.Maui.SvgImage.csproj" />
-  <Project Path="src/Plugin.Maui.SpineControls/Plugin.Maui.SpineControls.csproj" />
-  <Project Path="src/Plugin.Maui.SvgIcon/Plugin.Maui.SvgIcon.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Svg/Plugin.Maui.Spine.Svg.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.HeroCollectionView/Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Widgets/Plugin.Maui.Spine.Widgets.csproj" />
 </Solution>

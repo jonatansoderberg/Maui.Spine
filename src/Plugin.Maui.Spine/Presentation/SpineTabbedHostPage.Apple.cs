@@ -2,7 +2,7 @@
 using AsyncAwaitBestPractices;
 using Foundation;
 using Microsoft.Maui.Platform;
-using Plugin.Maui.SvgImage;
+using Plugin.Maui.Spine.Svg;
 using UIKit;
 
 namespace Plugin.Maui.Spine.Presentation;

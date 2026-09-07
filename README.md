@@ -153,10 +153,9 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Windows Platform Options](docs/wiki/windows-options.md) | Window size, tray, single-instance, title bar |
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
 | [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets and Dynamic Island, built from C# |
-| [SpineCollectionView](docs/wiki/spine-controls.md) | Collapsing sticky header, adaptive overlay |
+| [HeroCollectionView](docs/wiki/hero-collection-view.md) | Collapsing sticky header, adaptive overlay |
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
-| [SvgImage](docs/wiki/svg-image.md) | SVG-to-bitmap rendering with theme-aware tinting |
-| [SvgIcon](docs/wiki/svg-icon.md) | SVG-to-icon file generation for tray and window icons |
+| [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |
 
 ---
 
@@ -196,7 +195,7 @@ Or open the solution in Visual Studio 2022 and press **F5**.
 | Package | Purpose |
 |---|---|
 | `CommunityToolkit.Mvvm` | Source-generated MVVM (`[ObservableProperty]`, `[RelayCommand]`) |
-| `Plugin.Maui.SvgImage` | SVG image support for page action icons |
+| `Plugin.Maui.Spine.Svg` | SVG image support for page action icons |
 | `AsyncAwaitBestPractices` | Safe fire-and-forget async helpers |
 
 ---

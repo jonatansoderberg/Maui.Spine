@@ -1,0 +1,63 @@
+<Project>
+
+	<PropertyGroup>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+		<!-- WinUIEx and Microsoft.WindowsAppSDK float on purpose; keep them floating (NU1011). -->
+		<CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
+		<!--
+			The Azure Functions SDK generates obj/**/WorkerExtensions/WorkerExtensions.csproj with
+			versions written into its PackageReference items. That is NU1008 under central package
+			management, and the file is regenerated on every build, so central management is off
+			for that one project.
+		-->
+		<ManagePackageVersionsCentrally Condition="'$(MSBuildProjectName)' == 'WorkerExtensions'">false</ManagePackageVersionsCentrally>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageVersion Include="AsyncAwaitBestPractices" Version="10.0.0" />
+		<PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.50" />
+		<PackageVersion Include="SkiaSharp" Version="3.119.2" />
+		<PackageVersion Include="SkiaSharp.Views.Maui.Controls" Version="3.119.2" />
+		<PackageVersion Include="Svg.Skia" Version="3.6.0" />
+	</ItemGroup>
+
+	<!-- Windows only; referenced under a condition in Plugin.Maui.Spine. -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.WindowsAppSDK" Version="1.8.*" />
+		<PackageVersion Include="WinUIEx" Version="2.9.*" />
+	</ItemGroup>
+
+	<!-- Sample apps -->
+	<ItemGroup>
+		<PackageVersion Include="Mapsui.Maui" Version="5.1.0" />
+		<PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
+		<PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
+		<PackageVersion Include="Sharpnado.MaterialFrame.Maui" Version="3.0.2" />
+	</ItemGroup>
+
+	<!-- Orientera.Backend -->
+	<ItemGroup>
+		<PackageVersion Include="Anthropic" Version="12.40.0" />
+		<PackageVersion Include="Azure.Storage.Blobs" Version="12.29.1" />
+		<PackageVersion Include="Azure.Storage.Queues" Version="12.27.1" />
+		<PackageVersion Include="BitMiracle.LibTiff.NET" Version="2.4.660" />
+		<PackageVersion Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />
+		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.1" />
+		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" Version="5.5.0" />
+		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.1.0" />
+		<PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
+		<PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.10" />
+		<PackageVersion Include="OpenAI" Version="2.13.0" />
+		<PackageVersion Include="ProjNET" Version="2.1.0" />
+		<PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
+	</ItemGroup>
+
+	<!-- Orientera.Tests -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageVersion Include="xunit" Version="2.9.3" />
+		<PackageVersion Include="xunit.runner.visualstudio" Version="3.1.1" />
+	</ItemGroup>
+
+</Project>

@@ -78,7 +78,7 @@ builder.UseSpine(options =>
 |---|---|---|---|
 | `ShowInTaskbar` | `bool` | `true` | Whether the window appears in the taskbar and Alt+Tab |
 | `ShowTrayIcon` | `bool` | `false` | Show a system-tray icon |
-| `TrayIconSvg` | `string?` | `null` | SVG filename (e.g. `"app_icon.svg"`) rendered at runtime via `Plugin.Maui.SvgIcon`. Takes precedence over `TrayIconPath` when set |
+| `TrayIconSvg` | `string?` | `null` | SVG filename (e.g. `"app_icon.svg"`) rendered at runtime via `Plugin.Maui.Spine.Svg`. Takes precedence over `TrayIconPath` when set |
 | `TrayIconPath` | `string` | `"Resources/Raw/light_theme.ico"` | Path to a pre-built tray icon (relative to app package). Used when `TrayIconSvg` is null |
 | `TrayIconTooltip` | `string` | `""` | Tooltip text when hovering the tray icon |
 | `CloseToBackground` | `bool` | `false` | Hide the window instead of exiting when closed |
@@ -87,7 +87,7 @@ builder.UseSpine(options =>
 
 Enable the tray icon and pair it with `CloseToBackground` to allow the user to restore the app from the tray.
 
-**Preferred approach — SVG rendered at runtime** (requires `Plugin.Maui.SvgIcon`):
+**Preferred approach — SVG rendered at runtime** (requires `Plugin.Maui.Spine.Svg`):
 
 ```csharp
 options.Windows.ShowTrayIcon      = true;

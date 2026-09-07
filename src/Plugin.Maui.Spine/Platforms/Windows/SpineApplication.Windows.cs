@@ -5,8 +5,7 @@ using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
 using Microsoft.Windows.AppLifecycle;
 using Plugin.Maui.Spine.Presentation;
-using Plugin.Maui.SvgIcon;
-using Plugin.Maui.SvgImage;
+using Plugin.Maui.Spine.Svg;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using Windows.Graphics;
@@ -17,7 +16,7 @@ using Colors = Microsoft.Maui.Graphics.Colors;
 using MenuFlyout = Microsoft.UI.Xaml.Controls.MenuFlyout;
 using MenuFlyoutItem = Microsoft.UI.Xaml.Controls.MenuFlyoutItem;
 using MenuFlyoutSeparator = Microsoft.UI.Xaml.Controls.MenuFlyoutSeparator;
-using SvgIconAsset = Plugin.Maui.SvgIcon.SvgIcon;
+using SvgIconAsset = Plugin.Maui.Spine.Svg.SvgIcon;
 using TrayIcon = WinUIEx.TrayIcon;
 using WindowsUI = Windows.UI;
 using WinUIWindow = Microsoft.UI.Xaml.Window;
@@ -232,7 +231,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         _appWindow.TitleBar.ButtonHoverBackgroundColor = hoverOverlay;
         _appWindow.TitleBar.ButtonPressedBackgroundColor = pressedOverlay;
 
-        TryRegisterSpineControlsCaptionButtonIntegration();
+        TryRegisterHeroCollectionViewCaptionButtonIntegration();
 
 
 
@@ -346,15 +345,15 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         }
     }
 
-    private void TryRegisterSpineControlsCaptionButtonIntegration()
+    private void TryRegisterHeroCollectionViewCaptionButtonIntegration()
     {
-        // If Plugin.Maui.SpineControls is loaded into the app, wire up the adaptive
+        // If Plugin.Maui.Spine.Controls.HeroCollectionView is loaded into the app, wire up the adaptive
         // caption button callback so the OS min/max/close glyphs are tinted automatically
-        // when SpineCollectionView.AdaptiveCaptionButtons is true.
+        // when HeroCollectionView.AdaptiveCaptionButtons is true.
         // Reflection is used so that Spine does not carry a hard compile-time dependency
-        // on the optional SpineControls library.
+        // on the optional HeroCollectionView library.
         var controlsType = Type.GetType(
-            "Plugin.Maui.SpineControls.SpineCollectionView, Plugin.Maui.SpineControls");
+            "Plugin.Maui.Spine.Controls.HeroCollectionView, Plugin.Maui.Spine.Controls.HeroCollectionView");
 
         controlsType
             ?.GetProperty("CaptionButtonColorRequested",
