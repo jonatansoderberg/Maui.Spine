@@ -119,9 +119,17 @@ Inga öppna. Avgjorda 2026-09-08:
 - Registreras i `AddSpinePush` när `Android(...)` är konfigurerat.
 - 14 nya tester, 114 totalt.
 
+### Steg 6 — endpoints
+
+- `SpinePushEndpoints.HandleAsync(HttpRequest)` gör hela arbetet och hämtar registret och optionsen ur `request.HttpContext.RequestServices`, så den fungerar likadant under Minimal API och under en Functions-`[Function]`.
+- `MapSpinePush("/push")` mappar `PUT` och `DELETE` på `{prefix}/installations/{id}` till samma metod.
+- `PUT` läser kroppen som en `PushInstallation`, kräver att id:t i kroppen och i sökvägen är samma, avvisar en registrering utan handle, kör `AllowTags` och skriver. `DELETE` tar bort och är förlåtande mot något som inte finns. `Authenticate` som säger nej ger 401.
+- 19 nya tester, 133 totalt: varje statuskod, att taggpolicyn körs innan skrivningen, att servern stämplar `UpdatedAt` själv, och sju varianter av hur id:t läses ur sökvägen.
+
 ## Decisions
 
 - **Kompakt JSON-form för `LiveActivityLayout` behövs inte i v1.** Issuets tredje fråga skulle avgöras när Orienteras layout mätts mot 4 KB. Mätt: `MyStartActivity.Layout` med verkliga strängar ger **1225 byte** `content-state`, och **1315 byte** för hela APNs-payloaden inklusive `timestamp`, `event` och `stale-date`. Det är 32 % av taket, med 2781 byte kvar — layouten skulle behöva tredubblas för att slå i det. Ingen `Patch`-form och inga korta nyckelnamn i v1; storleksvakten i steg 3 fångar det den dag en layout växer sig för stor.
+- **Servern stämplar `UpdatedAt`, inte klienten.** En enhet med fel datum skulle annars kunna se nyregistrerad ut, och det är precis vad `PruneAsync` går efter. Kroppens värde skrivs över.
 - **`MulticastMessage.Tokens` används trots att den är märkt föråldrad.** FirebaseAdmin 3.6.0 säger "Deprecated. Use Fids instead", men de två egenskaperna har separata backing-fält och bara `Tokens` viks ut till meddelanden per enhet: med `Fids` satt lämnar `GetMessageList()` `Message.Token` som `null`, verifierat genom reflektion. Ett byte hade alltså skickat tokenlösa meddelanden. `Tokens` behålls med en lokal `#pragma` och en kommentar, och ett test kontrollerar utvikningen så att det smäller den dag SDK:n faktiskt kopplar in `Fids`.
 - **`GoogleCredential.FromJson` bytt mot `CredentialFactory.FromJson<ServiceAccountCredential>`.** Den förra är föråldrad av säkerhetsskäl i den Google.Apis.Auth som FirebaseAdmin 3.6 drar in.
 - **`FcmTransport.StatusFor` tar felkoden, inte undantaget.** `FirebaseMessagingException` har intern konstruktor och går inte att skapa i ett test. Med `MessagingErrorCode?` som parameter är mappningen testbar, och signaturen säger tydligare vad den beror på.
