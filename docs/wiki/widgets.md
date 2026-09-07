@@ -1,6 +1,6 @@
 # Widgets and Live Activities
 
-Spine widgets let an app build a **home-screen widget** and a **Live Activity** from C#, with no Xcode project and no app-specific Swift. The app builds a small view tree, Spine serializes it into a container the widget extension shares, and a generic native renderer draws it with SwiftUI.
+Spine widgets let an app build a **home-screen widget** and a **Live Activity** from C#, with no Xcode project, no app-specific Swift and no Android platform code. The app builds a small view tree, Spine serializes it, and a generic native renderer draws it — with SwiftUI in a widget extension on iOS, with `RemoteViews` in the app's own process on Android.
 
 The reasoning behind the design — why C# cannot run inside a WidgetKit extension, and why a serialized tree is the answer — is in the [Spine.Widgets proposal](../proposals/spine-widgets.md).
 
@@ -12,7 +12,7 @@ The reasoning behind the design — why C# cannot run inside a WidgetKit extensi
 |---|---|---|
 | iOS 17+ | ✅ WidgetKit extension built at compile time | ✅ Lock Screen and Dynamic Island (all regions) |
 | Mac Catalyst | ⚠️ Same mechanism, not yet verified | ⚠️ macOS 26 mirrors an iPhone activity by itself |
-| Android | ❌ Planned (`RemoteViews` + Live Updates, API 36) | ❌ Planned |
+| Android 5+ | ✅ `AppWidgetProvider` receivers drawn from the tree with `RemoteViews`; size- and theme-adaptive from Android 12 | ✅ Android 16+ as a **Live Update** (promoted notification); `StartAsync` returns `null` below |
 | Windows | ❌ Planned, MSIX-packaged apps only | — |
 
 On every platform without an implementation the services are still injectable and every call is a no-op; `IWidgetService.IsSupported` says which you are on.
@@ -33,7 +33,7 @@ builder
 
 ### 2. Declare each widget to the build
 
-The native extension is generated from MSBuild items, not from the attribute — the attribute is C#, and the extension has to exist before any C# runs:
+The native side is generated from MSBuild items, not from the attribute — the attribute is C#, and the widget has to exist in the app's bundle or manifest before any C# runs:
 
 ```xml
 <ItemGroup>
@@ -51,7 +51,9 @@ The native extension is generated from MSBuild items, not from the attribute —
 | `Description` | The gallery's subtitle. |
 | `Families` | `Small`, `Medium`, `Large`, `ExtraLarge`, `AccessoryCircular`, `AccessoryRectangular`, `AccessoryInline`. Defaults to `Small`. |
 
-A WidgetKit bundle holds at most ten widgets and Spine reserves one for Live Activities, so nine `<SpineWidget>` items is the limit.
+A WidgetKit bundle holds at most ten widgets and Spine reserves one for Live Activities, so nine `<SpineWidget>` items is the limit. Android has the same cap: the package carries nine fixed receivers and the build wires the items to them in declaration order.
+
+On iOS the items become the widget extension; on Android they become manifest entries and the picker's metadata (see [Android](#android)). The properties below are iOS-only except `SpineWidgetsLiveActivities` and `SpineWidgetsEnabled`.
 
 | Property | Default | Meaning |
 |---|---|---|
@@ -87,7 +89,7 @@ A sample that uses `<ProjectReference>` rather than the NuGet package also has t
 
 ### Build requirements
 
-- **macOS with Xcode.** The extension and the bridge are compiled with `swiftc` during the iOS build (a few seconds); everything else is untouched.
+- **macOS with Xcode for iOS.** The extension and the bridge are compiled with `swiftc` during the iOS build (a few seconds); everything else is untouched. The Android build needs nothing beyond the SDK and runs on any host.
 - **A real App Group in the provisioning profile** for device and TestFlight builds. Simulator builds sign ad hoc and need no identity — the targets set `CodesignKey=-` themselves when none is configured.
 - Only iOS **inner** builds (those with a `RuntimeIdentifier`) run the native step. Design-time builds, other platforms and Windows hosts skip it entirely.
 
@@ -133,7 +135,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Text(string)` | A run of text |
 | `W.Timer(until)` | A countdown the **system** redraws every second |
 | `W.Relative(date)` | Relative text ("3 min ago"), also system-drawn |
-| `W.Icon(sfSymbolName, color)` | A platform symbol |
+| `W.Icon(sfSymbolName, color)` | A platform symbol — an SF Symbol on iOS, an embedded SVG named after it on Android (see [Icons](#icons-on-android)) |
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
 | `W.Spacer()` / `W.Divider()` | Flexible space, separator |
@@ -163,11 +165,11 @@ await _widgets.RefreshAsync("next-start");       // by kind
 await _widgets.RefreshAllAsync();                // all of them
 ```
 
-Every widget is also rebuilt automatically when the app moves to the background, so the home screen shows the state the user just left. Turn that off with `UseSpineWidgets(o => o.RefreshOnBackground = false)`.
+Every widget is also rebuilt automatically when the app moves to the background, so the home screen shows the state the user just left. Turn that off with `UseSpineWidgets(o => o.RefreshOnBackground = false)`. On Android `Refresh(after)` is honoured by the app itself: an alarm wakes the widget receiver, which runs the provider in the background without any UI.
 
 ### Opening the app from the widget
 
-`OpenUrl` sets the URL the widget is tapped with. `IWidgetService.LinkFor(kind)` gives the canonical one — `<ApplicationId>://widget/<kind>` — and the scheme is registered in `Info.plist` by the build, so nothing has to be chosen or kept in sync. Add query values to carry what the tap should open:
+`OpenUrl` sets the URL the widget is tapped with. `IWidgetService.LinkFor(kind)` gives the canonical one — `<ApplicationId>://widget/<kind>` — and the scheme is registered by the build (in `Info.plist` on iOS, as an intent filter on Android), so nothing has to be chosen or kept in sync. Add query values to carry what the tap should open:
 
 ```csharp
 .OpenUrl(new Uri($"{_widgets.LinkFor(context.Kind)}?competition={competition.Id}"))
@@ -184,7 +186,7 @@ public Task OnWidgetOpenedAsync(WidgetLink link) =>
 
 ### Images
 
-SF Symbols are free on iOS; a bitmap has to be placed in the shared container first:
+SF Symbols are free on iOS (Android draws them from an SVG, see below); a bitmap has to be placed in the shared container first:
 
 ```csharp
 await _widgets.StoreAssetAsync("arena", pngStream);
@@ -217,11 +219,11 @@ await activity!.UpdateAsync(layout with { ExpandedCenter = W.Text("I mål").Head
 await activity.EndAsync();
 ```
 
-- `StartAsync` returns `null` when the platform refused — activities turned off in Settings, or the app not in the foreground. **iOS only starts an activity while the app is in the foreground**, so it belongs behind a button the user pressed, never in a page's build.
-- `AreActivitiesEnabled` says whether the user allows them at all; hide the button when they do not.
+- `StartAsync` returns `null` when the platform refused — activities turned off in Settings, or the app not in the foreground. **iOS only starts an activity while the app is in the foreground**, so it belongs behind a button the user pressed, never in a page's build. On Android the same call asks for the notification permission the first time, which is another reason to keep it behind a button.
+- `AreActivitiesEnabled` says whether the user allows them at all; hide the button when they do not. On Android it means "Android 16 or later" — the notification permission cannot be told apart from "not asked yet", so `StartAsync` asks.
 - `Active` lists the activities this app has running, **including any it started before it was last killed** — an activity outlives the process. Ask it rather than holding a handle in a view model. The `kind` is how you tell them apart — put whatever identifies the subject in it (`$"din-start:{competitionId}"`).
 - `staleAt` is when the content should be presented as out of date if no update arrived; the renderer dims it.
-- An activity lives at most **8 hours**, then iOS ends it.
+- An activity lives at most **8 hours**, then iOS ends it. Android has no such limit, but keeps one activity per kind: starting a second one with the same kind replaces the first.
 
 ---
 
@@ -251,9 +253,62 @@ Consider a widget showing a value a cloud API refreshes every five minutes. **Th
 |---|---|---|
 | iOS widget | The extension could fetch in its timeline provider, but the system grants ~40–70 reloads a day — every 15–60 min | iOS 26 can trigger a reload by push (`WidgetPushHandler`); as far as is known it still counts against the same budget |
 | iOS Live Activity | Only updates while the app runs. `BGAppRefreshTask` gives a few runs an hour, irregularly, ~30 s at a time | An APNs `liveactivity` push every 5 min works. `NSSupportsLiveActivitiesFrequentUpdates` raises the budget |
-| Android widget | WorkManager: 15 min minimum. A foreground service can update freely | An FCM data message every 5 min; the service updates widget and Live Update at once |
+| Android widget | `Refresh(after)` runs the provider from an inexact alarm, in practice every 15 min or so under Doze; a foreground service can update freely | An FCM data message every 5 min; the service updates widget and Live Update at once |
 
 Push and remote sources are v2 of the plugin. In v1 the honest options are a pre-computed timeline, a background refresh, and system-drawn timers — which between them cover "next start", today's schedule, and a countdown, but not a live sensor reading.
+
+---
+
+## Android
+
+The same C# tree renders on Android without changes; the difference is what the platform gives to draw with, and the section is here so nobody has to discover it in the emulator.
+
+### How it maps
+
+| Spine | Android |
+|---|---|
+| `<SpineWidget>` item | An `AppWidgetProvider` receiver in the manifest (one of nine the package carries), `appwidget-provider` metadata, and the picker's name and description — all generated into `obj/` by the build |
+| `WidgetFamily` | Launcher cells: `Small` 2×2, `Medium` 4×2, `Large` 4×4, `ExtraLarge` 5×4. The smallest declared is the minimum size; from Android 12 the launcher picks the tree for the size the user resized to. Accessory families have no counterpart and are ignored |
+| Stacks | `LinearLayout` / `FrameLayout`, nested with `RemoteViews.AddView` |
+| `W.Text`, `W.Timer`, `W.Relative` | `TextView` and `Chronometer`; `Title` 22 sp, `Headline` 16 sp, `Body` 14 sp, `Caption` 12 sp |
+| `WidgetColor` | Semantic colors resolve in the launcher's theme (light and dark) from Android 12; `Green` … `Blue` are the iOS system palette in both variants; hex is hex |
+| `WidgetTimeline` entries | The entry that applies now is drawn; an inexact alarm redraws at the next entry's date, another runs the provider `Refresh(after)` the last one |
+| `OpenUrl` | A `PendingIntent` to a small activity in the package that forwards the URL to the app's own main activity; the scheme is registered on it by the build |
+| `IWidgetLinkHandler` | Called from `OnCreate` (cold start) or `OnNewIntent` (warm), exactly as on iOS |
+
+The receivers run in the app's own process, so there is no shared container and no separate memory budget; the timeline documents live under the app's files directory.
+
+### Icons on Android
+
+There are no SF Symbols. `W.Icon("figure.run")` is drawn from an **embedded SVG named after the symbol, with dots as underscores** — `figure_run.svg` — found through the same resource cache as `SvgImageSource`, so it just has to be an `EmbeddedResource` in an assembly `UseSpine` was given:
+
+```xml
+<EmbeddedResource Include="Resources\Svg\*.svg" />
+```
+
+The shape is rendered white and tinted with the node's color, so one monochrome SVG serves light and dark. Do not name the file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it. An icon with no SVG is left out and a warning is logged under the `SpineWidgets` tag.
+
+### Live Updates
+
+A Live Activity on Android 16 is a **promoted ongoing notification**, and the layout's regions map onto the notification template rather than being drawn as a tree:
+
+| Region | Becomes |
+|---|---|
+| `LockScreen` (and `ExpandedBottom`) | Title from the first headline or title text, content text from the next text; the first `W.Timer` becomes the header chronometer, the first `W.Progress` the `ProgressStyle` bar in its color |
+| `CompactLeading` / `Minimal` / `ExpandedLeading` | The first `W.Icon` is the small icon, its color the accent |
+| `CompactTrailing` | A `W.Text` there becomes the status-bar chip's text; a `W.Timer` leaves the chip to the system's chronometer |
+| `Link` | The notification's tap, through the same activity as the widget |
+
+`staleAt` is not visualised on Android. Below Android 16 `AreActivitiesEnabled` is `false` and `StartAsync` returns `null`; a plain ongoing notification would not be a Live Activity, so Spine does not pretend.
+
+The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the manifest when `SpineWidgetsLiveActivities` is on; the first is requested at `StartAsync`, the second is granted by the user's per-app Live Updates setting.
+
+### Known gaps
+
+- `W.Relative` is a chronometer counting up (`03:12`), not "3 min ago" — `RemoteViews` has no system-drawn relative text, and a text the app computed would stand still.
+- `W.Spacer` only stretches inside a stack that is wider than its content; stacks are full-width, so the usual `HStack(text, Spacer(), timer)` works, a spacer in a nested vertical stack does not.
+- No custom fonts and no `ZStack` alignment beyond centered: `RemoteViews` cannot set a typeface.
+- Nine widget kinds, as on iOS.
 
 ---
 
@@ -262,9 +317,10 @@ Push and remote sources are v2 of the plugin. In v1 the honest options are a pre
 | Symptom | Cause |
 |---|---|
 | The widget is not in the gallery | The kind has no `<SpineWidget>` item, or the app was never launched after install. |
-| The widget renders but a node is missing | A tree the renderer does not understand, or an SF Symbol name that does not exist. |
+| The widget renders but a node is missing | A tree the renderer does not understand, an SF Symbol name that does not exist, or (Android) no `figure_run.svg`-style resource for the icon. |
+| The widget shows only "—" (Android) | It was placed before the app ever built it; the receiver has asked the provider, and the next launch or background pass fills it. |
 | The countdown stands still | Text the app computed instead of a `W.Timer` node. |
-| `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. |
+| `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. On Android: the notification permission was denied, or the device is older than Android 16. |
 | Build error about the App Group | The app's `CodesignEntitlements` does not list the group; see [setup](#3-give-the-app-the-app-group-entitlement). |
 | `SIGKILL (Code Signature Invalid)` at launch | A stale app bundle. Delete `bin/…/<App>.app` and `obj/…/<rid>/codesign` and build again. |
 

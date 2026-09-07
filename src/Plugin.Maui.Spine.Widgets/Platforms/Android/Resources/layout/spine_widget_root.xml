@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The widget's outer container. Every stub layout below has the same root id, so the renderer can
+     address "the view this RemoteViews wraps" without knowing which stub it is. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/spine_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:padding="@dimen/spine_widget_padding"
+    android:background="@drawable/spine_widget_background"
+    android:theme="@style/SpineWidgetTheme" />

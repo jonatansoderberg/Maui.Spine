@@ -86,7 +86,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
             : dictionary.ToDictionary(pair => pair.Key.ToString(), pair => pair.Value.ToString());
     }
 
-    public string? StartActivity(string kind, string json, DateTimeOffset? staleAt)
+    public Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt) => Task.FromResult(StartActivity(kind, json, staleAt));
+
+    private string? StartActivity(string kind, string json, DateTimeOffset? staleAt)
     {
         if (!IsSupported) return null;
         using var kindValue = new NSString(kind);

@@ -21,7 +21,8 @@ internal interface IWidgetPlatform
     /// <summary>The activities this app still has running, as id to kind, including any it started before it was last killed.</summary>
     IReadOnlyDictionary<string, string> ActiveActivities();
 
-    string? StartActivity(string kind, string json, DateTimeOffset? staleAt);
+    /// <summary>Starts an activity and returns its platform id, or <see langword="null"/> when refused. May prompt the user for a permission.</summary>
+    Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt);
     void UpdateActivity(string id, string json, DateTimeOffset? staleAt);
     void EndActivity(string id);
 }
@@ -36,7 +37,7 @@ internal sealed class NoOpWidgetPlatform : IWidgetPlatform
     public void ReloadAll() { }
     public bool AreActivitiesEnabled => false;
     public IReadOnlyDictionary<string, string> ActiveActivities() => ReadOnlyDictionary<string, string>.Empty;
-    public string? StartActivity(string kind, string json, DateTimeOffset? staleAt) => null;
+    public Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt) => Task.FromResult<string?>(null);
     public void UpdateActivity(string id, string json, DateTimeOffset? staleAt) { }
     public void EndActivity(string id) { }
 }

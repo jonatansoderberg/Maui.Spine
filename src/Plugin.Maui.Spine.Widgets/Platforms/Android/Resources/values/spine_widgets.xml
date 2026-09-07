@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Inflated by the launcher with the app's package, so the theme has to be one that follows
+         the system's light/dark setting on its own; the app's own theme is not consulted. -->
+    <style name="SpineWidgetTheme" parent="@android:style/Theme.DeviceDefault.DayNight" />
+
+    <dimen name="spine_widget_padding">16dp</dimen>
+    <dimen name="spine_widget_radius">16dp</dimen>
+    <dimen name="spine_widget_icon">20dp</dimen>
+    <dimen name="spine_widget_progress">6dp</dimen>
+</resources>

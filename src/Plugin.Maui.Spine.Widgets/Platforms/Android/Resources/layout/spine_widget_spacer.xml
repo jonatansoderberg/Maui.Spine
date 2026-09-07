@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flexible space: 0dp on both axes with weight 1 takes whatever the stack has left along its own
+     axis and nothing across it. It only stretches when the stack itself is wider than its content,
+     which is why stacks are match_parent. A FrameLayout because a plain View may not be inflated
+     by a RemoteViews host. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/spine_node"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:layout_weight="1" />

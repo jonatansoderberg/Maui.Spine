@@ -31,17 +31,17 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform) : ILiveActi
                 _active.Add(new LiveActivity(id, kind, Update, End));
     }
 
-    public Task<LiveActivity?> StartAsync(string kind, LiveActivityLayout layout, DateTimeOffset? staleAt = null)
+    public async Task<LiveActivity?> StartAsync(string kind, LiveActivityLayout layout, DateTimeOffset? staleAt = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
-        if (!_platform.IsSupported) return Task.FromResult<LiveActivity?>(null);
+        if (!_platform.IsSupported) return null;
 
-        var id = _platform.StartActivity(kind, WidgetJson.Serialize(layout), staleAt);
-        if (id is null) return Task.FromResult<LiveActivity?>(null);
+        var id = await _platform.StartActivityAsync(kind, WidgetJson.Serialize(layout), staleAt);
+        if (id is null) return null;
 
         var activity = new LiveActivity(id, kind, Update, End);
         lock (_active) { Adopt(); _active.Add(activity); }
-        return Task.FromResult<LiveActivity?>(activity);
+        return activity;
     }
 
     public async Task EndAllAsync()
