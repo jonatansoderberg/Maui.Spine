@@ -110,9 +110,21 @@ Inga öppna. Avgjorda 2026-09-08:
 - Registreras i `AddSpinePush` när `Apple(...)` är konfigurerat.
 - 20 nya tester, 100 totalt: JWT:ns header, claims, verifierad signatur och förnyelsefönster, samt transporten mot en stubbad handler för headers, värdval och varje statusmappning.
 
+### Steg 5 — FcmTransport
+
+- `FirebaseAdmin` 3.6.0, en namngiven `FirebaseApp` så en värd som redan skapat standardappen lämnas ifred.
+- `SendEachForMulticastAsync` i buntar om 500. Alltid data-only, aldrig FCM:s `notification`-block.
+- `FcmMessageReader` läser tillbaka det `FcmMessage.ToJson()` skriver, så payloadlagret kan testas för sig och transporten ändå fyller i SDK:ns egna typer.
+- Statusmappning: `Unregistered`, `SenderIdMismatch`, `InvalidArgument` → `Invalid`; `QuotaExceeded`, `Unavailable` → `Throttled`; resten → `Failed`. Ett fel som fäller hela bunten ger `Failed` per installation i stället för ett kastat undantag.
+- Registreras i `AddSpinePush` när `Android(...)` är konfigurerat.
+- 14 nya tester, 114 totalt.
+
 ## Decisions
 
 - **Kompakt JSON-form för `LiveActivityLayout` behövs inte i v1.** Issuets tredje fråga skulle avgöras när Orienteras layout mätts mot 4 KB. Mätt: `MyStartActivity.Layout` med verkliga strängar ger **1225 byte** `content-state`, och **1315 byte** för hela APNs-payloaden inklusive `timestamp`, `event` och `stale-date`. Det är 32 % av taket, med 2781 byte kvar — layouten skulle behöva tredubblas för att slå i det. Ingen `Patch`-form och inga korta nyckelnamn i v1; storleksvakten i steg 3 fångar det den dag en layout växer sig för stor.
+- **`MulticastMessage.Tokens` används trots att den är märkt föråldrad.** FirebaseAdmin 3.6.0 säger "Deprecated. Use Fids instead", men de två egenskaperna har separata backing-fält och bara `Tokens` viks ut till meddelanden per enhet: med `Fids` satt lämnar `GetMessageList()` `Message.Token` som `null`, verifierat genom reflektion. Ett byte hade alltså skickat tokenlösa meddelanden. `Tokens` behålls med en lokal `#pragma` och en kommentar, och ett test kontrollerar utvikningen så att det smäller den dag SDK:n faktiskt kopplar in `Fids`.
+- **`GoogleCredential.FromJson` bytt mot `CredentialFactory.FromJson<ServiceAccountCredential>`.** Den förra är föråldrad av säkerhetsskäl i den Google.Apis.Auth som FirebaseAdmin 3.6 drar in.
+- **`FcmTransport.StatusFor` tar felkoden, inte undantaget.** `FirebaseMessagingException` har intern konstruktor och går inte att skapa i ett test. Med `MessagingErrorCode?` som parameter är mappningen testbar, och signaturen säger tydligare vad den beror på.
 - **`HttpClient` går att skjuta in i `ApnsTransport`.** Utan det hade transporten bara kunnat testas mot Apple. Nu stubbas svaren och varje statusmappning, header och värdval verifieras utan nätverk; den riktiga konstruktorn bygger fortfarande sin egen HTTP/2-klient.
 - **`PushKeys` fick tre nycklar till: `spine.title`, `spine.body` och `spine.collapse`.** Issuet räknar upp sex, men Android skickas data-only enligt §5.2 — paketet ritar notisen själv så att förgrund och bakgrund beter sig lika och Spine väljer kanalen. Då måste titel, text och collapse-id resa som data, annars kan `PushMessage` inte fyllas i på Android. `Kinds` fick av samma skäl `alert` och `silent`, som §5.2:s `PushKind` räknar upp.
 - **`RefreshWidgetsAsync` är en tyst push på iOS, inte pushtypen `widgets`.** Den senare kräver att widget-extensionet byggs mot iOS 26-SDK:n som `pushHandler`, vilket §6.2 lägger i v2. Tills dess väcker en tyst push appen som bygger om widgetarna — best effort, precis som §6.2 beskriver.

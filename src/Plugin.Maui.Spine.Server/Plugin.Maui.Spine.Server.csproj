@@ -22,6 +22,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="FirebaseAdmin" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
 	</ItemGroup>
 

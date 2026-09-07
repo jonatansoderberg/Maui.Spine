@@ -27,6 +27,9 @@ public static class ServiceCollectionExtensions
         if (options.AppleOptions is { } apple)
             services.AddSingleton<IPushTransport>(sp => new ApnsTransport(apple, sp.GetService<TimeProvider>()));
 
+        if (options.AndroidOptions is { } android)
+            services.AddSingleton<IPushTransport>(_ => new FcmTransport(android));
+
         services.AddSingleton<IPushSender>(sp => new PushSender(
             sp.GetRequiredService<IPushInstallationStore>(),
             sp.GetServices<IPushTransport>(),
