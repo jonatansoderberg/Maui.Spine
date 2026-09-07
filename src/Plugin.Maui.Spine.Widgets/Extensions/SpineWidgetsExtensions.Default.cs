@@ -1,6 +1,6 @@
 namespace Plugin.Maui.Spine.Widgets.Extensions;
 
-#if !IOS
+#if !IOS && !ANDROID
 public static partial class SpineWidgetsExtensions
 {
     static partial void ConfigurePlatform(MauiAppBuilder builder, SpineWidgetsOptions options)

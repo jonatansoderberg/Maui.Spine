@@ -1,6 +1,6 @@
 # Spine.Widgets — widgets och Live Activities från Spine (förstudie, rev 1)
 
-**Status:** Implemented — se [docs/wiki/widgets.md](../wiki/widgets.md) och issue [#165](https://github.com/jonatansoderberg/Maui.Spine/issues/165). Behålls som designhistorik.
+**Status:** Implemented — iOS i issue [#165](https://github.com/jonatansoderberg/Maui.Spine/issues/165), Android (v2) i issue [#168](https://github.com/jonatansoderberg/Maui.Spine/issues/168); se [docs/wiki/widgets.md](../wiki/widgets.md). Behålls som designhistorik.
 **Fråga:** Går det att, deklarativt eller i C#, definiera en widget i Spine-ramverket som fungerar på de plattformar Spine stödjer, med iOS som referens? Och kan samma modell driva Live Activities i Dynamic Island?
 **Svar:** Ja. Spiken i [spine-widgets/spike](spine-widgets/spike) visar en hemskärmswidget och en Live Activity på iOS 26 där **all layout kommer som JSON från .NET-appen**, utan ett enda Xcode-projekt och utan app-specifik Swift. Det som återstår är att göra det till ett paket.
 
@@ -279,10 +279,10 @@ Kravet är en Mac med Xcode CLI, vilket redan gäller för alla iOS-byggen. Wind
 |---|---|---|---|---|
 | iOS 17+ | WidgetKit via generiskt appex | ActivityKit: låsskärm + Dynamic Island | Mac-bygge, App Group, provisioning för app + appex | **Verifierad i simulator** |
 | Mac Catalyst | Samma appex (WidgetKit stöds i Catalyst 14+) | Ingen egen; macOS 26 speglar iPhone-aktiviteter | `AdditionalAppExtensions` stöds för Catalyst enligt SDK-targets (6 träffar i Catalyst-SDK:n) | Ej verifierad; troligen separat `swiftc`-target |
-| Android 8+ | `AppWidgetProvider` + `RemoteViews` byggt från trädet med stub-layouts (`AddView` för nästling, API 31 ger marginaler/radier/storlek) | Android 16 Live Updates (`ProgressStyle`, `SetRequestPromotedOngoing`) — bundet i .NET 10; `MetricStyle` kräver .NET 11 | Inget extra verktyg; allt är C# | Dokumenterat av Microsoft (.NET-bloggen jan 2026) |
+| Android 5+ | `AppWidgetProvider` + `RemoteViews` byggt från trädet med stub-layouts (`AddView` för nästling, API 31 ger marginaler/radier/storlek) | Android 16 Live Updates (`ProgressStyle`, `setRequestPromotedOngoing` — det senare via JNI, obundet i Mono.Android 36.1) | Inget extra verktyg; allt är C# | **Implementerad och verifierad i emulator (API 36/37)**, #168 |
 | Windows 11 | Widgets Board: `IWidgetProvider` + Adaptive Cards-JSON | Ingen | **Endast MSIX-paketerad app** (Orientera kör `WindowsPackageType=None` idag), COM-server, x64/ARM64 | Officiellt C#-sample finns; ingen känd MAUI-app har gjort det |
 
-Android-noten: Jetpack Glance går inte att använda från C# (dotnet/android #6379), så det blir RemoteViews. Det räcker gott för trädet ovan; `layout_weight` och egna typsnitt är de kända hålen.
+Android-noten: Jetpack Glance går inte att använda från C# (dotnet/android #6379), så det blir RemoteViews. Det räckte för trädet ovan; `layout_weight` (bara i stackar bredare än sitt innehåll), egna typsnitt och `Relative`-formatet är de kända hålen, och ikonerna kommer från en inbäddad SVG per SF-namn. Detaljerna står i wikins Android-sektion.
 
 ---
 
@@ -295,7 +295,7 @@ Android-noten: Jetpack Glance går inte att använda från C# (dotnet/android #6
 - Verifiera på fysisk enhet + TestFlight-uppladdning (§7).
 
 **v2 — Android + interaktivitet**
-- RemoteViews-renderare och Live Updates-mappning.
+- RemoteViews-renderare och Live Updates-mappning. *Levererat i #168.*
 - Fjärrkälla i extensionet, push-to-start, generisk `AppIntent` för knappar.
 - `IBackgroundRefreshHandler` (BGAppRefreshTask / WorkManager) och token-leverans för push-uppdaterade Live Activities enligt §4.3c.
 - Adaptiva träd per familj.

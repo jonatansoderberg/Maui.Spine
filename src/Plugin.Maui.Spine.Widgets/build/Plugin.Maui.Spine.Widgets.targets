@@ -1,15 +1,16 @@
 <Project>
 	<!--
-		Turns <SpineWidget> items into a WidgetKit extension and the bridge framework, and hands both to
-		the .NET iOS SDK. Runs only for iOS inner (RuntimeIdentifier-specific) builds on a Mac; every other
-		platform and design-time build is untouched.
+		Turns <SpineWidget> items into native widget artefacts. On iOS that is a WidgetKit extension and the
+		bridge framework, compiled with swiftc for inner (RuntimeIdentifier-specific) builds on a Mac. On
+		Android it is a manifest overlay and provider metadata for the receivers the package already carries
+		(the Android section at the end). Every other platform and design-time build is untouched.
 
 		Consumer knobs:
 		  <SpineWidget Include="next-start" DisplayName="Nästa start" Description="…" Families="Small,Medium" />
-		  SpineWidgetsAppGroup        default group.$(ApplicationId)
-		  SpineWidgetsLiveActivities  default true
-		  SpineWidgetsMinimumOSVersion default 17.0
-		  SpineWidgetsExtensionName   default SpineWidgets
+		  SpineWidgetsAppGroup        default group.$(ApplicationId)   (iOS)
+		  SpineWidgetsLiveActivities  default true                      (iOS: the activity in the bundle; Android: the notification permissions)
+		  SpineWidgetsMinimumOSVersion default 17.0                    (iOS)
+		  SpineWidgetsExtensionName   default SpineWidgets             (iOS)
 		  SpineWidgetsEnabled         default true
 	-->
 	<PropertyGroup>
@@ -84,6 +85,178 @@
 			<AdditionalAppExtensions Include="$(_SpineWidgetsOutDir.TrimEnd('/'))" Name="$(SpineWidgetsExtensionName)" BuildOutput="." CodesignEntitlements="$(_SpineWidgetsOutDir)$(SpineWidgetsExtensionName).entitlements" />
 			<NativeReference Include="$(_SpineWidgetsOutDir)SpineWidgetBridge.framework" Kind="Framework" SmartLink="false" />
 			<PartialAppManifest Include="$(_SpineWidgetsOutDir)HostManifest.plist" />
+		</ItemGroup>
+	</Target>
+
+	<!--
+		Android: the same <SpineWidget> items become one AppWidgetProvider receiver each, wired to the fixed
+		SpineAppWidget0..8 classes the package carries, plus the appwidget-provider metadata and the strings the
+		widget picker shows. Everything is generated into obj/ by an inline task (Android builds on Windows too,
+		so no shell) and handed to the SDK as a manifest overlay and resources.
+	-->
+	<UsingTask TaskName="SpineWidgetsAndroidGenerate" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+		<ParameterGroup>
+			<Widgets ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+			<OutputDirectory ParameterType="System.String" Required="true" />
+			<ApplicationId ParameterType="System.String" Required="true" />
+			<LiveActivities ParameterType="System.Boolean" />
+			<Manifest ParameterType="System.String" Output="true" />
+			<Resources ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />
+		</ParameterGroup>
+		<Task>
+			<Using Namespace="System.IO" />
+			<Using Namespace="System.Text" />
+			<Using Namespace="System.Xml" />
+			<Using Namespace="System.Collections.Generic" />
+			<Code Type="Fragment" Language="cs"><![CDATA[
+const string Ns = "http://schemas.android.com/apk/res/android";
+const string Package = "plugin.maui.spine.widgets";
+if (Widgets.Length > 9)
+{
+    Log.LogError("Spine widgets: at most nine <SpineWidget> items are supported on Android; {0} declared.", Widgets.Length);
+    return false;
+}
+
+// Families map to launcher cells (dp): Small 2x2, Medium 4x2, Large 4x4, ExtraLarge 5x4; the smallest declared sets the minimum.
+var cells = new Dictionary<string, (int W, int H)>(StringComparer.OrdinalIgnoreCase)
+{
+    ["Small"] = (2, 2), ["Medium"] = (4, 2), ["Large"] = (4, 4), ["ExtraLarge"] = (5, 4),
+};
+int Dp(int cellCount) => 70 * cellCount - 30;
+
+var resources = new List<ITaskItem>();
+// The declaration is written by hand: XmlWriter over a StringBuilder declares utf-16, which aapt2 rejects.
+var settings = new XmlWriterSettings { Indent = true, IndentChars = "\t", OmitXmlDeclaration = true };
+
+void Write(string relativePath, Action<XmlWriter> body, string logicalName = null)
+{
+    var path = Path.Combine(OutputDirectory, relativePath);
+    Directory.CreateDirectory(Path.GetDirectoryName(path));
+    var buffer = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n");
+    using (var writer = XmlWriter.Create(buffer, settings)) body(writer);
+    var content = buffer.ToString();
+    if (!File.Exists(path) || File.ReadAllText(path) != content) File.WriteAllText(path, content, new UTF8Encoding(false));
+    if (logicalName != null)
+    {
+        var item = new TaskItem(path);
+        item.SetMetadata("LogicalName", logicalName);
+        resources.Add(item);
+    }
+}
+
+for (var i = 0; i < Widgets.Length; i++)
+{
+    var widget = Widgets[i];
+    var families = (widget.GetMetadata("Families") ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+    var minW = int.MaxValue; var minH = int.MaxValue; var maxW = 0; var maxH = 0;
+    foreach (var family in families)
+    {
+        (int W, int H) cell;
+        if (!cells.TryGetValue(family.Trim(), out cell)) continue;
+        minW = Math.Min(minW, cell.W); minH = Math.Min(minH, cell.H); maxW = Math.Max(maxW, cell.W); maxH = Math.Max(maxH, cell.H);
+    }
+    if (maxW == 0) { minW = minH = maxW = maxH = 2; }
+
+    Write(Path.Combine("res", "xml", "spine_widget_" + i + ".xml"), w =>
+    {
+        w.WriteStartElement("appwidget-provider", Ns);
+        w.WriteAttributeString("android", "minWidth", Ns, Dp(minW) + "dp");
+        w.WriteAttributeString("android", "minHeight", Ns, Dp(minH) + "dp");
+        w.WriteAttributeString("android", "minResizeWidth", Ns, Dp(minW) + "dp");
+        w.WriteAttributeString("android", "minResizeHeight", Ns, Dp(minH) + "dp");
+        w.WriteAttributeString("android", "maxResizeWidth", Ns, Dp(maxW) + "dp");
+        w.WriteAttributeString("android", "maxResizeHeight", Ns, Dp(maxH) + "dp");
+        w.WriteAttributeString("android", "targetCellWidth", Ns, minW.ToString());
+        w.WriteAttributeString("android", "targetCellHeight", Ns, minH.ToString());
+        w.WriteAttributeString("android", "resizeMode", Ns, "horizontal|vertical");
+        w.WriteAttributeString("android", "widgetCategory", Ns, "home_screen");
+        w.WriteAttributeString("android", "updatePeriodMillis", Ns, "0");
+        w.WriteAttributeString("android", "initialLayout", Ns, "@layout/spine_widget_root");
+        w.WriteAttributeString("android", "description", Ns, "@string/spine_widget_" + i + "_description");
+        w.WriteEndElement();
+    }, "xml/spine_widget_" + i + ".xml");
+}
+
+Write(Path.Combine("res", "values", "spine_widgets.xml"), w =>
+{
+    w.WriteStartElement("resources");
+    w.WriteStartElement("string-array");
+    w.WriteAttributeString("name", "spine_widget_kinds");
+    foreach (var widget in Widgets) w.WriteElementString("item", widget.ItemSpec);
+    w.WriteEndElement();
+    for (var i = 0; i < Widgets.Length; i++)
+    {
+        var display = Widgets[i].GetMetadata("DisplayName");
+        w.WriteStartElement("string"); w.WriteAttributeString("name", "spine_widget_" + i + "_label"); w.WriteString(string.IsNullOrEmpty(display) ? Widgets[i].ItemSpec : display); w.WriteEndElement();
+        w.WriteStartElement("string"); w.WriteAttributeString("name", "spine_widget_" + i + "_description"); w.WriteString(Widgets[i].GetMetadata("Description") ?? ""); w.WriteEndElement();
+    }
+    w.WriteEndElement();
+}, "values/spine_widgets.xml");
+
+Manifest = Path.Combine(OutputDirectory, "AndroidManifest.xml");
+Write("AndroidManifest.xml", w =>
+{
+    w.WriteStartElement("manifest");
+    w.WriteAttributeString("xmlns", "android", null, Ns);
+    if (LiveActivities)
+    {
+        foreach (var permission in new[] { "POST_NOTIFICATIONS", "POST_PROMOTED_NOTIFICATIONS" })
+        {
+            w.WriteStartElement("uses-permission");
+            w.WriteAttributeString("android", "name", Ns, "android.permission." + permission);
+            w.WriteEndElement();
+        }
+    }
+    w.WriteStartElement("application");
+    for (var i = 0; i < Widgets.Length; i++)
+    {
+        w.WriteStartElement("receiver");
+        w.WriteAttributeString("android", "name", Ns, Package + ".SpineAppWidget" + i);
+        w.WriteAttributeString("android", "exported", Ns, "true");
+        w.WriteAttributeString("android", "label", Ns, "@string/spine_widget_" + i + "_label");
+        w.WriteStartElement("intent-filter");
+        w.WriteStartElement("action"); w.WriteAttributeString("android", "name", Ns, "android.appwidget.action.APPWIDGET_UPDATE"); w.WriteEndElement();
+        w.WriteEndElement();
+        w.WriteStartElement("meta-data");
+        w.WriteAttributeString("android", "name", Ns, "android.appwidget.provider");
+        w.WriteAttributeString("android", "resource", Ns, "@xml/spine_widget_" + i);
+        w.WriteEndElement();
+        w.WriteEndElement();
+    }
+    // The scheme lands on the package's own link activity, so the app's activity keeps its generated name.
+    w.WriteStartElement("activity");
+    w.WriteAttributeString("android", "name", Ns, Package + ".SpineWidgetLinkActivity");
+    w.WriteStartElement("intent-filter");
+    w.WriteStartElement("action"); w.WriteAttributeString("android", "name", Ns, "android.intent.action.VIEW"); w.WriteEndElement();
+    w.WriteStartElement("category"); w.WriteAttributeString("android", "name", Ns, "android.intent.category.DEFAULT"); w.WriteEndElement();
+    w.WriteStartElement("category"); w.WriteAttributeString("android", "name", Ns, "android.intent.category.BROWSABLE"); w.WriteEndElement();
+    w.WriteStartElement("data"); w.WriteAttributeString("android", "scheme", Ns, ApplicationId); w.WriteAttributeString("android", "host", Ns, "widget"); w.WriteEndElement();
+    w.WriteEndElement();
+    w.WriteEndElement();
+    w.WriteEndElement();
+    w.WriteEndElement();
+});
+
+Resources = resources.ToArray();
+]]></Code>
+		</Task>
+	</UsingTask>
+
+	<Target Name="_SpineWidgetsAndroid"
+			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(AndroidApplication)' == 'true' And '@(SpineWidget)' != '' And '$(DesignTimeBuild)' != 'true'"
+			BeforeTargets="_ComputeAndroidResourcePaths;_ManifestMerger">
+		<SpineWidgetsAndroidGenerate
+			Widgets="@(SpineWidget)"
+			OutputDirectory="$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj', 'spinewidgets', 'android'))"
+			ApplicationId="$(ApplicationId)"
+			LiveActivities="$(SpineWidgetsLiveActivities)">
+			<Output TaskParameter="Manifest" PropertyName="_SpineWidgetsAndroidManifest" />
+			<Output TaskParameter="Resources" ItemName="_SpineWidgetsAndroidResource" />
+		</SpineWidgetsAndroidGenerate>
+
+		<ItemGroup>
+			<AndroidManifestOverlay Include="$(_SpineWidgetsAndroidManifest)" />
+			<AndroidResource Include="@(_SpineWidgetsAndroidResource)" />
 		</ItemGroup>
 	</Target>
 </Project>

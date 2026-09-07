@@ -57,6 +57,9 @@
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
 		<MauiImage Update="Resources\Images\dotnet_bot.png" Resize="True" BaseSize="300,185" />
+
+		<!-- Embedded SVGs: widget icons on Android are drawn from an SVG named after the SF Symbol (figure_run.svg). -->
+		<EmbeddedResource Include="Resources\Svg\*.svg" />
 		
 		<!-- Custom Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />

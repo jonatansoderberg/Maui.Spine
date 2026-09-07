@@ -175,7 +175,7 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | Navigation result | `MainPage` → `FullscreenSheetPage` (awaits `FullscreenSheetResult`) |
 | App shortcut → navigation | `ShortcutHandler` → `SettingsPage` |
 | Windows tray icon + close-to-background | `MauiProgram.cs` options |
-| Home-screen widget + Live Activity (iOS) | `Widgets/SampleWidget.cs`, `SettingsPage` |
+| Home-screen widget + Live Activity (iOS, Android) | `Widgets/SampleWidget.cs`, `SettingsPage` |
 
 ### Run the sample
 

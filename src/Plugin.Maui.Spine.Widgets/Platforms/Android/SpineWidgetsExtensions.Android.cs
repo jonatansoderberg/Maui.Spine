@@ -1,0 +1,46 @@
+using Android.Content;
+using Microsoft.Maui.LifecycleEvents;
+using Plugin.Maui.Spine.Widgets.Services;
+
+namespace Plugin.Maui.Spine.Widgets.Extensions;
+
+public static partial class SpineWidgetsExtensions
+{
+    private const string HandledExtra = "plugin.maui.spine.widgets.HANDLED";
+
+    static partial void ConfigurePlatform(MauiAppBuilder builder, SpineWidgetsOptions options)
+    {
+        builder.Services.AddSingleton<IWidgetPlatform, WidgetPlatform>();
+
+        builder.ConfigureLifecycleEvents(events => events.AddAndroid(android =>
+        {
+            // The link trampoline is an activity too; its stop and its intent are not the app's.
+            android.OnCreate((activity, state) =>
+            {
+                if (activity is SpineWidgetLinkActivity) return;
+                if (state is null) RefreshAllInBackground(Services());
+                HandleLink(activity.Intent);
+            });
+            android.OnNewIntent((activity, intent) =>
+            {
+                if (activity is not SpineWidgetLinkActivity) HandleLink(intent);
+            });
+            if (options.RefreshOnBackground)
+                android.OnStop(activity =>
+                {
+                    if (activity is not SpineWidgetLinkActivity) RefreshAllInBackground(Services());
+                });
+        }));
+
+        static IServiceProvider Services() => IPlatformApplication.Current?.Services
+            ?? throw new InvalidOperationException("The MAUI application has not started.");
+
+        // The intent is re-delivered on every recreation of the activity, so a handled link is marked on it.
+        static void HandleLink(Intent? intent)
+        {
+            if (intent?.Data?.ToString() is not { } value || intent.GetBooleanExtra(HandledExtra, false)) return;
+            if (Uri.TryCreate(value, UriKind.Absolute, out var url) && TryHandleLink(Services(), url))
+                intent.PutExtra(HandledExtra, true);
+        }
+    }
+}
