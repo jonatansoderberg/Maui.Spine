@@ -5,7 +5,6 @@ using Android.Content;
 using Android.Runtime;
 using Android.Widget;
 using Microsoft.Extensions.Logging;
-using Plugin.Maui.SvgImage;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
@@ -103,7 +102,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         ids ??= manager.GetAppWidgetIds(component);
         if (ids is not { Length: > 0 }) return;
 
-        var renderer = new RemoteViewsRenderer(context, new WidgetIcons(SvgResources()));
+        var renderer = new RemoteViewsRenderer(context, new WidgetIcons(context));
         using var document = WidgetStore.ReadTimeline(context, kind);
 
         if (document is null)
@@ -212,11 +211,6 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         var intent = new Intent(context, typeof(SpineWidgetLinkActivity)).SetAction(Intent.ActionView).SetData(uri);
         return PendingIntent.GetActivity(context, 100 + index, intent, PendingFlags);
     }
-
-    // The receiver runs inside the app's process, so the registry UseSpine filled is already there; the
-    // instance only matters as a handle to its static map.
-    private static ResourceNameCache SvgResources() =>
-        IPlatformApplication.Current?.Services.GetService<ResourceNameCache>() ?? new ResourceNameCache();
 }
 
 [Register("plugin/maui/spine/widgets/SpineAppWidget0")] internal sealed class SpineAppWidget0() : SpineAppWidget(0);

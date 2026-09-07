@@ -2,7 +2,7 @@ using Plugin.Maui.Spine.Widgets.Serialization;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
-internal sealed class LiveActivityService(IWidgetPlatform _platform) : ILiveActivityService
+internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconAssets _icons) : ILiveActivityService
 {
     private readonly List<LiveActivity> _active = [];
     private bool _adopted;
@@ -36,6 +36,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform) : ILiveActi
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
         if (!_platform.IsSupported) return null;
 
+        await _icons.EnsureAsync(layout, CancellationToken.None);
         var id = await _platform.StartActivityAsync(kind, WidgetJson.Serialize(layout), staleAt);
         if (id is null) return null;
 
@@ -50,11 +51,11 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform) : ILiveActi
             await activity.EndAsync();
     }
 
-    private Task Update(LiveActivity activity, LiveActivityLayout layout, DateTimeOffset? staleAt)
+    private async Task Update(LiveActivity activity, LiveActivityLayout layout, DateTimeOffset? staleAt)
     {
         if (activity.IsEnded) throw new InvalidOperationException("The activity has ended.");
+        await _icons.EnsureAsync(layout, CancellationToken.None);
         _platform.UpdateActivity(activity.Id, WidgetJson.Serialize(layout), staleAt);
-        return Task.CompletedTask;
     }
 
     private Task End(LiveActivity activity)

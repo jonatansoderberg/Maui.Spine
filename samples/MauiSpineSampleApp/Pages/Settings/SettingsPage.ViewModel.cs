@@ -68,17 +68,17 @@ public partial class SettingsPageViewModel(IWidgetService _widgets, ILiveActivit
         var activity = await _liveActivities.StartAsync(ActivityKind, new LiveActivityLayout
         {
             LockScreen = W.HStack(10,
-                W.Icon("figure.run", WidgetColor.Green),
+                W.Icon("fish", WidgetColor.Green),
                 W.VStack(2, W.Text("Sthlm Indoor Cup · H21").Headline().Bold(), W.Text("Your start").Caption().Secondary()),
                 W.Spacer(),
                 W.Timer(start).Title().Bold().Color(WidgetColor.Green)),
-            ExpandedLeading = W.Icon("figure.run", WidgetColor.Green),
+            ExpandedLeading = W.Icon("fish", WidgetColor.Green),
             ExpandedTrailing = W.Timer(start).Headline().Bold().Color(WidgetColor.Green),
             ExpandedCenter = W.Text("Sthlm Indoor Cup · H21").Headline().Bold(),
             ExpandedBottom = W.VStack(W.Text("Start 11:04 · Course 6.3 km").Caption().Secondary(), W.Progress(0.35, WidgetColor.Green)),
-            CompactLeading = W.Icon("figure.run", WidgetColor.Green),
+            CompactLeading = W.Icon("fish", WidgetColor.Green),
             CompactTrailing = W.Timer(start).Caption().Bold().Color(WidgetColor.Green),
-            Minimal = W.Icon("figure.run", WidgetColor.Green),
+            Minimal = W.Icon("fish", WidgetColor.Green),
             Link = _widgets.LinkFor(ActivityKind),
         }, staleAt: start.AddHours(1));
 
