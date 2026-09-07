@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>Plugin.Maui.Spine.Server</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Server</RootNamespace>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<!--
+		MapSpinePush needs ASP.NET Core, and so does the Azure Functions isolated worker once it
+		uses Extensions.Http.AspNetCore — the same HttpRequest. One framework reference therefore
+		serves both hosts, and the package does not have to split in two.
+	-->
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- The tag policy is applied by the endpoints; it is tested directly, not through HTTP. -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="FirebaseAdmin" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+</Project>
