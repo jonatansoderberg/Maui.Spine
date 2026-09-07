@@ -126,6 +126,11 @@ Inga öppna. Avgjorda 2026-09-08:
 - `PUT` läser kroppen som en `PushInstallation`, kräver att id:t i kroppen och i sökvägen är samma, avvisar en registrering utan handle, kör `AllowTags` och skriver. `DELETE` tar bort och är förlåtande mot något som inte finns. `Authenticate` som säger nej ger 401.
 - 19 nya tester, 133 totalt: varje statuskod, att taggpolicyn körs innan skrivningen, att servern stämplar `UpdatedAt` själv, och sju varianter av hur id:t läses ur sökvägen.
 
+### Steg 7 — wiki och README
+
+- Ny `docs/wiki/push-server.md`: varför registret ligger hos en själv, `AddSpinePush`, `IPushSender`, målen, tagguttrycken, Live Activities med 4 KB-taket, widgetuppdatering, registret, endpointsen för båda värdarna, och en tabell över vad som inte ingår i v1.
+- Rad i README:s dokumentationstabell.
+
 ## Decisions
 
 - **Kompakt JSON-form för `LiveActivityLayout` behövs inte i v1.** Issuets tredje fråga skulle avgöras när Orienteras layout mätts mot 4 KB. Mätt: `MyStartActivity.Layout` med verkliga strängar ger **1225 byte** `content-state`, och **1315 byte** för hela APNs-payloaden inklusive `timestamp`, `event` och `stale-date`. Det är 32 % av taket, med 2781 byte kvar — layouten skulle behöva tredubblas för att slå i det. Ingen `Patch`-form och inga korta nyckelnamn i v1; storleksvakten i steg 3 fångar det den dag en layout växer sig för stor.
