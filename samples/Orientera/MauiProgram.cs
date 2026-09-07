@@ -13,6 +13,7 @@ using Orientera.Services.Sources;
 using Orientera.Services.Time;
 using Orientera.Services.Weather;
 using Plugin.Maui.Spine.Extensions;
+using Plugin.Maui.Spine.Widgets.Extensions;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 
 namespace Orientera;
@@ -84,6 +85,9 @@ public static class MauiProgram
                 // resten av skalan är Inter, och två brödtextsnitt är inte en typografi.
                 fonts.AddFont("BrandonGrotesqueBlack.otf", "BrandonGrotesqueBlack");
             });
+
+        // Widgeten "Nästa start" och Live Activityn "Din start"; providern hittas via UseSpine-assemblyn.
+        builder.UseSpineWidgets();
 
         // Mapsui ritar kartan med SkiaSharp och behöver dess handlers registrerade.
         builder.UseSkiaSharp();

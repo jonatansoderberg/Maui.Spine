@@ -205,8 +205,13 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.AnimatedLabel\Plugin.Maui.AnimatedLabel.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.SpineControls\Plugin.Maui.SpineControls.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.SvgImage\Plugin.Maui.SvgImage.csproj" />
 	</ItemGroup>
+	<!-- Widgets: the kinds below become a WidgetKit extension on iOS; the provider is [Widget("sample")] in Widgets\. -->
+	<ItemGroup>
+		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" />
+	</ItemGroup>
+	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 
-  
 </Project>

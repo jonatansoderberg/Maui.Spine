@@ -1,6 +1,6 @@
 # Spine.Widgets — widgets och Live Activities från Spine (förstudie, rev 1)
 
-**Status:** Förstudie med verifierad spike. Inget produktionskod ännu.
+**Status:** Implemented — se [docs/wiki/widgets.md](../wiki/widgets.md) och issue [#165](https://github.com/jonatansoderberg/Maui.Spine/issues/165). Behålls som designhistorik.
 **Fråga:** Går det att, deklarativt eller i C#, definiera en widget i Spine-ramverket som fungerar på de plattformar Spine stödjer, med iOS som referens? Och kan samma modell driva Live Activities i Dynamic Island?
 **Svar:** Ja. Spiken i [spine-widgets/spike](spine-widgets/spike) visar en hemskärmswidget och en Live Activity på iOS 26 där **all layout kommer som JSON från .NET-appen**, utan ett enda Xcode-projekt och utan app-specifik Swift. Det som återstår är att göra det till ett paket.
 

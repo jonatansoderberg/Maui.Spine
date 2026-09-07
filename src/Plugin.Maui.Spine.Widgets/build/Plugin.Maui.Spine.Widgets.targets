@@ -1,0 +1,89 @@
+<Project>
+	<!--
+		Turns <SpineWidget> items into a WidgetKit extension and the bridge framework, and hands both to
+		the .NET iOS SDK. Runs only for iOS inner (RuntimeIdentifier-specific) builds on a Mac; every other
+		platform and design-time build is untouched.
+
+		Consumer knobs:
+		  <SpineWidget Include="next-start" DisplayName="Nästa start" Description="…" Families="Small,Medium" />
+		  SpineWidgetsAppGroup        default group.$(ApplicationId)
+		  SpineWidgetsLiveActivities  default true
+		  SpineWidgetsMinimumOSVersion default 17.0
+		  SpineWidgetsExtensionName   default SpineWidgets
+		  SpineWidgetsEnabled         default true
+	-->
+	<PropertyGroup>
+		<SpineWidgetsEnabled Condition="'$(SpineWidgetsEnabled)' == ''">true</SpineWidgetsEnabled>
+		<SpineWidgetsLiveActivities Condition="'$(SpineWidgetsLiveActivities)' == ''">true</SpineWidgetsLiveActivities>
+		<SpineWidgetsMinimumOSVersion Condition="'$(SpineWidgetsMinimumOSVersion)' == ''">17.0</SpineWidgetsMinimumOSVersion>
+		<SpineWidgetsExtensionName Condition="'$(SpineWidgetsExtensionName)' == ''">SpineWidgets</SpineWidgetsExtensionName>
+		<_SpineWidgetsNativeDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', 'native', 'ios'))</_SpineWidgetsNativeDir>
+		<_SpineWidgetsScript>$(MSBuildThisFileDirectory)spine-widgets-build.sh</_SpineWidgetsScript>
+	</PropertyGroup>
+
+	<Target Name="_SpineWidgetsPrepare"
+			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '@(SpineWidget)' != '' And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))">
+		<PropertyGroup>
+			<SpineWidgetsAppGroup Condition="'$(SpineWidgetsAppGroup)' == ''">group.$(ApplicationId)</SpineWidgetsAppGroup>
+			<_SpineWidgetsSdk Condition="$(RuntimeIdentifier.Contains('simulator'))">iphonesimulator</_SpineWidgetsSdk>
+			<_SpineWidgetsSdk Condition="'$(_SpineWidgetsSdk)' == ''">iphoneos</_SpineWidgetsSdk>
+			<_SpineWidgetsArch>$(RuntimeIdentifier.Substring($([MSBuild]::Add($(RuntimeIdentifier.IndexOf('-')), 1))))</_SpineWidgetsArch>
+			<_SpineWidgetsOutDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj', 'spinewidgets', '$(Configuration)', '$(RuntimeIdentifier)'))</_SpineWidgetsOutDir>
+			<_SpineWidgetsInputsFile>$(_SpineWidgetsOutDir)inputs.txt</_SpineWidgetsInputsFile>
+			<_SpineWidgetsStamp>$(_SpineWidgetsOutDir)build.stamp</_SpineWidgetsStamp>
+			<_SpineWidgetsBundleId>$(ApplicationId).$(SpineWidgetsExtensionName)</_SpineWidgetsBundleId>
+			<_SpineWidgetsArgs>--widget &quot;@(SpineWidget->'%(Identity)|%(DisplayName)|%(Description)|%(Families)', '&quot; --widget &quot;')&quot;</_SpineWidgetsArgs>
+		</PropertyGroup>
+
+		<MakeDir Directories="$(_SpineWidgetsOutDir)" />
+
+		<!-- Anything that changes the generated bundle or plists lands here, so Inputs/Outputs sees it. -->
+		<ItemGroup>
+			<_SpineWidgetsInputLine Include="@(SpineWidget->'%(Identity)|%(DisplayName)|%(Description)|%(Families)')" />
+			<_SpineWidgetsInputLine Include="$(_SpineWidgetsBundleId);$(SpineWidgetsAppGroup);$(SpineWidgetsLiveActivities);$(SpineWidgetsMinimumOSVersion);$(Configuration);$(ApplicationTitle);$(_SpineWidgetsArch);$(_SpineWidgetsSdk)" />
+		</ItemGroup>
+		<WriteLinesToFile File="$(_SpineWidgetsInputsFile)" Lines="@(_SpineWidgetsInputLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+
+		<ItemGroup>
+			<_SpineWidgetsInputs Include="$(_SpineWidgetsNativeDir)*.swift;$(_SpineWidgetsScript);$(_SpineWidgetsInputsFile)" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="_SpineWidgetsBuild"
+			DependsOnTargets="_SpineWidgetsPrepare"
+			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '@(SpineWidget)' != '' And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))"
+			Inputs="@(_SpineWidgetsInputs)"
+			Outputs="$(_SpineWidgetsStamp)">
+		<Exec Command="&quot;$(_SpineWidgetsScript)&quot; --out &quot;$(_SpineWidgetsOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpineWidgetsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpineWidgetsSdk) --arch $(_SpineWidgetsArch) --min-os $(SpineWidgetsMinimumOSVersion) --config $(Configuration) --bundle-id &quot;$(_SpineWidgetsBundleId)&quot; --app-group &quot;$(SpineWidgetsAppGroup)&quot; --name &quot;$(SpineWidgetsExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --url-scheme &quot;$(ApplicationId)&quot; --live-activities $(SpineWidgetsLiveActivities) $(_SpineWidgetsArgs)" />
+	</Target>
+
+	<!--
+		Registers the outputs with the SDK. Hooked before every consumer of the items and properties it
+		sets; BeforeTargets runs after the consumer's own DependsOnTargets, so the dependency targets that
+		read them are listed too. Every target repeats the full condition because MSBuild evaluates a
+		target's Condition before its DependsOnTargets run, so a property set by _SpineWidgetsPrepare
+		cannot gate the targets that depend on it.
+	-->
+	<Target Name="_SpineWidgetsRegister"
+			DependsOnTargets="_SpineWidgetsBuild"
+			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '@(SpineWidget)' != '' And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))"
+			BeforeTargets="_SanitizeNativeReferences;_CompileAppManifestInputs;_CompileAppManifest;_DetectSigningIdentity;_CompileEntitlements;_ResolveAppExtensionReferences;_ExtendAppExtensionReferences">
+		<PropertyGroup>
+			<CodesignEntitlements Condition="'$(CodesignEntitlements)' == ''">$(_SpineWidgetsOutDir)Host.entitlements</CodesignEntitlements>
+			<!-- Simulator builds on a Mac without a signing identity still need to sign the extension. The SDK
+			     snapshots CodesignKey into _SpecifiedCodesignKey in its props, so both are set here. -->
+			<CodesignKey Condition="'$(CodesignKey)' == '' And '$(_SpineWidgetsSdk)' == 'iphonesimulator'">-</CodesignKey>
+			<_SpecifiedCodesignKey Condition="'$(_SpecifiedCodesignKey)' == '' And '$(_SpineWidgetsSdk)' == 'iphonesimulator'">-</_SpecifiedCodesignKey>
+		</PropertyGroup>
+
+		<Error Condition="!Exists('$(CodesignEntitlements)')" Text="Spine widgets: CodesignEntitlements '$(CodesignEntitlements)' does not exist." />
+		<Error Condition="!$([System.IO.File]::ReadAllText('$(CodesignEntitlements)').Contains('$(SpineWidgetsAppGroup)'))"
+			   Text="Spine widgets: the app's entitlements ($(CodesignEntitlements)) must list the App Group '$(SpineWidgetsAppGroup)' under com.apple.security.application-groups, so the app and the widget extension can share data." />
+
+		<ItemGroup>
+			<AdditionalAppExtensions Include="$(_SpineWidgetsOutDir.TrimEnd('/'))" Name="$(SpineWidgetsExtensionName)" BuildOutput="." CodesignEntitlements="$(_SpineWidgetsOutDir)$(SpineWidgetsExtensionName).entitlements" />
+			<NativeReference Include="$(_SpineWidgetsOutDir)SpineWidgetBridge.framework" Kind="Framework" SmartLink="false" />
+			<PartialAppManifest Include="$(_SpineWidgetsOutDir)HostManifest.plist" />
+		</ItemGroup>
+	</Target>
+</Project>
