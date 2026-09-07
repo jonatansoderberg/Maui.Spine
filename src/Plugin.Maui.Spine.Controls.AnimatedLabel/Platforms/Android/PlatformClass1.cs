@@ -1,4 +1,4 @@
-﻿namespace Plugin.Maui.AnimatedLabel
+﻿namespace Plugin.Maui.Spine.Controls
 {
     // All the code in this file is only included on Android.
     public class PlatformClass1

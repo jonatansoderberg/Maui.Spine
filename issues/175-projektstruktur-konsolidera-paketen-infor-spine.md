@@ -95,6 +95,14 @@ Sist, när allt annat bygger. Lyfter `TargetFrameworks`-villkoren, `SupportedOSP
 - Ingen `ProjectReference` till `Plugin.Maui.Spine` finns i projektet (den fanns inte tidigare heller).
 - Verifierat i simulator och emulator, se Decisions.
 
+### Steg 4 — Plugin.Maui.Spine.Controls.AnimatedLabel
+
+- `src/Plugin.Maui.AnimatedLabel/` omdöpt med `git mv`. Namnrymd `Plugin.Maui.AnimatedLabel` → `Plugin.Maui.Spine.Controls` i sex filer, inklusive de fyra `PlatformClass1.cs` som är tomma mallrester.
+- `AssemblyName` = `Plugin.Maui.Spine.Controls.AnimatedLabel`, `RootNamespace` = `Plugin.Maui.Spine.Controls`. Kontrollerna delar alltså namnrymd men har var sitt paket-id, precis som beslutet säger.
+- `UseAnimatedLabel()` oförändrad.
+- `SkiaSharp.Views.Maui.Controls` 3.116.1 → 3.119.2, samma som övriga projekt.
+- `GlobalXmlns.cs`, `MauiProgram.cs`, sample-csproj:en och `Spine.slnx` uppdaterade.
+
 ## Decisions
 
 - **`WidgetColor.From(Color)` blev en statisk extension-medlem, inte en `partial`.** Planens `partial`-lösning går inte: partiella typer måste ligga i samma assembly. I stället ligger överlagringen i `WidgetColorExtensions` i Widgets, som en C# 14 `extension(WidgetColor)`-medlem. Anropssyntaxen `WidgetColor.From(mauiColor)` är oförändrad så länge `Plugin.Maui.Spine.Widgets` är i scope, vilket den redan är på båda anropsställena i Orientera. Kompilerar på SDK 10.0.201 med `LangVersion preview`.
@@ -102,6 +110,7 @@ Sist, när allt annat bygger. Lyfter `TargetFrameworks`-villkoren, `SupportedOSP
 - **Ingen klasskollision fanns i steg 2.** Planen antog att båda Svg-projekten hade en `MauiAppBuilderExtensions`-klass. SvgIcons fil deklarerar i själva verket `SvgIconExtensions` — bara filnamnet krockade. Filen är omdöpt efter sin klass i stället för att klasserna slås ihop, så `UseEmbeddedSvgImages` och `UseSvgIcon` ligger kvar var för sig precis som förut.
 - **Bara det som faktiskt korsar gränsen blev publikt.** `WidgetTimelineDocument`, `WidgetTimelineEntryDocument`, `WidgetJsonContext` och `WidgetColorJsonConverter` är serialiseringsdetaljer som aldrig var API och används bara inuti `Common`; de förblir `internal`. Ingen `InternalsVisibleTo` någonstans.
 - **XAML i sample-appen inflateras i runtime i Debug, så bygget bevisar inte namnbytet.** `HeroCollectionView` löses upp via `XmlnsDefinition` först när sidan visas. Därför kördes `MauiSpineSampleApp` i iOS-simulatorn: hero-headern med titelöverlägget ritas, den kollapsar till en sticky rad vid scroll, och SVG-ikonerna i raderna renderas. `Orientera` kördes i Android-emulatorn: hero-bilden, väderikonen och tabbarens tre SVG-ikoner ritas som förut. Före körningen rensades `bin/`/`obj/`, eftersom en gammal `Plugin.Maui.SpineControls.dll` låg kvar och kunde ha dolt ett fel.
+- **XAML verifieras med källgenerering, inte bara genom att klicka runt.** Båda sample-apparna byggs också med `-p:MauiXamlInflator=SourceGen`, vilket kompilerar varje XAML-fil och därmed löser upp `HeroCollectionView`, `AnimatedLabel` och `SvgImageSource` vid byggtid. Det täcker även filer som inte nås i UI:t, till exempel `MainPageOld.View.xaml`.
 - **Verifiering på den här maskinen.** `net10.0-android`, `net10.0-maccatalyst` för hela lösningen; `net10.0-ios` med `-r iossimulator-arm64 -p:CodesignKey=-` för sample-apparna (ingen signeringsidentitet finns); backend och tester på `net10.0`; sample-apparna startas i simulator/emulator. **`net10.0-windows10.0.19041.0` går inte att bygga här** — Windows-koden i `SpineApplication.Windows.cs` och `HeroCollectionView.Windows.cs` granskas bara för hand.
 
 ## Noterade buggar (lämnas)

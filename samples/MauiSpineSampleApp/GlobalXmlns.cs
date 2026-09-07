@@ -1,6 +1,6 @@
 ﻿[assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
-    "Plugin.Maui.AnimatedLabel", AssemblyName = "Plugin.Maui.AnimatedLabel")]
+    "Plugin.Maui.Spine.Controls", AssemblyName = "Plugin.Maui.Spine.Controls.AnimatedLabel")]
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "Plugin.Maui.Spine.Core", AssemblyName = "Plugin.Maui.Spine")]

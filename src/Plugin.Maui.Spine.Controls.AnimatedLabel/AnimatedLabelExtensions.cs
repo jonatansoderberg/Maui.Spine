@@ -1,6 +1,6 @@
 using SkiaSharp.Views.Maui.Controls.Hosting;
 
-namespace Plugin.Maui.AnimatedLabel;
+namespace Plugin.Maui.Spine.Controls;
 
 public static class AnimatedLabelExtensions
 {

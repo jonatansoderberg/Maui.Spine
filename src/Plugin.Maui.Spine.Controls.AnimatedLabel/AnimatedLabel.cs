@@ -3,7 +3,7 @@ using SkiaSharp.Views.Maui;
 using SkiaSharp.Views.Maui.Controls;
 using System.Diagnostics;
 
-namespace Plugin.Maui.AnimatedLabel;
+namespace Plugin.Maui.Spine.Controls;
 
 /// <summary>
 /// High-performance single-line text control with optional marquee scrolling.
