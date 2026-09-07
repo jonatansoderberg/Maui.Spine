@@ -55,9 +55,11 @@ Sist, när allt annat bygger. Lyfter `TargetFrameworks`-villkoren, `SupportedOSP
 
 ## Open Questions
 
-1. **Namnrymd på det som flyttas till `Common`.** Planen följer regeln "namnrymden följer paket-id:t" och döper om `Plugin.Maui.Spine.Widgets` → `Plugin.Maui.Spine.Common` för de flyttade typerna. Det kostar en extra `using` i widget-koden i båda sample-apparna. Alternativet — att låta `W`, `WidgetTimeline` m.fl. behålla `Plugin.Maui.Spine.Widgets` — ger noll ändringar hos konsumenter men bryter mot regeln. Går på regeln om inget annat sägs.
-2. **`samples/Orientera/docs/**` och de projektlokala `.github/copilot-instructions.md`.** Grep-regeln säger att alla gamla namn ska bort utanför `issues/` och `docs/proposals/`, så Orienteras kravdokument (`docs/krav/10-integrationer.md`, `11-arkitektur-mauispine.md`, `docs/implementation-plan.md`) skrivs om. Säg till om de ska räknas som designhistorik i stället.
-3. **SkiaSharp i steg 6.** Biblioteken kör 3.119.2, `Orientera.Backend` medvetet 4.151.1 (kommentaren i csproj:en motiverar valet). Central paketversionering tillåter en version per paket-id, så backend får en `VersionOverride`. Samma sak för `Microsoft.Maui.Controls`, som är `$(MauiVersion)` i AnimatedLabel men hårdkodad `10.0.50` i de andra fem.
+Inga öppna. De tre frågorna i planen är avgjorda:
+
+1. **Namnrymd i `Common`** — regeln följdes: `Plugin.Maui.Spine.Widgets` blev `Plugin.Maui.Spine.Common` för de flyttade typerna, med en extra `using` i widget-koden i båda sample-apparna.
+2. **Orienteras dokument** — behandlade som vanlig dokumentation och omskrivna. Bara `issues/` och `docs/proposals/` är designhistorik.
+3. **SkiaSharp under central paketversionering** — backend behåller 4.151.1 med `VersionOverride`.
 
 ## Changes
 
