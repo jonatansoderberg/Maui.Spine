@@ -3,7 +3,7 @@
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/175
 **Branch:** issue/175-projektstruktur-konsolidera-paketen-infor-spine
 **PR:** https://github.com/jonatansoderberg/Maui.Spine/pull/182
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
