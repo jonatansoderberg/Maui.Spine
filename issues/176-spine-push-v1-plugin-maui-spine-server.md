@@ -81,8 +81,19 @@ Inga öppna. Avgjorda 2026-09-08:
 - `Push/PushTagExpression.cs` — tokenizer och rekursiv descent för ANH-syntaxen. `Parse`, `TryParse` med felmeddelande och position, `Matches`, `ReferencedTags`, `MatchAll`, och en `ToString` som behåller den gruppering den läste.
 - Nytt testprojekt `tests/Plugin.Maui.Spine.Server.Tests` (xunit, centrala paketversioner), inlagt i `Spine.slnx`. 27 tester: operatorprioritet, parenteser, negering, ordinal jämförelse, 500 taggar i ett uttryck, tio ogiltiga uttryck, och rundtur för installationens JSON.
 
+### Steg 2 — serverprojektet och registret
+
+- Nytt `src/Plugin.Maui.Spine.Server/` (`net10.0`, `FrameworkReference` till `Microsoft.AspNetCore.App`, refererar bara `Common`). Inlagt i `Spine.slnx`.
+- `IPushInstallationStore` med `UpsertAsync`, `GetAsync`, `DeleteAsync`, `QueryAsync`, `PruneAsync`, `InvalidateAsync`. `QueryAsync` tar en valfri plattformslista och strömmar träffarna.
+- `InMemoryPushInstallationStore` över en `ConcurrentDictionary`, med `TimeProvider` inskjuten så utgång går att testa utan att vänta.
+- `SpinePushOptions` med `Apple(...)`, `Android(...)`, `UseInMemoryStore()`, `UseStore(...)`, `AllowTags` och `Authenticate`. `Validate()` körs i `AddSpinePush` och säger vilken uppgift som saknas.
+- `AddSpinePush(o => …)` registrerar options och registret som singletons.
+- 20 nya tester: registrets sex operationer, utgång mot en `FakeTimeProvider`, plattformsfiltret, och att en felkonfigurerad server avvisas med ett meddelande som pekar ut vad som fattas.
+
 ## Decisions
 
 - **Kompakt JSON-form för `LiveActivityLayout` behövs inte i v1.** Issuets tredje fråga skulle avgöras när Orienteras layout mätts mot 4 KB. Mätt: `MyStartActivity.Layout` med verkliga strängar ger **1225 byte** `content-state`, och **1315 byte** för hela APNs-payloaden inklusive `timestamp`, `event` och `stale-date`. Det är 32 % av taket, med 2781 byte kvar — layouten skulle behöva tredubblas för att slå i det. Ingen `Patch`-form och inga korta nyckelnamn i v1; storleksvakten i steg 3 fångar det den dag en layout växer sig för stor.
+- **`InternalsVisibleTo` till testprojektet.** `SpinePushOptions.FilterTags` är det endpointsen anropar, inte något konsumenter rör, men regeln är värd att testa direkt i stället för genom HTTP. `Orientera.Backend` gör redan samma sak för sin startlisteläsare, så mönstret finns i repot. Det här är inte samma sak som beslutet i #175, som gällde publik yta i `Common`.
+- **Registret utelämnar utgångna installationer i `QueryAsync`, men tar inte bort dem.** Borttagningen är `PruneAsync` sak, som körs när backenden vill. En utgången registrering får alltså aldrig en push, men den ligger kvar tills någon städar — annars hade en läsning haft en sidoeffekt.
 - **Taggar jämförs ordinalt.** `user:ABC` och `user:abc` är olika taggar. Alternativet, att jämföra utan skiftlägeshänsyn, döljer att en tagg är en ogenomskinlig sträng som klienten och servern måste komma överens om tecken för tecken. Testat.
 - **Ett serverpaket, inte två.** `MapSpinePush` kräver ASP.NET Core, men `Orientera.Backend` kör Functions isolated med `Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore`, alltså samma `HttpRequest`. En `FrameworkReference` till `Microsoft.AspNetCore.App` räcker därför för båda värdarna, och paketet behöver inte delas i `Server` och `Server.AspNetCore`.
