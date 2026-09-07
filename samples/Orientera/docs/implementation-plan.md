@@ -5,8 +5,8 @@
 
 ## Läget i Maui.Spine-repot
 
-- Appen ligger i `samples/Orientera` och refererar Spine-pluginsen som projektreferenser (`Plugin.Maui.Spine`, `Plugin.Maui.SpineControls`, `Plugin.Maui.SvgIcon`, `Plugin.Maui.SvgImage`, ev. `Plugin.Maui.AnimatedLabel`).
-- Spine-mönster som används: `SpineApplication`-rot, trefilsmönstret (`Page.cs` + `Page.View.xaml` + `Page.ViewModel.cs`), `[NavigableRegion]`/`[NavigableSheet]`, typed params/results, `SpineCollectionView`.
+- Appen ligger i `samples/Orientera` och refererar Spine-pluginsen som projektreferenser (`Plugin.Maui.Spine`, `Plugin.Maui.Spine.Controls.HeroCollectionView`, `Plugin.Maui.Spine.Svg`, ev. `Plugin.Maui.Spine.Controls.AnimatedLabel`).
+- Spine-mönster som används: `SpineApplication`-rot, trefilsmönstret (`Page.cs` + `Page.View.xaml` + `Page.ViewModel.cs`), `[NavigableRegion]`/`[NavigableSheet]`, typed params/results, `HeroCollectionView`.
 - **Tabbar:** Spine har ett tab-host-primitiv (`[NavigableTab]`, native `UITabBarController`/`BottomNavigationView`) sedan [PR #11](https://github.com/jonatansoderberg/Maui.Spine/pull/11). Orienteras fem flikar är deklarerade mot det. Se [docs/wiki/tab-host.md](../../../docs/wiki/tab-host.md).
 - **Plattformsläge:** README anger iOS/macOS "in progress" för Spine, medan Orientera är phone-first iOS + Android. iOS-verifiering av Spine-primitiver ingår därför som explicit aktivitet i etapp 2 (risk R1).
 
@@ -50,7 +50,7 @@ Domänmodeller läggs i appen (utbrytning till separat projekt kan ske vid M1 n�
 
 Byggordning (varje punkt är leverbar för sig):
 
-1. **Tävlingar** — SpineCollectionView-lista, snabbfilter-chips, grupperade event-kort, `EventFilterSheet` (typed result). Kart-läget stubas med platshållare i M0 (kartval är M4).
+1. **Tävlingar** — HeroCollectionView-lista, snabbfilter-chips, grupperade event-kort, `EventFilterSheet` (typed result). Kart-läget stubas med platshållare i M0 (kartval är M4).
 2. **Tävlingsdetalj** — vertikal kontextstyrd detalj (hero → För dig → snabbhandlingar → info → dokument), `ChooseClassSheet`. PM-briefing renderas från fake `CompetitionProfile` med käll-chip ("PM sida 2").
 3. **Hem** — kontextstyrda block enligt prioriteringsregeln (Live nu → Nästa för mig → Senaste resultat → discovery/Min grupp/utveckling), max 3–4 block.
 4. **Live** — lista med Min grupp/klass/alla-växling, jag-highlight, ★-favoriter, simulerad 15 s-uppdatering, "uppdaterad för X sek sedan".

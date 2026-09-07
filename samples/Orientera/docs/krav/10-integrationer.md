@@ -28,7 +28,7 @@ I den dokumenterade API-listan finns inget verifierat officiellt create-entry-fl
 | K3 | Livelox public API | API-access efter godkännande; API key eller OAuth2 Authorization Code + PKCE; events och courses; publika API:t lämnar inte ut maps/routes |
 | K4 | Omaps documentation (Omaps/SOFT) | Georefererade orienteringskartor, delning till externa tjänster via API, kartägarstyrda rättigheter |
 | K5 | Sverigelistan FAQ/personvy (Eventor/SOFT) | Sex bästa resultat under exakt ett år för huvudpoäng; används som ranking/seedningsunderlag |
-| K6 | Maui.Spine repository (GitHub: jonatansoderberg/Maui.Spine) | Navigation framework, sample under samples/MauiSpineSampleApp, regions, sheets, typed params/results och SpineCollectionView |
+| K6 | Maui.Spine repository (GitHub: jonatansoderberg/Maui.Spine) | Navigation framework, sample under samples/MauiSpineSampleApp, regions, sheets, typed params/results och HeroCollectionView |
 
 ## Viktiga osäkerheter
 

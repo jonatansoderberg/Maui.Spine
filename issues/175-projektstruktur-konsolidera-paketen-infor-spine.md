@@ -103,6 +103,15 @@ Sist, när allt annat bygger. Lyfter `TargetFrameworks`-villkoren, `SupportedOSP
 - `SkiaSharp.Views.Maui.Controls` 3.116.1 → 3.119.2, samma som övriga projekt.
 - `GlobalXmlns.cs`, `MauiProgram.cs`, sample-csproj:en och `Spine.slnx` uppdaterade.
 
+### Steg 5 — Referenser
+
+- `Spine.slnx`: alla sju projekt pekar på sina nya sökvägar.
+- `README.md`: dokumentationstabellen (`HeroCollectionView`, `AnimatedLabel`, `SVG` som en rad) och beroendetabellen. H1:n `# Plugin.Maui.Spine` står kvar — kärnpaketet byter inte namn.
+- `.github/copilot-instructions.md`, `docs/pages-guide.md`, `docs/wiki/{animated-label,page-actions,widgets,windows-options,getting-started}.md`.
+- `samples/Orientera/docs/{implementation-plan.md,krav/10-integrationer.md,krav/11-arkitektur-mauispine.md}` — de räknas inte som designhistorik, bara `issues/` och `docs/proposals/` gör det.
+- `git grep` på `SpineControls`, `Plugin.Maui.SvgImage`, `Plugin.Maui.SvgIcon`, `Plugin.Maui.AnimatedLabel` och `SpineCollectionView` är tom utanför `issues/` och `docs/proposals/`.
+- **Widgets-targetsen är oförändrade.** `Plugin.Maui.Spine.Widgets` byter inte namn, så `build/Plugin.Maui.Spine.Widgets.targets`, dess `$(MSBuildThisFileDirectory)../native/ios`, `spine-widgets-build.sh` och importen i båda sample-csproj:erna pekar rätt. Kontrollerat på disk, och Orienteras iOS-bygge med widget-extensionet går igenom.
+
 ## Decisions
 
 - **`WidgetColor.From(Color)` blev en statisk extension-medlem, inte en `partial`.** Planens `partial`-lösning går inte: partiella typer måste ligga i samma assembly. I stället ligger överlagringen i `WidgetColorExtensions` i Widgets, som en C# 14 `extension(WidgetColor)`-medlem. Anropssyntaxen `WidgetColor.From(mauiColor)` är oförändrad så länge `Plugin.Maui.Spine.Widgets` är i scope, vilket den redan är på båda anropsställena i Orientera. Kompilerar på SDK 10.0.201 med `LangVersion preview`.
@@ -117,6 +126,7 @@ Sist, när allt annat bygger. Lyfter `TargetFrameworks`-villkoren, `SupportedOSP
 
 - `dotnet build Spine.slnx -f net10.0-android` (och `-f net10.0-maccatalyst`) ger `NETSDK1005` för `Orientera.Domain`, `Orientera.Backend` och `Orientera.Tests`, som är `net10.0`-projekt utan den TFM:en. Det gäller redan på master — verifierat genom att bygga med ändringarna stashade — så det är inget som det här issuet orsakar. `Plugin.Maui.Spine.Common` blir ett fjärde projekt i samma läge. Byggen av bibliotek och appar går igenom; felen kommer från de fyra `net10.0`-projekten och stoppar inte resten.
 - En `ProjectReference` till en csproj som inte finns är bara **MSB9008, en varning** — inte ett fel. Under steg 2 pekade sample-apparnas referens ett tag på det borttagna `Plugin.Maui.SvgImage` medan bygget ändå blev grönt, eftersom `Plugin.Maui.Spine.Svg` nåddes transitivt via kärnan. Byggstatus ensam fångar alltså inte en trasig projektreferens här; verifieringen kollar numera MSB9008 separat.
+- Tre wikifiler är inte UTF-8: `docs/wiki/getting-started.md`, `docs/wiki/page-actions.md` och (sedan tidigare) `getting-started.md` innehåller cp1252-bytes. De redigerades på bytenivå så att kodningen inte ändrades. Lämnade som de är.
 - `docs/wiki/getting-started.md` är inte UTF-8 — filen innehåller en cp1252-byte (0x97, tankstreck) på position 2712. Den redigerades på bytenivå i steg 2 för att inte konverteras i onödan. Lämnad som den är.
 - `src/Plugin.Maui.SpineControls/Plugin.Maui.SpineControls.csproj:22` har `<Compile Remove="AdaptiveOverlayBehavior.cs" />` men filen finns inte i projektet. Död rad; följer med flytten oförändrad.
 - Ingen av sample-apparna anropar `UseSpineControls()`, trots att `MauiSpineSampleApp` använder `SpineCollectionView` i XAML. Registreringen är alltså inte nödvändig för det som visas i dag. Namnbytet till `UseHeroCollectionView()` sker ändå; anropet läggs inte till.

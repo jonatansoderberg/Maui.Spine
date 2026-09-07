@@ -1,6 +1,6 @@
 # AnimatedLabel
 
-`Plugin.Maui.AnimatedLabel` provides a SkiaSharp-based label control that automatically scrolls (marquee) when the text is wider than the available space. It includes configurable scroll speed, pause duration, fade effects, and text-change animations.
+`Plugin.Maui.Spine.Controls.AnimatedLabel` provides a SkiaSharp-based label control that automatically scrolls (marquee) when the text is wider than the available space. It includes configurable scroll speed, pause duration, fade effects, and text-change animations.
 
 ---
 
@@ -20,7 +20,7 @@
 Call `UseAnimatedLabel()` in your `MauiProgram.cs` builder chain. This registers the SkiaSharp renderers required by the control.
 
 ```csharp
-using Plugin.Maui.AnimatedLabel;
+using Plugin.Maui.Spine.Controls;
 
 builder
     .UseMauiApp<App>()
@@ -42,7 +42,7 @@ builder
     HeightRequest="24" />
 ```
 
-> Make sure `Plugin.Maui.AnimatedLabel` is included in your global XAML namespace or add an explicit `xmlns` for the namespace.
+> Make sure `Plugin.Maui.Spine.Controls` is included in your global XAML namespace or add an explicit `xmlns` for the namespace.
 
 ---
 

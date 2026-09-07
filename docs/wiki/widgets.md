@@ -245,7 +245,7 @@ public Task OnWidgetOpenedAsync(WidgetLink link) =>
 
 ### Icons
 
-`W.Icon("fish")` is drawn from an **SVG named after the symbol, with dots as underscores** (`fish.svg`, `figure_run.svg` for `figure.run`), on every platform. The app rasterizes it once as a white mask beside the widget's data and the renderer tints it with the node's color, so one SVG serves light and dark. The SVGs are found through the same resource cache as `SvgImageSource`, and the icons that ship with `Plugin.Maui.SvgImage` are always in it — `fish`, `bell`, `clock`, `house` and the rest work with nothing to add; the samples use `fish`. For any other name, embed a matching SVG in an assembly `UseSpine` was given:
+`W.Icon("fish")` is drawn from an **SVG named after the symbol, with dots as underscores** (`fish.svg`, `figure_run.svg` for `figure.run`), on every platform. The app rasterizes it once as a white mask beside the widget's data and the renderer tints it with the node's color, so one SVG serves light and dark. The SVGs are found through the same resource cache as `SvgImageSource`, and the icons that ship with `Plugin.Maui.Spine.Svg` are always in it — `fish`, `bell`, `clock`, `house` and the rest work with nothing to add; the samples use `fish`. For any other name, embed a matching SVG in an assembly `UseSpine` was given:
 
 ```xml
 <EmbeddedResource Include="Resources\Svg\*.svg" />

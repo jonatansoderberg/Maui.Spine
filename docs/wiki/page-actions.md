@@ -72,7 +72,7 @@ PageActions.Add(new PageAction(text: "Cancel", command: CancelCommand)
 
 ## SVG icons
 
-SVG images require **Plugin.Maui.SvgImage** (included transitively with Spine). Place `.svg` files in `Resources/Images/` and reference them by file name:
+SVG images require **Plugin.Maui.Spine.Svg** (included transitively with Spine). Place `.svg` files in `Resources/Images/` and reference them by file name:
 
 ```csharp
 PageActions.Add(new PageAction(text: null, command: OpenSettingsCommand)

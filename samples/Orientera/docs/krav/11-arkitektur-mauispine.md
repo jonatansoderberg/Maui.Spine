@@ -45,7 +45,7 @@ En liten Azure Functions-backend passar produktens behov: hemligheter hålls bor
 
 ## Maui.Spine-upplägg [K6]
 
-Den nya appen ligger under `samples/` och använder befintlig sample-app (`samples/MauiSpineSampleApp`) som boilerplate/setup-referens. Maui.Spine ger typed navigation, regions, sheets, page actions och SpineCollectionView.
+Den nya appen ligger under `samples/` och använder befintlig sample-app (`samples/MauiSpineSampleApp`) som boilerplate/setup-referens. Maui.Spine ger typed navigation, regions, sheets, page actions och HeroCollectionView.
 
 ### Föreslagen struktur
 
@@ -66,7 +66,7 @@ Den nya appen ligger under `samples/` och använder befintlig sample-app (`sampl
 - **NavigableSheet:** EventFilterSheet, ChooseClassSheet, FollowRunnerSheet, TravelSettingsSheet, PredictionInfoSheet, CompareRunnerSheet.
 - **Typed parameters:** EventId, PersonId, ResultId, LegId.
 - **Typed results:** filter selection, runner selection, comparison target.
-- **SpineCollectionView:** tävlingslista, live-listor, resultattabeller där det passar.
+- **HeroCollectionView:** tävlingslista, live-listor, resultattabeller där det passar.
 
 ### Showcase-värde för Maui.Spine
 

@@ -195,7 +195,7 @@ Or open the solution in Visual Studio 2022 and press **F5**.
 | Package | Purpose |
 |---|---|
 | `CommunityToolkit.Mvvm` | Source-generated MVVM (`[ObservableProperty]`, `[RelayCommand]`) |
-| `Plugin.Maui.SvgImage` | SVG image support for page action icons |
+| `Plugin.Maui.Spine.Svg` | SVG image support for page action icons |
 | `AsyncAwaitBestPractices` | Safe fire-and-forget async helpers |
 
 ---
