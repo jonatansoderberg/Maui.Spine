@@ -70,7 +70,19 @@ Inga öppna. Avgjorda 2026-09-08:
 
 <!-- Uppdateras per steg -->
 
+### Steg 0 — CS1591 i Common
+
+- XML-kommentarer på `LiveActivity`-konstruktorn, `SpineWidgetsOptions.BackgroundRefreshHandler` och de fem publika medlemmarna på `WidgetJson`. `Common` bygger nu utan varningar.
+
+### Steg 1 — kontrakt i Common
+
+- `Push/PushInstallation.cs` — `PushInstallation`, `LiveActivityTokens`, `PushPlatform`, `ApnsEnvironment`, plus `PushJson` med källgenererad kontext så app och server delar wire-format.
+- `Push/PushKeys.cs` — de sex `spine.*`-nycklarna och `PushKeys.Kinds` med `liveactivity` och `widget`.
+- `Push/PushTagExpression.cs` — tokenizer och rekursiv descent för ANH-syntaxen. `Parse`, `TryParse` med felmeddelande och position, `Matches`, `ReferencedTags`, `MatchAll`, och en `ToString` som behåller den gruppering den läste.
+- Nytt testprojekt `tests/Plugin.Maui.Spine.Server.Tests` (xunit, centrala paketversioner), inlagt i `Spine.slnx`. 27 tester: operatorprioritet, parenteser, negering, ordinal jämförelse, 500 taggar i ett uttryck, tio ogiltiga uttryck, och rundtur för installationens JSON.
+
 ## Decisions
 
 - **Kompakt JSON-form för `LiveActivityLayout` behövs inte i v1.** Issuets tredje fråga skulle avgöras när Orienteras layout mätts mot 4 KB. Mätt: `MyStartActivity.Layout` med verkliga strängar ger **1225 byte** `content-state`, och **1315 byte** för hela APNs-payloaden inklusive `timestamp`, `event` och `stale-date`. Det är 32 % av taket, med 2781 byte kvar — layouten skulle behöva tredubblas för att slå i det. Ingen `Patch`-form och inga korta nyckelnamn i v1; storleksvakten i steg 3 fångar det den dag en layout växer sig för stor.
+- **Taggar jämförs ordinalt.** `user:ABC` och `user:abc` är olika taggar. Alternativet, att jämföra utan skiftlägeshänsyn, döljer att en tagg är en ogenomskinlig sträng som klienten och servern måste komma överens om tecken för tecken. Testat.
 - **Ett serverpaket, inte två.** `MapSpinePush` kräver ASP.NET Core, men `Orientera.Backend` kör Functions isolated med `Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore`, alltså samma `HttpRequest`. En `FrameworkReference` till `Microsoft.AspNetCore.App` räcker därför för båda värdarna, och paketet behöver inte delas i `Server` och `Server.AspNetCore`.
