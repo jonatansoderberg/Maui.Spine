@@ -134,6 +134,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Shortcuts** | OS dock/jump-list/tray menu integration | [Shortcuts](docs/wiki/shortcuts.md) |
 | **Windows options** | Window chrome, tray, single-instance | [Windows Options](docs/wiki/windows-options.md) |
 | **Custom transitions** | Replace the built-in slide animation | [Custom Transitions](docs/wiki/custom-transitions.md) |
+| **Widgets** | Home-screen widgets and Live Activities built from C# | [Widgets](docs/wiki/widgets.md) |
 
 ---
 
@@ -151,6 +152,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Shortcuts](docs/wiki/shortcuts.md) | App shortcuts and tray menu |
 | [Windows Platform Options](docs/wiki/windows-options.md) | Window size, tray, single-instance, title bar |
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
+| [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets and Dynamic Island, built from C# |
 | [SpineCollectionView](docs/wiki/spine-controls.md) | Collapsing sticky header, adaptive overlay |
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
 | [SvgImage](docs/wiki/svg-image.md) | SVG-to-bitmap rendering with theme-aware tinting |
@@ -173,6 +175,7 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | Navigation result | `MainPage` → `FullscreenSheetPage` (awaits `FullscreenSheetResult`) |
 | App shortcut → navigation | `ShortcutHandler` → `SettingsPage` |
 | Windows tray icon + close-to-background | `MauiProgram.cs` options |
+| Home-screen widget + Live Activity (iOS) | `Widgets/SampleWidget.cs`, `SettingsPage` |
 
 ### Run the sample
 

@@ -77,6 +77,12 @@ public sealed record NextForMeBlock : CompetitionBlock
     public required bool HasStart { get; init; }
     public required string StateText { get; init; }
     public required string ActionText { get; init; }
+
+    /// <summary>Om starten kan följas på låsskärmen: startlistan är ute och plattformen kan visa det.</summary>
+    public required bool CanFollowStart { get; init; }
+
+    /// <summary>"Följ på låsskärmen" eller "Sluta följa", beroende på om aktiviteten redan är igång.</summary>
+    public required string FollowStartText { get; init; }
 }
 
 public sealed record LatestResultBlock : CompetitionBlock

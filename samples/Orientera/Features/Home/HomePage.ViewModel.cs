@@ -17,6 +17,8 @@ using Orientera.Services.Relevance;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 using Orientera.Services.Weather;
+using Orientera.Widgets;
+using Plugin.Maui.Spine.Widgets;
 
 // MAUI har ett eget ViewState — dess är en tillståndsgrupp för visuella tillstånd, vårt är de
 // fyra lägena i P10. Aliaset säger vilket som avses här.
@@ -37,6 +39,7 @@ public partial class HomePageViewModel(
     EventorSessionResume _resume,
     RacePreferenceStore _preferences,
     WeatherService _weather,
+    ILiveActivityService _liveActivities,
     CompetitionContextService _context) : OrienteraViewModel
 {
     /// <summary>Hem has few large blocks, not a dense dashboard.</summary>
@@ -340,6 +343,41 @@ public partial class HomePageViewModel(
         await _navigation.NavigateToAsync<ParticipantsPage, ParticipantsTarget>(
             new ParticipantsTarget(competition, Mode: ParticipantMode.Results));
 
+    /// <summary>
+    /// Startar eller avslutar Live Activityn "Din start" för tävlingen.
+    /// </summary>
+    /// <remarks>
+    /// Knappen och inte automatiken: iOS startar bara en aktivitet medan appen är i förgrunden,
+    /// och en nedräkning som lägger sig på låsskärmen utan att någon bett om det är påträngande.
+    /// </remarks>
+    [RelayCommand]
+    private async Task FollowStart(CompetitionId competition)
+    {
+        if (ActivityFor(competition) is { } running)
+        {
+            await running.EndAsync();
+        }
+        else
+        {
+            var race = await _events.GetCompetitionAsync(competition);
+            var me = await _people.GetMeAsync();
+            var start = (await _participation.GetStartsAsync(competition)).FirstOrDefault(s => s.Person == me.Id);
+
+            if (race is null || start is null)
+                return;
+
+            await _liveActivities.StartAsync(
+                MyStartActivity.KindFor(competition),
+                MyStartActivity.Layout(race, start.StartTime, _clock.Now),
+                staleAt: race.LastFinish);
+        }
+
+        await ReloadAsync();
+    }
+
+    private LiveActivity? ActivityFor(CompetitionId competition) =>
+        _liveActivities.Active.FirstOrDefault(a => a.Kind == MyStartActivity.KindFor(competition));
+
     [RelayCommand]
     private async Task OpenEvents() => await _navigation.SwitchToTabAsync<EventsPage>();
 
@@ -528,6 +566,11 @@ public partial class HomePageViewModel(
         var me = await _people.GetMeAsync();
         var myStart = starts.FirstOrDefault(s => s.Person == me.Id);
 
+        // Aktiviteten tickar av sig själv men byter inte fas av sig själv. Hem är det enda stället
+        // som vet att klockan gått vidare, så den flyttar den hit medan appen ändå kör.
+        if (myStart is not null && ActivityFor(next.Id) is { } running)
+            await running.UpdateAsync(MyStartActivity.Layout(next, myStart.StartTime, now));
+
         return new NextForMeBlock
         {
             SectionLabel = "Nästa för dig",
@@ -542,6 +585,8 @@ public partial class HomePageViewModel(
             PlaceText = $"{next.Organiser} · {next.Place}",
             StartText = myStart is not null ? $"Din start {Format.Clock(myStart.StartTime)}" : string.Empty,
             HasStart = myStart is not null,
+            CanFollowStart = myStart is not null && _liveActivities.AreActivitiesEnabled,
+            FollowStartText = ActivityFor(next.Id) is null ? "Följ på låsskärmen" : "Sluta följa",
             StateText = decision.StateText,
             ActionText = decision.PrimaryActionText,
         };

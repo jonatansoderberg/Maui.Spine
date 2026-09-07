@@ -13,4 +13,5 @@
   <Project Path="src/Plugin.Maui.SvgImage/Plugin.Maui.SvgImage.csproj" />
   <Project Path="src/Plugin.Maui.SpineControls/Plugin.Maui.SpineControls.csproj" />
   <Project Path="src/Plugin.Maui.SvgIcon/Plugin.Maui.SvgIcon.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Widgets/Plugin.Maui.Spine.Widgets.csproj" />
 </Solution>

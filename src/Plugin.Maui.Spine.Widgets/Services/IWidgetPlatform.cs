@@ -1,0 +1,42 @@
+using System.Collections.ObjectModel;
+
+namespace Plugin.Maui.Spine.Widgets.Services;
+
+/// <summary>The platform half of the widget pipeline: storage shared with the renderer and the native calls.</summary>
+internal interface IWidgetPlatform
+{
+    bool IsSupported { get; }
+
+    /// <summary>Writes the timeline document for <paramref name="kind"/> where the renderer reads it.</summary>
+    void WriteTimeline(string kind, string json);
+
+    /// <summary>Stores a bitmap under <paramref name="assetId"/> where the renderer reads it.</summary>
+    Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken);
+
+    void Reload(string kind);
+    void ReloadAll();
+
+    bool AreActivitiesEnabled { get; }
+
+    /// <summary>The activities this app still has running, as id to kind, including any it started before it was last killed.</summary>
+    IReadOnlyDictionary<string, string> ActiveActivities();
+
+    string? StartActivity(string kind, string json, DateTimeOffset? staleAt);
+    void UpdateActivity(string id, string json, DateTimeOffset? staleAt);
+    void EndActivity(string id);
+}
+
+/// <summary>Used on platforms without a renderer; every call is a no-op so app code stays unconditional.</summary>
+internal sealed class NoOpWidgetPlatform : IWidgetPlatform
+{
+    public bool IsSupported => false;
+    public void WriteTimeline(string kind, string json) { }
+    public Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken) => Task.CompletedTask;
+    public void Reload(string kind) { }
+    public void ReloadAll() { }
+    public bool AreActivitiesEnabled => false;
+    public IReadOnlyDictionary<string, string> ActiveActivities() => ReadOnlyDictionary<string, string>.Empty;
+    public string? StartActivity(string kind, string json, DateTimeOffset? staleAt) => null;
+    public void UpdateActivity(string id, string json, DateTimeOffset? staleAt) { }
+    public void EndActivity(string id) { }
+}

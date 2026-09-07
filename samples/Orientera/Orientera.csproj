@@ -88,8 +88,22 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Orientera.Domain\Orientera.Domain.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.SpineControls\Plugin.Maui.SpineControls.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.SvgImage\Plugin.Maui.SvgImage.csproj" />
 	</ItemGroup>
+
+	<!-- Widgets: kinden nedan blir en WidgetKit-extension på iOS; providern är [Widget("next-start")] i Widgets\. -->
+	<ItemGroup>
+		<SpineWidget Include="next-start" DisplayName="Nästa start" Description="Nedräkningen till din nästa start, från tävlingen du är anmäld till." Families="Small,Medium" />
+	</ItemGroup>
+
+	<PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<!-- App Group-behörigheten appen och widgetextensionet delar container genom. -->
+		<CodesignEntitlements>Platforms\iOS\Entitlements.plist</CodesignEntitlements>
+	</PropertyGroup>
+
+	<!-- Importeras explicit: Orientera använder ProjectReference, inte NuGet-paketet. -->
+	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 
 </Project>

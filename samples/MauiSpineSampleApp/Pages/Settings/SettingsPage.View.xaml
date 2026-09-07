@@ -18,6 +18,9 @@
             <RadioButton Content="Light" Value="Light" />
             <RadioButton Content="Dark" Value="Dark" />
         </HorizontalStackLayout>
+
+        <Button Text="Refresh widgets" Command="{Binding RefreshWidgetsCommand}" />
+        <Button Text="{Binding LiveActivityLabel}" Command="{Binding ToggleLiveActivityCommand}" />
     </VerticalStackLayout>
 
 </SpinePage>

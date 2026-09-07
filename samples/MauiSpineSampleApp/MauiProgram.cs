@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.AnimatedLabel;
 using Plugin.Maui.Spine.Extensions;
+using Plugin.Maui.Spine.Widgets.Extensions;
 using Plugin.Maui.SvgIcon;
 using Sharpnado.MaterialFrame;
 
@@ -49,6 +50,7 @@ public static class MauiProgram
                 options.MacOS.TrayIconSvg = "water.svg";
                 options.MacOS.CloseToBackground = true;
             })
+            .UseSpineWidgets()
             .UseSharpnadoMaterialFrame(loggerEnable: false)
             .ConfigureFonts(fonts =>
             {
