@@ -1,3 +1,5 @@
+using Plugin.Maui.Spine.Common;
+
 namespace Plugin.Maui.Spine.Widgets.Extensions;
 
 #if !IOS && !ANDROID

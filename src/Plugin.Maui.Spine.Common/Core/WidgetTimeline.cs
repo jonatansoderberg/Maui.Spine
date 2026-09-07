@@ -1,4 +1,4 @@
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>
 /// What a widget shows over time: one or more dated entries, each carrying a tree per family. The

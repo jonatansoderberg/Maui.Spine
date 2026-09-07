@@ -208,7 +208,7 @@ return WidgetTimeline
     .Refresh(TimeSpan.FromMinutes(15));
 ```
 
-The server builds the document with the same types and `WidgetTimeline.ToJson()`; the plugin's model project has no platform dependency, so it references from a backend. `Refresh(after)` sets the pace and the platform's budget still applies (see [Update budgets](#update-budgets)); without a refresh the platform is asked every 15 minutes.
+The server builds the document with the same types and `WidgetTimeline.ToJson()`; those types live in `Plugin.Maui.Spine.Common`, a plain `net10.0` library that never references MAUI, so a backend references it directly. `Refresh(after)` sets the pace and the platform's budget still applies (see [Update budgets](#update-budgets)); without a refresh the platform is asked every 15 minutes.
 
 ### Buttons
 

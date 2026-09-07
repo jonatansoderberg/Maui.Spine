@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>
 /// A color in a widget tree: either one of the platform's semantic colors, which adapt to light
@@ -41,9 +41,6 @@ public readonly record struct WidgetColor
             throw new ArgumentException($"'{hex}' is not a #RRGGBB or #AARRGGBB color.", nameof(hex));
         return new WidgetColor(value.ToUpperInvariant());
     }
-
-    /// <summary>A fixed color from a MAUI <see cref="Color"/>.</summary>
-    public static WidgetColor From(Color color) => new(color.ToArgbHex());
 
     /// <inheritdoc />
     public override string ToString() => Value;

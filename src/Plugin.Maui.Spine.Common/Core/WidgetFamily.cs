@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>The sizes a widget can be placed in. Names follow WidgetKit; other platforms map the nearest size.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<WidgetFamily>))]

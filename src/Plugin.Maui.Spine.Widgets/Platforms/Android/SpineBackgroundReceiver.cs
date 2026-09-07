@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content;
 using Android.Runtime;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Common;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 

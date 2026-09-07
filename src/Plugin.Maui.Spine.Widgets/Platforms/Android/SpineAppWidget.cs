@@ -1,11 +1,13 @@
-using System.Net.Http;
-using System.Text.Json;
 using Android.App;
 using Android.Appwidget;
 using Android.Content;
 using Android.Runtime;
 using Android.Widget;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.Common.Serialization;
+using System.Net.Http;
+using System.Text.Json;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
@@ -206,7 +208,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
                 }
             if (sized.Count > 0) return new RemoteViews(sized);
             // One tree for every family: let the launcher still pick, so an adaptive node inside it works.
-            if (byFamily.TryGetValue(Serialization.WidgetJson.DefaultFamilyKey, out var shared))
+            if (byFamily.TryGetValue(WidgetJson.DefaultFamilyKey, out var shared))
             {
                 foreach (var (name, width, height) in Families)
                 {
@@ -223,7 +225,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         var family = minWidth >= 250 ? (minHeight >= 250 ? "large" : "medium") : "small";
 
         var chosen = byFamily.TryGetValue(family, out var exact) ? exact
-            : byFamily.TryGetValue(Serialization.WidgetJson.DefaultFamilyKey, out var fallback) ? fallback
+            : byFamily.TryGetValue(WidgetJson.DefaultFamilyKey, out var fallback) ? fallback
             : byFamily.Values.FirstOrDefault();
         renderer.Family = family;
         return renderer.Root(chosen.ValueKind == JsonValueKind.Object ? chosen : Placeholder, tap);

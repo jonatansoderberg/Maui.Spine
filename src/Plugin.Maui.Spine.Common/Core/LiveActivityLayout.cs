@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>
 /// The trees a Live Activity renders in each of its regions. Regions left <see langword="null"/>

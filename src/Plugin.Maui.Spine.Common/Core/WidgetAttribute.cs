@@ -1,4 +1,4 @@
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>
 /// Declares an <see cref="IWidgetProvider"/> as the source of the widget with the given kind. The

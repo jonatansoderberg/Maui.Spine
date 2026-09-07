@@ -1,4 +1,4 @@
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>
 /// Runs when the platform grants the app a background run for its widgets — on iOS a

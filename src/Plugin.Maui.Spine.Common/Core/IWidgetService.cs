@@ -1,4 +1,4 @@
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>Refreshes widgets from the app.</summary>
 public interface IWidgetService

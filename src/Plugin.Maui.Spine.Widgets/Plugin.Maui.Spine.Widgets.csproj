@@ -25,6 +25,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
 	</ItemGroup>
 
 	<!-- The Swift sources and the MSBuild pipeline that turns them into the widget extension travel

@@ -1,4 +1,4 @@
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>
 /// The builder for widget trees. Every method returns a node, so trees read the way they render:

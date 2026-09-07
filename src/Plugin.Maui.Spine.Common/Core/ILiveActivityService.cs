@@ -1,4 +1,4 @@
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>Starts, updates and ends Live Activities from the app.</summary>
 public interface ILiveActivityService
@@ -41,7 +41,7 @@ public sealed class LiveActivity
     private readonly Func<LiveActivity, Task> _end;
     private readonly Func<LiveActivity, CancellationToken, Task<string?>> _pushToken;
 
-    internal LiveActivity(string id, string kind,
+    public LiveActivity(string id, string kind,
         Func<LiveActivity, LiveActivityLayout, DateTimeOffset?, Task> update,
         Func<LiveActivity, Task> end,
         Func<LiveActivity, CancellationToken, Task<string?>> pushToken)
@@ -60,7 +60,7 @@ public sealed class LiveActivity
     public string Kind { get; }
 
     /// <summary>Whether <see cref="EndAsync"/> has been called.</summary>
-    public bool IsEnded { get; internal set; }
+    public bool IsEnded { get; set; }
 
     /// <summary>Replaces the content with <paramref name="layout"/>.</summary>
     public Task UpdateAsync(LiveActivityLayout layout, DateTimeOffset? staleAt = null) => _update(this, layout, staleAt);

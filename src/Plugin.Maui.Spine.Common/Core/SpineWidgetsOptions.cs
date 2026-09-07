@@ -1,6 +1,6 @@
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
-/// <summary>Options for <see cref="Extensions.SpineWidgetsExtensions.UseSpineWidgets"/>.</summary>
+/// <summary>Options for <c>UseSpineWidgets</c> in <c>Plugin.Maui.Spine.Widgets</c>.</summary>
 public sealed class SpineWidgetsOptions
 {
     /// <summary>
@@ -30,7 +30,7 @@ public sealed class SpineWidgetsOptions
     /// </summary>
     public bool LiveActivityPushTokens { get; set; }
 
-    internal Type? BackgroundRefreshHandler { get; private set; }
+    public Type? BackgroundRefreshHandler { get; private set; }
 
     /// <summary>Runs <typeparamref name="THandler"/> before the widgets are rebuilt in a background run.</summary>
     public SpineWidgetsOptions UseBackgroundRefresh<THandler>() where THandler : class, IBackgroundRefreshHandler

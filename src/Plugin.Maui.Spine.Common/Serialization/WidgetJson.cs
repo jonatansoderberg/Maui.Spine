@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Plugin.Maui.Spine.Widgets.Serialization;
+namespace Plugin.Maui.Spine.Common.Serialization;
 
 /// <summary>The document written per widget kind; the native renderer's input.</summary>
 internal sealed record WidgetTimelineDocument(
@@ -25,7 +25,7 @@ internal sealed record WidgetTimelineEntryDocument(
 [JsonSerializable(typeof(IReadOnlyDictionary<string, WidgetNode>))]
 internal sealed partial class WidgetJsonContext : JsonSerializerContext;
 
-internal static class WidgetJson
+public static class WidgetJson
 {
     public const string DefaultFamilyKey = "default";
 

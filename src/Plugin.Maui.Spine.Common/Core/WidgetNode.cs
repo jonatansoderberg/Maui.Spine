@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Plugin.Maui.Spine.Widgets;
+namespace Plugin.Maui.Spine.Common;
 
 /// <summary>
 /// One node in the platform-neutral view tree that a widget or Live Activity is rendered from.
