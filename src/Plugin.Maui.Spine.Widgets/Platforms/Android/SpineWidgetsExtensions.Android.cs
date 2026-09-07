@@ -25,11 +25,12 @@ public static partial class SpineWidgetsExtensions
             {
                 if (activity is not SpineWidgetLinkActivity) HandleLink(intent);
             });
-            if (options.RefreshOnBackground)
-                android.OnStop(activity =>
-                {
-                    if (activity is not SpineWidgetLinkActivity) RefreshAllInBackground(Services());
-                });
+            android.OnStop(activity =>
+            {
+                if (activity is SpineWidgetLinkActivity) return;
+                if (options.RefreshOnBackground) RefreshAllInBackground(Services());
+                if (WidgetStore.Kinds(activity).Length > 0) SpineBackgroundReceiver.Schedule(activity, options.BackgroundRefreshInterval);
+            });
         }));
 
         static IServiceProvider Services() => IPlatformApplication.Current?.Services

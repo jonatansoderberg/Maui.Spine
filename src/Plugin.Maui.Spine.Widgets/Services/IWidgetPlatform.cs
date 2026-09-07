@@ -25,6 +25,12 @@ internal interface IWidgetPlatform
     Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt);
     void UpdateActivity(string id, string json, DateTimeOffset? staleAt);
     void EndActivity(string id);
+
+    /// <summary>The push-to-start token as hex, when the platform has issued one; <see langword="null"/> otherwise.</summary>
+    string? PushToStartToken { get; }
+
+    /// <summary>The push token of activity <paramref name="id"/> as hex, when issued.</summary>
+    string? PushToken(string id);
 }
 
 /// <summary>Used on platforms without a renderer; every call is a no-op so app code stays unconditional.</summary>
@@ -40,4 +46,6 @@ internal sealed class NoOpWidgetPlatform : IWidgetPlatform
     public Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt) => Task.FromResult<string?>(null);
     public void UpdateActivity(string id, string json, DateTimeOffset? staleAt) { }
     public void EndActivity(string id) { }
+    public string? PushToStartToken => null;
+    public string? PushToken(string id) => null;
 }

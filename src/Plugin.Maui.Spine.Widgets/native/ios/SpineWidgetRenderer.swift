@@ -1,6 +1,7 @@
 import WidgetKit
 import SwiftUI
 import ActivityKit
+import AppIntents
 
 // MARK: - Manifest (written by the build from the <SpineWidget> items)
 
@@ -74,6 +75,7 @@ struct TimelineDocument: Decodable {
         var trees: [String: Node]
     }
     var link: String?
+    var remote: String?
     var refreshAfterSeconds: Double?
     var entries: [Entry]
 }
@@ -95,7 +97,8 @@ struct ActivityLayout: Decodable {
 }
 
 /// One node of the tree the app wrote; the same schema as Plugin.Maui.Spine.Widgets.WidgetNode.
-struct Node: Decodable {
+/// A class because a node nests optional nodes (button child, adaptive fallback), which a struct cannot.
+final class Node: Decodable {
     var type: String
     var text: String?
     var font: String?
@@ -109,15 +112,37 @@ struct Node: Decodable {
     var value: Double?
     var spacing: Double?
     var children: [Node]?
+    var actionId: String?
+    var child: Node?
+    var fallback: Node?
+    var trees: [String: Node]?
+}
+
+/// The kind of the widget or activity being drawn, so a button knows whose action it sends.
+struct SpineKindKey: EnvironmentKey { static let defaultValue = "" }
+extension EnvironmentValues {
+    var spineKind: String {
+        get { self[SpineKindKey.self] }
+        set { self[SpineKindKey.self] = newValue }
+    }
 }
 
 // MARK: - Rendering
 
 struct NodeView: View {
+    @Environment(\.widgetFamily) private var family
+    @Environment(\.spineKind) private var kind
     let node: Node
 
     var body: some View {
         switch node.type {
+        case "adaptive":
+            if let tree = node.trees?[Families.key(family)] ?? node.fallback { NodeView(node: tree) }
+        case "button":
+            if let child = node.child, let actionId = node.actionId {
+                Button(intent: SpineWidgetIntent(kind: kind, actionId: actionId)) { NodeView(node: child) }
+                    .buttonStyle(.plain)
+            }
         case "vstack":
             VStack(alignment: .leading, spacing: node.spacing ?? 4) { children }
         case "hstack":
@@ -218,6 +243,7 @@ struct Entry: TimelineEntry {
     let date: Date
     let trees: [String: Node]
     let link: String?
+    var kind: String = ""
 
     static let placeholder = Entry(date: .now, trees: [:], link: nil)
 }
@@ -232,24 +258,47 @@ struct Provider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-        let document = Store.timeline(kind: kind)
-        let entries = entries(from: document)
+        let local = Store.timeline(kind: kind)
+        guard let remote = local?.remote.flatMap(URL.init(string:)) else {
+            completion(timeline(from: local, fallback: nil))
+            return
+        }
+        // A remote source: the widget fetches its own content while the app sleeps, and the app's
+        // entries stand in when the fetch fails. The pace is the document's refresh, 15 minutes by default.
+        var request = URLRequest(url: remote)
+        request.timeoutInterval = 15
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            var fetched: TimelineDocument?
+            if let data { fetched = try? Store.decoder.decode(TimelineDocument.self, from: data) }
+            if fetched == nil { NSLog("[SpineWidgets] remote source for \(self.kind) failed: \(error?.localizedDescription ?? "not a timeline document")") }
+            completion(self.timeline(from: fetched, fallback: local))
+        }.resume()
+    }
+
+    private func timeline(from document: TimelineDocument?, fallback: TimelineDocument?) -> Timeline<Entry> {
+        let source = document?.entries.isEmpty == false ? document : fallback
+        let entries = entries(from: source, link: document?.link ?? fallback?.link)
         let policy: TimelineReloadPolicy
-        if let seconds = document?.refreshAfterSeconds, let last = entries.last {
+        if let seconds = source?.refreshAfterSeconds ?? fallback?.refreshAfterSeconds, let last = entries.last {
             policy = .after(last.date.addingTimeInterval(seconds))
+        } else if fallback != nil {
+            policy = .after(Date.now.addingTimeInterval(15 * 60))
         } else {
             policy = .atEnd
         }
-        completion(Timeline(entries: entries.isEmpty ? [.placeholder] : entries, policy: policy))
+        return Timeline(entries: entries.isEmpty ? [.placeholder] : entries, policy: policy)
     }
 
-    private func entries() -> [Entry] { entries(from: Store.timeline(kind: kind)) }
+    private func entries() -> [Entry] {
+        let document = Store.timeline(kind: kind)
+        return entries(from: document, link: document?.link)
+    }
 
-    private func entries(from document: TimelineDocument?) -> [Entry] {
+    private func entries(from document: TimelineDocument?, link: String?) -> [Entry] {
         guard let document else { return [] }
         return document.entries
             .sorted { $0.date < $1.date }
-            .map { Entry(date: $0.date, trees: $0.trees, link: document.link) }
+            .map { Entry(date: $0.date, trees: $0.trees, link: link, kind: kind) }
     }
 }
 
@@ -265,11 +314,49 @@ struct SpineWidgetView: View {
 
     @ViewBuilder private var content: some View {
         if let tree = entry.trees[Families.key(family)] ?? entry.trees["default"] {
-            NodeView(node: tree)
+            NodeView(node: tree).environment(\.spineKind, entry.kind)
         } else {
             Text("—").foregroundStyle(.secondary)
         }
     }
+}
+
+// MARK: - Buttons
+
+/// The one intent behind every W.Button. It runs in the extension, where there is no .NET, so it records
+/// the tap in the container and tells the app — at once through a Darwin notification if it is running,
+/// otherwise when it next launches and drains the file.
+struct SpineWidgetIntent: AppIntent {
+    static var title: LocalizedStringResource = "Spine widget action"
+    static var isDiscoverable = false
+
+    @Parameter(title: "Kind") var kind: String
+    @Parameter(title: "Action") var actionId: String
+
+    init() {}
+    init(kind: String, actionId: String) {
+        self.kind = kind
+        self.actionId = actionId
+    }
+
+    func perform() async throws -> some IntentResult {
+        if let root = Store.root {
+            let line = "{\"kind\":\"\(kind.escaped)\",\"actionId\":\"\(actionId.escaped)\",\"at\":\(Date.now.timeIntervalSince1970)}\n"
+            let url = root.appendingPathComponent("actions.jsonl")
+            if let handle = try? FileHandle(forWritingTo: url) {
+                handle.seekToEndOfFile(); handle.write(Data(line.utf8)); try? handle.close()
+            } else {
+                try? line.write(to: url, atomically: true, encoding: .utf8)
+            }
+        }
+        let name = CFNotificationName("\(Manifest.current.appGroup).spine-widgets.action" as CFString)
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), name, nil, nil, true)
+        return .result()
+    }
+}
+
+private extension String {
+    var escaped: String { replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") }
 }
 
 enum Families {
@@ -316,8 +403,9 @@ func spineWidgetConfiguration(index: Int) -> some WidgetConfiguration {
 
 struct Slot: View {
     let node: Node?
+    var kind: String = ""
     var body: some View {
-        if let node { NodeView(node: node) } else { EmptyView() }
+        if let node { NodeView(node: node).environment(\.spineKind, kind) } else { EmptyView() }
     }
 }
 
@@ -325,24 +413,25 @@ struct SpineLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: SpineActivityAttributes.self) { context in
             let layout = ActivityLayout.parse(context.state.json)
-            Slot(node: layout.lockScreen)
+            Slot(node: layout.lockScreen, kind: context.attributes.kind)
                 .padding()
                 .opacity(context.isStale ? 0.5 : 1)
                 .activityBackgroundTint(.black.opacity(0.6))
                 .widgetURL(layout.link.flatMap(URL.init(string:)))
         } dynamicIsland: { context in
             let layout = ActivityLayout.parse(context.state.json)
+            let kind = context.attributes.kind
             return DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading) }
-                DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing) }
-                DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter) }
-                DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom) }
+                DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind) }
+                DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind) }
+                DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter, kind: kind) }
+                DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom, kind: kind) }
             } compactLeading: {
-                Slot(node: layout.compactLeading)
+                Slot(node: layout.compactLeading, kind: kind)
             } compactTrailing: {
-                Slot(node: layout.compactTrailing)
+                Slot(node: layout.compactTrailing, kind: kind)
             } minimal: {
-                Slot(node: layout.minimal)
+                Slot(node: layout.minimal, kind: kind)
             }
             .widgetURL(layout.link.flatMap(URL.init(string:)))
         }

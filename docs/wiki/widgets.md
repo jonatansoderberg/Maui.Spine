@@ -139,6 +139,8 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
 | `W.Spacer()` / `W.Divider()` | Flexible space, separator |
+| `W.Button(actionId, child)` | A tappable child that sends `actionId` to the provider (see [Buttons](#buttons)) |
+| `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
 
 Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`. Each call returns a new node, so a styled node can be reused.
 
@@ -157,6 +159,19 @@ timeline.Refresh(TimeSpan.FromMinutes(30));
 
 Pre-computing entries is nearly free; reloads are not (see below). `Refresh(after)` asks the platform to call the provider again that long after the last entry — a request, not a promise.
 
+### Adaptive trees
+
+A timeline can hold one tree per family, but often only a line or two differs. `W.Adaptive` puts that difference inside one tree: the fallback renders everywhere, a family with its own entry renders that instead. The sample's widget is a single tree where the medium size adds a subtitle and the build time:
+
+```csharp
+W.Adaptive(W.Text("Spine").Headline().Bold(), new Dictionary<WidgetFamily, WidgetNode>
+{
+    [WidgetFamily.Medium] = W.Text("Spine sample").Headline().Bold(),
+})
+```
+
+Surfaces without a family — the regions of a Live Activity — render the fallback.
+
 ### Refreshing from the app
 
 ```csharp
@@ -166,6 +181,50 @@ await _widgets.RefreshAllAsync();                // all of them
 ```
 
 Every widget is also rebuilt automatically when the app moves to the background, so the home screen shows the state the user just left. Turn that off with `UseSpineWidgets(o => o.RefreshOnBackground = false)`. On Android `Refresh(after)` is honoured by the app itself: an alarm wakes the widget receiver, which runs the provider in the background without any UI.
+
+### Background runs
+
+Beyond the reloads a widget asks for, the app books a **background run** of its own every `BackgroundRefreshInterval` (default 30 minutes) — a `BGAppRefreshTask` on iOS, an alarm on Android. Each run rebuilds every widget, and first runs the app's `IBackgroundRefreshHandler` if one is registered, so data can be synced before the trees are built:
+
+```csharp
+builder.UseSpineWidgets(o => o.UseBackgroundRefresh<SyncHandler>());
+
+public sealed class SyncHandler(IRaceService _races) : IBackgroundRefreshHandler
+{
+    public Task RefreshAsync(CancellationToken cancellationToken) => _races.SyncAsync(cancellationToken);
+}
+```
+
+The interval is a request: iOS decides when a task actually runs from how the app is used (typically a few times an hour, sometimes not for hours), Android batches alarms in Doze. `TimeSpan.Zero` turns the runs off. The build adds `UIBackgroundModes: fetch` and the task identifier to `Info.plist` (`SpineWidgetsBackgroundRefresh=false` to leave them out) and the alarm receiver to the Android manifest. On iOS the task cannot be exercised in the simulator; on a device, pause in the debugger and run `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"<ApplicationId>.spine-widgets.refresh"]`.
+
+### Remote source
+
+A widget can fetch its own content while the app sleeps. Point the timeline at a URL that answers with a timeline document, and the platform GETs it at every reload — the widget extension on iOS, the widget receiver on Android — and shows that instead of the entries the app built, which remain the fallback while the fetch fails:
+
+```csharp
+return WidgetTimeline
+    .Single(Placeholder())
+    .RemoteSource(new Uri($"https://api.example.com/widgets/next-start?user={me.Id}"))
+    .Refresh(TimeSpan.FromMinutes(15));
+```
+
+The server builds the document with the same types and `WidgetTimeline.ToJson()`; the plugin's model project has no platform dependency, so it references from a backend. `Refresh(after)` sets the pace and the platform's budget still applies (see [Update budgets](#update-budgets)); without a refresh the platform is asked every 15 minutes.
+
+### Buttons
+
+`W.Button(actionId, child)` makes its child tappable without opening the app. The tap reaches the provider's `IWidgetActionHandler` with the widget's kind and the action id, and the widget is rebuilt when the handler returns, so what the tap changed shows:
+
+```csharp
+W.HStack(6, W.Button("bump", W.Text("Bump").Caption().Bold()), W.Text($"{bumps} bumps").Caption().Secondary())
+
+public Task OnActionAsync(WidgetAction action)
+{
+    if (action.ActionId == "bump") Preferences.Default.Set("bumps", bumps + 1);
+    return Task.CompletedTask;
+}
+```
+
+On Android the handler runs at once, in the app's process. On iOS the tap runs an `AppIntent` inside the widget extension, where there is no .NET: the extension records the tap and signals the app, which handles it at once when it is in the foreground and otherwise the next time it becomes active — a backgrounded iOS app is suspended, so "running" means active. The widget shows the tap's effect at that moment. A widget whose buttons must act on their own has to do that work in a remote source instead.
 
 ### Opening the app from the widget
 
@@ -235,6 +294,28 @@ await activity.EndAsync();
 - `staleAt` is when the content should be presented as out of date if no update arrived; the renderer dims it.
 - An activity lives at most **8 hours**, then iOS ends it. Android has no such limit, but keeps one activity per kind: starting a second one with the same kind replaces the first.
 
+### Updating by push
+
+An activity can be updated — and, on iOS 17.2+, started — by a server through APNs. Turn tokens on with `UseSpineWidgets(o => o.LiveActivityPushTokens = true)`; it needs the push notification entitlement. Every activity then has a token, and there is a push-to-start token for the app as a whole:
+
+```csharp
+var activity = await _liveActivities.StartAsync("din-start", layout);
+await _backend.RegisterAsync(await activity!.GetPushTokenAsync());
+await _backend.RegisterStartTokenAsync(await _liveActivities.GetPushToStartTokenAsync());
+```
+
+Tokens rotate, so send them at every launch and foreground as well. The server pushes with `apns-push-type: liveactivity` and `apns-topic: <bundle-id>.push-type.liveactivity`; the content state is a single string holding the layout's JSON, which the server builds with the same types and `LiveActivityLayout.ToJson()`:
+
+```json
+{ "aps": {
+    "timestamp": 1757236800,
+    "event": "update",
+    "content-state": { "json": "{\"lockScreen\":{\"type\":\"text\",\"text\":\"6,8 ↗\"}}" }
+} }
+```
+
+`event: start` with `attributes-type: SpineActivityAttributes` and `attributes: { "kind": "…" }` starts an activity through the push-to-start token. Set `SpineWidgetsFrequentUpdates=true` in the project to declare `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget. Android has no tokens: a server reaches a Live Update through the app's own push handler (FCM), which calls `UpdateAsync` or `RefreshAsync` like any other code.
+
 ---
 
 ## Update budgets
@@ -245,7 +326,7 @@ Three separate mechanisms decide what the user actually sees, and only one of th
 |---|---|---|
 | **System-drawn time text** — `W.Timer`, `W.Relative` | Every second, drawn by the system without running the extension | No |
 | **Timeline entries** — several `(date, tree)` pairs the app pre-computed | Exactly when the entry says, in practice no closer than ~5 min | No; the switch is free |
-| **Reloads** — `RefreshAsync`, `Refresh(after)`, background work, push | The system grants roughly **40–70 per day** for a frequently seen widget, so every 15–60 min | Yes, except when the app comes to the foreground, the user interacts with the widget, or the widget was just added |
+| **Reloads** — `RefreshAsync`, `Refresh(after)`, a remote source, background runs, push | The system grants roughly **40–70 per day** for a frequently seen widget, so every 15–60 min | Yes, except when the app comes to the foreground, the user interacts with the widget, or the widget was just added |
 
 The consequence for Spine: **anything that must tick has to be a `W.Timer` or `W.Relative` node, never text the app computed.** A widget showing `$"Starts in {span:mm\\:ss}"` stands still until the next reload; the same value as a `W.Timer` ticks every second for free.
 
@@ -265,7 +346,7 @@ Consider a widget showing a value a cloud API refreshes every five minutes. **Th
 | iOS Live Activity | Only updates while the app runs. `BGAppRefreshTask` gives a few runs an hour, irregularly, ~30 s at a time | An APNs `liveactivity` push every 5 min works. `NSSupportsLiveActivitiesFrequentUpdates` raises the budget |
 | Android widget | `Refresh(after)` runs the provider from an inexact alarm, in practice every 15 min or so under Doze; a foreground service can update freely | An FCM data message every 5 min; the service updates widget and Live Update at once |
 
-Push and remote sources are v2 of the plugin. In v1 the honest options are a pre-computed timeline, a background refresh, and system-drawn timers — which between them cover "next start", today's schedule, and a countdown, but not a live sensor reading.
+The plugin gives the app every piece of that: a [remote source](#remote-source) for the widget, [push tokens](#updating-by-push) for the activity, [background runs](#background-runs) to keep tokens fresh. What it cannot give is the server, and without one the honest options are a pre-computed timeline, the background runs, and system-drawn timers — which between them cover "next start", today's schedule, and a countdown, but not a live sensor reading.
 
 ---
 
@@ -285,6 +366,9 @@ The same C# tree renders on Android without changes; the difference is what the 
 | `WidgetColor` | Semantic colors resolve in the launcher's theme (light and dark) from Android 12; `Green` … `Blue` are the iOS system palette in both variants; hex is hex |
 | `WidgetTimeline` entries | The entry that applies now is drawn; an inexact alarm redraws at the next entry's date, another runs the provider `Refresh(after)` the last one |
 | `OpenUrl` | A `PendingIntent` to a small activity in the package that forwards the URL to the app's own main activity; the scheme is registered on it by the build |
+| `W.Button` | A `PendingIntent` broadcast to the widget's receiver, which runs the handler in the app's process |
+| `RemoteSource` | Fetched by the receiver at the refresh alarm and cached beside the app's document |
+| Background runs | An alarm to a receiver of the package, booked when the app stops and after each run |
 | `IWidgetLinkHandler` | Called from `OnCreate` (cold start) or `OnNewIntent` (warm), exactly as on iOS |
 
 The receivers run in the app's own process, so there is no shared container and no separate memory budget; the timeline documents live under the app's files directory.

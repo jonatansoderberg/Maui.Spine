@@ -14,8 +14,11 @@ namespace Plugin.Maui.Spine.Widgets.Services;
 /// <see cref="RemoteViews.AddView"/>. Reads the same JSON as the Swift renderer, so the vocabulary and its
 /// defaults are those of <c>SpineWidgetRenderer.swift</c>.
 /// </summary>
-internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons)
+internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, Func<string, PendingIntent?>? _action = null)
 {
+    /// <summary>The family key (<c>small</c>, <c>medium</c>, …) an adaptive node picks by; <see langword="null"/> takes the fallback.</summary>
+    public string? Family { get; set; }
+
     private static int Node => Resource.Id.spine_node;
     private const float DefaultSpacing = 4;
     private const float IconDp = 20;
@@ -95,6 +98,22 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons)
             }
             case "spacer": return new RemoteViews(Package, Resource.Layout.spine_widget_spacer);
             case "divider": return new RemoteViews(Package, Resource.Layout.spine_widget_divider);
+            case "adaptive":
+            {
+                var chosen = Family is { } family && node.TryGetProperty("trees", out var trees) && trees.TryGetProperty(family, out var tree) ? tree
+                    : node.TryGetProperty("fallback", out var fallback) ? fallback : default;
+                return chosen.ValueKind == JsonValueKind.Object ? Render(chosen, inline) : Empty();
+            }
+            case "button":
+            {
+                if (!node.TryGetProperty("child", out var child) || child.ValueKind != JsonValueKind.Object) return Empty();
+                var views = new RemoteViews(Package, Resource.Layout.spine_widget_button);
+                views.RemoveAllViews(Node);
+                views.AddView(Node, Render(child, inline: true));
+                if (Text(node, "actionId") is { } actionId && _action?.Invoke(actionId) is { } tap)
+                    views.SetOnClickPendingIntent(Node, tap);
+                return views;
+            }
             default: return Empty();
         }
     }

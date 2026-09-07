@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Text.Json;
 using Android.App;
 using Android.Appwidget;
@@ -20,7 +21,9 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
     private const string Tag = "SpineWidgets";
     private const string ActionRender = "plugin.maui.spine.widgets.RENDER";
     private const string ActionRefresh = "plugin.maui.spine.widgets.REFRESH";
+    private const string ActionButton = "plugin.maui.spine.widgets.BUTTON";
     private const string ExtraKind = "plugin.maui.spine.widgets.KIND";
+    private const string ExtraAction = "plugin.maui.spine.widgets.ACTION";
 
     private static readonly Type[] Slots =
     [
@@ -36,6 +39,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
     ];
 
     private static readonly TimeSpan MinimumRefreshInterval = TimeSpan.FromMinutes(15);
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
     private static readonly JsonElement Placeholder =
         JsonDocument.Parse("""{"type":"text","text":"—","color":"secondary"}""").RootElement;
@@ -50,6 +54,9 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
                 break;
             case ActionRefresh when intent.GetStringExtra(ExtraKind) is { } kind:
                 Refresh(context, kind);
+                break;
+            case ActionButton when intent.GetStringExtra(ExtraKind) is { } kind && intent.GetStringExtra(ExtraAction) is { } actionId:
+                Tapped(context, kind, actionId);
                 break;
             default:
                 base.OnReceive(context, intent);
@@ -74,10 +81,15 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
 
     private string? Kind(Context context) => WidgetStore.Kinds(context).ElementAtOrDefault(_index);
 
-    /// <summary>Runs the provider for <paramref name="kind"/> when a refresh alarm fires; the service writes and re-renders.</summary>
+    /// <summary>
+    /// A refresh alarm: fetches the timeline's remote source when it has one, otherwise runs the provider
+    /// through the service, which writes and re-renders.
+    /// </summary>
     private void Refresh(Context context, string kind)
     {
-        if (IPlatformApplication.Current?.Services is not { } services)
+        var services = IPlatformApplication.Current?.Services;
+        var remote = RemoteSource(context, kind);
+        if (remote is null && services is null)
         {
             Update(context, kind);
             return;
@@ -86,10 +98,52 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         var pending = GoAsync();
         Task.Run(async () =>
         {
-            try { await services.GetRequiredService<IWidgetService>().RefreshAsync(kind); }
-            catch (Exception e) { services.GetRequiredService<ILogger<IWidgetService>>().LogError(e, "Refreshing widget \"{Kind}\" from its alarm failed.", kind); }
+            try
+            {
+                if (remote is { } url) await FetchRemoteAsync(context, kind, url);
+                else await services!.GetRequiredService<IWidgetService>().RefreshAsync(kind);
+            }
+            catch (Exception e)
+            {
+                Android.Util.Log.Warn(Tag, $"Refreshing widget \"{kind}\" from its alarm failed: {e.Message}");
+            }
             finally { pending?.Finish(); }
         });
+    }
+
+    /// <summary>A W.Button tap: the provider's handler in the app's process, then the widget rebuilt.</summary>
+    private void Tapped(Context context, string kind, string actionId)
+    {
+        if (IPlatformApplication.Current?.Services is not { } services) return;
+        var pending = GoAsync();
+        Task.Run(async () =>
+        {
+            try { await Extensions.SpineWidgetsExtensions.HandleActionAsync(services, kind, actionId); }
+            catch (Exception e) { Android.Util.Log.Warn(Tag, $"Action \"{actionId}\" of widget \"{kind}\" failed: {e.Message}"); }
+            finally { pending?.Finish(); }
+        });
+    }
+
+    private static Uri? RemoteSource(Context context, string kind)
+    {
+        using var document = WidgetStore.ReadTimeline(context, kind);
+        return document?.RootElement.TryGetProperty("remote", out var remote) == true
+            && Uri.TryCreate(remote.GetString(), UriKind.Absolute, out var url) ? url : null;
+    }
+
+    // The fetched document is cached beside the app's own and preferred over it while the source is set;
+    // the app's entries are the fallback until the first fetch succeeds.
+    private static async Task FetchRemoteAsync(Context context, string kind, Uri url)
+    {
+        var json = await Http.GetStringAsync(url);
+        using (var check = JsonDocument.Parse(json))
+            if (!check.RootElement.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
+                throw new InvalidDataException("not a timeline document");
+
+        var target = WidgetStore.RemoteCachePath(context, kind);
+        File.WriteAllText(target + ".tmp", json);
+        File.Move(target + ".tmp", target, overwrite: true);
+        Update(context, kind);
     }
 
     /// <summary>Draws the entry that applies now into every placed instance of <paramref name="kind"/>, and schedules the next change.</summary>
@@ -102,10 +156,10 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         ids ??= manager.GetAppWidgetIds(component);
         if (ids is not { Length: > 0 }) return;
 
-        var renderer = new RemoteViewsRenderer(context, new WidgetIcons(context));
-        using var document = WidgetStore.ReadTimeline(context, kind);
+        var renderer = new RemoteViewsRenderer(context, new WidgetIcons(context), actionId => ButtonIntent(context, index, kind, actionId));
+        using var local = WidgetStore.ReadTimeline(context, kind);
 
-        if (document is null)
+        if (local is null)
         {
             foreach (var id in ids) manager.UpdateAppWidget(id, renderer.Root(Placeholder, null));
             // Placed before the app ever built it: ask the provider now rather than waiting for the app.
@@ -113,8 +167,12 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
             return;
         }
 
+        var hasRemote = local.RootElement.TryGetProperty("remote", out var remoteUrl) && remoteUrl.ValueKind == JsonValueKind.String;
+        using var remote = hasRemote ? WidgetStore.ReadRemoteCache(context, kind) : null;
+        if (hasRemote && remote is null) context.SendBroadcast(Broadcast(context, index, ActionRefresh, kind));
+
         var now = DateTimeOffset.UtcNow;
-        var root = document.RootElement;
+        var root = remote?.RootElement ?? local.RootElement;
         var entries = root.GetProperty("entries").EnumerateArray()
             .Select(e => (Date: e.GetProperty("date").GetDateTimeOffset(), Trees: e.GetProperty("trees")))
             .OrderBy(e => e.Date)
@@ -122,13 +180,15 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         if (entries.Count == 0) return;
 
         var current = entries.LastOrDefault(e => e.Date <= now) is { Trees.ValueKind: JsonValueKind.Object } shown ? shown : entries[0];
-        var tap = root.TryGetProperty("link", out var link) && link.GetString() is { } url ? LinkIntent(context, index, url) : null;
+        var tap = (root.TryGetProperty("link", out var link) || local.RootElement.TryGetProperty("link", out link)) && link.GetString() is { } url
+            ? LinkIntent(context, index, url) : null;
 
         foreach (var id in ids)
             manager.UpdateAppWidget(id, Views(renderer, current.Trees, tap, manager, id));
 
-        Schedule(context, index, kind, entries.Select(e => e.Date).ToList(),
-            root.TryGetProperty("refreshAfterSeconds", out var refresh) && refresh.ValueKind == JsonValueKind.Number ? refresh.GetDouble() : null, now);
+        var refreshAfter = root.TryGetProperty("refreshAfterSeconds", out var refresh) && refresh.ValueKind == JsonValueKind.Number ? refresh.GetDouble()
+            : hasRemote ? MinimumRefreshInterval.TotalSeconds : (double?)null;
+        Schedule(context, index, kind, entries.Select(e => e.Date).ToList(), refreshAfter, now);
     }
 
     private static RemoteViews Views(RemoteViewsRenderer renderer, JsonElement trees, PendingIntent? tap, AppWidgetManager manager, int id)
@@ -140,8 +200,21 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
             var sized = new Dictionary<Android.Util.SizeF, RemoteViews>();
             foreach (var (name, width, height) in Families)
                 if (byFamily.TryGetValue(name, out var tree))
+                {
+                    renderer.Family = name;
                     sized[new Android.Util.SizeF(width, height)] = renderer.Root(tree, tap);
+                }
             if (sized.Count > 0) return new RemoteViews(sized);
+            // One tree for every family: let the launcher still pick, so an adaptive node inside it works.
+            if (byFamily.TryGetValue(Serialization.WidgetJson.DefaultFamilyKey, out var shared))
+            {
+                foreach (var (name, width, height) in Families)
+                {
+                    renderer.Family = name;
+                    sized[new Android.Util.SizeF(width, height)] = renderer.Root(shared, tap);
+                }
+                return new RemoteViews(sized);
+            }
         }
 
         var options = manager.GetAppWidgetOptions(id);
@@ -152,6 +225,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         var chosen = byFamily.TryGetValue(family, out var exact) ? exact
             : byFamily.TryGetValue(Serialization.WidgetJson.DefaultFamilyKey, out var fallback) ? fallback
             : byFamily.Values.FirstOrDefault();
+        renderer.Family = family;
         return renderer.Root(chosen.ValueKind == JsonValueKind.Object ? chosen : Placeholder, tap);
     }
 
@@ -203,6 +277,11 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
 
     private static PendingIntentFlags PendingFlags =>
         OperatingSystem.IsAndroidVersionAtLeast(23) ? PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable : PendingIntentFlags.UpdateCurrent;
+
+    // One PendingIntent per button; the request code keeps them apart, the extras say which.
+    private static PendingIntent? ButtonIntent(Context context, int index, string kind, string actionId) =>
+        PendingIntent.GetBroadcast(context, 1000 + index * 100 + (actionId.GetHashCode() & 0x7F),
+            Broadcast(context, index, ActionButton, kind).PutExtra(ExtraAction, actionId), PendingFlags);
 
     /// <summary>The tap: the same URL as on iOS, delivered to the app through <see cref="SpineWidgetLinkActivity"/>.</summary>
     private static PendingIntent? LinkIntent(Context context, int index, string url)

@@ -32,3 +32,18 @@ public interface IWidgetLinkHandler
 /// <param name="Kind">The widget kind the link belongs to.</param>
 /// <param name="Url">The full URL, so custom query values set with <see cref="WidgetTimeline.OpenUrl"/> can be read.</param>
 public sealed record WidgetLink(string Kind, Uri Url);
+
+/// <summary>
+/// Implemented by a provider whose trees contain <see cref="W.Button"/>. Resolved through DI like the
+/// provider itself; the widget is rebuilt after the handler returns, so what the tap changed shows.
+/// </summary>
+public interface IWidgetActionHandler
+{
+    /// <summary>Called on the main thread when a button in the widget was tapped.</summary>
+    Task OnActionAsync(WidgetAction action);
+}
+
+/// <summary>A tapped button.</summary>
+/// <param name="Kind">The widget kind the button belongs to.</param>
+/// <param name="ActionId">The id given to <see cref="W.Button"/>.</param>
+public sealed record WidgetAction(string Kind, string ActionId);

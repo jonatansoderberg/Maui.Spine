@@ -5,7 +5,7 @@
 set -euo pipefail
 
 OUT=""; SOURCES=""; SDK="iphonesimulator"; ARCH="arm64"; MIN_OS="17.0"; CONFIG="Debug"
-BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; URL_SCHEME=""; LIVE="true"
+BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; URL_SCHEME=""; LIVE="true"; BACKGROUND="true"; FREQUENT="false"
 WIDGETS=()
 
 while [[ $# -gt 0 ]]; do
@@ -22,6 +22,8 @@ while [[ $# -gt 0 ]]; do
     --display-name) DISPLAY_NAME="$2"; shift 2;;
     --url-scheme) URL_SCHEME="$2"; shift 2;;
     --live-activities) LIVE="$2"; shift 2;;
+    --background-refresh) BACKGROUND="$2"; shift 2;;
+    --frequent-updates) FREQUENT="$2"; shift 2;;
     --widget) WIDGETS+=("$2"); shift 2;;
     *) echo "spine-widgets-build.sh: unknown argument $1" >&2; exit 2;;
   esac
@@ -162,7 +164,14 @@ done
   cat <<PLIST
 	<key>SpineWidgetsAppGroup</key><string>$APP_GROUP</string>
 	<key>NSSupportsLiveActivities</key><$( [[ "$LIVE" == "true" ]] && echo true || echo false )/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key><$( [[ "$FREQUENT" == "true" ]] && echo true || echo false )/>
 PLIST
+  if [[ "$BACKGROUND" == "true" ]]; then
+    cat <<PLIST
+	<key>UIBackgroundModes</key><array><string>fetch</string></array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key><array><string>$(plist_escape "$URL_SCHEME").spine-widgets.refresh</string></array>
+PLIST
+  fi
   if [[ -n "$URL_SCHEME" ]]; then
     cat <<PLIST
 	<key>CFBundleURLTypes</key>
@@ -204,14 +213,35 @@ PLIST
 } > "$FRAMEWORK/Info.plist"
 
 # --- Widget extension --------------------------------------------------------------------------------
+# App Intents (the buttons) need a Metadata.appintents bundle beside the binary, which Xcode produces
+# from constant values the compiler extracts for the listed protocols. Same two steps here.
+printf '["AppIntent","AppEntity","AppEnum","AppShortcutsProvider","AppIntentsPackage","EntityQuery","DynamicOptionsProvider"]' > "$GEN/protocols.json"
+EXT_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetRenderer.swift" "$BUNDLE")
 xcrun -sdk "$SDK" swiftc \
   -target "$TARGET" "${OPT[@]}" -parse-as-library -application-extension \
   -module-name "$NAME" \
-  -framework WidgetKit -framework SwiftUI -framework ActivityKit \
+  -framework WidgetKit -framework SwiftUI -framework ActivityKit -framework AppIntents \
+  -wmo -emit-const-values-path "$GEN/$NAME.swiftconstvalues" \
+  -Xfrontend -const-gather-protocols-file -Xfrontend "$GEN/protocols.json" \
   -Xlinker -e -Xlinker _NSExtensionMain \
   -Xlinker -rpath -Xlinker @executable_path/../../Frameworks \
   -o "$APPEX/$NAME" \
-  "$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetRenderer.swift" "$BUNDLE"
+  "${EXT_SOURCES[@]}"
+
+printf '%s\n' "${EXT_SOURCES[@]}" > "$GEN/sources.txt"
+printf '%s\n' "$GEN/$NAME.swiftconstvalues" > "$GEN/constvalues.txt"
+xcrun appintentsmetadataprocessor \
+  --output "$APPEX" \
+  --toolchain-dir "$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain" \
+  --module-name "$NAME" \
+  --sdk-root "$(xcrun --sdk "$SDK" --show-sdk-path)" \
+  --xcode-version "$XCODE_BUILD" \
+  --platform-family iOS \
+  --deployment-target "$MIN_OS" \
+  --target-triple "$TARGET" \
+  --source-file-list "$GEN/sources.txt" \
+  --swift-const-vals-list "$GEN/constvalues.txt" \
+  --force --quiet-warnings
 
 # swiftc -g drops a dSYM beside each product; keep it out of the bundles the SDK signs and ships.
 rm -rf "$OUT/dSYM"; mkdir -p "$OUT/dSYM"

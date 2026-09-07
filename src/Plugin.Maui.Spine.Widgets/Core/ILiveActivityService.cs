@@ -24,6 +24,14 @@ public interface ILiveActivityService
 
     /// <summary>Ends every active activity immediately.</summary>
     Task EndAllAsync();
+
+    /// <summary>
+    /// The token a server uses to start an activity by push (iOS 17.2+), as hex, or <see langword="null"/>
+    /// when the platform has none — push tokens off in <see cref="SpineWidgetsOptions.LiveActivityPushTokens"/>,
+    /// no push entitlement, or none issued yet. Waits a few seconds for one to arrive. Tokens rotate, so
+    /// send it to the server at every launch and foreground.
+    /// </summary>
+    Task<string?> GetPushToStartTokenAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>A handle to one running Live Activity.</summary>
@@ -31,15 +39,18 @@ public sealed class LiveActivity
 {
     private readonly Func<LiveActivity, LiveActivityLayout, DateTimeOffset?, Task> _update;
     private readonly Func<LiveActivity, Task> _end;
+    private readonly Func<LiveActivity, CancellationToken, Task<string?>> _pushToken;
 
     internal LiveActivity(string id, string kind,
         Func<LiveActivity, LiveActivityLayout, DateTimeOffset?, Task> update,
-        Func<LiveActivity, Task> end)
+        Func<LiveActivity, Task> end,
+        Func<LiveActivity, CancellationToken, Task<string?>> pushToken)
     {
         Id = id;
         Kind = kind;
         _update = update;
         _end = end;
+        _pushToken = pushToken;
     }
 
     /// <summary>The platform's identifier of the activity.</summary>
@@ -56,4 +67,11 @@ public sealed class LiveActivity
 
     /// <summary>Ends the activity and removes it from the Lock Screen and Dynamic Island.</summary>
     public Task EndAsync() => _end(this);
+
+    /// <summary>
+    /// The token a server updates this activity with by push, as hex, or <see langword="null"/> when the
+    /// platform issued none (see <see cref="ILiveActivityService.GetPushToStartTokenAsync"/>). Waits a few
+    /// seconds for it to arrive after a start.
+    /// </summary>
+    public Task<string?> GetPushTokenAsync(CancellationToken cancellationToken = default) => _pushToken(this, cancellationToken);
 }

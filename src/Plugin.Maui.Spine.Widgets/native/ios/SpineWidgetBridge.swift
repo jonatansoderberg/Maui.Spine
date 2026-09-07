@@ -7,6 +7,47 @@ import ActivityKit
 @objc(SpineWidgetBridge)
 public final class SpineWidgetBridge: NSObject {
 
+    // Push tokens, opt-in from the app. ActivityKit hands them out asynchronously; the latest ones are
+    // kept here for the app to poll, since the bridge has no way to call back into .NET.
+    private static var pushTokensEnabled = false
+    private static var startToken: String?
+    private static var pushTokens: [String: String] = [:]
+    private static let tokenLock = NSLock()
+
+    /// Starts listening for the push-to-start token and the tokens of activities already running.
+    @objc public static func enablePushTokens() {
+        guard !pushTokensEnabled else { return }
+        pushTokensEnabled = true
+        if #available(iOS 17.2, *) {
+            Task {
+                for await data in Activity<SpineActivityAttributes>.pushToStartTokenUpdates {
+                    tokenLock.withLock { startToken = hex(data) }
+                }
+            }
+        }
+        for activity in Activity<SpineActivityAttributes>.activities { listen(activity) }
+    }
+
+    @objc public static func pushToStartToken() -> String? {
+        tokenLock.withLock { startToken }
+    }
+
+    @objc public static func pushToken(id: String) -> String? {
+        tokenLock.withLock { pushTokens[id] }
+    }
+
+    private static func listen(_ activity: Activity<SpineActivityAttributes>) {
+        Task {
+            for await data in activity.pushTokenUpdates {
+                tokenLock.withLock { pushTokens[activity.id] = hex(data) }
+            }
+        }
+    }
+
+    private static func hex(_ data: Data) -> String {
+        data.map { String(format: "%02x", $0) }.joined()
+    }
+
     @objc public static func reloadAll() {
         WidgetCenter.shared.reloadAllTimelines()
     }
@@ -25,7 +66,8 @@ public final class SpineWidgetBridge: NSObject {
             let activity = try Activity.request(
                 attributes: SpineActivityAttributes(kind: kind),
                 content: .init(state: .init(json: json), staleDate: staleDate(staleAt)),
-                pushType: nil)
+                pushType: pushTokensEnabled ? .token : nil)
+            if pushTokensEnabled { listen(activity) }
             return activity.id
         } catch {
             NSLog("[SpineWidgetBridge] Activity.request failed: \(error)")

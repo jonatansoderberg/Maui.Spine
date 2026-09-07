@@ -13,11 +13,17 @@ internal static class WidgetStore
 
     public static string TimelinePath(Context context, string kind) => Path.Combine(Root(context), kind + ".json");
 
+    /// <summary>The last document fetched from the timeline's remote source, when it has one.</summary>
+    public static string RemoteCachePath(Context context, string kind) => Path.Combine(Root(context), kind + ".remote.json");
+
     public static string AssetsDirectory(Context context) => Path.Combine(Root(context), "assets");
 
-    public static JsonDocument? ReadTimeline(Context context, string kind)
+    public static JsonDocument? ReadTimeline(Context context, string kind) => Read(TimelinePath(context, kind), kind);
+
+    public static JsonDocument? ReadRemoteCache(Context context, string kind) => Read(RemoteCachePath(context, kind), kind);
+
+    private static JsonDocument? Read(string path, string kind)
     {
-        var path = TimelinePath(context, kind);
         if (!File.Exists(path)) return null;
         try { return JsonDocument.Parse(File.ReadAllBytes(path)); }
         catch (Exception e) when (e is IOException or JsonException)

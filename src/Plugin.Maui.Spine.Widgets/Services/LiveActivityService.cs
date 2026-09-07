@@ -28,7 +28,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
 
         foreach (var (id, kind) in _platform.ActiveActivities())
             if (!_active.Any(a => a.Id == id))
-                _active.Add(new LiveActivity(id, kind, Update, End));
+                _active.Add(new LiveActivity(id, kind, Update, End, PushToken));
     }
 
     public async Task<LiveActivity?> StartAsync(string kind, LiveActivityLayout layout, DateTimeOffset? staleAt = null)
@@ -40,7 +40,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
         var id = await _platform.StartActivityAsync(kind, WidgetJson.Serialize(layout), staleAt);
         if (id is null) return null;
 
-        var activity = new LiveActivity(id, kind, Update, End);
+        var activity = new LiveActivity(id, kind, Update, End, PushToken);
         lock (_active) { Adopt(); _active.Add(activity); }
         return activity;
     }
@@ -49,6 +49,25 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     {
         foreach (var activity in Active)
             await activity.EndAsync();
+    }
+
+    public Task<string?> GetPushToStartTokenAsync(CancellationToken cancellationToken = default) =>
+        PollAsync(() => _platform.PushToStartToken, cancellationToken);
+
+    private Task<string?> PushToken(LiveActivity activity, CancellationToken cancellationToken) =>
+        PollAsync(() => _platform.PushToken(activity.Id), cancellationToken);
+
+    // ActivityKit hands tokens out a moment after the request, on its own schedule; a few seconds
+    // covers it, and none by then means the platform is not going to issue one.
+    private async Task<string?> PollAsync(Func<string?> read, CancellationToken cancellationToken)
+    {
+        if (!_platform.IsSupported) return null;
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            if (read() is { Length: > 0 } token) return token;
+            await Task.Delay(500, cancellationToken);
+        }
+        return read();
     }
 
     private async Task Update(LiveActivity activity, LiveActivityLayout layout, DateTimeOffset? staleAt)

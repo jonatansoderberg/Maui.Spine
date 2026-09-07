@@ -40,4 +40,10 @@ public sealed record LiveActivityLayout
     /// <summary>The serialized form of <see cref="Link"/>.</summary>
     [JsonPropertyName("link")]
     public string? LinkValue => Link?.ToString();
+
+    /// <summary>
+    /// The layout as the renderer's JSON — what a server puts in the <c>content-state.json</c> of a
+    /// Live Activity push, so a backend can build layouts with <see cref="W"/> instead of by hand.
+    /// </summary>
+    public string ToJson() => Serialization.WidgetJson.Serialize(this);
 }

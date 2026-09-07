@@ -19,6 +19,8 @@ namespace Plugin.Maui.Spine.Widgets;
 [JsonDerivedType(typeof(ProgressNode), "progress")]
 [JsonDerivedType(typeof(SpacerNode), "spacer")]
 [JsonDerivedType(typeof(DividerNode), "divider")]
+[JsonDerivedType(typeof(ButtonNode), "button")]
+[JsonDerivedType(typeof(AdaptiveNode), "adaptive")]
 public abstract record WidgetNode;
 
 /// <summary>A container that lays its <see cref="Children"/> out along one axis.</summary>
@@ -129,6 +131,25 @@ public sealed record SpacerNode : WidgetNode;
 
 /// <summary>A thin separator line.</summary>
 public sealed record DividerNode : WidgetNode;
+
+/// <summary>
+/// A tappable <see cref="Child"/> that sends <see cref="ActionId"/> to the provider's
+/// <see cref="IWidgetActionHandler"/>. On Android the handler runs at once in the app's process; on iOS
+/// the tap is recorded by the widget extension and handled the next time the app is active, which is
+/// at once when it is in the foreground.
+/// </summary>
+/// <param name="ActionId">What the tap means to the provider, e.g. <c>next</c>.</param>
+/// <param name="Child">What the button looks like.</param>
+public sealed record ButtonNode(string ActionId, WidgetNode Child) : WidgetNode;
+
+/// <summary>
+/// A node that renders a different subtree per family, for the parts of a tree that vary while the rest
+/// is shared. <see cref="Trees"/> is keyed by the family's JSON name; families without an entry, and
+/// surfaces without a family such as Live Activity regions, render <see cref="Fallback"/>.
+/// </summary>
+/// <param name="Fallback">The subtree for every family not in <see cref="Trees"/>.</param>
+/// <param name="Trees">The subtree per family name.</param>
+public sealed record AdaptiveNode(WidgetNode Fallback, IReadOnlyDictionary<string, WidgetNode> Trees) : WidgetNode;
 
 /// <summary>The text styles a <see cref="TextLikeNode"/> can take, mapped to each platform's type ramp.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<TextRole>))]

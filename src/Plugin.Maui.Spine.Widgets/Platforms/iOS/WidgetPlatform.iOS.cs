@@ -27,6 +27,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         _bridge = Class.GetHandle(BridgeClassName);
         _appGroup = options.AppGroup ?? NSBundle.MainBundle.ObjectForInfoDictionary(AppGroupInfoKey)?.ToString();
 
+        if (_bridge != IntPtr.Zero && options.LiveActivityPushTokens)
+            Send(_bridge, Selector.GetHandle("enablePushTokens"));
+
         if (_bridge == IntPtr.Zero)
             logger.LogWarning("The {Bridge} framework is not in the app bundle; widgets are disabled. Is build/Plugin.Maui.Spine.Widgets.targets imported and at least one <SpineWidget> declared?", BridgeClassName);
         else if (_appGroup is null)
@@ -38,6 +41,36 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     }
 
     public bool IsSupported => _bridge != IntPtr.Zero && _containerPath is not null;
+
+    /// <summary>The Darwin notification the extension posts after recording a button tap.</summary>
+    public string? ActionNotificationName => _appGroup is null ? null : _appGroup + ".spine-widgets.action";
+
+    /// <summary>Reads and clears the button taps the extension recorded, oldest first.</summary>
+    public IReadOnlyList<(string Kind, string ActionId)> TakeActions()
+    {
+        if (_containerPath is null) return [];
+        var path = Path.Combine(_containerPath, "actions.jsonl");
+        if (!File.Exists(path)) return [];
+
+        string[] lines;
+        try { lines = File.ReadAllLines(path); File.Delete(path); }
+        catch (IOException) { return []; }
+
+        var actions = new List<(string, string)>();
+        foreach (var line in lines)
+        {
+            if (line.Length == 0) continue;
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(line);
+                if (document.RootElement.TryGetProperty("kind", out var kind) && document.RootElement.TryGetProperty("actionId", out var action)
+                    && kind.GetString() is { Length: > 0 } k && action.GetString() is { Length: > 0 } a)
+                    actions.Add((k, a));
+            }
+            catch (System.Text.Json.JsonException) { }
+        }
+        return actions;
+    }
 
     public void WriteTimeline(string kind, string json)
     {
@@ -114,6 +147,17 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         Send(_bridge, Selector.GetHandle("endActivityWithId:"), idValue.Handle);
     }
 
+    public string? PushToStartToken => IsSupported ? Text(SendObject(_bridge, Selector.GetHandle("pushToStartToken"))) : null;
+
+    public string? PushToken(string id)
+    {
+        if (!IsSupported) return null;
+        using var idValue = new NSString(id);
+        return Text(SendObject(_bridge, Selector.GetHandle("pushTokenWithId:"), idValue.Handle));
+    }
+
+    private static string? Text(IntPtr handle) => handle == IntPtr.Zero ? null : NSString.FromHandle(handle);
+
     // 0 means "no stale date" on the Swift side.
     private static double Seconds(DateTimeOffset? at) => at?.ToUnixTimeSeconds() ?? 0;
 
@@ -131,6 +175,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 
     [DllImport(Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
     private static extern IntPtr SendObject(IntPtr receiver, IntPtr selector);
+
+    [DllImport(Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern IntPtr SendObject(IntPtr receiver, IntPtr selector, IntPtr arg1);
 
     [DllImport(Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
     private static extern byte SendBool(IntPtr receiver, IntPtr selector);
