@@ -12,7 +12,8 @@ namespace Orientera.Widgets;
 
 /// <summary>
 /// "Nästa start" på hemskärmen: nästa tävling jag är anmäld till, med min starttid som nedräkning.
-/// Ett tryck öppnar startlistan för samma tävling.
+/// Ett tryck öppnar startlistan för samma tävling; knappen följer starten på låsskärmen utan att
+/// öppna appen, samma sak som "Följ på låsskärmen" på Hem.
 /// </summary>
 [Widget("next-start")]
 public sealed class NextStartWidget(
@@ -22,8 +23,11 @@ public sealed class NextStartWidget(
     IParticipationSource _participation,
     CompetitionContextService _context,
     IWidgetService _widgets,
-    INavigationService _navigation) : IWidgetProvider, IWidgetLinkHandler
+    ILiveActivityService _liveActivities,
+    INavigationService _navigation) : IWidgetProvider, IWidgetLinkHandler, IWidgetActionHandler
 {
+    private const string FollowAction = "follow";
+
     public async Task<WidgetTimeline> BuildTimelineAsync(WidgetContext context, CancellationToken cancellationToken)
     {
         var now = _clock.Now;
@@ -42,16 +46,46 @@ public sealed class NextStartWidget(
 
         var timeline = new WidgetTimeline();
 
-        timeline.Add(now, Trees(next, decision, start, started: start <= now));
+        // Knappen finns när det finns en start att följa, precis som på Hem; aktiviteten frågas efter
+        // i stället för att hållas, eftersom den överlever både widgeten och appen.
+        var follow = start is not null && _liveActivities.AreActivitiesEnabled
+            ? Follow(next.Id, following: _liveActivities.Active.Any(a => a.Kind == MyStartActivity.KindFor(next.Id)))
+            : null;
+
+        timeline.Add(now, Trees(next, decision, start, started: start <= now, follow));
 
         // Två poster i stället för en omladdning: WidgetKit byter träd vid starttiden av sig självt,
         // och omladdningarna är budgeterade (förstudien §4.3b).
         if (start is { } startTime && startTime > now)
-            timeline.Add(startTime, Trees(next, decision, start, started: true));
+            timeline.Add(startTime, Trees(next, decision, start, started: true, follow));
 
         return timeline
             .Refresh(TimeSpan.FromMinutes(30))
             .OpenUrl(new Uri($"{_widgets.LinkFor(context.Kind)}?competition={Uri.EscapeDataString(next.Id.Value)}"));
+    }
+
+    /// <summary>
+    /// "Följ på låsskärmen" i widgeten: startar eller avslutar Live Activityn för tävlingen i
+    /// åtgärden. På Android sker det direkt; på iOS när appen nästa gång är aktiv, vilket också är
+    /// det enda läget iOS startar en aktivitet i.
+    /// </summary>
+    public async Task OnActionAsync(WidgetAction action)
+    {
+        if (!action.ActionId.StartsWith(FollowAction + ':', StringComparison.Ordinal)) return;
+        var competition = CompetitionId.From(action.ActionId[(FollowAction.Length + 1)..]);
+
+        if (_liveActivities.Active.FirstOrDefault(a => a.Kind == MyStartActivity.KindFor(competition)) is { } running)
+        {
+            await running.EndAsync();
+            return;
+        }
+
+        var race = await _events.GetCompetitionAsync(competition);
+        var me = await _people.GetMeAsync();
+        var start = (await _participation.GetStartsAsync(competition)).FirstOrDefault(s => s.Person == me.Id);
+        if (race is null || start is null) return;
+
+        await _liveActivities.StartAsync(MyStartActivity.KindFor(competition), MyStartActivity.Layout(race, start.StartTime, _clock.Now), staleAt: race.LastFinish);
     }
 
     public Task OnWidgetOpenedAsync(WidgetLink link) =>
@@ -74,7 +108,7 @@ public sealed class NextStartWidget(
     }
 
     private static Dictionary<WidgetFamily, WidgetNode> Trees(
-        Competition competition, ContextDecision decision, DateTimeOffset? start, bool started)
+        Competition competition, ContextDecision decision, DateTimeOffset? start, bool started, WidgetNode? follow)
     {
         // Nedräkningen måste vara en Timer-nod: systemet ritar den varje sekund utan att
         // extensionet körs, medan en text appen räknar ut står stilla till nästa omladdning.
@@ -103,9 +137,13 @@ public sealed class NextStartWidget(
                 start is null
                     ? headline
                     : W.HStack(4, W.Text(started ? "Ute på banan" : "Startar om").Body(), headline),
-                W.Text(when).Caption().Secondary()),
+                W.HStack(8, W.Text(when).Caption().Secondary(), W.Spacer(), follow ?? W.Spacer())),
         };
     }
+
+    private static WidgetNode Follow(CompetitionId competition, bool following) =>
+        W.Button($"{FollowAction}:{competition.Value}",
+            W.Text(following ? "Sluta följa" : "Följ på låsskärmen").Caption().Bold().Color(Brand));
 
     private static WidgetNode Nothing() => W.VStack(6,
         Header(),
