@@ -1,6 +1,6 @@
-# SpineCollectionView
+# HeroCollectionView
 
-`Plugin.Maui.SpineControls` provides `SpineCollectionView` — a `CollectionView` subclass with a collapsing sticky header, optional title overlay, and an adaptive colour-sampling overlay for dynamic theming. On Windows it also doubles as a drag region for custom title-bar windows.
+`Plugin.Maui.Spine.Controls.HeroCollectionView` provides `HeroCollectionView` — a `CollectionView` subclass with a collapsing sticky header, optional title overlay, and an adaptive colour-sampling overlay for dynamic theming. On Windows it also doubles as a drag region for custom title-bar windows.
 
 ---
 
@@ -17,14 +17,14 @@
 
 ## Registration
 
-Call `UseSpineControls()` in your `MauiProgram.cs` builder chain:
+Call `UseHeroCollectionView()` in your `MauiProgram.cs` builder chain:
 
 ```csharp
-using Plugin.Maui.SpineControls;
+using Plugin.Maui.Spine.Controls;
 
 builder
     .UseMauiApp<App>()
-    .UseSpineControls();
+    .UseHeroCollectionView();
 ```
 
 ---
@@ -32,7 +32,7 @@ builder
 ## XAML usage
 
 ```xml
-<SpineCollectionView
+<HeroCollectionView
     ItemsSource="{Binding Items}"
     HeaderImageSource="header_bg.png"
     HeaderTitle="My Collection"
@@ -40,13 +40,13 @@ builder
     HeaderMaxHeight="230"
     HeaderMinHeight="42">
 
-    <SpineCollectionView.ItemTemplate>
+    <HeroCollectionView.ItemTemplate>
         <DataTemplate x:DataType="vm:ItemViewModel">
             <Label Text="{Binding Name}" Padding="16,8" />
         </DataTemplate>
-    </SpineCollectionView.ItemTemplate>
+    </HeroCollectionView.ItemTemplate>
 
-</SpineCollectionView>
+</HeroCollectionView>
 ```
 
 ---
@@ -83,7 +83,7 @@ A built-in title label is always present. Control its appearance with `HeaderTit
 When `EnableAdaptiveOverlay` is `true`, the control samples colours from the header image and automatically tints registered child elements (e.g. buttons, labels in `HeaderTopContent` / `HeaderBottomContent`) to contrast with the image.
 
 ```xml
-<SpineCollectionView
+<HeroCollectionView
     EnableAdaptiveOverlay="True"
     AdaptiveLightColor="White"
     AdaptiveDarkColor="Black"

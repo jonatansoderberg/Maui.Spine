@@ -12,6 +12,6 @@
   <Project Path="src/Plugin.Maui.Spine.Common/Plugin.Maui.Spine.Common.csproj" />
   <Project Path="src/Plugin.Maui.Spine/Plugin.Maui.Spine.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Svg/Plugin.Maui.Spine.Svg.csproj" />
-  <Project Path="src/Plugin.Maui.SpineControls/Plugin.Maui.SpineControls.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.HeroCollectionView/Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Widgets/Plugin.Maui.Spine.Widgets.csproj" />
 </Solution>

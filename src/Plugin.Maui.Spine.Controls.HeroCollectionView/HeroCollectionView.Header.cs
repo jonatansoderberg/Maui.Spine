@@ -2,9 +2,9 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Shapes;
 using System;
 
-namespace Plugin.Maui.SpineControls;
+namespace Plugin.Maui.Spine.Controls;
 
-public partial class SpineCollectionView
+public partial class HeroCollectionView
 {
     // ────────────────────────────────────────────────────────────────────────
     // Header construction

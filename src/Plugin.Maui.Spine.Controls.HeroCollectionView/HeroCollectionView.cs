@@ -1,7 +1,7 @@
 using Microsoft.Maui.Controls;
 using System;
 
-namespace Plugin.Maui.SpineControls;
+namespace Plugin.Maui.Spine.Controls;
 
 /// <summary>
 /// A CollectionView subclass with a collapsing sticky header and optional
@@ -12,14 +12,14 @@ namespace Plugin.Maui.SpineControls;
 /// never be scrolled away.
 ///
 /// Responsibilities are split across partial classes for maintainability:
-///   SpineCollectionView.cs                  – state, ctor, parent injection
-///   SpineCollectionView.BindableProperties.cs – all bindable property declarations
-///   SpineCollectionView.Header.cs           – header construction &amp; property-changed handlers
-///   SpineCollectionView.Scrolling.cs        – scroll handling
-///   SpineCollectionView.AdaptiveOverlay.cs  – adaptive colour sampling (SkiaSharp)
-///   SpineCollectionView.Windows.cs          – Windows drag-region (platform partial)
+///   HeroCollectionView.cs                  – state, ctor, parent injection
+///   HeroCollectionView.BindableProperties.cs – all bindable property declarations
+///   HeroCollectionView.Header.cs           – header construction &amp; property-changed handlers
+///   HeroCollectionView.Scrolling.cs        – scroll handling
+///   HeroCollectionView.AdaptiveOverlay.cs  – adaptive colour sampling (SkiaSharp)
+///   HeroCollectionView.Windows.cs          – Windows drag-region (platform partial)
 /// </summary>
-public partial class SpineCollectionView : CollectionView
+public partial class HeroCollectionView : CollectionView
 {
     // ────────────────────────────────────────────────────────────────────────
     // Internal state
@@ -71,7 +71,7 @@ public partial class SpineCollectionView : CollectionView
     // Construction
     // ────────────────────────────────────────────────────────────────────────
 
-    public SpineCollectionView()
+    public HeroCollectionView()
     {
         Scrolled += OnScrolled;
     }

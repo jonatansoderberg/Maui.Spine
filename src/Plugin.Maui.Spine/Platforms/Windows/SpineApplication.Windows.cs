@@ -231,7 +231,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         _appWindow.TitleBar.ButtonHoverBackgroundColor = hoverOverlay;
         _appWindow.TitleBar.ButtonPressedBackgroundColor = pressedOverlay;
 
-        TryRegisterSpineControlsCaptionButtonIntegration();
+        TryRegisterHeroCollectionViewCaptionButtonIntegration();
 
 
 
@@ -345,15 +345,15 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         }
     }
 
-    private void TryRegisterSpineControlsCaptionButtonIntegration()
+    private void TryRegisterHeroCollectionViewCaptionButtonIntegration()
     {
-        // If Plugin.Maui.SpineControls is loaded into the app, wire up the adaptive
+        // If Plugin.Maui.Spine.Controls.HeroCollectionView is loaded into the app, wire up the adaptive
         // caption button callback so the OS min/max/close glyphs are tinted automatically
-        // when SpineCollectionView.AdaptiveCaptionButtons is true.
+        // when HeroCollectionView.AdaptiveCaptionButtons is true.
         // Reflection is used so that Spine does not carry a hard compile-time dependency
-        // on the optional SpineControls library.
+        // on the optional HeroCollectionView library.
         var controlsType = Type.GetType(
-            "Plugin.Maui.SpineControls.SpineCollectionView, Plugin.Maui.SpineControls");
+            "Plugin.Maui.Spine.Controls.HeroCollectionView, Plugin.Maui.Spine.Controls.HeroCollectionView");
 
         controlsType
             ?.GetProperty("CaptionButtonColorRequested",

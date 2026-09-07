@@ -203,7 +203,7 @@
   
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.AnimatedLabel\Plugin.Maui.AnimatedLabel.csproj" />
-		<ProjectReference Include="..\..\src\Plugin.Maui.SpineControls\Plugin.Maui.SpineControls.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />

@@ -1,8 +1,8 @@
 using System;
 
-namespace Plugin.Maui.SpineControls;
+namespace Plugin.Maui.Spine.Controls;
 
-public partial class SpineCollectionView
+public partial class HeroCollectionView
 {
     // Collapsing is done entirely via TranslationY (pure GPU compositor
     // transform — zero layout/measure passes per frame).  An anchor is

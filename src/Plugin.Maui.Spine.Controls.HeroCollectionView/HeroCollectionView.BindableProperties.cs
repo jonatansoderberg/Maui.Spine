@@ -1,16 +1,16 @@
 using Microsoft.Maui.Controls;
 
-namespace Plugin.Maui.SpineControls;
+namespace Plugin.Maui.Spine.Controls;
 
-public partial class SpineCollectionView
+public partial class HeroCollectionView
 {
     // ────────────────────────────────────────────────────────────────────────
     // Header image / title
     // ────────────────────────────────────────────────────────────────────────
 
     public static readonly BindableProperty HeaderImageSourceProperty =
-        BindableProperty.Create(nameof(HeaderImageSource), typeof(ImageSource), typeof(SpineCollectionView),
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderImageSourceChanged((ImageSource?)n));
+        BindableProperty.Create(nameof(HeaderImageSource), typeof(ImageSource), typeof(HeroCollectionView),
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderImageSourceChanged((ImageSource?)n));
 
     public ImageSource? HeaderImageSource
     {
@@ -19,8 +19,8 @@ public partial class SpineCollectionView
     }
 
     public static readonly BindableProperty HeaderTitleProperty =
-        BindableProperty.Create(nameof(HeaderTitle), typeof(string), typeof(SpineCollectionView), string.Empty,
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderTitleChanged((string?)n));
+        BindableProperty.Create(nameof(HeaderTitle), typeof(string), typeof(HeroCollectionView), string.Empty,
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderTitleChanged((string?)n));
 
     public string? HeaderTitle
     {
@@ -29,8 +29,8 @@ public partial class SpineCollectionView
     }
 
     public static readonly BindableProperty HeaderTitleColorProperty =
-        BindableProperty.Create(nameof(HeaderTitleColor), typeof(Color), typeof(SpineCollectionView), Colors.White,
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderTitleColorChanged((Color?)n));
+        BindableProperty.Create(nameof(HeaderTitleColor), typeof(Color), typeof(HeroCollectionView), Colors.White,
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderTitleColorChanged((Color?)n));
 
     public Color? HeaderTitleColor
     {
@@ -39,8 +39,8 @@ public partial class SpineCollectionView
     }
 
     public static readonly BindableProperty HeaderTitleFontFamilyProperty =
-        BindableProperty.Create(nameof(HeaderTitleFontFamily), typeof(string), typeof(SpineCollectionView), null,
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderTitleFontFamilyChanged((string?)n));
+        BindableProperty.Create(nameof(HeaderTitleFontFamily), typeof(string), typeof(HeroCollectionView), null,
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderTitleFontFamilyChanged((string?)n));
 
     public string? HeaderTitleFontFamily
     {
@@ -49,8 +49,8 @@ public partial class SpineCollectionView
     }
 
     public static readonly BindableProperty HeaderTitleFontSizeProperty =
-        BindableProperty.Create(nameof(HeaderTitleFontSize), typeof(double), typeof(SpineCollectionView), 25.0,
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderTitleFontSizeChanged((double)n));
+        BindableProperty.Create(nameof(HeaderTitleFontSize), typeof(double), typeof(HeroCollectionView), 25.0,
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderTitleFontSizeChanged((double)n));
 
     public double HeaderTitleFontSize
     {
@@ -63,8 +63,8 @@ public partial class SpineCollectionView
     // ────────────────────────────────────────────────────────────────────────
 
     public static readonly BindableProperty HeaderMaxHeightProperty =
-        BindableProperty.Create(nameof(HeaderMaxHeight), typeof(double), typeof(SpineCollectionView), 230.0,
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderMaxHeightChanged((double)n));
+        BindableProperty.Create(nameof(HeaderMaxHeight), typeof(double), typeof(HeroCollectionView), 230.0,
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderMaxHeightChanged((double)n));
 
     public double HeaderMaxHeight
     {
@@ -73,8 +73,8 @@ public partial class SpineCollectionView
     }
 
     public static readonly BindableProperty HeaderMinHeightProperty =
-        BindableProperty.Create(nameof(HeaderMinHeight), typeof(double), typeof(SpineCollectionView), 42.0,
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderMinHeightChanged((double)n));
+        BindableProperty.Create(nameof(HeaderMinHeight), typeof(double), typeof(HeroCollectionView), 42.0,
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderMinHeightChanged((double)n));
 
     public double HeaderMinHeight
     {
@@ -90,8 +90,8 @@ public partial class SpineCollectionView
     /// Opacity driven 0→1 as header collapses (ideal for acrylic MaterialFrame).
     /// </summary>
     public static readonly BindableProperty HeaderOverlayContentProperty =
-        BindableProperty.Create(nameof(HeaderOverlayContent), typeof(View), typeof(SpineCollectionView),
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderOverlayContentChanged((View?)n));
+        BindableProperty.Create(nameof(HeaderOverlayContent), typeof(View), typeof(HeroCollectionView),
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderOverlayContentChanged((View?)n));
 
     public View? HeaderOverlayContent
     {
@@ -118,8 +118,8 @@ public partial class SpineCollectionView
     /// view so scroll gestures on empty areas still reach the CollectionView.
     /// </summary>
     public static readonly BindableProperty HeaderTopContentProperty =
-        BindableProperty.Create(nameof(HeaderTopContent), typeof(View), typeof(SpineCollectionView),
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderTopContentChanged((View?)n));
+        BindableProperty.Create(nameof(HeaderTopContent), typeof(View), typeof(HeroCollectionView),
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderTopContentChanged((View?)n));
 
     public View? HeaderTopContent
     {
@@ -135,8 +135,8 @@ public partial class SpineCollectionView
     /// view so scroll gestures on empty areas still reach the CollectionView.
     /// </summary>
     public static readonly BindableProperty HeaderBottomContentProperty =
-        BindableProperty.Create(nameof(HeaderBottomContent), typeof(View), typeof(SpineCollectionView),
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderBottomContentChanged((View?)n));
+        BindableProperty.Create(nameof(HeaderBottomContent), typeof(View), typeof(HeroCollectionView),
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderBottomContentChanged((View?)n));
 
     public View? HeaderBottomContent
     {
@@ -153,8 +153,8 @@ public partial class SpineCollectionView
     /// Defaults to 16 on Windows (where the scrollbar occupies space), 0 elsewhere.
     /// </summary>
     public static readonly BindableProperty HeaderScrollBarInsetProperty =
-        BindableProperty.Create(nameof(HeaderScrollBarInset), typeof(double), typeof(SpineCollectionView), DefaultScrollBarInset,
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnHeaderScrollBarInsetChanged((double)n));
+        BindableProperty.Create(nameof(HeaderScrollBarInset), typeof(double), typeof(HeroCollectionView), DefaultScrollBarInset,
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnHeaderScrollBarInsetChanged((double)n));
 
     public double HeaderScrollBarInset
     {
@@ -167,8 +167,8 @@ public partial class SpineCollectionView
     /// draggable title-bar region (excluding interactive child elements).
     /// </summary>
     public static readonly BindableProperty EnableHeaderAsDragRegionOnWindowsProperty =
-        BindableProperty.Create(nameof(EnableHeaderAsDragRegionOnWindows), typeof(bool), typeof(SpineCollectionView), true,
-            propertyChanged: (b, _, n) => ((SpineCollectionView)b).OnEnableHeaderAsDragRegionChanged((bool)n));
+        BindableProperty.Create(nameof(EnableHeaderAsDragRegionOnWindows), typeof(bool), typeof(HeroCollectionView), true,
+            propertyChanged: (b, _, n) => ((HeroCollectionView)b).OnEnableHeaderAsDragRegionChanged((bool)n));
 
     public bool EnableHeaderAsDragRegionOnWindows
     {
@@ -188,10 +188,10 @@ public partial class SpineCollectionView
     // ────────────────────────────────────────────────────────────────────────
 
     public static readonly BindableProperty EnableAdaptiveOverlayProperty =
-        BindableProperty.Create(nameof(EnableAdaptiveOverlay), typeof(bool), typeof(SpineCollectionView), false,
+        BindableProperty.Create(nameof(EnableAdaptiveOverlay), typeof(bool), typeof(HeroCollectionView), false,
             propertyChanged: static (bindable, _, newValue) =>
             {
-                if ((bool)newValue && bindable is SpineCollectionView self && self.Parent != null)
+                if ((bool)newValue && bindable is HeroCollectionView self && self.Parent != null)
                     self.HookAdaptive();
             });
 

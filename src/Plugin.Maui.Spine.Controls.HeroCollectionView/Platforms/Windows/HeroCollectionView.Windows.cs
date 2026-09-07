@@ -6,9 +6,9 @@ using Windows.Graphics;
 using WinRT.Interop;
 using WinUIWindow = Microsoft.UI.Xaml.Window;
 
-namespace Plugin.Maui.SpineControls;
+namespace Plugin.Maui.Spine.Controls;
 
-public partial class SpineCollectionView
+public partial class HeroCollectionView
 {
     // ————————————————————————————————————————————————————————————————————————
     // Windows drag-region implementation

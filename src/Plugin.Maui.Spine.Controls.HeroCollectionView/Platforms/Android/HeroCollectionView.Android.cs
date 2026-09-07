@@ -2,9 +2,9 @@
 using Android.Views;
 using Microsoft.Maui.Controls.Handlers.Items;
 
-namespace Plugin.Maui.SpineControls;
+namespace Plugin.Maui.Spine.Controls;
 
-public partial class SpineCollectionView
+public partial class HeroCollectionView
 {
     partial void OnHandlerChangedPartial()
     {

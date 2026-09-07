@@ -83,12 +83,25 @@ Sist, när allt annat bygger. Lyfter `TargetFrameworks`-villkoren, `SupportedOSP
 - `docs/wiki/svg-image.md` + `svg-icon.md` → `docs/wiki/svg.md`. Länkarna i `README.md` och `docs/wiki/getting-started.md` pekar om till den.
 - De två projektlokala `.github/copilot-instructions.md` sammanslagna till en, med ikonhalvan som ett eget avsnitt.
 
+### Steg 3 — Plugin.Maui.Spine.Controls.HeroCollectionView
+
+- `src/Plugin.Maui.SpineControls/` omdöpt med `git mv`; de sju `SpineCollectionView*.cs` heter nu `HeroCollectionView*.cs`.
+- Klassen `SpineCollectionView` → `HeroCollectionView`, namnrymd `Plugin.Maui.SpineControls` → `Plugin.Maui.Spine.Controls`, `UseSpineControls()` → `UseHeroCollectionView()`.
+- `AssemblyName` = `Plugin.Maui.Spine.Controls.HeroCollectionView` (paket-id:t), `RootNamespace` = `Plugin.Maui.Spine.Controls` (den delade namnrymden).
+- Bindbara egenskaper orörda — `HeaderImageSource`, `HeaderTitle`, `HeaderTitleColor`, `HeaderTitleFontFamily` med flera behåller `Header`-prefixet.
+- Windows-kodens reflektionsuppslag i `SpineApplication.Windows.cs` pekar om till `"Plugin.Maui.Spine.Controls.HeroCollectionView, Plugin.Maui.Spine.Controls.HeroCollectionView"`. Den privata metoden `TryRegisterSpineControlsCaptionButtonIntegration` heter nu `TryRegisterHeroCollectionViewCaptionButtonIntegration`, och kommentarerna runt den är uppdaterade.
+- `GlobalXmlns.cs` i båda apparna: namnrymden och `AssemblyName` skiljer sig nu åt och är satta var för sig. `MainPage.View.xaml` använder `HeroCollectionView`.
+- `docs/wiki/spine-controls.md` → `docs/wiki/hero-collection-view.md`; länkarna i README och `getting-started.md` pekar om.
+- Ingen `ProjectReference` till `Plugin.Maui.Spine` finns i projektet (den fanns inte tidigare heller).
+- Verifierat i simulator och emulator, se Decisions.
+
 ## Decisions
 
 - **`WidgetColor.From(Color)` blev en statisk extension-medlem, inte en `partial`.** Planens `partial`-lösning går inte: partiella typer måste ligga i samma assembly. I stället ligger överlagringen i `WidgetColorExtensions` i Widgets, som en C# 14 `extension(WidgetColor)`-medlem. Anropssyntaxen `WidgetColor.From(mauiColor)` är oförändrad så länge `Plugin.Maui.Spine.Widgets` är i scope, vilket den redan är på båda anropsställena i Orientera. Kompilerar på SDK 10.0.201 med `LangVersion preview`.
 - **Överlagringen går via `FromHex` i stället för den privata konstruktorn.** Den privata konstruktorn kan inte nås över assembly-gränsen utan `InternalsVisibleTo`. `Color.ToArgbHex()` ger `#RRGGBB` i versaler, vilket är precis vad `FromHex` validerar och normaliserar till — samma värde för alla `Color`-indata.
 - **Ingen klasskollision fanns i steg 2.** Planen antog att båda Svg-projekten hade en `MauiAppBuilderExtensions`-klass. SvgIcons fil deklarerar i själva verket `SvgIconExtensions` — bara filnamnet krockade. Filen är omdöpt efter sin klass i stället för att klasserna slås ihop, så `UseEmbeddedSvgImages` och `UseSvgIcon` ligger kvar var för sig precis som förut.
 - **Bara det som faktiskt korsar gränsen blev publikt.** `WidgetTimelineDocument`, `WidgetTimelineEntryDocument`, `WidgetJsonContext` och `WidgetColorJsonConverter` är serialiseringsdetaljer som aldrig var API och används bara inuti `Common`; de förblir `internal`. Ingen `InternalsVisibleTo` någonstans.
+- **XAML i sample-appen inflateras i runtime i Debug, så bygget bevisar inte namnbytet.** `HeroCollectionView` löses upp via `XmlnsDefinition` först när sidan visas. Därför kördes `MauiSpineSampleApp` i iOS-simulatorn: hero-headern med titelöverlägget ritas, den kollapsar till en sticky rad vid scroll, och SVG-ikonerna i raderna renderas. `Orientera` kördes i Android-emulatorn: hero-bilden, väderikonen och tabbarens tre SVG-ikoner ritas som förut. Före körningen rensades `bin/`/`obj/`, eftersom en gammal `Plugin.Maui.SpineControls.dll` låg kvar och kunde ha dolt ett fel.
 - **Verifiering på den här maskinen.** `net10.0-android`, `net10.0-maccatalyst` för hela lösningen; `net10.0-ios` med `-r iossimulator-arm64 -p:CodesignKey=-` för sample-apparna (ingen signeringsidentitet finns); backend och tester på `net10.0`; sample-apparna startas i simulator/emulator. **`net10.0-windows10.0.19041.0` går inte att bygga här** — Windows-koden i `SpineApplication.Windows.cs` och `HeroCollectionView.Windows.cs` granskas bara för hand.
 
 ## Noterade buggar (lämnas)

@@ -7,9 +7,9 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Plugin.Maui.SpineControls;
+namespace Plugin.Maui.Spine.Controls;
 
-public partial class SpineCollectionView
+public partial class HeroCollectionView
 {
     // ────────────────────────────────────────────────────────────────────────
     // Adaptive overlay — colour-sampling state
