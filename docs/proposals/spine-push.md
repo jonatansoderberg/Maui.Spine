@@ -1,6 +1,6 @@
 # Spine.Push — remote push från Spine, klient och server (förstudie, rev 1)
 
-**Status:** Proposal — inget implementerat. Issues per leveranssteg i §11: [#175](https://github.com/jonatansoderberg/Maui.Spine/issues/175) (projektstruktur), [#176](https://github.com/jonatansoderberg/Maui.Spine/issues/176) (server), [#177](https://github.com/jonatansoderberg/Maui.Spine/issues/177) (klient), [#178](https://github.com/jonatansoderberg/Maui.Spine/issues/178) (Orientera), [#179](https://github.com/jonatansoderberg/Maui.Spine/issues/179) (v2).
+**Status:** Proposal — inget implementerat. Issues per leveranssteg i §11: [#175](https://github.com/jonatansoderberg/Maui.Spine/issues/175) (projektstruktur), [#176](https://github.com/jonatansoderberg/Maui.Spine/issues/176) (server), [#177](https://github.com/jonatansoderberg/Maui.Spine/issues/177) (klient), [#180](https://github.com/jonatansoderberg/Maui.Spine/issues/180) (sample), [#178](https://github.com/jonatansoderberg/Maui.Spine/issues/178) (Orientera), [#179](https://github.com/jonatansoderberg/Maui.Spine/issues/179) (v2).
 **Fråga:** Kan Spine göra remote push lika enkelt som widgets blev: registrering, rättigheter, taggar, popup- och tysta notiser, koppling till Live Activities och widgets, på alla plattformar Spine stödjer — och kan ett litet .NET-bibliotek på servern skicka allt detta utan att appen behöver veta hur APNs, FCM och WNS skiljer sig?
 **Svar:** Ja, med tre paket: `Plugin.Maui.Spine.Push` i appen, `Plugin.Maui.Spine.Server` på servern och det delade `Plugin.Maui.Spine.Common`. Rekommendationen är att **skicka direkt till APNs, FCM v1 och WNS** från serverbiblioteket och äga enhetsregistret själv, i stället för Azure Notification Hubs. Skälen står i §3; kortversionen är att ANH inte kan skicka de pushtyper Spine redan behöver (Live Activity, iOS 26-widgetar, broadcast-kanaler), inte når MAUI-appar på Windows och inte fått en SDK-release sedan februari 2024.
 
@@ -307,11 +307,23 @@ PushTarget.All
 - **Registret** (`IPushInstallationStore`): `Upsert`, `Delete`, `Query(tagExpression)`, `Prune(olderThan)`, `Invalidate(handle)`. Tagguttrycket parsas till ett predikat och körs över kandidaterna för de plattformar som berörs; Table Storage-implementationen partitionerar på plattform och håller en sekundär tabell tag→installation för de vanliga uttrycken. En Cosmos- eller SQL-implementation är ~100 rader när någon behöver den.
 - **Endpoints:** `app.MapSpinePush("/push")` för Minimal API. För Azure Functions (isolated), som Orientera.Backend, finns `SpinePushEndpoints.HandleAsync(HttpRequest)` att anropa från en `[Function]` — samma kontrakt: `PUT /push/installations/{id}`, `DELETE /push/installations/{id}`. Autentisering är backendens sak (hook `o.Authenticate = req => …`); Spine.Push skickar `Authorization` från `o.AuthorizationHeader` i klienten.
 
-### 8.1 Orientera som drivare
+### 8.1 Orientera som drivare (skarp app)
 
 - Preferenserna i `NotificationPreferencesStore` blir taggar: `kind:entry-closing`, `kind:pm-published`, … plus `user:<id>` och `competition:<id>` för anmälda tävlingar och `person:<id>` för Min grupp. `NotificationService.RefreshAsync` behåller den lokala planen för det som är tidsstyrt (dags att åka) och anropar `SetTagsAsync` för det som är händelsestyrt.
 - Backenden: en timer-function pollar LiveResults/Eventor (cachen finns redan) och skickar `kind:results-published && competition:59691` när resultaten kommer, `UpdateLiveActivityAsync(User(id), "din-start:…")` när en följd löpare stämplar. Det är precis det scenariot wikin i dag säger att "appen ensam inte kan nå på iOS".
 - `AppleNotificationScheduler.ForegroundPresenter` ersätts av handlerns returvärde.
+
+
+### 8.2 Sample-app och sample-server
+
+En egen sample i standardsamplens stil (`samples/MauiSpineSampleApp`: `SpineApplication<T>`, trefilsmönstret, regioner och ark), så att paketen har en konsument utan Orienteras beroenden och wikin har något att peka på:
+
+| Projekt | Vad |
+|---|---|
+| `samples/MauiSpinePushSampleApp` | `UseSpine` + `UseSpinePush`. Sidor: **Hem** (status, installations-id, token, be om tillstånd, registrera om, avregistrera, öppna inställningar), **Taggar** som ark med switchar → `SetTagsAsync`, **Skicka** (formulär mot sample-serverns `POST /send`: till mig eller tagguttryck, popup/tyst/Live Activity/widget, titel, text, route, kanal, prioritet), **Logg** (allt handlern fått, med förgrund/bakgrund/kallstart och vad den svarade; tapp navigerar till routen), **Live Activity** när Widgets är med. |
+| `samples/MauiSpinePushSampleApp.Server` | Minimal API på `Plugin.Maui.Spine.Server` med `UseInMemoryStore()`, `MapSpinePush("/push")` och `POST /send` som svarar med `PushResult`. Hemligheter ur user-secrets, mall med tomma nycklar, en `.http`-fil. |
+
+Samplen är det som verifieras först på fysisk enhet; Orientera kommer efter och ärver det som fungerar.
 
 ---
 
@@ -399,11 +411,12 @@ Gemensamt för de som fungerar bra: ett **handler-objekt** i stället för lösa
 
 ## 11. Leveransplan
 
-**v1 — kärnan (#175, #176, #177, #178)**
+**v1 — kärnan (#175, #176, #177, #180, #178)**
 1. Projektstruktur ([#175](https://github.com/jonatansoderberg/Maui.Spine/issues/175)): `Plugin.Maui.Spine.Common` (net10.0) bryts ut ur Widgets; kontrollerna får ett paket var under `Plugin.Maui.Spine.Controls.<Vad>` (`HeroCollectionView`, `AnimatedLabel`); `SvgImage` + `SvgIcon` → `Plugin.Maui.Spine.Svg`; wikin rättas. Förutsättning för serverbiblioteket.
 2. `Plugin.Maui.Spine.Common` + `Plugin.Maui.Spine.Server`: APNs- och FCM-transport, in-memory- och Table Storage-register, tagguttryck, `MapSpinePush`, Functions-hjälpare, `PushResult`. Testbart utan app: integrationstest mot APNs sandbox med en riktig token.
 3. `Plugin.Maui.Spine.Push` iOS + Android: `UseSpinePush`, rättigheter, registrering, handler, kanaler, targets (entitlements, plist, manifest). Live Activity-tokens upp i installationen; `UpdateLiveActivityAsync` på servern. Android Live Update via data-push.
-4. Orientera: taggar från preferenserna, handler med navigering, backend-poller som skickar. **Första riktiga milstolpen är en push till en fysisk iPhone från Azure Functions** — det kan inte verifieras på den här maskinen (ingen signeringsidentitet, se `ios-build-environment`).
+4. Sample ([#180](https://github.com/jonatansoderberg/Maui.Spine/issues/180)): `samples/MauiSpinePushSampleApp` + `MauiSpinePushSampleApp.Server` enligt §8.2, i standardsamplens stil. Första konsumenten av båda paketen och referensen i wikin.
+5. Orientera: taggar från preferenserna, handler med navigering, backend-poller som skickar. **Milstolpen är en push från Azure Functions till en fysisk iPhone med riktiga data**; samplen i rad 4 har då redan visat kedjan på enhet. Inget av det kan verifieras på den här maskinen (ingen signeringsidentitet, se `ios-build-environment`).
 
 **v2 — bredd (#179)**
 - Windows (WNS/Entra, förgrund; dokumenterad väg till bakgrund) och Mac Catalyst (entitlement verifierad på enhet).
