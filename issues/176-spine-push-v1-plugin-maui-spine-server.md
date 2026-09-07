@@ -101,9 +101,19 @@ Inga öppna. Avgjorda 2026-09-08:
 - `PushSender` som löser upp målet mot registret, grupperar på plattform, bygger en payload per plattform och tar bort de registreringar en transport rapporterar döda.
 - 33 nya tester, 80 totalt. Bland dem att båda plattformarna bär samma `spine.*`-nycklar, att Live Activity-kuvertet får rätt topic, event och `stale-date`, och att Orienteras verkliga layout ryms med marginal.
 
+### Steg 4 — ApnsTransport
+
+- `ApnsJwt` — ES256 över `.p8`-nyckeln via `ECDsa.ImportFromPem`, signaturen som rå `r||s` (`IeeeP1363FixedFieldConcatenation`) som JWT kräver, inte DER. Samma token återanvänds i 50 minuter och byts sedan; Apples fönster är 20–60.
+- `ApnsTransport` — HTTP/2 med `SocketsHttpHandler`, en förfrågan per token med upp till 32 i luften samtidigt. Sätter `apns-topic`, `apns-push-type`, `apns-priority`, `apns-collapse-id` och `apns-expiration`.
+- Miljön per installation som default: sandbox-token går till sandbox-värden. En pinnad `Environment` i optionsen kör över det.
+- Statusmappning: `BadDeviceToken`, `Unregistered`, `DeviceTokenNotForTopic` och 410 → `Invalid`; 429 och 503 → `Throttled`; resten → `Failed` med Apples egen `reason`. Ett nätverksfel blir `Failed`, inte ett kastat undantag.
+- Registreras i `AddSpinePush` när `Apple(...)` är konfigurerat.
+- 20 nya tester, 100 totalt: JWT:ns header, claims, verifierad signatur och förnyelsefönster, samt transporten mot en stubbad handler för headers, värdval och varje statusmappning.
+
 ## Decisions
 
 - **Kompakt JSON-form för `LiveActivityLayout` behövs inte i v1.** Issuets tredje fråga skulle avgöras när Orienteras layout mätts mot 4 KB. Mätt: `MyStartActivity.Layout` med verkliga strängar ger **1225 byte** `content-state`, och **1315 byte** för hela APNs-payloaden inklusive `timestamp`, `event` och `stale-date`. Det är 32 % av taket, med 2781 byte kvar — layouten skulle behöva tredubblas för att slå i det. Ingen `Patch`-form och inga korta nyckelnamn i v1; storleksvakten i steg 3 fångar det den dag en layout växer sig för stor.
+- **`HttpClient` går att skjuta in i `ApnsTransport`.** Utan det hade transporten bara kunnat testas mot Apple. Nu stubbas svaren och varje statusmappning, header och värdval verifieras utan nätverk; den riktiga konstruktorn bygger fortfarande sin egen HTTP/2-klient.
 - **`PushKeys` fick tre nycklar till: `spine.title`, `spine.body` och `spine.collapse`.** Issuet räknar upp sex, men Android skickas data-only enligt §5.2 — paketet ritar notisen själv så att förgrund och bakgrund beter sig lika och Spine väljer kanalen. Då måste titel, text och collapse-id resa som data, annars kan `PushMessage` inte fyllas i på Android. `Kinds` fick av samma skäl `alert` och `silent`, som §5.2:s `PushKind` räknar upp.
 - **`RefreshWidgetsAsync` är en tyst push på iOS, inte pushtypen `widgets`.** Den senare kräver att widget-extensionet byggs mot iOS 26-SDK:n som `pushHandler`, vilket §6.2 lägger i v2. Tills dess väcker en tyst push appen som bygger om widgetarna — best effort, precis som §6.2 beskriver.
 - **Storleksvakten kastar i stället för att varna.** En för stor payload ger annars en 413 från APNs långt från orsaken. `PushPayloads` mäter den byggda payloaden och kastar med byteantalet och gränsen i meddelandet. Ett test håller dessutom Orienteras layout under halva budgeten, så att marginalen inte tyst äts upp.
