@@ -22,6 +22,9 @@ public sealed class WidgetTimeline
     /// <summary>The URL the app is opened with when the user taps the widget.</summary>
     public Uri? Link { get; private set; }
 
+    /// <summary>The URL the platform fetches a fresh timeline document from; see <see cref="RemoteSource"/>.</summary>
+    public Uri? Remote { get; private set; }
+
     /// <summary>A timeline with one entry that shows <paramref name="tree"/> in every family.</summary>
     public static WidgetTimeline Single(WidgetNode tree) => new WidgetTimeline().Add(DateTimeOffset.UtcNow, tree);
 
@@ -56,6 +59,24 @@ public sealed class WidgetTimeline
         Link = url;
         return this;
     }
+
+    /// <summary>
+    /// Lets the widget fetch its own content while the app is not running: at every reload the platform
+    /// GETs <paramref name="url"/>, which must answer with a timeline document (see <see cref="ToJson"/>),
+    /// and shows that instead of the entries here, which remain the fallback. <see cref="Refresh"/> sets
+    /// the pace; without one the platform is asked every 15 minutes.
+    /// </summary>
+    public WidgetTimeline RemoteSource(Uri url)
+    {
+        Remote = url;
+        return this;
+    }
+
+    /// <summary>
+    /// The timeline as the renderer's JSON document — what a server answers with for a timeline that has a
+    /// <see cref="RemoteSource"/>, so a backend can build it with <see cref="W"/> instead of by hand.
+    /// </summary>
+    public string ToJson() => Serialization.WidgetJson.Serialize(this);
 }
 
 /// <summary>One dated entry of a <see cref="WidgetTimeline"/>.</summary>

@@ -15,4 +15,27 @@ public sealed class SpineWidgetsOptions
     /// background, so the home screen shows the state the user just left.
     /// </summary>
     public bool RefreshOnBackground { get; set; } = true;
+
+    /// <summary>
+    /// How often the app asks the platform for a background run that rebuilds the widgets (and runs
+    /// the <see cref="IBackgroundRefreshHandler"/>, if any). A request, not a promise: iOS and Android
+    /// both stretch it when the device is idle. <see cref="TimeSpan.Zero"/> turns the runs off.
+    /// </summary>
+    public TimeSpan BackgroundRefreshInterval { get; set; } = TimeSpan.FromMinutes(30);
+
+    /// <summary>
+    /// When <see langword="true"/>, Live Activities are started with a push token on iOS and the
+    /// tokens are available through <see cref="ILiveActivityService.GetPushToStartTokenAsync"/> and
+    /// <see cref="LiveActivity.GetPushTokenAsync"/>. Needs the push notification entitlement.
+    /// </summary>
+    public bool LiveActivityPushTokens { get; set; }
+
+    internal Type? BackgroundRefreshHandler { get; private set; }
+
+    /// <summary>Runs <typeparamref name="THandler"/> before the widgets are rebuilt in a background run.</summary>
+    public SpineWidgetsOptions UseBackgroundRefresh<THandler>() where THandler : class, IBackgroundRefreshHandler
+    {
+        BackgroundRefreshHandler = typeof(THandler);
+        return this;
+    }
 }

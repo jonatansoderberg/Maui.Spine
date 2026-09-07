@@ -48,6 +48,22 @@ public static class W
 
     /// <summary>A separator line.</summary>
     public static DividerNode Divider() => new();
+
+    /// <summary>
+    /// A tappable <paramref name="child"/> that sends <paramref name="actionId"/> to the provider's
+    /// <see cref="IWidgetActionHandler"/>.
+    /// </summary>
+    public static ButtonNode Button(string actionId, WidgetNode child)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actionId);
+        return new(actionId, child);
+    }
+
+    /// <summary>
+    /// <paramref name="fallback"/> in every family except those in <paramref name="trees"/>, which get their own subtree.
+    /// </summary>
+    public static AdaptiveNode Adaptive(WidgetNode fallback, IReadOnlyDictionary<WidgetFamily, WidgetNode> trees) =>
+        new(fallback, trees.ToDictionary(t => Serialization.WidgetJson.FamilyKey(t.Key), t => t.Value));
 }
 
 /// <summary>Fluent styling for text-like nodes. Each call returns a new node.</summary>

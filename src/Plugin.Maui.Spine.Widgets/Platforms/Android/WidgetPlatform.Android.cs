@@ -96,4 +96,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     {
         if (OperatingSystem.IsAndroidVersionAtLeast(36)) _live!.End(id);
     }
+
+    // Android Live Updates are driven by the app; a server reaches them through the app's own push handler.
+    public string? PushToStartToken => null;
+
+    public string? PushToken(string id) => null;
 }

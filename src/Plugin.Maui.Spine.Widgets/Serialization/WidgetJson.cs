@@ -6,6 +6,7 @@ namespace Plugin.Maui.Spine.Widgets.Serialization;
 /// <summary>The document written per widget kind; the native renderer's input.</summary>
 internal sealed record WidgetTimelineDocument(
     [property: JsonPropertyName("link")] string? Link,
+    [property: JsonPropertyName("remote")] string? Remote,
     [property: JsonPropertyName("refreshAfterSeconds")] double? RefreshAfterSeconds,
     [property: JsonPropertyName("entries")] IReadOnlyList<WidgetTimelineEntryDocument> Entries);
 
@@ -21,6 +22,7 @@ internal sealed record WidgetTimelineEntryDocument(
 [JsonSerializable(typeof(WidgetTimelineDocument))]
 [JsonSerializable(typeof(LiveActivityLayout))]
 [JsonSerializable(typeof(WidgetNode))]
+[JsonSerializable(typeof(IReadOnlyDictionary<string, WidgetNode>))]
 internal sealed partial class WidgetJsonContext : JsonSerializerContext;
 
 internal static class WidgetJson
@@ -36,7 +38,7 @@ internal static class WidgetJson
                 : new Dictionary<string, WidgetNode> { [DefaultFamilyKey] = e.Tree! }))
             .ToList();
 
-        var document = new WidgetTimelineDocument(timeline.Link?.ToString(), timeline.RefreshAfter?.TotalSeconds, entries);
+        var document = new WidgetTimelineDocument(timeline.Link?.ToString(), timeline.Remote?.ToString(), timeline.RefreshAfter?.TotalSeconds, entries);
         return JsonSerializer.Serialize(document, WidgetJsonContext.Default.WidgetTimelineDocument);
     }
 

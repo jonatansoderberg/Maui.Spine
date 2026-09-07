@@ -1,6 +1,6 @@
 # Spine.Widgets — widgets och Live Activities från Spine (förstudie, rev 1)
 
-**Status:** Implemented — iOS i issue [#165](https://github.com/jonatansoderberg/Maui.Spine/issues/165), Android (v2) i issue [#168](https://github.com/jonatansoderberg/Maui.Spine/issues/168); se [docs/wiki/widgets.md](../wiki/widgets.md). Behålls som designhistorik.
+**Status:** Implemented — iOS i issue [#165](https://github.com/jonatansoderberg/Maui.Spine/issues/165), Android i [#168](https://github.com/jonatansoderberg/Maui.Spine/issues/168), resten av v2 (bakgrund, push, fjärrkälla, knappar) i [#171](https://github.com/jonatansoderberg/Maui.Spine/issues/171); se [docs/wiki/widgets.md](../wiki/widgets.md). Behålls som designhistorik.
 **Fråga:** Går det att, deklarativt eller i C#, definiera en widget i Spine-ramverket som fungerar på de plattformar Spine stödjer, med iOS som referens? Och kan samma modell driva Live Activities i Dynamic Island?
 **Svar:** Ja. Spiken i [spine-widgets/spike](spine-widgets/spike) visar en hemskärmswidget och en Live Activity på iOS 26 där **all layout kommer som JSON från .NET-appen**, utan ett enda Xcode-projekt och utan app-specifik Swift. Det som återstår är att göra det till ett paket.
 
@@ -296,9 +296,9 @@ Android-noten: Jetpack Glance går inte att använda från C# (dotnet/android #6
 
 **v2 — Android + interaktivitet**
 - RemoteViews-renderare och Live Updates-mappning. *Levererat i #168.*
-- Fjärrkälla i extensionet, push-to-start, generisk `AppIntent` för knappar.
-- `IBackgroundRefreshHandler` (BGAppRefreshTask / WorkManager) och token-leverans för push-uppdaterade Live Activities enligt §4.3c.
-- Adaptiva träd per familj.
+- Fjärrkälla i extensionet, push-to-start, generisk `AppIntent` för knappar. *Levererat i #171.*
+- `IBackgroundRefreshHandler` (BGAppRefreshTask / alarm på Android) och token-leverans för push-uppdaterade Live Activities enligt §4.3c. *Levererat i #171.*
+- Adaptiva träd per familj. *Levererat i #171.*
 
 **v3 — Windows/Catalyst**
 - Widgets Board-provider (kräver att appen paketeras) och Catalyst-appex.
