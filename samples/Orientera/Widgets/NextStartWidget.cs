@@ -97,7 +97,7 @@ public sealed class NextStartWidget(
                 headline),
 
             [WidgetFamily.Medium] = W.VStack(6,
-                W.HStack(W.Icon("figure.run", Brand), W.Text(competition.Name).Headline().Bold(), W.Spacer()),
+                W.HStack(W.Icon("fish", Brand), W.Text(competition.Name).Headline().Bold(), W.Spacer()),
                 W.Text($"{Format.Discipline(competition.Discipline)} · {competition.Place}").Caption().Secondary(),
                 // Utan starttid är rubriken tävlingens läge, och "Startar om PM publicerat" är ingen mening.
                 start is null
@@ -113,7 +113,7 @@ public sealed class NextStartWidget(
         W.Text("Öppna kalendern för att hitta nästa tävling.").Caption().Secondary());
 
     private static WidgetNode Header() =>
-        W.HStack(W.Icon("figure.run", Brand), W.Text("Nästa start").Caption().Secondary(), W.Spacer());
+        W.HStack(W.Icon("fish", Brand), W.Text("Nästa start").Caption().Secondary(), W.Spacer());
 
     /// <summary>BrandTint ur appens ljusa tema — den gröna som klarar 3:1 mot både ljus och mörk bakgrund.</summary>
     private static WidgetColor Brand { get; } = WidgetColor.From((Color)new Resources.Styles.LightTheme()["BrandTint"]);

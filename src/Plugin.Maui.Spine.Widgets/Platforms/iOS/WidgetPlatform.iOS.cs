@@ -52,9 +52,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     public async Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken)
     {
         if (_containerPath is null) return;
-        var assets = Path.Combine(_containerPath, "assets");
-        Directory.CreateDirectory(assets);
-        await using var file = File.Create(Path.Combine(assets, assetId));
+        var target = Path.Combine(_containerPath, "assets", assetId);
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        await using var file = File.Create(target);
         await png.CopyToAsync(file, cancellationToken);
     }
 

@@ -21,6 +21,7 @@ public static partial class SpineWidgetsExtensions
         var services = builder.Services;
         services.AddSingleton(options);
         services.AddSingleton<WidgetRegistry>();
+        services.AddSingleton<WidgetIconAssets>();
         services.AddSingleton<IWidgetService, WidgetService>();
         services.AddSingleton<ILiveActivityService, LiveActivityService>();
 

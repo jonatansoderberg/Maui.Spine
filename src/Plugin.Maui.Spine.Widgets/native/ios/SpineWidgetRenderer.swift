@@ -137,7 +137,14 @@ struct NodeView: View {
                 Text(date, style: .relative).modifier(TextStyleModifier(node: node))
             }
         case "image":
-            Image(systemName: node.systemImage ?? "questionmark").foregroundStyle(Palette.color(node.color))
+            // The app rasterized the icon from an SVG as a white mask; an SF Symbol is the fallback.
+            if let name = node.systemImage, let mask = Store.image(asset: "icons/\(name).png") {
+                Image(uiImage: mask).renderingMode(.template).resizable().scaledToFit()
+                    .frame(width: 18, height: 18)
+                    .foregroundStyle(Palette.color(node.color))
+            } else {
+                Image(systemName: node.systemImage ?? "questionmark").foregroundStyle(Palette.color(node.color))
+            }
         case "asset":
             if let asset = node.asset, let image = Store.image(asset: asset) {
                 Image(uiImage: image).resizable().scaledToFit().frame(height: node.height.map { CGFloat($0) })

@@ -1,6 +1,5 @@
 using Android.Content;
 using Microsoft.Extensions.Logging;
-using Plugin.Maui.SvgImage;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
@@ -16,7 +15,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     private readonly ILogger<WidgetPlatform> _logger;
     private readonly LiveUpdateNotifications? _live;
 
-    public WidgetPlatform(ResourceNameCache svgs, ILogger<WidgetPlatform> logger)
+    public WidgetPlatform(ILogger<WidgetPlatform> logger)
     {
         _logger = logger;
         _kinds = WidgetStore.Kinds(_context);
@@ -24,7 +23,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         // Live Updates — promoted ongoing notifications — arrived with Android 16; older versions have no
         // Live Activity, and a plain notification would not be one.
         if (OperatingSystem.IsAndroidVersionAtLeast(36))
-            _live = new LiveUpdateNotifications(_context, new WidgetIcons(svgs), logger);
+            _live = new LiveUpdateNotifications(_context, new WidgetIcons(_context), logger);
 
         if (_kinds.Length == 0)
             logger.LogWarning("No widget receivers in the manifest; widgets are disabled. Is build/Plugin.Maui.Spine.Widgets.targets imported and at least one <SpineWidget> declared?");
@@ -45,9 +44,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     public async Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken)
     {
         if (!IsSupported) return;
-        var assets = WidgetStore.AssetsDirectory(_context);
-        Directory.CreateDirectory(assets);
-        await using var file = File.Create(Path.Combine(assets, assetId));
+        var target = Path.Combine(WidgetStore.AssetsDirectory(_context), assetId);
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        await using var file = File.Create(target);
         await png.CopyToAsync(file, cancellationToken);
     }
 

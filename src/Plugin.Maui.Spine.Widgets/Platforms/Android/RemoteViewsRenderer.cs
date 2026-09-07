@@ -34,13 +34,18 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons)
         return root;
     }
 
-    public RemoteViews Render(JsonElement node)
+    /// <summary>
+    /// Renders <paramref name="node"/>. A stack laid out <paramref name="inline"/> — as a child of a
+    /// horizontal stack — wraps its content instead of filling the width, since a full-width child of a
+    /// <c>LinearLayout</c> row would push every later sibling out of view.
+    /// </summary>
+    public RemoteViews Render(JsonElement node, bool inline = false)
     {
         switch (Text(node, "type"))
         {
-            case "vstack": return Stack(node, Resource.Layout.spine_widget_vstack, vertical: true);
-            case "hstack": return Stack(node, Resource.Layout.spine_widget_hstack, vertical: false);
-            case "zstack": return Stack(node, Resource.Layout.spine_widget_zstack, vertical: null);
+            case "vstack": return Stack(node, inline ? Resource.Layout.spine_widget_vstack_inline : Resource.Layout.spine_widget_vstack, vertical: true);
+            case "hstack": return Stack(node, inline ? Resource.Layout.spine_widget_hstack_inline : Resource.Layout.spine_widget_hstack, vertical: false);
+            case "zstack": return Stack(node, inline ? Resource.Layout.spine_widget_zstack_inline : Resource.Layout.spine_widget_zstack, vertical: null);
 
             case "text":
             {
@@ -104,7 +109,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons)
         if (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
             foreach (var child in children.EnumerateArray())
             {
-                var childViews = Render(child);
+                var childViews = Render(child, inline: vertical == false);
                 if (!first && spacing > 0 && vertical is { } axis && OperatingSystem.IsAndroidVersionAtLeast(31))
                     childViews.SetViewLayoutMargin(Node, (int)(axis ? RemoteViewsMargin.Top : RemoteViewsMargin.Start), spacing, (int)ComplexUnitType.Dip);
                 views.AddView(Node, childViews);
@@ -128,7 +133,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons)
         return views;
     }
 
-    private RemoteViews Empty() => new(Package, Resource.Layout.spine_widget_zstack);
+    private RemoteViews Empty() => new(Package, Resource.Layout.spine_widget_empty);
 
     private Bitmap? Asset(string? assetId, double? heightDp)
     {

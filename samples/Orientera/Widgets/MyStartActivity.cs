@@ -35,21 +35,21 @@ public static class MyStartActivity
         {
             LockScreen = W.VStack(4,
                 W.HStack(8,
-                    W.Icon("figure.run", Brand),
+                    W.Icon("fish", Brand),
                     W.VStack(2,
                         W.Text(competition.Name).Headline().Bold(),
                         W.Text($"{phase} {Format.Clock(start)}").Caption().Secondary()),
                     W.Spacer(),
                     timer.Title())),
 
-            ExpandedLeading = W.Icon("figure.run", Brand),
+            ExpandedLeading = W.Icon("fish", Brand),
             ExpandedTrailing = timer.Headline(),
             ExpandedCenter = W.Text(competition.Name).Headline().Bold(),
             ExpandedBottom = W.Text($"{phase} {Format.Clock(start)} · {competition.Place}").Caption().Secondary(),
 
-            CompactLeading = W.Icon("figure.run", Brand),
+            CompactLeading = W.Icon("fish", Brand),
             CompactTrailing = timer.Caption(),
-            Minimal = W.Icon("figure.run", Brand),
+            Minimal = W.Icon("fish", Brand),
         };
     }
 }

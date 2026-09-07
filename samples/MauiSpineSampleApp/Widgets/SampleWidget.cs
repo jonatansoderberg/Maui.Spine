@@ -16,13 +16,13 @@ public sealed class SampleWidget(IWidgetService _widgets, INavigationService _na
         var nextEvent = refreshed.AddMinutes(42);
 
         var small = W.VStack(6,
-            W.HStack(W.Icon("figure.run", WidgetColor.Green), W.Text("Spine").Headline().Bold(), W.Spacer()),
+            W.HStack(W.Icon("fish", WidgetColor.Green), W.Text("Spine").Headline().Bold(), W.Spacer()),
             W.Text("Next event").Caption().Secondary(),
             W.Timer(nextEvent).Title().Bold().Color(WidgetColor.Green),
             W.Progress(0.35, WidgetColor.Green));
 
         var medium = W.VStack(6,
-            W.HStack(W.Icon("figure.run", WidgetColor.Green), W.Text("Spine sample").Headline().Bold(), W.Spacer(), W.Relative(refreshed).Caption().Secondary()),
+            W.HStack(W.Icon("fish", WidgetColor.Green), W.Text("Spine sample").Headline().Bold(), W.Spacer(), W.Relative(refreshed).Caption().Secondary()),
             W.Text("Sthlm Indoor Cup, H21").Caption().Secondary(),
             W.HStack(4, W.Text("Starts in").Headline(), W.Timer(nextEvent).Title().Bold().Color(WidgetColor.Green)),
             W.Progress(0.35, WidgetColor.Green),

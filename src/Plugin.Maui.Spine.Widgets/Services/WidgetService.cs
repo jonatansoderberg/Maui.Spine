@@ -6,6 +6,7 @@ namespace Plugin.Maui.Spine.Widgets.Services;
 internal sealed class WidgetService(
     WidgetRegistry _registry,
     IWidgetPlatform _platform,
+    WidgetIconAssets _icons,
     IServiceProvider _services,
     ILogger<WidgetService> _logger) : IWidgetService
 {
@@ -35,6 +36,7 @@ internal sealed class WidgetService(
             return;
         }
 
+        await _icons.EnsureAsync(timeline.Entries.SelectMany(e => e.Trees?.Values ?? [e.Tree!]), cancellationToken);
         _platform.WriteTimeline(kind, WidgetJson.Serialize(timeline));
         _platform.Reload(kind);
     }

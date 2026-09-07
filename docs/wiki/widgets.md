@@ -135,7 +135,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Text(string)` | A run of text |
 | `W.Timer(until)` | A countdown the **system** redraws every second |
 | `W.Relative(date)` | Relative text ("3 min ago"), also system-drawn |
-| `W.Icon(sfSymbolName, color)` | A platform symbol — an SF Symbol on iOS, an embedded SVG named after it on Android (see [Icons](#icons-on-android)) |
+| `W.Icon(name, color)` | A monochrome SVG named after the symbol, tinted with the color (see [Icons](#icons)); an SF Symbol of that name is the fallback on iOS |
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
 | `W.Spacer()` / `W.Divider()` | Flexible space, separator |
@@ -184,9 +184,19 @@ public Task OnWidgetOpenedAsync(WidgetLink link) =>
         : _navigation.SwitchToTabAsync<HomePage>();
 ```
 
+### Icons
+
+`W.Icon("fish")` is drawn from an **SVG named after the symbol, with dots as underscores** (`fish.svg`, `figure_run.svg` for `figure.run`), on every platform. The app rasterizes it once as a white mask beside the widget's data and the renderer tints it with the node's color, so one SVG serves light and dark. The SVGs are found through the same resource cache as `SvgImageSource`, and the icons that ship with `Plugin.Maui.SvgImage` are always in it — `fish`, `bell`, `clock`, `house` and the rest work with nothing to add; the samples use `fish`. For any other name, embed a matching SVG in an assembly `UseSpine` was given:
+
+```xml
+<EmbeddedResource Include="Resources\Svg\*.svg" />
+```
+
+Do not name a file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it. On iOS a name with no SVG falls back to the SF Symbol of the same name; on Android it is left out and a warning is logged under the `SpineWidgets` tag.
+
 ### Images
 
-SF Symbols are free on iOS (Android draws them from an SVG, see below); a bitmap has to be placed in the shared container first:
+A bitmap has to be placed in the shared container first:
 
 ```csharp
 await _widgets.StoreAssetAsync("arena", pngStream);
@@ -271,22 +281,13 @@ The same C# tree renders on Android without changes; the difference is what the 
 | `WidgetFamily` | Launcher cells: `Small` 2×2, `Medium` 4×2, `Large` 4×4, `ExtraLarge` 5×4. The smallest declared is the minimum size; from Android 12 the launcher picks the tree for the size the user resized to. Accessory families have no counterpart and are ignored |
 | Stacks | `LinearLayout` / `FrameLayout`, nested with `RemoteViews.AddView` |
 | `W.Text`, `W.Timer`, `W.Relative` | `TextView` and `Chronometer`; `Title` 22 sp, `Headline` 16 sp, `Body` 14 sp, `Caption` 12 sp |
+| `W.Icon` | The rasterized SVG as an `ImageView`, tinted through `setColorFilter` (see [Icons](#icons)) |
 | `WidgetColor` | Semantic colors resolve in the launcher's theme (light and dark) from Android 12; `Green` … `Blue` are the iOS system palette in both variants; hex is hex |
 | `WidgetTimeline` entries | The entry that applies now is drawn; an inexact alarm redraws at the next entry's date, another runs the provider `Refresh(after)` the last one |
 | `OpenUrl` | A `PendingIntent` to a small activity in the package that forwards the URL to the app's own main activity; the scheme is registered on it by the build |
 | `IWidgetLinkHandler` | Called from `OnCreate` (cold start) or `OnNewIntent` (warm), exactly as on iOS |
 
 The receivers run in the app's own process, so there is no shared container and no separate memory budget; the timeline documents live under the app's files directory.
-
-### Icons on Android
-
-There are no SF Symbols. `W.Icon("figure.run")` is drawn from an **embedded SVG named after the symbol, with dots as underscores** — `figure_run.svg` — found through the same resource cache as `SvgImageSource`, so it just has to be an `EmbeddedResource` in an assembly `UseSpine` was given:
-
-```xml
-<EmbeddedResource Include="Resources\Svg\*.svg" />
-```
-
-The shape is rendered white and tinted with the node's color, so one monochrome SVG serves light and dark. Do not name the file `figure.run.svg`: the .NET SDK reads `.run` as a culture (Kirundi) and moves the file to a satellite assembly where nothing finds it. An icon with no SVG is left out and a warning is logged under the `SpineWidgets` tag.
 
 ### Live Updates
 
@@ -295,7 +296,7 @@ A Live Activity on Android 16 is a **promoted ongoing notification**, and the la
 | Region | Becomes |
 |---|---|
 | `LockScreen` (and `ExpandedBottom`) | Title from the first headline or title text, content text from the next text; the first `W.Timer` becomes the header chronometer, the first `W.Progress` the `ProgressStyle` bar in its color |
-| `CompactLeading` / `Minimal` / `ExpandedLeading` | The first `W.Icon` is the small icon, its color the accent |
+| `CompactLeading` / `Minimal` / `ExpandedLeading` | The first `W.Icon` is the small icon (the rasterized SVG), its color the accent |
 | `CompactTrailing` | A `W.Text` there becomes the status-bar chip's text; a `W.Timer` leaves the chip to the system's chronometer |
 | `Link` | The notification's tap, through the same activity as the widget |
 
@@ -317,7 +318,7 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 | Symptom | Cause |
 |---|---|
 | The widget is not in the gallery | The kind has no `<SpineWidget>` item, or the app was never launched after install. |
-| The widget renders but a node is missing | A tree the renderer does not understand, an SF Symbol name that does not exist, or (Android) no `figure_run.svg`-style resource for the icon. |
+| The widget renders but a node is missing | A tree the renderer does not understand, or an icon name with no matching SVG (and, on iOS, no SF Symbol of that name). |
 | The widget shows only "—" (Android) | It was placed before the app ever built it; the receiver has asked the provider, and the next launch or background pass fills it. |
 | The countdown stands still | Text the app computed instead of a `W.Timer` node. |
 | `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. On Android: the notification permission was denied, or the device is older than Android 16. |
