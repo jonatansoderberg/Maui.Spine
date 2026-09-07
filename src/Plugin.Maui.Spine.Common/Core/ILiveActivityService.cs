@@ -41,6 +41,12 @@ public sealed class LiveActivity
     private readonly Func<LiveActivity, Task> _end;
     private readonly Func<LiveActivity, CancellationToken, Task<string?>> _pushToken;
 
+    /// <summary>Constructed by the platform's <see cref="ILiveActivityService"/>, not by app code.</summary>
+    /// <param name="id">The platform's id for the running activity.</param>
+    /// <param name="kind">The kind it was started with.</param>
+    /// <param name="update">Pushes a new layout, with an optional stale date.</param>
+    /// <param name="end">Ends the activity.</param>
+    /// <param name="pushToken">Fetches the activity's push token, or <see langword="null"/> when it has none.</param>
     public LiveActivity(string id, string kind,
         Func<LiveActivity, LiveActivityLayout, DateTimeOffset?, Task> update,
         Func<LiveActivity, Task> end,

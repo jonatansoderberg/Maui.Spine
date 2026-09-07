@@ -30,6 +30,11 @@ public sealed class SpineWidgetsOptions
     /// </summary>
     public bool LiveActivityPushTokens { get; set; }
 
+    /// <summary>
+    /// The handler registered with <see cref="UseBackgroundRefresh{THandler}"/>, or
+    /// <see langword="null"/> when none is. Read by the platform layer in
+    /// <c>Plugin.Maui.Spine.Widgets</c>.
+    /// </summary>
     public Type? BackgroundRefreshHandler { get; private set; }
 
     /// <summary>Runs <typeparamref name="THandler"/> before the widgets are rebuilt in a background run.</summary>

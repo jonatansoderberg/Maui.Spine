@@ -25,10 +25,17 @@ internal sealed record WidgetTimelineEntryDocument(
 [JsonSerializable(typeof(IReadOnlyDictionary<string, WidgetNode>))]
 internal sealed partial class WidgetJsonContext : JsonSerializerContext;
 
+/// <summary>
+/// The wire format between C# and the platform renderers. Both the widget extension on iOS and
+/// <c>RemoteViewsRenderer</c> on Android read exactly what this writes, so a server can build the
+/// same documents without either.
+/// </summary>
 public static class WidgetJson
 {
+    /// <summary>The key a tree is filed under when it serves every widget family.</summary>
     public const string DefaultFamilyKey = "default";
 
+    /// <summary>The timeline as the renderer's JSON, entries ordered by date.</summary>
     public static string Serialize(WidgetTimeline timeline)
     {
         var entries = timeline.Entries
@@ -42,10 +49,12 @@ public static class WidgetJson
         return JsonSerializer.Serialize(document, WidgetJsonContext.Default.WidgetTimelineDocument);
     }
 
+    /// <summary>The layout as the renderer's JSON — the <c>content-state</c> of a Live Activity push.</summary>
     public static string Serialize(LiveActivityLayout layout) =>
         JsonSerializer.Serialize(layout, WidgetJsonContext.Default.LiveActivityLayout);
 
     // Family keys are the JSON names of WidgetFamily; the Swift side switches on the same strings.
+    /// <summary>The JSON name of <paramref name="family"/>; the Swift side switches on the same strings.</summary>
     public static string FamilyKey(WidgetFamily family) => family switch
     {
         WidgetFamily.Small => "small",
