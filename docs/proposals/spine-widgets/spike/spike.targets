@@ -1,0 +1,8 @@
+<Project>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'MauiSpineSampleApp'">
+    <AdditionalAppExtensions Include="<spike-dir>/out" Name="SpineWidget" BuildOutput="." CodesignEntitlements="<spike-dir>/SpineWidget/SpineWidget.entitlements" />
+    <NativeReference Include="<spike-dir>/out/SpineWidgetBridge.framework" Kind="Framework" SmartLink="false" />
+    <PartialAppManifest Include="<spike-dir>/LiveActivity.plist" />
+    <Compile Include="<spike-dir>/SpikeWriter.cs" />
+  </ItemGroup>
+</Project>
