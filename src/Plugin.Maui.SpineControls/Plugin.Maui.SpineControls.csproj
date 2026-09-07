@@ -26,7 +26,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Plugin.Maui.SvgImage\Plugin.Maui.SvgImage.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 	</ItemGroup>
 
 </Project>

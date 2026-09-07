@@ -1,4 +1,4 @@
-namespace Plugin.Maui.SvgImage;
+namespace Plugin.Maui.Spine.Svg;
 
 /// <summary>
 /// Represents the application colour theme used when resolving or rendering SVG resources.

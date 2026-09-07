@@ -1,4 +1,4 @@
-namespace Plugin.Maui.SvgIcon;
+namespace Plugin.Maui.Spine.Svg;
 
 /// <summary>
 /// Options that control how SVGs are rendered and stored by <see cref="ISvgIconService"/>.
@@ -42,7 +42,7 @@ public sealed class SvgIconOptions
     public float LineWidthScale { get; set; } = 1.0f;
 
     /// <summary>
-    /// Tint colour applied to the SVG when rendering with <see cref="Plugin.Maui.SvgImage.SvgTheme.Light"/>.
+    /// Tint colour applied to the SVG when rendering with <see cref="Plugin.Maui.Spine.Svg.SvgTheme.Light"/>.
     /// The tint is composited over the SVG using <c>SrcIn</c> blend mode, so only the
     /// opaque areas of the SVG are affected.
     /// Use <see cref="Colors.Transparent"/> to keep the original SVG colours.
@@ -51,7 +51,7 @@ public sealed class SvgIconOptions
     public Color LightTintColor { get; set; } = Colors.Black;
 
     /// <summary>
-    /// Tint colour applied to the SVG when rendering with <see cref="Plugin.Maui.SvgImage.SvgTheme.Dark"/>.
+    /// Tint colour applied to the SVG when rendering with <see cref="Plugin.Maui.Spine.Svg.SvgTheme.Dark"/>.
     /// The tint is composited over the SVG using <c>SrcIn</c> blend mode, so only the
     /// opaque areas of the SVG are affected.
     /// Use <see cref="Colors.Transparent"/> to keep the original SVG colours.

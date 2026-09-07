@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace Plugin.Maui.SvgImage;
+namespace Plugin.Maui.Spine.Svg;
 
 /// <summary>
 /// Provides static helpers for rendering embedded SVG resources into MAUI

@@ -1,7 +1,6 @@
-using Plugin.Maui.SvgImage;
 using System.Text;
 
-namespace Plugin.Maui.SvgIcon;
+namespace Plugin.Maui.Spine.Svg;
 
 internal sealed class SvgIconService : ISvgIconService
 {

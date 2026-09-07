@@ -1,6 +1,6 @@
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Extensions;
-using Plugin.Maui.SvgImage;
+using Plugin.Maui.Spine.Svg;
 
 namespace Plugin.Maui.Spine.Presentation;
 

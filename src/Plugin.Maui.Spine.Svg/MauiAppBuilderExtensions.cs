@@ -1,10 +1,10 @@
 ﻿using System.Reflection;
 
-namespace Plugin.Maui.SvgImage;
+namespace Plugin.Maui.Spine.Svg;
 
 /// <summary>
 /// Provides <see cref="MauiAppBuilder"/> extension methods for registering the
-/// <c>Plugin.Maui.SvgImage</c> services.
+/// <c>Plugin.Maui.Spine.Svg</c> services.
 /// </summary>
 public static class MauiAppBuilderExtensions
 {

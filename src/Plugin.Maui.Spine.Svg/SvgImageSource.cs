@@ -1,4 +1,4 @@
-﻿namespace Plugin.Maui.SvgImage;
+﻿namespace Plugin.Maui.Spine.Svg;
 
 /// <summary>
 /// Provides XAML-friendly attached properties that drive SVG image rendering on

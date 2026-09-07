@@ -2,8 +2,7 @@
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Presentation;
 using Plugin.Maui.Spine.Services;
-using Plugin.Maui.SvgIcon;
-using Plugin.Maui.SvgImage;
+using Plugin.Maui.Spine.Svg;
 using System.Reflection;
 
 namespace Plugin.Maui.Spine.Extensions;
@@ -100,7 +99,7 @@ public static partial class SpineExtensions
                 sp.GetRequiredKeyedService<NavigationRegion>(BottomSheetRegionKey),
                 sp.GetRequiredService<SpineHostProvider>(),
                 sp.GetRequiredService<TabBadgeService>(),
-                sp.GetRequiredService<Plugin.Maui.SvgImage.ResourceNameCache>(),
+                sp.GetRequiredService<Plugin.Maui.Spine.Svg.ResourceNameCache>(),
                 sp)
             {
                 AppTitle = options.AppTitle,

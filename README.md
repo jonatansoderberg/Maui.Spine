@@ -155,8 +155,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets and Dynamic Island, built from C# |
 | [SpineCollectionView](docs/wiki/spine-controls.md) | Collapsing sticky header, adaptive overlay |
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
-| [SvgImage](docs/wiki/svg-image.md) | SVG-to-bitmap rendering with theme-aware tinting |
-| [SvgIcon](docs/wiki/svg-icon.md) | SVG-to-icon file generation for tray and window icons |
+| [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |
 
 ---
 

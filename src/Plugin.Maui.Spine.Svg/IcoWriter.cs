@@ -1,4 +1,4 @@
-namespace Plugin.Maui.SvgIcon;
+namespace Plugin.Maui.Spine.Svg;
 
 internal static class IcoWriter
 {

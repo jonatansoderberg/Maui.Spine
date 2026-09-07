@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Plugin.Maui.AnimatedLabel;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Widgets.Extensions;
-using Plugin.Maui.SvgIcon;
+using Plugin.Maui.Spine.Svg;
 using Sharpnado.MaterialFrame;
 
 namespace MauiSpineSampleApp;

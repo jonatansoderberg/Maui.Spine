@@ -90,7 +90,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.SpineControls\Plugin.Maui.SpineControls.csproj" />
-		<ProjectReference Include="..\..\src\Plugin.Maui.SvgImage\Plugin.Maui.SvgImage.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 	</ItemGroup>
 
 	<!-- Widgets: kinden nedan blir en WidgetKit-extension på iOS; providern är [Widget("next-start")] i Widgets\. -->

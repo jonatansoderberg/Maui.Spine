@@ -73,15 +73,28 @@ Sist, när allt annat bygger. Lyfter `TargetFrameworks`-villkoren, `SupportedOSP
 - `docs/wiki/widgets.md:211` pekar nu på `Plugin.Maui.Spine.Common` i stället för "the plugin's model project".
 - Verifierat: `Orientera.Backend` byggde med en tillfällig `ProjectReference` till `Common` och ett anrop av `WidgetTimeline.Single(...).ToJson()`. Referensen och probfilen borttagna igen, backend-csproj:en är orörd. `Common`s output innehåller inga `Microsoft.Maui.*`-assemblies.
 
+### Steg 2 — Plugin.Maui.Spine.Svg
+
+- `src/Plugin.Maui.SvgImage/` omdöpt till `src/Plugin.Maui.Spine.Svg/` med `git mv`, så de 164 SVG-filerna i `Images/` behåller sin historik. `Plugin.Maui.SvgIcon`s sex källfiler flyttade in i samma mapp; dess csproj borttagen.
+- `SvgIcon/MauiAppBuilderExtensions.cs` omdöpt till `SvgIconExtensions.cs` efter klassen den innehåller.
+- Namnrymd `Plugin.Maui.SvgImage` och `Plugin.Maui.SvgIcon` → `Plugin.Maui.Spine.Svg` i 24 filer i `src/` och `samples/`. `AssemblyName`/`RootNamespace` satta på csproj:en. Dubbletter av usings som uppstod när de två namnrymderna blev en är borttagna, liksom tre självreferenser inuti projektet.
+- Kärnans två `ProjectReference` blev en. Samma i `Plugin.Maui.SpineControls` och i båda sample-apparna.
+- `Spine.slnx`: två poster blev en.
+- `docs/wiki/svg-image.md` + `svg-icon.md` → `docs/wiki/svg.md`. Länkarna i `README.md` och `docs/wiki/getting-started.md` pekar om till den.
+- De två projektlokala `.github/copilot-instructions.md` sammanslagna till en, med ikonhalvan som ett eget avsnitt.
+
 ## Decisions
 
 - **`WidgetColor.From(Color)` blev en statisk extension-medlem, inte en `partial`.** Planens `partial`-lösning går inte: partiella typer måste ligga i samma assembly. I stället ligger överlagringen i `WidgetColorExtensions` i Widgets, som en C# 14 `extension(WidgetColor)`-medlem. Anropssyntaxen `WidgetColor.From(mauiColor)` är oförändrad så länge `Plugin.Maui.Spine.Widgets` är i scope, vilket den redan är på båda anropsställena i Orientera. Kompilerar på SDK 10.0.201 med `LangVersion preview`.
 - **Överlagringen går via `FromHex` i stället för den privata konstruktorn.** Den privata konstruktorn kan inte nås över assembly-gränsen utan `InternalsVisibleTo`. `Color.ToArgbHex()` ger `#RRGGBB` i versaler, vilket är precis vad `FromHex` validerar och normaliserar till — samma värde för alla `Color`-indata.
+- **Ingen klasskollision fanns i steg 2.** Planen antog att båda Svg-projekten hade en `MauiAppBuilderExtensions`-klass. SvgIcons fil deklarerar i själva verket `SvgIconExtensions` — bara filnamnet krockade. Filen är omdöpt efter sin klass i stället för att klasserna slås ihop, så `UseEmbeddedSvgImages` och `UseSvgIcon` ligger kvar var för sig precis som förut.
 - **Bara det som faktiskt korsar gränsen blev publikt.** `WidgetTimelineDocument`, `WidgetTimelineEntryDocument`, `WidgetJsonContext` och `WidgetColorJsonConverter` är serialiseringsdetaljer som aldrig var API och används bara inuti `Common`; de förblir `internal`. Ingen `InternalsVisibleTo` någonstans.
 - **Verifiering på den här maskinen.** `net10.0-android`, `net10.0-maccatalyst` för hela lösningen; `net10.0-ios` med `-r iossimulator-arm64 -p:CodesignKey=-` för sample-apparna (ingen signeringsidentitet finns); backend och tester på `net10.0`; sample-apparna startas i simulator/emulator. **`net10.0-windows10.0.19041.0` går inte att bygga här** — Windows-koden i `SpineApplication.Windows.cs` och `HeroCollectionView.Windows.cs` granskas bara för hand.
 
 ## Noterade buggar (lämnas)
 
 - `dotnet build Spine.slnx -f net10.0-android` (och `-f net10.0-maccatalyst`) ger `NETSDK1005` för `Orientera.Domain`, `Orientera.Backend` och `Orientera.Tests`, som är `net10.0`-projekt utan den TFM:en. Det gäller redan på master — verifierat genom att bygga med ändringarna stashade — så det är inget som det här issuet orsakar. `Plugin.Maui.Spine.Common` blir ett fjärde projekt i samma läge. Byggen av bibliotek och appar går igenom; felen kommer från de fyra `net10.0`-projekten och stoppar inte resten.
+- En `ProjectReference` till en csproj som inte finns är bara **MSB9008, en varning** — inte ett fel. Under steg 2 pekade sample-apparnas referens ett tag på det borttagna `Plugin.Maui.SvgImage` medan bygget ändå blev grönt, eftersom `Plugin.Maui.Spine.Svg` nåddes transitivt via kärnan. Byggstatus ensam fångar alltså inte en trasig projektreferens här; verifieringen kollar numera MSB9008 separat.
+- `docs/wiki/getting-started.md` är inte UTF-8 — filen innehåller en cp1252-byte (0x97, tankstreck) på position 2712. Den redigerades på bytenivå i steg 2 för att inte konverteras i onödan. Lämnad som den är.
 - `src/Plugin.Maui.SpineControls/Plugin.Maui.SpineControls.csproj:22` har `<Compile Remove="AdaptiveOverlayBehavior.cs" />` men filen finns inte i projektet. Död rad; följer med flytten oförändrad.
 - Ingen av sample-apparna anropar `UseSpineControls()`, trots att `MauiSpineSampleApp` använder `SpineCollectionView` i XAML. Registreringen är alltså inte nödvändig för det som visas i dag. Namnbytet till `UseHeroCollectionView()` sker ändå; anropet läggs inte till.

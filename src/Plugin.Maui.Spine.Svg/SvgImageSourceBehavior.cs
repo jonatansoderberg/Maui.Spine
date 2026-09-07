@@ -1,4 +1,4 @@
-namespace Plugin.Maui.SvgImage;
+namespace Plugin.Maui.Spine.Svg;
 
 /// <summary>
 /// A MAUI <see cref="Behavior{T}"/> that renders an embedded SVG resource as the

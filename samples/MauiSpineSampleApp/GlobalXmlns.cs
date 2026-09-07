@@ -9,7 +9,7 @@
     "Plugin.Maui.Spine.Presentation", AssemblyName = "Plugin.Maui.Spine")]
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
-    "Plugin.Maui.SvgImage", AssemblyName = "Plugin.Maui.SvgImage")]
+    "Plugin.Maui.Spine.Svg", AssemblyName = "Plugin.Maui.Spine.Svg")]
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "Plugin.Maui.SpineControls", AssemblyName = "Plugin.Maui.SpineControls")]

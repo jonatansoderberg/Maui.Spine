@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Reflection;
 
-namespace Plugin.Maui.SvgImage;
+namespace Plugin.Maui.Spine.Svg;
 
 /// <summary>
 /// A thread-safe cache that maps embedded SVG resource names to the assemblies that contain them.

@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace Plugin.Maui.SvgIcon;
+namespace Plugin.Maui.Spine.Svg;
 
 /// <summary>
 /// Converts SVG content into platform icon assets.
@@ -34,7 +34,7 @@ public interface ISvgIconService
 
     /// <summary>
     /// Creates a <see cref="SvgIcon"/> by locating a short SVG file name through the
-    /// <see cref="Plugin.Maui.SvgImage.ResourceNameCache"/> — the same resolution mechanism
+    /// <see cref="Plugin.Maui.Spine.Svg.ResourceNameCache"/> — the same resolution mechanism
     /// used by <c>SvgImageSource.Svg="fish.svg"</c> in XAML.
     /// Falls back to scanning all loaded assemblies if the cache has no entry.
     /// </summary>

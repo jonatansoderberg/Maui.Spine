@@ -1,4 +1,4 @@
-using Plugin.Maui.SvgImage;
+using Plugin.Maui.Spine.Svg;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;

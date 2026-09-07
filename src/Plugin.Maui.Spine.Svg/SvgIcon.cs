@@ -1,4 +1,3 @@
-using Plugin.Maui.SvgImage;
 using SkiaSharp;
 using Svg.Skia;
 using System.Globalization;
@@ -6,7 +5,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
-namespace Plugin.Maui.SvgIcon;
+namespace Plugin.Maui.Spine.Svg;
 
 /// <summary>
 /// Represents an SVG source that can be rendered into various platform icon formats.
