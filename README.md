@@ -161,7 +161,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 
 ---
 
-## Sample app
+## Sample apps
 
 The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 
@@ -177,6 +177,16 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | App shortcut → navigation | `ShortcutHandler` → `SettingsPage` |
 | Windows tray icon + close-to-background | `MauiProgram.cs` options |
 | Home-screen widget + Live Activity (iOS, Android) | `Widgets/SampleWidget.cs`, `SettingsPage` |
+
+### Push sample
+
+`samples/MauiSpinePushSampleApp` and its `…​.Server` show Spine.Push end to end: permission, tags, a
+form that asks the server to send, and a log of everything the handler received. Start the server
+with `dotnet run`, then the app.
+
+Outside the repo you need an App ID with Push Notifications ticked and an APNs `.p8` for Apple, and a
+Firebase project's `google-services.json` for Android — the checked-in one is a placeholder so the
+sample builds. See [Push (client)](docs/wiki/push.md).
 
 ### Run the sample
 

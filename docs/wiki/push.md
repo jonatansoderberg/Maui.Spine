@@ -8,6 +8,24 @@ v1 covers iOS, Mac Catalyst and Android. Windows is v2.
 
 ---
 
+## Run the sample first
+
+`samples/MauiSpinePushSampleApp` is the shortest path to seeing this work. It shows the whole client
+API on five pages — status and tokens, tags, a form that asks the server to send, a log of everything
+the handler received, and a Live Activity — and `samples/MauiSpinePushSampleApp.Server` is a Minimal
+API on `Plugin.Maui.Spine.Server` with an in-memory register.
+
+```bash
+cd samples/MauiSpinePushSampleApp.Server && dotnet run     # then run the app
+```
+
+The server starts without any credentials: it can register devices and answer `/installations`
+straight away, and says so when a send reaches nobody because no platform is configured. Add an APNs
+key or a Firebase service account with `dotnet user-secrets` when you want messages to actually go
+out. `send.http` has the same calls for anyone who prefers the editor.
+
+---
+
 ## Setup
 
 ```csharp
@@ -133,6 +151,14 @@ same app.
 5. **Mac Catalyst:** set `EnableCodeSigning=true` even in Debug, or no permission prompt appears.
 
 ### Android
+
+Two things Spine's own floor does not cover:
+
+- **minSdk 23.** Firebase Messaging's dependencies declare it, while Spine allows 21. The build tells
+  you exactly what to add if you forget.
+- **AndroidX versions.** Firebase and MAUI disagree about `LiveData.Core` and `Fragment`, so the
+  package references the versions that satisfy both. Expect `NU1608` warnings about a violated upper
+  bound; that is the normal state of a MAUI app with Firebase in it.
 
 1. **Firebase project**, then an Android app in it whose package name is the app's `ApplicationId`.
 2. **`google-services.json`** into `Platforms/Android/`, and in the csproj:
