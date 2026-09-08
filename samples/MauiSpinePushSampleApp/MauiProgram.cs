@@ -48,6 +48,7 @@ public static class MauiProgram
             });
 
         builder.Services.AddSingleton<PushLog>();
+        builder.Services.AddSingleton<WidgetContent>();
         builder.Services.AddSingleton(new SampleServer(new Uri(send)));
 
 #if DEBUG
