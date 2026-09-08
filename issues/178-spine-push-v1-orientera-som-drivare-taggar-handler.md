@@ -81,6 +81,39 @@ Dessutom: du har en fysisk iPhone men ingen Android-enhet, så Android verifiera
 - **Verifierat mot skarpa APNs:** en påhittad men välformad device-token ger `BadDeviceToken`, inte `InvalidProviderToken`. Provider-token, ES256-signaturen och `apns-topic` är alltså accepterade av Apple.
 - Buggen det avslöjade: `ApnsJwt` byggde huvud och claims med `JsonSerializer` på en `Dictionary`, vilket kastar i en trimmad eller AOT-host. Skrivs nu fält för fält med `Utf8JsonWriter`.
 
+### Steg 4 — taggarna ur Orienteras preferenser
+
+- `PushTags` översätter `NotificationPreferences.Enabled` till `kind:`-taggar, plus `user:<id>`, `competition:<id>` för anmälda tävlingar och `person:<id>` för Min grupp.
+- `NotificationService.RefreshAsync` sätter taggarna vid varje omplanering, och utelämnar det backenden levererar som push ur den lokala planen.
+- `IPushRegistration` som söm mot Spine.Push, av samma skäl som `INotificationScheduler` finns: mappen kompileras in i testerna på ren .NET, där MAUI-paketet inte existerar.
+- Sju tester för taggarna.
+
+### Steg 5 — `OrienteraPushHandler`
+
+- `PushRoute` läser `competition/<id>`, `live/<id>` och `results/<id>`. Alla tre öppnar `EventDetailsPage`: det är där PM, live och resultat finns i dag, och separata sidor vore separata routes.
+- `OnScreen` — vilken tävling som visas just nu, satt av sidan själv, så en notis om den inte bannrar över den.
+- `AppleNotificationScheduler.ForegroundPresenter` borttagen. Paketet äger `UNUserNotificationCenter.Current.Delegate`, och systemet lämnar lokala notiser till samma delegat.
+- `aps-environment` i `Platforms/iOS/Entitlements.plist`. Det gemensamma entitlements-steget validerar filen i stället för att skriva den, och byggena stannade tills den fanns — precis som avsett.
+
+### Steg 6 — appens uppsättning
+
+- `UseSpinePush` med backendadressen, `WhenAsked`, kanalen `competitions` och handlern. `SpinePush.Install()` före `UIApplication.Main`.
+- `RequestPermissionAsync` bakom samma reglage i `NotificationSheet` som frågar om lokala notiser.
+- `IPushService.IsRegistered` tillagd i paketet.
+- Android: `BaseAddressAndroid` (10.0.2.2), `SupportedOSPlatformVersion` 23 och `SpinePushEnabled=false` tills det finns ett Firebase-projekt.
+
+### Steg 7 — backenden
+
+- `PushFunctions`: `PUT`/`DELETE /api/push/installations/{id}` vidare till `SpinePushEndpoints.HandleAsync`, och timern `AnnounceResultsPublished` var femte minut.
+- `ResultsPublished.Pending` — den rena regeln för vad som är nyheter — och `AnnouncedStore`, ett varaktigt register i Table Storage.
+- `AddSpinePush` i `Program.cs` med Table Storage på `AzureWebJobsStorage` och APNs-nyckeln ur konfigurationen. Nycklarna i `local.settings.example.json`.
+- Sex tester för regeln.
+- Verifierat mot Aspire med Azurite: `PUT` ger 204 och raden hamnar i `OrienteraPushInstallations` **utan** `user:`-taggen, fel id ger 400, `DELETE` ger 204, båda functionsen indexeras, och en manuellt triggad timer läste den riktiga kalendern och bokförde de tävlingar som fått resultat det senaste dygnet.
+
+### Steg 8 — dokumentation
+
+- `samples/Orientera/docs/push-uppsattning.md`: vad som är registrerat hos Apple, vad som saknas hos Google, backendens fyra nycklar lokalt och i drift, och vad som medvetet inte är gjort.
+
 ## Decisions
 
 - **`ApplicationId` bytt till `se.cosmomedia.orientera`.** Ändrat i `Orientera.csproj` och app-gruppen i `Platforms/iOS/Entitlements.plist`, plus exemplen i wikin. Testfixturerna i `Plugin.Maui.Spine.Server.Tests` säger fortfarande `com.companyname.orientera`; de är godtyckliga strängar i pakettester och inte en referens till Orientera, så de lämnas.
@@ -90,10 +123,22 @@ Dessutom: du har en fysisk iPhone men ingen Android-enhet, så Android verifiera
 - **Nyckeln ligger i AppHostens user-secrets som Aspire-parametrar, inte i backendens `local.settings.json`.** Den filen ligger i repots träd och är lätt att committa av misstag. AppHosten skickar `Parameters:apple-*` vidare som miljövariabler `Push__Apple__*`, så backenden läser dem som vanlig konfiguration. Själva `.p8`-filen har aldrig passerat genom mig: kommandot som läser in den kördes av dig.
 - **Ett taggindex, inte en scan — men bara när uttrycket tillåter det.** `ReferencedTags` duger inte som index: `!muted` nämner `muted` men matchar de installationer som *inte* har den. Därför `RequiredTags`, som är union för `&&`, snitt för `||` och tom för `!`. Saknas en sådan tagg — `PushTarget.All`, eller ett uttryck som bara är negationer — scannas partitionerna, vilket är rätt för just de fallen.
 - **`InvalidateAsync` scannar.** Det finns inget index på handtaget. Det läses bara när en transport rapporterar en död token, vilket är sällsynt bredvid att skicka, så en scan är en bättre affär än en tredje tabell att hålla i synk.
+- **Alla tre routerna öppnar samma sida.** `competition/`, `live/` och `results/` går till `EventDetailsPage`, för det är där PM, live och resultat finns i appen i dag. Routen är ändå tre olika strängar: avsändaren är en server som inte ska veta vad appens sidor heter, och den dagen live får en egen sida behöver backenden inte ändras.
+- **Bara `results-published` tas ur den lokala planen.** `PushTags.Pushed` innehåller den enda typ backenden faktiskt skickar. Taggarna sätts för alla fem händelsestyrda typerna ändå, så en installation redan bär rätt tagg den dag backenden får en avsändare till — men den lokala planen tappar ingenting i förväg.
+- **`IsRegistered` blev en egenskap i paketet, inte en gissning i appen.** Första försöket var `Status is Authorized or Provisional` i Orientera, vilket är sant i glappet mellan beviljat tillstånd och en token som ännu inte kommit — och just då hade appen slutat planera resultatnotisen lokalt utan att backenden kunde nå den. Att skicka dubbelt är dåligt; att inte skicka alls är värre. Paketet vet svaret: tillstånd, token *och* en registrering backenden svarat ja på.
+- **Timern jämför mot ett varaktigt register, inte mot svarscachen.** Planen sa `ResponseCache`, men den är TTL-minne: varje omstart hade annonserat samma resultat igen. `AnnouncedStore` är en tabell bredvid registret. Fönstret på ett dygn finns för att första körningen efter en utrullning annars hade skickat hela bakåtkatalogen på en gång, till alla.
+- **En tävling bokförs som annonserad oavsett utfall.** Att försöka igen var femte minut i ett dygn hjälper ingen: de telefoner som inte var registrerade då är inte registrerade nu, och de som var det har den redan.
+- **`user:`-taggar filtreras bort i backenden.** Registreringsendpointen är öppen, som resten av backendens API, så en tagg är bara ett önskemål. `kind:` och `competition:` är inte hemliga; `user:` skulle låta vem som helst lyssna som någon annan. Filtret tas bort den dag registreringen autentiseras.
+- **Push är avstängt på Android i Orientera.** Det finns inget Firebase-projekt, och utan `google-services.json` stoppar byggkontrollen. `SpinePushEnabled=false` för Android låter appen byggas och köras som vanligt; Android hämtar bara aldrig någon token. Sample-appen i #180 är den som visar Android-vägen.
 - **Reflektionsfri JSON går inte att slå på för hela testprojektet.** `JsonSerializer.IsReflectionEnabledByDefault=false` som permanent skydd provades och fäller `Azure.Data.Tables`, som serialiserar sina entiteter med reflektion. Switchen fäller alltså ett tredjepartsbibliotek snarare än vår kod, och är därmed för trubbig. Fixen i `ApnsJwt` står kvar; skyddet får vara kommentaren i koden och verifieringen mot skarpa APNs.
 
 ## Verifiering
 
-Det jag kan köra här: bygg för android, maccatalyst och iossimulator; `Orientera.Tests`; `Plugin.Maui.Spine.Server.Tests` med nya tester för Table-registret mot Azurite; backend med `func start` och `PUT`/`DELETE` över HTTP; Orientera i Android-emulatorn.
+Kört och grönt:
 
-Det jag inte kan köra: en riktig APNs-registrering, och därmed milstolpen. Windows-TFM:en går inte att bygga här.
+- Bygg: Orientera iOS och Android, backenden, apphosten, push-sample-appen (iOS och Android) och sample-servern.
+- Tester: `Plugin.Maui.Spine.Server.Tests` och `Orientera.Tests`, inklusive tolv nya mot Azurite och tretton nya för taggar, routes och resultatregeln.
+- APNs: provider-token verifierad mot skarpa Apple — `BadDeviceToken` på en påhittad enhet.
+- Backenden mot Aspire med Azurite: registrering, taggfilter, felhantering och en manuellt triggad resultattimer mot den riktiga kalendern.
+
+Kvar, och utanför den här maskinen: provisioneringsprofil och en push hela vägen till en fysisk iPhone — det är milstolpen. Android saknar Firebase-projekt och verifieras när det finns. Windows-TFM:en går inte att bygga här.
