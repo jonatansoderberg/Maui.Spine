@@ -66,12 +66,31 @@ Dessutom: du har en fysisk iPhone men ingen Android-enhet, så Android verifiera
 - `samples/Orientera.Backend/Properties/launchSettings.json` tillagd, så porten blir 7071 och inte slumpad.
 - Verifierat: `dotnet run` i AppHosten ger Azurite igång, Functions-värden igång, och `GET http://localhost:7071/api/health` svarar 200.
 
+### Steg 2 — Table Storage-registret
+
+- `AzureTablePushInstallationStore`: partition på plattform, radnyckel installations-id, och en andra tabell `{prefix}Tags` med tagg som partition och installations-id som radnyckel.
+- `PushTagExpression.RequiredTags` — de taggar varje träff måste bära. Ett uttryck som har en sådan blir en indexläsning i stället för en scan.
+- `SpinePushOptions.UseAzureTableStore(connectionString)`, och `Validate()` kräver inte längre en plattform: ett register utan transport är en riktig uppsättning.
+- Tolv tester mot Azurite (den AppHosten startar), som skippar när ingen emulator svarar. Verifierat: alla tolv gröna mot Azurite, och tabellerna städas bort efter varje test.
+
+### Steg 3 — Apple-registreringarna och APNs-nyckeln
+
+- Registrerat i portalen: App ID `se.cosmomedia.orientera` med Push Notifications och App Groups, `se.cosmomedia.orientera.widgets` med App Groups, och gruppen `group.se.cosmomedia.orientera`.
+- Widget-extensionens bundle-suffix bytt från `SpineWidgets` till `widgets`.
+- APNs-nyckel `Q2G76H33BW` (Sandbox & Production, Team Scoped), inlagd i AppHostens user-secrets som Aspire-parametrar och vidarebefordrad till backenden som `Push__Apple__*`.
+- **Verifierat mot skarpa APNs:** en påhittad men välformad device-token ger `BadDeviceToken`, inte `InvalidProviderToken`. Provider-token, ES256-signaturen och `apns-topic` är alltså accepterade av Apple.
+- Buggen det avslöjade: `ApnsJwt` byggde huvud och claims med `JsonSerializer` på en `Dictionary`, vilket kastar i en trimmad eller AOT-host. Skrivs nu fält för fält med `Utf8JsonWriter`.
+
 ## Decisions
 
 - **`ApplicationId` bytt till `se.cosmomedia.orientera`.** Ändrat i `Orientera.csproj` och app-gruppen i `Platforms/iOS/Entitlements.plist`, plus exemplen i wikin. Testfixturerna i `Plugin.Maui.Spine.Server.Tests` säger fortfarande `com.companyname.orientera`; de är godtyckliga strängar i pakettester och inte en referens till Orientera, så de lämnas.
 - **Azurite körs på de välkända portarna, annars startar inte backenden.** Första försöket lät `RunAsEmulator()` slumpa portarna, och Functions-värden dog med `Connection refused (127.0.0.1:10001)`. Orsaken: `WithHostStorage` talar om för *värden* var lagringen finns, men backendens egna kö- och blobklienter läser `UseDevelopmentStorage=true` ur `local.settings.json`, vilket alltid betyder 10000–10002. Med `WithBlobPort`/`WithQueuePort`/`WithTablePort` proxar Aspires DCP de portarna till containern, och båda vägarna hittar rätt.
 - **`AddAzureFunctionsProject`, inte `AddProject`.** Ett mellanläge där backenden kördes som ett vanligt projekt provades och fungerade, men Functions-integrationen ger värdlagringen och resursreferenserna gratis. Felet låg aldrig i integrationen utan i portarna.
 - **APNs-nyckeln kan bara laddas ner en gång, och Apple tillåter högst två aktiva.** När vi kommer till portalen skapar jag inte nyckeln utan att du sagt till: `.p8`-filen finns bara att hämta i samma ögonblick den skapas, och en förlorad nyckel måste återkallas och ersättas.
+- **Nyckeln ligger i AppHostens user-secrets som Aspire-parametrar, inte i backendens `local.settings.json`.** Den filen ligger i repots träd och är lätt att committa av misstag. AppHosten skickar `Parameters:apple-*` vidare som miljövariabler `Push__Apple__*`, så backenden läser dem som vanlig konfiguration. Själva `.p8`-filen har aldrig passerat genom mig: kommandot som läser in den kördes av dig.
+- **Ett taggindex, inte en scan — men bara när uttrycket tillåter det.** `ReferencedTags` duger inte som index: `!muted` nämner `muted` men matchar de installationer som *inte* har den. Därför `RequiredTags`, som är union för `&&`, snitt för `||` och tom för `!`. Saknas en sådan tagg — `PushTarget.All`, eller ett uttryck som bara är negationer — scannas partitionerna, vilket är rätt för just de fallen.
+- **`InvalidateAsync` scannar.** Det finns inget index på handtaget. Det läses bara när en transport rapporterar en död token, vilket är sällsynt bredvid att skicka, så en scan är en bättre affär än en tredje tabell att hålla i synk.
+- **Reflektionsfri JSON går inte att slå på för hela testprojektet.** `JsonSerializer.IsReflectionEnabledByDefault=false` som permanent skydd provades och fäller `Azure.Data.Tables`, som serialiserar sina entiteter med reflektion. Switchen fäller alltså ett tredjepartsbibliotek snarare än vår kod, och är därmed för trubbig. Fixen i `ApnsJwt` står kvar; skyddet får vara kommentaren i koden och verifieringen mot skarpa APNs.
 
 ## Verifiering
 
