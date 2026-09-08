@@ -51,9 +51,6 @@ internal sealed class PushService : IPushService
     private const string FingerprintKey = "spine.push.fingerprint";
     private const string SentAtKey = "spine.push.sent-at";
 
-    /// <summary>How long a registration may go unsent when nothing has changed.</summary>
-    internal static readonly TimeSpan Heartbeat = TimeSpan.FromDays(1);
-
     private readonly TimeProvider _time;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private string[] _tags = ReadTags();
@@ -127,7 +124,7 @@ internal sealed class PushService : IPushService
             var fingerprint = Fingerprint(installation);
             var now = _time.GetUtcNow();
 
-            if (fingerprint == Preferences.Default.Get(FingerprintKey, "") && !IsStale(now))
+            if (fingerprint == Preferences.Default.Get(FingerprintKey, "") && !NeedsConfirming(now))
                 return false;
 
             if (!await client.UpsertAsync(installation, cancellationToken)) return false;
@@ -164,10 +161,11 @@ internal sealed class PushService : IPushService
         await RefreshAsync(cancellationToken);
     }
 
-    private bool IsStale(DateTimeOffset now)
+    /// <summary>Whether the registration is old enough that it is worth confirming again.</summary>
+    private bool NeedsConfirming(DateTimeOffset now)
     {
         var sentAt = Preferences.Default.Get(SentAtKey, 0L);
-        return sentAt == 0 || now - DateTimeOffset.FromUnixTimeSeconds(sentAt) >= Heartbeat;
+        return sentAt == 0 || now - DateTimeOffset.FromUnixTimeSeconds(sentAt) >= options.Confirm;
     }
 
     /// <summary>Everything the backend should know about this device right now.</summary>

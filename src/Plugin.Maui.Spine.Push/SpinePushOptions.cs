@@ -59,6 +59,22 @@ public sealed class SpinePushOptions
     /// <summary>How long a registration is good for before the server may prune it.</summary>
     public TimeSpan Expiry { get; set; } = TimeSpan.FromDays(90);
 
+    /// <summary>
+    /// How long the app may go without confirming its registration when nothing has changed.
+    /// </summary>
+    /// <remarks>
+    /// A register can lose a row — a recreated container, a pruned table, a restore from an older
+    /// backup — and the app has no way to notice: nothing on the wire tells a device it is no
+    /// longer registered, and it only hears from the backend when a message arrives. So a silently
+    /// dropped registration reads exactly like a quiet week.
+    /// <para>
+    /// Confirming costs one small request on a foreground the app was making anyway. Being
+    /// unregistered without knowing costs every notification until something else happens to change
+    /// the fingerprint. Minutes rather than a day is the honest price of that asymmetry.
+    /// </para>
+    /// </remarks>
+    public TimeSpan Confirm { get; set; } = TimeSpan.FromMinutes(15);
+
     internal Type? HandlerType { get; private set; }
 
     /// <summary>Registers the app's <see cref="IPushHandler"/>.</summary>
