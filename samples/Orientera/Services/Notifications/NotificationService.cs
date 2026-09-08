@@ -45,7 +45,11 @@ public sealed class NotificationService(
         }
         catch (SourceUnavailableException)
         {
-            // Nothing to re-plan from. The notifications already scheduled stand.
+            // Nothing to re-plan from, so the notifications already scheduled stand. The tags for
+            // what the user said yes to still go out: they are a local preference, they need no
+            // source, and holding them back because the calendar was unreachable leaves the phone
+            // registered for nothing — which is how a device ends up hearing silence for good.
+            await _push.SetTagsAsync(PushTags.For(_preferences.Current), cancellationToken);
         }
     }
 

@@ -17,6 +17,17 @@ public abstract partial class OrienteraViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsOffline { get; set; }
 
+    /// <summary>
+    /// What the source said when it could not be reached.
+    /// </summary>
+    /// <remarks>
+    /// "Ingen anslutning" är sant om en telefon i flygplansläge och om en backend som svarar 500,
+    /// och de två kräver olika saker av läsaren. Meddelandet fanns hela tiden i undantaget och
+    /// kastades bort här.
+    /// </remarks>
+    [ObservableProperty]
+    public partial string OfflineReason { get; set; } = string.Empty;
+
     /// <summary>Whether content is available to show — false when offline with nothing cached.</summary>
     [ObservableProperty]
     public partial bool HasContent { get; set; } = true;
@@ -69,11 +80,13 @@ public abstract partial class OrienteraViewModel : ViewModelBase
         {
             await load();
             IsOffline = false;
+            OfflineReason = string.Empty;
             return true;
         }
-        catch (SourceUnavailableException)
+        catch (SourceUnavailableException exception)
         {
             IsOffline = true;
+            OfflineReason = exception.Message;
             return false;
         }
         finally

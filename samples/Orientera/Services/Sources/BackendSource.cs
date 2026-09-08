@@ -203,11 +203,12 @@ public sealed class BackendSource(
         // more than a decade.
         return [.. results.OrderByDescending(result => result.CompetitionDate)];
 
-        // "me:<hash>" is the app's own name for a runner Eventor has not identified.
+        // An Eventor person id is a number. Everything else is the app's own name for somebody
+        // Eventor has not identified — "me:<hash>" once the runner has said who they are, and the
+        // demo dataset's "p-elin" before that. Passing either on asks Eventor about a person who
+        // does not exist, which came back as a 502 and read on screen as "no connection".
         static string? Eventor(PersonId person) =>
-            person.Value.StartsWith("me:", StringComparison.Ordinal) || person.Value.Length == 0
-                ? null
-                : person.Value;
+            person.Value.Length > 0 && person.Value.All(char.IsAsciiDigit) ? person.Value : null;
     }
 
     /// <summary>Prediction is M3, and an unbacktested number is worse than none (SP-11).</summary>
@@ -354,7 +355,10 @@ public sealed class BackendSource(
                 return default;
 
             if (!response.IsSuccessStatusCode)
-                throw new SourceUnavailableException($"Orienteras backend svarade {(int)response.StatusCode}.");
+                // Vägen står med: statusen ensam säger att något gick fel men inte vad, och att leta
+                // rätt på vilken av ett dussin endpoints det gällde är inte läsarens jobb.
+                throw new SourceUnavailableException(
+                    $"Orienteras backend svarade {(int)response.StatusCode} på {path}.");
 
             return await response.Content.ReadFromJsonAsync<T>(OrienteraJson.Options, cancellationToken);
         }
@@ -363,7 +367,7 @@ public sealed class BackendSource(
             // A timeout is the source being unavailable; the caller giving up is not.
             || (exception is TaskCanceledException && !cancellationToken.IsCancellationRequested))
         {
-            throw new SourceUnavailableException("Orienteras backend kunde inte nås.");
+            throw new SourceUnavailableException($"Orienteras backend kunde inte nås ({path}).");
         }
     }
 }

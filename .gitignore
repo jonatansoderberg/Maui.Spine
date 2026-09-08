@@ -369,3 +369,6 @@ local.settings.json
 
 # Utvecklarens egen backend-adress för körning mot telefon
 samples/Orientera/appsettings.local.json
+
+# Firebase-konfigurationen hämtas ur konsolen; API-nyckeln i den hör inte i ett publikt repo
+samples/Orientera/Platforms/Android/google-services.json

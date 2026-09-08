@@ -84,3 +84,26 @@ public class PushTagsTests
         Assert.Equal([NotificationKind.ResultsPublished], PushTags.Pushed);
     }
 }
+
+/// <summary>
+/// The preferences are written on one launch and read on the next. A round trip that quietly
+/// fails leaves the store falling back to "nothing enabled" — and the phone registered for no
+/// push at all, with the switches still showing as off.
+/// </summary>
+public class NotificationPreferencesRoundTripTests
+{
+    [Fact]
+    public void What_was_saved_is_what_comes_back()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"orientera-prefs-{Guid.NewGuid():N}.json");
+        var store = new NotificationPreferencesStore(path);
+
+        store.Save(NotificationPreferences.Default.With(NotificationKind.ResultsPublished, true));
+
+        // A new store, as a new launch would build it.
+        var reread = new NotificationPreferencesStore(path).Current;
+
+        Assert.True(reread.IsEnabled(NotificationKind.ResultsPublished));
+        Assert.True(reread.Any);
+    }
+}

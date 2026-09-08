@@ -41,15 +41,19 @@ public static class PushTags
     /// <param name="me">The signed-in runner.</param>
     /// <param name="competitions">The competitions the runner is entered in.</param>
     /// <param name="group">Min grupp, filtered to the ones notifications are on for.</param>
+    /// <remarks>
+    /// Everything but the kinds is optional, because everything but the kinds needs a source that
+    /// may be unreachable. The kinds are a preference on this phone and nothing else, and a device
+    /// registered for none of them hears nothing at all — which is a worse answer to "the calendar
+    /// did not load" than registering for what the user asked for.
+    /// </remarks>
     public static IReadOnlyList<string> For(
         NotificationPreferences preferences,
-        PersonId me,
-        IEnumerable<CompetitionId> competitions,
-        IEnumerable<PersonId> group)
+        PersonId? me = null,
+        IEnumerable<CompetitionId>? competitions = null,
+        IEnumerable<PersonId>? group = null)
     {
         ArgumentNullException.ThrowIfNull(preferences);
-        ArgumentNullException.ThrowIfNull(competitions);
-        ArgumentNullException.ThrowIfNull(group);
 
         var tags = new SortedSet<string>(StringComparer.Ordinal);
 
@@ -64,12 +68,13 @@ public static class PushTags
         if (tags.Count == 0)
             return [];
 
-        tags.Add($"user:{me.Value}");
+        if (me is { } runner)
+            tags.Add($"user:{runner.Value}");
 
-        foreach (var competition in competitions)
+        foreach (var competition in competitions ?? [])
             tags.Add($"competition:{competition.Value}");
 
-        foreach (var person in group)
+        foreach (var person in group ?? [])
             tags.Add($"person:{person.Value}");
 
         return [.. tags];
