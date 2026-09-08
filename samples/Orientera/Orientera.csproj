@@ -85,6 +85,7 @@
 		<ProjectReference Include="..\Orientera.Domain\Orientera.Domain.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Push\Plugin.Maui.Spine.Push.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 	</ItemGroup>
@@ -102,5 +103,6 @@
 	<!-- Importeras explicit: Orientera använder ProjectReference, inte NuGet-paketet. -->
 	<Import Project="..\..\src\Plugin.Maui.Spine\build\Plugin.Maui.Spine.Entitlements.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.Push\build\Plugin.Maui.Spine.Push.targets" />
 
 </Project>

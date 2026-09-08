@@ -10,12 +10,14 @@ namespace Orientera.Services.Notifications;
 /// <remarks>
 /// Syncing replaces the pending set wholesale rather than diffing it: the plan is cheap to
 /// rebuild, and a diff would be one more place for a stale schedule to survive.
+///
+/// The foreground presentation is not set here. Spine.Push owns
+/// <c>UNUserNotificationCenter.Current.Delegate</c>, and the system hands it local notifications
+/// too — <c>OrienteraPushHandler</c> is what decides what a notification looks like while the app
+/// is open, whether it came from this scheduler or from the backend.
 /// </remarks>
 public sealed class AppleNotificationScheduler : INotificationScheduler
 {
-    public AppleNotificationScheduler() =>
-        UNUserNotificationCenter.Current.Delegate = new ForegroundPresenter();
-
     public bool IsSupported => true;
 
     public async Task<bool> RequestPermissionAsync(CancellationToken cancellationToken = default)
@@ -66,21 +68,6 @@ public sealed class AppleNotificationScheduler : INotificationScheduler
     {
         UNUserNotificationCenter.Current.RemoveAllPendingNotificationRequests();
         return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Without a delegate iOS hides notifications that arrive while the app is open — which is
-    /// exactly when "dags att åka" matters most.
-    /// </summary>
-    private sealed class ForegroundPresenter : UNUserNotificationCenterDelegate
-    {
-        public override void WillPresentNotification(
-            UNUserNotificationCenter center,
-            UNNotification notification,
-            Action<UNNotificationPresentationOptions> completionHandler) =>
-            completionHandler(OperatingSystem.IsIOSVersionAtLeast(14)
-                ? UNNotificationPresentationOptions.Banner | UNNotificationPresentationOptions.Sound
-                : UNNotificationPresentationOptions.Alert | UNNotificationPresentationOptions.Sound);
     }
 }
 #endif

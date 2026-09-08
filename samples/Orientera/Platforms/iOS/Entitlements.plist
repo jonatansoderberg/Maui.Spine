@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!--
+		Vilken APNs-värd enhetens token gäller mot. "development" är sandlådan, som är den
+		nyckeln och profilen här är gjorda för; App Store-bygget vill ha "production".
+	-->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- App Group-behörigheten appen och widgetextensionet delar container genom. -->
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.se.cosmomedia.orientera</string>
