@@ -203,6 +203,7 @@
 	<ItemGroup>
 		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" />
 	</ItemGroup>
+	<Import Project="..\..\src\Plugin.Maui.Spine\build\Plugin.Maui.Spine.Entitlements.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 
 </Project>

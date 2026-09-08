@@ -1,0 +1,80 @@
+<Project>
+	<!--
+		What the app needs declared for push to work, on each platform.
+
+		Consumer knobs:
+		  SpinePushEnvironment   development | production   (Apple; defaults to development for Debug)
+		  SpinePushEnabled       default true
+	-->
+	<PropertyGroup>
+		<SpinePushEnabled Condition="'$(SpinePushEnabled)' == ''">true</SpinePushEnabled>
+		<SpinePushEnvironment Condition="'$(SpinePushEnvironment)' == '' And '$(Configuration)' == 'Debug'">development</SpinePushEnvironment>
+		<SpinePushEnvironment Condition="'$(SpinePushEnvironment)' == ''">production</SpinePushEnvironment>
+		<_SpinePushApple Condition="'$(SpinePushEnabled)' == 'true' And ($([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst')">true</_SpinePushApple>
+	</PropertyGroup>
+
+	<!--
+		aps-environment decides which APNs host the device token is valid against, so a development
+		build's token only works against the sandbox. Contributed to the shared entitlements step in
+		Plugin.Maui.Spine, which merges it with whatever Plugin.Maui.Spine.Widgets needs.
+
+		On Mac Catalyst Apple's own documentation disagrees with itself about which key applies, so
+		both are written; an unknown entitlement is ignored rather than fatal.
+	-->
+	<ItemGroup Condition="'$(_SpinePushApple)' == 'true'">
+		<SpineEntitlement Include="aps-environment" Kind="string" Value="$(SpinePushEnvironment)"
+						  Because="It decides which APNs host the device token is valid against." />
+		<SpineEntitlement Include="com.apple.developer.aps-environment" Kind="string" Value="$(SpinePushEnvironment)"
+						  Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'"
+						  Because="Mac Catalyst has been documented under both spellings." />
+	</ItemGroup>
+
+	<Target Name="_SpinePushAppleManifest"
+			Condition="'$(_SpinePushApple)' == 'true' And '$(DesignTimeBuild)' != 'true'"
+			DependsOnTargets="_SpineWriteEntitlements"
+			BeforeTargets="_CompileAppManifestInputs;_CompileAppManifest;_DetectSigningIdentity;_CompileEntitlements">
+
+		<PropertyGroup>
+			<_SpinePushOutDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'spinepush'))</_SpinePushOutDir>
+			<_SpinePushManifest>$(_SpinePushOutDir)PushManifest.plist</_SpinePushManifest>
+		</PropertyGroup>
+
+		<MakeDir Directories="$(_SpinePushOutDir)" />
+
+		<!--
+			remote-notification lets a silent push wake the app; SpinePushEnvironment is read back at
+			runtime so the installation can tell the server which APNs host its token belongs to.
+		-->
+		<ItemGroup>
+			<!-- '?' is a wildcard in an Include; see the note in Plugin.Maui.Spine.Entitlements.targets. -->
+			<_SpinePushManifestLine Include="&lt;%3Fxml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;%3F&gt;" />
+			<_SpinePushManifestLine Include="&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;" />
+			<_SpinePushManifestLine Include="&lt;plist version=&quot;1.0&quot;&gt;" />
+			<_SpinePushManifestLine Include="&lt;dict&gt;" />
+			<_SpinePushManifestLine Include="&lt;key&gt;UIBackgroundModes&lt;/key&gt;" />
+			<_SpinePushManifestLine Include="&lt;array&gt;&lt;string&gt;remote-notification&lt;/string&gt;&lt;/array&gt;" />
+			<_SpinePushManifestLine Include="&lt;key&gt;SpinePushEnvironment&lt;/key&gt;" />
+			<_SpinePushManifestLine Include="&lt;string&gt;$(SpinePushEnvironment)&lt;/string&gt;" />
+			<_SpinePushManifestLine Include="&lt;/dict&gt;" />
+			<_SpinePushManifestLine Include="&lt;/plist&gt;" />
+		</ItemGroup>
+
+		<WriteLinesToFile File="$(_SpinePushManifest)" Lines="@(_SpinePushManifestLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+
+		<ItemGroup>
+			<PartialAppManifest Include="$(_SpinePushManifest)" />
+		</ItemGroup>
+	</Target>
+
+	<!--
+		Android: Firebase needs google-services.json. Without it the app builds and then fails to get a
+		token at runtime, with an error that says nothing about the missing file — so it fails here instead.
+	-->
+	<Target Name="_SpinePushAndroidCheck"
+			Condition="'$(SpinePushEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(DesignTimeBuild)' != 'true'"
+			BeforeTargets="BeforeBuild">
+		<Error Condition="'@(GoogleServicesJson)' == ''"
+			   Text="Spine.Push: Android needs Firebase's google-services.json. Download it from the Firebase console and add &lt;GoogleServicesJson Include=&quot;Platforms\Android\google-services.json&quot; /&gt; to the app project. Set SpinePushEnabled=false to build without push." />
+	</Target>
+
+</Project>

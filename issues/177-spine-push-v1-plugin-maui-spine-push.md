@@ -99,9 +99,19 @@ Och en sak som **inte** går att verifiera här: `xcrun simctl push` levererar i
 - Kanalerna skapas i `OnApplicationCreate`. Ett tapp läses tillbaka ur intentets extras i `OnCreate` och `OnNewIntent`.
 - Beroendet `Xamarin.Firebase.Messaging` 125.1.1.1, bara på Android.
 
+### Steg 4 — targets
+
+- **Nytt gemensamt entitlements-steg**, `src/Plugin.Maui.Spine/build/Plugin.Maui.Spine.Entitlements.targets`. Paketen bidrar `<SpineEntitlement Include="..." Kind="string|array|boolean" Value="..." Because="..." />` och `_SpineWriteEntitlements` skriver filen en gång, till `obj/**/spine/Spine.entitlements`.
+- Äger appen redan sin entitlements-fil skrivs den inte över; steget kontrollerar i stället att varje nyckel finns och säger vilken som fattas, med `Because` som förklaring. Orientera har en egen fil och tar den grenen.
+- `Plugin.Maui.Spine.Widgets` skriver inte längre `Host.entitlements` — varken targeten eller `spine-widgets-build.sh` — utan bidrar app-gruppen. Extensionets egen `.entitlements` skrivs som förut. `_SpineWidgetsRegister` fick `DependsOnTargets="…;_SpineWriteEntitlements"` så ordningen inte hänger på hur MSBuild råkar sekvensera två `BeforeTargets` mot samma mål.
+- `Plugin.Maui.Spine.Push.targets` bidrar `aps-environment`, och på Mac Catalyst båda stavningarna, skriver `UIBackgroundModes: remote-notification` och `SpinePushEnvironment` som `PartialAppManifest`, och felar tydligt på Android när `<GoogleServicesJson>` saknas.
+- Båda sample-apparna importerar det gemensamma steget, som de redan importerar widget-targetsen.
+
 ## Decisions
 
 - **MAUI:s lifecycle-API saknar krokarna, verifierat.** En probe som anropar `RegisteredForRemoteNotifications`, `FailedToRegisterForRemoteNotifications`, `DidReceiveRemoteNotification` och `WillPresentNotification` på `IiOSLifecycleBuilder` ger fyra `CS1061` mot MAUI 10.0.50. Issuets påstående stämmer, och `class_addMethod` eller overrides är alltså de enda vägarna.
+- **`?` är ett jokertecken i MSBuild:s `Include`.** Raden `<... Include="&lt;?xml version=…?&gt;" />` lästes som en filglob, matchade ingenting och försvann tyst ur den genererade plisten — filen saknade sin XML-deklaration utan att något klagade. Escapad som `%3F` skrivs den ut, och `plutil -lint` godkänner filen. Kommenterat i båda targets-filerna, eftersom nästa person kommer att skriva samma rad.
+- **`IntermediateOutputPath` är tom vid evaluering.** Sökvägen till den genererade filen byggs inne i targeten, inte i en `PropertyGroup` på filnivå — annars hamnar `Spine.entitlements` i projektmappen i stället för i `obj/`.
 - **Android har ingen "provisional", och `Denied` täcker två fall.** En användare som tackade nej och en som stängt av notiser i inställningarna ser likadana ut genom `AreNotificationsEnabled()`. Att skilja dem åt skulle kräva att paketet minns vad som frågats, och appen ska göra samma sak i båda fallen: visa vägen till inställningarna. Alltså `Denied` för båda.
 - **Meddelanden som kommer före appen köas.** En kallstart från en push når `didReceiveRemoteNotification:` innan `CreateMauiApp` returnerat, så det finns ingen `IServiceProvider` att fråga. Payloaden och dess completion-handler läggs i en statisk kö och töms när `FinishedLaunching` kört. Alternativet, att svara `NoData` och tappa meddelandet, hade gjort just kallstartsfallet — det vanligaste när någon trycker på en notis — till det enda som inte fungerar.
 - **`Route` navigeras av appen, inte av paketet.** Förstudien säger att routen är "en Spine-route som `INavigationService` kan öppna", men `INavigationService` är helt generisk — `NavigateToAsync<TPage>()` — och har ingen uppslagning från sträng till sida. Att lägga till en vore en ny funktion i kärnan, utanför det här issuet. Paketet levererar därför routen till `IPushHandler.OnOpenedAsync`, precis som widgetarna lämnar sin länk till `IWidgetLinkHandler`. Samma mönster, och appen behåller kontrollen.

@@ -24,4 +24,8 @@
 		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\;" />
+	</ItemGroup>
+
 </Project>
