@@ -66,6 +66,19 @@ en widget-refresh och undra varför den inte gjorde något.
 - **Fälten följer sorten**, verifierat i simulatorn: `alert` visar alla fält med raden om förgrunden;
   `widget` visar bara mål och fördröjning, med "Bara 'bygg om'. Widgeten ritar det en tyst push
   senast la där."
-- **Push-utlöst ombyggnad är inte verifierad.** Telefonen fick inte upp någon registrering mot
-  sample-servern vid försöket, så varken `silent` med innehåll eller `kind: "widget"` kunde skickas
-  till den. Simulatorn duger inte heller: den levererar inte tysta pushar alls.
+- **Kedjan hela vägen, på en fysisk iPhone 16 Pro.** En tyst push från Skicka-sidan nådde handlern,
+  som lagrade innehållet och bad om en ombyggnad; widgeten på hemskärmen visar nu titeln, texten och
+  tidsstämpeln i stället för `—`:
+
+  ```
+  Spine push
+  Hej från sample-servern
+  Det här kom över push
+  <tid> · ombyggnad #N
+  ```
+
+  Att texten är Skicka-sidans standardvärden avgör inget: widgeten kan bara visa text om
+  `WidgetContent.Set` har körts, och det sker bara i handlerns `UpdateWidget`, som bara körs på en
+  tyst push som bär `widget.title`. Utan en levererad push hade den stått "Inget skickat än".
+
+  Simulatorn duger inte för det här testet — den levererar inte tysta pushar alls.
