@@ -14,6 +14,12 @@
     "Livelox__ApiKey": "",
     "Livelox__BaseAddress": "https://api.livelox.com/",
 
+    "//Push": "APNs-nyckeln. Lokalt kommer de här som miljövariabler från Orientera.AppHosts user-secrets (Parameters:apple-*); i drift från appinställningarna. PrivateKey är hela .p8-filens innehåll, PEM och allt. Utan nyckel går det ändå att registrera sig — det är bara ingen som skickar.",
+    "Push__Apple__TeamId": "",
+    "Push__Apple__KeyId": "",
+    "Push__Apple__BundleId": "se.cosmomedia.orientera",
+    "Push__Apple__PrivateKey": "",
+
     "//Ranking": "Sverigelistan läses inte här. Den ligger bakom en personlig inloggning, och sedan #123 är det läsarens egen, på deras telefon.",
     "Ranking__BaseAddress": "https://eventor.orientering.se/",
 

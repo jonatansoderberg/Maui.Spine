@@ -15,6 +15,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Anthropic" />
+		<PackageReference Include="Azure.Data.Tables" />
 		<PackageReference Include="Azure.Storage.Blobs" />
 		<PackageReference Include="BitMiracle.LibTiff.NET" />
 		<PackageReference Include="ProjNET" />
@@ -30,6 +31,7 @@
 		<PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" />
 		<PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" />
 		<PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" />
+		<PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" />
 		<PackageReference Include="Microsoft.Extensions.Caching.Memory" />
 		<PackageReference Include="OpenAI" />
 		<PackageReference Include="Microsoft.Extensions.Http" />
@@ -37,6 +39,8 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Orientera.Domain\Orientera.Domain.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server\Plugin.Maui.Spine.Server.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
