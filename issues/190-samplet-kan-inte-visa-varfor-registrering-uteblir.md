@@ -109,10 +109,11 @@ vilket #180 lämnade öppet.
   `sent 1, failed 0` två gånger, och notisen kom fram på låsskärmen. Att `Environment` blir
   `Sandbox` för ett Debug-bygge är precis vad servern behöver för att välja rätt APNs-host.
 
-### Öppet fynd, inte åtgärdat här
+### Öppet fynd, inte åtgärdat här — följs i #192
 
 En app med `Plugin.Maui.Spine.Widgets` går inte att installera på en fysisk enhet utan att man
 själv skapar App ID och provisioneringsprofil för widget-extensionen. Targeten lägger till den via
 `AdditionalAppExtensions` utan att bädda in någon profil, och installationen faller på
 `0xe8008015 — A valid provisioning profile for this executable was not found`, som inte säger
 vilken av de två bundlarna som saknar en. Kringgicks här med `-p:SpineWidgetsEnabled=false`.
+Eget issue: https://github.com/jonatansoderberg/Maui.Spine/issues/192
