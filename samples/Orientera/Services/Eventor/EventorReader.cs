@@ -259,6 +259,23 @@ public sealed class EventorReader(HttpClient _http, EventorSessionStore _session
     private static bool IsRedirect(System.Net.HttpStatusCode status) =>
         (int)status is >= 300 and < 400;
 
+    /// <summary>
+    /// The runner's Eventor id. Read off the page by the login and kept with the session, because
+    /// the start page is fetched over HTTP and Cloudflare does not reliably let that through —
+    /// while the id itself never changes once it is known.
+    /// </summary>
+    public async Task<string?> PersonIdAsync(CancellationToken cancellationToken = default) =>
+        _sessions.Load()?.PersonId is { Length: > 0 } stored
+            ? stored
+            : (await StartPageAsync(cancellationToken))?.PersonId;
+
+    /// <summary>
+    /// Why the last read came back empty, when it did. Eventor sits behind Cloudflare, and a
+    /// challenge the web view solved does not automatically carry over to this client — so "no
+    /// name" has to be reportable as what it was rather than swallowed into a shrug.
+    /// </summary>
+    public (int Status, string Path)? LastFailure { get; private set; }
+
     private async Task<string?> GetAsync(string path, CancellationToken cancellationToken)
     {
         if (_sessions.Load() is not { } session)
@@ -280,12 +297,19 @@ public sealed class EventorReader(HttpClient _http, EventorSessionStore _session
             if (IsRedirect(response.StatusCode))
                 return LoginRedirect;
 
-            return response.IsSuccessStatusCode
-                ? await response.Content.ReadAsStringAsync(cancellationToken)
-                : null;
+            if (!response.IsSuccessStatusCode)
+            {
+                LastFailure = ((int)response.StatusCode, path);
+                return null;
+            }
+
+            LastFailure = null;
+            return await response.Content.ReadAsStringAsync(cancellationToken);
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
         {
+            // 0 is not a status Eventor can send, which is what makes it a usable "never answered".
+            LastFailure = (0, path);
             return null;
         }
     }

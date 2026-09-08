@@ -54,6 +54,37 @@ public partial class EventorLoginSheetViewModel(
     /// </remarks>
     public const string LoggedInScript = "(document.querySelector('.loggedInName')?.textContent || '')";
 
+    /// <summary>
+    /// Who the page in front of the runner says they are: name, club, and the ranking links' ids.
+    /// </summary>
+    /// <remarks>
+    /// Read from the web view rather than fetched again over HTTP. The web view holds the session
+    /// Eventor accepted — challenge and all — and the same page read with a plain HttpClient can
+    /// come back 403 while the runner is looking straight at their own name. The values are
+    /// percent-encoded on the way out for the same reason the remembered password is: the
+    /// platforms disagree about how a JavaScript string is rendered.
+    /// </remarks>
+    public const string AccountScript = """
+        (function () {
+          var greeting = document.querySelector('.loggedInName');
+          if (!greeting) return '';
+          var paragraph = greeting.closest('p');
+          var club = paragraph ? paragraph.nextElementSibling : null;
+          var id = function (selector) {
+            var link = document.querySelector(selector);
+            var found = link ? link.getAttribute('href').match(/Index\/(\d+)/) : null;
+            return found ? found[1] : '';
+          };
+          var text = function (node) { return node ? (node.textContent || '').trim() : ''; };
+          return encodeURIComponent([
+            text(greeting),
+            text(club),
+            id('a[href*="/Runner/Index/"]'),
+            id('a[href*="/Club/Index/"]')
+          ].join('\u001f'));
+        })()
+        """;
+
     [ObservableProperty]
     public partial string Explanation { get; set; } =
         "Logga in med ditt eget Eventor-konto. Kryssa i \"Kom ihåg mig\" så slipper du göra det igen.";
@@ -99,13 +130,32 @@ public partial class EventorLoginSheetViewModel(
         _sessions.Save(session);
         _eventor.Clear();
 
-        var account = await _eventor.ReadAccountAsync();
+        // The page is the source. The HTTP reader is asked afterwards, and only for the class,
+        // which lives on a settings page the web view is not showing.
+        var page = await ReadAccountAsync(typed);
 
-        session = session with { Account = account, PersonId = (await _eventor.StartPageAsync())?.PersonId };
+        if (page is null)
+        {
+            // Eventor greeted the reader by name a moment ago, so the login worked — but the page
+            // no longer says who they are. Closing here would keep the demo persona and say
+            // nothing, the one outcome that looks like a successful login and is not one.
+            Explanation = "Du är inloggad, men appen hittade inget namn på Eventors sida. "
+                        + "Sidan kan ha ändrats sedan appen skrevs.";
+
+            _sessions.Save(session);
+            return false;
+        }
+
+        var account = page.Account with
+        {
+            DefaultClass = (await _eventor.ReadAccountAsync())?.DefaultClass
+                ?? _identity.Current?.DefaultClass,
+        };
+
+        session = session with { Account = account, PersonId = page.PersonId };
         _sessions.Save(session);
 
-        if (account is not null)
-            Adopt(account);
+        Adopt(account);
 
         await _navigation.ReturnAsync(session);
 
@@ -136,6 +186,37 @@ public partial class EventorLoginSheetViewModel(
     /// What the web view hands back is a JavaScript value, and the platforms disagree about how
     /// much of its JSON quoting comes along with it.
     /// </summary>
+    /// <summary>What the logged-in page states, or null when it no longer states a name.</summary>
+    private static async Task<PageAccount?> ReadAccountAsync(Func<string, Task<string?>> typed)
+    {
+        var read = Decode(await typed(AccountScript));
+
+        if (read.Length == 0)
+            return null;
+
+        var parts = read.Split('\u001f');
+        var name = parts.ElementAtOrDefault(0) ?? string.Empty;
+
+        if (name.Length == 0)
+            return null;
+
+        return new PageAccount(
+            new EventorAccount
+            {
+                Name = name,
+                Club = parts.ElementAtOrDefault(1) ?? string.Empty,
+                ClubId = Empty(parts.ElementAtOrDefault(3)),
+                DefaultClass = null,
+            },
+            Empty(parts.ElementAtOrDefault(2)));
+
+        static string? Empty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    /// <param name="Account">Name, club and club id, as the page states them.</param>
+    /// <param name="PersonId">The runner's Eventor id, which only a club with Sverigelistan links to.</param>
+    private sealed record PageAccount(EventorAccount Account, string? PersonId);
+
     private static string Clean(string? value) =>
         value?.Trim().Trim('"').Trim() ?? string.Empty;
 

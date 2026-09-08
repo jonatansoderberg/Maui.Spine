@@ -105,6 +105,11 @@
 		<SpineWidget Include="next-start" DisplayName="Nästa start" Description="Nedräkningen till din nästa start, från tävlingen du är anmäld till." Families="Small,Medium" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<!-- Utvecklarens egen backend-adress. Ignoreras av git; bakas in bara när den finns. -->
+		<EmbeddedResource Include="appsettings.local.json" Condition="Exists('appsettings.local.json')" />
+	</ItemGroup>
+
 	<PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
 		<!-- App Group-behörigheten appen och widgetextensionet delar container genom. -->
 		<CodesignEntitlements>Platforms\iOS\Entitlements.plist</CodesignEntitlements>
