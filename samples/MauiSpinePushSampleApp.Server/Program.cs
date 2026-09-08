@@ -142,6 +142,11 @@ static LiveActivityLayout Layout(SendRequest request) => new()
         W.Text(request.Title ?? "Live Activity").Headline().Bold(),
         W.Text(request.Body ?? "Uppdaterad av servern").Caption().Secondary(),
         W.Relative(DateTimeOffset.Now).Caption().Secondary()),
+    // All four expanded slots, or a long press on the Dynamic Island opens to nothing.
+    ExpandedLeading = W.Icon("bell"),
+    ExpandedTrailing = W.Relative(DateTimeOffset.Now).Caption(),
+    ExpandedCenter = W.Text(request.Title ?? "Live Activity").Headline().Bold(),
+    ExpandedBottom = W.Text(request.Body ?? "Uppdaterad av servern").Caption().Secondary(),
     CompactLeading = W.Icon("bell"),
     CompactTrailing = W.Relative(DateTimeOffset.Now).Caption(),
     Minimal = W.Icon("bell"),

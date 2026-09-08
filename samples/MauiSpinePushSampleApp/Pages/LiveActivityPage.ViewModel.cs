@@ -98,6 +98,12 @@ public partial class LiveActivityPageViewModel(
             W.Text("Spine Push").Headline().Bold(),
             W.Text(body).Caption().Secondary(),
             W.Relative(DateTimeOffset.Now).Caption().Secondary()),
+        // All four expanded slots, or a long press on the Dynamic Island opens to nothing: the
+        // expanded presentation draws only what the layout gives it, and an empty one is black.
+        ExpandedLeading = W.Icon("bell"),
+        ExpandedTrailing = W.Relative(DateTimeOffset.Now).Caption(),
+        ExpandedCenter = W.Text("Spine Push").Headline().Bold(),
+        ExpandedBottom = W.Text(body).Caption().Secondary(),
         CompactLeading = W.Icon("bell"),
         CompactTrailing = W.Relative(DateTimeOffset.Now).Caption(),
         Minimal = W.Icon("bell"),

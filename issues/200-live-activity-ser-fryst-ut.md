@@ -48,10 +48,21 @@ layouten, att "först hände ingenting alls", och att `sent 1` inte motsvarades 
 En nystartad aktivitet renderar normalt. Att en aktivitet kan överleva en ominstallation i ett
 tillstånd där den varken går att rendera eller bli av med är värt ett eget fynd — se nedan.
 
+### Den expanderade vyn var svart
+
+Ett långtryck på Dynamic Island öppnade till en helt svart yta. Layouten fyllde fyra av åtta platser
+— `LockScreen`, `CompactLeading`, `CompactTrailing`, `Minimal` — och lämnade alla fyra `Expanded*`
+tomma. Den expanderade presentationen ritar bara det layouten ger den, och en tom sådan är svart.
+
+Nu fylls alla åtta, i båda filerna.
+
 ## Uppföljning
 
 - Samplet bör avsluta kvarvarande aktiviteter vid start, så en ominstallation inte lämnar en
   orenderbar aktivitet efter sig.
+- **Registret håller en gammal aktivitetstoken tills appen råkar registrera om sig.** Att starta eller
+  avsluta en Live Activity ändrar `LiveActivities` utan att något triggar en refresh, och en push till
+  den gamla token svarar `sent 1` och tappas tyst. Det kostade två felsökningsrundor här. Eget issue.
 - `RemoveInvalidAsync` raderar hela installationen när en leverans är `Invalid`, även när kuvertet
   adresserades till en **aktivitetstoken**. En död aktivitet skulle då avregistrera enheten från all
   push. Testat mot en gammal token: APNs svarade `sent 1` och tappade den tyst, så det gick inte att
