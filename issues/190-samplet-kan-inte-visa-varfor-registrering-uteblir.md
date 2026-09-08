@@ -2,6 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/190
 **Branch:** issue/190-samplet-kan-inte-visa-varfor-registrering-uteblir
+**PR:** https://github.com/jonatansoderberg/Maui.Spine/pull/191
 **Status:** Completed
 
 ## Bakgrund
