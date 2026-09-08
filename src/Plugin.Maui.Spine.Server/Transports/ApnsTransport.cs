@@ -129,7 +129,9 @@ public sealed class ApnsTransport : IPushTransport, IDisposable
     /// </summary>
     internal static PushStatus StatusFor(HttpStatusCode code, string? reason) => reason switch
     {
-        "BadDeviceToken" or "Unregistered" or "DeviceTokenNotForTopic" => PushStatus.Invalid,
+        // Not DeviceTokenNotForTopic: that token is alive, it was sent to the wrong topic — a fault
+        // in the send, not in the registration. Treating it as dead unregisters a working device.
+        "BadDeviceToken" or "Unregistered" => PushStatus.Invalid,
         "TooManyRequests" => PushStatus.Throttled,
         _ => code switch
         {
