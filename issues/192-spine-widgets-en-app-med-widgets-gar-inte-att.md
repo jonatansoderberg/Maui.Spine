@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/192
 **Branch:** issue/192-spine-widgets-en-app-med-widgets-gar-inte-att
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -66,15 +66,13 @@ App ID och en egen profil, plus felkoden `0xe8008015` i felsökningstabellen så
 
 ## Open Questions
 
-1. **Fela eller varna när ingen profil hittas?** Jag föreslår `<Error>`. Ett device-bygge utan profil
-   för extensionen ger en `.app` som garanterat inte går att installera, så ett bygge som lyckas är
-   ett falskt kvitto. Men det är en hårdare hållning än paketet har i dag, och den kan slå mot ett
-   flöde jag inte känner till — säg om du hellre vill ha en varning.
+Inga kvar.
 
-2. **App Group.** `group.$(ApplicationId)` måste troligen vara registrerad och påslagen på båda
-   App ID:na för att signeringen ska gå igenom. Det hann aldrig verifieras, eftersom widgets stängdes
-   av under #190. Om det stämmer bör kontrollen i steg 3 säga det också — men jag vill se det hända
-   innan jag skriver en text som påstår det.
+1. **Fela eller varna?** Avgjort: fela. Se Decisions.
+2. **App Group.** Besvarad genom att köra igenom det: gruppen måste vara **påslagen och tilldelad på
+   båda App ID:na**. Appens ensam räcker inte — extensionen bär entitlementen också, och signeringen
+   avvisar en entitlement som profilen inte ger. Wikin beskriver nu receptet som fyra delar: två
+   App ID, en App Group på båda, och en profil per App ID.
 
 ## Changes
 
@@ -92,10 +90,24 @@ App ID och en egen profil, plus felkoden `0xe8008015` i felsökningstabellen så
 - **Felvägen, skarpt.** `dotnet build -f net10.0-ios -p:RuntimeIdentifier=ios-arm64` på
   `MauiSpinePushSampleApp` utan profil för extensionen stannar nu vid bygget med meddelandet ovan,
   i stället för att producera en `.app` som faller vid installationen med `0xe8008015`.
-- **Lyckavägen är inte verifierad än.** Den kräver App ID och profil för
-  `com.companyname.mauispinepushsampleapp.SpineWidgets`. App Group
-  `group.com.companyname.mauispinepushsampleapp` är skapad och App Groups ikryssad på appens App ID,
-  men tilldelningsdialogen i portalen tog inte emot syntetiska klick på Continue.
+- **Lyckavägen, på ett befintligt projekt.** Orientera har sedan tidigare App ID och profil för sin
+  extension. Bygget skrev `embedded 72c0c0c1-….mobileprovision for se.cosmomedia.orientera.widgets`,
+  och `widgets.appex` i den färdiga appen bar profilen "Orientera Widgets Development" med rätt
+  app-id och App Group.
+- **Lyckavägen, hela vägen till en enhet.** Efter att App ID, App Group och profiler satts upp för
+  samplet installerades det på en iPhone 16 Pro med extensionen på plats:
+
+  ```
+  App installed: com.companyname.mauispinepushsampleapp
+  PlugIns/SpineWidgets.appex
+    profil: Spine Push Sample Widgets Development
+    app-id: 7F2CQZ9T84.com.companyname.mauispinepushsampleapp.SpineWidgets
+  ```
+
+  Exakt samma kommando föll före fixen på `0xe8008015`.
+- **En förväxlingsbar granne.** Första försöket efter fixen föll i stället på `0xe8008014` för
+  `libSkiaSharp.framework` — en stale artefakt från inkrementella byggen, löst med `rm -rf bin obj`.
+  Den står nu i wikins felsökningstabell bredvid `0xe8008015`, eftersom de är lätta att blanda ihop.
 
 ## Decisions
 
@@ -111,3 +123,13 @@ App ID och en egen profil, plus felkoden `0xe8008015` i felsökningstabellen så
   där, och skriptet finns redan som enda ställe som rör extensionens bundle.
 - **Fela, inte varna** — efter avstämning. Ett signerat device-bygge utan profil i extensionen ger en
   app som garanterat inte går att installera, så ett lyckat bygge vore ett falskt kvitto.
+- **Dokumentationen skrevs efter verifieringen, inte före.** Påståendet om App Group på båda App ID:na
+  hade varit en gissning fram till att kedjan faktiskt gick igenom. Wikin beskriver nu ett recept som
+  är genomfört, inte härlett.
+
+## Dokumentation
+
+`docs/wiki/widgets.md`: nytt avsnitt "Register the extension in the developer portal, for device
+builds" med de fyra delarna och varför wildcard inte duger, `SpineWidgetsCodesignProvision` i
+property-tabellen, en not om att ändrade capabilities ogiltigförklarar profiler, och tre nya rader i
+felsökningstabellen — den nya byggfelsraden samt `0xe8008015` och `0xe8008014`.

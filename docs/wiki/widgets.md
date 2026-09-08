@@ -61,6 +61,7 @@ On iOS the items become the widget extension; on Android they become manifest en
 | `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. |
 | `SpineWidgetsMinimumOSVersion` | `17.0` | Deployment target of the extension. |
 | `SpineWidgetsExtensionName` | `SpineWidgets` | Bundle name of the appex. |
+| `SpineWidgetsCodesignProvision` | *(empty)* | Names the extension's own provisioning profile. Empty means the installed profile whose App ID matches is used. |
 | `SpineWidgetsEnabled` | `true` | Set to `false` to build the app without the extension. |
 
 ### 3. Give the app the App Group entitlement
@@ -87,10 +88,27 @@ A sample that uses `<ProjectReference>` rather than the NuGet package also has t
 <Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 ```
 
+### 4. Register the extension in the developer portal, for device builds
+
+The extension is a bundle of its own, with its own bundle id — `$(ApplicationId).$(SpineWidgetsExtensionName)` — so Apple wants a separate App ID and a separate profile for it. A device build needs four things, not two:
+
+| | |
+|---|---|
+| App ID | the app's, with the capabilities the app uses |
+| App ID | the extension's, `com.example.myapp.SpineWidgets` |
+| App Group | one group, **enabled and assigned on both App IDs** |
+| Profiles | one per App ID, each including the device |
+
+Both App IDs need the group. The app alone is not enough: the extension carries the App Group entitlement too, and signing rejects an entitlement the profile does not grant. For the same reason a wildcard App ID cannot be used — wildcards cannot enable App Groups.
+
+Spine copies the extension's profile into the `.appex` before signing. The .NET iOS SDK does not: it embeds a profile in the app bundle only, and an extension contributed through `AdditionalAppExtensions` gets signed without one. Point `SpineWidgetsCodesignProvision` at a profile by name when several match; otherwise the build takes the installed profile whose App ID matches, preferring the one that expires last.
+
+Changing capabilities on an App ID invalidates every profile that includes it — the portal says so when you save. Regenerate and download them again, or the build picks up an invalid one.
+
 ### Build requirements
 
 - **macOS with Xcode for iOS.** The extension and the bridge are compiled with `swiftc` during the iOS build (a few seconds); everything else is untouched. The Android build needs nothing beyond the SDK and runs on any host.
-- **A real App Group in the provisioning profile** for device and TestFlight builds. Simulator builds sign ad hoc and need no identity — the targets set `CodesignKey=-` themselves when none is configured.
+- **A real App Group in the provisioning profile** for device and TestFlight builds, on both App IDs — see [above](#4-register-the-extension-in-the-developer-portal-for-device-builds). Simulator builds sign ad hoc and need no identity — the targets set `CodesignKey=-` themselves when none is configured.
 - Only iOS **inner** builds (those with a `RuntimeIdentifier`) run the native step. Design-time builds, other platforms and Windows hosts skip it entirely.
 
 ---
@@ -408,6 +426,9 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 | `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. On Android: the notification permission was denied, or the device is older than Android 16. |
 | Build error about the App Group | The app's `CodesignEntitlements` does not list the group; see [setup](#3-give-the-app-the-app-group-entitlement). |
 | `SIGKILL (Code Signature Invalid)` at launch | A stale app bundle. Delete `bin/…/<App>.app` and `obj/…/<rid>/codesign` and build again. |
+| Build error naming the extension's App ID and App Group | No installed profile matches `$(ApplicationId).$(SpineWidgetsExtensionName)`; see [setup](#4-register-the-extension-in-the-developer-portal-for-device-builds). The build stops here rather than producing an app that cannot install. |
+| `0xe8008015` — *A valid provisioning profile for this executable was not found* | An older build, from before Spine embedded the extension's profile. The message names the app, but the bundle without a profile is the `.appex` inside it. |
+| `0xe8008014` — *The executable contains an invalid signature* | Usually a stale artefact from an interrupted or incremental build, often naming a framework such as `libSkiaSharp.framework`. `rm -rf bin obj` and build again. |
 
 ---
 
