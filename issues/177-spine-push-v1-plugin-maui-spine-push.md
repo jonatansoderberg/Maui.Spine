@@ -91,9 +91,18 @@ Och en sak som **inte** går att verifiera här: `xcrun simctl push` levererar i
 - `NotificationDelegate` sätter `UNUserNotificationCenter.Delegate`: `WillPresentNotification` frågar appens handler och översätter `PushPresentation`, `DidReceiveNotificationResponse` kör `OnOpenedAsync` på huvudtråden.
 - Kallstart från en push hålls i en kö tills MAUI-värden finns, och töms i `FinishedLaunching`.
 
+### Steg 3 — Android
+
+- `AndroidPushPlatform` — status ur `NotificationManagerCompat.AreNotificationsEnabled()`, rättighet via `Permissions.PostNotifications` från API 33, token ur `FirebaseMessaging.Instance.GetToken()`.
+- `SpinePushMessagingService : FirebaseMessagingService` med `MESSAGING_EVENT`-filtret. `OnNewToken` registrerar om direkt — en roterad token är värdelös tills backend hört den.
+- `PushNotifications` ritar notisen: `NotificationCompat`, `BigTextStyle`, kanal från `spine.channel`, liten ikon från drawablen `spine_push_icon` med appikonen som fallback, och en `PendingIntent` som bär meddelandets data. Ett `spine.collapse` ersätter notisen på skärmen i stället för att lägga en till.
+- Kanalerna skapas i `OnApplicationCreate`. Ett tapp läses tillbaka ur intentets extras i `OnCreate` och `OnNewIntent`.
+- Beroendet `Xamarin.Firebase.Messaging` 125.1.1.1, bara på Android.
+
 ## Decisions
 
 - **MAUI:s lifecycle-API saknar krokarna, verifierat.** En probe som anropar `RegisteredForRemoteNotifications`, `FailedToRegisterForRemoteNotifications`, `DidReceiveRemoteNotification` och `WillPresentNotification` på `IiOSLifecycleBuilder` ger fyra `CS1061` mot MAUI 10.0.50. Issuets påstående stämmer, och `class_addMethod` eller overrides är alltså de enda vägarna.
+- **Android har ingen "provisional", och `Denied` täcker två fall.** En användare som tackade nej och en som stängt av notiser i inställningarna ser likadana ut genom `AreNotificationsEnabled()`. Att skilja dem åt skulle kräva att paketet minns vad som frågats, och appen ska göra samma sak i båda fallen: visa vägen till inställningarna. Alltså `Denied` för båda.
 - **Meddelanden som kommer före appen köas.** En kallstart från en push når `didReceiveRemoteNotification:` innan `CreateMauiApp` returnerat, så det finns ingen `IServiceProvider` att fråga. Payloaden och dess completion-handler läggs i en statisk kö och töms när `FinishedLaunching` kört. Alternativet, att svara `NoData` och tappa meddelandet, hade gjort just kallstartsfallet — det vanligaste när någon trycker på en notis — till det enda som inte fungerar.
 - **`Route` navigeras av appen, inte av paketet.** Förstudien säger att routen är "en Spine-route som `INavigationService` kan öppna", men `INavigationService` är helt generisk — `NavigateToAsync<TPage>()` — och har ingen uppslagning från sträng till sida. Att lägga till en vore en ny funktion i kärnan, utanför det här issuet. Paketet levererar därför routen till `IPushHandler.OnOpenedAsync`, precis som widgetarna lämnar sin länk till `IWidgetLinkHandler`. Samma mönster, och appen behåller kontrollen.
 - **Registrering hoppas över när ingenting rört sig.** Ett fingeravtryck över token, taggar, versioner och Live Activity-tokens jämförs mot det senast skickade; `UpdatedAt` och `ExpiresAt` ingår inte, eftersom de ändras vid varje bygge och skulle göra jämförelsen meningslös. En dygnspuls skickar ändå, så servern ser att enheten lever.
