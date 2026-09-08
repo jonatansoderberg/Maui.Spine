@@ -209,7 +209,9 @@ public sealed class EventorSource(EventorClient _client, ResponseCache _cache, I
         bool splits = false,
         CancellationToken cancellationToken = default)
     {
-        if (personId.Length == 0)
+        // Eventors person-id är ett tal. Ett anrop med något annat är inte en tom fråga utan en
+        // felformad, och den ska inte tas ut på den som frågar som ett 502.
+        if (personId.Length == 0 || !personId.All(char.IsAsciiDigit))
             return [];
 
         var ids = string.Join(',', events.Select(e => e.Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));

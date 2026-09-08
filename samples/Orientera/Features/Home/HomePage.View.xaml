@@ -420,6 +420,9 @@
                         <Label Style="{StaticResource BodySecondaryLabel}"
                                HorizontalTextAlignment="Center"
                                Text="Tävlingar du sparat offline finns kvar under Tävlingar — PM, din starttid och arenan fungerar utan nätverk." />
+                        <Label Style="{StaticResource CaptionLabel}"
+                               HorizontalTextAlignment="Center"
+                               Text="{Binding OfflineReason}" />
                         <Button Style="{StaticResource SecondaryButton}"
                                 HorizontalOptions="Center"
                                 Text="Försök igen"

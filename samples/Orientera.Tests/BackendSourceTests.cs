@@ -383,6 +383,28 @@ public class MyResultsThroughTheSourceTests
         Assert.Empty(await source.GetResultsForPersonAsync(new PersonId("me:abc123")));
     }
 
+    /// <summary>
+    /// The demo dataset's runners have ids of their own, and they are not Eventor's. Asking the
+    /// API about "p-elin" made the backend answer 502, which the home page rendered as "no
+    /// connection" — on a phone whose network was fine.
+    /// </summary>
+    [Theory]
+    [InlineData("p-elin")]
+    [InlineData("me:abc123")]
+    [InlineData("")]
+    public async Task Only_a_numeric_Eventor_id_is_asked_about(string id)
+    {
+        var source = new BackendSource(
+            new HttpClient(new BackendHandler(Season)) { BaseAddress = new Uri("http://localhost/api/") },
+            new FakeDataSource(new TimeMachineClock(FakeDataset.DefaultNow)),
+            new LocalIdentityStore(Path.Combine(Path.GetTempPath(), $"id-{Guid.NewGuid():N}.json")),
+            new LocalGroupStore(Path.Combine(Path.GetTempPath(), $"grp-{Guid.NewGuid():N}.json")),
+            new EventorReader(new HttpClient(new OfflineHandler()), new EventorSessionStore(
+                Path.Combine(Path.GetTempPath(), $"empty-{Guid.NewGuid():N}.json"))));
+
+        Assert.Empty(await source.GetResultsForPersonAsync(new PersonId(id)));
+    }
+
     /// <summary>The backend answers the results question; nothing else is asked of it here.</summary>
     private sealed class BackendHandler(string json) : HttpMessageHandler
     {
