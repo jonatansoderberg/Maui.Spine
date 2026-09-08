@@ -99,6 +99,15 @@ public static class MauiProgram
         builder.Configuration.AddJsonStream(
             typeof(MauiProgram).Assembly.GetManifestResourceStream("Orientera.appsettings.json")!);
 
+        // appsettings.local.json is git-ignored and embedded only when it exists. It is how a
+        // developer points the app at their own machine — a phone cannot reach "localhost", and
+        // the address of somebody's laptop has no business in the repository.
+        if (typeof(MauiProgram).Assembly.GetManifestResourceStream("Orientera.appsettings.local.json")
+            is { } local)
+        {
+            builder.Configuration.AddJsonStream(local);
+        }
+
         // Android-emulatorn når värddatorn på 10.0.2.2; localhost är emulatorn själv.
         var backendAddress = builder.Configuration[DeviceInfo.Platform == DevicePlatform.Android
             ? "Backend:BaseAddressAndroid"

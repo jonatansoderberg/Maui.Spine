@@ -366,3 +366,6 @@ FodyWeavers.xsd
 
 # Azure Functions local settings (secrets)
 local.settings.json
+
+# Utvecklarens egen backend-adress för körning mot telefon
+samples/Orientera/appsettings.local.json
