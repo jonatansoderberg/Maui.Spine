@@ -23,6 +23,16 @@ public partial class TagsPageViewModel(IPushService _push, PushLog _log) : ViewM
     [ObservableProperty]
     public partial string Extra { get; set; } = "";
 
+    /// <summary>
+    /// What came of saving. Tags are kept locally whatever the backend says, so without this the
+    /// switches look applied on a device the server has never heard of.
+    /// </summary>
+    [ObservableProperty]
+    public partial string Result { get; set; } = "";
+
+    [ObservableProperty]
+    public partial bool HasResult { get; set; }
+
     public override Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
         var current = _push.Tags.ToHashSet(StringComparer.Ordinal);
@@ -48,7 +58,19 @@ public partial class TagsPageViewModel(IPushService _push, PushLog _log) : ViewM
         tags.AddRange(Extra
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
-        await _push.SetTagsAsync(tags);
-        _log.Note("tags", tags.Count == 0 ? "cleared" : string.Join(", ", tags));
+        var result = await _push.SetTagsAsync(tags);
+        var applied = tags.Count == 0 ? "cleared" : string.Join(", ", tags);
+
+        _log.Note("tags", $"{applied} — {HomePageViewModel.Describe(result)}");
+
+        Result = result switch
+        {
+            PushRegistrationResult.Sent => "Sparat, och servern har dem.",
+            PushRegistrationResult.NoToken => "Sparat lokalt. Ingen token, så servern har dem inte.",
+            PushRegistrationResult.NoBackend => "Sparat lokalt. Ingen backend är konfigurerad.",
+            PushRegistrationResult.Failed => "Sparat lokalt. Servern nekade, eller gick inte att nå.",
+            _ => "Sparat lokalt. Inget behövde skickas.",
+        };
+        HasResult = true;
     }
 }

@@ -23,7 +23,7 @@
             <Entry Text="{Binding TagExpression}" IsEnabled="{Binding ToTags}" />
 
             <Label Text="Titel" />
-            <Entry Text="{Binding Title}" />
+            <Entry Text="{Binding NotificationTitle}" />
 
             <Label Text="Text" />
             <Entry Text="{Binding Body}" />

@@ -63,12 +63,12 @@ public static class MauiProgram
         .Build();
 
     /// <summary>
-    /// The Android emulator reaches the host machine on 10.0.2.2, not localhost, so the settings hold
-    /// both and the right one is picked here.
+    /// Both platforms reach the server on localhost. The iOS simulator shares the Mac's network, and
+    /// Android — emulator or a phone on a cable — gets there through <c>adb reverse tcp:5100
+    /// tcp:5100</c>. The 10.0.2.2 alias is deliberately not used: it is the qemu gateway on the
+    /// emulator's <c>eth0</c>, while app traffic goes over <c>wlan0</c>, where the same address is
+    /// the emulated router and never reaches the host.
     /// </summary>
     private static string Address(IConfiguration settings, string key) =>
-        (DeviceInfo.Current.Platform == DevicePlatform.Android && DeviceInfo.Current.DeviceType == DeviceType.Virtual
-            ? settings[$"{key}Android"]
-            : settings[key])
-        ?? throw new InvalidOperationException($"appsettings.json has no {key}.");
+        settings[key] ?? throw new InvalidOperationException($"appsettings.json has no {key}.");
 }

@@ -17,7 +17,14 @@ API on `Plugin.Maui.Spine.Server` with an in-memory register.
 
 ```bash
 cd samples/MauiSpinePushSampleApp.Server && dotnet run     # then run the app
+adb reverse tcp:5100 tcp:5100                              # Android only, once per device
 ```
+
+The app reaches the server on `localhost:5100` from both platforms: the iOS simulator shares the
+Mac's network, and Android gets there through `adb reverse` — emulator or a phone on a cable alike.
+Do not reach for `10.0.2.2`. It is the qemu gateway on the emulator's `eth0`, but app traffic goes
+over `wlan0`, where the same address is the emulated router and never reaches the host; the send
+fails with a bare `Connection failure` that says nothing about why.
 
 The server starts without any credentials: it can register devices and answer `/installations`
 straight away, and says so when a send reaches nobody because no platform is configured. Add an APNs
@@ -126,9 +133,29 @@ Spine adds `platform:`, `os:` and `app:` tags of its own, so a sender can addres
 version without the app doing anything.
 
 Registration goes out at launch and on every foreground, but only when something actually changed —
-token, tags, versions, Live Activity tokens — plus once a day so the server can see the device is
-alive. The installation id lives in secure storage and survives token changes and reinstalls of the
-same app.
+token, tags, versions, Live Activity tokens — plus once every `Confirm` (15 minutes by default) so
+the server can see the device is alive. The installation id lives in secure storage and survives
+token changes and reinstalls of the same app.
+
+`RefreshAsync` and the three tag methods answer with a `PushRegistrationResult`, so an app can tell
+the cases apart instead of guessing at a `false`:
+
+| | |
+|---|---|
+| `Sent` | The backend has it. |
+| `Unchanged` | Nothing had changed and the confirm window had not run out. |
+| `NoBackend` | No `Backend` is configured. |
+| `NoToken` | The platform has not issued a token — read `IPushService.Token` to see. |
+| `Failed` | The backend refused it, or could not be reached. |
+
+Tags are kept locally whatever the answer, so a `NoToken` leaves the app subscribed to things the
+server does not know about. Show the answer rather than swallowing it.
+
+`RefreshAsync(force: true)` sends even when nothing changed. That is for the one case the
+fingerprint cannot see: a register that lost the row — a recreated container, a restored backup, a
+restarted dev server. Nothing on the wire tells a device it is no longer registered, so an app that
+offers the user a "register again" needs this; without it the button does nothing until the confirm
+window runs out.
 
 ---
 
@@ -193,10 +220,12 @@ JSON
 xcrun simctl push booted se.cosmomedia.orientera alert.json
 ```
 
-Two things the simulator will not do: it issues no device token, and it does not deliver silent
-(`content-available`) pushes — a normally declared `didReceiveRemoteNotification:` implementation is
-not called either, so that is the simulator and not your code. Both need a physical device with a
-profile and the push entitlement.
+What the simulator will not do is deliver silent (`content-available`) pushes — a normally declared
+`didReceiveRemoteNotification:` implementation is not called either, so that is the simulator and
+not your code. That needs a physical device with a profile and the push entitlement.
+
+It does issue a device token on Apple silicon, and registration against a local backend works from
+it, so everything up to the actual APNs delivery can be exercised without a phone.
 
 On Android, Firebase Console → Messaging → "Send test message" against a token reaches the service,
 and the data keys go under "Additional options". An emulator with a Google Play image works.

@@ -23,8 +23,12 @@ public partial class SendPageViewModel(SampleServer _server, IPushService _push,
     [ObservableProperty]
     public partial string TagExpression { get; set; } = "kind:news";
 
+    /// <summary>
+    /// The notification's title, not the page's. Named apart from <c>ViewModelBase.Title</c>, which
+    /// is what the header bar shows.
+    /// </summary>
     [ObservableProperty]
-    public partial string Title { get; set; } = "Hej från sample-servern";
+    public partial string NotificationTitle { get; set; } = "Hej från sample-servern";
 
     [ObservableProperty]
     public partial string Body { get; set; } = "Det här kom över push.";
@@ -52,7 +56,7 @@ public partial class SendPageViewModel(SampleServer _server, IPushService _push,
             kind = Kind,
             targetKind = ToMe ? "installation" : "tags",
             target = ToMe ? await _push.GetInstallationIdAsync() : TagExpression,
-            title = Title,
+            title = NotificationTitle,
             body = Body,
             route = string.IsNullOrWhiteSpace(Route) ? null : Route,
             channel = string.IsNullOrWhiteSpace(Channel) ? null : Channel,
