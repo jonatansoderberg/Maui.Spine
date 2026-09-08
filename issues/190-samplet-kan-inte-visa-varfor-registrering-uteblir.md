@@ -96,3 +96,23 @@ Bootad iPhone 17-simulator och Pixel 10 Pro-emulator (API 36), mot sample-server
 - Med fördröjningen på: Skicka, hem, och notisen kommer fem sekunder senare — utan den kapplöpning
   det annars är mellan tummen och FCM.
 - 163 tester gröna, `Plugin.Maui.Spine.Push` bygger på alla TFM:er, Orientera bygger.
+
+### Fysisk iPhone, hela kedjan
+
+Med ett riktigt Firebase-projekt och en APNs-nyckel gick kedjan hela vägen på båda plattformarna,
+vilket #180 lämnade öppet.
+
+- **Android**, Pixel 10 Pro-emulator: FCM-token, registrering, taggar synkade, och `POST /send`
+  levererade en notis. Utan ett riktigt `google-services.json` finns ingen token — det är det Hem-
+  sidans nya rad talar om.
+- **iPhone 16 Pro**, fysisk enhet: App ID med Push och en development-profil, `env=Sandbox`,
+  `sent 1, failed 0` två gånger, och notisen kom fram på låsskärmen. Att `Environment` blir
+  `Sandbox` för ett Debug-bygge är precis vad servern behöver för att välja rätt APNs-host.
+
+### Öppet fynd, inte åtgärdat här
+
+En app med `Plugin.Maui.Spine.Widgets` går inte att installera på en fysisk enhet utan att man
+själv skapar App ID och provisioneringsprofil för widget-extensionen. Targeten lägger till den via
+`AdditionalAppExtensions` utan att bädda in någon profil, och installationen faller på
+`0xe8008015 — A valid provisioning profile for this executable was not found`, som inte säger
+vilken av de två bundlarna som saknar en. Kringgicks här med `-p:SpineWidgetsEnabled=false`.
