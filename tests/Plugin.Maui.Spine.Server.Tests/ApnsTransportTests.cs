@@ -133,7 +133,9 @@ public class ApnsTransportTests
 
     [Theory]
     [InlineData(HttpStatusCode.BadRequest, "BadDeviceToken", PushStatus.Invalid)]
-    [InlineData(HttpStatusCode.BadRequest, "DeviceTokenNotForTopic", PushStatus.Invalid)]
+    // Not Invalid: the token is alive, the send used the wrong topic. Removing the registration
+    // over it would unregister a working device.
+    [InlineData(HttpStatusCode.BadRequest, "DeviceTokenNotForTopic", PushStatus.Failed)]
     [InlineData(HttpStatusCode.Gone, "Unregistered", PushStatus.Invalid)]
     [InlineData(HttpStatusCode.TooManyRequests, "TooManyRequests", PushStatus.Throttled)]
     [InlineData(HttpStatusCode.ServiceUnavailable, null, PushStatus.Throttled)]

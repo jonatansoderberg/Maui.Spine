@@ -36,6 +36,16 @@ public class PushSenderTests
         Id = id, Platform = platform, Handle = $"handle-{id}", Tags = tags, UpdatedAt = Now,
     };
 
+    /// <summary>An installation that is running the activity, so Apple has a token to address.</summary>
+    private static PushInstallation Running(PushInstallation installation, string kind) => installation with
+    {
+        LiveActivities = new LiveActivityTokens
+        {
+            PushToStart = $"start-{installation.Id}",
+            Activities = new Dictionary<string, string> { [kind] = $"activity-{installation.Id}" },
+        },
+    };
+
     private static SpinePushOptions Options() => new SpinePushOptions()
         .Apple(a =>
         {
@@ -154,7 +164,7 @@ public class PushSenderTests
     public async Task A_live_activity_update_goes_out_on_both_platforms()
     {
         var (sender, store, apple, android) = NewSender();
-        await store.UpsertAsync(Installation("ios", PushPlatform.Apple, "user:1"));
+        await store.UpsertAsync(Running(Installation("ios", PushPlatform.Apple, "user:1"), "din-start:59691"));
         await store.UpsertAsync(Installation("droid", PushPlatform.Android, "user:1"));
 
         var layout = new LiveActivityLayout { LockScreen = W.Text("Ute på banan") };
@@ -163,6 +173,51 @@ public class PushSenderTests
         Assert.Equal("liveactivity", apple.Envelope!.ApnsPushType);
         Assert.Contains("din-start:59691", apple.Envelope.Json);
         Assert.Contains("din-start:59691", android.Envelope!.Json);
+    }
+
+    [Fact]
+    public async Task A_live_activity_update_is_addressed_to_the_activitys_own_token()
+    {
+        var (sender, store, apple, _) = NewSender();
+        await store.UpsertAsync(Running(Installation("ios", PushPlatform.Apple, "user:1"), "din-start:59691"));
+
+        await sender.UpdateLiveActivityAsync(
+            PushTarget.User("1"), "din-start:59691", new LiveActivityLayout { LockScreen = W.Text("x") });
+
+        Assert.Equal("activity-ios", Assert.Single(apple.Reached).Handle);
+    }
+
+    [Fact]
+    public async Task A_live_activity_start_is_addressed_to_the_push_to_start_token()
+    {
+        var (sender, store, apple, _) = NewSender();
+        await store.UpsertAsync(Running(Installation("ios", PushPlatform.Apple, "user:1"), "din-start:59691"));
+
+        await sender.StartLiveActivityAsync(
+            PushTarget.User("1"), "din-start:59691",
+            new LiveActivityLayout { LockScreen = W.Text("x") }, new PushAlert { Title = "t" });
+
+        Assert.Equal("start-ios", Assert.Single(apple.Reached).Handle);
+    }
+
+    /// <summary>
+    /// The device token is not accepted on the liveactivity topic, so sending it there earns
+    /// DeviceTokenNotForTopic. Saying so beats letting Apple say it in a way that reads like a dead
+    /// registration.
+    /// </summary>
+    [Fact]
+    public async Task A_live_activity_for_an_installation_without_a_token_is_reported_not_sent()
+    {
+        var (sender, store, apple, _) = NewSender();
+        await store.UpsertAsync(Installation("ios", PushPlatform.Apple, "user:1"));
+
+        var result = await sender.UpdateLiveActivityAsync(
+            PushTarget.User("1"), "din-start:59691", new LiveActivityLayout { LockScreen = W.Text("x") });
+
+        Assert.Null(apple.Envelope);
+        var delivery = Assert.Single(result.Deliveries);
+        Assert.Equal(PushStatus.Failed, delivery.Status);
+        Assert.Equal("NoLiveActivityToken", delivery.Reason);
     }
 
     [Fact]

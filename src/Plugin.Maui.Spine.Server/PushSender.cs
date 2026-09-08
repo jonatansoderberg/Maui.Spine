@@ -65,6 +65,13 @@ public sealed class PushSender(
             _ => null,
         }, cancellationToken);
 
+    /// <summary>
+    /// Said when the installation has no token for what is being sent. A Live Activity is addressed
+    /// by its own token, which only exists while it runs — or by the push-to-start token, which the
+    /// device only has on iOS 17.2 and later.
+    /// </summary>
+    private const string NoToken = "NoLiveActivityToken";
+
     private string BundleId =>
         options.AppleOptions?.BundleId
         ?? throw new InvalidOperationException("Apple(...) is not configured, so no bundle id is available.");
@@ -80,11 +87,29 @@ public sealed class PushSender(
             PushPlatform.Apple => PushPayloads.ApnsLiveActivity(kind, layout, @event, alert, activityOptions, BundleId, now),
             PushPlatform.Android => PushPayloads.FcmLiveActivity(kind, layout, @event, activityOptions),
             _ => null,
-        }, cancellationToken);
+        }, cancellationToken, Address);
+
+        // Apple's liveactivity topic accepts only the activity's own token: a device token there is
+        // rejected with DeviceTokenNotForTopic. Android has no separate token — Spine renders the
+        // activity as a notification, so the device token is the right one.
+        string? Address(PushPlatform platform, PushInstallation installation) => platform switch
+        {
+            PushPlatform.Apple when @event == LiveActivityEvent.Start => installation.LiveActivities?.PushToStart,
+            PushPlatform.Apple => installation.LiveActivities?.Activities.GetValueOrDefault(kind),
+            _ => installation.Handle,
+        };
     }
 
+    /// <param name="address">
+    /// Which token to send to, when it is not the device token. An installation it answers
+    /// <see langword="null"/> for cannot be addressed at all and is reported rather than sent with
+    /// the wrong one — the mistake that produces APNs' DeviceTokenNotForTopic.
+    /// </param>
     private async Task<PushResult> DispatchAsync(
-        PushTarget target, Func<PushPlatform, PushEnvelope?> build, CancellationToken cancellationToken)
+        PushTarget target,
+        Func<PushPlatform, PushEnvelope?> build,
+        CancellationToken cancellationToken,
+        Func<PushPlatform, PushInstallation, string?>? address = null)
     {
         ArgumentNullException.ThrowIfNull(target);
 
@@ -98,7 +123,23 @@ public sealed class PushSender(
             if (!_transports.TryGetValue(platform, out var transport)) continue;
             if (build(platform) is not { } envelope) continue;
 
-            var sent = await transport.SendAsync(installations, envelope, cancellationToken);
+            var addressed = installations;
+
+            if (address is not null)
+            {
+                addressed = [];
+                foreach (var installation in installations)
+                {
+                    if (address(platform, installation) is { Length: > 0 } token)
+                        addressed.Add(installation with { Handle = token });
+                    else
+                        deliveries.Add(new PushDelivery(installation.Id, platform, PushStatus.Failed, NoToken));
+                }
+
+                if (addressed.Count == 0) continue;
+            }
+
+            var sent = await transport.SendAsync(addressed, envelope, cancellationToken);
             deliveries.AddRange(sent);
         }
 
