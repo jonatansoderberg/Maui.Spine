@@ -6,6 +6,7 @@ set -euo pipefail
 
 OUT=""; SOURCES=""; SDK="iphonesimulator"; ARCH="arm64"; MIN_OS="17.0"; CONFIG="Debug"
 BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; URL_SCHEME=""; LIVE="true"; BACKGROUND="true"; FREQUENT="false"
+PROVISION=""; REQUIRE_PROVISION="false"
 WIDGETS=()
 
 while [[ $# -gt 0 ]]; do
@@ -24,6 +25,8 @@ while [[ $# -gt 0 ]]; do
     --live-activities) LIVE="$2"; shift 2;;
     --background-refresh) BACKGROUND="$2"; shift 2;;
     --frequent-updates) FREQUENT="$2"; shift 2;;
+    --provision) PROVISION="$2"; shift 2;;
+    --require-provision) REQUIRE_PROVISION="$2"; shift 2;;
     --widget) WIDGETS+=("$2"); shift 2;;
     *) echo "spine-widgets-build.sh: unknown argument $1" >&2; exit 2;;
   esac
@@ -249,10 +252,71 @@ xcrun appintentsmetadataprocessor \
 rm -rf "$OUT/dSYM"; mkdir -p "$OUT/dSYM"
 for d in "$APPEX"/*.dSYM "$FRAMEWORK"/*.dSYM; do [[ -e "$d" ]] && mv "$d" "$OUT/dSYM/"; done
 
+# --- The extension's own provisioning profile ---------------------------------------------------
+# The .NET iOS SDK embeds a profile into the app bundle only (_EmbedProvisionProfile writes
+# $(_AppBundlePath)embedded.mobileprovision); nothing does it for an AdditionalAppExtensions bundle.
+# Without one inside the .appex the whole app fails to install with 0xe8008015, naming the app and
+# not the extension. So Spine puts it there, since Spine is what generates the bundle.
+#
+# Only an exact match counts. The extension carries an App Group entitlement, and a wildcard App ID
+# cannot enable App Groups, so a wildcard profile that "matches" would fail at signing anyway.
+find_profile() {
+  local dir="$HOME/Library/MobileDevice/Provisioning Profiles"
+  local best="" best_expiry="" p plist name appid expiry
+
+  [[ -d "$dir" ]] || return 1
+
+  for p in "$dir"/*.mobileprovision; do
+    [[ -e "$p" ]] || continue
+    plist=$(security cms -D -i "$p" 2>/dev/null) || continue
+
+    appid=$(printf '%s' "$plist" | plutil -extract Entitlements.application-identifier raw - 2>/dev/null) || continue
+    # application-identifier is <TeamID>.<bundle id>, and a team id holds no dots.
+    [[ "${appid#*.}" == "$BUNDLE_ID" ]] || continue
+
+    if [[ -n "$PROVISION" ]]; then
+      name=$(printf '%s' "$plist" | plutil -extract Name raw - 2>/dev/null) || continue
+      [[ "$name" == "$PROVISION" ]] || continue
+    fi
+
+    expiry=$(printf '%s' "$plist" | plutil -extract ExpirationDate raw - 2>/dev/null) || continue
+    if [[ -z "$best" || "$expiry" > "$best_expiry" ]]; then best="$p"; best_expiry="$expiry"; fi
+  done
+
+  [[ -n "$best" ]] || return 1
+  printf '%s' "$best"
+}
+
+if [[ "$SDK" == "iphoneos" ]]; then
+  if PROFILE=$(find_profile); then
+    cp "$PROFILE" "$APPEX/embedded.mobileprovision"
+    echo "spine-widgets-build.sh: embedded $(basename "$PROFILE") for $BUNDLE_ID"
+  elif [[ "$REQUIRE_PROVISION" == "true" ]]; then
+    {
+      echo "spine-widgets-build.sh: no provisioning profile for the widget extension."
+      echo ""
+      echo "  The extension is a bundle of its own and needs its own App ID and profile:"
+      echo ""
+      echo "    App ID     $BUNDLE_ID"
+      echo "    App Group  $APP_GROUP, enabled on that App ID and on the app's"
+      echo "    Profile    a development profile for it, including the device"
+      echo ""
+      if [[ -n "$PROVISION" ]]; then
+        echo "  SpineWidgetsCodesignProvision is '$PROVISION'; no installed profile has that name"
+        echo "  and that App ID. Leave it empty to take whichever installed profile matches."
+      else
+        echo "  Install it, then build again. Name a specific one with SpineWidgetsCodesignProvision."
+      fi
+      echo "  Set SpineWidgetsEnabled=false to build this app without widgets."
+    } >&2
+    exit 3
+  fi
+fi
+
 # Sign here, even though the SDK signs again after copying these into the app bundle: it copies and
 # signs in two separate steps, so an unsigned bundle in obj/ is one interrupted build away from an
 # app that dies in dyld with "Code Signature Invalid". Ad hoc is enough — a device build re-signs
-# with the real identity.
+# with the real identity, and the profile embedded above survives that.
 codesign --force --sign - --timestamp=none "$FRAMEWORK"
 codesign --force --sign - --timestamp=none --entitlements "$OUT/$NAME.entitlements" "$APPEX"
 
