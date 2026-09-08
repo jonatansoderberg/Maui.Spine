@@ -30,7 +30,15 @@ var appleKeyId = builder.AddParameter("apple-key-id");
 var appleBundleId = builder.AddParameter("apple-bundle-id");
 var applePrivateKey = builder.AddParameter("apple-private-key", secret: true);
 
+// Bygg inte om Orientera.Backend medan apphosten kör. Aspire startar den med --no-build, och ett
+// bygge byter ut assemblies under den levande workern: värden lever vidare och svarar 200 på
+// /admin/functions, medan varje funktionsanrop ger 500 med tom kropp, för alltid. Kör om
+// `dotnet run --project samples/Orientera.AppHost` efter ett bygge — den bygger själv.
+//
+// WithHttpHealthCheck gör just det synligt: resursen blir röd i dashboarden i stället för att se
+// frisk ut medan ingenting fungerar.
 builder.AddAzureFunctionsProject<Projects.Orientera_Backend>("backend")
+    .WithHttpHealthCheck("/api/health")
     .WithHostStorage(storage)
     .WithReference(tables)
     .WithReference(queues)
