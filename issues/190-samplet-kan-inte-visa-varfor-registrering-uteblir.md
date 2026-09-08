@@ -1,6 +1,7 @@
-# Push-samplet: fynd från en genomkörning på simulator och emulator
+# Issue #190 — Spine.Push: samplet kan inte visa varför en registrering uteblir
 
-**Branch:** push/sample-och-api-fynd
+**GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/190
+**Branch:** issue/190-samplet-kan-inte-visa-varfor-registrering-uteblir
 **Status:** Completed
 
 ## Bakgrund
