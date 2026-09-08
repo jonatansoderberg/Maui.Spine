@@ -61,9 +61,22 @@ public sealed class PushFunctions(
             // registered now, and the ones that were have it already.
             await _announced.MarkAsync(Kind, competition.Id, now, cancellationToken);
 
-            _logger.LogInformation(
-                "Results published for {Competition}: {Sent} sent, {Invalid} invalid, {Failed} failed.",
-                competition.Id.Value, result.Sent, result.Invalid, result.Failed);
+            // A competition nobody is registered for is not an error, but it is the shape a lost
+            // register takes: everything looks like it worked, and no phone ever hears anything.
+            // It is said out loud so that "push is broken" and "nobody asked for this one" can be
+            // told apart from the log alone.
+            if (result.Deliveries.Count == 0)
+            {
+                _logger.LogWarning(
+                    "Results published for {Competition}, but no installation matched {Target}.",
+                    competition.Id.Value, $"kind:{Kind} && competition:{competition.Id.Value}");
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Results published for {Competition}: {Sent} sent, {Invalid} invalid, {Failed} failed.",
+                    competition.Id.Value, result.Sent, result.Invalid, result.Failed);
+            }
         }
     }
 }
