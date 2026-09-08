@@ -2,7 +2,8 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/180
 **Branch:** issue/180-spine-push-v1-sample-app-och-sample-server
-**Status:** In Progress
+**PR:** https://github.com/jonatansoderberg/Maui.Spine/pull/185
+**Status:** Completed
 
 ## Plan
 
