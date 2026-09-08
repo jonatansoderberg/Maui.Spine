@@ -27,6 +27,7 @@ Källdokumentet är den levande kravbilden; efter varje teknisk spike uppdateras
 | [krav/13-roadmap-spikes-dod.md](krav/13-roadmap-spikes-dod.md) | Fasning M0–M5, epics, tekniska spikes, DoD och mätetal |
 | [design/designprinciper.md](design/designprinciper.md) | **FÖRSLAG** — UI/UX-designprinciper att stämma av före implementation |
 | [implementation-plan.md](implementation-plan.md) | Detaljerad implementationsplan (M0 först) |
+| [push-uppsattning.md](push-uppsattning.md) | Push: vad som är registrerat hos Apple och Google, backendens nycklar, och vad som är kvar |
 
 ## Status
 
