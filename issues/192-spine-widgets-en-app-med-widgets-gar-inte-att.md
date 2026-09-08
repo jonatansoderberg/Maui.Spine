@@ -2,6 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/192
 **Branch:** issue/192-spine-widgets-en-app-med-widgets-gar-inte-att
+**PR:** https://github.com/jonatansoderberg/Maui.Spine/pull/193
 **Status:** Completed
 
 ## Plan
