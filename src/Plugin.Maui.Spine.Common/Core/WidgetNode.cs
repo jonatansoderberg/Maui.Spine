@@ -55,17 +55,22 @@ public abstract record TextLikeNode : WidgetNode
     [JsonIgnore]
     public TextStyle Style { get; init; }
 
+    // The three below are flattened views of Style, and each has an init accessor so a tree can be
+    // read back from its own JSON. Spine.Push needs that on Android, where a Live Update arrives as
+    // serialized layout in a data message and is rendered in the app's process. Without the setters
+    // the structure came back but every style fell to its default, silently.
+
     /// <summary>The text role, exposed flat for serialization.</summary>
     [JsonPropertyName("font")]
-    public TextRole Role => Style.Role;
+    public TextRole Role { get => Style.Role; init => Style = Style with { Role = value }; }
 
     /// <summary>Bold weight, exposed flat for serialization.</summary>
     [JsonPropertyName("bold")]
-    public bool Bold => Style.Bold;
+    public bool Bold { get => Style.Bold; init => Style = Style with { Bold = value }; }
 
     /// <summary>Foreground color, exposed flat for serialization.</summary>
     [JsonPropertyName("color")]
-    public WidgetColor? Color => Style.Color;
+    public WidgetColor? Color { get => Style.Color; init => Style = Style with { Color = value }; }
 
     /// <summary>Returns a copy of this node with <paramref name="style"/> applied.</summary>
     public abstract TextLikeNode WithStyle(TextStyle style);

@@ -146,7 +146,9 @@ PLIST
 } > "$APPEX/Info.plist"
 
 # --- Entitlements: the extension's own, and a host default when the app has none -----------------
-for target in "$OUT/$NAME.entitlements" "$OUT/Host.entitlements"; do
+# The host app's entitlements are written by the shared step in Plugin.Maui.Spine; only the
+# extension's own file is written here.
+for target in "$OUT/$NAME.entitlements"; do
   {
     write_plist_header
     cat <<PLIST

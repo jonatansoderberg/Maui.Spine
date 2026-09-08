@@ -26,4 +26,8 @@
     <Folder Include="Platforms\MacCatalyst\" />
   </ItemGroup>
 
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\;" />
+	</ItemGroup>
+
 </Project>

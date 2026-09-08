@@ -54,6 +54,17 @@ public static class WidgetJson
         JsonSerializer.Serialize(layout, WidgetJsonContext.Default.LiveActivityLayout);
 
     // Family keys are the JSON names of WidgetFamily; the Swift side switches on the same strings.
+    /// <summary>
+    /// Reads a layout back from the JSON <see cref="Serialize(LiveActivityLayout)"/> wrote. Spine.Push
+    /// uses it on Android, where a Live Update arrives as serialized layout in a data message and is
+    /// rendered in the app's own process.
+    /// </summary>
+    /// <param name="json">The serialized layout.</param>
+    /// <returns>The layout, or <see langword="null"/> when the JSON was <c>null</c>.</returns>
+    /// <exception cref="JsonException">The JSON is not a layout.</exception>
+    public static LiveActivityLayout? DeserializeLayout(string json) =>
+        JsonSerializer.Deserialize(json, WidgetJsonContext.Default.LiveActivityLayout);
+
     /// <summary>The JSON name of <paramref name="family"/>; the Swift side switches on the same strings.</summary>
     public static string FamilyKey(WidgetFamily family) => family switch
     {

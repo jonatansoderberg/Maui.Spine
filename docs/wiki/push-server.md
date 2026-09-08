@@ -5,7 +5,7 @@ expressions that address them, the transports that reach APNs and FCM, and the e
 registers through. It is a plain `net10.0` library — no MAUI — so an ASP.NET Core service or an
 Azure Functions isolated worker can reference it directly.
 
-The app half is `Plugin.Maui.Spine.Push`. The two share `Plugin.Maui.Spine.Common`, which is where
+The app half is [`Plugin.Maui.Spine.Push`](push.md). The two share `Plugin.Maui.Spine.Common`, which is where
 `PushInstallation`, the `spine.*` keys and the widget tree model live.
 
 ---

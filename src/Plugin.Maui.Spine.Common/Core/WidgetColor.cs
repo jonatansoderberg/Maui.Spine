@@ -51,14 +51,38 @@ public readonly record struct WidgetColor
     public static WidgetColor From(System.Drawing.Color color) =>
         FromHex($"#{color.R:X2}{color.G:X2}{color.B:X2}");
 
+    /// <summary>Reads back what <see cref="Value"/> wrote: a semantic name, or a hex color.</summary>
+    /// <param name="value">The serialized form.</param>
+    /// <returns>The color.</returns>
+    /// <exception cref="ArgumentException"><paramref name="value"/> is neither a known name nor a hex color.</exception>
+    public static WidgetColor Parse(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+
+        return value switch
+        {
+            "primary" => Primary,
+            "secondary" => Secondary,
+            "accent" => Accent,
+            "green" => Green,
+            "red" => Red,
+            "orange" => Orange,
+            "yellow" => Yellow,
+            "blue" => Blue,
+            _ => FromHex(value),
+        };
+    }
+
     /// <inheritdoc />
     public override string ToString() => Value;
 }
 
 internal sealed class WidgetColorJsonConverter : JsonConverter<WidgetColor>
 {
+    // Trees are read back as well as written since Spine.Push: on Android a Live Update arrives as
+    // serialized layout in a data message and is rendered in the app's process.
     public override WidgetColor Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-        throw new NotSupportedException("Widget trees are only ever serialized by the app.");
+        reader.GetString() is { Length: > 0 } value ? WidgetColor.Parse(value) : default;
 
     public override void Write(Utf8JsonWriter writer, WidgetColor value, JsonSerializerOptions options) =>
         writer.WriteStringValue(value.Value);

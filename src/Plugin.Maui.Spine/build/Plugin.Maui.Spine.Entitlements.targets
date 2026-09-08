@@ -1,0 +1,74 @@
+<Project>
+	<!--
+		Both Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.Push need keys in the host app's
+		entitlements: the App Group for the widget extension, aps-environment for push. Neither can own
+		the file — whichever wrote it last would erase the other's keys — so they contribute
+		<SpineEntitlement> items and this target writes the file once.
+
+		  <SpineEntitlement Include="aps-environment" Kind="string" Value="development" />
+		  <SpineEntitlement Include="com.apple.security.application-groups" Kind="array" Value="group.x" />
+		  <SpineEntitlement Include="com.apple.developer.usernotifications.time-sensitive" Kind="boolean" Value="true" />
+
+		A package that needs the file written adds DependsOnTargets="_SpineWriteEntitlements", so the
+		order does not depend on how MSBuild happens to sequence two BeforeTargets on the same target.
+
+		Consumed through a ProjectReference this file has to be imported explicitly, the same way
+		Plugin.Maui.Spine.Widgets.targets is; a PackageReference imports it on its own.
+	-->
+
+	<PropertyGroup>
+		<_SpineEntitlementsApplies Condition="($([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst') And '$(DesignTimeBuild)' != 'true'">true</_SpineEntitlementsApplies>
+	</PropertyGroup>
+
+	<Target Name="_SpineWriteEntitlements"
+			Condition="'$(_SpineEntitlementsApplies)' == 'true' And '@(SpineEntitlement)' != ''"
+			BeforeTargets="_DetectSigningIdentity;_CompileEntitlements">
+
+		<!--
+			An app that brought its own entitlements file keeps it: overwriting would drop whatever else
+			it declares. Spine checks that the keys it needs are in there and says which one is missing.
+		-->
+		<PropertyGroup>
+			<!-- IntermediateOutputPath is set by the SDK targets, so the path is built here and not at
+			     evaluation time, where it is still empty. -->
+			<_SpineEntitlementsFile>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'spine', 'Spine.entitlements'))</_SpineEntitlementsFile>
+			<_SpineEntitlementsAppOwned Condition="'$(CodesignEntitlements)' != '' And '$(CodesignEntitlements)' != '$(_SpineEntitlementsFile)'">true</_SpineEntitlementsAppOwned>
+		</PropertyGroup>
+
+		<Error Condition="'$(_SpineEntitlementsAppOwned)' == 'true' And !Exists('$(CodesignEntitlements)')"
+			   Text="Spine: CodesignEntitlements is set to '$(CodesignEntitlements)', which does not exist." />
+
+		<Error Condition="'$(_SpineEntitlementsAppOwned)' == 'true' And !$([System.IO.File]::ReadAllText('$(CodesignEntitlements)').Contains('%(SpineEntitlement.Identity)'))"
+			   Text="Spine: the app's entitlements ($(CodesignEntitlements)) must declare '%(SpineEntitlement.Identity)'. %(SpineEntitlement.Because)" />
+
+		<MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_SpineEntitlementsFile)'))" Condition="'$(_SpineEntitlementsAppOwned)' != 'true'" />
+
+		<ItemGroup Condition="'$(_SpineEntitlementsAppOwned)' != 'true'">
+			<!-- '?' is a wildcard in an Include, so the XML declaration is escaped; unescaped it is
+			     read as a file glob, matches nothing, and the line silently disappears. -->
+			<_SpineEntitlementLine Include="&lt;%3Fxml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;%3F&gt;" />
+			<_SpineEntitlementLine Include="&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;" />
+			<_SpineEntitlementLine Include="&lt;plist version=&quot;1.0&quot;&gt;" />
+			<_SpineEntitlementLine Include="&lt;dict&gt;" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'string'" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;string&gt;%(Value)&lt;/string&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'string'" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'array'" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;array&gt;&lt;string&gt;%(Value)&lt;/string&gt;&lt;/array&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'array'" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'boolean'" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;%(Value)/&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'boolean'" />
+			<_SpineEntitlementLine Include="&lt;/dict&gt;" />
+			<_SpineEntitlementLine Include="&lt;/plist&gt;" />
+		</ItemGroup>
+
+		<WriteLinesToFile File="$(_SpineEntitlementsFile)" Lines="@(_SpineEntitlementLine)" Overwrite="true" WriteOnlyWhenDifferent="true"
+						  Condition="'$(_SpineEntitlementsAppOwned)' != 'true'" />
+
+		<PropertyGroup Condition="'$(_SpineEntitlementsAppOwned)' != 'true'">
+			<CodesignEntitlements>$(_SpineEntitlementsFile)</CodesignEntitlements>
+		</PropertyGroup>
+
+		<Message Importance="normal" Text="Spine: entitlements written to $(CodesignEntitlements) with @(SpineEntitlement->'%(Identity)', ', ')."
+				 Condition="'$(_SpineEntitlementsAppOwned)' != 'true'" />
+	</Target>
+
+</Project>

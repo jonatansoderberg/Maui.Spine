@@ -27,6 +27,11 @@
 		<PackageVersion Include="FirebaseAdmin" Version="3.6.0" />
 	</ItemGroup>
 
+	<!-- Plugin.Maui.Spine.Push, Android only -->
+	<ItemGroup>
+		<PackageVersion Include="Xamarin.Firebase.Messaging" Version="125.1.1.1" />
+	</ItemGroup>
+
 	<!-- Windows only; referenced under a condition in Plugin.Maui.Spine. -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.WindowsAppSDK" Version="1.8.*" />

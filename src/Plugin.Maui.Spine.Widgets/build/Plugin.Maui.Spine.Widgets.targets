@@ -22,14 +22,24 @@
 		<SpineWidgetsFrequentUpdates Condition="'$(SpineWidgetsFrequentUpdates)' == ''">false</SpineWidgetsFrequentUpdates>
 		<SpineWidgetsMinimumOSVersion Condition="'$(SpineWidgetsMinimumOSVersion)' == ''">17.0</SpineWidgetsMinimumOSVersion>
 		<SpineWidgetsExtensionName Condition="'$(SpineWidgetsExtensionName)' == ''">SpineWidgets</SpineWidgetsExtensionName>
+		<SpineWidgetsAppGroup Condition="'$(SpineWidgetsAppGroup)' == ''">group.$(ApplicationId)</SpineWidgetsAppGroup>
 		<_SpineWidgetsNativeDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', 'native', 'ios'))</_SpineWidgetsNativeDir>
 		<_SpineWidgetsScript>$(MSBuildThisFileDirectory)spine-widgets-build.sh</_SpineWidgetsScript>
 	</PropertyGroup>
 
+	<!--
+		The App Group the extension and the app share. Contributed to the shared entitlements step in
+		Plugin.Maui.Spine rather than written here: Plugin.Maui.Spine.Push needs aps-environment in the
+		same file, and whichever package wrote it last would erase the other's keys.
+	-->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '$(SpineWidgetsEnabled)' != 'false'">
+		<SpineEntitlement Include="com.apple.security.application-groups" Kind="array" Value="$(SpineWidgetsAppGroup)"
+						  Because="The app and the widget extension share data through it." />
+	</ItemGroup>
+
 	<Target Name="_SpineWidgetsPrepare"
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '@(SpineWidget)' != '' And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))">
 		<PropertyGroup>
-			<SpineWidgetsAppGroup Condition="'$(SpineWidgetsAppGroup)' == ''">group.$(ApplicationId)</SpineWidgetsAppGroup>
 			<_SpineWidgetsSdk Condition="$(RuntimeIdentifier.Contains('simulator'))">iphonesimulator</_SpineWidgetsSdk>
 			<_SpineWidgetsSdk Condition="'$(_SpineWidgetsSdk)' == ''">iphoneos</_SpineWidgetsSdk>
 			<_SpineWidgetsArch>$(RuntimeIdentifier.Substring($([MSBuild]::Add($(RuntimeIdentifier.IndexOf('-')), 1))))</_SpineWidgetsArch>
@@ -70,20 +80,15 @@
 		cannot gate the targets that depend on it.
 	-->
 	<Target Name="_SpineWidgetsRegister"
-			DependsOnTargets="_SpineWidgetsBuild"
+			DependsOnTargets="_SpineWidgetsBuild;_SpineWriteEntitlements"
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '@(SpineWidget)' != '' And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))"
 			BeforeTargets="_SanitizeNativeReferences;_CompileAppManifestInputs;_CompileAppManifest;_DetectSigningIdentity;_CompileEntitlements;_ResolveAppExtensionReferences;_ExtendAppExtensionReferences">
 		<PropertyGroup>
-			<CodesignEntitlements Condition="'$(CodesignEntitlements)' == ''">$(_SpineWidgetsOutDir)Host.entitlements</CodesignEntitlements>
 			<!-- Simulator builds on a Mac without a signing identity still need to sign the extension. The SDK
 			     snapshots CodesignKey into _SpecifiedCodesignKey in its props, so both are set here. -->
 			<CodesignKey Condition="'$(CodesignKey)' == '' And '$(_SpineWidgetsSdk)' == 'iphonesimulator'">-</CodesignKey>
 			<_SpecifiedCodesignKey Condition="'$(_SpecifiedCodesignKey)' == '' And '$(_SpineWidgetsSdk)' == 'iphonesimulator'">-</_SpecifiedCodesignKey>
 		</PropertyGroup>
-
-		<Error Condition="!Exists('$(CodesignEntitlements)')" Text="Spine widgets: CodesignEntitlements '$(CodesignEntitlements)' does not exist." />
-		<Error Condition="!$([System.IO.File]::ReadAllText('$(CodesignEntitlements)').Contains('$(SpineWidgetsAppGroup)'))"
-			   Text="Spine widgets: the app's entitlements ($(CodesignEntitlements)) must list the App Group '$(SpineWidgetsAppGroup)' under com.apple.security.application-groups, so the app and the widget extension can share data." />
 
 		<ItemGroup>
 			<AdditionalAppExtensions Include="$(_SpineWidgetsOutDir.TrimEnd('/'))" Name="$(SpineWidgetsExtensionName)" BuildOutput="." CodesignEntitlements="$(_SpineWidgetsOutDir)$(SpineWidgetsExtensionName).entitlements" />
