@@ -106,6 +106,17 @@ app.MapGet("/installations", async (IPushInstallationStore store, CancellationTo
             installation.AppVersion,
             installation.OsVersion,
             installation.UpdatedAt,
+
+            // Whether a Live Activity can be addressed at all. Without this a send answers
+            // NoLiveActivityToken and the register gives no hint as to which half is missing:
+            // the push-to-start token, or the running activity's own.
+            LiveActivities = installation.LiveActivities is { } tokens
+                ? new
+                {
+                    PushToStart = tokens.PushToStart is { Length: > 0 } start ? Shorten(start) : null,
+                    Activities = tokens.Activities.ToDictionary(a => a.Key, a => Shorten(a.Value)),
+                }
+                : null,
         });
     }
 
@@ -117,14 +128,22 @@ app.Run();
 static string Shorten(string handle) =>
     handle.Length <= 16 ? handle : $"{handle[..8]}…{handle[^8..]}";
 
+/// <summary>
 /// The layout the sample updates its Live Activity with; the same C# the app would build.
+/// </summary>
+/// <remarks>
+/// The freshness line is a <see cref="W.Relative"/> node rather than a formatted time: the system
+/// draws a Live Activity while the app is not running, so a stamped string never changes again and
+/// an update that did arrive looks like one that never came.
+/// </remarks>
 static LiveActivityLayout Layout(SendRequest request) => new()
 {
     LockScreen = W.VStack(4,
         W.Text(request.Title ?? "Live Activity").Headline().Bold(),
-        W.Text(request.Body ?? DateTimeOffset.Now.ToString("HH:mm:ss")).Caption().Secondary()),
+        W.Text(request.Body ?? "Uppdaterad av servern").Caption().Secondary(),
+        W.Relative(DateTimeOffset.Now).Caption().Secondary()),
     CompactLeading = W.Icon("bell"),
-    CompactTrailing = W.Text(DateTimeOffset.Now.ToString("HH:mm")).Caption(),
+    CompactTrailing = W.Relative(DateTimeOffset.Now).Caption(),
     Minimal = W.Icon("bell"),
 };
 

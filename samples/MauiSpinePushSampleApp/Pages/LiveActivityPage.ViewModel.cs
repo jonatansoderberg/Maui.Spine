@@ -85,13 +85,21 @@ public partial class LiveActivityPageViewModel(
         PushToken = _running is null ? "—" : await _running.GetPushTokenAsync() ?? "ingen token ännu";
     }
 
+    /// <summary>
+    /// A Live Activity is drawn by the system while the app is not running, so anything that should
+    /// change over time has to be a node the platform can re-render. <see cref="W.Relative"/> is that
+    /// node: it resets visibly when an update lands and then ticks on its own. A
+    /// <c>DateTimeOffset.Now.ToString(...)</c> would be stamped once and stand still, which reads as
+    /// a frozen activity even when the push arrived.
+    /// </summary>
     private static LiveActivityLayout Layout(string body) => new()
     {
         LockScreen = W.VStack(4,
             W.Text("Spine Push").Headline().Bold(),
-            W.Text(body).Caption().Secondary()),
+            W.Text(body).Caption().Secondary(),
+            W.Relative(DateTimeOffset.Now).Caption().Secondary()),
         CompactLeading = W.Icon("bell"),
-        CompactTrailing = W.Text(DateTimeOffset.Now.ToString("HH:mm")).Caption(),
+        CompactTrailing = W.Relative(DateTimeOffset.Now).Caption(),
         Minimal = W.Icon("bell"),
     };
 }
