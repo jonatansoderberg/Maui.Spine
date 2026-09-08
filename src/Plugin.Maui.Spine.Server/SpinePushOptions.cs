@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Plugin.Maui.Spine.Common;
 
 namespace Plugin.Maui.Spine.Server;
@@ -110,6 +111,17 @@ public sealed class SpinePushOptions
     public SpinePushOptions UseInMemoryStore()
     {
         StoreFactory = _ => new InMemoryPushInstallationStore();
+        return this;
+    }
+
+    /// <summary>Keeps the register in Azure Table Storage.</summary>
+    /// <param name="connectionString">The storage account; <c>UseDevelopmentStorage=true</c> for Azurite.</param>
+    /// <param name="prefix">Prepended to both table names, so several apps can share an account.</param>
+    /// <returns>The same options, for chaining.</returns>
+    public SpinePushOptions UseAzureTableStore(string connectionString, string prefix = "SpinePush")
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        StoreFactory = sp => new AzureTablePushInstallationStore(connectionString, prefix, sp.GetService<TimeProvider>());
         return this;
     }
 
