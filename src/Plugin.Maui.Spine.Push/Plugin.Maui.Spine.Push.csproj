@@ -17,6 +17,9 @@
 
 	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
 		<PackageReference Include="Xamarin.Firebase.Messaging" />
+		<PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData.Core" />
+		<PackageReference Include="Xamarin.AndroidX.Fragment" />
+		<PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -12,7 +12,10 @@ public static class ServiceCollectionExtensions
     /// <param name="services">The application's service collection.</param>
     /// <param name="configure">Credentials, register, and the tag policy.</param>
     /// <returns>The same collection, for chaining.</returns>
-    /// <exception cref="InvalidOperationException">No platform or no register was configured.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// No register was configured, or a configured platform is missing a credential. A server with no
+    /// platform at all is allowed: it can register devices, and sending simply reaches nobody.
+    /// </exception>
     public static IServiceCollection AddSpinePush(this IServiceCollection services, Action<SpinePushOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(services);

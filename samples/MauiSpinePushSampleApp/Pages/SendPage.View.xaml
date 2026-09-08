@@ -1,0 +1,48 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpinePushSampleApp.Pages.SendPage"
+    x:TypeArguments="SendPageViewModel"
+    x:DataType="SendPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="10">
+
+            <Label Text="Ber sample-servern skicka. Kör den med dotnet run i MauiSpinePushSampleApp.Server."
+                   FontSize="12" TextColor="Gray" />
+
+            <Label Text="Sort" />
+            <Picker ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" />
+
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="Bara till den här enheten" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding ToMe}" />
+            </Grid>
+
+            <Label Text="Tagguttryck" />
+            <Entry Text="{Binding TagExpression}" IsEnabled="{Binding ToTags}" />
+
+            <Label Text="Titel" />
+            <Entry Text="{Binding Title}" />
+
+            <Label Text="Text" />
+            <Entry Text="{Binding Body}" />
+
+            <Label Text="Route" />
+            <Entry Text="{Binding Route}" />
+
+            <Label Text="Kanal" />
+            <Entry Text="{Binding Channel}" />
+
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="Hög prioritet" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding HighPriority}" />
+            </Grid>
+
+            <Button Text="Skicka" Command="{Binding SendCommand}" Margin="0,8,0,0" />
+            <Label Text="{Binding Result}" FontSize="12" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

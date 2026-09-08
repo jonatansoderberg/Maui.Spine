@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <!-- See https://aka.ms/maui-publish-app-store#add-entitlements for more information about adding entitlements.-->
+    <dict>
+        <!-- App Sandbox must be enabled to distribute a MacCatalyst app through the Mac App Store. -->
+        <key>com.apple.security.app-sandbox</key>
+        <true/>
+        <!-- When App Sandbox is enabled, this value is required to open outgoing network connections. -->
+        <key>com.apple.security.network.client</key>
+        <true/>
+        <!--
+            Spine.Push. Apple's own documentation has used both spellings on Mac Catalyst, so both are
+            here; an entitlement the platform does not know is ignored rather than fatal. The app owns
+            this file, so Spine validates it instead of writing one.
+        -->
+        <key>aps-environment</key>
+        <string>development</string>
+        <key>com.apple.developer.aps-environment</key>
+        <string>development</string>
+        <!-- The widget extension and the app share data through this group. -->
+        <key>com.apple.security.application-groups</key>
+        <array>
+            <string>group.com.companyname.mauispinepushsampleapp</string>
+        </array>
+    </dict>
+</plist>
+

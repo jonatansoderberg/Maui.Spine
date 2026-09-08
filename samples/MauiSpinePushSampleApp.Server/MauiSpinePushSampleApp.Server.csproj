@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<RootNamespace>MauiSpinePushSampleApp.Server</RootNamespace>
+		<IsPackable>false</IsPackable>
+		<UserSecretsId>maui-spine-push-sample-server</UserSecretsId>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server\Plugin.Maui.Spine.Server.csproj" />
+	</ItemGroup>
+
+</Project>

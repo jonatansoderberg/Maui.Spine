@@ -1,0 +1,43 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpinePushSampleApp.Pages.HomePage"
+    x:TypeArguments="HomePageViewModel"
+    x:DataType="HomePageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <Label Text="Den här installationen" FontAttributes="Bold" />
+
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+                <Label Grid.Row="0" Grid.Column="0" Text="Status" />
+                <Label Grid.Row="0" Grid.Column="1" Text="{Binding Status}" />
+
+                <Label Grid.Row="1" Grid.Column="0" Text="Installation" />
+                <Label Grid.Row="1" Grid.Column="1" Text="{Binding InstallationId}" LineBreakMode="MiddleTruncation" />
+
+                <Label Grid.Row="2" Grid.Column="0" Text="Taggar" />
+                <Label Grid.Row="2" Grid.Column="1" Text="{Binding Tags}" />
+            </Grid>
+
+            <Label Text="Push finns inte på den här plattformen. Allt nedan går att trycka på, men svarar Unsupported."
+                   IsVisible="{Binding IsUnsupported}"
+                   TextColor="Gray" FontSize="12" />
+
+            <Button Text="Be om tillstånd" Command="{Binding RequestPermissionCommand}" />
+            <Button Text="Registrera om" Command="{Binding RegisterCommand}" />
+            <Button Text="Avregistrera" Command="{Binding UnregisterCommand}" />
+            <Button Text="Öppna inställningar" Command="{Binding OpenSettingsCommand}" />
+
+            <BoxView HeightRequest="1" Color="LightGray" Margin="0,8" />
+
+            <Button Text="Taggar" Command="{Binding ShowTagsCommand}" />
+            <Button Text="Skicka" Command="{Binding ShowSendCommand}" />
+            <Button Text="Logg" Command="{Binding ShowLogCommand}" />
+            <Button Text="Live Activity" Command="{Binding ShowLiveActivityCommand}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

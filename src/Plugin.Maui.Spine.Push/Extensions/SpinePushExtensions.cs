@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Common.Serialization;
@@ -52,6 +53,11 @@ public static partial class SpinePushExtensions
             services.AddTransient(typeof(IPushHandler), handler);
 
         ConfigurePlatform(builder, options);
+
+        // Windows has no implementation in v1, and neither will any platform added to the TFM list
+        // before its platform layer exists. TryAdd after ConfigurePlatform means the real one wins
+        // wherever there is one, and the rule is in the code rather than in the order of two calls.
+        services.TryAddSingleton<IPushPlatform, UnsupportedPushPlatform>();
 
         return builder;
     }

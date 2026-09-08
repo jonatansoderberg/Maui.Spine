@@ -1,0 +1,30 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpinePushSampleApp.Pages.LiveActivityPage"
+    x:TypeArguments="LiveActivityPageViewModel"
+    x:DataType="LiveActivityPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="10">
+
+            <Label Text="Starta en aktivitet lokalt, och låt sedan servern uppdatera den. Push-token är det som gör det möjligt medan appen är stängd."
+                   FontSize="12" TextColor="Gray" />
+
+            <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto" RowSpacing="4">
+                <Label Grid.Row="0" Grid.Column="0" Text="Tillstånd" />
+                <Label Grid.Row="0" Grid.Column="1" Text="{Binding State}" />
+
+                <Label Grid.Row="1" Grid.Column="0" Text="Push-token" />
+                <Label Grid.Row="1" Grid.Column="1" Text="{Binding PushToken}" LineBreakMode="MiddleTruncation" />
+            </Grid>
+
+            <Button Text="Starta" Command="{Binding StartCommand}" IsEnabled="{Binding CanStart}" />
+            <Button Text="Uppdatera lokalt" Command="{Binding UpdateLocallyCommand}" />
+            <Button Text="Uppdatera från servern" Command="{Binding UpdateFromServerCommand}" />
+            <Button Text="Avsluta" Command="{Binding EndCommand}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

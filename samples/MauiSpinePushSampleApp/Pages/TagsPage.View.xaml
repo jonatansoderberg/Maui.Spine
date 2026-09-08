@@ -1,0 +1,39 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpinePushSampleApp.Pages.TagsPage"
+    x:TypeArguments="TagsPageViewModel"
+    x:DataType="TagsPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="8">
+
+            <Label Text="Vad den här installationen prenumererar på. Servern matchar dem med ett tagguttryck."
+                   FontSize="12" TextColor="Gray" />
+
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="kind:news" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding News}" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="kind:alerts" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding Alerts}" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="team:red" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding TeamRed}" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="team:blue" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding TeamBlue}" />
+            </Grid>
+
+            <Label Text="Egna taggar, en per rad" Margin="0,8,0,0" />
+            <Editor Text="{Binding Extra}" HeightRequest="90" AutoSize="Disabled" />
+
+            <Button Text="Spara" Command="{Binding ApplyCommand}" Margin="0,8,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

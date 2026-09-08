@@ -124,9 +124,10 @@ public sealed class SpinePushOptions
 
     internal void Validate()
     {
-        if (AppleOptions is null && AndroidOptions is null)
-            throw new InvalidOperationException("AddSpinePush: configure at least one of Apple(...) and Android(...).");
-
+        // No platform configured is allowed: the register and the endpoints work without a transport,
+        // and a server that only registers devices — during development, or one process registering
+        // while another sends — is a real shape. Sending then reaches nobody and says so, since
+        // PushResult lists no deliveries.
         AppleOptions?.Validate();
         AndroidOptions?.Validate();
 
