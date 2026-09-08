@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -46,16 +47,16 @@ internal sealed class ApnsJwt(ApplePushOptions options, TimeProvider timeProvide
 
     private string Mint(DateTimeOffset now)
     {
-        var header = Segment(new Dictionary<string, object>
+        var header = Segment(w =>
         {
-            ["alg"] = "ES256",
-            ["kid"] = options.KeyId!,
+            w.WriteString("alg", "ES256");
+            w.WriteString("kid", options.KeyId);
         });
 
-        var claims = Segment(new Dictionary<string, object>
+        var claims = Segment(w =>
         {
-            ["iss"] = options.TeamId!,
-            ["iat"] = now.ToUnixTimeSeconds(),
+            w.WriteString("iss", options.TeamId);
+            w.WriteNumber("iat", now.ToUnixTimeSeconds());
         });
 
         var signingInput = $"{header}.{claims}";
@@ -72,9 +73,22 @@ internal sealed class ApnsJwt(ApplePushOptions options, TimeProvider timeProvide
         return $"{signingInput}.{Base64Url(signature)}";
     }
 
-    private static string Segment(Dictionary<string, object> value) =>
-        Base64Url(JsonSerializer.SerializeToUtf8Bytes(value));
+    // Written field by field rather than serialized from a dictionary: reflection-based serialization
+    // is off in a trimmed or AOT host, which is where a Functions backend often ends up.
+    private static string Segment(Action<Utf8JsonWriter> write)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
 
-    private static string Base64Url(byte[] bytes) =>
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            write(writer);
+            writer.WriteEndObject();
+        }
+
+        return Base64Url(buffer.WrittenSpan);
+    }
+
+    private static string Base64Url(ReadOnlySpan<byte> bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

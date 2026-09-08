@@ -9,8 +9,10 @@ using Orientera.Backend.Configuration;
 using Orientera.Backend.Eventor;
 using Orientera.Backend.Livelox;
 using Orientera.Backend.LiveResults;
+using Orientera.Backend.Push;
 using Orientera.Backend.Ranking;
 using Orientera.Backend.Story;
+using Plugin.Maui.Spine.Server;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -24,6 +26,37 @@ builder.Services.Configure<RankingOptions>(builder.Configuration.GetSection(Rank
 builder.Services.Configure<ArenaImageOptions>(builder.Configuration.GetSection(ArenaImageOptions.Section));
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ResponseCache>();
+builder.Services.AddSingleton(TimeProvider.System);
+
+// Push. Lagringen är samma konto som värden själv använder, och nyckeln kommer som miljövariabler
+// — lokalt från apphostens user-secrets, i drift från appinställningarna. Utan nyckel finns
+// registret och endpointen ändå: telefoner kan registrera sig, det är bara ingen som skickar.
+var storage = builder.Configuration["AzureWebJobsStorage"] is { Length: > 0 } connection
+    ? connection
+    : "UseDevelopmentStorage=true";
+
+builder.Services.AddSpinePush(push =>
+{
+    push.UseAzureTableStore(storage, "OrienteraPush");
+
+    if (builder.Configuration["Push:Apple:PrivateKey"] is { Length: > 0 } privateKey)
+    {
+        push.Apple(apple =>
+        {
+            apple.TeamId = builder.Configuration["Push:Apple:TeamId"];
+            apple.KeyId = builder.Configuration["Push:Apple:KeyId"];
+            apple.BundleId = builder.Configuration["Push:Apple:BundleId"];
+            apple.PrivateKey = privateKey;
+        });
+    }
+
+    // Endpointen är öppen, som resten av backendens API. En tagg är därför bara ett önskemål:
+    // user: filtreras bort tills registreringen är autentiserad, så ingen kan lyssna som någon
+    // annan. kind: och competition: är inte hemliga — de säger bara vad telefonen vill höra om.
+    push.AllowTags = (_, tags) => tags.Where(t => !t.StartsWith("user:", StringComparison.Ordinal));
+});
+
+builder.Services.AddSingleton(_ => new AnnouncedStore(storage));
 
 // Scoped rather than singleton: the typed clients are per-request, and long-lived ones would
 // hold their connections — and their DNS answers — for the life of the process.

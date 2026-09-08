@@ -190,7 +190,7 @@ cat > alert.json <<'JSON'
 }
 JSON
 
-xcrun simctl push booted com.companyname.orientera alert.json
+xcrun simctl push booted se.cosmomedia.orientera alert.json
 ```
 
 Two things the simulator will not do: it issues no device token, and it does not deliver silent

@@ -100,6 +100,38 @@ public class PushTagExpressionTests
         Assert.Equal(["a", "b"], e.ReferencedTags.OrderBy(t => t, StringComparer.Ordinal));
     }
 
+    [Theory]
+    [InlineData("a", "a")]
+    [InlineData("a && b", "a,b")]
+    [InlineData("a && !b", "a")]
+    [InlineData("(a || b) && c", "c")]
+    [InlineData("a || b", "")]
+    [InlineData("!a", "")]
+    [InlineData("a || (a && b)", "a")]
+    public void Required_tags_are_the_ones_a_match_cannot_do_without(string expression, string expected)
+    {
+        // This is what lets a register use a tag index instead of scanning every installation.
+        var required = PushTagExpression.Parse(expression).RequiredTags.OrderBy(t => t, StringComparer.Ordinal);
+        Assert.Equal(expected.Split(',', StringSplitOptions.RemoveEmptyEntries), required);
+    }
+
+    [Fact]
+    public void Nothing_is_required_by_match_all()
+    {
+        Assert.Empty(PushTagExpression.MatchAll.RequiredTags);
+    }
+
+    [Fact]
+    public void A_required_tag_really_is_present_in_every_match()
+    {
+        // The property the index relies on: no tag set can satisfy the expression without them.
+        var expression = PushTagExpression.Parse("kind:news && (team:red || team:blue) && !muted");
+
+        Assert.Equal(["kind:news"], expression.RequiredTags);
+        Assert.False(expression.Matches(["team:red"]));
+        Assert.True(expression.Matches(["kind:news", "team:red"]));
+    }
+
     [Fact]
     public void Match_all_matches_anything_including_no_tags()
     {

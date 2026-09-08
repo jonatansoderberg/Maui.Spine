@@ -26,11 +26,23 @@ public sealed class PushTagExpression
         var tags = new HashSet<string>(StringComparer.Ordinal);
         root.CollectTags(tags);
         ReferencedTags = tags;
+        RequiredTags = root.RequiredTags();
     }
 
     /// <summary>Every tag the expression names, in no particular order.</summary>
-    /// <remarks>A register can use this to narrow the candidates before evaluating.</remarks>
     public IReadOnlySet<string> ReferencedTags { get; }
+
+    /// <summary>
+    /// The tags an installation must carry for the expression to have any chance of holding. Empty
+    /// when there is no such tag.
+    /// </summary>
+    /// <remarks>
+    /// This is what lets a register use a tag index instead of scanning: any match is guaranteed to
+    /// be in the index entry for one of these. <c>ReferencedTags</c> cannot be used for that —
+    /// <c>!muted</c> names <c>muted</c> but matches the installations that do <em>not</em> have it.
+    /// The set is deliberately conservative: an intersection under <c>||</c>, nothing under <c>!</c>.
+    /// </remarks>
+    public IReadOnlySet<string> RequiredTags { get; }
 
     /// <summary>An expression that matches every installation.</summary>
     public static PushTagExpression MatchAll { get; } = new(TrueNode.Instance);
@@ -235,6 +247,9 @@ public sealed class PushTagExpression
     {
         internal abstract bool Evaluate(IReadOnlySet<string> tags);
         internal abstract void CollectTags(HashSet<string> into);
+
+        /// <summary>Tags without which this node cannot be true.</summary>
+        internal abstract HashSet<string> RequiredTags();
     }
 
     private sealed class TrueNode : Node
@@ -243,6 +258,8 @@ public sealed class PushTagExpression
         internal override bool Evaluate(IReadOnlySet<string> tags) => true;
         internal override void CollectTags(HashSet<string> into) { }
         public override string ToString() => "*";
+
+        internal override HashSet<string> RequiredTags() => new(StringComparer.Ordinal);
     }
 
     private sealed class TagNode(string tag) : Node
@@ -250,6 +267,8 @@ public sealed class PushTagExpression
         internal override bool Evaluate(IReadOnlySet<string> tags) => tags.Contains(tag);
         internal override void CollectTags(HashSet<string> into) => into.Add(tag);
         public override string ToString() => tag;
+
+        internal override HashSet<string> RequiredTags() => new([tag], StringComparer.Ordinal);
     }
 
     private sealed class NotNode(Node operand) : Node
@@ -257,6 +276,9 @@ public sealed class PushTagExpression
         internal override bool Evaluate(IReadOnlySet<string> tags) => !operand.Evaluate(tags);
         internal override void CollectTags(HashSet<string> into) => operand.CollectTags(into);
         public override string ToString() => $"!{operand}";
+
+        // Nothing is required by a negation: !a matches everything without a.
+        internal override HashSet<string> RequiredTags() => new(StringComparer.Ordinal);
     }
 
     private sealed class AndNode(Node left, Node right) : Node
@@ -268,6 +290,13 @@ public sealed class PushTagExpression
         {
             left.CollectTags(into);
             right.CollectTags(into);
+        }
+
+        internal override HashSet<string> RequiredTags()
+        {
+            var required = left.RequiredTags();
+            required.UnionWith(right.RequiredTags());
+            return required;
         }
 
         public override string ToString() => $"{left} && {right}";
@@ -284,6 +313,14 @@ public sealed class PushTagExpression
             right.CollectTags(into);
         }
 
+        internal override HashSet<string> RequiredTags()
+        {
+            // Only a tag required by both sides is required by the whole.
+            var required = left.RequiredTags();
+            required.IntersectWith(right.RequiredTags());
+            return required;
+        }
+
         public override string ToString() => $"{left} || {right}";
     }
 
@@ -291,6 +328,7 @@ public sealed class PushTagExpression
     {
         internal override bool Evaluate(IReadOnlySet<string> tags) => inner.Evaluate(tags);
         internal override void CollectTags(HashSet<string> into) => inner.CollectTags(into);
+        internal override HashSet<string> RequiredTags() => inner.RequiredTags();
         public override string ToString() => $"({inner})";
     }
 }

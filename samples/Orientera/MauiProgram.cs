@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Orientera.Services.Analysis;
 using Orientera.Services.Context;
@@ -9,10 +10,13 @@ using Orientera.Services.Local;
 using Orientera.Services.Notifications;
 using Orientera.Resources.Styles;
 using Orientera.Services.Offline;
+using Orientera.Services.Push;
 using Orientera.Services.Sources;
 using Orientera.Services.Time;
 using Orientera.Services.Weather;
 using Plugin.Maui.Spine.Extensions;
+using Plugin.Maui.Spine.Push;
+using Plugin.Maui.Spine.Push.Extensions;
 using Plugin.Maui.Spine.Widgets.Extensions;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 
@@ -95,13 +99,43 @@ public static class MauiProgram
         builder.Configuration.AddJsonStream(
             typeof(MauiProgram).Assembly.GetManifestResourceStream("Orientera.appsettings.json")!);
 
-        RegisterDomainServices(builder.Services, builder.Configuration["Backend:BaseAddress"]);
+        // Android-emulatorn når värddatorn på 10.0.2.2; localhost är emulatorn själv.
+        var backendAddress = builder.Configuration[DeviceInfo.Platform == DevicePlatform.Android
+            ? "Backend:BaseAddressAndroid"
+            : "Backend:BaseAddress"];
+
+        RegisterDomainServices(builder.Services, backendAddress);
+        RegisterPush(builder, backendAddress);
 
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
 
         return builder.Build();
+    }
+
+    /// <summary>
+    /// Push, när det finns en backend att registrera sig hos. Utan adress kör appen på fake-datat,
+    /// och då finns det ingen som kan skicka.
+    /// </summary>
+    private static void RegisterPush(MauiAppBuilder builder, string? backendAddress)
+    {
+        if (string.IsNullOrWhiteSpace(backendAddress))
+            return;
+
+        builder.UseSpinePush(push =>
+        {
+            push.Backend = new Uri(new Uri(backendAddress), "push/");
+
+            // Notiser är opt-in per typ i NotificationSheet. Att fråga innan användaren bett om
+            // något är precis så en app blir nekad för gott.
+            push.Permission = PushPermission.WhenAsked;
+
+            push.AddChannel("competitions", "Tävlingar", PushChannelImportance.High);
+            push.UseHandler<OrienteraPushHandler>();
+        });
+
+        builder.Services.AddSingleton<IPushRegistration, SpinePushRegistration>();
     }
 
     private static void RegisterDomainServices(IServiceCollection services, string? backendAddress)
@@ -248,6 +282,11 @@ public static class MauiProgram
         services.AddSingleton<INotificationScheduler, UnsupportedNotificationScheduler>();
 #endif
 
+        services.AddSingleton<OnScreen>();
+
+        // TryAdd: RegisterPush kör före den här, och där det finns en backend är det dess
+        // registrering som gäller.
+        services.TryAddSingleton<IPushRegistration, NoPushRegistration>();
         services.AddSingleton<NotificationService>();
 
     }

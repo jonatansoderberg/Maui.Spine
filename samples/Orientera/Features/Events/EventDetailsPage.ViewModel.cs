@@ -6,6 +6,7 @@ using Orientera.Features.Results;
 using Orientera.Presentation;
 using Orientera.Services.Context;
 using Orientera.Services.Local;
+using Orientera.Services.Notifications;
 using Orientera.Services.Offline;
 using Orientera.Services.Sources;
 using Orientera.Services.Travel;
@@ -64,7 +65,8 @@ public partial class EventDetailsPageViewModel(
     OfflinePackageService _offline,
     CompetitionContextService _context,
     CompetitionClassStore _classes,
-    IArenaImageSource _arenaImages) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
+    IArenaImageSource _arenaImages,
+    OnScreen _onScreen) : OrienteraViewModel, IReceivesNavigationParameter<CompetitionId>
 {
     private CompetitionId _id;
     private Competition? _competition;
@@ -222,6 +224,9 @@ public partial class EventDetailsPageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
+        // A notification about this competition should not banner over the page showing it.
+        _onScreen.Show(_id);
+
         _me = await _people.GetMeAsync();
 
         // Read through the offline package: with coverage this is live and refreshes the
@@ -253,6 +258,12 @@ public partial class EventDetailsPageViewModel(
         Title = _competition.Name;
 
         await LoadAsync(() => BuildAsync(_competition, _me, snapshot));
+    }
+
+    public override Task OnDisappearingAsync(NavigationDirection navigationDirection)
+    {
+        _onScreen.Hide(_id);
+        return Task.CompletedTask;
     }
 
     [RelayCommand]

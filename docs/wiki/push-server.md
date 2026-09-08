@@ -29,7 +29,7 @@ services.AddSpinePush(o =>
         a.TeamId     = cfg["Push:Apple:TeamId"];
         a.KeyId      = cfg["Push:Apple:KeyId"];
         a.PrivateKey = cfg["Push:Apple:PrivateKey"];   // the contents of the .p8 file
-        a.BundleId   = "com.companyname.orientera";
+        a.BundleId   = "se.cosmomedia.orientera";
     });
 
     o.Android(f => f.ServiceAccountJson = cfg["Push:Fcm:ServiceAccount"]);

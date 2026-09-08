@@ -24,6 +24,7 @@
 
 	<!-- Plugin.Maui.Spine.Server -->
 	<ItemGroup>
+		<PackageVersion Include="Azure.Data.Tables" Version="12.12.0" />
 		<PackageVersion Include="FirebaseAdmin" Version="3.6.0" />
 	</ItemGroup>
 
@@ -68,12 +69,19 @@
 		<PackageVersion Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />
 		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.1" />
 		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" Version="5.5.0" />
+		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
 		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.1.0" />
 		<PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
 		<PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.10" />
 		<PackageVersion Include="OpenAI" Version="2.13.0" />
 		<PackageVersion Include="ProjNET" Version="2.1.0" />
 		<PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
+	</ItemGroup>
+
+	<!-- Orientera.AppHost — the Aspire orchestration for local development -->
+	<ItemGroup>
+		<PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.4.6" />
+		<PackageVersion Include="Aspire.Hosting.Azure.Functions" Version="13.4.6" />
 	</ItemGroup>
 
 	<!-- Orientera.Tests -->

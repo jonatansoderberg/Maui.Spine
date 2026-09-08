@@ -17,14 +17,29 @@
 		<!-- Display name -->
 		<ApplicationTitle>Orientera</ApplicationTitle>
 
-		<!-- App Identifier (placeholder until SP-13 name clearance) -->
-		<ApplicationId>com.companyname.orientera</ApplicationId>
+		<!-- App Identifier -->
+		<ApplicationId>se.cosmomedia.orientera</ApplicationId>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
 
 		<WindowsPackageType>None</WindowsPackageType>
+
+		<!-- Spine.Push: Firebase Messagings beroenden deklarerar minSdk 23, mot repots 21. -->
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23</SupportedOSPlatformVersion>
+
+		<!--
+			Orientera har inget Firebase-projekt än, och push drivs från iOS i #178. Utan
+			google-services.json stoppar byggkontrollen; med den här av bygger appen som vanligt
+			och Android hämtar helt enkelt aldrig någon token.
+		-->
+		<SpinePushEnabled Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">false</SpinePushEnabled>
+
+		<!-- The widget extension's bundle id becomes $(ApplicationId).$(SpineWidgetsExtensionName), and an
+		     App ID cannot be renamed once registered — so it says widgets rather than leaking the
+		     framework's name into se.cosmomedia.orientera.SpineWidgets. -->
+		<SpineWidgetsExtensionName>widgets</SpineWidgetsExtensionName>
 
 	</PropertyGroup>
 
@@ -80,6 +95,7 @@
 		<ProjectReference Include="..\Orientera.Domain\Orientera.Domain.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Push\Plugin.Maui.Spine.Push.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 	</ItemGroup>
@@ -97,5 +113,6 @@
 	<!-- Importeras explicit: Orientera använder ProjectReference, inte NuGet-paketet. -->
 	<Import Project="..\..\src\Plugin.Maui.Spine\build\Plugin.Maui.Spine.Entitlements.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.Push\build\Plugin.Maui.Spine.Push.targets" />
 
 </Project>

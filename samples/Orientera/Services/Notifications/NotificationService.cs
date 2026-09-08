@@ -16,7 +16,8 @@ public sealed class NotificationService(
     IPeopleSource _people,
     IParticipationSource _participation,
     NotificationPreferencesStore _preferences,
-    INotificationScheduler _scheduler)
+    INotificationScheduler _scheduler,
+    IPushRegistration _push)
 {
     /// <summary>
     /// Rebuilds the plan and hands it to the platform. Failures are swallowed on purpose: a
@@ -24,18 +25,23 @@ public sealed class NotificationService(
     /// </summary>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        if (!_scheduler.IsSupported)
-            return;
-
         if (!_preferences.Current.Any)
         {
             await _scheduler.CancelAllAsync(cancellationToken);
+            await _push.SetTagsAsync([], cancellationToken);
             return;
         }
 
         try
         {
-            await _scheduler.SyncAsync(await BuildAsync(cancellationToken), cancellationToken);
+            var state = await LoadAsync(cancellationToken);
+
+            await _push.SetTagsAsync(
+                PushTags.For(_preferences.Current, state.Context.Me.Id, state.Context.MyEntries, state.Group),
+                cancellationToken);
+
+            if (_scheduler.IsSupported)
+                await _scheduler.SyncAsync(Plan(state), cancellationToken);
         }
         catch (SourceUnavailableException)
         {
@@ -43,7 +49,23 @@ public sealed class NotificationService(
         }
     }
 
-    public async Task<IReadOnlyList<PlannedNotification>> BuildAsync(CancellationToken cancellationToken = default)
+    /// <summary>The whole plan, push or no push. The UI uses it to show what is coming.</summary>
+    public async Task<IReadOnlyList<PlannedNotification>> BuildAsync(CancellationToken cancellationToken = default) =>
+        NotificationPlanner.Plan((await LoadAsync(cancellationToken)).Context);
+
+    /// <summary>
+    /// The plan the device schedules: everything the backend delivers as push is left out, so the
+    /// same competition does not notify twice.
+    /// </summary>
+    private IReadOnlyList<PlannedNotification> Plan(State state) =>
+        _push.IsRegistered
+            ? [.. NotificationPlanner.Plan(state.Context).Where(n => !PushTags.Pushed.Contains(n.Kind))]
+            : NotificationPlanner.Plan(state.Context);
+
+    /// <summary>What one refresh reads, shared by the plan and the tags.</summary>
+    private sealed record State(NotificationContext Context, IReadOnlyList<PersonId> Group);
+
+    private async Task<State> LoadAsync(CancellationToken cancellationToken)
     {
         var me = await _people.GetMeAsync(cancellationToken);
         var group = await _people.GetMyGroupAsync(cancellationToken);
@@ -76,16 +98,18 @@ public sealed class NotificationService(
                 starts[competition] = start.StartTime;
         }
 
-        return NotificationPlanner.Plan(new NotificationContext
-        {
-            Now = _clock.Now,
-            Me = me,
-            Competitions = competitions,
-            MyEntries = mine,
-            GroupEntries = theirs,
-            Interests = interests,
-            MyStarts = starts,
-            Preferences = _preferences.Current,
-        });
+        return new State(
+            new NotificationContext
+            {
+                Now = _clock.Now,
+                Me = me,
+                Competitions = competitions,
+                MyEntries = mine,
+                GroupEntries = theirs,
+                Interests = interests,
+                MyStarts = starts,
+                Preferences = _preferences.Current,
+            },
+            [.. groupIds]);
     }
 }

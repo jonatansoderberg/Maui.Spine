@@ -65,6 +65,13 @@ internal sealed class PushService : IPushService
     public IReadOnlyList<string> Tags => _tags;
 
     /// <inheritdoc />
+    public bool IsRegistered =>
+        options.Backend is not null &&
+        platform.Status is PushStatus.Authorized or PushStatus.Provisional &&
+        platform.Handle is not null &&
+        Preferences.Default.Get(FingerprintKey, "").Length > 0;
+
+    /// <inheritdoc />
     public async Task<string> GetInstallationIdAsync()
     {
         if (await SecureStorage.Default.GetAsync(InstallationIdKey) is { Length: > 0 } existing)
