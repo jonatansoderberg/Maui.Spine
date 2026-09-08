@@ -30,6 +30,9 @@ var appleKeyId = builder.AddParameter("apple-key-id");
 var appleBundleId = builder.AddParameter("apple-bundle-id");
 var applePrivateKey = builder.AddParameter("apple-private-key", secret: true);
 
+// Firebase tjänstekonto-JSON. Tom tills det finns ett Firebase-projekt; då kan Android nås.
+var androidServiceAccount = builder.AddParameter("android-service-account", secret: true, value: "");
+
 // Bygg inte om Orientera.Backend medan apphosten kör. Aspire startar den med --no-build, och ett
 // bygge byter ut assemblies under den levande workern: värden lever vidare och svarar 200 på
 // /admin/functions, medan varje funktionsanrop ger 500 med tom kropp, för alltid. Kör om
@@ -47,6 +50,7 @@ builder.AddAzureFunctionsProject<Projects.Orientera_Backend>("backend")
     .WithEnvironment("Push__Apple__KeyId", appleKeyId)
     .WithEnvironment("Push__Apple__BundleId", appleBundleId)
     .WithEnvironment("Push__Apple__PrivateKey", applePrivateKey)
+    .WithEnvironment("Push__Android__ServiceAccountJson", androidServiceAccount)
     .WaitFor(storage);
 
 builder.Build().Run();

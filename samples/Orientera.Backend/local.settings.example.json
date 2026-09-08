@@ -20,6 +20,9 @@
     "Push__Apple__BundleId": "se.cosmomedia.orientera",
     "Push__Apple__PrivateKey": "",
 
+    "//PushAndroid": "Firebase tjänstekonto-JSON i sin helhet, på en rad. Project settings → Service accounts → Generate new private key. Utan den kan Android-enheter registrera sig men inte nås.",
+    "Push__Android__ServiceAccountJson": "",
+
     "//Ranking": "Sverigelistan läses inte här. Den ligger bakom en personlig inloggning, och sedan #123 är det läsarens egen, på deras telefon.",
     "Ranking__BaseAddress": "https://eventor.orientering.se/",
 

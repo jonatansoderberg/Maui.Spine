@@ -50,6 +50,13 @@ builder.Services.AddSpinePush(push =>
         });
     }
 
+    // Firebase tjänstekonto-JSON i sin helhet. Utan den finns Android-installationer i registret
+    // men når ingen — samma förhållande som Apple utan nyckel.
+    if (builder.Configuration["Push:Android:ServiceAccountJson"] is { Length: > 0 } serviceAccount)
+    {
+        push.Android(android => android.ServiceAccountJson = serviceAccount);
+    }
+
     // Endpointen är öppen, som resten av backendens API. En tagg är därför bara ett önskemål:
     // user: filtreras bort tills registreringen är autentiserad, så ingen kan lyssna som någon
     // annan. kind: och competition: är inte hemliga — de säger bara vad telefonen vill höra om.
