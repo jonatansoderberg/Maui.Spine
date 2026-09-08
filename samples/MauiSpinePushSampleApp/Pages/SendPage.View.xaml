@@ -11,6 +11,9 @@
             <Label Text="Ber sample-servern skicka. Kör den med dotnet run i MauiSpinePushSampleApp.Server."
                    FontSize="12" TextColor="Gray" />
 
+            <Label Text="En push som kommer fram medan appen är i förgrunden visas inte — den här samplens handler svarar None och skriver bara en rad i Logg. Slå på fördröjningen nedan och lägg appen i bakgrunden om du vill se en riktig notis."
+                   FontSize="12" TextColor="Gray" />
+
             <Label Text="Sort" />
             <Picker ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" />
 
@@ -37,6 +40,11 @@
             <Grid ColumnDefinitions="*,Auto">
                 <Label Text="Hög prioritet" VerticalOptions="Center" />
                 <Switch Grid.Column="1" IsToggled="{Binding HighPriority}" />
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="Vänta 5 sekunder med att skicka" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding Delay}" />
             </Grid>
 
             <Button Text="Skicka" Command="{Binding SendCommand}" Margin="0,8,0,0" />

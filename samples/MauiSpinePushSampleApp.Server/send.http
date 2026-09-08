@@ -15,6 +15,19 @@ Content-Type: application/json
   "highPriority": true
 }
 
+### A notification five seconds from now, so the app can be put in the background first
+POST {{host}}/send
+Content-Type: application/json
+
+{
+  "kind": "alert",
+  "title": "Nu syns jag",
+  "body": "Appen hann i bakgrunden",
+  "route": "log",
+  "highPriority": true,
+  "delaySeconds": 5
+}
+
 ### A notification to one tag expression
 POST {{host}}/send
 Content-Type: application/json

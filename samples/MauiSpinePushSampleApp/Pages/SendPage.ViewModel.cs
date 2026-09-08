@@ -5,6 +5,8 @@ namespace MauiSpinePushSampleApp.Pages;
 
 public partial class SendPageViewModel(SampleServer _server, IPushService _push, PushLog _log) : ViewModelBase
 {
+    private const int DelaySeconds = 5;
+
     /// <summary>alert, silent, liveactivity or widget.</summary>
     public IReadOnlyList<string> Kinds { get; } = ["alert", "silent", "liveactivity", "widget"];
 
@@ -42,6 +44,14 @@ public partial class SendPageViewModel(SampleServer _server, IPushService _push,
     [ObservableProperty]
     public partial bool HighPriority { get; set; } = true;
 
+    /// <summary>
+    /// Holds the send back five seconds so the app can be put in the background first. Without it a
+    /// message sent from this page always arrives in the foreground, where the sample's handler
+    /// answers <see cref="PushPresentation.None"/> and nothing is shown but a log line.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool Delay { get; set; }
+
     /// <summary>What the server answered, shown under the button.</summary>
     [ObservableProperty]
     public partial string Result { get; set; } = "";
@@ -49,7 +59,7 @@ public partial class SendPageViewModel(SampleServer _server, IPushService _push,
     [RelayCommand]
     private async Task Send()
     {
-        Result = "skickar…";
+        Result = Delay ? $"skickar om {DelaySeconds} s — lägg appen i bakgrunden nu" : "skickar…";
 
         var request = new
         {
@@ -63,6 +73,7 @@ public partial class SendPageViewModel(SampleServer _server, IPushService _push,
             highPriority = HighPriority,
             widgetKind = Kind == "widget" ? "sample" : null,
             activityKind = Kind == "liveactivity" ? "sample" : null,
+            delaySeconds = Delay ? DelaySeconds : (int?)null,
         };
 
         Result = await _server.SendAsync(request);

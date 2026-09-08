@@ -56,6 +56,10 @@ Paketet först, samplet sedan, dokumentationen sist. En commit per steg.
 - "Registrera om" tvingar. Taggar-arket öppnas i fullskärm med Spara fäst utanför scrollytan, och
   visar vad som kom av att spara.
 - `SendPageViewModel.Title` → `NotificationTitle`; headern visade meddelandets titel (CS0108).
+- Skicka-sidan säger att en push som kommer fram i förgrunden inte visas, och har en switch som
+  håller utskicket fem sekunder så appen hinner läggas i bakgrunden. Väntan ligger i serverns
+  `/send` — poängen med den är att appen ska kunna bakgrundas, och en bakgrundad app är just vad
+  man inte kan lita på håller igång en timer. `send.http` fick samma anrop.
 
 ### Dokumentation
 
@@ -72,6 +76,9 @@ Paketet först, samplet sedan, dokumentationen sist. En commit per steg.
 - **`RefreshAsync` returnerar en enum, inte `bool` plus loggning.** Tre olika utfall såg likadana ut
   för anroparen, och samplen skrev en mening som stämde för alla tre och förklarade ingen. Ett
   brytande API-byte, men paketet är inte släppt och `Plugin.Maui.Spine.Push` har en konsument.
+- **Väntan före utskick ligger i servern, inte i appen.** En `Task.Delay` i appen skulle sluta löpa
+  ungefär när den behövs som mest — när appen just lagts i bakgrunden. Servern håller i stället
+  requesten, och kapar värdet vid 60 sekunder så en felskrivning inte binder upp den.
 - **Taggar-arket öppnas i fullskärm i stället för att Spara fästs vid Medium-kanten.** Arket lägger ut
   sitt innehåll mot hela skärmhöjden, inte mot detenten, så en fäst rad hamnar under kanten ändå.
   Medium är kvar som snäppläge.
@@ -86,4 +93,6 @@ Bootad iPhone 17-simulator och Pixel 10 Pro-emulator (API 36), mot sample-server
 - iOS: Hem visar token och `Registrerad ja`. Registret tömdes bakom ryggen på appen med ett
   `DELETE`; "Registrera om" fick tillbaka raden direkt, vilket den inte kunde före ändringen.
 - Skicka-sidans header visar "SKICKA".
+- Med fördröjningen på: Skicka, hem, och notisen kommer fem sekunder senare — utan den kapplöpning
+  det annars är mellan tummen och FCM.
 - 163 tester gröna, `Plugin.Maui.Spine.Push` bygger på alla TFM:er, Orientera bygger.
