@@ -67,7 +67,7 @@ public sealed class BackendSource(
         var seeded = await _local.GetMeAsync(cancellationToken);
         var me = _identity.AsPerson(seeded) ?? seeded;
 
-        return await _eventor.StartPageAsync(cancellationToken) is { PersonId: { Length: > 0 } id }
+        return await _eventor.PersonIdAsync(cancellationToken) is { Length: > 0 } id
             ? me with { Id = new PersonId(id) }
             : me;
     }
@@ -178,36 +178,36 @@ public sealed class BackendSource(
     /// The rows carry their own name and date. The calendar reaches a few months back and these
     /// go to January, so a result cannot borrow them from a competition the app has in hand.
     /// </remarks>
+    /// <summary>
+    /// The runner's own results, from Eventor's API by way of the backend.
+    /// </summary>
+    /// <remarks>
+    /// It used to scrape <c>MyPages/Events</c> with the runner's own session. That page sits behind
+    /// Cloudflare, which answers the app's client 403 as often as not, and a failure there came back
+    /// as an empty list — indistinguishable from a season with no races. The API needs no login at
+    /// all, and carries the field size and the gap to the winner that the page never had.
+    /// </remarks>
     public async Task<IReadOnlyList<CompetitionResult>> GetResultsForPersonAsync(
         PersonId person, CancellationToken cancellationToken = default)
     {
-        var me = await GetMeAsync(cancellationToken);
+        // No Eventor id means nobody has said who this runner is over there. Falling back to "me"
+        // would ask about the seeded demo runner instead, which is worse than an empty list — the
+        // results list says why through EventorAccess.
+        if (Eventor(person) is not { } id)
+            return [];
 
-        return
-        [
-            .. (await _eventor.ResultsAsync(cancellationToken))
-                .OrderByDescending(r => r.Date)
-                .Select(r => new CompetitionResult
-                {
-                    Id = new ResultId($"{r.EventId}:{me.Id.Value}"),
-                    Competition = new CompetitionId(r.EventId),
-                    Person = me.Id,
-                    Name = me.Name,
-                    Club = me.Club,
-                    Class = r.Class,
+        var results = await GetAsync<List<CompetitionResult>>(
+            $"results/person?person={Uri.EscapeDataString(id)}", cancellationToken) ?? [];
 
-                    // A row without a placement is a race that was started and not finished in a
-                    // classifiable way. Eventor's page says "ej godkänd" without saying which of
-                    // the reasons it was, so this stops at the one thing it does say.
-                    Status = r.Place is null ? ResultStatus.Mispunch : ResultStatus.Ok,
-                    Place = r.Place,
-                    Time = r.Time,
-                    BehindWinner = r.Behind,
-                    CompetitionName = r.Name,
-                    CompetitionDate = r.Date,
-                    CompetitionDiscipline = r.Discipline,
-                }),
-        ];
+        // Eventor answers oldest first; the list is read newest first, and a career reaches back
+        // more than a decade.
+        return [.. results.OrderByDescending(result => result.CompetitionDate)];
+
+        // "me:<hash>" is the app's own name for a runner Eventor has not identified.
+        static string? Eventor(PersonId person) =>
+            person.Value.StartsWith("me:", StringComparison.Ordinal) || person.Value.Length == 0
+                ? null
+                : person.Value;
     }
 
     /// <summary>Prediction is M3, and an unbacktested number is worse than none (SP-11).</summary>

@@ -304,40 +304,52 @@ public class BackendSourceTests
 /// </remarks>
 public class MyResultsThroughTheSourceTests
 {
-    private static BackendSource Source()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"orientera-session-{Guid.NewGuid():N}.json");
-        var sessions = new EventorSessionStore(path);
+    private const string PersonId = "121330";
 
+    private static BackendSource Source(string json = Season)
+    {
+        var sessions = new EventorSessionStore(Path.Combine(
+            Path.GetTempPath(), $"orientera-session-{Guid.NewGuid():N}.json"));
+
+        // The login reads the runner's Eventor id off the page and keeps it with the session. That
+        // is what turns "me" into somebody the results API can be asked about.
         sessions.Save(new EventorWebSession
         {
             Cookies = [new SessionCookie("ASP.NET_SessionId", "live", null)],
-            PersonId = "121330",
+            PersonId = PersonId,
             CapturedAt = DateTimeOffset.Now,
         });
 
-        var eventor = new EventorReader(new HttpClient(new MyPagesHandler()), sessions);
-
         return new BackendSource(
-            new HttpClient { BaseAddress = new Uri("http://localhost/api/") },
+            new HttpClient(new BackendHandler(json)) { BaseAddress = new Uri("http://localhost/api/") },
             new FakeDataSource(new TimeMachineClock(FakeDataset.DefaultNow)),
             new LocalIdentityStore(Path.Combine(Path.GetTempPath(), $"id-{Guid.NewGuid():N}.json")),
             new LocalGroupStore(Path.Combine(Path.GetTempPath(), $"grp-{Guid.NewGuid():N}.json")),
-            eventor);
+            new EventorReader(new HttpClient(new OfflineHandler()), sessions));
     }
+
+    /// <summary>Two races, oldest first, as Eventor's API answers.</summary>
+    private const string Season = """
+        [
+          {"id":"1","competition":"6168","person":"121330","name":"Jonatan Söderberg","club":"Gävle OK",
+           "class":"ÖM7","status":"Ok","place":8,"starters":14,
+           "competitionName":"DM Medel","competitionDate":"2014-09-13"},
+          {"id":"2","competition":"11314","person":"121330","name":"Jonatan Söderberg","club":"Gävle OK",
+           "class":"C 3 km","status":"Ok","place":3,"starters":3,
+           "competitionName":"Nyårsorientering","competitionDate":"2014-12-31"}
+        ]
+        """;
 
     [Fact]
     public async Task A_season_of_results_reaches_the_app()
     {
-        var results = await Source().GetResultsForPersonAsync(new PersonId("121330"));
-
-        Assert.NotEmpty(results);
+        Assert.NotEmpty(await Source().GetResultsForPersonAsync(new PersonId(PersonId)));
     }
 
     [Fact]
     public async Task A_result_names_its_own_competition_so_the_calendar_need_not()
     {
-        var results = await Source().GetResultsForPersonAsync(new PersonId("121330"));
+        var results = await Source().GetResultsForPersonAsync(new PersonId(PersonId));
 
         Assert.All(results, r => Assert.False(string.IsNullOrWhiteSpace(r.CompetitionName)));
         Assert.All(results, r => Assert.NotNull(r.CompetitionDate));
@@ -346,27 +358,52 @@ public class MyResultsThroughTheSourceTests
     [Fact]
     public async Task The_newest_race_comes_first()
     {
-        var results = await Source().GetResultsForPersonAsync(new PersonId("121330"));
+        var results = await Source().GetResultsForPersonAsync(new PersonId(PersonId));
 
         Assert.Equal(
             results.Select(r => r.CompetitionDate).OrderByDescending(d => d).ToList(),
             results.Select(r => r.CompetitionDate).ToList());
     }
 
-    /// <summary>Eventor answers every page the reader asks for with the real "Mina tävlingar".</summary>
-    private sealed class MyPagesHandler : HttpMessageHandler
+    /// <summary>
+    /// Without an Eventor id there is nobody to ask about, and the app says so through
+    /// EventorAccess rather than by failing.
+    /// </summary>
+    [Fact]
+    public async Task A_runner_Eventor_has_not_identified_gets_no_results()
+    {
+        var source = new BackendSource(
+            new HttpClient(new BackendHandler(Season)) { BaseAddress = new Uri("http://localhost/api/") },
+            new FakeDataSource(new TimeMachineClock(FakeDataset.DefaultNow)),
+            new LocalIdentityStore(Path.Combine(Path.GetTempPath(), $"id-{Guid.NewGuid():N}.json")),
+            new LocalGroupStore(Path.Combine(Path.GetTempPath(), $"grp-{Guid.NewGuid():N}.json")),
+            new EventorReader(new HttpClient(new OfflineHandler()), new EventorSessionStore(
+                Path.Combine(Path.GetTempPath(), $"empty-{Guid.NewGuid():N}.json"))));
+
+        Assert.Empty(await source.GetResultsForPersonAsync(new PersonId("me:abc123")));
+    }
+
+    /// <summary>The backend answers the results question; nothing else is asked of it here.</summary>
+    private sealed class BackendHandler(string json) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            string file = request.RequestUri!.AbsolutePath.Contains("MyPages/Events")
-                ? Fixture.PathFor("Eventor", "myevents-121330.html")
-                : Fixture.PathFor("Eventor", "home-121330.html");
-
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(File.ReadAllText(file), Encoding.UTF8, "text/html"),
+                Content = new StringContent(
+                    request.RequestUri!.AbsolutePath.EndsWith("results/person", StringComparison.Ordinal)
+                        ? json
+                        : "[]",
+                    Encoding.UTF8,
+                    "application/json"),
             });
-        }
+    }
+
+    /// <summary>Eventor's own pages are not reachable, which is the state this path must survive.</summary>
+    private sealed class OfflineHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden));
     }
 }

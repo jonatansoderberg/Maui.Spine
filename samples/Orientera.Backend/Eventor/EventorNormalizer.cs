@@ -376,10 +376,24 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
         {
             // The event names itself inside its own list; without it a result has nothing to
             // belong to, and a result nobody can place is not one the app can use.
-            if (resultList.Child("Event").Text("EventId") is not { Length: > 0 } id)
+            var element = resultList.Child("Event");
+
+            if (element.Text("EventId") is not { Length: > 0 } id)
                 continue;
 
-            results.AddRange(Results(resultList, new CompetitionId(id), organisations, partial: true));
+            // The name and the date come along in the same element. Dropping them made every row
+            // a competition the reader had to fetch one by one to be able to draw at all — a
+            // season of races, a season of requests.
+            var moment = resultList.Deep("EventRace").FirstOrDefault().Child("RaceDate").Moment(_zone)
+                ?? element.Child("StartDate").Moment(_zone);
+
+            results.AddRange(Results(
+                resultList,
+                new CompetitionId(id),
+                organisations,
+                partial: true,
+                competitionName: element.Text("Name"),
+                competitionDate: moment is { } at ? DateOnly.FromDateTime(at.DateTime) : null));
         }
 
         return results;
@@ -390,11 +404,15 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
     /// with one runner's rows. A class' size cannot be counted from a list like that, and counting
     /// it anyway would report a field of one.
     /// </param>
+    /// <param name="competitionName">The event's name, where the caller read a list that carries it.</param>
+    /// <param name="competitionDate">The race's date, likewise.</param>
     public IReadOnlyList<CompetitionResult> Results(
         XElement resultList,
         CompetitionId competition,
         OrganisationDirectory? organisations = null,
-        bool partial = false)
+        bool partial = false,
+        string? competitionName = null,
+        DateOnly? competitionDate = null)
     {
         var results = new List<CompetitionResult>();
 
@@ -468,6 +486,8 @@ public sealed class EventorNormalizer(TimeZoneInfo _zone)
                             Starters = (raceId is { } key ? perRace.GetValueOrDefault(key) : null)
                                 ?? classStarters
                                 ?? 0,
+                            CompetitionName = competitionName,
+                            CompetitionDate = competitionDate,
                             Splits = SplitsOf(result),
                         });
                     }
