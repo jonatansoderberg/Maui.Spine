@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backenden körs på utvecklarens egen maskin och talar klartext-HTTP. 10.0.2.2 är hur
+    emulatorn når värddatorn. Undantaget gäller bara de här värdarna — allt annat kräver
+    HTTPS som vanligt, och cleartextTrafficPermitted är avstängt i botten.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>
