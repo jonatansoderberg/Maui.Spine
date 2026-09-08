@@ -10,7 +10,10 @@ namespace Orientera.Services.Push;
 /// </summary>
 public sealed class SpinePushRegistration(IPushService _push) : IPushRegistration
 {
-    public bool IsRegistered => _push.Status is PushStatus.Authorized or PushStatus.Provisional;
+    public bool IsRegistered => _push.IsRegistered;
+
+    public Task RequestPermissionAsync(CancellationToken cancellationToken = default) =>
+        _push.RequestPermissionAsync(cancellationToken);
 
     public Task SetTagsAsync(IReadOnlyList<string> tags, CancellationToken cancellationToken = default) =>
         _push.SetTagsAsync(tags, cancellationToken);

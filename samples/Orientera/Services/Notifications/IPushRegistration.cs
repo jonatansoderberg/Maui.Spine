@@ -13,6 +13,12 @@ public interface IPushRegistration
     /// </summary>
     bool IsRegistered { get; }
 
+    /// <summary>
+    /// Asks for the permission push needs and registers with the system, so a device token can
+    /// arrive. The same OS prompt as the local scheduler's, which is why the sheet may call both.
+    /// </summary>
+    Task RequestPermissionAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Replaces the tags this installation is registered with.</summary>
     Task SetTagsAsync(IReadOnlyList<string> tags, CancellationToken cancellationToken = default);
 }
@@ -21,6 +27,8 @@ public interface IPushRegistration
 public sealed class NoPushRegistration : IPushRegistration
 {
     public bool IsRegistered => false;
+
+    public Task RequestPermissionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public Task SetTagsAsync(IReadOnlyList<string> tags, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;

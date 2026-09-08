@@ -50,6 +50,7 @@ public sealed partial class NotificationRow : ObservableObject
 public partial class NotificationSheetViewModel(
     NotificationPreferencesStore _preferences,
     INotificationScheduler _scheduler,
+    IPushRegistration _push,
     NotificationService _notifications) : OrienteraViewModel
 {
     public ObservableCollection<NotificationRow> Rows { get; } = [];
@@ -108,6 +109,11 @@ public partial class NotificationSheetViewModel(
 
         _preferences.Save(_preferences.Current.With(row.Kind, wanted));
         StatusText = _restingStatus;
+
+        // Samma OS-tillstånd, men push behöver också en registrering hos systemet: det är den som
+        // ger enheten sin token. Utan den kan backenden inte nå hit, och allt planeras lokalt.
+        if (wanted)
+            await _push.RequestPermissionAsync();
 
         await _notifications.RefreshAsync();
     }

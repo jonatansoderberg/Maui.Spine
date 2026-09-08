@@ -26,6 +26,16 @@
 
 		<WindowsPackageType>None</WindowsPackageType>
 
+		<!-- Spine.Push: Firebase Messagings beroenden deklarerar minSdk 23, mot repots 21. -->
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23</SupportedOSPlatformVersion>
+
+		<!--
+			Orientera har inget Firebase-projekt än, och push drivs från iOS i #178. Utan
+			google-services.json stoppar byggkontrollen; med den här av bygger appen som vanligt
+			och Android hämtar helt enkelt aldrig någon token.
+		-->
+		<SpinePushEnabled Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">false</SpinePushEnabled>
+
 		<!-- The widget extension's bundle id becomes $(ApplicationId).$(SpineWidgetsExtensionName), and an
 		     App ID cannot be renamed once registered — so it says widgets rather than leaking the
 		     framework's name into se.cosmomedia.orientera.SpineWidgets. -->

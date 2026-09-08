@@ -34,6 +34,13 @@ public interface IPushService
     /// <summary>The tags this installation is registered with, as the app last set them.</summary>
     IReadOnlyList<string> Tags { get; }
 
+    /// <summary>
+    /// Whether the backend has this installation: permission granted, a token in hand, and a
+    /// registration it accepted. An app that also notifies locally can use this to decide which
+    /// half sends what, without notifying twice or not at all.
+    /// </summary>
+    bool IsRegistered { get; }
+
     /// <summary>Asks the user for permission, if they have not been asked.</summary>
     /// <param name="cancellationToken">Cancels the wait for an answer.</param>
     /// <returns>The status afterwards.</returns>
