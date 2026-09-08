@@ -1,0 +1,57 @@
+@host = http://localhost:5100
+
+### What the register holds
+GET {{host}}/installations
+
+### A notification to everyone
+POST {{host}}/send
+Content-Type: application/json
+
+{
+  "kind": "alert",
+  "title": "Resultat klara",
+  "body": "Ett meddelande fran sample-servern",
+  "route": "log",
+  "highPriority": true
+}
+
+### A notification to one tag expression
+POST {{host}}/send
+Content-Type: application/json
+
+{
+  "kind": "alert",
+  "targetKind": "tags",
+  "target": "kind:news && !team:blue",
+  "title": "Bara till nyhetsprenumeranter",
+  "body": "team:blue ar undantagna"
+}
+
+### A silent message; nothing is shown, the handler runs
+POST {{host}}/send
+Content-Type: application/json
+
+{
+  "kind": "silent",
+  "data": { "sync": "everything" }
+}
+
+### Rebuild the widgets
+POST {{host}}/send
+Content-Type: application/json
+
+{
+  "kind": "widget",
+  "widgetKind": "sample"
+}
+
+### Update the Live Activity
+POST {{host}}/send
+Content-Type: application/json
+
+{
+  "kind": "liveactivity",
+  "activityKind": "sample",
+  "title": "Uppdaterad fran servern",
+  "body": "Innehallet kommer utifran"
+}

@@ -28,11 +28,14 @@ public class SpinePushOptionsTests
     }
 
     [Fact]
-    public void A_server_without_a_platform_is_rejected()
+    public void A_server_without_a_platform_can_still_register_devices()
     {
-        var error = Assert.Throws<InvalidOperationException>(() => Build(o => o.UseInMemoryStore()));
-        Assert.Contains("Apple", error.Message);
-        Assert.Contains("Android", error.Message);
+        // The register and the endpoints do not need a transport; only sending does. A sample server
+        // has to start before anyone has an APNs key.
+        using var services = Build(o => o.UseInMemoryStore());
+
+        Assert.IsType<InMemoryPushInstallationStore>(services.GetRequiredService<IPushInstallationStore>());
+        Assert.Null(services.GetRequiredService<SpinePushOptions>().AppleOptions);
     }
 
     [Fact]

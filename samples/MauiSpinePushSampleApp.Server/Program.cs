@@ -1,0 +1,147 @@
+using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.Server;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// The register is in memory: restart the server and every device has to register again, which is
+// exactly what a sample wants. Credentials come from user secrets or the environment, never the repo.
+builder.Services.AddSpinePush(o =>
+{
+    if (builder.Configuration["Push:Apple:TeamId"] is { Length: > 0 })
+    {
+        o.Apple(a =>
+        {
+            a.TeamId = builder.Configuration["Push:Apple:TeamId"];
+            a.KeyId = builder.Configuration["Push:Apple:KeyId"];
+            a.PrivateKey = builder.Configuration["Push:Apple:PrivateKey"];
+            a.BundleId = builder.Configuration["Push:Apple:BundleId"];
+        });
+    }
+
+    if (builder.Configuration["Push:Fcm:ServiceAccount"] is { Length: > 0 } serviceAccount)
+        o.Android(f => f.ServiceAccountJson = serviceAccount);
+
+    o.UseInMemoryStore();
+
+    // A sample server on a laptop has no users to tell apart. A real one authenticates here.
+    o.Authenticate = _ => ValueTask.FromResult(true);
+});
+
+var app = builder.Build();
+
+// PUT and DELETE /push/installations/{id} — what the app registers through.
+app.MapSpinePush("/push");
+
+/// Sends one message and answers with what happened per installation.
+app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushOptions options, CancellationToken cancellationToken) =>
+{
+    var target = request.Target switch
+    {
+        { Length: > 0 } expression when request.TargetKind == "installation" => PushTarget.Installation(expression),
+        { Length: > 0 } expression => PushTarget.Tags(expression),
+        _ => PushTarget.All,
+    };
+
+    var result = request.Kind switch
+    {
+        "silent" => await sender.SendSilentAsync(target, request.Data ?? [], cancellationToken),
+
+        "widget" => await sender.RefreshWidgetsAsync(target, request.WidgetKind, cancellationToken),
+
+        "liveactivity" => await sender.UpdateLiveActivityAsync(
+            target,
+            request.ActivityKind ?? "sample",
+            Layout(request),
+            LiveActivityEvent.Update,
+            new LiveActivityOptions { StaleAt = DateTimeOffset.UtcNow.AddMinutes(10) },
+            cancellationToken),
+
+        _ => await sender.SendAsync(target, new PushNotification
+        {
+            Title = request.Title ?? "Hej",
+            Body = request.Body ?? "Ett meddelande från sample-servern.",
+            Route = request.Route,
+            Channel = request.Channel,
+            Priority = request.HighPriority ? PushPriority.High : PushPriority.Normal,
+            Data = request.Data ?? new Dictionary<string, string>(),
+        }, cancellationToken),
+    };
+
+    return Results.Ok(new
+    {
+        result.Sent,
+        result.Invalid,
+        result.Throttled,
+        result.Failed,
+        Deliveries = result.Deliveries.Select(d => new { d.InstallationId, Platform = d.Platform.ToString(), Status = d.Status.ToString(), d.Reason }),
+
+        // Without credentials there is no transport, so a send reaches nobody however many devices
+        // are registered. Saying so here saves the next person a confusing half hour.
+        Note = result.Deliveries.Count == 0 && options.AppleOptions is null && options.AndroidOptions is null
+            ? "No platform is configured, so nothing was sent. Put Apple or Fcm credentials in user secrets."
+            : null,
+    });
+});
+
+/// What the register currently holds, so the app can show whether it got through.
+app.MapGet("/installations", async (IPushInstallationStore store, CancellationToken cancellationToken) =>
+{
+    var found = new List<object>();
+
+    await foreach (var installation in store.QueryAsync(PushTagExpression.MatchAll, cancellationToken: cancellationToken))
+    {
+        found.Add(new
+        {
+            installation.Id,
+            Platform = installation.Platform.ToString(),
+            Handle = Shorten(installation.Handle),
+            Environment = installation.Environment?.ToString(),
+            installation.Tags,
+            installation.AppVersion,
+            installation.OsVersion,
+            installation.UpdatedAt,
+        });
+    }
+
+    return Results.Ok(found);
+});
+
+app.Run();
+
+static string Shorten(string handle) =>
+    handle.Length <= 16 ? handle : $"{handle[..8]}…{handle[^8..]}";
+
+/// The layout the sample updates its Live Activity with; the same C# the app would build.
+static LiveActivityLayout Layout(SendRequest request) => new()
+{
+    LockScreen = W.VStack(4,
+        W.Text(request.Title ?? "Live Activity").Headline().Bold(),
+        W.Text(request.Body ?? DateTimeOffset.Now.ToString("HH:mm:ss")).Caption().Secondary()),
+    CompactLeading = W.Icon("bell"),
+    CompactTrailing = W.Text(DateTimeOffset.Now.ToString("HH:mm")).Caption(),
+    Minimal = W.Icon("bell"),
+};
+
+/// <param name="Kind">alert, silent, liveactivity or widget.</param>
+/// <param name="TargetKind">tags (the default) or installation.</param>
+/// <param name="Target">A tag expression, or an installation id. Empty reaches everyone.</param>
+/// <param name="Title">The notification's first line.</param>
+/// <param name="Body">The notification's body.</param>
+/// <param name="Route">The page the app should open when it is tapped.</param>
+/// <param name="Channel">The Android channel, and the thread id on iOS.</param>
+/// <param name="HighPriority">Whether to ask for immediate delivery.</param>
+/// <param name="WidgetKind">Which widget to rebuild; all of them when absent.</param>
+/// <param name="ActivityKind">Which Live Activity to update.</param>
+/// <param name="Data">Extra values handed to the app's handler.</param>
+internal sealed record SendRequest(
+    string? Kind,
+    string? TargetKind,
+    string? Target,
+    string? Title,
+    string? Body,
+    string? Route,
+    string? Channel,
+    bool HighPriority,
+    string? WidgetKind,
+    string? ActivityKind,
+    Dictionary<string, string>? Data);
