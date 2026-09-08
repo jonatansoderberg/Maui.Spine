@@ -67,9 +67,14 @@ public sealed class ApnsPayload
                 if (activity.StaleAt is { } stale) w.WriteNumber("stale-date", stale.ToUnixTimeSeconds());
                 if (activity.DismissAt is { } dismiss) w.WriteNumber("dismissal-date", dismiss.ToUnixTimeSeconds());
 
+                // ActivityKit decodes content-state into the extension's ContentState, which holds the
+                // layout as a single string — see SpineActivityAttributes.ContentState(json:). Writing
+                // the layout object here instead produces JSON that cannot be decoded, and iOS answers
+                // by rendering its placeholder: a frozen progress ring where the activity should be.
                 w.WritePropertyName("content-state");
-                using var state = JsonDocument.Parse(activity.ContentStateJson);
-                state.RootElement.WriteTo(w);
+                w.WriteStartObject();
+                w.WriteString("json", activity.ContentStateJson);
+                w.WriteEndObject();
             }
 
             w.WriteEndObject();
