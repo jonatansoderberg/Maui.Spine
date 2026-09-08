@@ -68,8 +68,17 @@ Inga öppna. Avgjorda 2026-09-08:
 - **`AddSpinePush` vägrade starta utan plattform.** Rättat, se Decisions.
 - Verifierat mot en körande server: tomt register → två `PUT` → registret visar båda → tagguttrycket `kind:news && !team:blue` matchar rätt → `DELETE` → en kvar. Allt över HTTP, vilket är första gången #176:s endpoints och register körts på riktigt.
 
+### Steg 2 och 3 — appen och sidorna
+
+- `samples/MauiSpinePushSampleApp` med `UseSpine` + `UseSpineWidgets` + `UseSpinePush`, `SpinePush.Install()` i `Program.cs`, backend-adress ur inbäddad `appsettings.json` med `10.0.2.2` för emulatorn.
+- `PushLog` som handlern skriver till, `SamplePushHandler` som loggar allt och svarar `None` i förgrunden så Logg-sidan är beviset i stället för en banner över den.
+- Fem sidor i trefilsmönstret: **Hem**, **Taggar** som ark, **Skicka**, **Logg**, **Live Activity**.
+- Tre beroendeproblem som varje konsument hade gått på, alla lösta i paketet — se Decisions.
+- **Verifierat i simulatorn:** appen startar, tillståndsdialogen ger `Authorized`, Taggar-arket öppnas, och en `xcrun simctl push` ger loggraden `Alert foreground "Resultat klara" — route: log, answered: None, competition=59691`. Hela klientkedjan från payload till UI.
+
 ## Decisions
 
+- **Tre beroendeproblem mellan Firebase och MAUI, lösta i `Plugin.Maui.Spine.Push` i stället för i varje app.** Först `NU1107`: MAUI 10.0.50 pinnar `LiveData.Core` under 2.9.3 medan Firebase kräver minst 2.11.0.1 — löst med en direkt referens, som NuGet självt föreslår, till priset av `NU1608`-varningar om den brutna övre gränsen. Sedan `FragmentKt is defined multiple times`: `Fragment.Ktx` 1.8.x och `Fragment` 1.9.0 bär båda klassen, så D8 stannade — löst genom att pinna båda till 1.9.0. Och sist `minSdkVersion 21 cannot be smaller than version 23`: Firebase kräver minSdk 23 medan Spines eget golv är 21. Det sista höjs **inte** för hela repot, eftersom det bara är push som kräver det; i stället felar Push-targeten med exakt vad som ska läggas till, i stället för manifest-mergerns vägg av text.
 - **En server utan konfigurerad plattform får starta.** `AddSpinePush` kastade "configure at least one of Apple(...) and Android(...)", vilket gör att sample-servern inte går att köra efter en klon — och det stämmer inte heller med koden: registret och endpointsen behöver ingen transport, bara utskicket gör det, och `PushSender` hoppar redan över plattformar utan transport. Kravet är borttaget. För att ingen ska undra varför en push inte kom fram svarar samplens `/send` med en förklaring när registret har enheter men ingen transport finns.
 - **`UnsupportedPushPlatform` registreras med `TryAddSingleton` efter `ConfigurePlatform`.** Alternativet, att registrera den först och låta plattformen skriva över, fungerar också men gör ordningen till en osynlig regel som nästa plattformsimplementation kan bryta. Med `TryAdd` sist är regeln uttryckt i koden.
 

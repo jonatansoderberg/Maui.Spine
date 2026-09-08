@@ -70,6 +70,18 @@
 		Android: Firebase needs google-services.json. Without it the app builds and then fails to get a
 		token at runtime, with an error that says nothing about the missing file — so it fails here instead.
 	-->
+	<!--
+		Firebase Messaging's AndroidX dependencies declare minSdk 23, and the manifest merger fails with
+		a wall of text if the app allows less. Spine's own floor is 21, so this is the package's
+		requirement and not the repo's — it is stated here rather than raised for everyone.
+	-->
+	<Target Name="_SpinePushAndroidMinSdk"
+			Condition="'$(SpinePushEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(DesignTimeBuild)' != 'true'"
+			BeforeTargets="BeforeBuild">
+		<Error Condition="'$(SupportedOSPlatformVersion)' != '' And $([MSBuild]::VersionLessThan('$(SupportedOSPlatformVersion)', '23'))"
+			   Text="Spine.Push: Android needs SupportedOSPlatformVersion 23 or higher; this project has $(SupportedOSPlatformVersion). Firebase Messaging's dependencies declare minSdk 23. Add &lt;SupportedOSPlatformVersion Condition=&quot;$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'&quot;&gt;23&lt;/SupportedOSPlatformVersion&gt; to the app project." />
+	</Target>
+
 	<Target Name="_SpinePushAndroidCheck"
 			Condition="'$(SpinePushEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(DesignTimeBuild)' != 'true'"
 			BeforeTargets="BeforeBuild">

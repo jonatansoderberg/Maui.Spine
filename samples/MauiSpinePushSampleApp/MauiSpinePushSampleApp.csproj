@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+
+		<OutputType>Exe</OutputType>
+		<RootNamespace>MauiSpinePushSampleApp</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<MauiXamlInflator>SourceGen</MauiXamlInflator>
+		<UseMaterial3>true</UseMaterial3>
+
+		<ApplicationTitle>Spine Push</ApplicationTitle>
+		<ApplicationId>com.companyname.mauispinepushsampleapp</ApplicationId>
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+
+		<WindowsPackageType>None</WindowsPackageType>
+
+		<!-- Firebase Messaging's dependencies declare minSdk 23; Spine's own floor is 21. -->
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23</SupportedOSPlatformVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+		<MauiImage Include="Resources\Images\*" />
+		<MauiFont Include="Resources\Fonts\*" />
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Where the sample server is. Embedded so the app reads it the way Orientera does. -->
+		<EmbeddedResource Include="appsettings.json" />
+	</ItemGroup>
+
+	<!--
+		A placeholder so the sample builds and runs straight after a clone. Firebase will refuse the
+		fake project, so Android gets no token until you drop in your own file — the Log page says so.
+	-->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<GoogleServicesJson Include="Platforms\Android\google-services.json" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AsyncAwaitBestPractices" />
+		<PackageReference Include="CommunityToolkit.Mvvm" />
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Push\Plugin.Maui.Spine.Push.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<SpineWidget Include="sample" DisplayName="Spine push" Description="Rebuilt when the server sends a widget refresh." Families="Small,Medium" />
+	</ItemGroup>
+
+	<Import Project="..\..\src\Plugin.Maui.Spine\build\Plugin.Maui.Spine.Entitlements.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.Push\build\Plugin.Maui.Spine.Push.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
+
+</Project>

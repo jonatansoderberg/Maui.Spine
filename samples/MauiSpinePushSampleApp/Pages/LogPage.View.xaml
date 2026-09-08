@@ -1,0 +1,31 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:services="clr-namespace:MauiSpinePushSampleApp.Services"
+    x:Class="MauiSpinePushSampleApp.Pages.LogPage"
+    x:TypeArguments="LogPageViewModel"
+    x:DataType="LogPageViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <Button Grid.Row="0" Text="Rensa" Command="{Binding ClearCommand}" Margin="16,8" />
+
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Entries}" Margin="16,0,16,16">
+            <CollectionView.EmptyView>
+                <Label Text="Inget har kommit in ännu. Skicka något från Skicka-sidan, eller kör xcrun simctl push."
+                       TextColor="Gray" FontSize="12" Margin="0,20" />
+            </CollectionView.EmptyView>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="services:PushLogEntry">
+                    <VerticalStackLayout Padding="0,6">
+                        <Label Text="{Binding Summary}" FontAttributes="Bold" FontSize="13" />
+                        <Label Text="{Binding Detail}" FontSize="11" TextColor="Gray" />
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+
+</SpinePage>
