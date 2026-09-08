@@ -13,20 +13,46 @@ public sealed class CompetitionContextService(
     IPeopleSource _people,
     IParticipationSource _participation)
 {
+    /// <summary>
+    /// The answers that do not change between competitions: who I am, who I follow, and what
+    /// everyone is entered in.
+    /// </summary>
+    /// <remarks>
+    /// Read once and passed along when a whole list is evaluated. Asked per competition it was
+    /// three source calls per card, and a calendar of a thousand competitions made four thousand
+    /// of them before the first row could be drawn.
+    /// </remarks>
+    public sealed record Audience(Person Me, IReadOnlySet<PersonId> Group, IReadOnlyList<CompetitionEntry> Entries);
+
+    /// <summary>Reads the shared half once, for a pass over many competitions.</summary>
+    public async Task<Audience> AudienceAsync(CancellationToken cancellationToken = default) =>
+        new(await _people.GetMeAsync(cancellationToken),
+            (await _people.GetMyGroupAsync(cancellationToken)).Select(f => f.Person.Id).ToHashSet(),
+            await _participation.GetEntriesAsync(cancellationToken));
+
     public async Task<ContextDecision> EvaluateAsync(
         Competition competition,
         CancellationToken cancellationToken = default) =>
-        ContextEngine.Evaluate(await BuildInputAsync(competition, cancellationToken));
+        await EvaluateAsync(competition, await AudienceAsync(cancellationToken), cancellationToken);
+
+    /// <summary>Evaluates one competition against an audience already read.</summary>
+    public async Task<ContextDecision> EvaluateAsync(
+        Competition competition,
+        Audience audience,
+        CancellationToken cancellationToken = default) =>
+        ContextEngine.Evaluate(await BuildInputAsync(competition, audience, cancellationToken));
 
     public async Task<ContextInput> BuildInputAsync(
         Competition competition,
+        CancellationToken cancellationToken = default) =>
+        await BuildInputAsync(competition, await AudienceAsync(cancellationToken), cancellationToken);
+
+    public async Task<ContextInput> BuildInputAsync(
+        Competition competition,
+        Audience audience,
         CancellationToken cancellationToken = default)
     {
-        var me = await _people.GetMeAsync(cancellationToken);
-        var group = await _people.GetMyGroupAsync(cancellationToken);
-        var entries = await _participation.GetEntriesAsync(cancellationToken);
-
-        var groupIds = group.Select(f => f.Person.Id).ToHashSet();
+        var (me, groupIds, entries) = audience;
 
         var mine = entries.FirstOrDefault(e => e.Competition == competition.Id && e.Person == me.Id);
 

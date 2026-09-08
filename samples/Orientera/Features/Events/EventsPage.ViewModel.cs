@@ -307,6 +307,9 @@ public partial class EventsPageViewModel(
 
     protected override void ClearEmptyState() => IsEmpty = false;
 
+    /// <summary>How many ranked competitions "För dig" builds. Beyond this, relevance is noise.</summary>
+    private const int ForYouLimit = 50;
+
     private async Task BuildAsync()
     {
         if (_me is null)
@@ -376,9 +379,17 @@ public partial class EventsPageViewModel(
         // and throws. The observed collection only ever sees finished sections.
         var built = new List<EventSection>();
 
-        foreach (var eventGroup in ordered)
+        // Read once for the whole pass. Every card used to ask for me, my group and everyone's
+        // entries on its own, which is three source calls per row.
+        var audience = await _context.AudienceAsync();
+
+        // A ranked list is read from the top; nobody scrolls to the thousandth most relevant
+        // competition. The calendar filters are a calendar and keep every date they match.
+        var shown = Selected == QuickFilter.ForYou ? ordered.Take(ForYouLimit) : ordered;
+
+        foreach (var eventGroup in shown)
         {
-            var card = await BuildCardAsync(eventGroup, today, mine, groupEntries, _me);
+            var card = await BuildCardAsync(eventGroup, today, mine, groupEntries, _me, audience);
 
             string name = Selected == QuickFilter.ForYou
                 ? "Mest relevant"
@@ -450,10 +461,11 @@ public partial class EventsPageViewModel(
         DateOnly today,
         IReadOnlySet<CompetitionId> mine,
         IReadOnlySet<CompetitionId> groupEntries,
-        Person me)
+        Person me,
+        CompetitionContextService.Audience audience)
     {
         var primary = eventGroup.First;
-        var decision = await _context.EvaluateAsync(primary);
+        var decision = await _context.EvaluateAsync(primary, audience);
         double? distance = primary.DistanceFrom(me.Home);
 
         return new EventCard
