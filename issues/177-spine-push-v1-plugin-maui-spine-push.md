@@ -116,9 +116,15 @@ Och en sak som **inte** går att verifiera här: `xcrun simctl push` levererar i
 - **Modellen gjordes läsbar i båda riktningar.** Det krävdes för Android, och saknades: se Decisions.
 - Serverns `FcmLiveActivity` bär nu `spine.stale`, så Android kan dimma en inaktuell aktivitet som iOS gör.
 
+### Steg 6 — dokumentation
+
+- Ny `docs/wiki/push.md`: uppsättning, den enda raden i `Program.cs` på Apple och varför den behövs, handlern, rättigheter och taggar, vad varje plattform kräver ur förstudiens §9, och hur man testar utan backend med `xcrun simctl push` — inklusive de två sakerna simulatorn inte gör.
+- Rad i README:s dokumentationstabell, och en länk mellan klient- och serversidan.
+
 ## Decisions
 
 - **MAUI:s lifecycle-API saknar krokarna, verifierat.** En probe som anropar `RegisteredForRemoteNotifications`, `FailedToRegisterForRemoteNotifications`, `DidReceiveRemoteNotification` och `WillPresentNotification` på `IiOSLifecycleBuilder` ger fyra `CS1061` mot MAUI 10.0.50. Issuets påstående stämmer, och `class_addMethod` eller overrides är alltså de enda vägarna.
+- **Registreringen hänger på `HandleChanged`, inte på anropet vid start.** Token finns inte när registrering först begärs: på Apple kommer den i en delegatmetod en stund efter att `RegisterForRemoteNotifications` returnerat, och på Android roterar Firebase den när den vill. `PushService` prenumererar därför på `IPushPlatform.HandleChanged`. Utan den prenumerationen — vilket var läget en stund under arbetet — returnerar `RefreshAsync` bara `false` vid start och en förstagångsinstallation når aldrig backend.
 - **Widgetträdet gick inte att läsa tillbaka, och det upptäcktes bara för att jag testade.** Android renderar en Live Update i appens process från serialiserad layout, så trädet måste kunna deserialiseras. Ett rundturstest visade att strukturen och texterna kom tillbaka men **all stil tyst föll till sina defaultvärden** — `Headline` och fet blev `Body` och inte fet. Orsaken var att `Role`, `Bold` och `Color` är flata vyer av `Style` utan setter. De fick `init`-accessorer som skriver tillbaka in i `Style`, och `WidgetColorJsonConverter.Read`, som medvetet kastade med motiveringen att träd bara serialiseras, läser nu strängen genom en ny `WidgetColor.Parse`. Serialiserad form är oförändrad, så renderarna på iOS och Android påverkas inte. Rundturen ger nu identisk JSON, kontrollerat med fyra tester.
 - **`?` är ett jokertecken i MSBuild:s `Include`.** Raden `<... Include="&lt;?xml version=…?&gt;" />` lästes som en filglob, matchade ingenting och försvann tyst ur den genererade plisten — filen saknade sin XML-deklaration utan att något klagade. Escapad som `%3F` skrivs den ut, och `plutil -lint` godkänner filen. Kommenterat i båda targets-filerna, eftersom nästa person kommer att skriva samma rad.
 - **`IntermediateOutputPath` är tom vid evaluering.** Sökvägen till den genererade filen byggs inne i targeten, inte i en `PropertyGroup` på filnivå — annars hamnar `Spine.entitlements` i projektmappen i stället för i `obj/`.

@@ -1,3 +1,4 @@
+using AsyncAwaitBestPractices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -16,14 +17,35 @@ namespace Plugin.Maui.Spine.Push.Services;
 /// <param name="services">Used to reach <see cref="ILiveActivityService"/> when Widgets is installed.</param>
 /// <param name="logger">Where failures are reported.</param>
 /// <param name="timeProvider">The clock the daily refresh is measured against.</param>
-internal sealed class PushService(
-    IPushPlatform platform,
-    PushRegistrationClient client,
-    SpinePushOptions options,
-    IServiceProvider services,
-    ILogger<PushService> logger,
-    TimeProvider? timeProvider = null) : IPushService
+internal sealed class PushService : IPushService
 {
+    private readonly IPushPlatform platform;
+    private readonly PushRegistrationClient client;
+    private readonly SpinePushOptions options;
+    private readonly IServiceProvider services;
+    private readonly ILogger<PushService> logger;
+
+    internal PushService(
+        IPushPlatform platform,
+        PushRegistrationClient client,
+        SpinePushOptions options,
+        IServiceProvider services,
+        ILogger<PushService> logger,
+        TimeProvider? timeProvider = null)
+    {
+        this.platform = platform;
+        this.client = client;
+        this.options = options;
+        this.services = services;
+        this.logger = logger;
+        _time = timeProvider ?? TimeProvider.System;
+
+        // The token does not exist when registration is asked for: on Apple it arrives in a delegate
+        // method some time after RegisterForRemoteNotifications returns, and on Android Firebase may
+        // rotate it whenever it likes. Without this the first launch never reaches the backend.
+        platform.HandleChanged += _ => RefreshAsync().SafeFireAndForget();
+    }
+
     private const string InstallationIdKey = "spine.push.installation-id";
     private const string TagsKey = "spine.push.tags";
     private const string FingerprintKey = "spine.push.fingerprint";
@@ -32,7 +54,7 @@ internal sealed class PushService(
     /// <summary>How long a registration may go unsent when nothing has changed.</summary>
     internal static readonly TimeSpan Heartbeat = TimeSpan.FromDays(1);
 
-    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+    private readonly TimeProvider _time;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private string[] _tags = ReadTags();
 

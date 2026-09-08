@@ -19,11 +19,8 @@ public sealed class SpinePushMessagingService : FirebaseMessagingService
     public override void OnNewToken(string token)
     {
         base.OnNewToken(token);
+        // A rotated token is worthless until the backend hears about it; PushService listens for this.
         AndroidPushPlatform.SetHandle(token);
-
-        // A rotated token is worthless until the backend hears about it.
-        if (IPlatformApplication.Current?.Services.GetService<IPushService>() is { } push)
-            _ = push.RefreshAsync();
     }
 
     /// <inheritdoc />
