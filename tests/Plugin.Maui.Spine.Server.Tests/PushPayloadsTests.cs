@@ -127,8 +127,13 @@ public class PushPayloadsTests
         Assert.Equal("update", aps.GetProperty("event").GetString());
         Assert.Equal(Now.ToUnixTimeSeconds(), aps.GetProperty("timestamp").GetInt64());
         Assert.Equal(Now.AddMinutes(10).ToUnixTimeSeconds(), aps.GetProperty("stale-date").GetInt64());
+        // content-state carries the layout as a string under "json", the shape ActivityKit decodes
+        // into SpineActivityAttributes.ContentState. Inlining the layout object here is what made
+        // server-driven activities render as a placeholder ring.
+        var state = aps.GetProperty("content-state");
+        Assert.Equal(JsonValueKind.String, state.GetProperty("json").ValueKind);
         Assert.Equal("Startar om 30 min",
-            aps.GetProperty("content-state").GetProperty("lockScreen").GetProperty("text").GetString());
+            Parse(state.GetProperty("json").GetString()!).GetProperty("lockScreen").GetProperty("text").GetString());
     }
 
     [Fact]
@@ -248,8 +253,13 @@ public class PushPayloadsTests
         var size = Encoding.UTF8.GetByteCount(envelope.Json);
 
         Assert.InRange(size, 1, PushPayloads.ApnsPayloadLimit);
-        Assert.True(size < PushPayloads.ApnsPayloadLimit / 2,
-            $"The layout is {size} bytes; over half the {PushPayloads.ApnsPayloadLimit}-byte budget means it is time to consider a compact form.");
+
+        // Three quarters, not half. ActivityKit's ContentState holds the layout as a single string,
+        // so every quote in it is escaped — about a third of the payload is that escaping alone.
+        // This layout measures ~2.4 kB of the 4 kB budget; the guard is here to catch one that grows
+        // past what the escaping leaves room for, not to argue with the encoding.
+        Assert.True(size < PushPayloads.ApnsPayloadLimit * 3 / 4,
+            $"The layout is {size} bytes; over three quarters of the {PushPayloads.ApnsPayloadLimit}-byte budget means it is time to consider a compact form.");
     }
 
     [Fact]
