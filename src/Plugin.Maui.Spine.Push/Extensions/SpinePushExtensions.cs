@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.Common.Serialization;
 using Plugin.Maui.Spine.Push.Services;
 
 namespace Plugin.Maui.Spine.Push.Extensions;
@@ -36,6 +38,15 @@ public static partial class SpinePushExtensions
             sp,
             sp.GetRequiredService<ILogger<PushService>>(),
             sp.GetService<TimeProvider>()));
+
+        // When the app also uses Plugin.Maui.Spine.Widgets, Live Activity push tokens are what make
+        // UpdateLiveActivityAsync work from a server, so they are on by default once both are present.
+        // UseSpineWidgets has to run first for this to see it; the wiki says so.
+        foreach (var registered in services)
+        {
+            if (registered.ServiceType != typeof(SpineWidgetsOptions)) continue;
+            if (registered.ImplementationInstance is SpineWidgetsOptions widgets) widgets.LiveActivityPushTokens = true;
+        }
 
         if (options.HandlerType is { } handler)
             services.AddTransient(typeof(IPushHandler), handler);
@@ -92,6 +103,84 @@ public static partial class SpinePushExtensions
         {
             logger.LogError(e, "Spine.Push: the handler threw on an opened notification.");
         }
+    }
+
+    /// <summary>
+    /// Messages Spine handles itself: a widget rebuild, and a Live Activity on the platforms that
+    /// render one in the app's own process. Both services live in <c>Plugin.Maui.Spine.Common</c>, so
+    /// this package works whether or not the app also uses <c>Plugin.Maui.Spine.Widgets</c> — without
+    /// it they are simply not registered and nothing happens.
+    /// </summary>
+    /// <returns><see langword="true"/> when Spine dealt with the message and nothing should be shown.</returns>
+    internal static async Task<bool> HandleInternallyAsync(
+        IServiceProvider services, PushMessage message, CancellationToken cancellationToken)
+    {
+        var logger = services.GetRequiredService<ILogger<IPushService>>();
+
+        try
+        {
+            switch (message.Kind)
+            {
+                case PushKind.Widget when services.GetService<IWidgetService>() is { } widgets:
+                    if (message.Data.GetValueOrDefault(PushKeys.Widget) is { Length: > 0 } kind)
+                        await widgets.RefreshAsync(kind, cancellationToken);
+                    else
+                        await widgets.RefreshAllAsync(cancellationToken);
+                    return true;
+
+                case PushKind.LiveActivity when services.GetService<ILiveActivityService>() is { } activities:
+                    return await LiveActivityAsync(activities, message, cancellationToken);
+
+                default:
+                    return false;
+            }
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            logger.LogError(e, "Spine.Push: handling a {Kind} message failed.", message.Kind);
+            return false;
+        }
+    }
+
+    private static async Task<bool> LiveActivityAsync(
+        ILiveActivityService activities, PushMessage message, CancellationToken cancellationToken)
+    {
+        if (message.Data.GetValueOrDefault(PushKeys.Activity) is not { Length: > 0 } kind) return false;
+
+        var running = activities.Active.FirstOrDefault(a => a.Kind == kind && !a.IsEnded);
+
+        switch (message.Data.GetValueOrDefault("spine.event"))
+        {
+            case "end":
+                if (running is not null) await running.EndAsync();
+                return true;
+
+            case "start" when running is null:
+                if (Layout(message) is { } starting)
+                    await activities.StartAsync(kind, starting, StaleAt(message));
+                return true;
+
+            default:
+                // An update for an activity that is not running is the same situation as a start, and
+                // the sender cannot know which it is: the device may have been restarted since.
+                if (Layout(message) is not { } layout) return false;
+
+                if (running is null) await activities.StartAsync(kind, layout, StaleAt(message));
+                else await running.UpdateAsync(layout, StaleAt(message));
+
+                return true;
+        }
+
+        static LiveActivityLayout? Layout(PushMessage message) =>
+            message.Data.GetValueOrDefault(PushKeys.Layout) is { Length: > 0 } json
+                ? WidgetJson.DeserializeLayout(json)
+                : null;
+
+        static DateTimeOffset? StaleAt(PushMessage message) =>
+            message.Data.GetValueOrDefault("spine.stale") is { Length: > 0 } value &&
+            long.TryParse(value, out var unix)
+                ? DateTimeOffset.FromUnixTimeSeconds(unix)
+                : null;
     }
 
     internal static IServiceProvider Services() => IPlatformApplication.Current?.Services

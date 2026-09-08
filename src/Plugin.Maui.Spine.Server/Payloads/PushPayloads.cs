@@ -178,7 +178,9 @@ public static class PushPayloads
     /// High priority: the message drives something the user is looking at, and the app's service has
     /// to run even when nothing is in the foreground.
     /// </remarks>
-    public static PushEnvelope FcmLiveActivity(string kind, LiveActivityLayout layout, LiveActivityEvent @event)
+    /// <param name="options">Timing; only <see cref="LiveActivityOptions.StaleAt"/> means anything here.</param>
+    public static PushEnvelope FcmLiveActivity(
+        string kind, LiveActivityLayout layout, LiveActivityEvent @event, LiveActivityOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
         ArgumentNullException.ThrowIfNull(layout);
@@ -193,6 +195,9 @@ public static class PushPayloads
             LiveActivityEvent.End => "end",
             _ => "update",
         };
+
+        if (options?.StaleAt is { } stale)
+            message.Data["spine.stale"] = stale.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         return new PushEnvelope { Json = message.ToJson(), Priority = 10 };
     }

@@ -107,9 +107,19 @@ Och en sak som **inte** går att verifiera här: `xcrun simctl push` levererar i
 - `Plugin.Maui.Spine.Push.targets` bidrar `aps-environment`, och på Mac Catalyst båda stavningarna, skriver `UIBackgroundModes: remote-notification` och `SpinePushEnvironment` som `PartialAppManifest`, och felar tydligt på Android när `<GoogleServicesJson>` saknas.
 - Båda sample-apparna importerar det gemensamma steget, som de redan importerar widget-targetsen.
 
+### Steg 5 — Live Activities och widgets
+
+- `SpinePushExtensions.HandleInternallyAsync` tar hand om `spine.kind=widget` och `spine.kind=liveactivity` genom `IWidgetService` och `ILiveActivityService`. Båda ligger i `Common`, så paketet fungerar oavsett om appen också använder Widgets — utan det är tjänsterna inte registrerade och ingenting händer.
+- Anropas från Android-tjänsten och från iOS tysta push. Bara en `Alert` ritas som notis; de andra sorterna är appens sak.
+- En `update` för en aktivitet som inte kör startar den i stället. Avsändaren kan inte veta vilket det är — enheten kan ha startats om sedan sist.
+- `LiveActivityPushTokens` slås på när `SpineWidgetsOptions` redan är registrerat, alltså när `UseSpineWidgets` körts före `UseSpinePush`.
+- **Modellen gjordes läsbar i båda riktningar.** Det krävdes för Android, och saknades: se Decisions.
+- Serverns `FcmLiveActivity` bär nu `spine.stale`, så Android kan dimma en inaktuell aktivitet som iOS gör.
+
 ## Decisions
 
 - **MAUI:s lifecycle-API saknar krokarna, verifierat.** En probe som anropar `RegisteredForRemoteNotifications`, `FailedToRegisterForRemoteNotifications`, `DidReceiveRemoteNotification` och `WillPresentNotification` på `IiOSLifecycleBuilder` ger fyra `CS1061` mot MAUI 10.0.50. Issuets påstående stämmer, och `class_addMethod` eller overrides är alltså de enda vägarna.
+- **Widgetträdet gick inte att läsa tillbaka, och det upptäcktes bara för att jag testade.** Android renderar en Live Update i appens process från serialiserad layout, så trädet måste kunna deserialiseras. Ett rundturstest visade att strukturen och texterna kom tillbaka men **all stil tyst föll till sina defaultvärden** — `Headline` och fet blev `Body` och inte fet. Orsaken var att `Role`, `Bold` och `Color` är flata vyer av `Style` utan setter. De fick `init`-accessorer som skriver tillbaka in i `Style`, och `WidgetColorJsonConverter.Read`, som medvetet kastade med motiveringen att träd bara serialiseras, läser nu strängen genom en ny `WidgetColor.Parse`. Serialiserad form är oförändrad, så renderarna på iOS och Android påverkas inte. Rundturen ger nu identisk JSON, kontrollerat med fyra tester.
 - **`?` är ett jokertecken i MSBuild:s `Include`.** Raden `<... Include="&lt;?xml version=…?&gt;" />` lästes som en filglob, matchade ingenting och försvann tyst ur den genererade plisten — filen saknade sin XML-deklaration utan att något klagade. Escapad som `%3F` skrivs den ut, och `plutil -lint` godkänner filen. Kommenterat i båda targets-filerna, eftersom nästa person kommer att skriva samma rad.
 - **`IntermediateOutputPath` är tom vid evaluering.** Sökvägen till den genererade filen byggs inne i targeten, inte i en `PropertyGroup` på filnivå — annars hamnar `Spine.entitlements` i projektmappen i stället för i `obj/`.
 - **Android har ingen "provisional", och `Denied` täcker två fall.** En användare som tackade nej och en som stängt av notiser i inställningarna ser likadana ut genom `AreNotificationsEnabled()`. Att skilja dem åt skulle kräva att paketet minns vad som frågats, och appen ska göra samma sak i båda fallen: visa vägen till inställningarna. Alltså `Denied` för båda.

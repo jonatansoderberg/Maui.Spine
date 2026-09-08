@@ -181,6 +181,18 @@ public class PushPayloadsTests
     }
 
     [Fact]
+    public void The_android_live_update_carries_the_stale_time_so_the_app_can_dim_it()
+    {
+        var envelope = PushPayloads.FcmLiveActivity(
+            "din-start:1", new LiveActivityLayout(), LiveActivityEvent.Update,
+            new LiveActivityOptions { StaleAt = Now.AddMinutes(10) });
+
+        var data = Parse(envelope.Json).GetProperty("data");
+
+        Assert.Equal(Now.AddMinutes(10).ToUnixTimeSeconds().ToString(), data.GetProperty("spine.stale").GetString());
+    }
+
+    [Fact]
     public void A_widget_refresh_is_a_silent_push_on_apple_and_a_data_message_on_android()
     {
         var apple = PushPayloads.ApnsWidgetRefresh("next-start", Bundle);

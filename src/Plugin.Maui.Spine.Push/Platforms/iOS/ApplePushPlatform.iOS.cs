@@ -141,7 +141,11 @@ internal sealed class ApplePushPlatform : IPushPlatform
                 ReceivedAt: DateTimeOffset.UtcNow,
                 Deadline: deadline.Token);
 
-            await SpinePushExtensions.DeliverAsync(SpinePushExtensions.Services(), message, context);
+            var services = SpinePushExtensions.Services();
+
+            // A silent push is how a widget rebuild reaches iOS until the dedicated widgets push type.
+            await SpinePushExtensions.HandleInternallyAsync(services, message, deadline.Token);
+            await SpinePushExtensions.DeliverAsync(services, message, context);
             completionHandler(UIBackgroundFetchResult.NewData);
         }
         catch (Exception e)

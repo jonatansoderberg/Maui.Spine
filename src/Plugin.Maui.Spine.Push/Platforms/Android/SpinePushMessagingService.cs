@@ -49,11 +49,13 @@ public sealed class SpinePushMessagingService : FirebaseMessagingService
 
         if (IPlatformApplication.Current?.Services is { } services)
         {
+            // Widget rebuilds and Live Updates are Spine's own work; the app's handler still sees them.
+            await SpinePushExtensions.HandleInternallyAsync(services, message, deadline.Token);
             presentation = await SpinePushExtensions.DeliverAsync(services, message, context);
         }
 
-        // Nothing to draw for a silent message, and nothing to draw when the handler took it.
-        if (message.Kind == PushKind.Silent) return;
+        // Only an alert is ever drawn. The other kinds are the app's business, not the shade's.
+        if (message.Kind != PushKind.Alert) return;
         if (foreground && presentation == PushPresentation.None) return;
         if (message.Title is null && message.Body is null) return;
 

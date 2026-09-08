@@ -78,7 +78,7 @@ public sealed class PushSender(
         return DispatchAsync(target, platform => platform switch
         {
             PushPlatform.Apple => PushPayloads.ApnsLiveActivity(kind, layout, @event, alert, activityOptions, BundleId, now),
-            PushPlatform.Android => PushPayloads.FcmLiveActivity(kind, layout, @event),
+            PushPlatform.Android => PushPayloads.FcmLiveActivity(kind, layout, @event, activityOptions),
             _ => null,
         }, cancellationToken);
     }
