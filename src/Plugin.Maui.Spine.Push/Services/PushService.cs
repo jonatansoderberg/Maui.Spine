@@ -16,7 +16,7 @@ namespace Plugin.Maui.Spine.Push.Services;
 /// <param name="options">The app's settings.</param>
 /// <param name="services">Used to reach <see cref="ILiveActivityService"/> when Widgets is installed.</param>
 /// <param name="logger">Where failures are reported.</param>
-/// <param name="timeProvider">The clock the daily refresh is measured against.</param>
+/// <param name="timeProvider">The clock the confirm window is measured against.</param>
 internal sealed class PushService : IPushService
 {
     private readonly IPushPlatform platform;
@@ -59,6 +59,9 @@ internal sealed class PushService : IPushService
     public PushStatus Status => platform.Status;
 
     /// <inheritdoc />
+    public string? Token => platform.Handle;
+
+    /// <inheritdoc />
     public IReadOnlyList<string> Tags => _tags;
 
     /// <inheritdoc />
@@ -84,27 +87,27 @@ internal sealed class PushService : IPushService
     {
         var status = await platform.RequestPermissionAsync(options.Permission, cancellationToken);
         if (status is PushStatus.Authorized or PushStatus.Provisional)
-            await RefreshAsync(cancellationToken);
+            await RefreshAsync(force: false, cancellationToken);
 
         return status;
     }
 
     /// <inheritdoc />
-    public Task SetTagsAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
+    public Task<PushRegistrationResult> SetTagsAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tags);
         return ApplyTagsAsync([.. tags.Distinct(StringComparer.Ordinal)], cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task AddTagsAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
+    public Task<PushRegistrationResult> AddTagsAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tags);
         return ApplyTagsAsync([.. _tags.Concat(tags).Distinct(StringComparer.Ordinal)], cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task RemoveTagsAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
+    public Task<PushRegistrationResult> RemoveTagsAsync(IEnumerable<string> tags, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tags);
         var removing = tags.ToHashSet(StringComparer.Ordinal);
@@ -112,10 +115,11 @@ internal sealed class PushService : IPushService
     }
 
     /// <inheritdoc />
-    public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
+    public async Task<PushRegistrationResult> RefreshAsync(
+        bool force = false, CancellationToken cancellationToken = default)
     {
-        if (options.Backend is null) return false;
-        if (platform.Handle is null) return false;
+        if (options.Backend is null) return PushRegistrationResult.NoBackend;
+        if (platform.Handle is null) return PushRegistrationResult.NoToken;
 
         await _gate.WaitAsync(cancellationToken);
         try
@@ -124,14 +128,15 @@ internal sealed class PushService : IPushService
             var fingerprint = Fingerprint(installation);
             var now = _time.GetUtcNow();
 
-            if (fingerprint == Preferences.Default.Get(FingerprintKey, "") && !NeedsConfirming(now))
-                return false;
+            if (!force && fingerprint == Preferences.Default.Get(FingerprintKey, "") && !NeedsConfirming(now))
+                return PushRegistrationResult.Unchanged;
 
-            if (!await client.UpsertAsync(installation, cancellationToken)) return false;
+            if (!await client.UpsertAsync(installation, cancellationToken))
+                return PushRegistrationResult.Failed;
 
             Preferences.Default.Set(FingerprintKey, fingerprint);
             Preferences.Default.Set(SentAtKey, now.ToUnixTimeSeconds());
-            return true;
+            return PushRegistrationResult.Sent;
         }
         finally
         {
@@ -154,11 +159,11 @@ internal sealed class PushService : IPushService
     /// <inheritdoc />
     public Task OpenSettingsAsync() => platform.OpenSettingsAsync();
 
-    private async Task ApplyTagsAsync(string[] tags, CancellationToken cancellationToken)
+    private async Task<PushRegistrationResult> ApplyTagsAsync(string[] tags, CancellationToken cancellationToken)
     {
         _tags = tags;
         Preferences.Default.Set(TagsKey, JsonSerializer.Serialize(tags));
-        await RefreshAsync(cancellationToken);
+        return await RefreshAsync(force: false, cancellationToken);
     }
 
     /// <summary>Whether the registration is old enough that it is worth confirming again.</summary>

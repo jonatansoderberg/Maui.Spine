@@ -35,6 +35,12 @@ app.MapSpinePush("/push");
 /// Sends one message and answers with what happened per installation.
 app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushOptions options, CancellationToken cancellationToken) =>
 {
+    // The wait is here rather than in the app because the point of it is to let the caller put the
+    // app in the background — and a backgrounded app is exactly what cannot be relied on to still be
+    // running a timer. Capped so a stray value cannot tie up the request for long.
+    if (request.DelaySeconds is > 0 and <= 60)
+        await Task.Delay(TimeSpan.FromSeconds(request.DelaySeconds.Value), cancellationToken);
+
     var target = request.Target switch
     {
         { Length: > 0 } expression when request.TargetKind == "installation" => PushTarget.Installation(expression),
@@ -133,6 +139,7 @@ static LiveActivityLayout Layout(SendRequest request) => new()
 /// <param name="WidgetKind">Which widget to rebuild; all of them when absent.</param>
 /// <param name="ActivityKind">Which Live Activity to update.</param>
 /// <param name="Data">Extra values handed to the app's handler.</param>
+/// <param name="DelaySeconds">Seconds to wait before sending, so the caller can background the app first. 1-60.</param>
 internal sealed record SendRequest(
     string? Kind,
     string? TargetKind,
@@ -144,4 +151,5 @@ internal sealed record SendRequest(
     bool HighPriority,
     string? WidgetKind,
     string? ActivityKind,
-    Dictionary<string, string>? Data);
+    Dictionary<string, string>? Data,
+    int? DelaySeconds);

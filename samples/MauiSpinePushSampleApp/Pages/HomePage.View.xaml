@@ -10,16 +10,29 @@
 
             <Label Text="Den här installationen" FontAttributes="Bold" />
 
-            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
                 <Label Grid.Row="0" Grid.Column="0" Text="Status" />
                 <Label Grid.Row="0" Grid.Column="1" Text="{Binding Status}" />
 
                 <Label Grid.Row="1" Grid.Column="0" Text="Installation" />
                 <Label Grid.Row="1" Grid.Column="1" Text="{Binding InstallationId}" LineBreakMode="MiddleTruncation" />
 
-                <Label Grid.Row="2" Grid.Column="0" Text="Taggar" />
-                <Label Grid.Row="2" Grid.Column="1" Text="{Binding Tags}" />
+                <Label Grid.Row="2" Grid.Column="0" Text="Token" />
+                <Label Grid.Row="2" Grid.Column="1" Text="{Binding Token}" LineBreakMode="MiddleTruncation">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding CopyTokenCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+
+                <Label Grid.Row="3" Grid.Column="0" Text="Registrerad" />
+                <Label Grid.Row="3" Grid.Column="1" Text="{Binding Registered}" />
+
+                <Label Grid.Row="4" Grid.Column="0" Text="Taggar" />
+                <Label Grid.Row="4" Grid.Column="1" Text="{Binding Tags}" />
             </Grid>
+
+            <Label Text="{Binding Hint}" IsVisible="{Binding HasHint}"
+                   TextColor="Gray" FontSize="12" />
 
             <Label Text="Push finns inte på den här plattformen. Allt nedan går att trycka på, men svarar Unsupported."
                    IsVisible="{Binding IsUnsupported}"
