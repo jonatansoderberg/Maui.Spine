@@ -248,6 +248,7 @@ public static class MauiProgram
         services.AddSingleton<INotificationScheduler, UnsupportedNotificationScheduler>();
 #endif
 
+        services.AddSingleton<IPushRegistration, NoPushRegistration>();
         services.AddSingleton<NotificationService>();
 
     }
