@@ -30,8 +30,11 @@ var appleKeyId = builder.AddParameter("apple-key-id");
 var appleBundleId = builder.AddParameter("apple-bundle-id");
 var applePrivateKey = builder.AddParameter("apple-private-key", secret: true);
 
-// Firebase tjänstekonto-JSON. Tom tills det finns ett Firebase-projekt; då kan Android nås.
-var androidServiceAccount = builder.AddParameter("android-service-account", secret: true, value: "");
+// Firebase tjänstekonto-JSON. Läses ur konfigurationen som Apple-nycklarna, men med ett tomt
+// standardvärde: utan det vägrar apphosten starta innan nyckeln finns, och med ett literalt värde
+// hade user-secrets ignorerats tyst.
+var androidServiceAccount = builder.AddParameter("android-service-account", secret: true,
+    value: builder.Configuration["Parameters:android-service-account"] ?? "");
 
 // Bygg ingenting som producerar Orientera.Backend medan apphosten kör. Aspire startar den med
 // --no-build, och ett bygge byter ut assemblies under den levande workern: värden lever vidare och
