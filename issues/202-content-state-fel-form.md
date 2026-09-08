@@ -45,8 +45,13 @@ aktiviteten ritas — symbol och tickande färskhetsräknare, som layouten före
 Att lokal uppdatering fungerade men serveruppdatering inte var hela ledtråden: appens egen väg bygger
 `SpineActivityAttributes.ContentState(json:)` i processen och träffar rätt form.
 
-## Öppet
+### Innehållsbytet, bekräftat
 
-Att den **pushade texten** ersätter den befintliga är inte bekräftat — titeln och texten ligger i
-`LockScreen`-trädet, som inte syns i Dynamic Islands compact-läge, och avläsningen gjordes där.
-Renderingen är bevisad; innehållsbytet återstår att se på låsskärmen.
+Låsskärmen gick från `Spine push / Startad lokalt / 5 min` till
+`Från servern 00:40:27 / Detta ersätter Startad lokalt`, och färskhetsräknaren nollställdes. Server-
+drivna Live Activities fungerar alltså ände till ände.
+
+Det tog två försök, och den första missen var lärorik: utskicket gick 26 sekunder **före** att appen
+registrerat om sig, så det adresserades till den föregående aktivitetens token. APNs svarade `sent 1`
+och tappade det tyst. Registret håller en gammal aktivitetstoken tills appen råkar registrera om sig
+— eget issue, se #200:s uppföljning.
