@@ -17,8 +17,8 @@
 		<!-- Display name -->
 		<ApplicationTitle>Orientera</ApplicationTitle>
 
-		<!-- App Identifier (placeholder until SP-13 name clearance) -->
-		<ApplicationId>com.companyname.orientera</ApplicationId>
+		<!-- App Identifier -->
+		<ApplicationId>se.cosmomedia.orientera</ApplicationId>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>

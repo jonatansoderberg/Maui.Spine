@@ -76,6 +76,12 @@
 		<PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
 	</ItemGroup>
 
+	<!-- Orientera.AppHost — the Aspire orchestration for local development -->
+	<ItemGroup>
+		<PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.4.6" />
+		<PackageVersion Include="Aspire.Hosting.Azure.Functions" Version="13.4.6" />
+	</ItemGroup>
+
 	<!-- Orientera.Tests -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.10.0" />

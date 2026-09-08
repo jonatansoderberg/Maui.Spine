@@ -5,6 +5,7 @@
   <Project Path="samples/Orientera/Orientera.csproj">
     <Deploy />
   </Project>
+  <Project Path="samples/Orientera.AppHost/Orientera.AppHost.csproj" />
   <Project Path="samples/Orientera.Backend/Orientera.Backend.csproj" />
   <Project Path="samples/Orientera.Domain/Orientera.Domain.csproj" />
   <Project Path="samples/Orientera.Tests/Orientera.Tests.csproj" />
