@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<AssemblyName>Plugin.Maui.Spine.Push</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Push</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<!-- The iOS delegate methods are added with class_addMethod and [UnmanagedCallersOnly]. -->
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+</Project>
