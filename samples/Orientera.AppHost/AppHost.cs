@@ -21,11 +21,24 @@ var tables = storage.AddTables("tables");
 var queues = storage.AddQueues("queues");
 var blobs = storage.AddBlobs("blobs");
 
+// The APNs signing key lives in the AppHost's user-secrets rather than in the backend's
+// local.settings.json, which is a file in the repo's tree that is easy to commit by accident.
+// Aspire hands each one to the backend as an environment variable, so the double underscore is
+// what makes it "Push:Apple:*" in configuration.
+var appleTeamId = builder.AddParameter("apple-team-id");
+var appleKeyId = builder.AddParameter("apple-key-id");
+var appleBundleId = builder.AddParameter("apple-bundle-id");
+var applePrivateKey = builder.AddParameter("apple-private-key", secret: true);
+
 builder.AddAzureFunctionsProject<Projects.Orientera_Backend>("backend")
     .WithHostStorage(storage)
     .WithReference(tables)
     .WithReference(queues)
     .WithReference(blobs)
+    .WithEnvironment("Push__Apple__TeamId", appleTeamId)
+    .WithEnvironment("Push__Apple__KeyId", appleKeyId)
+    .WithEnvironment("Push__Apple__BundleId", appleBundleId)
+    .WithEnvironment("Push__Apple__PrivateKey", applePrivateKey)
     .WaitFor(storage);
 
 builder.Build().Run();

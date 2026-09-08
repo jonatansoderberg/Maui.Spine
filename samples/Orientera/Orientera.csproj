@@ -26,6 +26,11 @@
 
 		<WindowsPackageType>None</WindowsPackageType>
 
+		<!-- The widget extension's bundle id becomes $(ApplicationId).$(SpineWidgetsExtensionName), and an
+		     App ID cannot be renamed once registered — so it says widgets rather than leaking the
+		     framework's name into se.cosmomedia.orientera.SpineWidgets. -->
+		<SpineWidgetsExtensionName>widgets</SpineWidgetsExtensionName>
+
 	</PropertyGroup>
 
 	<ItemGroup>
