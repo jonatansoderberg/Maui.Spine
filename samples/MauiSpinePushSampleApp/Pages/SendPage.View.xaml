@@ -16,6 +16,7 @@
 
             <Label Text="Sort" />
             <Picker ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" />
+            <Label Text="{Binding Explanation}" FontSize="12" TextColor="Gray" />
 
             <Grid ColumnDefinitions="*,Auto">
                 <Label Text="Bara till den här enheten" VerticalOptions="Center" />
@@ -25,19 +26,19 @@
             <Label Text="Tagguttryck" />
             <Entry Text="{Binding TagExpression}" IsEnabled="{Binding ToTags}" />
 
-            <Label Text="Titel" />
-            <Entry Text="{Binding NotificationTitle}" />
+            <Label Text="Titel" IsVisible="{Binding ShowText}" />
+            <Entry Text="{Binding NotificationTitle}" IsVisible="{Binding ShowText}" />
 
-            <Label Text="Text" />
-            <Entry Text="{Binding Body}" />
+            <Label Text="Text" IsVisible="{Binding ShowText}" />
+            <Entry Text="{Binding Body}" IsVisible="{Binding ShowText}" />
 
-            <Label Text="Route" />
-            <Entry Text="{Binding Route}" />
+            <Label Text="Route" IsVisible="{Binding ShowRoute}" />
+            <Entry Text="{Binding Route}" IsVisible="{Binding ShowRoute}" />
 
-            <Label Text="Kanal" />
-            <Entry Text="{Binding Channel}" />
+            <Label Text="Kanal" IsVisible="{Binding ShowChannel}" />
+            <Entry Text="{Binding Channel}" IsVisible="{Binding ShowChannel}" />
 
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowPriority}">
                 <Label Text="Hög prioritet" VerticalOptions="Center" />
                 <Switch Grid.Column="1" IsToggled="{Binding HighPriority}" />
             </Grid>
