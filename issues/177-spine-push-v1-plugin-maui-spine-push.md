@@ -3,7 +3,7 @@
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/177
 **Branch:** issue/177-spine-push-v1-plugin-maui-spine-push
 **PR:** https://github.com/jonatansoderberg/Maui.Spine/pull/184
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
