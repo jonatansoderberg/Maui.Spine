@@ -58,6 +58,7 @@ public static partial class SpinePushExtensions
         // before its platform layer exists. TryAdd after ConfigurePlatform means the real one wins
         // wherever there is one, and the rule is in the code rather than in the order of two calls.
         services.TryAddSingleton<IPushPlatform, UnsupportedPushPlatform>();
+        services.TryAddSingleton<ILocalNotificationService, UnsupportedLocalNotifications>();
 
         return builder;
     }

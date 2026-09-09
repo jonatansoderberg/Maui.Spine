@@ -68,10 +68,35 @@ internal static class PushNotifications
 
         // A collapse id replaces the notification already on screen instead of stacking another.
         var id = message.CollapseId is { Length: > 0 } collapse
-            ? collapse.GetHashCode(StringComparison.Ordinal)
+            ? StableId(collapse)
             : Interlocked.Increment(ref _nextId);
 
         NotificationManagerCompat.From(context).Notify(id, builder.Build());
+    }
+
+    /// <summary>
+    /// A hash of <paramref name="value"/> that means the same thing in every process (FNV-1a).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="string.GetHashCode()"/> is salted per run, so an id derived from it does not match
+    /// the one an earlier run of the app computed — and both a collapse id and a scheduled alarm's
+    /// request code are only worth anything when they do.
+    /// </remarks>
+    /// <param name="value">The id to hash.</param>
+    /// <returns>A non-negative id.</returns>
+    internal static int StableId(string value)
+    {
+        unchecked
+        {
+            var hash = 2166136261;
+            foreach (var c in value)
+            {
+                hash ^= c;
+                hash *= 16777619;
+            }
+
+            return (int)(hash & int.MaxValue);
+        }
     }
 
     private static int SmallIcon(Context context)

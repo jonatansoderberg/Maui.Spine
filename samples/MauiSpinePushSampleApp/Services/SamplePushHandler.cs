@@ -27,7 +27,9 @@ public sealed class SamplePushHandler(
 
         log.Add(new PushLogEntry(
             context.ReceivedAt.ToLocalTime(),
-            message.Kind.ToString(),
+            // Whether the device scheduled it itself is worth seeing in the log; nothing else in the
+            // handler has to care, which is the point of the flag being one property on the message.
+            message.IsLocal ? $"{message.Kind} (lokal)" : message.Kind.ToString(),
             context.IsColdStart ? "cold start" : context.IsForeground ? "foreground" : "background",
             message.Title,
             message.Route,
@@ -54,7 +56,7 @@ public sealed class SamplePushHandler(
     /// <inheritdoc />
     public async Task OnOpenedAsync(PushMessage message, string? action)
     {
-        log.Note("opened", $"route: {message.Route ?? "none"}{(action is null ? "" : $", action: {action}")}");
+        log.Note(message.IsLocal ? "opened (lokal)" : "opened", $"route: {message.Route ?? "none"}{(action is null ? "" : $", action: {action}")}");
 
         // The route is a string the app decides the meaning of; Spine only carries it.
         if (message.Route is "log") await navigation.NavigateToAsync<Pages.LogPage>();

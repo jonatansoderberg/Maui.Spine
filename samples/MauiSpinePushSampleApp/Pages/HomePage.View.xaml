@@ -49,6 +49,7 @@
             <Button Text="Skicka" Command="{Binding ShowSendCommand}" />
             <Button Text="Logg" Command="{Binding ShowLogCommand}" />
             <Button Text="Live Activity" Command="{Binding ShowLiveActivityCommand}" />
+            <Button Text="Lokalt" Command="{Binding ShowLocalCommand}" />
 
         </VerticalStackLayout>
     </ScrollView>

@@ -40,6 +40,12 @@ public static class PushKeys
     /// </summary>
     public const string Collapse = "spine.collapse";
 
+    /// <summary>
+    /// Where the notification came from: one of the values in <see cref="Sources"/>. Absent means a
+    /// server sent it, which is the case a payload from outside Spine also lands in.
+    /// </summary>
+    public const string Source = "spine.source";
+
     /// <summary>The values <see cref="Kind"/> takes.</summary>
     public static class Kinds
     {
@@ -54,5 +60,12 @@ public static class PushKeys
 
         /// <summary>Rebuild one widget kind, or all of them.</summary>
         public const string Widget = "widget";
+    }
+
+    /// <summary>The values <see cref="Source"/> takes.</summary>
+    public static class Sources
+    {
+        /// <summary>The device scheduled it itself; no server was involved.</summary>
+        public const string Local = "local";
     }
 }

@@ -37,7 +37,13 @@ internal sealed class ApplePushPlatform : IPushPlatform
 
     private static ApplePushPlatform? _current;
 
-    internal ApplePushPlatform() => _current = this;
+    private readonly SpinePushOptions _options;
+
+    internal ApplePushPlatform(SpinePushOptions options)
+    {
+        _options = options;
+        _current = this;
+    }
 
     /// <inheritdoc />
     public async Task<PushStatus> RequestPermissionAsync(PushPermission permission, CancellationToken cancellationToken)
@@ -51,7 +57,9 @@ internal sealed class ApplePushPlatform : IPushPlatform
 
         await RefreshStatusAsync();
 
-        if (granted)
+        // Without a backend there is nothing to register with, and a device token would be a
+        // failure in the log rather than a token — the app only wants to notify locally.
+        if (granted && _options.Backend is not null)
             await MainThread.InvokeOnMainThreadAsync(UIApplication.SharedApplication.RegisterForRemoteNotifications);
 
         return Status;

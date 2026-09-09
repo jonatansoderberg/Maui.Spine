@@ -87,6 +87,9 @@ public partial class HomePageViewModel(IPushService _push, PushLog _log, INaviga
     [RelayCommand]
     private Task ShowLiveActivity() => _navigation.NavigateToAsync<LiveActivityPage>();
 
+    [RelayCommand]
+    private Task ShowLocal() => _navigation.NavigateToAsync<LocalPage>();
+
     /// <summary>What the log line says about a registration attempt.</summary>
     internal static string Describe(PushRegistrationResult result) => result switch
     {

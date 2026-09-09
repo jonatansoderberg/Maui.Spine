@@ -1,0 +1,40 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpinePushSampleApp.Pages.LocalPage"
+    x:TypeArguments="LocalPageViewModel"
+    x:DataType="LocalPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="10">
+
+            <Label Text="Notiser enheten visar själv, utan server. Planen är hela sanningen: det som inte står i den avbokas."
+                   FontSize="12" TextColor="Gray" />
+
+            <Label Text="Den här plattformen schemalägger inga notiser."
+                   IsVisible="{Binding IsUnsupported}" TextColor="Gray" />
+
+            <Grid ColumnDefinitions="110,*">
+                <Label Grid.Column="0" Text="Planerat" />
+                <Label Grid.Column="1" Text="{Binding Summary}" />
+            </Grid>
+
+            <!-- BindableLayout rather than a CollectionView: inside a ScrollView a CollectionView has
+                 no height of its own and takes the whole page, which pushes the buttons out of sight. -->
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Planned}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="{x:Type x:String}">
+                        <Label Text="{Binding .}" FontSize="12" Padding="0,2" />
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <Button Text="Planera tre" Command="{Binding ScheduleThreeCommand}" />
+            <Button Text="Planera bara en" Command="{Binding ScheduleOneCommand}" />
+            <Button Text="Avboka allt" Command="{Binding CancelAllCommand}" />
+            <Button Text="Läs om planen" Command="{Binding RefreshCommand}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

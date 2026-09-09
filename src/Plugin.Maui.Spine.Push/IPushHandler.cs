@@ -55,6 +55,14 @@ public sealed record PushMessage(
     string? Channel,
     string? CollapseId)
 {
+    /// <summary>
+    /// Whether this device scheduled the notification itself through
+    /// <see cref="ILocalNotificationService"/>, rather than a server sending it. Read from the data
+    /// bag rather than kept beside it, because that is what survives the trip out to the platform's
+    /// notification and back when the user opens it.
+    /// </summary>
+    public bool IsLocal => Data.GetValueOrDefault(PushKeys.Source) == PushKeys.Sources.Local;
+
     /// <summary>Reads a payload's data bag into a message.</summary>
     /// <param name="data">The flattened payload, as the platform delivered it.</param>
     /// <returns>The message.</returns>

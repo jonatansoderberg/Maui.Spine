@@ -11,8 +11,9 @@ public static partial class SpinePushExtensions
 {
     static partial void ConfigurePlatform(MauiAppBuilder builder, SpinePushOptions options)
     {
-        var platform = new ApplePushPlatform();
+        var platform = new ApplePushPlatform(options);
         builder.Services.AddSingleton<IPushPlatform>(platform);
+        builder.Services.AddSingleton<ILocalNotificationService, AppleLocalNotifications>();
 
         builder.ConfigureLifecycleEvents(events => events.AddiOS(ios =>
         {
@@ -28,7 +29,7 @@ public static partial class SpinePushExtensions
                 return true;
             });
 
-            ios.WillEnterForeground(_ => Resume(platform).SafeFireAndForget());
+            ios.WillEnterForeground(_ => Resume(platform, options).SafeFireAndForget());
         }));
     }
 
@@ -43,6 +44,11 @@ public static partial class SpinePushExtensions
             return;
         }
 
+        // No backend is what an app that only schedules local notifications looks like: it has
+        // nobody to register with, and asking APNs for a token it cannot use only earns a failure
+        // in the log — and a build that needs the aps-environment entitlement.
+        if (options.Backend is null) return;
+
         if (platform.Status is PushStatus.Authorized or PushStatus.Provisional)
         {
             await MainThread.InvokeOnMainThreadAsync(application.RegisterForRemoteNotifications);
@@ -50,9 +56,12 @@ public static partial class SpinePushExtensions
         }
     }
 
-    private static async Task Resume(ApplePushPlatform platform)
+    private static async Task Resume(ApplePushPlatform platform, SpinePushOptions options)
     {
         await platform.RefreshStatusAsync();
+
+        if (options.Backend is null) return;
+
         await Services().GetRequiredService<IPushService>().RefreshAsync();
     }
 
