@@ -99,6 +99,11 @@ Inga — upplägget godkändes i konversationen innan issuet skapades.
 - **Tokens slängs vid avslut.** `pushTokens[id]` tas bort när aktiviteten är borta så att en pollning
   efter en död aktivitet ger `nil` i stället för en token APNs tyst släpper.
 
+- **Svep i Dynamic Island är ingen avslutning.** Jonatan såg att appen inte reagerade på ett svep i ön.
+  Reproducerat i simulatorn: efter svepet ligger aktiviteten kvar på låsskärmen, chronod loggar ingen
+  borttagning och `activityStateUpdates` levererar inget — iOS döljer bara ö-presentationen. "kör" är
+  alltså rätt, och det finns inget API för "dold i ön". Dokumenterat i wikin i stället för att ändras.
+
 ## Verifierat
 
 iPhone 17-simulatorn (iOS 26.4), push-samplet, sidan *Live Activity* öppen.
