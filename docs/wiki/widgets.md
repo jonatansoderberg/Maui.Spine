@@ -350,20 +350,25 @@ The consequence for Spine: **anything that must tick has to be a `W.Timer` or `W
 
 ### Choosing a time node
 
-Three nodes, and the difference that matters most is how wide they get. A Dynamic Island grows to fit its widest region, so an over-long trailing text stretches the whole island and leaves the leading side with a gap that reads as a layout bug.
+Three forms of the same idea — text the system keeps current without the app running:
 
-| Node | Shows | Counts | Width |
-|---|---|---|---|
-| `W.Timer(until)` | `18:35` | down to a moment | narrow, monospaced |
-| `W.Relative(date)` | `18 min, 35 secs` | up from a moment | wide, varies |
-| `W.Relative(date, compact: true)` | `18:35` | up from a moment | narrow, monospaced |
+| Node | Shows | Counts |
+|---|---|---|
+| `W.Timer(until)` | `18:35` | down to a moment |
+| `W.Relative(date)` | `18 min, 35 secs` | up from a moment |
+| `W.Relative(date, compact: true)` | `18:35` | up from a moment |
 
-Pick by the space, not by the sentence:
+Pick by the room the region has. **Lock screen and expanded** can carry a sentence, and "18 min, 35 secs" says what it means without the reader converting anything. **Compact and minimal** cannot: use `compact: true`, or `W.Timer` when there is an end to count down to.
 
-- **Lock screen and expanded** have room. `W.Relative(date)` reads well there — "18 min, 35 secs" says what it means without the reader converting anything.
-- **Compact and minimal** have none. Use `compact: true`, or a `W.Timer` when there is an end to count down to.
+#### Why a Dynamic Island holding one clock can still span the screen
 
-Both forms are drawn by the system, so both keep moving while the app sleeps; the choice costs nothing but width. All of them are monospaced, so the digits do not shift sideways as they tick.
+Self-updating text takes every point offered to it inside a Live Activity. It is a SwiftUI bug of long standing — plain `Text` does not share it, and it applies to `.timer` and `.relative` alike, so shortening the string changes nothing. The island grows to the width the text claimed, and the other region is left with a gap that reads as a layout mistake. [Apple Developer Forums thread](https://developer.apple.com/forums/thread/723316)
+
+There is no fix from inside the layout. `.fixedSize` was tried in Spine's renderer and made it worse: the text drew as nothing and the width stayed. The workaround the thread settles on is a hard-coded `.frame(width:)` wide enough for the longest value, which a framework cannot pick on an app's behalf.
+
+**So put the ticking where there is room.** A `W.Timer` or `W.Relative` belongs on the lock screen or in the expanded presentation. Give the compact and minimal regions a plain `W.Text` — a value, a stamp, a symbol — and the island sizes to it. Apple's own guidance points the same way: keep each compact region under roughly 44 pt, which is a glance, not a sentence.
+
+`samples/MauiSpinePushSampleApp` is laid out this way.
 
 Live Activities have a different model: the app updates the content directly, as often as it likes while it runs, and timer text is system-drawn there too. That is why a countdown in the Dynamic Island never needs a reload.
 

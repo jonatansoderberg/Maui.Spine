@@ -105,7 +105,10 @@ public partial class LiveActivityPageViewModel(
         ExpandedCenter = W.Text("Spine Push").Headline().Bold(),
         ExpandedBottom = W.Text(body).Caption().Secondary(),
         CompactLeading = W.Icon("bell"),
-        CompactTrailing = W.Relative(DateTimeOffset.Now, compact: true).Caption(),
+        // Compact has room for a glance, not a sentence: a short stamp of when this arrived. The
+        // ticking freshness lives in the expanded view, where there is room for it — and where the
+        // self-updating text's habit of claiming every offered point does no harm.
+        CompactTrailing = W.Text($"{DateTimeOffset.Now:HH:mm}").Caption(),
         Minimal = W.Icon("bell"),
     };
 }
