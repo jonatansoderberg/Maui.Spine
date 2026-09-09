@@ -48,6 +48,11 @@ public final class SpineWidgetBridge: NSObject {
         data.map { String(format: "%02x", $0) }.joined()
     }
 
+    /// The app has handled the button tap with this id, so its perform() can return.
+    @objc public static func completeAction(id: String) {
+        ActionCompletions.complete(id: id)
+    }
+
     @objc public static func reloadAll() {
         WidgetCenter.shared.reloadAllTimelines()
     }

@@ -160,7 +160,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Button(actionId, child)` | A tappable child that sends `actionId` to the provider (see [Buttons](#buttons)) |
 | `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
 
-Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`. Each call returns a new node, so a styled node can be reused.
+Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`. Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
 
 `WidgetColor` is either one of the platform's semantic colors (`Primary`, `Secondary`, `Accent`, `Green`, `Red`, `Orange`, `Yellow`, `Blue`), which adapt to light and dark, or a fixed value from `WidgetColor.FromHex("#2E8B57")` / `WidgetColor.From(mauiColor)`. Prefer semantic colors for anything but a brand accent — a fixed color is a fixed color in dark mode too.
 
@@ -242,9 +242,11 @@ public Task OnActionAsync(WidgetAction action)
 }
 ```
 
-On Android the handler runs at once, in the app's process. On iOS the tap runs an `AppIntent` inside the widget extension, where there is no .NET: the extension records the tap and signals the app, which handles it at once when it is in the foreground and otherwise the next time it becomes active — a backgrounded iOS app is suspended, so "running" means active. The widget shows the tap's effect at that moment. A widget whose buttons must act on their own has to do that work in a remote source instead.
+The handler runs at once, in the app's process, on both platforms — with the app in the foreground, in the background, or not running at all. On Android the button's broadcast reaches the widget's receiver, which starts the process when it has to. On iOS the button runs an `AppIntent`, and iOS runs it in the app's process: the app is launched in the background when it is not running, the handler runs, and the intent returns once the widget has been rebuilt, so the effect is on the home screen when the tap's animation ends. That is what `LiveActivityIntent` asks for; Spine's intent conforms to it and is declared in both the extension and the app, which is the arrangement iOS requires, and the same route Flutter's `home_widget` takes.
 
-That gap is why `WidgetAction` carries `At`. It is when the button was tapped, not when the handler ran, and on iOS those can be hours apart. Use it for anything the tap's time belongs to — a stamp, an ordering, an age — rather than `DateTimeOffset.Now`, which on Android is the same instant and on iOS is the app's next launch.
+To show that a tap is being worked on, mark the nodes it changes with `.Pending()`: iOS dims them from the tap until the reload that follows the handler (WidgetKit's `invalidatableContent`), and the sample marks its stamp line that way. The button itself cannot be dimmed — that modifier on or inside a button, even switched off, stops WidgetKit from routing the tap to the intent, and the tap opens the app instead; Spine never applies it there, and a `.Pending()` on a button or inside its child is ignored. The dimming is per widget, not per button: a tap on any button dims every marked node. Android shows nothing until the rebuild, which is usually too quick to notice. Apple gives the intent 30 seconds, launch included. A cold start of a .NET app takes a few of them, so a tap on an app that is not running shows its effect after a short pause rather than instantly; with the app suspended in the background it is immediate. Keep the handler's own work short.
+
+`WidgetAction.At` is the tap's own time. It matters on iOS when the intent ran in the extension after all — an app bundle that lost its `Metadata.appintents`, say — since then the tap is recorded and handled the next time the app is active, hours later perhaps. Use it for anything the tap's time belongs to — a stamp, an ordering, an age — rather than `DateTimeOffset.Now`.
 
 ### Opening the app from the widget
 
@@ -480,6 +482,7 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 | The widget renders but a node is missing | A tree the renderer does not understand, or an icon name with no matching SVG (and, on iOS, no SF Symbol of that name). |
 | The widget shows only "—" (Android) | It was placed before the app ever built it; the receiver has asked the provider, and the next launch or background pass fills it. |
 | The countdown stands still | Text the app computed instead of a `W.Timer` node. |
+| A button changes the widget only after the app is opened (iOS) | The intent ran in the extension: the app bundle has no `Metadata.appintents` in its root, or the one there is stale. The build writes it from the bridge framework; `rm -rf obj/spinewidgets` and build again, and check the `.app` root. |
 | `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. On Android: the notification permission was denied, or the device is older than Android 16. |
 | Build error about the App Group | The app's `CodesignEntitlements` does not list the group; see [setup](#3-give-the-app-the-app-group-entitlement). |
 | `SIGKILL (Code Signature Invalid)` at launch | A stale app bundle. Delete `bin/…/<App>.app` and `obj/…/<rid>/codesign` and build again. |

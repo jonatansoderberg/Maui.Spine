@@ -46,9 +46,10 @@ case "$CONFIG" in Release) OPT=(-O);; *) OPT=(-Onone -g);; esac
 
 APPEX="$OUT/$NAME.appex"
 FRAMEWORK="$OUT/SpineWidgetBridge.framework"
+APP="$OUT/app"
 GEN="$OUT/gen"
-rm -rf "$APPEX" "$FRAMEWORK" "$GEN"
-mkdir -p "$APPEX" "$FRAMEWORK" "$GEN"
+rm -rf "$APPEX" "$FRAMEWORK" "$APP" "$GEN"
+mkdir -p "$APPEX" "$FRAMEWORK" "$APP" "$GEN"
 
 json_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 plist_escape() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
@@ -129,6 +130,7 @@ PLIST
 	<key>CFBundleVersion</key><string>1</string>
 	<key>CFBundleSupportedPlatforms</key><array><string>$PLATFORM</string></array>
 	<key>MinimumOSVersion</key><string>$MIN_OS</string>
+	<key>SpineWidgetsAppGroup</key><string>$(plist_escape "$APP_GROUP")</string>
 	<key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
 	<key>DTCompiler</key><string>com.apple.compilers.llvm.clang.1_0</string>
 	<key>DTPlatformName</key><string>$SDK</string>
@@ -192,14 +194,43 @@ PLIST
   echo "</plist>"
 } > "$OUT/HostManifest.plist"
 
+# --- App Intents metadata ------------------------------------------------------------------------
+# A button's intent needs a Metadata.appintents bundle beside the binary that carries it, which Xcode
+# produces from constant values the compiler extracts for the listed protocols. Same two steps here,
+# and twice: once for the extension, once for the app. The app's copy is what makes iOS run the
+# intent in the app's process — without it the tap runs in the extension, where there is no .NET.
+printf '["AppIntent","AppEntity","AppEnum","AppShortcutsProvider","AppIntentsPackage","EntityQuery","DynamicOptionsProvider"]' > "$GEN/protocols.json"
+
+app_intents_metadata() {  # <module> <output dir> <const values> <sources...>
+  local module="$1" output="$2" constvalues="$3"; shift 3
+  printf '%s\n' "$@" > "$GEN/$module.sources.txt"
+  printf '%s\n' "$constvalues" > "$GEN/$module.constvalues.txt"
+  xcrun appintentsmetadataprocessor \
+    --output "$output" \
+    --toolchain-dir "$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain" \
+    --module-name "$module" \
+    --sdk-root "$(xcrun --sdk "$SDK" --show-sdk-path)" \
+    --xcode-version "$XCODE_BUILD" \
+    --platform-family iOS \
+    --deployment-target "$MIN_OS" \
+    --target-triple "$TARGET" \
+    --source-file-list "$GEN/$module.sources.txt" \
+    --swift-const-vals-list "$GEN/$module.constvalues.txt" \
+    --force --quiet-warnings
+}
+
 # --- Bridge framework ------------------------------------------------------------------------------
+BRIDGE_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineWidgetBridge.swift")
 xcrun -sdk "$SDK" swiftc \
   -target "$TARGET" "${OPT[@]}" -parse-as-library \
   -emit-library -module-name SpineWidgetBridge \
-  -framework WidgetKit -framework ActivityKit \
+  -framework WidgetKit -framework ActivityKit -framework AppIntents \
+  -wmo -emit-const-values-path "$GEN/SpineWidgetBridge.swiftconstvalues" \
+  -Xfrontend -const-gather-protocols-file -Xfrontend "$GEN/protocols.json" \
   -Xlinker -install_name -Xlinker @rpath/SpineWidgetBridge.framework/SpineWidgetBridge \
   -o "$FRAMEWORK/SpineWidgetBridge" \
-  "$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetBridge.swift"
+  "${BRIDGE_SOURCES[@]}"
+app_intents_metadata SpineWidgetBridge "$APP" "$GEN/SpineWidgetBridge.swiftconstvalues" "${BRIDGE_SOURCES[@]}"
 {
   write_plist_header
   cat <<PLIST
@@ -218,10 +249,7 @@ PLIST
 } > "$FRAMEWORK/Info.plist"
 
 # --- Widget extension --------------------------------------------------------------------------------
-# App Intents (the buttons) need a Metadata.appintents bundle beside the binary, which Xcode produces
-# from constant values the compiler extracts for the listed protocols. Same two steps here.
-printf '["AppIntent","AppEntity","AppEnum","AppShortcutsProvider","AppIntentsPackage","EntityQuery","DynamicOptionsProvider"]' > "$GEN/protocols.json"
-EXT_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetRenderer.swift" "$BUNDLE")
+EXT_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineWidgetRenderer.swift" "$BUNDLE")
 xcrun -sdk "$SDK" swiftc \
   -target "$TARGET" "${OPT[@]}" -parse-as-library -application-extension \
   -module-name "$NAME" \
@@ -233,20 +261,7 @@ xcrun -sdk "$SDK" swiftc \
   -o "$APPEX/$NAME" \
   "${EXT_SOURCES[@]}"
 
-printf '%s\n' "${EXT_SOURCES[@]}" > "$GEN/sources.txt"
-printf '%s\n' "$GEN/$NAME.swiftconstvalues" > "$GEN/constvalues.txt"
-xcrun appintentsmetadataprocessor \
-  --output "$APPEX" \
-  --toolchain-dir "$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain" \
-  --module-name "$NAME" \
-  --sdk-root "$(xcrun --sdk "$SDK" --show-sdk-path)" \
-  --xcode-version "$XCODE_BUILD" \
-  --platform-family iOS \
-  --deployment-target "$MIN_OS" \
-  --target-triple "$TARGET" \
-  --source-file-list "$GEN/sources.txt" \
-  --swift-const-vals-list "$GEN/constvalues.txt" \
-  --force --quiet-warnings
+app_intents_metadata "$NAME" "$APPEX" "$GEN/$NAME.swiftconstvalues" "${EXT_SOURCES[@]}"
 
 # swiftc -g drops a dSYM beside each product; keep it out of the bundles the SDK signs and ships.
 rm -rf "$OUT/dSYM"; mkdir -p "$OUT/dSYM"
@@ -321,4 +336,4 @@ codesign --force --sign - --timestamp=none "$FRAMEWORK"
 codesign --force --sign - --timestamp=none --entitlements "$OUT/$NAME.entitlements" "$APPEX"
 
 date +%s > "$OUT/build.stamp"
-echo "spine-widgets-build.sh: built $APPEX and $FRAMEWORK for $TARGET"
+echo "spine-widgets-build.sh: built $APPEX, $FRAMEWORK and $APP/Metadata.appintents for $TARGET"

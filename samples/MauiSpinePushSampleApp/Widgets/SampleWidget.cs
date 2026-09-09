@@ -54,7 +54,8 @@ public sealed class SampleWidgetProvider(PushLog log, WidgetContent content) : I
                 W.Text("Spine push").Caption().Secondary(),
                 W.Text(headline).Headline().Bold(),
                 W.Text(detail).Caption(),
-                W.Text(stamp).Caption().Secondary(),
+                // Pending: dimmed from the tap until the rebuild, since this is the line the tap changes.
+                W.Text(stamp).Caption().Secondary().Pending(),
 
                 // Its own row rather than beside the stamp: in a 2x2 the two share a line and the
                 // stamp is the half that gets cut.
@@ -69,10 +70,10 @@ public sealed class SampleWidgetProvider(PushLog log, WidgetContent content) : I
     /// Records the tap; Spine rebuilds the widget when this returns, so the new stamp shows.
     /// </summary>
     /// <remarks>
-    /// On Android this runs the moment the button is tapped, in the app's process. On iOS the tap is
-    /// recorded by the widget extension and drained when the app is next active — so a tap made while
-    /// the app is closed changes the widget only once the app is opened. That is the platform, not the
-    /// sample, and it is why the stamp comes from <see cref="WidgetAction.At"/> rather than from now.
+    /// Runs the moment the button is tapped, in the app's process, on both platforms — iOS launches
+    /// the app in the background for it when it is not running. The stamp still comes from
+    /// <see cref="WidgetAction.At"/> rather than from now: it is the tap's time, which is what the
+    /// line means, and it stays right on an iOS that had to hold the tap for the app's next launch.
     /// </remarks>
     public Task OnActionAsync(WidgetAction action)
     {

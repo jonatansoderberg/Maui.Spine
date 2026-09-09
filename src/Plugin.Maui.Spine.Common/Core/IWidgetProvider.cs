@@ -36,6 +36,8 @@ public sealed record WidgetLink(string Kind, Uri Url);
 /// <summary>
 /// Implemented by a provider whose trees contain <see cref="W.Button"/>. Resolved through DI like the
 /// provider itself; the widget is rebuilt after the handler returns, so what the tap changed shows.
+/// Runs in the app's process at once, whether the app is in the foreground, in the background or not
+/// running — the platform launches it in the background for the tap.
 /// </summary>
 public interface IWidgetActionHandler
 {
@@ -47,8 +49,9 @@ public interface IWidgetActionHandler
 /// <param name="Kind">The widget kind the button belongs to.</param>
 /// <param name="ActionId">The id given to <see cref="W.Button"/>.</param>
 /// <param name="At">
-/// When the button was tapped, which on iOS is not when the handler runs: the tap is recorded by the
-/// widget extension and handled the next time the app is active, so a handler that stamps
-/// <see cref="DateTimeOffset.Now"/> instead records the app's launch.
+/// When the button was tapped. Normally the same instant as the handler, since the tap runs in the
+/// app's process on both platforms; on iOS it is the tap's time even when the widget extension had
+/// to record the tap for the app's next launch, which a handler that stamps
+/// <see cref="DateTimeOffset.Now"/> would get wrong.
 /// </param>
 public sealed record WidgetAction(string Kind, string ActionId, DateTimeOffset At);
