@@ -19,6 +19,7 @@ public sealed class WidgetContent
     private const string TitleKey = "sample.widget.title";
     private const string BodyKey = "sample.widget.body";
     private const string SetAtKey = "sample.widget.set-at";
+    private const string AcknowledgedAtKey = "sample.widget.acknowledged-at";
 
     /// <summary>The keys the Send page puts in a silent push's data bag.</summary>
     public const string TitleData = "widget.title";
@@ -33,10 +34,13 @@ public sealed class WidgetContent
     public string? Body => Read(BodyKey);
 
     /// <summary>When it arrived, so the widget can show that it is recent.</summary>
-    public DateTimeOffset? SetAt =>
-        Preferences.Default.Get(SetAtKey, 0L) is > 0 and var unix
-            ? DateTimeOffset.FromUnixTimeSeconds(unix).ToLocalTime()
-            : null;
+    public DateTimeOffset? SetAt => Stamp(SetAtKey);
+
+    /// <summary>
+    /// When the widget's own button last acknowledged what it shows, or <see langword="null"/> until it
+    /// does. A new push clears it: the tap says "I have read this", and the next message is unread.
+    /// </summary>
+    public DateTimeOffset? AcknowledgedAt => Stamp(AcknowledgedAtKey);
 
     /// <summary>Replaces what the widget shows.</summary>
     /// <param name="title">The first line.</param>
@@ -47,8 +51,18 @@ public sealed class WidgetContent
         Preferences.Default.Set(TitleKey, title ?? "");
         Preferences.Default.Set(BodyKey, body ?? "");
         Preferences.Default.Set(SetAtKey, at.ToUnixTimeSeconds());
+        Preferences.Default.Remove(AcknowledgedAtKey);
     }
+
+    /// <summary>Marks what the widget shows as read, from the widget's own button.</summary>
+    /// <param name="at">When it was tapped.</param>
+    public void Acknowledge(DateTimeOffset at) => Preferences.Default.Set(AcknowledgedAtKey, at.ToUnixTimeSeconds());
 
     private static string? Read(string key) =>
         Preferences.Default.Get(key, "") is { Length: > 0 } value ? value : null;
+
+    private static DateTimeOffset? Stamp(string key) =>
+        Preferences.Default.Get(key, 0L) is > 0 and var unix
+            ? DateTimeOffset.FromUnixTimeSeconds(unix).ToLocalTime()
+            : null;
 }
