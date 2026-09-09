@@ -14,7 +14,13 @@ public final class SpineWidgetBridge: NSObject {
     private static var pushTokens: [String: String] = [:]
     private static let tokenLock = NSLock()
 
+    // Every activity is observed once, by id: an activity can reach observe() from more than one
+    // door — activities at launch, Activity.request, activityUpdates — and one task per door would
+    // post the same dismissal twice.
+    private static var observed: Set<String> = []
+
     /// Starts listening for the push-to-start token and the tokens of activities already running.
+    /// Call it before `observeActivities`, which is what starts the per-activity token listeners.
     @objc public static func enablePushTokens() {
         guard !pushTokensEnabled else { return }
         pushTokensEnabled = true
@@ -25,7 +31,17 @@ public final class SpineWidgetBridge: NSObject {
                 }
             }
         }
-        for activity in Activity<SpineActivityAttributes>.activities { listen(activity) }
+    }
+
+    /// Watches every activity — those running now and those the system starts later, such as by
+    /// push — and posts a Darwin notification when one is dismissed by the user or ended, so the app
+    /// can drop it from its list. ActivityKit is the only one who knows: a swipe on the Lock Screen
+    /// never reaches the app otherwise.
+    @objc public static func observeActivities() {
+        for activity in Activity<SpineActivityAttributes>.activities { observe(activity) }
+        Task {
+            for await activity in Activity<SpineActivityAttributes>.activityUpdates { observe(activity) }
+        }
     }
 
     @objc public static func pushToStartToken() -> String? {
@@ -36,12 +52,28 @@ public final class SpineWidgetBridge: NSObject {
         tokenLock.withLock { pushTokens[id] }
     }
 
-    private static func listen(_ activity: Activity<SpineActivityAttributes>) {
+    private static func observe(_ activity: Activity<SpineActivityAttributes>) {
+        guard tokenLock.withLock({ observed.insert(activity.id).inserted }) else { return }
         Task {
-            for await data in activity.pushTokenUpdates {
-                tokenLock.withLock { pushTokens[activity.id] = hex(data) }
+            for await state in activity.activityStateUpdates where state == .dismissed || state == .ended {
+                NSLog("[SpineWidgetBridge] activity %@ (%@) is %@", activity.id, activity.attributes.kind, state == .dismissed ? "dismissed" : "ended")
+                tokenLock.withLock { _ = pushTokens.removeValue(forKey: activity.id); observed.remove(activity.id) }
+                notifyActivityChanged()
+                break
             }
         }
+        if pushTokensEnabled {
+            Task {
+                for await data in activity.pushTokenUpdates {
+                    tokenLock.withLock { pushTokens[activity.id] = hex(data) }
+                }
+            }
+        }
+    }
+
+    private static func notifyActivityChanged() {
+        let name = CFNotificationName("\(ActionLog.appGroup).spine-widgets.activity" as CFString)
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), name, nil, nil, true)
     }
 
     private static func hex(_ data: Data) -> String {
@@ -72,7 +104,7 @@ public final class SpineWidgetBridge: NSObject {
                 attributes: SpineActivityAttributes(kind: kind),
                 content: .init(state: .init(json: json), staleDate: staleDate(staleAt)),
                 pushType: pushTokensEnabled ? .token : nil)
-            if pushTokensEnabled { listen(activity) }
+            observe(activity)
             return activity.id
         } catch {
             NSLog("[SpineWidgetBridge] Activity.request failed: \(error)")

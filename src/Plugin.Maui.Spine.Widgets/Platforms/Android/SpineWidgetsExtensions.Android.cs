@@ -26,6 +26,12 @@ public static partial class SpineWidgetsExtensions
             {
                 if (activity is not SpineWidgetLinkActivity) HandleLink(intent);
             });
+            // Same as iOS at foreground: the notification the user swiped away may have gone while the app was not running.
+            android.OnResume(activity =>
+            {
+                if (activity is SpineWidgetLinkActivity) return;
+                if (Services().GetService<ILiveActivityService>() is LiveActivityService activities) activities.Reconcile();
+            });
             android.OnStop(activity =>
             {
                 if (activity is SpineWidgetLinkActivity) return;

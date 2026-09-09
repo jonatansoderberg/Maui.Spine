@@ -98,6 +98,9 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
                 new Intent(_context, typeof(SpineWidgetLinkActivity)).SetAction(Intent.ActionView).SetData(uri),
                 PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable));
 
+        // The user can swipe an ongoing notification away; this is the only way the app hears of it.
+        builder.SetDeleteIntent(SpineBackgroundReceiver.ActivityDismissed(_context));
+
         RequestPromotedOngoing(builder);
 
         var notification = builder.Build();

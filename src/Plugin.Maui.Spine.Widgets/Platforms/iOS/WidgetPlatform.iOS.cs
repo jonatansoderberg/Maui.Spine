@@ -54,6 +54,16 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     /// <summary>The Darwin notification the button intent posts after recording a tap.</summary>
     public string? ActionNotificationName => _appGroup is null ? null : _appGroup + ".spine-widgets.action";
 
+    /// <summary>The Darwin notification the bridge posts when an activity was dismissed by the user or ended.</summary>
+    public string? ActivityNotificationName => _appGroup is null ? null : _appGroup + ".spine-widgets.activity";
+
+    /// <summary>Starts the bridge's watch on every activity's state; what makes <see cref="ActivityNotificationName"/> fire.</summary>
+    public void ObserveActivities()
+    {
+        if (!IsSupported) return;
+        Send(_bridge, Selector.GetHandle("observeActivities"));
+    }
+
     /// <summary>
     /// Reads and clears the button taps the intent recorded, oldest first. Serialized: the Darwin
     /// notification and the drain at launch can arrive together, and a tap must be handled once.
