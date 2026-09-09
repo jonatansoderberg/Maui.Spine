@@ -455,6 +455,8 @@ A Live Activity on Android 16 is a **promoted ongoing notification**, and the la
 
 `staleAt` is not visualised on Android. Below Android 16 `AreActivitiesEnabled` is `false` and `StartAsync` returns `null`; a plain ongoing notification would not be a Live Activity, so Spine does not pretend.
 
+**`CompactTrailing` is the one region that pulls in opposite directions.** On iOS it sits in the Dynamic Island, where a `W.Timer` or `W.Relative` claims every point offered and stretches the island — so a plain `W.Text` is the right answer there. On Android the same region becomes the status-bar chip, and a `W.Timer` is what hands the chip to the system's chronometer; a `W.Text` freezes it at whatever the app last wrote. One tree cannot be ideal for both. Use `W.Adaptive`, or build the two layouts separately, when the region matters on both platforms.
+
 The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the manifest when `SpineWidgetsLiveActivities` is on; the first is requested at `StartAsync`, the second is granted by the user's per-app Live Updates setting.
 
 ### Known gaps
