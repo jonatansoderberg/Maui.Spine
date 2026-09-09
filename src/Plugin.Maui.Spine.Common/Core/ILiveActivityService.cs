@@ -13,10 +13,14 @@ public interface ILiveActivityService
     IReadOnlyList<LiveActivity> Active { get; }
 
     /// <summary>
-    /// Raised when an activity starts or ends, so a registration built from these can be sent again.
-    /// A server addresses an activity by its own push token, and that token exists only while the
-    /// activity does: without this, a backend keeps sending to one that has been replaced — which
-    /// APNs accepts and drops, leaving no error to go on.
+    /// Raised when <see cref="Active"/> changed: an activity started or ended, by the app or by the
+    /// platform — the user swiped it away, a push ended it, it aged past its stale date, a push
+    /// started one. The platform reports a change while the app runs and at the next foreground
+    /// otherwise; a handle from <see cref="Active"/> has <see cref="LiveActivity.IsEnded"/> set by then.
+    /// A registration built from these can be sent again: a server addresses an activity by its own
+    /// push token, and that token exists only while the activity does — without this, a backend
+    /// keeps sending to one that is gone, which APNs accepts and drops, leaving no error to go on.
+    /// Raised on whatever thread the platform reported on; dispatch before touching UI.
     /// </summary>
     event Action? ActivitiesChanged;
 
@@ -73,7 +77,10 @@ public sealed class LiveActivity
     /// <summary>The kind it was started with.</summary>
     public string Kind { get; }
 
-    /// <summary>Whether <see cref="EndAsync"/> has been called.</summary>
+    /// <summary>
+    /// Whether the activity is over — <see cref="EndAsync"/> was called, or the platform reported it
+    /// gone: dismissed by the user, ended by a push, or past its stale date.
+    /// </summary>
     public bool IsEnded { get; set; }
 
     /// <summary>Replaces the content with <paramref name="layout"/>.</summary>

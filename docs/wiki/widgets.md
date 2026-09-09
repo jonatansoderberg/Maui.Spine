@@ -313,6 +313,7 @@ await activity.EndAsync();
 - `StartAsync` returns `null` when the platform refused — activities turned off in Settings, or the app not in the foreground. **iOS only starts an activity while the app is in the foreground**, so it belongs behind a button the user pressed, never in a page's build. On Android the same call asks for the notification permission the first time, which is another reason to keep it behind a button.
 - `AreActivitiesEnabled` says whether the user allows them at all; hide the button when they do not. On Android it means "Android 16 or later" — the notification permission cannot be told apart from "not asked yet", so `StartAsync` asks.
 - `Active` lists the activities this app has running, **including any it started before it was last killed** — an activity outlives the process. Ask it rather than holding a handle in a view model. The `kind` is how you tell them apart — put whatever identifies the subject in it (`$"din-start:{competitionId}"`).
+- `ActivitiesChanged` fires when `Active` changed, whoever changed it: the app, or the platform — the user swiped the activity off the Lock Screen, a push ended it, it aged past its stale date. The platform reports while the app runs, and at the next foreground for anything that happened while it did not; a handle you kept has `IsEnded` set by then. It is raised on the platform's thread, so dispatch before touching UI.
 - `staleAt` is when the content should be presented as out of date if no update arrived; the renderer dims it.
 - An activity lives at most **8 hours**, then iOS ends it. Android has no such limit, but keeps one activity per kind: starting a second one with the same kind replaces the first.
 
@@ -358,7 +359,7 @@ The catch is step 2's trigger, because **a dead activity token does not report i
 
 - **Start on a schedule.** The limit is known: start a fresh activity every eight hours, or at a natural boundary such as the top of the hour. The cheapest and most predictable option.
 - **Start whenever a new push-to-start token arrives.** The app sends one at launch and foreground; a new one is a good moment to make sure something is on screen.
-- **Let the device say so.** The app knows: `ILiveActivityService.Active` is empty, and `ActivitiesChanged` fires when that changes while the app runs. It cannot report an end that happened while the app was closed — nothing runs then — so this narrows the window rather than closing it.
+- **Let the device say so.** The app knows: `ILiveActivityService.Active` is empty, and `ActivitiesChanged` fires when that changes — while the app runs, or at the next foreground for an end that happened while it was closed, since nothing runs then. That narrows the window rather than closing it.
 
 Two more things worth designing in from the start:
 

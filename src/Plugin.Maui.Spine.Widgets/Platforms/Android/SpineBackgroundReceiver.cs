@@ -16,10 +16,19 @@ namespace Plugin.Maui.Spine.Widgets.Services;
 internal sealed class SpineBackgroundReceiver : BroadcastReceiver
 {
     private const string Action = "plugin.maui.spine.widgets.BACKGROUND_REFRESH";
+    private const string DismissedAction = "plugin.maui.spine.widgets.ACTIVITY_DISMISSED";
 
     public override void OnReceive(Context? context, Intent? intent)
     {
-        if (context is null || intent?.Action != Action || IPlatformApplication.Current?.Services is not { } services) return;
+        if (context is null || IPlatformApplication.Current?.Services is not { } services) return;
+
+        if (intent?.Action == DismissedAction)
+        {
+            if (services.GetService<ILiveActivityService>() is LiveActivityService activities) activities.Reconcile();
+            return;
+        }
+
+        if (intent?.Action != Action) return;
 
         var options = services.GetRequiredService<SpineWidgetsOptions>();
         Schedule(context, options.BackgroundRefreshInterval);
@@ -32,6 +41,11 @@ internal sealed class SpineBackgroundReceiver : BroadcastReceiver
             finally { pending?.Finish(); }
         });
     }
+
+    /// <summary>The intent a Live Activity's notification fires when the user swipes it away.</summary>
+    internal static PendingIntent ActivityDismissed(Context context) =>
+        PendingIntent.GetBroadcast(context, 1, new Intent(context, typeof(SpineBackgroundReceiver)).SetAction(DismissedAction),
+            OperatingSystem.IsAndroidVersionAtLeast(23) ? PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable : PendingIntentFlags.UpdateCurrent)!;
 
     internal static void Schedule(Context context, TimeSpan interval)
     {

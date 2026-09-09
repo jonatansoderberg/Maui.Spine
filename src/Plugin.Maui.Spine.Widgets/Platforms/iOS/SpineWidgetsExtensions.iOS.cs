@@ -29,6 +29,7 @@ public static partial class SpineWidgetsExtensions
             {
                 if (background) RegisterBackgroundRefresh(refreshTask!, options.BackgroundRefreshInterval);
                 ListenForActions();
+                ListenForActivities();
                 DrainActions(Services());
                 RefreshAllInBackground(Services());
                 return true;
@@ -38,7 +39,11 @@ public static partial class SpineWidgetsExtensions
                 if (options.RefreshOnBackground) RefreshAllInBackground(Services());
                 if (background) ScheduleBackgroundRefresh(refreshTask!, options.BackgroundRefreshInterval);
             });
-            ios.WillEnterForeground(_ => DrainActions(Services()));
+            ios.WillEnterForeground(_ =>
+            {
+                DrainActions(Services());
+                ReconcileActivities(Services());
+            });
 
             ios.OpenUrl((_, url, _) => HandleLink(url));
             ios.SceneOpenUrl((_, contexts) =>
@@ -68,6 +73,21 @@ public static partial class SpineWidgetsExtensions
     {
         if (Services().GetRequiredService<IWidgetPlatform>() is not WidgetPlatform { ActionNotificationName: { } name }) return;
         CFNotificationCenter.Darwin.AddObserver(name, null!, (_, _) => DrainActions(Services()), CFNotificationSuspensionBehavior.DeliverImmediately);
+    }
+
+    // An activity's fate is decided outside the app: a swipe on the Lock Screen, a push, its stale
+    // date. The bridge watches ActivityKit and posts when one is gone; the reconcile at foreground
+    // covers a notification that found the process suspended, which Darwin does not queue.
+    private static void ListenForActivities()
+    {
+        if (Services().GetRequiredService<IWidgetPlatform>() is not WidgetPlatform { ActivityNotificationName: { } name } platform) return;
+        CFNotificationCenter.Darwin.AddObserver(name, null!, (_, _) => ReconcileActivities(Services()), CFNotificationSuspensionBehavior.DeliverImmediately);
+        platform.ObserveActivities();
+    }
+
+    private static void ReconcileActivities(IServiceProvider services)
+    {
+        if (services.GetService<ILiveActivityService>() is LiveActivityService activities) activities.Reconcile();
     }
 
     private static void DrainActions(IServiceProvider services)

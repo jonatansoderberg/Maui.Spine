@@ -29,10 +29,42 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     {
         if (_adopted || !_platform.IsSupported) return;
         _adopted = true;
+        Sync();
+    }
 
-        foreach (var (id, kind) in _platform.ActiveActivities())
+    /// <summary>
+    /// Brings the list in line with what the platform is actually showing. The platform is the
+    /// only one who knows about an activity the user swiped away, one a push ended, one that aged
+    /// past its stale date — or one a push started. Raises <see cref="ActivitiesChanged"/> when
+    /// anything differed.
+    /// </summary>
+    internal void Reconcile()
+    {
+        if (!_platform.IsSupported) return;
+        bool changed;
+        lock (_active) { _adopted = true; changed = Sync(); }
+        if (changed) ActivitiesChanged?.Invoke();
+    }
+
+    private bool Sync()
+    {
+        var shown = _platform.ActiveActivities();
+        var gone = _active.Where(a => !shown.ContainsKey(a.Id)).ToList();
+        foreach (var activity in gone)
+        {
+            activity.IsEnded = true;
+            _active.Remove(activity);
+        }
+
+        var added = false;
+        foreach (var (id, kind) in shown)
             if (!_active.Any(a => a.Id == id))
+            {
                 _active.Add(new LiveActivity(id, kind, Update, End, PushToken));
+                added = true;
+            }
+
+        return gone.Count > 0 || added;
     }
 
     public async Task<LiveActivity?> StartAsync(string kind, LiveActivityLayout layout, DateTimeOffset? staleAt = null)
@@ -41,11 +73,14 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
         if (!_platform.IsSupported) return null;
 
         await _icons.EnsureAsync(layout, CancellationToken.None);
+        lock (_active) Adopt();
         var id = await _platform.StartActivityAsync(kind, WidgetJson.Serialize(layout), staleAt);
         if (id is null) return null;
 
+        // A reconcile can slip in between the start and this add and list the new id already; the
+        // caller's handle is the one to keep.
         var activity = new LiveActivity(id, kind, Update, End, PushToken);
-        lock (_active) { Adopt(); _active.Add(activity); }
+        lock (_active) { _active.RemoveAll(a => a.Id == id); _active.Add(activity); }
 
         // The token does not exist yet — ActivityKit issues it a moment later. Raising now is still
         // right: whoever rebuilds a registration reads the token through GetPushTokenAsync, which

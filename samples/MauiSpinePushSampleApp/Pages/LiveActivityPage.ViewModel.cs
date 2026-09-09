@@ -22,9 +22,33 @@ public partial class LiveActivityPageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
+        _activities.ActivitiesChanged += OnActivitiesChanged;
+        await FindRunningAsync();
+        await base.OnAppearingAsync(navigationDirection);
+    }
+
+    public override Task OnDisappearingAsync(NavigationDirection navigationDirection)
+    {
+        _activities.ActivitiesChanged -= OnActivitiesChanged;
+        return base.OnDisappearingAsync(navigationDirection);
+    }
+
+    /// <summary>
+    /// The activity can go away without the app's doing — the user swipes it off the Lock Screen,
+    /// the server ends it — and this is how the page hears of it. The service raises on the
+    /// platform's thread, so the UI work is dispatched.
+    /// </summary>
+    private void OnActivitiesChanged() => MainThread.BeginInvokeOnMainThread(async () =>
+    {
+        var was = _running;
+        await FindRunningAsync();
+        if (was is not null && _running is null) _log.Note("live activity", "borta — avslutad utanför appen");
+    });
+
+    private async Task FindRunningAsync()
+    {
         _running = _activities.Active.FirstOrDefault(a => a.Kind == Kind && !a.IsEnded);
         await ShowAsync();
-        await base.OnAppearingAsync(navigationDirection);
     }
 
     [RelayCommand]
