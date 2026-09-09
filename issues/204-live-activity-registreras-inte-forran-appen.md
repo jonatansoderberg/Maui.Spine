@@ -56,7 +56,7 @@ Decisions.
 - **En händelse på interfacet, inte en poll och inte appens ansvar.** `PushService` har redan exakt
   det här mönstret för enhetens token — `platform.HandleChanged += _ => RefreshAsync()`. Att lägga
   ansvaret på appen, som i dag, betyder att varje app som både startar aktiviteter och använder push
-  måste komma ihåg det, och glömmer den det finns inget felmeddelande som avslöjar saken.
+  måste komma ihåg det — och glömmer den bort det finns inget felmeddelande som avslöjar det.
 - **Tokenens fördröjning behövde ingen egen mekanism.** Issuet flaggade att aktivitetens push-token
   inte finns när `StartAsync` returnerar. Men `GetPushTokenAsync` går via `PollAsync`, som väntar i
   upp till fem sekunder — refreshen väntar alltså ut token själv. Att höja händelsen direkt vid start
@@ -71,7 +71,7 @@ Decisions.
 
 Fysisk iPhone 16 Pro. Aktiviteten startades från Live Activity-sidan, appen lämnades **inte**, och
 `/installations` visade en ny aktivitetstoken 26 sekunder senare — utan foreground-växling och utan
-"Registrera om". En `liveactivity`-push direkt därefter gick fram.
+"Registrera om". En `liveactivity`-push direkt därefter landade på skärmen.
 
 Före ändringen låg den gamla token kvar tills appen råkade registrera om sig, och utskicket
 besvarades med `sent 1` utan att något hände på enheten.
