@@ -72,10 +72,8 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
             .SetSmallIcon(SmallIcon(layout, out var accent));
         if (accent is { } color) builder.SetColor(color);
 
-        // A moment already passed would count upward from zero as negative time; the widget shows 00:00 there.
-        if ((Find(lockScreen, "timer") ?? Find(Region(layout, "expandedTrailing"), "timer")) is { } timer
-            && timer.TryGetProperty("until", out var until) && until.TryGetDateTimeOffset(out var end) && end > DateTimeOffset.UtcNow)
-            builder.SetWhen(end.ToUnixTimeMilliseconds()).SetShowWhen(true).SetUsesChronometer(true).SetChronometerCountDown(true);
+        if (Chronometer(lockScreen, Region(layout, "expandedTrailing")) is (var when, var countDown))
+            builder.SetWhen(when).SetShowWhen(true).SetUsesChronometer(true).SetChronometerCountDown(countDown);
         else
             builder.SetShowWhen(false);
 
@@ -139,6 +137,30 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         var method = JNIEnv.GetMethodID(builder.Class.Handle, "setRequestPromotedOngoing", "(Z)Landroid/app/Notification$Builder;");
         JNIEnv.DeleteLocalRef(JNIEnv.CallObjectMethod(builder.Handle, method, new JValue(true)));
     }
+
+    /// <summary>
+    /// Where the notification's chronometer starts and which way it runs: a <c>timer</c> counts down to
+    /// its end, a <c>relative</c> counts up from its date. Both map onto the same two calls, so a layout
+    /// written for either one ticks here.
+    /// </summary>
+    /// <returns>
+    /// <see langword="null"/> when no region carries one, and for a timer whose end already passed —
+    /// Android would count upward from that end, which reads as the opposite of what the node means.
+    /// </returns>
+    private static (long When, bool CountDown)? Chronometer(params JsonElement?[] regions)
+    {
+        foreach (var region in regions)
+        {
+            if (Find(region, "timer") is { } timer)
+                return Date(timer, "until") is { } end && end > DateTimeOffset.UtcNow ? (end.ToUnixTimeMilliseconds(), true) : null;
+            if (Find(region, "relative") is { } relative && Date(relative, "date") is { } start)
+                return (start.ToUnixTimeMilliseconds(), false);
+        }
+        return null;
+    }
+
+    private static DateTimeOffset? Date(JsonElement node, string property) =>
+        node.TryGetProperty(property, out var value) && value.TryGetDateTimeOffset(out var date) ? date : null;
 
     private static JsonElement? Region(JsonElement layout, string name) =>
         layout.TryGetProperty(name, out var region) && region.ValueKind == JsonValueKind.Object ? region : null;
