@@ -110,6 +110,7 @@ final class Node: Decodable {
     var asset: String?
     var height: Double?
     var value: Double?
+    var compact: Bool?
     var spacing: Double?
     var children: [Node]?
     var actionId: String?
@@ -151,6 +152,11 @@ struct NodeView: View {
             ZStack { children }
         case "text":
             Text(node.text ?? "").modifier(TextStyleModifier(node: node))
+        // Self-updating text takes every point offered to it inside a Live Activity — a long-standing
+        // SwiftUI bug that plain Text does not share, and the reason a Dynamic Island holding nothing
+        // but a clock spans the screen. fixedSize was tried and made it worse: the text rendered as
+        // nothing and the width did not change. Put a clock where there is room for one.
+        // https://developer.apple.com/forums/thread/723316
         case "timer":
             if let end = node.until {
                 Text(timerInterval: Date.now...max(end, Date.now), countsDown: true)
@@ -159,7 +165,11 @@ struct NodeView: View {
             }
         case "relative":
             if let date = node.date {
-                Text(date, style: .relative).modifier(TextStyleModifier(node: node))
+                // .timer is the same information as a clock — "18:35" rather than "18 min, 35 secs"
+                // — for the regions that have no room for a sentence.
+                Text(date, style: node.compact == true ? .timer : .relative)
+                    .monospacedDigit()
+                    .modifier(TextStyleModifier(node: node))
             }
         case "image":
             // The app rasterized the icon from an SVG as a white mask; an SF Symbol is the fallback.

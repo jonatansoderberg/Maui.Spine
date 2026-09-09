@@ -101,11 +101,14 @@ public partial class LiveActivityPageViewModel(
         // All four expanded slots, or a long press on the Dynamic Island opens to nothing: the
         // expanded presentation draws only what the layout gives it, and an empty one is black.
         ExpandedLeading = W.Icon("bell"),
-        ExpandedTrailing = W.Relative(DateTimeOffset.Now).Caption(),
+        ExpandedTrailing = W.Relative(DateTimeOffset.Now, compact: true).Caption(),
         ExpandedCenter = W.Text("Spine Push").Headline().Bold(),
         ExpandedBottom = W.Text(body).Caption().Secondary(),
         CompactLeading = W.Icon("bell"),
-        CompactTrailing = W.Relative(DateTimeOffset.Now).Caption(),
+        // Compact has room for a glance, not a sentence: a short stamp of when this arrived. The
+        // ticking freshness lives in the expanded view, where there is room for it — and where the
+        // self-updating text's habit of claiming every offered point does no harm.
+        CompactTrailing = W.Text($"{DateTimeOffset.Now:HH:mm}").Caption(),
         Minimal = W.Icon("bell"),
     };
 }
