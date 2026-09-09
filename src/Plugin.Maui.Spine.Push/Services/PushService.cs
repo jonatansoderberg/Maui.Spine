@@ -44,6 +44,13 @@ internal sealed class PushService : IPushService
         // method some time after RegisterForRemoteNotifications returns, and on Android Firebase may
         // rotate it whenever it likes. Without this the first launch never reaches the backend.
         platform.HandleChanged += _ => RefreshAsync().SafeFireAndForget();
+
+        // The same problem one level up: a Live Activity is addressed by its own token, which lives
+        // and dies with the activity. Without this the backend holds a token for an activity that
+        // has been replaced, and a send to it is accepted by APNs and dropped — no error, nothing
+        // shown, nothing to search for.
+        if (services.GetService(typeof(ILiveActivityService)) is ILiveActivityService activities)
+            activities.ActivitiesChanged += () => RefreshAsync().SafeFireAndForget();
     }
 
     private const string InstallationIdKey = "spine.push.installation-id";

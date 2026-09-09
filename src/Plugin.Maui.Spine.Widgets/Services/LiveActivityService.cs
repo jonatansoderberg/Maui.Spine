@@ -17,6 +17,9 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
         get { lock (_active) { Adopt(); return [.. _active]; } }
     }
 
+    /// <inheritdoc />
+    public event Action? ActivitiesChanged;
+
     /// <summary>
     /// Picks up the activities the platform is still showing from before this process started. An
     /// activity outlives the app that started it, so without this the app would offer to start a
@@ -43,6 +46,12 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
 
         var activity = new LiveActivity(id, kind, Update, End, PushToken);
         lock (_active) { Adopt(); _active.Add(activity); }
+
+        // The token does not exist yet — ActivityKit issues it a moment later. Raising now is still
+        // right: whoever rebuilds a registration reads the token through GetPushTokenAsync, which
+        // waits for it. Raising once the token arrived would need a second mechanism for no gain.
+        ActivitiesChanged?.Invoke();
+
         return activity;
     }
 
@@ -84,6 +93,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
         activity.IsEnded = true;
         lock (_active) _active.Remove(activity);
         _platform.EndActivity(activity.Id);
+        ActivitiesChanged?.Invoke();
         return Task.CompletedTask;
     }
 }

@@ -13,6 +13,14 @@ public interface ILiveActivityService
     IReadOnlyList<LiveActivity> Active { get; }
 
     /// <summary>
+    /// Raised when an activity starts or ends, so a registration built from these can be sent again.
+    /// A server addresses an activity by its own push token, and that token exists only while the
+    /// activity does: without this, a backend keeps sending to one that has been replaced — which
+    /// APNs accepts and drops, leaving no error to go on.
+    /// </summary>
+    event Action? ActivitiesChanged;
+
+    /// <summary>
     /// Starts an activity of <paramref name="kind"/> with <paramref name="layout"/>. Returns
     /// <see langword="null"/> when the platform refused, for example because activities are
     /// disabled or the app is not in the foreground.
