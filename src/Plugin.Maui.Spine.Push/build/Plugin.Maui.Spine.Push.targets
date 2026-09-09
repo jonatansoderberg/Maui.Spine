@@ -5,12 +5,15 @@
 		Consumer knobs:
 		  SpinePushEnvironment   development | production   (Apple; defaults to development for Debug)
 		  SpinePushEnabled       default true
+		  SpinePushRemote        default true; false keeps local notifications and drops everything
+		                         remote push needs — Firebase on Android, aps-environment on Apple
 	-->
 	<PropertyGroup>
 		<SpinePushEnabled Condition="'$(SpinePushEnabled)' == ''">true</SpinePushEnabled>
+		<SpinePushRemote Condition="'$(SpinePushRemote)' == ''">true</SpinePushRemote>
 		<SpinePushEnvironment Condition="'$(SpinePushEnvironment)' == '' And '$(Configuration)' == 'Debug'">development</SpinePushEnvironment>
 		<SpinePushEnvironment Condition="'$(SpinePushEnvironment)' == ''">production</SpinePushEnvironment>
-		<_SpinePushApple Condition="'$(SpinePushEnabled)' == 'true' And ($([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst')">true</_SpinePushApple>
+		<_SpinePushApple Condition="'$(SpinePushEnabled)' == 'true' And '$(SpinePushRemote)' == 'true' And ($([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst')">true</_SpinePushApple>
 	</PropertyGroup>
 
 	<!--
@@ -75,6 +78,11 @@
 		a wall of text if the app allows less. Spine's own floor is 21, so this is the package's
 		requirement and not the repo's — it is stated here rather than raised for everyone.
 	-->
+	<!--
+		Not gated on SpinePushRemote: the Firebase dependency comes with the package whether or not the
+		app uses remote push, so the floor it brings applies either way. What SpinePushRemote drops is
+		the configuration — google-services.json below, and the Apple entitlement above.
+	-->
 	<Target Name="_SpinePushAndroidMinSdk"
 			Condition="'$(SpinePushEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(DesignTimeBuild)' != 'true'"
 			BeforeTargets="BeforeBuild">
@@ -83,10 +91,10 @@
 	</Target>
 
 	<Target Name="_SpinePushAndroidCheck"
-			Condition="'$(SpinePushEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(DesignTimeBuild)' != 'true'"
+			Condition="'$(SpinePushEnabled)' == 'true' And '$(SpinePushRemote)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(DesignTimeBuild)' != 'true'"
 			BeforeTargets="BeforeBuild">
 		<Error Condition="'@(GoogleServicesJson)' == ''"
-			   Text="Spine.Push: Android needs Firebase's google-services.json. Download it from the Firebase console and add &lt;GoogleServicesJson Include=&quot;Platforms\Android\google-services.json&quot; /&gt; to the app project. Set SpinePushEnabled=false to build without push." />
+			   Text="Spine.Push: Android needs Firebase's google-services.json. Download it from the Firebase console and add &lt;GoogleServicesJson Include=&quot;Platforms\Android\google-services.json&quot; /&gt; to the app project. Set SpinePushRemote=false to keep local notifications without it, or SpinePushEnabled=false to build without either." />
 	</Target>
 
 </Project>

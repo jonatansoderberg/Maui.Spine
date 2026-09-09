@@ -10,6 +10,7 @@ public static partial class SpinePushExtensions
     {
         var platform = new AndroidPushPlatform();
         builder.Services.AddSingleton<IPushPlatform>(platform);
+        builder.Services.AddSingleton<ILocalNotificationService, AndroidLocalNotifications>();
 
         builder.ConfigureLifecycleEvents(events => events.AddAndroid(android =>
         {
@@ -19,7 +20,7 @@ public static partial class SpinePushExtensions
             android.OnCreate((activity, _) =>
             {
                 SpinePushLifecycle.IsForeground = true;
-                Start(platform, options).SafeFireAndForget();
+                Start(options).SafeFireAndForget();
                 Opened(activity.Intent).SafeFireAndForget();
             });
 
@@ -29,14 +30,14 @@ public static partial class SpinePushExtensions
             android.OnResume(_ =>
             {
                 SpinePushLifecycle.IsForeground = true;
-                Resume().SafeFireAndForget();
+                Resume(options).SafeFireAndForget();
             });
 
             android.OnPause(_ => SpinePushLifecycle.IsForeground = false);
         }));
     }
 
-    private static async Task Start(AndroidPushPlatform platform, SpinePushOptions options)
+    private static async Task Start(SpinePushOptions options)
     {
         if (options.Permission is PushPermission.AtLaunch or PushPermission.Provisional)
         {
@@ -44,12 +45,18 @@ public static partial class SpinePushExtensions
             return;
         }
 
-        await AndroidPushPlatform.FetchTokenAsync();
-        await Services().GetRequiredService<IPushService>().RefreshAsync();
+        await Resume(options);
     }
 
-    private static async Task Resume()
+    /// <summary>
+    /// Asks Firebase for a token and registers — unless there is no backend to register with, which
+    /// is what an app that only schedules local notifications looks like. Asking anyway would mean a
+    /// warning about a missing <c>google-services.json</c> on every launch, for a token nobody wants.
+    /// </summary>
+    private static async Task Resume(SpinePushOptions options)
     {
+        if (options.Backend is null) return;
+
         await AndroidPushPlatform.FetchTokenAsync();
         await Services().GetRequiredService<IPushService>().RefreshAsync();
     }

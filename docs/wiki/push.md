@@ -11,8 +11,8 @@ v1 covers iOS, Mac Catalyst and Android. Windows is v2.
 ## Run the sample first
 
 `samples/MauiSpinePushSampleApp` is the shortest path to seeing this work. It shows the whole client
-API on five pages — status and tokens, tags, a form that asks the server to send, a log of everything
-the handler received, and a Live Activity — and `samples/MauiSpinePushSampleApp.Server` is a Minimal
+API on six pages — status and tokens, tags, a form that asks the server to send, a log of everything
+the handler received, a Live Activity, and local notifications — and `samples/MauiSpinePushSampleApp.Server` is a Minimal
 API on `Plugin.Maui.Spine.Server` with an in-memory register.
 
 ```bash
@@ -156,6 +156,102 @@ fingerprint cannot see: a register that lost the row — a recreated container, 
 restarted dev server. Nothing on the wire tells a device it is no longer registered, so an app that
 offers the user a "register again" needs this; without it the button does nothing until the confirm
 window runs out.
+
+---
+
+## Local notifications
+
+The other half of notifying: the ones the device shows on its own, with no server involved.
+
+```csharp
+var local = services.GetRequiredService<ILocalNotificationService>();
+
+await local.SyncAsync(
+[
+    new LocalNotification
+    {
+        Id = $"start:{competition.Id}",
+        At = start.AddMinutes(-90),
+        Title = "Dags att åka",
+        Body = $"Start {start:HH:mm} i {competition.Name}.",
+        Route = $"competition/{competition.Id}",
+        Channel = "reminders",
+    },
+]);
+```
+
+`SyncAsync` takes the **whole plan** and makes the device equal it: anything not in the list is
+cancelled. Re-planning is therefore idempotent — build the plan again whenever the data behind it
+changes, and something that moved or stopped being true stops notifying instead of firing from a
+stale schedule. `PendingAsync` reads back what is still to come, `CancelAllAsync` clears it, and
+`IsSupported` is false where the platform has nothing to offer, so an app can say so rather than
+pretend.
+
+Give each notification an id derived from what it is about rather than a generated one. It is what
+makes the plan replace rather than stack, and on Android it is also the notification's identity on
+screen.
+
+**Everything else is shared with push.** There is one notification permission per app on both
+platforms, so `IPushService.RequestPermissionAsync` is the only place the user is asked. The channels
+are the ones `AddChannel` created. And an opened local notification reaches the same
+`IPushHandler.OnOpenedAsync`, carrying the same `spine.route`, so navigation does not need to know
+which half sent it:
+
+```csharp
+public Task OnOpenedAsync(PushMessage message, string? action)
+{
+    if (message.IsLocal) log.Note("scheduled by us");
+    return Navigate(message.Route);
+}
+```
+
+`PushMessage.IsLocal` is there for logging and for the rare case an app wants to treat them
+differently. A handler that does not care never has to look.
+
+### Choosing which half sends what
+
+An app that both schedules locally and receives push has to decide what each covers, or the user
+gets the same thing twice. The framework cannot make that call — only the app knows which of its own
+notifications the backend also sends — but `IPushService.IsRegistered` is the signal to make it with:
+
+```csharp
+var plan = Planner.Plan(state);
+
+// Registered means the backend reaches this device, so leave out what it delivers. Not registered
+// makes local the fallback for everything.
+if (push.IsRegistered) plan = [.. plan.Where(n => !PushedKinds.Contains(n.Kind))];
+
+await local.SyncAsync(plan);
+```
+
+The rule of thumb: anything only the device can work out — a time relative to the user's own plans,
+something computed from data already on the phone — belongs locally. Anything only the server
+notices belongs in push.
+
+### An app that only notifies locally
+
+Local notifications need no backend, no Firebase and no push entitlement. Leave `Backend` unset and
+Spine skips the whole remote half: no APNs registration, no token, nothing in the log about a
+`google-services.json` that is not there.
+
+```xml
+<SpinePushRemote>false</SpinePushRemote>
+```
+
+That property drops what only remote push needs from the build: the `google-services.json`
+requirement on Android and `aps-environment` on Apple. The Firebase dependency itself still comes
+with the package, so Android's `SupportedOSPlatformVersion` floor of 23 stays. `SpinePushEnabled=false`
+still means neither half.
+
+### What the platforms do
+
+| | |
+|---|---|
+| iOS | Fires whether or not the app is running. The foreground presentation goes through `OnReceivedAsync`, exactly as a push does. Apple keeps 64 pending notifications per app; a larger plan is cut to the nearest 64, and Spine logs when it is. |
+| Android | An inexact alarm per notification: it may arrive a few minutes late in doze, which is the price of not needing `SCHEDULE_EXACT_ALARM`. The plan is written down, so an alarm from an earlier run can still be cancelled, and it is booked again after a reboot. `OnReceivedAsync` is asked only in the foreground, so the two platforms behave alike. |
+| Mac Catalyst, Windows | `IsSupported` is false, as it is for push. |
+
+An instant that has already passed is dropped rather than fired late, on both platforms.
 
 ---
 
