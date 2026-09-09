@@ -448,14 +448,16 @@ A Live Activity on Android 16 is a **promoted ongoing notification**, and the la
 
 | Region | Becomes |
 |---|---|
-| `LockScreen` (and `ExpandedBottom`) | Title from the first headline or title text, content text from the next text; the first `W.Timer` becomes the header chronometer, the first `W.Progress` the `ProgressStyle` bar in its color |
-| `CompactLeading` / `Minimal` / `ExpandedLeading` | The first `W.Icon` is the small icon (the rasterized SVG), its color the accent |
+| `LockScreen` (and `ExpandedBottom`) | Title from the first headline or title text, content text from the next text; the first `W.Timer` or `W.Relative` becomes the header chronometer — counting down to `Until`, up from `Date` — and the first `W.Progress` the `ProgressStyle` bar in its color |
+| `CompactLeading` / `Minimal` / `ExpandedLeading` | The first `W.Icon` is the notification's small icon (the rasterized SVG), its color the accent — see below for where that ends up |
 | `CompactTrailing` | A `W.Text` there becomes the status-bar chip's text; a `W.Timer` leaves the chip to the system's chronometer |
 | `Link` | The notification's tap, through the same activity as the widget |
 
 `staleAt` is not visualised on Android. Below Android 16 `AreActivitiesEnabled` is `false` and `StartAsync` returns `null`; a plain ongoing notification would not be a Live Activity, so Spine does not pretend.
 
 **`CompactTrailing` is the one region that pulls in opposite directions.** On iOS it sits in the Dynamic Island, where a `W.Timer` or `W.Relative` claims every point offered and stretches the island — so a plain `W.Text` is the right answer there. On Android the same region becomes the status-bar chip, and a `W.Timer` is what hands the chip to the system's chronometer; a `W.Text` freezes it at whatever the app last wrote. One tree cannot be ideal for both. Use `W.Adaptive`, or build the two layouts separately, when the region matters on both platforms.
+
+**An icon has no region of its own.** Android's promoted-ongoing template has no leading-image slot, so the notification row always shows the app icon; the tree's first `W.Icon` becomes the notification's *small icon*, and that surfaces in the status-bar chip, beside the `CompactTrailing` text. `ExpandedLeading` — a region you can draw into on iOS — therefore has no counterpart in the expanded notification. Anything that has to be legible there belongs in text.
 
 The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the manifest when `SpineWidgetsLiveActivities` is on; the first is requested at `StartAsync`, the second is granted by the user's per-app Live Updates setting.
 
