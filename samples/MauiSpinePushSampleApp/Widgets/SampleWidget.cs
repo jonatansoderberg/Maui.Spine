@@ -72,15 +72,14 @@ public sealed class SampleWidgetProvider(PushLog log, WidgetContent content) : I
     /// On Android this runs the moment the button is tapped, in the app's process. On iOS the tap is
     /// recorded by the widget extension and drained when the app is next active — so a tap made while
     /// the app is closed changes the widget only once the app is opened. That is the platform, not the
-    /// sample.
+    /// sample, and it is why the stamp comes from <see cref="WidgetAction.At"/> rather than from now.
     /// </remarks>
     public Task OnActionAsync(WidgetAction action)
     {
         if (action.ActionId != AcknowledgeAction) return Task.CompletedTask;
 
-        var now = DateTimeOffset.Now;
-        content.Acknowledge(now);
-        log.Note("widget", $"acknowledged at {now:HH:mm:ss} from the widget's button");
+        content.Acknowledge(action.At);
+        log.Note("widget", $"acknowledged at {action.At:HH:mm:ss} from the widget's button");
         return Task.CompletedTask;
     }
 }

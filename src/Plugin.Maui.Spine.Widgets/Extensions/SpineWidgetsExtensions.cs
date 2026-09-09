@@ -54,7 +54,7 @@ public static partial class SpineWidgetsExtensions
     /// A tapped <see cref="W.Button"/>: the provider's <see cref="IWidgetActionHandler"/> on the main thread,
     /// then the widget rebuilt so the tap's effect shows. A provider without a handler only gets the rebuild.
     /// </summary>
-    internal static async Task HandleActionAsync(IServiceProvider services, string kind, string actionId)
+    internal static async Task HandleActionAsync(IServiceProvider services, string kind, string actionId, DateTimeOffset at)
     {
         var registry = services.GetRequiredService<WidgetRegistry>();
         var logger = services.GetRequiredService<ILogger<IWidgetService>>();
@@ -71,7 +71,7 @@ public static partial class SpineWidgetsExtensions
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
                     var handler = (IWidgetActionHandler)ActivatorUtilities.CreateInstance(services, providerType);
-                    return handler.OnActionAsync(new WidgetAction(kind, actionId));
+                    return handler.OnActionAsync(new WidgetAction(kind, actionId, at));
                 });
             }
             catch (Exception e)

@@ -46,4 +46,9 @@ public interface IWidgetActionHandler
 /// <summary>A tapped button.</summary>
 /// <param name="Kind">The widget kind the button belongs to.</param>
 /// <param name="ActionId">The id given to <see cref="W.Button"/>.</param>
-public sealed record WidgetAction(string Kind, string ActionId);
+/// <param name="At">
+/// When the button was tapped, which on iOS is not when the handler runs: the tap is recorded by the
+/// widget extension and handled the next time the app is active, so a handler that stamps
+/// <see cref="DateTimeOffset.Now"/> instead records the app's launch.
+/// </param>
+public sealed record WidgetAction(string Kind, string ActionId, DateTimeOffset At);

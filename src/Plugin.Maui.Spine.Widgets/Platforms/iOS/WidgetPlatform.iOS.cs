@@ -47,7 +47,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     public string? ActionNotificationName => _appGroup is null ? null : _appGroup + ".spine-widgets.action";
 
     /// <summary>Reads and clears the button taps the extension recorded, oldest first.</summary>
-    public IReadOnlyList<(string Kind, string ActionId)> TakeActions()
+    public IReadOnlyList<(string Kind, string ActionId, DateTimeOffset At)> TakeActions()
     {
         if (_containerPath is null) return [];
         var path = Path.Combine(_containerPath, "actions.jsonl");
@@ -57,7 +57,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         try { lines = File.ReadAllLines(path); File.Delete(path); }
         catch (IOException) { return []; }
 
-        var actions = new List<(string, string)>();
+        var actions = new List<(string, string, DateTimeOffset)>();
         foreach (var line in lines)
         {
             if (line.Length == 0) continue;
@@ -66,12 +66,22 @@ internal sealed class WidgetPlatform : IWidgetPlatform
                 using var document = System.Text.Json.JsonDocument.Parse(line);
                 if (document.RootElement.TryGetProperty("kind", out var kind) && document.RootElement.TryGetProperty("actionId", out var action)
                     && kind.GetString() is { Length: > 0 } k && action.GetString() is { Length: > 0 } a)
-                    actions.Add((k, a));
+                    actions.Add((k, a, TappedAt(document.RootElement)));
             }
             catch (System.Text.Json.JsonException) { }
         }
         return actions;
     }
+
+    /// <summary>
+    /// The tap's own time, which is the point of recording it: the app can be launched hours after the
+    /// tap. Written by the extension as seconds since the epoch. A line without a usable one falls back
+    /// to now rather than being dropped — a wrong time is worth less than a lost tap.
+    /// </summary>
+    private static DateTimeOffset TappedAt(System.Text.Json.JsonElement line) =>
+        line.TryGetProperty("at", out var at) && at.ValueKind == System.Text.Json.JsonValueKind.Number
+            ? DateTimeOffset.FromUnixTimeMilliseconds((long)(at.GetDouble() * 1000)).ToLocalTime()
+            : DateTimeOffset.Now;
 
     public void WriteTimeline(string kind, string json)
     {
