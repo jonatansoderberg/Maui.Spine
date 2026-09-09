@@ -117,10 +117,14 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
     private void Tapped(Context context, string kind, string actionId)
     {
         if (IPlatformApplication.Current?.Services is not { } services) return;
+
+        // Now, and not something read off the intent: the receiver runs the moment the button is
+        // tapped, so this is the tap's own time.
+        var at = DateTimeOffset.Now;
         var pending = GoAsync();
         Task.Run(async () =>
         {
-            try { await Extensions.SpineWidgetsExtensions.HandleActionAsync(services, kind, actionId); }
+            try { await Extensions.SpineWidgetsExtensions.HandleActionAsync(services, kind, actionId, at); }
             catch (Exception e) { Android.Util.Log.Warn(Tag, $"Action \"{actionId}\" of widget \"{kind}\" failed: {e.Message}"); }
             finally { pending?.Finish(); }
         });

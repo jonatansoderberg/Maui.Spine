@@ -230,7 +230,7 @@ The server builds the document with the same types and `WidgetTimeline.ToJson()`
 
 ### Buttons
 
-`W.Button(actionId, child)` makes its child tappable without opening the app. The tap reaches the provider's `IWidgetActionHandler` with the widget's kind and the action id, and the widget is rebuilt when the handler returns, so what the tap changed shows:
+`W.Button(actionId, child)` makes its child tappable without opening the app. The tap reaches the provider's `IWidgetActionHandler` with the widget's kind, the action id and the time of the tap, and the widget is rebuilt when the handler returns, so what the tap changed shows:
 
 ```csharp
 W.HStack(6, W.Button("bump", W.Text("Bump").Caption().Bold()), W.Text($"{bumps} bumps").Caption().Secondary())
@@ -243,6 +243,8 @@ public Task OnActionAsync(WidgetAction action)
 ```
 
 On Android the handler runs at once, in the app's process. On iOS the tap runs an `AppIntent` inside the widget extension, where there is no .NET: the extension records the tap and signals the app, which handles it at once when it is in the foreground and otherwise the next time it becomes active — a backgrounded iOS app is suspended, so "running" means active. The widget shows the tap's effect at that moment. A widget whose buttons must act on their own has to do that work in a remote source instead.
+
+That gap is why `WidgetAction` carries `At`. It is when the button was tapped, not when the handler ran, and on iOS those can be hours apart. Use it for anything the tap's time belongs to — a stamp, an ordering, an age — rather than `DateTimeOffset.Now`, which on Android is the same instant and on iOS is the app's next launch.
 
 ### Opening the app from the widget
 

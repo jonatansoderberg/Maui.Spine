@@ -70,8 +70,8 @@ public static partial class SpineWidgetsExtensions
     private static void DrainActions(IServiceProvider services)
     {
         if (services.GetRequiredService<IWidgetPlatform>() is not WidgetPlatform platform) return;
-        foreach (var (kind, actionId) in platform.TakeActions())
-            HandleActionAsync(services, kind, actionId)
+        foreach (var (kind, actionId, at) in platform.TakeActions())
+            HandleActionAsync(services, kind, actionId, at)
                 .SafeFireAndForget(e => services.GetRequiredService<ILogger<IWidgetService>>().LogError(e, "Handling action \"{Action}\" of widget \"{Kind}\" failed.", actionId, kind));
     }
 
