@@ -21,7 +21,16 @@ namespace Plugin.Maui.Spine.Common;
 [JsonDerivedType(typeof(DividerNode), "divider")]
 [JsonDerivedType(typeof(ButtonNode), "button")]
 [JsonDerivedType(typeof(AdaptiveNode), "adaptive")]
-public abstract record WidgetNode;
+public abstract record WidgetNode
+{
+    /// <summary>
+    /// Dimmed by the platform from a tap on any <see cref="W.Button"/> in the widget until the
+    /// rebuild that follows the handler, so what the tap is about to change is seen to be changing.
+    /// iOS only; Android renders the node as usual. Ignored on a button and inside its child. Set
+    /// with <see cref="W.Pending"/>.
+    /// </summary>
+    public bool? Pending { get; init; }
+}
 
 /// <summary>A container that lays its <see cref="Children"/> out along one axis.</summary>
 public abstract record StackNode : WidgetNode
@@ -146,9 +155,8 @@ public sealed record DividerNode : WidgetNode;
 
 /// <summary>
 /// A tappable <see cref="Child"/> that sends <see cref="ActionId"/> to the provider's
-/// <see cref="IWidgetActionHandler"/>. On Android the handler runs at once in the app's process; on iOS
-/// the tap is recorded by the widget extension and handled the next time the app is active, which is
-/// at once when it is in the foreground.
+/// <see cref="IWidgetActionHandler"/>. The handler runs at once in the app's process on both platforms;
+/// an app that is not running is launched in the background for it.
 /// </summary>
 /// <param name="ActionId">What the tap means to the provider, e.g. <c>next</c>.</param>
 /// <param name="Child">What the button looks like.</param>

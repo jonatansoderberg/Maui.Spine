@@ -59,8 +59,11 @@ public static partial class SpineWidgetsExtensions
     private static IServiceProvider Services() => IPlatformApplication.Current?.Services
         ?? throw new InvalidOperationException("The MAUI application has not started.");
 
-    // Button taps: the extension appends them to actions.jsonl in the container and posts a Darwin
-    // notification. A running app handles them at once; otherwise the file waits for the next launch.
+    // Button taps: the intent appends them to actions.jsonl in the container and posts a Darwin
+    // notification. The intent runs in this process — iOS launches the app in the background for it
+    // when it is not running — so the notification is what normally delivers a tap, and the drain at
+    // launch covers one that arrived before the observer existed, or one recorded by the extension
+    // on an iOS that ran the intent there.
     private static void ListenForActions()
     {
         if (Services().GetRequiredService<IWidgetPlatform>() is not WidgetPlatform { ActionNotificationName: { } name }) return;
@@ -70,9 +73,22 @@ public static partial class SpineWidgetsExtensions
     private static void DrainActions(IServiceProvider services)
     {
         if (services.GetRequiredService<IWidgetPlatform>() is not WidgetPlatform platform) return;
-        foreach (var (kind, actionId, at) in platform.TakeActions())
-            HandleActionAsync(services, kind, actionId, at)
-                .SafeFireAndForget(e => services.GetRequiredService<ILogger<IWidgetService>>().LogError(e, "Handling action \"{Action}\" of widget \"{Kind}\" failed.", actionId, kind));
+        foreach (var action in platform.TakeActions())
+            HandleRecordedActionAsync(services, platform, action)
+                .SafeFireAndForget(e => services.GetRequiredService<ILogger<IWidgetService>>().LogError(e, "Handling action \"{Action}\" of widget \"{Kind}\" failed.", action.ActionId, action.Kind));
+    }
+
+    // The intent's perform() waits for the completion, so it is sent whatever the handler did: an
+    // unanswered tap holds the process for the intent's full timeout.
+    private static async Task HandleRecordedActionAsync(IServiceProvider services, WidgetPlatform platform, RecordedAction action)
+    {
+        var started = Environment.TickCount64;
+        try { await HandleActionAsync(services, action.Kind, action.ActionId, action.At); }
+        finally
+        {
+            if (action.Id is { } id) platform.CompleteAction(id);
+            services.GetRequiredService<ILogger<IWidgetService>>().LogDebug("Handled action \"{Action}\" of widget \"{Kind}\" in {Elapsed} ms.", action.ActionId, action.Kind, Environment.TickCount64 - started);
+        }
     }
 
     // BGAppRefreshTask: registered before launch finishes (a hard requirement), booked whenever the app

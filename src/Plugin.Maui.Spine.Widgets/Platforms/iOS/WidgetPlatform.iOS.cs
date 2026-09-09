@@ -7,6 +7,13 @@ using System.Runtime.InteropServices;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
+/// <summary>A button tap as the intent recorded it in <c>actions.jsonl</c>.</summary>
+/// <param name="Id">The intent's own id for the tap, which <see cref="WidgetPlatform.CompleteAction"/> answers; <see langword="null"/> for a line without one.</param>
+/// <param name="Kind">The widget kind the button belongs to.</param>
+/// <param name="ActionId">The id given to <see cref="W.Button"/>.</param>
+/// <param name="At">When the button was tapped.</param>
+internal readonly record struct RecordedAction(string? Id, string Kind, string ActionId, DateTimeOffset At);
+
 /// <summary>
 /// iOS: the timeline documents live in the App Group container the extension reads, and WidgetKit
 /// and ActivityKit are reached through the Swift bridge framework the build compiles alongside the
@@ -18,6 +25,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     private const string AppGroupInfoKey = "SpineWidgetsAppGroup";
 
     private readonly ILogger<WidgetPlatform> _logger;
+    private readonly object _actionsLock = new();
     private readonly IntPtr _bridge;
     private readonly string? _appGroup;
     private readonly string? _containerPath;
@@ -43,34 +51,53 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 
     public bool IsSupported => _bridge != IntPtr.Zero && _containerPath is not null;
 
-    /// <summary>The Darwin notification the extension posts after recording a button tap.</summary>
+    /// <summary>The Darwin notification the button intent posts after recording a tap.</summary>
     public string? ActionNotificationName => _appGroup is null ? null : _appGroup + ".spine-widgets.action";
 
-    /// <summary>Reads and clears the button taps the extension recorded, oldest first.</summary>
-    public IReadOnlyList<(string Kind, string ActionId, DateTimeOffset At)> TakeActions()
+    /// <summary>
+    /// Reads and clears the button taps the intent recorded, oldest first. Serialized: the Darwin
+    /// notification and the drain at launch can arrive together, and a tap must be handled once.
+    /// </summary>
+    public IReadOnlyList<RecordedAction> TakeActions()
     {
         if (_containerPath is null) return [];
         var path = Path.Combine(_containerPath, "actions.jsonl");
-        if (!File.Exists(path)) return [];
 
         string[] lines;
-        try { lines = File.ReadAllLines(path); File.Delete(path); }
-        catch (IOException) { return []; }
+        lock (_actionsLock)
+        {
+            if (!File.Exists(path)) return [];
+            try { lines = File.ReadAllLines(path); File.Delete(path); }
+            catch (IOException) { return []; }
+        }
 
-        var actions = new List<(string, string, DateTimeOffset)>();
+        var actions = new List<RecordedAction>();
         foreach (var line in lines)
         {
             if (line.Length == 0) continue;
             try
             {
                 using var document = System.Text.Json.JsonDocument.Parse(line);
-                if (document.RootElement.TryGetProperty("kind", out var kind) && document.RootElement.TryGetProperty("actionId", out var action)
+                var root = document.RootElement;
+                if (root.TryGetProperty("kind", out var kind) && root.TryGetProperty("actionId", out var action)
                     && kind.GetString() is { Length: > 0 } k && action.GetString() is { Length: > 0 } a)
-                    actions.Add((k, a, TappedAt(document.RootElement)));
+                    actions.Add(new RecordedAction(root.TryGetProperty("id", out var id) ? id.GetString() : null, k, a, TappedAt(root)));
             }
             catch (System.Text.Json.JsonException) { }
         }
         return actions;
+    }
+
+    /// <summary>
+    /// Tells the intent that the tap with this id has been handled and the widget rebuilt. When the
+    /// tap ran in the app's process its <c>perform()</c> is waiting for exactly this; iOS may suspend
+    /// the background-launched app the moment it returns.
+    /// </summary>
+    public void CompleteAction(string id)
+    {
+        if (!IsSupported) return;
+        using var value = new NSString(id);
+        Send(_bridge, Selector.GetHandle("completeActionWithId:"), value.Handle);
     }
 
     /// <summary>

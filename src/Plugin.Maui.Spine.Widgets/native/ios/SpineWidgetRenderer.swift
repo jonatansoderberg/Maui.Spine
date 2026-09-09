@@ -1,7 +1,6 @@
 import WidgetKit
 import SwiftUI
 import ActivityKit
-import AppIntents
 
 // MARK: - Manifest (written by the build from the <SpineWidget> items)
 
@@ -117,14 +116,21 @@ final class Node: Decodable {
     var child: Node?
     var fallback: Node?
     var trees: [String: Node]?
+    var pending: Bool?
 }
 
 /// The kind of the widget or activity being drawn, so a button knows whose action it sends.
 struct SpineKindKey: EnvironmentKey { static let defaultValue = "" }
+/// Set inside a button's label, where invalidatable content must not be applied.
+struct SpineInsideButtonKey: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
     var spineKind: String {
         get { self[SpineKindKey.self] }
         set { self[SpineKindKey.self] = newValue }
+    }
+    var spineInsideButton: Bool {
+        get { self[SpineInsideButtonKey.self] }
+        set { self[SpineInsideButtonKey.self] = newValue }
     }
 }
 
@@ -133,15 +139,29 @@ extension EnvironmentValues {
 struct NodeView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.spineKind) private var kind
+    @Environment(\.spineInsideButton) private var insideButton
     let node: Node
 
+    // Marked nodes are dimmed by the system from a tap until the next reload; see W.Pending. The
+    // modifier is applied only where asked: even invalidatableContent(false) on or inside a Button
+    // stops WidgetKit from routing the tap to the intent, and it opens the app instead.
     var body: some View {
+        if node.pending == true && !insideButton && node.type != "button" {
+            content.invalidatableContent()
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder private var content: some View {
         switch node.type {
         case "adaptive":
             if let tree = node.trees?[Families.key(family)] ?? node.fallback { NodeView(node: tree) }
         case "button":
             if let child = node.child, let actionId = node.actionId {
-                Button(intent: SpineWidgetIntent(kind: kind, actionId: actionId)) { NodeView(node: child) }
+                // Nothing inside the label may be invalidatable: WidgetKit then no longer routes the tap to
+                // the intent, and it falls through to widgetURL and opens the app. Verified on iOS 26.
+                Button(intent: SpineWidgetIntent(kind: kind, actionId: actionId)) { NodeView(node: child).environment(\.spineInsideButton, true) }
                     .buttonStyle(.plain)
             }
         case "vstack":
@@ -329,44 +349,6 @@ struct SpineWidgetView: View {
             Text("—").foregroundStyle(.secondary)
         }
     }
-}
-
-// MARK: - Buttons
-
-/// The one intent behind every W.Button. It runs in the extension, where there is no .NET, so it records
-/// the tap in the container and tells the app — at once through a Darwin notification if it is running,
-/// otherwise when it next launches and drains the file.
-struct SpineWidgetIntent: AppIntent {
-    static var title: LocalizedStringResource = "Spine widget action"
-    static var isDiscoverable = false
-
-    @Parameter(title: "Kind") var kind: String
-    @Parameter(title: "Action") var actionId: String
-
-    init() {}
-    init(kind: String, actionId: String) {
-        self.kind = kind
-        self.actionId = actionId
-    }
-
-    func perform() async throws -> some IntentResult {
-        if let root = Store.root {
-            let line = "{\"kind\":\"\(kind.escaped)\",\"actionId\":\"\(actionId.escaped)\",\"at\":\(Date.now.timeIntervalSince1970)}\n"
-            let url = root.appendingPathComponent("actions.jsonl")
-            if let handle = try? FileHandle(forWritingTo: url) {
-                handle.seekToEndOfFile(); handle.write(Data(line.utf8)); try? handle.close()
-            } else {
-                try? line.write(to: url, atomically: true, encoding: .utf8)
-            }
-        }
-        let name = CFNotificationName("\(Manifest.current.appGroup).spine-widgets.action" as CFString)
-        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), name, nil, nil, true)
-        return .result()
-    }
-}
-
-private extension String {
-    var escaped: String { replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") }
 }
 
 enum Families {

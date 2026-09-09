@@ -88,7 +88,7 @@
 	<Target Name="_SpineWidgetsRegister"
 			DependsOnTargets="_SpineWidgetsBuild;_SpineWriteEntitlements"
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '@(SpineWidget)' != '' And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))"
-			BeforeTargets="_SanitizeNativeReferences;_CompileAppManifestInputs;_CompileAppManifest;_DetectSigningIdentity;_CompileEntitlements;_ResolveAppExtensionReferences;_ExtendAppExtensionReferences">
+			BeforeTargets="_SanitizeNativeReferences;_CollectBundleResources;_CompileAppManifestInputs;_CompileAppManifest;_DetectSigningIdentity;_CompileEntitlements;_ResolveAppExtensionReferences;_ExtendAppExtensionReferences">
 		<PropertyGroup>
 			<!-- Simulator builds on a Mac without a signing identity still need to sign the extension. The SDK
 			     snapshots CodesignKey into _SpecifiedCodesignKey in its props, so both are set here. -->
@@ -100,6 +100,10 @@
 			<AdditionalAppExtensions Include="$(_SpineWidgetsOutDir.TrimEnd('/'))" Name="$(SpineWidgetsExtensionName)" BuildOutput="." CodesignEntitlements="$(_SpineWidgetsOutDir)$(SpineWidgetsExtensionName).entitlements" />
 			<NativeReference Include="$(_SpineWidgetsOutDir)SpineWidgetBridge.framework" Kind="Framework" SmartLink="false" />
 			<PartialAppManifest Include="$(_SpineWidgetsOutDir)HostManifest.plist" />
+			<!-- The app's own App Intents metadata, in the bundle root where iOS looks for it. It declares the
+			     button intent the bridge carries, which is what makes iOS run a tap in the app's process. -->
+			<_SpineWidgetsAppIntentsFile Include="$(_SpineWidgetsOutDir)app/Metadata.appintents/*" />
+			<BundleResource Include="@(_SpineWidgetsAppIntentsFile)" LogicalName="Metadata.appintents/%(_SpineWidgetsAppIntentsFile.Filename)%(_SpineWidgetsAppIntentsFile.Extension)" />
 		</ItemGroup>
 	</Target>
 

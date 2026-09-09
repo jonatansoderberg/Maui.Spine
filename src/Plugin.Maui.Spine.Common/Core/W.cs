@@ -90,6 +90,14 @@ public static class WidgetNodeStyling
     /// <summary>Renders in bold weight.</summary>
     public static T Bold<T>(this T node) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Bold = true });
 
+    /// <summary>
+    /// Marks the node as changed by the widget's buttons: from a tap until the rebuild that follows
+    /// the handler, the platform dims it, so the tap is seen to be working. Mark the nodes the tap
+    /// changes, such as a line that shows the result. Ignored on a <see cref="W.Button"/> and inside
+    /// its child, where WidgetKit would stop routing the tap to the handler. iOS only.
+    /// </summary>
+    public static T Pending<T>(this T node) where T : WidgetNode => (T)(node with { Pending = true });
+
     /// <summary>Renders in the platform's secondary text color.</summary>
     public static T Secondary<T>(this T node) where T : TextLikeNode => node.Color(WidgetColor.Secondary);
 
