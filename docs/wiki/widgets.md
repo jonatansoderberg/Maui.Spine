@@ -334,6 +334,35 @@ Tokens rotate, so send them at every launch and foreground as well. The server p
 
 `event: start` with `attributes-type: SpineActivityAttributes` and `attributes: { "kind": "…" }` starts an activity through the push-to-start token. Set `SpineWidgetsFrequentUpdates=true` in the project to declare `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget. Android has no tokens: a server reaches a Live Update through the app's own push handler (FCM), which calls `UpdateAsync` or `RefreshAsync` like any other code.
 
+### Keeping one on screen around the clock
+
+Some subjects have no end: a glucose reading, a delivery being tracked overnight, a system being watched. The eight-hour limit means **no single activity covers a day**, and designing as though it does produces something that silently disappears while the user sleeps.
+
+The shape that works is to stop thinking of the activity as long-lived, and treat the **push-to-start token** as the durable thing instead. Activities become disposable; the token outlives them.
+
+| | Lives as long as | Used for |
+|---|---|---|
+| The activity's own push token | the activity — at most 8 hours | `event: update`, `event: end` |
+| The push-to-start token | the installation | `event: start` |
+
+The server then runs one loop, not two:
+
+1. Push an `update` on whatever cadence the subject changes — every five minutes is well within budget for a `liveactivity` push, and `SpineWidgetsFrequentUpdates=true` raises the ceiling further.
+2. When the activity is gone, push a `start` with the push-to-start token. A new activity appears without the app being opened.
+
+The catch is step 2's trigger, because **a dead activity token does not report itself**. APNs accepts a push to an activity that has ended and answers `sent 1` like any other; nothing comes back to say the activity is not there. So a backend cannot learn the activity ended by watching for a failure. Three things that do work:
+
+- **Start on a schedule.** The limit is known: start a fresh activity every eight hours, or at a natural boundary such as the top of the hour. The cheapest and most predictable option.
+- **Start whenever a new push-to-start token arrives.** The app sends one at launch and foreground; a new one is a good moment to make sure something is on screen.
+- **Let the device say so.** The app knows: `ILiveActivityService.Active` is empty, and `ActivitiesChanged` fires when that changes while the app runs. It cannot report an end that happened while the app was closed — nothing runs then — so this narrows the window rather than closing it.
+
+Two more things worth designing in from the start:
+
+- **`staleAt` is the honesty setting.** Set it a little past the expected update interval — five-minute updates, a ten-minute stale date. If the backend stops, the activity dims instead of showing a number that looks current. For anything a person acts on, that difference matters more than the number itself.
+- **An activity is a display, not an alarm.** It can be quieted by budget, by Low Power Mode, or by simply having ended. Anything the user must not miss belongs in a real notification — and on iOS, health and safety apps can apply for critical alerts, which break through Focus and silent mode. A Live Activity is the glance; it is not the alert.
+
+On Android there is no eight-hour limit and no tokens: a Live Update is reached through the app's own push handler, and one activity per kind is kept, so pushing a new one with the same kind replaces the old.
+
 ---
 
 ## Update budgets
@@ -361,7 +390,7 @@ Consider a widget showing a value a cloud API refreshes every five minutes. **Th
 | Surface | App only | With server push |
 |---|---|---|
 | iOS widget | The extension could fetch in its timeline provider, but the system grants ~40–70 reloads a day — every 15–60 min | iOS 26 can trigger a reload by push (`WidgetPushHandler`); as far as is known it still counts against the same budget |
-| iOS Live Activity | Only updates while the app runs. `BGAppRefreshTask` gives a few runs an hour, irregularly, ~30 s at a time | An APNs `liveactivity` push every 5 min works. `NSSupportsLiveActivitiesFrequentUpdates` raises the budget |
+| iOS Live Activity | Only updates while the app runs. `BGAppRefreshTask` gives a few runs an hour, irregularly, ~30 s at a time | An APNs `liveactivity` push every 5 min works. `NSSupportsLiveActivitiesFrequentUpdates` raises the budget. For a subject with no end, see [keeping one on screen around the clock](#keeping-one-on-screen-around-the-clock) |
 | Android widget | `Refresh(after)` runs the provider from an inexact alarm, in practice every 15 min or so under Doze; a foreground service can update freely | An FCM data message every 5 min; the service updates widget and Live Update at once |
 
 The plugin gives the app every piece of that: a [remote source](#remote-source) for the widget, [push tokens](#updating-by-push) for the activity, [background runs](#background-runs) to keep tokens fresh. What it cannot give is the server, and without one the honest options are a pre-computed timeline, the background runs, and system-drawn timers — which between them cover "next start", today's schedule, and a countdown, but not a live sensor reading.
