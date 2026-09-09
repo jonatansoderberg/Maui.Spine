@@ -110,6 +110,7 @@ final class Node: Decodable {
     var asset: String?
     var height: Double?
     var value: Double?
+    var compact: Bool?
     var spacing: Double?
     var children: [Node]?
     var actionId: String?
@@ -159,7 +160,12 @@ struct NodeView: View {
             }
         case "relative":
             if let date = node.date {
-                Text(date, style: .relative).modifier(TextStyleModifier(node: node))
+                // .relative always writes two units — "18 min, 35 secs" — which is wider than the
+                // Dynamic Island's compact region has to give. .timer is the same information as a
+                // clock. Monospaced either way, so the digits stop shifting as they tick.
+                Text(date, style: node.compact == true ? .timer : .relative)
+                    .monospacedDigit()
+                    .modifier(TextStyleModifier(node: node))
             }
         case "image":
             // The app rasterized the icon from an SVG as a white mask; an SF Symbol is the fallback.

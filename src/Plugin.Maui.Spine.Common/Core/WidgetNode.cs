@@ -103,6 +103,13 @@ public sealed record TimerNode(DateTimeOffset Until) : TextLikeNode
 /// <param name="Date">The moment the relative text counts from.</param>
 public sealed record RelativeDateNode(DateTimeOffset Date) : TextLikeNode
 {
+    /// <summary>
+    /// Elapsed time as a clock — <c>18:35</c> rather than <c>18 min, 35 secs</c>. The long form is
+    /// too wide for the Dynamic Island's compact presentation, where the whole island grows to fit
+    /// its widest region and the other one is left with a gap.
+    /// </summary>
+    public bool? Compact { get; init; }
+
     /// <inheritdoc />
     public override TextLikeNode WithStyle(TextStyle style) => this with { Style = style };
 }

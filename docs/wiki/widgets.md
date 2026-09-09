@@ -348,6 +348,23 @@ Three separate mechanisms decide what the user actually sees, and only one of th
 
 The consequence for Spine: **anything that must tick has to be a `W.Timer` or `W.Relative` node, never text the app computed.** A widget showing `$"Starts in {span:mm\\:ss}"` stands still until the next reload; the same value as a `W.Timer` ticks every second for free.
 
+### Choosing a time node
+
+Three nodes, and the difference that matters most is how wide they get. A Dynamic Island grows to fit its widest region, so an over-long trailing text stretches the whole island and leaves the leading side with a gap that reads as a layout bug.
+
+| Node | Shows | Counts | Width |
+|---|---|---|---|
+| `W.Timer(until)` | `18:35` | down to a moment | narrow, monospaced |
+| `W.Relative(date)` | `18 min, 35 secs` | up from a moment | wide, varies |
+| `W.Relative(date, compact: true)` | `18:35` | up from a moment | narrow, monospaced |
+
+Pick by the space, not by the sentence:
+
+- **Lock screen and expanded** have room. `W.Relative(date)` reads well there — "18 min, 35 secs" says what it means without the reader converting anything.
+- **Compact and minimal** have none. Use `compact: true`, or a `W.Timer` when there is an end to count down to.
+
+Both forms are drawn by the system, so both keep moving while the app sleeps; the choice costs nothing but width. All of them are monospaced, so the digits do not shift sideways as they tick.
+
 Live Activities have a different model: the app updates the content directly, as often as it likes while it runs, and timer text is system-drawn there too. That is why a countdown in the Dynamic Island never needs a reload.
 
 One caveat when the app fakes its clock (a demo mode, a time machine): timer nodes are drawn against the **device** clock, so a simulated date renders as a countdown that has already expired. That is the platform, not Spine.

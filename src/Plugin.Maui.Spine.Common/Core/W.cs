@@ -32,7 +32,13 @@ public static class W
     public static TimerNode Timer(DateTimeOffset until) => new(until);
 
     /// <summary>The age of <paramref name="date"/> as relative text that updates without the app running.</summary>
-    public static RelativeDateNode Relative(DateTimeOffset date) => new(date);
+    /// <param name="date">The moment the text counts from.</param>
+    /// <param name="compact">
+    /// <see langword="true"/> for a clock — <c>18:35</c> instead of <c>18 min, 35 secs</c>. Worth it
+    /// anywhere the width is tight, the Dynamic Island's compact presentation most of all.
+    /// </param>
+    public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false) =>
+        new(date) { Compact = compact ? true : null };
 
     /// <summary>A platform symbol by SF Symbols name.</summary>
     public static IconNode Icon(string systemName, WidgetColor? color = null) => new(systemName) { Color = color };
