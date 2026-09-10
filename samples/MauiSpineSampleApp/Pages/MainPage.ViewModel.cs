@@ -6,7 +6,13 @@ namespace MauiSpineSampleApp.Pages;
 public partial class MainPageViewModel(INavigationService _navigation) : ViewModelBase
 {
 
-    public double HeaderMinHeight => SystemBarInsets.Top + 32;
+    // The collapsed hero header keeps room for the gear, which sits where the header bar's
+    // buttons sit on every other page: the status-bar inset down, 10 points in from the edge.
+    public double HeaderMinHeight => SystemBarInsets.Top + 44;
+
+    public Thickness GearMargin => DeviceInfo.Platform == DevicePlatform.WinUI
+        ? new Thickness(0, 0, 144, 0)
+        : new Thickness(0, SystemBarInsets.Top, 10, 0);
 
     public double FooterHeight => SystemBarInsets.Bottom;
 
@@ -19,6 +25,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         if (e.PropertyName == nameof(SystemBarInsets))
         {
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderMinHeight)));
+            OnPropertyChanged(new PropertyChangedEventArgs(nameof(GearMargin)));
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(FooterHeight)));
         }
     }

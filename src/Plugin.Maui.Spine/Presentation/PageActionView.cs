@@ -22,6 +22,7 @@ internal sealed class PageActionView : ContentView
 
     readonly Button _textButton;
     readonly ImageButton _imageButton;
+    readonly bool _glass;
     string? _currentSvg;
 
     public PageAction? Action
@@ -87,10 +88,13 @@ internal sealed class PageActionView : ContentView
         _imageButton.SetBinding(VisualElement.HeightRequestProperty, new Binding(nameof(HeightRequest), source: this));
         _imageButton.SetBinding(ImageButton.PaddingProperty, new Binding(nameof(Padding), source: this));
 
-        if (UseGlassHeaderActions)
+        _glass = UseGlassHeaderActions;
+        if (_glass)
         {
-            // Compact zeroed the padding; the capsule needs some room around the text.
-            _textButton.Padding = new Thickness(12, 4);
+            // Compact zeroed the padding; the capsule needs some room around the text, and it
+            // sits centred in the 44-point row rather than filling it.
+            _textButton.Padding = new Thickness(14, 8);
+            _textButton.VerticalOptions = LayoutOptions.Center;
             Glass.SetStyle(_textButton, GlassStyle.Regular);
 
             // The glass makes the slot visible, so the icon becomes a circle centred in it
@@ -182,12 +186,16 @@ internal sealed class PageActionView : ContentView
             if (action.Svg != _currentSvg)
             {
                 _imageButton.Behaviors.Clear();
-                _imageButton.Behaviors.Add(new SvgImageSourceBehavior
+                var behavior = new SvgImageSourceBehavior
                 {
                     Svg = action.Svg!,
                     LightTintColor = Colors.Black,
                     DarkTintColor = Colors.White
-                });
+                };
+                // A 24-point glyph in the 44-point glass circle, the size a UIBarButtonItem uses.
+                if (_glass)
+                    behavior.Padding = new Thickness(10);
+                _imageButton.Behaviors.Add(behavior);
                 _currentSvg = action.Svg;
             }
 
