@@ -11,6 +11,8 @@ public static partial class SpineExtensions
 {
     static partial void ConfigureHandlers(MauiAppBuilder builder)
     {
+        ConfigureGlassButtons();
+
         SwitchHandler.Mapper.AppendToMapping("SpineInstantSwitch", static (handler, _) =>
         {
             if (handler.PlatformView is not UISwitch uiSwitch)

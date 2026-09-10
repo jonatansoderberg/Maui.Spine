@@ -24,6 +24,7 @@
 - **Typed navigation parameters** — pass strongly-typed data to any page before it appears
 - **Typed navigation results** — await a page and receive a typed result when it closes
 - **Header bar & page actions** — built-in header bar with back button, title, and pluggable action buttons (text or SVG icon)
+- **Liquid Glass buttons** — `Glass.Style` turns any `Button` or `ImageButton` into glass on iOS 26; the header bar's own buttons are glass by default
 - **App shortcuts** — register OS-level shortcuts (dock, jump list, tray menu) with a single handler interface
 - **Windows desktop support** — window size, position persistence, tray icon, single-instance enforcement, and custom title bar
 - **Platform-aware defaults** — mobile defaults differ from desktop defaults out of the box; override per-page or globally
@@ -135,6 +136,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Windows options** | Window chrome, tray, single-instance | [Windows Options](docs/wiki/windows-options.md) |
 | **Custom transitions** | Replace the built-in slide animation | [Custom Transitions](docs/wiki/custom-transitions.md) |
 | **Widgets** | Home-screen widgets and Live Activities built from C# | [Widgets](docs/wiki/widgets.md) |
+| **Glass buttons** | `Button`/`ImageButton` as Liquid Glass on iOS 26, normal buttons elsewhere | [Glass buttons](docs/wiki/glass-buttons.md) |
 
 ---
 
@@ -158,6 +160,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [HeroCollectionView](docs/wiki/hero-collection-view.md) | Collapsing sticky header, adaptive overlay |
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
 | [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |
+| [Glass buttons](docs/wiki/glass-buttons.md) | `Glass.Style` on `Button` and `ImageButton`: Liquid Glass on iOS 26, no-op elsewhere |
 
 ---
 
@@ -177,6 +180,7 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | App shortcut → navigation | `ShortcutHandler` → `SettingsPage` |
 | Windows tray icon + close-to-background | `MauiProgram.cs` options |
 | Home-screen widget + Live Activity (iOS, Android) | `Widgets/SampleWidget.cs`, `SettingsPage` |
+| Liquid Glass buttons (iOS 26) | `MainPage` → `GlassPage` (second item in the list) |
 
 ### Push sample
 

@@ -28,8 +28,11 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     [RelayCommand]
     private async Task ItemTapped(Item item)
     {
-        if (Items.IndexOf(item) == 0)
-            await _navigation.NavigateToAsync<MainPageOld>();
+        switch (Items.IndexOf(item))
+        {
+            case 0: await _navigation.NavigateToAsync<MainPageOld>(); break;
+            case 1: await _navigation.NavigateToAsync<Glass.GlassPage>(); break;
+        }
     }
 
     public override Task OnAppearingAsync(NavigationDirection navigationDirection)
@@ -45,13 +48,15 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
         if (Items is [])
         {
-            var items = Enumerable.Range(1, 30).Select(i => new Item
-            {
-                Icon = "fish.svg",
-                Title = $"Item {i}",
-                Description = i % 2 == 0 ? $"Description for item {i} with extra details that may scroll since it is a long description that does not fit" : null,
-                IsMovable = false
-            });
+            var items = Enumerable.Range(1, 30).Select(i => i == 2
+                ? new Item { Icon = "fish.svg", Title = "Liquid Glass", Description = "Button and ImageButton as glass on iOS 26", IsMovable = false }
+                : new Item
+                {
+                    Icon = "fish.svg",
+                    Title = $"Item {i}",
+                    Description = i % 2 == 0 ? $"Description for item {i} with extra details that may scroll since it is a long description that does not fit" : null,
+                    IsMovable = false
+                });
 
             foreach (var item in items)
                 Items.Add(item);

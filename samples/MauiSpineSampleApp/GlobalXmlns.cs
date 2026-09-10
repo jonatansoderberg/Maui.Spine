@@ -9,6 +9,9 @@
     "Plugin.Maui.Spine.Presentation", AssemblyName = "Plugin.Maui.Spine")]
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
+    "Plugin.Maui.Spine.Extensions", AssemblyName = "Plugin.Maui.Spine")]
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
     "Plugin.Maui.Spine.Svg", AssemblyName = "Plugin.Maui.Spine.Svg")]
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
@@ -19,3 +22,6 @@
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.Settings")]
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
+    "MauiSpineSampleApp.Pages.Glass")]
