@@ -16,7 +16,7 @@ public sealed class NotificationService(
     IPeopleSource _people,
     IParticipationSource _participation,
     NotificationPreferencesStore _preferences,
-    INotificationScheduler _scheduler,
+    INotificationDelivery _delivery,
     IPushRegistration _push)
 {
     /// <summary>
@@ -27,7 +27,7 @@ public sealed class NotificationService(
     {
         if (!_preferences.Current.Any)
         {
-            await _scheduler.CancelAllAsync(cancellationToken);
+            await _delivery.CancelAllAsync(cancellationToken);
             await _push.SetTagsAsync([], cancellationToken);
             return;
         }
@@ -40,8 +40,8 @@ public sealed class NotificationService(
                 PushTags.For(_preferences.Current, state.Context.Me.Id, state.Context.MyEntries, state.Group),
                 cancellationToken);
 
-            if (_scheduler.IsSupported)
-                await _scheduler.SyncAsync(Plan(state), cancellationToken);
+            if (_delivery.IsSupported)
+                await _delivery.SyncAsync(Plan(state), cancellationToken);
         }
         catch (SourceUnavailableException)
         {
