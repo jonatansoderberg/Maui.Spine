@@ -22,7 +22,9 @@ internal sealed class SvgBitmapImageSourceService : ImageSourceService, IImageSo
         if (imageSource is not SvgBitmapImageSource source || source.IsEmpty)
             return null;
 
-        using var stream = await ((IStreamImageSource)source).GetStreamAsync(cancellationToken).ConfigureAwait(false);
+        // The stream is in memory, so this completes on the caller's thread; no ConfigureAwait(false),
+        // because MAUI hands the UIImage straight to a UIView from whatever thread this continues on.
+        using var stream = await ((IStreamImageSource)source).GetStreamAsync(cancellationToken);
         using var data = NSData.FromStream(stream)
             ?? throw new InvalidOperationException($"The bitmap rendered from \"{source.ResourceName}\" could not be read.");
 

@@ -155,6 +155,10 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
         if (Content is null)
             return;
 
+        // Hiding fades and collapses the content, but this view keeps its full-width strip and
+        // would still swallow touches meant for whatever the page draws underneath (a hero header).
+        InputTransparent = !isVisible;
+
         _ = AnimateVisibility(Content, isVisible);
     }
 
