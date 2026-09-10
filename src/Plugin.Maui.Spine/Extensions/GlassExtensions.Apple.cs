@@ -84,19 +84,20 @@ public static partial class SpineExtensions
                 break;
         }
 
-        // UIKit folds a state image set with SetImage into the configuration for an ImageButton but
-        // not for a Button that also has a title, and MAUI loads the image after this mapper ran.
+        // The state image MAUI set with SetImage is folded into a configuration only when it
+        // arrives after the configuration exists; an in-memory bitmap arrives before, so take it now.
+        config.Image = button.ImageForState(UIControlState.Normal);
+
+        // And when it arrives later (a Button's image is loaded asynchronously and possibly
+        // resized), the next configuration update picks it up.
         button.ConfigurationUpdateHandler ??= static btn =>
         {
-            if (btn.Configuration is not { } current)
+            if (btn.Configuration is not { Image: null } current
+                || btn.ImageForState(UIControlState.Normal) is not { } image)
                 return;
 
-            var image = btn.ImageForState(UIControlState.Normal);
-            if (image?.Handle != current.Image?.Handle)
-            {
-                current.Image = image;
-                btn.Configuration = current;
-            }
+            current.Image = image;
+            btn.Configuration = current;
         };
 
         button.Configuration = config;

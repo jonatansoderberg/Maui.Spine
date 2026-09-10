@@ -25,18 +25,19 @@
             <Image
                 Grid.Column="0"
                 Grid.RowSpan="2"
-                WidthRequest="36"
-                HeightRequest="36"
+                WidthRequest="40"
+                HeightRequest="40"
                 VerticalOptions="Center"
-                SvgImageSource.Svg="{Binding Icon, Source={x:Reference Root}}" />
+                SvgImageSource.Svg="{Binding Icon, Source={x:Reference Root}}"
+                SvgImageSource.Padding="2" />
 
             <!-- Title -->
             <Label
                 Grid.Column="1"
                 Grid.Row="0"
                 Text="{Binding Title, Source={x:Reference Root}}"
+                FontFamily="BrandonGrotesqueBlack"
                 FontSize="16"
-                FontAttributes="Bold"
                 TextTransform="Uppercase"
                 LineBreakMode="TailTruncation"
                 MaxLines="1"
