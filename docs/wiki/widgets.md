@@ -228,6 +228,14 @@ return WidgetTimeline
 
 The server builds the document with the same types and `WidgetTimeline.ToJson()`; those types live in `Plugin.Maui.Spine.Common`, a plain `net10.0` library that never references MAUI, so a backend references it directly. `Refresh(after)` sets the pace and the platform's budget still applies (see [Update budgets](#update-budgets)); without a refresh the platform is asked every 15 minutes.
 
+Three things to know before relying on it:
+
+- **The app has to build the widget once.** The address travels in the document the app writes, so a widget added before the app has run has nothing to fetch from. After that the app can stay closed.
+- **Let the fallback say so.** The entries the app built are shown whenever the fetch fails — a server that is down, a timeout after 15 seconds, an answer that is not a timeline document — and a fallback that looks like the real thing reads as a widget that works. The failure is logged: `[SpineWidgets] remote source for <kind> failed` in the device log on iOS, `SpineWidgets` in logcat on Android.
+- **The platform does the fetching, not the app.** On iOS that is the widget extension, which on a physical device must reach the server over the network — `localhost` is the phone itself. On Android it is a receiver in the app's own process, so an emulator or a phone on a cable reaches a server on your machine through `adb reverse`.
+
+`samples/MauiSpinePushSampleApp` has a widget that does exactly this: `remote` fetches from the sample server's `/widget/remote`, which answers "Från servern" and its own clock, and falls back to "Från appen" when the server is not running.
+
 ### Buttons
 
 `W.Button(actionId, child)` makes its child tappable without opening the app. The tap reaches the provider's `IWidgetActionHandler` with the widget's kind, the action id and the time of the tap, and the widget is rebuilt when the handler returns, so what the tap changed shows:
