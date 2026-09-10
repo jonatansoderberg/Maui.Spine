@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/231
 **Branch:** issue/231-broadcast-kanaler
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -56,7 +56,15 @@ Inga.
 - Live Activity-sidan visade "kör, id spine-widgets:sample" och "Adress: kanal test-231" — kanalen följde med push-starten in i `LiveActivity.Channel`.
 - **Avslut lämnar topicet:** "Avsluta" → 0 Live Updates. En ny broadcast till `test-231` (Android `Sent`) gav fortfarande 0 efter 30 s; med topicet kvar hade den startat en ny, eftersom en uppdatering utan körande aktivitet blir en start.
 
-**APNs:** sample-serverns `POST /channels` gav `400 BroadcastFeatureNotEnabled` — Broadcast-kapabiliteten är inte påslagen för App ID:t. Felet syns med status, orsak och sökväg.
+**APNs:** sample-serverns `POST /channels` gav först `400 BroadcastFeatureNotEnabled` — Broadcast-kapabiliteten var inte påslagen för App ID:t. Felet syns med status, orsak och sökväg.
+- Broadcast Capability påslagen under Push Notifications för `com.companyname.mauispinepushsampleapp` i portalen (Jonatan loggade in och bekräftade). Apple varnar att provisioneringsprofiler med App ID:t blir ogiltiga: **enhetsprofilen måste göras om före nästa enhetsbygge (#165)**. Simulatorbyggen använder ingen profil; serverns .p8-nyckel påverkas inte.
+- `POST /channels` direkt efteråt → `200`, kanal `tvI2UK0vEfEAAA6GFnjo2Q==` i sandlådan.
+- `kind: broadcast` till kanalen → **Apple `Sent`** (APNs `/4/broadcasts/apps/<bundle>` svarade 200 med `apns-channel-id`, `apns-push-type: liveactivity`, `apns-expiration: 0`) och Android `Sent` (topicet). Både kanalhanteringen och broadcast-anropet fungerar mot riktiga APNs.
+
+**iOS (iPhone 17-simulator, iOS 26.2, riktig APNs sandbox):**
+- "Starta på kanal" → appen hämtade kanalen från `/channels`; liveactivitiesd startade aktiviteten `0416FEB7…` med innehållskällan `broadcastPush(channel: "tvI2UK0v…")`, och apsd skickade en pubsub-prenumeration för kanalen på `…push-type.liveactivity` (development) som besvarades. Sidan visade "Adress: kanal tvI2UK0vEfEAAA6GFnjo2Q==".
+- `kind: broadcast` 18:03:10 → Apple `Sent`. **Låsskärmen visade aktiviteten med "Broadcast till kanalen · 18:03:10"** — innehåll som bara broadcasten bar; aktiviteten startades med "Startad på kanal".
+- Simulatorn CD388DF2 gick inte att få med skärm efter en headless `simctl boot`; verifieringen gjordes i 43C2 (iPhone 17), startad med Simulator.app igång.
 
 ## Decisions
 
