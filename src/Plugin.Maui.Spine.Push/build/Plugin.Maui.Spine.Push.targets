@@ -7,10 +7,20 @@
 		  SpinePushEnabled       default true
 		  SpinePushRemote        default true; false keeps local notifications and drops everything
 		                         remote push needs — Firebase on Android, aps-environment on Apple
+		  SpinePushImages        default false; true adds the Notification Service Extension that shows
+		                         pictures in pushed notifications on iOS. Needs its own App ID and profile
+		                         for device builds, which is why it is not on by default.
+		  SpinePushImagesCodesignProvision  default empty (iOS: the extension's profile; found by App ID when empty)
 	-->
 	<PropertyGroup>
 		<SpinePushEnabled Condition="'$(SpinePushEnabled)' == ''">true</SpinePushEnabled>
 		<SpinePushRemote Condition="'$(SpinePushRemote)' == ''">true</SpinePushRemote>
+		<SpinePushImages Condition="'$(SpinePushImages)' == ''">false</SpinePushImages>
+		<SpinePushImagesCodesignProvision Condition="'$(SpinePushImagesCodesignProvision)' == ''"></SpinePushImagesCodesignProvision>
+		<_SpinePushImagesExtensionName>SpineNotificationService</_SpinePushImagesExtensionName>
+		<_SpinePushNativeDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', 'native', 'ios'))</_SpinePushNativeDir>
+		<_SpinePushScript>$(MSBuildThisFileDirectory)spine-push-build.sh</_SpinePushScript>
+		<_SpinePushImagesApplies Condition="'$(SpinePushEnabled)' == 'true' And '$(SpinePushRemote)' == 'true' And '$(SpinePushImages)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))">true</_SpinePushImagesApplies>
 		<SpinePushEnvironment Condition="'$(SpinePushEnvironment)' == '' And '$(Configuration)' == 'Debug'">development</SpinePushEnvironment>
 		<SpinePushEnvironment Condition="'$(SpinePushEnvironment)' == ''">production</SpinePushEnvironment>
 		<_SpinePushApple Condition="'$(SpinePushEnabled)' == 'true' And '$(SpinePushRemote)' == 'true' And ($([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst')">true</_SpinePushApple>
@@ -66,6 +76,64 @@
 
 		<ItemGroup>
 			<PartialAppManifest Include="$(_SpinePushManifest)" />
+		</ItemGroup>
+	</Target>
+
+	<!--
+		iOS pictures: the Notification Service Extension. Built like the widget extension — swiftc, no
+		Xcode project — for inner (RuntimeIdentifier-specific) builds only, and registered as one more
+		AdditionalAppExtensions item. Every target repeats the condition on RuntimeIdentifier because it is
+		empty at evaluation time for the outer build.
+	-->
+	<Target Name="_SpinePushImagesPrepare"
+			Condition="'$(_SpinePushImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''">
+		<PropertyGroup>
+			<_SpinePushImagesSdk Condition="$(RuntimeIdentifier.Contains('simulator'))">iphonesimulator</_SpinePushImagesSdk>
+			<_SpinePushImagesSdk Condition="'$(_SpinePushImagesSdk)' == ''">iphoneos</_SpinePushImagesSdk>
+			<_SpinePushImagesArch>$(RuntimeIdentifier.Substring($([MSBuild]::Add($(RuntimeIdentifier.IndexOf('-')), 1))))</_SpinePushImagesArch>
+			<_SpinePushImagesMinOS>$(SupportedOSPlatformVersion)</_SpinePushImagesMinOS>
+			<_SpinePushImagesMinOS Condition="'$(_SpinePushImagesMinOS)' == ''">15.0</_SpinePushImagesMinOS>
+			<_SpinePushImagesOutDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj', 'spinepush', '$(Configuration)', '$(RuntimeIdentifier)'))</_SpinePushImagesOutDir>
+			<_SpinePushImagesInputsFile>$(_SpinePushImagesOutDir)inputs.txt</_SpinePushImagesInputsFile>
+			<_SpinePushImagesStamp>$(_SpinePushImagesOutDir)build.stamp</_SpinePushImagesStamp>
+			<_SpinePushImagesBundleId>$(ApplicationId).$(_SpinePushImagesExtensionName)</_SpinePushImagesBundleId>
+			<_SpinePushImagesRequireProvision>false</_SpinePushImagesRequireProvision>
+			<_SpinePushImagesRequireProvision Condition="'$(_SpinePushImagesSdk)' == 'iphoneos' And '$(EnableCodeSigning)' != 'false'">true</_SpinePushImagesRequireProvision>
+		</PropertyGroup>
+
+		<MakeDir Directories="$(_SpinePushImagesOutDir)" />
+
+		<ItemGroup>
+			<_SpinePushImagesInputLine Include="$(_SpinePushImagesBundleId);$(_SpinePushImagesMinOS);$(Configuration);$(ApplicationTitle);$(_SpinePushImagesArch);$(_SpinePushImagesSdk);$(SpinePushImagesCodesignProvision);$(_SpinePushImagesRequireProvision)" />
+		</ItemGroup>
+		<WriteLinesToFile File="$(_SpinePushImagesInputsFile)" Lines="@(_SpinePushImagesInputLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+
+		<ItemGroup>
+			<_SpinePushImagesInputs Include="$(_SpinePushNativeDir)*.swift;$(_SpinePushScript);$(_SpinePushImagesInputsFile)" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="_SpinePushImagesBuild"
+			DependsOnTargets="_SpinePushImagesPrepare"
+			Condition="'$(_SpinePushImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''"
+			Inputs="@(_SpinePushImagesInputs)"
+			Outputs="$(_SpinePushImagesStamp)">
+		<Exec Command="&quot;$(_SpinePushScript)&quot; --out &quot;$(_SpinePushImagesOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpinePushNativeDir.TrimEnd('/'))&quot; --sdk $(_SpinePushImagesSdk) --arch $(_SpinePushImagesArch) --min-os $(_SpinePushImagesMinOS) --config $(Configuration) --bundle-id &quot;$(_SpinePushImagesBundleId)&quot; --name &quot;$(_SpinePushImagesExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --provision &quot;$(SpinePushImagesCodesignProvision)&quot; --require-provision $(_SpinePushImagesRequireProvision)" />
+	</Target>
+
+	<Target Name="_SpinePushImagesRegister"
+			DependsOnTargets="_SpinePushImagesBuild"
+			Condition="'$(_SpinePushImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''"
+			BeforeTargets="_CollectBundleResources;_DetectSigningIdentity;_CompileEntitlements;_ResolveAppExtensionReferences;_ExtendAppExtensionReferences">
+		<PropertyGroup>
+			<!-- As for the widget extension: a simulator build on a Mac without a signing identity still
+			     has to sign the extension, and the SDK snapshots CodesignKey into _SpecifiedCodesignKey. -->
+			<CodesignKey Condition="'$(CodesignKey)' == '' And '$(_SpinePushImagesSdk)' == 'iphonesimulator'">-</CodesignKey>
+			<_SpecifiedCodesignKey Condition="'$(_SpecifiedCodesignKey)' == '' And '$(_SpinePushImagesSdk)' == 'iphonesimulator'">-</_SpecifiedCodesignKey>
+		</PropertyGroup>
+
+		<ItemGroup>
+			<AdditionalAppExtensions Include="$(_SpinePushImagesOutDir.TrimEnd('/'))" Name="$(_SpinePushImagesExtensionName)" BuildOutput="." CodesignEntitlements="$(_SpinePushImagesOutDir)$(_SpinePushImagesExtensionName).entitlements" />
 		</ItemGroup>
 	</Target>
 

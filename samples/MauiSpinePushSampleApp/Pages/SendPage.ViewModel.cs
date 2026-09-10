@@ -73,6 +73,17 @@ public partial class SendPageViewModel(SampleServer _server, IPushService _push,
     [ObservableProperty]
     public partial string Channel { get; set; } = "news";
 
+    /// <summary>The button set to show. "sample" is the one MauiProgram declares; empty means none.</summary>
+    [ObservableProperty]
+    public partial string Category { get; set; } = "";
+
+    /// <summary>
+    /// An https picture. Android always shows it; iOS only with the Notification Service Extension,
+    /// which this sample turns on for simulator builds.
+    /// </summary>
+    [ObservableProperty]
+    public partial string Image { get; set; } = "";
+
     [ObservableProperty]
     public partial bool HighPriority { get; set; } = true;
 
@@ -102,6 +113,8 @@ public partial class SendPageViewModel(SampleServer _server, IPushService _push,
             body = Body,
             route = string.IsNullOrWhiteSpace(Route) ? null : Route,
             channel = string.IsNullOrWhiteSpace(Channel) ? null : Channel,
+            category = Kind == "alert" && !string.IsNullOrWhiteSpace(Category) ? Category : null,
+            image = Kind == "alert" && !string.IsNullOrWhiteSpace(Image) ? Image : null,
             highPriority = HighPriority,
             widgetKind = Kind == "widget" ? "sample" : null,
             activityKind = Kind == "liveactivity" ? "sample" : null,

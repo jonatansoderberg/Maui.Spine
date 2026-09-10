@@ -68,6 +68,8 @@ app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushOp
             Body = request.Body ?? "Ett meddelande från sample-servern.",
             Route = request.Route,
             Channel = request.Channel,
+            Category = request.Category,
+            Image = request.Image is { Length: > 0 } image ? new Uri(image) : null,
             Priority = request.HighPriority ? PushPriority.High : PushPriority.Normal,
             Data = request.Data ?? new Dictionary<string, string>(),
         }, cancellationToken),
@@ -179,4 +181,6 @@ internal sealed record SendRequest(
     string? WidgetKind,
     string? ActivityKind,
     Dictionary<string, string>? Data,
-    int? DelaySeconds);
+    int? DelaySeconds,
+    string? Category = null,
+    string? Image = null);

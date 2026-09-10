@@ -41,6 +41,20 @@ public static class PushKeys
     public const string Collapse = "spine.collapse";
 
     /// <summary>
+    /// The buttons a notification shows: the id of a category the app declared with
+    /// <c>SpinePushOptions.AddCategory</c>. iOS reads the same id from <c>aps.category</c>, which the
+    /// server writes beside this. An id the app never declared arrives without buttons.
+    /// </summary>
+    public const string Category = "spine.category";
+
+    /// <summary>
+    /// A picture to show with the notification: an <c>https</c> URL, or for a local notification a
+    /// file on the device. A pushed one on iOS needs the Notification Service Extension that
+    /// <c>SpinePushImages=true</c> adds; without it the notification arrives as text.
+    /// </summary>
+    public const string Image = "spine.image";
+
+    /// <summary>
     /// Where the notification came from: one of the values in <see cref="Sources"/>. Absent means a
     /// server sent it, which is the case a payload from outside Spine also lands in.
     /// </summary>

@@ -19,6 +19,11 @@
 
 		<!-- Firebase Messaging's dependencies declare minSdk 23; Spine's own floor is 21. -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23</SupportedOSPlatformVersion>
+
+		<!-- The Notification Service Extension that shows pictures in pushed notifications on iOS. On for
+		     simulator builds only: a device build needs an App ID and a profile for
+		     <ApplicationId>.SpineNotificationService, which this sample does not ship. -->
+		<SpinePushImages Condition="$(RuntimeIdentifier.Contains('simulator'))">true</SpinePushImages>
 	</PropertyGroup>
 
 	<ItemGroup>

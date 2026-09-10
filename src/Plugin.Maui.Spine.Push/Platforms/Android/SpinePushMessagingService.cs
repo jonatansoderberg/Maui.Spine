@@ -58,7 +58,9 @@ public sealed class SpinePushMessagingService : FirebaseMessagingService
 
         try
         {
-            PushNotifications.Show(this, message, presentation);
+            // Fetched within FCM's budget for the message; a picture that cannot be had leaves the text.
+            var picture = await PushNotifications.PictureAsync(message, deadline.Token);
+            PushNotifications.Show(this, message, presentation, picture);
         }
         catch (Exception e)
         {

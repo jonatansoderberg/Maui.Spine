@@ -53,6 +53,16 @@ public sealed class SamplePushHandler(
         _ = widgets.RefreshAsync("sample", context.Deadline);
     }
 
+    /// <summary>
+    /// A button that did not open the app, or a reply. Nothing to navigate to — the app may not even be
+    /// on screen — so the log line is the whole proof it arrived.
+    /// </summary>
+    public Task OnActionAsync(PushMessage message, string action, string? text)
+    {
+        log.Note(message.IsLocal ? "action (lokal)" : "action", text is null ? action : $"{action}: \u201C{text}\u201D");
+        return Task.CompletedTask;
+    }
+
     /// <inheritdoc />
     public async Task OnOpenedAsync(PushMessage message, string? action)
     {

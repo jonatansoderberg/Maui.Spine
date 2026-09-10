@@ -27,6 +27,15 @@ public sealed class ApnsPayload
     /// <summary>Wakes the app in the background. Set for a silent push.</summary>
     public bool ContentAvailable { get; set; }
 
+    /// <summary>The category whose buttons the notification shows.</summary>
+    public string? Category { get; set; }
+
+    /// <summary>
+    /// Lets the app's Notification Service Extension change the notification before it is shown.
+    /// Spine sets it when there is an image to fetch.
+    /// </summary>
+    public bool MutableContent { get; set; }
+
     /// <summary>One of <c>passive</c>, <c>active</c>, <c>time-sensitive</c>, <c>critical</c>.</summary>
     public string? InterruptionLevel { get; set; }
 
@@ -58,6 +67,8 @@ public sealed class ApnsPayload
             if (Sound is not null) w.WriteString("sound", Sound);
             if (ThreadId is not null) w.WriteString("thread-id", ThreadId);
             if (ContentAvailable) w.WriteNumber("content-available", 1);
+            if (Category is not null) w.WriteString("category", Category);
+            if (MutableContent) w.WriteNumber("mutable-content", 1);
             if (InterruptionLevel is not null) w.WriteString("interruption-level", InterruptionLevel);
 
             if (LiveActivity is { } activity)

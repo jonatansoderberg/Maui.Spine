@@ -63,6 +63,12 @@ public sealed record PushMessage(
     /// </summary>
     public bool IsLocal => Data.GetValueOrDefault(PushKeys.Source) == PushKeys.Sources.Local;
 
+    /// <summary>The button set the notification was shown with, when it named one.</summary>
+    public string? Category => Data.GetValueOrDefault(PushKeys.Category);
+
+    /// <summary>The picture the notification carried, when it had one.</summary>
+    public string? Image => Data.GetValueOrDefault(PushKeys.Image);
+
     /// <summary>Reads a payload's data bag into a message.</summary>
     /// <param name="data">The flattened payload, as the platform delivered it.</param>
     /// <returns>The message.</returns>
@@ -118,10 +124,25 @@ public interface IPushHandler
     Task<PushPresentation> OnReceivedAsync(PushMessage message, PushContext context);
 
     /// <summary>
-    /// The user opened the notification, or tapped one of its buttons. Runs on the main thread, and
-    /// on a cold start after the Spine host has been created, so navigating from here is safe.
+    /// The user opened the notification, or tapped a button that opens the app. Runs on the main
+    /// thread, and on a cold start after the Spine host has been created, so navigating from here is
+    /// safe.
     /// </summary>
     /// <param name="message">What was opened.</param>
     /// <param name="action">The button's id, or <see langword="null"/> when the notification itself was tapped.</param>
     Task OnOpenedAsync(PushMessage message, string? action);
+
+    /// <summary>
+    /// A button that does not open the app was tapped, or a reply was sent. Runs in the app's process
+    /// without bringing it forward — the app may not have been running a moment ago — so this is for
+    /// work, not navigation. The notification is gone when this returns.
+    /// </summary>
+    /// <remarks>
+    /// A default that does nothing, so a handler without such buttons implements nothing. The platform
+    /// gives the app about thirty seconds for it on iOS and ten on Android before it may be stopped.
+    /// </remarks>
+    /// <param name="message">The notification the button was on.</param>
+    /// <param name="action">The button's id, from <see cref="PushAction.Id"/>.</param>
+    /// <param name="text">What the user typed, for a <see cref="PushAction.Reply"/> button; otherwise <see langword="null"/>.</param>
+    Task OnActionAsync(PushMessage message, string action, string? text) => Task.CompletedTask;
 }

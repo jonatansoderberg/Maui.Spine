@@ -38,6 +38,12 @@
             <Label Text="Kanal" IsVisible="{Binding ShowChannel}" />
             <Entry Text="{Binding Channel}" IsVisible="{Binding ShowChannel}" />
 
+            <Label Text="Knappar (kategori)" IsVisible="{Binding ShowChannel}" />
+            <Entry Text="{Binding Category}" Placeholder="sample" IsVisible="{Binding ShowChannel}" />
+
+            <Label Text="Bild" IsVisible="{Binding ShowChannel}" />
+            <Entry Text="{Binding Image}" Placeholder="https://…" Keyboard="Url" IsVisible="{Binding ShowChannel}" />
+
             <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowPriority}">
                 <Label Text="Hög prioritet" VerticalOptions="Center" />
                 <Switch Grid.Column="1" IsToggled="{Binding HighPriority}" />

@@ -15,7 +15,10 @@ public static partial class SpinePushExtensions
         builder.ConfigureLifecycleEvents(events => events.AddAndroid(android =>
         {
             android.OnApplicationCreate(application =>
-                PushNotifications.CreateChannels(application, [.. options.Channels]));
+            {
+                PushNotifications.CreateChannels(application, [.. options.Channels]);
+                PushNotifications.UseCategories([.. options.Categories]);
+            });
 
             android.OnCreate((activity, _) =>
             {
@@ -64,6 +67,14 @@ public static partial class SpinePushExtensions
     private static async Task Opened(Android.Content.Intent? intent)
     {
         if (PushNotifications.Read(intent) is not { } message) return;
-        await MainThread.InvokeOnMainThreadAsync(() => OpenedAsync(Services(), message, action: null));
+
+        var action = intent!.GetStringExtra(PushNotifications.ActionExtra);
+
+        // Auto-cancel takes the notification down for a tap on the notification itself, not for a tap
+        // on one of its buttons — so a button that opened the app does it here.
+        if (action is not null && intent.GetIntExtra(PushNotifications.NotificationIdExtra, 0) is var id and not 0)
+            AndroidX.Core.App.NotificationManagerCompat.From(Platform.AppContext).Cancel(id);
+
+        await MainThread.InvokeOnMainThreadAsync(() => OpenedAsync(Services(), message, action));
     }
 }

@@ -94,8 +94,25 @@ public sealed record PushNotification
     /// <summary>The badge number to set, or <see langword="null"/> to leave it alone.</summary>
     public int? Badge { get; init; }
 
-    /// <summary>The sound to play; <c>default</c> for the system sound.</summary>
+    /// <summary>
+    /// The sound to play; <c>default</c> for the system sound. Apple only: on Android the channel
+    /// decides the sound, once, when the app creates it — see <c>AddChannel</c> in the app package.
+    /// </summary>
     public string? Sound { get; init; }
+
+    /// <summary>
+    /// The buttons to show, by the id the app declared with <c>AddCategory</c>. Sent as
+    /// <c>aps.category</c> and as <see cref="Common.PushKeys.Category"/>. An id the app never declared
+    /// arrives without buttons rather than failing.
+    /// </summary>
+    public string? Category { get; init; }
+
+    /// <summary>
+    /// A picture to show with the notification. Must be <c>https</c>. Android always shows it; iOS
+    /// shows it only when the app is built with <c>SpinePushImages=true</c>, which adds the
+    /// Notification Service Extension that fetches it — without that the notification arrives as text.
+    /// </summary>
+    public Uri? Image { get; init; }
 
     /// <summary>Extra values handed to the app's handler alongside the Spine keys.</summary>
     public IReadOnlyDictionary<string, string> Data { get; init; } = new Dictionary<string, string>();

@@ -113,6 +113,34 @@ public static partial class SpinePushExtensions
     }
 
     /// <summary>
+    /// A button that does not open the app, or a reply. Runs without UI; the caller holds on to the
+    /// platform's background time until this returns, so the process is not frozen mid-way.
+    /// </summary>
+    internal static async Task ActionAsync(IServiceProvider services, PushMessage message, string action, string? text)
+    {
+        var logger = services.GetRequiredService<ILogger<IPushService>>();
+
+        if (services.GetService<IPushHandler>() is not { } handler)
+        {
+            logger.LogWarning("Spine.Push: button '{Action}' was tapped, but the app registered no IPushHandler to run it.", action);
+            return;
+        }
+
+        try
+        {
+            await handler.OnActionAsync(message, action, text);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            logger.LogError(e, "Spine.Push: the handler threw on button '{Action}'.", action);
+        }
+    }
+
+    /// <summary>The declared button <paramref name="action"/> in <paramref name="category"/>, when there is one.</summary>
+    internal static PushAction? FindAction(SpinePushOptions options, string? category, string action) =>
+        options.Categories.FirstOrDefault(c => c.Id == category)?.Actions.FirstOrDefault(a => a.Id == action);
+
+    /// <summary>
     /// Messages Spine handles itself: a widget rebuild, and a Live Activity on the platforms that
     /// render one in the app's own process. Both services live in <c>Plugin.Maui.Spine.Common</c>, so
     /// this package works whether or not the app also uses <c>Plugin.Maui.Spine.Widgets</c> — without
