@@ -119,12 +119,10 @@ options.Tabs.Style = new SpineTabBarStyle
 
 Only non-`null` properties are applied. Setting `BarBackgroundColor` on iOS 26 replaces the Liquid Glass material with a flat color — leave it `null` unless that is the intent.
 
-> **Known limitation — Android, live theme switching.** The native bar does not re-theme when
-> the system switches between light and dark while the app is running; it picks up the new
-> theme on the next launch. MAUI declares `ConfigChanges.UiMode` on the activity, so Android
-> does not recreate it, and Material resolves the bar's colors at inflation. Tracked as
-> [#22](https://github.com/jonatansoderberg/Maui.Spine/issues/22), which documents what was
-> tried and the options. App content is unaffected — it follows the system theme immediately.
+On Android the bar follows a light/dark switch while the app is running. MAUI declares
+`ConfigChanges.UiMode` on the activity, so Android does not recreate it and Material would keep the
+colors it resolved at inflation; the host re-reads them from the theme when the system switches, with
+the properties above applied on top ([#22](https://github.com/jonatansoderberg/Maui.Spine/issues/22)).
 
 ---
 
