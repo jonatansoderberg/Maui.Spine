@@ -38,6 +38,25 @@ public abstract record StackNode : WidgetNode
     /// <summary>Distance between children in points; the renderer's default when <see langword="null"/>.</summary>
     public double? Spacing { get; init; }
 
+    /// <summary>
+    /// Space in points between the stack's edges and its children, on every side. Set with
+    /// <see cref="WidgetNodeStyling.Padding"/>.
+    /// </summary>
+    public double? Padding { get; init; }
+
+    /// <summary>
+    /// The color behind the stack, padding included. A stack with a background fills the width it is
+    /// offered, except inside an <see cref="HStackNode"/>, where it wraps its content. Set with
+    /// <see cref="WidgetNodeStyling.Background"/>.
+    /// </summary>
+    public WidgetColor? Background { get; init; }
+
+    /// <summary>
+    /// The radius in points the stack's corners are rounded by, clipping its background and children.
+    /// Android 12 and later; square below. Set with <see cref="WidgetNodeStyling.CornerRadius"/>.
+    /// </summary>
+    public double? CornerRadius { get; init; }
+
     /// <summary>The children in layout order.</summary>
     public IReadOnlyList<WidgetNode> Children { get; init; } = [];
 }

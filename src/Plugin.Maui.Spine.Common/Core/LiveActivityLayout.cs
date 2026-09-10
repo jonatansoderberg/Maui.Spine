@@ -33,6 +33,13 @@ public sealed record LiveActivityLayout
     /// <summary>The minimal Dynamic Island, shown when another activity is also active.</summary>
     public WidgetNode? Minimal { get; init; }
 
+    /// <summary>
+    /// The color behind the Lock Screen presentation; a translucent black when <see langword="null"/>.
+    /// iOS only: the Dynamic Island is always black, and Android does not promote a Live Update that
+    /// asks for a color. A fixed color stays fixed in dark mode, so give the text fixed colors too.
+    /// </summary>
+    public WidgetColor? Background { get; init; }
+
     /// <summary>The URL the app is opened with when the activity is tapped.</summary>
     [JsonIgnore]
     public Uri? Link { get; init; }

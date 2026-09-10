@@ -8,6 +8,12 @@ public partial class LiveActivityPageViewModel(
 {
     private const string Kind = "sample";
 
+    // A fixed background stays fixed whatever the Lock Screen's appearance, so the text on it gets
+    // fixed colors too. iOS only: Android does not promote a Live Update that asks for a color.
+    private static readonly WidgetColor Surface = WidgetColor.FromHex("#1B5E3F");
+    private static readonly WidgetColor Ink = WidgetColor.FromHex("#FFFFFF");
+    private static readonly WidgetColor Muted = WidgetColor.FromHex("#B3FFFFFF");
+
     private LiveActivity? _running;
 
     [ObservableProperty]
@@ -116,9 +122,10 @@ public partial class LiveActivityPageViewModel(
     private static LiveActivityLayout Layout(string body) => new()
     {
         LockScreen = W.VStack(4,
-            W.Text("Spine Push").Headline().Bold(),
-            W.Text(body).Caption().Secondary(),
-            W.Relative(DateTimeOffset.Now).Caption().Secondary()),
+            W.Text("Spine Push").Headline().Bold().Color(Ink),
+            W.Text(body).Caption().Color(Muted),
+            W.Relative(DateTimeOffset.Now).Caption().Color(Muted)),
+        Background = Surface,
         // All four expanded slots, or a long press on the Dynamic Island opens to nothing: the
         // expanded presentation draws only what the layout gives it, and an empty one is black.
         ExpandedLeading = W.Icon("bell"),

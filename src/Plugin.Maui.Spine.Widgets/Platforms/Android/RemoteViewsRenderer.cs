@@ -20,6 +20,9 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     /// <summary>The family key (<c>small</c>, <c>medium</c>, …) an adaptive node picks by; <see langword="null"/> takes the fallback.</summary>
     public string? Family { get; set; }
 
+    /// <summary>The timeline's background color; the root drawable's own when <see langword="null"/>.</summary>
+    public string? Background { get; set; }
+
     private static int Node => Resource.Id.spine_node;
     private const float DefaultSpacing = 4;
     private const float IconDp = 20;
@@ -35,6 +38,13 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         root.RemoveAllViews(Resource.Id.spine_root);
         root.AddView(Resource.Id.spine_root, Render(tree));
         if (tap is not null) root.SetOnClickPendingIntent(Resource.Id.spine_root, tap);
+        // Tinting the drawable keeps its rounded corners. RemoteViews cannot set a tint below API 31,
+        // and the flat color used there loses them.
+        if (Background is { } background)
+        {
+            if (OperatingSystem.IsAndroidVersionAtLeast(31)) Color(root, "setBackgroundTintList", background, stateList: true, view: Resource.Id.spine_root);
+            else Color(root, "setBackgroundColor", background, view: Resource.Id.spine_root);
+        }
         return root;
     }
 
@@ -136,7 +146,30 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 first = false;
             }
 
+        Box(views, node);
         return views;
+    }
+
+    /// <summary>
+    /// A stack's padding, background and corner radius. The radius needs API 31: below it RemoteViews
+    /// has no way to clip a view, and the background stays square.
+    /// </summary>
+    private void Box(RemoteViews views, JsonElement node)
+    {
+        if (Number(node, "padding") is { } padding && padding > 0)
+        {
+            var pixels = (int)(padding * Density);
+            views.SetViewPadding(Node, pixels, pixels, pixels, pixels);
+        }
+
+        Color(views, "setBackgroundColor", Text(node, "background"));
+
+        if (Number(node, "cornerRadius") is { } radius && radius > 0 && OperatingSystem.IsAndroidVersionAtLeast(31))
+        {
+            views.SetViewOutlinePreferredRadius(Node, (float)radius, (int)ComplexUnitType.Dip);
+            // The outline alone shapes only shadows; clipping to it is what rounds the background and children.
+            views.SetBoolean(Node, "setClipToOutline", true);
+        }
     }
 
     private RemoteViews TextLike(JsonElement node, int layout, int boldLayout)
@@ -170,9 +203,10 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     /// Applies a tree color through <paramref name="method"/>. Semantic colors resolve in the host's theme on
     /// API 31+, so they follow the launcher's light and dark; below that they resolve in the app's theme once.
     /// </summary>
-    private void Color(RemoteViews views, string method, string? color, bool stateList = false)
+    private void Color(RemoteViews views, string method, string? color, bool stateList = false, int? view = null)
     {
         if (color is null) return;
+        var id = view ?? Node;
 
         switch (color)
         {
@@ -184,21 +218,21 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         var (light, dark) = WidgetPalette.Fixed(color) is { } fixedColor ? (fixedColor, fixedColor) : WidgetPalette.Semantic(color);
         if (OperatingSystem.IsAndroidVersionAtLeast(31))
         {
-            if (stateList) views.SetColorStateList(Node, method, ColorStateList.ValueOf(new Android.Graphics.Color(light)), ColorStateList.ValueOf(new Android.Graphics.Color(dark)));
-            else views.SetColorInt(Node, method, light, dark);
+            if (stateList) views.SetColorStateList(id, method, ColorStateList.ValueOf(new Android.Graphics.Color(light)), ColorStateList.ValueOf(new Android.Graphics.Color(dark)));
+            else views.SetColorInt(id, method, light, dark);
         }
         else if (!stateList)
-            views.SetInt(Node, method, light);
+            views.SetInt(id, method, light);
 
         void Attr(int attribute)
         {
             if (OperatingSystem.IsAndroidVersionAtLeast(31))
             {
-                if (stateList) views.SetColorStateListAttr(Node, method, attribute);
-                else views.SetColorAttr(Node, method, attribute);
+                if (stateList) views.SetColorStateListAttr(id, method, attribute);
+                else views.SetColorAttr(id, method, attribute);
             }
             else if (!stateList)
-                views.SetInt(Node, method, WidgetPalette.Resolve(_context, attribute));
+                views.SetInt(id, method, WidgetPalette.Resolve(_context, attribute));
         }
     }
 
