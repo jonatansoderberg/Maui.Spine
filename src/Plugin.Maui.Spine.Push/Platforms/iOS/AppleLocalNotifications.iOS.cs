@@ -53,13 +53,16 @@ internal sealed class AppleLocalNotifications : ILocalNotificationService
             {
                 Title = notification.Title,
                 Body = notification.Body ?? "",
-                Sound = UNNotificationSound.Default,
+                Sound = notification.Sound is { Length: > 0 } sound ? UNNotificationSound.GetSound(sound) : UNNotificationSound.Default,
                 UserInfo = UserInfo(notification),
             };
 
             // The thread groups a notification with its neighbours in the Notification Center, which
             // is what a channel means on this side.
             if (notification.Channel is { Length: > 0 } channel) content.ThreadIdentifier = channel;
+
+            if (notification.Category is { Length: > 0 } category) content.CategoryIdentifier = category;
+            if (Attachment(notification) is { } attachment) content.Attachments = [attachment];
 
             // An interval from now, not calendar components: At is an absolute instant, and a
             // calendar trigger would fire at that wall clock in whichever time zone the device is in
@@ -91,6 +94,32 @@ internal sealed class AppleLocalNotifications : ILocalNotificationService
     {
         UNUserNotificationCenter.Current.RemoveAllPendingNotificationRequests();
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The picture, from a copy of the file. iOS moves an attachment's file into its own store when the
+    /// request is added, so handing it the app's file would make that file disappear.
+    /// </summary>
+    private static UNNotificationAttachment? Attachment(LocalNotification notification)
+    {
+        if (notification.Image is not { Length: > 0 } image) return null;
+
+        if (!File.Exists(image))
+        {
+            Logger?.LogWarning("Spine.Push: no picture for {Id}: '{Image}' is not a file on the device.", notification.Id, image);
+            return null;
+        }
+
+        var copy = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}{Path.GetExtension(image)}");
+        File.Copy(image, copy);
+
+        var attachment = UNNotificationAttachment.FromIdentifier(
+            "spine.image", NSUrl.FromFilename(copy), new UNNotificationAttachmentOptions(), out var error);
+
+        if (error is not null)
+            Logger?.LogWarning("Spine.Push: no picture for {Id}: {Error}", notification.Id, error.LocalizedDescription);
+
+        return attachment;
     }
 
     private static NSDictionary UserInfo(LocalNotification notification)
@@ -130,6 +159,9 @@ internal sealed class AppleLocalNotifications : ILocalNotificationService
             Body = request.Content.Body is { Length: > 0 } body ? body : null,
             Route = data.GetValueOrDefault(PushKeys.Route),
             Channel = data.GetValueOrDefault(PushKeys.Channel),
+            Category = data.GetValueOrDefault(PushKeys.Category),
+            Image = data.GetValueOrDefault(PushKeys.Image),
+            Sound = data.GetValueOrDefault(LocalNotificationPayload.Sound),
             Data = LocalNotificationPayload.App(data),
         };
     }

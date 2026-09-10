@@ -31,6 +31,7 @@
 
             <Button Text="Planera tre" Command="{Binding ScheduleThreeCommand}" />
             <Button Text="Planera bara en" Command="{Binding ScheduleOneCommand}" />
+            <Button Text="Planera med knappar och bild" Command="{Binding ScheduleRichCommand}" />
             <Button Text="Avboka allt" Command="{Binding CancelAllCommand}" />
             <Button Text="Läs om planen" Command="{Binding RefreshCommand}" />
 

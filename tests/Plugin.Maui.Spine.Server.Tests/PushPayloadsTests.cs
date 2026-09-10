@@ -272,4 +272,48 @@ public class PushPayloadsTests
 
         Assert.Contains("4096", error.Message);
     }
+
+    [Fact]
+    public void A_category_travels_as_aps_category_and_as_a_spine_key()
+    {
+        var notification = Notification with { Category = "entry" };
+
+        var apns = Parse(PushPayloads.Apns(notification, Bundle, Now).Json);
+        var fcm = Parse(PushPayloads.Fcm(notification).Json).GetProperty("data");
+
+        Assert.Equal("entry", apns.GetProperty("aps").GetProperty("category").GetString());
+        Assert.Equal("entry", apns.GetProperty(PushKeys.Category).GetString());
+        Assert.Equal("entry", fcm.GetProperty(PushKeys.Category).GetString());
+    }
+
+    [Fact]
+    public void An_image_makes_the_apns_payload_mutable_and_travels_as_a_spine_key_on_both()
+    {
+        var notification = Notification with { Image = new Uri("https://example.com/map.png") };
+
+        var apns = Parse(PushPayloads.Apns(notification, Bundle, Now).Json);
+        var fcm = Parse(PushPayloads.Fcm(notification).Json).GetProperty("data");
+
+        Assert.Equal(1, apns.GetProperty("aps").GetProperty("mutable-content").GetInt32());
+        Assert.Equal("https://example.com/map.png", apns.GetProperty(PushKeys.Image).GetString());
+        Assert.Equal("https://example.com/map.png", fcm.GetProperty(PushKeys.Image).GetString());
+    }
+
+    [Fact]
+    public void Without_an_image_the_apns_payload_is_not_mutable()
+    {
+        var aps = Parse(PushPayloads.Apns(Notification, Bundle, Now).Json).GetProperty("aps");
+
+        Assert.False(aps.TryGetProperty("mutable-content", out _));
+        Assert.False(aps.TryGetProperty("category", out _));
+    }
+
+    [Fact]
+    public void An_image_that_is_not_https_is_refused_rather_than_dropped_on_the_device()
+    {
+        var notification = Notification with { Image = new Uri("http://example.com/map.png") };
+
+        Assert.Throws<InvalidOperationException>(() => PushPayloads.Apns(notification, Bundle, Now));
+        Assert.Throws<InvalidOperationException>(() => PushPayloads.Fcm(notification));
+    }
 }

@@ -22,6 +22,9 @@ internal static class LocalNotificationPayload
     /// </remarks>
     internal const string At = "spine.at";
 
+    /// <summary>The sound, so a plan read back from Apple says what it was scheduled with.</summary>
+    internal const string Sound = "spine.sound";
+
     /// <summary>Writes <paramref name="notification"/> as the keys the handler reads.</summary>
     internal static Dictionary<string, string> Write(LocalNotification notification)
     {
@@ -43,6 +46,9 @@ internal static class LocalNotificationPayload
         if (notification.Body is { Length: > 0 } body) data[PushKeys.Body] = body;
         if (notification.Route is { Length: > 0 } route) data[PushKeys.Route] = route;
         if (notification.Channel is { Length: > 0 } channel) data[PushKeys.Channel] = channel;
+        if (notification.Category is { Length: > 0 } category) data[PushKeys.Category] = category;
+        if (notification.Image is { Length: > 0 } image) data[PushKeys.Image] = image;
+        if (notification.Sound is { Length: > 0 } sound) data[Sound] = sound;
 
         return data;
     }

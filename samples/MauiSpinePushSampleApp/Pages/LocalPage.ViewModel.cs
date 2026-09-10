@@ -35,6 +35,9 @@ public partial class LocalPageViewModel(ILocalNotificationService _local, IPushS
     private async Task ScheduleOne() => await PlanAsync([Notification("om 15 sekunder", 15)]);
 
     [RelayCommand]
+    private async Task ScheduleRich() => await PlanAsync([await RichAsync()]);
+
+    [RelayCommand]
     private async Task CancelAll()
     {
         await _local.CancelAllAsync();
@@ -76,6 +79,35 @@ public partial class LocalPageViewModel(ILocalNotificationService _local, IPushS
         foreach (var notification in pending) Planned.Add($"{notification.At:HH:mm:ss}  {notification.Title}");
 
         Summary = pending.Count == 0 ? "inget planerat" : $"{pending.Count} planerade";
+    }
+
+    /// <summary>
+    /// Everything a notification can carry beyond its text: the buttons MauiProgram declares as
+    /// "sample", a picture, and a sound of its own. The picture is a MauiAsset copied out to the cache,
+    /// because a notification needs a file on the device and an asset inside the package is not one.
+    /// </summary>
+    private static async Task<LocalNotification> RichAsync()
+    {
+        var picture = Path.Combine(FileSystem.CacheDirectory, "sample_picture.png");
+
+        if (!File.Exists(picture))
+        {
+            await using var source = await FileSystem.OpenAppPackageFileAsync("sample_picture.png");
+            await using var target = File.Create(picture);
+            await source.CopyToAsync(target);
+        }
+
+        return Notification("med knappar och bild", 15) with
+        {
+            Id = "sample:rich",
+            Category = "sample",
+            Image = picture,
+
+            // The sound is named twice because the platforms keep it in different places: Apple reads
+            // it from the notification, Android from the channel it is posted to.
+            Sound = "ding.wav",
+            Channel = "chime",
+        };
     }
 
     /// <summary>

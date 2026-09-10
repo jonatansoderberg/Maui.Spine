@@ -30,6 +30,8 @@ public static class PushPayloads
             Sound = notification.Sound,
             ThreadId = notification.Channel,
             InterruptionLevel = Interruption(notification.Interruption),
+            Category = notification.Category,
+            MutableContent = notification.Image is not null,
         };
 
         Fill(payload.Data, notification, PushKeys.Kinds.Alert);
@@ -251,6 +253,18 @@ public static class PushPayloads
         if (notification.Route is { } route) data[PushKeys.Route] = route;
         if (notification.Channel is { } channel) data[PushKeys.Channel] = channel;
         if (notification.CollapseId is { } collapse) data[PushKeys.Collapse] = collapse;
+        if (notification.Category is { } category) data[PushKeys.Category] = category;
+
+        if (notification.Image is { } image)
+        {
+            // Refused here rather than dropped on the device: App Transport Security blocks http in the
+            // extension, and a picture that silently never shows is the harder bug to find.
+            if (image.Scheme != Uri.UriSchemeHttps)
+                throw new InvalidOperationException($"PushNotification.Image must be https; got '{image}'.");
+
+            data[PushKeys.Image] = image.ToString();
+        }
+
         foreach (var (key, value) in notification.Data) data[key] = value;
     }
 

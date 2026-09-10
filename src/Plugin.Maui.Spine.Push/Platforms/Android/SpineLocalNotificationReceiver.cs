@@ -20,29 +20,31 @@ internal sealed class SpineLocalNotificationReceiver : BroadcastReceiver
 
         LocalNotificationStore.Remove(message.Data.GetValueOrDefault(PushKeys.Collapse) ?? "");
 
-        // In the foreground the app's handler decides what is shown, exactly as it does for a push —
-        // that is what WillPresentNotification gives the app on Apple. In the background it is not
-        // asked, for the same reason: Apple does not ask either, and the two should behave alike.
-        if (IPlatformApplication.Current?.Services is { } services && SpinePushLifecycle.IsForeground)
+        var pending = GoAsync();
+        Task.Run(async () =>
         {
-            var pending = GoAsync();
-            Task.Run(async () =>
+            try
             {
-                try
+                var presentation = SpinePushExtensions.DefaultPresentation;
+
+                // In the foreground the app's handler decides what is shown, exactly as it does for a
+                // push — that is what WillPresentNotification gives the app on Apple. In the background
+                // it is not asked, for the same reason: Apple does not ask either, and the two should
+                // behave alike.
+                if (IPlatformApplication.Current?.Services is { } services && SpinePushLifecycle.IsForeground)
                 {
                     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                     var reception = new PushContext(true, false, DateTimeOffset.UtcNow, deadline.Token);
-                    var presentation = await SpinePushExtensions.DeliverAsync(services, message, reception);
+                    presentation = await SpinePushExtensions.DeliverAsync(services, message, reception);
 
-                    if (presentation != PushPresentation.None) PushNotifications.Show(context, message, presentation);
+                    if (presentation == PushPresentation.None) return;
                 }
-                finally { pending?.Finish(); }
-            });
 
-            return;
-        }
-
-        PushNotifications.Show(context, message, SpinePushExtensions.DefaultPresentation);
+                var picture = await PushNotifications.PictureAsync(message, CancellationToken.None);
+                PushNotifications.Show(context, message, presentation, picture);
+            }
+            finally { pending?.Finish(); }
+        });
     }
 }
 

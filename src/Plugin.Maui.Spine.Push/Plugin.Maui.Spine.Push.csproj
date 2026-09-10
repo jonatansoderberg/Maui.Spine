@@ -29,6 +29,8 @@
 
 	<ItemGroup>
 		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\;" />
+		<!-- The Notification Service Extension's source, which build\spine-push-build.sh compiles in the app's build. -->
+		<None Include="native\**" Pack="true" PackagePath="native\" />
 	</ItemGroup>
 
 </Project>

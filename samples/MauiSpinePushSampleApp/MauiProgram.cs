@@ -39,6 +39,17 @@ public static class MauiProgram
                 options.AddChannel("news", "Nyheter");
                 options.AddChannel("alerts", "Viktigt", PushChannelImportance.High);
 
+                // Android's sound belongs to the channel, fixed when the channel is created — so the
+                // sample's own sound gets a channel of its own rather than changing "news" after the fact.
+                options.AddChannel("chime", "Med ljud", PushChannelImportance.High, sound: "ding");
+
+                // The three shapes a button can take: one that opens the app, one that does its work
+                // without it, and a reply. Named from the Lokalt and Skicka pages as "sample".
+                options.AddCategory("sample",
+                    new PushAction("open", "Öppna loggen"),
+                    new PushAction("ack", "Kvittera") { OpensApp = false },
+                    new PushAction("reply", "Svara") { Reply = "Skriv något" });
+
                 options.UseHandler<SamplePushHandler>();
             })
             .ConfigureFonts(fonts =>

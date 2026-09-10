@@ -30,6 +30,21 @@ public sealed record LocalNotification
     /// </summary>
     public string? Channel { get; init; }
 
+    /// <summary>The buttons to show, by the id given to <see cref="SpinePushOptions.AddCategory"/>.</summary>
+    public string? Category { get; init; }
+
+    /// <summary>
+    /// A picture: a file on the device. Spine hands iOS a copy, since iOS moves an attachment into its
+    /// own store and the original would be gone afterwards.
+    /// </summary>
+    public string? Image { get; init; }
+
+    /// <summary>
+    /// A sound file in the app bundle, or <see langword="null"/> for the system sound. Apple only: on
+    /// Android the channel decides — see <see cref="SpinePushOptions.AddChannel"/>.
+    /// </summary>
+    public string? Sound { get; init; }
+
     /// <summary>Anything else the handler should see when the notification is opened.</summary>
     public IReadOnlyDictionary<string, string>? Data { get; init; }
 }

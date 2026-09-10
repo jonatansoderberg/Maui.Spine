@@ -255,6 +255,101 @@ An instant that has already passed is dropped rather than fired late, on both pl
 
 ---
 
+## Buttons, pictures and sound
+
+What a notification can carry beyond its two lines. All three split between the platforms in ways
+worth knowing before promising them, so each part says where.
+
+### Buttons
+
+Declare the button sets once, like channels, and let a notification name one:
+
+```csharp
+builder.UseSpinePush(push =>
+{
+    push.AddCategory("entry",
+        new PushAction("enter", "Anmäl mig") { OpensApp = false },
+        new PushAction("show", "Visa tävlingen"));
+
+    push.AddCategory("chat", new PushAction("reply", "Svara") { Reply = "Skriv ett svar" });
+});
+```
+
+```csharp
+await local.SyncAsync([new LocalNotification { …, Category = "entry" }]);          // on the device
+await sender.SendAsync(target, new PushNotification { …, Category = "entry" });   // from the server
+```
+
+Where a tap lands depends on the button, not on how the notification arrived:
+
+| Button | Reaches | |
+|---|---|---|
+| `OpensApp` (the default) | `OnOpenedAsync(message, action)` | On the main thread with the app in front, so navigating is safe. |
+| `OpensApp = false` | `OnActionAsync(message, action, null)` | In the app's process without bringing it forward — the app may not have been running. For work, not navigation. |
+| `Reply = "…"` | `OnActionAsync(message, action, text)` | What the user typed. A reply never opens the app. |
+
+`OnActionAsync` has a default that does nothing, so a handler without such buttons implements
+nothing. The platform keeps the process alive until it returns — about thirty seconds on iOS, ten on
+Android — and the notification is gone afterwards.
+
+Why the declaration: iOS wants every button set registered **at launch** and shows no buttons for a
+category it has not been told about, without a word. Android builds buttons per notification. Declaring
+them in the options serves both; Spine registers them with iOS beside the notification delegate and
+reads them on Android when it draws the notification — and logs when a notification names a category
+that was never declared.
+
+The rest differs in small ways: iOS shows up to four buttons when the notification is expanded,
+Android three. `Destructive` draws red on Apple and like any other button on Android.
+
+### Pictures
+
+```csharp
+new LocalNotification { …, Image = Path.Combine(FileSystem.CacheDirectory, "map.png") }  // a file
+new PushNotification { …, Image = new Uri("https://example.com/map.png") }             // https only
+```
+
+| | Local | Push |
+|---|---|---|
+| iOS | Shown. Spine hands iOS a **copy**: iOS moves an attachment's file into its own store, so the app's file would otherwise disappear. | Needs the Notification Service Extension — see below. |
+| Android | Shown, as `BigPictureStyle` with a thumbnail when collapsed. | Shown. Spine draws the notification itself and fetches the picture first, within FCM's time for the message. |
+
+The rule everywhere is that **the notification always arrives**. A picture that cannot be fetched or
+decoded, or that takes too long, leaves the text as it was, and the reason goes to the log — logcat
+under `Spine.Push` on Android, `SpineNotificationService` in the device log on iOS. The server refuses
+an `http` image outright, since App Transport Security would drop it silently on the device.
+
+#### The Notification Service Extension
+
+A pushed picture on iOS has to be fetched by an extension that iOS runs before showing the
+notification. Spine builds it — swiftc, no Xcode project, the same way as the widget extension — when
+the app asks for it:
+
+```xml
+<SpinePushImages>true</SpinePushImages>
+```
+
+It is off by default because it is a bundle of its own: device builds need an App ID
+`<ApplicationId>.SpineNotificationService` and a development profile for it, exactly like the widget
+extension, and the build stops with the details when there is none. Name a specific profile with
+`SpinePushImagesCodesignProvision`. Simulator builds need nothing. The server sets
+`mutable-content: 1` only when a notification has a picture, so the extension never runs otherwise.
+
+### Sound
+
+Here the halves are furthest apart, and Spine does not pretend otherwise.
+
+- **Apple — per notification.** `LocalNotification.Sound` names a file in the app bundle (`.caf`,
+  `.wav` or `.aiff`, under thirty seconds); unset is the system sound. From the server,
+  `PushNotification.Sound` becomes `aps.sound`.
+- **Android — per channel, for good.** `AddChannel("chime", "Med ljud", sound: "ding")` plays
+  `Platforms/Android/Resources/raw/ding.*` for everything posted to it. Android keeps the sound a
+  channel was *created* with: changing it later does nothing on a device that already has the
+  channel, so a new sound means a new channel id. `PushNotification.Sound` does not apply here; pick
+  the channel instead. A sound that is not in `raw` is logged at startup, since Android would quietly
+  fall back to the default and keep that.
+
+---
+
 ## What each platform needs
 
 ### Apple
@@ -319,6 +414,17 @@ xcrun simctl push booted se.cosmomedia.orientera alert.json
 What the simulator will not do is deliver silent (`content-available`) pushes — a normally declared
 `didReceiveRemoteNotification:` implementation is not called either, so that is the simulator and
 not your code. That needs a physical device with a profile and the push entitlement.
+
+Nor does `simctl push` run a Notification Service Extension. It hands the notification straight to
+SpringBoard, so the step where iOS would start the extension never happens: a payload with
+`mutable-content: 1` and `spine.image` arrives, but without its picture. That is the tool, not the
+extension. A push that really goes through APNs does run it, in the simulator too: on Apple silicon
+the simulator has a real sandbox token, so a backend with an APNs key can reach it, and the device log
+shows `SpineNotificationService` handing back the notification with its attachment.
+
+To see buttons and pictures at all, expand a **banner on an unlocked screen** — pull it down. On the
+lock screen, and in Notification Center pulled down over it, a tap only hints at a swipe and the
+notification stays collapsed, without its picture or its buttons.
 
 It does issue a device token on Apple silicon, and registration against a local backend works from
 it, so everything up to the actual APNs delivery can be exercised without a phone.

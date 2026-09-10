@@ -1,4 +1,5 @@
 using AsyncAwaitBestPractices;
+using Foundation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.LifecycleEvents;
 using Plugin.Maui.Spine.Push.Services;
@@ -19,7 +20,8 @@ public static partial class SpinePushExtensions
         {
             ios.FinishedLaunching((application, _) =>
             {
-                UNUserNotificationCenter.Current.Delegate = new NotificationDelegate();
+                UNUserNotificationCenter.Current.Delegate = new NotificationDelegate(options);
+                RegisterCategories(options);
 
                 WarnAboutMethodsTheAppOwns();
                 Start(platform, options, application).SafeFireAndForget();
@@ -65,6 +67,34 @@ public static partial class SpinePushExtensions
         await Services().GetRequiredService<IPushService>().RefreshAsync();
     }
 
+    /// <summary>
+    /// Tells iOS which buttons each category has. It must happen before a notification naming one
+    /// arrives — iOS shows no buttons for a category it has not been told about, and says nothing — so
+    /// it is done at launch beside the delegate, not when a notification is scheduled.
+    /// </summary>
+    private static void RegisterCategories(SpinePushOptions options)
+    {
+        if (options.Categories.Count == 0) return;
+
+        var categories = options.Categories
+            .Select(category => UNNotificationCategory.FromIdentifier(
+                category.Id, [.. category.Actions.Select(Button)], [], UNNotificationCategoryOptions.None))
+            .ToArray();
+
+        UNUserNotificationCenter.Current.SetNotificationCategories(new NSSet<UNNotificationCategory>(categories));
+
+        static UNNotificationAction Button(PushAction action)
+        {
+            var flags = UNNotificationActionOptions.None;
+            if (!action.RunsInBackground) flags |= UNNotificationActionOptions.Foreground;
+            if (action.Destructive) flags |= UNNotificationActionOptions.Destructive;
+
+            return action.Reply is { } placeholder
+                ? UNTextInputNotificationAction.FromIdentifier(action.Id, action.Title, flags, action.Title, placeholder)
+                : UNNotificationAction.FromIdentifier(action.Id, action.Title, flags);
+        }
+    }
+
     private static void WarnAboutMethodsTheAppOwns()
     {
         if (SpinePush.NotInstalled.Count == 0) return;
@@ -75,7 +105,7 @@ public static partial class SpinePushExtensions
             string.Join(", ", SpinePush.NotInstalled));
     }
 
-    private sealed class NotificationDelegate : UNUserNotificationCenterDelegate
+    private sealed class NotificationDelegate(SpinePushOptions options) : UNUserNotificationCenterDelegate
     {
         public override void WillPresentNotification(
             UNUserNotificationCenter center, UNNotification notification, Action<UNNotificationPresentationOptions> completionHandler)
@@ -97,22 +127,39 @@ public static partial class SpinePushExtensions
         public override void DidReceiveNotificationResponse(
             UNUserNotificationCenter center, UNNotificationResponse response, Action completionHandler)
         {
-            OpenAsync(response).SafeFireAndForget();
-            completionHandler();
+            var content = response.Notification.Request.Content;
+            var message = PushPayload.Read(content.UserInfo);
 
-            static async Task OpenAsync(UNNotificationResponse response)
+            // The default action means the notification itself was tapped, not one of its buttons.
+            // The constant is spelled out because .NET iOS keeps UNNotificationActionIdentifier
+            // internal; this is the value Apple documents for UNNotificationDefaultActionIdentifier.
+            var action = response.ActionIdentifier == "com.apple.UNNotificationDefaultActionIdentifier"
+                ? null
+                : response.ActionIdentifier;
+
+            if (action is not null && FindAction(options, content.CategoryIdentifier, action) is { RunsInBackground: true } button)
             {
-                var message = PushPayload.Read(response.Notification.Request.Content.UserInfo);
+                // iOS keeps the process running until the completion handler is called, so for a button
+                // that does its work in the background it is called when the work is done — not at once,
+                // as for a notification that opens the app.
+                RunAsync().SafeFireAndForget();
+                return;
 
-                // The default action means the notification itself was tapped, not one of its buttons.
-                // The constant is spelled out because .NET iOS keeps UNNotificationActionIdentifier
-                // internal; this is the value Apple documents for UNNotificationDefaultActionIdentifier.
-                var action = response.ActionIdentifier == "com.apple.UNNotificationDefaultActionIdentifier"
-                    ? null
-                    : response.ActionIdentifier;
-
-                await MainThread.InvokeOnMainThreadAsync(() => OpenedAsync(Services(), message, action));
+                async Task RunAsync()
+                {
+                    try
+                    {
+                        await ActionAsync(Services(), message, button.Id, (response as UNTextInputNotificationResponse)?.UserText);
+                    }
+                    finally
+                    {
+                        completionHandler();
+                    }
+                }
             }
+
+            completionHandler();
+            MainThread.InvokeOnMainThreadAsync(() => OpenedAsync(Services(), message, action)).SafeFireAndForget();
         }
 
         private static UNNotificationPresentationOptions Translate(PushPresentation presentation)
