@@ -91,6 +91,24 @@ app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushOp
     });
 });
 
+/// The remote widget's content. The platform fetches this itself at every reload — the widget
+/// extension on iOS, a receiver in the app's process on Android — so what the widget shows can change
+/// while the app is not running. The clock says the answer is fresh; "Från servern" says where it came from.
+app.MapGet("/widget/remote", () =>
+{
+    var now = DateTimeOffset.Now;
+
+    var timeline = WidgetTimeline
+        .Single(W.VStack(4,
+            W.Text("Spine remote").Caption().Secondary(),
+            W.Text("Från servern").Headline().Bold(),
+            W.Text($"Hämtad {now:HH:mm:ss}").Caption(),
+            W.Relative(now).Caption().Secondary()))
+        .Refresh(TimeSpan.FromMinutes(15));
+
+    return Results.Text(timeline.ToJson(), "application/json");
+});
+
 /// What the register currently holds, so the app can show whether it got through.
 app.MapGet("/installations", async (IPushInstallationStore store, CancellationToken cancellationToken) =>
 {

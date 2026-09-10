@@ -1,5 +1,6 @@
 using System.Reflection;
 using MauiSpinePushSampleApp.Services;
+using MauiSpinePushSampleApp.Widgets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Common;
@@ -18,6 +19,7 @@ public static class MauiProgram
         var settings = ReadSettings();
         var backend = Address(settings, "Backend");
         var send = Address(settings, "SendEndpoint");
+        var widgetSource = Address(settings, "WidgetSource");
 
         builder
             .UseMauiApp<App>()
@@ -62,6 +64,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<PushLog>();
         builder.Services.AddSingleton<WidgetContent>();
         builder.Services.AddSingleton(new SampleServer(new Uri(send)));
+        builder.Services.AddSingleton(new RemoteWidgetSource(new Uri(widgetSource)));
 
 #if DEBUG
         builder.Logging.AddDebug();
