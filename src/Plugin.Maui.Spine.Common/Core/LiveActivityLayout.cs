@@ -40,6 +40,20 @@ public sealed record LiveActivityLayout
     /// </summary>
     public WidgetColor? Background { get; init; }
 
+    /// <summary>
+    /// Draws the Lock Screen presentation on the system's own material, which follows light and dark mode,
+    /// instead of the translucent black Spine draws by default. Give the tree semantic colors
+    /// (<see cref="WidgetColor.Primary"/> and the like) with it: the material is light in light mode, and
+    /// white text disappears on it. <see cref="Background"/> wins when both are set. iOS only.
+    /// </summary>
+    public bool? SystemBackground { get; init; }
+
+    /// <summary>
+    /// The color of the buttons iOS itself puts on the activity; the system's own when <see langword="null"/>.
+    /// iOS only, like <see cref="Background"/>.
+    /// </summary>
+    public WidgetColor? ActionColor { get; init; }
+
     /// <summary>The URL the app is opened with when the activity is tapped.</summary>
     [JsonIgnore]
     public Uri? Link { get; init; }

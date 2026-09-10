@@ -200,7 +200,10 @@ The push sample's *Spine bild* widget is one, and its remote widget gets a gradi
 - **Liquid Glass on iOS is the user's choice.** In the *Clear* and *Tinted* Home Screen appearances iOS removes the widget's background and draws glass itself, as for its own widgets — a Spine widget included, with no code. Everything is then tinted alike, so a stack's box is drawn at a quarter of its strength there; at full strength it would swallow the text on it.
 - **Tinted and Clear draw everything white.** In those Home Screen appearances iOS removes the surface — color, gradient and picture alike — and draws the content white. `.Accented()` puts a node in the accent group (`widgetAccentable`), but iOS 26 tints that group white too, so on iOS it groups rather than colors (verified on iOS 26.2, and what Apple documents). What does show is `.FullColor()` on a `W.Image`: without it the picture turns solid white, with it it keeps its colors (iOS 18). Android ignores both.
 - **System colors follow the user's theme.** `WidgetColor.Surface` is the platform's widget surface and `WidgetColor.OnAccent` the color for text on an `Accent` fill. On Android 12 and later those two, `Accent` and `Primary` resolve in the launcher's theme — Material You, from the wallpaper; below that, in the app's theme. On iOS they are `systemBackground`, white, the app's accent color and the primary label color.
-- **A Live Activity's `Background` colors the Lock Screen only.** It replaces the default translucent black; the Dynamic Island is always black.
+- **A Live Activity's `Background` colors the Lock Screen only.** It replaces the default translucent black, and an opaque color is drawn solid, not as Liquid Glass — only a faint glass rim remains at the edge (iOS 26.2). The Dynamic Island is always black.
+- **`SystemBackground = true` asks for the system's own Lock Screen material** instead of Spine's translucent black, which stays the default so an activity that sets neither looks as before. The material follows the wallpaper and the appearance — dark glass on a dark wallpaper even in light mode, light on a light one — so give the tree semantic colors, `WidgetColor.Primary` and `Secondary`, rather than fixed ones. `Background` wins when both are set, and the extension logs it.
+- **Choose it when the activity starts.** iOS holds on to a tint once it is set: a running activity that had a `Background` keeps that color when an update drops it for `SystemBackground` (iOS 26.2). One started with `SystemBackground` gets the material.
+- **`ActionColor` colors the buttons iOS itself puts on the activity.**
 
 | | iOS | Android |
 |---|---|---|
@@ -210,6 +213,8 @@ The push sample's *Spine bild* widget is one, and its remote widget gets a gradi
 | `.Accented()` / `.FullColor()` | `widgetAccentable` / `widgetAccentedRenderingMode(.fullColor)` | Ignored |
 | `WidgetColor.Surface` / `OnAccent` | `systemBackground` / white | `colorBackground` / `textColorPrimaryInverse`, in the launcher's theme from API 31 |
 | `LiveActivityLayout.Background` | `activityBackgroundTint` | Ignored: Android does not promote a Live Update that asks for a color |
+| `LiveActivityLayout.SystemBackground` | `activityBackgroundTint(nil)` | Ignored |
+| `LiveActivityLayout.ActionColor` | `activitySystemActionForegroundColor` | Ignored |
 | `.Padding` / `.Background` | `padding` / `background` | `setViewPadding` / `setBackgroundColor`; ignored in a Live Update |
 | `.CornerRadius` | Clips the background and the children | The same from API 31; square below |
 

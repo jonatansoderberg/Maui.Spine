@@ -113,6 +113,8 @@ struct ActivityLayout: Decodable {
     var compactTrailing: Node?
     var minimal: Node?
     var background: String?
+    var systemBackground: Bool?
+    var actionColor: String?
     var link: String?
 
     static func parse(_ json: String) -> ActivityLayout {
@@ -343,6 +345,18 @@ enum Palette {
         }
     }
 
+    /// The Lock Screen tint: the layout's color; the system's own material (nil) when it asks for that; and
+    /// otherwise the translucent black Spine has always drawn, so an activity that sets neither looks the same.
+    static func lockScreenTint(_ layout: ActivityLayout) -> Color? {
+        if let background = layout.background {
+            if layout.systemBackground == true {
+                NSLog("[SpineWidgets] Live Activity sets both background and systemBackground; background wins")
+            }
+            return color(background)
+        }
+        return layout.systemBackground == true ? nil : .black.opacity(0.6)
+    }
+
     private static func hex(_ value: String) -> Color? {
         let digits = value.hasPrefix("#") ? String(value.dropFirst()) : value
         guard digits.count == 6 || digits.count == 8, let number = UInt64(digits, radix: 16) else { return nil }
@@ -531,7 +545,8 @@ struct SpineLiveActivity: Widget {
             Slot(node: layout.lockScreen, kind: context.attributes.kind)
                 .padding()
                 .opacity(context.isStale ? 0.5 : 1)
-                .activityBackgroundTint(layout.background.map { Palette.color($0) } ?? .black.opacity(0.6))
+                .activityBackgroundTint(Palette.lockScreenTint(layout))
+                .activitySystemActionForegroundColor(layout.actionColor.map { Palette.color($0) })
                 .widgetURL(layout.link.flatMap(URL.init(string:)))
         } dynamicIsland: { context in
             let layout = ActivityLayout.parse(context.state.json)

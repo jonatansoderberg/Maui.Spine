@@ -21,6 +21,7 @@
 
             <Button Text="Starta" Command="{Binding StartCommand}" IsEnabled="{Binding CanStart}" />
             <Button Text="Uppdatera lokalt" Command="{Binding UpdateLocallyCommand}" />
+            <Button Text="Systemets bakgrund" Command="{Binding UpdateWithSystemBackgroundCommand}" />
             <Button Text="Uppdatera från servern" Command="{Binding UpdateFromServerCommand}" />
             <Button Text="Avsluta" Command="{Binding EndCommand}" />
 
