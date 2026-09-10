@@ -63,6 +63,7 @@ On iOS the items become the widget extension; on Android they become manifest en
 | `SpineWidgetsExtensionName` | `SpineWidgets` | Bundle name of the appex. |
 | `SpineWidgetsCodesignProvision` | *(empty)* | Names the extension's own provisioning profile. Empty means the installed profile whose App ID matches is used. |
 | `SpineWidgetsEnabled` | `true` | Set to `false` to build the app without the extension. |
+| `SpineWidgetsPush` | `false` | iOS 26's widget push: a server reloads the widgets through APNs without waking the app. **Builds the extension for iOS 26**, so on older iOS the app has no widgets. See [Reloading by push](#reloading-by-push). |
 
 ### 3. Give the app the App Group entitlement
 
@@ -235,6 +236,22 @@ Three things to know before relying on it:
 - **The platform does the fetching, not the app.** On iOS that is the widget extension, which on a physical device must reach the server over the network — `localhost` is the phone itself. On Android it is a receiver in the app's own process, so an emulator or a phone on a cable reaches a server on your machine through `adb reverse`.
 
 `samples/MauiSpinePushSampleApp` has a widget that does exactly this: `remote` fetches from the sample server's `/widget/remote`, which answers "Från servern" and its own clock, and falls back to "Från appen" when the server is not running.
+
+### Reloading by push
+
+A server can reload the widgets through Spine.Push's `RefreshWidgetsAsync`. By default that is a silent push which wakes the app, and the app rebuilds — as long as iOS delivers it, which it throttles and stops doing after a force quit. iOS 26 has a road that skips the app: WidgetKit gives the extension a push token, and a push to it reloads the widgets. Turn it on in the project:
+
+```xml
+<SpineWidgetsPush>true</SpineWidgetsPush>
+```
+
+Nothing else changes in the app. Spine fetches the token at launch and whenever it rotates, and Spine.Push carries it in the installation as `WidgetToken`; the server then takes the widget road for that installation and the silent one for the rest. What to know:
+
+- **The extension becomes iOS 26 only.** Swift cannot give a widget a push handler on iOS 26 and none before — neither the widget nor the bundle may branch on the OS version — so the extension is built for iOS 26. The app still runs on older iOS, without widgets. The build says so every time.
+- **The token comes once a widget is on the home screen.** WidgetKit subscribes only for an extension with placed widgets that support push, so until the user adds one the installation has no `WidgetToken` and the server takes the silent road. The app picks the token up at its next launch, or at once if it is running.
+- **A push reloads every widget.** The token belongs to the extension, not a kind, so `kind` only narrows the silent road.
+- **It reloads, it does not carry content.** The timeline provider in the extension runs, which means the widget shows what the app last wrote — or what its [remote source](#remote-source) answers. With neither, write the new content first: a silent push, or the app itself.
+- **Device builds need Push Notifications on the extension's App ID**, and a profile that includes it. The build writes `aps-environment` into the extension's entitlements, following `SpinePushEnvironment`.
 
 ### Buttons
 
@@ -425,7 +442,7 @@ Consider a widget showing a value a cloud API refreshes every five minutes. **Th
 
 | Surface | App only | With server push |
 |---|---|---|
-| iOS widget | The extension could fetch in its timeline provider, but the system grants ~40–70 reloads a day — every 15–60 min | iOS 26 can trigger a reload by push (`WidgetPushHandler`); as far as is known it still counts against the same budget |
+| iOS widget | The extension could fetch in its timeline provider, but the system grants ~40–70 reloads a day — every 15–60 min | iOS 26 reloads by push with [`SpineWidgetsPush`](#reloading-by-push); as far as is known it still counts against the same budget |
 | iOS Live Activity | Only updates while the app runs. `BGAppRefreshTask` gives a few runs an hour, irregularly, ~30 s at a time | An APNs `liveactivity` push every 5 min works. `NSSupportsLiveActivitiesFrequentUpdates` raises the budget. For a subject with no end, see [keeping one on screen around the clock](#keeping-one-on-screen-around-the-clock) |
 | Android widget | `Refresh(after)` runs the provider from an inexact alarm, in practice every 15 min or so under Doze; a foreground service can update freely | An FCM data message every 5 min; the service updates widget and Live Update at once |
 

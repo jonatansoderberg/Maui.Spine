@@ -52,6 +52,35 @@ public final class SpineWidgetBridge: NSObject {
         tokenLock.withLock { pushTokens[id] }
     }
 
+    // iOS 26's widget push token. WidgetKit hands it out asynchronously, like ActivityKit, so the latest
+    // one is kept for the app to read. Fetched at launch and whenever the extension reports a change.
+    private static var widgetToken: String?
+
+    /// Fetches the widget push token and, when it changed, posts `<group>.spine-widgets.push-token` so
+    /// the app registers the new one. Returns at once; the fetch is async. Nil before iOS 26, and when
+    /// the extension was built without a push handler.
+    @objc public static func refreshWidgetPushToken() {
+        guard #available(iOS 26.0, *) else { return }
+        Task {
+            let token = await WidgetCenter.shared.currentPushInfo.map { hex($0.token) }
+            let changed = tokenLock.withLock { () -> Bool in
+                guard widgetToken != token else { return false }
+                widgetToken = token
+                return true
+            }
+            if changed { notifyWidgetPushToken() }
+        }
+    }
+
+    @objc public static func widgetPushToken() -> String? {
+        tokenLock.withLock { widgetToken }
+    }
+
+    private static func notifyWidgetPushToken() {
+        let name = CFNotificationName("\(ActionLog.appGroup).spine-widgets.push-token" as CFString)
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), name, nil, nil, true)
+    }
+
     private static func observe(_ activity: Activity<SpineActivityAttributes>) {
         guard tokenLock.withLock({ observed.insert(activity.id).inserted }) else { return }
         Task {

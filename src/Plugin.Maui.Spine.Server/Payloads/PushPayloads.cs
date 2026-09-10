@@ -209,9 +209,9 @@ public static class PushPayloads
     /// <param name="bundleId">The app's bundle id, used as the topic.</param>
     /// <returns>The envelope the APNs transport sends.</returns>
     /// <remarks>
-    /// A silent push, not iOS 26's <c>widgets</c> push type: that one needs the extension built
-    /// against the iOS 26 SDK as a <c>pushHandler</c>, which is v2. Until then the app's handler
-    /// rebuilds the widgets when it wakes, which is best effort by design.
+    /// A silent push that wakes the app, whose handler rebuilds the widgets — best effort by design:
+    /// silent pushes are throttled, not delivered after a force-quit, and never in the simulator. The
+    /// fallback for an installation without a widget token; see <see cref="ApnsWidgetPush"/>.
     /// </remarks>
     public static PushEnvelope ApnsWidgetRefresh(string? kind, string bundleId)
     {
@@ -232,6 +232,24 @@ public static class PushPayloads
             Priority = 5,
         };
     }
+
+    /// <summary>
+    /// Builds iOS 26's widget push: WidgetKit reloads the app's widgets itself, without waking the app.
+    /// Sent to the installation's widget token, not its device token.
+    /// </summary>
+    /// <param name="bundleId">The app's bundle id; the topic is <c>&lt;bundle id&gt;.push-type.widgets</c>.</param>
+    /// <returns>The envelope the APNs transport sends.</returns>
+    /// <remarks>
+    /// It cannot name a kind. The token covers every widget that registered the push handler, and a
+    /// push reloads all of them — each reload counted against the widget's budget.
+    /// </remarks>
+    public static PushEnvelope ApnsWidgetPush(string bundleId) => new()
+    {
+        Json = Guard(new ApnsPayload { ContentChanged = true }.ToJson()),
+        ApnsPushType = "widgets",
+        ApnsTopic = $"{bundleId}.push-type.widgets",
+        Priority = 10,
+    };
 
     /// <summary>Builds the FCM message that asks the app to rebuild its widgets.</summary>
     /// <param name="kind">The widget kind, or <see langword="null"/> for all of them.</param>

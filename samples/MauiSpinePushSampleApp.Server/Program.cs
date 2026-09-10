@@ -127,6 +127,10 @@ app.MapGet("/installations", async (IPushInstallationStore store, CancellationTo
             installation.OsVersion,
             installation.UpdatedAt,
 
+            // Present when the app runs on iOS 26 with SpineWidgetsPush: widget refreshes to it go as a
+            // widgets push, which WidgetKit acts on without the app.
+            WidgetToken = installation.WidgetToken is { Length: > 0 } widget ? Shorten(widget) : null,
+
             // Whether a Live Activity can be addressed at all. Without this a send answers
             // NoLiveActivityToken and the register gives no hint as to which half is missing:
             // the push-to-start token, or the running activity's own.

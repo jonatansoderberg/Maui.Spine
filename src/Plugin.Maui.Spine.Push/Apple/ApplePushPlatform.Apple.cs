@@ -27,8 +27,6 @@ internal sealed class ApplePushPlatform : IPushPlatform
     /// <inheritdoc />
     public ApnsEnvironment? Environment { get; } = ReadEnvironment();
 
-    /// <inheritdoc />
-    public string? WidgetToken => null;   // iOS 26 widget push is v2; see docs/wiki/push-server.md.
 
     /// <inheritdoc />
     public PushStatus Status { get; private set; } = PushStatus.NotDetermined;

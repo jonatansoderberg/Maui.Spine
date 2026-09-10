@@ -15,9 +15,13 @@
 		  SpineWidgetsExtensionName   default SpineWidgets             (iOS)
 		  SpineWidgetsCodesignProvision default empty                  (iOS: the extension's own profile; found by App ID when empty)
 		  SpineWidgetsEnabled         default true
+		  SpineWidgetsPush            default false                     (iOS: widget push — WidgetKit reloads by push without the
+		                                                                 app; builds the extension for iOS 26 and later, so an app
+		                                                                 that turns it on has no widgets on older iOS)
 	-->
 	<PropertyGroup>
 		<SpineWidgetsEnabled Condition="'$(SpineWidgetsEnabled)' == ''">true</SpineWidgetsEnabled>
+		<SpineWidgetsPush Condition="'$(SpineWidgetsPush)' == ''">false</SpineWidgetsPush>
 		<SpineWidgetsLiveActivities Condition="'$(SpineWidgetsLiveActivities)' == ''">true</SpineWidgetsLiveActivities>
 		<SpineWidgetsBackgroundRefresh Condition="'$(SpineWidgetsBackgroundRefresh)' == ''">true</SpineWidgetsBackgroundRefresh>
 		<SpineWidgetsFrequentUpdates Condition="'$(SpineWidgetsFrequentUpdates)' == ''">false</SpineWidgetsFrequentUpdates>
@@ -54,14 +58,23 @@
 			<_SpineWidgetsRequireProvision>false</_SpineWidgetsRequireProvision>
 			<_SpineWidgetsRequireProvision Condition="'$(_SpineWidgetsSdk)' == 'iphoneos' And '$(EnableCodeSigning)' != 'false'">true</_SpineWidgetsRequireProvision>
 			<_SpineWidgetsArgs>--widget &quot;@(SpineWidget->'%(Identity)|%(DisplayName)|%(Description)|%(Families)', '&quot; --widget &quot;')&quot;</_SpineWidgetsArgs>
+			<!-- The APNs host the widget token belongs to follows the app's, which Plugin.Maui.Spine.Push sets. -->
+			<_SpineWidgetsPushEnvironment>$(SpinePushEnvironment)</_SpineWidgetsPushEnvironment>
+			<_SpineWidgetsPushEnvironment Condition="'$(_SpineWidgetsPushEnvironment)' == '' And '$(Configuration)' == 'Debug'">development</_SpineWidgetsPushEnvironment>
+			<_SpineWidgetsPushEnvironment Condition="'$(_SpineWidgetsPushEnvironment)' == ''">production</_SpineWidgetsPushEnvironment>
 		</PropertyGroup>
+
+		<!-- Said on every build that turns it on, because what it costs is not visible until someone opens
+		     the widget gallery on an older iPhone and finds nothing there. -->
+		<Message Importance="high" Condition="'$(SpineWidgetsPush)' == 'true'"
+				 Text="Spine widgets: SpineWidgetsPush=true builds the widget extension for iOS 26 and later. On older iOS the app runs, but has no widgets. Device builds also need Push Notifications on the extension's App ID ($(_SpineWidgetsBundleId))." />
 
 		<MakeDir Directories="$(_SpineWidgetsOutDir)" />
 
 		<!-- Anything that changes the generated bundle or plists lands here, so Inputs/Outputs sees it. -->
 		<ItemGroup>
 			<_SpineWidgetsInputLine Include="@(SpineWidget->'%(Identity)|%(DisplayName)|%(Description)|%(Families)')" />
-			<_SpineWidgetsInputLine Include="$(_SpineWidgetsBundleId);$(SpineWidgetsAppGroup);$(SpineWidgetsLiveActivities);$(SpineWidgetsBackgroundRefresh);$(SpineWidgetsFrequentUpdates);$(SpineWidgetsMinimumOSVersion);$(Configuration);$(ApplicationTitle);$(_SpineWidgetsArch);$(_SpineWidgetsSdk);$(SpineWidgetsCodesignProvision);$(_SpineWidgetsRequireProvision)" />
+			<_SpineWidgetsInputLine Include="$(_SpineWidgetsBundleId);$(SpineWidgetsAppGroup);$(SpineWidgetsLiveActivities);$(SpineWidgetsBackgroundRefresh);$(SpineWidgetsFrequentUpdates);$(SpineWidgetsMinimumOSVersion);$(Configuration);$(ApplicationTitle);$(_SpineWidgetsArch);$(_SpineWidgetsSdk);$(SpineWidgetsCodesignProvision);$(_SpineWidgetsRequireProvision);$(SpineWidgetsPush);$(_SpineWidgetsPushEnvironment)" />
 		</ItemGroup>
 		<WriteLinesToFile File="$(_SpineWidgetsInputsFile)" Lines="@(_SpineWidgetsInputLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
 
@@ -75,7 +88,7 @@
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '@(SpineWidget)' != '' And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))"
 			Inputs="@(_SpineWidgetsInputs)"
 			Outputs="$(_SpineWidgetsStamp)">
-		<Exec Command="&quot;$(_SpineWidgetsScript)&quot; --out &quot;$(_SpineWidgetsOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpineWidgetsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpineWidgetsSdk) --arch $(_SpineWidgetsArch) --min-os $(SpineWidgetsMinimumOSVersion) --config $(Configuration) --bundle-id &quot;$(_SpineWidgetsBundleId)&quot; --app-group &quot;$(SpineWidgetsAppGroup)&quot; --name &quot;$(SpineWidgetsExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --url-scheme &quot;$(ApplicationId)&quot; --live-activities $(SpineWidgetsLiveActivities) --background-refresh $(SpineWidgetsBackgroundRefresh) --frequent-updates $(SpineWidgetsFrequentUpdates) --provision &quot;$(SpineWidgetsCodesignProvision)&quot; --require-provision $(_SpineWidgetsRequireProvision) $(_SpineWidgetsArgs)" />
+		<Exec Command="&quot;$(_SpineWidgetsScript)&quot; --out &quot;$(_SpineWidgetsOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpineWidgetsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpineWidgetsSdk) --arch $(_SpineWidgetsArch) --min-os $(SpineWidgetsMinimumOSVersion) --config $(Configuration) --bundle-id &quot;$(_SpineWidgetsBundleId)&quot; --app-group &quot;$(SpineWidgetsAppGroup)&quot; --name &quot;$(SpineWidgetsExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --url-scheme &quot;$(ApplicationId)&quot; --live-activities $(SpineWidgetsLiveActivities) --background-refresh $(SpineWidgetsBackgroundRefresh) --frequent-updates $(SpineWidgetsFrequentUpdates) --provision &quot;$(SpineWidgetsCodesignProvision)&quot; --require-provision $(_SpineWidgetsRequireProvision) --push $(SpineWidgetsPush) --push-environment $(_SpineWidgetsPushEnvironment) $(_SpineWidgetsArgs)" />
 	</Target>
 
 	<!--

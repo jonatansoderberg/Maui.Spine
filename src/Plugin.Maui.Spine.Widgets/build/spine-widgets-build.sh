@@ -6,7 +6,7 @@ set -euo pipefail
 
 OUT=""; SOURCES=""; SDK="iphonesimulator"; ARCH="arm64"; MIN_OS="17.0"; CONFIG="Debug"
 BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; URL_SCHEME=""; LIVE="true"; BACKGROUND="true"; FREQUENT="false"
-PROVISION=""; REQUIRE_PROVISION="false"
+PROVISION=""; REQUIRE_PROVISION="false"; PUSH="false"; PUSH_ENV="development"
 WIDGETS=()
 
 while [[ $# -gt 0 ]]; do
@@ -27,6 +27,8 @@ while [[ $# -gt 0 ]]; do
     --frequent-updates) FREQUENT="$2"; shift 2;;
     --provision) PROVISION="$2"; shift 2;;
     --require-provision) REQUIRE_PROVISION="$2"; shift 2;;
+    --push) PUSH="$2"; shift 2;;
+    --push-environment) PUSH_ENV="$2"; shift 2;;
     --widget) WIDGETS+=("$2"); shift 2;;
     *) echo "spine-widgets-build.sh: unknown argument $1" >&2; exit 2;;
   esac
@@ -43,6 +45,17 @@ case "$SDK" in
   *) echo "spine-widgets-build.sh: unsupported sdk $SDK" >&2; exit 2;;
 esac
 case "$CONFIG" in Release) OPT=(-O);; *) OPT=(-Onone -g);; esac
+
+# Widget push needs iOS 26 in the extension (WidgetPushHandler), and a widget cannot pick its
+# configuration by OS version — Swift allows neither an if/else in a widget's body nor one in the
+# bundle — so an extension with push is an iOS 26 extension. The bridge stays at MIN_OS: it is linked
+# into the app, which still runs on older systems, and it reaches the token behind #available.
+EXT_MIN_OS="$MIN_OS"
+if [[ "$PUSH" == "true" && "${MIN_OS%%.*}" -lt 26 ]]; then EXT_MIN_OS="26.0"; fi
+case "$SDK" in
+  iphonesimulator) EXT_TARGET="$ARCH-apple-ios$EXT_MIN_OS-simulator";;
+  *) EXT_TARGET="$ARCH-apple-ios$EXT_MIN_OS";;
+esac
 
 APPEX="$OUT/$NAME.appex"
 FRAMEWORK="$OUT/SpineWidgetBridge.framework"
@@ -84,7 +97,11 @@ BUNDLE="$GEN/SpineWidgetBundle.swift"
   echo
   for ((i = 0; i < ${#WIDGETS[@]}; i++)); do
     echo "struct SpineWidget_$i: Widget {"
-    echo "    var body: some WidgetConfiguration { spineWidgetConfiguration(index: $i) }"
+    if [[ "$PUSH" == "true" ]]; then
+      echo "    var body: some WidgetConfiguration { spineWidgetConfiguration(index: $i).pushHandler(SpineWidgetPushHandler.self) }"
+    else
+      echo "    var body: some WidgetConfiguration { spineWidgetConfiguration(index: $i) }"
+    fi
     echo "}"
     echo
   done
@@ -129,7 +146,7 @@ PLIST
 	<key>CFBundleShortVersionString</key><string>1.0</string>
 	<key>CFBundleVersion</key><string>1</string>
 	<key>CFBundleSupportedPlatforms</key><array><string>$PLATFORM</string></array>
-	<key>MinimumOSVersion</key><string>$MIN_OS</string>
+	<key>MinimumOSVersion</key><string>$EXT_MIN_OS</string>
 	<key>SpineWidgetsAppGroup</key><string>$(plist_escape "$APP_GROUP")</string>
 	<key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
 	<key>DTCompiler</key><string>com.apple.compilers.llvm.clang.1_0</string>
@@ -153,17 +170,34 @@ PLIST
 # --- Entitlements: the extension's own, and a host default when the app has none -----------------
 # The host app's entitlements are written by the shared step in Plugin.Maui.Spine; only the
 # extension's own file is written here.
-for target in "$OUT/$NAME.entitlements"; do
+write_entitlements() {  # <file> <include aps-environment>
   {
     write_plist_header
     cat <<PLIST
 	<key>com.apple.security.application-groups</key>
 	<array><string>$APP_GROUP</string></array>
+$( [[ "$2" == "true" ]] && printf '\t<key>aps-environment</key><string>%s</string>' "$PUSH_ENV" )
 </dict>
 </plist>
 PLIST
-  } > "$target"
-done
+  } > "$1"
+}
+
+# The simulator will not launch an ad hoc signed extension whose signature claims aps-environment.
+# There the signature carries only the App Group, and the whole set goes into the binary's
+# __entitlements and __ents_der sections, which the simulator reads instead — as the .NET SDK does
+# for the app itself.
+SIMULATED_ENTITLEMENTS=()
+if [[ "$SDK" == "iphonesimulator" ]]; then
+  write_entitlements "$OUT/$NAME.entitlements" false
+  write_entitlements "$GEN/$NAME.xcent" "$PUSH"
+  derq query -f xml -i "$GEN/$NAME.xcent" -o "$GEN/$NAME.xcent.der" --raw
+  SIMULATED_ENTITLEMENTS=(
+    -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __entitlements -Xlinker "$GEN/$NAME.xcent"
+    -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __ents_der -Xlinker "$GEN/$NAME.xcent.der")
+else
+  write_entitlements "$OUT/$NAME.entitlements" "$PUSH"
+fi
 
 # --- Keys merged into the host app's Info.plist ---------------------------------------------------
 {
@@ -201,8 +235,8 @@ PLIST
 # intent in the app's process — without it the tap runs in the extension, where there is no .NET.
 printf '["AppIntent","AppEntity","AppEnum","AppShortcutsProvider","AppIntentsPackage","EntityQuery","DynamicOptionsProvider"]' > "$GEN/protocols.json"
 
-app_intents_metadata() {  # <module> <output dir> <const values> <sources...>
-  local module="$1" output="$2" constvalues="$3"; shift 3
+app_intents_metadata() {  # <module> <output dir> <const values> <target> <min os> <sources...>
+  local module="$1" output="$2" constvalues="$3" target="$4" minos="$5"; shift 5
   printf '%s\n' "$@" > "$GEN/$module.sources.txt"
   printf '%s\n' "$constvalues" > "$GEN/$module.constvalues.txt"
   xcrun appintentsmetadataprocessor \
@@ -212,8 +246,8 @@ app_intents_metadata() {  # <module> <output dir> <const values> <sources...>
     --sdk-root "$(xcrun --sdk "$SDK" --show-sdk-path)" \
     --xcode-version "$XCODE_BUILD" \
     --platform-family iOS \
-    --deployment-target "$MIN_OS" \
-    --target-triple "$TARGET" \
+    --deployment-target "$minos" \
+    --target-triple "$target" \
     --source-file-list "$GEN/$module.sources.txt" \
     --swift-const-vals-list "$GEN/$module.constvalues.txt" \
     --force --quiet-warnings
@@ -230,7 +264,7 @@ xcrun -sdk "$SDK" swiftc \
   -Xlinker -install_name -Xlinker @rpath/SpineWidgetBridge.framework/SpineWidgetBridge \
   -o "$FRAMEWORK/SpineWidgetBridge" \
   "${BRIDGE_SOURCES[@]}"
-app_intents_metadata SpineWidgetBridge "$APP" "$GEN/SpineWidgetBridge.swiftconstvalues" "${BRIDGE_SOURCES[@]}"
+app_intents_metadata SpineWidgetBridge "$APP" "$GEN/SpineWidgetBridge.swiftconstvalues" "$TARGET" "$MIN_OS" "${BRIDGE_SOURCES[@]}"
 {
   write_plist_header
   cat <<PLIST
@@ -249,19 +283,20 @@ PLIST
 } > "$FRAMEWORK/Info.plist"
 
 # --- Widget extension --------------------------------------------------------------------------------
-EXT_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineWidgetRenderer.swift" "$BUNDLE")
+EXT_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineWidgetRenderer.swift" "$SOURCES/SpineWidgetPush.swift" "$BUNDLE")
 xcrun -sdk "$SDK" swiftc \
-  -target "$TARGET" "${OPT[@]}" -parse-as-library -application-extension \
+  -target "$EXT_TARGET" "${OPT[@]}" -parse-as-library -application-extension \
   -module-name "$NAME" \
   -framework WidgetKit -framework SwiftUI -framework ActivityKit -framework AppIntents \
   -wmo -emit-const-values-path "$GEN/$NAME.swiftconstvalues" \
   -Xfrontend -const-gather-protocols-file -Xfrontend "$GEN/protocols.json" \
   -Xlinker -e -Xlinker _NSExtensionMain \
   -Xlinker -rpath -Xlinker @executable_path/../../Frameworks \
+  ${SIMULATED_ENTITLEMENTS[@]+"${SIMULATED_ENTITLEMENTS[@]}"} \
   -o "$APPEX/$NAME" \
   "${EXT_SOURCES[@]}"
 
-app_intents_metadata "$NAME" "$APPEX" "$GEN/$NAME.swiftconstvalues" "${EXT_SOURCES[@]}"
+app_intents_metadata "$NAME" "$APPEX" "$GEN/$NAME.swiftconstvalues" "$EXT_TARGET" "$EXT_MIN_OS" "${EXT_SOURCES[@]}"
 
 # swiftc -g drops a dSYM beside each product; keep it out of the bundles the SDK signs and ships.
 rm -rf "$OUT/dSYM"; mkdir -p "$OUT/dSYM"
@@ -336,4 +371,4 @@ codesign --force --sign - --timestamp=none "$FRAMEWORK"
 codesign --force --sign - --timestamp=none --entitlements "$OUT/$NAME.entitlements" "$APPEX"
 
 date +%s > "$OUT/build.stamp"
-echo "spine-widgets-build.sh: built $APPEX, $FRAMEWORK and $APP/Metadata.appintents for $TARGET"
+echo "spine-widgets-build.sh: built $APPEX ($EXT_TARGET$( [[ "$PUSH" == "true" ]] && echo ", widget push" )), $FRAMEWORK and $APP/Metadata.appintents for $TARGET"

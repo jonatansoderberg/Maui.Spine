@@ -57,6 +57,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     /// <summary>The Darwin notification the bridge posts when an activity was dismissed by the user or ended.</summary>
     public string? ActivityNotificationName => _appGroup is null ? null : _appGroup + ".spine-widgets.activity";
 
+    /// <summary>The Darwin notification the extension's push handler and the bridge post when the widget push token changed.</summary>
+    public string? PushTokenNotificationName => _appGroup is null ? null : _appGroup + ".spine-widgets.push-token";
+
     /// <summary>Starts the bridge's watch on every activity's state; what makes <see cref="ActivityNotificationName"/> fire.</summary>
     public void ObserveActivities()
     {
@@ -196,6 +199,13 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     }
 
     public string? PushToStartToken => IsSupported ? Text(SendObject(_bridge, Selector.GetHandle("pushToStartToken"))) : null;
+
+    public string? WidgetPushToken => IsSupported ? Text(SendObject(_bridge, Selector.GetHandle("widgetPushToken"))) : null;
+
+    public void RefreshWidgetPushToken()
+    {
+        if (IsSupported) Send(_bridge, Selector.GetHandle("refreshWidgetPushToken"));
+    }
 
     public string? PushToken(string id)
     {

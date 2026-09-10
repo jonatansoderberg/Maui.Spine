@@ -13,6 +13,13 @@ internal sealed class WidgetService(
 {
     public bool IsSupported => _platform.IsSupported;
 
+    public string? PushToken => _platform.WidgetPushToken;
+
+    public event Action? PushTokenChanged;
+
+    /// <summary>Called by the platform layer when the extension or the bridge says the token changed.</summary>
+    internal void OnPushTokenChanged() => PushTokenChanged?.Invoke();
+
     public IReadOnlyList<string> Kinds => _registry.Kinds;
 
     public Task RefreshAsync<TProvider>(CancellationToken cancellationToken = default) where TProvider : IWidgetProvider

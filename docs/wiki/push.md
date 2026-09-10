@@ -440,6 +440,5 @@ and the data keys go under "Additional options". An emulator with a Google Play 
 | | Where it went |
 |---|---|
 | Windows (WNS via Entra) | v2 |
-| iOS 26 widget push | v2; until then a silent push rebuilds the widgets |
 | Live Activity broadcast channels | v2 |
 | Devices without Google Play (HMS) | v3 |

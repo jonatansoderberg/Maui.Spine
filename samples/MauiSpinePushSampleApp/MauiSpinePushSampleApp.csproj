@@ -24,6 +24,11 @@
 		     simulator builds only: a device build needs an App ID and a profile for
 		     <ApplicationId>.SpineNotificationService, which this sample does not ship. -->
 		<SpinePushImages Condition="$(RuntimeIdentifier.Contains('simulator'))">true</SpinePushImages>
+
+		<!-- iOS 26's widget push, for the same reason and on the same terms: simulator builds only, since a
+		     device build needs Push Notifications on the widget extension's App ID. It also makes the widget
+		     extension iOS 26+, which the simulator is. -->
+		<SpineWidgetsPush Condition="$(RuntimeIdentifier.Contains('simulator'))">true</SpineWidgetsPush>
 	</PropertyGroup>
 
 	<ItemGroup>
