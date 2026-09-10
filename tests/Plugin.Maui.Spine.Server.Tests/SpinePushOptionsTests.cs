@@ -123,4 +123,21 @@ public class SpinePushOptionsTests
 
         Assert.Same(mine, services.GetRequiredService<IPushInstallationStore>());
     }
+
+    [Fact]
+    public void Windows_needs_its_tenant_client_and_secret()
+    {
+        var refused = Assert.Throws<InvalidOperationException>(() =>
+            Build(o => o.Windows(w => { w.TenantId = "t"; w.ClientId = "c"; }).UseInMemoryStore()));
+
+        Assert.Contains("Windows.ClientSecret", refused.Message);
+    }
+
+    [Fact]
+    public void A_configured_windows_adds_the_wns_transport()
+    {
+        using var services = Build(o => o.Windows(w => { w.TenantId = "t"; w.ClientId = "c"; w.ClientSecret = "s"; }).UseInMemoryStore());
+
+        Assert.Contains(services.GetServices<IPushTransport>(), t => t is WnsTransport);
+    }
 }

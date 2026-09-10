@@ -67,6 +67,32 @@ public sealed class AndroidPushOptions
     }
 }
 
+/// <summary>Credentials for the WNS transport: an Entra ID app registration (§9.3).</summary>
+public sealed class WindowsPushOptions
+{
+    /// <summary>The registration's Directory (tenant) ID.</summary>
+    public string? TenantId { get; set; }
+
+    /// <summary>The registration's Application (client) ID — the Azure AppId.</summary>
+    public string? ClientId { get; set; }
+
+    /// <summary>A client secret of the registration.</summary>
+    public string? ClientSecret { get; set; }
+
+    internal void Validate()
+    {
+        Require(TenantId, nameof(TenantId));
+        Require(ClientId, nameof(ClientId));
+        Require(ClientSecret, nameof(ClientSecret));
+
+        static void Require(string? value, string name)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new InvalidOperationException($"AddSpinePush: Windows.{name} is required when Windows(...) is configured.");
+        }
+    }
+}
+
 /// <summary>How Spine.Push behaves on this server.</summary>
 public sealed class SpinePushOptions
 {
@@ -75,6 +101,9 @@ public sealed class SpinePushOptions
 
     /// <summary>The FCM settings, or <see langword="null"/> when Android is not configured.</summary>
     public AndroidPushOptions? AndroidOptions { get; private set; }
+
+    /// <summary>The WNS settings, or <see langword="null"/> when Windows is not configured.</summary>
+    public WindowsPushOptions? WindowsOptions { get; private set; }
 
     /// <summary>
     /// Narrows the tags a client is allowed to register. Runs on every registration; whatever it
@@ -119,6 +148,17 @@ public sealed class SpinePushOptions
         return this;
     }
 
+    /// <summary>Configures the WNS transport.</summary>
+    /// <param name="configure">Sets the Entra tenant, client id and secret.</param>
+    /// <returns>The same options, for chaining.</returns>
+    public SpinePushOptions Windows(Action<WindowsPushOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        WindowsOptions ??= new WindowsPushOptions();
+        configure(WindowsOptions);
+        return this;
+    }
+
     /// <summary>Keeps the register in the process. For tests and sample servers.</summary>
     /// <returns>The same options, for chaining.</returns>
     public SpinePushOptions UseInMemoryStore()
@@ -155,6 +195,7 @@ public sealed class SpinePushOptions
         // PushResult lists no deliveries.
         AppleOptions?.Validate();
         AndroidOptions?.Validate();
+        WindowsOptions?.Validate();
 
         if (StoreFactory is null)
             throw new InvalidOperationException("AddSpinePush: pick a register with UseInMemoryStore() or UseStore(...).");

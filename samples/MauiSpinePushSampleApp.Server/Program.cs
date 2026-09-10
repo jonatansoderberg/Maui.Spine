@@ -21,6 +21,18 @@ builder.Services.AddSpinePush(o =>
     if (builder.Configuration["Push:Fcm:ServiceAccount"] is { Length: > 0 } serviceAccount)
         o.Android(f => f.ServiceAccountJson = serviceAccount);
 
+    // Windows: an Entra app registration (docs/proposals/spine-push.md §9.3). Nothing registers as
+    // Windows until the client exists (#233); configured, the server is ready for it.
+    if (builder.Configuration["Push:Wns:ClientSecret"] is { Length: > 0 } secret)
+    {
+        o.Windows(w =>
+        {
+            w.TenantId = builder.Configuration["Push:Wns:TenantId"];
+            w.ClientId = builder.Configuration["Push:Wns:ClientId"];
+            w.ClientSecret = secret;
+        });
+    }
+
     o.UseInMemoryStore();
 
     // A sample server on a laptop has no users to tell apart. A real one authenticates here.

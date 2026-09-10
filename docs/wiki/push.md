@@ -439,5 +439,5 @@ and the data keys go under "Additional options". An emulator with a Google Play 
 
 | | Where it went |
 |---|---|
-| Windows (WNS via Entra) | v2 |
+| Windows | #233 for the app; the server sends through WNS already |
 | Devices without Google Play (HMS) | v3 |

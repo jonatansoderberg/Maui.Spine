@@ -34,6 +34,13 @@ services.AddSpinePush(o =>
 
     o.Android(f => f.ServiceAccountJson = cfg["Push:Fcm:ServiceAccount"]);
 
+    o.Windows(w =>
+    {
+        w.TenantId     = cfg["Push:Wns:TenantId"];     // the Entra app registration
+        w.ClientId     = cfg["Push:Wns:ClientId"];
+        w.ClientSecret = cfg["Push:Wns:ClientSecret"];
+    });
+
     o.UseInMemoryStore();
 
     o.AllowTags = (installation, tags) =>
@@ -50,6 +57,7 @@ name of what is missing, rather than failing on the first send.
 |---|---|
 | `Apple(...)` | APNs credentials. `Environment` defaults to `PerInstallation`, which trusts what each device reported |
 | `Android(...)` | The Firebase service account JSON |
+| `Windows(...)` | The Entra app registration WNS authenticates: tenant, client id, secret. See below |
 | `UseInMemoryStore()` | Keeps the register in the process. For tests and sample servers |
 | `UseStore(...)` | A register of your own — see [The register](#the-register) |
 | `AllowTags` | Narrows the tags a client may register. Runs on every registration |
@@ -193,6 +201,26 @@ has no token of its own, so nothing personal can be sent to it.
 A widget token APNs rejects does not remove the installation. It says nothing about the device token,
 and the app registers a new widget token at its next launch.
 
+### Windows
+
+WNS is reached with an access token from the app's Entra ID registration — multitenant, as the
+Windows App SDK requires; the steps are in `docs/proposals/spine-push.md` §9.3. The transport keeps
+the token until five minutes before it runs out, and fetches a new one when WNS answers 401.
+
+- **Notifications are toasts WNS draws** (`wns/toast`), so they show while the app is not running —
+  which for an unpackaged app is the only way. Title, body and image are in the XML; the Spine keys
+  travel in the toast's `launch` argument, in the Windows App SDK's `key=value;` form, and reach the
+  handler when the toast is opened. Buttons are not drawn from a category; add them with
+  `PushNotification.Windows`, which gets the toast element.
+- **Silent pushes are raw** (`wns/raw`): the data as JSON, delivered to a running app.
+- **Live Activities, widget refreshes and broadcasts** skip Windows installations.
+- **The channel URI is the handle, and only `https://*.notify.windows.com` is sent to.** The URI
+  comes from the client's registration, and the bearer token goes where it points; any other address
+  is reported `Invalid` without a request.
+- **404 and 410 remove the installation** — channels expire after 30 days, and the app registers a
+  new one at launch. 406 and 503 are `Throttled`. WNS refuses more than 5000 bytes, and
+  `PushPayloads` throws with the size before sending.
+
 ### Results
 
 `PushResult` lists one `PushDelivery` per installation: `Sent`, `Invalid`, `Throttled` or `Failed`
@@ -255,6 +283,6 @@ wrong clock must not look freshly registered, since that is what `PruneAsync` go
 
 | | Where it went |
 |---|---|
-| Windows (WNS via Entra) | v2 |
+| The Windows app side | #233; the server sends already, see [Windows](#windows) |
 | Azure Table Storage register | With Orientera's backend |
 | An Azure Notification Hubs transport | v3, if anyone wants one |
