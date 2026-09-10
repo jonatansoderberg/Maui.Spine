@@ -65,6 +65,9 @@ APP="$OUT/app"
 GEN="$OUT/gen"
 rm -rf "$APPEX" "$FRAMEWORK" "$APP" "$GEN"
 mkdir -p "$APPEX" "$FRAMEWORK" "$APP" "$GEN"
+# Every path below is absolute; running from gen/ keeps whatever a tool writes beside itself — swiftc left
+# SpineWidgets-1.swiftmodule and its kin in the app project's directory in Release — in obj/.
+cd "$GEN"
 
 json_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
 plist_escape() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }

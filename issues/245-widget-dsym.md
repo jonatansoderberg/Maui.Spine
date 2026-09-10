@@ -42,3 +42,12 @@ Inga.
 - **Spine tar hand om både dSYM och strip, i stället för att luta sig mot SDK:ns efterbehandling.** Enligt `Xamarin.Shared.targets` borde en native reference med en `<ramverk>.dSYM` bredvid sig få den använd och strippas i Release. Ett Release-arkiv visade annat: bryggan var ostrippad (en `OSO`-post kvar), och ingen av Spines dSYM kom med i arkivet eller i `bin/`. Att reda ut varför skulle bero på SDK:ns interna logik, och ändras den går symbolerna tyst förlorade igen — det här felet självt.
 - **Arkivet nås genom `_CoreArchive`**, SDK:ns interna target som sätter `$(ArchiveDir)`; det finns ingen offentlig punkt efter att arkivet skapats. Varje kopierad dSYM skrivs ut i byggloggen, så att en krok som slutar fungera syns.
 - **NSE:t verifieras i ett Release-bygge för simulatorn**: det finns ingen enhetsprofil för dess App ID, så ett enhetsarkiv med det stannar vid signeringen. Arkivvägen är densamma som widgetextensionets.
+
+## Rättelse: byggrester i commiten
+
+Commiten för #245 (PR #248) fick med åtta filer som `swiftc` lämnat i push-samplets projektkatalog under Release-bygget — `SpineWidgetBridge-1` och `SpineWidgets-1` som `.swiftmodule`, `.swiftdoc`, `.abi.json` och `.swiftsourceinfo`. Jag lade till allt med `git add -A` utan att se efter vad det var.
+
+- De åtta filerna tas bort.
+- **Orsak:** widgetskriptets verktyg skriver modulfiler bredvid sig själva, alltså i arbetskatalogen, och Exec kör skriptet i appprojektets katalog. Det händer i Release — ett Release-bygge för simulatorn återskapade alla åtta — men inte i Debug och inte för push-extensionet. Ett försök med `swiftc -O -g` och skriptets flaggor på en ensam fil återskapade det inte, så vilket verktyg det är har jag inte ringat in; `appintentsmetadataprocessor`, som bara widgetskriptet kör, är närmast till hands.
+- **Åtgärd:** skriptet byter till `gen/` direkt efter att katalogerna skapats. Alla sökvägar i det är absoluta, så ingenting annat ändras, och det som ett verktyg lämnar bredvid sig hamnar i `obj/`. Det gäller vilket verktyg det än är.
+- **Verifiering:** ett Release-bygge för simulatorn före ändringen återskapade alla åtta filer i samplets katalog (19:48). Efter ändringen skrev bygget dem i `obj/spinewidgets/Release/iossimulator-arm64/gen/` (19:51, samma minut som skriptets `build.stamp`) och ingenting i projektkatalogen; worktreen hade inga ospårade filer kvar. dSYM-filerna från #245 ligger fortfarande i `bin/`.
