@@ -3,7 +3,7 @@ namespace Orientera.Services.Notifications;
 /// <summary>
 /// The push registration, as the notification service needs it. Spine.Push's own
 /// <c>IPushService</c> is a MAUI type; this seam is what lets the planning and the tags be
-/// compiled and tested on plain .NET, the same reason <see cref="INotificationScheduler"/> exists.
+/// compiled and tested on plain .NET, the same reason <see cref="INotificationDelivery"/> exists.
 /// </summary>
 public interface IPushRegistration
 {
@@ -14,10 +14,12 @@ public interface IPushRegistration
     bool IsRegistered { get; }
 
     /// <summary>
-    /// Asks for the permission push needs and registers with the system, so a device token can
-    /// arrive. The same OS prompt as the local scheduler's, which is why the sheet may call both.
+    /// Asks for permission to notify and registers with the system, so a device token can arrive.
+    /// The one prompt there is: the same permission covers local notifications, so nothing else in
+    /// the app asks.
     /// </summary>
-    Task RequestPermissionAsync(CancellationToken cancellationToken = default);
+    /// <returns>Whether the app may notify afterwards.</returns>
+    Task<bool> RequestPermissionAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Replaces the tags this installation is registered with.</summary>
     Task SetTagsAsync(IReadOnlyList<string> tags, CancellationToken cancellationToken = default);
@@ -28,7 +30,7 @@ public sealed class NoPushRegistration : IPushRegistration
 {
     public bool IsRegistered => false;
 
-    public Task RequestPermissionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task<bool> RequestPermissionAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
 
     public Task SetTagsAsync(IReadOnlyList<string> tags, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;

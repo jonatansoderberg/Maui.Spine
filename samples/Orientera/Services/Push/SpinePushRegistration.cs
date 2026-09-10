@@ -12,8 +12,8 @@ public sealed class SpinePushRegistration(IPushService _push) : IPushRegistratio
 {
     public bool IsRegistered => _push.IsRegistered;
 
-    public Task RequestPermissionAsync(CancellationToken cancellationToken = default) =>
-        _push.RequestPermissionAsync(cancellationToken);
+    public async Task<bool> RequestPermissionAsync(CancellationToken cancellationToken = default) =>
+        await _push.RequestPermissionAsync(cancellationToken) is PushStatus.Authorized or PushStatus.Provisional;
 
     public Task SetTagsAsync(IReadOnlyList<string> tags, CancellationToken cancellationToken = default) =>
         _push.SetTagsAsync(tags, cancellationToken);

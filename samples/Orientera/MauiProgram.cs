@@ -127,14 +127,17 @@ public static class MauiProgram
     /// Push, när det finns en backend att registrera sig hos. Utan adress kör appen på fake-datat,
     /// och då finns det ingen som kan skicka.
     /// </summary>
+    /// <summary>
+    /// Spine.Push runs whether or not there is a backend: without one it is the local half that is
+    /// wanted — the notifications the phone shows on its own need no server, and demo mode is
+    /// exactly that case. No backend means no registration and no token hunting.
+    /// </summary>
     private static void RegisterPush(MauiAppBuilder builder, string? backendAddress)
     {
-        if (string.IsNullOrWhiteSpace(backendAddress))
-            return;
-
         builder.UseSpinePush(push =>
         {
-            push.Backend = new Uri(new Uri(backendAddress), "push/");
+            if (!string.IsNullOrWhiteSpace(backendAddress))
+                push.Backend = new Uri(new Uri(backendAddress), "push/");
 
             // Notiser är opt-in per typ i NotificationSheet. Att fråga innan användaren bett om
             // något är precis så en app blir nekad för gott.
@@ -145,6 +148,7 @@ public static class MauiProgram
         });
 
         builder.Services.AddSingleton<IPushRegistration, SpinePushRegistration>();
+        builder.Services.AddSingleton<INotificationDelivery, SpineNotificationDelivery>();
     }
 
     private static void RegisterDomainServices(IServiceCollection services, string? backendAddress)
@@ -283,19 +287,9 @@ public static class MauiProgram
         services.AddSingleton(_ => new NotificationPreferencesStore(
             Path.Combine(FileSystem.AppDataDirectory, "notifications.json")));
 
-#if IOS || MACCATALYST
-        services.AddSingleton<INotificationScheduler, AppleNotificationScheduler>();
-#elif ANDROID
-        services.AddSingleton<INotificationScheduler, AndroidNotificationScheduler>();
-#else
-        services.AddSingleton<INotificationScheduler, UnsupportedNotificationScheduler>();
-#endif
-
+        // Schemaläggningen är Spines: INotificationDelivery och IPushRegistration registreras i
+        // RegisterPush, som kör oavsett om det finns en backend.
         services.AddSingleton<OnScreen>();
-
-        // TryAdd: RegisterPush kör före den här, och där det finns en backend är det dess
-        // registrering som gäller.
-        services.TryAddSingleton<IPushRegistration, NoPushRegistration>();
         services.AddSingleton<NotificationService>();
 
     }

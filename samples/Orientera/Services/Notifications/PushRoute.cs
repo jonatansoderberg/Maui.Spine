@@ -50,6 +50,19 @@ public readonly record struct PushRoute(PushRouteKind Kind, CompetitionId Compet
         return kind is { } known ? new PushRoute(known, new CompetitionId(parts[1])) : null;
     }
 
+    /// <summary>
+    /// The route for one planned notification, so a locally scheduled one opens the same page a
+    /// pushed one does.
+    /// </summary>
+    /// <param name="kind">What the notification is about.</param>
+    /// <param name="competition">Which competition.</param>
+    public static PushRoute For(NotificationKind kind, CompetitionId competition) => new(kind switch
+    {
+        NotificationKind.LiveStarted => PushRouteKind.Live,
+        NotificationKind.ResultsPublished => PushRouteKind.Results,
+        _ => PushRouteKind.Competition,
+    }, competition);
+
     /// <summary>The route as the backend writes it.</summary>
     public override string ToString() => $"{Kind.ToString().ToLowerInvariant()}/{Competition.Value}";
 }

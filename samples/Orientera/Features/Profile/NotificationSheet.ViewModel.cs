@@ -49,7 +49,7 @@ public sealed partial class NotificationRow : ObservableObject
 /// </summary>
 public partial class NotificationSheetViewModel(
     NotificationPreferencesStore _preferences,
-    INotificationScheduler _scheduler,
+    INotificationDelivery _delivery,
     IPushRegistration _push,
     NotificationService _notifications) : OrienteraViewModel
 {
@@ -83,7 +83,7 @@ public partial class NotificationSheetViewModel(
             Rows.Add(row);
         }
 
-        _restingStatus = _scheduler.IsSupported
+        _restingStatus = _delivery.IsSupported
             ? "Notiserna ligger i telefonen och behöver ingen inloggning."
             : "Den här plattformen kan inte schemalägga notiser.";
 
@@ -98,7 +98,11 @@ public partial class NotificationSheetViewModel(
 
     private async Task ApplyAsync(NotificationRow row, bool wanted)
     {
-        if (wanted && !await _scheduler.RequestPermissionAsync())
+        // One prompt, not two: the same OS permission covers both halves, and asking twice was
+        // asking the same question twice. The call also registers with the system, which is what
+        // gets the device its push token — without it the backend cannot reach here and everything
+        // is planned locally.
+        if (wanted && !await _push.RequestPermissionAsync())
         {
             // Denied at the OS level. The switch goes back rather than sitting on, claiming a
             // state the app cannot hold.
@@ -109,11 +113,6 @@ public partial class NotificationSheetViewModel(
 
         _preferences.Save(_preferences.Current.With(row.Kind, wanted));
         StatusText = _restingStatus;
-
-        // Samma OS-tillstånd, men push behöver också en registrering hos systemet: det är den som
-        // ger enheten sin token. Utan den kan backenden inte nå hit, och allt planeras lokalt.
-        if (wanted)
-            await _push.RequestPermissionAsync();
 
         await _notifications.RefreshAsync();
     }
