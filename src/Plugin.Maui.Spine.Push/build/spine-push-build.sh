@@ -32,7 +32,9 @@ case "$SDK" in
   iphoneos) TARGET="$ARCH-apple-ios$MIN_OS"; PLATFORM="iPhoneOS";;
   *) echo "spine-push-build.sh: unsupported sdk $SDK" >&2; exit 2;;
 esac
-case "$CONFIG" in Release) OPT=(-O);; *) OPT=(-Onone -g);; esac
+# -g in Release too: it changes no optimization, only that DWARF is written and swiftc leaves a dSYM, which
+# crash reports from the extension are symbolicated with. The binary is stripped below.
+case "$CONFIG" in Release) OPT=(-O -g);; *) OPT=(-Onone -g);; esac
 
 APPEX="$OUT/$NAME.appex"
 rm -rf "$APPEX"
@@ -109,9 +111,14 @@ xcrun -sdk "$SDK" swiftc \
   -o "$APPEX/$NAME" \
   "$SOURCES/SpineNotificationService.swift"
 
-# swiftc -g drops a dSYM beside the product; keep it out of the bundle the SDK signs and ships.
-rm -rf "$OUT/dSYM"; mkdir -p "$OUT/dSYM"
-for d in "$APPEX"/*.dSYM; do [[ -e "$d" ]] && mv "$d" "$OUT/dSYM/"; done
+# swiftc -g drops a dSYM inside the product. It goes beside the bundle, named after it, where an
+# extension's dSYM belongs for the archive — and never stays in the bundle the SDK signs and ships.
+rm -rf "$OUT/dSYM" "$OUT/$NAME.appex.dSYM"
+if [[ -d "$APPEX/$NAME.dSYM" ]]; then mv "$APPEX/$NAME.dSYM" "$OUT/$NAME.appex.dSYM"; fi
+
+# The SDK strips the app in Release but not an extension it did not build, so this one is stripped here,
+# before it is signed. Its debug info is in the dSYM.
+if [[ "$CONFIG" == "Release" ]]; then xcrun strip -S -x "$APPEX/$NAME"; fi
 
 # --- The extension's own provisioning profile ---------------------------------------------------
 # As for the widget extension: the .NET iOS SDK embeds a profile into the app bundle only, and an

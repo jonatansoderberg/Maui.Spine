@@ -300,4 +300,31 @@ Resources = resources.ToArray();
 			<AndroidResource Include="@(_SpineWidgetsAndroidResource)" />
 		</ItemGroup>
 	</Target>
+
+	<!--
+		The extension's and the bridge's debug symbols go beside the app's: into the output directory after the
+		build, and into the archive's dSYMs folder when one is made. The SDK does neither for an extension from
+		AdditionalAppExtensions nor for this native reference (seen with the 26.2 SDK), and without them a crash
+		in a widget cannot be symbolicated. The archive hook is the SDK's _CoreArchive, the target that sets
+		$(ArchiveDir); each dSYM copied there is named in the build output, so a hook that stops firing shows.
+	-->
+	<Target Name="_SpineWidgetsCopySymbols" AfterTargets="Build" DependsOnTargets="_SpineWidgetsPrepare"
+			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '@(SpineWidget)' != '' And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))">
+		<ItemGroup Condition="Exists('$(_SpineWidgetsOutDir)')">
+			<_SpineWidgetsSymbols Include="$([System.IO.Directory]::GetDirectories('$(_SpineWidgetsOutDir)', '*.dSYM'))" />
+		</ItemGroup>
+		<Exec Condition="'@(_SpineWidgetsSymbols)' != ''"
+			  Command="/usr/bin/ditto &quot;%(_SpineWidgetsSymbols.Identity)&quot; &quot;$(DeviceSpecificOutputPath)%(_SpineWidgetsSymbols.Filename)%(_SpineWidgetsSymbols.Extension)&quot;" />
+	</Target>
+
+	<Target Name="_SpineWidgetsArchiveSymbols" AfterTargets="_CoreArchive" DependsOnTargets="_SpineWidgetsPrepare"
+			Condition="'$(SpineWidgetsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '@(SpineWidget)' != '' And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX')) And '$(ArchiveOnBuild)' == 'true'">
+		<ItemGroup Condition="Exists('$(_SpineWidgetsOutDir)') And '$(ArchiveDir)' != ''">
+			<_SpineWidgetsArchivedSymbols Include="$([System.IO.Directory]::GetDirectories('$(_SpineWidgetsOutDir)', '*.dSYM'))" />
+		</ItemGroup>
+		<Exec Condition="'@(_SpineWidgetsArchivedSymbols)' != ''"
+			  Command="/usr/bin/ditto &quot;%(_SpineWidgetsArchivedSymbols.Identity)&quot; &quot;$(ArchiveDir)/dSYMs/%(_SpineWidgetsArchivedSymbols.Filename)%(_SpineWidgetsArchivedSymbols.Extension)&quot;" />
+		<Message Importance="high" Condition="'@(_SpineWidgetsArchivedSymbols)' != ''"
+				 Text="Spine widgets: archived %(_SpineWidgetsArchivedSymbols.Filename)%(_SpineWidgetsArchivedSymbols.Extension)" />
+	</Target>
 </Project>
