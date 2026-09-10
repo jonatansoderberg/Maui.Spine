@@ -362,4 +362,22 @@ public class PushSenderTests
         await Assert.ThrowsAsync<ArgumentException>(() =>
             sender.BroadcastLiveActivityAsync("c", "k", new LiveActivityLayout(), LiveActivityEvent.Start));
     }
+
+    [Fact]
+    public async Task Windows_gets_a_toast_and_a_raw_message_but_no_live_activity()
+    {
+        var store = new InMemoryPushInstallationStore(new FakeTimeProvider(Now));
+        var windows = new RecordingTransport(PushPlatform.Windows);
+        var sender = new PushSender(store, [windows], Options(), new FakeTimeProvider(Now));
+        await store.UpsertAsync(Installation("pc", PushPlatform.Windows));
+
+        await sender.SendAsync(PushTarget.Installation("pc"), new PushNotification { Title = "T", Body = "B" });
+        Assert.Equal("wns/toast", windows.Envelope!.WnsType);
+
+        await sender.SendSilentAsync(PushTarget.Installation("pc"), new Dictionary<string, string> { ["k"] = "v" });
+        Assert.Equal("wns/raw", windows.Envelope!.WnsType);
+
+        var activity = await sender.UpdateLiveActivityAsync(PushTarget.Installation("pc"), "k", new LiveActivityLayout());
+        Assert.Empty(activity.Deliveries);
+    }
 }

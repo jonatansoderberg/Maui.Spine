@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 namespace Plugin.Maui.Spine.Server;
 
 /// <summary>How hard the platform should try to deliver right away.</summary>
@@ -129,4 +130,10 @@ public sealed record PushNotification
 
     /// <summary>Adjusts the FCM message after Spine has built it.</summary>
     public Action<FcmMessage>? Android { get; init; }
+
+    /// <summary>
+    /// Adjusts the WNS toast after Spine built it — buttons, an attribution line, a scenario — for what
+    /// the other properties do not cover. The element is the <c>toast</c> root.
+    /// </summary>
+    public Action<XElement>? Windows { get; init; }
 }

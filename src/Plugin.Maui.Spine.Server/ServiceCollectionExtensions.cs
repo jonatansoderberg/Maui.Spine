@@ -36,6 +36,9 @@ public static class ServiceCollectionExtensions
         if (options.AndroidOptions is { } android)
             services.AddSingleton<IPushTransport>(_ => new FcmTransport(android));
 
+        if (options.WindowsOptions is { } windows)
+            services.AddSingleton<IPushTransport>(sp => new WnsTransport(windows, sp.GetService<TimeProvider>()));
+
         services.AddSingleton<IPushSender>(sp => new PushSender(
             sp.GetRequiredService<IPushInstallationStore>(),
             sp.GetServices<IPushTransport>(),

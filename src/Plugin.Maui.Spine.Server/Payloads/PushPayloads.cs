@@ -1,4 +1,5 @@
 using System.Text;
+using System.Xml.Linq;
 using Plugin.Maui.Spine.Common;
 
 namespace Plugin.Maui.Spine.Server;
@@ -290,6 +291,100 @@ public static class PushPayloads
         }
 
         foreach (var (key, value) in notification.Data) data[key] = value;
+    }
+
+    /// <summary>The most a WNS notification may carry, in bytes. WNS answers 413 above it.</summary>
+    public const int WnsPayloadLimit = 5000;
+
+    /// <summary>Builds the WNS toast for a user-visible notification.</summary>
+    /// <param name="notification">The message to send.</param>
+    /// <param name="now">The current time, which <see cref="PushNotification.TimeToLive"/> counts from.</param>
+    /// <returns>The envelope the WNS transport sends.</returns>
+    /// <remarks>
+    /// WNS draws the toast itself (§7.3), so it shows while the app is not running — the only way an
+    /// unpackaged app, which WNS cannot start, is told anything in the background. The Spine keys travel
+    /// in the toast's <c>launch</c> argument in the Windows App SDK's <c>key=value;</c> form, which the
+    /// app reads back from <c>AppNotificationActivatedEventArgs.Arguments</c> when the toast is opened.
+    /// The buttons of <see cref="PushNotification.Category"/> are declared in the app and not drawn
+    /// here; <see cref="PushNotification.Windows"/> can add actions to the XML.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The toast does not fit in <see cref="WnsPayloadLimit"/>.</exception>
+    public static PushEnvelope Wns(PushNotification notification, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(notification);
+
+        var data = new Dictionary<string, string>(StringComparer.Ordinal);
+        Fill(data, notification, PushKeys.Kinds.Alert);
+
+        var binding = new XElement("binding", new XAttribute("template", "ToastGeneric"),
+            new XElement("text", notification.Title),
+            new XElement("text", notification.Body));
+
+        if (notification.Image is { } image)
+            binding.Add(new XElement("image", new XAttribute("placement", "hero"), new XAttribute("src", image.ToString())));
+
+        var toast = new XElement("toast", new XAttribute("launch", WnsArguments(data)), new XElement("visual", binding));
+        notification.Windows?.Invoke(toast);
+
+        return new PushEnvelope
+        {
+            Json = GuardWns(toast.ToString(SaveOptions.DisableFormatting)),
+            WnsType = "wns/toast",
+            Priority = notification.Priority == PushPriority.High ? 10 : 5,
+            Expiration = notification.TimeToLive is { } ttl ? now + ttl : null,
+        };
+    }
+
+    /// <summary>Builds the WNS raw notification for a silent push, which reaches the app without showing anything.</summary>
+    /// <param name="data">What the handler should receive.</param>
+    /// <returns>The envelope the WNS transport sends.</returns>
+    /// <remarks>
+    /// The body is the data as one JSON object with the Spine keys, as on the other platforms. An
+    /// unpackaged app gets raw notifications only while it runs (§7.3).
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The body does not fit in <see cref="WnsPayloadLimit"/>.</exception>
+    public static PushEnvelope WnsSilent(IReadOnlyDictionary<string, string> data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+
+        var body = new Dictionary<string, string>(StringComparer.Ordinal) { [PushKeys.Kind] = PushKeys.Kinds.Silent };
+        foreach (var (key, value) in data) body[key] = value;
+
+        var buffer = new System.IO.MemoryStream();
+        using (var w = new System.Text.Json.Utf8JsonWriter(buffer))
+        {
+            w.WriteStartObject();
+            foreach (var (key, value) in body) w.WriteString(key, value);
+            w.WriteEndObject();
+        }
+
+        return new PushEnvelope
+        {
+            Json = GuardWns(System.Text.Encoding.UTF8.GetString(buffer.ToArray())),
+            WnsType = "wns/raw",
+            Priority = 5,
+        };
+    }
+
+    /// <summary>
+    /// Writes <paramref name="data"/> as a toast's launch argument: <c>key=value;key=value</c>, with
+    /// <c>%</c>, <c>;</c> and <c>=</c> percent-encoded as <c>AppNotificationBuilder.AddArgument</c> does,
+    /// so the app can split the string without a value breaking it.
+    /// </summary>
+    internal static string WnsArguments(IReadOnlyDictionary<string, string> data)
+    {
+        return string.Join(';', data.Select(pair => $"{Escape(pair.Key)}={Escape(pair.Value)}"));
+
+        static string Escape(string value) => value.Replace("%", "%25").Replace(";", "%3B").Replace("=", "%3D");
+    }
+
+    private static string GuardWns(string body)
+    {
+        var size = System.Text.Encoding.UTF8.GetByteCount(body);
+        return size <= WnsPayloadLimit
+            ? body
+            : throw new InvalidOperationException(
+                $"The WNS notification is {size} bytes, over the {WnsPayloadLimit}-byte limit. Shorten the text or move data out of it.");
     }
 
     private static int ApnsPriority(PushPriority priority) => priority == PushPriority.High ? 10 : 5;

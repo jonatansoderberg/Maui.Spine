@@ -43,7 +43,7 @@ public interface IPushBroadcastTransport : IPushTransport
 /// </summary>
 public sealed record PushEnvelope
 {
-    /// <summary>The serialized body — the APNs payload, or the FCM message's data and notification.</summary>
+    /// <summary>The serialized body — the APNs payload, the FCM message's data and notification, or WNS's toast XML or raw body.</summary>
     public required string Json { get; init; }
 
     /// <summary>The APNs <c>apns-push-type</c>: <c>alert</c>, <c>background</c>, <c>liveactivity</c> or <c>widgets</c>.</summary>
@@ -51,6 +51,9 @@ public sealed record PushEnvelope
 
     /// <summary>The APNs topic, which is the bundle id with a suffix for some push types.</summary>
     public string? ApnsTopic { get; init; }
+
+    /// <summary>The WNS <c>X-WNS-Type</c>: <c>wns/toast</c>, with XML in <see cref="Json"/>, or <c>wns/raw</c>.</summary>
+    public string? WnsType { get; init; }
 
     /// <summary>Delivery priority, already translated to the service's numbering.</summary>
     public int Priority { get; init; }

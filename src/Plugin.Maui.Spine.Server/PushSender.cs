@@ -31,6 +31,7 @@ public sealed class PushSender(
         {
             PushPlatform.Apple => PushPayloads.Apns(notification, BundleId, now),
             PushPlatform.Android => PushPayloads.Fcm(notification),
+            PushPlatform.Windows => PushPayloads.Wns(notification, now),
             _ => null,
         }, cancellationToken);
     }
@@ -44,6 +45,7 @@ public sealed class PushSender(
         {
             PushPlatform.Apple => PushPayloads.ApnsSilent(data, BundleId),
             PushPlatform.Android => PushPayloads.FcmSilent(data),
+            PushPlatform.Windows => PushPayloads.WnsSilent(data),
             _ => null,
         }, cancellationToken);
     }

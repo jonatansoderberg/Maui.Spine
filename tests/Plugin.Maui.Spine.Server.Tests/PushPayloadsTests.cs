@@ -1,5 +1,6 @@
-using System.Text;
 using System.Text.Json;
+using System.Text;
+using System.Xml.Linq;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Server;
 using Xunit;
@@ -349,5 +350,51 @@ public class PushPayloadsTests
             "k", new LiveActivityLayout(), LiveActivityEvent.Update, new LiveActivityOptions { Channel = "c" });
 
         Assert.Equal("c", FcmMessageReader.Read(envelope.Json).Data[PushKeys.ActivityChannel]);
+    }
+
+    [Fact]
+    public void The_toast_carries_title_body_and_image_and_the_spine_keys_in_its_launch_argument()
+    {
+        var envelope = PushPayloads.Wns(new PushNotification
+        {
+            Title = "Resultat & <klart>",
+            Body = "Gävle OK",
+            Route = "/results?id=1;x",
+            Image = new Uri("https://example.com/a.png"),
+            TimeToLive = TimeSpan.FromMinutes(30),
+        }, Now);
+
+        var toast = XElement.Parse(envelope.Json);
+        var texts = toast.Descendants("text").Select(t => t.Value).ToList();
+
+        Assert.Equal("wns/toast", envelope.WnsType);
+        Assert.Equal(Now.AddMinutes(30), envelope.Expiration);
+        Assert.Equal(["Resultat & <klart>", "Gävle OK"], texts);
+        Assert.Equal("ToastGeneric", toast.Descendants("binding").Single().Attribute("template")!.Value);
+        Assert.Equal("https://example.com/a.png", toast.Descendants("image").Single().Attribute("src")!.Value);
+
+        var launch = toast.Attribute("launch")!.Value.Split(';');
+        Assert.Contains("spine.kind=alert", launch);
+        Assert.Contains("spine.route=/results?id%3D1%3Bx", launch);
+    }
+
+    [Fact]
+    public void A_silent_message_is_raw_json_with_the_silent_kind()
+    {
+        var envelope = PushPayloads.WnsSilent(new Dictionary<string, string> { ["refresh"] = "results" });
+        var body = Parse(envelope.Json);
+
+        Assert.Equal("wns/raw", envelope.WnsType);
+        Assert.Equal("silent", body.GetProperty(PushKeys.Kind).GetString());
+        Assert.Equal("results", body.GetProperty("refresh").GetString());
+    }
+
+    [Fact]
+    public void A_toast_over_the_wns_limit_is_refused_with_its_size()
+    {
+        var refused = Assert.Throws<InvalidOperationException>(() =>
+            PushPayloads.Wns(new PushNotification { Title = "T", Body = new string('x', 6000) }, Now));
+
+        Assert.Contains("5000-byte", refused.Message);
     }
 }
