@@ -32,6 +32,11 @@ public static class MauiAppBuilderExtensions
         registry.Initialize(assemblies.Length > 0 ? assemblies : null);
         SvgBitmapLoader.Registry = registry;
 
+#if IOS || MACCATALYST || ANDROID
+        builder.ConfigureImageSources(static services =>
+            services.AddService<SvgBitmapImageSource, SvgBitmapImageSourceService>());
+#endif
+
         return builder;
     }
 

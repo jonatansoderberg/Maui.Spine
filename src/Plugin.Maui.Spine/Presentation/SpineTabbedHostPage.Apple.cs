@@ -69,16 +69,15 @@ public partial class SpineTabbedHostPage
     }
 
     /// <summary>
-    /// Renders each tab's SVG icon at the native point size scaled for the screen density and
-    /// assigns it directly to the <see cref="UITabBarItem"/> — a plain stream-backed
-    /// <c>IconImageSource</c> would be interpreted at scale 1 and render oversized and soft.
+    /// Renders each tab's SVG icon and assigns it directly to the <see cref="UITabBarItem"/> as a
+    /// template image, so the bar tints it. The loader renders for the screen density and the
+    /// image source carries the scale.
     /// </summary>
     private void ApplyTabBarItemImages(UITabBarController controller)
     {
         if (controller.ViewControllers is not { } controllers)
             return;
 
-        var scale = (double)UIScreen.MainScreen.Scale;
         var svgResources = _services.GetRequiredService<ResourceNameCache>();
 
         for (var i = 0; i < _slots.Count && i < controllers.Length; i++)
@@ -87,18 +86,16 @@ public partial class SpineTabbedHostPage
                 continue;
 
             var resolved = svgResources.Resolve(icon) ?? icon;
-            var source = SvgBitmapLoader.LoadFromEmbedded(resolved, 25 * scale, 25 * scale, Colors.Black);
-
-            if (source is not IStreamImageSource streamSource)
+            if (SvgBitmapLoader.LoadFromEmbedded(resolved, 25, 25, Colors.Black) is not SvgBitmapImageSource source)
                 continue;
 
-            LoadTabImageAsync(controllers[i], streamSource, (nfloat)scale).SafeFireAndForget();
+            LoadTabImageAsync(controllers[i], source).SafeFireAndForget();
         }
     }
 
-    private static async Task LoadTabImageAsync(UIViewController controller, IStreamImageSource source, nfloat scale)
+    private static async Task LoadTabImageAsync(UIViewController controller, SvgBitmapImageSource source)
     {
-        using var stream = await source.GetStreamAsync(CancellationToken.None);
+        using var stream = await ((IStreamImageSource)source).GetStreamAsync(CancellationToken.None);
         if (stream is null)
             return;
 
@@ -106,7 +103,7 @@ public partial class SpineTabbedHostPage
         if (data is null)
             return;
 
-        var image = UIImage.LoadFromData(data, scale)?
+        var image = UIImage.LoadFromData(data, source.Scale)?
             .ImageWithRenderingMode(UIImageRenderingMode.AlwaysTemplate);
 
         if (image is not null)

@@ -15,7 +15,7 @@ Both are powered by **SkiaSharp** + **Svg.Skia** and share one resource cache, s
 |---|---|---|
 | Android | ✅ Supported | — |
 | Windows (WinUI 3) | ✅ Supported | `.ico` (multi-size): 16, 20, 24, 32, 40, 48, 64, 128, 256 |
-| iOS | 🚧 In progress | — |
+| iOS | ✅ Supported | — |
 | macOS Catalyst | 🚧 In progress | `.png` (largest size): 18, 36 |
 
 ---
@@ -126,7 +126,7 @@ Use `SvgBitmapLoader` directly when you need an `ImageSource` outside of XAML:
 var registry = IPlatformApplication.Current.Services.GetRequiredService<ResourceNameCache>();
 var resourceName = registry.Resolve("settings.svg") ?? "settings.svg";
 
-// Render at explicit size with optional tint and padding
+// Render at explicit size (points) with optional tint and padding
 ImageSource? source = SvgBitmapLoader.LoadFromEmbedded(
     resourceName, width: 48, height: 48, tint: Colors.Black);
 
@@ -134,6 +134,12 @@ ImageSource? source = SvgBitmapLoader.LoadFromEmbedded(
 ImageSource? source = SvgBitmapLoader.LoadFromEmbedded(
     resourceName, 48, 48, Colors.Black, new Thickness(4));
 ```
+
+---
+
+## Density
+
+Sizes are points (dp on Android). `SvgBitmapLoader` renders the bitmap for the screen it will be shown on and returns a `SvgBitmapImageSource` that carries the scale: a 44-point icon on a 3× iPhone is a 132-pixel PNG decoded back to 44 points, so every pixel is its own. `UseEmbeddedSvgImages()` registers the image source service that does the decoding on iOS, Mac Catalyst and Android. Windows renders at 1×, because a WinUI `BitmapImage` decoded from a stream shows its own pixels.
 
 ---
 
