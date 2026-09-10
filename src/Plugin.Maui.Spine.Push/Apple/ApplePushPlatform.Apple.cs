@@ -13,6 +13,9 @@ namespace Plugin.Maui.Spine.Push;
 /// <summary>The Apple half of <see cref="IPushService"/>.</summary>
 internal sealed class ApplePushPlatform : IPushPlatform
 {
+    /// <summary>iOS follows a channel itself, from the moment the activity is started on it.</summary>
+    public Task FollowChannelsAsync(IReadOnlySet<string> channels) => Task.CompletedTask;
+
     // Static because the delegate methods can fire before the MAUI app exists — a cold start from a
     // notification reaches didReceiveRemoteNotification: before CreateMauiApp has returned.
     private static string? _handle;

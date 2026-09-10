@@ -49,8 +49,14 @@ internal sealed class PushService : IPushService
         // and dies with the activity. Without this the backend holds a token for an activity that
         // has been replaced, and a send to it is accepted by APNs and dropped — no error, nothing
         // shown, nothing to search for.
+        // The channels follow the activities too: on Android an activity on a broadcast channel is
+        // reached through the channel's FCM topic, which the app subscribes to only while one runs.
         if (services.GetService(typeof(ILiveActivityService)) is ILiveActivityService activities)
-            activities.ActivitiesChanged += () => RefreshAsync().SafeFireAndForget();
+            activities.ActivitiesChanged += () =>
+            {
+                RefreshAsync().SafeFireAndForget();
+                platform.FollowChannelsAsync(activities.Active.Select(a => a.Channel).OfType<string>().ToHashSet()).SafeFireAndForget();
+            };
 
         // And for widgets on iOS 26: the extension's push token arrives after launch, and rotates. A
         // backend holding an old one sends widget pushes that APNs accepts and nothing reloads.

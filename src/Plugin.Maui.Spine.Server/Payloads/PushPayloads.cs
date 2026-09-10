@@ -150,7 +150,8 @@ public static class PushPayloads
                 ContentStateJson: layout.ToJson(),
                 Timestamp: now,
                 StaleAt: options.StaleAt,
-                DismissAt: options.DismissAt),
+                DismissAt: options.DismissAt,
+                InputPushChannel: @event == LiveActivityEvent.Start ? options.Channel : null),
         };
 
         if (@event == LiveActivityEvent.Start && alert is { } text)
@@ -180,7 +181,7 @@ public static class PushPayloads
     /// High priority: the message drives something the user is looking at, and the app's service has
     /// to run even when nothing is in the foreground.
     /// </remarks>
-    /// <param name="options">Timing; only <see cref="LiveActivityOptions.StaleAt"/> means anything here.</param>
+    /// <param name="options">Timing and channel; <see cref="LiveActivityOptions.StaleAt"/> and <see cref="LiveActivityOptions.Channel"/> mean something here.</param>
     public static PushEnvelope FcmLiveActivity(
         string kind, LiveActivityLayout layout, LiveActivityEvent @event, LiveActivityOptions? options = null)
     {
@@ -200,6 +201,11 @@ public static class PushPayloads
 
         if (options?.StaleAt is { } stale)
             message.Data["spine.stale"] = stale.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        // On every event, not only a start: a device that restarted turns an update into a start, and
+        // an activity started without its channel would keep the topic after it ends.
+        if (options?.Channel is { } channel)
+            message.Data[PushKeys.ActivityChannel] = channel;
 
         return new PushEnvelope { Json = message.ToJson(), Priority = 10 };
     }

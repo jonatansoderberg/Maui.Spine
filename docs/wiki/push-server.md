@@ -140,6 +140,43 @@ service hands to `ILiveActivityService`.
 built and throws with the size rather than letting it become a 413. For scale: Orientera's Live
 Activity, with a competition name, a place and a timer, serializes to about 1.2 KB.
 
+### Broadcast channels
+
+When many devices show the same thing — everyone following competition X — one push can reach them
+all. The app starts its activity on a channel, and the server sends to the channel instead of to
+each activity's token:
+
+```csharp
+// Once per competition, on the server:
+var channel = await channels.CreateAsync(PushChannelStorage.MostRecent);   // IPushChannels
+
+// In the app, which got the id from your backend:
+await liveActivities.StartAsync("tavling:4711", layout, channel: channel);
+
+// Every update after that, one call for everyone:
+await push.BroadcastLiveActivityAsync(channel, "tavling:4711", layout);
+```
+
+- **iOS 18 follows the APNs channel**, and Apple fans the push out. It needs the **Broadcast
+  capability** on the App ID (Certificates, Identifiers & Profiles → the App ID → Push
+  Notifications); without it APNs refuses to create a channel.
+- **Android follows an FCM topic** named after the channel (`LiveActivityChannels.Topic`).
+  Spine.Push subscribes while an activity on the channel runs and unsubscribes when the last one
+  ends, so the same call reaches both platforms.
+- **The register is not consulted.** The result has one delivery per platform, with the channel in
+  place of an installation id, and nothing is removed from the register on failure.
+- **A broadcast updates or ends; it cannot start.** Start by push with
+  `LiveActivityOptions.Channel` — iOS gets it as `input-push-channel` — or in the app.
+- **A channel belongs to one APNs environment.** `IPushChannels` and `BroadcastLiveActivityAsync`
+  take it from `ApplePushOptions.Environment`, or from the call when that is `PerInstallation`.
+- **The storage policy is fixed when the channel is made**: `None` for frequent updates, which gets
+  a higher budget; `MostRecent` keeps the latest message for a device that was offline, for at most
+  eight hours.
+
+**Channel or token?** A channel when everyone sees the same content: a competition's leaders, a
+match score. A token when it is personal: *your* start time, *your* result. An activity on a channel
+has no token of its own, so nothing personal can be sent to it.
+
 ### Widgets
 
 `RefreshWidgetsAsync` takes one of two roads per installation:
@@ -220,5 +257,4 @@ wrong clock must not look freshly registered, since that is what `PruneAsync` go
 |---|---|
 | Windows (WNS via Entra) | v2 |
 | Azure Table Storage register | With Orientera's backend |
-| Live Activity broadcast channels (iOS 18) | v2 |
 | An Azure Notification Hubs transport | v3, if anyone wants one |

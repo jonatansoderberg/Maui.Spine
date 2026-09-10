@@ -9,6 +9,8 @@ namespace Plugin.Maui.Spine.Push.Services;
 /// </summary>
 internal sealed class UnsupportedPushPlatform : IPushPlatform
 {
+    public Task FollowChannelsAsync(IReadOnlySet<string> channels) => Task.CompletedTask;
+
     /// <inheritdoc />
     /// <remarks>Nothing reaches a transport from here; the value only completes the contract.</remarks>
     public PushPlatform Platform => PushPlatform.Windows;

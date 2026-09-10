@@ -170,14 +170,17 @@ internal sealed class WidgetPlatform : IWidgetPlatform
             : dictionary.ToDictionary(pair => pair.Key.ToString(), pair => pair.Value.ToString());
     }
 
-    public Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt) => Task.FromResult(StartActivity(kind, json, staleAt));
+    public Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt, string? channel) =>
+        Task.FromResult(StartActivity(kind, json, staleAt, channel));
 
-    private string? StartActivity(string kind, string json, DateTimeOffset? staleAt)
+    private string? StartActivity(string kind, string json, DateTimeOffset? staleAt, string? channel)
     {
         if (!IsSupported) return null;
         using var kindValue = new NSString(kind);
         using var jsonValue = new NSString(json);
-        var id = SendObject(_bridge, Selector.GetHandle("startActivityWithKind:json:staleAt:"), kindValue.Handle, jsonValue.Handle, Seconds(staleAt));
+        using var channelValue = channel is null ? null : new NSString(channel);
+        var id = SendObject(_bridge, Selector.GetHandle("startActivityWithKind:json:staleAt:channel:"),
+            kindValue.Handle, jsonValue.Handle, Seconds(staleAt), channelValue?.Handle ?? IntPtr.Zero);
         var result = id == IntPtr.Zero ? null : NSString.FromHandle(id);
         if (result is null) _logger.LogWarning("Starting Live Activity \"{Kind}\" was refused by the system.", kind);
         return result;
@@ -230,6 +233,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 
     [DllImport(Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
     private static extern IntPtr SendObject(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, double arg3);
+
+    [DllImport(Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
+    private static extern IntPtr SendObject(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, double arg3, IntPtr arg4);
 
     [DllImport(Constants.ObjectiveCLibrary, EntryPoint = "objc_msgSend")]
     private static extern IntPtr SendObject(IntPtr receiver, IntPtr selector);

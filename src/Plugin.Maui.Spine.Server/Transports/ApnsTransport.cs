@@ -6,10 +6,10 @@ using Plugin.Maui.Spine.Common;
 namespace Plugin.Maui.Spine.Server;
 
 /// <summary>
-/// Delivers to Apple Push Notification service over HTTP/2, one request per device token,
-/// authenticated with a provider token rather than a certificate.
+/// Delivers to Apple Push Notification service over HTTP/2, one request per device token or one per
+/// broadcast channel, authenticated with a provider token rather than a certificate.
 /// </summary>
-public sealed class ApnsTransport : IPushTransport, IDisposable
+public sealed class ApnsTransport : IPushBroadcastTransport, IDisposable
 {
     private const string ProductionHost = "https://api.push.apple.com";
     private const string SandboxHost = "https://api.sandbox.push.apple.com";
@@ -99,18 +99,48 @@ public sealed class ApnsTransport : IPushTransport, IDisposable
         if (message.Expiration is { } expiration)
             request.Headers.TryAddWithoutValidation("apns-expiration", expiration.ToUnixTimeSeconds().ToString());
 
+        return await DeliverAsync(installation.Id, request, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<PushDelivery> BroadcastAsync(string channel, PushEnvelope message, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(channel);
+        ArgumentNullException.ThrowIfNull(message);
+
+        var host = _options.ChannelEnvironment(message.ApnsEnvironment) == ApnsEnvironment.Sandbox ? SandboxHost : ProductionHost;
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{host}/4/broadcasts/apps/{_options.BundleId}")
+        {
+            Version = HttpVersion.Version20,
+            Content = new StringContent(message.Json, Encoding.UTF8, "application/json"),
+        };
+
+        request.Headers.TryAddWithoutValidation("authorization", $"bearer {_jwt.Token}");
+        request.Headers.TryAddWithoutValidation("apns-channel-id", channel);
+        request.Headers.TryAddWithoutValidation("apns-push-type", message.ApnsPushType ?? "liveactivity");
+        request.Headers.TryAddWithoutValidation("apns-priority", message.Priority.ToString());
+
+        // Required on a broadcast, unlike a device push. 0 means one attempt; a later time is refused
+        // by a channel created to store nothing.
+        request.Headers.TryAddWithoutValidation("apns-expiration", (message.Expiration?.ToUnixTimeSeconds() ?? 0).ToString());
+
+        return await DeliverAsync(channel, request, cancellationToken);
+    }
+
+    private async Task<PushDelivery> DeliverAsync(string id, HttpRequestMessage request, CancellationToken cancellationToken)
+    {
         try
         {
             using var response = await _client.SendAsync(request, cancellationToken);
             if (response.IsSuccessStatusCode)
-                return new PushDelivery(installation.Id, Platform, PushStatus.Sent);
+                return new PushDelivery(id, Platform, PushStatus.Sent);
 
             var reason = await ReasonAsync(response, cancellationToken);
-            return new PushDelivery(installation.Id, Platform, StatusFor(response.StatusCode, reason), reason);
+            return new PushDelivery(id, Platform, StatusFor(response.StatusCode, reason), reason);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return new PushDelivery(installation.Id, Platform, PushStatus.Failed, e.Message);
+            return new PushDelivery(id, Platform, PushStatus.Failed, e.Message);
         }
     }
 
@@ -142,7 +172,7 @@ public sealed class ApnsTransport : IPushTransport, IDisposable
         },
     };
 
-    private static async Task<string?> ReasonAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    internal static async Task<string?> ReasonAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         try
         {

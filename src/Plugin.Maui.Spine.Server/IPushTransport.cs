@@ -24,6 +24,20 @@ public interface IPushTransport
 }
 
 /// <summary>
+/// A transport that reaches everyone following a Live Activity channel with one request: an APNs
+/// broadcast channel, or the FCM topic <see cref="LiveActivityChannels.Topic"/> names.
+/// </summary>
+public interface IPushBroadcastTransport : IPushTransport
+{
+    /// <summary>Sends one message to a channel.</summary>
+    /// <param name="channel">The channel id.</param>
+    /// <param name="message">What to send, in the shape this transport's platform expects.</param>
+    /// <param name="cancellationToken">Cancels the send.</param>
+    /// <returns>One delivery, whose <see cref="PushDelivery.InstallationId"/> is the channel.</returns>
+    Task<PushDelivery> BroadcastAsync(string channel, PushEnvelope message, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// A message built for one platform: the body plus whatever the service needs beside it. Each
 /// transport reads the properties its service understands and ignores the rest.
 /// </summary>
@@ -46,4 +60,10 @@ public sealed record PushEnvelope
 
     /// <summary>When the service should give up.</summary>
     public DateTimeOffset? Expiration { get; init; }
+
+    /// <summary>
+    /// The APNs environment a broadcast goes to. A device push takes it from the installation; a
+    /// broadcast has none, so it is said here, or taken from <see cref="ApplePushOptions.Environment"/>.
+    /// </summary>
+    public ApnsEnvironment? ApnsEnvironment { get; init; }
 }

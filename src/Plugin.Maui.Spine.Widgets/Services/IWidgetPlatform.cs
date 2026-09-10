@@ -22,7 +22,7 @@ internal interface IWidgetPlatform
     IReadOnlyDictionary<string, string> ActiveActivities();
 
     /// <summary>Starts an activity and returns its platform id, or <see langword="null"/> when refused. May prompt the user for a permission.</summary>
-    Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt);
+    Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt, string? channel);
     void UpdateActivity(string id, string json, DateTimeOffset? staleAt);
     void EndActivity(string id);
 
@@ -49,7 +49,7 @@ internal sealed class NoOpWidgetPlatform : IWidgetPlatform
     public void ReloadAll() { }
     public bool AreActivitiesEnabled => false;
     public IReadOnlyDictionary<string, string> ActiveActivities() => ReadOnlyDictionary<string, string>.Empty;
-    public Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt) => Task.FromResult<string?>(null);
+    public Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt, string? channel) => Task.FromResult<string?>(null);
     public void UpdateActivity(string id, string json, DateTimeOffset? staleAt) { }
     public void EndActivity(string id) { }
     public string? PushToStartToken => null;

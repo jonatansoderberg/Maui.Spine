@@ -440,5 +440,4 @@ and the data keys go under "Additional options". An emulator with a Google Play 
 | | Where it went |
 |---|---|
 | Windows (WNS via Entra) | v2 |
-| Live Activity broadcast channels | v2 |
 | Devices without Google Play (HMS) | v3 |

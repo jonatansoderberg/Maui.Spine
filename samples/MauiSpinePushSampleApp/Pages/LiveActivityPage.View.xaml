@@ -15,7 +15,7 @@
                 <Label Grid.Row="0" Grid.Column="0" Text="Tillstånd" />
                 <Label Grid.Row="0" Grid.Column="1" Text="{Binding State}" />
 
-                <Label Grid.Row="1" Grid.Column="0" Text="Push-token" />
+                <Label Grid.Row="1" Grid.Column="0" Text="Adress" />
                 <Label Grid.Row="1" Grid.Column="1" Text="{Binding PushToken}" LineBreakMode="MiddleTruncation" />
             </Grid>
 
@@ -23,6 +23,12 @@
             <Button Text="Uppdatera lokalt" Command="{Binding UpdateLocallyCommand}" />
             <Button Text="Uppdatera från servern" Command="{Binding UpdateFromServerCommand}" />
             <Button Text="Avsluta" Command="{Binding EndCommand}" />
+
+            <Label Text="Eller på serverns broadcast-kanal: en push till kanalen når alla aktiviteter som följer den, utan token per enhet. iOS 18 följer APNs-kanalen, Android kanalens FCM-topic."
+                   FontSize="12" TextColor="Gray" Margin="0,12,0,0" />
+
+            <Button Text="Starta på kanal" Command="{Binding StartOnChannelCommand}" IsEnabled="{Binding CanStart}" />
+            <Button Text="Broadcast från servern" Command="{Binding BroadcastFromServerCommand}" />
 
         </VerticalStackLayout>
     </ScrollView>

@@ -67,7 +67,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     public IReadOnlyDictionary<string, string> ActiveActivities() =>
         OperatingSystem.IsAndroidVersionAtLeast(36) ? _live!.Active() : new Dictionary<string, string>();
 
-    public async Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt)
+    public async Task<string?> StartActivityAsync(string kind, string json, DateTimeOffset? staleAt, string? channel)
     {
         if (!IsSupported) return null;
         if (!OperatingSystem.IsAndroidVersionAtLeast(36))

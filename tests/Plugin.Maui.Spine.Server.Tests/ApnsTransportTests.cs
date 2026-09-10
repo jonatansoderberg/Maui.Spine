@@ -180,4 +180,38 @@ public class ApnsTransportTests
         Assert.Equal(50, result.Count);
         Assert.Equal(installations.Select(i => i.Id), result.Select(d => d.InstallationId));
     }
+
+    [Fact]
+    public async Task A_broadcast_goes_to_the_channel_with_the_headers_apple_requires()
+    {
+        var (transport, handler, key) = NewTransport(_ => Response(HttpStatusCode.OK), ApnsEnvironment.Sandbox);
+        using var _k = key;
+        using var _t = transport;
+
+        var delivery = await transport.BroadcastAsync("Y2hhbm5lbA==", new PushEnvelope { Json = "{}", ApnsPushType = "liveactivity", Priority = 5 });
+
+        Assert.Equal(PushStatus.Sent, delivery.Status);
+        Assert.Equal("Y2hhbm5lbA==", delivery.InstallationId);
+
+        var request = handler.Requests.Single();
+        Assert.Equal("https://api.sandbox.push.apple.com/4/broadcasts/apps/com.companyname.orientera", request.RequestUri!.ToString());
+        Assert.Equal("Y2hhbm5lbA==", request.Headers.GetValues("apns-channel-id").Single());
+        Assert.Equal("liveactivity", request.Headers.GetValues("apns-push-type").Single());
+        Assert.Equal("5", request.Headers.GetValues("apns-priority").Single());
+        Assert.Equal("0", request.Headers.GetValues("apns-expiration").Single());
+        Assert.False(request.Headers.Contains("apns-topic"));
+    }
+
+    [Fact]
+    public async Task A_broadcast_needs_an_environment_when_the_options_leave_it_per_installation()
+    {
+        var (transport, handler, key) = NewTransport(_ => Response(HttpStatusCode.OK));
+        using var _k = key;
+        using var _t = transport;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => transport.BroadcastAsync("c", new PushEnvelope { Json = "{}" }));
+        await transport.BroadcastAsync("c", new PushEnvelope { Json = "{}", ApnsEnvironment = ApnsEnvironment.Production });
+
+        Assert.StartsWith("https://api.push.apple.com/4/broadcasts/", handler.Requests.Single().RequestUri!.ToString());
+    }
 }

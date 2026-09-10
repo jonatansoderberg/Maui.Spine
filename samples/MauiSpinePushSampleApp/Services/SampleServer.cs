@@ -52,4 +52,27 @@ public sealed class SampleServer(Uri endpoint)
             return $"could not reach {endpoint}: {e.Message}";
         }
     }
+
+    /// <summary>Asks the server for its broadcast channel, which it creates at APNs the first time.</summary>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The channel id, or why there is none.</returns>
+    public async Task<(string? Channel, string? Error)> ChannelAsync(CancellationToken cancellationToken = default)
+    {
+        var address = new Uri(endpoint, "channels");
+        try
+        {
+            using var response = await _client.PostAsync(address, content: null, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return (null, $"the server answered {(int)response.StatusCode}: {body}");
+
+            return JsonDocument.Parse(body).RootElement.TryGetProperty("channel", out var channel) && channel.GetString() is { Length: > 0 } id
+                ? (id, null)
+                : (null, $"the server answered without a channel: {body}");
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return (null, $"could not reach {address}: {e.Message}");
+        }
+    }
 }

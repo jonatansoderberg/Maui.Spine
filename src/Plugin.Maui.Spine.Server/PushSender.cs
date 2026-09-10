@@ -112,6 +112,36 @@ public sealed class PushSender(
         return new PushResult { Deliveries = deliveries };
     }
 
+    /// <inheritdoc />
+    public async Task<PushResult> BroadcastLiveActivityAsync(
+        string channel, string kind, LiveActivityLayout layout, LiveActivityEvent @event = LiveActivityEvent.Update,
+        LiveActivityOptions? options = null, ApnsEnvironment? environment = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(channel);
+        if (@event == LiveActivityEvent.Start)
+            throw new ArgumentException(
+                "A broadcast updates or ends the activities on a channel. Start one on it with StartLiveActivityAsync and LiveActivityOptions.Channel, or in the app.",
+                nameof(@event));
+
+        var now = _time.GetUtcNow();
+        var deliveries = new List<PushDelivery>();
+
+        foreach (var transport in _transports.Values.OfType<IPushBroadcastTransport>())
+        {
+            var envelope = transport.Platform switch
+            {
+                PushPlatform.Apple => PushPayloads.ApnsLiveActivity(kind, layout, @event, alert: null, options, BundleId, now) with { ApnsEnvironment = environment },
+                PushPlatform.Android => PushPayloads.FcmLiveActivity(kind, layout, @event, (options ?? new LiveActivityOptions()) with { Channel = channel }),
+                _ => null,
+            };
+
+            if (envelope is not null)
+                deliveries.Add(await transport.BroadcastAsync(channel, envelope, cancellationToken));
+        }
+
+        return new PushResult { Deliveries = deliveries };
+    }
+
     /// <summary>
     /// Said when the installation has no token for what is being sent. A Live Activity is addressed
     /// by its own token, which only exists while it runs — or by the push-to-start token, which the

@@ -7,13 +7,13 @@ namespace Plugin.Maui.Spine.Server;
 
 /// <summary>
 /// Delivers to Firebase Cloud Messaging through the Firebase Admin SDK, in batches of
-/// <see cref="BatchSize"/> registration tokens.
+/// <see cref="BatchSize"/> registration tokens, or to the topic a Live Activity channel names.
 /// </summary>
 /// <remarks>
 /// Spine always sends data-only messages, never FCM's <c>notification</c> block, so the app draws
 /// the notification itself and behaves the same in foreground and background (§5.2).
 /// </remarks>
-public sealed class FcmTransport : IPushTransport
+public sealed class FcmTransport : IPushBroadcastTransport
 {
     /// <summary>The most tokens FCM accepts in one multicast call.</summary>
     public const int BatchSize = 500;
@@ -80,6 +80,37 @@ public sealed class FcmTransport : IPushTransport
         }
 
         return deliveries;
+    }
+
+    /// <inheritdoc />
+    public async Task<PushDelivery> BroadcastAsync(string channel, PushEnvelope message, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(channel);
+        ArgumentNullException.ThrowIfNull(message);
+
+        try
+        {
+            await _messaging.SendAsync(BuildTopicMessage(message, LiveActivityChannels.Topic(channel)), cancellationToken);
+            return new PushDelivery(channel, Platform, PushStatus.Sent);
+        }
+        catch (FirebaseMessagingException e)
+        {
+            return new PushDelivery(channel, Platform, StatusFor(e.MessagingErrorCode), Reason(e));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return new PushDelivery(channel, Platform, PushStatus.Failed, e.Message);
+        }
+    }
+
+    /// <summary>Turns one envelope into the SDK's message to a topic.</summary>
+    /// <param name="envelope">The message Spine built.</param>
+    /// <param name="topic">The topic, from <see cref="LiveActivityChannels.Topic"/>.</param>
+    /// <returns>The message to hand the SDK.</returns>
+    internal static Message BuildTopicMessage(PushEnvelope envelope, string topic)
+    {
+        var multicast = BuildMessage(envelope, []);
+        return new Message { Topic = topic, Data = multicast.Data, Android = multicast.Android };
     }
 
     /// <summary>Turns one envelope and a batch of tokens into the SDK's multicast message.</summary>

@@ -127,18 +127,27 @@ public final class SpineWidgetBridge: NSObject {
     }
 
     /// Returns the activity id, or nil when the system refused. `staleAt` is Unix seconds; 0 means none.
-    @objc public static func startActivity(kind: String, json: String, staleAt: Double) -> String? {
+    /// `channel` makes the activity follow a broadcast channel on iOS 18, where it has no token of its own.
+    @objc public static func startActivity(kind: String, json: String, staleAt: Double, channel: String?) -> String? {
         do {
             let activity = try Activity.request(
                 attributes: SpineActivityAttributes(kind: kind),
                 content: .init(state: .init(json: json), staleDate: staleDate(staleAt)),
-                pushType: pushTokensEnabled ? .token : nil)
+                pushType: pushType(channel: channel))
             observe(activity)
             return activity.id
         } catch {
             NSLog("[SpineWidgetBridge] Activity.request failed: \(error)")
             return nil
         }
+    }
+
+    private static func pushType(channel: String?) -> PushType? {
+        if let channel {
+            if #available(iOS 18.0, *) { return .channel(channel) }
+            NSLog("[SpineWidgetBridge] channel \(channel) ignored: broadcast channels need iOS 18")
+        }
+        return pushTokensEnabled ? .token : nil
     }
 
     @objc public static func updateActivity(id: String, json: String, staleAt: Double) {

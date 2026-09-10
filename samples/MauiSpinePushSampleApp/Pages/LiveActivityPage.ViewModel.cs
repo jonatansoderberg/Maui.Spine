@@ -71,6 +71,55 @@ public partial class LiveActivityPageViewModel(
     }
 
     /// <summary>
+    /// Starts the activity on the server's broadcast channel instead of with a token of its own. From
+    /// then on one push to the channel updates it — and every other device's activity on the channel.
+    /// </summary>
+    [RelayCommand]
+    private async Task StartOnChannel()
+    {
+        if (!_activities.AreActivitiesEnabled)
+        {
+            State = "Live Activities är avstängda på den här enheten";
+            return;
+        }
+
+        var (channel, error) = await _server.ChannelAsync();
+        if (channel is null)
+        {
+            _log.Note("live activity", $"ingen kanal: {error}");
+            State = error!;
+            return;
+        }
+
+        _running = await _activities.StartAsync(Kind, Layout("Startad på kanal"), DateTimeOffset.Now.AddMinutes(30), channel);
+        _log.Note("live activity", _running is null ? "kunde inte startas på kanal" : $"startad på kanal {channel}");
+        await ShowAsync();
+    }
+
+    /// <summary>One push to the channel, which reaches every activity on it; the register is not asked.</summary>
+    [RelayCommand]
+    private async Task BroadcastFromServer()
+    {
+        if (_running?.Channel is not { } channel)
+        {
+            State = "aktiviteten följer ingen kanal";
+            return;
+        }
+
+        var answer = await _server.SendAsync(new
+        {
+            kind = "broadcast",
+            broadcastChannel = channel,
+            activityKind = Kind,
+            title = "Broadcast från servern",
+            body = DateTimeOffset.Now.ToString("HH:mm:ss"),
+        });
+
+        _log.Note("live activity", $"broadcast: {answer}");
+        State = answer;
+    }
+
+    /// <summary>
     /// Asks the sample server to update it instead. That is the whole point of the push token: the
     /// activity keeps ticking with content from outside while the app is closed.
     /// </summary>
@@ -103,7 +152,14 @@ public partial class LiveActivityPageViewModel(
     {
         CanStart = _running is null;
         State = _running is null ? "ingen aktivitet" : $"kör, id {_running.Id}";
-        PushToken = _running is null ? "—" : await _running.GetPushTokenAsync() ?? "ingen token ännu";
+        PushToken = _running switch
+        {
+            null => "—",
+
+            // An activity on a channel has no token of its own: the channel is its address.
+            { Channel: { } channel } => $"kanal {channel}",
+            _ => await _running.GetPushTokenAsync() ?? "ingen token ännu",
+        };
     }
 
     /// <summary>

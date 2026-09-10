@@ -95,4 +95,17 @@ public class FcmTransportTests
         Assert.Equal(layout.ToJson(), message.Data[PushKeys.Layout]);
         Assert.Equal("update", message.Data["spine.event"]);
     }
+
+    [Fact]
+    public void A_broadcast_goes_to_the_channels_topic_with_the_same_data_and_config()
+    {
+        var envelope = PushPayloads.FcmLiveActivity(
+            "k", new LiveActivityLayout(), LiveActivityEvent.Update, new LiveActivityOptions { Channel = "ab+c" });
+
+        var message = FcmTransport.BuildTopicMessage(envelope, LiveActivityChannels.Topic("ab+c"));
+
+        Assert.Equal("spine-la-ab-c", message.Topic);
+        Assert.Equal("ab+c", message.Data[PushKeys.ActivityChannel]);
+        Assert.Equal(Priority.High, message.Android.Priority);
+    }
 }

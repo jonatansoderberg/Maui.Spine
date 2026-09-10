@@ -328,4 +328,26 @@ public class PushPayloadsTests
         Assert.True(aps.GetProperty("content-changed").GetBoolean());
         Assert.False(aps.TryGetProperty("content-available", out _));
     }
+
+    [Fact]
+    public void A_start_on_a_channel_tells_ios_to_follow_it_and_an_update_does_not()
+    {
+        var options = new LiveActivityOptions { Channel = "Y2hhbm5lbA==" };
+        var start = Parse(PushPayloads.ApnsLiveActivity(
+            "k", new LiveActivityLayout(), LiveActivityEvent.Start, new PushAlert { Title = "t" }, options, Bundle, Now).Json).GetProperty("aps");
+        var update = Parse(PushPayloads.ApnsLiveActivity(
+            "k", new LiveActivityLayout(), LiveActivityEvent.Update, null, options, Bundle, Now).Json).GetProperty("aps");
+
+        Assert.Equal("Y2hhbm5lbA==", start.GetProperty("input-push-channel").GetString());
+        Assert.False(update.TryGetProperty("input-push-channel", out _));
+    }
+
+    [Fact]
+    public void Android_carries_the_channel_on_every_event()
+    {
+        var envelope = PushPayloads.FcmLiveActivity(
+            "k", new LiveActivityLayout(), LiveActivityEvent.Update, new LiveActivityOptions { Channel = "c" });
+
+        Assert.Equal("c", FcmMessageReader.Read(envelope.Json).Data[PushKeys.ActivityChannel]);
+    }
 }

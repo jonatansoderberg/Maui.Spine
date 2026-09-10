@@ -84,6 +84,7 @@ public sealed class ApnsPayload
                 w.WriteString("event", activity.Event);
                 if (activity.StaleAt is { } stale) w.WriteNumber("stale-date", stale.ToUnixTimeSeconds());
                 if (activity.DismissAt is { } dismiss) w.WriteNumber("dismissal-date", dismiss.ToUnixTimeSeconds());
+                if (activity.InputPushChannel is { } channel) w.WriteString("input-push-channel", channel);
 
                 // ActivityKit decodes content-state into the extension's ContentState, which holds the
                 // layout as a single string — see SpineActivityAttributes.ContentState(json:). Writing
@@ -112,9 +113,11 @@ public sealed class ApnsPayload
 /// <param name="Timestamp">When the content was produced; iOS drops updates that arrive out of order.</param>
 /// <param name="StaleAt">When the content should be considered out of date.</param>
 /// <param name="DismissAt">When an ended activity should disappear.</param>
+/// <param name="InputPushChannel">On a start, the broadcast channel the new activity follows (iOS 18).</param>
 public readonly record struct ApnsLiveActivity(
     string Event,
     string ContentStateJson,
     DateTimeOffset Timestamp,
     DateTimeOffset? StaleAt = null,
-    DateTimeOffset? DismissAt = null);
+    DateTimeOffset? DismissAt = null,
+    string? InputPushChannel = null);
