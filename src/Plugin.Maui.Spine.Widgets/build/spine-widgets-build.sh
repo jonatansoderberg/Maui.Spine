@@ -44,7 +44,9 @@ case "$SDK" in
   iphoneos) TARGET="$ARCH-apple-ios$MIN_OS"; PLATFORM="iPhoneOS";;
   *) echo "spine-widgets-build.sh: unsupported sdk $SDK" >&2; exit 2;;
 esac
-case "$CONFIG" in Release) OPT=(-O);; *) OPT=(-Onone -g);; esac
+# -g in Release too: it changes no optimization, only that DWARF is written and swiftc leaves a dSYM, which
+# crash reports from the extension and the bridge are symbolicated with. The binaries are stripped below.
+case "$CONFIG" in Release) OPT=(-O -g);; *) OPT=(-Onone -g);; esac
 
 # Widget push needs iOS 26 in the extension (WidgetPushHandler), and a widget cannot pick its
 # configuration by OS version — Swift allows neither an if/else in a widget's body nor one in the
@@ -298,9 +300,16 @@ xcrun -sdk "$SDK" swiftc \
 
 app_intents_metadata "$NAME" "$APPEX" "$GEN/$NAME.swiftconstvalues" "$EXT_TARGET" "$EXT_MIN_OS" "${EXT_SOURCES[@]}"
 
-# swiftc -g drops a dSYM beside each product; keep it out of the bundles the SDK signs and ships.
-rm -rf "$OUT/dSYM"; mkdir -p "$OUT/dSYM"
-for d in "$APPEX"/*.dSYM "$FRAMEWORK"/*.dSYM; do [[ -e "$d" ]] && mv "$d" "$OUT/dSYM/"; done
+# swiftc -g drops a dSYM inside each product. Each goes beside its bundle, named after it as Xcode names
+# them in an archive, and never stays in the bundles the SDK signs and ships; the targets copy them beside
+# the app's and into the archive.
+rm -rf "$OUT/dSYM" "$OUT/$NAME.appex.dSYM" "$OUT/SpineWidgetBridge.framework.dSYM"
+if [[ -d "$APPEX/$NAME.dSYM" ]]; then mv "$APPEX/$NAME.dSYM" "$OUT/$NAME.appex.dSYM"; fi
+if [[ -d "$FRAMEWORK/SpineWidgetBridge.dSYM" ]]; then mv "$FRAMEWORK/SpineWidgetBridge.dSYM" "$OUT/SpineWidgetBridge.framework.dSYM"; fi
+
+# The SDK strips the app in Release but neither the extension nor the bridge (seen with the 26.2 SDK), so
+# both are stripped here, before they are signed. Their debug info is in the dSYMs.
+if [[ "$CONFIG" == "Release" ]]; then xcrun strip -S -x "$APPEX/$NAME" "$FRAMEWORK/SpineWidgetBridge"; fi
 
 # --- The extension's own provisioning profile ---------------------------------------------------
 # The .NET iOS SDK embeds a profile into the app bundle only (_EmbedProvisionProfile writes

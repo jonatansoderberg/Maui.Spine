@@ -174,4 +174,30 @@
 			   Text="Spine.Push: Android needs Firebase's google-services.json. Download it from the Firebase console and add &lt;GoogleServicesJson Include=&quot;Platforms\Android\google-services.json&quot; /&gt; to the app project. Set SpinePushRemote=false to keep local notifications without it, or SpinePushEnabled=false to build without either." />
 	</Target>
 
+	<!--
+		The extension's debug symbols go beside the app's: into the output directory after the build, and into
+		the archive's dSYMs folder when one is made. The SDK does neither for an extension from
+		AdditionalAppExtensions (seen with the 26.2 SDK), and without them a crash in the extension cannot be
+		symbolicated. The archive hook is the SDK's _CoreArchive, the target that sets $(ArchiveDir); the dSYM
+		copied there is named in the build output, so a hook that stops firing shows.
+	-->
+	<Target Name="_SpinePushImagesCopySymbols" AfterTargets="Build" DependsOnTargets="_SpinePushImagesPrepare"
+			Condition="'$(_SpinePushImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''">
+		<ItemGroup Condition="Exists('$(_SpinePushImagesOutDir)')">
+			<_SpinePushImagesSymbols Include="$([System.IO.Directory]::GetDirectories('$(_SpinePushImagesOutDir)', '*.dSYM'))" />
+		</ItemGroup>
+		<Exec Condition="'@(_SpinePushImagesSymbols)' != ''"
+			  Command="/usr/bin/ditto &quot;%(_SpinePushImagesSymbols.Identity)&quot; &quot;$(DeviceSpecificOutputPath)%(_SpinePushImagesSymbols.Filename)%(_SpinePushImagesSymbols.Extension)&quot;" />
+	</Target>
+
+	<Target Name="_SpinePushImagesArchiveSymbols" AfterTargets="_CoreArchive" DependsOnTargets="_SpinePushImagesPrepare"
+			Condition="'$(_SpinePushImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != '' And '$(ArchiveOnBuild)' == 'true'">
+		<ItemGroup Condition="Exists('$(_SpinePushImagesOutDir)') And '$(ArchiveDir)' != ''">
+			<_SpinePushImagesArchivedSymbols Include="$([System.IO.Directory]::GetDirectories('$(_SpinePushImagesOutDir)', '*.dSYM'))" />
+		</ItemGroup>
+		<Exec Condition="'@(_SpinePushImagesArchivedSymbols)' != ''"
+			  Command="/usr/bin/ditto &quot;%(_SpinePushImagesArchivedSymbols.Identity)&quot; &quot;$(ArchiveDir)/dSYMs/%(_SpinePushImagesArchivedSymbols.Filename)%(_SpinePushImagesArchivedSymbols.Extension)&quot;" />
+		<Message Importance="high" Condition="'@(_SpinePushImagesArchivedSymbols)' != ''"
+				 Text="Spine.Push: archived %(_SpinePushImagesArchivedSymbols.Filename)%(_SpinePushImagesArchivedSymbols.Extension)" />
+	</Target>
 </Project>
