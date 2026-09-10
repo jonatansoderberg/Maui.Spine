@@ -4,7 +4,7 @@
 that sees every message. The backend half is [`Plugin.Maui.Spine.Server`](push-server.md); the two
 share the contracts in `Plugin.Maui.Spine.Common`.
 
-v1 covers iOS, Mac Catalyst and Android. Windows is v2.
+It covers iOS, Android and Mac Catalyst. On Mac Catalyst remote push needs a provisioning profile — see [What each platform needs](#what-each-platform-needs) — and without one the app gets local notifications only. Windows is not covered yet.
 
 ---
 
@@ -249,7 +249,8 @@ still means neither half.
 |---|---|
 | iOS | Fires whether or not the app is running. The foreground presentation goes through `OnReceivedAsync`, exactly as a push does. Apple keeps 64 pending notifications per app; a larger plan is cut to the nearest 64, and Spine logs when it is. |
 | Android | An inexact alarm per notification: it may arrive a few minutes late in doze, which is the price of not needing `SCHEDULE_EXACT_ALARM`. The plan is written down, so an alarm from an earlier run can still be cancelled, and it is booked again after a reboot. `OnReceivedAsync` is asked only in the foreground, so the two platforms behave alike. |
-| Mac Catalyst, Windows | `IsSupported` is false, as it is for push. |
+| Mac Catalyst | Like iOS: the same code. Local notifications work with or without a provisioning profile. |
+| Windows | `IsSupported` is false, as it is for push. |
 
 An instant that has already passed is dropped rather than fired late, on both platforms.
 
@@ -366,7 +367,7 @@ Here the halves are furthest apart, and Spine does not pretend otherwise.
 4. **Environment matters.** A debug build on a device gets a sandbox token, TestFlight and the App
    Store get production tokens, and one never works against the other. The app reports which it got,
    so the server picks the right host.
-5. **Mac Catalyst:** set `EnableCodeSigning=true` even in Debug, or no permission prompt appears.
+5. **Mac Catalyst:** set `EnableCodeSigning=true` even in Debug, or no permission prompt appears. Remote push also needs a provisioning profile that grants it, named with `CodesignProvision`: the push entitlement is restricted on the Mac, and an app signed with it but without such a profile does not launch. So Spine writes `aps-environment` for Catalyst only when a profile is named. Without one the app gets local notifications, and skips the APNs registration it could not complete.
 
 ### Android
 

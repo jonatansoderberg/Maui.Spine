@@ -1,3 +1,4 @@
+#if IOS || MACCATALYST
 using AsyncAwaitBestPractices;
 using Foundation;
 using Microsoft.Extensions.Logging;
@@ -46,10 +47,11 @@ public static partial class SpinePushExtensions
             return;
         }
 
-        // No backend is what an app that only schedules local notifications looks like: it has
-        // nobody to register with, and asking APNs for a token it cannot use only earns a failure
-        // in the log — and a build that needs the aps-environment entitlement.
-        if (options.Backend is null) return;
+        // No backend, or no push in the build, is what an app that only schedules local
+        // notifications looks like: it has nobody to register with, and asking APNs for a token it
+        // cannot use only earns a failure in the log. On Mac Catalyst this is the default — push
+        // there follows the signing, see Plugin.Maui.Spine.Push.targets.
+        if (options.Backend is null || !ApplePushPlatform.IsRemoteConfigured) return;
 
         if (platform.Status is PushStatus.Authorized or PushStatus.Provisional)
         {
@@ -62,7 +64,7 @@ public static partial class SpinePushExtensions
     {
         await platform.RefreshStatusAsync();
 
-        if (options.Backend is null) return;
+        if (options.Backend is null || !ApplePushPlatform.IsRemoteConfigured) return;
 
         await Services().GetRequiredService<IPushService>().RefreshAsync();
     }
@@ -173,3 +175,4 @@ public static partial class SpinePushExtensions
         }
     }
 }
+#endif

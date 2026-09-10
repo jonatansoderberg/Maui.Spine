@@ -10,19 +10,12 @@
         <key>com.apple.security.network.client</key>
         <true/>
         <!--
-            Spine.Push. Apple's own documentation has used both spellings on Mac Catalyst, so both are
-            here; an entitlement the platform does not know is ignored rather than fatal. The app owns
-            this file, so Spine validates it instead of writing one.
+            No push entitlement and no App Group on Mac Catalyst. Both are restricted: an app signed with
+            them but without a provisioning profile that grants them does not launch, and this sample
+            has no Mac profile. Spine.Push gives local notifications without them; remote push on
+            Catalyst follows the signing — name a profile with CodesignProvision and add
+            aps-environment here. The App Group only serves the widget extension, which is iOS only.
         -->
-        <key>aps-environment</key>
-        <string>development</string>
-        <key>com.apple.developer.aps-environment</key>
-        <string>development</string>
-        <!-- The widget extension and the app share data through this group. -->
-        <key>com.apple.security.application-groups</key>
-        <array>
-            <string>group.com.companyname.mauispinepushsampleapp</string>
-        </array>
     </dict>
 </plist>
 
