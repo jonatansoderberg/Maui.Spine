@@ -58,26 +58,27 @@ public static class SvgBitmapLoader
         if (string.IsNullOrWhiteSpace(svgName))
             return null;
 
-        var key = BuildImageCacheKey(svgName, width, height, tint, padding);
+        // The size is in points; the bitmap is rendered for the screen it will be shown on, and the
+        // image source carries the scale so the platform decodes it back to the same point size.
+        var scale = ScreenScale;
+        var pixelWidth = width * scale;
+        var pixelHeight = height * scale;
+        var pixelPadding = new Thickness(padding.Left * scale, padding.Top * scale, padding.Right * scale, padding.Bottom * scale);
+
+        var key = BuildImageCacheKey(svgName, pixelWidth, pixelHeight, tint, pixelPadding);
 
         var lazyImage = _imageCache.GetOrAdd(key, _ =>
             new Lazy<ReadOnlyMemory<byte>>(
-                () => RenderSvgToPng(svgName, width, height, tint, padding),
+                () => RenderSvgToPng(svgName, pixelWidth, pixelHeight, tint, pixelPadding),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
-        var memory = lazyImage.Value;
-
-        if (!MemoryMarshal.TryGetArray(memory, out var segment))
-            throw new InvalidOperationException("Memory is not array-backed");
-
-        return ImageSource.FromStream(() =>
-            new MemoryStream(
-                segment.Array!,
-                segment.Offset,
-                segment.Count,
-                writable: false,
-                publiclyVisible: true));
+        return new SvgBitmapImageSource(svgName, lazyImage.Value, scale);
     }
+
+    // A WinUI BitmapImage decoded from a stream shows its own pixels, so Windows stays at 1× until
+    // DecodePixelType.Logical can be verified there.
+    private static float ScreenScale =>
+        OperatingSystem.IsWindows() ? 1f : (float)DeviceDisplay.MainDisplayInfo.Density;
 
     /// <summary>
     /// Loads an embedded SVG resource and returns a MAUI <see cref="ImageSource"/> rendered at
@@ -116,7 +117,7 @@ public static class SvgBitmapLoader
         svg.Load(stream);
 
         var picture = svg.Picture!;
-        var info = new SKImageInfo((int)width, (int)height);
+        var info = new SKImageInfo((int)Math.Round(width), (int)Math.Round(height));
 
         using var bitmap = new SKBitmap(info);
         using var canvas = new SKCanvas(bitmap);
