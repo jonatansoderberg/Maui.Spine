@@ -30,6 +30,14 @@ public abstract record WidgetNode
     /// with <see cref="W.Pending"/>.
     /// </summary>
     public bool? Pending { get; init; }
+
+    /// <summary>
+    /// Puts the node in the accent group of a widget drawn in the accented rendering mode — the Tinted and
+    /// Clear Home Screen appearances. iOS 26 draws that group white, as it does the rest, so on iOS it is a
+    /// grouping rather than a color; it changes nothing in full color. Android ignores it. Set with
+    /// <see cref="WidgetNodeStyling.Accented"/>.
+    /// </summary>
+    public bool? Accented { get; init; }
 }
 
 /// <summary>A container that lays its <see cref="Children"/> out along one axis.</summary>
@@ -154,6 +162,12 @@ public sealed record IconNode([property: JsonPropertyName("systemImage")] string
 /// <param name="AssetId">File name inside the shared container's <c>spine-widgets/assets</c> directory.</param>
 public sealed record ImageNode([property: JsonPropertyName("asset")] string AssetId) : WidgetNode
 {
+    /// <summary>
+    /// Keeps the image's own colors in the Tinted and Clear appearances, where iOS otherwise draws it solid
+    /// white. iOS 18 and later. Set with <see cref="WidgetNodeStyling.FullColor"/>.
+    /// </summary>
+    public bool? FullColor { get; init; }
+
     /// <summary>Requested height in points; intrinsic size when <see langword="null"/>.</summary>
     public double? Height { get; init; }
 }

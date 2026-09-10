@@ -21,6 +21,15 @@ public readonly record struct WidgetColor
     public static WidgetColor Secondary { get; } = new("secondary");
     /// <summary>The app's accent color.</summary>
     public static WidgetColor Accent { get; } = new("accent");
+
+    /// <summary>
+    /// The platform's widget surface: the system background on iOS, and Material You's on Android 12 and
+    /// later — what a box takes to sit on the widget as a card.
+    /// </summary>
+    public static WidgetColor Surface { get; } = new("surface");
+
+    /// <summary>Text and icons on an <see cref="Accent"/> fill: white on iOS, and Material You's on Android 12 and later.</summary>
+    public static WidgetColor OnAccent { get; } = new("onAccent");
     /// <summary>The platform's semantic green.</summary>
     public static WidgetColor Green { get; } = new("green");
     /// <summary>The platform's semantic red.</summary>
@@ -64,6 +73,8 @@ public readonly record struct WidgetColor
             "primary" => Primary,
             "secondary" => Secondary,
             "accent" => Accent,
+            "surface" => Surface,
+            "onAccent" => OnAccent,
             "green" => Green,
             "red" => Red,
             "orange" => Orange,

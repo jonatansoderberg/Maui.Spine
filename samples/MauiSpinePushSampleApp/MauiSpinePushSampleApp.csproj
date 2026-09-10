@@ -69,6 +69,7 @@
 	<ItemGroup>
 		<SpineWidget Include="sample" DisplayName="Spine push" Description="Rebuilt when the server sends a widget refresh." Families="Small,Medium" />
 		<SpineWidget Include="remote" DisplayName="Spine remote" Description="Fetches its own content from the sample server, even when the app is not running." Families="Small,Medium" />
+		<SpineWidget Include="picture" DisplayName="Spine bild" Description="En widget på en bild, med gradient där bilden inte räcker." Families="Small,Medium" />
 	</ItemGroup>
 
 	<Import Project="..\..\src\Plugin.Maui.Spine\build\Plugin.Maui.Spine.Entitlements.targets" />

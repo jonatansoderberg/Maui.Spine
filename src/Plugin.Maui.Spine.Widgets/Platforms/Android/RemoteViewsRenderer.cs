@@ -23,6 +23,12 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     /// <summary>The timeline's background color; the root drawable's own when <see langword="null"/>.</summary>
     public string? Background { get; set; }
 
+    /// <summary>The timeline's gradient, drawn on the surface instead of <see cref="Background"/>.</summary>
+    public SurfaceGradient? BackgroundGradient { get; set; }
+
+    /// <summary>The stored image drawn over the surface, filling it.</summary>
+    public string? BackgroundImage { get; set; }
+
     private static int Node => Resource.Id.spine_node;
     private const float DefaultSpacing = 4;
     private const float IconDp = 20;
@@ -42,9 +48,15 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         // and the flat color used there loses them.
         if (Background is { } background)
         {
-            if (OperatingSystem.IsAndroidVersionAtLeast(31)) Color(root, "setBackgroundTintList", background, stateList: true, view: Resource.Id.spine_root);
-            else Color(root, "setBackgroundColor", background, view: Resource.Id.spine_root);
+            if (OperatingSystem.IsAndroidVersionAtLeast(31)) Color(root, "setBackgroundTintList", background, stateList: true, view: Resource.Id.spine_frame);
+            else Color(root, "setBackgroundColor", background, view: Resource.Id.spine_frame);
         }
+
+        // A gradient or an image cannot be a drawable RemoteViews sets at run time, so each is drawn into a
+        // bitmap in a view behind the tree, which the frame's outline clips to its corners. Hidden again when
+        // unused: a host re-applies these actions on the views it already has.
+        Show(root, Resource.Id.spine_background_gradient, BackgroundGradient is { Colors.Count: > 1 } gradient ? GradientBitmap(gradient) : null);
+        Show(root, Resource.Id.spine_background_image, BackgroundBitmap(BackgroundImage));
         return root;
     }
 
@@ -213,6 +225,8 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             case "primary": Attr(Android.Resource.Attribute.TextColorPrimary); return;
             case "secondary": Attr(Android.Resource.Attribute.TextColorSecondary); return;
             case "accent": Attr(Android.Resource.Attribute.ColorAccent); return;
+            case "surface": Attr(Android.Resource.Attribute.ColorBackground); return;
+            case "onAccent": Attr(Android.Resource.Attribute.TextColorPrimaryInverse); return;
         }
 
         var (light, dark) = WidgetPalette.Fixed(color) is { } fixedColor ? (fixedColor, fixedColor) : WidgetPalette.Semantic(color);
@@ -235,6 +249,54 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 views.SetInt(id, method, WidgetPalette.Resolve(_context, attribute));
         }
     }
+
+    private static void Show(RemoteViews views, int id, Android.Graphics.Bitmap? bitmap)
+    {
+        if (bitmap is not null) views.SetImageViewBitmap(id, bitmap);
+        views.SetViewVisibility(id, bitmap is null ? Android.Views.ViewStates.Gone : Android.Views.ViewStates.Visible);
+    }
+
+    /// <summary>The gradient drawn into a small bitmap, which the view stretches to the surface.</summary>
+    private Android.Graphics.Bitmap GradientBitmap(SurfaceGradient gradient)
+    {
+        const float size = 256;
+        var bitmap = Android.Graphics.Bitmap.CreateBitmap((int)size, (int)size, Android.Graphics.Bitmap.Config.Argb8888!);
+        var (x1, y1) = gradient.Direction?.ToLowerInvariant() switch
+        {
+            "horizontal" => (size, 0f),
+            "diagonal" => (size, size),
+            _ => (0f, size),
+        };
+
+        using var shader = new Android.Graphics.LinearGradient(0, 0, x1, y1, [.. gradient.Colors.Select(Argb)], null, Android.Graphics.Shader.TileMode.Clamp!);
+        using var paint = new Android.Graphics.Paint { AntiAlias = true };
+        paint.SetShader(shader);
+        using var canvas = new Android.Graphics.Canvas(bitmap);
+        canvas.DrawRect(0, 0, size, size, paint);
+        return bitmap;
+    }
+
+    /// <summary>The stored image, scaled down to at most 1024 pixels on its long side to stay inside the host's bitmap budget.</summary>
+    private Android.Graphics.Bitmap? BackgroundBitmap(string? assetId)
+    {
+        if (string.IsNullOrEmpty(assetId)) return null;
+        var bitmap = Android.Graphics.BitmapFactory.DecodeFile(System.IO.Path.Combine(WidgetStore.AssetsDirectory(_context), assetId));
+        if (bitmap is null) return null;
+
+        var scale = Math.Min(1f, 1024f / Math.Max(bitmap.Width, bitmap.Height));
+        return scale >= 1 ? bitmap : Android.Graphics.Bitmap.CreateScaledBitmap(bitmap, (int)(bitmap.Width * scale), (int)(bitmap.Height * scale), true);
+    }
+
+    /// <summary>One concrete ARGB for a tree color, the semantic ones resolved in the app's theme.</summary>
+    private int Argb(string color) => WidgetPalette.Fixed(color) ?? color switch
+    {
+        "primary" => WidgetPalette.Resolve(_context, Android.Resource.Attribute.TextColorPrimary),
+        "secondary" => WidgetPalette.Resolve(_context, Android.Resource.Attribute.TextColorSecondary),
+        "accent" => WidgetPalette.Resolve(_context, Android.Resource.Attribute.ColorAccent),
+        "surface" => WidgetPalette.Resolve(_context, Android.Resource.Attribute.ColorBackground),
+        "onAccent" => WidgetPalette.Resolve(_context, Android.Resource.Attribute.TextColorPrimaryInverse),
+        _ => WidgetPalette.Semantic(color).Light,
+    };
 
     private static string? Text(JsonElement node, string name) =>
         node.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
@@ -272,7 +334,7 @@ internal static class WidgetPalette
     };
 
     /// <summary>A concrete ARGB for a tree color, for places that cannot take a theme attribute (notifications).</summary>
-    public static int? Concrete(string? color) => color is null ? null : Fixed(color) ?? (color is "primary" or "secondary" or "accent" ? null : Semantic(color).Light);
+    public static int? Concrete(string? color) => color is null ? null : Fixed(color) ?? (color is "primary" or "secondary" or "accent" or "surface" or "onAccent" ? null : Semantic(color).Light);
 
     public static int Resolve(Context context, int attribute)
     {
@@ -280,3 +342,6 @@ internal static class WidgetPalette
         return values.GetColor(0, unchecked((int)0xFF000000));
     }
 }
+
+/// <summary>A timeline's gradient as the document carries it: colors from start to end, and a direction.</summary>
+internal sealed record SurfaceGradient(IReadOnlyList<string> Colors, string? Direction);

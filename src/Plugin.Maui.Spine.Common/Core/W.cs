@@ -98,6 +98,18 @@ public static class WidgetNodeStyling
     /// </summary>
     public static T Pending<T>(this T node) where T : WidgetNode => (T)(node with { Pending = true });
 
+    /// <summary>
+    /// Puts the node in the accent group when iOS draws the widget in the accented rendering mode (Tinted
+    /// and Clear). iOS 26 tints both groups white, so this groups rather than colors. Android ignores it.
+    /// </summary>
+    public static T Accented<T>(this T node) where T : WidgetNode => (T)(node with { Accented = true });
+
+    /// <summary>
+    /// Keeps the image's own colors in the Tinted and Clear appearances, where iOS otherwise draws it solid
+    /// white — a logo, a photo. iOS 18 and later.
+    /// </summary>
+    public static ImageNode FullColor(this ImageNode node) => node with { FullColor = true };
+
     /// <summary>Renders in the platform's secondary text color.</summary>
     public static T Secondary<T>(this T node) where T : TextLikeNode => node.Color(WidgetColor.Secondary);
 

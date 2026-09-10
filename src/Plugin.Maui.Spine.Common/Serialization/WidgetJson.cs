@@ -9,6 +9,8 @@ internal sealed record WidgetTimelineDocument(
     [property: JsonPropertyName("remote")] string? Remote,
     [property: JsonPropertyName("refreshAfterSeconds")] double? RefreshAfterSeconds,
     [property: JsonPropertyName("background")] WidgetColor? Background,
+    [property: JsonPropertyName("backgroundGradient")] WidgetGradient? BackgroundGradient,
+    [property: JsonPropertyName("backgroundImage")] string? BackgroundImage,
     [property: JsonPropertyName("entries")] IReadOnlyList<WidgetTimelineEntryDocument> Entries);
 
 /// <summary>One entry of <see cref="WidgetTimelineDocument"/>; <c>trees</c> is keyed by family name or <c>default</c>.</summary>
@@ -46,7 +48,7 @@ public static class WidgetJson
                 : new Dictionary<string, WidgetNode> { [DefaultFamilyKey] = e.Tree! }))
             .ToList();
 
-        var document = new WidgetTimelineDocument(timeline.Link?.ToString(), timeline.Remote?.ToString(), timeline.RefreshAfter?.TotalSeconds, timeline.BackgroundColor, entries);
+        var document = new WidgetTimelineDocument(timeline.Link?.ToString(), timeline.Remote?.ToString(), timeline.RefreshAfter?.TotalSeconds, timeline.BackgroundColor, timeline.BackgroundGradient, timeline.BackgroundAsset, entries);
         return JsonSerializer.Serialize(document, WidgetJsonContext.Default.WidgetTimelineDocument);
     }
 

@@ -77,7 +77,30 @@ struct TimelineDocument: Decodable {
     var remote: String?
     var refreshAfterSeconds: Double?
     var background: String?
+    var backgroundGradient: GradientSpec?
+    var backgroundImage: String?
     var entries: [Entry]
+}
+
+struct GradientSpec: Decodable {
+    var colors: [String]
+    var direction: String?
+}
+
+/// The widget's surface: a color or a gradient, and an image over it. The three travel together, so a remote
+/// document's surface is taken whole or not at all.
+struct SurfaceBackground {
+    var color: String?
+    var gradient: GradientSpec?
+    var image: String?
+
+    init?(_ document: TimelineDocument?) {
+        guard let document, document.background != nil || document.backgroundGradient != nil || document.backgroundImage != nil
+        else { return nil }
+        color = document.background
+        gradient = document.backgroundGradient
+        image = document.backgroundImage
+    }
 }
 
 struct ActivityLayout: Decodable {
@@ -122,6 +145,8 @@ final class Node: Decodable {
     var fallback: Node?
     var trees: [String: Node]?
     var pending: Bool?
+    var accented: Bool?
+    var fullColor: Bool?
 }
 
 /// The kind of the widget or activity being drawn, so a button knows whose action it sends.
@@ -158,9 +183,9 @@ struct NodeView: View {
     // stops WidgetKit from routing the tap to the intent, and it opens the app instead.
     var body: some View {
         if node.pending == true && !insideButton && node.type != "button" {
-            content.invalidatableContent()
+            content.invalidatableContent().widgetAccentable(node.accented == true)
         } else {
-            content
+            content.widgetAccentable(node.accented == true)
         }
     }
 
@@ -215,7 +240,8 @@ struct NodeView: View {
             }
         case "asset":
             if let asset = node.asset, let image = Store.image(asset: asset) {
-                Image(uiImage: image).resizable().scaledToFit().frame(height: node.height.map { CGFloat($0) })
+                Palette.picture(image, fullColor: node.fullColor == true)
+                    .scaledToFit().frame(height: node.height.map { CGFloat($0) })
             }
         case "progress":
             ProgressView(value: min(max(node.value ?? 0, 0), 1)).tint(Palette.color(node.color))
@@ -292,12 +318,28 @@ enum Palette {
         case "primary": return .primary
         case "secondary": return .secondary
         case "accent": return .accentColor
+        case "surface": return Color(uiColor: .systemBackground)
+        case "onAccent": return .white
         case "green": return .green
         case "red": return .red
         case "orange": return .orange
         case "yellow": return .yellow
         case "blue": return .blue
         default: return hex(value) ?? .primary
+        }
+    }
+
+    /// A stored picture, resizable. With fullColor it keeps its own colors when iOS tints the widget; see
+    /// W.FullColor. The modifier returns a view, so it goes after resizable and before any sizing.
+    @ViewBuilder static func picture(_ image: UIImage, fullColor: Bool) -> some View {
+        if fullColor {
+            if #available(iOS 18.0, *) {
+                Image(uiImage: image).resizable().widgetAccentedRenderingMode(.fullColor)
+            } else {
+                Image(uiImage: image).resizable()
+            }
+        } else {
+            Image(uiImage: image).resizable()
         }
     }
 
@@ -319,7 +361,7 @@ struct Entry: TimelineEntry {
     let trees: [String: Node]
     let link: String?
     var kind: String = ""
-    var background: String? = nil
+    var background: SurfaceBackground? = nil
 
     static let placeholder = Entry(date: .now, trees: [:], link: nil)
 }
@@ -353,7 +395,7 @@ struct Provider: TimelineProvider {
 
     private func timeline(from document: TimelineDocument?, fallback: TimelineDocument?) -> Timeline<Entry> {
         let source = document?.entries.isEmpty == false ? document : fallback
-        let entries = entries(from: source, link: document?.link ?? fallback?.link, background: document?.background ?? fallback?.background)
+        let entries = entries(from: source, link: document?.link ?? fallback?.link, background: SurfaceBackground(document) ?? SurfaceBackground(fallback))
         let policy: TimelineReloadPolicy
         if let seconds = source?.refreshAfterSeconds ?? fallback?.refreshAfterSeconds, let last = entries.last {
             policy = .after(last.date.addingTimeInterval(seconds))
@@ -367,14 +409,49 @@ struct Provider: TimelineProvider {
 
     private func entries() -> [Entry] {
         let document = Store.timeline(kind: kind)
-        return entries(from: document, link: document?.link, background: document?.background)
+        return entries(from: document, link: document?.link, background: SurfaceBackground(document))
     }
 
-    private func entries(from document: TimelineDocument?, link: String?, background: String?) -> [Entry] {
+    private func entries(from document: TimelineDocument?, link: String?, background: SurfaceBackground?) -> [Entry] {
         guard let document else { return [] }
         return document.entries
             .sorted { $0.date < $1.date }
             .map { Entry(date: $0.date, trees: $0.trees, link: link, kind: kind, background: background) }
+    }
+}
+
+/// The widget's surface. A clear color gets WidgetKit's own opaque background, not the wallpaper; neither a
+/// material nor glassEffect changes that on iOS 26. Glass is the system's: the Clear and Tinted appearances
+/// remove this view and draw it themselves.
+struct SurfaceView: View {
+    let background: SurfaceBackground?
+
+    var body: some View {
+        ZStack {
+            base
+            if let asset = background?.image, let image = Store.image(asset: asset) {
+                Image(uiImage: image).resizable().scaledToFill()
+            }
+        }
+    }
+
+    @ViewBuilder private var base: some View {
+        if let gradient = background?.gradient, gradient.colors.count > 1 {
+            let (start, end) = Self.points(gradient.direction)
+            LinearGradient(colors: gradient.colors.map { Palette.color($0) }, startPoint: start, endPoint: end)
+        } else if let color = background?.color {
+            Palette.color(color)
+        } else {
+            Rectangle().fill(.background)
+        }
+    }
+
+    private static func points(_ direction: String?) -> (UnitPoint, UnitPoint) {
+        switch direction?.lowercased() {
+        case "horizontal": (.leading, .trailing)
+        case "diagonal": (.topLeading, .bottomTrailing)
+        default: (.top, .bottom)
+        }
     }
 }
 
@@ -384,15 +461,8 @@ struct SpineWidgetView: View {
 
     var body: some View {
         content
-            .containerBackground(background, for: .widget)
+            .containerBackground(for: .widget) { SurfaceView(background: entry.background) }
             .widgetURL(entry.link.flatMap(URL.init(string:)))
-    }
-
-    // A clear color gets WidgetKit's own opaque background, not the wallpaper; neither a material nor
-    // glassEffect changes that on iOS 26. Glass is the system's, for the Clear and Tinted appearances.
-    private var background: AnyShapeStyle {
-        guard let color = entry.background else { return AnyShapeStyle(.background) }
-        return AnyShapeStyle(Palette.color(color))
     }
 
     @ViewBuilder private var content: some View {
