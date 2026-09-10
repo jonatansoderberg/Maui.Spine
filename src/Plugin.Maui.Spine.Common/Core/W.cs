@@ -104,5 +104,28 @@ public static class WidgetNodeStyling
     /// <summary>Renders in <paramref name="color"/>.</summary>
     public static T Color<T>(this T node, WidgetColor color) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Color = color });
 
+    /// <summary>Puts <paramref name="points"/> of space between the stack's edges and its children, on every side.</summary>
+    public static T Padding<T>(this T node, double points) where T : StackNode
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(points);
+        return (T)(node with { Padding = points });
+    }
+
+    /// <summary>
+    /// Draws <paramref name="color"/> behind the stack, padding included. The stack then fills the width it
+    /// is offered, except inside a <see cref="W.HStack(WidgetNode[])"/>, where it wraps its content.
+    /// </summary>
+    public static T Background<T>(this T node, WidgetColor color) where T : StackNode => (T)(node with { Background = color });
+
+    /// <summary>
+    /// Rounds the stack's corners by <paramref name="points"/>, clipping its background and children.
+    /// Android 12 and later; square below.
+    /// </summary>
+    public static T CornerRadius<T>(this T node, double points) where T : StackNode
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(points);
+        return (T)(node with { CornerRadius = points });
+    }
+
     private static T Role<T>(this T node, TextRole role) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Role = role });
 }

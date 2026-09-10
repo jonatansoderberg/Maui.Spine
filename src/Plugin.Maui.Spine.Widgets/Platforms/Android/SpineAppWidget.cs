@@ -188,6 +188,8 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         var current = entries.LastOrDefault(e => e.Date <= now) is { Trees.ValueKind: JsonValueKind.Object } shown ? shown : entries[0];
         var tap = (root.TryGetProperty("link", out var link) || local.RootElement.TryGetProperty("link", out link)) && link.GetString() is { } url
             ? LinkIntent(context, index, url) : null;
+        renderer.Background = (root.TryGetProperty("background", out var background) || local.RootElement.TryGetProperty("background", out background))
+            && background.ValueKind == JsonValueKind.String ? background.GetString() : null;
 
         foreach (var id in ids)
             manager.UpdateAppWidget(id, Views(renderer, current.Trees, tap, manager, id));

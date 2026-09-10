@@ -76,6 +76,7 @@ struct TimelineDocument: Decodable {
     var link: String?
     var remote: String?
     var refreshAfterSeconds: Double?
+    var background: String?
     var entries: [Entry]
 }
 
@@ -88,6 +89,7 @@ struct ActivityLayout: Decodable {
     var compactLeading: Node?
     var compactTrailing: Node?
     var minimal: Node?
+    var background: String?
     var link: String?
 
     static func parse(_ json: String) -> ActivityLayout {
@@ -111,6 +113,9 @@ final class Node: Decodable {
     var value: Double?
     var compact: Bool?
     var spacing: Double?
+    var padding: Double?
+    var background: String?
+    var cornerRadius: Double?
     var children: [Node]?
     var actionId: String?
     var child: Node?
@@ -123,7 +128,13 @@ final class Node: Decodable {
 struct SpineKindKey: EnvironmentKey { static let defaultValue = "" }
 /// Set inside a button's label, where invalidatable content must not be applied.
 struct SpineInsideButtonKey: EnvironmentKey { static let defaultValue = false }
+/// Set for the children of an HStack and a button, which wrap their content on Android; see BoxModifier.
+struct SpineInlineKey: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
+    var spineInline: Bool {
+        get { self[SpineInlineKey.self] }
+        set { self[SpineInlineKey.self] = newValue }
+    }
     var spineKind: String {
         get { self[SpineKindKey.self] }
         set { self[SpineKindKey.self] = newValue }
@@ -161,15 +172,17 @@ struct NodeView: View {
             if let child = node.child, let actionId = node.actionId {
                 // Nothing inside the label may be invalidatable: WidgetKit then no longer routes the tap to
                 // the intent, and it falls through to widgetURL and opens the app. Verified on iOS 26.
-                Button(intent: SpineWidgetIntent(kind: kind, actionId: actionId)) { NodeView(node: child).environment(\.spineInsideButton, true) }
-                    .buttonStyle(.plain)
+                Button(intent: SpineWidgetIntent(kind: kind, actionId: actionId)) {
+                    NodeView(node: child).environment(\.spineInsideButton, true).environment(\.spineInline, true)
+                }
+                .buttonStyle(.plain)
             }
         case "vstack":
-            VStack(alignment: .leading, spacing: node.spacing ?? 4) { children }
+            VStack(alignment: .leading, spacing: node.spacing ?? 4) { children }.modifier(BoxModifier(node: node, alignment: .leading))
         case "hstack":
-            HStack(spacing: node.spacing ?? 4) { children }
+            HStack(spacing: node.spacing ?? 4) { children }.modifier(BoxModifier(node: node, alignment: .leading))
         case "zstack":
-            ZStack { children }
+            ZStack { children }.modifier(BoxModifier(node: node, alignment: .center))
         case "text":
             Text(node.text ?? "").modifier(TextStyleModifier(node: node))
         // Self-updating text takes every point offered to it inside a Live Activity — a long-standing
@@ -216,7 +229,39 @@ struct NodeView: View {
     }
 
     @ViewBuilder private var children: some View {
-        ForEach(Array((node.children ?? []).enumerated()), id: \.offset) { NodeView(node: $0.element) }
+        ForEach(Array((node.children ?? []).enumerated()), id: \.offset) {
+            NodeView(node: $0.element).environment(\.spineInline, node.type == "hstack")
+        }
+    }
+}
+
+/// A stack's padding, background and corner radius. With a background the stack fills the width it is
+/// offered, as every stack outside an HStack does on Android, so one tree lays out the same on both. A
+/// stack with none of the three is left exactly as SwiftUI sizes it.
+struct BoxModifier: ViewModifier {
+    @Environment(\.spineInline) private var inline
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    let node: Node
+    let alignment: Alignment
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if node.padding == nil && node.background == nil && node.cornerRadius == nil {
+            content
+        } else {
+            let shape = RoundedRectangle(cornerRadius: CGFloat(node.cornerRadius ?? 0))
+            content
+                .padding(CGFloat(node.padding ?? 0))
+                .frame(maxWidth: node.background != nil && !inline ? .infinity : nil, alignment: alignment)
+                .background(fill, in: shape)
+                .clipShape(shape)
+        }
+    }
+
+    // In the Clear and Tinted appearances the system draws everything in one tint, so a box filled at full
+    // strength swallows the text on it. A faint fill keeps the shape and leaves the text legible.
+    private var fill: Color {
+        guard let background = node.background else { return .clear }
+        return Palette.color(background).opacity(renderingMode == .fullColor ? 1 : 0.25)
     }
 }
 
@@ -274,6 +319,7 @@ struct Entry: TimelineEntry {
     let trees: [String: Node]
     let link: String?
     var kind: String = ""
+    var background: String? = nil
 
     static let placeholder = Entry(date: .now, trees: [:], link: nil)
 }
@@ -307,7 +353,7 @@ struct Provider: TimelineProvider {
 
     private func timeline(from document: TimelineDocument?, fallback: TimelineDocument?) -> Timeline<Entry> {
         let source = document?.entries.isEmpty == false ? document : fallback
-        let entries = entries(from: source, link: document?.link ?? fallback?.link)
+        let entries = entries(from: source, link: document?.link ?? fallback?.link, background: document?.background ?? fallback?.background)
         let policy: TimelineReloadPolicy
         if let seconds = source?.refreshAfterSeconds ?? fallback?.refreshAfterSeconds, let last = entries.last {
             policy = .after(last.date.addingTimeInterval(seconds))
@@ -321,14 +367,14 @@ struct Provider: TimelineProvider {
 
     private func entries() -> [Entry] {
         let document = Store.timeline(kind: kind)
-        return entries(from: document, link: document?.link)
+        return entries(from: document, link: document?.link, background: document?.background)
     }
 
-    private func entries(from document: TimelineDocument?, link: String?) -> [Entry] {
+    private func entries(from document: TimelineDocument?, link: String?, background: String?) -> [Entry] {
         guard let document else { return [] }
         return document.entries
             .sorted { $0.date < $1.date }
-            .map { Entry(date: $0.date, trees: $0.trees, link: link, kind: kind) }
+            .map { Entry(date: $0.date, trees: $0.trees, link: link, kind: kind, background: background) }
     }
 }
 
@@ -338,8 +384,15 @@ struct SpineWidgetView: View {
 
     var body: some View {
         content
-            .containerBackground(.background, for: .widget)
+            .containerBackground(background, for: .widget)
             .widgetURL(entry.link.flatMap(URL.init(string:)))
+    }
+
+    // A clear color gets WidgetKit's own opaque background, not the wallpaper; neither a material nor
+    // glassEffect changes that on iOS 26. Glass is the system's, for the Clear and Tinted appearances.
+    private var background: AnyShapeStyle {
+        guard let color = entry.background else { return AnyShapeStyle(.background) }
+        return AnyShapeStyle(Palette.color(color))
     }
 
     @ViewBuilder private var content: some View {
@@ -408,7 +461,7 @@ struct SpineLiveActivity: Widget {
             Slot(node: layout.lockScreen, kind: context.attributes.kind)
                 .padding()
                 .opacity(context.isStale ? 0.5 : 1)
-                .activityBackgroundTint(.black.opacity(0.6))
+                .activityBackgroundTint(layout.background.map { Palette.color($0) } ?? .black.opacity(0.6))
                 .widgetURL(layout.link.flatMap(URL.init(string:)))
         } dynamicIsland: { context in
             let layout = ActivityLayout.parse(context.state.json)

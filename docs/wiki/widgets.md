@@ -161,9 +161,39 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Button(actionId, child)` | A tappable child that sends `actionId` to the provider (see [Buttons](#buttons)) |
 | `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
 
-Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`. Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
+Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
 
 `WidgetColor` is either one of the platform's semantic colors (`Primary`, `Secondary`, `Accent`, `Green`, `Red`, `Orange`, `Yellow`, `Blue`), which adapt to light and dark, or a fixed value from `WidgetColor.FromHex("#2E8B57")` / `WidgetColor.From(mauiColor)`. Prefer semantic colors for anything but a brand accent — a fixed color is a fixed color in dark mode too.
+
+### Backgrounds and boxes
+
+A stack can carry a box — padding, a background color, rounded corners — which is what a card, a label or a rounded logo is built from. The sample widget's button is one:
+
+```csharp
+W.Button("bump", W.HStack(W.Text("Bump").Caption().Bold().Color(surface))
+    .Background(mint).Padding(6).CornerRadius(8))
+```
+
+The surface under the whole tree is colored from the timeline, and for a Live Activity from the layout:
+
+```csharp
+WidgetTimeline.Single(tree).Background(WidgetColor.FromHex("#1B5E3F"));
+new LiveActivityLayout { LockScreen = tree, Background = WidgetColor.FromHex("#1B5E3F") };
+```
+
+- **Only stacks take a box.** Put a text or an image in a `W.HStack` to give it one.
+- **A stack with a background fills the width it is offered**, except inside a `W.HStack` or a button, where it wraps its content — the same on both platforms, so a label in a row stays a label.
+- **Give text on a fixed surface fixed colors.** The surface stays the same in dark mode; `Primary` and `Secondary` do not, and turn dark on it in light mode.
+- **A transparent widget works on Android only.** `WidgetColor.FromHex("#00000000")` lets the wallpaper through on Android. iOS ignores a clear container background and draws its own opaque one instead — white in light mode, so white text on it disappears. A material or SwiftUI's `glassEffect` as the background does not change that (tried on iOS 26.4), and `widgetTexture(.glass)` is visionOS only.
+- **Liquid Glass on iOS is the user's choice.** In the *Clear* and *Tinted* Home Screen appearances iOS removes the widget's background and draws glass itself, as for its own widgets — a Spine widget included, with no code. Everything is then tinted alike, so a stack's box is drawn at a quarter of its strength there; at full strength it would swallow the text on it.
+- **A Live Activity's `Background` colors the Lock Screen only.** It replaces the default translucent black; the Dynamic Island is always black.
+
+| | iOS | Android |
+|---|---|---|
+| `WidgetTimeline.Background` | `containerBackground` | Tints the root's rounded background (API 31+); a flat, square color below |
+| `LiveActivityLayout.Background` | `activityBackgroundTint` | Ignored: Android does not promote a Live Update that asks for a color |
+| `.Padding` / `.Background` | `padding` / `background` | `setViewPadding` / `setBackgroundColor`; ignored in a Live Update |
+| `.CornerRadius` | Clips the background and the children | The same from API 31; square below |
 
 ### The timeline
 
@@ -337,6 +367,7 @@ await activity.EndAsync();
 
 - `StartAsync` returns `null` when the platform refused — activities turned off in Settings, or the app not in the foreground. **iOS only starts an activity while the app is in the foreground**, so it belongs behind a button the user pressed, never in a page's build. On Android the same call asks for the notification permission the first time, which is another reason to keep it behind a button.
 - `AreActivitiesEnabled` says whether the user allows them at all; hide the button when they do not. On Android it means "Android 16 or later" — the notification permission cannot be told apart from "not asked yet", so `StartAsync` asks.
+- `Background` colors the Lock Screen presentation instead of the default translucent black; see [Backgrounds and boxes](#backgrounds-and-boxes). An update replaces the whole layout, so a server that updates the activity sets it too.
 - `Active` lists the activities this app has running, **including any it started before it was last killed** — an activity outlives the process. Ask it rather than holding a handle in a view model. The `kind` is how you tell them apart — put whatever identifies the subject in it (`$"din-start:{competitionId}"`).
 - `ActivitiesChanged` fires when `Active` changed, whoever changed it: the app, or the platform — the user swiped the activity off the Lock Screen, a push ended it, it aged past its stale date. The platform reports while the app runs, and at the next launch or foreground for anything that happened while it did not — Spine remembers which activities it knew about, so one that ended in between is noticed as missing; a handle you kept has `IsEnded` set by then. It is raised on the platform's thread, so dispatch before touching UI. A swipe on the **Dynamic Island** is not an end: it hides the island presentation, the activity stays on the Lock Screen and stays `.active`, and ActivityKit tells the app nothing — so `Active` still lists it, correctly.
 - `ActivityEnded` says *which* one ended, for every end the app did not make itself — a swipe, a push, the stale date, or an end while the app was not running. `ActivitiesChanged` fires as well; the app's own `EndAsync` raises only that, since the caller already knows. To hear about the ones that ended while the app was not running, subscribe right after `builder.Build()` in `MauiProgram`: they are reported as the app launches, before any page exists.
@@ -464,6 +495,8 @@ The same C# tree renders on Android without changes; the difference is what the 
 | `W.Text`, `W.Timer`, `W.Relative` | `TextView` and `Chronometer`; `Title` 22 sp, `Headline` 16 sp, `Body` 14 sp, `Caption` 12 sp |
 | `W.Icon` | The rasterized SVG as an `ImageView`, tinted through `setColorFilter` (see [Icons](#icons)) |
 | `WidgetColor` | Semantic colors resolve in the launcher's theme (light and dark) from Android 12; `Green` … `Blue` are the iOS system palette in both variants; hex is hex |
+| `WidgetTimeline.Background` | The root's rounded background drawable tinted through `setBackgroundTintList` from Android 12; `setBackgroundColor` below, which loses the corners |
+| `.Padding` / `.Background` / `.CornerRadius` | `setViewPadding`, `setBackgroundColor`, and from Android 12 `setViewOutlinePreferredRadius` with `setClipToOutline` |
 | `WidgetTimeline` entries | The entry that applies now is drawn; an inexact alarm redraws at the next entry's date, another runs the provider `Refresh(after)` the last one |
 | `OpenUrl` | A `PendingIntent` to a small activity in the package that forwards the URL to the app's own main activity; the scheme is registered on it by the build |
 | `W.Button` | A `PendingIntent` broadcast to the widget's receiver, which runs the handler in the app's process |
@@ -484,7 +517,7 @@ A Live Activity on Android 16 is a **promoted ongoing notification**, and the la
 | `CompactTrailing` | A `W.Text` there becomes the status-bar chip's text; a `W.Timer` leaves the chip to the system's chronometer |
 | `Link` | The notification's tap, through the same activity as the widget |
 
-`staleAt` is not visualised on Android. Below Android 16 `AreActivitiesEnabled` is `false` and `StartAsync` returns `null`; a plain ongoing notification would not be a Live Activity, so Spine does not pretend.
+`staleAt` is not visualised on Android, and neither is a stack's box. `Background` is left out on purpose: Android promotes a notification only when it does not ask to be colorized (`Notification.hasPromotableCharacteristics`), so a colored Live Update would fall back to a plain notification. Below Android 16 `AreActivitiesEnabled` is `false` and `StartAsync` returns `null`; a plain ongoing notification would not be a Live Activity, so Spine does not pretend.
 
 **`CompactTrailing` is the one region that pulls in opposite directions.** On iOS it sits in the Dynamic Island, where a `W.Timer` or `W.Relative` claims every point offered and stretches the island — so a plain `W.Text` is the right answer there. On Android the same region becomes the status-bar chip, and a `W.Timer` is what hands the chip to the system's chronometer; a `W.Text` freezes it at whatever the app last wrote. One tree cannot be ideal for both. Use `W.Adaptive`, or build the two layouts separately, when the region matters on both platforms.
 
@@ -497,6 +530,7 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 - `W.Relative` is a chronometer counting up (`03:12`), not "3 min ago" — `RemoteViews` has no system-drawn relative text, and a text the app computed would stand still.
 - `W.Spacer` only stretches inside a stack that is wider than its content; stacks are full-width, so the usual `HStack(text, Spacer(), timer)` works, a spacer in a nested vertical stack does not.
 - No custom fonts and no `ZStack` alignment beyond centered: `RemoteViews` cannot set a typeface.
+- `.CornerRadius` needs Android 12; below it a stack's background is square, and so is a widget's own `Background` — `RemoteViews` can neither clip nor tint there.
 - Nine widget kinds, as on iOS.
 
 ---

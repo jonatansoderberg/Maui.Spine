@@ -68,11 +68,15 @@ public partial class SettingsPageViewModel(IWidgetService _widgets, ILiveActivit
         var start = DateTimeOffset.Now.AddMinutes(42);
         var activity = await _liveActivities.StartAsync(ActivityKind, new LiveActivityLayout
         {
+            // The same surface as the sample widget; text on a fixed color gets fixed colors too.
             LockScreen = W.HStack(10,
-                W.Icon("fish", WidgetColor.Green),
-                W.VStack(2, W.Text("Sthlm Indoor Cup · H21").Headline().Bold(), W.Text("Your start").Caption().Secondary()),
+                W.Icon("fish", WidgetColor.FromHex("#8FE3B0")),
+                W.VStack(2,
+                    W.Text("Sthlm Indoor Cup · H21").Headline().Bold().Color(WidgetColor.FromHex("#FFFFFF")),
+                    W.Text("Your start").Caption().Color(WidgetColor.FromHex("#B3FFFFFF"))),
                 W.Spacer(),
-                W.Timer(start).Title().Bold().Color(WidgetColor.Green)),
+                W.Timer(start).Title().Bold().Color(WidgetColor.FromHex("#8FE3B0"))),
+            Background = WidgetColor.FromHex("#1B5E3F"),
             ExpandedLeading = W.Icon("fish", WidgetColor.Green),
             ExpandedTrailing = W.Timer(start).Headline().Bold().Color(WidgetColor.Green),
             ExpandedCenter = W.Text("Sthlm Indoor Cup · H21").Headline().Bold(),

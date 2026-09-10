@@ -158,14 +158,16 @@ static string Shorten(string handle) =>
 /// <remarks>
 /// The freshness line is a <see cref="W.Relative"/> node rather than a formatted time: the system
 /// draws a Live Activity while the app is not running, so a stamped string never changes again and
-/// an update that did arrive looks like one that never came.
+/// an update that did arrive looks like one that never came. The background and the fixed text
+/// colors match the app's own layout: an update replaces the whole layout, background included.
 /// </remarks>
 static LiveActivityLayout Layout(SendRequest request) => new()
 {
     LockScreen = W.VStack(4,
-        W.Text(request.Title ?? "Live Activity").Headline().Bold(),
-        W.Text(request.Body ?? "Uppdaterad av servern").Caption().Secondary(),
-        W.Relative(DateTimeOffset.Now).Caption().Secondary()),
+        W.Text(request.Title ?? "Live Activity").Headline().Bold().Color(WidgetColor.FromHex("#FFFFFF")),
+        W.Text(request.Body ?? "Uppdaterad av servern").Caption().Color(WidgetColor.FromHex("#B3FFFFFF")),
+        W.Relative(DateTimeOffset.Now).Caption().Color(WidgetColor.FromHex("#B3FFFFFF"))),
+    Background = WidgetColor.FromHex("#1B5E3F"),
     // All four expanded slots, or a long press on the Dynamic Island opens to nothing.
     ExpandedLeading = W.Icon("bell"),
     ExpandedTrailing = W.Relative(DateTimeOffset.Now, compact: true).Caption(),

@@ -25,6 +25,9 @@ public sealed class WidgetTimeline
     /// <summary>The URL the platform fetches a fresh timeline document from; see <see cref="RemoteSource"/>.</summary>
     public Uri? Remote { get; private set; }
 
+    /// <summary>The color the widget is drawn on; the platform's widget background when <see langword="null"/>.</summary>
+    public WidgetColor? BackgroundColor { get; private set; }
+
     /// <summary>A timeline with one entry that shows <paramref name="tree"/> in every family.</summary>
     public static WidgetTimeline Single(WidgetNode tree) => new WidgetTimeline().Add(DateTimeOffset.UtcNow, tree);
 
@@ -69,6 +72,16 @@ public sealed class WidgetTimeline
     public WidgetTimeline RemoteSource(Uri url)
     {
         Remote = url;
+        return this;
+    }
+
+    /// <summary>
+    /// Draws the widget on <paramref name="color"/> instead of the platform's widget background, in every
+    /// entry. A fixed color stays fixed in dark mode, so give the text fixed colors too.
+    /// </summary>
+    public WidgetTimeline Background(WidgetColor color)
+    {
+        BackgroundColor = color;
         return this;
     }
 
