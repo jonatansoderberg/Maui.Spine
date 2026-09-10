@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Common.Serialization;
 
@@ -5,8 +7,16 @@ namespace Plugin.Maui.Spine.Widgets.Services;
 
 internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconAssets _icons) : ILiveActivityService
 {
+    /// <summary>The activities the app last knew about, as id → kind, kept across processes.</summary>
+    private const string MemoryKey = "spine.widgets.activities";
+
     private readonly List<LiveActivity> _active = [];
+
+    /// <summary>Ended while no one could be told — found by <see cref="Adopt"/> — and told at the next reconcile.</summary>
+    private readonly List<LiveActivity> _unannounced = [];
+
     private bool _adopted;
+    private bool _seeded;
 
     public bool IsSupported => _platform.IsSupported;
 
@@ -20,16 +30,24 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     /// <inheritdoc />
     public event Action? ActivitiesChanged;
 
+    /// <inheritdoc />
+    public event Action<LiveActivity>? ActivityEnded;
+
     /// <summary>
     /// Picks up the activities the platform is still showing from before this process started. An
     /// activity outlives the app that started it, so without this the app would offer to start a
     /// second one on top of the first after a relaunch.
     /// </summary>
+    /// <remarks>
+    /// Runs inside the <see cref="Active"/> getter, where raising an event would be a surprise, so an
+    /// activity found to have ended while the app was away is kept for the next <see cref="Reconcile"/>
+    /// — at launch, foreground, or the bridge's notice — and announced there.
+    /// </remarks>
     private void Adopt()
     {
         if (_adopted || !_platform.IsSupported) return;
         _adopted = true;
-        Sync();
+        _unannounced.AddRange(Sync().Gone);
     }
 
     /// <summary>
@@ -41,13 +59,38 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     internal void Reconcile()
     {
         if (!_platform.IsSupported) return;
-        bool changed;
-        lock (_active) { _adopted = true; changed = Sync(); }
-        if (changed) ActivitiesChanged?.Invoke();
+
+        List<LiveActivity> ended;
+        bool added;
+        lock (_active)
+        {
+            _adopted = true;
+            (var gone, added) = Sync();
+            ended = [.. _unannounced, .. gone];
+            _unannounced.Clear();
+        }
+
+        foreach (var activity in ended) ActivityEnded?.Invoke(activity);
+        if (ended.Count > 0 || added) ActivitiesChanged?.Invoke();
     }
 
-    private bool Sync()
+    /// <summary>
+    /// Brings <c>_active</c> in line with the platform and says what differed. The first time in a
+    /// process the list starts from what the app last knew rather than from nothing — which is what
+    /// turns an activity that ended while the app was not running into one that is missing now, and
+    /// lets the ordinary comparison below find it.
+    /// </summary>
+    private (List<LiveActivity> Gone, bool Added) Sync()
     {
+        if (!_seeded)
+        {
+            _seeded = true;
+            foreach (var (id, kind) in Remembered())
+            {
+                if (!_active.Any(a => a.Id == id)) _active.Add(new LiveActivity(id, kind, Update, End, PushToken));
+            }
+        }
+
         var shown = _platform.ActiveActivities();
         var gone = _active.Where(a => !shown.ContainsKey(a.Id)).ToList();
         foreach (var activity in gone)
@@ -64,7 +107,8 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
                 added = true;
             }
 
-        return gone.Count > 0 || added;
+        Remember();
+        return (gone, added);
     }
 
     public async Task<LiveActivity?> StartAsync(string kind, LiveActivityLayout layout, DateTimeOffset? staleAt = null)
@@ -80,7 +124,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
         // A reconcile can slip in between the start and this add and list the new id already; the
         // caller's handle is the one to keep.
         var activity = new LiveActivity(id, kind, Update, End, PushToken);
-        lock (_active) { _active.RemoveAll(a => a.Id == id); _active.Add(activity); }
+        lock (_active) { _active.RemoveAll(a => a.Id == id); _active.Add(activity); Remember(); }
 
         // The token does not exist yet — ActivityKit issues it a moment later. Raising now is still
         // right: whoever rebuilds a registration reads the token through GetPushTokenAsync, which
@@ -126,9 +170,35 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
     {
         if (activity.IsEnded) return Task.CompletedTask;
         activity.IsEnded = true;
-        lock (_active) _active.Remove(activity);
+        lock (_active) { _active.Remove(activity); Remember(); }
         _platform.EndActivity(activity.Id);
         ActivitiesChanged?.Invoke();
         return Task.CompletedTask;
     }
+
+    /// <summary>Writes down the current list. Called with the lock held.</summary>
+    private void Remember() =>
+        Preferences.Default.Set(MemoryKey, JsonSerializer.Serialize(
+            _active.ToDictionary(a => a.Id, a => a.Kind), ActivityMemoryJsonContext.Default.DictionaryStringString));
+
+    private static Dictionary<string, string> Remembered()
+    {
+        var json = Preferences.Default.Get(MemoryKey, "");
+        if (json is not { Length: > 0 }) return [];
+
+        try
+        {
+            return JsonSerializer.Deserialize(json, ActivityMemoryJsonContext.Default.DictionaryStringString) ?? [];
+        }
+        catch (JsonException)
+        {
+            // A memory that no longer parses is worth less than a working start: forget it, and the
+            // next change writes a whole one.
+            Preferences.Default.Remove(MemoryKey);
+            return [];
+        }
+    }
 }
+
+[JsonSerializable(typeof(Dictionary<string, string>))]
+internal sealed partial class ActivityMemoryJsonContext : JsonSerializerContext;

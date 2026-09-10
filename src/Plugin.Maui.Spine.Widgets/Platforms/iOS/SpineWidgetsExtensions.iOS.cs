@@ -30,6 +30,10 @@ public static partial class SpineWidgetsExtensions
                 if (background) RegisterBackgroundRefresh(refreshTask!, options.BackgroundRefreshInterval);
                 ListenForActions();
                 ListenForActivities();
+
+                // At launch too, not only at foreground: an activity that ended while the app was not
+                // running is found here, against what the app last knew, and announced.
+                ReconcileActivities(Services());
                 DrainActions(Services());
                 RefreshAllInBackground(Services());
                 return true;

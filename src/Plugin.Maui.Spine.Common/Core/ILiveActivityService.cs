@@ -25,6 +25,19 @@ public interface ILiveActivityService
     event Action? ActivitiesChanged;
 
     /// <summary>
+    /// Raised for each activity that ended without the app ending it: the user swiped it away, a push
+    /// ended it, it aged past its stale date — or it ended while the app was not running, which is
+    /// reported at the next launch. <see cref="ActivitiesChanged"/> is raised as well. The app's own
+    /// <see cref="LiveActivity.EndAsync"/> raises nothing here; the caller already knows.
+    /// </summary>
+    /// <remarks>
+    /// To hear about activities that ended while the app was not running, subscribe as early as the
+    /// service exists — right after <c>builder.Build()</c> in <c>MauiProgram</c>. They are reported as
+    /// the app launches, before any page has appeared.
+    /// </remarks>
+    event Action<LiveActivity>? ActivityEnded;
+
+    /// <summary>
     /// Starts an activity of <paramref name="kind"/> with <paramref name="layout"/>. Returns
     /// <see langword="null"/> when the platform refused, for example because activities are
     /// disabled or the app is not in the foreground.

@@ -35,15 +35,12 @@ public partial class LiveActivityPageViewModel(
 
     /// <summary>
     /// The activity can go away without the app's doing — the user swipes it off the Lock Screen,
-    /// the server ends it — and this is how the page hears of it. The service raises on the
-    /// platform's thread, so the UI work is dispatched.
+    /// the server ends it — and this is how the page hears of it. What ended is logged by the
+    /// <c>ActivityEnded</c> subscription in <c>MauiProgram</c>, which also hears about the ones that
+    /// ended while the app was not running. The service raises on the platform's thread, so the UI
+    /// work is dispatched.
     /// </summary>
-    private void OnActivitiesChanged() => MainThread.BeginInvokeOnMainThread(async () =>
-    {
-        var was = _running;
-        await FindRunningAsync();
-        if (was is not null && _running is null) _log.Note("live activity", "borta — avslutad utanför appen");
-    });
+    private void OnActivitiesChanged() => MainThread.BeginInvokeOnMainThread(async () => await FindRunningAsync());
 
     private async Task FindRunningAsync()
     {
