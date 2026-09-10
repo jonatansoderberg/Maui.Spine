@@ -17,6 +17,12 @@ public enum GlassStyle
 
     /// <summary>Tinted, nearly transparent glass.</summary>
     ProminentClear,
+
+    /// <summary>
+    /// No surface at rest; regular glass while the button is pressed. For an icon that floats on
+    /// rich content and should not read as a control until it is touched.
+    /// </summary>
+    Transient,
 }
 
 /// <summary>

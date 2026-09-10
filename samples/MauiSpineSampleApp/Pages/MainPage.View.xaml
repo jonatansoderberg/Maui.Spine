@@ -44,7 +44,7 @@
                         Style="{StaticResource SvgImageButtonStyle}"
                         SvgImageSource.Svg="Settings.svg"
                         SvgImageSource.Padding="{OnPlatform Default=10, WinUI=5}"
-                        Glass.Style="Regular"
+                        Glass.Style="Transient"
                         Command="{Binding OpenSettingsCommand}"
                         AbsoluteLayout.LayoutBounds="1, 0, AutoSize, AutoSize"
                         AbsoluteLayout.LayoutFlags="PositionProportional" />
