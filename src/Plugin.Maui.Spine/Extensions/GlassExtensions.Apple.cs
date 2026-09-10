@@ -1,5 +1,6 @@
 #if IOS || MACCATALYST
 
+using System.Runtime.CompilerServices;
 using Foundation;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
@@ -52,20 +53,76 @@ public static partial class SpineExtensions
         if (!OperatingSystem.IsIOSVersionAtLeast(26))
             return;
 
-        var config = style switch
-        {
-            GlassStyle.Prominent => UIButtonConfiguration.ProminentGlassButtonConfiguration,
-            GlassStyle.Clear => UIButtonConfiguration.ClearGlassButtonConfiguration,
-            GlassStyle.ProminentClear => UIButtonConfiguration.ProminentClearGlassButtonConfiguration,
-            _ => UIButtonConfiguration.GlassButtonConfiguration,
-        };
-
         // MAUI painted these a moment ago, and paints them again on every visual-state change.
         button.BackgroundColor = UIColor.Clear;
         button.Layer.CornerRadius = 0;
         button.Layer.BorderWidth = 0;
         // The press highlight grows past the frame; ImageButtonHandler turns clipping on.
         button.ClipsToBounds = false;
+
+        // UIKit runs this on every state change; it picks up an image that arrived after the
+        // configuration did (a Button's image is loaded asynchronously and possibly resized).
+        button.ConfigurationUpdateHandler ??= static btn =>
+        {
+            if (btn.Configuration is not { Image: null } current
+                || btn.ImageForState(UIControlState.Normal) is not { } image)
+                return;
+
+            current.Image = image;
+            btn.Configuration = current;
+        };
+
+        // Transient glass follows the touch itself. The configuration update handler is not a
+        // reliable place for it: UIKit does not always run it when the highlight ends.
+        var pressed = false;
+        if (style == GlassStyle.Transient)
+        {
+            var tracker = TransientTrackers.GetValue(button, static b => new TransientGlassTracker(b));
+            tracker.Apply = isPressed => UIView.Animate(0.2, () => button.Configuration = BuildConfiguration(handler, button, view, style, isPressed));
+            pressed = tracker.Pressed;
+        }
+
+        button.Configuration = BuildConfiguration(handler, button, view, style, pressed);
+    }
+
+    static readonly ConditionalWeakTable<UIButton, TransientGlassTracker> TransientTrackers = new();
+
+    sealed class TransientGlassTracker
+    {
+        public bool Pressed { get; private set; }
+
+        public Action<bool>? Apply { get; set; }
+
+        public TransientGlassTracker(UIButton button)
+        {
+            button.TouchDown += (_, _) => Set(true);
+            button.TouchDragEnter += (_, _) => Set(true);
+            button.TouchDragExit += (_, _) => Set(false);
+            button.TouchUpInside += (_, _) => Set(false);
+            button.TouchUpOutside += (_, _) => Set(false);
+            button.TouchCancel += (_, _) => Set(false);
+        }
+
+        void Set(bool pressed)
+        {
+            if (Pressed == pressed)
+                return;
+
+            Pressed = pressed;
+            Apply?.Invoke(pressed);
+        }
+    }
+
+    static UIButtonConfiguration BuildConfiguration(IElementHandler handler, UIButton button, VisualElement view, GlassStyle style, bool pressed)
+    {
+        var config = style switch
+        {
+            GlassStyle.Prominent => UIButtonConfiguration.ProminentGlassButtonConfiguration,
+            GlassStyle.Clear => UIButtonConfiguration.ClearGlassButtonConfiguration,
+            GlassStyle.ProminentClear => UIButtonConfiguration.ProminentClearGlassButtonConfiguration,
+            GlassStyle.Transient when !pressed => UIButtonConfiguration.PlainButtonConfiguration,
+            _ => UIButtonConfiguration.GlassButtonConfiguration,
+        };
 
         if (style is GlassStyle.Prominent or GlassStyle.ProminentClear
             && (view.BackgroundColor ?? (view.Background as SolidColorBrush)?.Color) is { Alpha: > 0 } tint)
@@ -88,19 +145,7 @@ public static partial class SpineExtensions
         // arrives after the configuration exists; an in-memory bitmap arrives before, so take it now.
         config.Image = button.ImageForState(UIControlState.Normal);
 
-        // And when it arrives later (a Button's image is loaded asynchronously and possibly
-        // resized), the next configuration update picks it up.
-        button.ConfigurationUpdateHandler ??= static btn =>
-        {
-            if (btn.Configuration is not { Image: null } current
-                || btn.ImageForState(UIControlState.Normal) is not { } image)
-                return;
-
-            current.Image = image;
-            btn.Configuration = current;
-        };
-
-        button.Configuration = config;
+        return config;
     }
 
     static void ApplyGlassButton(IElementHandler handler, UIButton platformButton, Button button, UIButtonConfiguration config)

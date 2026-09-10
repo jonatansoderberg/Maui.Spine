@@ -59,6 +59,7 @@ From C#: `Glass.SetStyle(button, GlassStyle.Regular)`.
 | `Prominent` | Glass tinted with the button's `BackgroundColor` | The button's `TextColor` (white in the default styles) |
 | `Clear` | Nearly transparent glass, for buttons over photos or maps | The button's `TextColor` |
 | `ProminentClear` | Tinted, nearly transparent | The button's `TextColor` |
+| `Transient` | Nothing at rest; regular glass materialises while the button is pressed. For an icon floating on rich content that should not read as a control until touched | The button's `TextColor` |
 
 Apple's guidance: glass is for the controls that float over content (navigation, a floating action), not for buttons inside the content, and never glass on top of glass. Use `Clear` only over visually rich backgrounds.
 

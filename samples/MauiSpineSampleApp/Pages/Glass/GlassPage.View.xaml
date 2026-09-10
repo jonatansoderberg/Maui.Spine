@@ -34,6 +34,7 @@
                     <Button Text="Save" Glass.Style="Prominent" IsEnabled="{Binding IsSaveEnabled}" Command="{Binding TapCommand}" CommandParameter="Save" />
                 </HorizontalStackLayout>
                 <Button Text="Toggle the Save button" Glass.Style="Regular" Command="{Binding ToggleSaveCommand}" />
+                <Button Text="Transient: glass only while pressed" Glass.Style="Transient" TextColor="White" Command="{Binding TapCommand}" CommandParameter="Transient" />
 
                 <Label Text="ImageButton with SvgImageSource" TextColor="White" FontAttributes="Bold" Margin="0,8,0,0" />
                 <HorizontalStackLayout Spacing="12">
@@ -55,6 +56,10 @@
                                  SvgImageSource.LightTintColor="White" SvgImageSource.DarkTintColor="White"
                                  WidthRequest="44" HeightRequest="44"
                                  Command="{Binding TapCommand}" CommandParameter="Fish (no glass)" />
+                    <ImageButton Style="{StaticResource SvgImageButtonStyle}" SvgImageSource.Svg="settings.svg" SvgImageSource.Padding="10"
+                                 SvgImageSource.LightTintColor="White" SvgImageSource.DarkTintColor="White"
+                                 Glass.Style="Transient" WidthRequest="44" HeightRequest="44"
+                                 Command="{Binding TapCommand}" CommandParameter="Transient gear" />
                 </HorizontalStackLayout>
 
                 <Label Text="{Binding LastTap}" TextColor="White" FontSize="15" Margin="0,8,0,0" />
