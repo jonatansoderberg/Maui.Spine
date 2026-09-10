@@ -190,4 +190,18 @@ public class WidgetLayoutRoundTripTests
         Assert.Equal(WidgetColor.OnAccent, Assert.IsType<TextNode>(back.LockScreen).Color);
         Assert.Equal(WidgetColor.Surface, back.Background);
     }
+
+    [Fact]
+    public void System_background_and_action_color_survive_and_are_absent_when_unset()
+    {
+        var layout = new LiveActivityLayout { LockScreen = W.Text("x"), SystemBackground = true, ActionColor = WidgetColor.Green };
+        var back = WidgetJson.DeserializeLayout(layout.ToJson())!;
+
+        Assert.True(back.SystemBackground);
+        Assert.Equal(WidgetColor.Green, back.ActionColor);
+
+        var plain = new LiveActivityLayout { LockScreen = W.Text("x") }.ToJson();
+        Assert.DoesNotContain("systemBackground", plain);
+        Assert.DoesNotContain("actionColor", plain);
+    }
 }

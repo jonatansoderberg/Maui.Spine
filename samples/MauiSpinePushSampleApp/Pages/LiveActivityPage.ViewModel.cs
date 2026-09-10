@@ -144,6 +144,45 @@ public partial class LiveActivityPageViewModel(
         State = answer;
     }
 
+    /// <summary>
+    /// The activity on the system's own Lock Screen material, which follows the wallpaper and the appearance —
+    /// so the text takes semantic colors here rather than the fixed ones on the green surface. Starts one on it
+    /// when none runs. A running one takes the new text, but one started green stays green: iOS holds on to a
+    /// tint once it is set.
+    /// </summary>
+    [RelayCommand]
+    private async Task UpdateWithSystemBackground()
+    {
+        var body = $"Systemets bakgrund {DateTimeOffset.Now:HH:mm:ss}";
+        var layout = Layout(body) with
+        {
+            LockScreen = W.VStack(4,
+                W.Text("Spine Push").Headline().Bold(),
+                W.Text(body).Caption().Secondary(),
+                W.Relative(DateTimeOffset.Now).Caption().Secondary()),
+            Background = null,
+            SystemBackground = true,
+            ActionColor = WidgetColor.Green,
+        };
+
+        if (_running is not null)
+        {
+            await _running.UpdateAsync(layout);
+            _log.Note("live activity", "uppdaterad lokalt, på systemets bakgrund");
+            return;
+        }
+
+        if (!_activities.AreActivitiesEnabled)
+        {
+            State = "Live Activities är avstängda på den här enheten";
+            return;
+        }
+
+        _running = await _activities.StartAsync(Kind, layout, DateTimeOffset.Now.AddMinutes(30));
+        _log.Note("live activity", _running is null ? "kunde inte startas" : "startad på systemets bakgrund");
+        await ShowAsync();
+    }
+
     [RelayCommand]
     private async Task End()
     {
