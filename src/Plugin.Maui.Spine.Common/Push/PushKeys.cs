@@ -28,6 +28,12 @@ public static class PushKeys
     /// <summary>The Live Activity kind a <see cref="Kinds.LiveActivity"/> message applies to.</summary>
     public const string Activity = "spine.activity";
 
+    /// <summary>
+    /// The channel a Live Activity started by an FCM message follows. Android subscribes to its topic
+    /// while the activity runs; see <see cref="LiveActivityChannels"/>.
+    /// </summary>
+    public const string ActivityChannel = "spine.activity-channel";
+
     /// <summary>A serialized <see cref="LiveActivityLayout"/>, for platforms that render it in the app's process.</summary>
     public const string Layout = "spine.layout";
 

@@ -58,6 +58,13 @@ public sealed record LiveActivityOptions
     /// priority 10 counts against the hourly budget, so ask for it only when the update cannot wait.
     /// </summary>
     public PushPriority Priority { get; init; } = PushPriority.Normal;
+
+    /// <summary>
+    /// The channel an activity started by push follows, so that later broadcasts to it reach this
+    /// activity too. iOS 18 reads it as <c>input-push-channel</c>; Android subscribes to the channel's
+    /// FCM topic. Only meaningful with <see cref="LiveActivityEvent.Start"/>.
+    /// </summary>
+    public string? Channel { get; init; }
 }
 
 /// <summary>A user-visible notification, in the platform-neutral form Spine sends.</summary>

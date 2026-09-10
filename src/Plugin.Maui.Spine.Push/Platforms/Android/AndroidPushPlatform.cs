@@ -61,6 +61,49 @@ internal sealed class AndroidPushPlatform : IPushPlatform
             context.StartActivity(intent);
         });
 
+    /// <summary>The FCM topics subscribed to for broadcast channels, kept so a later call knows what to leave.</summary>
+    private const string TopicsKey = "spine.push.channel-topics";
+
+    /// <inheritdoc />
+    public async Task FollowChannelsAsync(IReadOnlySet<string> channels)
+    {
+        var wanted = channels.Select(LiveActivityChannels.Topic).ToHashSet();
+        var followed = Preferences.Default.Get(TopicsKey, "").Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+        if (wanted.SetEquals(followed)) return;
+
+        // Each change is written down as soon as Firebase confirms it, so one that fails is tried
+        // again at the next call instead of being forgotten.
+        foreach (var topic in wanted.Except(followed))
+        {
+            if (await TopicAsync(topic, subscribe: true)) followed.Add(topic);
+        }
+
+        foreach (var topic in followed.Except(wanted).ToList())
+        {
+            if (await TopicAsync(topic, subscribe: false)) followed.Remove(topic);
+        }
+
+        Preferences.Default.Set(TopicsKey, string.Join(' ', followed));
+    }
+
+    private static async Task<bool> TopicAsync(string topic, bool subscribe)
+    {
+        try
+        {
+            var task = subscribe
+                ? FirebaseMessaging.Instance.SubscribeToTopic(topic)
+                : FirebaseMessaging.Instance.UnsubscribeFromTopic(topic);
+            await task.AsAsync<Java.Lang.Object>();
+            Logger?.LogInformation("Spine.Push: {Action} FCM topic {Topic}.", subscribe ? "subscribed to" : "unsubscribed from", topic);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Logger?.LogWarning(e, "Spine.Push: could not {Action} FCM topic {Topic}.", subscribe ? "subscribe to" : "unsubscribe from", topic);
+            return false;
+        }
+    }
+
     /// <summary>Asks Firebase for the registration token and remembers it.</summary>
     internal static async Task FetchTokenAsync()
     {

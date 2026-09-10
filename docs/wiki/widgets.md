@@ -396,6 +396,8 @@ Tokens rotate, so send them at every launch and foreground as well. The server p
 
 `event: start` with `attributes-type: SpineActivityAttributes` and `attributes: { "kind": "…" }` starts an activity through the push-to-start token. Set `SpineWidgetsFrequentUpdates=true` in the project to declare `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget. Android has no tokens: a server reaches a Live Update through the app's own push handler (FCM), which calls `UpdateAsync` or `RefreshAsync` like any other code.
 
+To reach many activities with one push — everyone following the same competition — start them on a broadcast channel: `StartAsync(kind, layout, channel: id)`. iOS 18 follows the APNs channel and Android the channel's FCM topic; the server sends with `BroadcastLiveActivityAsync`. An activity on a channel has no token of its own. See [Broadcast channels](push-server.md#broadcast-channels).
+
 ### Keeping one on screen around the clock
 
 Some subjects have no end: a glucose reading, a delivery being tracked overnight, a system being watched. The eight-hour limit means **no single activity covers a day**, and designing as though it does produces something that silently disappears while the user sleeps.

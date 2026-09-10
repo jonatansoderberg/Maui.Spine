@@ -29,6 +29,13 @@ internal interface IPushPlatform
     /// <summary>Opens the system settings page for this app's notifications.</summary>
     Task OpenSettingsAsync();
 
+    /// <summary>
+    /// Follows the broadcast channels the running Live Activities were started on, and stops following
+    /// the rest. Android's channels are FCM topics the app subscribes to; iOS follows them itself.
+    /// </summary>
+    /// <param name="channels">Every channel a running activity is on.</param>
+    Task FollowChannelsAsync(IReadOnlySet<string> channels);
+
     /// <summary>Raised when the platform hands over a new token.</summary>
     event Action<string>? HandleChanged;
 }

@@ -25,6 +25,19 @@ public sealed class ApplePushOptions
     /// </summary>
     public ApnsEnvironment Environment { get; set; } = ApnsEnvironment.PerInstallation;
 
+    /// <summary>
+    /// The environment a channel request or a broadcast goes to. A device push reads it from the
+    /// installation; these have none, so it is the one asked for, or <see cref="Environment"/>.
+    /// </summary>
+    internal ApnsEnvironment ChannelEnvironment(ApnsEnvironment? requested) => (requested ?? Environment) switch
+    {
+        ApnsEnvironment.PerInstallation when requested is null => throw new InvalidOperationException(
+            "A channel belongs to one APNs environment and Environment is PerInstallation, so say which: pass Sandbox or Production."),
+        ApnsEnvironment.PerInstallation => throw new ArgumentException(
+            "A channel belongs to Sandbox or Production, not PerInstallation.", nameof(requested)),
+        var environment => environment,
+    };
+
     internal void Validate()
     {
         Require(TeamId, nameof(TeamId));

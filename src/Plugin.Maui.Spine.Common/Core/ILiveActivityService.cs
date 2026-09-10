@@ -45,7 +45,13 @@ public interface ILiveActivityService
     /// <param name="kind">Stable identifier used to tell activities apart; not shown to the user.</param>
     /// <param name="layout">The trees per region.</param>
     /// <param name="staleAt">When the content should be presented as out of date if no update arrived.</param>
-    Task<LiveActivity?> StartAsync(string kind, LiveActivityLayout layout, DateTimeOffset? staleAt = null);
+    /// <param name="channel">
+    /// A broadcast channel for the activity to follow, from the server's <c>IPushChannels</c>: every
+    /// push to the channel then updates it. iOS 18 follows the APNs channel, and the activity has no
+    /// token of its own; Android follows the channel's FCM topic, through Spine.Push. Without it the
+    /// activity is reached through its own token, as before.
+    /// </param>
+    Task<LiveActivity?> StartAsync(string kind, LiveActivityLayout layout, DateTimeOffset? staleAt = null, string? channel = null);
 
     /// <summary>Ends every active activity immediately.</summary>
     Task EndAllAsync();
@@ -72,16 +78,19 @@ public sealed class LiveActivity
     /// <param name="update">Pushes a new layout, with an optional stale date.</param>
     /// <param name="end">Ends the activity.</param>
     /// <param name="pushToken">Fetches the activity's push token, or <see langword="null"/> when it has none.</param>
+    /// <param name="channel">The broadcast channel the activity follows, when it was started on one.</param>
     public LiveActivity(string id, string kind,
         Func<LiveActivity, LiveActivityLayout, DateTimeOffset?, Task> update,
         Func<LiveActivity, Task> end,
-        Func<LiveActivity, CancellationToken, Task<string?>> pushToken)
+        Func<LiveActivity, CancellationToken, Task<string?>> pushToken,
+        string? channel = null)
     {
         Id = id;
         Kind = kind;
         _update = update;
         _end = end;
         _pushToken = pushToken;
+        Channel = channel;
     }
 
     /// <summary>The platform's identifier of the activity.</summary>
@@ -89,6 +98,9 @@ public sealed class LiveActivity
 
     /// <summary>The kind it was started with.</summary>
     public string Kind { get; }
+
+    /// <summary>The broadcast channel the activity follows, when it was started on one.</summary>
+    public string? Channel { get; }
 
     /// <summary>
     /// Whether the activity is over — <see cref="EndAsync"/> was called, or the platform reported it

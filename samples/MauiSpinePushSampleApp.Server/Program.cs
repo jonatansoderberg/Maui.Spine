@@ -48,8 +48,22 @@ app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushOp
         _ => PushTarget.All,
     };
 
+    if (request.Kind == "broadcast" && request.BroadcastChannel is not { Length: > 0 })
+        return Results.BadRequest("A broadcast needs broadcastChannel: the id POST /channels answered.");
+
     var result = request.Kind switch
     {
+        // One push to everyone following the channel, however many they are — not one per activity
+        // token. The sample's apps are development builds, so their channels live in the sandbox.
+        "broadcast" => await sender.BroadcastLiveActivityAsync(
+            request.BroadcastChannel!,
+            request.ActivityKind ?? "sample",
+            Layout(request),
+            LiveActivityEvent.Update,
+            new LiveActivityOptions { StaleAt = DateTimeOffset.UtcNow.AddMinutes(10) },
+            ApnsEnvironment.Sandbox,
+            cancellationToken),
+
         "silent" => await sender.SendSilentAsync(target, request.Data ?? [], cancellationToken),
 
         "widget" => await sender.RefreshWidgetsAsync(target, request.WidgetKind, cancellationToken),
@@ -59,7 +73,9 @@ app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushOp
             request.ActivityKind ?? "sample",
             Layout(request),
             LiveActivityEvent.Update,
-            new LiveActivityOptions { StaleAt = DateTimeOffset.UtcNow.AddMinutes(10) },
+            // With broadcastChannel the activity follows that channel: an Android device that is not
+            // running it starts it on the channel, and later broadcasts reach it through the topic.
+            new LiveActivityOptions { StaleAt = DateTimeOffset.UtcNow.AddMinutes(10), Channel = request.BroadcastChannel },
             cancellationToken),
 
         _ => await sender.SendAsync(target, new PushNotification
@@ -89,6 +105,26 @@ app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushOp
             ? "No platform is configured, so nothing was sent. Put Apple or Fcm credentials in user secrets."
             : null,
     });
+});
+
+/// The broadcast channel the Live Activity page's "Starta på kanal" follows. One per server run: every
+/// activity started on it follows the same channel, which is what makes one push reach them all. Made
+/// at the first request rather than at startup, so a server without Apple credentials still starts.
+string? sampleChannel = null;
+app.MapPost("/channels", async (IServiceProvider services, CancellationToken cancellationToken) =>
+{
+    if (services.GetService<IPushChannels>() is not { } channels)
+        return Results.Problem("Apple is not configured, so there are no channels. Put Apple credentials in user secrets.");
+
+    try
+    {
+        sampleChannel ??= await channels.CreateAsync(PushChannelStorage.MostRecent, ApnsEnvironment.Sandbox, cancellationToken);
+        return Results.Ok(new { Channel = sampleChannel });
+    }
+    catch (PushChannelException e)
+    {
+        return Results.Problem(e.Message, statusCode: (int)e.StatusCode);
+    }
 });
 
 /// The remote widget's content. The platform fetches this itself at every reload — the widget
@@ -207,4 +243,5 @@ internal sealed record SendRequest(
     Dictionary<string, string>? Data,
     int? DelaySeconds,
     string? Category = null,
-    string? Image = null);
+    string? Image = null,
+    string? BroadcastChannel = null);

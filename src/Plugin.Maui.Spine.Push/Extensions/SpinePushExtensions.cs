@@ -192,7 +192,7 @@ public static partial class SpinePushExtensions
 
             case "start" when running is null:
                 if (Layout(message) is { } starting)
-                    await activities.StartAsync(kind, starting, StaleAt(message));
+                    await activities.StartAsync(kind, starting, StaleAt(message), Channel(message));
                 return true;
 
             default:
@@ -200,7 +200,7 @@ public static partial class SpinePushExtensions
                 // the sender cannot know which it is: the device may have been restarted since.
                 if (Layout(message) is not { } layout) return false;
 
-                if (running is null) await activities.StartAsync(kind, layout, StaleAt(message));
+                if (running is null) await activities.StartAsync(kind, layout, StaleAt(message), Channel(message));
                 else await running.UpdateAsync(layout, StaleAt(message));
 
                 return true;
@@ -210,6 +210,9 @@ public static partial class SpinePushExtensions
             message.Data.GetValueOrDefault(PushKeys.Layout) is { Length: > 0 } json
                 ? WidgetJson.DeserializeLayout(json)
                 : null;
+
+        static string? Channel(PushMessage message) =>
+            message.Data.GetValueOrDefault(PushKeys.ActivityChannel) is { Length: > 0 } channel ? channel : null;
 
         static DateTimeOffset? StaleAt(PushMessage message) =>
             message.Data.GetValueOrDefault("spine.stale") is { Length: > 0 } value &&

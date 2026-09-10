@@ -9,9 +9,17 @@ public class PushSenderTests
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 8, 12, 0, 0, TimeSpan.Zero);
 
-    private sealed class RecordingTransport(PushPlatform platform, PushStatus status = PushStatus.Sent) : IPushTransport
+    private sealed class RecordingTransport(PushPlatform platform, PushStatus status = PushStatus.Sent) : IPushBroadcastTransport
     {
         public PushPlatform Platform => platform;
+
+        public List<(string Channel, PushEnvelope Envelope)> Broadcasts { get; } = [];
+
+        public Task<PushDelivery> BroadcastAsync(string channel, PushEnvelope message, CancellationToken cancellationToken = default)
+        {
+            Broadcasts.Add((channel, message));
+            return Task.FromResult(new PushDelivery(channel, platform, status));
+        }
 
         public List<PushInstallation> Reached { get; } = [];
 
@@ -322,5 +330,36 @@ public class PushSenderTests
         await sender.RefreshWidgetsAsync(PushTarget.Installation("ios"));
 
         Assert.Null(await store.GetAsync("ios"));
+    }
+
+    [Fact]
+    public async Task A_broadcast_goes_to_the_channel_on_both_platforms_without_asking_the_register()
+    {
+        var (sender, store, apple, android) = NewSender();
+        await store.UpsertAsync(Installation("ios", PushPlatform.Apple));
+
+        var result = await sender.BroadcastLiveActivityAsync(
+            "Y2hhbm5lbA==", "tavling:1", new LiveActivityLayout { LockScreen = W.Text("Ledare 12:04") },
+            environment: ApnsEnvironment.Sandbox);
+
+        Assert.Empty(apple.Reached);
+        Assert.Equal(["Y2hhbm5lbA==", "Y2hhbm5lbA=="], result.Deliveries.Select(d => d.InstallationId));
+
+        var (channel, envelope) = Assert.Single(apple.Broadcasts);
+        Assert.Equal("Y2hhbm5lbA==", channel);
+        Assert.Equal("liveactivity", envelope.ApnsPushType);
+        Assert.Equal(ApnsEnvironment.Sandbox, envelope.ApnsEnvironment);
+
+        var data = FcmMessageReader.Read(Assert.Single(android.Broadcasts).Envelope.Json).Data;
+        Assert.Equal("Y2hhbm5lbA==", data[PushKeys.ActivityChannel]);
+    }
+
+    [Fact]
+    public async Task A_broadcast_cannot_start_an_activity()
+    {
+        var (sender, _, _, _) = NewSender();
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            sender.BroadcastLiveActivityAsync("c", "k", new LiveActivityLayout(), LiveActivityEvent.Start));
     }
 }
