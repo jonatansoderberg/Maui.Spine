@@ -38,11 +38,13 @@
                     <ImageButton
                         Padding="2"
                         CornerRadius="0"
-                        Margin="{OnPlatform Default='0,48,5,0', WinUI='0,0,144,0'}"
-                        WidthRequest="{OnPlatform Default=32, WinUI=48}"
-                        HeightRequest="32"
+                        Margin="{Binding GearMargin}"
+                        WidthRequest="{OnPlatform Default=44, WinUI=48}"
+                        HeightRequest="{OnPlatform Default=44, WinUI=32}"
                         Style="{StaticResource SvgImageButtonStyle}"
                         SvgImageSource.Svg="Settings.svg"
+                        SvgImageSource.Padding="{OnPlatform Default=10, WinUI=5}"
+                        Glass.Style="Regular"
                         Command="{Binding OpenSettingsCommand}"
                         AbsoluteLayout.LayoutBounds="1, 0, AutoSize, AutoSize"
                         AbsoluteLayout.LayoutFlags="PositionProportional" />

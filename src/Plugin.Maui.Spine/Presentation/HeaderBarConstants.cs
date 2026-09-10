@@ -29,6 +29,25 @@ internal static class HeaderBarConstants
     public const double SheetSideMargin = 10;
     public const double SheetTopPadding = 0;
 
+#elif IOS || MACCATALYST
+
+    // The UINavigationBar item size: a 44-point row, and 44-point circles for icon actions.
+    public const double Height = 44;
+
+    // Sheet presentation button size
+    public const double SheetButtonWidth = 44;
+    public const double SheetButtonPadding = 0;
+
+    // Region presentation button size
+    public const double RegionButtonWidth = 48;
+    public const double RegionButtonPadding = 0;
+
+    public const double RegionSideMargin = 8;
+    public const double SheetSideMargin = 16;
+
+    // Space below the UISheetPresentationController grabber handle
+    public const double SheetTopPadding = 20;
+
 #else
 
     // Button height (shared across sheet and region presentations)
@@ -44,13 +63,7 @@ internal static class HeaderBarConstants
 
     public const double RegionSideMargin = 0;
     public const double SheetSideMargin = 16;
-
-#if IOS || MACCATALYST
-    // Space below the UISheetPresentationController grabber handle
-    public const double SheetTopPadding = 20;
-#else
     public const double SheetTopPadding = 0;
-#endif
 
 #endif
 
