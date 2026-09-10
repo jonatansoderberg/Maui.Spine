@@ -181,16 +181,34 @@ WidgetTimeline.Single(tree).Background(WidgetColor.FromHex("#1B5E3F"));
 new LiveActivityLayout { LockScreen = tree, Background = WidgetColor.FromHex("#1B5E3F") };
 ```
 
+A widget's surface can also be a gradient, with a picture over it:
+
+```csharp
+WidgetTimeline.Single(tree)
+    .Background(new WidgetGradient([green, mint], WidgetGradientDirection.Diagonal))
+    .BackgroundImage("cover.png");   // stored with IWidgetService.StoreAssetAsync
+```
+
+The push sample's *Spine bild* widget is one, and its remote widget gets a gradient from the server.
+
 - **Only stacks take a box.** Put a text or an image in a `W.HStack` to give it one.
 - **A stack with a background fills the width it is offered**, except inside a `W.HStack` or a button, where it wraps its content — the same on both platforms, so a label in a row stays a label.
+- **A gradient replaces the color, and the other way round.** The picture goes over either, scaled to fill and cropped at the edges; the color or gradient shows through a transparent picture, and in its place until one is stored.
+- **On Android the gradient and the picture are bitmaps** in views behind the tree, clipped to the rounded corners from Android 12. The picture is scaled to at most 1024 pixels on its long side, and semantic colors in a gradient are resolved once, in the app's theme.
 - **Give text on a fixed surface fixed colors.** The surface stays the same in dark mode; `Primary` and `Secondary` do not, and turn dark on it in light mode.
 - **A transparent widget works on Android only.** `WidgetColor.FromHex("#00000000")` lets the wallpaper through on Android. iOS ignores a clear container background and draws its own opaque one instead — white in light mode, so white text on it disappears. A material or SwiftUI's `glassEffect` as the background does not change that (tried on iOS 26.4), and `widgetTexture(.glass)` is visionOS only.
 - **Liquid Glass on iOS is the user's choice.** In the *Clear* and *Tinted* Home Screen appearances iOS removes the widget's background and draws glass itself, as for its own widgets — a Spine widget included, with no code. Everything is then tinted alike, so a stack's box is drawn at a quarter of its strength there; at full strength it would swallow the text on it.
+- **Tinted and Clear draw everything white.** In those Home Screen appearances iOS removes the surface — color, gradient and picture alike — and draws the content white. `.Accented()` puts a node in the accent group (`widgetAccentable`), but iOS 26 tints that group white too, so on iOS it groups rather than colors (verified on iOS 26.2, and what Apple documents). What does show is `.FullColor()` on a `W.Image`: without it the picture turns solid white, with it it keeps its colors (iOS 18). Android ignores both.
+- **System colors follow the user's theme.** `WidgetColor.Surface` is the platform's widget surface and `WidgetColor.OnAccent` the color for text on an `Accent` fill. On Android 12 and later those two, `Accent` and `Primary` resolve in the launcher's theme — Material You, from the wallpaper; below that, in the app's theme. On iOS they are `systemBackground`, white, the app's accent color and the primary label color.
 - **A Live Activity's `Background` colors the Lock Screen only.** It replaces the default translucent black; the Dynamic Island is always black.
 
 | | iOS | Android |
 |---|---|---|
 | `WidgetTimeline.Background` | `containerBackground` | Tints the root's rounded background (API 31+); a flat, square color below |
+| `WidgetTimeline.Background(gradient)` | A `LinearGradient` in `containerBackground` | A bitmap behind the tree, stretched to it |
+| `WidgetTimeline.BackgroundImage` | The picture over the surface, `scaledToFill` | A bitmap behind the tree, cropped; at most 1024 px |
+| `.Accented()` / `.FullColor()` | `widgetAccentable` / `widgetAccentedRenderingMode(.fullColor)` | Ignored |
+| `WidgetColor.Surface` / `OnAccent` | `systemBackground` / white | `colorBackground` / `textColorPrimaryInverse`, in the launcher's theme from API 31 |
 | `LiveActivityLayout.Background` | `activityBackgroundTint` | Ignored: Android does not promote a Live Update that asks for a color |
 | `.Padding` / `.Background` | `padding` / `background` | `setViewPadding` / `setBackgroundColor`; ignored in a Live Update |
 | `.CornerRadius` | Clips the background and the children | The same from API 31; square below |

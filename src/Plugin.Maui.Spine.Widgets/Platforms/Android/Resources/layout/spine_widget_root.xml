@@ -1,12 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The widget's outer container. Every stub layout below has the same root id, so the renderer can
-     address "the view this RemoteViews wraps" without knowing which stub it is. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/spine_root"
+<!-- The widget's outer container: the rounded surface, a gradient or an image on it, and the tree in
+     spine_root. Every stub layout below has the same root id, so the renderer can address "the view this
+     RemoteViews wraps" without knowing which stub it is. The frame clips to its rounded outline (Android
+     12 and later), so a background image or gradient keeps the corners. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/spine_frame"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center_vertical"
-    android:padding="@dimen/spine_widget_padding"
     android:background="@drawable/spine_widget_background"
-    android:theme="@style/SpineWidgetTheme" />
+    android:clipToOutline="true"
+    android:theme="@style/SpineWidgetTheme">
+
+    <!-- A gradient stretches to the surface; an image fills it and is cropped at the edges. -->
+    <ImageView
+        android:id="@+id/spine_background_gradient"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/spine_background_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/spine_root"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:padding="@dimen/spine_widget_padding" />
+</FrameLayout>

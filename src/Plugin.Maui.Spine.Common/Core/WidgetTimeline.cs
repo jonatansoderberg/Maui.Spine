@@ -28,6 +28,12 @@ public sealed class WidgetTimeline
     /// <summary>The color the widget is drawn on; the platform's widget background when <see langword="null"/>.</summary>
     public WidgetColor? BackgroundColor { get; private set; }
 
+    /// <summary>The gradient the widget is drawn on, instead of <see cref="BackgroundColor"/>.</summary>
+    public WidgetGradient? BackgroundGradient { get; private set; }
+
+    /// <summary>The stored image drawn over the surface; see <see cref="BackgroundImage"/>.</summary>
+    public string? BackgroundAsset { get; private set; }
+
     /// <summary>A timeline with one entry that shows <paramref name="tree"/> in every family.</summary>
     public static WidgetTimeline Single(WidgetNode tree) => new WidgetTimeline().Add(DateTimeOffset.UtcNow, tree);
 
@@ -77,11 +83,38 @@ public sealed class WidgetTimeline
 
     /// <summary>
     /// Draws the widget on <paramref name="color"/> instead of the platform's widget background, in every
-    /// entry. A fixed color stays fixed in dark mode, so give the text fixed colors too.
+    /// entry; replaces a gradient. A fixed color stays fixed in dark mode, so give the text fixed colors too.
     /// </summary>
     public WidgetTimeline Background(WidgetColor color)
     {
         BackgroundColor = color;
+        BackgroundGradient = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Draws the widget on <paramref name="gradient"/> instead of the platform's widget background, in every
+    /// entry; replaces a color. Android resolves semantic colors in it once, in the app's theme, rather than
+    /// following the launcher's light and dark.
+    /// </summary>
+    public WidgetTimeline Background(WidgetGradient gradient)
+    {
+        ArgumentNullException.ThrowIfNull(gradient);
+        BackgroundGradient = gradient;
+        BackgroundColor = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Draws the image stored as <paramref name="assetId"/> with <see cref="IWidgetService.StoreAssetAsync"/>
+    /// over the surface, scaled to fill it and cropped at the edges. The color or gradient shows through a
+    /// transparent image, and in its place until one is stored. Android scales it to at most 1024 pixels on
+    /// its long side.
+    /// </summary>
+    public WidgetTimeline BackgroundImage(string assetId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(assetId);
+        BackgroundAsset = assetId;
         return this;
     }
 

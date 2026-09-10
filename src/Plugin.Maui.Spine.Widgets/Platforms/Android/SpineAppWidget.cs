@@ -188,8 +188,15 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         var current = entries.LastOrDefault(e => e.Date <= now) is { Trees.ValueKind: JsonValueKind.Object } shown ? shown : entries[0];
         var tap = (root.TryGetProperty("link", out var link) || local.RootElement.TryGetProperty("link", out link)) && link.GetString() is { } url
             ? LinkIntent(context, index, url) : null;
-        renderer.Background = (root.TryGetProperty("background", out var background) || local.RootElement.TryGetProperty("background", out background))
-            && background.ValueKind == JsonValueKind.String ? background.GetString() : null;
+        // The surface travels whole: a remote document with any of its three fields gives all three, and one
+        // with none leaves the app's.
+        var surface = HasSurface(root) ? root : local.RootElement;
+        renderer.Background = Field(surface, "background");
+        renderer.BackgroundImage = Field(surface, "backgroundImage");
+        renderer.BackgroundGradient = surface.TryGetProperty("backgroundGradient", out var gradient) && gradient.ValueKind == JsonValueKind.Object
+            && gradient.TryGetProperty("colors", out var colors) && colors.ValueKind == JsonValueKind.Array
+                ? new SurfaceGradient([.. colors.EnumerateArray().Select(c => c.GetString()).OfType<string>()], Field(gradient, "direction"))
+                : null;
 
         foreach (var id in ids)
             manager.UpdateAppWidget(id, Views(renderer, current.Trees, tap, manager, id));
@@ -198,6 +205,12 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
             : hasRemote ? MinimumRefreshInterval.TotalSeconds : (double?)null;
         Schedule(context, index, kind, entries.Select(e => e.Date).ToList(), refreshAfter, now);
     }
+
+    private static bool HasSurface(JsonElement document) =>
+        document.TryGetProperty("background", out _) || document.TryGetProperty("backgroundGradient", out _) || document.TryGetProperty("backgroundImage", out _);
+
+    private static string? Field(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
     private static RemoteViews Views(RemoteViewsRenderer renderer, JsonElement trees, PendingIntent? tap, AppWidgetManager manager, int id)
     {

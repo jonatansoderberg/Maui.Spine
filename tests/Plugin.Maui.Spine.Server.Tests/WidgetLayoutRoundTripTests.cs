@@ -116,4 +116,78 @@ public class WidgetLayoutRoundTripTests
     {
         Assert.Throws<ArgumentException>(() => WidgetColor.Parse("chartreuse"));
     }
+
+    [Fact]
+    public void A_timeline_writes_its_gradient_and_image_beside_the_color_field()
+    {
+        var json = WidgetTimeline.Single(W.Text("x"))
+            .Background(new WidgetGradient([Brand, WidgetColor.Accent], WidgetGradientDirection.Diagonal))
+            .BackgroundImage("bakgrund.png")
+            .ToJson();
+
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        var gradient = root.GetProperty("backgroundGradient");
+
+        Assert.False(root.TryGetProperty("background", out _));
+        Assert.Equal(new[] { "#1B5E3F", "accent" }, gradient.GetProperty("colors").EnumerateArray().Select(c => c.GetString()).ToArray());
+        Assert.Equal("Diagonal", gradient.GetProperty("direction").GetString());
+        Assert.Equal("bakgrund.png", root.GetProperty("backgroundImage").GetString());
+    }
+
+    [Fact]
+    public void A_color_and_a_gradient_replace_each_other()
+    {
+        var timeline = WidgetTimeline.Single(W.Text("x")).Background(new WidgetGradient([Brand, Brand])).Background(Brand);
+        Assert.Equal(Brand, timeline.BackgroundColor);
+        Assert.Null(timeline.BackgroundGradient);
+
+        timeline.Background(new WidgetGradient([Brand, WidgetColor.Surface]));
+        Assert.Null(timeline.BackgroundColor);
+        Assert.NotNull(timeline.BackgroundGradient);
+    }
+
+    [Fact]
+    public void A_gradient_needs_two_colors() =>
+        Assert.Throws<ArgumentException>(() => new WidgetGradient([Brand]));
+
+    [Fact]
+    public void A_timeline_without_a_gradient_or_image_writes_neither_field()
+    {
+        using var document = JsonDocument.Parse(WidgetTimeline.Single(W.Text("x")).Background(Brand).ToJson());
+
+        Assert.False(document.RootElement.TryGetProperty("backgroundGradient", out _));
+        Assert.False(document.RootElement.TryGetProperty("backgroundImage", out _));
+        Assert.Equal("#1B5E3F", document.RootElement.GetProperty("background").GetString());
+    }
+
+    [Fact]
+    public void Accented_and_full_color_survive_and_are_absent_when_unset()
+    {
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.VStack(4, W.Text("Ledare").Accented(), W.Image("logo.png").FullColor(), W.Text("Plain")),
+        };
+
+        var json = layout.ToJson();
+        var back = Assert.IsType<VStackNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.True(back.Children[0].Accented);
+        Assert.True(Assert.IsType<ImageNode>(back.Children[1]).FullColor);
+        Assert.Null(back.Children[2].Accented);
+        Assert.Single(json.Split("\"accented\"").Skip(1));
+    }
+
+    [Fact]
+    public void The_system_colors_parse_and_come_back()
+    {
+        Assert.Equal(WidgetColor.Surface, WidgetColor.Parse("surface"));
+        Assert.Equal(WidgetColor.OnAccent, WidgetColor.Parse("onAccent"));
+
+        var layout = new LiveActivityLayout { LockScreen = W.Text("x").Color(WidgetColor.OnAccent), Background = WidgetColor.Surface };
+        var back = WidgetJson.DeserializeLayout(layout.ToJson())!;
+
+        Assert.Equal(WidgetColor.OnAccent, Assert.IsType<TextNode>(back.LockScreen).Color);
+        Assert.Equal(WidgetColor.Surface, back.Background);
+    }
 }

@@ -146,12 +146,18 @@ app.MapGet("/widget/remote", () =>
 {
     var now = DateTimeOffset.Now;
 
+    var white = WidgetColor.FromHex("#FFFFFF");
+    var mint = WidgetColor.FromHex("#CFF5E3");
+
     var timeline = WidgetTimeline
         .Single(W.VStack(4,
-            W.Text("Spine remote").Caption().Secondary(),
-            W.Text("Från servern").Headline().Bold(),
-            W.Text($"Hämtad {now:HH:mm:ss}").Caption(),
-            W.Relative(now).Caption().Secondary()))
+            W.Text("Spine remote").Caption().Color(mint),
+            // The accent group when iOS draws the widget tinted or clear; iOS 26 draws both groups white.
+            W.Text("Från servern").Headline().Bold().Color(white).Accented(),
+            W.Text($"Hämtad {now:HH:mm:ss}").Caption().Color(white),
+            W.Relative(now).Caption().Color(mint)))
+        // Only the server's answer has the gradient, so a widget that fell back to the app's reserve looks it.
+        .Background(new WidgetGradient([WidgetColor.FromHex("#1B5E3F"), WidgetColor.FromHex("#3FA37A")], WidgetGradientDirection.Diagonal))
         .Refresh(TimeSpan.FromMinutes(15));
 
     return Results.Text(timeline.ToJson(), "application/json");
