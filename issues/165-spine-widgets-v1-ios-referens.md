@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/165
 **Branch:** issue/165-spine-widgets-v1-ios-referens
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -157,9 +157,32 @@ avslutad, Dynamic Island kompakt och expanderad (`v1-10`–`v1-13`).
   tab-hosten.
 - **Förstudien** markerad `Implemented` med länk till wikisidan och issuet, som `spine-tab-host.md`.
 
+### Enhet och Release-arkiv (2026-09-10) ✅
+
+Jonatans val: installation på enhet och lokal validering av ett Release-arkiv, ingen TestFlight-uppladdning. Verifierat med push-samplet, som har samma extension, widgetar och Live Activity som Orientera.
+
+**Fysisk enhet** — iPhone 16 Pro, iOS 26.5.2:
+- Debug-bygge för `ios-arm64` med `Apple Development: Jonatan Soderberg` och profilerna *Spine Push Sample Development* och *Spine Push Sample Widgets Development* (extensionets valdes på App ID:t). Appen, `SpineWidgets.appex` och `SpineWidgetBridge.framework` signerade av teamet; `codesign --verify --deep --strict` godkänd. Extensionet byggt för `arm64-apple-ios17.0`, utan push — `SpineWidgetsPush` gäller bara simulatorn.
+- `devicectl device install app` och `process launch` gick igenom, trots att appens profil ogiltigförklarades i portalen samma dag (Broadcast, #231): enheten tog den lokalt installerade. Den ska ändå göras om före nästa enhetsbygge.
+- **Sett av Jonatan:** widgeten "Spine push" ritas på hemskärmen och öppnar appen; Live Activityn startar från Live Activity-sidan, syns på låsskärmen och i Dynamic Island, och ändras med "Uppdatera lokalt".
+
+**Release-arkiv** — `dotnet publish -c Release -p:ArchiveOnBuild=true` gav `.xcarchive` och `.ipa` (26 MB), signerade med utvecklingsprofilerna (någon distributionsidentitet finns inte):
+- Bara `Payload/` i ipa-filen; signaturen håller för `--deep --strict`.
+- App och appex har samma `CFBundleShortVersionString`/`CFBundleVersion` (1.0/1) och samma DT-nycklar: `DTXcode 2620`, `DTXcodeBuild 17C52`, `DTSDKName iphoneos26.2`, `DTPlatformBuild 23C53`; `CFBundleSupportedPlatforms` `["iPhoneOS"]`. Appexets punkt är `com.apple.widgetkit-extension`; appen har `NSSupportsLiveActivities`.
+- Bryggan har `CFBundlePackageType FMWK` och `MinimumOSVersion 17.0`.
+- App, appex och brygga är bara `arm64`, plattform `IOS` (ingen simulatordel), minOS 15.0/17.0/17.0.
+- Inga `.swiftmodule`, `.swiftdoc`, statiska bibliotek, `libswift*.dylib` eller `.DS_Store` i bundlen.
+- `Metadata.appintents` i både app och appex.
+- **`xcodebuild -exportArchive`** med metoden `debugging` och profilerna angivna med UUID: `EXPORT SUCCEEDED`, inga varningar eller fel i `Packaging.log`. Apples exportsteg signerade om extensionet med dess egen profil.
+
+**Fynd:**
+- **Extensionets och bryggans dSYM saknas i arkivet.** Skriptet kompilerar Swift i Release med `-O` utan `-g`, så `obj/spinewidgets/Release/…/dSYM` är tom, och arkivet har bara appens dSYM. Krascher i widgeten eller bryggan går inte att symbolisera. Förslag till eget issue.
+- **`aps-environment` är `production` i Release**, efter `SpinePushEnvironment`. Rätt för ett distributionsbygge; med en utvecklingsprofil stämmer det inte, och ett sådant Release-bygge går inte att installera på en enhet.
+- **`archived-expanded-entitlements.xcent`** ligger i appen. Den kommer från .NET SDK:s signering, inte från Spine, och brukar inte stoppa App Store.
+
 ### Kvar
 
-- Fysisk enhet och TestFlight kräver certifikat som inte finns på den här maskinen.
+- TestFlight-uppladdning och App Store Connects validering (`altool --validate-app`) — kräver en distributionsidentitet och inloggning, och ligger utanför det Jonatan bad om.
 
 ## Decisions
 
