@@ -2,6 +2,7 @@ using System.Reflection;
 using MauiSpinePushSampleApp.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Push.Extensions;
 using Plugin.Maui.Spine.Widgets.Extensions;
@@ -66,7 +67,15 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
-        return builder.Build();
+        var app = builder.Build();
+
+        // Subscribed here, as soon as the service exists: an activity that ended while the app was not
+        // running is reported as the app launches, before any page could be listening.
+        var log = app.Services.GetRequiredService<PushLog>();
+        app.Services.GetRequiredService<ILiveActivityService>().ActivityEnded +=
+            activity => log.Note("live activity", $"{activity.Kind} slut utanför appen");
+
+        return app;
     }
 
     private static IConfiguration ReadSettings() => new ConfigurationBuilder()
