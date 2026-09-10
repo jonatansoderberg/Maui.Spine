@@ -142,9 +142,19 @@ Activity, with a competition name, a place and a timer, serializes to about 1.2 
 
 ### Widgets
 
-`RefreshWidgetsAsync` sends a silent push on Apple and a data message on Android, and the app
-rebuilds its widgets when it wakes. That is best effort by design. iOS 26's dedicated `widgets` push
-type needs the widget extension built as a `pushHandler`, which is not in v1.
+`RefreshWidgetsAsync` takes one of two roads per installation:
+
+- **An installation with a widget token** — an iOS 26 app built with `SpineWidgetsPush` — gets a
+  `widgets` push addressed to that token (`apns-push-type: widgets`, topic
+  `<bundle id>.push-type.widgets`, `{"aps":{"content-changed":true}}`). WidgetKit reloads the widgets
+  itself; the app does not run. The push cannot name a kind: it reloads every widget the extension
+  has, and `kind` is ignored.
+- **Every other installation** gets a silent push on Apple and a data message on Android, and the app
+  rebuilds its widgets when it wakes — best effort: iOS throttles silent pushes, drops them after a
+  force quit, and never delivers them to the simulator.
+
+A widget token APNs rejects does not remove the installation. It says nothing about the device token,
+and the app registers a new widget token at its next launch.
 
 ### Results
 
@@ -210,6 +220,5 @@ wrong clock must not look freshly registered, since that is what `PruneAsync` go
 |---|---|
 | Windows (WNS via Entra) | v2 |
 | Azure Table Storage register | With Orientera's backend |
-| iOS 26 widget push (`WidgetPushHandler`) | v2 |
 | Live Activity broadcast channels (iOS 18) | v2 |
 | An Azure Notification Hubs transport | v3, if anyone wants one |

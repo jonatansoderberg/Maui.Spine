@@ -100,5 +100,10 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     // Android Live Updates are driven by the app; a server reaches them through the app's own push handler.
     public string? PushToStartToken => null;
 
+    /// <summary>Android has no widget push; a data message rebuilds the widgets through the app.</summary>
+    public string? WidgetPushToken => null;
+
+    public void RefreshWidgetPushToken() { }
+
     public string? PushToken(string id) => null;
 }

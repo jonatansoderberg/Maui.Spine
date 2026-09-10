@@ -57,13 +57,60 @@ public sealed class PushSender(
         LiveActivityAsync(target, kind, layout, @event, alert: null, options, cancellationToken);
 
     /// <inheritdoc />
-    public Task<PushResult> RefreshWidgetsAsync(PushTarget target, string? kind = null, CancellationToken cancellationToken = default) =>
-        DispatchAsync(target, platform => platform switch
+    /// <remarks>
+    /// Two roads on Apple, chosen per installation. One with a widget token — iOS 26 and the extension
+    /// built with <c>SpineWidgetsPush</c> — gets the <c>widgets</c> push: WidgetKit reloads on its own and
+    /// the app stays asleep, but every push-enabled widget reloads, whatever <paramref name="kind"/> says.
+    /// One without gets the silent push as before, which names the kind but needs the app woken.
+    /// </remarks>
+    public async Task<PushResult> RefreshWidgetsAsync(PushTarget target, string? kind = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        var byPlatform = await ResolveAsync(target, cancellationToken);
+        if (byPlatform.Count == 0) return PushResult.Empty;
+
+        var deliveries = new List<PushDelivery>();
+
+        // A dead widget token says nothing about the device token, so those deliveries are reported
+        // but never remove the installation; the app sends a fresh one at its next registration.
+        var removable = new List<PushDelivery>();
+
+        foreach (var (platform, installations) in byPlatform)
         {
-            PushPlatform.Apple => PushPayloads.ApnsWidgetRefresh(kind, BundleId),
-            PushPlatform.Android => PushPayloads.FcmWidgetRefresh(kind),
-            _ => null,
-        }, cancellationToken);
+            if (!_transports.TryGetValue(platform, out var transport)) continue;
+
+            switch (platform)
+            {
+                case PushPlatform.Apple:
+                    var pushed = installations
+                        .Where(i => i.WidgetToken is { Length: > 0 })
+                        .Select(i => i with { Handle = i.WidgetToken! })
+                        .ToList();
+                    if (pushed.Count > 0)
+                        deliveries.AddRange(await transport.SendAsync(pushed, PushPayloads.ApnsWidgetPush(BundleId), cancellationToken));
+
+                    var woken = installations.Where(i => i.WidgetToken is not { Length: > 0 }).ToList();
+                    if (woken.Count > 0)
+                    {
+                        var sent = await transport.SendAsync(woken, PushPayloads.ApnsWidgetRefresh(kind, BundleId), cancellationToken);
+                        deliveries.AddRange(sent);
+                        removable.AddRange(sent);
+                    }
+                    break;
+
+                case PushPlatform.Android:
+                    var fcm = await transport.SendAsync(installations, PushPayloads.FcmWidgetRefresh(kind), cancellationToken);
+                    deliveries.AddRange(fcm);
+                    removable.AddRange(fcm);
+                    break;
+            }
+        }
+
+        await RemoveInvalidAsync(removable, cancellationToken);
+
+        return new PushResult { Deliveries = deliveries };
+    }
 
     /// <summary>
     /// Said when the installation has no token for what is being sent. A Live Activity is addressed

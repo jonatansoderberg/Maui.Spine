@@ -274,4 +274,53 @@ public class PushSenderTests
         Assert.Equal(2, merged.Sent);
         Assert.True(merged.AllSent);
     }
+
+    [Fact]
+    public async Task A_widget_token_gets_the_widgets_push_addressed_to_that_token()
+    {
+        var (sender, store, apple, _) = NewSender();
+        await store.UpsertAsync(Installation("ios", PushPlatform.Apple) with { WidgetToken = "widget-ios" });
+
+        var result = await sender.RefreshWidgetsAsync(PushTarget.Installation("ios"), "sample");
+
+        Assert.Equal(1, result.Sent);
+        Assert.Equal("widget-ios", Assert.Single(apple.Reached).Handle);
+        Assert.Equal("widgets", apple.Envelope!.ApnsPushType);
+        Assert.Equal("com.companyname.orientera.push-type.widgets", apple.Envelope.ApnsTopic);
+    }
+
+    [Fact]
+    public async Task Without_a_widget_token_the_app_is_woken_by_a_silent_push_as_before()
+    {
+        var (sender, store, apple, _) = NewSender();
+        await store.UpsertAsync(Installation("ios", PushPlatform.Apple));
+
+        await sender.RefreshWidgetsAsync(PushTarget.Installation("ios"), "sample");
+
+        Assert.Equal("handle-ios", Assert.Single(apple.Reached).Handle);
+        Assert.Equal("background", apple.Envelope!.ApnsPushType);
+    }
+
+    [Fact]
+    public async Task A_dead_widget_token_does_not_remove_the_installation()
+    {
+        var (sender, store, _, _) = NewSender(PushStatus.Invalid);
+        await store.UpsertAsync(Installation("ios", PushPlatform.Apple) with { WidgetToken = "widget-ios" });
+
+        var result = await sender.RefreshWidgetsAsync(PushTarget.Installation("ios"));
+
+        Assert.Equal(1, result.Invalid);
+        Assert.NotNull(await store.GetAsync("ios"));
+    }
+
+    [Fact]
+    public async Task A_dead_device_token_on_the_silent_road_still_removes_the_installation()
+    {
+        var (sender, store, _, _) = NewSender(PushStatus.Invalid);
+        await store.UpsertAsync(Installation("ios", PushPlatform.Apple));
+
+        await sender.RefreshWidgetsAsync(PushTarget.Installation("ios"));
+
+        Assert.Null(await store.GetAsync("ios"));
+    }
 }

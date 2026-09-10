@@ -30,6 +30,7 @@ public static partial class SpineWidgetsExtensions
                 if (background) RegisterBackgroundRefresh(refreshTask!, options.BackgroundRefreshInterval);
                 ListenForActions();
                 ListenForActivities();
+                ListenForWidgetPushToken();
 
                 // At launch too, not only at foreground: an activity that ended while the app was not
                 // running is found here, against what the app last knew, and announced.
@@ -87,6 +88,19 @@ public static partial class SpineWidgetsExtensions
         if (Services().GetRequiredService<IWidgetPlatform>() is not WidgetPlatform { ActivityNotificationName: { } name } platform) return;
         CFNotificationCenter.Darwin.AddObserver(name, null!, (_, _) => ReconcileActivities(Services()), CFNotificationSuspensionBehavior.DeliverImmediately);
         platform.ObserveActivities();
+    }
+
+    // iOS 26's widget push token: fetched at launch, and again whenever the extension's push handler or
+    // the bridge says it changed. The widget service passes the news on, so Spine.Push registers it.
+    private static void ListenForWidgetPushToken()
+    {
+        if (Services().GetRequiredService<IWidgetPlatform>() is not WidgetPlatform { PushTokenNotificationName: { } name } platform) return;
+        CFNotificationCenter.Darwin.AddObserver(name, null!, (_, _) =>
+        {
+            platform.RefreshWidgetPushToken();
+            if (Services().GetService<IWidgetService>() is WidgetService widgets) widgets.OnPushTokenChanged();
+        }, CFNotificationSuspensionBehavior.DeliverImmediately);
+        platform.RefreshWidgetPushToken();
     }
 
     private static void ReconcileActivities(IServiceProvider services)

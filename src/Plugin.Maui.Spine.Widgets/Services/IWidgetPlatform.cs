@@ -31,6 +31,12 @@ internal interface IWidgetPlatform
 
     /// <summary>The push token of activity <paramref name="id"/> as hex, when issued.</summary>
     string? PushToken(string id);
+
+    /// <summary>iOS 26's widget push token as hex, when the extension was built with push and WidgetKit issued one.</summary>
+    string? WidgetPushToken { get; }
+
+    /// <summary>Asks for the widget push token again; the platform says so through its notification when it changed.</summary>
+    void RefreshWidgetPushToken();
 }
 
 /// <summary>Used on platforms without a renderer; every call is a no-op so app code stays unconditional.</summary>
@@ -48,4 +54,6 @@ internal sealed class NoOpWidgetPlatform : IWidgetPlatform
     public void EndActivity(string id) { }
     public string? PushToStartToken => null;
     public string? PushToken(string id) => null;
+    public string? WidgetPushToken => null;
+    public void RefreshWidgetPushToken() { }
 }

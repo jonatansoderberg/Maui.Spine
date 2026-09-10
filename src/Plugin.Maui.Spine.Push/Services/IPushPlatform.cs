@@ -20,9 +20,6 @@ internal interface IPushPlatform
     /// <summary>Which APNs host <see cref="Handle"/> belongs to. <see langword="null"/> off Apple platforms.</summary>
     ApnsEnvironment? Environment { get; }
 
-    /// <summary>The widget extension's push token, when the platform has one.</summary>
-    string? WidgetToken { get; }
-
     /// <summary>Asks the user, unless they have already been asked.</summary>
     /// <param name="permission">Which kind of authorization to ask for.</param>
     /// <param name="cancellationToken">Cancels the wait.</param>

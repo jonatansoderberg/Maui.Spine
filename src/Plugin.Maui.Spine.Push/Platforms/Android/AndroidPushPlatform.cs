@@ -25,8 +25,6 @@ internal sealed class AndroidPushPlatform : IPushPlatform
     /// <inheritdoc />
     public ApnsEnvironment? Environment => null;
 
-    /// <inheritdoc />
-    public string? WidgetToken => null;
 
     /// <inheritdoc />
     public event Action<string>? HandleChanged;

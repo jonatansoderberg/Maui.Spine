@@ -316,4 +316,16 @@ public class PushPayloadsTests
         Assert.Throws<InvalidOperationException>(() => PushPayloads.Apns(notification, Bundle, Now));
         Assert.Throws<InvalidOperationException>(() => PushPayloads.Fcm(notification));
     }
+
+    [Fact]
+    public void The_widget_push_uses_the_widgets_type_and_topic_and_says_content_changed()
+    {
+        var envelope = PushPayloads.ApnsWidgetPush(Bundle);
+        var aps = Parse(envelope.Json).GetProperty("aps");
+
+        Assert.Equal("widgets", envelope.ApnsPushType);
+        Assert.Equal($"{Bundle}.push-type.widgets", envelope.ApnsTopic);
+        Assert.True(aps.GetProperty("content-changed").GetBoolean());
+        Assert.False(aps.TryGetProperty("content-available", out _));
+    }
 }

@@ -51,6 +51,11 @@ internal sealed class PushService : IPushService
         // shown, nothing to search for.
         if (services.GetService(typeof(ILiveActivityService)) is ILiveActivityService activities)
             activities.ActivitiesChanged += () => RefreshAsync().SafeFireAndForget();
+
+        // And for widgets on iOS 26: the extension's push token arrives after launch, and rotates. A
+        // backend holding an old one sends widget pushes that APNs accepts and nothing reloads.
+        if (services.GetService(typeof(IWidgetService)) is IWidgetService widgets)
+            widgets.PushTokenChanged += () => RefreshAsync().SafeFireAndForget();
     }
 
     private const string InstallationIdKey = "spine.push.installation-id";
@@ -195,7 +200,7 @@ internal sealed class PushService : IPushService
             AppVersion = AppInfo.Current.VersionString,
             OsVersion = DeviceInfo.Current.VersionString,
             LiveActivities = await LiveActivityTokensAsync(cancellationToken),
-            WidgetToken = platform.WidgetToken,
+            WidgetToken = (services.GetService(typeof(IWidgetService)) as IWidgetService)?.PushToken,
             UpdatedAt = now,
             ExpiresAt = now + options.Expiry,
         };
