@@ -51,6 +51,12 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
 ---
 
+## Liquid Glass on iOS 26
+
+On iOS 26 and Mac Catalyst 26 the header bar renders its back button and page actions as Liquid Glass, the way a `UINavigationBar` shows its items. The SVG keeps the tint `PageActionView` gives it (black in light theme, white in dark); a text action keeps the app's `Primary` colour. Turn it off in `UseSpine` with `options.Apple.GlassHeaderActions = false`. See [Glass buttons](glass-buttons.md) for the attached property behind it.
+
+---
+
 ## Placement
 
 | Value | Position | Typical use |

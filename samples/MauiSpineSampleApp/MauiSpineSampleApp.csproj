@@ -97,6 +97,15 @@
       <DependentUpon>MainPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Glass\GlassPage.View.xaml">
+      <DependentUpon>GlassPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Glass\GlassPage.ViewModel.cs">
+      <DependentUpon>GlassPage.cs</DependentUpon>
+    </Compile>
+
 		<MauiXaml Update="Pages\MainPageOld.View.xaml">
 	    <Generator>MSBuild:Compile</Generator>
       <DependentUpon>MainPageOld.cs</DependentUpon>

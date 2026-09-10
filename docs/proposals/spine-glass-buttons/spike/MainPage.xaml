@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:svg="clr-namespace:Plugin.Maui.Spine.Svg;assembly=Plugin.Maui.Spine.Svg"
+             xmlns:local="clr-namespace:GlassSpike"
+             x:Class="GlassSpike.MainPage">
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush EndPoint="1,1">
+                <GradientStop Color="#FF7A00" Offset="0" />
+                <GradientStop Color="#7B2CBF" Offset="0.5" />
+                <GradientStop Color="#00B4D8" Offset="1" />
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <ScrollView>
+            <VerticalStackLayout Padding="16,60,16,40" Spacing="14">
+                <Label x:Name="Diag" Text="…" TextColor="White" FontSize="8" FontFamily="Courier" LineBreakMode="CharacterWrap" />
+                <HorizontalStackLayout Spacing="12">
+                    <Button x:Name="ClearBtn" AutomationId="clear" Text="Clear" local:Glass.Style="Clear" Clicked="OnClicked" />
+                    <Button x:Name="ProminentClearBtn" AutomationId="prominentclear" Text="Prominent clear" local:Glass.Style="ProminentClear" Clicked="OnClicked" />
+                </HorizontalStackLayout>
+                <Button x:Name="IconButton" AutomationId="icon" Text="Med SVG-ikon" local:Glass.Style="Regular" ContentLayout="Left,8" Clicked="OnClicked" />
+                <HorizontalStackLayout Spacing="12">
+                    <Button x:Name="ClearNoPadBtn" AutomationId="clearnopad" Text="Clear" local:Glass.Style="Clear" Padding="0" Clicked="OnClicked" />
+                    <Button x:Name="SmallBtn" AutomationId="small" Text="Ok" local:Glass.Style="Regular" Clicked="OnClicked" />
+                    <Button x:Name="SmallPlainBtn" AutomationId="smallplain" Text="Ok" Clicked="OnClicked" />
+                </HorizontalStackLayout>
+
+                <Button x:Name="PlainBtn" AutomationId="plain" Text="MAUI-knapp utan glas" Clicked="OnClicked" />
+                <Button x:Name="RegularBtn" AutomationId="regular" Text="Regular glass (stil kvar)" local:Glass.Style="Regular" Clicked="OnClicked" />
+                <Button x:Name="ProminentBtn" AutomationId="prominent" Text="Prominent glass (Primary)" local:Glass.Style="Prominent" Clicked="OnClicked" />
+                <Button x:Name="ProminentSysBtn" AutomationId="notint" Text="Prominent glass (systemtint)" local:Glass.Style="Prominent" Clicked="OnClicked" />
+                <Button x:Name="ExplicitBtn" AutomationId="explicit" Text="Explicit titel + font" local:Glass.Style="Regular" FontAttributes="Bold" FontSize="18" Clicked="OnClicked" />
+
+                <HorizontalStackLayout Spacing="12">
+                    <ImageButton x:Name="SvgBtn" AutomationId="svg" local:Glass.Style="Regular"
+                                 svg:SvgImageSource.EnableSvg="True" svg:SvgImageSource.Svg="Settings.svg"
+                                 svg:SvgImageSource.Padding="10" svg:SvgImageSource.LightTintColor="Black" svg:SvgImageSource.DarkTintColor="White"
+                                 WidthRequest="44" HeightRequest="44" Clicked="OnClicked" />
+                    <ImageButton x:Name="SvgCopyBtn" AutomationId="svgcopy" local:Glass.Style="Prominent"
+                                 svg:SvgImageSource.EnableSvg="True" svg:SvgImageSource.Svg="Bell.svg"
+                                 svg:SvgImageSource.Padding="10" svg:SvgImageSource.LightTintColor="Red" svg:SvgImageSource.DarkTintColor="White"
+                                 WidthRequest="44" HeightRequest="44" Clicked="OnClicked" />
+                    <ImageButton x:Name="SvgClearBtn" AutomationId="svgclear" local:Glass.Style="Clear"
+                                 svg:SvgImageSource.EnableSvg="True" svg:SvgImageSource.Svg="ArrowLeft.svg"
+                                 svg:SvgImageSource.Padding="10" svg:SvgImageSource.LightTintColor="White" svg:SvgImageSource.DarkTintColor="White"
+                                 WidthRequest="44" HeightRequest="44" Clicked="OnClicked" />
+                    <ImageButton x:Name="SvgPlainBtn" AutomationId="svgplain"
+                                 svg:SvgImageSource.EnableSvg="True" svg:SvgImageSource.Svg="Plus.svg"
+                                 svg:SvgImageSource.Padding="10" svg:SvgImageSource.LightTintColor="White" svg:SvgImageSource.DarkTintColor="White"
+                                 WidthRequest="44" HeightRequest="44" Clicked="OnClicked" />
+                    <ImageButton x:Name="SvgBigBtn" AutomationId="svgbig" local:Glass.Style="Regular"
+                                 svg:SvgImageSource.EnableSvg="True" svg:SvgImageSource.Svg="Bell.svg"
+                                 svg:SvgImageSource.Padding="14" svg:SvgImageSource.LightTintColor="Black" svg:SvgImageSource.DarkTintColor="White"
+                                 WidthRequest="56" HeightRequest="56" Clicked="OnClicked" />
+                </HorizontalStackLayout>
+
+                <Label x:Name="Counter" Text="Tryck: 0" TextColor="White" FontSize="16" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

@@ -283,6 +283,20 @@ public sealed class SpineOptions
     /// <summary>Android-specific layout settings.</summary>
     public AndroidPlatformOptions Android { get; } = new AndroidPlatformOptions();
 
+    /// <summary>Options that apply on iOS and Mac Catalyst.</summary>
+    public sealed class ApplePlatformOptions
+    {
+        /// <summary>
+        /// Renders the header bar's back button and page actions as Liquid Glass on iOS 26 and
+        /// Mac Catalyst 26, the way a <c>UINavigationBar</c> shows its items. Default <see langword="true"/>;
+        /// no effect on earlier versions or other platforms.
+        /// </summary>
+        public bool GlassHeaderActions { get; set; } = true;
+    }
+
+    /// <summary>Options that apply on iOS and Mac Catalyst.</summary>
+    public ApplePlatformOptions Apple { get; } = new ApplePlatformOptions();
+
     /// <summary>
     /// macOS-specific menu-bar icon and window behaviour settings for Spine.
     /// All properties take effect only when running on macOS (Mac Catalyst).

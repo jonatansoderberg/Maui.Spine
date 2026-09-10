@@ -87,6 +87,19 @@ internal sealed class PageActionView : ContentView
         _imageButton.SetBinding(VisualElement.HeightRequestProperty, new Binding(nameof(HeightRequest), source: this));
         _imageButton.SetBinding(ImageButton.PaddingProperty, new Binding(nameof(Padding), source: this));
 
+        if (UseGlassHeaderActions)
+        {
+            // Compact zeroed the padding; the capsule needs some room around the text.
+            _textButton.Padding = new Thickness(12, 4);
+            Glass.SetStyle(_textButton, GlassStyle.Regular);
+
+            // The glass makes the slot visible, so the icon becomes a circle centred in it
+            // rather than a pill hugging the screen edge.
+            _imageButton.HorizontalOptions = LayoutOptions.Center;
+            _imageButton.SetBinding(VisualElement.WidthRequestProperty, new Binding(nameof(HeightRequest), source: this));
+            Glass.SetStyle(_imageButton, GlassStyle.Regular);
+        }
+
         Content = new Grid
         {
             Children = { _textButton, _imageButton }
@@ -94,6 +107,12 @@ internal sealed class PageActionView : ContentView
 
         ApplyAction();
     }
+
+    // The option is read here rather than passed down: HeaderBar and PageActionView are built by
+    // pages, not by DI, and the attached property is a no-op off Apple anyway.
+    static bool UseGlassHeaderActions =>
+        OperatingSystem.IsIOS()
+        && IPlatformApplication.Current?.Services.GetService<SpineOptions>()?.Apple.GlassHeaderActions == true;
 
     static void OnActionChanged(BindableObject bindable, object oldValue, object newValue)
     {

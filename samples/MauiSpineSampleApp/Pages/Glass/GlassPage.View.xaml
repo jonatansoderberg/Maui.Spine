@@ -1,0 +1,66 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Glass.GlassPage"
+    x:TypeArguments="GlassPageViewModel"
+    x:DataType="GlassPageViewModel">
+
+    <!-- Glass refracts what is behind it, so the page is loud on purpose. -->
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush EndPoint="1,1">
+                <GradientStop Color="#FF7A00" Offset="0" />
+                <GradientStop Color="#7B2CBF" Offset="0.5" />
+                <GradientStop Color="#00B4D8" Offset="1" />
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <ScrollView>
+            <VerticalStackLayout Padding="20,16,20,40" Spacing="14">
+
+                <Label Text="Glass.Style turns a Button or ImageButton into Liquid Glass on iOS 26. On every other platform, and on older iOS, the same markup renders the normal button."
+                       TextColor="White" FontSize="15" />
+
+                <Label Text="Button" TextColor="White" FontAttributes="Bold" Margin="0,8,0,0" />
+                <Button Text="No glass (the app's Button style)" Command="{Binding TapCommand}" CommandParameter="Plain" />
+                <Button Text="Regular" Glass.Style="Regular" Command="{Binding TapCommand}" CommandParameter="Regular" />
+                <Button Text="Prominent, tinted with BackgroundColor" Glass.Style="Prominent" Command="{Binding TapCommand}" CommandParameter="Prominent" />
+                <Button Text="Regular, label colours" Glass.Style="Regular"
+                        TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                        Command="{Binding TapCommand}" CommandParameter="Label" />
+                <HorizontalStackLayout Spacing="12">
+                    <Button Text="Clear" Glass.Style="Clear" Command="{Binding TapCommand}" CommandParameter="Clear" />
+                    <Button Text="Prominent clear" Glass.Style="ProminentClear" Command="{Binding TapCommand}" CommandParameter="ProminentClear" />
+                    <Button Text="Save" Glass.Style="Prominent" IsEnabled="{Binding IsSaveEnabled}" Command="{Binding TapCommand}" CommandParameter="Save" />
+                </HorizontalStackLayout>
+                <Button Text="Toggle the Save button" Glass.Style="Regular" Command="{Binding ToggleSaveCommand}" />
+
+                <Label Text="ImageButton with SvgImageSource" TextColor="White" FontAttributes="Bold" Margin="0,8,0,0" />
+                <HorizontalStackLayout Spacing="12">
+                    <ImageButton Style="{StaticResource SvgImageButtonStyle}" SvgImageSource.Svg="settings.svg" SvgImageSource.Padding="10"
+                                 Glass.Style="Regular" WidthRequest="44" HeightRequest="44"
+                                 Command="{Binding TapCommand}" CommandParameter="Settings" />
+                    <ImageButton Style="{StaticResource SvgImageButtonStyle}" SvgImageSource.Svg="plus.svg" SvgImageSource.Padding="10"
+                                 SvgImageSource.LightTintColor="White" SvgImageSource.DarkTintColor="White"
+                                 Glass.Style="Prominent" BackgroundColor="{StaticResource Primary}" WidthRequest="44" HeightRequest="44"
+                                 Command="{Binding TapCommand}" CommandParameter="Plus" />
+                    <ImageButton Style="{StaticResource SvgImageButtonStyle}" SvgImageSource.Svg="arrowleft.svg" SvgImageSource.Padding="10"
+                                 SvgImageSource.LightTintColor="White" SvgImageSource.DarkTintColor="White"
+                                 Glass.Style="Clear" WidthRequest="44" HeightRequest="44"
+                                 Command="{Binding TapCommand}" CommandParameter="Back" />
+                    <ImageButton Style="{StaticResource SvgImageButtonStyle}" SvgImageSource.Svg="bell.svg" SvgImageSource.Padding="14"
+                                 Glass.Style="Regular" WidthRequest="56" HeightRequest="56"
+                                 Command="{Binding TapCommand}" CommandParameter="Bell" />
+                    <ImageButton Style="{StaticResource SvgImageButtonStyle}" SvgImageSource.Svg="fish.svg" SvgImageSource.Padding="10"
+                                 SvgImageSource.LightTintColor="White" SvgImageSource.DarkTintColor="White"
+                                 WidthRequest="44" HeightRequest="44"
+                                 Command="{Binding TapCommand}" CommandParameter="Fish (no glass)" />
+                </HorizontalStackLayout>
+
+                <Label Text="{Binding LastTap}" TextColor="White" FontSize="15" Margin="0,8,0,0" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+
+</SpinePage>
