@@ -1,3 +1,4 @@
+#if IOS || MACCATALYST
 using Foundation;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Common;
@@ -169,3 +170,4 @@ internal sealed class AppleLocalNotifications : ILocalNotificationService
     private static ILogger? Logger =>
         IPlatformApplication.Current?.Services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Push");
 }
+#endif

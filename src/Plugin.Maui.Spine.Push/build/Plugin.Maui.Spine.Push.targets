@@ -6,7 +6,8 @@
 		  SpinePushEnvironment   development | production   (Apple; defaults to development for Debug)
 		  SpinePushEnabled       default true
 		  SpinePushRemote        default true; false keeps local notifications and drops everything
-		                         remote push needs — Firebase on Android, aps-environment on Apple
+		                         remote push needs — Firebase on Android, aps-environment on Apple.
+		                         On Mac Catalyst remote push also needs CodesignProvision, see below.
 		  SpinePushImages        default false; true adds the Notification Service Extension that shows
 		                         pictures in pushed notifications on iOS. Needs its own App ID and profile
 		                         for device builds, which is why it is not on by default.
@@ -23,7 +24,15 @@
 		<_SpinePushImagesApplies Condition="'$(SpinePushEnabled)' == 'true' And '$(SpinePushRemote)' == 'true' And '$(SpinePushImages)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))">true</_SpinePushImagesApplies>
 		<SpinePushEnvironment Condition="'$(SpinePushEnvironment)' == '' And '$(Configuration)' == 'Debug'">development</SpinePushEnvironment>
 		<SpinePushEnvironment Condition="'$(SpinePushEnvironment)' == ''">production</SpinePushEnvironment>
-		<_SpinePushApple Condition="'$(SpinePushEnabled)' == 'true' And '$(SpinePushRemote)' == 'true' And ($([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst')">true</_SpinePushApple>
+		<_SpinePushApple Condition="'$(SpinePushEnabled)' == 'true' And '$(SpinePushRemote)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">true</_SpinePushApple>
+		<!--
+			On Mac Catalyst the push entitlement is restricted: an app signed with it but without a
+			provisioning profile that grants it does not launch at all. So remote push there follows the
+			signing — the entitlement and background mode are written only when the app names a profile
+			(CodesignProvision). Without one the app still gets local notifications, and the runtime
+			skips the APNs registration it could not complete.
+		-->
+		<_SpinePushApple Condition="'$(SpinePushEnabled)' == 'true' And '$(SpinePushRemote)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst' And '$(CodesignProvision)' != ''">true</_SpinePushApple>
 	</PropertyGroup>
 
 	<!--

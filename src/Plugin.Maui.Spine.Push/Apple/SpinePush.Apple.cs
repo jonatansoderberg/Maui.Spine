@@ -1,3 +1,4 @@
+#if IOS || MACCATALYST
 using System.Runtime.InteropServices;
 using Foundation;
 using ObjCRuntime;
@@ -133,3 +134,4 @@ public static unsafe class SpinePush
         ((delegate* unmanaged[Cdecl]<IntPtr, nuint, void>)invoke)(block, argument);
     }
 }
+#endif

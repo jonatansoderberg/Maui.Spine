@@ -1,3 +1,4 @@
+#if IOS || MACCATALYST
 using AsyncAwaitBestPractices;
 using Foundation;
 using Microsoft.Extensions.Logging;
@@ -57,9 +58,9 @@ internal sealed class ApplePushPlatform : IPushPlatform
 
         await RefreshStatusAsync();
 
-        // Without a backend there is nothing to register with, and a device token would be a
-        // failure in the log rather than a token — the app only wants to notify locally.
-        if (granted && _options.Backend is not null)
+        // Without a backend, or without push in the build, there is nothing APNs could give a token
+        // for: the app only notifies locally, and asking would earn a failure in the log.
+        if (granted && _options.Backend is not null && IsRemoteConfigured)
             await MainThread.InvokeOnMainThreadAsync(UIApplication.SharedApplication.RegisterForRemoteNotifications);
 
         return Status;
@@ -167,6 +168,15 @@ internal sealed class ApplePushPlatform : IPushPlatform
     /// Which APNs host the token belongs to, read from the entitlement the build wrote. A token from
     /// a development build only works against the sandbox, so the server has to be told.
     /// </summary>
+    /// <summary>
+    /// Whether the build set the app up for remote push. The targets write <c>SpinePushEnvironment</c>
+    /// into Info.plist exactly when they add the push entitlement, so it is absent with
+    /// <c>SpinePushRemote=false</c> — and on Mac Catalyst without a provisioning profile, where the
+    /// entitlement cannot be used and an app signed with it would not launch.
+    /// </summary>
+    internal static bool IsRemoteConfigured { get; } =
+        NSBundle.MainBundle.ObjectForInfoDictionary("SpinePushEnvironment") is not null;
+
     private static ApnsEnvironment ReadEnvironment() =>
         NSBundle.MainBundle.ObjectForInfoDictionary("SpinePushEnvironment")?.ToString() switch
         {
@@ -185,3 +195,4 @@ internal sealed class ApplePushPlatform : IPushPlatform
     private static ILogger? Logger =>
         IPlatformApplication.Current?.Services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Push");
 }
+#endif

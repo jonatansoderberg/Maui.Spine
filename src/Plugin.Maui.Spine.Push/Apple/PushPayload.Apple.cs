@@ -1,3 +1,4 @@
+#if IOS || MACCATALYST
 using Foundation;
 using Plugin.Maui.Spine.Common;
 
@@ -33,3 +34,4 @@ internal static class PushPayload
         return PushMessage.From(data);
     }
 }
+#endif
