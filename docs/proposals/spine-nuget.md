@@ -71,7 +71,7 @@ The rest of the `build/` layout held: scripts and `native/` are located with `MS
 
 **Runner: `windows-latest`.** It is the one runner that can produce all four target frameworks in one build: `net10.0-windows10.0.19041.0` requires Windows, and iOS and Mac Catalyst *libraries* compile on Windows without a paired Mac. `Directory.Build.props` adds the Windows framework only on a Windows host, so a build on macOS gives a package without Windows support — right locally, wrong in a release.
 
-**Publishing:** `dotnet nuget push` with an API key in the `NUGET_API_KEY` secret, scoped to `Plugin.Maui.Spine*`. nuget.org's Trusted Publishing (OIDC from GitHub Actions, no key) is the better option when it is available for the account; it replaces one step.
+**Publishing:** nuget.org's Trusted Publishing — the `NuGet/login` action trades the job's OIDC token for a short-lived key under a policy registered for this repository and `release.yml`. No stored secret; nuget.org itself discourages API keys for automated publishing.
 
 ---
 
@@ -86,7 +86,7 @@ The rest of the `build/` layout held: scripts and `native/` are located with `MS
 7. **Workflows** — `ci.yml` (pull requests and `master`: build, test, pack, upload) and `release.yml` (tags: the same, then push to nuget.org and a GitHub release), both on `windows-latest` over `Spine.Packages.slnf`.
 8. **Documentation** — [packages.md](../wiki/packages.md), [releasing.md](../wiki/releasing.md), install lines on every package page, the icon set in [svg.md](../wiki/svg.md), and a package table in the README.
 
-Outside the repository: a nuget.org API key as the `NUGET_API_KEY` secret, then the tag `v0.1.0`.
+Outside the repository: a trusted publisher policy on nuget.org for `jonatansoderberg/Maui.Spine` and `release.yml`, then the tag `v0.1.0`.
 
 ---
 
