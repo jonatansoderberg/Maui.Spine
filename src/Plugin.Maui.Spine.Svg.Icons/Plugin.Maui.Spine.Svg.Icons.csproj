@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>Plugin.Maui.Spine.Svg.Icons</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Svg.Icons</RootNamespace>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>A set of embedded SVG icons for Plugin.Maui.Spine.Svg: UI glyphs, rooms, appliances, media controls and weather symbols, resolved by file name the moment the package is referenced.</Description>
+		<PackageTags>$(PackageTags);svg;icons</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Images\*.svg" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
+</Project>

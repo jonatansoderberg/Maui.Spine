@@ -12,8 +12,10 @@
 		A package that needs the file written adds DependsOnTargets="_SpineWriteEntitlements", so the
 		order does not depend on how MSBuild happens to sequence two BeforeTargets on the same target.
 
-		Consumed through a ProjectReference this file has to be imported explicitly, the same way
-		Plugin.Maui.Spine.Widgets.targets is; a PackageReference imports it on its own.
+		It lives in Plugin.Maui.Spine.Common because both packages already depend on it, and neither
+		needs Plugin.Maui.Spine itself for this. Consumed through a ProjectReference this file has to be
+		imported explicitly, the same way Plugin.Maui.Spine.Widgets.targets is; a PackageReference
+		imports it on its own.
 	-->
 
 	<PropertyGroup>

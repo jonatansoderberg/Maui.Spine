@@ -2,8 +2,6 @@
 
 	<PropertyGroup>
 		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-		<!-- WinUIEx and Microsoft.WindowsAppSDK float on purpose; keep them floating (NU1011). -->
-		<CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
 		<!--
 			The Azure Functions SDK generates obj/**/WorkerExtensions/WorkerExtensions.csproj with
 			versions written into its PackageReference items. That is NU1008 under central package
@@ -48,8 +46,8 @@
 
 	<!-- Windows only; referenced under a condition in Plugin.Maui.Spine. -->
 	<ItemGroup>
-		<PackageVersion Include="Microsoft.WindowsAppSDK" Version="1.8.*" />
-		<PackageVersion Include="WinUIEx" Version="2.9.*" />
+		<PackageVersion Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />
+		<PackageVersion Include="WinUIEx" Version="2.9.3" />
 	</ItemGroup>
 
 	<!-- Sample apps -->

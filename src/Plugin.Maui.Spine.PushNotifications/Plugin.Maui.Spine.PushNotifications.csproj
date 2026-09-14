@@ -11,7 +11,13 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
+	<PropertyGroup>
+		<Description>Push and local notifications for .NET MAUI: permission, APNs and FCM tokens, tags, a handler that sees every message, local scheduling, and a Notification Service Extension for images on iOS.</Description>
+		<PackageTags>$(PackageTags);push;notifications;apns;fcm;firebase</PackageTags>
+	</PropertyGroup>
+
 	<ItemGroup>
+		<PackageReference Include="AsyncAwaitBestPractices" />
 		<PackageReference Include="Microsoft.Maui.Controls" />
 	</ItemGroup>
 
@@ -23,12 +29,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\;" />
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
 		<!-- The Notification Service Extension's source, which build\spine-push-notifications-build.sh compiles in the app's build. -->
 		<None Include="native\**" Pack="true" PackagePath="native\" />
 	</ItemGroup>

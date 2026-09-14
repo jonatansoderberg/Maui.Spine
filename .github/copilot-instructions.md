@@ -19,7 +19,7 @@ This workspace contains the **Plugin.Maui.Spine** library (a .NET 10 MAUI naviga
 
 ## Page structure — the three-file pattern
 
-Every page in `MauiBottomSheetPoc/Pages/` is made up of exactly three files grouped under a single logical node in the project file:
+Every page in `MauiSpineSampleApp/Pages/` is made up of exactly three files grouped under a single logical node in the project file:
 
 ```
 Pages/
@@ -113,7 +113,7 @@ public partial class MyPageViewModel(INavigationService _navigation) : ViewModel
 `Pages/**/*.ViewModel.cs` files are **excluded by default** via a wildcard `<Compile Remove>` rule. Each ViewModel and each XAML file must be explicitly included inside the main `<ItemGroup>` that contains the other page registrations, using `<DependentUpon>` to group all three files under the code-behind node.
 
 ```xml
-<!-- In MauiBottomSheetPoc.csproj -->
+<!-- In MauiSpineSampleApp.csproj -->
 
 <MauiXaml Update="Pages\MyPage.View.xaml">
   <Generator>MSBuild:Compile</Generator>

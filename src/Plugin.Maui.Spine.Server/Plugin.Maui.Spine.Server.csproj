@@ -7,6 +7,11 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
 
+	<PropertyGroup>
+		<Description>The server half of Spine push notifications for ASP.NET Core and Azure Functions: a device register, tag expressions, and transports that send straight to APNs, FCM and WNS.</Description>
+		<PackageTags>$(PackageTags);push;notifications;apns;fcm;wns;aspnetcore;azure-functions</PackageTags>
+	</PropertyGroup>
+
 	<!--
 		MapSpinePushNotifications needs ASP.NET Core, and so does the Azure Functions isolated worker once it
 		uses Extensions.Http.AspNetCore — the same HttpRequest. One framework reference therefore

@@ -1,6 +1,10 @@
 # SVG
 
-`Plugin.Maui.Spine.Svg` does two things with the SVG files embedded in its assembly:
+```bash
+dotnet add package Plugin.Maui.Spine.Svg
+```
+
+`Plugin.Maui.Spine.Svg` does two things with SVG files embedded in an app, or in any assembly it is told about:
 
 - **`SvgImageSource`** renders them as bitmaps for MAUI `Image` and `ImageButton` controls, with tinting, padding, and automatic light/dark theme switching.
 - **`SvgIconService`** converts them into platform-specific icon files — multi-size `.ico` on Windows and `.png` on macOS — for tray and window icons.
@@ -16,7 +20,7 @@ Both are powered by **SkiaSharp** + **Svg.Skia** and share one resource cache, s
 | Android | ✅ Supported | — |
 | Windows (WinUI 3) | ✅ Supported | `.ico` (multi-size): 16, 20, 24, 32, 40, 48, 64, 128, 256 |
 | iOS | ✅ Supported | — |
-| macOS Catalyst | 🚧 In progress | `.png` (largest size): 18, 36 |
+| Mac Catalyst | ✅ Supported | `.png` (largest size): 18, 36 |
 
 ---
 
@@ -52,15 +56,24 @@ builder
 
 ## Adding SVG assets
 
-All SVG files live in the `Images/` folder of the `Plugin.Maui.Spine.Svg` project and are declared as `<EmbeddedResource>` entries in the `.csproj`:
+Embed the app's own SVG files and pass the assembly to `UseEmbeddedSvgImages` (or to `UseSpine`'s `AddAssembly`, which does the same):
 
 ```xml
-<None Remove="Images\MyIcon.svg" />
-<!-- In the EmbeddedResource group: -->
-<EmbeddedResource Include="Images\MyIcon.svg" />
+<!-- MyApp.csproj -->
+<EmbeddedResource Include="Resources\Svg\*.svg" />
 ```
 
-After adding, the icon is available by short name (e.g. `"myicon.svg"`) — no other registration is needed, and both the image source and the icon service can find it.
+After that an icon is available by short name (e.g. `"myicon.svg"`) — no other registration is needed, and both the image source and the icon service can find it. The name is matched against the end of the manifest resource name, so the folder it sits in does not matter.
+
+### The built-in icon set
+
+`Plugin.Maui.Spine.Svg.Icons` carries 164 ready-made icons — UI glyphs, rooms and appliances, media controls, weather symbols and status badges:
+
+```bash
+dotnet add package Plugin.Maui.Spine.Svg.Icons
+```
+
+Referencing it is all it takes: `Plugin.Maui.Spine.Svg` loads the assembly by name at startup and its files resolve like the app's own. `SpineIcons` lists every file name as a constant (`SpineIcons.Bell` is `"Bell.svg"`); plain strings work just as well. The package is `net10.0` and holds nothing but the SVG files and those constants; for a trimmed build its targets root the assembly so it is kept.
 
 ---
 

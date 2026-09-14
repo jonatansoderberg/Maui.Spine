@@ -68,7 +68,7 @@
 			runtime so the installation can tell the server which APNs host its token belongs to.
 		-->
 		<ItemGroup>
-			<!-- '?' is a wildcard in an Include; see the note in Plugin.Maui.Spine.Entitlements.targets. -->
+			<!-- '?' is a wildcard in an Include; see the note in Plugin.Maui.Spine.Common.targets. -->
 			<_SpinePushNotificationsManifestLine Include="&lt;%3Fxml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;%3F&gt;" />
 			<_SpinePushNotificationsManifestLine Include="&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;" />
 			<_SpinePushNotificationsManifestLine Include="&lt;plist version=&quot;1.0&quot;&gt;" />
@@ -127,7 +127,7 @@
 			Condition="'$(_SpinePushNotificationsImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''"
 			Inputs="@(_SpinePushNotificationsImagesInputs)"
 			Outputs="$(_SpinePushNotificationsImagesStamp)">
-		<Exec Command="&quot;$(_SpinePushNotificationsScript)&quot; --out &quot;$(_SpinePushNotificationsImagesOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpinePushNotificationsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpinePushNotificationsImagesSdk) --arch $(_SpinePushNotificationsImagesArch) --min-os $(_SpinePushNotificationsImagesMinOS) --config $(Configuration) --bundle-id &quot;$(_SpinePushNotificationsImagesBundleId)&quot; --name &quot;$(_SpinePushNotificationsImagesExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --provision &quot;$(SpinePushNotificationsImagesCodesignProvision)&quot; --require-provision $(_SpinePushNotificationsImagesRequireProvision)" />
+		<Exec Command="bash &quot;$(_SpinePushNotificationsScript)&quot; --out &quot;$(_SpinePushNotificationsImagesOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpinePushNotificationsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpinePushNotificationsImagesSdk) --arch $(_SpinePushNotificationsImagesArch) --min-os $(_SpinePushNotificationsImagesMinOS) --config $(Configuration) --bundle-id &quot;$(_SpinePushNotificationsImagesBundleId)&quot; --name &quot;$(_SpinePushNotificationsImagesExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --provision &quot;$(SpinePushNotificationsImagesCodesignProvision)&quot; --require-provision $(_SpinePushNotificationsImagesRequireProvision)" />
 	</Target>
 
 	<Target Name="_SpinePushNotificationsImagesRegister"

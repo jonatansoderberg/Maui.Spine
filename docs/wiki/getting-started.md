@@ -8,9 +8,9 @@ This guide walks you through setting up a new .NET MAUI app with Spine from scra
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - Visual Studio 2022 17.13+ with the **.NET MAUI** workload installed
-- A target platform: Android (API 21+) or Windows 10 (19041+)
+- A target platform: Android (API 21+), iOS 15+, Mac Catalyst 15+ or Windows 10 (19041+)
 
-> **iOS / macOS Catalyst:** Platform-specific implementations are currently in progress. The framework compiles for these targets, but native sheet rendering and platform integrations are not yet complete.
+> **Mac Catalyst** is supported through the same code as iOS and is exercised less; **Windows** needs Windows 10 19041 or later.
 
 ---
 
@@ -101,7 +101,7 @@ global using Plugin.Maui.Spine.Core;
 
 Every Spine page is made up of three files. Create these in a `Pages/` folder:
 
-**`Pages/MainPage.cs`** — code-behind with the navigation attribute
+**`Pages/MainPage.cs`** â€” code-behind with the navigation attribute
 ```csharp
 namespace MyApp.Pages;
 
@@ -109,7 +109,7 @@ namespace MyApp.Pages;
 public partial class MainPage { public MainPage() => InitializeComponent(); }
 ```
 
-**`Pages/MainPage.View.xaml`** — XAML layout
+**`Pages/MainPage.View.xaml`** â€” XAML layout
 ```xml
 <SpinePage
     xmlns="http://schemas.microsoft.com/dotnet/maui/global"
@@ -125,7 +125,7 @@ public partial class MainPage { public MainPage() => InitializeComponent(); }
 </SpinePage>
 ```
 
-**`Pages/MainPage.ViewModel.cs`** — ViewModel
+**`Pages/MainPage.ViewModel.cs`** â€” ViewModel
 ```csharp
 namespace MyApp.Pages;
 
@@ -138,7 +138,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
 ## 6. Register the page files in the project
 
-Spine auto-discovers pages via assembly scanning — no manual DI registration needed. However, the `.csproj` must explicitly include the XAML and ViewModel files with `<DependentUpon>` grouping (ViewModels are excluded by a wildcard by default):
+Spine auto-discovers pages via assembly scanning â€” no manual DI registration needed. However, the `.csproj` must explicitly include the XAML and ViewModel files with `<DependentUpon>` grouping (ViewModels are excluded by a wildcard by default):
 
 ```xml
 <!-- In MyApp.csproj -->

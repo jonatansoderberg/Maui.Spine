@@ -122,7 +122,7 @@
 	</PropertyGroup>
 
 	<!-- Importeras explicit: Orientera använder ProjectReference, inte NuGet-paketet. -->
-	<Import Project="..\..\src\Plugin.Maui.Spine\build\Plugin.Maui.Spine.Entitlements.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.PushNotifications\build\Plugin.Maui.Spine.PushNotifications.targets" />
 

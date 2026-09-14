@@ -1,5 +1,9 @@
 # Push (server)
 
+```bash
+dotnet add package Plugin.Maui.Spine.Server
+```
+
 `Plugin.Maui.Spine.Server` is the backend half of Spine.PushNotifications: the register of devices, the tag
 expressions that address them, the transports that reach APNs and FCM, and the endpoints the app
 registers through. It is a plain `net10.0` library — no MAUI — so an ASP.NET Core service or an

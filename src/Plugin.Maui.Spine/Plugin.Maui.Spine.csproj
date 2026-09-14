@@ -9,6 +9,11 @@
 
 	</PropertyGroup>
 
+	<PropertyGroup>
+		<Description>Code-first navigation for .NET MAUI: stack-based region navigation, native bottom sheets, a tab host, a header bar with page actions, Liquid Glass buttons, app shortcuts and Windows window management. Pages are discovered by attribute; no Shell, no route strings.</Description>
+		<PackageTags>$(PackageTags);navigation;bottom-sheet;tabs;shell</PackageTags>
+	</PropertyGroup>
+
 	<ItemGroup>
     <PackageReference Include="AsyncAwaitBestPractices" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
@@ -25,9 +30,5 @@
     <Folder Include="Platforms\iOS\" />
     <Folder Include="Platforms\MacCatalyst\" />
   </ItemGroup>
-
-	<ItemGroup>
-		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\;" />
-	</ItemGroup>
 
 </Project>
