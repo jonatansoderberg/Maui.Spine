@@ -1,0 +1,9 @@
+<Project>
+	<!--
+		Plugin.Maui.Spine.Svg finds this assembly by name at startup; an app that only uses the icons
+		by their file names references no type in it, so a trimmed build must be told to keep it.
+	-->
+	<ItemGroup>
+		<TrimmerRootAssembly Include="Plugin.Maui.Spine.Svg.Icons" />
+	</ItemGroup>
+</Project>

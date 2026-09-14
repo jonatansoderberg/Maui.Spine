@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# windows-latest is the one runner that can produce every target framework in one build:
+# net10.0-windows needs Windows, and the iOS and Mac Catalyst class libraries compile there
+# without a paired Mac.
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - run: dotnet workload install maui
+
+      - run: dotnet restore Spine.Packages.slnf
+
+      - run: dotnet build Spine.Packages.slnf -c Release --no-restore
+
+      - run: dotnet test tests/Plugin.Maui.Spine.Server.Tests -c Release --no-build
+
+      - run: dotnet pack Spine.Packages.slnf -c Release --no-build
+
+      - run: python .github/workflows/list-packages.py artifacts/packages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg

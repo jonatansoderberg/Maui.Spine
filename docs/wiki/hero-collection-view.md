@@ -1,5 +1,9 @@
 # HeroCollectionView
 
+```bash
+dotnet add package Plugin.Maui.Spine.Controls.HeroCollectionView
+```
+
 `Plugin.Maui.Spine.Controls.HeroCollectionView` provides `HeroCollectionView` — a `CollectionView` subclass with a collapsing sticky header, optional title overlay, and an adaptive colour-sampling overlay for dynamic theming. On Windows it also doubles as a drag region for custom title-bar windows.
 
 ---

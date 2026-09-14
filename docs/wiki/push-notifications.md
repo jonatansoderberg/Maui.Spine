@@ -1,5 +1,9 @@
 # Push (client)
 
+```bash
+dotnet add package Plugin.Maui.Spine.PushNotifications
+```
+
 `Plugin.Maui.Spine.PushNotifications` is the app half of Spine.PushNotifications: permission, tokens, tags, and the handler
 that sees every message. The backend half is [`Plugin.Maui.Spine.Server`](push-notifications-server.md); the two
 share the contracts in `Plugin.Maui.Spine.Common`.

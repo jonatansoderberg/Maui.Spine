@@ -61,3 +61,10 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# Packed into NuGet packages and run by bash and swiftc on macOS; a CRLF
+# checkout on a Windows build agent would break them.
+###############################################################################
+*.sh    text eol=lf
+*.swift text eol=lf

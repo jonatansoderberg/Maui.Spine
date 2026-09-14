@@ -1,5 +1,9 @@
 # AnimatedLabel
 
+```bash
+dotnet add package Plugin.Maui.Spine.Controls.AnimatedLabel
+```
+
 `Plugin.Maui.Spine.Controls.AnimatedLabel` provides a SkiaSharp-based label control that automatically scrolls (marquee) when the text is wider than the available space. It includes configurable scroll speed, pause duration, fade effects, and text-change animations.
 
 ---

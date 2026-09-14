@@ -1,0 +1,56 @@
+name: Release
+
+# A release is a tag: `git tag v0.1.0 && git push origin v0.1.0`. The version is the tag without
+# its v; a tag with a prerelease suffix (v0.2.0-preview.1) publishes a prerelease.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - run: dotnet workload install maui
+
+      - name: Version from tag
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          case "$GITHUB_REF_NAME" in *-*) echo "PRERELEASE=--prerelease" >> "$GITHUB_ENV";; esac
+
+      - run: dotnet restore Spine.Packages.slnf
+
+      - run: dotnet build Spine.Packages.slnf -c Release --no-restore -p:Version="$VERSION"
+
+      - run: dotnet test tests/Plugin.Maui.Spine.Server.Tests -c Release --no-build
+
+      - run: dotnet pack Spine.Packages.slnf -c Release --no-build -p:Version="$VERSION"
+
+      - run: python .github/workflows/list-packages.py artifacts/packages
+
+      - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: dotnet nuget push "artifacts/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" --skip-duplicate
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" artifacts/packages/*.nupkg --title "$GITHUB_REF_NAME" --generate-notes $PRERELEASE

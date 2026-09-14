@@ -39,6 +39,7 @@ public sealed class ResourceNameCache
 
         var sources = (assemblies?.Where(a => a is not null) ?? Enumerable.Empty<Assembly>())
             .Concat(pluginAssembly is not null ? [pluginAssembly] : [])
+            .Concat(LoadIconsAssembly() is { } icons ? [icons] : [])
             .Distinct()
             .ToList();
 
@@ -115,6 +116,20 @@ public sealed class ResourceNameCache
             kv.Key.EndsWith(svgFileName, StringComparison.OrdinalIgnoreCase));
 
         return entry.Key is null ? null : entry.Value.GetManifestResourceStream(entry.Key);
+    }
+
+    // Plugin.Maui.Spine.Svg.Icons is a resource-only package: an app that uses its icons by file
+    // name references no type in it, so it is loaded by name rather than found through a reference.
+    private static Assembly? LoadIconsAssembly()
+    {
+        try
+        {
+            return Assembly.Load(new AssemblyName("Plugin.Maui.Spine.Svg.Icons"));
+        }
+        catch (FileNotFoundException)
+        {
+            return null;
+        }
     }
 
     private static string ToDarkFileName(string svgFileName)

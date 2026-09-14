@@ -7,4 +7,14 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
 
+	<PropertyGroup>
+		<Description>Contracts shared between Spine apps and servers: the widget and Live Activity tree model, push installations, tags and keys. No MAUI dependency.</Description>
+		<PackageTags>$(PackageTags);widgets;push;contracts</PackageTags>
+	</PropertyGroup>
+
+	<!-- The entitlements step Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.PushNotifications share. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
 </Project>

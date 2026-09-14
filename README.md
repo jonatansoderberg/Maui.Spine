@@ -37,9 +37,27 @@
 | Platform | Status |
 |---|---|
 | Android | ✅ Supported |
+| iOS | ✅ Supported |
+| Mac Catalyst | ✅ Supported, exercised less than iOS |
 | Windows (WinUI 3) | ✅ Supported |
-| iOS | 🚧 In progress |
-| macOS Catalyst | 🚧 In progress |
+
+---
+
+## Packages
+
+One version, nine packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+
+| Group | Package | What it is |
+|---|---|---|
+| Core | `Plugin.Maui.Spine` | Navigation, sheets, tab host, header bar, glass buttons, shortcuts, Windows windowing |
+| Core | `Plugin.Maui.Spine.Svg` | Embedded SVG image sources and icon services (a dependency of the core) |
+| Core | `Plugin.Maui.Spine.Svg.Icons` | 164 ready-made SVG icons, resolved by file name once referenced |
+| Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# |
+| Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications |
+| Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header |
+| Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |
+| Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server; no MAUI |
+| Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions |
 
 ---
 
@@ -161,6 +179,8 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
 | [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |
 | [Glass buttons](docs/wiki/glass-buttons.md) | `Glass.Style` on `Button` and `ImageButton`: Liquid Glass on iOS 26, no-op elsewhere |
+| [Packages](docs/wiki/packages.md) | The nine packages, what depends on what, which to install |
+| [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 
 ---
 
