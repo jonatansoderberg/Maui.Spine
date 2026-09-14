@@ -8,11 +8,11 @@
 
     <Grid RowDefinitions="Auto,*">
 
-        <Button Grid.Row="0" Text="Rensa" Command="{Binding ClearCommand}" Margin="16,8" />
+        <Button Grid.Row="0" Text="Clear" Command="{Binding ClearCommand}" Margin="16,8" />
 
         <CollectionView Grid.Row="1" ItemsSource="{Binding Entries}" Margin="16,0,16,16">
             <CollectionView.EmptyView>
-                <Label Text="Inget har kommit in ännu. Skicka något från Skicka-sidan, eller kör xcrun simctl push."
+                <Label Text="Nothing has arrived yet. Send something from the Send page, or run xcrun simctl push."
                        TextColor="Gray" FontSize="12" Margin="0,20" />
             </CollectionView.EmptyView>
 

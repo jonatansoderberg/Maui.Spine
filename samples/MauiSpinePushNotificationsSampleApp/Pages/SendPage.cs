@@ -1,4 +1,4 @@
 namespace MauiSpinePushNotificationsSampleApp.Pages;
 
-[NavigableRegion(Title = "Skicka")]
+[NavigableRegion(Title = "Send")]
 public partial class SendPage { public SendPage() => InitializeComponent(); }

@@ -8,25 +8,25 @@
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="10">
 
-            <Label Text="Ber sample-servern skicka. Kör den med dotnet run i MauiSpinePushNotificationsSampleApp.Server."
+            <Label Text="Asks the sample server to send. Run it with dotnet run in MauiSpinePushNotificationsSampleApp.Server."
                    FontSize="12" TextColor="Gray" />
 
-            <Label Text="En push som kommer fram medan appen är i förgrunden visas inte — den här samplens handler svarar None och skriver bara en rad i Logg. Slå på fördröjningen nedan och lägg appen i bakgrunden om du vill se en riktig notis."
+            <Label Text="A push that arrives while the app is in the foreground is not shown — this sample's handler answers None and only writes a line in Log. Turn on the delay below and put the app in the background to see a real notification."
                    FontSize="12" TextColor="Gray" />
 
-            <Label Text="Sort" />
+            <Label Text="Kind" />
             <Picker ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" />
             <Label Text="{Binding Explanation}" FontSize="12" TextColor="Gray" />
 
             <Grid ColumnDefinitions="*,Auto">
-                <Label Text="Bara till den här enheten" VerticalOptions="Center" />
+                <Label Text="Only to this device" VerticalOptions="Center" />
                 <Switch Grid.Column="1" IsToggled="{Binding ToMe}" />
             </Grid>
 
-            <Label Text="Tagguttryck" />
+            <Label Text="Tag expression" />
             <Entry Text="{Binding TagExpression}" IsEnabled="{Binding ToTags}" />
 
-            <Label Text="Titel" IsVisible="{Binding ShowText}" />
+            <Label Text="Title" IsVisible="{Binding ShowText}" />
             <Entry Text="{Binding NotificationTitle}" IsVisible="{Binding ShowText}" />
 
             <Label Text="Text" IsVisible="{Binding ShowText}" />
@@ -35,26 +35,26 @@
             <Label Text="Route" IsVisible="{Binding ShowRoute}" />
             <Entry Text="{Binding Route}" IsVisible="{Binding ShowRoute}" />
 
-            <Label Text="Kanal" IsVisible="{Binding ShowChannel}" />
+            <Label Text="Channel" IsVisible="{Binding ShowChannel}" />
             <Entry Text="{Binding Channel}" IsVisible="{Binding ShowChannel}" />
 
-            <Label Text="Knappar (kategori)" IsVisible="{Binding ShowChannel}" />
+            <Label Text="Buttons (category)" IsVisible="{Binding ShowChannel}" />
             <Entry Text="{Binding Category}" Placeholder="sample" IsVisible="{Binding ShowChannel}" />
 
-            <Label Text="Bild" IsVisible="{Binding ShowChannel}" />
+            <Label Text="Picture" IsVisible="{Binding ShowChannel}" />
             <Entry Text="{Binding Image}" Placeholder="https://…" Keyboard="Url" IsVisible="{Binding ShowChannel}" />
 
             <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowPriority}">
-                <Label Text="Hög prioritet" VerticalOptions="Center" />
+                <Label Text="High priority" VerticalOptions="Center" />
                 <Switch Grid.Column="1" IsToggled="{Binding HighPriority}" />
             </Grid>
 
             <Grid ColumnDefinitions="*,Auto">
-                <Label Text="Vänta 5 sekunder med att skicka" VerticalOptions="Center" />
+                <Label Text="Wait 5 seconds before sending" VerticalOptions="Center" />
                 <Switch Grid.Column="1" IsToggled="{Binding Delay}" />
             </Grid>
 
-            <Button Text="Skicka" Command="{Binding SendCommand}" Margin="0,8,0,0" />
+            <Button Text="Send" Command="{Binding SendCommand}" Margin="0,8,0,0" />
             <Label Text="{Binding Result}" FontSize="12" />
 
         </VerticalStackLayout>

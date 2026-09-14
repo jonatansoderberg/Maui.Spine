@@ -29,7 +29,7 @@ public sealed class PictureWidgetProvider(IWidgetService widgets) : IWidgetProvi
                 W.Spacer(),
                 // The system's colors, which follow the user: Material You's accent from the wallpaper on
                 // Android 12 and later, the app's accent color on iOS.
-                W.HStack(W.Text("Spine bild").Headline().Bold().Color(WidgetColor.OnAccent).Accented())
+                W.HStack(W.Text("Spine picture").Headline().Bold().Color(WidgetColor.OnAccent).Accented())
                     .Background(WidgetColor.Accent).Padding(6).CornerRadius(8)))
             .Background(new WidgetGradient([WidgetColor.FromHex("#1B5E3F"), WidgetColor.FromHex("#3FA37A")], WidgetGradientDirection.Diagonal))
             .BackgroundImage(Picture)

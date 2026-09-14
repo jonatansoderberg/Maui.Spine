@@ -6,6 +6,11 @@ dotnet add package Plugin.Maui.Spine.Controls.AnimatedLabel
 
 `Plugin.Maui.Spine.Controls.AnimatedLabel` provides a SkiaSharp-based label control that automatically scrolls (marquee) when the text is wider than the available space. It includes configurable scroll speed, pause duration, fade effects, and text-change animations.
 
+<p align="center">
+  <img src="images/animated-label-and-page-actions.png" width="260" alt="Two AnimatedLabels scrolling text that does not fit">
+</p>
+<p align="center"><sub>The two dark labels are AnimatedLabels; the text scrolls when it is wider than the label</sub></p>
+
 ---
 
 ## Platforms
@@ -14,8 +19,8 @@ dotnet add package Plugin.Maui.Spine.Controls.AnimatedLabel
 |---|---|
 | Android | ✅ Supported |
 | Windows (WinUI 3) | ✅ Supported |
-| iOS | 🚧 In progress |
-| macOS Catalyst | 🚧 In progress |
+| iOS | ✅ Supported |
+| Mac Catalyst | ✅ Supported, exercised less than iOS |
 
 ---
 

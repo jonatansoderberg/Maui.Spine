@@ -25,7 +25,7 @@ Pages/
 
 ---
 
-## `MyPage.cs` — code-behind
+## `MyPage.cs` â€” code-behind
 
 The minimal code-behind holds the navigation attribute and the `InitializeComponent()` call. Nothing else belongs here unless you need platform-specific code-behind logic.
 
@@ -50,7 +50,7 @@ public partial class MyPage { public MyPage() => InitializeComponent(); }
 
 ---
 
-## `MyPage.View.xaml` — XAML
+## `MyPage.View.xaml` â€” XAML
 
 The root element must always be `<SpinePage>`. Bind the ViewModel via `x:TypeArguments` and `x:DataType`:
 
@@ -72,7 +72,7 @@ The root element must always be `<SpinePage>`. Bind the ViewModel via `x:TypeArg
 
 ---
 
-## `MyPage.ViewModel.cs` — ViewModel
+## `MyPage.ViewModel.cs` â€” ViewModel
 
 Inherits `ViewModelBase`. Use primary-constructor injection for services:
 
@@ -162,5 +162,5 @@ Add a `GlobalXmlns.cs` file in your app project to make Spine types and your pag
 | ViewModel class | same name + `ViewModel` suffix | `SettingsPageViewModel` |
 | XAML file | `[PageName].View.xaml` | `SettingsPage.View.xaml` |
 | Code-behind | `[PageName].cs` | `SettingsPage.cs` |
-| Namespace (root pages) | `MyApp.Pages` | — |
+| Namespace (root pages) | `MyApp.Pages` | â€” |
 | Namespace (subdir pages) | `MyApp.Pages.[FolderName]` | `MyApp.Pages.Settings` |

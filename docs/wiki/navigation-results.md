@@ -1,6 +1,12 @@
 # Navigation Results
 
-A page can return a typed result to its caller. The caller `await`s the navigation and inspects the `NavigationResult<TResult>` when the page closes — whether via an explicit confirmation or by being dismissed.
+A page can return a typed result to its caller. The caller `await`s the navigation and inspects the `NavigationResult<TResult>` when the page closes â€” whether via an explicit confirmation or by being dismissed.
+
+<p align="center">
+  <img src="images/sheet-fullscreen.png" width="210" alt="The sheet that returns a result">
+  <img src="images/navigation-result.png" width="210" alt="The caller showing "Result: Confirmed!" after the sheet closed">
+</p>
+<p align="center"><sub>A full-screen sheet returns a result; the caller awaits it and shows it</sub></p>
 
 ---
 
@@ -14,7 +20,7 @@ Getting a result requires changes on both sides:
 
 ---
 
-## Step 1 — Define the result type
+## Step 1 â€” Define the result type
 
 ```csharp
 public sealed record FullscreenSheetResult(string Message);
@@ -22,7 +28,7 @@ public sealed record FullscreenSheetResult(string Message);
 
 ---
 
-## Step 2 — Declare the page as returning a result
+## Step 2 â€” Declare the page as returning a result
 
 Implement `INavigableWithResult<TResult>` on the page code-behind:
 
@@ -41,7 +47,7 @@ public partial class ConfirmPage : INavigableWithResult<ConfirmPageResult>
 
 ---
 
-## Step 3 — Return the result from the ViewModel
+## Step 3 â€” Return the result from the ViewModel
 
 Call `ReturnAsync` to deliver the result and close the page. Call `BackAsync` (or let the user dismiss) for a "canceled" outcome:
 
@@ -62,7 +68,7 @@ public partial class ConfirmPageViewModel(INavigationService _navigation) : View
 
 ---
 
-## Step 4 — Await the result in the caller
+## Step 4 â€” Await the result in the caller
 
 ```csharp
 [RelayCommand]

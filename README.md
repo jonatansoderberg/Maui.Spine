@@ -34,6 +34,19 @@
 
 ---
 
+## In pictures
+
+<p align="center">
+  <img src="docs/wiki/images/hero-collection-view-expanded.png" width="160" alt="HeroCollectionView with an expanded header">
+  <img src="docs/wiki/images/sheet-detents-medium.png" width="160" alt="A bottom sheet at its medium detent">
+  <img src="docs/wiki/images/glass-buttons.png" width="160" alt="Liquid Glass buttons on iOS 26">
+  <img src="docs/wiki/images/live-activity-lock-screen.png" width="160" alt="A Live Activity on the lock screen">
+  <img src="docs/wiki/images/widget-gallery-medium.png" width="160" alt="A home-screen widget built from C#">
+</p>
+<p align="center"><sub>The sample apps on iOS: a hero header, a sheet, Liquid Glass, a Live Activity and a widget. More on each wiki page.</sub></p>
+
+---
+
 ## Platforms
 
 | Platform | Status |
@@ -183,6 +196,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Glass buttons](docs/wiki/glass-buttons.md) | `Glass.Style` on `Button` and `ImageButton`: Liquid Glass on iOS 26, no-op elsewhere |
 | [Packages](docs/wiki/packages.md) | The nine packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
+| [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 
 ---
 

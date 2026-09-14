@@ -39,10 +39,10 @@ public partial class SendPageViewModel(SampleServer _server, IPushNotificationSe
     /// <summary>What the chosen sort actually does, in one line above the form.</summary>
     public string Explanation => Kind switch
     {
-        "silent" => "Inget visas. Handlern körs och lägger titeln och texten i widgeten, som byggs om.",
-        "widget" => "Bara \u201Dbygg om\u201D. Widgeten ritar det en tyst push senast la där.",
-        "liveactivity" => "Uppdaterar en Live Activity. Kräver att en aktivitet körs på enheten.",
-        _ => "En vanlig notis. Visas inte i förgrunden \u2014 se raden i Logg.",
+        "silent" => "Nothing is shown. The handler runs and puts the title and text in the widget, which is rebuilt.",
+        "widget" => "Just \u201Crebuild\u201D. The widget draws what the last silent push put there.",
+        "liveactivity" => "Updates a Live Activity. Requires an activity running on the device.",
+        _ => "An ordinary notification. Not shown in the foreground \u2014 see the line in Log.",
     };
 
     /// <summary>When true the message goes to this installation only, which is the usual case while developing.</summary>
@@ -62,10 +62,10 @@ public partial class SendPageViewModel(SampleServer _server, IPushNotificationSe
     /// is what the header bar shows.
     /// </summary>
     [ObservableProperty]
-    public partial string NotificationTitle { get; set; } = "Hej från sample-servern";
+    public partial string NotificationTitle { get; set; } = "Hello from the sample server";
 
     [ObservableProperty]
-    public partial string Body { get; set; } = "Det här kom över push.";
+    public partial string Body { get; set; } = "This came over push.";
 
     [ObservableProperty]
     public partial string Route { get; set; } = "log";
@@ -102,7 +102,7 @@ public partial class SendPageViewModel(SampleServer _server, IPushNotificationSe
     [RelayCommand]
     private async Task Send()
     {
-        Result = Delay ? $"skickar om {DelaySeconds} s — lägg appen i bakgrunden nu" : "skickar…";
+        Result = Delay ? $"sending in {DelaySeconds} s — put the app in the background now" : "skickar…";
 
         var request = new
         {

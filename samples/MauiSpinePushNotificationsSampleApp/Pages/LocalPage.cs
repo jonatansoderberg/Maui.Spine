@@ -1,4 +1,4 @@
 namespace MauiSpinePushNotificationsSampleApp.Pages;
 
-[NavigableRegion(Title = "Lokalt")]
+[NavigableRegion(Title = "Local")]
 public partial class LocalPage { public LocalPage() => InitializeComponent(); }

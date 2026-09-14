@@ -2,6 +2,13 @@
 
 A **region** is a full-screen page that participates in Spine's stack-based navigation. Navigating forward pushes a new page onto the stack; navigating back pops it off. The header bar, back button, and slide transitions are handled automatically.
 
+<p align="center">
+  <img src="images/region-settings.png" width="210" alt="A region page with the header bar and back button">
+  <img src="images/animated-label-and-page-actions.png" width="210" alt="A region page with a page action in the header bar">
+  <img src="images/navigation-parameter.png" width="210" alt="A region page opened with a typed parameter">
+</p>
+<p align="center"><sub>Regions from the sample app: the header bar, the back button, and page actions come with the page</sub></p>
+
 ---
 
 ## Declaring a region page
@@ -26,7 +33,7 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `IsTitleBarVisible` | `bool` | platform default | Show/hide the native window title bar (desktop only) |
 | `TitlePlacement` | `TitlePlacement` | platform default | `HeaderBar` or `TitleBar` |
 | `TitleAlignment` | `TitleAlignment` | platform default | `Left` or `Center` |
-| `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually |
+| `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it â€” use `ViewModelBase.SafeAreaInsets` to offset content manually |
 
 Platform defaults:
 
@@ -35,7 +42,7 @@ Platform defaults:
 | Mobile (Android) | `true` | `false` | `HeaderBar` | `Center` |
 | Desktop (Windows) | `false` | `true` | `TitleBar` | `Left` |
 
-> **iOS / macOS Catalyst:** These platforms are currently in progress. The framework compiles for these targets and the same defaults apply, but native platform integrations are not yet complete.
+> **iOS / Mac Catalyst** use the mobile defaults; Mac Catalyst is exercised less than iOS.
 
 ---
 
@@ -51,7 +58,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 }
 ```
 
-Spine automatically decides the presentation style — if the target page carries `[NavigableRegion]` it will be pushed onto the stack; if it carries `[NavigableSheet]` it will be presented as a bottom sheet.
+Spine automatically decides the presentation style â€” if the target page carries `[NavigableRegion]` it will be pushed onto the stack; if it carries `[NavigableSheet]` it will be presented as a bottom sheet.
 
 ---
 

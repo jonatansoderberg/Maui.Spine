@@ -10,6 +10,12 @@ share the contracts in `Plugin.Maui.Spine.Common`.
 
 It covers iOS, Android and Mac Catalyst. On Mac Catalyst remote push needs a provisioning profile — see [What each platform needs](#what-each-platform-needs) — and without one the app gets local notifications only. Windows is not covered yet.
 
+<p align="center">
+  <img src="images/push-sample-home.png" width="220" alt="The push sample's home page: status, installation id, token, tags">
+  <img src="images/local-notification-banner.png" width="300" alt="A local notification banner on the home screen">
+</p>
+<p align="center"><sub>The sample app, and a local notification it scheduled arriving 15 seconds later</sub></p>
+
 ---
 
 ## Run the sample first
@@ -166,6 +172,11 @@ window runs out.
 ## Local notifications
 
 The other half of notifying: the ones the device shows on its own, with no server involved.
+
+<p align="center">
+  <img src="images/local-notification-expanded.png" width="320" alt="The notification expanded: a picture attachment and the category's three buttons">
+</p>
+<p align="center"><sub>A local notification with a picture and a category: two buttons and a reply field, all from C#</sub></p>
 
 ```csharp
 var local = services.GetRequiredService<ILocalNotificationService>();

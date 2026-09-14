@@ -6,6 +6,12 @@ dotnet add package Plugin.Maui.Spine.Controls.HeroCollectionView
 
 `Plugin.Maui.Spine.Controls.HeroCollectionView` provides `HeroCollectionView` — a `CollectionView` subclass with a collapsing sticky header, optional title overlay, and an adaptive colour-sampling overlay for dynamic theming. On Windows it also doubles as a drag region for custom title-bar windows.
 
+<p align="center">
+  <img src="images/hero-collection-view-expanded.png" width="240" alt="HeroCollectionView with the header expanded">
+  <img src="images/hero-collection-view-collapsed.png" width="240" alt="The same list scrolled, with the header collapsed to its sticky minimum">
+</p>
+<p align="center"><sub>The hero header expanded and collapsed, with a page action over the image</sub></p>
+
 ---
 
 ## Platforms
@@ -14,8 +20,8 @@ dotnet add package Plugin.Maui.Spine.Controls.HeroCollectionView
 |---|---|
 | Android | ✅ Supported |
 | Windows (WinUI 3) | ✅ Supported |
-| iOS | 🚧 In progress |
-| macOS Catalyst | 🚧 In progress |
+| iOS | ✅ Supported |
+| Mac Catalyst | ✅ Supported, exercised less than iOS |
 
 ---
 

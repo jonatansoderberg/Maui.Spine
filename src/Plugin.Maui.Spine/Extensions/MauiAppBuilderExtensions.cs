@@ -139,7 +139,8 @@ public static partial class SpineExtensions
 
         // Initialize SVG resource cache with the app's assemblies — fixes both
         // SvgImageSource.Svg="..." in XAML and ISvgIconService.FromEmbeddedSvg("...").
-        builder.UseEmbeddedSvgImages(options.Assemblies.ToArray());
+        // Spine's own assembly carries the header bar's back and close glyphs.
+        builder.UseEmbeddedSvgImages([.. options.Assemblies, typeof(SpineOptions).Assembly]);
 
         // Register ISvgIconService (no-op if already registered via an explicit UseSvgIcon() call).
         builder.UseSvgIcon();

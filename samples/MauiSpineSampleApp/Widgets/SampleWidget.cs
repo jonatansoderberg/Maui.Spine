@@ -43,7 +43,7 @@ public sealed class SampleWidget(IWidgetService _widgets, INavigationService _na
                 })),
             W.Adaptive(W.Text("Next event").Caption().Color(Muted), new Dictionary<WidgetFamily, WidgetNode>
             {
-                [WidgetFamily.Medium] = W.Text("Sthlm Indoor Cup, H21").Caption().Color(Muted),
+                [WidgetFamily.Medium] = W.Text("Product demo · Room 4B").Caption().Color(Muted),
             }),
             W.HStack(4,
                 W.Adaptive(W.Spacer(), new Dictionary<WidgetFamily, WidgetNode> { [WidgetFamily.Medium] = W.Text("Starts in").Headline().Color(Ink) }),

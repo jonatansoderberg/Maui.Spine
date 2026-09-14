@@ -17,7 +17,7 @@ public partial class LiveActivityPageViewModel(
     private LiveActivity? _running;
 
     [ObservableProperty]
-    public partial string State { get; set; } = "ingen aktivitet";
+    public partial string State { get; set; } = "no activity";
 
     /// <summary>The activity's own push token; what lets the server update it from outside.</summary>
     [ObservableProperty]
@@ -59,12 +59,12 @@ public partial class LiveActivityPageViewModel(
     {
         if (!_activities.AreActivitiesEnabled)
         {
-            State = "Live Activities är avstängda på den här enheten";
+            State = "Live Activities are off on this device";
             return;
         }
 
-        _running = await _activities.StartAsync(Kind, Layout("Startad lokalt"), DateTimeOffset.Now.AddMinutes(30));
-        _log.Note("live activity", _running is null ? "kunde inte startas" : "startad");
+        _running = await _activities.StartAsync(Kind, Layout("Started locally"), DateTimeOffset.Now.AddMinutes(30));
+        _log.Note("live activity", _running is null ? "could not start" : "started");
         await ShowAsync();
     }
 
@@ -72,8 +72,8 @@ public partial class LiveActivityPageViewModel(
     private async Task UpdateLocally()
     {
         if (_running is null) return;
-        await _running.UpdateAsync(Layout($"Uppdaterad lokalt {DateTimeOffset.Now:HH:mm:ss}"));
-        _log.Note("live activity", "uppdaterad lokalt");
+        await _running.UpdateAsync(Layout($"Updated locally {DateTimeOffset.Now:HH:mm:ss}"));
+        _log.Note("live activity", "updated locally");
     }
 
     /// <summary>
@@ -85,20 +85,20 @@ public partial class LiveActivityPageViewModel(
     {
         if (!_activities.AreActivitiesEnabled)
         {
-            State = "Live Activities är avstängda på den här enheten";
+            State = "Live Activities are off on this device";
             return;
         }
 
         var (channel, error) = await _server.ChannelAsync();
         if (channel is null)
         {
-            _log.Note("live activity", $"ingen kanal: {error}");
+            _log.Note("live activity", $"no channel: {error}");
             State = error!;
             return;
         }
 
-        _running = await _activities.StartAsync(Kind, Layout("Startad på kanal"), DateTimeOffset.Now.AddMinutes(30), channel);
-        _log.Note("live activity", _running is null ? "kunde inte startas på kanal" : $"startad på kanal {channel}");
+        _running = await _activities.StartAsync(Kind, Layout("Started on a channel"), DateTimeOffset.Now.AddMinutes(30), channel);
+        _log.Note("live activity", _running is null ? "could not start on channel" : $"started on channel {channel}");
         await ShowAsync();
     }
 
@@ -108,7 +108,7 @@ public partial class LiveActivityPageViewModel(
     {
         if (_running?.Channel is not { } channel)
         {
-            State = "aktiviteten följer ingen kanal";
+            State = "the activity follows no channel";
             return;
         }
 
@@ -117,7 +117,7 @@ public partial class LiveActivityPageViewModel(
             kind = "broadcast",
             broadcastChannel = channel,
             activityKind = Kind,
-            title = "Broadcast från servern",
+            title = "Broadcast from the server",
             body = DateTimeOffset.Now.ToString("HH:mm:ss"),
         });
 
@@ -136,11 +136,11 @@ public partial class LiveActivityPageViewModel(
         {
             kind = "liveactivity",
             activityKind = Kind,
-            title = "Uppdaterad från servern",
+            title = "Updated from the server",
             body = DateTimeOffset.Now.ToString("HH:mm:ss"),
         });
 
-        _log.Note("live activity", $"servern: {answer}");
+        _log.Note("live activity", $"server: {answer}");
         State = answer;
     }
 
@@ -153,7 +153,7 @@ public partial class LiveActivityPageViewModel(
     [RelayCommand]
     private async Task UpdateWithSystemBackground()
     {
-        var body = $"Systemets bakgrund {DateTimeOffset.Now:HH:mm:ss}";
+        var body = $"System background {DateTimeOffset.Now:HH:mm:ss}";
         var layout = Layout(body) with
         {
             LockScreen = W.VStack(4,
@@ -168,18 +168,18 @@ public partial class LiveActivityPageViewModel(
         if (_running is not null)
         {
             await _running.UpdateAsync(layout);
-            _log.Note("live activity", "uppdaterad lokalt, på systemets bakgrund");
+            _log.Note("live activity", "updated locally, on the system background");
             return;
         }
 
         if (!_activities.AreActivitiesEnabled)
         {
-            State = "Live Activities är avstängda på den här enheten";
+            State = "Live Activities are off on this device";
             return;
         }
 
         _running = await _activities.StartAsync(Kind, layout, DateTimeOffset.Now.AddMinutes(30));
-        _log.Note("live activity", _running is null ? "kunde inte startas" : "startad på systemets bakgrund");
+        _log.Note("live activity", _running is null ? "could not start" : "started on the system background");
         await ShowAsync();
     }
 
@@ -189,21 +189,21 @@ public partial class LiveActivityPageViewModel(
         if (_running is null) return;
         await _running.EndAsync();
         _running = null;
-        _log.Note("live activity", "avslutad");
+        _log.Note("live activity", "ended");
         await ShowAsync();
     }
 
     private async Task ShowAsync()
     {
         CanStart = _running is null;
-        State = _running is null ? "ingen aktivitet" : $"kör, id {_running.Id}";
+        State = _running is null ? "no activity" : $"running, id {_running.Id}";
         PushToken = _running switch
         {
             null => "—",
 
             // An activity on a channel has no token of its own: the channel is its address.
-            { Channel: { } channel } => $"kanal {channel}",
-            _ => await _running.GetPushTokenAsync() ?? "ingen token ännu",
+            { Channel: { } channel } => $"channel {channel}",
+            _ => await _running.GetPushTokenAsync() ?? "no token yet",
         };
     }
 

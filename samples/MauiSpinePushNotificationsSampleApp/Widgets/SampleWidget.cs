@@ -7,7 +7,7 @@ namespace MauiSpinePushNotificationsSampleApp.Widgets;
 /// <summary>
 /// The smallest widget that makes a refresh visible: when it was last rebuilt, and how many times.
 /// Both change on every build, so a <c>kind: "widget"</c> push from the sample server can be seen
-/// rather than merely reported as sent. The Kvittera button is the other direction — a tap that
+/// rather than merely reported as sent. The Acknowledge button is the other direction — a tap that
 /// changes what the widget says without opening the app.
 /// </summary>
 /// <param name="log">The Log page's entries, so a rebuild is observable in the app too.</param>
@@ -38,16 +38,16 @@ public sealed class SampleWidgetProvider(PushLog log, WidgetContent content) : I
 
         // Nothing pushed yet: say so plainly rather than render an empty card, which reads like the
         // "—" this widget existed as before it had a provider.
-        var headline = content.Title ?? "Inget skickat än";
-        var detail = content.Body ?? "Skicka en tyst push från Skicka-sidan.";
+        var headline = content.Title ?? "Nothing sent yet";
+        var detail = content.Body ?? "Send a silent push from the Send page.";
 
         // The line the button changes. It moves from the push's own time to the tap's, so a tap is
         // visible on the widget itself and not only in the Log page.
         var stamp = content.AcknowledgedAt is { } acknowledged
-            ? $"Kvitterad {acknowledged:HH:mm:ss} · ombyggnad #{count}"
+            ? $"Acknowledged {acknowledged:HH:mm:ss} · rebuild #{count}"
             : content.SetAt is { } at
-                ? $"{at:HH:mm:ss} · ombyggnad #{count}"
-                : $"ombyggnad #{count}";
+                ? $"{at:HH:mm:ss} · rebuild #{count}"
+                : $"rebuild #{count}";
 
         return Task.FromResult(WidgetTimeline
             .Single(W.VStack(4,
@@ -59,7 +59,7 @@ public sealed class SampleWidgetProvider(PushLog log, WidgetContent content) : I
 
                 // Its own row rather than beside the stamp: in a 2x2 the two share a line and the
                 // stamp is the half that gets cut.
-                W.Button(AcknowledgeAction, W.Text("Kvittera").Caption().Bold().Color(WidgetColor.Green))))
+                W.Button(AcknowledgeAction, W.Text("Acknowledge").Caption().Bold().Color(WidgetColor.Green))))
 
             // A refresh the platform does on its own, so the widget is not frozen when no push
             // arrives. Well inside WidgetKit's budget.

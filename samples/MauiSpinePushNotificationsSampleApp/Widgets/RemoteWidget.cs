@@ -19,7 +19,7 @@ public sealed record RemoteWidgetSource(Uri Url);
 /// writes, so a widget added before the app has built it has nothing to fetch from.
 /// <para>
 /// A widget of its own rather than a remote source on <c>sample</c>: that one shows what the silent
-/// pushes carry and has the Kvittera button, and the server's answer would cover both whenever it
+/// pushes carry and has the Acknowledge button, and the server's answer would cover both whenever it
 /// could be reached — which in this sample is always.
 /// </para>
 /// </remarks>
@@ -35,8 +35,8 @@ public sealed class RemoteWidgetProvider(RemoteWidgetSource source) : IWidgetPro
         return Task.FromResult(WidgetTimeline
             .Single(W.VStack(4,
                 W.Text("Spine remote").Caption().Secondary(),
-                W.Text("Från appen").Headline().Bold(),
-                W.Text($"Reserv · byggd {now:HH:mm:ss}").Caption()))
+                W.Text("From the app").Headline().Bold(),
+                W.Text($"Fallback · built {now:HH:mm:ss}").Caption()))
             .RemoteSource(source.Url)
 
             // The pace of the server fetches too: WidgetKit reloads on this schedule and the platform
