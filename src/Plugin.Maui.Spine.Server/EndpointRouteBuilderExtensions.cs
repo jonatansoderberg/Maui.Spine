@@ -9,20 +9,20 @@ public static class EndpointRouteBuilderExtensions
 {
     /// <summary>
     /// Maps <c>PUT</c> and <c>DELETE</c> on <c>{prefix}/installations/{id}</c>. Authentication is the
-    /// backend's business; set <see cref="SpinePushOptions.Authenticate"/> to gate them.
+    /// backend's business; set <see cref="SpinePushNotificationsOptions.Authenticate"/> to gate them.
     /// </summary>
     /// <param name="endpoints">The application's route builder.</param>
     /// <param name="prefix">The path the endpoints live under.</param>
     /// <returns>The same builder, for chaining.</returns>
-    public static IEndpointRouteBuilder MapSpinePush(this IEndpointRouteBuilder endpoints, string prefix = "/push")
+    public static IEndpointRouteBuilder MapSpinePushNotifications(this IEndpointRouteBuilder endpoints, string prefix = "/push")
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentException.ThrowIfNullOrWhiteSpace(prefix);
 
         var route = $"{prefix.TrimEnd('/')}/installations/{{id}}";
 
-        endpoints.MapPut(route, (HttpRequest request, CancellationToken ct) => SpinePushEndpoints.HandleAsync(request, ct));
-        endpoints.MapDelete(route, (HttpRequest request, CancellationToken ct) => SpinePushEndpoints.HandleAsync(request, ct));
+        endpoints.MapPut(route, (HttpRequest request, CancellationToken ct) => SpinePushNotificationsEndpoints.HandleAsync(request, ct));
+        endpoints.MapDelete(route, (HttpRequest request, CancellationToken ct) => SpinePushNotificationsEndpoints.HandleAsync(request, ct));
 
         return endpoints;
     }

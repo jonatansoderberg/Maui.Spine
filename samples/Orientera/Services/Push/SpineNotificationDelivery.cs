@@ -1,5 +1,5 @@
 using Orientera.Services.Notifications;
-using Plugin.Maui.Spine.Push;
+using Plugin.Maui.Spine.PushNotifications;
 
 namespace Orientera.Services.Push;
 

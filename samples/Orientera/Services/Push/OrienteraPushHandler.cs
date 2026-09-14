@@ -2,7 +2,7 @@ using Orientera.Domain;
 using Orientera.Features.Events;
 using Orientera.Services.Notifications;
 using Plugin.Maui.Spine.Core;
-using Plugin.Maui.Spine.Push;
+using Plugin.Maui.Spine.PushNotifications;
 
 namespace Orientera.Services.Push;
 
@@ -14,7 +14,7 @@ namespace Orientera.Services.Push;
 /// This handles local notifications too. The system hands both to the same delegate, and a local
 /// one carries no route — which is exactly the "show it normally" case.
 /// </remarks>
-public sealed class OrienteraPushHandler(INavigationService _navigation, OnScreen _onScreen) : IPushHandler
+public sealed class OrienteraPushHandler(INavigationService _navigation, OnScreen _onScreen) : IPushNotificationHandler
 {
     public Task<PushPresentation> OnReceivedAsync(PushMessage message, PushContext context)
     {

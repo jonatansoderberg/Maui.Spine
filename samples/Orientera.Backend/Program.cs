@@ -35,7 +35,7 @@ var storage = builder.Configuration["AzureWebJobsStorage"] is { Length: > 0 } co
     ? connection
     : "UseDevelopmentStorage=true";
 
-builder.Services.AddSpinePush(push =>
+builder.Services.AddSpinePushNotifications(push =>
 {
     push.UseAzureTableStore(storage, "OrienteraPush");
 

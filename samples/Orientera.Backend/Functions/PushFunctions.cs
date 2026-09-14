@@ -28,7 +28,7 @@ public sealed class PushFunctions(
     public Task<IResult> Installation(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", "delete", Route = "push/installations/{id}")] HttpRequest request,
         CancellationToken cancellationToken) =>
-        SpinePushEndpoints.HandleAsync(request, cancellationToken);
+        SpinePushNotificationsEndpoints.HandleAsync(request, cancellationToken);
 
     /// <summary>
     /// Results are the one thing in the app no phone can notice on its own: they appear in Eventor

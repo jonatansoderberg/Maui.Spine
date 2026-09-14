@@ -91,7 +91,7 @@ public static partial class SpineWidgetsExtensions
     }
 
     // iOS 26's widget push token: fetched at launch, and again whenever the extension's push handler or
-    // the bridge says it changed. The widget service passes the news on, so Spine.Push registers it.
+    // the bridge says it changed. The widget service passes the news on, so Spine.PushNotifications registers it.
     private static void ListenForWidgetPushToken()
     {
         if (Services().GetRequiredService<IWidgetPlatform>() is not WidgetPlatform { PushTokenNotificationName: { } name } platform) return;

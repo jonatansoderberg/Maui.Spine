@@ -117,7 +117,7 @@ public sealed record PushNotification
 
     /// <summary>
     /// A picture to show with the notification. Must be <c>https</c>. Android always shows it; iOS
-    /// shows it only when the app is built with <c>SpinePushImages=true</c>, which adds the
+    /// shows it only when the app is built with <c>SpinePushNotificationsImages=true</c>, which adds the
     /// Notification Service Extension that fetches it — without that the notification arrives as text.
     /// </summary>
     public Uri? Image { get; init; }

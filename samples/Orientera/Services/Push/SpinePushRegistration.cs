@@ -1,14 +1,14 @@
 using Orientera.Services.Notifications;
-using Plugin.Maui.Spine.Push;
+using Plugin.Maui.Spine.PushNotifications;
 
 namespace Orientera.Services.Push;
 
 /// <summary>
-/// The notification service's view of Spine.Push. Kept out of <c>Services/Notifications</c> on
+/// The notification service's view of Spine.PushNotifications. Kept out of <c>Services/Notifications</c> on
 /// purpose: that folder is compiled into the tests on plain .NET, where the MAUI package does not
 /// exist.
 /// </summary>
-public sealed class SpinePushRegistration(IPushService _push) : IPushRegistration
+public sealed class SpinePushRegistration(IPushNotificationService _push) : IPushRegistration
 {
     public bool IsRegistered => _push.IsRegistered;
 

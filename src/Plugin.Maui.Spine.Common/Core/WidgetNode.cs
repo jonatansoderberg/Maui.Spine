@@ -92,7 +92,7 @@ public abstract record TextLikeNode : WidgetNode
     public TextStyle Style { get; init; }
 
     // The three below are flattened views of Style, and each has an init accessor so a tree can be
-    // read back from its own JSON. Spine.Push needs that on Android, where a Live Update arrives as
+    // read back from its own JSON. Spine.PushNotifications needs that on Android, where a Live Update arrives as
     // serialized layout in a data message and is rendered in the app's process. Without the setters
     // the structure came back but every style fell to its default, silently.
 

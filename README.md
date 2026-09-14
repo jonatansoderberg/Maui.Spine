@@ -155,8 +155,8 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Windows Platform Options](docs/wiki/windows-options.md) | Window size, tray, single-instance, title bar |
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
 | [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets and Dynamic Island, built from C# |
-| [Push (client)](docs/wiki/push.md) | Permission, tokens, tags, and the handler that sees every message |
-| [Push (server)](docs/wiki/push-server.md) | The backend half: register, tag expressions, APNs and FCM |
+| [Push (client)](docs/wiki/push-notifications.md) | Permission, tokens, tags, and the handler that sees every message |
+| [Push (server)](docs/wiki/push-notifications-server.md) | The backend half: register, tag expressions, APNs and FCM |
 | [HeroCollectionView](docs/wiki/hero-collection-view.md) | Collapsing sticky header, adaptive overlay |
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
 | [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |
@@ -184,13 +184,13 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 
 ### Push sample
 
-`samples/MauiSpinePushSampleApp` and its `…​.Server` show Spine.Push end to end: permission, tags, a
+`samples/MauiSpinePushNotificationsSampleApp` and its `…​.Server` show Spine.PushNotifications end to end: permission, tags, a
 form that asks the server to send, and a log of everything the handler received. Start the server
 with `dotnet run`, then the app.
 
 Outside the repo you need an App ID with Push Notifications ticked and an APNs `.p8` for Apple, and a
 Firebase project's `google-services.json` for Android — the checked-in one is a placeholder so the
-sample builds. See [Push (client)](docs/wiki/push.md).
+sample builds. See [Push (client)](docs/wiki/push-notifications.md).
 
 ### Run the sample
 

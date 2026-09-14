@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<AssemblyName>Plugin.Maui.Spine.PushNotifications</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.PushNotifications</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<!-- The iOS delegate methods are added with class_addMethod and [UnmanagedCallersOnly]. -->
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<PackageReference Include="Xamarin.Firebase.Messaging" />
+		<PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData.Core" />
+		<PackageReference Include="Xamarin.AndroidX.Fragment" />
+		<PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\;" />
+		<!-- The Notification Service Extension's source, which build\spine-push-notifications-build.sh compiles in the app's build. -->
+		<None Include="native\**" Pack="true" PackagePath="native\" />
+	</ItemGroup>
+
+</Project>

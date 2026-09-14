@@ -2,11 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Plugin.Maui.Spine.Server;
 
-/// <summary>Registers Spine.Push on the server.</summary>
+/// <summary>Registers Spine.PushNotifications on the server.</summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds the register and the transports Spine.Push sends through. Call it once in the host's
+    /// Adds the register and the transports Spine.PushNotifications sends through. Call it once in the host's
     /// service configuration.
     /// </summary>
     /// <param name="services">The application's service collection.</param>
@@ -16,12 +16,12 @@ public static class ServiceCollectionExtensions
     /// No register was configured, or a configured platform is missing a credential. A server with no
     /// platform at all is allowed: it can register devices, and sending simply reaches nobody.
     /// </exception>
-    public static IServiceCollection AddSpinePush(this IServiceCollection services, Action<SpinePushOptions> configure)
+    public static IServiceCollection AddSpinePushNotifications(this IServiceCollection services, Action<SpinePushNotificationsOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
 
-        var options = new SpinePushOptions();
+        var options = new SpinePushNotificationsOptions();
         configure(options);
         options.Validate();
 

@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Plugin.Maui.Spine.Server.Tests;
 
-public class SpinePushOptionsTests
+public class SpinePushNotificationsOptionsTests
 {
     private static void Apple(ApplePushOptions a)
     {
@@ -15,8 +15,8 @@ public class SpinePushOptionsTests
         a.BundleId = "com.companyname.orientera";
     }
 
-    private static ServiceProvider Build(Action<SpinePushOptions> configure) =>
-        new ServiceCollection().AddSpinePush(configure).BuildServiceProvider();
+    private static ServiceProvider Build(Action<SpinePushNotificationsOptions> configure) =>
+        new ServiceCollection().AddSpinePushNotifications(configure).BuildServiceProvider();
 
     [Fact]
     public void A_configured_server_resolves_its_register_and_options()
@@ -24,7 +24,7 @@ public class SpinePushOptionsTests
         using var services = Build(o => o.Apple(Apple).UseInMemoryStore());
 
         Assert.IsType<InMemoryPushInstallationStore>(services.GetRequiredService<IPushInstallationStore>());
-        Assert.NotNull(services.GetRequiredService<SpinePushOptions>().AppleOptions);
+        Assert.NotNull(services.GetRequiredService<SpinePushNotificationsOptions>().AppleOptions);
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public class SpinePushOptionsTests
         using var services = Build(o => o.UseInMemoryStore());
 
         Assert.IsType<InMemoryPushInstallationStore>(services.GetRequiredService<IPushInstallationStore>());
-        Assert.Null(services.GetRequiredService<SpinePushOptions>().AppleOptions);
+        Assert.Null(services.GetRequiredService<SpinePushNotificationsOptions>().AppleOptions);
     }
 
     [Fact]
@@ -84,13 +84,13 @@ public class SpinePushOptionsTests
         using var services = Build(o => o.Apple(Apple).UseInMemoryStore());
 
         Assert.Equal(ApnsEnvironment.PerInstallation,
-            services.GetRequiredService<SpinePushOptions>().AppleOptions!.Environment);
+            services.GetRequiredService<SpinePushNotificationsOptions>().AppleOptions!.Environment);
     }
 
     [Fact]
     public void Without_a_policy_the_clients_tags_are_kept_as_they_are()
     {
-        var options = new SpinePushOptions();
+        var options = new SpinePushNotificationsOptions();
         var installation = new PushInstallation { Id = "a", Platform = PushPlatform.Apple, Handle = "h" };
 
         Assert.Equal(["a", "b"], options.FilterTags(installation, ["a", "b"]));
@@ -99,7 +99,7 @@ public class SpinePushOptionsTests
     [Fact]
     public void Allow_tags_narrows_what_a_client_may_register()
     {
-        var options = new SpinePushOptions
+        var options = new SpinePushNotificationsOptions
         {
             AllowTags = (installation, tags) =>
                 tags.Where(t => !t.StartsWith("user:", StringComparison.Ordinal) || t == $"user:{installation.UserId}"),
