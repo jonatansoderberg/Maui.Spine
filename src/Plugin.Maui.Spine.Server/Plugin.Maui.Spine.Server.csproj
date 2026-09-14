@@ -9,6 +9,7 @@
 
 	<PropertyGroup>
 		<Description>The server half of Spine push notifications for ASP.NET Core and Azure Functions: a device register, tag expressions, and transports that send straight to APNs, FCM and WNS.</Description>
+		<SpineIcon>server.png</SpineIcon>
 		<PackageTags>$(PackageTags);push;notifications;apns;fcm;wns;aspnetcore;azure-functions</PackageTags>
 	</PropertyGroup>
 

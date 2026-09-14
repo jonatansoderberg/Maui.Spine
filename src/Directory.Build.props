@@ -15,7 +15,6 @@
 		<RepositoryUrl>https://github.com/jonatansoderberg/Maui.Spine</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<PackageIcon>icon.png</PackageIcon>
 		<PackageTags>maui;dotnet-maui;spine</PackageTags>
 		<PackageReleaseNotes>https://github.com/jonatansoderberg/Maui.Spine/releases</PackageReleaseNotes>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -29,7 +28,6 @@
 
 	<ItemGroup>
 		<None Include="README.md" Pack="true" PackagePath="/" />
-		<None Include="$(MSBuildThisFileDirectory)../assets/icon.png" Pack="true" PackagePath="/" Visible="false" />
 	</ItemGroup>
 
 </Project>
