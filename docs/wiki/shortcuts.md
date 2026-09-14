@@ -79,6 +79,11 @@ builder.UseSpine(options =>
 
 A shortcut declared with `showInTray: false` stays out of the menu but keeps its place in the jump list on Windows and the long-press menu on Android.
 
+<p align="center">
+  <img src="images/tray-menu-mac.png" width="254" alt="The sample app's status item in the macOS menu bar, opened: Settings and Exit">
+</p>
+<p align="center"><sub>The sample's tray menu on Mac Catalyst: the SVG status item, the <code>settings</code> shortcut, and Exit</sub></p>
+
 ---
 
 ## `IShortcutBuilder.Add` parameters
