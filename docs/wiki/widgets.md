@@ -48,7 +48,7 @@ The native side is generated from MSBuild items, not from the attribute — the 
 ```xml
 <ItemGroup>
   <SpineWidget Include="next-start"
-               DisplayName="Nästa start"
+               DisplayName="Next start"
                Description="The countdown to your next start."
                Families="Small,Medium" />
 </ItemGroup>
@@ -141,7 +141,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
             .Single(new Dictionary<WidgetFamily, WidgetNode>
             {
                 [WidgetFamily.Small] = W.VStack(6,
-                    W.Text("Nästa start").Caption().Secondary(),
+                    W.Text("Next start").Caption().Secondary(),
                     W.Timer(start.Time).Title().Bold().Color(WidgetColor.Green)),
 
                 [WidgetFamily.Medium] = W.VStack(6,
@@ -401,7 +401,7 @@ var activity = await _liveActivities.StartAsync("din-start", new LiveActivityLay
     Minimal          = W.Icon("figure.run"),
 }, staleAt: race.LastFinish);
 
-await activity!.UpdateAsync(layout with { ExpandedCenter = W.Text("I mål").Headline() });
+await activity!.UpdateAsync(layout with { ExpandedCenter = W.Text("Finished").Headline() });
 await activity.EndAsync();
 ```
 

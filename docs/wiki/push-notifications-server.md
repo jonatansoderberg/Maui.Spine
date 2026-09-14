@@ -91,7 +91,7 @@ await push.SendAsync(
     new PushNotification
     {
         Title = "Resultat klara",
-        Body  = "Gävle OK Medeldistans",
+        Body  = "Riverside Middle Distance",
         Route = "competition/59691",
         Channel = "results",
     });
