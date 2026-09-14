@@ -2,6 +2,11 @@
 
 `Glass.Style` renders a `Button` or `ImageButton` as Liquid Glass on iOS 26 and Mac Catalyst 26. It is an attached property on the ordinary controls: no new control type, no handler registration, and the same markup renders the platform's normal button everywhere else.
 
+<p align="center">
+  <img src="images/glass-buttons.png" width="300" alt="Glass buttons on iOS 26: regular, prominent, clear, and ImageButtons with SVG icons">
+</p>
+<p align="center"><sub>The sample's Liquid Glass page on iOS 26</sub></p>
+
 ---
 
 ## Platforms

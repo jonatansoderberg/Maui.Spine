@@ -2,6 +2,13 @@
 
 **Page actions** are buttons rendered in Spine's built-in header bar. They appear in the trailing (right) slot of the bar, next to the back/close button. Each action can show a text label, an SVG icon, or both.
 
+<p align="center">
+  <img src="images/animated-label-and-page-actions.png" width="210" alt="An SVG page action (gear) in the header bar">
+  <img src="images/sheet-detents-medium.png" width="210" alt="A text page action (Save) in a sheet header">
+  <img src="images/sheet-simple-blur.png" width="210" alt="Close as the secondary action, top right">
+</p>
+<p align="center"><sub>Page actions: an SVG icon, a text label, and close moved to the trailing slot</sub></p>
+
 ---
 
 ## Adding page actions
@@ -42,9 +49,9 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `Text` | `string?` | — | Label shown on the button. `null` for icon-only buttons |
+| `Text` | `string?` | â€” | Label shown on the button. `null` for icon-only buttons |
 | `Svg` | `string?` | `null` | SVG resource name (e.g. `"settings.svg"`) from `Resources/Images` |
-| `Command` | `ICommand` | — | Command executed when the button is tapped |
+| `Command` | `ICommand` | â€” | Command executed when the button is tapped |
 | `CommandParameter` | `object?` | `null` | Optional parameter forwarded to the command |
 | `Placement` | `PageActionPlacement` | `Secondary` | `Primary` (left) or `Secondary` (right) slot |
 | `IsVisible` | `bool` | `true` | Whether the button is visible |
@@ -67,7 +74,7 @@ On iOS 26 and Mac Catalyst 26 the header bar renders its back button and page ac
 The back button always occupies the `Primary` slot implicitly. If you add an explicit `Primary` action, it replaces the implicit back button for that page.
 
 ```csharp
-// Custom primary (left) action — replaces the back button
+// Custom primary (left) action â€” replaces the back button
 PageActions.Add(new PageAction(text: "Cancel", command: CancelCommand)
 {
     Placement = PageActionPlacement.Primary
@@ -128,4 +135,4 @@ PageActions.Add(new PageAction(text: "Save", command: SaveAsyncCommand));
 
 ## Desktop (Windows)
 
-On Windows, when the native title bar is shown (`IsTitleBarVisible = true`), page actions are rendered inside the title bar chrome using `TitleBar.LeadingContent` and `TitleBar.TrailingContent`. The same `PageActions` collection drives both header bar and title bar contexts — no extra code needed.
+On Windows, when the native title bar is shown (`IsTitleBarVisible = true`), page actions are rendered inside the title bar chrome using `TitleBar.LeadingContent` and `TitleBar.TrailingContent`. The same `PageActions` collection drives both header bar and title bar contexts â€” no extra code needed.

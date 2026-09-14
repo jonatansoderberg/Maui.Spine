@@ -65,11 +65,11 @@ public partial class TagsPageViewModel(IPushNotificationService _push, PushLog _
 
         Result = result switch
         {
-            PushRegistrationResult.Sent => "Sparat, och servern har dem.",
-            PushRegistrationResult.NoToken => "Sparat lokalt. Ingen token, så servern har dem inte.",
-            PushRegistrationResult.NoBackend => "Sparat lokalt. Ingen backend är konfigurerad.",
-            PushRegistrationResult.Failed => "Sparat lokalt. Servern nekade, eller gick inte att nå.",
-            _ => "Sparat lokalt. Inget behövde skickas.",
+            PushRegistrationResult.Sent => "Saved, and the server has them.",
+            PushRegistrationResult.NoToken => "Saved locally. No token, so the server does not have them.",
+            PushRegistrationResult.NoBackend => "Saved locally. No backend is configured.",
+            PushRegistrationResult.Failed => "Saved locally. The server refused, or could not be reached.",
+            _ => "Saved locally. Nothing needed sending.",
         };
         HasResult = true;
     }

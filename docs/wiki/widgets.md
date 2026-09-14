@@ -8,6 +8,12 @@ Spine widgets let an app build a **home-screen widget** and a **Live Activity** 
 
 The reasoning behind the design — why C# cannot run inside a WidgetKit extension, and why a serialized tree is the answer — is in the [Spine.Widgets proposal](../proposals/spine-widgets.md).
 
+<p align="center">
+  <img src="images/widget-home-screen.png" width="300" alt="The sample widget on the iOS home screen">
+  <img src="images/widget-gallery-medium.png" width="200" alt="The medium family in the widget gallery">
+</p>
+<p align="center"><sub>The sample widget, built from a C# tree: a timer, a progress bar and a button that runs without opening the app</sub></p>
+
 ---
 
 ## Platforms
@@ -375,6 +381,12 @@ Keep them small. The extension is killed at roughly 30 MB.
 ## Live Activities
 
 A Live Activity is the same tree vocabulary in eight named regions. Unlike a widget it is updated **directly by the app**, with no budget while the app is running.
+
+<p align="center">
+  <img src="images/live-activity-lock-screen.png" width="240" alt="The Live Activity on the lock screen">
+  <img src="images/live-activity-dynamic-island.png" width="240" alt="The compact Live Activity in the Dynamic Island">
+</p>
+<p align="center"><sub>The sample's Live Activity on the lock screen and, compact, in the Dynamic Island</sub></p>
 
 ```csharp
 var activity = await _liveActivities.StartAsync("din-start", new LiveActivityLayout

@@ -26,6 +26,11 @@
 	  <ProjectReference Include="..\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 	</ItemGroup>
 
+  <!-- The header bar's own glyphs (back and close), so they resolve without the icon package. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Svg\*.svg" />
+  </ItemGroup>
+
   <ItemGroup>
     <Folder Include="Platforms\iOS\" />
     <Folder Include="Platforms\MacCatalyst\" />

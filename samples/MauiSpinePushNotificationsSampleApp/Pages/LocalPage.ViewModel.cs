@@ -29,10 +29,10 @@ public partial class LocalPageViewModel(ILocalNotificationService _local, IPushN
 
     [RelayCommand]
     private async Task ScheduleThree() => await PlanAsync(
-        [Notification("om 15 sekunder", 15), Notification("om en minut", 60), Notification("om fem minuter", 300)]);
+        [Notification("in 15 seconds", 15), Notification("in a minute", 60), Notification("in five minutes", 300)]);
 
     [RelayCommand]
-    private async Task ScheduleOne() => await PlanAsync([Notification("om 15 sekunder", 15)]);
+    private async Task ScheduleOne() => await PlanAsync([Notification("in 15 seconds", 15)]);
 
     [RelayCommand]
     private async Task ScheduleRich() => await PlanAsync([await RichAsync()]);
@@ -41,7 +41,7 @@ public partial class LocalPageViewModel(ILocalNotificationService _local, IPushN
     private async Task CancelAll()
     {
         await _local.CancelAllAsync();
-        _log.Note("lokalt", "allt avbokat");
+        _log.Note("local", "everything cancelled");
         await ShowAsync();
     }
 
@@ -61,7 +61,7 @@ public partial class LocalPageViewModel(ILocalNotificationService _local, IPushN
         }
 
         await _local.SyncAsync(plan);
-        _log.Note("lokalt", $"planen är {plan.Count} notis{(plan.Count == 1 ? "" : "er")}");
+        _log.Note("local", $"the plan is {plan.Count} notification{(plan.Count == 1 ? "" : "s")}");
         await ShowAsync();
     }
 
@@ -71,14 +71,14 @@ public partial class LocalPageViewModel(ILocalNotificationService _local, IPushN
 
         if (!_local.IsSupported)
         {
-            Summary = "den här plattformen schemalägger inga notiser";
+            Summary = "this platform schedules no notifications";
             return;
         }
 
         var pending = await _local.PendingAsync();
         foreach (var notification in pending) Planned.Add($"{notification.At:HH:mm:ss}  {notification.Title}");
 
-        Summary = pending.Count == 0 ? "inget planerat" : $"{pending.Count} planerade";
+        Summary = pending.Count == 0 ? "nothing planned" : $"{pending.Count} planned";
     }
 
     /// <summary>
@@ -97,7 +97,7 @@ public partial class LocalPageViewModel(ILocalNotificationService _local, IPushN
             await source.CopyToAsync(target);
         }
 
-        return Notification("med knappar och bild", 15) with
+        return Notification("with buttons and a picture", 15) with
         {
             Id = "sample:rich",
             Category = "sample",
@@ -119,8 +119,8 @@ public partial class LocalPageViewModel(ILocalNotificationService _local, IPushN
     {
         Id = $"sample:{seconds}",
         At = DateTimeOffset.Now.AddSeconds(seconds),
-        Title = "Spine lokalt",
-        Body = $"Schemalagd {what}, utan att servern var inblandad.",
+        Title = "Spine local",
+        Body = $"Scheduled {what}, with no server involved.",
         Route = "log",
         Channel = "news",
     };

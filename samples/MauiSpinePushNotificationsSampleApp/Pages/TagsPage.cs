@@ -4,7 +4,7 @@ namespace MauiSpinePushNotificationsSampleApp.Pages;
 // so a Spara pinned to the bottom of the page sits below the Medium edge and cannot be reached
 // without dragging the sheet up first.
 [NavigableSheet(
-    Title = "Taggar",
+    Title = "Tags",
     InitialDetent = SheetDetent.FullScreen,
     AllowedDetents = [SheetDetent.Medium, SheetDetent.FullScreen])]
 public partial class TagsPage { public TagsPage() => InitializeComponent(); }

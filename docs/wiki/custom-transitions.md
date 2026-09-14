@@ -10,7 +10,7 @@ The built-in transitions slide pages horizontally:
 
 | Direction | Incoming page | Outgoing page |
 |---|---|---|
-| Set root | Shown immediately, no animation | — |
+| Set root | Shown immediately, no animation | â€” |
 | Forward (push) | Slides in from the right | Hidden immediately |
 | Back (pop) | Slides back from left offset | Hidden immediately |
 | Interactive swipe | Tracked in real-time with the user's finger | Follows gesture |
@@ -32,7 +32,7 @@ public sealed class FadeTransitions : ISpineTransitions
 {
     private const uint Duration = 250;
 
-    // Initial root page — no animation by default
+    // Initial root page â€” no animation by default
     public Task AnimateSetRootAsync(View view)
     {
         view.Opacity = 1;
@@ -175,5 +175,5 @@ builder.Services.AddSingleton<ISpineTransitions, FadeTransitions>();
 
 - Always set `view.IsVisible = true` before starting an in-animation, and `false` after an out-animation completes.
 - Use `Task.WhenAll` to run front and back animations in parallel for smoother results.
-- The `progress` parameter in `AnimateInteractiveBackCompleteAsync` is the translation offset in device-independent units at the moment the finger was lifted — use it as a starting position for the completion animation.
+- The `progress` parameter in `AnimateInteractiveBackCompleteAsync` is the translation offset in device-independent units at the moment the finger was lifted â€” use it as a starting position for the completion animation.
 - `InteractiveGestureDuration` and `InteractiveGestureEasing` control the clip-reveal overlay that tracks the back-swipe gesture. In `DefaultSpineTransitions` these mirror `Duration` and `Ease`, so overriding those two properties is sufficient to keep everything in sync.

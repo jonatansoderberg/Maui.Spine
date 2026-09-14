@@ -8,14 +8,14 @@
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="10">
 
-            <Label Text="Notiser enheten visar själv, utan server. Planen är hela sanningen: det som inte står i den avbokas."
+            <Label Text="Notifications the device shows by itself, with no server. The plan is the whole truth: whatever is not in it is cancelled."
                    FontSize="12" TextColor="Gray" />
 
-            <Label Text="Den här plattformen schemalägger inga notiser."
+            <Label Text="This platform schedules no notifications."
                    IsVisible="{Binding IsUnsupported}" TextColor="Gray" />
 
             <Grid ColumnDefinitions="110,*">
-                <Label Grid.Column="0" Text="Planerat" />
+                <Label Grid.Column="0" Text="Planned" />
                 <Label Grid.Column="1" Text="{Binding Summary}" />
             </Grid>
 
@@ -29,11 +29,11 @@
                 </BindableLayout.ItemTemplate>
             </VerticalStackLayout>
 
-            <Button Text="Planera tre" Command="{Binding ScheduleThreeCommand}" />
-            <Button Text="Planera bara en" Command="{Binding ScheduleOneCommand}" />
-            <Button Text="Planera med knappar och bild" Command="{Binding ScheduleRichCommand}" />
-            <Button Text="Avboka allt" Command="{Binding CancelAllCommand}" />
-            <Button Text="Läs om planen" Command="{Binding RefreshCommand}" />
+            <Button Text="Plan three" Command="{Binding ScheduleThreeCommand}" />
+            <Button Text="Plan just one" Command="{Binding ScheduleOneCommand}" />
+            <Button Text="Plan with buttons and a picture" Command="{Binding ScheduleRichCommand}" />
+            <Button Text="Cancel all" Command="{Binding CancelAllCommand}" />
+            <Button Text="Reread the plan" Command="{Binding RefreshCommand}" />
 
         </VerticalStackLayout>
     </ScrollView>

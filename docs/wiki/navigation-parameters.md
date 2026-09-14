@@ -2,6 +2,11 @@
 
 Pass typed data to a page when navigating to it. Spine delivers the parameter to the ViewModel before `OnAppearingAsync` is called.
 
+<p align="center">
+  <img src="images/navigation-parameter.png" width="260" alt="The detail page showing the PersonData it was opened with">
+</p>
+<p align="center"><sub>The sample's PersonDetailPage, opened with a PersonData parameter</sub></p>
+
 ---
 
 ## Overview
@@ -14,7 +19,7 @@ Passing a parameter requires changes on both the **calling side** and the **rece
 
 ---
 
-## Step 1 — Define the parameter type
+## Step 1 â€” Define the parameter type
 
 Any type works. A `record` is a clean choice for immutable data:
 
@@ -24,7 +29,7 @@ public sealed record PersonData(string Name, string Email, int Age);
 
 ---
 
-## Step 2 — Declare the page as accepting a parameter
+## Step 2 â€” Declare the page as accepting a parameter
 
 Implement `INavigableWithParameter<TParam>` on the page code-behind:
 
@@ -40,7 +45,7 @@ public partial class PersonDetailPage : INavigableWithParameter<PersonData>
 
 ---
 
-## Step 3 — Receive the parameter in the ViewModel
+## Step 3 â€” Receive the parameter in the ViewModel
 
 Implement `IReceivesNavigationParameter<TParam>` on the ViewModel. The `OnNavigationParameterAsync` method is called before `OnAppearingAsync`:
 
@@ -66,7 +71,7 @@ public partial class PersonDetailPageViewModel : ViewModelBase,
 
 ---
 
-## Step 4 — Navigate with the parameter
+## Step 4 â€” Navigate with the parameter
 
 Use the two-type-argument overload of `NavigateToAsync`:
 
@@ -101,5 +106,5 @@ await _navigation.NavigateToAsync<EditPersonSheet, PersonData>(person);
 
 When navigating with a parameter, Spine calls the ViewModel methods in this order:
 
-1. `OnNavigationParameterAsync(param)` — populate ViewModel state from the parameter
-2. `OnAppearingAsync(NavigationDirection.NavigateTo)` — standard appearing lifecycle hook
+1. `OnNavigationParameterAsync(param)` â€” populate ViewModel state from the parameter
+2. `OnAppearingAsync(NavigationDirection.NavigateTo)` â€” standard appearing lifecycle hook

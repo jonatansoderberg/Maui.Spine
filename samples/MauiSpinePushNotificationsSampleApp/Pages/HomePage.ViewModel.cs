@@ -107,7 +107,7 @@ public partial class HomePageViewModel(IPushNotificationService _push, PushLog _
         IsUnsupported = _push.Status == PushStatus.Unsupported;
         InstallationId = await _push.GetInstallationIdAsync();
         Token = _push.Token ?? "—";
-        Registered = _push.IsRegistered ? "ja" : "nej";
+        Registered = _push.IsRegistered ? "yes" : "no";
         Tags = _push.Tags.Count == 0 ? "none" : string.Join(", ", _push.Tags);
 
         Hint = TokenHint();
@@ -124,12 +124,12 @@ public partial class HomePageViewModel(IPushNotificationService _push, PushLog _
 
         if (DeviceInfo.Current.Platform == DevicePlatform.Android)
         {
-            return "Ingen token. Android får ingen förrän Platforms/Android/google-services.json " +
-                   "byts mot filen från ett riktigt Firebase-projekt — den incheckade är en platshållare.";
+            return "No token. Android gets none until Platforms/Android/google-services.json " +
+                   "is replaced with the file from a real Firebase project — the checked-in one is a placeholder.";
         }
 
         return _push.Status is PushStatus.Authorized or PushStatus.Provisional
-            ? "Ingen token än. På Apple kommer den en stund efter att tillstånd getts."
-            : "Ingen token. Be om tillstånd först.";
+            ? "No token yet. On Apple it arrives a moment after permission is given."
+            : "No token. Ask for permission first.";
     }
 }

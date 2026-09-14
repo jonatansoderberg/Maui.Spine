@@ -39,19 +39,19 @@ public static class MauiProgram
                 // about showing the API, not about getting permission as fast as possible.
                 options.Permission = PushPermission.WhenAsked;
 
-                options.AddChannel("news", "Nyheter");
-                options.AddChannel("alerts", "Viktigt", PushChannelImportance.High);
+                options.AddChannel("news", "News");
+                options.AddChannel("alerts", "Important", PushChannelImportance.High);
 
                 // Android's sound belongs to the channel, fixed when the channel is created — so the
                 // sample's own sound gets a channel of its own rather than changing "news" after the fact.
-                options.AddChannel("chime", "Med ljud", PushChannelImportance.High, sound: "ding");
+                options.AddChannel("chime", "With sound", PushChannelImportance.High, sound: "ding");
 
                 // The three shapes a button can take: one that opens the app, one that does its work
-                // without it, and a reply. Named from the Lokalt and Skicka pages as "sample".
+                // without it, and a reply. Named from the Local and Send pages as "sample".
                 options.AddCategory("sample",
-                    new PushAction("open", "Öppna loggen"),
-                    new PushAction("ack", "Kvittera") { OpensApp = false },
-                    new PushAction("reply", "Svara") { Reply = "Skriv något" });
+                    new PushAction("open", "Open the log"),
+                    new PushAction("ack", "Acknowledge") { OpensApp = false },
+                    new PushAction("reply", "Reply") { Reply = "Write something" });
 
                 options.UseHandler<SamplePushHandler>();
             })
@@ -76,7 +76,7 @@ public static class MauiProgram
         // running is reported as the app launches, before any page could be listening.
         var log = app.Services.GetRequiredService<PushLog>();
         app.Services.GetRequiredService<ILiveActivityService>().ActivityEnded +=
-            activity => log.Note("live activity", $"{activity.Kind} slut utanför appen");
+            activity => log.Note("live activity", $"{activity.Kind} ended outside the app");
 
         return app;
     }

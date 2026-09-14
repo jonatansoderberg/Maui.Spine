@@ -2,6 +2,11 @@
 
 Spine's tab host gives an app N root-level bottom tabs, each owning its **own navigation stack** with preserved state when switching. The tab bar is **native platform chrome**: `UITabBarController` on iOS and Mac Catalyst (the floating Liquid Glass bar on iOS 26) and Material `BottomNavigationView` on Android — it looks, animates, and ages exactly like the platform's own apps. Inside each tab, navigation is regular Spine: regions, header bar, typed navigation, back-swipe, transitions.
 
+<p align="center">
+  <img src="images/tab-host.png" width="280" alt="Three tabs in the native floating tab bar on iOS 26, with a Spine header bar and page action above">
+</p>
+<p align="center"><sub>The Orientera sample: three [NavigableTab] pages in UITabBarController's Liquid Glass bar, each tab with its own Spine stack</sub></p>
+
 ---
 
 ## Platforms
