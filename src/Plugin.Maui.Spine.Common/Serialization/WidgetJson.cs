@@ -58,7 +58,7 @@ public static class WidgetJson
 
     // Family keys are the JSON names of WidgetFamily; the Swift side switches on the same strings.
     /// <summary>
-    /// Reads a layout back from the JSON <see cref="Serialize(LiveActivityLayout)"/> wrote. Spine.Push
+    /// Reads a layout back from the JSON <see cref="Serialize(LiveActivityLayout)"/> wrote. Spine.PushNotifications
     /// uses it on Android, where a Live Update arrives as serialized layout in a data message and is
     /// rendered in the app's own process.
     /// </summary>

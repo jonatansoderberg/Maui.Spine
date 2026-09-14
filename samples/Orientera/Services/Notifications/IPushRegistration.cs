@@ -1,8 +1,8 @@
 namespace Orientera.Services.Notifications;
 
 /// <summary>
-/// The push registration, as the notification service needs it. Spine.Push's own
-/// <c>IPushService</c> is a MAUI type; this seam is what lets the planning and the tags be
+/// The push registration, as the notification service needs it. Spine.PushNotifications's own
+/// <c>IPushNotificationService</c> is a MAUI type; this seam is what lets the planning and the tags be
 /// compiled and tested on plain .NET, the same reason <see cref="INotificationDelivery"/> exists.
 /// </summary>
 public interface IPushRegistration

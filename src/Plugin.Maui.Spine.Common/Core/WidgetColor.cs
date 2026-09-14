@@ -90,7 +90,7 @@ public readonly record struct WidgetColor
 
 internal sealed class WidgetColorJsonConverter : JsonConverter<WidgetColor>
 {
-    // Trees are read back as well as written since Spine.Push: on Android a Live Update arrives as
+    // Trees are read back as well as written since Spine.PushNotifications: on Android a Live Update arrives as
     // serialized layout in a data message and is rendered in the app's process.
     public override WidgetColor Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
         reader.GetString() is { Length: > 0 } value ? WidgetColor.Parse(value) : default;

@@ -32,7 +32,7 @@ Nyckeln är verifierad mot skarpa APNs: en välformad men påhittad device-token
 
 ## Google — inte påbörjat
 
-Orientera har inget Firebase-projekt. Därför står `SpinePushEnabled=false` för Android i
+Orientera har inget Firebase-projekt. Därför står `SpinePushNotificationsEnabled=false` för Android i
 `Orientera.csproj`: utan `google-services.json` stoppar byggkontrollen, och med den här av bygger
 appen som vanligt medan Android helt enkelt aldrig hämtar någon token.
 
@@ -41,7 +41,7 @@ När det ska på:
 1. Skapa ett Firebase-projekt och lägg till Android-appen med paketnamnet `se.cosmomedia.orientera`.
 2. Ladda ner `google-services.json` till `Platforms/Android/` och lägg till
    `<GoogleServicesJson Include="Platforms\Android\google-services.json" />`.
-3. Ta bort `SpinePushEnabled`-raden.
+3. Ta bort `SpinePushNotificationsEnabled`-raden.
 4. Hämta tjänstekontots JSON (Project settings → Service accounts → Generate new private key) och
    ge den till backenden som `Push__Android__ServiceAccountJson`.
 

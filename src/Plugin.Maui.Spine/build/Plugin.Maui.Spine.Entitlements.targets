@@ -1,6 +1,6 @@
 <Project>
 	<!--
-		Both Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.Push need keys in the host app's
+		Both Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.PushNotifications need keys in the host app's
 		entitlements: the App Group for the widget extension, aps-environment for push. Neither can own
 		the file — whichever wrote it last would erase the other's keys — so they contribute
 		<SpineEntitlement> items and this target writes the file once.

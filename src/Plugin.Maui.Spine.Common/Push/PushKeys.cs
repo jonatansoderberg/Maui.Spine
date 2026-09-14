@@ -2,7 +2,7 @@ namespace Plugin.Maui.Spine.Common;
 
 /// <summary>
 /// The data keys Spine puts in a push payload. The server writes them and the app's handler reads
-/// them, so they are the contract between the two halves of Spine.Push and are never localized or
+/// them, so they are the contract between the two halves of Spine.PushNotifications and are never localized or
 /// renamed.
 /// </summary>
 public static class PushKeys
@@ -48,7 +48,7 @@ public static class PushKeys
 
     /// <summary>
     /// The buttons a notification shows: the id of a category the app declared with
-    /// <c>SpinePushOptions.AddCategory</c>. iOS reads the same id from <c>aps.category</c>, which the
+    /// <c>SpinePushNotificationsOptions.AddCategory</c>. iOS reads the same id from <c>aps.category</c>, which the
     /// server writes beside this. An id the app never declared arrives without buttons.
     /// </summary>
     public const string Category = "spine.category";
@@ -56,7 +56,7 @@ public static class PushKeys
     /// <summary>
     /// A picture to show with the notification: an <c>https</c> URL, or for a local notification a
     /// file on the device. A pushed one on iOS needs the Notification Service Extension that
-    /// <c>SpinePushImages=true</c> adds; without it the notification arrives as text.
+    /// <c>SpinePushNotificationsImages=true</c> adds; without it the notification arrives as text.
     /// </summary>
     public const string Image = "spine.image";
 

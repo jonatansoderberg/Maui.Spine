@@ -8,7 +8,7 @@
 	</PropertyGroup>
 
 	<!--
-		MapSpinePush needs ASP.NET Core, and so does the Azure Functions isolated worker once it
+		MapSpinePushNotifications needs ASP.NET Core, and so does the Azure Functions isolated worker once it
 		uses Extensions.Http.AspNetCore — the same HttpRequest. One framework reference therefore
 		serves both hosts, and the package does not have to split in two.
 	-->

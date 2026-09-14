@@ -48,7 +48,7 @@ public interface ILiveActivityService
     /// <param name="channel">
     /// A broadcast channel for the activity to follow, from the server's <c>IPushChannels</c>: every
     /// push to the channel then updates it. iOS 18 follows the APNs channel, and the activity has no
-    /// token of its own; Android follows the channel's FCM topic, through Spine.Push. Without it the
+    /// token of its own; Android follows the channel's FCM topic, through Spine.PushNotifications. Without it the
     /// activity is reached through its own token, as before.
     /// </param>
     Task<LiveActivity?> StartAsync(string kind, LiveActivityLayout layout, DateTimeOffset? staleAt = null, string? channel = null);

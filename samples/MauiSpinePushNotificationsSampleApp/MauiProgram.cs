@@ -1,0 +1,98 @@
+using System.Reflection;
+using MauiSpinePushNotificationsSampleApp.Services;
+using MauiSpinePushNotificationsSampleApp.Widgets;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.Extensions;
+using Plugin.Maui.Spine.PushNotifications.Extensions;
+using Plugin.Maui.Spine.Widgets.Extensions;
+
+namespace MauiSpinePushNotificationsSampleApp;
+
+public static class MauiProgram
+{
+    public static MauiApp CreateMauiApp()
+    {
+        var builder = MauiApp.CreateBuilder();
+
+        var settings = ReadSettings();
+        var backend = Address(settings, "Backend");
+        var send = Address(settings, "SendEndpoint");
+        var widgetSource = Address(settings, "WidgetSource");
+
+        builder
+            .UseMauiApp<App>()
+            .UseSpine(options =>
+            {
+                // On Android, Assembly.GetEntryAssembly() returns null.
+                options.AddAssembly(typeof(MauiProgram).Assembly);
+                options.AppTitle = "Spine Push";
+                options.RegionDefaults.IsHeaderBarVisible = true;
+            })
+            .UseSpineWidgets()
+            .UseSpinePushNotifications(options =>
+            {
+                options.Backend = new Uri(backend);
+
+                // WhenAsked so the Home page's button is what triggers the prompt — the sample is
+                // about showing the API, not about getting permission as fast as possible.
+                options.Permission = PushPermission.WhenAsked;
+
+                options.AddChannel("news", "Nyheter");
+                options.AddChannel("alerts", "Viktigt", PushChannelImportance.High);
+
+                // Android's sound belongs to the channel, fixed when the channel is created — so the
+                // sample's own sound gets a channel of its own rather than changing "news" after the fact.
+                options.AddChannel("chime", "Med ljud", PushChannelImportance.High, sound: "ding");
+
+                // The three shapes a button can take: one that opens the app, one that does its work
+                // without it, and a reply. Named from the Lokalt and Skicka pages as "sample".
+                options.AddCategory("sample",
+                    new PushAction("open", "Öppna loggen"),
+                    new PushAction("ack", "Kvittera") { OpensApp = false },
+                    new PushAction("reply", "Svara") { Reply = "Skriv något" });
+
+                options.UseHandler<SamplePushHandler>();
+            })
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("BrandonGrotesqueBlack.otf", "BrandonGrotesqueBlack");
+                fonts.AddFont("BrandonGrotesqueLight.otf", "BrandonGrotesqueLight");
+            });
+
+        builder.Services.AddSingleton<PushLog>();
+        builder.Services.AddSingleton<WidgetContent>();
+        builder.Services.AddSingleton(new SampleServer(new Uri(send)));
+        builder.Services.AddSingleton(new RemoteWidgetSource(new Uri(widgetSource)));
+
+#if DEBUG
+        builder.Logging.AddDebug();
+#endif
+
+        var app = builder.Build();
+
+        // Subscribed here, as soon as the service exists: an activity that ended while the app was not
+        // running is reported as the app launches, before any page could be listening.
+        var log = app.Services.GetRequiredService<PushLog>();
+        app.Services.GetRequiredService<ILiveActivityService>().ActivityEnded +=
+            activity => log.Note("live activity", $"{activity.Kind} slut utanför appen");
+
+        return app;
+    }
+
+    private static IConfiguration ReadSettings() => new ConfigurationBuilder()
+        .AddJsonStream(Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream("MauiSpinePushNotificationsSampleApp.appsettings.json")!)
+        .Build();
+
+    /// <summary>
+    /// Both platforms reach the server on localhost. The iOS simulator shares the Mac's network, and
+    /// Android — emulator or a phone on a cable — gets there through <c>adb reverse tcp:5100
+    /// tcp:5100</c>. The 10.0.2.2 alias is deliberately not used: it is the qemu gateway on the
+    /// emulator's <c>eth0</c>, while app traffic goes over <c>wlan0</c>, where the same address is
+    /// the emulated router and never reaches the host.
+    /// </summary>
+    private static string Address(IConfiguration settings, string key) =>
+        settings[key] ?? throw new InvalidOperationException($"appsettings.json has no {key}.");
+}

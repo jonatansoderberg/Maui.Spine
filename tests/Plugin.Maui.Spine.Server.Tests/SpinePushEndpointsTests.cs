@@ -7,11 +7,11 @@ using Xunit;
 
 namespace Plugin.Maui.Spine.Server.Tests;
 
-public class SpinePushEndpointsTests
+public class SpinePushNotificationsEndpointsTests
 {
-    private static SpinePushOptions Options(Action<SpinePushOptions>? extra = null)
+    private static SpinePushNotificationsOptions Options(Action<SpinePushNotificationsOptions>? extra = null)
     {
-        var options = new SpinePushOptions()
+        var options = new SpinePushNotificationsOptions()
             .Apple(a =>
             {
                 a.TeamId = "TEAM123456";
@@ -26,7 +26,7 @@ public class SpinePushEndpointsTests
     }
 
     private static (HttpContext Context, InMemoryPushInstallationStore Store) Request(
-        string method, string path, string? body = null, SpinePushOptions? options = null)
+        string method, string path, string? body = null, SpinePushNotificationsOptions? options = null)
     {
         options ??= Options();
         var store = new InMemoryPushInstallationStore();
@@ -60,7 +60,7 @@ public class SpinePushEndpointsTests
     {
         var (context, store) = Request("PUT", "/push/installations/a", Body());
 
-        var status = await StatusOf(await SpinePushEndpoints.HandleAsync(context.Request), context);
+        var status = await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context);
 
         Assert.Equal(StatusCodes.Status204NoContent, status);
         Assert.Equal("token", (await store.GetAsync("a"))!.Handle);
@@ -72,7 +72,7 @@ public class SpinePushEndpointsTests
         var (context, store) = Request("DELETE", "/push/installations/a");
         await store.UpsertAsync(new PushInstallation { Id = "a", Platform = PushPlatform.Apple, Handle = "t" });
 
-        var status = await StatusOf(await SpinePushEndpoints.HandleAsync(context.Request), context);
+        var status = await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context);
 
         Assert.Equal(StatusCodes.Status204NoContent, status);
         Assert.Null(await store.GetAsync("a"));
@@ -82,7 +82,7 @@ public class SpinePushEndpointsTests
     public async Task Deleting_something_that_is_not_there_still_succeeds()
     {
         var (context, _) = Request("DELETE", "/push/installations/nope");
-        Assert.Equal(StatusCodes.Status204NoContent, await StatusOf(await SpinePushEndpoints.HandleAsync(context.Request), context));
+        Assert.Equal(StatusCodes.Status204NoContent, await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context));
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class SpinePushEndpointsTests
     {
         var (context, store) = Request("PUT", "/push/installations/b", Body("a"));
 
-        var status = await StatusOf(await SpinePushEndpoints.HandleAsync(context.Request), context);
+        var status = await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context);
 
         Assert.Equal(StatusCodes.Status400BadRequest, status);
         Assert.Equal(0, store.Count);
@@ -100,7 +100,7 @@ public class SpinePushEndpointsTests
     public async Task A_body_that_is_not_an_installation_is_a_bad_request()
     {
         var (context, _) = Request("PUT", "/push/installations/a", "{ not json");
-        Assert.Equal(StatusCodes.Status400BadRequest, await StatusOf(await SpinePushEndpoints.HandleAsync(context.Request), context));
+        Assert.Equal(StatusCodes.Status400BadRequest, await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context));
     }
 
     [Fact]
@@ -109,21 +109,21 @@ public class SpinePushEndpointsTests
         var body = PushJson.Serialize(new PushInstallation { Id = "a", Platform = PushPlatform.Apple, Handle = "" });
         var (context, _) = Request("PUT", "/push/installations/a", body);
 
-        Assert.Equal(StatusCodes.Status400BadRequest, await StatusOf(await SpinePushEndpoints.HandleAsync(context.Request), context));
+        Assert.Equal(StatusCodes.Status400BadRequest, await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context));
     }
 
     [Fact]
     public async Task A_path_without_an_id_is_a_bad_request()
     {
         var (context, _) = Request("PUT", "/push/installations/", Body());
-        Assert.Equal(StatusCodes.Status400BadRequest, await StatusOf(await SpinePushEndpoints.HandleAsync(context.Request), context));
+        Assert.Equal(StatusCodes.Status400BadRequest, await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context));
     }
 
     [Fact]
     public async Task Another_method_is_not_allowed()
     {
         var (context, _) = Request("POST", "/push/installations/a", Body());
-        Assert.Equal(StatusCodes.Status405MethodNotAllowed, await StatusOf(await SpinePushEndpoints.HandleAsync(context.Request), context));
+        Assert.Equal(StatusCodes.Status405MethodNotAllowed, await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context));
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public class SpinePushEndpointsTests
         var options = Options(o => o.Authenticate = _ => ValueTask.FromResult(false));
         var (context, store) = Request("PUT", "/push/installations/a", Body(), options);
 
-        var status = await StatusOf(await SpinePushEndpoints.HandleAsync(context.Request), context);
+        var status = await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context);
 
         Assert.Equal(StatusCodes.Status401Unauthorized, status);
         Assert.Equal(0, store.Count);
@@ -145,7 +145,7 @@ public class SpinePushEndpointsTests
         var options = Options(o => o.Authenticate = r => { seen = r; return ValueTask.FromResult(true); });
         var (context, _) = Request("PUT", "/push/installations/a", Body(), options);
 
-        await SpinePushEndpoints.HandleAsync(context.Request);
+        await SpinePushNotificationsEndpoints.HandleAsync(context.Request);
 
         Assert.Same(context.Request, seen);
     }
@@ -158,7 +158,7 @@ public class SpinePushEndpointsTests
 
         var (context, store) = Request("PUT", "/push/installations/a", Body("a", "kind:pm", "user:121330", "user:999"), options);
 
-        await SpinePushEndpoints.HandleAsync(context.Request);
+        await SpinePushNotificationsEndpoints.HandleAsync(context.Request);
 
         Assert.Equal(["kind:pm", "user:121330"], (await store.GetAsync("a"))!.Tags);
     }
@@ -173,7 +173,7 @@ public class SpinePushEndpointsTests
         });
 
         var (context, store) = Request("PUT", "/push/installations/a", stale);
-        await SpinePushEndpoints.HandleAsync(context.Request);
+        await SpinePushNotificationsEndpoints.HandleAsync(context.Request);
 
         Assert.True((await store.GetAsync("a"))!.UpdatedAt > DateTimeOffset.UtcNow.AddMinutes(-1));
     }
@@ -188,6 +188,6 @@ public class SpinePushEndpointsTests
     [InlineData("/something/else", null)]
     public void The_id_is_read_from_the_path(string path, string? expected)
     {
-        Assert.Equal(expected, SpinePushEndpoints.IdFrom(path));
+        Assert.Equal(expected, SpinePushNotificationsEndpoints.IdFrom(path));
     }
 }

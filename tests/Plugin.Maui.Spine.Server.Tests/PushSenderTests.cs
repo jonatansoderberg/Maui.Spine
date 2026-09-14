@@ -54,7 +54,7 @@ public class PushSenderTests
         },
     };
 
-    private static SpinePushOptions Options() => new SpinePushOptions()
+    private static SpinePushNotificationsOptions Options() => new SpinePushNotificationsOptions()
         .Apple(a =>
         {
             a.TeamId = "TEAM123456";

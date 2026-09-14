@@ -289,23 +289,23 @@ Three things to know before relying on it:
 - **Let the fallback say so.** The entries the app built are shown whenever the fetch fails — a server that is down, a timeout after 15 seconds, an answer that is not a timeline document — and a fallback that looks like the real thing reads as a widget that works. The failure is logged: `[SpineWidgets] remote source for <kind> failed` in the device log on iOS, `SpineWidgets` in logcat on Android.
 - **The platform does the fetching, not the app.** On iOS that is the widget extension, which on a physical device must reach the server over the network — `localhost` is the phone itself. On Android it is a receiver in the app's own process, so an emulator or a phone on a cable reaches a server on your machine through `adb reverse`.
 
-`samples/MauiSpinePushSampleApp` has a widget that does exactly this: `remote` fetches from the sample server's `/widget/remote`, which answers "Från servern" and its own clock, and falls back to "Från appen" when the server is not running.
+`samples/MauiSpinePushNotificationsSampleApp` has a widget that does exactly this: `remote` fetches from the sample server's `/widget/remote`, which answers "Från servern" and its own clock, and falls back to "Från appen" when the server is not running.
 
 ### Reloading by push
 
-A server can reload the widgets through Spine.Push's `RefreshWidgetsAsync`. By default that is a silent push which wakes the app, and the app rebuilds — as long as iOS delivers it, which it throttles and stops doing after a force quit. iOS 26 has a road that skips the app: WidgetKit gives the extension a push token, and a push to it reloads the widgets. Turn it on in the project:
+A server can reload the widgets through Spine.PushNotifications's `RefreshWidgetsAsync`. By default that is a silent push which wakes the app, and the app rebuilds — as long as iOS delivers it, which it throttles and stops doing after a force quit. iOS 26 has a road that skips the app: WidgetKit gives the extension a push token, and a push to it reloads the widgets. Turn it on in the project:
 
 ```xml
 <SpineWidgetsPush>true</SpineWidgetsPush>
 ```
 
-Nothing else changes in the app. Spine fetches the token at launch and whenever it rotates, and Spine.Push carries it in the installation as `WidgetToken`; the server then takes the widget road for that installation and the silent one for the rest. What to know:
+Nothing else changes in the app. Spine fetches the token at launch and whenever it rotates, and Spine.PushNotifications carries it in the installation as `WidgetToken`; the server then takes the widget road for that installation and the silent one for the rest. What to know:
 
 - **The extension becomes iOS 26 only.** Swift cannot give a widget a push handler on iOS 26 and none before — neither the widget nor the bundle may branch on the OS version — so the extension is built for iOS 26. The app still runs on older iOS, without widgets. The build says so every time.
 - **The token comes once a widget is on the home screen.** WidgetKit subscribes only for an extension with placed widgets that support push, so until the user adds one the installation has no `WidgetToken` and the server takes the silent road. The app picks the token up at its next launch, or at once if it is running.
 - **A push reloads every widget.** The token belongs to the extension, not a kind, so `kind` only narrows the silent road.
 - **It reloads, it does not carry content.** The timeline provider in the extension runs, which means the widget shows what the app last wrote — or what its [remote source](#remote-source) answers. With neither, write the new content first: a silent push, or the app itself.
-- **Device builds need Push Notifications on the extension's App ID**, and a profile that includes it. The build writes `aps-environment` into the extension's entitlements, following `SpinePushEnvironment`.
+- **Device builds need Push Notifications on the extension's App ID**, and a profile that includes it. The build writes `aps-environment` into the extension's entitlements, following `SpinePushNotificationsEnvironment`.
 
 ### Buttons
 
@@ -420,7 +420,7 @@ Tokens rotate, so send them at every launch and foreground as well. The server p
 
 `event: start` with `attributes-type: SpineActivityAttributes` and `attributes: { "kind": "…" }` starts an activity through the push-to-start token. Set `SpineWidgetsFrequentUpdates=true` in the project to declare `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget. Android has no tokens: a server reaches a Live Update through the app's own push handler (FCM), which calls `UpdateAsync` or `RefreshAsync` like any other code.
 
-To reach many activities with one push — everyone following the same competition — start them on a broadcast channel: `StartAsync(kind, layout, channel: id)`. iOS 18 follows the APNs channel and Android the channel's FCM topic; the server sends with `BroadcastLiveActivityAsync`. An activity on a channel has no token of its own. See [Broadcast channels](push-server.md#broadcast-channels).
+To reach many activities with one push — everyone following the same competition — start them on a broadcast channel: `StartAsync(kind, layout, channel: id)`. iOS 18 follows the APNs channel and Android the channel's FCM topic; the server sends with `BroadcastLiveActivityAsync`. An activity on a channel has no token of its own. See [Broadcast channels](push-notifications-server.md#broadcast-channels).
 
 ### Keeping one on screen around the clock
 
@@ -485,7 +485,7 @@ There is no fix from inside the layout. `.fixedSize` was tried in Spine's render
 
 **So put the ticking where there is room.** A `W.Timer` or `W.Relative` belongs on the lock screen or in the expanded presentation. Give the compact and minimal regions a plain `W.Text` — a value, a stamp, a symbol — and the island sizes to it. Apple's own guidance points the same way: keep each compact region to roughly 44 pt, which is a glance, not a sentence. See [Human Interface Guidelines: Live Activities](https://developer.apple.com/design/human-interface-guidelines/live-activities) for what each presentation is meant to carry.
 
-`samples/MauiSpinePushSampleApp` is laid out this way.
+`samples/MauiSpinePushNotificationsSampleApp` is laid out this way.
 
 Live Activities have a different model: the app updates the content directly, as often as it likes while it runs, and timer text is system-drawn there too. That is why a countdown in the Dynamic Island never needs a reload.
 

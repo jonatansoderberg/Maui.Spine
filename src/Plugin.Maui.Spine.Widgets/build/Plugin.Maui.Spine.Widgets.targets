@@ -35,7 +35,7 @@
 
 	<!--
 		The App Group the extension and the app share. Contributed to the shared entitlements step in
-		Plugin.Maui.Spine rather than written here: Plugin.Maui.Spine.Push needs aps-environment in the
+		Plugin.Maui.Spine rather than written here: Plugin.Maui.Spine.PushNotifications needs aps-environment in the
 		same file, and whichever package wrote it last would erase the other's keys.
 	-->
 	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '$(SpineWidgetsEnabled)' != 'false'">
@@ -58,8 +58,8 @@
 			<_SpineWidgetsRequireProvision>false</_SpineWidgetsRequireProvision>
 			<_SpineWidgetsRequireProvision Condition="'$(_SpineWidgetsSdk)' == 'iphoneos' And '$(EnableCodeSigning)' != 'false'">true</_SpineWidgetsRequireProvision>
 			<_SpineWidgetsArgs>--widget &quot;@(SpineWidget->'%(Identity)|%(DisplayName)|%(Description)|%(Families)', '&quot; --widget &quot;')&quot;</_SpineWidgetsArgs>
-			<!-- The APNs host the widget token belongs to follows the app's, which Plugin.Maui.Spine.Push sets. -->
-			<_SpineWidgetsPushEnvironment>$(SpinePushEnvironment)</_SpineWidgetsPushEnvironment>
+			<!-- The APNs host the widget token belongs to follows the app's, which Plugin.Maui.Spine.PushNotifications sets. -->
+			<_SpineWidgetsPushEnvironment>$(SpinePushNotificationsEnvironment)</_SpineWidgetsPushEnvironment>
 			<_SpineWidgetsPushEnvironment Condition="'$(_SpineWidgetsPushEnvironment)' == '' And '$(Configuration)' == 'Debug'">development</_SpineWidgetsPushEnvironment>
 			<_SpineWidgetsPushEnvironment Condition="'$(_SpineWidgetsPushEnvironment)' == ''">production</_SpineWidgetsPushEnvironment>
 		</PropertyGroup>

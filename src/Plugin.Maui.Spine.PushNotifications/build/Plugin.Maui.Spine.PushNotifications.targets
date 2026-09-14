@@ -1,0 +1,203 @@
+<Project>
+	<!--
+		What the app needs declared for push to work, on each platform.
+
+		Consumer knobs:
+		  SpinePushNotificationsEnvironment   development | production   (Apple; defaults to development for Debug)
+		  SpinePushNotificationsEnabled       default true
+		  SpinePushNotificationsRemote        default true; false keeps local notifications and drops everything
+		                         remote push needs — Firebase on Android, aps-environment on Apple.
+		                         On Mac Catalyst remote push also needs CodesignProvision, see below.
+		  SpinePushNotificationsImages        default false; true adds the Notification Service Extension that shows
+		                         pictures in pushed notifications on iOS. Needs its own App ID and profile
+		                         for device builds, which is why it is not on by default.
+		  SpinePushNotificationsImagesCodesignProvision  default empty (iOS: the extension's profile; found by App ID when empty)
+	-->
+	<PropertyGroup>
+		<SpinePushNotificationsEnabled Condition="'$(SpinePushNotificationsEnabled)' == ''">true</SpinePushNotificationsEnabled>
+		<SpinePushNotificationsRemote Condition="'$(SpinePushNotificationsRemote)' == ''">true</SpinePushNotificationsRemote>
+		<SpinePushNotificationsImages Condition="'$(SpinePushNotificationsImages)' == ''">false</SpinePushNotificationsImages>
+		<SpinePushNotificationsImagesCodesignProvision Condition="'$(SpinePushNotificationsImagesCodesignProvision)' == ''"></SpinePushNotificationsImagesCodesignProvision>
+		<_SpinePushNotificationsImagesExtensionName>SpinePushNotificationService</_SpinePushNotificationsImagesExtensionName>
+		<_SpinePushNotificationsNativeDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', 'native', 'ios'))</_SpinePushNotificationsNativeDir>
+		<_SpinePushNotificationsScript>$(MSBuildThisFileDirectory)spine-push-notifications-build.sh</_SpinePushNotificationsScript>
+		<_SpinePushNotificationsImagesApplies Condition="'$(SpinePushNotificationsEnabled)' == 'true' And '$(SpinePushNotificationsRemote)' == 'true' And '$(SpinePushNotificationsImages)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))">true</_SpinePushNotificationsImagesApplies>
+		<SpinePushNotificationsEnvironment Condition="'$(SpinePushNotificationsEnvironment)' == '' And '$(Configuration)' == 'Debug'">development</SpinePushNotificationsEnvironment>
+		<SpinePushNotificationsEnvironment Condition="'$(SpinePushNotificationsEnvironment)' == ''">production</SpinePushNotificationsEnvironment>
+		<_SpinePushNotificationsApple Condition="'$(SpinePushNotificationsEnabled)' == 'true' And '$(SpinePushNotificationsRemote)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">true</_SpinePushNotificationsApple>
+		<!--
+			On Mac Catalyst the push entitlement is restricted: an app signed with it but without a
+			provisioning profile that grants it does not launch at all. So remote push there follows the
+			signing — the entitlement and background mode are written only when the app names a profile
+			(CodesignProvision). Without one the app still gets local notifications, and the runtime
+			skips the APNs registration it could not complete.
+		-->
+		<_SpinePushNotificationsApple Condition="'$(SpinePushNotificationsEnabled)' == 'true' And '$(SpinePushNotificationsRemote)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst' And '$(CodesignProvision)' != ''">true</_SpinePushNotificationsApple>
+	</PropertyGroup>
+
+	<!--
+		aps-environment decides which APNs host the device token is valid against, so a development
+		build's token only works against the sandbox. Contributed to the shared entitlements step in
+		Plugin.Maui.Spine, which merges it with whatever Plugin.Maui.Spine.Widgets needs.
+
+		On Mac Catalyst Apple's own documentation disagrees with itself about which key applies, so
+		both are written; an unknown entitlement is ignored rather than fatal.
+	-->
+	<ItemGroup Condition="'$(_SpinePushNotificationsApple)' == 'true'">
+		<SpineEntitlement Include="aps-environment" Kind="string" Value="$(SpinePushNotificationsEnvironment)"
+						  Because="It decides which APNs host the device token is valid against." />
+		<SpineEntitlement Include="com.apple.developer.aps-environment" Kind="string" Value="$(SpinePushNotificationsEnvironment)"
+						  Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'"
+						  Because="Mac Catalyst has been documented under both spellings." />
+	</ItemGroup>
+
+	<Target Name="_SpinePushNotificationsAppleManifest"
+			Condition="'$(_SpinePushNotificationsApple)' == 'true' And '$(DesignTimeBuild)' != 'true'"
+			DependsOnTargets="_SpineWriteEntitlements"
+			BeforeTargets="_CompileAppManifestInputs;_CompileAppManifest;_DetectSigningIdentity;_CompileEntitlements">
+
+		<PropertyGroup>
+			<_SpinePushNotificationsOutDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'spinepush'))</_SpinePushNotificationsOutDir>
+			<_SpinePushNotificationsManifest>$(_SpinePushNotificationsOutDir)PushManifest.plist</_SpinePushNotificationsManifest>
+		</PropertyGroup>
+
+		<MakeDir Directories="$(_SpinePushNotificationsOutDir)" />
+
+		<!--
+			remote-notification lets a silent push wake the app; SpinePushNotificationsEnvironment is read back at
+			runtime so the installation can tell the server which APNs host its token belongs to.
+		-->
+		<ItemGroup>
+			<!-- '?' is a wildcard in an Include; see the note in Plugin.Maui.Spine.Entitlements.targets. -->
+			<_SpinePushNotificationsManifestLine Include="&lt;%3Fxml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;%3F&gt;" />
+			<_SpinePushNotificationsManifestLine Include="&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;" />
+			<_SpinePushNotificationsManifestLine Include="&lt;plist version=&quot;1.0&quot;&gt;" />
+			<_SpinePushNotificationsManifestLine Include="&lt;dict&gt;" />
+			<_SpinePushNotificationsManifestLine Include="&lt;key&gt;UIBackgroundModes&lt;/key&gt;" />
+			<_SpinePushNotificationsManifestLine Include="&lt;array&gt;&lt;string&gt;remote-notification&lt;/string&gt;&lt;/array&gt;" />
+			<_SpinePushNotificationsManifestLine Include="&lt;key&gt;SpinePushNotificationsEnvironment&lt;/key&gt;" />
+			<_SpinePushNotificationsManifestLine Include="&lt;string&gt;$(SpinePushNotificationsEnvironment)&lt;/string&gt;" />
+			<_SpinePushNotificationsManifestLine Include="&lt;/dict&gt;" />
+			<_SpinePushNotificationsManifestLine Include="&lt;/plist&gt;" />
+		</ItemGroup>
+
+		<WriteLinesToFile File="$(_SpinePushNotificationsManifest)" Lines="@(_SpinePushNotificationsManifestLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+
+		<ItemGroup>
+			<PartialAppManifest Include="$(_SpinePushNotificationsManifest)" />
+		</ItemGroup>
+	</Target>
+
+	<!--
+		iOS pictures: the Notification Service Extension. Built like the widget extension — swiftc, no
+		Xcode project — for inner (RuntimeIdentifier-specific) builds only, and registered as one more
+		AdditionalAppExtensions item. Every target repeats the condition on RuntimeIdentifier because it is
+		empty at evaluation time for the outer build.
+	-->
+	<Target Name="_SpinePushNotificationsImagesPrepare"
+			Condition="'$(_SpinePushNotificationsImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''">
+		<PropertyGroup>
+			<_SpinePushNotificationsImagesSdk Condition="$(RuntimeIdentifier.Contains('simulator'))">iphonesimulator</_SpinePushNotificationsImagesSdk>
+			<_SpinePushNotificationsImagesSdk Condition="'$(_SpinePushNotificationsImagesSdk)' == ''">iphoneos</_SpinePushNotificationsImagesSdk>
+			<_SpinePushNotificationsImagesArch>$(RuntimeIdentifier.Substring($([MSBuild]::Add($(RuntimeIdentifier.IndexOf('-')), 1))))</_SpinePushNotificationsImagesArch>
+			<_SpinePushNotificationsImagesMinOS>$(SupportedOSPlatformVersion)</_SpinePushNotificationsImagesMinOS>
+			<_SpinePushNotificationsImagesMinOS Condition="'$(_SpinePushNotificationsImagesMinOS)' == ''">15.0</_SpinePushNotificationsImagesMinOS>
+			<_SpinePushNotificationsImagesOutDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj', 'spinepush', '$(Configuration)', '$(RuntimeIdentifier)'))</_SpinePushNotificationsImagesOutDir>
+			<_SpinePushNotificationsImagesInputsFile>$(_SpinePushNotificationsImagesOutDir)inputs.txt</_SpinePushNotificationsImagesInputsFile>
+			<_SpinePushNotificationsImagesStamp>$(_SpinePushNotificationsImagesOutDir)build.stamp</_SpinePushNotificationsImagesStamp>
+			<_SpinePushNotificationsImagesBundleId>$(ApplicationId).$(_SpinePushNotificationsImagesExtensionName)</_SpinePushNotificationsImagesBundleId>
+			<_SpinePushNotificationsImagesRequireProvision>false</_SpinePushNotificationsImagesRequireProvision>
+			<_SpinePushNotificationsImagesRequireProvision Condition="'$(_SpinePushNotificationsImagesSdk)' == 'iphoneos' And '$(EnableCodeSigning)' != 'false'">true</_SpinePushNotificationsImagesRequireProvision>
+		</PropertyGroup>
+
+		<MakeDir Directories="$(_SpinePushNotificationsImagesOutDir)" />
+
+		<ItemGroup>
+			<_SpinePushNotificationsImagesInputLine Include="$(_SpinePushNotificationsImagesBundleId);$(_SpinePushNotificationsImagesMinOS);$(Configuration);$(ApplicationTitle);$(_SpinePushNotificationsImagesArch);$(_SpinePushNotificationsImagesSdk);$(SpinePushNotificationsImagesCodesignProvision);$(_SpinePushNotificationsImagesRequireProvision)" />
+		</ItemGroup>
+		<WriteLinesToFile File="$(_SpinePushNotificationsImagesInputsFile)" Lines="@(_SpinePushNotificationsImagesInputLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+
+		<ItemGroup>
+			<_SpinePushNotificationsImagesInputs Include="$(_SpinePushNotificationsNativeDir)*.swift;$(_SpinePushNotificationsScript);$(_SpinePushNotificationsImagesInputsFile)" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="_SpinePushNotificationsImagesBuild"
+			DependsOnTargets="_SpinePushNotificationsImagesPrepare"
+			Condition="'$(_SpinePushNotificationsImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''"
+			Inputs="@(_SpinePushNotificationsImagesInputs)"
+			Outputs="$(_SpinePushNotificationsImagesStamp)">
+		<Exec Command="&quot;$(_SpinePushNotificationsScript)&quot; --out &quot;$(_SpinePushNotificationsImagesOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpinePushNotificationsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpinePushNotificationsImagesSdk) --arch $(_SpinePushNotificationsImagesArch) --min-os $(_SpinePushNotificationsImagesMinOS) --config $(Configuration) --bundle-id &quot;$(_SpinePushNotificationsImagesBundleId)&quot; --name &quot;$(_SpinePushNotificationsImagesExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --provision &quot;$(SpinePushNotificationsImagesCodesignProvision)&quot; --require-provision $(_SpinePushNotificationsImagesRequireProvision)" />
+	</Target>
+
+	<Target Name="_SpinePushNotificationsImagesRegister"
+			DependsOnTargets="_SpinePushNotificationsImagesBuild"
+			Condition="'$(_SpinePushNotificationsImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''"
+			BeforeTargets="_CollectBundleResources;_DetectSigningIdentity;_CompileEntitlements;_ResolveAppExtensionReferences;_ExtendAppExtensionReferences">
+		<PropertyGroup>
+			<!-- As for the widget extension: a simulator build on a Mac without a signing identity still
+			     has to sign the extension, and the SDK snapshots CodesignKey into _SpecifiedCodesignKey. -->
+			<CodesignKey Condition="'$(CodesignKey)' == '' And '$(_SpinePushNotificationsImagesSdk)' == 'iphonesimulator'">-</CodesignKey>
+			<_SpecifiedCodesignKey Condition="'$(_SpecifiedCodesignKey)' == '' And '$(_SpinePushNotificationsImagesSdk)' == 'iphonesimulator'">-</_SpecifiedCodesignKey>
+		</PropertyGroup>
+
+		<ItemGroup>
+			<AdditionalAppExtensions Include="$(_SpinePushNotificationsImagesOutDir.TrimEnd('/'))" Name="$(_SpinePushNotificationsImagesExtensionName)" BuildOutput="." CodesignEntitlements="$(_SpinePushNotificationsImagesOutDir)$(_SpinePushNotificationsImagesExtensionName).entitlements" />
+		</ItemGroup>
+	</Target>
+
+	<!--
+		Android: Firebase needs google-services.json. Without it the app builds and then fails to get a
+		token at runtime, with an error that says nothing about the missing file — so it fails here instead.
+	-->
+	<!--
+		Firebase Messaging's AndroidX dependencies declare minSdk 23, and the manifest merger fails with
+		a wall of text if the app allows less. Spine's own floor is 21, so this is the package's
+		requirement and not the repo's — it is stated here rather than raised for everyone.
+	-->
+	<!--
+		Not gated on SpinePushNotificationsRemote: the Firebase dependency comes with the package whether or not the
+		app uses remote push, so the floor it brings applies either way. What SpinePushNotificationsRemote drops is
+		the configuration — google-services.json below, and the Apple entitlement above.
+	-->
+	<Target Name="_SpinePushNotificationsAndroidMinSdk"
+			Condition="'$(SpinePushNotificationsEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(DesignTimeBuild)' != 'true'"
+			BeforeTargets="BeforeBuild">
+		<Error Condition="'$(SupportedOSPlatformVersion)' != '' And $([MSBuild]::VersionLessThan('$(SupportedOSPlatformVersion)', '23'))"
+			   Text="Spine.PushNotifications: Android needs SupportedOSPlatformVersion 23 or higher; this project has $(SupportedOSPlatformVersion). Firebase Messaging's dependencies declare minSdk 23. Add &lt;SupportedOSPlatformVersion Condition=&quot;$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'&quot;&gt;23&lt;/SupportedOSPlatformVersion&gt; to the app project." />
+	</Target>
+
+	<Target Name="_SpinePushNotificationsAndroidCheck"
+			Condition="'$(SpinePushNotificationsEnabled)' == 'true' And '$(SpinePushNotificationsRemote)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(DesignTimeBuild)' != 'true'"
+			BeforeTargets="BeforeBuild">
+		<Error Condition="'@(GoogleServicesJson)' == ''"
+			   Text="Spine.PushNotifications: Android needs Firebase's google-services.json. Download it from the Firebase console and add &lt;GoogleServicesJson Include=&quot;Platforms\Android\google-services.json&quot; /&gt; to the app project. Set SpinePushNotificationsRemote=false to keep local notifications without it, or SpinePushNotificationsEnabled=false to build without either." />
+	</Target>
+
+	<!--
+		The extension's debug symbols go beside the app's: into the output directory after the build, and into
+		the archive's dSYMs folder when one is made. The SDK does neither for an extension from
+		AdditionalAppExtensions (seen with the 26.2 SDK), and without them a crash in the extension cannot be
+		symbolicated. The archive hook is the SDK's _CoreArchive, the target that sets $(ArchiveDir); the dSYM
+		copied there is named in the build output, so a hook that stops firing shows.
+	-->
+	<Target Name="_SpinePushNotificationsImagesCopySymbols" AfterTargets="Build" DependsOnTargets="_SpinePushNotificationsImagesPrepare"
+			Condition="'$(_SpinePushNotificationsImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != ''">
+		<ItemGroup Condition="Exists('$(_SpinePushNotificationsImagesOutDir)')">
+			<_SpinePushNotificationsImagesSymbols Include="$([System.IO.Directory]::GetDirectories('$(_SpinePushNotificationsImagesOutDir)', '*.dSYM'))" />
+		</ItemGroup>
+		<Exec Condition="'@(_SpinePushNotificationsImagesSymbols)' != ''"
+			  Command="/usr/bin/ditto &quot;%(_SpinePushNotificationsImagesSymbols.Identity)&quot; &quot;$(DeviceSpecificOutputPath)%(_SpinePushNotificationsImagesSymbols.Filename)%(_SpinePushNotificationsImagesSymbols.Extension)&quot;" />
+	</Target>
+
+	<Target Name="_SpinePushNotificationsImagesArchiveSymbols" AfterTargets="_CoreArchive" DependsOnTargets="_SpinePushNotificationsImagesPrepare"
+			Condition="'$(_SpinePushNotificationsImagesApplies)' == 'true' And '$(RuntimeIdentifier)' != '' And '$(ArchiveOnBuild)' == 'true'">
+		<ItemGroup Condition="Exists('$(_SpinePushNotificationsImagesOutDir)') And '$(ArchiveDir)' != ''">
+			<_SpinePushNotificationsImagesArchivedSymbols Include="$([System.IO.Directory]::GetDirectories('$(_SpinePushNotificationsImagesOutDir)', '*.dSYM'))" />
+		</ItemGroup>
+		<Exec Condition="'@(_SpinePushNotificationsImagesArchivedSymbols)' != ''"
+			  Command="/usr/bin/ditto &quot;%(_SpinePushNotificationsImagesArchivedSymbols.Identity)&quot; &quot;$(ArchiveDir)/dSYMs/%(_SpinePushNotificationsImagesArchivedSymbols.Filename)%(_SpinePushNotificationsImagesArchivedSymbols.Extension)&quot;" />
+		<Message Importance="high" Condition="'@(_SpinePushNotificationsImagesArchivedSymbols)' != ''"
+				 Text="Spine.PushNotifications: archived %(_SpinePushNotificationsImagesArchivedSymbols.Filename)%(_SpinePushNotificationsImagesArchivedSymbols.Extension)" />
+	</Target>
+</Project>

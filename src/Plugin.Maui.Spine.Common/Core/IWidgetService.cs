@@ -29,7 +29,7 @@ public interface IWidgetService
 
     /// <summary>
     /// iOS 26's widget push token as hex, or <see langword="null"/> — before iOS 26, without
-    /// <c>SpineWidgetsPush</c>, or before WidgetKit has issued one. Spine.Push sends it to the backend,
+    /// <c>SpineWidgetsPush</c>, or before WidgetKit has issued one. Spine.PushNotifications sends it to the backend,
     /// which can then reload the widgets by push without waking the app.
     /// </summary>
     string? PushToken { get; }

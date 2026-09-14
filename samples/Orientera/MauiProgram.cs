@@ -15,8 +15,8 @@ using Orientera.Services.Sources;
 using Orientera.Services.Time;
 using Orientera.Services.Weather;
 using Plugin.Maui.Spine.Extensions;
-using Plugin.Maui.Spine.Push;
-using Plugin.Maui.Spine.Push.Extensions;
+using Plugin.Maui.Spine.PushNotifications;
+using Plugin.Maui.Spine.PushNotifications.Extensions;
 using Plugin.Maui.Spine.Widgets.Extensions;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 
@@ -128,13 +128,13 @@ public static class MauiProgram
     /// och då finns det ingen som kan skicka.
     /// </summary>
     /// <summary>
-    /// Spine.Push runs whether or not there is a backend: without one it is the local half that is
+    /// Spine.PushNotifications runs whether or not there is a backend: without one it is the local half that is
     /// wanted — the notifications the phone shows on its own need no server, and demo mode is
     /// exactly that case. No backend means no registration and no token hunting.
     /// </summary>
     private static void RegisterPush(MauiAppBuilder builder, string? backendAddress)
     {
-        builder.UseSpinePush(push =>
+        builder.UseSpinePushNotifications(push =>
         {
             if (!string.IsNullOrWhiteSpace(backendAddress))
                 push.Backend = new Uri(new Uri(backendAddress), "push/");

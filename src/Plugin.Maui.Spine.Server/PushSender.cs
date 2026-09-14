@@ -13,7 +13,7 @@ namespace Plugin.Maui.Spine.Server;
 public sealed class PushSender(
     IPushInstallationStore store,
     IEnumerable<IPushTransport> transports,
-    SpinePushOptions options,
+    SpinePushNotificationsOptions options,
     TimeProvider? timeProvider = null) : IPushSender
 {
     private readonly Dictionary<PushPlatform, IPushTransport> _transports =
