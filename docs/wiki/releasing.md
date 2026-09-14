@@ -18,7 +18,7 @@ The `Release` workflow (`.github/workflows/release.yml`) then:
 2. Runs the tests.
 3. Packs with `-p:Version=<tag without v>` into `artifacts/packages/`, symbols as `.snupkg`.
 4. Prints the `lib/`, `build/`, `buildTransitive/` and `native/` entries of every package, so the log shows that each one carries all four target frameworks and its build assets.
-5. Pushes every `.nupkg` (and its symbols) to nuget.org with `--skip-duplicate`, so a rerun does not fail on packages already published.
+5. Signs in to nuget.org with Trusted Publishing (the `NuGet/login` action trades the job's OpenID Connect token for a short-lived API key) and pushes every `.nupkg` (and its symbols) with `--skip-duplicate`, so a rerun does not fail on packages already published.
 6. Creates a GitHub release for the tag with auto-generated notes from the merged pull requests and the packages attached.
 
 The `CI` workflow runs the same build, test and pack on every pull request and on pushes to `master`, and uploads the packages as a workflow artifact without publishing them.
@@ -27,14 +27,17 @@ The `CI` workflow runs the same build, test and pack on every pull request and o
 
 It is the one runner that produces every target framework in one build. `net10.0-windows` needs Windows, while the iOS and Mac Catalyst *class libraries* compile on Windows without a paired Mac; only app bundling needs one. A pack on macOS gives a package without the Windows framework, which is right for a local check and wrong for a release.
 
-## Secrets and accounts
+## Accounts and trust
+
+There is no stored key. nuget.org's **Trusted Publishing** ties the nuget.org account to this repository's release workflow: the workflow presents its OpenID Connect token, nuget.org checks it against the registered policy and answers with an API key that lives for the job. The workflow therefore asks for `id-token: write`.
 
 | What | Where |
 |---|---|
-| `NUGET_API_KEY` | Repository secret. An API key from nuget.org scoped to *Push new packages and package versions* with the glob `Plugin.Maui.Spine*`. Keys expire after at most a year; the workflow fails with a 403 when it has. |
+| Trusted publisher policy | nuget.org → the account's *Trusted Publishing* page. Owner `jonatansoderberg`, repository `Maui.Spine`, workflow file `release.yml`. The nuget.org user the policy belongs to is named in the workflow's `NuGet/login` step (`user: CosmoMedia`). |
+| Package ownership | The first push of a package id makes that account its owner; later pushes must come from an owner. |
 | GitHub release | Created with the workflow's own `GITHUB_TOKEN`; the workflow asks for `contents: write`. |
 
-nuget.org's Trusted Publishing (OpenID Connect from GitHub Actions, no stored key) can replace the API key: configure the repository and workflow on nuget.org and swap the push step for the `NuGet/login` action.
+An API key from nuget.org still works for a push from the command line, but nuget.org discourages keys for automated publishing and the workflow does not use one.
 
 ## Versioning rules
 
@@ -79,7 +82,8 @@ Three things differ between a `ProjectReference` and a package, and each is cove
 
 | Symptom | Cause |
 |---|---|
-| Release workflow fails at `dotnet nuget push` with 403 | The API key expired or does not cover the package id. |
+| Release workflow fails at `NuGet login` | No trusted publisher policy on nuget.org matches this repository and workflow file, or the nuget.org user in the step is wrong. |
+| Release workflow fails at `dotnet nuget push` with 403 | The package id is owned by another nuget.org account. |
 | A package on nuget.org lacks `net10.0-windows` | It was packed on a Mac. Only the workflow publishes. |
 | The consumer's iOS build says `_SpineWriteEntitlements` does not exist | The app references `Plugin.Maui.Spine.Widgets` or `.PushNotifications` through a `ProjectReference` without importing `Plugin.Maui.Spine.Common.targets`; a `PackageReference` imports it. |
 | `Permission denied` on `spine-widgets-build.sh` | A targets file that runs the script directly instead of through `bash`. |

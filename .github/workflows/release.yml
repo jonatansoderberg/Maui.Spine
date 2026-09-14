@@ -6,8 +6,12 @@ on:
   push:
     tags: ['v*']
 
+# Publishing uses nuget.org's Trusted Publishing: the NuGet/login step trades this job's OIDC token
+# for a short-lived API key, under the policy registered on nuget.org for this repository and this
+# workflow file. No stored key.
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -45,9 +49,15 @@ jobs:
 
       - run: python .github/workflows/list-packages.py artifacts/packages
 
+      - name: NuGet login
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: CosmoMedia
+
       - name: Push to nuget.org
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: dotnet nuget push "artifacts/packages/*.nupkg" --source https://api.nuget.org/v3/index.json --api-key "$NUGET_API_KEY" --skip-duplicate
 
       - name: GitHub release
