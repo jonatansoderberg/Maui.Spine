@@ -53,7 +53,7 @@ builder
     {
         o.Backend = new Uri("https://api.example.com/push/");
         o.Permission = PushPermission.WhenAsked;
-        o.AddChannel("competitions", "Tävlingar");
+        o.AddChannel("competitions", "Competitions");
         o.UseHandler<MyPushHandler>();
     });
 ```
@@ -187,7 +187,7 @@ await local.SyncAsync(
     {
         Id = $"start:{competition.Id}",
         At = start.AddMinutes(-90),
-        Title = "Dags att åka",
+        Title = "Time to leave",
         Body = $"Start {start:HH:mm} i {competition.Name}.",
         Route = $"competition/{competition.Id}",
         Channel = "reminders",
@@ -284,8 +284,8 @@ Declare the button sets once, like channels, and let a notification name one:
 builder.UseSpinePushNotifications(push =>
 {
     push.AddCategory("entry",
-        new PushAction("enter", "Anmäl mig") { OpensApp = false },
-        new PushAction("show", "Visa tävlingen"));
+        new PushAction("enter", "Enter me") { OpensApp = false },
+        new PushAction("show", "Show the event"));
 
     push.AddCategory("chat", new PushAction("reply", "Svara") { Reply = "Skriv ett svar" });
 });
@@ -418,7 +418,7 @@ way to check the handler, the message shape and the presentation:
 ```bash
 cat > alert.json <<'JSON'
 {
-  "aps": { "alert": { "title": "Resultat klara", "body": "Gävle OK" }, "sound": "default" },
+  "aps": { "alert": { "title": "Results published", "body": "Riverside" }, "sound": "default" },
   "spine.kind": "alert",
   "spine.route": "competition/59691"
 }
