@@ -5,7 +5,7 @@ Spine's tab host gives an app N root-level bottom tabs, each owning its **own na
 <p align="center">
   <img src="images/tab-host.png" width="280" alt="Three tabs in the native floating tab bar on iOS 26, with a Spine header bar and page action above">
 </p>
-<p align="center"><sub>The Orientera sample: three [NavigableTab] pages in UITabBarController's Liquid Glass bar, each tab with its own Spine stack</sub></p>
+<p align="center"><sub>Orientera, an app built on Spine: three [NavigableTab] pages in UITabBarController's Liquid Glass bar, each tab with its own Spine stack</sub></p>
 
 ---
 
