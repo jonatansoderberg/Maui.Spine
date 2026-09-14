@@ -13,6 +13,7 @@
 
 	<PropertyGroup>
 		<Description>SVG rendering for .NET MAUI on SkiaSharp: embedded SVG image sources with theme-aware tinting, icon services, and SVG-to-icon conversion for tray and window icons.</Description>
+		<SpineIcon>svg.png</SpineIcon>
 		<PackageTags>$(PackageTags);svg;skiasharp;icons</PackageTags>
 	</PropertyGroup>
 

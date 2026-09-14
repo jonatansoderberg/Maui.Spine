@@ -1,0 +1,14 @@
+<Project>
+
+	<!-- Each package names its icon in assets/icons/ with SpineIcon; the core's is the default.
+	     Resolved here, after the project body, so a project's own value wins. -->
+	<PropertyGroup>
+		<SpineIcon Condition="'$(SpineIcon)' == ''">spine.png</SpineIcon>
+		<PackageIcon>$(SpineIcon)</PackageIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="$(MSBuildThisFileDirectory)../assets/icons/$(SpineIcon)" Pack="true" PackagePath="/" Visible="false" />
+	</ItemGroup>
+
+</Project>

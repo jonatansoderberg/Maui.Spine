@@ -13,6 +13,7 @@
 
 	<PropertyGroup>
 		<Description>Push and local notifications for .NET MAUI: permission, APNs and FCM tokens, tags, a handler that sees every message, local scheduling, and a Notification Service Extension for images on iOS.</Description>
+		<SpineIcon>push-notifications.png</SpineIcon>
 		<PackageTags>$(PackageTags);push;notifications;apns;fcm;firebase</PackageTags>
 	</PropertyGroup>
 

@@ -78,6 +78,8 @@ Three things differ between a `ProjectReference` and a package, and each is cove
 - A `.nupkg` carries no Unix permissions, so the targets run the build scripts through `bash` rather than executing them directly.
 - `.gitattributes` forces LF on `.sh` and `.swift` files; a CRLF checkout on the Windows runner would otherwise be packed and break `bash` on the consumer's Mac.
 
+Each package's icon is a 256×256 PNG in `assets/icons/`, named in the project's `SpineIcon` property and packed by `src/Directory.Build.targets`; `assets/spine-logo.png` is the project logo for the README.
+
 ## Troubleshooting
 
 | Symptom | Cause |

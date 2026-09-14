@@ -9,6 +9,7 @@
 
 	<PropertyGroup>
 		<Description>Contracts shared between Spine apps and servers: the widget and Live Activity tree model, push installations, tags and keys. No MAUI dependency.</Description>
+		<SpineIcon>common.png</SpineIcon>
 		<PackageTags>$(PackageTags);widgets;push;contracts</PackageTags>
 	</PropertyGroup>
 

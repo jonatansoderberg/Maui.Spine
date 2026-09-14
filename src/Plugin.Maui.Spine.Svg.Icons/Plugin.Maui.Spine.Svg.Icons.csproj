@@ -8,6 +8,7 @@
 
 	<PropertyGroup>
 		<Description>A set of embedded SVG icons for Plugin.Maui.Spine.Svg: UI glyphs, rooms, appliances, media controls and weather symbols, resolved by file name the moment the package is referenced.</Description>
+		<SpineIcon>svg-icons.png</SpineIcon>
 		<PackageTags>$(PackageTags);svg;icons</PackageTags>
 	</PropertyGroup>
 

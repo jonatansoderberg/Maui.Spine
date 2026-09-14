@@ -1,4 +1,6 @@
-﻿# Plugin.Maui.Spine
+﻿<p align="center"><img src="assets/spine-logo.png" width="160" alt="Spine"></p>
+
+# Plugin.Maui.Spine
 
 **Plugin.Maui.Spine** is a navigation framework for .NET MAUI that replaces Shell with a clean, code-first model built around stack-based region navigation and native bottom sheets. Pages are auto-discovered via attribute scanning — no route tables, no manual DI registration — and every navigation call is a single, strongly-typed async method.
 

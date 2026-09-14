@@ -21,6 +21,7 @@
 
 	<PropertyGroup>
 		<Description>AnimatedLabel for .NET MAUI: a SkiaSharp label that scrolls (marquee) or fades text that does not fit.</Description>
+		<SpineIcon>animated-label.png</SpineIcon>
 		<PackageTags>$(PackageTags);label;marquee;skiasharp;controls</PackageTags>
 	</PropertyGroup>
 

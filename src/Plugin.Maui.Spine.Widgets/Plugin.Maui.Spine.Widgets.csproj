@@ -12,6 +12,7 @@
 
 	<PropertyGroup>
 		<Description>Home-screen widgets and Live Activities for .NET MAUI, built from C#: a WidgetKit extension on iOS compiled during the app build and AppWidgetProvider receivers on Android, both drawn from one serialized view tree.</Description>
+		<SpineIcon>widgets.png</SpineIcon>
 		<PackageTags>$(PackageTags);widgets;widgetkit;live-activities;appwidget</PackageTags>
 	</PropertyGroup>
 
