@@ -2,13 +2,6 @@
 
 	<PropertyGroup>
 		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-		<!--
-			The Azure Functions SDK generates obj/**/WorkerExtensions/WorkerExtensions.csproj with
-			versions written into its PackageReference items. That is NU1008 under central package
-			management, and the file is regenerated on every build, so central management is off
-			for that one project.
-		-->
-		<ManagePackageVersionsCentrally Condition="'$(MSBuildProjectName)' == 'WorkerExtensions'">false</ManagePackageVersionsCentrally>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -52,37 +45,12 @@
 
 	<!-- Sample apps -->
 	<ItemGroup>
-		<PackageVersion Include="Mapsui.Maui" Version="5.1.0" />
 		<PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
 		<PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
 		<PackageVersion Include="Sharpnado.MaterialFrame.Maui" Version="3.0.2" />
 	</ItemGroup>
 
-	<!-- Orientera.Backend -->
-	<ItemGroup>
-		<PackageVersion Include="Anthropic" Version="12.40.0" />
-		<PackageVersion Include="Azure.Storage.Blobs" Version="12.29.1" />
-		<PackageVersion Include="Azure.Storage.Queues" Version="12.27.1" />
-		<PackageVersion Include="BitMiracle.LibTiff.NET" Version="2.4.660" />
-		<PackageVersion Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />
-		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.1" />
-		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" Version="5.5.0" />
-		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
-		<PackageVersion Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.1.0" />
-		<PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
-		<PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.10" />
-		<PackageVersion Include="OpenAI" Version="2.13.0" />
-		<PackageVersion Include="ProjNET" Version="2.1.0" />
-		<PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
-	</ItemGroup>
-
-	<!-- Orientera.AppHost — the Aspire orchestration for local development -->
-	<ItemGroup>
-		<PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.4.6" />
-		<PackageVersion Include="Aspire.Hosting.Azure.Functions" Version="13.4.6" />
-	</ItemGroup>
-
-	<!-- Orientera.Tests -->
+	<!-- Tests -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.10.0" />
 		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />

@@ -6,6 +6,7 @@
 
 **Rev 2:** `Plugin.Maui.Spine.Push` renamed to `Plugin.Maui.Spine.PushNotifications`.
 **Rev 3:** decisions taken (§6): the icons are `Plugin.Maui.Spine.Svg.Icons`, the entitlements step lives in `Plugin.Maui.Spine.Common`, the Windows packages are pinned, AnimatedLabel is published, and the pipelines run.
+**Rev 4:** Orientera moved to its own repository, https://github.com/jonatansoderberg/Orientera (private), on 2026-09-14, consuming Spine 0.1.2 from nuget.org; §8 is done and the samples no longer contain it.
 
 ---
 

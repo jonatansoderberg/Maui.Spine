@@ -600,4 +600,4 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 - [Human Interface Guidelines: Live Activities](https://developer.apple.com/design/human-interface-guidelines/live-activities) — what each presentation is for, and how much they can carry
 - [Apple Developer Forums: `.timer` text expands too much in a Live Activity](https://developer.apple.com/forums/thread/723316) — the width behaviour described above
 - [Spine.Widgets proposal](../proposals/spine-widgets.md) — the architecture, the platform survey, and the spike this grew out of
-- Samples: `samples/MauiSpineSampleApp/Widgets/SampleWidget.cs` and `samples/Orientera/Widgets/`
+- Samples: `samples/MauiSpineSampleApp/Widgets/SampleWidget.cs` and `samples/MauiSpinePushNotificationsSampleApp/Widgets/`
