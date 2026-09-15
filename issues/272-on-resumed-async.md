@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/272
 **Branch:** issue/272-on-resumed-async
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
