@@ -180,7 +180,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         var now = DateTimeOffset.UtcNow;
         var root = remote?.RootElement ?? local.RootElement;
         var entries = root.GetProperty("entries").EnumerateArray()
-            .Select(e => (Date: e.GetProperty("date").GetDateTimeOffset(), Trees: e.GetProperty("trees")))
+            .Select(e => (Date: e.GetProperty("date").GetDateTimeOffset(), Trees: e.GetProperty("trees"), Element: e))
             .OrderBy(e => e.Date)
             .ToList();
         if (entries.Count == 0) return;
@@ -188,9 +188,9 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         var current = entries.LastOrDefault(e => e.Date <= now) is { Trees.ValueKind: JsonValueKind.Object } shown ? shown : entries[0];
         var tap = (root.TryGetProperty("link", out var link) || local.RootElement.TryGetProperty("link", out link)) && link.GetString() is { } url
             ? LinkIntent(context, index, url) : null;
-        // The surface travels whole: a remote document with any of its three fields gives all three, and one
-        // with none leaves the app's.
-        var surface = HasSurface(root) ? root : local.RootElement;
+        // The surface travels whole: the entry shown with any of its three fields gives all three; otherwise a
+        // remote document with any of them does, and one with none leaves the app's.
+        var surface = HasSurface(current.Element) ? current.Element : HasSurface(root) ? root : local.RootElement;
         renderer.Background = Field(surface, "background");
         renderer.BackgroundImage = Field(surface, "backgroundImage");
         renderer.BackgroundGradient = surface.TryGetProperty("backgroundGradient", out var gradient) && gradient.ValueKind == JsonValueKind.Object

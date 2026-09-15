@@ -64,7 +64,7 @@ public sealed class NextEventWidget(IEventService _events, IWidgetService _widge
 | `W.Button(actionId, child)` | A tap that reaches `IWidgetActionHandler` **without opening the app**; mark what changes `.Pending()` |
 | `W.Adaptive(fallback, perFamily)` | One subtree that differs per family |
 
-Colors: prefer the semantic `WidgetColor.Primary / Secondary / Accent / Green / Red / …` (they follow light and dark); `WidgetColor.FromHex("#1B5E3F")` for a brand surface, and then give the text on it fixed colors too. `WidgetTimeline.Single(tree).Background(color | gradient).BackgroundImage("cover.png")` paints the surface.
+Colors: prefer the semantic `WidgetColor.Primary / Secondary / Accent / Green / Red / …` (they follow light and dark); `WidgetColor.FromHex("#1B5E3F")` for a brand surface, and then give the text on it fixed colors too. `WidgetTimeline.Single(tree).Background(color | gradient).BackgroundImage("cover.png")` paints the surface; `timeline.Add(date, tree, new WidgetSurface(color | gradient, "holiday.png"))` gives one entry a surface of its own, which replaces the timeline's whole surface and switches with the entry.
 
 ### Refresh
 

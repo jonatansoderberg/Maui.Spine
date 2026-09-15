@@ -68,10 +68,13 @@ enum Dates {
 
 // MARK: - Documents
 
-struct TimelineDocument: Decodable {
-    struct Entry: Decodable {
+struct TimelineDocument: Decodable, SurfaceFields {
+    struct Entry: Decodable, SurfaceFields {
         var date: Date
         var trees: [String: Node]
+        var background: String?
+        var backgroundGradient: GradientSpec?
+        var backgroundImage: String?
     }
     var link: String?
     var remote: String?
@@ -87,19 +90,26 @@ struct GradientSpec: Decodable {
     var direction: String?
 }
 
+/// The three surface fields, which a document and each of its entries carry under the same names.
+protocol SurfaceFields {
+    var background: String? { get }
+    var backgroundGradient: GradientSpec? { get }
+    var backgroundImage: String? { get }
+}
+
 /// The widget's surface: a color or a gradient, and an image over it. The three travel together, so a remote
-/// document's surface is taken whole or not at all.
+/// document's surface, and an entry's, is taken whole or not at all.
 struct SurfaceBackground {
     var color: String?
     var gradient: GradientSpec?
     var image: String?
 
-    init?(_ document: TimelineDocument?) {
-        guard let document, document.background != nil || document.backgroundGradient != nil || document.backgroundImage != nil
+    init?<Fields: SurfaceFields>(_ fields: Fields?) {
+        guard let fields, fields.background != nil || fields.backgroundGradient != nil || fields.backgroundImage != nil
         else { return nil }
-        color = document.background
-        gradient = document.backgroundGradient
-        image = document.backgroundImage
+        color = fields.background
+        gradient = fields.backgroundGradient
+        image = fields.backgroundImage
     }
 }
 
@@ -426,11 +436,12 @@ struct Provider: TimelineProvider {
         return entries(from: document, link: document?.link, background: SurfaceBackground(document))
     }
 
+    /// An entry with a surface of its own is drawn on it; the rest on `background`, the document's.
     private func entries(from document: TimelineDocument?, link: String?, background: SurfaceBackground?) -> [Entry] {
         guard let document else { return [] }
         return document.entries
             .sorted { $0.date < $1.date }
-            .map { Entry(date: $0.date, trees: $0.trees, link: link, kind: kind, background: background) }
+            .map { Entry(date: $0.date, trees: $0.trees, link: link, kind: kind, background: SurfaceBackground($0) ?? background) }
     }
 }
 

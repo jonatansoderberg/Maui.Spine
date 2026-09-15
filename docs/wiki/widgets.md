@@ -202,9 +202,23 @@ WidgetTimeline.Single(tree)
 
 The push sample's *Spine bild* widget is one, and its remote widget gets a gradient from the server.
 
+An entry can carry a surface of its own, a `WidgetSurface`, which the platform switches to at the entry's date together with its tree — a holiday picture from midnight, another color once an event has started — without the app running:
+
+```csharp
+var timeline = new WidgetTimeline().Background(paper);             // every entry without its own
+timeline.Add(today, Page(today));
+timeline.Add(midsummerEve, Page(midsummerEve), new WidgetSurface(paper, "midsummer.png"));
+timeline.Add(midsummerEve.AddDays(1), Page(midsummerEve.AddDays(1)));
+```
+
+`WidgetSurface` takes a color or a gradient, each with an optional picture, or a picture alone. The main sample's widget switches to a gradient of its own when its countdown reaches zero.
+
 - **Only stacks take a box.** Put a text or an image in a `W.HStack` to give it one.
 - **A stack with a background fills the width it is offered**, except inside a `W.HStack` or a button, where it wraps its content — the same on both platforms, so a label in a row stays a label.
 - **A gradient replaces the color, and the other way round.** The picture goes over either, scaled to fill and cropped at the edges; the color or gradient shows through a transparent picture, and in its place until one is stored.
+- **An entry's surface replaces the timeline's whole surface** — color, gradient and picture alike — for as long as the entry is shown. A `WidgetSurface` with only a picture draws it over the platform's widget background, not over the timeline's color, so repeat the color or gradient in it to keep them. An entry added without one, or with `null`, is drawn on the timeline's surface, so a timeline that never passes one looks as it always has. The entries of a remote source's document follow the same rule, over the surface that document's timeline gets.
+- **Store an entry's picture before the timeline is written.** The platform switches to the entry while the app may not be running, so the picture has to be in the store already; until it is, the entry's color or gradient shows in its place, as for the timeline's own picture.
+- **The switch is as punctual as the entry's.** iOS switches at the entry's date. Android redraws at an inexact alarm there, which Doze can hold back by some minutes, and the new surface arrives with it.
 - **On Android the gradient and the picture are bitmaps** in views behind the tree, clipped to the rounded corners from Android 12. The picture is scaled to at most 1024 pixels on its long side, and semantic colors in a gradient are resolved once, in the app's theme.
 - **Give text on a fixed surface fixed colors.** The surface stays the same in dark mode; `Primary` and `Secondary` do not, and turn dark on it in light mode.
 - **A transparent widget works on Android only.** `WidgetColor.FromHex("#00000000")` lets the wallpaper through on Android. iOS ignores a clear container background and draws its own opaque one instead — white in light mode, so white text on it disappears. A material or SwiftUI's `glassEffect` as the background does not change that (tried on iOS 26.4), and `widgetTexture(.glass)` is visionOS only.
@@ -221,6 +235,7 @@ The push sample's *Spine bild* widget is one, and its remote widget gets a gradi
 | `WidgetTimeline.Background` | `containerBackground` | Tints the root's rounded background (API 31+); a flat, square color below |
 | `WidgetTimeline.Background(gradient)` | A `LinearGradient` in `containerBackground` | A bitmap behind the tree, stretched to it |
 | `WidgetTimeline.BackgroundImage` | The picture over the surface, `scaledToFill` | A bitmap behind the tree, cropped; at most 1024 px |
+| `WidgetSurface` on an entry | The entry's own `containerBackground`, the same three layers; WidgetKit switches it with the entry | The entry drawn now decides the surface, the same three layers; the entry alarm redraws at the next date |
 | `.Accented()` / `.FullColor()` | `widgetAccentable` / `widgetAccentedRenderingMode(.fullColor)` | Ignored |
 | `WidgetColor.Surface` / `OnAccent` | `systemBackground` / white | `colorBackground` / `textColorPrimaryInverse`, in the launcher's theme from API 31 |
 | `LiveActivityLayout.Background` | `activityBackgroundTint` | Ignored: Android does not promote a Live Update that asks for a color |
@@ -240,7 +255,7 @@ timeline.Add(start, Running(start));      // the platform switches here by itsel
 timeline.Refresh(TimeSpan.FromMinutes(30));
 ```
 
-Pre-computing entries is nearly free; reloads are not (see below). `Refresh(after)` asks the platform to call the provider again that long after the last entry — a request, not a promise.
+An entry can carry its own surface as well, switched with it; see [Backgrounds and boxes](#backgrounds-and-boxes). Pre-computing entries is nearly free; reloads are not (see below). `Refresh(after)` asks the platform to call the provider again that long after the last entry — a request, not a promise.
 
 ### Adaptive trees
 
@@ -538,8 +553,10 @@ The same C# tree renders on Android without changes; the difference is what the 
 | `W.Icon` | The rasterized SVG as an `ImageView`, tinted through `setColorFilter` (see [Icons](#icons)) |
 | `WidgetColor` | Semantic colors resolve in the launcher's theme (light and dark) from Android 12; `Green` … `Blue` are the iOS system palette in both variants; hex is hex |
 | `WidgetTimeline.Background` | The root's rounded background drawable tinted through `setBackgroundTintList` from Android 12; `setBackgroundColor` below, which loses the corners |
+| `WidgetTimeline.Background(gradient)` / `BackgroundImage` | Bitmaps in views behind the tree, clipped by the root's outline from Android 12 |
+| `WidgetSurface` on an entry | The same three, taken from the entry that applies now instead of the timeline |
 | `.Padding` / `.Background` / `.CornerRadius` | `setViewPadding`, `setBackgroundColor`, and from Android 12 `setViewOutlinePreferredRadius` with `setClipToOutline` |
-| `WidgetTimeline` entries | The entry that applies now is drawn; an inexact alarm redraws at the next entry's date, another runs the provider `Refresh(after)` the last one |
+| `WidgetTimeline` entries | The entry that applies now is drawn, on its own surface when it has one; an inexact alarm redraws at the next entry's date, another runs the provider `Refresh(after)` the last one |
 | `OpenUrl` | A `PendingIntent` to a small activity in the package that forwards the URL to the app's own main activity; the scheme is registered on it by the build |
 | `W.Button` | A `PendingIntent` broadcast to the widget's receiver, which runs the handler in the app's process |
 | `RemoteSource` | Fetched by the receiver at the refresh alarm and cached beside the app's document |

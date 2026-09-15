@@ -21,6 +21,7 @@ public sealed class SampleWidget(IWidgetService _widgets, INavigationService _na
     private static readonly WidgetColor Ink = WidgetColor.FromHex("#FFFFFF");
     private static readonly WidgetColor Muted = WidgetColor.FromHex("#B3FFFFFF");
     private static readonly WidgetColor Mint = WidgetColor.FromHex("#8FE3B0");
+    private static readonly WidgetColor Started = WidgetColor.FromHex("#1B3A5E");
 
     public Task<WidgetTimeline> BuildTimelineAsync(WidgetContext context, CancellationToken cancellationToken)
     {
@@ -58,8 +59,13 @@ public sealed class SampleWidget(IWidgetService _widgets, INavigationService _na
                     [WidgetFamily.Medium] = W.Text($"Built {refreshed:HH:mm:ss}").Caption().Color(Muted),
                 })));
 
+        // At the event's start the platform switches to the second entry, and to its own surface with it,
+        // whether the app is running or not.
+        var started = new WidgetSurface(new WidgetGradient([Started, Surface], WidgetGradientDirection.Diagonal));
+
         var timeline = WidgetTimeline
             .Single(tree)
+            .Add(nextEvent, tree, started)
             .Background(Surface)
             .Refresh(TimeSpan.FromMinutes(30))
             .OpenUrl(_widgets.LinkFor(context.Kind));
