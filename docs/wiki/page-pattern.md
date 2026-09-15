@@ -97,6 +97,8 @@ public partial class MyPageViewModel(INavigationService _navigation) : ViewModel
 }
 ```
 
+The lifecycle hooks a ViewModel can override (`OnAppearingAsync`, `OnDisappearingAsync`, `OnResumedAsync`, and the back and close guards) are described in [Regions](regions.md#lifecycle-hooks).
+
 ---
 
 ## Project file entries

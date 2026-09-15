@@ -114,6 +114,13 @@ public partial class SettingsPageViewModel : ViewModelBase
         // Called just before the page leaves the screen
         return base.OnDisappearingAsync(navigationDirection);
     }
+
+    public override async Task OnResumedAsync()
+    {
+        // Called when the app comes back to the foreground while this page is shown
+        await LoadDataAsync();
+        await base.OnResumedAsync();
+    }
 }
 ```
 
@@ -124,6 +131,26 @@ public partial class SettingsPageViewModel : ViewModelBase
 | `None` | Page set as root (first shown) |
 | `NavigateTo` | Page was pushed onto the stack |
 | `Back` | Returned to this page because a child was popped |
+
+### Coming back to the app
+
+`OnResumedAsync` is called when the app returns to the foreground, or its window is activated again, on the pages that are **shown**: the current page of the region (or of the selected tab), and of an open sheet together with the page under it. Pages covered by another page on the stack, or on another tab, are not called; they get `OnAppearingAsync` when they are shown again. The page does not subscribe to window events itself; Spine owns the window.
+
+It is not called at launch, because the first `OnAppearingAsync` covers that. It is called only after the app was deactivated, and anything that takes the window out of the foreground or out of focus counts: going to the background, but also the notification shade or a system dialog on a phone, and another window on the desktop. Keep the override cheap, or check whether anything actually changed.
+
+Spine does not follow the calendar day. A page that shows "today" compares the date when it comes back, and runs its own timer to midnight if it must turn while it is on screen:
+
+```csharp
+public override async Task OnResumedAsync()
+{
+    var today = DateOnly.FromDateTime(DateTime.Now);
+
+    if (Day != today)
+        await ShowDayAsync(today);
+
+    await base.OnResumedAsync();
+}
+```
 
 ---
 

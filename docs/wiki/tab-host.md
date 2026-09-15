@@ -88,7 +88,7 @@ Tabs are **realized lazily**: a tab's region and root page are created on first 
 
 ### Lifecycle
 
-Tab roots receive `OnAppearingAsync`/`OnDisappearingAsync` on tab switches, not only on push/pop — start live polling when a tab appears, stop when it disappears. `OnTabReselectedAsync()` fires when the already-active tab is re-selected at root.
+Tab roots receive `OnAppearingAsync`/`OnDisappearingAsync` on tab switches, not only on push/pop — start live polling when a tab appears, stop when it disappears. `OnTabReselectedAsync()` fires when the already-active tab is re-selected at root. When the app comes back to the foreground, `OnResumedAsync()` goes to the selected tab's current page only; the other tabs get `OnAppearingAsync` when they are selected.
 
 ---
 

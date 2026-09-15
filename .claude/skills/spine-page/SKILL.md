@@ -133,11 +133,12 @@ Both at once: implement both interfaces and call `NavigateToWithResultAsync<TPag
 | `OnNavigationParameterAsync` | Before appearing, with the parameter |
 | `OnAppearingAsync(NavigationDirection)` | `None` (root), `NavigateTo` (pushed), `Back` (a child popped). Tab roots also get it on tab switches |
 | `OnDisappearingAsync` | Just before leaving the screen |
+| `OnResumedAsync` | The app came back to the foreground (or its window got focus again) while the page is shown: the current page, and an open sheet's. Not at launch |
 | `OnBackRequestedAsync` → `bool` | Return `false` to cancel back (unsaved changes) |
 | `OnCloseRequestedAsync` → `bool` | Same, for a sheet's close |
 | `OnTabReselectedAsync` | The active tab tapped again at root (scroll to top) |
 
-Load data in `OnAppearingAsync`; keep constructors cheap. Guard `PageActions` with `Count == 0` so a `Back` does not add duplicates.
+Load data in `OnAppearingAsync`; keep constructors cheap. Guard `PageActions` with `Count == 0` so a `Back` does not add duplicates. Refresh in `OnResumedAsync` what may have changed while the app was away (server data, today's date) instead of subscribing to `Window.Activated` in code-behind. Spine has no day-change hook; a page that must turn at midnight runs its own timer.
 
 ## Page actions (header bar)
 
