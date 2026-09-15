@@ -92,6 +92,8 @@ public static class SpineIcons
     public const string Spot = "Spot.svg";
     public const string Stop = "Stop.svg";
     public const string Stove = "Stove.svg";
+    public const string Sunrise = "Sunrise.svg";
+    public const string Sunset = "Sunset.svg";
     public const string SwingPos1 = "SwingPos1.svg";
     public const string SwingPos2 = "SwingPos2.svg";
     public const string SwingPos3 = "SwingPos3.svg";
