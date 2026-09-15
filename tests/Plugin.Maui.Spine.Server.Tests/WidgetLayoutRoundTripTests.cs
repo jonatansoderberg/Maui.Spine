@@ -162,6 +162,81 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void An_entry_writes_its_own_surface_on_the_entry()
+    {
+        var midnight = new DateTimeOffset(2026, 6, 19, 0, 0, 0, TimeSpan.FromHours(2));
+        var json = new WidgetTimeline()
+            .Background(Brand)
+            .Add(midnight.AddDays(-1), W.Text("Torsdag"))
+            .Add(midnight, W.Text("Midsommarafton"), new WidgetSurface(new WidgetGradient([Brand, WidgetColor.Accent], WidgetGradientDirection.Diagonal), "midsommar.png"))
+            .Add(midnight.AddDays(1), W.Text("Midsommardagen"), new WidgetSurface(WidgetColor.Blue))
+            .ToJson();
+
+        using var document = JsonDocument.Parse(json);
+        var entries = document.RootElement.GetProperty("entries");
+        var eve = entries[1];
+        var gradient = eve.GetProperty("backgroundGradient");
+
+        Assert.Equal("#1B5E3F", document.RootElement.GetProperty("background").GetString());
+        Assert.Equal(new[] { "#1B5E3F", "accent" }, gradient.GetProperty("colors").EnumerateArray().Select(c => c.GetString()).ToArray());
+        Assert.Equal("Diagonal", gradient.GetProperty("direction").GetString());
+        Assert.Equal("midsommar.png", eve.GetProperty("backgroundImage").GetString());
+        Assert.False(eve.TryGetProperty("background", out _));
+        Assert.Equal("blue", entries[2].GetProperty("background").GetString());
+        Assert.False(entries[2].TryGetProperty("backgroundGradient", out _));
+        Assert.False(entries[2].TryGetProperty("backgroundImage", out _));
+    }
+
+    [Fact]
+    public void An_entry_without_a_surface_writes_only_its_date_and_trees()
+    {
+        using var document = JsonDocument.Parse(new WidgetTimeline()
+            .BackgroundImage("bakgrund.png")
+            .Add(DateTimeOffset.UtcNow, W.Text("x"))
+            .Add(DateTimeOffset.UtcNow.AddHours(1), W.Text("y"), null)
+            .ToJson());
+
+        foreach (var entry in document.RootElement.GetProperty("entries").EnumerateArray())
+            Assert.Equal(new[] { "date", "trees" }, entry.EnumerateObject().Select(p => p.Name).ToArray());
+    }
+
+    [Fact]
+    public void A_family_specific_entry_keeps_its_surface()
+    {
+        var timeline = new WidgetTimeline().Add(DateTimeOffset.UtcNow,
+            new Dictionary<WidgetFamily, WidgetNode> { [WidgetFamily.Small] = W.Text("s"), [WidgetFamily.Medium] = W.Text("m") },
+            new WidgetSurface("jul.png"));
+
+        var entry = Assert.Single(timeline.Entries);
+        Assert.Equal("jul.png", entry.Surface?.Image);
+        Assert.Null(entry.Surface?.Color);
+        Assert.Null(entry.Surface?.Gradient);
+
+        using var document = JsonDocument.Parse(timeline.ToJson());
+        var written = document.RootElement.GetProperty("entries")[0];
+        Assert.Equal("jul.png", written.GetProperty("backgroundImage").GetString());
+        Assert.True(written.GetProperty("trees").TryGetProperty("medium", out _));
+    }
+
+    [Fact]
+    public void A_surface_is_a_color_or_a_gradient_and_needs_a_real_image_id()
+    {
+        var colored = new WidgetSurface(Brand, "bild.png");
+        Assert.Equal(Brand, colored.Color);
+        Assert.Null(colored.Gradient);
+        Assert.Equal("bild.png", colored.Image);
+
+        var graded = new WidgetSurface(new WidgetGradient([Brand, WidgetColor.Blue]));
+        Assert.Null(graded.Color);
+        Assert.NotNull(graded.Gradient);
+        Assert.Null(graded.Image);
+
+        Assert.Throws<ArgumentNullException>(() => new WidgetSurface((WidgetGradient)null!));
+        Assert.Throws<ArgumentException>(() => new WidgetSurface(" "));
+        Assert.Throws<ArgumentException>(() => new WidgetSurface(Brand, ""));
+    }
+
+    [Fact]
     public void Accented_and_full_color_survive_and_are_absent_when_unset()
     {
         var layout = new LiveActivityLayout
