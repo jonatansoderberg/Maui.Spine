@@ -109,6 +109,22 @@ public abstract partial class ViewModelBase : ObservableObject
     public virtual Task OnDisappearingAsync(NavigationDirection navigationDirection) => Task.CompletedTask;
 
     /// <summary>
+    /// Called by Spine when the app returns to the foreground, or its window is activated again,
+    /// while this page is shown: the current page of the region or of the selected tab, and of an
+    /// open sheet together with the page under it. Override to refresh what may have changed while
+    /// the app was away, such as today's date or data from a server.
+    /// </summary>
+    /// <remarks>
+    /// Not called on the first activation at launch, which <see cref="OnAppearingAsync"/> already
+    /// covers — only after a deactivation. Anything that takes the window out of the foreground or
+    /// out of focus counts: going to the background, but also the notification shade, a system
+    /// dialog, or another window on the desktop. Pages that are not shown (covered by another page
+    /// on the stack, or on another tab) are not called; they get <see cref="OnAppearingAsync"/> when
+    /// they are shown again.
+    /// </remarks>
+    public virtual Task OnResumedAsync() => Task.CompletedTask;
+
+    /// <summary>
     /// Whether this page has already been told it is showing.
     /// </summary>
     /// <remarks>
