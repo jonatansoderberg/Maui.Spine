@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/270
 **Branch:** issue/270-per-entry-widget-backgrounds
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -55,5 +55,5 @@ A timeline's surface — `Background(WidgetColor)`, `Background(WidgetGradient)`
 - **Builds:** `Plugin.Maui.Spine.Widgets` for net10.0-android, net10.0-ios and net10.0-maccatalyst; the main sample for net10.0-android and for the iOS simulator (the widget extension, with the changed `SpineWidgetRenderer.swift`, compiled by `spine-widgets-build.sh`); `MauiSpinePushNotificationsSampleApp.Server`. No new warnings.
 - **iOS, app side (iPhone 17 Pro Max simulator, A7B7DD73):** a temporary build of the sample widget (not committed) with three entries two minutes apart ran on the simulator. A had its own `#8B1E3F`, B its own diagonal gradient `#1B3A5E` → `#E0A030` with `verify_picture.png`, C none on a timeline of `#1B5E3F`. The document the app wrote into the App Group carries `background` on A, `backgroundGradient` and `backgroundImage` on B, nothing on C, and the timeline's `background` at the top.
 - **iOS, extension logic, no UI:** a harness compiled from the extension's own Swift sources (`private` removed from the two `Provider` functions), run with `simctl spawn` on the same simulator, decoded that document and ran `Provider.timeline(from:fallback:)`. A → `#8B1E3F`; B → the gradient with the picture; C → `#1B5E3F`, the document's. With the document's own `background` removed and an app fallback of `#000000`, as for a remote source without a surface, A and B kept their own and C got `#000000`.
-- **Not verified:** the widget on the home screen switching its background at B's date with the app terminated. Placing the widget needs taps in the simulator, and neither the simulator panel nor computer-use access to Simulator was granted in this session. The verification build is still installed on A7B7DD73; its source is kept outside the repo.
+- **iOS, home screen:** the same verification build, installed on an iPhone 17 Pro simulator (iOS 26.4) and placed as a small widget, with the app terminated right after it wrote its timeline (built 10:09:58). The widget showed A on `#8B1E3F` at 10:10, B's picture at 10:12 and C on the timeline's `#1B5E3F` at 10:14 — each switch at its entry's date, with only the widget extension running.
 - **Android:** built only, not run. An emulator (emulator-5554) was running, but it may belong to another session, and drawing a widget needs one placed on the launcher.
