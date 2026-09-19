@@ -11,7 +11,7 @@ namespace Plugin.Maui.Spine.Presentation;
 /// Reference it via <see cref="SpineHostPage.RootNavigationRegion"/> or
 /// <see cref="SpineHostPage.SheetNavigationRegion"/> when you need to inspect the current state.
 /// </summary>
-public sealed class NavigationRegion : ContentView
+public sealed partial class NavigationRegion : ContentView
 {
     private readonly HeaderBar _frameActionView;
     private readonly ContentView _contentHostFront;
@@ -119,6 +119,8 @@ public sealed class NavigationRegion : ContentView
         pointerGesture.PointerPressed += OnPointerPressed;
         pointerGesture.PointerReleased += OnPointerReleased;
         _contentHostFront.GestureRecognizers.Add(pointerGesture);
+
+        RestrictBackSwipeOnPlatform();
 
         UpdateContainerMargin();
 
@@ -283,6 +285,12 @@ public sealed class NavigationRegion : ContentView
     }
 
     private void OnPointerReleased(object? sender, PointerEventArgs e) => _dragAccepted = false;
+
+    /// <summary>
+    /// Keeps the platform's pan recognizer from claiming touches that are not a back-swipe; see
+    /// <c>NavigationRegion.Apple.cs</c>. A no-op on platforms whose pans leave child touches alone.
+    /// </summary>
+    partial void RestrictBackSwipeOnPlatform();
 
     private double GetEffectiveWidth()
     {
