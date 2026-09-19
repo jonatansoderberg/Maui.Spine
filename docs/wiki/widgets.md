@@ -21,11 +21,37 @@ The reasoning behind the design — why C# cannot run inside a WidgetKit extensi
 | Platform | Home-screen widget | Live Activity |
 |---|---|---|
 | iOS 17+ | ✅ WidgetKit extension built at compile time | ✅ Lock Screen and Dynamic Island (all regions) |
-| Mac Catalyst | ⚠️ Same mechanism, not yet verified | ⚠️ macOS 26 mirrors an iPhone activity by itself |
+| Mac Catalyst | ❌ Not built: the extension step runs for iOS only, and the services are no-ops | ⚠️ Nothing of its own; macOS 26 mirrors an iPhone activity by itself |
 | Android 5+ | ✅ `AppWidgetProvider` receivers drawn from the tree with `RemoteViews`; size- and theme-adaptive from Android 12 | ✅ Android 16+ as a **Live Update** (promoted notification); `StartAsync` returns `null` below |
 | Windows | ❌ Planned, MSIX-packaged apps only | — |
 
 On every platform without an implementation the services are still injectable and every call is a no-op; `IWidgetService.IsSupported` says which you are on.
+
+### What you can build
+
+| Surface | Where it shows | Built from |
+|---|---|---|
+| **Home-screen widget** | iOS home screen and Today view; Android launcher | A [timeline](#the-timeline) of trees, one per family or one [adaptive](#adaptive-trees) tree |
+| **Lock-screen accessory** | iOS Lock Screen: a circle, a rectangle, or the line above the clock | The same provider, with trees for the `Accessory…` families; see [Lock-screen widgets](#lock-screen-widgets) |
+| **Live Activity** | iOS Lock Screen banner and the Dynamic Island (compact, expanded, minimal); Android 16 status-bar chip and promoted notification | A [`LiveActivityLayout`](#live-activities), updated by the app or by push |
+
+What every one of them can show is the [tree vocabulary](#the-tree): stacks, text, system-drawn timers, SVG icons, stored pictures, a progress bar, and buttons that run C# without opening the app. What they cannot show — a chart, a custom font, a rotated or clipped shape — the app can still draw itself, as a picture; see [Pictures drawn by the app](#pictures-drawn-by-the-app).
+
+### Families
+
+`Families` on the `<SpineWidget>` item is what the widget offers in the gallery; `WidgetFamily` in C# is how a tree is picked for it.
+
+| Family | iOS | Android |
+|---|---|---|
+| `Small` | Home screen, a square | 2×2 cells |
+| `Medium` | Home screen, two squares wide | 4×2 cells |
+| `Large` | Home screen, four squares | 4×4 cells |
+| `ExtraLarge` | iPad only | 5×4 cells |
+| `AccessoryCircular` | Lock Screen, a small circle | Ignored |
+| `AccessoryRectangular` | Lock Screen, a two- or three-line rectangle | Ignored |
+| `AccessoryInline` | Lock Screen, one line of text beside the date above the clock | Ignored |
+
+On Android the smallest declared family is the widget's minimum size and the largest its maximum; from Android 12 the launcher picks the tree for the size the user resized to. A kind that declares **only** accessory families still appears in the Android picker, as a 2×2 widget drawing its first tree — so declare a lock-screen-only kind knowing that, or give it a home-screen tree too.
 
 ---
 
@@ -59,16 +85,18 @@ The native side is generated from MSBuild items, not from the attribute — the 
 | `Include` | The kind. Must match `[Widget("…")]` exactly; Spine logs a warning at startup for a kind with no provider. |
 | `DisplayName` | The name in the widget gallery. Defaults to the kind. |
 | `Description` | The gallery's subtitle. |
-| `Families` | `Small`, `Medium`, `Large`, `ExtraLarge`, `AccessoryCircular`, `AccessoryRectangular`, `AccessoryInline`. Defaults to `Small`. |
+| `Families` | `Small`, `Medium`, `Large`, `ExtraLarge`, `AccessoryCircular`, `AccessoryRectangular`, `AccessoryInline`, separated by commas or semicolons. Defaults to `Small`. See [Families](#families). |
 
 A WidgetKit bundle holds at most ten widgets and Spine reserves one for Live Activities, so nine `<SpineWidget>` items is the limit. Android has the same cap: the package carries nine fixed receivers and the build wires the items to them in declaration order.
 
-On iOS the items become the widget extension; on Android they become manifest entries and the picker's metadata (see [Android](#android)). The properties below are iOS-only except `SpineWidgetsLiveActivities` and `SpineWidgetsEnabled`.
+On iOS the items become the widget extension; on Android they become manifest entries and the picker's metadata (see [Android](#android)). The properties below are iOS-only except `SpineWidgetsLiveActivities`, `SpineWidgetsBackgroundRefresh` and `SpineWidgetsEnabled`.
 
 | Property | Default | Meaning |
 |---|---|---|
 | `SpineWidgetsAppGroup` | `group.$(ApplicationId)` | The App Group the app and the extension share. |
-| `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. |
+| `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. On Android: whether the manifest gets the notification permissions a Live Update needs. |
+| `SpineWidgetsFrequentUpdates` | `false` | Declares `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget of Live Activities. |
+| `SpineWidgetsBackgroundRefresh` | `true` | Adds `UIBackgroundModes: fetch` and the task identifier for [background runs](#background-runs); on Android, the alarm receiver. |
 | `SpineWidgetsMinimumOSVersion` | `17.0` | Deployment target of the extension. |
 | `SpineWidgetsExtensionName` | `SpineWidgets` | Bundle name of the appex. |
 | `SpineWidgetsCodesignProvision` | *(empty)* | Names the extension's own provisioning profile. Empty means the installed profile whose App ID matches is used. |
@@ -174,7 +202,15 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 
 Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
 
-`WidgetColor` is either one of the platform's semantic colors (`Primary`, `Secondary`, `Accent`, `Green`, `Red`, `Orange`, `Yellow`, `Blue`), which adapt to light and dark, or a fixed value from `WidgetColor.FromHex("#2E8B57")` / `WidgetColor.From(mauiColor)`. Prefer semantic colors for anything but a brand accent — a fixed color is a fixed color in dark mode too.
+`WidgetColor` is either one of the platform's semantic colors (`Primary`, `Secondary`, `Accent`, `Surface`, `OnAccent`, `Green`, `Red`, `Orange`, `Yellow`, `Blue`), which adapt to light and dark, or a fixed value from `WidgetColor.FromHex("#2E8B57")` (or `#AARRGGBB` with alpha) / `WidgetColor.From(mauiColor)`. Prefer semantic colors for anything but a brand accent — a fixed color is a fixed color in dark mode too.
+
+How the renderers lay the tree out, so a design can be planned before it is run:
+
+- **`VStack` aligns its children to the leading edge, `HStack` centers them vertically, `ZStack` centers them.** There is no alignment parameter; a `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
+- **Text roles are the platform's type ramp**: `Title` is SwiftUI's `.title2` and 22 sp on Android, `Headline` `.headline` and 16 sp, `Body` `.body` and 14 sp, `Caption` `.caption` and 12 sp. Text follows the user's text size on both platforms; there is no point size and no custom font.
+- **`W.Icon` has a fixed size**: 18 points square on iOS, 20 dp on Android, tinted with its color. For anything larger, use a picture.
+- **`W.Image` keeps its aspect ratio.** With a `height` it is scaled to that height; without one it is scaled to fit the room it is offered. See [Images](#images).
+- **The tree is the whole widget.** iOS gives it the system's content margins; Android pads it by 16 dp and centers it vertically. Nothing is drawn outside the tree except the [surface](#backgrounds-and-boxes).
 
 ### Backgrounds and boxes
 
@@ -257,6 +293,38 @@ timeline.Refresh(TimeSpan.FromMinutes(30));
 
 An entry can carry its own surface as well, switched with it; see [Backgrounds and boxes](#backgrounds-and-boxes). Pre-computing entries is nearly free; reloads are not (see below). `Refresh(after)` asks the platform to call the provider again that long after the last entry — a request, not a promise.
 
+What to know about entries:
+
+- **Start with an entry for now.** The platform shows the latest entry whose date has passed. With every entry in the future, iOS shows the first one at once and Android does the same, so a timeline that starts tomorrow shows tomorrow today.
+- **`Refresh(after)` counts from the last entry, not from now.** A timeline that runs sixty days with `Refresh(TimeSpan.FromHours(1))` asks to be rebuilt sixty days and an hour from now. What keeps a long timeline fresh is the app itself — the rebuild at launch, at background and in [background runs](#background-runs) — and the timeline is written so that the widget is right even when none of them happens.
+- **A per-family dictionary must cover every declared family.** iOS draws the family's own tree, then a shared one; a family with neither shows a dash. Android falls back to any tree it has, so the gap only shows on iOS. `W.Adaptive` inside one shared tree has no such gap: its fallback renders everywhere.
+- **An empty timeline changes nothing.** A provider that returns no entries is logged (`built an empty timeline`) and the widget keeps what it showed.
+- **Nothing in C# runs when an entry turns.** The extension on iOS and the receiver on Android draw the entry the app wrote. Anything an entry depends on — a picture, an icon — has to be in the store when the timeline is written, not when the entry is shown.
+
+#### When the provider runs
+
+The provider is C#, so it runs only in the app's process: at launch, when the app moves to the background, in a [background run](#background-runs), after a [button](#buttons) tap, on `RefreshAsync`, on Android at the `Refresh(after)` alarm, and on a [push](#reloading-by-push) that wakes the app. WidgetKit's own reloads on iOS — the budgeted ones — never reach it: they read the last document the app wrote, or fetch the [remote source](#remote-source).
+
+#### A timeline that runs for weeks
+
+Content that is known in advance — a calendar page per day, a schedule, the phases of the moon — belongs in one long timeline with an entry at each change, and the platform turns it without the app. An almanac widget writes one entry per local midnight for sixty days:
+
+```csharp
+var today = DateOnly.FromDateTime(DateTime.Now);
+var timeline = new WidgetTimeline().Background(Paper);
+
+for (var i = 0; i < 60; i++)
+{
+    var day = today.AddDays(i);
+    var midnight = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue));   // local midnight
+    timeline.Add(i == 0 ? DateTimeOffset.Now : midnight, Page(day), SurfaceFor(day));
+}
+
+return timeline.OpenUrl(_widgets.LinkFor(context.Kind));
+```
+
+`SurfaceFor` returns `null` for an ordinary day, so that entry is drawn on the timeline's surface, and a `WidgetSurface` for a holiday. Sixty days is a margin, not a requirement: every launch and every background rebuilds it from today, so in practice the widget never runs out. Leave out `Refresh(after)` — with a sixty-day timeline it would only ask for something sixty days away.
+
 ### Adaptive trees
 
 A timeline can hold one tree per family, but often only a line or two differs. `W.Adaptive` puts that difference inside one tree: the fallback renders everywhere, a family with its own entry renders that instead. The sample's widget is a single tree where the medium size adds a subtitle and the build time:
@@ -278,7 +346,7 @@ await _widgets.RefreshAsync("next-start");       // by kind
 await _widgets.RefreshAllAsync();                // all of them
 ```
 
-Every widget is also rebuilt automatically when the app moves to the background, so the home screen shows the state the user just left. Turn that off with `UseSpineWidgets(o => o.RefreshOnBackground = false)`. On Android `Refresh(after)` is honoured by the app itself: an alarm wakes the widget receiver, which runs the provider in the background without any UI.
+Every widget is also rebuilt automatically when the app launches and when it moves to the background, so the home screen shows the state the user just left. Turn that off with `UseSpineWidgets(o => o.RefreshOnBackground = false)`. On Android `Refresh(after)` is honoured by the app itself: an alarm wakes the widget receiver, which runs the provider in the background without any UI.
 
 ### Background runs
 
@@ -314,7 +382,7 @@ Three things to know before relying on it:
 - **Let the fallback say so.** The entries the app built are shown whenever the fetch fails — a server that is down, a timeout after 15 seconds, an answer that is not a timeline document — and a fallback that looks like the real thing reads as a widget that works. The failure is logged: `[SpineWidgets] remote source for <kind> failed` in the device log on iOS, `SpineWidgets` in logcat on Android.
 - **The platform does the fetching, not the app.** On iOS that is the widget extension, which on a physical device must reach the server over the network — `localhost` is the phone itself. On Android it is a receiver in the app's own process, so an emulator or a phone on a cable reaches a server on your machine through `adb reverse`.
 
-`samples/MauiSpinePushNotificationsSampleApp` has a widget that does exactly this: `remote` fetches from the sample server's `/widget/remote`, which answers "Från servern" and its own clock, and falls back to "Från appen" when the server is not running.
+`samples/MauiSpinePushNotificationsSampleApp` has a widget that does exactly this: `remote` fetches from the sample server's `/widget/remote`, which answers "Från servern" and its own clock, and falls back to "From the app" when the server is not running.
 
 ### Reloading by push
 
@@ -391,6 +459,91 @@ W.Image("arena", height: 64)
 
 Keep them small. The extension is killed at roughly 30 MB.
 
+How the store behaves:
+
+- **The id is a file name.** The bytes are written as they are to `spine-widgets/assets/<assetId>` — in the App Group container on iOS, under the app's files on Android — and the same id overwrites the file. PNG and JPEG both decode; the parameter's name notwithstanding, nothing checks the format.
+- **Nothing is ever deleted.** There is no call to remove an asset, so an id per day or per photo grows the container for as long as the app is installed. Use a **fixed set of ids** instead; see [rotating slots](#rotating-slots).
+- **Store before you write the timeline.** A tree or a surface that names an id that is not stored yet draws nothing there (a picture), or its color or gradient (a surface), until a later rebuild.
+- **Overwriting an id changes every entry that uses it.** An entry shown next week reads the file next week. Give pictures that differ per entry ids that differ per entry.
+- **`W.Image` is drawn at its aspect ratio.** On iOS a picture is resizable and scaled to fit, to `height` points when one is given; on Android `height` scales the bitmap in dp, and without one it is drawn at its own pixel size. A surface picture (`BackgroundImage`, `WidgetSurface`) fills the widget and is cropped at the edges.
+- **Size them for the widget, not for the screen.** Render at the widget's size in points times the display scale (3× on current iPhones): a small widget is 155–170 points square depending on the iPhone, so about 510 × 510 pixels covers them all. A decoded picture costs width × height × 4 bytes of the extension's 30 MB, whatever the file size. Android scales a surface picture to at most 1024 pixels on its long side, and a launcher refuses an update whose bitmaps are larger than about one and a half screens.
+
+#### Rotating slots
+
+A widget that shows a different picture per entry — a page per day, a cover per episode — needs as many pictures stored as the timeline has entries, and because assets are never deleted the ids have to repeat. Number the slots by something that moves with the entry and wrap it:
+
+```csharp
+private const int Slots = 64;                                        // more than the timeline's 60 days
+
+static string LeafAsset(DateOnly day) => $"leaf-{day.DayNumber % Slots}.png";
+
+foreach (var day in days)                                            // today and the next 59
+{
+    using var png = LeafPainter.Draw(day);                           // a Stream
+    await _widgets.StoreAssetAsync(LeafAsset(day), png, cancellationToken);
+}
+// …then the timeline, whose entry for `day` shows W.Image(LeafAsset(day))
+```
+
+With more slots than entries, the sixty days in the timeline map to sixty different slots, and the day that a rebuild adds takes the slot of one that has already passed — so no entry the platform may still show is overwritten under it. The container holds 64 pictures for good, never more. The same arithmetic works for any key that increases: a week number, an episode index.
+
+Rendering sixty pictures takes time. Skip a slot whose file is already current (keep the day it was drawn for in `Preferences`), and the daily rebuild draws one picture instead of sixty.
+
+### Pictures drawn by the app
+
+The tree vocabulary is small on purpose: every node has to mean the same thing to SwiftUI and to `RemoteViews`. A design that needs more — a typeface of its own, text set at an exact size, a shape, a shadow, a chart, a page that looks like paper — is drawn by the app into a PNG, stored, and shown with `W.Image` or as the surface. The app already has SkiaSharp: Spine's SVG pipeline brings it, and the icons of `W.Icon` are rasterized with it.
+
+```csharp
+static Stream DrawLeaf(DateOnly day, SKTypeface display)
+{
+    const float Points = 170;                                          // the widget's size in points
+    const int Pixels = 510;                                            // times the display scale
+
+    using var surface = SKSurface.Create(new SKImageInfo(Pixels, Pixels, SKColorType.Rgba8888, SKAlphaType.Premul));
+    var canvas = surface.Canvas;
+    canvas.Clear(SKColors.Transparent);
+    canvas.Scale(Pixels / Points);                                     // draw in points from here on
+
+    using var paper = new SKPaint { Color = SKColors.White, IsAntialias = true };
+    canvas.DrawRoundRect(new SKRect(12, 8, Points - 12, Points - 8), 10, 10, paper);
+
+    using var ink = new SKPaint { Color = new SKColor(0xFF1C1C1E), IsAntialias = true };
+    using var date = new SKFont(display, 96);
+    canvas.DrawText(day.Day.ToString(), Points / 2, 118, SKTextAlign.Center, date, ink);
+
+    using var image = surface.Snapshot();
+    return image.Encode(SKEncodedImageFormat.Png, 100).AsStream();
+}
+```
+
+- **Draw in points, render in pixels.** Scale the canvas once, then lay out in the same units as the rest of the tree; three times the points is right for current iPhones and ample for Android.
+- **Embed the typeface.** The widget cannot load a font, but the picture already contains the glyphs: load the font file from an embedded resource with `SKTypeface.FromStream` and draw with it.
+- **Leave out what the platform draws better.** Anything that must tick stays a `W.Timer` or `W.Relative` beside or over the picture — a picture is a snapshot, like computed text. Text the user may want at a larger size is better as a `W.Text`, which follows the user's text size; a picture does not.
+- **Keep the drawing code free of MAUI.** A painter that takes a date and returns a stream can run in a unit test or a console app, which is a much faster way to check a layout than placing a widget in the simulator.
+- **Mind the rendering modes on iOS.** In the Tinted and Clear home-screen appearances iOS draws a picture solid white unless it is marked `.FullColor()`; on the Lock Screen it is drawn in one tint whatever it is marked. See below.
+
+### Lock-screen widgets
+
+The three accessory families put the same provider on the iOS Lock Screen. They are small, and **iOS draws them itself, in one tint** that follows the wallpaper — the *vibrant* rendering mode. That changes how they are designed:
+
+- **Color is discarded.** Text, icons and pictures are desaturated and drawn in the system's tint; what remains is brightness and transparency. Semantic `Primary` and `Secondary` still read as full and dimmed.
+- **The surface is not drawn.** The timeline's `Background`, gradient and picture belong to the home screen; on the Lock Screen the widget sits directly on the wallpaper.
+- **Draw a picture for the Lock Screen as white on transparent.** White is drawn at full strength, transparency lets the wallpaper through, and grey is something between. Text meant to read as *cut out* of a shape is drawn with `SKBlendMode.Clear` over white, which leaves holes the wallpaper shows through:
+
+```csharp
+using var paper = new SKPaint { Color = SKColors.White, IsAntialias = true };
+canvas.DrawRoundRect(new SKRect(6, 6, 70, 70), 8, 8, paper);          // the leaf
+
+using var cut = new SKPaint { BlendMode = SKBlendMode.Clear, IsAntialias = true };
+canvas.DrawText(day.Day.ToString(), 38, 52, SKTextAlign.Center, date, cut);   // the date, as a hole
+```
+
+- **`.FullColor()` does not help here.** It keeps a picture's colors in the *accented* home-screen appearances; the Lock Screen's vibrant mode is not one of them.
+- **`AccessoryInline` is one line of text.** iOS draws it after its own date above the clock, in the system's font, and keeps only what fits a line — give it a `W.Text` (an icon before it is allowed) rather than a stack. Because the date comes first, a text that starts with a separator reads as one line: `W.Text($"· Week {week}")` shows as *Sat 19 · Week 38*.
+- **`AccessoryRectangular` holds two or three lines** of `Headline`, `Body` or `Caption` text, and `W.Timer` and `W.Relative` tick there as on the home screen.
+- **`AccessoryCircular` is about 70–76 points across.** A single value, a short timer, an icon or a picture; render a picture at about 228 pixels square.
+- **Android has no lock-screen widgets.** The families are ignored there; see [Families](#families).
+
 ---
 
 ## Live Activities
@@ -404,17 +557,19 @@ A Live Activity is the same tree vocabulary in eight named regions. Unlike a wid
 <p align="center"><sub>The sample's Live Activity on the lock screen and, compact, in the Dynamic Island</sub></p>
 
 ```csharp
-var activity = await _liveActivities.StartAsync("din-start", new LiveActivityLayout
+var layout = new LiveActivityLayout
 {
     LockScreen       = W.HStack(8, W.Icon("figure.run"), W.Text(race.Name).Headline().Bold(), W.Spacer(), W.Timer(start).Title()),
     ExpandedLeading  = W.Icon("figure.run"),
     ExpandedTrailing = W.Timer(start).Headline(),
     ExpandedCenter   = W.Text(race.Name).Headline().Bold(),
-    ExpandedBottom   = W.Text($"Din start {start:HH:mm} · {race.Place}").Caption().Secondary(),
+    ExpandedBottom   = W.Text($"Your start {start:HH:mm} · {race.Place}").Caption().Secondary(),
     CompactLeading   = W.Icon("figure.run"),
-    CompactTrailing  = W.Timer(start).Caption(),
+    CompactTrailing  = W.Text($"{start:HH:mm}").Caption(),   // a clock here stretches the island; see below
     Minimal          = W.Icon("figure.run"),
-}, staleAt: race.LastFinish);
+};
+
+var activity = await _liveActivities.StartAsync($"start:{race.Id}", layout, staleAt: race.LastFinish);
 
 await activity!.UpdateAsync(layout with { ExpandedCenter = W.Text("Finished").Headline() });
 await activity.EndAsync();
@@ -423,18 +578,44 @@ await activity.EndAsync();
 - `StartAsync` returns `null` when the platform refused — activities turned off in Settings, or the app not in the foreground. **iOS only starts an activity while the app is in the foreground**, so it belongs behind a button the user pressed, never in a page's build. On Android the same call asks for the notification permission the first time, which is another reason to keep it behind a button.
 - `AreActivitiesEnabled` says whether the user allows them at all; hide the button when they do not. On Android it means "Android 16 or later" — the notification permission cannot be told apart from "not asked yet", so `StartAsync` asks.
 - `Background` colors the Lock Screen presentation instead of the default translucent black; see [Backgrounds and boxes](#backgrounds-and-boxes). An update replaces the whole layout, so a server that updates the activity sets it too.
-- `Active` lists the activities this app has running, **including any it started before it was last killed** — an activity outlives the process. Ask it rather than holding a handle in a view model. The `kind` is how you tell them apart — put whatever identifies the subject in it (`$"din-start:{competitionId}"`).
+- `Active` lists the activities this app has running, **including any it started before it was last killed** — an activity outlives the process. Ask it rather than holding a handle in a view model. The `kind` is how you tell them apart — put whatever identifies the subject in it (`$"start:{competitionId}"`).
 - `ActivitiesChanged` fires when `Active` changed, whoever changed it: the app, or the platform — the user swiped the activity off the Lock Screen, a push ended it, it aged past its stale date. The platform reports while the app runs, and at the next launch or foreground for anything that happened while it did not — Spine remembers which activities it knew about, so one that ended in between is noticed as missing; a handle you kept has `IsEnded` set by then. It is raised on the platform's thread, so dispatch before touching UI. A swipe on the **Dynamic Island** is not an end: it hides the island presentation, the activity stays on the Lock Screen and stays `.active`, and ActivityKit tells the app nothing — so `Active` still lists it, correctly.
 - `ActivityEnded` says *which* one ended, for every end the app did not make itself — a swipe, a push, the stale date, or an end while the app was not running. `ActivitiesChanged` fires as well; the app's own `EndAsync` raises only that, since the caller already knows. To hear about the ones that ended while the app was not running, subscribe right after `builder.Build()` in `MauiProgram`: they are reported as the app launches, before any page exists.
 - `staleAt` is when the content should be presented as out of date if no update arrived; the renderer dims it.
 - An activity lives at most **8 hours**, then iOS ends it. Android has no such limit, but keeps one activity per kind: starting a second one with the same kind replaces the first.
+
+### Regions
+
+| Region | Shown | Room | Put there |
+|---|---|---|---|
+| `LockScreen` | The Lock Screen banner; also the notification-style banner on an iPhone without a Dynamic Island, and the Android notification | Full width, a few lines; padded by Spine | The whole story: what, where, and a `W.Timer` or `W.Relative` |
+| `ExpandedLeading` / `ExpandedTrailing` | The Dynamic Island when the user long-presses it, either side of the camera | Narrow columns | An icon or a picture; the value that matters, a timer |
+| `ExpandedCenter` | Below the camera, between the two | One line | The title |
+| `ExpandedBottom` | Under all three, full width | A few lines | Details, a `W.Progress` |
+| `CompactLeading` / `CompactTrailing` | Either side of the camera while the activity runs | About 44 points each | An icon; one short `W.Text` — not a clock (see [below](#why-a-dynamic-island-holding-one-clock-can-still-span-the-screen)) |
+| `Minimal` | A small circle when another app's activity also runs | One glyph | An icon |
+
+A region left `null` is empty. The Dynamic Island is always black, so fixed colors there are drawn on black whatever the appearance; the Lock Screen is drawn on `Background`, on the system material with `SystemBackground`, or on Spine's translucent black. A `W.Adaptive` node renders its fallback in every region.
+
+### Lifecycle
+
+1. **Start** — `StartAsync(kind, layout, staleAt, channel)` from a user's action while the app is in the foreground (iOS), or by a [push-to-start](#updating-by-push) from a server. The first start on Android asks for the notification permission.
+2. **Update** — `activity.UpdateAsync(layout, staleAt)` from the app, as often as it likes while it runs; from the background or a server, by [push](#updating-by-push). Every update replaces the whole layout, so build it from one method rather than patching regions.
+3. **Go stale** — past `staleAt` with no newer update the platform still shows the activity, drawn at half opacity on iOS, so an out-of-date value never looks current.
+4. **End** — `activity.EndAsync()` or `EndAllAsync()` removes it at once. iOS ends it by itself after eight hours; the user can swipe it off the Lock Screen; a push can end it. The app hears about every end it did not make itself through `ActivityEnded`.
+
+An activity outlives the process that started it, so the app's view of it is `Active`, not a field: after a relaunch the handle is new, but the activity is the same one.
+
+### Buttons in a Live Activity
+
+`W.Button` renders in a Live Activity on iOS and runs the same intent as in a widget, but the tap is delivered by **kind**: it reaches the `IWidgetActionHandler` of the `[Widget]` provider whose kind equals the activity's, and that widget is rebuilt afterwards. An activity whose kind is not a widget kind — `$"delivery:{id}"` — has nowhere to send the tap; it is logged as *no provider is registered* and dropped. Android's Live Update template has no buttons, so they are left out there. Keep an activity's controls to its tap, which opens the app through `Link`, unless the kind is a widget's.
 
 ### Updating by push
 
 An activity can be updated — and, on iOS 17.2+, started — by a server through APNs. Turn tokens on with `UseSpineWidgets(o => o.LiveActivityPushTokens = true)`; it needs the push notification entitlement. Every activity then has a token, and there is a push-to-start token for the app as a whole:
 
 ```csharp
-var activity = await _liveActivities.StartAsync("din-start", layout);
+var activity = await _liveActivities.StartAsync($"start:{race.Id}", layout);
 await _backend.RegisterAsync(await activity!.GetPushTokenAsync());
 await _backend.RegisterStartTokenAsync(await _liveActivities.GetPushToStartTokenAsync());
 ```
@@ -590,7 +771,102 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 - `W.Spacer` only stretches inside a stack that is wider than its content; stacks are full-width, so the usual `HStack(text, Spacer(), timer)` works, a spacer in a nested vertical stack does not.
 - No custom fonts and no `ZStack` alignment beyond centered: `RemoteViews` cannot set a typeface.
 - `.CornerRadius` needs Android 12; below it a stack's background is square, and so is a widget's own `Background` — `RemoteViews` can neither clip nor tint there.
+- Stack spacing needs Android 12; below it children sit edge to edge.
 - Nine widget kinds, as on iOS.
+
+---
+
+## Example: a tear-off calendar
+
+An almanac app built on Spine shows today's page of a tear-off calendar — weekday, date, month, week number, name days, holidays — on the home screen and the Lock Screen, and turns the page at midnight with the app closed. It puts most of this page together:
+
+| Piece | How |
+|---|---|
+| **The page** | Drawn with Skia by the same painter the app uses for its own page — its display typeface, the date at an exact size, rings at the top — because no `W.Text` can look like print. Rendered at the widget's proportions, stored with `StoreAssetAsync`, shown with `W.Image` in `Small`. |
+| **Sixty days ahead** | One entry per local midnight, sixty of them, the first dated now. The platform turns the page; the app rebuilds the whole timeline at every launch and background. No `Refresh(after)`. See [A timeline that runs for weeks](#a-timeline-that-runs-for-weeks). |
+| **64 slots** | Pictures are stored as `leaf-{day.DayNumber % 64}.png`. Sixty entries in sixty distinct slots, the container never holds more than 64 pictures, and a rebuild only overwrites slots of days already gone. See [Rotating slots](#rotating-slots). |
+| **A theme per day** | Every entry carries `new WidgetSurface(sky, ThemeAsset(theme))` — a picture for the month, or for Midsummer, Lucia or Christmas — so the background changes at midnight with the page. The theme pictures are a fixed set, stored once. See [Backgrounds and boxes](#backgrounds-and-boxes). |
+| **Lock Screen, circular** | A small white page with the date **cut out** of it (`SKBlendMode.Clear`), so the wallpaper shows through the digits in the Lock Screen's tint. See [Lock-screen widgets](#lock-screen-widgets). |
+| **Lock Screen, rectangular and inline** | Plain `W.Text` in semantic colors. The inline text starts with `"· "` because iOS prints its own date before it. |
+| **A second kind** | The same page on a quiet gradient instead of the season's picture, for users who want less color — a second `<SpineWidget>` item and a second `[Widget]` class sharing the painter and the timeline code. |
+
+Nothing in it needs the app to run at midnight, and nothing in it needs a server.
+
+---
+
+## Best practice
+
+**Design for the snapshot, not for the app.**
+
+- Write everything the widget will need up front: every entry with its date, every picture stored, every surface named. The widget runs without the app; assume the app will not run again for days.
+- Anything that counts is a `W.Timer` or `W.Relative`. Computed text such as `"in 12 min"` stands still until the next rebuild.
+- Put known changes in the timeline, not in reloads. Entries are free; reloads are budgeted at 40–70 a day on iOS. See [Update budgets](#update-budgets).
+- Start the timeline with an entry for now, and for per-family trees give every declared family a tree — or use one tree with `W.Adaptive`.
+
+**Keep the tree small and the pictures few.**
+
+- Prefer the vocabulary where it is enough: text follows the user's text size and the platform's typography, which a picture cannot.
+- Draw a picture when the design needs it, at the widget's size in points × 3, and keep the drawing code free of MAUI so it can be tested outside the simulator.
+- Never give assets an id per day or per item — they are never deleted. Use a fixed set of [rotating slots](#rotating-slots), more than the timeline has entries.
+- Store pictures before writing the timeline that names them.
+
+**Respect the user's appearance.**
+
+- Use semantic colors (`Primary`, `Secondary`, `Accent`, `Surface`, `OnAccent`) unless the surface is fixed; on a fixed surface, give every text a fixed color.
+- Expect Tinted and Clear on iOS: everything is drawn white there. Mark a picture `.FullColor()` only when its colors carry meaning, such as a logo or a photo.
+- Design Lock Screen pictures as white and alpha, and let the wallpaper through the holes.
+
+**Live Activities are a glance, not an alarm.**
+
+- Start one only from a user's action, and hide the button when `AreActivitiesEnabled` is false.
+- Put the subject in the kind (`$"delivery:{id}"`) and ask `Active` rather than keeping a handle.
+- Put clocks on the Lock Screen and in the expanded island; give the compact and minimal regions a plain text or an icon.
+- Always set `staleAt`, a little past the next expected update.
+- Subscribe to `ActivityEnded` right after `builder.Build()` if a server needs to know an activity is gone.
+- Anything the user must not miss is a notification, not an activity.
+
+**Make failures visible.**
+
+- A placeholder that looks like real data reads as a widget that works. Let a [remote source](#remote-source)'s fallback say it is a fallback, and show the age of data with `W.Relative`.
+- Read the log: Spine names a kind without a provider, an empty timeline, a refused start, a remote fetch that failed, and a tap with nowhere to go.
+
+---
+
+## Limits
+
+What Spine widgets cannot do, and what to do instead.
+
+| Not possible | Why | Instead |
+|---|---|---|
+| Run C# when an entry turns, or when WidgetKit reloads | There is no .NET in the extension; iOS kills it at ~30 MB | Pre-compute entries; a [remote source](#remote-source) for content that changes while the app sleeps |
+| Update a widget more often than the platform allows | iOS budgets reloads at roughly 40–70 a day; Android's alarms are inexact | `W.Timer` / `W.Relative` for time; entries for known changes; a Live Activity for live values |
+| Delete a stored asset | No API for it | [Rotating slots](#rotating-slots) |
+| Custom fonts, exact text sizes, shapes, shadows, charts | The vocabulary has to mean the same on SwiftUI and `RemoteViews` | [Pictures drawn by the app](#pictures-drawn-by-the-app) |
+| Alignment, fixed widths or heights on stacks | Not in the vocabulary | `W.Spacer()`, nested stacks, a `height` on `W.Image`, a picture |
+| More than nine widget kinds | WidgetKit holds ten per bundle and one is the Live Activity; Android carries nine receivers | One kind with several families, or `W.Adaptive` |
+| A configurable widget (the user picks a city, an account) | Spine's widgets are static configurations; there are no App Intent parameters | Separate kinds, or a setting in the app the provider reads |
+| A transparent widget on iOS | iOS draws its own opaque background under a clear one | Only on Android; on iOS the user's Clear appearance |
+| Colors on the Lock Screen | iOS draws accessories in one tint | White and alpha |
+| Lock-screen widgets on Android | Android has none | — |
+| A button in a Live Activity whose kind is not a widget's | Taps are routed by kind to a `[Widget]` provider | Open the app with `Link` |
+| Start a Live Activity from the background on iOS | ActivityKit starts one only in the foreground | Push-to-start from a server |
+| Keep a Live Activity longer than eight hours on iOS | The system ends it | Start a new one; see [Keeping one on screen around the clock](#keeping-one-on-screen-around-the-clock) |
+| Color a Live Update on Android | Android does not promote a colorized notification | Leave `Background` to iOS |
+| Widgets on Mac Catalyst and Windows | Not implemented | The services are no-ops there; check `IsSupported` |
+
+---
+
+## Testing
+
+- **Launch the app once after installing.** It writes the first timeline and, on iOS, registers the extension; a widget placed before that shows a dash until the app has run.
+- **Widget gallery (iOS simulator).** Long-press the home screen → *Edit* → *Add Widget*, search for the app, and swipe through the families. While the gallery is open the Dynamic Island shows a running activity's compact presentation.
+- **Lock-screen widgets (iOS simulator).** After *Lock* the simulated iPhone may sit in always-on and ignore touches: press *Home* to wake it, then long-press the wallpaper → *Customize*. Circular and rectangular go in the widget box below the clock; the inline one by tapping the date line. The dark square behind a widget while the gallery is open is the selection highlight, not the widget's background. After installing a new build, lock and wake to see the new timeline.
+- **Timeline turns.** Write a test build whose entries are two minutes apart, terminate the app, and watch the widget change with only the extension running.
+- **Live Activity on the Lock Screen.** Start it from the app, lock, and wait a few seconds. A **slow** swipe to the left on the activity dismisses it; a quick one unlocks the phone instead. The bridge logs every dismissal and end: `xcrun simctl spawn booted log show --last 3m --predicate 'eventMessage CONTAINS "SpineWidgetBridge"'`. The extension logs under `[SpineWidgets]`.
+- **Pushes in the simulator.** `xcrun simctl push` hands the payload straight to SpringBoard: it never runs a notification service extension, so anything a service extension adds — an image, a mutated body — appears only with a real APNs push, which the simulator on Apple silicon can receive.
+- **Background runs** cannot be exercised in the simulator. On a device, pause in the debugger and run the `_simulateLaunchForTaskWithIdentifier:` command in [Background runs](#background-runs).
+- **Android.** Place the widget from the launcher's widget picker; logcat's `SpineWidgets` tag has the receiver's messages. An emulator reaches a server on your machine through `adb reverse`.
+- **Pictures.** Render the painter from a unit test or a console app and look at the PNG before building for a device.
 
 ---
 
@@ -601,6 +877,11 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 | The widget is not in the gallery | The kind has no `<SpineWidget>` item, or the app was never launched after install. |
 | The widget renders but a node is missing | A tree the renderer does not understand, or an icon name with no matching SVG (and, on iOS, no SF Symbol of that name). |
 | The widget shows only "—" (Android) | It was placed before the app ever built it; the receiver has asked the provider, and the next launch or background pass fills it. |
+| The widget shows only "—" in one family (iOS) | The entry's per-family dictionary has no tree for that family, and there is no shared tree. Add one, or build a single tree with `W.Adaptive`. |
+| A picture is missing | Its id was not stored, or was stored after the timeline was written; the id is a file name and must match exactly, extension included. |
+| An icon inside a `W.Button` or a `W.Adaptive` is missing (Android) or shows an SF Symbol (iOS) | Icons are rasterized from the stacks of the tree, and a button's child or an adaptive node's subtrees are not searched. Until that is fixed, such an icon shows only once the same name has been used directly in a stack of some widget or Live Activity, since a rasterized icon stays stored; otherwise put a text or a stored picture in the button. |
+| An earlier entry's picture changed | A later rebuild stored a different picture under the same id. Give entries that differ ids that differ; see [rotating slots](#rotating-slots). |
+| A Lock Screen widget loses its colors | iOS draws accessories in one tint; see [Lock-screen widgets](#lock-screen-widgets). |
 | The countdown stands still | Text the app computed instead of a `W.Timer` node. |
 | A button changes the widget only after the app is opened (iOS) | The intent ran in the extension: the app bundle has no `Metadata.appintents` in its root, or the one there is stale. The build writes it from the bridge framework; `rm -rf obj/spinewidgets` and build again, and check the `.app` root. |
 | `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. On Android: the notification permission was denied, or the device is older than Android 16. |
