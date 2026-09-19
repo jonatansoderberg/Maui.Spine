@@ -139,7 +139,6 @@ public sealed class NextEventWidget(…) : IWidgetProvider, IWidgetActionHandler
 
 - The handler runs in the app's process, which iOS and Android launch in the background when it is not running. Use `action.At` (the tap's time), not `DateTimeOffset.Now`. Keep it short: iOS gives the tap 30 seconds, launch included.
 - `.OpenUrl(_widgets.LinkFor(kind))` makes a tap on the widget open the app; add query values to carry what to open.
-- An icon placed only inside a `W.Button` child or a `W.Adaptive` is not rasterized (a known gap) — on Android it is left out.
 
 ## 6. Live Activities
 

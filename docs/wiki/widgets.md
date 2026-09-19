@@ -879,7 +879,6 @@ What Spine widgets cannot do, and what to do instead.
 | The widget shows only "—" (Android) | It was placed before the app ever built it; the receiver has asked the provider, and the next launch or background pass fills it. |
 | The widget shows only "—" in one family (iOS) | The entry's per-family dictionary has no tree for that family, and there is no shared tree. Add one, or build a single tree with `W.Adaptive`. |
 | A picture is missing | Its id was not stored, or was stored after the timeline was written; the id is a file name and must match exactly, extension included. |
-| An icon inside a `W.Button` or a `W.Adaptive` is missing (Android) or shows an SF Symbol (iOS) | Icons are rasterized from the stacks of the tree, and a button's child or an adaptive node's subtrees are not searched. Until that is fixed, such an icon shows only once the same name has been used directly in a stack of some widget or Live Activity, since a rasterized icon stays stored; otherwise put a text or a stored picture in the button. |
 | An earlier entry's picture changed | A later rebuild stored a different picture under the same id. Give entries that differ ids that differ; see [rotating slots](#rotating-slots). |
 | A Lock Screen widget loses its colors | iOS draws accessories in one tint; see [Lock-screen widgets](#lock-screen-widgets). |
 | The countdown stands still | Text the app computed instead of a `W.Timer` node. |
