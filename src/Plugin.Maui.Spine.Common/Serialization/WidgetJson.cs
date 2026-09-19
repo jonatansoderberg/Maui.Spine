@@ -1,5 +1,7 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Plugin.Maui.Spine.Common.Serialization;
 
@@ -44,6 +46,16 @@ public static class WidgetJson
     /// <summary>The key a tree is filed under when it serves every widget family.</summary>
     public const string DefaultFamilyKey = "default";
 
+    /// <summary>
+    /// The context's options with relaxed escaping: å stays UTF-8 and a quote is <c>\"</c>. A layout
+    /// travels inside a 4 KB APNs payload, where the default encoder's <c>\u00E5</c> is escaped once
+    /// more; the renderers read either.
+    /// </summary>
+    private static readonly JsonSerializerOptions Written = new(WidgetJsonContext.Default.Options)
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     /// <summary>The timeline as the renderer's JSON, entries ordered by date.</summary>
     public static string Serialize(WidgetTimeline timeline)
     {
@@ -56,12 +68,12 @@ public static class WidgetJson
             .ToList();
 
         var document = new WidgetTimelineDocument(timeline.Link?.ToString(), timeline.Remote?.ToString(), timeline.RefreshAfter?.TotalSeconds, timeline.BackgroundColor, timeline.BackgroundGradient, timeline.BackgroundAsset, entries);
-        return JsonSerializer.Serialize(document, WidgetJsonContext.Default.WidgetTimelineDocument);
+        return JsonSerializer.Serialize(document, (JsonTypeInfo<WidgetTimelineDocument>)Written.GetTypeInfo(typeof(WidgetTimelineDocument)));
     }
 
     /// <summary>The layout as the renderer's JSON — the <c>content-state</c> of a Live Activity push.</summary>
     public static string Serialize(LiveActivityLayout layout) =>
-        JsonSerializer.Serialize(layout, WidgetJsonContext.Default.LiveActivityLayout);
+        JsonSerializer.Serialize(layout, (JsonTypeInfo<LiveActivityLayout>)Written.GetTypeInfo(typeof(LiveActivityLayout)));
 
     // Family keys are the JSON names of WidgetFamily; the Swift side switches on the same strings.
     /// <summary>

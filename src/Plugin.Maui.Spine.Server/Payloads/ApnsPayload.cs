@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace Plugin.Maui.Spine.Server;
@@ -56,7 +57,11 @@ public sealed class ApnsPayload
     public string ToJson()
     {
         var buffer = new System.IO.MemoryStream();
-        using (var w = new Utf8JsonWriter(buffer))
+
+        // Relaxed escaping: the Live Activity layout is a JSON string inside this JSON, and the default
+        // encoder writes each of its quotes as \u0022 and each å as \u00E5 — six bytes where two do,
+        // which roughly doubled a layout against APNs' 4 KB limit. APNs takes any valid JSON.
+        using (var w = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
             w.WriteStartObject();
             w.WriteStartObject("aps");
