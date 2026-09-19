@@ -108,6 +108,13 @@ public abstract record TextLikeNode : WidgetNode
     [JsonPropertyName("color")]
     public WidgetColor? Color { get => Style.Color; init => Style = Style with { Color = value }; }
 
+    /// <summary>
+    /// Centres the lines of the text on each other, and a timer's or relative date's text in the width
+    /// it takes; see <see cref="WidgetNodeStyling.Centered{T}"/>.
+    /// </summary>
+    [JsonPropertyName("centered")]
+    public bool? IsCentered { get; init; }
+
     /// <summary>Returns a copy of this node with <paramref name="style"/> applied.</summary>
     public abstract TextLikeNode WithStyle(TextStyle style);
 }
@@ -128,6 +135,9 @@ public sealed record TextNode(string Text) : TextLikeNode
 /// <param name="Until">The moment the countdown reaches zero.</param>
 public sealed record TimerNode(DateTimeOffset Until) : TextLikeNode
 {
+    /// <summary>Text drawn in front of the time as part of the same text: <c>"Nedsläpp om "</c>.</summary>
+    public string? Prefix { get; init; }
+
     /// <inheritdoc />
     public override TextLikeNode WithStyle(TextStyle style) => this with { Style = style };
 }
@@ -145,6 +155,9 @@ public sealed record RelativeDateNode(DateTimeOffset Date) : TextLikeNode
     /// its widest region and the other one is left with a gap.
     /// </summary>
     public bool? Compact { get; init; }
+
+    /// <summary>Text drawn in front of the time as part of the same text: <c>"Uppdaterad "</c>.</summary>
+    public string? Prefix { get; init; }
 
     /// <inheritdoc />
     public override TextLikeNode WithStyle(TextStyle style) => this with { Style = style };

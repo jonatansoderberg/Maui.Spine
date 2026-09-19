@@ -191,8 +191,8 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 |---|---|
 | `W.VStack` / `W.HStack` / `W.ZStack` | Stacks, with optional spacing in points |
 | `W.Text(string)` | A run of text |
-| `W.Timer(until)` | A countdown the **system** redraws every second |
-| `W.Relative(date)` | Relative text ("3 min ago"), also system-drawn |
+| `W.Timer(until, prefix)` | A countdown the **system** redraws every second, with optional text in front of it |
+| `W.Relative(date, compact, prefix)` | Relative text ("3 min ago"), also system-drawn |
 | `W.Icon(name, color)` | A monochrome SVG named after the symbol, tinted with the color (see [Icons](#icons)); an SF Symbol of that name is the fallback on iOS |
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
@@ -200,7 +200,9 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Button(actionId, child)` | A tappable child that sends `actionId` to the provider (see [Buttons](#buttons)) |
 | `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
 
-Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
+Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
+
+**A system-drawn time takes all the width it is offered**, and draws its digits from the leading edge, so spacers either side cannot centre it and a label beside it cannot be centred with it. `W.Timer(start, prefix: "Face-off in ")` makes the label and the digits one text, and `.Centered()` centres it in the width it takes. `.Centered()` is alignment only — it claims no width — so a centred node in a Dynamic Island's centre region does not squeeze the regions beside it.
 
 `WidgetColor` is either one of the platform's semantic colors (`Primary`, `Secondary`, `Accent`, `Surface`, `OnAccent`, `Green`, `Red`, `Orange`, `Yellow`, `Blue`), which adapt to light and dark, or a fixed value from `WidgetColor.FromHex("#2E8B57")` (or `#AARRGGBB` with alpha) / `WidgetColor.From(mauiColor)`. Prefer semantic colors for anything but a brand accent — a fixed color is a fixed color in dark mode too.
 
@@ -589,7 +591,7 @@ await activity.EndAsync();
 | Region | Shown | Room | Put there |
 |---|---|---|---|
 | `LockScreen` | The Lock Screen banner; also the notification-style banner on an iPhone without a Dynamic Island, and the Android notification | Full width, a few lines; padded by Spine | The whole story: what, where, and a `W.Timer` or `W.Relative` |
-| `ExpandedLeading` / `ExpandedTrailing` | The Dynamic Island when the user long-presses it, either side of the camera | Narrow columns | An icon or a picture; the value that matters, a timer |
+| `ExpandedLeading` / `ExpandedTrailing` | The Dynamic Island when the user long-presses it, either side of the camera; centred on the centre region's height | Narrow columns | An icon or a picture; the value that matters, a timer |
 | `ExpandedCenter` | Below the camera, between the two | One line | The title |
 | `ExpandedBottom` | Under all three, full width | A few lines | Details, a `W.Progress` |
 | `CompactLeading` / `CompactTrailing` | Either side of the camera while the activity runs | About 44 points each | An icon; one short `W.Text` — not a clock (see [below](#why-a-dynamic-island-holding-one-clock-can-still-span-the-screen)) |

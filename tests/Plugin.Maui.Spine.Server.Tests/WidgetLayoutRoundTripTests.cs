@@ -37,6 +37,36 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_centred_timer_keeps_its_prefix()
+    {
+        var faceOff = new DateTimeOffset(2026, 9, 19, 19, 43, 0, TimeSpan.Zero);
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.Timer(faceOff, prefix: "Nedsläpp om ").Caption().Centered(),
+            ExpandedBottom = W.Relative(faceOff, compact: true, prefix: "Uppdaterad ").Centered(),
+            ExpandedCenter = W.Text("P2 · 07:19\nSkott 12–9").Centered(),
+        };
+
+        var back = WidgetJson.DeserializeLayout(layout.ToJson())!;
+
+        var timer = Assert.IsType<TimerNode>(back.LockScreen);
+        Assert.Equal("Nedsläpp om ", timer.Prefix);
+        Assert.True(timer.IsCentered);
+        Assert.Equal(TextRole.Caption, timer.Role);
+        Assert.Equal("Uppdaterad ", Assert.IsType<RelativeDateNode>(back.ExpandedBottom).Prefix);
+        Assert.True(Assert.IsType<TextNode>(back.ExpandedCenter).IsCentered);
+    }
+
+    [Fact]
+    public void Text_that_is_not_centred_says_nothing_about_it()
+    {
+        var json = new LiveActivityLayout { LockScreen = W.Timer(DateTimeOffset.UnixEpoch) }.ToJson();
+
+        Assert.DoesNotContain("centered", json);
+        Assert.DoesNotContain("prefix", json);
+    }
+
+    [Fact]
     public void Every_region_and_node_kind_survives()
     {
         var layout = new LiveActivityLayout

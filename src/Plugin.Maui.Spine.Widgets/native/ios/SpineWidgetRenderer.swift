@@ -147,6 +147,8 @@ final class Node: Decodable {
     var height: Double?
     var value: Double?
     var compact: Bool?
+    var prefix: String?
+    var centered: Bool?
     var spacing: Double?
     var padding: Double?
     var background: String?
@@ -229,7 +231,7 @@ struct NodeView: View {
         // https://developer.apple.com/forums/thread/723316
         case "timer":
             if let end = node.until {
-                Text(timerInterval: Date.now...max(end, Date.now), countsDown: true)
+                prefixed(node, Text(timerInterval: Date.now...max(end, Date.now), countsDown: true))
                     .monospacedDigit()
                     .modifier(TextStyleModifier(node: node))
             }
@@ -237,7 +239,7 @@ struct NodeView: View {
             if let date = node.date {
                 // .timer is the same information as a clock — "18:35" rather than "18 min, 35 secs"
                 // — for the regions that have no room for a sentence.
-                Text(date, style: node.compact == true ? .timer : .relative)
+                prefixed(node, Text(date, style: node.compact == true ? .timer : .relative))
                     .monospacedDigit()
                     .modifier(TextStyleModifier(node: node))
             }
@@ -303,14 +305,24 @@ struct BoxModifier: ViewModifier {
     }
 }
 
+/// A self-updating time with its prefix as one Text, so centring treats them as one line: beside it in
+/// a stack, a label cannot be centred with a time that takes all the width it is offered.
+func prefixed(_ node: Node, _ time: Text) -> Text {
+    if let prefix = node.prefix { return Text(prefix) + time }
+    return time
+}
+
 struct TextStyleModifier: ViewModifier {
     let node: Node
 
+    // Alignment only, no full-width frame: a timer already takes the whole width and is centred in it,
+    // and plain text keeps its size, so a centred Dynamic Island region does not squeeze its neighbours.
     func body(content: Content) -> some View {
         content
             .font(Palette.font(node.font))
             .fontWeight(node.bold == true ? .bold : .regular)
             .foregroundStyle(Palette.color(node.color))
+            .multilineTextAlignment(node.centered == true ? .center : .leading)
     }
 }
 
@@ -563,8 +575,10 @@ struct SpineLiveActivity: Widget {
             let layout = ActivityLayout.parse(context.state.json)
             let kind = context.attributes.kind
             return DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind) }
-                DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind) }
+                // Beside a taller centre the side regions would sit at the top, level with the camera;
+                // filling their height centres them on it instead.
+                DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind).frame(maxHeight: .infinity) }
+                DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind).frame(maxHeight: .infinity) }
                 DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter, kind: kind) }
                 DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom, kind: kind) }
             } compactLeading: {
