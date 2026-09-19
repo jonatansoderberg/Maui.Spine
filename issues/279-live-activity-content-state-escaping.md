@@ -6,10 +6,10 @@
 
 ## Plan
 
-Root cause: `ApnsPayload.ToJson` (src/Plugin.Maui.Spine.Server/Payloads/ApnsPayload.cs) writes the layout into `content-state.json` with `Utf8JsonWriter`'s default `JavaScriptEncoder`, which escapes every `"` as `"` and every non-ASCII character as `\uXXXX`. The layout JSON itself comes from `WidgetJson.Serialize` (Common), which uses the same default encoder, so an å in a label is already `å` there and becomes `\\u00E5` (seven bytes) in the payload.
+Root cause: `ApnsPayload.ToJson` (src/Plugin.Maui.Spine.Server/Payloads/ApnsPayload.cs) writes the layout into `content-state.json` with `Utf8JsonWriter`'s default `JavaScriptEncoder`, which escapes every `"` as `\u0022` and every non-ASCII character as `\uXXXX`. The layout JSON itself comes from `WidgetJson.Serialize` (Common), which uses the same default encoder, so an å in a label is already `\u00E5` there and becomes `\\u00E5` (seven bytes) in the payload.
 
 1. `ApnsPayload.ToJson`: write with `JavaScriptEncoder.UnsafeRelaxedJsonEscaping`. A quote in the embedded layout becomes `\"` and letters stay UTF-8. The result is still JSON, and the Swift side still decodes `content-state.json` as a string.
-2. `WidgetJson.Serialize` (layouts and timeline documents): the same encoder, so the layout carries å as UTF-8 rather than `å`. This also reaches Android, whose Live Update layout travels as the `spine.layout` data string.
+2. `WidgetJson.Serialize` (layouts and timeline documents): the same encoder, so the layout carries å as UTF-8 rather than `\u00E5`. This also reaches Android, whose Live Update layout travels as the `spine.layout` data string.
 3. `FcmMessage.ToJson`: the same encoder for consistency. It is not the wire format (FirebaseAdmin serializes the data dictionary itself), but it is what tests and logs show.
 4. Test in Plugin.Maui.Spine.Server.Tests: a realistic layout (a game's score card with Swedish names) measured as it was written before and as it is now, asserting the payload round-trips to the same layout and shrinks.
 5. docs/wiki/push-notifications-server.md, "The 4 KB ceiling is real": check the numbers and say what a quote costs now.
