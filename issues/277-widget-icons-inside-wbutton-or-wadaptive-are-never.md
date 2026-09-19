@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/277
 **Branch:** issue/277-widget-icons-inside-wbutton-or-wadaptive-are-never
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -22,7 +22,7 @@ None. Jonatan chose: the walk moves to Common as an internal helper; the docs ro
 - `WidgetIconAssets` uses it instead of its own stack-only walk.
 - Common gets `InternalsVisibleTo` for Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.Server.Tests.
 - `WidgetTreeTests` in Plugin.Maui.Spine.Server.Tests: icons inside a button, an adaptive fallback, an adaptive per-family tree and nested stacks are all found.
-- Pending: remove the Troubleshooting row from docs/wiki/widgets.md after #276 is merged.
+- Removed the Troubleshooting row about this bug from docs/wiki/widgets.md, after #276 was merged.
 
 ## Decisions
 
