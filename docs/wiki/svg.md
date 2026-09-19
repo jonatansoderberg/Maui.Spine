@@ -115,6 +115,24 @@ Referencing it is all it takes: `Plugin.Maui.Spine.Svg` loads the assembly by na
     HeightRequest="64" />
 ```
 
+The image is tinted black in the light theme and white in the dark one, which suits a monochrome
+icon.
+
+### Full-colour SVG
+
+A logo, a flag or any SVG that should keep its own colours needs both tints set to `Transparent`.
+Any colour with an alpha of 0 counts as no tint:
+
+```xml
+<Image
+    SvgImageSource.Svg="club-logo.svg"
+    SvgImageSource.LightTintColor="Transparent"
+    SvgImageSource.DarkTintColor="Transparent"
+    SvgImageSource.Padding="0"
+    WidthRequest="64"
+    HeightRequest="64" />
+```
+
 ---
 
 ## Attached properties reference
@@ -123,8 +141,8 @@ Referencing it is all it takes: `Plugin.Maui.Spine.Svg` loads the assembly by na
 |---|---|---|---|
 | `SvgImageSource.Svg` | `string` | `null` | Short SVG filename (e.g. `"fish.svg"`) |
 | `SvgImageSource.EnableSvg` | `bool` | `false` | Must be `true` to activate SVG rendering |
-| `SvgImageSource.LightTintColor` | `Color` | `Transparent` | Tint applied in light theme |
-| `SvgImageSource.DarkTintColor` | `Color` | `Transparent` | Tint applied in dark theme |
+| `SvgImageSource.LightTintColor` | `Color` | `Black` | Tint applied in light theme; `Transparent` keeps the SVG's own colours |
+| `SvgImageSource.DarkTintColor` | `Color` | `White` | Tint applied in dark theme; `Transparent` keeps the SVG's own colours |
 | `SvgImageSource.Padding` | `Thickness` | `5` | Padding inside the rendered bitmap |
 
 Setting `Svg` or tint properties while `EnableSvg` is already `true` automatically re-renders the image.
