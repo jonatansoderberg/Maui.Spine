@@ -170,7 +170,7 @@ Reference `Plugin.Maui.Spine.Svg.Icons` for a ready-made set instead; nothing el
 <array><string>group.com.example.myapp</string></array>
 ```
 
-The extension's bundle id is `$(ApplicationId).SpineWidgets` (override with `SpineWidgetsExtensionName`); device builds need an App ID and a profile for it too, with the App Group on both. The extension is compiled with `swiftc` during the iOS build, so iOS needs macOS with Xcode; Android needs nothing extra. Simulator builds with app extensions want `-p:CodesignKey=-`.
+The extension's bundle id is `$(ApplicationId).SpineWidgets` (override with `SpineWidgetsExtensionName`); device builds need an App ID and a profile for it too, with the App Group on both. The extension is compiled with `swiftc` during the iOS build, so iOS needs macOS with Xcode; Android needs nothing extra. Simulator builds sign ad hoc: the targets set `CodesignKey=-` themselves when none is configured.
 
 ### Push notifications
 

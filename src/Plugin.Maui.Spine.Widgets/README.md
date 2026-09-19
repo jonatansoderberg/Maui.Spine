@@ -42,7 +42,7 @@ public sealed class NextStartWidget(IRaceService races, IWidgetService widgets) 
 
 On iOS the app needs an App Group entitlement shared with the extension; the package's build targets write it. The documentation covers the developer-portal steps device builds need.
 
-Platforms: iOS 17+ and Android 5+ (Live Activities on Android 16+ as Live Updates). Mac Catalyst uses the iOS mechanism. Every other platform gets no-op services and `IWidgetService.IsSupported == false`.
+Platforms: iOS 17+ (home-screen and Lock Screen widgets, Live Activities) and Android 5+ (home-screen widgets; Live Activities on Android 16+ as Live Updates). Every other platform, Mac Catalyst included, gets no-op services and `IWidgetService.IsSupported == false`.
 
 ## Documentation
 
