@@ -233,19 +233,8 @@ public sealed class SvgIcon
 
         var tintColor = theme == SvgTheme.Dark ? _options.DarkTintColor : _options.LightTintColor;
 
-        if (tintColor != Colors.Transparent)
-        {
-            using var paint = new SKPaint
-            {
-                IsAntialias = true,
-                ColorFilter = SKColorFilter.CreateBlendMode(ToSKColor(tintColor), SKBlendMode.SrcIn)
-            };
-            DrawSvgScaled(canvas, svg.Picture, size, size, paint);
-        }
-        else
-        {
-            DrawSvgScaled(canvas, svg.Picture, size, size);
-        }
+        using var paint = SvgRasterizer.TintPaint(ToSKColor(tintColor));
+        DrawSvgScaled(canvas, svg.Picture, size, size, paint);
 
         using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, _options.PngQuality);

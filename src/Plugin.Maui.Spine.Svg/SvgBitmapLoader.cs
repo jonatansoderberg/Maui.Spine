@@ -1,5 +1,4 @@
 using SkiaSharp;
-using Svg.Skia;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
@@ -43,7 +42,7 @@ public static class SvgBitmapLoader
     /// <param name="height">The target render height in pixels. Must be greater than zero.</param>
     /// <param name="tint">
     /// A colour applied as a <c>SrcIn</c> blend over the SVG, allowing the icon to be
-    /// recoloured at runtime. Pass <see cref="Colors.Transparent"/> to keep the original colours.
+    /// recoloured at runtime. A colour with no alpha, such as <see cref="Colors.Transparent"/>, keeps the original colours.
     /// </param>
     /// <param name="padding">
     /// Inset padding (in pixels) applied around the SVG within the canvas.
@@ -93,7 +92,7 @@ public static class SvgBitmapLoader
     /// <param name="height">The target render height in pixels. Must be greater than zero.</param>
     /// <param name="tint">
     /// A colour applied as a <c>SrcIn</c> blend over the SVG, allowing the icon to be
-    /// recoloured at runtime. Pass <see cref="Colors.Transparent"/> to keep the original colours.
+    /// recoloured at runtime. A colour with no alpha, such as <see cref="Colors.Transparent"/>, keeps the original colours.
     /// </param>
     /// <returns>
     /// A stream-backed <see cref="ImageSource"/>, or <see langword="null"/> if
@@ -113,65 +112,8 @@ public static class SvgBitmapLoader
                .GetManifestResourceStream(resourceName)
             ?? throw new FileNotFoundException(resourceName);
 
-        using var svg = new SKSvg();
-        svg.Load(stream);
-
-        var picture = svg.Picture!;
-        var info = new SKImageInfo((int)Math.Round(width), (int)Math.Round(height));
-
-        using var bitmap = new SKBitmap(info);
-        using var canvas = new SKCanvas(bitmap);
-
-        canvas.Clear(SKColors.Transparent);
-
-        // Safe zone inside the bitmap
-        var safeWidth = Math.Max(0f, (float)width - (float)padding.Left - (float)padding.Right);
-        var safeHeight = Math.Max(0f, (float)height - (float)padding.Top - (float)padding.Bottom);
-
-        if (safeWidth <= 0 || safeHeight <= 0)
-        {
-            using var emptyImage = SKImage.FromBitmap(bitmap);
-            using var emptyData = emptyImage.Encode(SKEncodedImageFormat.Png, 100);
-            return emptyData.ToArray();
-        }
-
-        // Compute scale to fit while keeping aspect ratio (within safe zone)
-        var scale = Math.Min(
-            safeWidth / picture.CullRect.Width,
-            safeHeight / picture.CullRect.Height);
-
-        // Compute scaled size
-        var scaledWidth = picture.CullRect.Width * scale;
-        var scaledHeight = picture.CullRect.Height * scale;
-
-        // Compute offsets to center the image within the safe zone
-        var offsetX = (float)padding.Left + (safeWidth - scaledWidth) / 2f;
-        var offsetY = (float)padding.Top + (safeHeight - scaledHeight) / 2f;
-
-        // Translate to center, then scale to fit
-        canvas.Translate(offsetX, offsetY);
-        canvas.Scale(scale);
-
-        // Normalize for non-zero cull rect origin
-        canvas.Translate(-picture.CullRect.Left, -picture.CullRect.Top);
-
-        using var paint = new SKPaint
-        {
-            IsAntialias = true,
-            ColorFilter = SKColorFilter.CreateBlendMode(
-                new SKColor(
-                    (byte)(tint.Red * 255),
-                    (byte)(tint.Green * 255),
-                    (byte)(tint.Blue * 255),
-                    (byte)(tint.Alpha * 255)),
-                SKBlendMode.SrcIn)
-        };
-
-        canvas.DrawPicture(picture, paint);
-
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-
-        return data.ToArray();
+        return SvgRasterizer.RenderPng(stream, (int)Math.Round(width), (int)Math.Round(height),
+            new SKColor((byte)(tint.Red * 255), (byte)(tint.Green * 255), (byte)(tint.Blue * 255), (byte)(tint.Alpha * 255)),
+            (float)padding.Left, (float)padding.Top, (float)padding.Right, (float)padding.Bottom);
     }
 }

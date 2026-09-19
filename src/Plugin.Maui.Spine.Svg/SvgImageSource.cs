@@ -75,7 +75,8 @@ public static class SvgImageSource
     /// <summary>
     /// Identifies the <c>LightTintColor</c> attached property.
     /// The tint colour applied when the app is using the <see cref="AppTheme.Light"/> theme.
-    /// Defaults to <see cref="Colors.Transparent"/> (no tint).
+    /// Defaults to <see cref="Colors.Black"/>, for a monochrome icon; <see cref="Colors.Transparent"/>
+    /// keeps the SVG's own colours.
     /// </summary>
     public static readonly BindableProperty LightTintColorProperty =
         BindableProperty.CreateAttached(
@@ -102,7 +103,8 @@ public static class SvgImageSource
     /// <summary>
     /// Identifies the <c>DarkTintColor</c> attached property.
     /// The tint colour applied when the app is using the <see cref="AppTheme.Dark"/> theme.
-    /// Defaults to <see cref="Colors.Transparent"/> (no tint).
+    /// Defaults to <see cref="Colors.White"/>, for a monochrome icon; <see cref="Colors.Transparent"/>
+    /// keeps the SVG's own colours.
     /// </summary>
     public static readonly BindableProperty DarkTintColorProperty =
         BindableProperty.CreateAttached(
