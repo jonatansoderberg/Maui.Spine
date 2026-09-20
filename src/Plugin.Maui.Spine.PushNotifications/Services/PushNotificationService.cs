@@ -71,6 +71,9 @@ internal sealed class PushNotificationService : IPushNotificationService
 
     private readonly TimeProvider _time;
     private readonly SemaphoreSlim _gate = new(1, 1);
+
+    private PushRegistrationResult _lastResult = PushRegistrationResult.Unchanged;
+    private DateTimeOffset? _lastAttemptAt;
     private string[] _tags = ReadTags();
 
     /// <inheritdoc />
@@ -136,8 +139,8 @@ internal sealed class PushNotificationService : IPushNotificationService
     public async Task<PushRegistrationResult> RefreshAsync(
         bool force = false, CancellationToken cancellationToken = default)
     {
-        if (options.Backend is null) return PushRegistrationResult.NoBackend;
-        if (platform.Handle is null) return PushRegistrationResult.NoToken;
+        if (options.Backend is null) return Record(PushRegistrationResult.NoBackend);
+        if (platform.Handle is null) return Record(PushRegistrationResult.NoToken);
 
         await _gate.WaitAsync(cancellationToken);
         try
@@ -147,20 +150,45 @@ internal sealed class PushNotificationService : IPushNotificationService
             var now = _time.GetUtcNow();
 
             if (!force && fingerprint == Preferences.Default.Get(FingerprintKey, "") && !NeedsConfirming(now))
-                return PushRegistrationResult.Unchanged;
+                return Record(PushRegistrationResult.Unchanged);
 
             if (!await client.UpsertAsync(installation, cancellationToken))
-                return PushRegistrationResult.Failed;
+            {
+                // Everything the backend sends stops here, and nothing on the wire says so: the sender
+                // is told its push went out, and the device is simply quiet.
+                logger.LogWarning("Spine.PushNotifications: {Backend} did not take the registration; this device gets no push until one goes through.", options.Backend);
+                return Record(PushRegistrationResult.Failed);
+            }
 
             Preferences.Default.Set(FingerprintKey, fingerprint);
             Preferences.Default.Set(SentAtKey, now.ToUnixTimeSeconds());
-            return PushRegistrationResult.Sent;
+            return Record(PushRegistrationResult.Sent);
         }
         finally
         {
             _gate.Release();
         }
     }
+
+    /// <inheritdoc />
+    public PushRegistrationStatus LastRegistration => new(_lastResult, _lastAttemptAt, LastSuccess());
+
+    /// <inheritdoc />
+    public event Action<PushRegistrationStatus>? RegistrationChanged;
+
+    private PushRegistrationResult Record(PushRegistrationResult result)
+    {
+        var before = LastRegistration;
+        _lastResult = result;
+        _lastAttemptAt = _time.GetUtcNow();
+
+        var status = LastRegistration;
+        if (status != before) RegistrationChanged?.Invoke(status);
+        return result;
+    }
+
+    private DateTimeOffset? LastSuccess() =>
+        Preferences.Default.Get(SentAtKey, 0L) is var sentAt && sentAt > 0 ? DateTimeOffset.FromUnixTimeSeconds(sentAt) : null;
 
     /// <inheritdoc />
     public async Task UnregisterAsync(CancellationToken cancellationToken = default)
