@@ -139,9 +139,9 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
 
     // The fetched document is cached beside the app's own and preferred over it while the source is set;
     // the app's entries are the fallback until the first fetch succeeds.
-    private static async Task FetchRemoteAsync(Context context, string kind, Uri url)
+    internal static async Task FetchRemoteAsync(Context context, string kind, Uri url, CancellationToken cancellationToken = default)
     {
-        var json = await Http.GetStringAsync(url);
+        var json = await Http.GetStringAsync(url, cancellationToken);
         using (var check = JsonDocument.Parse(json))
             if (!check.RootElement.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
                 throw new InvalidDataException("not a timeline document");
