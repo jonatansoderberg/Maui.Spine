@@ -46,6 +46,21 @@ internal sealed class WidgetService(
 
         await _icons.EnsureAsync(timeline.Entries.SelectMany(e => e.Trees?.Values ?? [e.Tree!]), cancellationToken);
         _platform.WriteTimeline(kind, WidgetJson.Serialize(timeline));
+
+        // What the provider just built is the fallback when the timeline has a remote source, so the
+        // fresh document has to come with it; otherwise the widget redraws the copy from last time.
+        if (timeline.Remote is { } source)
+        {
+            try
+            {
+                await _platform.FetchRemoteAsync(kind, source, cancellationToken);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                _logger.LogWarning(e, "Widget \"{Kind}\" could not read its remote source {Source}; showing what the app built.", kind, source);
+            }
+        }
+
         _platform.Reload(kind);
     }
 
