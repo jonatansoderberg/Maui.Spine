@@ -12,6 +12,12 @@ public sealed record LiveActivityLayout
     /// <summary>The Lock Screen banner, and the notification-style presentation on devices without a Dynamic Island.</summary>
     public WidgetNode? LockScreen { get; init; }
 
+    /// <summary>
+    /// What Android's Live Update should say, when the tree is not a good source for it. Left
+    /// <see langword="null"/>, the notification is derived from the tree as before.
+    /// </summary>
+    public LiveUpdateText? Android { get; init; }
+
     /// <summary>Leading region of the expanded Dynamic Island.</summary>
     public WidgetNode? ExpandedLeading { get; init; }
 
@@ -68,3 +74,14 @@ public sealed record LiveActivityLayout
     /// </summary>
     public string ToJson() => Serialization.WidgetJson.Serialize(this);
 }
+
+/// <summary>
+/// The Android Live Update's own words. A tree laid out for the Dynamic Island — three columns, a
+/// logo each side, the score between — has no line that reads well as a notification title, and no
+/// <c>W.Icon</c> to be its icon, so the app says what it wants instead.
+/// </summary>
+/// <param name="Title">The notification's title.</param>
+/// <param name="Body">Its text, under the title.</param>
+/// <param name="Chip">The short text beside the status-bar icon while the Live Update runs.</param>
+/// <param name="Icon">A stored asset drawn beside the text, as the notification's large icon.</param>
+public sealed record LiveUpdateText(string? Title = null, string? Body = null, string? Chip = null, string? Icon = null);

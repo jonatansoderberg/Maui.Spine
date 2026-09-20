@@ -767,6 +767,18 @@ A Live Activity on Android 16 is a **promoted ongoing notification**, and the la
 
 **`CompactTrailing` is the one region that pulls in opposite directions.** On iOS it sits in the Dynamic Island, where a `W.Timer` or `W.Relative` claims every point offered and stretches the island — so a plain `W.Text` is the right answer there. On Android the same region becomes the status-bar chip, and a `W.Timer` is what hands the chip to the system's chronometer; a `W.Text` freezes it at whatever the app last wrote. One tree cannot be ideal for both. Use `W.Adaptive`, or build the two layouts separately, when the region matters on both platforms.
 
+**Say what the notification should say.** `LiveActivityLayout.Android` — `Title`, `Body`, `Chip`, `Icon` — is what the Live Update shows; anything left out is derived from the tree as before. A tree built for the Dynamic Island has no line that reads well as a title (the first `Title` text is a score, the next text one team's name) and no `W.Icon` to be its icon, so it is worth saying outright:
+
+```csharp
+Android = new LiveUpdateText(
+    Title: $"{home.ShortName} {score} {away.ShortName}",
+    Body: $"{period} · Skott {homeShots}–{awayShots}",
+    Chip: score,
+    Icon: home.LogoAsset),
+```
+
+`Icon` names an asset stored with `StoreAssetAsync`, drawn as the notification's large icon — the one picture the promoted template shows.
+
 **An icon has no region of its own.** Android's promoted-ongoing template has no leading-image slot, so the notification row always shows the app icon; the tree's first `W.Icon` becomes the notification's *small icon*, and that surfaces in the status-bar chip, beside the `CompactTrailing` text. `ExpandedLeading` — a region you can draw into on iOS — therefore has no counterpart in the expanded notification. Anything that has to be legible there belongs in text.
 
 The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the manifest when `SpineWidgetsLiveActivities` is on; the first is requested at `StartAsync`, the second is granted by the user's per-app Live Updates setting.
