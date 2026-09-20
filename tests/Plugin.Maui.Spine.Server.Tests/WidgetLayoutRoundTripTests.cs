@@ -84,6 +84,24 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void What_android_should_say_survives_the_trip()
+    {
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.Text("Brynäs 2–1 Luleå"),
+            Android = new LiveUpdateText("Brynäs 2–1 Luleå", "P2 · 07:19 · Skott 12–9", "2–1", "logo-bif"),
+        };
+
+        var back = WidgetJson.DeserializeLayout(layout.ToJson())!;
+
+        Assert.Equal("Brynäs 2–1 Luleå", back.Android!.Title);
+        Assert.Equal("P2 · 07:19 · Skott 12–9", back.Android.Body);
+        Assert.Equal("2–1", back.Android.Chip);
+        Assert.Equal("logo-bif", back.Android.Icon);
+        Assert.DoesNotContain("android", new LiveActivityLayout { LockScreen = W.Text("x") }.ToJson());
+    }
+
+    [Fact]
     public void Every_region_and_node_kind_survives()
     {
         var layout = new LiveActivityLayout
