@@ -200,6 +200,10 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Button(actionId, child)` | A tappable child that sends `actionId` to the provider (see [Buttons](#buttons)) |
 | `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
 
+A stack takes `.Fill()`, which gives it an equal share of its parent's axis instead of the width of its
+content: three filled stacks in a row are three equal columns, the shape of every scoreboard, and they
+come out the same on both platforms. Spacers still centre a single node; `.Fill()` divides a row.
+
 Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
 
 **A system-drawn time takes all the width it is offered**, and draws its digits from the leading edge, so spacers either side cannot centre it and a label beside it cannot be centred with it. `W.Timer(start, prefix: "Face-off in ")` makes the label and the digits one text, and `.Centered()` centres it in the width it takes. `.Centered()` is alignment only — it claims no width — so a centred node in a Dynamic Island's centre region does not squeeze the regions beside it.

@@ -98,6 +98,14 @@ public static class WidgetNodeStyling
     public static T Bold<T>(this T node) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Bold = true });
 
     /// <summary>
+    /// Gives the stack an equal share of the space along its parent's axis, instead of the width of
+    /// its content. Three filled stacks in a row are three equal columns — a scoreboard — on both
+    /// platforms; without it a column is as wide as its content on Android, where an inline stack
+    /// wraps, and as wide as its greediest child on iOS.
+    /// </summary>
+    public static T Fill<T>(this T node) where T : StackNode => (T)(node with { Fill = true });
+
+    /// <summary>
     /// Centres the text: its lines on each other, and a timer's or relative date's text — which takes
     /// all the width it is offered — in that width. It claims no width of its own, so it cannot push a
     /// Dynamic Island's side regions away the way spacers around it would. iOS; on Android a centred
