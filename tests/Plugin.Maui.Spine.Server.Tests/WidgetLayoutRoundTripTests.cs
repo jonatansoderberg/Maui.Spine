@@ -67,6 +67,23 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_filled_stack_says_so_and_a_plain_one_does_not()
+    {
+        var filled = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(0, W.VStack(4, W.Text("Brynäs")).Fill(), W.VStack(4, W.Text("2–1")).Fill()),
+        };
+
+        var json = filled.ToJson();
+        var back = WidgetJson.DeserializeLayout(json)!;
+        var row = Assert.IsType<HStackNode>(back.LockScreen);
+
+        Assert.True(Assert.IsType<VStackNode>(row.Children[0]).Fill);
+        Assert.Equal(json, back.ToJson());
+        Assert.DoesNotContain("fill", new LiveActivityLayout { LockScreen = W.VStack(4, W.Text("x")) }.ToJson());
+    }
+
+    [Fact]
     public void Every_region_and_node_kind_survives()
     {
         var layout = new LiveActivityLayout

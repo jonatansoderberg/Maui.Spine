@@ -150,6 +150,7 @@ final class Node: Decodable {
     var prefix: String?
     var centered: Bool?
     var spacing: Double?
+    var fill: Bool?
     var padding: Double?
     var background: String?
     var cornerRadius: Double?
@@ -285,13 +286,28 @@ struct BoxModifier: ViewModifier {
     let alignment: Alignment
 
     @ViewBuilder func body(content: Content) -> some View {
-        if node.padding == nil && node.background == nil && node.cornerRadius == nil {
+        if node.fill == true {
+            // An equal share of the parent's axis: three of them in a row are three equal columns.
+            boxed(content).frame(maxWidth: inline ? .infinity : nil, maxHeight: inline ? nil : .infinity, alignment: alignment)
+        } else if node.padding == nil && node.background == nil && node.cornerRadius == nil {
             content
         } else {
             let shape = RoundedRectangle(cornerRadius: CGFloat(node.cornerRadius ?? 0))
             content
                 .padding(CGFloat(node.padding ?? 0))
                 .frame(maxWidth: node.background != nil && !inline ? .infinity : nil, alignment: alignment)
+                .background(fill, in: shape)
+                .clipShape(shape)
+        }
+    }
+
+    @ViewBuilder private func boxed(_ content: Content) -> some View {
+        if node.padding == nil && node.background == nil && node.cornerRadius == nil {
+            content
+        } else {
+            let shape = RoundedRectangle(cornerRadius: CGFloat(node.cornerRadius ?? 0))
+            content
+                .padding(CGFloat(node.padding ?? 0))
                 .background(fill, in: shape)
                 .clipShape(shape)
         }

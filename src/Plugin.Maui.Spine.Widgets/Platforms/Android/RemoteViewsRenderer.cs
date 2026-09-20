@@ -70,6 +70,12 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     {
         switch (Text(node, "type"))
         {
+            // A filled stack takes its share of the parent's axis, which RemoteViews can only express
+            // as a layout of its own: a weight cannot be set after inflation.
+            case "vstack" when Bool(node, "fill"):
+                return Stack(node, inline ? Resource.Layout.spine_widget_vstack_fill_width : Resource.Layout.spine_widget_vstack_fill_height, vertical: true);
+            case "hstack" when Bool(node, "fill"):
+                return Stack(node, inline ? Resource.Layout.spine_widget_hstack_fill_width : Resource.Layout.spine_widget_hstack_fill_height, vertical: false);
             case "vstack": return Stack(node, inline ? Resource.Layout.spine_widget_vstack_inline : Resource.Layout.spine_widget_vstack, vertical: true);
             case "hstack": return Stack(node, inline ? Resource.Layout.spine_widget_hstack_inline : Resource.Layout.spine_widget_hstack, vertical: false);
             case "zstack": return Stack(node, inline ? Resource.Layout.spine_widget_zstack_inline : Resource.Layout.spine_widget_zstack, vertical: null);

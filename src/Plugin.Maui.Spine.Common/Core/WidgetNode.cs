@@ -65,6 +65,13 @@ public abstract record StackNode : WidgetNode
     /// </summary>
     public double? CornerRadius { get; init; }
 
+    /// <summary>
+    /// Whether the stack takes an equal share of the space along its parent's axis, rather than the
+    /// width of its content. Set with <see cref="WidgetNodeStyling.Fill"/>.
+    /// </summary>
+    [JsonPropertyName("fill")]
+    public bool? Fill { get; init; }
+
     /// <summary>The children in layout order.</summary>
     public IReadOnlyList<WidgetNode> Children { get; init; } = [];
 }
