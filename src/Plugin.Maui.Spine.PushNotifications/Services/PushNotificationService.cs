@@ -183,7 +183,11 @@ internal sealed class PushNotificationService : IPushNotificationService
         _lastAttemptAt = _time.GetUtcNow();
 
         var status = LastRegistration;
-        if (status != before) RegistrationChanged?.Invoke(status);
+        if (status != before)
+        {
+            if (MainThread.IsMainThread) RegistrationChanged?.Invoke(status);
+            else MainThread.BeginInvokeOnMainThread(() => RegistrationChanged?.Invoke(status));
+        }
         return result;
     }
 

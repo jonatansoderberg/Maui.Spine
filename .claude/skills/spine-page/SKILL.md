@@ -132,7 +132,7 @@ Both at once: implement both interfaces and call `NavigateToWithResultAsync<TPag
 | `OnCloseRequestedAsync` → `bool` | Same, for a sheet's close |
 | `OnTabReselectedAsync` | The active tab tapped again at root (scroll to top) |
 
-Load data in `OnAppearingAsync`; keep constructors cheap. Declare page actions with `[PageAction]` (below) rather than adding them in `OnAppearingAsync`. Refresh in `OnResumedAsync` what may have changed while the app was away (server data, today's date) instead of subscribing to `Window.Activated` in code-behind. Spine has no day-change hook; a page that must turn at midnight runs its own timer.
+Load data in `OnAppearingAsync`; keep constructors cheap. For work that lives with the page use `Poll(interval, ct => …)` (runs while shown, pauses in the background), `WhileVisible(h => svc.Changed += h, h => svc.Changed -= h, OnChanged)` (subscribed while shown, UI thread) and `PageLifetime` (a token cancelled when the page is left) instead of timers, tokens and subscribe/unsubscribe pairs. Declare page actions with `[PageAction]` (below) rather than adding them in `OnAppearingAsync`. Refresh in `OnResumedAsync` what may have changed while the app was away (server data, today's date) instead of subscribing to `Window.Activated` in code-behind. Spine has no day-change hook; a page that must turn at midnight runs its own timer.
 
 ## Page actions (header bar)
 
