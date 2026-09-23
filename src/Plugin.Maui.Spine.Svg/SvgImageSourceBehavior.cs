@@ -171,6 +171,15 @@ public class SvgImageSourceBehavior : Behavior<View>
         var resourceName = _svgRegistry?.Resolve(Svg) ?? Svg;
         var source = SvgBitmapLoader.LoadFromEmbedded(resourceName, width, height, tint, Padding);
 
+        // Already on the main thread is the common case (attach, size change), and a deferred set
+        // lands one loop later than the cell that shows the view, which on Android is a visible
+        // frame or more (#345).
+        if (MainThread.IsMainThread)
+        {
+            SetSource(source);
+            return;
+        }
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (_associatedView is not null)

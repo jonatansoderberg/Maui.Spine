@@ -102,6 +102,25 @@ public static class SvgBitmapLoader
     public static ImageSource? LoadFromEmbedded(string svgName, double width, double height, Color tint)
         => LoadFromEmbedded(svgName, width, height, tint, new Thickness(0));
 
+    /// <summary>
+    /// Loads Svg.Skia and SkiaSharp and runs one rasterization, so the first real icon does not pay
+    /// for that on the main thread. Meant to run on a background thread at startup.
+    /// </summary>
+    internal static void WarmUp()
+    {
+        const string dot = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 2 2\"><circle cx=\"1\" cy=\"1\" r=\"1\"/></svg>";
+
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(dot));
+        using var svg = new SKSvg();
+        svg.Load(stream);
+
+        using var bitmap = new SKBitmap(new SKImageInfo(2, 2));
+        using var canvas = new SKCanvas(bitmap);
+        canvas.DrawPicture(svg.Picture);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+    }
+
     private static ReadOnlyMemory<byte> RenderSvgToPng(string resourceName, double width, double height, Color tint, Thickness padding)
     {
         if (resourceName is null)
