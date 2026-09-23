@@ -1,0 +1,34 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.SvgIcons.SvgIconsPage"
+    x:TypeArguments="SvgIconsPageViewModel"
+    x:DataType="SvgIconsPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="10">
+            <PackageChips Packages="Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons" />
+            <Label Text="SvgImageSource.Svg renders an embedded SVG at the view's size and screen scale, tinted for the theme. The icons below ship with Plugin.Maui.Spine.Svg.Icons; an app's own SVGs work the same way."
+                   FontSize="14" />
+
+            <Label Text="ImageButton, enabled and disabled" FontAttributes="Bold" Margin="0,8,0,0" />
+            <HorizontalStackLayout Spacing="16">
+                <ImageButton Padding="5" CornerRadius="50" SvgImageSource.Svg="fish.svg" WidthRequest="80" HeightRequest="80" Style="{StaticResource SvgImageButtonStyle}" />
+                <ImageButton Padding="5" CornerRadius="50" SvgImageSource.Svg="fish.svg" WidthRequest="80" HeightRequest="80" Style="{StaticResource SvgImageButtonStyle}" IsEnabled="False" />
+            </HorizontalStackLayout>
+
+            <Label Text="Image, a few icons from the set" FontAttributes="Bold" Margin="0,8,0,0" />
+            <FlexLayout Wrap="Wrap" JustifyContent="Start" BindableLayout.ItemsSource="{Binding Icons}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <VerticalStackLayout WidthRequest="80" Margin="0,0,0,12" Spacing="2">
+                            <Image WidthRequest="40" HeightRequest="40" HorizontalOptions="Center" SvgImageSource.Svg="{Binding .}" SvgImageSource.Padding="2" />
+                            <Label Text="{Binding .}" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

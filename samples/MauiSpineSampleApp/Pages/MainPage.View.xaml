@@ -10,7 +10,7 @@
  
     <Grid>
 
-        <HeroCollectionView 
+        <HeroCollectionView
             EnableAdaptiveOverlay="True"
             AdaptiveCaptionButtons="True"
             EnableHeaderAsDragRegionOnWindows="True"
@@ -83,14 +83,11 @@
                         Icon="{Binding Icon}"
                         Title="{Binding Title}"
                         Description="{Binding Description}"
+                        Packages="{Binding Packages}"
                         TapCommand="{Binding BindingContext.ItemTappedCommand, Source={x:Reference Page}}"
                         TapCommandParameter="{Binding .}" />
                 </DataTemplate>
             </HeroCollectionView.ItemTemplate>
-
-            <HeroCollectionView.Footer>
-                <BoxView HeightRequest="{Binding FooterHeight}" BackgroundColor="Transparent"/>
-            </HeroCollectionView.Footer>
 
         </HeroCollectionView>
 

@@ -106,13 +106,76 @@
       <DependentUpon>GlassPage.cs</DependentUpon>
     </Compile>
 
-		<MauiXaml Update="Pages\MainPageOld.View.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-      <DependentUpon>MainPageOld.cs</DependentUpon>
-	  </MauiXaml>
+    <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
+      <DependentUpon>ScrollInsetPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
 
-		<Compile Include="Pages\MainPageOld.ViewModel.cs">
-      <DependentUpon>MainPageOld.cs</DependentUpon>
+    <Compile Include="Pages\ScrollInset\ScrollInsetPage.ViewModel.cs">
+      <DependentUpon>ScrollInsetPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\PageActions\PageActionsPage.View.xaml">
+      <DependentUpon>PageActionsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\PageActions\PageActionsPage.ViewModel.cs">
+      <DependentUpon>PageActionsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Typography\TypographyPage.View.xaml">
+      <DependentUpon>TypographyPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Typography\TypographyPage.ViewModel.cs">
+      <DependentUpon>TypographyPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Sheets\SheetsPage.View.xaml">
+      <DependentUpon>SheetsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Sheets\SheetsPage.ViewModel.cs">
+      <DependentUpon>SheetsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Results\ResultsPage.View.xaml">
+      <DependentUpon>ResultsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Results\ResultsPage.ViewModel.cs">
+      <DependentUpon>ResultsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Marquee\MarqueePage.View.xaml">
+      <DependentUpon>MarqueePage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Marquee\MarqueePage.ViewModel.cs">
+      <DependentUpon>MarqueePage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\SvgIcons\SvgIconsPage.View.xaml">
+      <DependentUpon>SvgIconsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\SvgIcons\SvgIconsPage.ViewModel.cs">
+      <DependentUpon>SvgIconsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\PageBinding\PageBindingPage.View.xaml">
+      <DependentUpon>PageBindingPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\PageBinding\PageBindingPage.ViewModel.cs">
+      <DependentUpon>PageBindingPage.cs</DependentUpon>
     </Compile>
 
 		<Compile Include="Pages\PersonDetailPage.ViewModel.cs">

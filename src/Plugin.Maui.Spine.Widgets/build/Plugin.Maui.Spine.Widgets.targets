@@ -7,6 +7,7 @@
 
 		Consumer knobs:
 		  <SpineWidget Include="next-start" DisplayName="Nästa start" Description="…" Families="Small,Medium" />
+		                PreviewImage="…png"          (Android below 15: the picker's picture; 15 and later draw the timeline)
 		  SpineWidgetsAppGroup        default group.$(ApplicationId)   (iOS)
 		  SpineWidgetsLiveActivities  default true                      (iOS: the activity in the bundle; Android: the notification permissions)
 		  SpineWidgetsBackgroundRefresh default true                    (iOS: UIBackgroundModes fetch + the BGTaskScheduler identifier; Android: the alarm receiver)
@@ -131,6 +132,7 @@
 			<Widgets ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
 			<OutputDirectory ParameterType="System.String" Required="true" />
 			<ApplicationId ParameterType="System.String" Required="true" />
+			<ProjectDirectory ParameterType="System.String" Required="true" />
 			<LiveActivities ParameterType="System.Boolean" />
 			<BackgroundRefresh ParameterType="System.Boolean" />
 			<Manifest ParameterType="System.String" Output="true" />
@@ -190,6 +192,29 @@ for (var i = 0; i < Widgets.Length; i++)
     }
     if (maxW == 0) { minW = minH = maxW = maxH = 2; }
 
+    // The picker's picture below Android 15, where the app cannot hand it a generated one. Copied only when
+    // its bytes changed, so an unchanged picture does not make aapt2 compile the resources again.
+    string preview = null;
+    var previewImage = widget.GetMetadata("PreviewImage");
+    if (!string.IsNullOrEmpty(previewImage))
+    {
+        var source = Path.GetFullPath(Path.Combine(ProjectDirectory, previewImage));
+        if (!File.Exists(source))
+        {
+            Log.LogError("Spine widgets: the PreviewImage of <SpineWidget Include=\"{0}\"> does not exist: {1}", widget.ItemSpec, source);
+            return false;
+        }
+        preview = "spine_widget_" + i + "_preview";
+        var fileName = preview + Path.GetExtension(source).ToLowerInvariant();
+        var target = Path.Combine(OutputDirectory, "res", "drawable-nodpi", fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(target));
+        var bytes = File.ReadAllBytes(source);
+        if (!File.Exists(target) || !System.Linq.Enumerable.SequenceEqual(File.ReadAllBytes(target), bytes)) File.WriteAllBytes(target, bytes);
+        var item = new TaskItem(target);
+        item.SetMetadata("LogicalName", "drawable-nodpi/" + fileName);
+        resources.Add(item);
+    }
+
     Write(Path.Combine("res", "xml", "spine_widget_" + i + ".xml"), w =>
     {
         w.WriteStartElement("appwidget-provider", Ns);
@@ -206,6 +231,7 @@ for (var i = 0; i < Widgets.Length; i++)
         w.WriteAttributeString("android", "updatePeriodMillis", Ns, "0");
         w.WriteAttributeString("android", "initialLayout", Ns, "@layout/spine_widget_root");
         w.WriteAttributeString("android", "description", Ns, "@string/spine_widget_" + i + "_description");
+        if (preview != null) w.WriteAttributeString("android", "previewImage", Ns, "@drawable/" + preview);
         w.WriteEndElement();
     }, "xml/spine_widget_" + i + ".xml");
 }
@@ -289,6 +315,7 @@ Resources = resources.ToArray();
 			Widgets="@(SpineWidget)"
 			OutputDirectory="$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj', 'spinewidgets', 'android'))"
 			ApplicationId="$(ApplicationId)"
+			ProjectDirectory="$(MSBuildProjectDirectory)"
 			LiveActivities="$(SpineWidgetsLiveActivities)"
 			BackgroundRefresh="$(SpineWidgetsBackgroundRefresh)">
 			<Output TaskParameter="Manifest" PropertyName="_SpineWidgetsAndroidManifest" />

@@ -1,0 +1,20 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Sheets.SheetsPage"
+    x:TypeArguments="SheetsPageViewModel"
+    x:DataType="SheetsPageViewModel">
+
+    <VerticalStackLayout Padding="20,16" Spacing="10">
+            <PackageChips Packages="Plugin.Maui.Spine" />
+        <Label Text="A [NavigableSheet] page opens as a native bottom sheet: UISheetPresentationController on iOS, BottomSheetDialog on Android. Detents, the drag handle, dimming and the close button come from the platform."
+               FontSize="14" />
+
+        <Button Text="Sheet with detents (Medium, Expanded) and a Save action" Command="{Binding ShowBottomSheetCommand}" />
+        <Button Text="Simple sheet with blurred background" Command="{Binding ShowSimpleBottomSheetCommand}" />
+        <Button Text="Full-screen sheet" Command="{Binding ShowFullscreenSheetCommand}" />
+        <Button Text="Small sheet (Compact detent)" Command="{Binding ShowSmallSheetCommand}" />
+        <Button Text="Sheet with switches in a template" Command="{Binding ShowToggleListCommand}" />
+    </VerticalStackLayout>
+
+</SpinePage>

@@ -109,6 +109,13 @@ public sealed class SpineOptions
         /// Defaults to <see cref="SafeAreaEdges.All"/> (all bars padded).
         /// </summary>
         public SafeAreaEdges SafeAreaEdges { get; set; } = SafeAreaEdges.All;
+
+        /// <summary>
+        /// Default edges on which a page's first scrolling view takes the safe-area inset as a
+        /// native content inset (the same as setting <c>SafeArea.ScrollInset</c> on that view).
+        /// Defaults to <see cref="SafeAreaEdges.None"/>.
+        /// </summary>
+        public SafeAreaEdges ScrollInset { get; set; } = SafeAreaEdges.None;
     }
 
     /// <summary>
@@ -138,6 +145,13 @@ public sealed class SpineOptions
         /// Defaults to <see cref="SafeAreaEdges.All"/> (all bars padded).
         /// </summary>
         public SafeAreaEdges SafeAreaEdges { get; set; } = SafeAreaEdges.All;
+
+        /// <summary>
+        /// Default edges on which a page's first scrolling view takes the safe-area inset as a
+        /// native content inset (the same as setting <c>SafeArea.ScrollInset</c> on that view).
+        /// Defaults to <see cref="SafeAreaEdges.None"/>.
+        /// </summary>
+        public SafeAreaEdges ScrollInset { get; set; } = SafeAreaEdges.None;
     }
 
     /// <summary>
@@ -168,6 +182,13 @@ public sealed class SpineOptions
         /// Defaults to <see cref="SafeAreaEdges.All"/>.
         /// </summary>
         public SafeAreaEdges SafeAreaEdges { get; set; } = SafeAreaEdges.All;
+
+        /// <summary>
+        /// Default edges on which a page's first scrolling view takes the safe-area inset as a
+        /// native content inset (the same as setting <c>SafeArea.ScrollInset</c> on that view).
+        /// Defaults to <see cref="SafeAreaEdges.None"/>.
+        /// </summary>
+        public SafeAreaEdges ScrollInset { get; set; } = SafeAreaEdges.None;
     }
 
     /// <summary>

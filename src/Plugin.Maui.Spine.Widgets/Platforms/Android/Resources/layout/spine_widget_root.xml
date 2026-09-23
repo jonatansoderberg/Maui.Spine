@@ -2,7 +2,9 @@
 <!-- The widget's outer container: the rounded surface, a gradient or an image on it, and the tree in
      spine_root. Every stub layout below has the same root id, so the renderer can address "the view this
      RemoteViews wraps" without knowing which stub it is. The frame clips to its rounded outline (Android
-     12 and later), so a background image or gradient keeps the corners. -->
+     12 and later), so a background image or gradient keeps the corners. spine_root centres on both axes, as
+     SwiftUI does: a stack fills the width anyway, and a root text or image narrower than the widget would
+     otherwise sit at the start edge. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/spine_frame"
     android:layout_width="match_parent"
@@ -33,6 +35,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:padding="@dimen/spine_widget_padding" />
 </FrameLayout>

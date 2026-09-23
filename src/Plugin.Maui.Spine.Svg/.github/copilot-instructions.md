@@ -97,8 +97,8 @@ After adding, the icon is immediately available by short name (e.g. `"myicon.svg
 |---|---|---|---|
 | `SvgImageSource.Svg` | `string` | `null` | Short SVG filename (e.g. `"fish.svg"`) |
 | `SvgImageSource.EnableSvg` | `bool` | `false` | Must be `true` to activate the behavior |
-| `SvgImageSource.LightTintColor` | `Color` | `Transparent` | Tint applied in light theme |
-| `SvgImageSource.DarkTintColor` | `Color` | `Transparent` | Tint applied in dark theme |
+| `SvgImageSource.LightTintColor` | `Color` | `Black` | Tint applied in light theme; `Transparent` keeps the SVG's own colours |
+| `SvgImageSource.DarkTintColor` | `Color` | `White` | Tint applied in dark theme; `Transparent` keeps the SVG's own colours |
 | `SvgImageSource.Padding` | `Thickness` | `5` | Padding inside the rendered bitmap |
 
 Setting `Svg` or tint properties while `EnableSvg` is already `true` automatically re-renders.

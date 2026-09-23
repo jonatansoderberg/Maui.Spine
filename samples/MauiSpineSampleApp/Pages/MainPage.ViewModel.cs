@@ -16,7 +16,8 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
     public double FooterHeight => SystemBarInsets.Bottom;
 
-    public ObservableCollection<Item> Items { get; set; } = new ObservableCollection<Item>();
+    // Filled before the page appears, so the first frame already has the rows and their icons.
+    public ObservableCollection<Item> Items { get; } = new(SampleIndex);
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
@@ -35,47 +36,44 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     [RelayCommand]
     private async Task ItemTapped(Item item)
     {
-        switch (Items.IndexOf(item))
-        {
-            case 0: await _navigation.NavigateToAsync<MainPageOld>(); break;
-            case 1: await _navigation.NavigateToAsync<Glass.GlassPage>(); break;
-        }
+        if (item.Open is { } open)
+            await open(_navigation);
     }
 
-    public override Task OnAppearingAsync(NavigationDirection navigationDirection)
-    {
-        if (PageActions.Count == 0)
-        {
-            //This is just creating a placeholder in the native title bar (Hack to make the header settings button clickable)
-            PageActions.Add(new PageAction(text: null, command: OpenSettingsCommand)
-            {
-                Svg = "settings.svg"
-            });
-        }
-
-        if (Items is [])
-        {
-            var items = Enumerable.Range(1, 30).Select(i => i == 2
-                ? new Item { Icon = "fish.svg", Title = "Liquid Glass", Description = "Button and ImageButton as glass on iOS 26", IsMovable = false }
-                : new Item
-                {
-                    Icon = "fish.svg",
-                    Title = $"Item {i}",
-                    Description = i % 2 == 0 ? $"Description for item {i} with extra details that may scroll since it is a long description that does not fit" : null,
-                    IsMovable = false
-                });
-
-            foreach (var item in items)
-                Items.Add(item);
-        }
-
-        return base.OnAppearingAsync(navigationDirection);
-    }
+    // One row per sample page. Add a page here when it gets a page of its own.
+    private static IEnumerable<Item> SampleIndex =>
+    [
+        new("Bottom sheets", "Native sheets with detents, blur, full screen, switches in a template", "up.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
+        new("Parameters and results", "Typed navigation parameters and awaited results", "return.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Results.ResultsPage>()),
+        new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "wired.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
+        new("Page actions", "[PageAction] on a command; text, badge, enabled and visibility change live", "more.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<PageActions.PageActionsPage>()),
+        new("Liquid Glass", "Button and ImageButton as glass on iOS 26", "water.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg", n => n.NavigateToAsync<Glass.GlassPage>()),
+        new("Scroll inset", "SafeArea.ScrollInset: a list that scrolls clear of the bottom bar it draws behind", "vertical.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<ScrollInset.ScrollInsetPage>()),
+        new("Typography", "Text.FontFeatures (tabular digits) and Text.TrimToCapHeight", "edit.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Typography.TypographyPage>()),
+        new("AnimatedLabel", "Marquee for text that does not fit, fade on change", "horizontal.svg", "Plugin.Maui.Spine.Controls.AnimatedLabel", n => n.NavigateToAsync<Marquee.MarqueePage>()),
+        new("SVG icons", "SvgImageSource on Image and ImageButton, the bundled icon set", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
+    ];
 }
 
 [ObservableObject]
 public partial class Item
 {
+    public Item() { }
+
+    public Item(string title, string description, string icon, string packages, Func<INavigationService, Task> open)
+    {
+        this.title = title;
+        this.description = description;
+        this.icon = icon;
+        Packages = packages;
+        Open = open;
+    }
+
+    public Func<INavigationService, Task>? Open { get; init; }
+
+    /// <summary>Comma-separated NuGet ids the sample depends on.</summary>
+    public string? Packages { get; init; }
+
     [ObservableProperty]
     private string? icon;
 

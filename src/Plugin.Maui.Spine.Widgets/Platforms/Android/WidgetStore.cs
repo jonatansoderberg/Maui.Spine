@@ -16,6 +16,9 @@ internal static class WidgetStore
     /// <summary>The last document fetched from the timeline's remote source, when it has one.</summary>
     public static string RemoteCachePath(Context context, string kind) => Path.Combine(Root(context), kind + ".remote.json");
 
+    /// <summary>A hash of what the picker's preview last showed, so an unchanged one is not sent again.</summary>
+    public static string PreviewHashPath(Context context, string kind) => Path.Combine(Root(context), kind + ".preview");
+
     public static string AssetsDirectory(Context context) => Path.Combine(Root(context), "assets");
 
     public static JsonDocument? ReadTimeline(Context context, string kind) => Read(TimelinePath(context, kind), kind);

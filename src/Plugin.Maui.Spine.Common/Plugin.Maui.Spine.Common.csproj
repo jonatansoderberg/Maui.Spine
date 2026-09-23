@@ -13,6 +13,12 @@
 		<PackageTags>$(PackageTags);widgets;push;contracts</PackageTags>
 	</PropertyGroup>
 
+	<ItemGroup>
+		<!-- The icon walk is shared with the widget renderer and tested directly. -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Widgets" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Tests" />
+	</ItemGroup>
+
 	<!-- The entitlements step Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.PushNotifications share. -->
 	<ItemGroup>
 		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
