@@ -32,22 +32,26 @@ public sealed class PackageChips : ContentView
 
         foreach (var id in (Packages ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            _layout.Children.Add(new Border
+            var label = new Label
+            {
+                // Short form: the common prefix is implied, the pill says what is specific.
+                Text = id.StartsWith("Plugin.Maui.Spine", StringComparison.Ordinal) ? "Spine" + id["Plugin.Maui.Spine".Length..] : id,
+                FontSize = 10,
+                LineBreakMode = LineBreakMode.NoWrap,
+            };
+            label.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#512BD4"), Color.FromArgb("#CFC2FF"));
+
+            var pill = new Border
             {
                 StrokeThickness = 0,
-                BackgroundColor = Color.FromArgb("#22512BD4"),
                 StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 9 },
                 Padding = new Thickness(8, 2),
                 Margin = new Thickness(0, 0, 6, 4),
-                Content = new Label
-                {
-                    // Short form: the common prefix is implied, the pill says what is specific.
-                    Text = id.StartsWith("Plugin.Maui.Spine", StringComparison.Ordinal) ? "Spine" + id["Plugin.Maui.Spine".Length..] : id,
-                    FontSize = 10,
-                    TextColor = Color.FromArgb("#512BD4"),
-                    LineBreakMode = LineBreakMode.NoWrap,
-                },
-            });
+                Content = label,
+            };
+            pill.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#22512BD4"), Color.FromArgb("#40B39DFF"));
+
+            _layout.Children.Add(pill);
         }
 
         IsVisible = _layout.Children.Count > 0;

@@ -46,6 +46,16 @@ public partial class SpineTabbedHostPage
 
             ApplyTabBarItemImages(controller);
             ApplyStyle(controller);
+
+            // Styled from resource keys, the bar has to read them again after every switch.
+            _theme.Changed += (_, _) =>
+            {
+                if (Controller is { } current)
+                {
+                    ApplyStyle(current);
+                    ApplyAllBadges();
+                }
+            };
         }
 
         ApplyAllBadges();
@@ -64,7 +74,7 @@ public partial class SpineTabbedHostPage
             _ => text,
         };
 
-        if (text is not null && _options.Tabs.Style?.BadgeBackgroundColor is { } badgeColor)
+        if (text is not null && _options.Tabs.Style?.BadgeBackground is { } badgeColor)
             controllers[index].TabBarItem.BadgeColor = badgeColor.ToPlatform();
     }
 
@@ -117,13 +127,13 @@ public partial class SpineTabbedHostPage
 
         var tabBar = controller.TabBar;
 
-        if (style.SelectedColor is { } selected)
+        if (style.Selected is { } selected)
             tabBar.TintColor = selected.ToPlatform();
 
-        if (style.UnselectedColor is { } unselected)
+        if (style.Unselected is { } unselected)
             tabBar.UnselectedItemTintColor = unselected.ToPlatform();
 
-        if (style.BarBackgroundColor is { } background)
+        if (style.BarBackground is { } background)
         {
             // A solid background forfeits the iOS 26 Liquid Glass material by design.
             var appearance = new UITabBarAppearance();

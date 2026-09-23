@@ -46,6 +46,7 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
     private readonly SpineOptions _options;
     private readonly BottomSheetCoordinator _sheets;
     private readonly TabBadgeService _badges;
+    private readonly IThemeService _theme;
     private TabSlot _activeSlot;
 
     /// <inheritdoc cref="ISpineHost.ActiveRegionChanged"/>
@@ -98,12 +99,14 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
         [FromKeyedServices("BottomSheet")] NavigationRegion bottomSheetFrameView,
         SpineHostProvider hostProvider,
         TabBadgeService badges,
+        IThemeService theme,
         ResourceNameCache svgResources,
         IServiceProvider services)
     {
         _services = services;
         _options = options;
         _badges = badges;
+        _theme = theme;
 
         // Safe-area discipline lives on each SpineTabPage child (TabbedPage itself has no
         // SafeAreaEdges surface).

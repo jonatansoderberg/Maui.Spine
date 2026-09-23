@@ -3,7 +3,7 @@ using Plugin.Maui.Spine.Widgets;
 
 namespace MauiSpineSampleApp.Pages.Settings;
 
-public partial class SettingsPageViewModel(IWidgetService _widgets, ILiveActivityService _liveActivities) : ViewModelBase
+public partial class SettingsPageViewModel(IWidgetService _widgets, ILiveActivityService _liveActivities, IThemeService _theme) : ViewModelBase
 {
     private const string ActivityKind = "sample";
 
@@ -23,13 +23,9 @@ public partial class SettingsPageViewModel(IWidgetService _widgets, ILiveActivit
     }
 
     [ObservableProperty]
-    public partial string SelectedThemeName { get; set; } = ThemeToName(Application.Current?.UserAppTheme ?? AppTheme.Unspecified);
+    public partial string SelectedThemeName { get; set; } = ThemeToName(_theme.Current);
 
-    partial void OnSelectedThemeNameChanged(string value)
-    {
-        if (Application.Current is not null)
-            Application.Current.UserAppTheme = NameToTheme(value);
-    }
+    partial void OnSelectedThemeNameChanged(string value) => _theme.Current = NameToTheme(value);
 
     private static string ThemeToName(AppTheme theme) => theme switch
     {

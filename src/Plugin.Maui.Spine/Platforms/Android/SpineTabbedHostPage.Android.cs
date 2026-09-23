@@ -96,15 +96,17 @@ public partial class SpineTabbedHostPage
     /// keeps the previous theme's surface until the app is restarted (#22).
     ///
     /// Subscribed once and never unsubscribed: the host lives as long as the window does, and a
-    /// bar that stops following the theme halfway through a session is the defect again.
+    /// bar that stops following the theme halfway through a session is the defect again. The
+    /// theme service, not <c>RequestedThemeChanged</c>: it fires after the token dictionary has
+    /// been swapped, which the style's resource keys read.
     /// </remarks>
     private void WatchTheme()
     {
-        if (_watchingTheme || Application.Current is not { } app)
+        if (_watchingTheme)
             return;
 
         _watchingTheme = true;
-        app.RequestedThemeChanged += (_, _) => Dispatcher.Dispatch(ReapplyBarAppearance);
+        _theme.Changed += (_, _) => Dispatcher.Dispatch(ReapplyBarAppearance);
     }
 
     private void ReapplyBarAppearance()
@@ -210,10 +212,10 @@ public partial class SpineTabbedHostPage
         else
             badge.Text = text;
 
-        if (_options.Tabs.Style?.BadgeBackgroundColor is { } badgeBackground)
+        if (_options.Tabs.Style?.BadgeBackground is { } badgeBackground)
             badge.BackgroundColor = badgeBackground.ToPlatform().ToArgb();
 
-        if (_options.Tabs.Style?.BadgeTextColor is { } badgeText)
+        if (_options.Tabs.Style?.BadgeText is { } badgeText)
             badge.BadgeTextColor = badgeText.ToPlatform().ToArgb();
     }
 
@@ -237,7 +239,7 @@ public partial class SpineTabbedHostPage
         if (_options.Tabs.Style is not { } style)
             return;
 
-        if (style is { SelectedColor: { } selected, UnselectedColor: { } unselected })
+        if (style is { Selected: { } selected, Unselected: { } unselected })
         {
             var states = new[]
             {
@@ -250,13 +252,13 @@ public partial class SpineTabbedHostPage
             bottomNav.ItemIconTintList = stateList;
             bottomNav.ItemTextColor = stateList;
         }
-        else if (style.SelectedColor is { } selectedOnly)
+        else if (style.Selected is { } selectedOnly)
         {
             bottomNav.ItemActiveIndicatorColor = Android.Content.Res.ColorStateList.ValueOf(
                 selectedOnly.ToPlatform());
         }
 
-        if (style.BarBackgroundColor is { } background)
+        if (style.BarBackground is { } background)
             bottomNav.SetBackgroundColor(background.ToPlatform());
     }
 

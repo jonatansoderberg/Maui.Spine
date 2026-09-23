@@ -124,6 +124,8 @@ options.Tabs.Style = new SpineTabBarStyle
 
 Only non-`null` properties are applied. Setting `BarBackgroundColor` on iOS 26 replaces the Liquid Glass material with a flat color — leave it `null` unless that is the intent.
 
+Each colour has a `…Key` twin (`SelectedColorKey`, `UnselectedColorKey`, `BadgeBackgroundColorKey`, `BadgeTextColorKey`, `BarBackgroundColorKey`) naming a `Color` in the application resources. A key is read when the bar is styled and again after every theme change, so a token that differs between light and dark follows the switch; a key that resolves wins over the fixed colour. See [Theming](theming.md).
+
 On Android the bar follows a light/dark switch while the app is running. MAUI declares
 `ConfigChanges.UiMode` on the activity, so Android does not recreate it and Material would keep the
 colors it resolved at inflation; the host re-reads them from the theme when the system switches, with

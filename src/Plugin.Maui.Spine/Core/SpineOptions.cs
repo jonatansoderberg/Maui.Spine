@@ -68,6 +68,9 @@ public sealed class SpineOptions
     /// </summary>
     public SpineTabsOptions Tabs { get; } = new SpineTabsOptions();
 
+    /// <summary>Theme persistence and token dictionaries; see <see cref="IThemeService"/>.</summary>
+    public SpineThemeOptions Theme { get; } = new SpineThemeOptions();
+
     /// <summary>
     /// Adds <paramref name="assembly"/> to the list of assemblies Spine will scan for navigable pages.
     /// Returns <see langword="this"/> for fluent chaining.
