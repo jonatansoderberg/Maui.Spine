@@ -465,6 +465,8 @@ W.Image("arena", height: 64)
 
 Keep them small. The extension is killed at roughly 30 MB.
 
+A picture can be the whole tree, which is how an app draws its widget itself and hands Spine the result. A root node narrower than the widget is centred on both platforms; the main sample's *Spine card* widget is one, a card on a picture.
+
 How the store behaves:
 
 - **The id is a file name.** The bytes are written as they are to `spine-widgets/assets/<assetId>` — in the App Group container on iOS, under the app's files on Android — and the same id overwrites the file. PNG and JPEG both decode; the parameter's name notwithstanding, nothing checks the format.
@@ -735,7 +737,7 @@ The same C# tree renders on Android without changes; the difference is what the 
 |---|---|
 | `<SpineWidget>` item | An `AppWidgetProvider` receiver in the manifest (one of nine the package carries), `appwidget-provider` metadata, and the picker's name and description — all generated into `obj/` by the build |
 | `WidgetFamily` | Launcher cells: `Small` 2×2, `Medium` 4×2, `Large` 4×4, `ExtraLarge` 5×4. The smallest declared is the minimum size; from Android 12 the launcher picks the tree for the size the user resized to. Accessory families have no counterpart and are ignored |
-| Stacks | `LinearLayout` / `FrameLayout`, nested with `RemoteViews.AddView` |
+| Stacks | `LinearLayout` / `FrameLayout`, nested with `RemoteViews.AddView`. The tree's root sits in a frame that centres it on both axes, as SwiftUI does; a stack fills the width, a root text or image narrower than the widget is centred |
 | `W.Text`, `W.Timer`, `W.Relative` | `TextView` and `Chronometer`; `Title` 22 sp, `Headline` 16 sp, `Body` 14 sp, `Caption` 12 sp |
 | `W.Icon` | The rasterized SVG as an `ImageView`, tinted through `setColorFilter` (see [Icons](#icons)) |
 | `WidgetColor` | Semantic colors resolve in the launcher's theme (light and dark) from Android 12; `Green` … `Blue` are the iOS system palette in both variants; hex is hex |
@@ -915,4 +917,4 @@ What Spine widgets cannot do, and what to do instead.
 - [Human Interface Guidelines: Live Activities](https://developer.apple.com/design/human-interface-guidelines/live-activities) — what each presentation is for, and how much they can carry
 - [Apple Developer Forums: `.timer` text expands too much in a Live Activity](https://developer.apple.com/forums/thread/723316) — the width behaviour described above
 - [Spine.Widgets proposal](../proposals/spine-widgets.md) — the architecture, the platform survey, and the spike this grew out of
-- Samples: `samples/MauiSpineSampleApp/Widgets/SampleWidget.cs` and `samples/MauiSpinePushNotificationsSampleApp/Widgets/`
+- Samples: `samples/MauiSpineSampleApp/Widgets/` (`SampleWidget.cs`, `CardWidget.cs`) and `samples/MauiSpinePushNotificationsSampleApp/Widgets/`
