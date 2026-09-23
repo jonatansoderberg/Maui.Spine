@@ -159,6 +159,7 @@ public abstract partial class ViewModelBase : ObservableObject
             return Task.CompletedTask;
 
         _appeared = true;
+        BeginLifetime();
 
         return OnAppearingAsync(navigationDirection);
     }
@@ -167,6 +168,7 @@ public abstract partial class ViewModelBase : ObservableObject
     internal Task SendDisappearingAsync(NavigationDirection navigationDirection)
     {
         _appeared = false;
+        EndLifetime();
 
         return OnDisappearingAsync(navigationDirection);
     }
@@ -179,7 +181,199 @@ public abstract partial class ViewModelBase : ObservableObject
     /// emptied under it — and would otherwise carry a stale "already showing" for the rest of the
     /// run and never appear again.
     /// </remarks>
-    internal void ForgetAppearance() => _appeared = false;
+    internal void ForgetAppearance()
+    {
+        _appeared = false;
+        EndLifetime();
+    }
+
+    // --- Work that lives with the page -------------------------------------------------------
+
+    private static readonly CancellationToken _cancelled = new(canceled: true);
+    private CancellationTokenSource? _lifetime;
+    private readonly List<PollRegistration> _polls = [];
+    private readonly List<(Action Subscribe, Action Unsubscribe)> _whileVisible = [];
+    private bool _suspended;
+
+    /// <summary>
+    /// A token that is cancelled when the page disappears (navigated away from, its sheet closed,
+    /// its tab left) and renewed each time it appears. Pass it to loads started for this page so
+    /// they stop with it; before the first appearance and while hidden it is already cancelled.
+    /// It does not cancel when the app merely goes to the background — the page is still the one
+    /// on screen; use <see cref="Poll"/> for work that should pause then.
+    /// </summary>
+    public CancellationToken PageLifetime => _lifetime?.Token ?? _cancelled;
+
+    /// <summary>
+    /// Runs <paramref name="work"/> on the UI thread when the page appears and then every
+    /// <paramref name="interval"/>; pauses while the page is hidden or the window is deactivated
+    /// (background, notification shade, another window), and runs again at once when the page
+    /// reappears or the window is activated. Register once, from the constructor or
+    /// <see cref="OnAppearingAsync"/>; the registration lives as long as the view model.
+    /// An exception thrown by <paramref name="work"/> is logged and the loop goes on.
+    /// </summary>
+    protected void Poll(TimeSpan interval, Func<CancellationToken, Task> work)
+    {
+        var poll = new PollRegistration(interval, work);
+        _polls.Add(poll);
+
+        if (_appeared && !_suspended)
+            poll.Start();
+    }
+
+    /// <summary>
+    /// Subscribes <paramref name="handler"/> while the page is showing: <paramref name="subscribe"/>
+    /// runs when the page appears, <paramref name="unsubscribe"/> when it disappears, and the
+    /// handler is marshalled to the UI thread. For an event of type <see cref="Action"/>.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// WhileVisible(h => _activities.ActivitiesChanged += h, h => _activities.ActivitiesChanged -= h, OnActivitiesChanged);
+    /// </code>
+    /// </example>
+    protected void WhileVisible(Action<Action> subscribe, Action<Action> unsubscribe, Action handler)
+    {
+        void Marshalled() => OnMainThread(handler);
+        Register(() => subscribe(Marshalled), () => unsubscribe(Marshalled));
+    }
+
+    /// <summary>Subscribes while the page is showing; for an event of type <see cref="Action{T}"/>.</summary>
+    protected void WhileVisible<T>(Action<Action<T>> subscribe, Action<Action<T>> unsubscribe, Action<T> handler)
+    {
+        void Marshalled(T value) => OnMainThread(() => handler(value));
+        Register(() => subscribe(Marshalled), () => unsubscribe(Marshalled));
+    }
+
+    /// <summary>Subscribes while the page is showing; for an event of type <see cref="EventHandler{TEventArgs}"/>.</summary>
+    protected void WhileVisible<TEventArgs>(Action<EventHandler<TEventArgs>> subscribe, Action<EventHandler<TEventArgs>> unsubscribe, EventHandler<TEventArgs> handler)
+    {
+        void Marshalled(object? sender, TEventArgs args) => OnMainThread(() => handler(sender, args));
+        Register(() => subscribe(Marshalled), () => unsubscribe(Marshalled));
+    }
+
+    /// <summary>
+    /// Runs <paramref name="subscribe"/> when the page appears and <paramref name="unsubscribe"/>
+    /// when it disappears, for anything the typed overloads do not fit. Nothing is marshalled.
+    /// </summary>
+    protected void WhileVisible(Action subscribe, Action unsubscribe) => Register(subscribe, unsubscribe);
+
+    private void Register(Action subscribe, Action unsubscribe)
+    {
+        _whileVisible.Add((subscribe, unsubscribe));
+
+        if (_appeared)
+            subscribe();
+    }
+
+    private static void OnMainThread(Action action)
+    {
+        if (MainThread.IsMainThread)
+            action();
+        else
+            MainThread.BeginInvokeOnMainThread(action);
+    }
+
+    private void BeginLifetime()
+    {
+        _lifetime = new CancellationTokenSource();
+        _suspended = false;
+
+        foreach (var (subscribe, _) in _whileVisible)
+            subscribe();
+
+        foreach (var poll in _polls)
+            poll.Start();
+    }
+
+    private void EndLifetime()
+    {
+        foreach (var poll in _polls)
+            poll.Stop();
+
+        foreach (var (_, unsubscribe) in _whileVisible)
+            unsubscribe();
+
+        _lifetime?.Cancel();
+        _lifetime?.Dispose();
+        _lifetime = null;
+    }
+
+    /// <summary>The window went out of the foreground while this page is shown: polls pause.</summary>
+    internal void SendSuspended()
+    {
+        if (!_appeared || _suspended)
+            return;
+
+        _suspended = true;
+
+        foreach (var poll in _polls)
+            poll.Stop();
+    }
+
+    /// <summary>The window is back while this page is shown: polls run again at once.</summary>
+    internal void SendResumed()
+    {
+        if (!_appeared || !_suspended)
+            return;
+
+        _suspended = false;
+
+        foreach (var poll in _polls)
+            poll.Start();
+    }
+
+    /// <summary>One <see cref="Poll"/>: its interval, its work, and the loop currently running it.</summary>
+    private sealed class PollRegistration(TimeSpan interval, Func<CancellationToken, Task> work)
+    {
+        private CancellationTokenSource? _running;
+
+        public void Start()
+        {
+            Stop();
+            var cts = _running = new CancellationTokenSource();
+            _ = RunAsync(cts.Token);
+        }
+
+        public void Stop()
+        {
+            _running?.Cancel();
+            _running?.Dispose();
+            _running = null;
+        }
+
+        // Awaited on the UI thread's context, so work runs there and a bound property can be set directly.
+        private async Task RunAsync(CancellationToken ct)
+        {
+            using var timer = new PeriodicTimer(interval);
+
+            try
+            {
+                await StepAsync(ct);
+
+                while (await timer.WaitForNextTickAsync(ct))
+                    await StepAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        private async Task StepAsync(CancellationToken ct)
+        {
+            try
+            {
+                await work(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception e)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Spine] Poll failed: {e}");
+            }
+        }
+    }
 
     /// <summary>
     /// Called when the page is dismissed (via back navigation or sheet close) without an explicit

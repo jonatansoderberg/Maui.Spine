@@ -106,6 +106,15 @@
       <DependentUpon>GlassPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Lifetime\LifetimePage.View.xaml">
+      <DependentUpon>LifetimePage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Lifetime\LifetimePage.ViewModel.cs">
+      <DependentUpon>LifetimePage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
       <DependentUpon>ScrollInsetPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

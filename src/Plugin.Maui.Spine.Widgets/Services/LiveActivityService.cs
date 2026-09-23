@@ -77,8 +77,8 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
             _unannounced.Clear();
         }
 
-        foreach (var activity in ended) ActivityEnded?.Invoke(activity);
-        if (ended.Count > 0 || added) ActivitiesChanged?.Invoke();
+        foreach (var activity in ended) OnMainThread(() => ActivityEnded?.Invoke(activity));
+        if (ended.Count > 0 || added) OnMainThread(() => ActivitiesChanged?.Invoke());
     }
 
     /// <summary>
@@ -137,7 +137,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
         // The token does not exist yet — ActivityKit issues it a moment later. Raising now is still
         // right: whoever rebuilds a registration reads the token through GetPushTokenAsync, which
         // waits for it. Raising once the token arrived would need a second mechanism for no gain.
-        ActivitiesChanged?.Invoke();
+        OnMainThread(() => ActivitiesChanged?.Invoke());
 
         return activity;
     }
@@ -180,7 +180,7 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
         activity.IsEnded = true;
         lock (_active) { _active.Remove(activity); Remember(); }
         _platform.EndActivity(activity.Id);
-        ActivitiesChanged?.Invoke();
+        OnMainThread(() => ActivitiesChanged?.Invoke());
         return Task.CompletedTask;
     }
 
@@ -211,6 +211,13 @@ internal sealed class LiveActivityService(IWidgetPlatform _platform, WidgetIconA
             Preferences.Default.Remove(key);
             return [];
         }
+    }
+
+    // Handlers touch UI; raising here means no page has to dispatch for itself.
+    private static void OnMainThread(Action action)
+    {
+        if (MainThread.IsMainThread) action();
+        else MainThread.BeginInvokeOnMainThread(action);
     }
 }
 
