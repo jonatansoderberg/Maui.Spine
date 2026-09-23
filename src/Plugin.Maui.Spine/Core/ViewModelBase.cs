@@ -55,6 +55,14 @@ public abstract partial class ViewModelBase : ObservableObject
     public partial Thickness SafeAreaInsets { get; set; }
 
     /// <summary>
+    /// The edges on which the page's first scrolling view takes <see cref="SafeAreaInsets"/> as a
+    /// native content inset. Resolved by Spine from the page's attribute or the relevant defaults
+    /// and applied to that view before the page appears.
+    /// </summary>
+    [ObservableProperty]
+    public partial SafeAreaEdges ScrollInset { get; set; }
+
+    /// <summary>
     /// The raw system bar dimensions in device-independent pixels (status bar, navigation bar,
     /// display cutouts). Available on all platforms — non-zero on Android, <see cref="Thickness.Zero"/>
     /// on platforms that handle safe areas natively.
