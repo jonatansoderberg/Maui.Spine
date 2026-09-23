@@ -211,7 +211,8 @@
 	</ItemGroup>
 	<!-- Widgets: the kinds below become a WidgetKit extension on iOS; the providers are the [Widget] classes in Widgets\. -->
 	<ItemGroup>
-		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" />
+		<!-- PreviewImage is the Android picker's picture below Android 15; from 15 the picker shows the timeline itself. -->
+		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" PreviewImage="Widgets\Previews\sample.png" />
 		<SpineWidget Include="card" DisplayName="Spine card" Description="A card on a picture, the whole widget drawn by the app." Families="Small" />
 	</ItemGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />

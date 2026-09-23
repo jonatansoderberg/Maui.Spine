@@ -86,6 +86,7 @@ The native side is generated from MSBuild items, not from the attribute — the 
 | `DisplayName` | The name in the widget gallery. Defaults to the kind. |
 | `Description` | The gallery's subtitle. |
 | `Families` | `Small`, `Medium`, `Large`, `ExtraLarge`, `AccessoryCircular`, `AccessoryRectangular`, `AccessoryInline`, separated by commas or semicolons. Defaults to `Small`. See [Families](#families). |
+| `PreviewImage` | Android only: a PNG, relative to the project, that the widget picker shows below Android 15. From Android 15 the picker shows the widget itself; see [Picker preview](#picker-preview). |
 
 A WidgetKit bundle holds at most ten widgets and Spine reserves one for Live Activities, so nine `<SpineWidget>` items is the limit. Android has the same cap: the package carries nine fixed receivers and the build wires the items to them in declaration order.
 
@@ -735,7 +736,7 @@ The same C# tree renders on Android without changes; the difference is what the 
 
 | Spine | Android |
 |---|---|
-| `<SpineWidget>` item | An `AppWidgetProvider` receiver in the manifest (one of nine the package carries), `appwidget-provider` metadata, and the picker's name and description — all generated into `obj/` by the build |
+| `<SpineWidget>` item | An `AppWidgetProvider` receiver in the manifest (one of nine the package carries), `appwidget-provider` metadata, the picker's name and description, and `PreviewImage` as `android:previewImage` — all generated into `obj/` by the build |
 | `WidgetFamily` | Launcher cells: `Small` 2×2, `Medium` 4×2, `Large` 4×4, `ExtraLarge` 5×4. The smallest declared is the minimum size; from Android 12 the launcher picks the tree for the size the user resized to. Accessory families have no counterpart and are ignored |
 | Stacks | `LinearLayout` / `FrameLayout`, nested with `RemoteViews.AddView`. The tree's root sits in a frame that centres it on both axes, as SwiftUI does; a stack fills the width, a root text or image narrower than the widget is centred |
 | `W.Text`, `W.Timer`, `W.Relative` | `TextView` and `Chronometer`; `Title` 22 sp, `Headline` 16 sp, `Body` 14 sp, `Caption` 12 sp |
@@ -753,6 +754,20 @@ The same C# tree renders on Android without changes; the difference is what the 
 | `IWidgetLinkHandler` | Called from `OnCreate` (cold start) or `OnNewIntent` (warm), exactly as on iOS |
 
 The receivers run in the app's own process, so there is no shared container and no separate memory budget; the timeline documents live under the app's files directory.
+
+### Picker preview
+
+Android's widget picker shows a preview of each widget. Without one it shows the app icon on an empty tile, and one app's widgets look the same there. Spine fills it two ways:
+
+- **Android 15 and later: the widget itself.** Each time a widget is drawn, including when the app builds its timeline and none is placed yet, Spine hands the entry that applies now, drawn for the smallest declared family, to `AppWidgetManager.setWidgetPreview`. There is nothing to set up. The system allows only a few calls per widget an hour. Spine therefore sends a preview only when its tree or surface has changed. When the system refuses one, it logs that once (`I SpineWidgets: … rate-limited …`) and tries again at the next update. A picture replaced under the same asset id is not a change: the preview keeps the old picture until the tree or the surface changes too. A countdown in the preview stands still.
+- **Below Android 15: a picture you supply.** `PreviewImage` on the item is copied to `res/drawable-nodpi/spine_widget_<n>_preview.png` and becomes `android:previewImage`. From Android 15 it shows only until the app has built the timeline once, which is between install and first launch. A path that does not exist fails the build.
+
+```xml
+<SpineWidget Include="sample" DisplayName="Spine sample" Families="Small,Medium"
+             PreviewImage="Widgets\Previews\sample.png" />
+```
+
+A screenshot of the widget, cropped to its tile with the corners transparent, is the natural picture. The main sample's is one, taken from the generated preview. Spine does not set `android:previewLayout`. Its only layout without the app's data is the empty surface, and on Android 12–14 a `previewLayout` takes precedence over `previewImage`.
 
 ### Live Updates
 
