@@ -32,6 +32,10 @@ public static class MauiAppBuilderExtensions
         registry.Initialize(assemblies.Length > 0 ? assemblies : null);
         SvgBitmapLoader.Registry = registry;
 
+        // The first rasterization loads Svg.Skia and SkiaSharp (about 150 ms on a phone); pay it
+        // here, off the main thread, rather than when the first icon on the first page asks.
+        _ = Task.Run(SvgBitmapLoader.WarmUp);
+
 #if IOS || MACCATALYST || ANDROID
         builder.ConfigureImageSources(static services =>
             services.AddService<SvgBitmapImageSource, SvgBitmapImageSourceService>());
