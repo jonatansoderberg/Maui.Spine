@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/345
 **Branch:** fix/svg-icons-instant
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 Timing logs put every SVG step at a few milliseconds; the lag is the drawable reaching the `ImageView` after the RecyclerView cell's first layout. Three changes in `Plugin.Maui.Spine.Svg`:
