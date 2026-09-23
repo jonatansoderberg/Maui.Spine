@@ -17,7 +17,8 @@
             HorizontalOptions="Center"
             HorizontalTextAlignment="Center" />
         <Button Text="Confirm (return result)" Command="{Binding ConfirmCommand}" />
-        <Button Text="Cancel (dismiss)" Command="{Binding CancelCommand}" />
+        <Button Text="Return null (success, no value)" Command="{Binding ReturnNullCommand}" />
+        <Button Text="Close (canceled)" Command="{Binding CancelCommand}" />
     </VerticalStackLayout>
 
 </SpinePage>

@@ -203,7 +203,7 @@ internal sealed class NavigationService : INavigationService
     }
 
     /// <inheritdoc/>
-    public async Task ReturnAsync(object result)
+    public async Task ReturnAsync(object? result)
     {
         var activeVm = _host.ActiveRegionViewModel;
         var currentVm = activeVm.CurrentRegionViewModel;
@@ -223,10 +223,24 @@ internal sealed class NavigationService : INavigationService
         else
             await activeVm.BackAsync();
 
-        // Deliver the result after navigation is complete.
-        if (tcs is not null)
-            tcs.TrySetResult(result ?? throw new ArgumentNullException(nameof(result)));
+        // Deliver the result after navigation is complete. Wrapped so that a null result is
+        // still a result, distinct from the null a dismissal leaves behind.
+        tcs?.TrySetResult(new Returned(result));
     }
+
+    /// <inheritdoc/>
+    public async Task CloseAsync()
+    {
+        var activeVm = _host.ActiveRegionViewModel;
+
+        if (activeVm.Presentation is NavigationPresentation.Sheet && !activeVm.BackEnabled())
+            await activeVm.CloseAsync();
+        else
+            await activeVm.BackAsync();
+    }
+
+    /// <summary>A value delivered through <see cref="ReturnAsync"/>, which may itself be null.</summary>
+    private sealed record Returned(object? Value);
 
     /// <inheritdoc/>
     public Task BackAsync() => _host.ActiveRegionViewModel.BackAsync();
@@ -339,14 +353,17 @@ internal sealed class NavigationService : INavigationService
 
     private static NavigationResult<TResult> ResolveResult<TResult>(object? raw)
     {
-        if (raw is null)
+        // Only ReturnAsync produces a Returned; every dismissal path completes with null.
+        if (raw is not Returned returned)
             return NavigationResult<TResult>.Canceled();
 
-        if (raw is TResult typed)
-            return NavigationResult<TResult>.Success(typed);
-
-        throw new InvalidCastException(
-            $"Navigation result type mismatch. Expected '{typeof(TResult).Name}' but received '{raw.GetType().Name}'.");
+        return returned.Value switch
+        {
+            null => NavigationResult<TResult>.Success(default!),
+            TResult typed => NavigationResult<TResult>.Success(typed),
+            var other => throw new InvalidCastException(
+                $"Navigation result type mismatch. Expected '{typeof(TResult).Name}' but received '{other.GetType().Name}'."),
+        };
     }
 
     private void SetViewModelMeta(View view, NavigableAttribute meta)
