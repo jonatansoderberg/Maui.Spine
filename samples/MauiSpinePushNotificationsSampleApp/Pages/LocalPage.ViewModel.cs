@@ -83,19 +83,13 @@ public partial class LocalPageViewModel(ILocalNotificationService _local, IPushN
 
     /// <summary>
     /// Everything a notification can carry beyond its text: the buttons MauiProgram declares as
-    /// "sample", a picture, and a sound of its own. The picture is a MauiAsset copied out to the cache,
-    /// because a notification needs a file on the device and an asset inside the package is not one.
+    /// "sample", a picture, and a sound of its own. The picture is a MauiAsset; PackageFiles copies it
+    /// out to the cache, because a notification needs a file on the device and an asset inside the
+    /// package is not one.
     /// </summary>
     private static async Task<LocalNotification> RichAsync()
     {
-        var picture = Path.Combine(FileSystem.CacheDirectory, "sample_picture.png");
-
-        if (!File.Exists(picture))
-        {
-            await using var source = await FileSystem.OpenAppPackageFileAsync("sample_picture.png");
-            await using var target = File.Create(picture);
-            await source.CopyToAsync(target);
-        }
+        var picture = await PackageFiles.CachedPathAsync("sample_picture.png");
 
         return Notification("with buttons and a picture", 15) with
         {

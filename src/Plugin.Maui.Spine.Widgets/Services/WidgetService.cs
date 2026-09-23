@@ -69,5 +69,26 @@ internal sealed class WidgetService(
     public Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken = default) =>
         _platform.StoreAssetAsync(assetId, png, cancellationToken);
 
+    public async Task StorePackageAssetAsync(string fileName, string? assetId = null, CancellationToken cancellationToken = default)
+    {
+        if (!_platform.IsSupported) return;
+
+        assetId ??= fileName;
+        var key = $"spine.widgets.package-asset.{assetId}";
+
+        await using var source = await FileSystem.OpenAppPackageFileAsync(fileName);
+
+        // A package file only changes with the app, so its length is enough to tell a new build's
+        // picture from the one already stored; an unknown length (a compressed asset) copies every time.
+        var length = source.CanSeek ? source.Length : -1L;
+        if (length >= 0 && Preferences.Default.Get(key, -1L) == length)
+            return;
+
+        await _platform.StoreAssetAsync(assetId, source, cancellationToken);
+
+        if (length >= 0)
+            Preferences.Default.Set(key, length);
+    }
+
     public Uri LinkFor(string kind) => new($"{AppInfo.Current.PackageName}://widget/{Uri.EscapeDataString(kind)}");
 }

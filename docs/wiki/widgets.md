@@ -242,6 +242,16 @@ timeline.Refresh(TimeSpan.FromMinutes(30));
 
 Pre-computing entries is nearly free; reloads are not (see below). `Refresh(after)` asks the platform to call the provider again that long after the last entry — a request, not a promise.
 
+For a widget that changes once a day (a calendar, a habit tracker, a countdown), `Daily` builds one entry per day, the first dated now and the rest at local midnight, so the platform turns the page without the app:
+
+```csharp
+return WidgetTimeline
+    .Daily(60, date => DayTree(date))          // or date => trees per family
+    .Refresh(TimeSpan.FromHours(6));
+```
+
+Pictures for such a timeline can use `WidgetAsset.Rolling("today", date)` as their ids: a stored asset cannot be deleted, so the ids rotate through a fixed set of slots (64 by default, more than the days a timeline covers) and the store stays a fixed size.
+
 ### Adaptive trees
 
 A timeline can hold one tree per family, but often only a line or two differs. `W.Adaptive` puts that difference inside one tree: the fallback renders everywhere, a family with its own entry renders that instead. The sample's widget is a single tree where the medium size adds a subtitle and the build time:
@@ -345,7 +355,13 @@ To show that a tap is being worked on, mark the nodes it changes with `.Pending(
 .OpenUrl(new Uri($"{_widgets.LinkFor(context.Kind)}?competition={competition.Id}"))
 ```
 
-A provider that also implements `IWidgetLinkHandler` is called on the main thread when the app is opened that way, cold start included:
+A provider with nothing to decide can leave `IWidgetLinkHandler` out and let the options name the page the app opens at:
+
+```csharp
+.UseSpineWidgets(options => options.OpenWith<HomePage>())
+```
+
+A provider that also implements `IWidgetLinkHandler` is called on the main thread when the app is opened that way, cold start included, and wins over the option:
 
 ```csharp
 public Task OnWidgetOpenedAsync(WidgetLink link) =>
@@ -372,6 +388,13 @@ A bitmap has to be placed in the shared container first:
 await _widgets.StoreAssetAsync("arena", pngStream);
 // …later, in a tree:
 W.Image("arena", height: 64)
+```
+
+A picture that ships with the app (a `MauiAsset` under `Resources/Raw`) goes in with one call, copied only the first time and after an update changed it:
+
+```csharp
+await _widgets.StorePackageAssetAsync("logo.png");   // asset id "logo.png"
+W.Image("logo.png", height: 40)
 ```
 
 Keep them small. The extension is killed at roughly 30 MB.
