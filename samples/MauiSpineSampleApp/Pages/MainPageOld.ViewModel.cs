@@ -50,9 +50,12 @@ public partial class MainPageOldViewModel(INavigationService _navigation) : View
     {
         var result = await _navigation.NavigateToWithResultAsync<FullscreenSheetPage, FullscreenSheetResult>();
 
-        SheetResult = result is { IsSuccess: true, Value: not null and var value }
-            ? $"Result: {value.Message}"
-            : "Canceled";
+        SheetResult = result switch
+        {
+            { IsSuccess: true, Value: { } value } => $"Result: {value.Message}",
+            { IsSuccess: true } => "Result: (null)",
+            _ => "Canceled",
+        };
     }
 
     public override Task OnAppearingAsync(NavigationDirection navigationDirection)

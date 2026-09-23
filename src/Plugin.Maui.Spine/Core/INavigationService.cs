@@ -59,9 +59,18 @@ public interface INavigationService
     /// <summary>
     /// Returns <paramref name="result"/> to the caller of
     /// <see cref="NavigateToWithResultAsync{TPage,TResult}"/> and navigates back / closes the sheet.
+    /// The caller sees <see cref="NavigationResult{TResult}.IsSuccess"/> as <see langword="true"/>,
+    /// even for a <see langword="null"/> result; a page that was dismissed instead yields a canceled outcome.
     /// </summary>
-    /// <param name="result">The non-null result value to deliver. Its type must match <c>TResult</c>.</param>
-    Task ReturnAsync(object result);
+    /// <param name="result">The result value to deliver, or <see langword="null"/>. A non-null value must match <c>TResult</c>.</param>
+    Task ReturnAsync(object? result);
+
+    /// <summary>
+    /// Closes the current sheet, or navigates back when the page is not a sheet, without a result.
+    /// A caller awaiting <see cref="NavigateToWithResultAsync{TPage,TResult}"/> sees a canceled outcome,
+    /// the same as when the user dismisses the page.
+    /// </summary>
+    Task CloseAsync();
 
     /// <summary>
     /// Replaces the entire navigation stack with <typeparamref name="TPage"/> as the sole root page.

@@ -49,7 +49,7 @@ public partial class ConfirmPage : INavigableWithResult<ConfirmPageResult>
 
 ## Step 3 — Return the result from the ViewModel
 
-Call `ReturnAsync` to deliver the result and close the page. Call `BackAsync` (or let the user dismiss) for a "canceled" outcome:
+Call `ReturnAsync` to deliver the result and close the page. A `null` result is still a result: the caller gets `IsSuccess = true` with a `null` value. Call `CloseAsync` (or `BackAsync`, or let the user dismiss) for a "canceled" outcome:
 
 ```csharp
 namespace MyApp.Pages;
@@ -95,7 +95,7 @@ private async Task ShowConfirmWithResult()
 
 | Property | Type | Description |
 |---|---|---|
-| `IsSuccess` | `bool` | `true` when `ReturnAsync` was called; `false` when dismissed |
+| `IsSuccess` | `bool` | `true` when `ReturnAsync` was called (even with `null`); `false` when dismissed or closed with `CloseAsync` |
 | `Value` | `TResult?` | The result value when `IsSuccess` is `true`; `default` otherwise |
 
 ---
