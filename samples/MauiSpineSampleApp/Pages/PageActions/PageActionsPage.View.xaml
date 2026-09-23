@@ -1,0 +1,28 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.PageActions.PageActionsPage"
+    x:TypeArguments="PageActionsPageViewModel"
+    x:DataType="PageActionsPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="12">
+
+            <Label Text="[PageAction] on a [RelayCommand] declares a header button. Every property can change while the page shows."
+                   FontSize="14" />
+
+            <Label Text="{Binding Log}" FontAttributes="Bold" />
+
+            <Label Text="Filter (Secondary, text)" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Button Text="Count up: Text and Badge" Command="{Binding CountUpCommand}" />
+            <Button Text="Clear count" Command="{Binding ClearCountCommand}" />
+            <Button Text="Toggle IsEnabled" Command="{Binding ToggleEnabledCommand}" />
+            <Button Text="Toggle IsVisible (Bell takes the slot)" Command="{Binding ToggleVisibleCommand}" />
+
+            <Label Text="Collection changes" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Button Text="Add / remove a Primary 'Cancel' (replaces Back)" Command="{Binding ToggleCancelCommand}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

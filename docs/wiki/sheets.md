@@ -167,6 +167,13 @@ public partial class OptionsPageViewModel : ViewModelBase
         // Called when the sheet is dismissed without an explicit result
         return base.OnDismissedAsync();
     }
+
+    public override Task OnResumedAsync()
+    {
+        // Called when the app comes back to the foreground while the sheet is open.
+        // The page under the sheet is called too.
+        return base.OnResumedAsync();
+    }
 }
 ```
 

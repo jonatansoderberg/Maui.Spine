@@ -11,7 +11,8 @@
       "src\\Plugin.Maui.Spine.Svg.Icons\\Plugin.Maui.Spine.Svg.Icons.csproj",
       "src\\Plugin.Maui.Spine.Widgets\\Plugin.Maui.Spine.Widgets.csproj",
       "src\\Plugin.Maui.Spine\\Plugin.Maui.Spine.csproj",
-      "tests\\Plugin.Maui.Spine.Server.Tests\\Plugin.Maui.Spine.Server.Tests.csproj"
+      "tests\\Plugin.Maui.Spine.Server.Tests\\Plugin.Maui.Spine.Server.Tests.csproj",
+      "tests\\Plugin.Maui.Spine.Svg.Tests\\Plugin.Maui.Spine.Svg.Tests.csproj"
     ]
   }
 }

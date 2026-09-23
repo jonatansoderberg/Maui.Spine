@@ -16,7 +16,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 | The app needs | Install | Brings in |
 |---|---|---|
 | Navigation: regions, sheets, tabs, header bar, glass buttons, shortcuts, Windows windowing | `Plugin.Maui.Spine` | `Plugin.Maui.Spine.Svg` |
-| The built-in icon set (164 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
+| The built-in icon set (166 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
 | Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
 | Push and local notifications | `Plugin.Maui.Spine.PushNotifications` | `Plugin.Maui.Spine.Common` (not the core) |
 | The push backend, in an ASP.NET Core or Azure Functions project | `Plugin.Maui.Spine.Server` | `Plugin.Maui.Spine.Common` |
@@ -170,7 +170,7 @@ Reference `Plugin.Maui.Spine.Svg.Icons` for a ready-made set instead; nothing el
 <array><string>group.com.example.myapp</string></array>
 ```
 
-The extension's bundle id is `$(ApplicationId).SpineWidgets` (override with `SpineWidgetsExtensionName`); device builds need an App ID and a profile for it too, with the App Group on both. The extension is compiled with `swiftc` during the iOS build, so iOS needs macOS with Xcode; Android needs nothing extra. Simulator builds with app extensions want `-p:CodesignKey=-`.
+The extension's bundle id is `$(ApplicationId).SpineWidgets` (override with `SpineWidgetsExtensionName`); device builds need an App ID and a profile for it too, with the App Group on both. The extension is compiled with `swiftc` during the iOS build, so iOS needs macOS with Xcode; Android needs nothing extra. Simulator builds sign ad hoc: the targets set `CodesignKey=-` themselves when none is configured.
 
 ### Push notifications
 

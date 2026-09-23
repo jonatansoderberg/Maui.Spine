@@ -55,6 +55,10 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         if (IsSupported) SpineAppWidget.Update(_context, kind);
     }
 
+    /// <summary>The renderer reads a cached copy of the remote document, and only the app refreshes it.</summary>
+    public Task FetchRemoteAsync(string kind, Uri source, CancellationToken cancellationToken) =>
+        IsSupported ? SpineAppWidget.FetchRemoteAsync(_context, kind, source, cancellationToken) : Task.CompletedTask;
+
     public void ReloadAll()
     {
         foreach (var kind in _kinds) SpineAppWidget.Update(_context, kind);

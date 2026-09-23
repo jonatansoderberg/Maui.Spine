@@ -35,6 +35,8 @@ jobs:
 
       - run: dotnet test tests/Plugin.Maui.Spine.Server.Tests -c Release --no-build
 
+      - run: dotnet test tests/Plugin.Maui.Spine.Svg.Tests -c Release --no-build
+
       - run: dotnet pack Spine.Packages.slnf -c Release --no-build
 
       - run: python .github/workflows/list-packages.py artifacts/packages

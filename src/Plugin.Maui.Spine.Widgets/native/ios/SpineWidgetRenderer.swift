@@ -68,10 +68,13 @@ enum Dates {
 
 // MARK: - Documents
 
-struct TimelineDocument: Decodable {
-    struct Entry: Decodable {
+struct TimelineDocument: Decodable, SurfaceFields {
+    struct Entry: Decodable, SurfaceFields {
         var date: Date
         var trees: [String: Node]
+        var background: String?
+        var backgroundGradient: GradientSpec?
+        var backgroundImage: String?
     }
     var link: String?
     var remote: String?
@@ -87,19 +90,26 @@ struct GradientSpec: Decodable {
     var direction: String?
 }
 
+/// The three surface fields, which a document and each of its entries carry under the same names.
+protocol SurfaceFields {
+    var background: String? { get }
+    var backgroundGradient: GradientSpec? { get }
+    var backgroundImage: String? { get }
+}
+
 /// The widget's surface: a color or a gradient, and an image over it. The three travel together, so a remote
-/// document's surface is taken whole or not at all.
+/// document's surface, and an entry's, is taken whole or not at all.
 struct SurfaceBackground {
     var color: String?
     var gradient: GradientSpec?
     var image: String?
 
-    init?(_ document: TimelineDocument?) {
-        guard let document, document.background != nil || document.backgroundGradient != nil || document.backgroundImage != nil
+    init?<Fields: SurfaceFields>(_ fields: Fields?) {
+        guard let fields, fields.background != nil || fields.backgroundGradient != nil || fields.backgroundImage != nil
         else { return nil }
-        color = document.background
-        gradient = document.backgroundGradient
-        image = document.backgroundImage
+        color = fields.background
+        gradient = fields.backgroundGradient
+        image = fields.backgroundImage
     }
 }
 
@@ -137,7 +147,10 @@ final class Node: Decodable {
     var height: Double?
     var value: Double?
     var compact: Bool?
+    var prefix: String?
+    var centered: Bool?
     var spacing: Double?
+    var fill: Bool?
     var padding: Double?
     var background: String?
     var cornerRadius: Double?
@@ -219,7 +232,7 @@ struct NodeView: View {
         // https://developer.apple.com/forums/thread/723316
         case "timer":
             if let end = node.until {
-                Text(timerInterval: Date.now...max(end, Date.now), countsDown: true)
+                prefixed(node, Text(timerInterval: Date.now...max(end, Date.now), countsDown: true))
                     .monospacedDigit()
                     .modifier(TextStyleModifier(node: node))
             }
@@ -227,7 +240,7 @@ struct NodeView: View {
             if let date = node.date {
                 // .timer is the same information as a clock — "18:35" rather than "18 min, 35 secs"
                 // — for the regions that have no room for a sentence.
-                Text(date, style: node.compact == true ? .timer : .relative)
+                prefixed(node, Text(date, style: node.compact == true ? .timer : .relative))
                     .monospacedDigit()
                     .modifier(TextStyleModifier(node: node))
             }
@@ -273,13 +286,28 @@ struct BoxModifier: ViewModifier {
     let alignment: Alignment
 
     @ViewBuilder func body(content: Content) -> some View {
-        if node.padding == nil && node.background == nil && node.cornerRadius == nil {
+        if node.fill == true {
+            // An equal share of the parent's axis: three of them in a row are three equal columns.
+            boxed(content).frame(maxWidth: inline ? .infinity : nil, maxHeight: inline ? nil : .infinity, alignment: alignment)
+        } else if node.padding == nil && node.background == nil && node.cornerRadius == nil {
             content
         } else {
             let shape = RoundedRectangle(cornerRadius: CGFloat(node.cornerRadius ?? 0))
             content
                 .padding(CGFloat(node.padding ?? 0))
                 .frame(maxWidth: node.background != nil && !inline ? .infinity : nil, alignment: alignment)
+                .background(fill, in: shape)
+                .clipShape(shape)
+        }
+    }
+
+    @ViewBuilder private func boxed(_ content: Content) -> some View {
+        if node.padding == nil && node.background == nil && node.cornerRadius == nil {
+            content
+        } else {
+            let shape = RoundedRectangle(cornerRadius: CGFloat(node.cornerRadius ?? 0))
+            content
+                .padding(CGFloat(node.padding ?? 0))
                 .background(fill, in: shape)
                 .clipShape(shape)
         }
@@ -293,14 +321,24 @@ struct BoxModifier: ViewModifier {
     }
 }
 
+/// A self-updating time with its prefix as one Text, so centring treats them as one line: beside it in
+/// a stack, a label cannot be centred with a time that takes all the width it is offered.
+func prefixed(_ node: Node, _ time: Text) -> Text {
+    if let prefix = node.prefix { return Text(prefix) + time }
+    return time
+}
+
 struct TextStyleModifier: ViewModifier {
     let node: Node
 
+    // Alignment only, no full-width frame: a timer already takes the whole width and is centred in it,
+    // and plain text keeps its size, so a centred Dynamic Island region does not squeeze its neighbours.
     func body(content: Content) -> some View {
         content
             .font(Palette.font(node.font))
             .fontWeight(node.bold == true ? .bold : .regular)
             .foregroundStyle(Palette.color(node.color))
+            .multilineTextAlignment(node.centered == true ? .center : .leading)
     }
 }
 
@@ -426,11 +464,12 @@ struct Provider: TimelineProvider {
         return entries(from: document, link: document?.link, background: SurfaceBackground(document))
     }
 
+    /// An entry with a surface of its own is drawn on it; the rest on `background`, the document's.
     private func entries(from document: TimelineDocument?, link: String?, background: SurfaceBackground?) -> [Entry] {
         guard let document else { return [] }
         return document.entries
             .sorted { $0.date < $1.date }
-            .map { Entry(date: $0.date, trees: $0.trees, link: link, kind: kind, background: background) }
+            .map { Entry(date: $0.date, trees: $0.trees, link: link, kind: kind, background: SurfaceBackground($0) ?? background) }
     }
 }
 
@@ -552,8 +591,10 @@ struct SpineLiveActivity: Widget {
             let layout = ActivityLayout.parse(context.state.json)
             let kind = context.attributes.kind
             return DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind) }
-                DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind) }
+                // Beside a taller centre the side regions would sit at the top, level with the camera;
+                // filling their height centres them on it instead.
+                DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind).frame(maxHeight: .infinity) }
+                DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind).frame(maxHeight: .infinity) }
                 DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter, kind: kind) }
                 DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom, kind: kind) }
             } compactLeading: {

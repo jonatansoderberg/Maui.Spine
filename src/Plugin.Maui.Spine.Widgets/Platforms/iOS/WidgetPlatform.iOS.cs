@@ -142,6 +142,9 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         await png.CopyToAsync(file, cancellationToken);
     }
 
+    /// <summary>Nothing to do: WidgetKit fetches the timeline's remote source itself on every reload.</summary>
+    public Task FetchRemoteAsync(string kind, Uri source, CancellationToken cancellationToken) => Task.CompletedTask;
+
     public void Reload(string kind)
     {
         if (!IsSupported) return;

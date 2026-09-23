@@ -8,19 +8,7 @@ public partial class SamplePageViewModel(INavigationService _navigation) : ViewM
     [RelayCommand]
     private async Task Next() => await _navigation.NavigateToAsync<SamplePage2>();
 
+    [PageAction("Save")]
     [RelayCommand]
     private Task DummyAction() => Task.CompletedTask;
-
-    public override Task OnAppearingAsync(NavigationDirection navigationDirection)
-    {
-        if (PageActions.Count == 0)
-        {
-            PageActions.Add(new PageAction(text: "Save", command: DummyActionCommand)
-            {
-                //Svg = "car.svg"
-            });
-        }
-
-        return base.OnAppearingAsync(navigationDirection);
-    }
 }

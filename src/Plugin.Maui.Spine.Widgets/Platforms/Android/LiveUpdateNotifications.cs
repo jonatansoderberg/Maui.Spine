@@ -60,8 +60,10 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         var lockScreen = Region(layout, "lockScreen");
         var texts = Texts(lockScreen).Concat(Texts(Region(layout, "expandedBottom"))).ToList();
 
-        var title = texts.FirstOrDefault(t => t.Role is "headline" or "title").Text ?? texts.FirstOrDefault().Text ?? AppLabel();
-        var text = texts.Select(t => t.Text).FirstOrDefault(t => t != title);
+        // What the app said, where it said anything; the tree is only a guess at what reads well here.
+        var own = Region(layout, "android");
+        var title = Text(own, "title") ?? texts.FirstOrDefault(t => t.Role is "headline" or "title").Text ?? texts.FirstOrDefault().Text ?? AppLabel();
+        var text = Text(own, "body") ?? texts.Select(t => t.Text).FirstOrDefault(t => t != title);
 
         var builder = new Notification.Builder(_context, ChannelId)
             .SetOngoing(true)
@@ -90,8 +92,14 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         else
             builder.SetStyle(new Notification.BigTextStyle().BigText(text ?? title));
 
-        if (Region(layout, "compactTrailing") is { } compact && Find(compact, "text") is { } chip && chip.TryGetProperty("text", out var chipText))
+        if (Text(own, "chip") is { } chip)
+            builder.SetShortCriticalText(chip);
+        else if (Region(layout, "compactTrailing") is { } compact && Find(compact, "text") is { } compactText && compactText.TryGetProperty("text", out var chipText))
             builder.SetShortCriticalText(chipText.GetString());
+
+        // The promoted template has no image region of its own; the large icon is the one picture it shows.
+        if (Text(own, "icon") is { } asset && Bitmap(asset) is { } picture)
+            builder.SetLargeIcon(picture);
 
         if (layout.TryGetProperty("link", out var link) && link.GetString() is { } url && Android.Net.Uri.Parse(url) is { } uri)
             builder.SetContentIntent(PendingIntent.GetActivity(_context, tag.GetHashCode(),
@@ -131,6 +139,14 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
         channel.EnableVibration(false);
         Manager.CreateNotificationChannel(channel);
     }
+
+    private static string? Text(JsonElement? element, string name) =>
+        element?.TryGetProperty(name, out var value) == true && value.ValueKind == JsonValueKind.String
+            ? value.GetString() is { Length: > 0 } text ? text : null
+            : null;
+
+    private Android.Graphics.Bitmap? Bitmap(string assetId) =>
+        Android.Graphics.BitmapFactory.DecodeFile(System.IO.Path.Combine(WidgetStore.AssetsDirectory(_context), assetId));
 
     private string AppLabel() => _context.ApplicationInfo!.LoadLabel(_context.PackageManager!)?.ToString() ?? _context.PackageName!;
 

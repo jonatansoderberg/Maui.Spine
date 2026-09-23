@@ -4,6 +4,7 @@ using Android.Content;
 using Android.Graphics;
 using Android.OS;
 using Android.Util;
+using Android.Views;
 using Android.Widget;
 using Plugin.Maui.Spine.Common;
 using System.Text.Json;
@@ -69,6 +70,12 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     {
         switch (Text(node, "type"))
         {
+            // A filled stack takes its share of the parent's axis, which RemoteViews can only express
+            // as a layout of its own: a weight cannot be set after inflation.
+            case "vstack" when Bool(node, "fill"):
+                return Stack(node, inline ? Resource.Layout.spine_widget_vstack_fill_width : Resource.Layout.spine_widget_vstack_fill_height, vertical: true);
+            case "hstack" when Bool(node, "fill"):
+                return Stack(node, inline ? Resource.Layout.spine_widget_hstack_fill_width : Resource.Layout.spine_widget_hstack_fill_height, vertical: false);
             case "vstack": return Stack(node, inline ? Resource.Layout.spine_widget_vstack_inline : Resource.Layout.spine_widget_vstack, vertical: true);
             case "hstack": return Stack(node, inline ? Resource.Layout.spine_widget_hstack_inline : Resource.Layout.spine_widget_hstack, vertical: false);
             case "zstack": return Stack(node, inline ? Resource.Layout.spine_widget_zstack_inline : Resource.Layout.spine_widget_zstack, vertical: null);
@@ -84,7 +91,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 // Counts down to `until`; a moment already passed shows 00:00 rather than negative time, as on iOS.
                 var views = TextLike(node, Resource.Layout.spine_widget_timer, Resource.Layout.spine_widget_timer_bold);
                 var remaining = Math.Max(0, (Date(node, "until") - DateTimeOffset.UtcNow).TotalMilliseconds);
-                views.SetChronometer(Node, SystemClock.ElapsedRealtime() + (long)remaining, null, true);
+                views.SetChronometer(Node, SystemClock.ElapsedRealtime() + (long)remaining, ChronometerFormat(node), true);
                 if (OperatingSystem.IsAndroidVersionAtLeast(24)) views.SetChronometerCountDown(Node, true);
                 return views;
             }
@@ -94,7 +101,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 // closest thing that ticks without the app running.
                 var views = TextLike(node, Resource.Layout.spine_widget_timer, Resource.Layout.spine_widget_timer_bold);
                 var elapsed = Math.Max(0, (DateTimeOffset.UtcNow - Date(node, "date")).TotalMilliseconds);
-                views.SetChronometer(Node, SystemClock.ElapsedRealtime() - (long)elapsed, null, true);
+                views.SetChronometer(Node, SystemClock.ElapsedRealtime() - (long)elapsed, ChronometerFormat(node), true);
                 return views;
             }
             case "image":
@@ -195,8 +202,13 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             _ => 14,
         });
         Color(views, "setTextColor", Text(node, "color"));
+        if (Bool(node, "centered")) views.SetInt(Node, "setGravity", (int)GravityFlags.CenterHorizontal);
         return views;
     }
+
+    /// <summary>The prefix drawn in front of the time, in the chronometer's own format ("prefix%s").</summary>
+    private static string? ChronometerFormat(JsonElement node) =>
+        Text(node, "prefix") is { Length: > 0 } prefix ? prefix.Replace("%", "%%") + "%s" : null;
 
     private RemoteViews Empty() => new(Package, Resource.Layout.spine_widget_empty);
 

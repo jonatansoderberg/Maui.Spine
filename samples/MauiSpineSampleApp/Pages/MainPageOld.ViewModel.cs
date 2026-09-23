@@ -36,6 +36,7 @@ public partial class MainPageOldViewModel(INavigationService _navigation) : View
         return Task.CompletedTask;
     }
 
+    [PageAction(Svg = "settings.svg")]
     [RelayCommand] private async Task OpenSettings() => await _navigation.NavigateToAsync<Settings.SettingsPage>();
     [RelayCommand] private async Task ShowBottomSheet() => await _navigation.NavigateToAsync<SamplePage>();
     [RelayCommand] private async Task ShowSimpleBottomSheet() => await _navigation.NavigateToAsync<SimpleBottomSheetPage>();
@@ -53,18 +54,5 @@ public partial class MainPageOldViewModel(INavigationService _navigation) : View
         SheetResult = result is { IsSuccess: true, Value: not null and var value }
             ? $"Result: {value.Message}"
             : "Canceled";
-    }
-
-    public override Task OnAppearingAsync(NavigationDirection navigationDirection)
-    {
-        if (PageActions.Count == 0)
-        {
-            PageActions.Add(new PageAction(text: null, command: OpenSettingsCommand)
-            {
-                Svg = "settings.svg"
-            });
-        }
-
-        return base.OnAppearingAsync(navigationDirection);
     }
 }

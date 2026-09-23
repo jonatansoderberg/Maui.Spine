@@ -9,7 +9,7 @@ You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each co
 
 ## SVG icons (`Plugin.Maui.Spine.Svg`, comes with the core)
 
-Embed the app's icons and pass the assembly to `UseSpine` (`options.AddAssembly`) — that registers them. Reference **`Plugin.Maui.Spine.Svg.Icons`** for 164 ready-made glyphs (arrows, close, settings, refresh, plus, minus, edit, delete, rooms, appliances, media, weather); nothing to register, `SpineIcons.Bell` is `"Bell.svg"`.
+Embed the app's icons and pass the assembly to `UseSpine` (`options.AddAssembly`) — that registers them. Reference **`Plugin.Maui.Spine.Svg.Icons`** for 166 ready-made glyphs (arrows, close, settings, refresh, plus, minus, edit, delete, rooms, appliances, media, weather); nothing to register, `SpineIcons.Bell` is `"Bell.svg"`.
 
 ```xml
 <!-- MyApp.csproj -->

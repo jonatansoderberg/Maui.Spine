@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace Plugin.Maui.Spine.Server;
@@ -33,7 +34,9 @@ public sealed class FcmMessage
     public string ToJson()
     {
         var buffer = new System.IO.MemoryStream();
-        using (var w = new Utf8JsonWriter(buffer))
+        // Escaped like the APNs payload, so the layout reads the same in both. The wire format is
+        // FirebaseAdmin's own serialization of Data; this is what tests and logs see.
+        using (var w = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
             w.WriteStartObject();
 

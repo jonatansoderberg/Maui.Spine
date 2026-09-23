@@ -1,5 +1,7 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Plugin.Maui.Spine.Common.Serialization;
 
@@ -13,10 +15,16 @@ internal sealed record WidgetTimelineDocument(
     [property: JsonPropertyName("backgroundImage")] string? BackgroundImage,
     [property: JsonPropertyName("entries")] IReadOnlyList<WidgetTimelineEntryDocument> Entries);
 
-/// <summary>One entry of <see cref="WidgetTimelineDocument"/>; <c>trees</c> is keyed by family name or <c>default</c>.</summary>
+/// <summary>
+/// One entry of <see cref="WidgetTimelineDocument"/>; <c>trees</c> is keyed by family name or <c>default</c>. The
+/// surface fields have the document's names and replace its surface, all three, while the entry is shown.
+/// </summary>
 internal sealed record WidgetTimelineEntryDocument(
     [property: JsonPropertyName("date")] DateTimeOffset Date,
-    [property: JsonPropertyName("trees")] IReadOnlyDictionary<string, WidgetNode> Trees);
+    [property: JsonPropertyName("trees")] IReadOnlyDictionary<string, WidgetNode> Trees,
+    [property: JsonPropertyName("background")] WidgetColor? Background = null,
+    [property: JsonPropertyName("backgroundGradient")] WidgetGradient? BackgroundGradient = null,
+    [property: JsonPropertyName("backgroundImage")] string? BackgroundImage = null);
 
 [JsonSourceGenerationOptions(
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -38,23 +46,34 @@ public static class WidgetJson
     /// <summary>The key a tree is filed under when it serves every widget family.</summary>
     public const string DefaultFamilyKey = "default";
 
+    /// <summary>
+    /// The context's options with relaxed escaping: å stays UTF-8 and a quote is <c>\"</c>. A layout
+    /// travels inside a 4 KB APNs payload, where the default encoder's <c>\u00E5</c> is escaped once
+    /// more; the renderers read either.
+    /// </summary>
+    private static readonly JsonSerializerOptions Written = new(WidgetJsonContext.Default.Options)
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     /// <summary>The timeline as the renderer's JSON, entries ordered by date.</summary>
     public static string Serialize(WidgetTimeline timeline)
     {
         var entries = timeline.Entries
             .OrderBy(e => e.Date)
             .Select(e => new WidgetTimelineEntryDocument(e.Date, e.Trees is { } trees
-                ? trees.ToDictionary(t => FamilyKey(t.Key), t => t.Value)
-                : new Dictionary<string, WidgetNode> { [DefaultFamilyKey] = e.Tree! }))
+                    ? trees.ToDictionary(t => FamilyKey(t.Key), t => t.Value)
+                    : new Dictionary<string, WidgetNode> { [DefaultFamilyKey] = e.Tree! },
+                e.Surface?.Color, e.Surface?.Gradient, e.Surface?.Image))
             .ToList();
 
         var document = new WidgetTimelineDocument(timeline.Link?.ToString(), timeline.Remote?.ToString(), timeline.RefreshAfter?.TotalSeconds, timeline.BackgroundColor, timeline.BackgroundGradient, timeline.BackgroundAsset, entries);
-        return JsonSerializer.Serialize(document, WidgetJsonContext.Default.WidgetTimelineDocument);
+        return JsonSerializer.Serialize(document, (JsonTypeInfo<WidgetTimelineDocument>)Written.GetTypeInfo(typeof(WidgetTimelineDocument)));
     }
 
     /// <summary>The layout as the renderer's JSON — the <c>content-state</c> of a Live Activity push.</summary>
     public static string Serialize(LiveActivityLayout layout) =>
-        JsonSerializer.Serialize(layout, WidgetJsonContext.Default.LiveActivityLayout);
+        JsonSerializer.Serialize(layout, (JsonTypeInfo<LiveActivityLayout>)Written.GetTypeInfo(typeof(LiveActivityLayout)));
 
     // Family keys are the JSON names of WidgetFamily; the Swift side switches on the same strings.
     /// <summary>

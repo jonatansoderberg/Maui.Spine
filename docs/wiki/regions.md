@@ -34,6 +34,7 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `TitlePlacement` | `TitlePlacement` | platform default | `HeaderBar` or `TitleBar` |
 | `TitleAlignment` | `TitleAlignment` | platform default | `Left` or `Center` |
 | `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually |
+| `ScrollInset` | `SafeAreaEdges` | `None` | Edges on which the page's first `ScrollView` / `CollectionView` takes the safe-area inset as a native content inset, so it can scroll under an excluded bar and still reach its last row. See [Scrolling under a bar](#scrolling-under-a-bar) |
 
 Platform defaults:
 
@@ -114,6 +115,13 @@ public partial class SettingsPageViewModel : ViewModelBase
         // Called just before the page leaves the screen
         return base.OnDisappearingAsync(navigationDirection);
     }
+
+    public override async Task OnResumedAsync()
+    {
+        // Called when the app comes back to the foreground while this page is shown
+        await LoadDataAsync();
+        await base.OnResumedAsync();
+    }
 }
 ```
 
@@ -125,11 +133,54 @@ public partial class SettingsPageViewModel : ViewModelBase
 | `NavigateTo` | Page was pushed onto the stack |
 | `Back` | Returned to this page because a child was popped |
 
+### Coming back to the app
+
+`OnResumedAsync` is called when the app returns to the foreground, or its window is activated again, on the pages that are **shown**: the current page of the region (or of the selected tab), and of an open sheet together with the page under it. Pages covered by another page on the stack, or on another tab, are not called; they get `OnAppearingAsync` when they are shown again. The page does not subscribe to window events itself; Spine owns the window.
+
+It is not called at launch, because the first `OnAppearingAsync` covers that. It is called only after the app was deactivated, and anything that takes the window out of the foreground or out of focus counts: going to the background, but also the notification shade or a system dialog on a phone, and another window on the desktop. Keep the override cheap, or check whether anything actually changed.
+
+Spine does not follow the calendar day. A page that shows "today" compares the date when it comes back, and runs its own timer to midnight if it must turn while it is on screen:
+
+```csharp
+public override async Task OnResumedAsync()
+{
+    var today = DateOnly.FromDateTime(DateTime.Now);
+
+    if (Day != today)
+        await ShowDayAsync(today);
+
+    await base.OnResumedAsync();
+}
+```
+
+---
+
+## Scrolling under a bar
+
+Excluding an edge from `SafeAreaEdges` lets content draw behind that bar — the home indicator, the gesture bar, or the floating tab bar inside the tab host. A list that does this still has to let its last row scroll clear of the bar. Give the list the inset as a *content inset* instead of a spacer:
+
+```xml
+<CollectionView ItemsSource="{Binding Rows}" SafeArea.ScrollInset="Bottom" />
+```
+
+`SafeArea.ScrollInset` works on `ScrollView`, `CollectionView` and `HeroCollectionView`. It reads the page's `ViewModelBase.SafeAreaInsets` (non-zero only on the edges Spine is not padding; inside the tab host the bottom value includes the tab bar) and applies it natively: `UIScrollView.ContentInset` on iOS and Mac Catalyst, padding with `clipToPadding` off on Android, `Padding` on Windows. The rows keep drawing through the bar; only the scrollable range grows. Rotation and tab-bar changes flow through automatically.
+
+To apply it without touching the list, set it on the attribute — or once for every page through `options.RegionDefaults.ScrollInset` (and `TabDefaults` / `SheetDefaults`):
+
+```csharp
+[NavigableRegion(SafeAreaEdges = SafeAreaEdges.Top | SafeAreaEdges.Left | SafeAreaEdges.Right,
+                 ScrollInset = SafeAreaEdges.Bottom)]
+```
+
+Spine then sets `SafeArea.ScrollInset` on the page's first `ScrollView` or `CollectionView`. A view that sets its own value keeps it.
+
 ---
 
 ## Interactive back-swipe gesture
 
 On mobile, the user can swipe from the left edge to go back, matching the native iOS behavior. This is built into `NavigationRegion` and requires no extra configuration.
+
+The gesture only claims a drag that starts at the leading edge, runs rightward and more sideways than up or down, and only while there is a page to go back to. Anything else — a vertical drag in a list, a drag inside a canvas that handles its own touches, a drag on the root page — is left to the content. On iOS and Mac Catalyst that is enforced on the native pan recognizer before it begins, since a `UIPanGestureRecognizer` that has begun cancels the touches of the views under it.
 
 ---
 

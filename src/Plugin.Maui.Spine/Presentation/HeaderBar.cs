@@ -392,6 +392,11 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
             IsVisible = false
         };
 
+        // An action that hides or shows itself in place keeps its instance, so the bindable
+        // properties above never fire; the view tells us directly.
+        _primaryPageActionView.VisibilityChanged += UpdatePrimaryActionVisibility;
+        _secondaryPageActionView.VisibilityChanged += UpdateSecondaryActionVisibility;
+
         var buttonGrid = new Grid()
         {
             //BackgroundColor = Colors.Pink.WithAlpha(0.5f),

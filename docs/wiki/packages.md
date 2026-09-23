@@ -6,7 +6,7 @@ Spine ships as nine NuGet packages built from this repository, one per project u
 |---|---|---|---|
 | Core | `Plugin.Maui.Spine` | Navigation, sheets, tab host, header bar, glass buttons, shortcuts, Windows windowing | `.Svg` |
 | Core | `Plugin.Maui.Spine.Svg` | Embedded SVG image sources, icon services, SVG-to-icon for tray and window icons | — |
-| Core | `Plugin.Maui.Spine.Svg.Icons` | 164 ready-made SVG icons, resolved by file name once referenced | — (found by `.Svg` at startup) |
+| Core | `Plugin.Maui.Spine.Svg.Icons` | 166 ready-made SVG icons, resolved by file name once referenced | — (found by `.Svg` at startup) |
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine`, `.Common` |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications | `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
