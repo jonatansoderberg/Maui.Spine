@@ -6,6 +6,7 @@
     x:DataType="MarqueePageViewModel">
 
     <VerticalStackLayout Padding="20,16" Spacing="10">
+            <PackageChips Packages="Plugin.Maui.Spine.Controls.AnimatedLabel" />
         <Label Text="AnimatedLabel scrolls text that does not fit, with a fade at the edges, and stays still when it does."
                FontSize="14" />
 

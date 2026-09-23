@@ -83,6 +83,7 @@
                         Icon="{Binding Icon}"
                         Title="{Binding Title}"
                         Description="{Binding Description}"
+                        Packages="{Binding Packages}"
                         TapCommand="{Binding BindingContext.ItemTappedCommand, Source={x:Reference Page}}"
                         TapCommandParameter="{Binding .}" />
                 </DataTemplate>

@@ -8,6 +8,7 @@
     <Grid RowDefinitions="Auto,*">
 
         <VerticalStackLayout Padding="16,8" Spacing="6">
+            <PackageChips Packages="Plugin.Maui.Spine" />
             <Label Text="Inside an item template the BindingContext is the row, so {Binding PickCommand} would look on the Fruit and find nothing. {PageCommand Pick} and {PageBinding Currency} reach the page's view model instead, without a RelativeSource AncestorType binding."
                    FontSize="14" />
 

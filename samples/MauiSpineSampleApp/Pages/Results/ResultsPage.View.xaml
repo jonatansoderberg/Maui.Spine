@@ -6,6 +6,7 @@
     x:DataType="ResultsPageViewModel">
 
     <VerticalStackLayout Padding="20,16" Spacing="10">
+            <PackageChips Packages="Plugin.Maui.Spine" />
         <Label Text="Navigation is typed: a page declares the parameter it takes and the result it returns, and the caller awaits NavigateToWithResultAsync."
                FontSize="14" />
 

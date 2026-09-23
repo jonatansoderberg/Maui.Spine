@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/maui/global"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:MauiSpineSampleApp.Controls"
              x:Class="MauiBottomSheetPoc.ContextItem"
              x:Name="Root">
 
@@ -17,14 +18,14 @@
                 CommandParameter="{Binding TapCommandParameter, Source={x:Reference Root}}" />
         </Border.GestureRecognizers>
 
-        <Grid ColumnDefinitions="40, *, Auto" RowDefinitions="Auto, Auto"
+        <Grid ColumnDefinitions="40, *, Auto" RowDefinitions="Auto, Auto, Auto"
               ColumnSpacing="12" RowSpacing="0"
               Padding="0" Margin="0">
 
             <!-- Icon (spans both rows, vertically centered) -->
             <Image
                 Grid.Column="0"
-                Grid.RowSpan="2"
+                Grid.RowSpan="3"
                 WidthRequest="40"
                 HeightRequest="40"
                 VerticalOptions="Center"
@@ -55,11 +56,18 @@
                 IsVisible="False"
                 VerticalOptions="Start" />
 
+            <!-- The Spine packages the sample depends on -->
+            <controls:PackageChips
+                Grid.Column="1"
+                Grid.Row="2"
+                Margin="0,4,0,0"
+                Packages="{Binding Packages, Source={x:Reference Root}}" />
+
             <!-- Actions slot (optional, right-aligned) -->
             <ContentView
                 x:Name="ActionsContainer"
                 Grid.Column="2"
-                Grid.RowSpan="2"
+                Grid.RowSpan="3"
                 VerticalOptions="Center"
                 IsVisible="False" />
 

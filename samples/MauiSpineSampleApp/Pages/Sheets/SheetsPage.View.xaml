@@ -6,6 +6,7 @@
     x:DataType="SheetsPageViewModel">
 
     <VerticalStackLayout Padding="20,16" Spacing="10">
+            <PackageChips Packages="Plugin.Maui.Spine" />
         <Label Text="A [NavigableSheet] page opens as a native bottom sheet: UISheetPresentationController on iOS, BottomSheetDialog on Android. Detents, the drag handle, dimming and the close button come from the platform."
                FontSize="14" />
 

@@ -43,12 +43,12 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     // One row per sample page. Add a page here when it gets a page of its own.
     private static IEnumerable<Item> SampleIndex =>
     [
-        new("Bottom sheets", "Native sheets with detents, blur, full screen, switches in a template", "up.svg", n => n.NavigateToAsync<Sheets.SheetsPage>()),
-        new("Parameters and results", "Typed navigation parameters and awaited results", "return.svg", n => n.NavigateToAsync<Results.ResultsPage>()),
-        new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "wired.svg", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
-        new("Liquid Glass", "Button and ImageButton as glass on iOS 26", "water.svg", n => n.NavigateToAsync<Glass.GlassPage>()),
-        new("AnimatedLabel", "Marquee for text that does not fit, fade on change", "horizontal.svg", n => n.NavigateToAsync<Marquee.MarqueePage>()),
-        new("SVG icons", "SvgImageSource on Image and ImageButton, the bundled icon set", "fish.svg", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
+        new("Bottom sheets", "Native sheets with detents, blur, full screen, switches in a template", "up.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
+        new("Parameters and results", "Typed navigation parameters and awaited results", "return.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Results.ResultsPage>()),
+        new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "wired.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
+        new("Liquid Glass", "Button and ImageButton as glass on iOS 26", "water.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg", n => n.NavigateToAsync<Glass.GlassPage>()),
+        new("AnimatedLabel", "Marquee for text that does not fit, fade on change", "horizontal.svg", "Plugin.Maui.Spine.Controls.AnimatedLabel", n => n.NavigateToAsync<Marquee.MarqueePage>()),
+        new("SVG icons", "SvgImageSource on Image and ImageButton, the bundled icon set", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
     ];
 }
 
@@ -57,15 +57,19 @@ public partial class Item
 {
     public Item() { }
 
-    public Item(string title, string description, string icon, Func<INavigationService, Task> open)
+    public Item(string title, string description, string icon, string packages, Func<INavigationService, Task> open)
     {
         this.title = title;
         this.description = description;
         this.icon = icon;
+        Packages = packages;
         Open = open;
     }
 
     public Func<INavigationService, Task>? Open { get; init; }
+
+    /// <summary>Comma-separated NuGet ids the sample depends on.</summary>
+    public string? Packages { get; init; }
 
     [ObservableProperty]
     private string? icon;
