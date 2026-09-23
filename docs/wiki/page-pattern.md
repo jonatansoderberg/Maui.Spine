@@ -87,13 +87,10 @@ public partial class MyPageViewModel(INavigationService _navigation) : ViewModel
     [RelayCommand]
     private async Task DoSomething() => await _navigation.NavigateToAsync<OtherPage>();
 
-    public override Task OnAppearingAsync(NavigationDirection navigationDirection)
-    {
-        if (PageActions.Count == 0)
-            PageActions.Add(new PageAction(text: "Save", command: DoSomethingCommand));
-
-        return base.OnAppearingAsync(navigationDirection);
-    }
+    // A header-bar button, created by Spine before the page first appears
+    [PageAction("Save")]
+    [RelayCommand]
+    private async Task Save() { /* ... */ }
 }
 ```
 

@@ -16,6 +16,8 @@ internal static class NavigableMeta
         if (view.BindingContext is not ViewModelBase vm)
             return;
 
+        PageActionDiscovery.Populate(vm);
+
         vm.Title = meta.Title;
         vm.TitlePlacement = meta.TitlePlacement;
         vm.TitleAlignment = meta.TitleAlignment;
