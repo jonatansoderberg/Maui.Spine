@@ -77,7 +77,7 @@ Naming: `XxxPage` / `XxxPageViewModel` / `XxxPage.View.xaml`; a subfolder gets i
 | `[NavigableSheet(Title = …, AllowedDetents = […])]` | Bottom sheet over the current page, with its own stack | `NavigateToAsync<TPage>()` — the attribute decides |
 | `[NavigableTab(Title = …, Icon = "tab_home.svg", Order = 0)]` | A region that roots a bottom tab in the native tab bar | `NavigateToAsync<TPage>()` switches to the tab; `SwitchToTabAsync<TPage>()` says so explicitly |
 
-Useful attribute properties, all optional: `Lifetime` (`Transient` default; `Singleton` keeps state — tabs default to `Singleton`), `IsHeaderBarVisible`, `IsBackButtonVisible`, `TitleAlignment`, `SafeAreaEdges` (exclude an edge to draw behind it, then offset with `ViewModelBase.SafeAreaInsets`).
+Useful attribute properties, all optional: `Lifetime` (`Transient` default; `Singleton` keeps state — tabs default to `Singleton`), `IsHeaderBarVisible`, `IsBackButtonVisible`, `TitleAlignment`, `SafeAreaEdges` (exclude an edge to draw behind it, then offset with `ViewModelBase.SafeAreaInsets`), `ScrollInset` (edges on which the page's first `ScrollView`/`CollectionView` takes that inset as a native content inset, so a list can scroll under a bar and still reach its last row; the same thing per view is `SafeArea.ScrollInset="Bottom"`).
 
 Sheets: `AllowedDetents = [SheetDetent.Compact | Medium | Expanded | FullScreen, "75%", "300px"]`, `InitialDetent`, `BackgroundPageOverlay = None | Dimmed | Blurred`. Override `OnCloseRequestedAsync` to guard dismissal; `OnDismissedAsync` runs when the user closes it without a result.
 

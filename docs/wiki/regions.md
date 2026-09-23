@@ -34,6 +34,7 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `TitlePlacement` | `TitlePlacement` | platform default | `HeaderBar` or `TitleBar` |
 | `TitleAlignment` | `TitleAlignment` | platform default | `Left` or `Center` |
 | `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually |
+| `ScrollInset` | `SafeAreaEdges` | `None` | Edges on which the page's first `ScrollView` / `CollectionView` takes the safe-area inset as a native content inset, so it can scroll under an excluded bar and still reach its last row. See [Scrolling under a bar](#scrolling-under-a-bar) |
 
 Platform defaults:
 
@@ -151,6 +152,27 @@ public override async Task OnResumedAsync()
     await base.OnResumedAsync();
 }
 ```
+
+---
+
+## Scrolling under a bar
+
+Excluding an edge from `SafeAreaEdges` lets content draw behind that bar — the home indicator, the gesture bar, or the floating tab bar inside the tab host. A list that does this still has to let its last row scroll clear of the bar. Give the list the inset as a *content inset* instead of a spacer:
+
+```xml
+<CollectionView ItemsSource="{Binding Rows}" SafeArea.ScrollInset="Bottom" />
+```
+
+`SafeArea.ScrollInset` works on `ScrollView`, `CollectionView` and `HeroCollectionView`. It reads the page's `ViewModelBase.SafeAreaInsets` (non-zero only on the edges Spine is not padding; inside the tab host the bottom value includes the tab bar) and applies it natively: `UIScrollView.ContentInset` on iOS and Mac Catalyst, padding with `clipToPadding` off on Android, `Padding` on Windows. The rows keep drawing through the bar; only the scrollable range grows. Rotation and tab-bar changes flow through automatically.
+
+To apply it without touching the list, set it on the attribute — or once for every page through `options.RegionDefaults.ScrollInset` (and `TabDefaults` / `SheetDefaults`):
+
+```csharp
+[NavigableRegion(SafeAreaEdges = SafeAreaEdges.Top | SafeAreaEdges.Left | SafeAreaEdges.Right,
+                 ScrollInset = SafeAreaEdges.Bottom)]
+```
+
+Spine then sets `SafeArea.ScrollInset` on the page's first `ScrollView` or `CollectionView`. A view that sets its own value keeps it.
 
 ---
 

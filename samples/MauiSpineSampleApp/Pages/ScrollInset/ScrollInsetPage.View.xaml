@@ -1,0 +1,65 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.ScrollInset.ScrollInsetPage"
+    x:TypeArguments="ScrollInsetPageViewModel"
+    x:DataType="ScrollInsetPageViewModel">
+
+    <!-- The page excludes Bottom from its SafeAreaEdges, so the list draws behind the home
+         indicator / gesture bar. SafeArea.ScrollInset gives the bar's height back to the
+         list as a native content inset: the last row can scroll clear of it, the rows still
+         draw through it. -->
+    <Grid RowDefinitions="Auto,*" BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
+
+        <VerticalStackLayout Padding="16,8" Spacing="4">
+            <Label Text="The list draws behind the bottom bar. With the inset on, scroll to the end: the last row stops above the bar. With it off, the bar covers it."
+                   FontSize="14" />
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="SafeArea.ScrollInset = Bottom" VerticalOptions="Center" />
+                <Switch IsToggled="{Binding IsInsetEnabled}" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="10">
+                <Label Text="ScrollView instead of CollectionView" VerticalOptions="Center" />
+                <Switch IsToggled="{Binding UseScrollView}" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding Rows}"
+                        IsVisible="{Binding UseCollectionView}"
+                        SafeArea.ScrollInset="{Binding Edges}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                    <Grid Padding="16,14" ColumnDefinitions="*,Auto">
+                        <Label Text="{Binding .}" VerticalOptions="Center" />
+                        <Label Grid.Column="1" Text="›" TextColor="Gray" VerticalOptions="Center" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <ScrollView Grid.Row="1"
+                    IsVisible="{Binding UseScrollView}"
+                    SafeArea.ScrollInset="{Binding Edges}">
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Rows}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Grid Padding="16,14" ColumnDefinitions="*,Auto">
+                            <Label Text="{Binding .}" VerticalOptions="Center" />
+                            <Label Grid.Column="1" Text="›" TextColor="Gray" VerticalOptions="Center" />
+                        </Grid>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Marks the bottom system bar area so the effect is visible on a simulator too. -->
+        <BoxView Grid.Row="1"
+                 VerticalOptions="End"
+                 HeightRequest="{Binding BottomInset}"
+                 Color="Red"
+                 Opacity="0.35"
+                 InputTransparent="True" />
+    </Grid>
+
+</SpinePage>

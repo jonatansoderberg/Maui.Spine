@@ -61,6 +61,10 @@ builder
 
 ---
 
+### Scrolling under the bottom bar
+
+A hero page usually excludes the bottom edge from `SafeAreaEdges` so the list draws behind the home indicator or the floating tab bar. Add `SafeArea.ScrollInset="Bottom"` to the `HeroCollectionView` (or `ScrollInset = SafeAreaEdges.Bottom` on the page attribute) so the last row scrolls clear of the bar without a footer spacer; see [Scrolling under a bar](regions.md#scrolling-under-a-bar).
+
 ## How it works
 
 The control injects itself into a parent `Grid` when attached. The header is pinned above the scroll area and collapses/expands via `TranslationY` transforms as the user scrolls — no layout passes are triggered per frame.
