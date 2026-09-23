@@ -25,6 +25,18 @@ public abstract class NavigableDefaults
 
     /// <summary>Default visibility of the back button in the header bar.</summary>
     public bool IsBackButtonVisible { get; set; }
+
+    /// <summary>Default <see cref="HeaderBarMode"/>: <see cref="HeaderBarMode.Normal"/>.</summary>
+    public HeaderBarMode HeaderBar { get; set; } = HeaderBarMode.Normal;
+
+    /// <summary>
+    /// Default colour of the header bar's title and action icons as a hex string, or
+    /// <see langword="null"/> to follow the theme.
+    /// </summary>
+    public string? HeaderBarForeground { get; set; }
+
+    /// <summary>Default <see cref="StatusBarStyle"/>: <see cref="StatusBarStyle.Default"/>.</summary>
+    public StatusBarStyle StatusBarStyle { get; set; } = StatusBarStyle.Default;
 }
 
 /// <summary>

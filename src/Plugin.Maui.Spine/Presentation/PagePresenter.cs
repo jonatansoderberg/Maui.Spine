@@ -1,4 +1,5 @@
 using System.Globalization;
+using Plugin.Maui.Spine.Core;
 using Microsoft.Maui.Layouts;
 
 namespace Plugin.Maui.Spine.Presentation;
@@ -37,6 +38,8 @@ internal sealed class PagePresenter : Grid
                 source: Content,
                 converter: new TitleAlignmentToTextAlignmentConverter()));
 
+            WatchPage(Content?.BindingContext as ViewModelBase);
+
             // The header bar measures its own actions and publishes the result on the region
             // view model, which is this presenter's BindingContext.
             var slotsBinding = new MultiBinding { Converter = new ActionsToTitleSlotsConverter() };
@@ -74,10 +77,7 @@ internal sealed class PagePresenter : Grid
         _titleLabel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IsVisible))
-                RowDefinitions[0].Height = _titleLabel.IsVisible
-                    ? new GridLength(HeaderBarConstants.Height)
-                    : new GridLength(0);
-
+                ApplyTitleRowHeight();
         };
 
         _titleLabel.HandlerChanged += (_, _) => ApplyResources();
@@ -86,6 +86,67 @@ internal sealed class PagePresenter : Grid
         // Keep the colour in sync when the user switches light/dark theme at runtime.
         if (Application.Current is { } app)
             app.RequestedThemeChanged += (_, _) => ApplyTitleTextColor();
+    }
+
+    private ViewModelBase? _page;
+
+    // The presenter follows the page for the two things that change its own layout: an overlay
+    // header floats the title row over the content, and a fixed foreground colours the title.
+    private void WatchPage(ViewModelBase? page)
+    {
+        if (ReferenceEquals(page, _page))
+        {
+            ApplyPageLayout();
+            return;
+        }
+
+        if (_page is not null)
+            _page.PropertyChanged -= OnPagePropertyChanged;
+
+        _page = page;
+
+        if (page is not null)
+            page.PropertyChanged += OnPagePropertyChanged;
+
+        ApplyPageLayout();
+    }
+
+    private void OnPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.SystemBarInsets)
+            or nameof(ViewModelBase.HeaderBarForeground) or nameof(ViewModelBase.IsHeaderBarVisible))
+            ApplyPageLayout();
+    }
+
+    private void ApplyPageLayout()
+    {
+        var overlay = _page?.HeaderBarMode == HeaderBarMode.Overlay;
+
+        // Overlay: the content spans both rows and the title row sits over it, pushed down by
+        // the status bar the content host no longer pads.
+        Grid.SetRowSpan(_contentPresenter, overlay ? 2 : 1);
+        Grid.SetRow(_contentPresenter, overlay ? 0 : 1);
+        _titleBar.Margin = overlay ? new Thickness(0, _page?.SystemBarInsets.Top ?? 0, 0, 0) : Thickness.Zero;
+        _titleBar.InputTransparent = overlay;
+        // The title was added before the content and would draw under it once they share a row.
+        _titleBar.ZIndex = overlay ? 1 : 0;
+
+        ApplyTitleRowHeight();
+        ApplyTitleTextColor();
+    }
+
+    // The title row is the header bar's height; under an overlay header it also holds the status
+    // bar the title is pushed down by, so the title still centres on the bar's own 44/48 points.
+    private void ApplyTitleRowHeight()
+    {
+        if (!_titleLabel!.IsVisible)
+        {
+            RowDefinitions[0].Height = new GridLength(0);
+            return;
+        }
+
+        var overlayInset = _page?.HeaderBarMode == HeaderBarMode.Overlay ? _page.SystemBarInsets.Top : 0;
+        RowDefinitions[0].Height = new GridLength(HeaderBarConstants.Height + overlayInset);
     }
 
     private void ApplyResources()
@@ -127,6 +188,12 @@ internal sealed class PagePresenter : Grid
     private void ApplyTitleTextColor()
     {
         if (_titleLabel is null) return;
+
+        if (_page?.HeaderBarForeground is { } foreground)
+        {
+            _titleLabel.TextColor = foreground;
+            return;
+        }
         var isDark = Application.Current?.RequestedTheme == AppTheme.Dark
             || (Application.Current?.RequestedTheme != AppTheme.Light
                 && Application.Current?.PlatformAppTheme == AppTheme.Dark);
