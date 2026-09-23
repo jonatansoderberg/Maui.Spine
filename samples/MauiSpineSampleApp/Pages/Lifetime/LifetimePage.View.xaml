@@ -1,0 +1,31 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Lifetime.LifetimePage"
+    x:TypeArguments="LifetimePageViewModel"
+    x:DataType="LifetimePageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="10">
+            <PackageChips Packages="Plugin.Maui.Spine" />
+
+            <Label Text="Work that lives with the page: Poll runs while the page shows and pauses in the background, WhileVisible subscribes while the page shows, and PageLifetime cancels what the page started when it is left."
+                   FontSize="14" />
+
+            <Label Text="Poll(1 s)" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Label Text="{Binding Ticks, StringFormat='Ticks: {0}'}" FontSize="28" Text.FontFeatures="tnum" />
+            <Label Text="{Binding LastTick, StringFormat='Last tick at {0}'}" TextColor="Gray" />
+            <Label Text="Send the app to the background and come back: the count stops meanwhile and ticks at once on return. Leave the page and come back: it continues." FontSize="12" TextColor="Gray" />
+
+            <Label Text="PageLifetime" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Button Text="Start a 10-second download" Command="{Binding StartDownloadCommand}" />
+            <Label Text="{Binding Download}" />
+            <Label Text="Go back while it runs: it is cancelled with the page." FontSize="12" TextColor="Gray" />
+
+            <Label Text="WhileVisible(Connectivity.ConnectivityChanged)" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Label Text="{Binding Network, StringFormat='Network: {0}'}" />
+            <Label Text="Toggle airplane mode: the label follows while this page shows." FontSize="12" TextColor="Gray" />
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

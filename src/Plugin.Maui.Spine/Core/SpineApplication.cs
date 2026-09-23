@@ -85,7 +85,13 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
     {
         var deactivated = false;
 
-        window.Deactivated += (_, _) => deactivated = true;
+        window.Deactivated += (_, _) =>
+        {
+            deactivated = true;
+
+            foreach (var viewModel in ShownViewModels())
+                viewModel.SendSuspended();
+        };
         window.Activated += (_, _) =>
         {
             if (!deactivated)
@@ -94,7 +100,10 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
             deactivated = false;
 
             foreach (var viewModel in ShownViewModels())
+            {
+                viewModel.SendResumed();
                 viewModel.OnResumedAsync().SafeFireAndForget();
+            }
         };
     }
 

@@ -20,7 +20,7 @@ public interface ILiveActivityService
     /// A registration built from these can be sent again: a server addresses an activity by its own
     /// push token, and that token exists only while the activity does — without this, a backend
     /// keeps sending to one that is gone, which APNs accepts and drops, leaving no error to go on.
-    /// Raised on whatever thread the platform reported on; dispatch before touching UI.
+    /// Raised on the UI thread.
     /// </summary>
     event Action? ActivitiesChanged;
 

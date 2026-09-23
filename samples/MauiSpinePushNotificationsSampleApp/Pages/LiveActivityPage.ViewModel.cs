@@ -1,3 +1,4 @@
+using AsyncAwaitBestPractices;
 using MauiSpinePushNotificationsSampleApp.Services;
 using Plugin.Maui.Spine.Common;
 
@@ -28,25 +29,17 @@ public partial class LiveActivityPageViewModel(
 
     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
-        _activities.ActivitiesChanged += OnActivitiesChanged;
+        // Subscribed while the page shows, unsubscribed when it leaves, on the UI thread: the
+        // activity can go away without the app's doing (swiped off the Lock Screen, ended by the
+        // server) and this is how the page hears of it. What ended is logged by the ActivityEnded
+        // subscription in MauiProgram, which also hears about the ones that ended while the app
+        // was not running.
+        WhileVisible(h => _activities.ActivitiesChanged += h, h => _activities.ActivitiesChanged -= h, OnActivitiesChanged);
         await FindRunningAsync();
         await base.OnAppearingAsync(navigationDirection);
     }
 
-    public override Task OnDisappearingAsync(NavigationDirection navigationDirection)
-    {
-        _activities.ActivitiesChanged -= OnActivitiesChanged;
-        return base.OnDisappearingAsync(navigationDirection);
-    }
-
-    /// <summary>
-    /// The activity can go away without the app's doing — the user swipes it off the Lock Screen,
-    /// the server ends it — and this is how the page hears of it. What ended is logged by the
-    /// <c>ActivityEnded</c> subscription in <c>MauiProgram</c>, which also hears about the ones that
-    /// ended while the app was not running. The service raises on the platform's thread, so the UI
-    /// work is dispatched.
-    /// </summary>
-    private void OnActivitiesChanged() => MainThread.BeginInvokeOnMainThread(async () => await FindRunningAsync());
+    private void OnActivitiesChanged() => FindRunningAsync().SafeFireAndForget();
 
     private async Task FindRunningAsync()
     {

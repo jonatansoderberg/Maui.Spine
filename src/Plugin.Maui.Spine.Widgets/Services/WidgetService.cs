@@ -18,7 +18,11 @@ internal sealed class WidgetService(
     public event Action? PushTokenChanged;
 
     /// <summary>Called by the platform layer when the extension or the bridge says the token changed.</summary>
-    internal void OnPushTokenChanged() => PushTokenChanged?.Invoke();
+    internal void OnPushTokenChanged()
+    {
+        if (MainThread.IsMainThread) PushTokenChanged?.Invoke();
+        else MainThread.BeginInvokeOnMainThread(() => PushTokenChanged?.Invoke());
+    }
 
     public IReadOnlyList<string> Kinds => _registry.Kinds;
 

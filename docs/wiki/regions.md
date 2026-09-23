@@ -176,6 +176,36 @@ Spine then sets `SafeArea.ScrollInset` on the page's first `ScrollView` or `Coll
 
 ---
 
+## Work that lives with the page
+
+Three members of `ViewModelBase` take care of the bookkeeping a live page otherwise repeats: a timer with its own cancellation, subscribe-on-appear/unsubscribe-on-disappear with a dispatch to the UI thread, and a refresh on resume.
+
+```csharp
+public LiveViewModel(IScoreService scores)
+{
+    // Runs on the UI thread when the page appears, then every 15 s; pauses in the background and
+    // while the page is hidden; runs again at once when the page or the app is back.
+    Poll(TimeSpan.FromSeconds(15), ct => RefreshAsync(ct));
+
+    // Subscribed while the page shows, handler marshalled to the UI thread. Overloads for
+    // Action, Action<T> and EventHandler<T>; a raw (subscribe, unsubscribe) pair for anything else.
+    WhileVisible(h => scores.Changed += h, h => scores.Changed -= h, OnScoresChanged);
+}
+
+// A load that should not outlive the page: PageLifetime cancels when the page is left.
+private Task RefreshAsync(CancellationToken ct) => _scores.LoadAsync(PageLifetime);
+```
+
+| Member | Starts | Stops |
+|---|---|---|
+| `PageLifetime` | a new token when the page appears | cancelled when the page disappears (not on backgrounding) |
+| `Poll(interval, work)` | when the page appears, and again at once on activation | while the page is hidden or the window is deactivated |
+| `WhileVisible(...)` | subscribes when the page appears | unsubscribes when the page disappears |
+
+Register them once, from the constructor or `OnAppearingAsync`; a registration lives as long as the view model, so a singleton tab page polls every time it is shown. Spine's own service events (`ILiveActivityService.ActivitiesChanged`, `IPushNotificationService.RegistrationChanged`, `IWidgetService.PushTokenChanged`) are raised on the UI thread.
+
+---
+
 ## Interactive back-swipe gesture
 
 On mobile, the user can swipe from the left edge to go back, matching the native iOS behavior. This is built into `NavigationRegion` and requires no extra configuration.
