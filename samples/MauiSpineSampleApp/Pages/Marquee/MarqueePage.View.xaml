@@ -1,0 +1,29 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Marquee.MarqueePage"
+    x:TypeArguments="MarqueePageViewModel"
+    x:DataType="MarqueePageViewModel">
+
+    <VerticalStackLayout Padding="20,16" Spacing="10">
+        <Label Text="AnimatedLabel scrolls text that does not fit, with a fade at the edges, and stays still when it does."
+               FontSize="14" />
+
+        <Label Text="Fits: no scrolling" FontAttributes="Bold" Margin="0,8,0,0" />
+        <Border Padding="10,6" BackgroundColor="#1DB954" StrokeShape="RoundRectangle 8">
+            <AnimatedLabel Text="Now Playing" FontSize="15" FontAttributes="Bold" TextColor="White" />
+        </Border>
+
+        <Label Text="Too wide: scrolls side to side" FontAttributes="Bold" Margin="0,8,0,0" />
+        <Border Padding="10,6" BackgroundColor="#282828" StrokeShape="RoundRectangle 8">
+            <AnimatedLabel Text="The Weeknd — Blinding Lights (Extended Radio Mix) · After Hours · Republic Records" FontSize="14" TextColor="White" />
+        </Border>
+
+        <Label Text="Text that changes: fades, keeps its position" FontAttributes="Bold" Margin="0,8,0,0" />
+        <Border Padding="10,6" BackgroundColor="#282828" StrokeShape="RoundRectangle 8">
+            <AnimatedLabel Text="{Binding DynamicText}" ResetOnTextUpdate="False" EnableFadeOnTextChange="True" FontSize="14" TextColor="White" />
+        </Border>
+        <Button Text="Change the text" Command="{Binding ChangeDynamicTextCommand}" />
+    </VerticalStackLayout>
+
+</SpinePage>

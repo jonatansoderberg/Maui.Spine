@@ -16,7 +16,8 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
     public double FooterHeight => SystemBarInsets.Bottom;
 
-    public ObservableCollection<Item> Items { get; set; } = new ObservableCollection<Item>();
+    // Filled before the page appears, so the first frame already has the rows and their icons.
+    public ObservableCollection<Item> Items { get; } = new(SampleIndex);
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
@@ -42,30 +43,13 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     // One row per sample page. Add a page here when it gets a page of its own.
     private static IEnumerable<Item> SampleIndex =>
     [
-        new("Sheets, results and marquee", "Bottom sheets with detents, typed results, AnimatedLabel", n => n.NavigateToAsync<MainPageOld>()),
-        new("Liquid Glass", "Button and ImageButton as glass on iOS 26", n => n.NavigateToAsync<Glass.GlassPage>()),
-        new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
+        new("Bottom sheets", "Native sheets with detents, blur, full screen, switches in a template", "up.svg", n => n.NavigateToAsync<Sheets.SheetsPage>()),
+        new("Parameters and results", "Typed navigation parameters and awaited results", "return.svg", n => n.NavigateToAsync<Results.ResultsPage>()),
+        new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "wired.svg", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
+        new("Liquid Glass", "Button and ImageButton as glass on iOS 26", "water.svg", n => n.NavigateToAsync<Glass.GlassPage>()),
+        new("AnimatedLabel", "Marquee for text that does not fit, fade on change", "horizontal.svg", n => n.NavigateToAsync<Marquee.MarqueePage>()),
+        new("SVG icons", "SvgImageSource on Image and ImageButton, the bundled icon set", "fish.svg", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
     ];
-
-    public override Task OnAppearingAsync(NavigationDirection navigationDirection)
-    {
-        if (PageActions.Count == 0)
-        {
-            //This is just creating a placeholder in the native title bar (Hack to make the header settings button clickable)
-            PageActions.Add(new PageAction(text: null, command: OpenSettingsCommand)
-            {
-                Svg = "settings.svg"
-            });
-        }
-
-        if (Items is [])
-        {
-            foreach (var item in SampleIndex)
-                Items.Add(item);
-        }
-
-        return base.OnAppearingAsync(navigationDirection);
-    }
 }
 
 [ObservableObject]
@@ -73,11 +57,11 @@ public partial class Item
 {
     public Item() { }
 
-    public Item(string title, string description, Func<INavigationService, Task> open)
+    public Item(string title, string description, string icon, Func<INavigationService, Task> open)
     {
         this.title = title;
         this.description = description;
-        this.icon = "fish.svg";
+        this.icon = icon;
         Open = open;
     }
 
