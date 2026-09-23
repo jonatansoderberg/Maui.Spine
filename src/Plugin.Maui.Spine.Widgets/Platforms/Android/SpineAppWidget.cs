@@ -6,7 +6,11 @@ using Android.Widget;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Common.Serialization;
+using System.Collections.Concurrent;
 using System.Net.Http;
+using System.Runtime.Versioning;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
@@ -152,21 +156,26 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         Update(context, kind);
     }
 
-    /// <summary>Draws the entry that applies now into every placed instance of <paramref name="kind"/>, and schedules the next change.</summary>
+    /// <summary>
+    /// Draws the entry that applies now into every placed instance of <paramref name="kind"/>, and schedules the
+    /// next change. On API 35+ the same entry becomes the picker's preview, also while none is placed.
+    /// </summary>
     internal static void Update(Context context, string kind, int[]? ids = null)
     {
         var index = Array.IndexOf(WidgetStore.Kinds(context), kind);
         if (index < 0 || AppWidgetManager.GetInstance(context) is not { } manager) return;
 
         var component = new ComponentName(context, Java.Lang.Class.FromType(Slots[index]));
-        ids ??= manager.GetAppWidgetIds(component);
-        if (ids is not { Length: > 0 }) return;
+        ids ??= manager.GetAppWidgetIds(component) ?? [];
+        var placed = ids.Length > 0;
+        if (!placed && !OperatingSystem.IsAndroidVersionAtLeast(35)) return;
 
         var renderer = new RemoteViewsRenderer(context, new WidgetIcons(context), actionId => ButtonIntent(context, index, kind, actionId));
         using var local = WidgetStore.ReadTimeline(context, kind);
 
         if (local is null)
         {
+            if (!placed) return;
             foreach (var id in ids) manager.UpdateAppWidget(id, renderer.Root(Placeholder, null));
             // Placed before the app ever built it: ask the provider now rather than waiting for the app.
             context.SendBroadcast(Broadcast(context, index, ActionRefresh, kind));
@@ -175,7 +184,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
 
         var hasRemote = local.RootElement.TryGetProperty("remote", out var remoteUrl) && remoteUrl.ValueKind == JsonValueKind.String;
         using var remote = hasRemote ? WidgetStore.ReadRemoteCache(context, kind) : null;
-        if (hasRemote && remote is null) context.SendBroadcast(Broadcast(context, index, ActionRefresh, kind));
+        if (placed && hasRemote && remote is null) context.SendBroadcast(Broadcast(context, index, ActionRefresh, kind));
 
         var now = DateTimeOffset.UtcNow;
         var root = remote?.RootElement ?? local.RootElement;
@@ -201,10 +210,59 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         foreach (var id in ids)
             manager.UpdateAppWidget(id, Views(renderer, current.Trees, tap, manager, id));
 
+        if (OperatingSystem.IsAndroidVersionAtLeast(35)) Preview(context, manager, component, kind, renderer, current.Trees, surface);
+        if (!placed) return;
+
         var refreshAfter = root.TryGetProperty("refreshAfterSeconds", out var refresh) && refresh.ValueKind == JsonValueKind.Number ? refresh.GetDouble()
             : hasRemote ? MinimumRefreshInterval.TotalSeconds : (double?)null;
         Schedule(context, index, kind, entries.Select(e => e.Date).ToList(), refreshAfter, now);
     }
+
+    /// <summary>
+    /// The picker's preview: the entry shown now, drawn for the smallest declared family. The system allows a
+    /// few calls per provider an hour and answers <see langword="false"/> above that, so a preview is sent only
+    /// when what it shows has changed, and a refused one is tried again at the next update.
+    /// </summary>
+    [SupportedOSPlatform("android35.0")]
+    private static void Preview(Context context, AppWidgetManager manager, ComponentName component, string kind, RemoteViewsRenderer renderer, JsonElement trees, JsonElement surface)
+    {
+        var info = manager.GetInstalledProvidersForPackage(context.PackageName!, null)?.FirstOrDefault(p => p.Provider?.Equals(component) == true);
+        var family = (info?.TargetCellWidth, info?.TargetCellHeight) switch
+        {
+            ( >= 5, _) => "extraLarge",
+            ( >= 4, >= 4) => "large",
+            ( >= 4, _) => "medium",
+            _ => "small",
+        };
+        var byFamily = trees.EnumerateObject().ToDictionary(p => p.Name, p => p.Value, StringComparer.OrdinalIgnoreCase);
+        var tree = byFamily.TryGetValue(family, out var exact) ? exact
+            : byFamily.TryGetValue(WidgetJson.DefaultFamilyKey, out var shared) ? shared
+            : byFamily.Values.FirstOrDefault();
+        if (tree.ValueKind != JsonValueKind.Object) return;
+
+        // A picture replaced under the same asset id does not change this; the next tree or surface that does
+        // brings it along.
+        var shown = string.Join('\n', family, tree.GetRawText(), Field(surface, "background"), Field(surface, "backgroundImage"),
+            surface.TryGetProperty("backgroundGradient", out var gradient) ? gradient.GetRawText() : null);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(shown)));
+        var path = WidgetStore.PreviewHashPath(context, kind);
+        if (File.Exists(path) && File.ReadAllText(path) == hash) return;
+
+        renderer.Family = family;
+        try
+        {
+            if (manager.SetWidgetPreview(component, AppWidgetCategory.HomeScreen, renderer.Root(tree, null)))
+                File.WriteAllText(path, hash);
+            else if (RateLimited.TryAdd(kind, 0))
+                Android.Util.Log.Info(Tag, $"The picker preview of widget \"{kind}\" was rate-limited by the system; it is tried again at the next update.");
+        }
+        catch (Java.Lang.Exception e)
+        {
+            Android.Util.Log.Warn(Tag, $"The picker preview of widget \"{kind}\" was refused: {e.Message}");
+        }
+    }
+
+    private static readonly ConcurrentDictionary<string, byte> RateLimited = new();
 
     private static bool HasSurface(JsonElement document) =>
         document.TryGetProperty("background", out _) || document.TryGetProperty("backgroundGradient", out _) || document.TryGetProperty("backgroundImage", out _);

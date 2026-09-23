@@ -29,6 +29,8 @@ The native side exists before any C# runs, so every widget is an MSBuild item. `
 
 At most nine widgets (WidgetKit holds ten; Spine reserves one for Live Activities; Android carries nine receivers).
 
+Android's widget picker shows the widget itself from Android 15, once the app has built its timeline. Below 15 it shows the app icon unless the item has `PreviewImage="Widgets/Previews/<kind>.png"`, a cropped screenshot of the widget.
+
 ## 2. Write the provider
 
 Constructed through DI every time it runs, so inject services as in a ViewModel. It runs **only in the app's process**: at launch, when the app goes to the background, in background runs, after a button tap, on `RefreshAsync`, and on Android at the `Refresh(after)` alarm.

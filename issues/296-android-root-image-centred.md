@@ -22,7 +22,7 @@ Almanacka's store preflight (D1) found the leaf picture of its small widget left
 - `spine_widget_root.xml`: `spine_root` has `android:gravity="center"` (was `center_vertical`).
 - Sample: `CardWidget` (`card`, Small) in `samples/MauiSpineSampleApp`. Its tree is `W.Image("sample_card.png", height: 120).FullColor()` on a `WidgetSurface` of a gradient and `sample_backdrop.png`. The PNGs are in `Resources/Raw`: a 240×300 card drawn for the purpose, and the push sample's picture.
 - docs/wiki/widgets.md: *Images* says a root node narrower than the widget is centred and names the sample; the *How it maps* row for stacks says so for Android; *Related* lists the new sample file.
-- Reproduced on emulator-5556 (Pixel_10_Pro, Android 17) before the fix. The card's centre was at x≈250 px in a tile centred at x≈339 px. After the fix, on the Pixel_Tablet AVD (Android 16), the card and the tile are both centred at x≈1280 px. emulator-5556 was in use by another session at that point; see Decisions.
+- Reproduced on emulator-5556 (Pixel_10_Pro, Android 17) before the fix. The card's centre was at x≈250 px in a tile centred at x≈339 px. After the fix, on the Pixel_Tablet AVD (Android 16), the card and the tile are both centred at x≈1280 px. emulator-5556 was in use by another session at that point. Later, with #297 on top, the card was confirmed centred on Android 17 as well (see the #297 changelog).
 
 ## Decisions
 
