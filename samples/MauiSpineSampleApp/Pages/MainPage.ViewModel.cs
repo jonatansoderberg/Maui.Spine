@@ -39,6 +39,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         {
             case 0: await _navigation.NavigateToAsync<MainPageOld>(); break;
             case 1: await _navigation.NavigateToAsync<Glass.GlassPage>(); break;
+            case 2: await _navigation.NavigateToAsync<Typography.TypographyPage>(); break;
         }
     }
 
@@ -57,6 +58,8 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         {
             var items = Enumerable.Range(1, 30).Select(i => i == 2
                 ? new Item { Icon = "fish.svg", Title = "Liquid Glass", Description = "Button and ImageButton as glass on iOS 26", IsMovable = false }
+                : i == 3
+                ? new Item { Icon = "fish.svg", Title = "Typography", Description = "Text.FontFeatures (tabular digits) and Text.TrimToCapHeight", IsMovable = false }
                 : new Item
                 {
                     Icon = "fish.svg",

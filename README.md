@@ -194,6 +194,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
 | [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |
 | [Glass buttons](docs/wiki/glass-buttons.md) | `Glass.Style` on `Button` and `ImageButton`: Liquid Glass on iOS 26, no-op elsewhere |
+| [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
 | [Packages](docs/wiki/packages.md) | The nine packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
