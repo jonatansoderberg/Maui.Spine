@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/297
 **Branch:** issue/297-android-widget-picker-preview
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -53,6 +53,10 @@ Out of reach: a picture replaced under the same asset id does not change the has
   - `aapt2 dump xmltree` shows `previewImage` in the APK's `spine_widget_0.xml`, and the drawable is in `res/drawable-nodpi-v4/`.
   - A missing `PreviewImage` fails the build with the path.
 - Before the fix, on Pixel_10_Pro (Android 17): the picker showed only the app icon for both sample widgets.
+- Verified on Pixel_10_Pro (Android 17), after rebasing onto #296:
+  - Before the first launch, *Spine sample* shows its `PreviewImage` and *Spine card* (none set) shows the icon.
+  - After one launch, both show generated previews.
+  - The card in its preview is centred, which also confirms #296 on Android 17: placed on the home screen, it is centred in its tile, where it sat 62 px (display) left of centre before.
 
 ## Decisions
 
