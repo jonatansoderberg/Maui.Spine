@@ -41,6 +41,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
             case 1: await _navigation.NavigateToAsync<Glass.GlassPage>(); break;
             case 2: await _navigation.NavigateToAsync<ScrollInset.ScrollInsetPage>(); break;
             case 3: await _navigation.NavigateToAsync<PageActions.PageActionsPage>(); break;
+            case 4: await _navigation.NavigateToAsync<Typography.TypographyPage>(); break;
         }
     }
 
@@ -53,6 +54,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
                 2 => new Item { Icon = "fish.svg", Title = "Liquid Glass", Description = "Button and ImageButton as glass on iOS 26", IsMovable = false },
                 3 => new Item { Icon = "fish.svg", Title = "Scroll inset", Description = "SafeArea.ScrollInset: a list that scrolls clear of the bottom bar it draws behind", IsMovable = false },
                 4 => new Item { Icon = "fish.svg", Title = "Page actions", Description = "[PageAction] on a command; text, badge, enabled and visibility change live", IsMovable = false },
+                5 => new Item { Icon = "fish.svg", Title = "Typography", Description = "Text.FontFeatures (tabular digits) and Text.TrimToCapHeight", IsMovable = false },
                 _ => new Item
                 {
                     Icon = "fish.svg",

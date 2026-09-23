@@ -8,6 +8,8 @@ public static partial class SpineExtensions
     static partial void ConfigureHandlers(MauiAppBuilder builder)
     {
         ConfigureScrollInsets();
+        ConfigureTypography();
+
 
         ButtonHandler.Mapper.AppendToMapping("SpineCompactButton", static (handler, view) =>
         {

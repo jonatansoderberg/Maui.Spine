@@ -1,0 +1,57 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Typography.TypographyPage"
+    x:TypeArguments="TypographyPageViewModel"
+    x:DataType="TypographyPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="10">
+
+            <Label Text="Text.FontFeatures applies OpenType features to the label's own font. With tnum every digit takes the same width, so a ticking clock or a score column stops jittering."
+                   FontSize="14" />
+
+            <Label Text="Clock, default digits" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="12,8" StrokeShape="RoundRectangle 10">
+                <Label Text="{Binding Clock}" FontSize="34" FontFamily="BrandonGrotesqueLight" HorizontalOptions="Start" />
+            </Border>
+
+            <Label Text="Clock, Text.FontFeatures=&quot;tnum&quot;" FontAttributes="Bold" />
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="12,8" StrokeShape="RoundRectangle 10">
+                <Label Text="{Binding Clock}" FontSize="34" FontFamily="BrandonGrotesqueLight" HorizontalOptions="Start" Text.FontFeatures="tnum" />
+            </Border>
+
+            <Label Text="Score column (same font, tnum right, default left)" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <VerticalStackLayout>
+                    <Label Text="{Binding Score}" FontSize="28" />
+                    <Label Text="11 – 11" FontSize="28" />
+                    <Label Text="10 – 1" FontSize="28" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="1">
+                    <Label Text="{Binding Score}" FontSize="28" Text.FontFeatures="tnum" />
+                    <Label Text="11 – 11" FontSize="28" Text.FontFeatures="tnum" />
+                    <Label Text="10 – 1" FontSize="28" Text.FontFeatures="tnum" />
+                </VerticalStackLayout>
+            </Grid>
+
+            <Label Text="Text.TrimToCapHeight centres capitals on the box (right), instead of the line box (left)." FontSize="14" Margin="0,16,0,0" />
+            <HorizontalStackLayout Spacing="16">
+                <Border StrokeThickness="0" BackgroundColor="#512BD4" WidthRequest="56" HeightRequest="56" StrokeShape="RoundRectangle 28">
+                    <Label Text="JS" TextColor="White" FontSize="26" FontFamily="BrandonGrotesqueBlack" HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
+                <Border StrokeThickness="0" BackgroundColor="#512BD4" WidthRequest="56" HeightRequest="56" StrokeShape="RoundRectangle 28">
+                    <Label Text="JS" TextColor="White" FontSize="26" FontFamily="BrandonGrotesqueBlack" HorizontalOptions="Center" VerticalOptions="Center" Text.TrimToCapHeight="True" />
+                </Border>
+                <Border StrokeThickness="0" BackgroundColor="#512BD4" Padding="14,6" StrokeShape="RoundRectangle 20" VerticalOptions="Center">
+                    <Label Text="LIVE" TextColor="White" FontSize="16" FontFamily="BrandonGrotesqueBlack" />
+                </Border>
+                <Border StrokeThickness="0" BackgroundColor="#512BD4" Padding="14,6" StrokeShape="RoundRectangle 20" VerticalOptions="Center">
+                    <Label Text="LIVE" TextColor="White" FontSize="16" FontFamily="BrandonGrotesqueBlack" Text.TrimToCapHeight="True" />
+                </Border>
+            </HorizontalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>
