@@ -1,4 +1,5 @@
 using SkiaSharp;
+using Svg.Skia;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
