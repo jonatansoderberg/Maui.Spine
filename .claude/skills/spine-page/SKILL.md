@@ -148,6 +148,10 @@ Hand-made actions still work (`PageActions.Add(new PageAction("Save", SaveComman
 
 `PageAction` is observable: set `Text`, `Svg`, `Badge` ("3", "•"), `IsEnabled` or `IsVisible` on the instance while the page shows and the header follows. Find a declared one with `PageActions.First(a => a.Command == FilterCommand)`. Adding or removing from `PageActions` at runtime also updates the header.
 
+## Binding to the page from a template
+
+`{PageCommand Pick}` binds `PickCommand` on the page's view model from inside a `DataTemplate`; `{PageBinding Path}` binds any member of it (supports `Mode`, `Converter`, `StringFormat`). Use them instead of `RelativeSource AncestorType` bindings.
+
 ## Do
 
 - Keep the code-behind to the attribute and `InitializeComponent()`; logic goes in the ViewModel.

@@ -29,6 +29,16 @@ public partial class ContextItem : ContentView
         set => SetValue(TitleProperty, value);
     }
 
+    // --- Packages (optional, comma-separated NuGet ids shown as pills) ---
+    public static readonly BindableProperty PackagesProperty =
+        BindableProperty.Create(nameof(Packages), typeof(string), typeof(ContextItem));
+
+    public string? Packages
+    {
+        get => (string?)GetValue(PackagesProperty);
+        set => SetValue(PackagesProperty, value);
+    }
+
     // --- Description (optional, shown as AnimatedLabel) ---
     public static readonly BindableProperty DescriptionProperty =
         BindableProperty.Create(nameof(Description), typeof(string), typeof(ContextItem),

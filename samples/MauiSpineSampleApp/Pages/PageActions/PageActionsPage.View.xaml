@@ -7,6 +7,7 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="20,16" Spacing="12">
+            <PackageChips Packages="Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons" />
 
             <Label Text="[PageAction] on a [RelayCommand] declares a header button. Every property can change while the page shows."
                    FontSize="14" />

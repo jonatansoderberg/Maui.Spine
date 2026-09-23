@@ -98,6 +98,31 @@ The lifecycle hooks a ViewModel can override (`OnAppearingAsync`, `OnDisappearin
 
 ---
 
+## Binding to the page from a template
+
+Inside a `DataTemplate` the `BindingContext` is the item, so a row that needs a command or a value from the page's view model has to reach up to it. Spine provides two markup extensions for that, so no page has to name an ancestor type:
+
+```xml
+<CollectionView ItemsSource="{Binding Rows}">
+    <CollectionView.ItemTemplate>
+        <DataTemplate x:DataType="Row">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="{Binding Name}" />
+                <Label Text="{PageBinding Picked, StringFormat='Picked: {0}'}" />
+                <Button Grid.Column="1" Text="Pick" Command="{PageCommand Pick}" CommandParameter="{Binding .}" />
+            </Grid>
+        </DataTemplate>
+    </CollectionView.ItemTemplate>
+</CollectionView>
+```
+
+- `{PageCommand Pick}` binds `PickCommand` on the page's view model (the `Command` suffix is added when missing).
+- `{PageBinding Path}` binds any member of the page's view model, with the usual `Mode`, `Converter`, `ConverterParameter` and `StringFormat`.
+
+Both resolve through the owning `SpinePage`, at any nesting depth, and work in sheet pages and tab pages alike. They replace `{Binding Source={RelativeSource AncestorType={x:Type ScrollView}}, Path=BindingContext.PickCommand}`, which breaks as soon as the container type changes.
+
+---
+
 ## Project file entries
 
 `*.ViewModel.cs` files are excluded by a wildcard `<Compile Remove>` rule by default. You must explicitly include the ViewModel and XAML files with `<DependentUpon>` so they are grouped under the code-behind node in Solution Explorer and compiled correctly.
