@@ -37,6 +37,71 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_centred_timer_keeps_its_prefix()
+    {
+        var faceOff = new DateTimeOffset(2026, 9, 19, 19, 43, 0, TimeSpan.Zero);
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.Timer(faceOff, prefix: "Nedsläpp om ").Caption().Centered(),
+            ExpandedBottom = W.Relative(faceOff, compact: true, prefix: "Uppdaterad ").Centered(),
+            ExpandedCenter = W.Text("P2 · 07:19\nSkott 12–9").Centered(),
+        };
+
+        var back = WidgetJson.DeserializeLayout(layout.ToJson())!;
+
+        var timer = Assert.IsType<TimerNode>(back.LockScreen);
+        Assert.Equal("Nedsläpp om ", timer.Prefix);
+        Assert.True(timer.IsCentered);
+        Assert.Equal(TextRole.Caption, timer.Role);
+        Assert.Equal("Uppdaterad ", Assert.IsType<RelativeDateNode>(back.ExpandedBottom).Prefix);
+        Assert.True(Assert.IsType<TextNode>(back.ExpandedCenter).IsCentered);
+    }
+
+    [Fact]
+    public void Text_that_is_not_centred_says_nothing_about_it()
+    {
+        var json = new LiveActivityLayout { LockScreen = W.Timer(DateTimeOffset.UnixEpoch) }.ToJson();
+
+        Assert.DoesNotContain("centered", json);
+        Assert.DoesNotContain("prefix", json);
+    }
+
+    [Fact]
+    public void A_filled_stack_says_so_and_a_plain_one_does_not()
+    {
+        var filled = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(0, W.VStack(4, W.Text("Brynäs")).Fill(), W.VStack(4, W.Text("2–1")).Fill()),
+        };
+
+        var json = filled.ToJson();
+        var back = WidgetJson.DeserializeLayout(json)!;
+        var row = Assert.IsType<HStackNode>(back.LockScreen);
+
+        Assert.True(Assert.IsType<VStackNode>(row.Children[0]).Fill);
+        Assert.Equal(json, back.ToJson());
+        Assert.DoesNotContain("fill", new LiveActivityLayout { LockScreen = W.VStack(4, W.Text("x")) }.ToJson());
+    }
+
+    [Fact]
+    public void What_android_should_say_survives_the_trip()
+    {
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.Text("Brynäs 2–1 Luleå"),
+            Android = new LiveUpdateText("Brynäs 2–1 Luleå", "P2 · 07:19 · Skott 12–9", "2–1", "logo-bif"),
+        };
+
+        var back = WidgetJson.DeserializeLayout(layout.ToJson())!;
+
+        Assert.Equal("Brynäs 2–1 Luleå", back.Android!.Title);
+        Assert.Equal("P2 · 07:19 · Skott 12–9", back.Android.Body);
+        Assert.Equal("2–1", back.Android.Chip);
+        Assert.Equal("logo-bif", back.Android.Icon);
+        Assert.DoesNotContain("android", new LiveActivityLayout { LockScreen = W.Text("x") }.ToJson());
+    }
+
+    [Fact]
     public void Every_region_and_node_kind_survives()
     {
         var layout = new LiveActivityLayout
@@ -159,6 +224,81 @@ public class WidgetLayoutRoundTripTests
         Assert.False(document.RootElement.TryGetProperty("backgroundGradient", out _));
         Assert.False(document.RootElement.TryGetProperty("backgroundImage", out _));
         Assert.Equal("#1B5E3F", document.RootElement.GetProperty("background").GetString());
+    }
+
+    [Fact]
+    public void An_entry_writes_its_own_surface_on_the_entry()
+    {
+        var midnight = new DateTimeOffset(2026, 6, 19, 0, 0, 0, TimeSpan.FromHours(2));
+        var json = new WidgetTimeline()
+            .Background(Brand)
+            .Add(midnight.AddDays(-1), W.Text("Torsdag"))
+            .Add(midnight, W.Text("Midsommarafton"), new WidgetSurface(new WidgetGradient([Brand, WidgetColor.Accent], WidgetGradientDirection.Diagonal), "midsommar.png"))
+            .Add(midnight.AddDays(1), W.Text("Midsommardagen"), new WidgetSurface(WidgetColor.Blue))
+            .ToJson();
+
+        using var document = JsonDocument.Parse(json);
+        var entries = document.RootElement.GetProperty("entries");
+        var eve = entries[1];
+        var gradient = eve.GetProperty("backgroundGradient");
+
+        Assert.Equal("#1B5E3F", document.RootElement.GetProperty("background").GetString());
+        Assert.Equal(new[] { "#1B5E3F", "accent" }, gradient.GetProperty("colors").EnumerateArray().Select(c => c.GetString()).ToArray());
+        Assert.Equal("Diagonal", gradient.GetProperty("direction").GetString());
+        Assert.Equal("midsommar.png", eve.GetProperty("backgroundImage").GetString());
+        Assert.False(eve.TryGetProperty("background", out _));
+        Assert.Equal("blue", entries[2].GetProperty("background").GetString());
+        Assert.False(entries[2].TryGetProperty("backgroundGradient", out _));
+        Assert.False(entries[2].TryGetProperty("backgroundImage", out _));
+    }
+
+    [Fact]
+    public void An_entry_without_a_surface_writes_only_its_date_and_trees()
+    {
+        using var document = JsonDocument.Parse(new WidgetTimeline()
+            .BackgroundImage("bakgrund.png")
+            .Add(DateTimeOffset.UtcNow, W.Text("x"))
+            .Add(DateTimeOffset.UtcNow.AddHours(1), W.Text("y"), null)
+            .ToJson());
+
+        foreach (var entry in document.RootElement.GetProperty("entries").EnumerateArray())
+            Assert.Equal(new[] { "date", "trees" }, entry.EnumerateObject().Select(p => p.Name).ToArray());
+    }
+
+    [Fact]
+    public void A_family_specific_entry_keeps_its_surface()
+    {
+        var timeline = new WidgetTimeline().Add(DateTimeOffset.UtcNow,
+            new Dictionary<WidgetFamily, WidgetNode> { [WidgetFamily.Small] = W.Text("s"), [WidgetFamily.Medium] = W.Text("m") },
+            new WidgetSurface("jul.png"));
+
+        var entry = Assert.Single(timeline.Entries);
+        Assert.Equal("jul.png", entry.Surface?.Image);
+        Assert.Null(entry.Surface?.Color);
+        Assert.Null(entry.Surface?.Gradient);
+
+        using var document = JsonDocument.Parse(timeline.ToJson());
+        var written = document.RootElement.GetProperty("entries")[0];
+        Assert.Equal("jul.png", written.GetProperty("backgroundImage").GetString());
+        Assert.True(written.GetProperty("trees").TryGetProperty("medium", out _));
+    }
+
+    [Fact]
+    public void A_surface_is_a_color_or_a_gradient_and_needs_a_real_image_id()
+    {
+        var colored = new WidgetSurface(Brand, "bild.png");
+        Assert.Equal(Brand, colored.Color);
+        Assert.Null(colored.Gradient);
+        Assert.Equal("bild.png", colored.Image);
+
+        var graded = new WidgetSurface(new WidgetGradient([Brand, WidgetColor.Blue]));
+        Assert.Null(graded.Color);
+        Assert.NotNull(graded.Gradient);
+        Assert.Null(graded.Image);
+
+        Assert.Throws<ArgumentNullException>(() => new WidgetSurface((WidgetGradient)null!));
+        Assert.Throws<ArgumentException>(() => new WidgetSurface(" "));
+        Assert.Throws<ArgumentException>(() => new WidgetSurface(Brand, ""));
     }
 
     [Fact]

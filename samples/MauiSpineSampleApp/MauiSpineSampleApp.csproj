@@ -106,6 +106,33 @@
       <DependentUpon>GlassPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
+      <DependentUpon>ScrollInsetPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\ScrollInset\ScrollInsetPage.ViewModel.cs">
+      <DependentUpon>ScrollInsetPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\PageActions\PageActionsPage.View.xaml">
+      <DependentUpon>PageActionsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\PageActions\PageActionsPage.ViewModel.cs">
+      <DependentUpon>PageActionsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Typography\TypographyPage.View.xaml">
+      <DependentUpon>TypographyPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Typography\TypographyPage.ViewModel.cs">
+      <DependentUpon>TypographyPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Sheets\SheetsPage.View.xaml">
       <DependentUpon>SheetsPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

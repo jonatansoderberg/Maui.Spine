@@ -152,7 +152,8 @@ public static class PushPayloads
                 Timestamp: now,
                 StaleAt: options.StaleAt,
                 DismissAt: options.DismissAt,
-                InputPushChannel: @event == LiveActivityEvent.Start ? options.Channel : null),
+                InputPushChannel: @event == LiveActivityEvent.Start ? options.Channel : null,
+                StartKind: @event == LiveActivityEvent.Start ? kind : null),
         };
 
         if (@event == LiveActivityEvent.Start && alert is { } text)

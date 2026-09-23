@@ -64,9 +64,51 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
         HookIosPlatform(window);
         HookMacCatalystPlatform(window);
 
+        HookResumed(window);
+
         _navigationService.SetRootAsync<TNavigable>().SafeFireAndForget();
 
         return window;
+    }
+
+    /// <summary>
+    /// Raises <see cref="ViewModelBase.OnResumedAsync"/> on the shown pages when the window is
+    /// activated after a deactivation — so not on the first activation at launch.
+    /// </summary>
+    private static void HookResumed(Window window)
+    {
+        var deactivated = false;
+
+        window.Deactivated += (_, _) => deactivated = true;
+        window.Activated += (_, _) =>
+        {
+            if (!deactivated)
+                return;
+
+            deactivated = false;
+
+            foreach (var viewModel in ShownViewModels())
+                viewModel.OnResumedAsync().SafeFireAndForget();
+        };
+    }
+
+    /// <summary>
+    /// The view models of the pages on screen: the current page of the root region (the selected
+    /// tab's, with tabs), and of the sheet while one is open.
+    /// </summary>
+    /// <remarks>
+    /// Read from the host installed now rather than the one resolved at startup, because
+    /// <c>SetRootAsync</c> swaps the tab host and the plain host.
+    /// </remarks>
+    private static List<ViewModelBase> ShownViewModels()
+    {
+        if (_services.GetRequiredService<SpineHostProvider>().Current is not { } host)
+            return [];
+
+        NavigationRegionViewModel[] regions =
+            [(NavigationRegionViewModel)host.RootNavigationRegion.BindingContext, host.ActiveRegionViewModel];
+
+        return [.. regions.Distinct().Select(r => r.CurrentRegionViewModel).OfType<ViewModelBase>().Distinct()];
     }
 
             partial void InitializeWindowsTitleBar(Window window);

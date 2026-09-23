@@ -29,7 +29,13 @@ public static class W
     public static TextNode Text(string text) => new(text);
 
     /// <summary>A countdown that ticks without the app running.</summary>
-    public static TimerNode Timer(DateTimeOffset until) => new(until);
+    /// <param name="until">The moment the countdown reaches zero.</param>
+    /// <param name="prefix">
+    /// Text in front of the time, drawn as one text with it. A self-updating time takes all the width it
+    /// is offered, so a label beside it in a stack cannot be centred with it; this one can, with
+    /// <see cref="WidgetNodeStyling.Centered{T}"/>.
+    /// </param>
+    public static TimerNode Timer(DateTimeOffset until, string? prefix = null) => new(until) { Prefix = prefix };
 
     /// <summary>The age of <paramref name="date"/> as relative text that updates without the app running.</summary>
     /// <param name="date">The moment the text counts from.</param>
@@ -37,8 +43,9 @@ public static class W
     /// <see langword="true"/> for a clock — <c>18:35</c> instead of <c>18 min, 35 secs</c>. Worth it
     /// anywhere the width is tight, the Dynamic Island's compact presentation most of all.
     /// </param>
-    public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false) =>
-        new(date) { Compact = compact ? true : null };
+    /// <param name="prefix">Text in front of the time, drawn as one text with it; see <see cref="Timer"/>.</param>
+    public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false, string? prefix = null) =>
+        new(date) { Compact = compact ? true : null, Prefix = prefix };
 
     /// <summary>A platform symbol by SF Symbols name.</summary>
     public static IconNode Icon(string systemName, WidgetColor? color = null) => new(systemName) { Color = color };
@@ -89,6 +96,22 @@ public static class WidgetNodeStyling
 
     /// <summary>Renders in bold weight.</summary>
     public static T Bold<T>(this T node) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Bold = true });
+
+    /// <summary>
+    /// Gives the stack an equal share of the space along its parent's axis, instead of the width of
+    /// its content. Three filled stacks in a row are three equal columns — a scoreboard — on both
+    /// platforms; without it a column is as wide as its content on Android, where an inline stack
+    /// wraps, and as wide as its greediest child on iOS.
+    /// </summary>
+    public static T Fill<T>(this T node) where T : StackNode => (T)(node with { Fill = true });
+
+    /// <summary>
+    /// Centres the text: its lines on each other, and a timer's or relative date's text — which takes
+    /// all the width it is offered — in that width. It claims no width of its own, so it cannot push a
+    /// Dynamic Island's side regions away the way spacers around it would. iOS; on Android a centred
+    /// text is centred in its own view.
+    /// </summary>
+    public static T Centered<T>(this T node) where T : TextLikeNode => (T)(node with { IsCentered = true });
 
     /// <summary>
     /// Marks the node as changed by the widget's buttons: from a tap until the rebuild that follows

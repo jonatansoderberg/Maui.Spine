@@ -118,6 +118,7 @@ public sealed class NavigableRegionAttribute : NavigableAttribute
     {
         IsTitleBarVisible = source.IsTitleBarVisibleSet ? source.IsTitleBarVisible : defaults.IsTitleBarVisible;
         SafeAreaEdges = source.SafeAreaEdgesSet ? source.SafeAreaEdges : defaults.SafeAreaEdges;
+        ScrollInset = source.ScrollInsetSet ? source.ScrollInset : defaults.ScrollInset;
     }
 
     internal NavigableRegionAttribute WithDefaults(SpineOptions.RegionDefaultsConfig defaults) => new(this, defaults);
@@ -141,6 +142,17 @@ public sealed class NavigableRegionAttribute : NavigableAttribute
     /// </summary>
     public SafeAreaEdges SafeAreaEdges { get => field; set { field = value; _safeAreaEdgesSet = true; } }
     internal bool SafeAreaEdgesSet => _safeAreaEdgesSet;
+
+    private bool _scrollInsetSet;
+    /// <summary>
+    /// The edges on which the page's first scrolling view (<see cref="ScrollView"/> or <see cref="CollectionView"/>)
+    /// takes the safe-area inset as a native content inset, so it can draw behind a bar the page excluded from
+    /// <see cref="SafeAreaEdges"/> and still scroll its last row clear of it. Equivalent to setting
+    /// <c>SafeArea.ScrollInset</c> on that view; a view that sets its own value keeps it.
+    /// When not set the value is inherited from the relevant <c>DefaultsConfig</c>.
+    /// </summary>
+    public SafeAreaEdges ScrollInset { get => field; set { field = value; _scrollInsetSet = true; } }
+    internal bool ScrollInsetSet => _scrollInsetSet;
 }
 
 /// <summary>
@@ -178,6 +190,7 @@ public sealed class NavigableTabAttribute : NavigableAttribute
         TabTitle = source.TabTitle;
         IsTitleBarVisible = source.IsTitleBarVisibleSet ? source.IsTitleBarVisible : defaults.IsTitleBarVisible;
         SafeAreaEdges = source.SafeAreaEdgesSet ? source.SafeAreaEdges : defaults.SafeAreaEdges;
+        ScrollInset = source.ScrollInsetSet ? source.ScrollInset : defaults.ScrollInset;
     }
 
     internal NavigableTabAttribute WithDefaults(SpineOptions.TabDefaultsConfig defaults) => new(this, defaults);
@@ -225,6 +238,17 @@ public sealed class NavigableTabAttribute : NavigableAttribute
     /// </summary>
     public SafeAreaEdges SafeAreaEdges { get => field; set { field = value; _safeAreaEdgesSet = true; } }
     internal bool SafeAreaEdgesSet => _safeAreaEdgesSet;
+
+    private bool _scrollInsetSet;
+    /// <summary>
+    /// The edges on which the page's first scrolling view (<see cref="ScrollView"/> or <see cref="CollectionView"/>)
+    /// takes the safe-area inset as a native content inset, so it can draw behind a bar the page excluded from
+    /// <see cref="SafeAreaEdges"/> and still scroll its last row clear of it. Equivalent to setting
+    /// <c>SafeArea.ScrollInset</c> on that view; a view that sets its own value keeps it.
+    /// When not set the value is inherited from the relevant <c>DefaultsConfig</c>.
+    /// </summary>
+    public SafeAreaEdges ScrollInset { get => field; set { field = value; _scrollInsetSet = true; } }
+    internal bool ScrollInsetSet => _scrollInsetSet;
 }
 
 /// <summary>
@@ -251,6 +275,7 @@ public sealed class NavigableSheetAttribute : NavigableAttribute
     {
         BackgroundPageOverlay = source.BackgroundPageOverlaySet ? source.BackgroundPageOverlay : defaults.BackgroundPageOverlay;
         SafeAreaEdges = source.SafeAreaEdgesSet ? source.SafeAreaEdges : defaults.SafeAreaEdges;
+        ScrollInset = source.ScrollInsetSet ? source.ScrollInset : defaults.ScrollInset;
         InitialDetent = source.InitialDetent;
         AllowedDetents = source.AllowedDetents;
     }
@@ -292,4 +317,15 @@ public sealed class NavigableSheetAttribute : NavigableAttribute
     /// </summary>
     public SafeAreaEdges SafeAreaEdges { get => field; set { field = value; _safeAreaEdgesSet = true; } }
     internal bool SafeAreaEdgesSet => _safeAreaEdgesSet;
+
+    private bool _scrollInsetSet;
+    /// <summary>
+    /// The edges on which the page's first scrolling view (<see cref="ScrollView"/> or <see cref="CollectionView"/>)
+    /// takes the safe-area inset as a native content inset, so it can draw behind a bar the page excluded from
+    /// <see cref="SafeAreaEdges"/> and still scroll its last row clear of it. Equivalent to setting
+    /// <c>SafeArea.ScrollInset</c> on that view; a view that sets its own value keeps it.
+    /// When not set the value is inherited from the relevant <c>DefaultsConfig</c>.
+    /// </summary>
+    public SafeAreaEdges ScrollInset { get => field; set { field = value; _scrollInsetSet = true; } }
+    internal bool ScrollInsetSet => _scrollInsetSet;
 }

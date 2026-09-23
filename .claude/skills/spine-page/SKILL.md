@@ -49,14 +49,8 @@ public partial class SettingsPageViewModel(INavigationService _navigation) : Vie
 {
     [ObservableProperty] public partial string? Title { get; set; }
 
+    [PageAction("Save")]
     [RelayCommand] private async Task Save() => await _navigation.BackAsync();
-
-    public override Task OnAppearingAsync(NavigationDirection direction)
-    {
-        if (PageActions.Count == 0)
-            PageActions.Add(new PageAction(text: "Save", command: SaveCommand));
-        return base.OnAppearingAsync(direction);
-    }
 }
 ```
 
@@ -77,7 +71,7 @@ Naming: `XxxPage` / `XxxPageViewModel` / `XxxPage.View.xaml`; a subfolder gets i
 | `[NavigableSheet(Title = …, AllowedDetents = […])]` | Bottom sheet over the current page, with its own stack | `NavigateToAsync<TPage>()` — the attribute decides |
 | `[NavigableTab(Title = …, Icon = "tab_home.svg", Order = 0)]` | A region that roots a bottom tab in the native tab bar | `NavigateToAsync<TPage>()` switches to the tab; `SwitchToTabAsync<TPage>()` says so explicitly |
 
-Useful attribute properties, all optional: `Lifetime` (`Transient` default; `Singleton` keeps state — tabs default to `Singleton`), `IsHeaderBarVisible`, `IsBackButtonVisible`, `TitleAlignment`, `SafeAreaEdges` (exclude an edge to draw behind it, then offset with `ViewModelBase.SafeAreaInsets`).
+Useful attribute properties, all optional: `Lifetime` (`Transient` default; `Singleton` keeps state — tabs default to `Singleton`), `IsHeaderBarVisible`, `IsBackButtonVisible`, `TitleAlignment`, `SafeAreaEdges` (exclude an edge to draw behind it, then offset with `ViewModelBase.SafeAreaInsets`), `ScrollInset` (edges on which the page's first `ScrollView`/`CollectionView` takes that inset as a native content inset, so a list can scroll under a bar and still reach its last row; the same thing per view is `SafeArea.ScrollInset="Bottom"`).
 
 Sheets: `AllowedDetents = [SheetDetent.Compact | Medium | Expanded | FullScreen, "75%", "300px"]`, `InitialDetent`, `BackgroundPageOverlay = None | Dimmed | Blurred`. Override `OnCloseRequestedAsync` to guard dismissal; `OnDismissedAsync` runs when the user closes it without a result.
 
@@ -133,21 +127,26 @@ Both at once: implement both interfaces and call `NavigateToWithResultAsync<TPag
 | `OnNavigationParameterAsync` | Before appearing, with the parameter |
 | `OnAppearingAsync(NavigationDirection)` | `None` (root), `NavigateTo` (pushed), `Back` (a child popped). Tab roots also get it on tab switches |
 | `OnDisappearingAsync` | Just before leaving the screen |
+| `OnResumedAsync` | The app came back to the foreground (or its window got focus again) while the page is shown: the current page, and an open sheet's. Not at launch |
 | `OnBackRequestedAsync` → `bool` | Return `false` to cancel back (unsaved changes) |
 | `OnCloseRequestedAsync` → `bool` | Same, for a sheet's close |
 | `OnTabReselectedAsync` | The active tab tapped again at root (scroll to top) |
 
-Load data in `OnAppearingAsync`; keep constructors cheap. Guard `PageActions` with `Count == 0` so a `Back` does not add duplicates.
+Load data in `OnAppearingAsync`; keep constructors cheap. Declare page actions with `[PageAction]` (below) rather than adding them in `OnAppearingAsync`. Refresh in `OnResumedAsync` what may have changed while the app was away (server data, today's date) instead of subscribing to `Window.Activated` in code-behind. Spine has no day-change hook; a page that must turn at midnight runs its own timer.
 
 ## Page actions (header bar)
 
+Put `[PageAction]` on a `[RelayCommand]` method (or an `ICommand` property); Spine adds the button once, before the page appears:
+
 ```csharp
-PageActions.Add(new PageAction(text: null, command: OpenSettingsCommand) { Svg = "settings.svg" });   // icon
-PageActions.Add(new PageAction(text: "Save", command: SaveCommand));                                  // text
-PageActions.Add(new PageAction(text: "Cancel", command: CancelCommand) { Placement = PageActionPlacement.Primary }); // replaces the back button
+[PageAction(Svg = "settings.svg")] [RelayCommand] private Task OpenSettingsAsync() { … }   // icon
+[PageAction("Save")]               [RelayCommand] private Task SaveAsync() { … }           // text
+[PageAction("Cancel", Placement = PageActionPlacement.Primary)] [RelayCommand] private Task CancelAsync() { … } // replaces the back button
 ```
 
-`Svg` is a short file name of an embedded SVG (the app's own or `Plugin.Maui.Spine.Svg.Icons`). On iOS 26 the header bar's buttons are Liquid Glass by default (`options.Apple.GlassHeaderActions = false` turns it off). To change visibility later, `PageActions.Clear()` and re-add.
+Hand-made actions still work (`PageActions.Add(new PageAction("Save", SaveCommand) { Svg = … })`, best from the constructor). The header shows the first visible action per slot (`Primary` left, `Secondary` right). `Svg` is a short file name of an embedded SVG (the app's own or `Plugin.Maui.Spine.Svg.Icons`). On iOS 26 the header bar's buttons are Liquid Glass by default (`options.Apple.GlassHeaderActions = false` turns it off).
+
+`PageAction` is observable: set `Text`, `Svg`, `Badge` ("3", "•"), `IsEnabled` or `IsVisible` on the instance while the page shows and the header follows. Find a declared one with `PageActions.First(a => a.Command == FilterCommand)`. Adding or removing from `PageActions` at runtime also updates the header.
 
 ## Binding to the page from a template
 

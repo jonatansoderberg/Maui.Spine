@@ -243,6 +243,33 @@ The rule of thumb: anything only the device can work out — a time relative to 
 something computed from data already on the phone — belongs locally. Anything only the server
 notices belongs in push.
 
+### When the backend does not have the device
+
+A registration that does not go through is the quietest failure in the whole pipeline. Nothing
+arrives — no notification, no Live Activity started by push, no widget reload — while the sender is
+told its push went out: APNs and FCM answer for a token, not for a device. The token the backend
+holds is simply the one from before.
+
+It happens more easily than it sounds. A clean install resets the iOS local-network permission, so a
+development build cannot reach a backend on the same network until the user says yes; a phone on
+mobile data cannot reach one on the desk at all.
+
+`LastRegistration` says what happened the last time the app tried, where `IsRegistered` only reads
+what the last accepted registration left behind:
+
+```csharp
+var status = push.LastRegistration;
+Problem = status.HasFailed
+    ? $"Servern känner inte till den här telefonen. Senast lyckade: {status.SucceededAt:g}."
+    : null;
+
+push.RegistrationChanged += status => MainThread.BeginInvokeOnMainThread(Show);
+```
+
+Spine also logs a warning naming the backend when a registration is refused. An app that shows the
+user anything about notifications is worth the three lines: the alternative is a phone that looks
+set up and stays silent.
+
 ### An app that only notifies locally
 
 Local notifications need no backend, no Firebase and no push entitlement. Leave `Backend` unset and

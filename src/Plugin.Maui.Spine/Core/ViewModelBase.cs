@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 
 namespace Plugin.Maui.Spine.Core;
 
@@ -16,10 +18,13 @@ namespace Plugin.Maui.Spine.Core;
 ///     [ObservableProperty]
 ///     private string? _greeting;
 ///
+///     [PageAction("Save")]
+///     [RelayCommand]
+///     private Task SaveAsync() { ... }
+///
 ///     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
 ///     {
-///         if (PageActions.Count == 0)
-///             PageActions.Add(new PageAction("Save", SaveCommand));
+///         Greeting = await _service.LoadGreetingAsync();
 ///     }
 /// }
 /// </code>
@@ -55,6 +60,14 @@ public abstract partial class ViewModelBase : ObservableObject
     public partial Thickness SafeAreaInsets { get; set; }
 
     /// <summary>
+    /// The edges on which the page's first scrolling view takes <see cref="SafeAreaInsets"/> as a
+    /// native content inset. Resolved by Spine from the page's attribute or the relevant defaults
+    /// and applied to that view before the page appears.
+    /// </summary>
+    [ObservableProperty]
+    public partial SafeAreaEdges ScrollInset { get; set; }
+
+    /// <summary>
     /// The raw system bar dimensions in device-independent pixels (status bar, navigation bar,
     /// display cutouts). Available on all platforms — non-zero on Android, <see cref="Thickness.Zero"/>
     /// on platforms that handle safe areas natively.
@@ -81,9 +94,10 @@ public abstract partial class ViewModelBase : ObservableObject
     public partial TitleAlignment TitleAlignment { get; set; }
 
     /// <summary>
-    /// Actions displayed as buttons in the header bar.
-    /// Populate this collection inside <see cref="OnAppearingAsync"/> (guard with
-    /// <c>if (PageActions.Count == 0)</c> to avoid duplicates on re-navigation).
+    /// Actions displayed as buttons in the header bar. Declare them with
+    /// <see cref="PageActionAttribute"/> on a command, or add instances here (the constructor is a
+    /// good place). Adding, removing, or changing a property of an action while the page is
+    /// showing updates the header bar.
     /// </summary>
     public ObservableCollection<PageAction> PageActions { get; } = new();
 
@@ -107,6 +121,22 @@ public abstract partial class ViewModelBase : ObservableObject
     /// </summary>
     /// <param name="navigationDirection">The direction of the navigation that is about to occur.</param>
     public virtual Task OnDisappearingAsync(NavigationDirection navigationDirection) => Task.CompletedTask;
+
+    /// <summary>
+    /// Called by Spine when the app returns to the foreground, or its window is activated again,
+    /// while this page is shown: the current page of the region or of the selected tab, and of an
+    /// open sheet together with the page under it. Override to refresh what may have changed while
+    /// the app was away, such as today's date or data from a server.
+    /// </summary>
+    /// <remarks>
+    /// Not called on the first activation at launch, which <see cref="OnAppearingAsync"/> already
+    /// covers — only after a deactivation. Anything that takes the window out of the foreground or
+    /// out of focus counts: going to the background, but also the notification shade, a system
+    /// dialog, or another window on the desktop. Pages that are not shown (covered by another page
+    /// on the stack, or on another tab) are not called; they get <see cref="OnAppearingAsync"/> when
+    /// they are shown again.
+    /// </remarks>
+    public virtual Task OnResumedAsync() => Task.CompletedTask;
 
     /// <summary>
     /// Whether this page has already been told it is showing.
@@ -186,8 +216,45 @@ public abstract partial class ViewModelBase : ObservableObject
     /// <summary>Initializes the ViewModel and subscribes to <see cref="PageActions"/> collection changes.</summary>
     protected ViewModelBase()
     {
-        PageActions.CollectionChanged += (_, __) =>
+        PageActions.CollectionChanged += OnPageActionsCollectionChanged;
+    }
+
+    /// <summary>
+    /// Raised when <see cref="PageActions"/> changes or any action in it changes a property,
+    /// so the header bar can resolve its slots again.
+    /// </summary>
+    internal event Action? PageActionsChanged;
+
+    /// <summary>Whether the actions declared with <see cref="PageActionAttribute"/> have been added.</summary>
+    internal bool DeclaredActionsAdded { get; set; }
+
+    private readonly HashSet<PageAction> _watchedActions = [];
+
+    private void OnPageActionsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Reset carries no old items, so reconcile against the collection instead of the event.
+        foreach (var action in _watchedActions.Where(a => !PageActions.Contains(a)).ToList())
+        {
+            action.PropertyChanged -= OnPageActionPropertyChanged;
+            _watchedActions.Remove(action);
+        }
+
+        foreach (var action in PageActions)
+        {
+            if (_watchedActions.Add(action))
+                action.PropertyChanged += OnPageActionPropertyChanged;
+        }
+
+        OnPropertyChanged(nameof(DefaultPageAction));
+        PageActionsChanged?.Invoke();
+    }
+
+    private void OnPageActionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PageAction.IsVisible))
             OnPropertyChanged(nameof(DefaultPageAction));
+
+        PageActionsChanged?.Invoke();
     }
 
 }

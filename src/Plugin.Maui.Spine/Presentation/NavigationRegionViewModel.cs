@@ -55,6 +55,39 @@ internal partial class NavigationRegionViewModel : ObservableObject
     [ObservableProperty]
     public partial double SecondaryActionSlot { get; set; }
 
+    ViewModelBase? _actionsSource;
+
+    /// <inheritdoc/>
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+
+        // Every place that changes the front page raises one of these, so this is where the
+        // subscription follows the page.
+        if (e.PropertyName is nameof(CurrentRegionViewModel) or nameof(PrimaryPageAction))
+            WatchPageActions(CurrentRegionViewModel);
+    }
+
+    void WatchPageActions(ViewModelBase? viewModel)
+    {
+        if (ReferenceEquals(viewModel, _actionsSource))
+            return;
+
+        if (_actionsSource is not null)
+            _actionsSource.PageActionsChanged -= OnPageActionsChanged;
+
+        _actionsSource = viewModel;
+
+        if (viewModel is not null)
+            viewModel.PageActionsChanged += OnPageActionsChanged;
+    }
+
+    void OnPageActionsChanged()
+    {
+        OnPropertyChanged(nameof(PrimaryPageAction));
+        OnPropertyChanged(nameof(SecondaryPageAction));
+    }
+
     PageAction? GetExplicitAction(PageActionPlacement placement)
     {
         var vm = CurrentRegionViewModel;

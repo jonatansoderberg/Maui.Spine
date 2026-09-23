@@ -22,6 +22,8 @@ internal sealed class PageActionView : ContentView
 
     readonly Button _textButton;
     readonly ImageButton _imageButton;
+    readonly Border _badge;
+    readonly Label _badgeLabel;
     readonly bool _glass;
     string? _currentSvg;
 
@@ -104,9 +106,38 @@ internal sealed class PageActionView : ContentView
             Glass.SetStyle(_imageButton, GlassStyle.Regular);
         }
 
+        _badgeLabel = new Label
+        {
+            FontSize = 11,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Colors.White,
+            HorizontalTextAlignment = TextAlignment.Center,
+            VerticalTextAlignment = TextAlignment.Center,
+            LineBreakMode = LineBreakMode.NoWrap,
+        };
+
+        // The same red the native tab badges use, so a count reads the same everywhere.
+        _badge = new Border
+        {
+            Content = _badgeLabel,
+            BackgroundColor = Color.FromArgb("#FF3B30"),
+            StrokeThickness = 0,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            Padding = new Thickness(4, 0),
+            MinimumWidthRequest = 16,
+            HeightRequest = 16,
+            HorizontalOptions = LayoutOptions.End,
+            VerticalOptions = LayoutOptions.Start,
+            // On the glass capsule the pill sits inside the slot's corner; on a plain text button
+            // it sits past the text, which ends 12 points short of the edge.
+            Margin = _glass ? new Thickness(0, 2, 6, 0) : new Thickness(0, 0, 0, 0),
+            InputTransparent = true,
+            IsVisible = false,
+        };
+
         Content = new Grid
         {
-            Children = { _textButton, _imageButton }
+            Children = { _textButton, _imageButton, _badge }
         };
 
         ApplyAction();
@@ -118,11 +149,19 @@ internal sealed class PageActionView : ContentView
         OperatingSystem.IsIOS()
         && IPlatformApplication.Current?.Services.GetService<SpineOptions>()?.Apple.GlassHeaderActions == true;
 
+    /// <summary>Raised when the assigned action's <see cref="PageAction.IsVisible"/> changes in place.</summary>
+    public event Action? VisibilityChanged;
+
     static void OnActionChanged(BindableObject bindable, object oldValue, object newValue)
     {
         var view = (PageActionView)bindable;
         var oldSvg = (oldValue as PageAction)?.Svg;
         var newSvg = (newValue as PageAction)?.Svg;
+
+        if (oldValue is PageAction oldAction)
+            oldAction.PropertyChanged -= view.OnActionPropertyChanged;
+        if (newValue is PageAction newAction)
+            newAction.PropertyChanged += view.OnActionPropertyChanged;
 
         var sameSvg = !string.IsNullOrWhiteSpace(oldSvg)
                    && !string.IsNullOrWhiteSpace(newSvg)
@@ -135,6 +174,23 @@ internal sealed class PageActionView : ContentView
     }
 
  
+
+    void OnActionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(PageAction.Svg):
+                _ = ApplyActionAnimatedAsync();
+                break;
+            case nameof(PageAction.IsVisible):
+                ApplyAction();
+                VisibilityChanged?.Invoke();
+                break;
+            default:
+                ApplyAction();
+                break;
+        }
+    }
 
     static void OnHideDisabledChanged(BindableObject bindable, object oldValue, object newValue)
     {
@@ -173,6 +229,7 @@ internal sealed class PageActionView : ContentView
         {
             _textButton.IsVisible = false;
             _imageButton.IsVisible = false;
+            _badge.IsVisible = false;
             return;
         }
 
@@ -180,6 +237,14 @@ internal sealed class PageActionView : ContentView
 
         _imageButton.IsVisible = hasSvg;
         _textButton.IsVisible = !hasSvg;
+        _imageButton.IsEnabled = action.IsEnabled;
+        _textButton.IsEnabled = action.IsEnabled;
+        // The app's Disabled visual state may not reach a button whose colour is set directly.
+        _imageButton.Opacity = action.IsEnabled ? 1 : 0.4;
+        _textButton.Opacity = action.IsEnabled ? 1 : 0.4;
+
+        _badgeLabel.Text = action.Badge ?? string.Empty;
+        _badge.IsVisible = !string.IsNullOrEmpty(action.Badge);
 
         if (hasSvg)
         {

@@ -41,17 +41,35 @@ public sealed class WidgetTimeline
     public static WidgetTimeline Single(IReadOnlyDictionary<WidgetFamily, WidgetNode> trees) => new WidgetTimeline().Add(DateTimeOffset.UtcNow, trees);
 
     /// <summary>Adds an entry that shows <paramref name="tree"/> in every family from <paramref name="date"/>.</summary>
-    public WidgetTimeline Add(DateTimeOffset date, WidgetNode tree)
+    public WidgetTimeline Add(DateTimeOffset date, WidgetNode tree) => Add(date, tree, null);
+
+    /// <summary>Adds an entry with a different tree per family from <paramref name="date"/>.</summary>
+    public WidgetTimeline Add(DateTimeOffset date, IReadOnlyDictionary<WidgetFamily, WidgetNode> trees) => Add(date, trees, null);
+
+    /// <summary>
+    /// Adds an entry that shows <paramref name="tree"/> in every family from <paramref name="date"/>, on
+    /// <paramref name="surface"/> instead of the timeline's own. The platform switches the surface with the entry.
+    /// </summary>
+    /// <param name="date">From when the entry is shown.</param>
+    /// <param name="tree">The tree for every family.</param>
+    /// <param name="surface">The entry's surface, replacing the timeline's color, gradient and image alike; <see langword="null"/> for the timeline's.</param>
+    public WidgetTimeline Add(DateTimeOffset date, WidgetNode tree, WidgetSurface? surface)
     {
-        _entries.Add(new WidgetTimelineEntry(date, tree, null));
+        _entries.Add(new WidgetTimelineEntry(date, tree, null) { Surface = surface });
         return this;
     }
 
-    /// <summary>Adds an entry with a different tree per family from <paramref name="date"/>.</summary>
-    public WidgetTimeline Add(DateTimeOffset date, IReadOnlyDictionary<WidgetFamily, WidgetNode> trees)
+    /// <summary>
+    /// Adds an entry with a different tree per family from <paramref name="date"/>, on <paramref name="surface"/>
+    /// instead of the timeline's own. The platform switches the surface with the entry.
+    /// </summary>
+    /// <param name="date">From when the entry is shown.</param>
+    /// <param name="trees">The tree per family.</param>
+    /// <param name="surface">The entry's surface, replacing the timeline's color, gradient and image alike; <see langword="null"/> for the timeline's.</param>
+    public WidgetTimeline Add(DateTimeOffset date, IReadOnlyDictionary<WidgetFamily, WidgetNode> trees, WidgetSurface? surface)
     {
         if (trees.Count == 0) throw new ArgumentException("At least one family is required.", nameof(trees));
-        _entries.Add(new WidgetTimelineEntry(date, null, trees));
+        _entries.Add(new WidgetTimelineEntry(date, null, trees) { Surface = surface });
         return this;
     }
 
@@ -83,7 +101,8 @@ public sealed class WidgetTimeline
 
     /// <summary>
     /// Draws the widget on <paramref name="color"/> instead of the platform's widget background, in every
-    /// entry; replaces a gradient. A fixed color stays fixed in dark mode, so give the text fixed colors too.
+    /// entry without a <see cref="WidgetSurface"/> of its own; replaces a gradient. A fixed color stays fixed
+    /// in dark mode, so give the text fixed colors too.
     /// </summary>
     public WidgetTimeline Background(WidgetColor color)
     {
@@ -94,7 +113,7 @@ public sealed class WidgetTimeline
 
     /// <summary>
     /// Draws the widget on <paramref name="gradient"/> instead of the platform's widget background, in every
-    /// entry; replaces a color. Android resolves semantic colors in it once, in the app's theme, rather than
+    /// entry without a <see cref="WidgetSurface"/> of its own; replaces a color. Android resolves semantic colors in it once, in the app's theme, rather than
     /// following the launcher's light and dark.
     /// </summary>
     public WidgetTimeline Background(WidgetGradient gradient)
@@ -107,9 +126,9 @@ public sealed class WidgetTimeline
 
     /// <summary>
     /// Draws the image stored as <paramref name="assetId"/> with <see cref="IWidgetService.StoreAssetAsync"/>
-    /// over the surface, scaled to fill it and cropped at the edges. The color or gradient shows through a
-    /// transparent image, and in its place until one is stored. Android scales it to at most 1024 pixels on
-    /// its long side.
+    /// over the surface, scaled to fill it and cropped at the edges, in every entry without a
+    /// <see cref="WidgetSurface"/> of its own. The color or gradient shows through a transparent image, and in
+    /// its place until one is stored. Android scales it to at most 1024 pixels on its long side.
     /// </summary>
     public WidgetTimeline BackgroundImage(string assetId)
     {
@@ -129,4 +148,8 @@ public sealed class WidgetTimeline
 /// <param name="Date">From when the entry is shown.</param>
 /// <param name="Tree">The tree for every family, when the entry is not family-specific.</param>
 /// <param name="Trees">The tree per family, when the entry is family-specific.</param>
-public sealed record WidgetTimelineEntry(DateTimeOffset Date, WidgetNode? Tree, IReadOnlyDictionary<WidgetFamily, WidgetNode>? Trees);
+public sealed record WidgetTimelineEntry(DateTimeOffset Date, WidgetNode? Tree, IReadOnlyDictionary<WidgetFamily, WidgetNode>? Trees)
+{
+    /// <summary>The entry's own surface, replacing the timeline's; <see langword="null"/> when it is drawn on the timeline's.</summary>
+    public WidgetSurface? Surface { get; init; }
+}

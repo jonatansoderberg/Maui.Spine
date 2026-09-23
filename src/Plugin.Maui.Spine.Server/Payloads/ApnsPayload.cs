@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace Plugin.Maui.Spine.Server;
@@ -9,6 +10,9 @@ namespace Plugin.Maui.Spine.Server;
 /// </summary>
 public sealed class ApnsPayload
 {
+    /// <summary>The Swift type in the widget extension that a Live Activity started by push is created as.</summary>
+    public const string AttributesType = "SpineActivityAttributes";
+
     /// <summary>The alert's first line. Absent for a silent or Live Activity push.</summary>
     public string? Title { get; set; }
 
@@ -56,7 +60,11 @@ public sealed class ApnsPayload
     public string ToJson()
     {
         var buffer = new System.IO.MemoryStream();
-        using (var w = new Utf8JsonWriter(buffer))
+
+        // Relaxed escaping: the Live Activity layout is a JSON string inside this JSON, and the default
+        // encoder writes each of its quotes as \u0022 and each å as \u00E5 — six bytes where two do,
+        // which roughly doubled a layout against APNs' 4 KB limit. APNs takes any valid JSON.
+        using (var w = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
             w.WriteStartObject();
             w.WriteStartObject("aps");
@@ -86,6 +94,16 @@ public sealed class ApnsPayload
                 if (activity.DismissAt is { } dismiss) w.WriteNumber("dismissal-date", dismiss.ToUnixTimeSeconds());
                 if (activity.InputPushChannel is { } channel) w.WriteString("input-push-channel", channel);
 
+                // Push-to-start names the ActivityAttributes type and its values; without them iOS
+                // cannot create the activity and drops the push, though APNs has answered 200.
+                if (activity.StartKind is { } kind)
+                {
+                    w.WriteString("attributes-type", AttributesType);
+                    w.WriteStartObject("attributes");
+                    w.WriteString("kind", kind);
+                    w.WriteEndObject();
+                }
+
                 // ActivityKit decodes content-state into the extension's ContentState, which holds the
                 // layout as a single string — see SpineActivityAttributes.ContentState(json:). Writing
                 // the layout object here instead produces JSON that cannot be decoded, and iOS answers
@@ -114,10 +132,12 @@ public sealed class ApnsPayload
 /// <param name="StaleAt">When the content should be considered out of date.</param>
 /// <param name="DismissAt">When an ended activity should disappear.</param>
 /// <param name="InputPushChannel">On a start, the broadcast channel the new activity follows (iOS 18).</param>
+/// <param name="StartKind">On a start, the kind the new activity is created with.</param>
 public readonly record struct ApnsLiveActivity(
     string Event,
     string ContentStateJson,
     DateTimeOffset Timestamp,
     DateTimeOffset? StaleAt = null,
     DateTimeOffset? DismissAt = null,
-    string? InputPushChannel = null);
+    string? InputPushChannel = null,
+    string? StartKind = null);

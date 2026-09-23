@@ -151,6 +151,23 @@ public class PushPayloadsTests
     }
 
     [Fact]
+    public void Starting_by_push_names_the_attributes_type_and_the_kind()
+    {
+        var start = Parse(PushPayloads.ApnsLiveActivity(
+            "din-start:59691", new LiveActivityLayout(), LiveActivityEvent.Start,
+            new PushAlert("Din start", "Startar om 30 min"), options: null, Bundle, Now).Json).GetProperty("aps");
+        var update = Parse(PushPayloads.ApnsLiveActivity(
+            "din-start:59691", new LiveActivityLayout(), LiveActivityEvent.Update, alert: null, options: null, Bundle, Now).Json).GetProperty("aps");
+
+        // ActivityKit creates SpineActivityAttributes(kind:) from these; without them iOS drops the
+        // push-to-start silently while APNs still answers 200.
+        Assert.Equal("SpineActivityAttributes", start.GetProperty("attributes-type").GetString());
+        Assert.Equal("din-start:59691", start.GetProperty("attributes").GetProperty("kind").GetString());
+        Assert.False(update.TryGetProperty("attributes-type", out _));
+        Assert.False(update.TryGetProperty("attributes", out _));
+    }
+
+    [Fact]
     public void Ending_an_activity_can_say_when_it_should_disappear()
     {
         var envelope = PushPayloads.ApnsLiveActivity(

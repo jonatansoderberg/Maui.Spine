@@ -25,7 +25,7 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     {
         if (!_platform.IsSupported) return;
 
-        foreach (var name in trees.SelectMany(Icons).Distinct(StringComparer.Ordinal))
+        foreach (var name in trees.SelectMany(WidgetTree.Icons).Distinct(StringComparer.Ordinal))
         {
             lock (_stored) if (!_stored.Add(name)) continue;
 
@@ -43,13 +43,6 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     public Task EnsureAsync(LiveActivityLayout layout, CancellationToken cancellationToken) =>
         EnsureAsync([layout.LockScreen, layout.ExpandedLeading, layout.ExpandedTrailing, layout.ExpandedCenter,
             layout.ExpandedBottom, layout.CompactLeading, layout.CompactTrailing, layout.Minimal], cancellationToken);
-
-    private static IEnumerable<string> Icons(WidgetNode? node) => node switch
-    {
-        IconNode icon when !string.IsNullOrWhiteSpace(icon.SystemName) => [icon.SystemName],
-        StackNode stack => stack.Children.SelectMany(Icons),
-        _ => [],
-    };
 
     // The underscore form first: the SDK reads "figure.run.svg" as a resource for the culture "run".
     private Stream? Open(string name) =>
