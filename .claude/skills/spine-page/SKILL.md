@@ -149,6 +149,10 @@ PageActions.Add(new PageAction(text: "Cancel", command: CancelCommand) { Placeme
 
 `Svg` is a short file name of an embedded SVG (the app's own or `Plugin.Maui.Spine.Svg.Icons`). On iOS 26 the header bar's buttons are Liquid Glass by default (`options.Apple.GlassHeaderActions = false` turns it off). To change visibility later, `PageActions.Clear()` and re-add.
 
+## Binding to the page from a template
+
+`{PageCommand Pick}` binds `PickCommand` on the page's view model from inside a `DataTemplate`; `{PageBinding Path}` binds any member of it (supports `Mode`, `Converter`, `StringFormat`). Use them instead of `RelativeSource AncestorType` bindings.
+
 ## Do
 
 - Keep the code-behind to the attribute and `InitializeComponent()`; logic goes in the ViewModel.

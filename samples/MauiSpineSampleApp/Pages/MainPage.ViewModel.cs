@@ -35,12 +35,17 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     [RelayCommand]
     private async Task ItemTapped(Item item)
     {
-        switch (Items.IndexOf(item))
-        {
-            case 0: await _navigation.NavigateToAsync<MainPageOld>(); break;
-            case 1: await _navigation.NavigateToAsync<Glass.GlassPage>(); break;
-        }
+        if (item.Open is { } open)
+            await open(_navigation);
     }
+
+    // One row per sample page. Add a page here when it gets a page of its own.
+    private static IEnumerable<Item> SampleIndex =>
+    [
+        new("Sheets, results and marquee", "Bottom sheets with detents, typed results, AnimatedLabel", n => n.NavigateToAsync<MainPageOld>()),
+        new("Liquid Glass", "Button and ImageButton as glass on iOS 26", n => n.NavigateToAsync<Glass.GlassPage>()),
+        new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
+    ];
 
     public override Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
@@ -55,17 +60,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
         if (Items is [])
         {
-            var items = Enumerable.Range(1, 30).Select(i => i == 2
-                ? new Item { Icon = "fish.svg", Title = "Liquid Glass", Description = "Button and ImageButton as glass on iOS 26", IsMovable = false }
-                : new Item
-                {
-                    Icon = "fish.svg",
-                    Title = $"Item {i}",
-                    Description = i % 2 == 0 ? $"Description for item {i} with extra details that may scroll since it is a long description that does not fit" : null,
-                    IsMovable = false
-                });
-
-            foreach (var item in items)
+            foreach (var item in SampleIndex)
                 Items.Add(item);
         }
 
@@ -76,6 +71,18 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 [ObservableObject]
 public partial class Item
 {
+    public Item() { }
+
+    public Item(string title, string description, Func<INavigationService, Task> open)
+    {
+        this.title = title;
+        this.description = description;
+        this.icon = "fish.svg";
+        Open = open;
+    }
+
+    public Func<INavigationService, Task>? Open { get; init; }
+
     [ObservableProperty]
     private string? icon;
 

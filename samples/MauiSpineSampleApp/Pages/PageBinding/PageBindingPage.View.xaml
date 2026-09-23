@@ -1,0 +1,41 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.PageBinding.PageBindingPage"
+    x:TypeArguments="PageBindingPageViewModel"
+    x:DataType="PageBindingPageViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <VerticalStackLayout Padding="16,8" Spacing="6">
+            <Label Text="Inside an item template the BindingContext is the item. {PageCommand Pick} and {PageBinding Picked} reach the page's view model without naming an ancestor type."
+                   FontSize="14" />
+            <Label Text="{PageBinding Picked}" FontAttributes="Bold" />
+
+            <Label Text="The item template below is written as ({Binding .} is the item, PageBinding and PageCommand go to the page's view model):" FontSize="12" TextColor="Gray" Margin="0,6,0,0" />
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                       Text="&lt;DataTemplate x:DataType=&quot;x:String&quot;&gt;&#10;  &lt;Label Text=&quot;{Binding .}&quot; /&gt;&#10;  &lt;Label Text=&quot;{PageBinding Picks,&#10;      StringFormat='Picks: {0}'}&quot; /&gt;&#10;  &lt;Button Command=&quot;{PageCommand Pick}&quot;&#10;      CommandParameter=&quot;{Binding .}&quot; /&gt;&#10;&lt;/DataTemplate&gt;" />
+            </Border>
+        </VerticalStackLayout>
+
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Fruits}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                    <!-- Nested a few levels deep on purpose: the ancestor walk passes all of them. -->
+                    <Border StrokeThickness="0" Margin="16,6" Padding="12" BackgroundColor="#22808080" StrokeShape="RoundRectangle 10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <VerticalStackLayout>
+                                <Label Text="{Binding .}" FontAttributes="Bold" />
+                                <Label Text="{PageBinding Picks, StringFormat='Picks so far: {0}'}" FontSize="12" TextColor="Gray" />
+                            </VerticalStackLayout>
+                            <Button Grid.Column="1" Text="Pick" Command="{PageCommand Pick}" CommandParameter="{Binding .}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+
+</SpinePage>
