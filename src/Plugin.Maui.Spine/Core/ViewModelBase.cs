@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 
 namespace Plugin.Maui.Spine.Core;
 
@@ -16,10 +18,13 @@ namespace Plugin.Maui.Spine.Core;
 ///     [ObservableProperty]
 ///     private string? _greeting;
 ///
+///     [PageAction("Save")]
+///     [RelayCommand]
+///     private Task SaveAsync() { ... }
+///
 ///     public override async Task OnAppearingAsync(NavigationDirection navigationDirection)
 ///     {
-///         if (PageActions.Count == 0)
-///             PageActions.Add(new PageAction("Save", SaveCommand));
+///         Greeting = await _service.LoadGreetingAsync();
 ///     }
 /// }
 /// </code>
@@ -81,9 +86,10 @@ public abstract partial class ViewModelBase : ObservableObject
     public partial TitleAlignment TitleAlignment { get; set; }
 
     /// <summary>
-    /// Actions displayed as buttons in the header bar.
-    /// Populate this collection inside <see cref="OnAppearingAsync"/> (guard with
-    /// <c>if (PageActions.Count == 0)</c> to avoid duplicates on re-navigation).
+    /// Actions displayed as buttons in the header bar. Declare them with
+    /// <see cref="PageActionAttribute"/> on a command, or add instances here (the constructor is a
+    /// good place). Adding, removing, or changing a property of an action while the page is
+    /// showing updates the header bar.
     /// </summary>
     public ObservableCollection<PageAction> PageActions { get; } = new();
 
@@ -186,8 +192,45 @@ public abstract partial class ViewModelBase : ObservableObject
     /// <summary>Initializes the ViewModel and subscribes to <see cref="PageActions"/> collection changes.</summary>
     protected ViewModelBase()
     {
-        PageActions.CollectionChanged += (_, __) =>
+        PageActions.CollectionChanged += OnPageActionsCollectionChanged;
+    }
+
+    /// <summary>
+    /// Raised when <see cref="PageActions"/> changes or any action in it changes a property,
+    /// so the header bar can resolve its slots again.
+    /// </summary>
+    internal event Action? PageActionsChanged;
+
+    /// <summary>Whether the actions declared with <see cref="PageActionAttribute"/> have been added.</summary>
+    internal bool DeclaredActionsAdded { get; set; }
+
+    private readonly HashSet<PageAction> _watchedActions = [];
+
+    private void OnPageActionsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Reset carries no old items, so reconcile against the collection instead of the event.
+        foreach (var action in _watchedActions.Where(a => !PageActions.Contains(a)).ToList())
+        {
+            action.PropertyChanged -= OnPageActionPropertyChanged;
+            _watchedActions.Remove(action);
+        }
+
+        foreach (var action in PageActions)
+        {
+            if (_watchedActions.Add(action))
+                action.PropertyChanged += OnPageActionPropertyChanged;
+        }
+
+        OnPropertyChanged(nameof(DefaultPageAction));
+        PageActionsChanged?.Invoke();
+    }
+
+    private void OnPageActionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PageAction.IsVisible))
             OnPropertyChanged(nameof(DefaultPageAction));
+
+        PageActionsChanged?.Invoke();
     }
 
 }

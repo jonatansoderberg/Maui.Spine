@@ -49,14 +49,8 @@ public partial class SettingsPageViewModel(INavigationService _navigation) : Vie
 {
     [ObservableProperty] public partial string? Title { get; set; }
 
+    [PageAction("Save")]
     [RelayCommand] private async Task Save() => await _navigation.BackAsync();
-
-    public override Task OnAppearingAsync(NavigationDirection direction)
-    {
-        if (PageActions.Count == 0)
-            PageActions.Add(new PageAction(text: "Save", command: SaveCommand));
-        return base.OnAppearingAsync(direction);
-    }
 }
 ```
 
@@ -137,17 +131,21 @@ Both at once: implement both interfaces and call `NavigateToWithResultAsync<TPag
 | `OnCloseRequestedAsync` → `bool` | Same, for a sheet's close |
 | `OnTabReselectedAsync` | The active tab tapped again at root (scroll to top) |
 
-Load data in `OnAppearingAsync`; keep constructors cheap. Guard `PageActions` with `Count == 0` so a `Back` does not add duplicates.
+Load data in `OnAppearingAsync`; keep constructors cheap. Declare page actions with `[PageAction]` (below) rather than adding them in `OnAppearingAsync`.
 
 ## Page actions (header bar)
 
+Put `[PageAction]` on a `[RelayCommand]` method (or an `ICommand` property); Spine adds the button once, before the page appears:
+
 ```csharp
-PageActions.Add(new PageAction(text: null, command: OpenSettingsCommand) { Svg = "settings.svg" });   // icon
-PageActions.Add(new PageAction(text: "Save", command: SaveCommand));                                  // text
-PageActions.Add(new PageAction(text: "Cancel", command: CancelCommand) { Placement = PageActionPlacement.Primary }); // replaces the back button
+[PageAction(Svg = "settings.svg")] [RelayCommand] private Task OpenSettingsAsync() { … }   // icon
+[PageAction("Save")]               [RelayCommand] private Task SaveAsync() { … }           // text
+[PageAction("Cancel", Placement = PageActionPlacement.Primary)] [RelayCommand] private Task CancelAsync() { … } // replaces the back button
 ```
 
-`Svg` is a short file name of an embedded SVG (the app's own or `Plugin.Maui.Spine.Svg.Icons`). On iOS 26 the header bar's buttons are Liquid Glass by default (`options.Apple.GlassHeaderActions = false` turns it off). To change visibility later, `PageActions.Clear()` and re-add.
+Hand-made actions still work (`PageActions.Add(new PageAction("Save", SaveCommand) { Svg = … })`, best from the constructor). The header shows the first visible action per slot (`Primary` left, `Secondary` right). `Svg` is a short file name of an embedded SVG (the app's own or `Plugin.Maui.Spine.Svg.Icons`). On iOS 26 the header bar's buttons are Liquid Glass by default (`options.Apple.GlassHeaderActions = false` turns it off).
+
+`PageAction` is observable: set `Text`, `Svg`, `Badge` ("3", "•"), `IsEnabled` or `IsVisible` on the instance while the page shows and the header follows. Find a declared one with `PageActions.First(a => a.Command == FilterCommand)`. Adding or removing from `PageActions` at runtime also updates the header.
 
 ## Do
 

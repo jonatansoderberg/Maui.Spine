@@ -11,16 +11,11 @@ public partial class GlassPageViewModel : ViewModelBase
     [RelayCommand]
     private void Tap(string? name) => LastTap = $"{name} tapped at {DateTime.Now:HH:mm:ss}";
 
+    // A declared action needs a parameterless command; the header bell reports itself.
+    [PageAction(Svg = "bell.svg")]
+    [RelayCommand]
+    private void Bell() => Tap("Bell");
+
     [RelayCommand]
     private void ToggleSave() => IsSaveEnabled = !IsSaveEnabled;
-
-    public override Task OnAppearingAsync(NavigationDirection navigationDirection)
-    {
-        if (PageActions.Count == 0)
-        {
-            PageActions.Add(new PageAction(text: null, command: TapCommand) { Svg = "bell.svg", CommandParameter = "Bell" });
-        }
-
-        return base.OnAppearingAsync(navigationDirection);
-    }
 }

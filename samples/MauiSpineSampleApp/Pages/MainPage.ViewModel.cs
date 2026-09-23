@@ -30,6 +30,9 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         }
     }
 
+    // The hero page hides the header bar and draws its own gear; the declared action still
+    // exists so the Windows title bar (which reads PageActions) shows it.
+    [PageAction(Svg = "settings.svg")]
     [RelayCommand] private async Task OpenSettings() => await _navigation.NavigateToAsync<Settings.SettingsPage>();
 
     [RelayCommand]
@@ -39,24 +42,18 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         {
             case 0: await _navigation.NavigateToAsync<MainPageOld>(); break;
             case 1: await _navigation.NavigateToAsync<Glass.GlassPage>(); break;
+            case 2: await _navigation.NavigateToAsync<PageActions.PageActionsPage>(); break;
         }
     }
 
     public override Task OnAppearingAsync(NavigationDirection navigationDirection)
     {
-        if (PageActions.Count == 0)
-        {
-            //This is just creating a placeholder in the native title bar (Hack to make the header settings button clickable)
-            PageActions.Add(new PageAction(text: null, command: OpenSettingsCommand)
-            {
-                Svg = "settings.svg"
-            });
-        }
-
         if (Items is [])
         {
             var items = Enumerable.Range(1, 30).Select(i => i == 2
                 ? new Item { Icon = "fish.svg", Title = "Liquid Glass", Description = "Button and ImageButton as glass on iOS 26", IsMovable = false }
+                : i == 3
+                ? new Item { Icon = "fish.svg", Title = "Page actions", Description = "[PageAction] on a command; text, badge, enabled and visibility change live", IsMovable = false }
                 : new Item
                 {
                     Icon = "fish.svg",
