@@ -8,6 +8,8 @@ using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.PushNotifications.Extensions;
 using Plugin.Maui.Spine.Widgets.Extensions;
 
+using MauiSpinePushNotificationsSampleApp.Pages;
+
 namespace MauiSpinePushNotificationsSampleApp;
 
 public static class MauiProgram
@@ -30,7 +32,8 @@ public static class MauiProgram
                 options.AppTitle = "Spine Push";
                 options.RegionDefaults.IsHeaderBarVisible = true;
             })
-            .UseSpineWidgets()
+            // The picture widget has no link handler of its own; a tap opens the app on Home.
+            .UseSpineWidgets(options => options.OpenWith<HomePage>())
             .UseSpinePushNotifications(options =>
             {
                 options.Backend = new Uri(backend);

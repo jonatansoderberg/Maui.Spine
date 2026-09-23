@@ -24,6 +24,15 @@ public interface IWidgetService
     /// </summary>
     Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Stores a PNG that ships in the app package (a <c>MauiAsset</c>, e.g. <c>Resources/Raw/logo.png</c>)
+    /// as a widget asset named after the file, copying it only when the stored copy is missing or the
+    /// file changed size. Use it for pictures the app bundles rather than draws.
+    /// </summary>
+    /// <param name="fileName">The package file name, e.g. <c>"logo.png"</c>.</param>
+    /// <param name="assetId">The asset id to store it under; defaults to <paramref name="fileName"/>.</param>
+    Task StorePackageAssetAsync(string fileName, string? assetId = null, CancellationToken cancellationToken = default);
+
     /// <summary>The URL <see cref="WidgetTimeline.OpenUrl"/> should use to open the app at <paramref name="kind"/>.</summary>
     Uri LinkFor(string kind);
 

@@ -8,9 +8,9 @@ namespace MauiSpinePushNotificationsSampleApp.Widgets;
 /// one line of text sits on an accent-colored box so it stays legible on whatever the picture is.
 /// </summary>
 /// <remarks>
-/// The picture is the sample's own, from <c>Resources/Raw</c>. It is stored at every build — it is small —
-/// because the widget reads it from the App Group, where the extension on iOS can reach it, and a fresh
-/// install has nothing there yet.
+/// The picture is the sample's own, from <c>Resources/Raw</c>. The widget reads it from the App Group,
+/// where the extension on iOS can reach it, so it has to be stored there once; a fresh install has
+/// nothing there yet.
 /// </remarks>
 /// <param name="widgets">Stores the picture where the widget reads it.</param>
 [Widget("picture")]
@@ -21,8 +21,8 @@ public sealed class PictureWidgetProvider(IWidgetService widgets) : IWidgetProvi
     /// <inheritdoc />
     public async Task<WidgetTimeline> BuildTimelineAsync(WidgetContext context, CancellationToken cancellationToken)
     {
-        await using (var picture = await FileSystem.OpenAppPackageFileAsync(Picture))
-            await widgets.StoreAssetAsync(Picture, picture, cancellationToken);
+        // Copied into the widget store once per build; a later call finds it there and returns.
+        await widgets.StorePackageAssetAsync(Picture, cancellationToken: cancellationToken);
 
         return WidgetTimeline
             .Single(W.VStack(4,

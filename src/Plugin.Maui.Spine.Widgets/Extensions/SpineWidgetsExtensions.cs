@@ -2,6 +2,7 @@ using AsyncAwaitBestPractices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.LifecycleEvents;
 using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Widgets.Services;
 
 namespace Plugin.Maui.Spine.Widgets.Extensions;
@@ -110,7 +111,17 @@ public static partial class SpineWidgetsExtensions
         }
 
         if (!typeof(IWidgetLinkHandler).IsAssignableFrom(providerType))
+        {
+            // No handler of its own: open the page the options name, if any.
+            if (services.GetRequiredService<SpineWidgetsOptions>().OpenPage is { } page)
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                    SetRoot(services.GetRequiredService<INavigationService>(), page)
+                        .SafeFireAndForget(e => logger.LogError(e, "Opening {Page} from widget \"{Kind}\" failed.", page.Name, kind)));
+            }
+
             return true;
+        }
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
@@ -119,5 +130,20 @@ public static partial class SpineWidgetsExtensions
                 .SafeFireAndForget(e => logger.LogError(e, "Handling the open of widget \"{Kind}\" failed.", kind));
         });
         return true;
+    }
+
+    private static Task SetRoot(INavigationService navigation, Type page) =>
+        (Task)typeof(INavigationService).GetMethod(nameof(INavigationService.SetRootAsync))!
+            .MakeGenericMethod(page)
+            .Invoke(navigation, null)!;
+
+    /// <summary>
+    /// Opens the app at <typeparamref name="TPage"/> when a widget is tapped and its provider has no
+    /// <see cref="IWidgetLinkHandler"/> of its own.
+    /// </summary>
+    public static SpineWidgetsOptions OpenWith<TPage>(this SpineWidgetsOptions options) where TPage : INavigable
+    {
+        options.OpenPage = typeof(TPage);
+        return options;
     }
 }

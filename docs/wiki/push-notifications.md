@@ -348,6 +348,7 @@ Android three. `Destructive` draws red on Apple and like any other button on And
 
 ```csharp
 new LocalNotification { …, Image = Path.Combine(FileSystem.CacheDirectory, "map.png") }  // a file
+new LocalNotification { …, Image = await PackageFiles.CachedPathAsync("map.png") } // a bundled MauiAsset, copied out once
 new PushNotification { …, Image = new Uri("https://example.com/map.png") }             // https only
 ```
 

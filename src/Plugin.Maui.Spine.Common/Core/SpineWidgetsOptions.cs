@@ -11,6 +11,13 @@ public sealed class SpineWidgetsOptions
     public string? AppGroup { get; set; }
 
     /// <summary>
+    /// The page the app opens at when a widget is tapped and its provider has no
+    /// <see cref="IWidgetLinkHandler"/> of its own. Set it with <c>options.OpenWith&lt;TPage&gt;()</c>
+    /// from <c>Plugin.Maui.Spine.Widgets</c>. <see langword="null"/> leaves the app where it was.
+    /// </summary>
+    public Type? OpenPage { get; set; }
+
+    /// <summary>
     /// When <see langword="true"/> (default) every widget is rebuilt as the app moves to the
     /// background, so the home screen shows the state the user just left.
     /// </summary>

@@ -40,6 +40,61 @@ public sealed class WidgetTimeline
     /// <summary>A timeline with one entry that shows a different tree per family.</summary>
     public static WidgetTimeline Single(IReadOnlyDictionary<WidgetFamily, WidgetNode> trees) => new WidgetTimeline().Add(DateTimeOffset.UtcNow, trees);
 
+    /// <summary>
+    /// A timeline with one entry per calendar day, starting now and turning at local midnight, so the
+    /// platform shows each day's tree without waking the app.
+    /// </summary>
+    /// <param name="days">How many days to build, today included.</param>
+    /// <param name="build">Builds the tree for a day.</param>
+    /// <param name="zone">The time zone whose midnight turns the page; the device's when <see langword="null"/>.</param>
+    public static WidgetTimeline Daily(int days, Func<DateOnly, WidgetNode> build, TimeZoneInfo? zone = null) =>
+        new WidgetTimeline().AddDaily(days, build, zone);
+
+    /// <summary>
+    /// A timeline with one entry per calendar day with a tree per family, starting now and turning at
+    /// local midnight.
+    /// </summary>
+    public static WidgetTimeline Daily(int days, Func<DateOnly, IReadOnlyDictionary<WidgetFamily, WidgetNode>> build, TimeZoneInfo? zone = null) =>
+        new WidgetTimeline().AddDaily(days, build, zone);
+
+    /// <summary>Adds one entry per calendar day, the first dated now and the rest at local midnight.</summary>
+    public WidgetTimeline AddDaily(int days, Func<DateOnly, WidgetNode> build, TimeZoneInfo? zone = null)
+    {
+        foreach (var (date, from) in DaysAhead(days, zone ?? TimeZoneInfo.Local))
+            Add(from, build(date));
+        return this;
+    }
+
+    /// <summary>Adds one entry per calendar day with a tree per family, the first dated now and the rest at local midnight.</summary>
+    public WidgetTimeline AddDaily(int days, Func<DateOnly, IReadOnlyDictionary<WidgetFamily, WidgetNode>> build, TimeZoneInfo? zone = null)
+    {
+        foreach (var (date, from) in DaysAhead(days, zone ?? TimeZoneInfo.Local))
+            Add(from, build(date));
+        return this;
+    }
+
+    /// <summary>
+    /// The next <paramref name="days"/> days in <paramref name="zone"/>, each with the moment its entry
+    /// begins: now for today, local midnight for the rest.
+    /// </summary>
+    public static IEnumerable<(DateOnly Date, DateTimeOffset From)> DaysAhead(int days, TimeZoneInfo zone)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, zone).DateTime);
+
+        for (var i = 0; i < days; i++)
+        {
+            var date = today.AddDays(i);
+            yield return (date, i == 0 ? now : Midnight(date, zone));
+        }
+    }
+
+    private static DateTimeOffset Midnight(DateOnly date, TimeZoneInfo zone)
+    {
+        var local = date.ToDateTime(TimeOnly.MinValue);
+        return new DateTimeOffset(local, zone.GetUtcOffset(local));
+    }
+
     /// <summary>Adds an entry that shows <paramref name="tree"/> in every family from <paramref name="date"/>.</summary>
     public WidgetTimeline Add(DateTimeOffset date, WidgetNode tree) => Add(date, tree, null);
 
