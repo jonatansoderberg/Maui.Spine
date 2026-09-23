@@ -27,12 +27,12 @@ public class SvgImageSourceBehavior : Behavior<View>
 
     /// <summary>Identifies the <see cref="LightTintColor"/> bindable property.</summary>
     public static readonly BindableProperty LightTintColorProperty =
-        BindableProperty.Create(nameof(LightTintColor), typeof(Color), typeof(SvgImageSourceBehavior), Colors.Transparent,
+        BindableProperty.Create(nameof(LightTintColor), typeof(Color), typeof(SvgImageSourceBehavior), Colors.Black,
             propertyChanged: static (b, _, _) => ((SvgImageSourceBehavior)b).UpdateImage());
 
     /// <summary>Identifies the <see cref="DarkTintColor"/> bindable property.</summary>
     public static readonly BindableProperty DarkTintColorProperty =
-        BindableProperty.Create(nameof(DarkTintColor), typeof(Color), typeof(SvgImageSourceBehavior), Colors.Transparent,
+        BindableProperty.Create(nameof(DarkTintColor), typeof(Color), typeof(SvgImageSourceBehavior), Colors.White,
             propertyChanged: static (b, _, _) => ((SvgImageSourceBehavior)b).UpdateImage());
 
     /// <summary>Identifies the <see cref="TintColor"/> bindable property.</summary>
@@ -56,7 +56,8 @@ public class SvgImageSourceBehavior : Behavior<View>
 
     /// <summary>
     /// Gets or sets the tint colour applied to the SVG when the app is in
-    /// <see cref="AppTheme.Light"/> mode. Defaults to <see cref="Colors.Transparent"/> (no tint).
+    /// <see cref="AppTheme.Light"/> mode. Defaults to <see cref="Colors.Black"/>, like
+    /// <see cref="SvgImageSource"/>'s attached property; <see cref="Colors.Transparent"/> keeps the SVG's own colours.
     /// </summary>
     public Color LightTintColor
     {
@@ -66,7 +67,8 @@ public class SvgImageSourceBehavior : Behavior<View>
 
     /// <summary>
     /// Gets or sets the tint colour applied to the SVG when the app is in
-    /// <see cref="AppTheme.Dark"/> mode. Defaults to <see cref="Colors.Transparent"/> (no tint).
+    /// <see cref="AppTheme.Dark"/> mode. Defaults to <see cref="Colors.White"/>, like
+    /// <see cref="SvgImageSource"/>'s attached property; <see cref="Colors.Transparent"/> keeps the SVG's own colours.
     /// </summary>
     public Color DarkTintColor
     {

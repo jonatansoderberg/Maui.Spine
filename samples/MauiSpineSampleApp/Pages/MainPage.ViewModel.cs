@@ -14,8 +14,6 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         ? new Thickness(0, 0, 144, 0)
         : new Thickness(0, SystemBarInsets.Top, 10, 0);
 
-    public double FooterHeight => SystemBarInsets.Bottom;
-
     public ObservableCollection<Item> Items { get; set; } = new ObservableCollection<Item>();
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
@@ -26,7 +24,6 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         {
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderMinHeight)));
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(GearMargin)));
-            OnPropertyChanged(new PropertyChangedEventArgs(nameof(FooterHeight)));
         }
     }
 
@@ -42,7 +39,8 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         {
             case 0: await _navigation.NavigateToAsync<MainPageOld>(); break;
             case 1: await _navigation.NavigateToAsync<Glass.GlassPage>(); break;
-            case 2: await _navigation.NavigateToAsync<PageActions.PageActionsPage>(); break;
+            case 2: await _navigation.NavigateToAsync<ScrollInset.ScrollInsetPage>(); break;
+            case 3: await _navigation.NavigateToAsync<PageActions.PageActionsPage>(); break;
         }
     }
 
@@ -50,17 +48,19 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     {
         if (Items is [])
         {
-            var items = Enumerable.Range(1, 30).Select(i => i == 2
-                ? new Item { Icon = "fish.svg", Title = "Liquid Glass", Description = "Button and ImageButton as glass on iOS 26", IsMovable = false }
-                : i == 3
-                ? new Item { Icon = "fish.svg", Title = "Page actions", Description = "[PageAction] on a command; text, badge, enabled and visibility change live", IsMovable = false }
-                : new Item
+            var items = Enumerable.Range(1, 30).Select(i => i switch
+            {
+                2 => new Item { Icon = "fish.svg", Title = "Liquid Glass", Description = "Button and ImageButton as glass on iOS 26", IsMovable = false },
+                3 => new Item { Icon = "fish.svg", Title = "Scroll inset", Description = "SafeArea.ScrollInset: a list that scrolls clear of the bottom bar it draws behind", IsMovable = false },
+                4 => new Item { Icon = "fish.svg", Title = "Page actions", Description = "[PageAction] on a command; text, badge, enabled and visibility change live", IsMovable = false },
+                _ => new Item
                 {
                     Icon = "fish.svg",
                     Title = $"Item {i}",
                     Description = i % 2 == 0 ? $"Description for item {i} with extra details that may scroll since it is a long description that does not fit" : null,
                     IsMovable = false
-                });
+                }
+            });
 
             foreach (var item in items)
                 Items.Add(item);

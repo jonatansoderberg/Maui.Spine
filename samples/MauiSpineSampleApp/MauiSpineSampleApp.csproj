@@ -115,6 +115,15 @@
       <DependentUpon>PageActionsPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
+      <DependentUpon>ScrollInsetPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\ScrollInset\ScrollInsetPage.ViewModel.cs">
+      <DependentUpon>ScrollInsetPage.cs</DependentUpon>
+    </Compile>
+
 		<MauiXaml Update="Pages\MainPageOld.View.xaml">
 	    <Generator>MSBuild:Compile</Generator>
       <DependentUpon>MainPageOld.cs</DependentUpon>
@@ -218,9 +227,11 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg.Icons\Plugin.Maui.Spine.Svg.Icons.csproj" />
 	</ItemGroup>
-	<!-- Widgets: the kinds below become a WidgetKit extension on iOS; the provider is [Widget("sample")] in Widgets\. -->
+	<!-- Widgets: the kinds below become a WidgetKit extension on iOS; the providers are the [Widget] classes in Widgets\. -->
 	<ItemGroup>
-		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" />
+		<!-- PreviewImage is the Android picker's picture below Android 15; from 15 the picker shows the timeline itself. -->
+		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" PreviewImage="Widgets\Previews\sample.png" />
+		<SpineWidget Include="card" DisplayName="Spine card" Description="A card on a picture, the whole widget drawn by the app." Families="Small" />
 	</ItemGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />

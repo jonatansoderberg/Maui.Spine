@@ -88,7 +88,7 @@ Tabs are **realized lazily**: a tab's region and root page are created on first 
 
 ### Lifecycle
 
-Tab roots receive `OnAppearingAsync`/`OnDisappearingAsync` on tab switches, not only on push/pop — start live polling when a tab appears, stop when it disappears. `OnTabReselectedAsync()` fires when the already-active tab is re-selected at root.
+Tab roots receive `OnAppearingAsync`/`OnDisappearingAsync` on tab switches, not only on push/pop — start live polling when a tab appears, stop when it disappears. `OnTabReselectedAsync()` fires when the already-active tab is re-selected at root. When the app comes back to the foreground, `OnResumedAsync()` goes to the selected tab's current page only; the other tabs get `OnAppearingAsync` when they are selected.
 
 ---
 
@@ -136,7 +136,7 @@ the properties above applied on top ([#22](https://github.com/jonatansoderberg/M
 Spine's explicit safe-area contract extends into tabs: the **bottom inset a tab page sees includes the native tab bar**.
 
 - `SafeAreaEdges.All` (default): content is padded above the bar — nothing to do.
-- Excluding `Bottom`: content renders behind the bar (required for the full iOS 26 glass effect on scrolling content); offset your own content via `SafeAreaInsets` exactly as for system bars.
+- Excluding `Bottom`: content renders behind the bar (required for the full iOS 26 glass effect on scrolling content). Give the list `SafeArea.ScrollInset="Bottom"` — or set `ScrollInset = SafeAreaEdges.Bottom` on the attribute or `options.TabDefaults` — so it scrolls under the bar and its last row still comes clear of it; see [Scrolling under a bar](regions.md#scrolling-under-a-bar). Offset non-scrolling content via `SafeAreaInsets` exactly as for system bars.
 
 On Android the opaque Material bar owns the bottom edge and content lays out above it; the same page code works unchanged.
 

@@ -12,6 +12,7 @@ public static partial class SpineExtensions
     static partial void ConfigureHandlers(MauiAppBuilder builder)
     {
         ConfigureGlassButtons();
+        ConfigureScrollInsets();
 
         SwitchHandler.Mapper.AppendToMapping("SpineInstantSwitch", static (handler, _) =>
         {

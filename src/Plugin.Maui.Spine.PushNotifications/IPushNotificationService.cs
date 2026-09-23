@@ -38,6 +38,23 @@ public enum PushRegistrationResult
     Failed,
 }
 
+/// <summary>
+/// How the last registration went, and when the backend last accepted one. A device the backend does
+/// not have is quiet rather than loud — no notification, no Live Activity started by push, no widget
+/// reload — while the sender is told the push went out, so an app that cares should say so.
+/// </summary>
+/// <param name="Result">What came of the last attempt. <see cref="PushRegistrationResult.Unchanged"/> before the first one in a session.</param>
+/// <param name="AttemptedAt">When that attempt was made; <see langword="null"/> when none has been in this session.</param>
+/// <param name="SucceededAt">When the backend last accepted a registration, across launches; <see langword="null"/> when it never has.</param>
+public readonly record struct PushRegistrationStatus(
+    PushRegistrationResult Result,
+    DateTimeOffset? AttemptedAt,
+    DateTimeOffset? SucceededAt)
+{
+    /// <summary>Whether the last attempt could not be delivered, which leaves the backend with what it had before.</summary>
+    public bool HasFailed => Result == PushRegistrationResult.Failed;
+}
+
 /// <summary>The app's view of its own push registration.</summary>
 public interface IPushNotificationService
 {
@@ -67,6 +84,15 @@ public interface IPushNotificationService
     /// half sends what, without notifying twice or not at all.
     /// </summary>
     bool IsRegistered { get; }
+
+    /// <summary>
+    /// How the last registration went. Unlike <see cref="IsRegistered"/>, which reads what the last
+    /// accepted registration left behind, this says what happened the last time the app tried.
+    /// </summary>
+    PushRegistrationStatus LastRegistration { get; }
+
+    /// <summary>Raised when <see cref="LastRegistration"/> changes, on the thread the registration ran on.</summary>
+    event Action<PushRegistrationStatus>? RegistrationChanged;
 
     /// <summary>Asks the user for permission, if they have not been asked.</summary>
     /// <param name="cancellationToken">Cancels the wait for an answer.</param>

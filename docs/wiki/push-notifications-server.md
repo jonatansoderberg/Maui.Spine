@@ -149,8 +149,12 @@ Android gets the same call as a high-priority data message carrying `spine.layou
 service hands to `ILiveActivityService`.
 
 **The 4 KB ceiling is real.** APNs refuses a larger payload, so `PushPayloads` measures what it
-built and throws with the size rather than letting it become a 413. For scale: Orientera's Live
-Activity, with a competition name, a place and a timer, serializes to about 1.2 KB.
+built and throws with the size rather than letting it become a 413. The layout travels as a JSON
+string inside the payload, escaped once: each of its quotes costs two bytes (`\"`) and letters such
+as å stay UTF-8, so the payload is the layout plus roughly a third. For scale: Orientera's Live
+Activity, with a competition name, a place and a timer, serializes to about 1.2 KB; a game's score
+card with two logos, names, score, clock, shots, a power play and all four Dynamic Island regions
+is about 2.2 KB of layout and 3 KB of payload.
 
 ### Broadcast channels
 
