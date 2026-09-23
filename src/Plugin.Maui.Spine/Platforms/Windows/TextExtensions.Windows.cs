@@ -1,7 +1,7 @@
 using Microsoft.Maui.Handlers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
-using Windows.UI.Text;
+using Microsoft.UI.Xaml;
 
 namespace Plugin.Maui.Spine.Extensions;
 
