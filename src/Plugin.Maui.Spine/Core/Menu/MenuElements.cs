@@ -40,7 +40,7 @@ public sealed partial class MenuAction : MenuElement
     [ObservableProperty]
     public partial string Title { get; set; }
 
-    /// <summary>An SVG resource name, e.g. <c>"done.svg"</c>, shown beside the title.</summary>
+    /// <summary>An SVG resource name, e.g. <c>"check.svg"</c>, shown beside the title.</summary>
     [ObservableProperty]
     public partial string? Svg { get; set; }
 
