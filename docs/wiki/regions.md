@@ -36,7 +36,7 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually |
 | `HeaderBar` | `HeaderBarMode` | `Normal` | Where the content starts: below the bar (`Normal`) or at the top of the screen behind it (`Overlay`). See [Header bar](#header-bar) |
 | `LargeTitle` | `bool` | `false` | The page opens on its own large title, which collapses into the header bar as it scrolls. See [Large title](#large-title) |
-| `HeaderBarBackground` | `HeaderBarBackground` | `Auto` | What is behind the header bar when content is under it: `Auto`, `Solid`, `Transparent`, `SmoothEdge`, `SmoothStatusBar` or `HardEdge`. See [Backgrounds](#backgrounds) |
+| `HeaderBarBackground` | `HeaderBarBackground` | `Auto` | What is behind the header bar when content is under it: `Auto`, `Solid`, `Transparent`, `SoftEdge`, `SoftStatusBar` or `HardEdge`. See [Backgrounds](#backgrounds) |
 | `HeaderBarForeground` | `string?` | `null` | A fixed colour (hex) for the header bar's title and action icons; `null` follows the theme |
 | `StatusBarStyle` | `StatusBarStyle` | `Default` | `LightContent` or `DarkContent` for the status bar's clock and icons while the page is shown |
 | `ScrollInset` | `SafeAreaEdges` | `None` | Edges on which the page's first `ScrollView` / `CollectionView` takes the safe-area inset as a native content inset, so it can scroll under an excluded bar and still reach its last row. See [Scrolling under a bar](#scrolling-under-a-bar) |
@@ -168,7 +168,7 @@ Three settings shape the header bar. Each is on the page attribute, is an app-wi
 |---|---|
 | `HeaderBar` (`Normal`, `Overlay`) | Where the content starts: below the bar, or at the top of the screen behind it |
 | `LargeTitle` | Whether the page opens on a large title that collapses into the bar |
-| `HeaderBarBackground` (`Auto`, `Solid`, `Transparent`, `SmoothEdge`, `SmoothStatusBar`, `HardEdge`) | What is behind the bar's title and actions when content is under the bar |
+| `HeaderBarBackground` (`Auto`, `Solid`, `Transparent`, `SoftEdge`, `SoftStatusBar`, `HardEdge`) | What is behind the bar's title and actions when content is under the bar |
 
 `HeaderBarForeground` (a fixed colour for the title and the action icons) and `StatusBarStyle` (the clock's colour) go with a page whose top is a photo. The sample's **Header bar** page combines all of them live, explains each choice and shows the code for the combination on screen.
 
@@ -178,11 +178,11 @@ The background only shows when content is under the bar: content that has scroll
 
 | Value | iOS / Mac Catalyst 26 | iOS / Mac Catalyst before 26 | Android | Windows | Pick it for |
 |---|---|---|---|---|---|
-| `Auto` (default) | The navigation bar's default, on a region or tab page whose list fills it from the top: `SmoothEdge` on iOS 26, `HardEdge` from iOS 27; `Solid` otherwise | `Solid` | `Solid` | `Solid` | Almost every page: the platform's own bar |
+| `Auto` (default) | The navigation bar's default, on a region or tab page whose list fills it from the top: `SoftEdge` on iOS 26, `HardEdge` from iOS 27; `Solid` otherwise | `Solid` | `Solid` | `Solid` | Almost every page: the platform's own bar |
 | `Solid` | The page's colour; content under the bar is hidden | Same | Same | Same | A classic bar; a photo page whose bar closes once the list scrolls |
 | `Transparent` | Nothing; content shows through, the title floats over it | Same | Same | Same | A photo or a map under an `Overlay` bar |
-| `SmoothEdge` | UIKit's scroll edge effect, soft style: content fades and blurs into the whole header | `Solid` | The page's colour, slightly see-through behind the bar, fading out below it | As Android | The iOS 26 navigation bar look, on every version |
-| `SmoothStatusBar` | The soft effect behind the status bar only; content behind the title and the actions stays sharp | `Solid` | The same band behind the status bar only, fading out over 16 points | As Android | A light bar, where rows should stay readable behind the title |
+| `SoftEdge` | UIKit's scroll edge effect, soft style: content fades and blurs into the whole header | `Solid` | The page's colour, slightly see-through behind the bar, fading out below it | As Android | The iOS 26 navigation bar look, on every version |
+| `SoftStatusBar` | The soft effect behind the status bar only; content behind the title and the actions stays sharp | `Solid` | The same band behind the status bar only, fading out over 16 points | As Android | A light bar, where rows should stay readable behind the title |
 | `HardEdge` | The hard style: a frosted, nearly opaque band with a clear edge | `Solid` | The page's colour, nearly opaque, with a hairline at the bar's bottom edge | As Android | The iOS 27 navigation bar look, on every version and platform |
 
 Under `Overlay`, `Auto` is `Transparent`, since the page draws its own top. With Reduce Transparency on (iOS/Mac), or transparency effects off (Windows), every scroll edge value is `Solid`. `ViewModelBase.EffectiveHeaderBarBackground` says what the page got: what `Auto` resolved to, and `Solid` where a scroll edge value could not be drawn.
@@ -200,8 +200,8 @@ Under `Overlay`, `Auto` is `Transparent`, since the page draws its own top. With
 
 - **`Solid` under `Normal`** gives the bar a row of its own; the content starts and stays below it. Under `Overlay` or a large title, where content starts under the bar, the colour fades in over the first `HeaderBarConstants.ScrollEdgeFadeLength` points of scroll. The colour is the page's own background when it has an opaque one, otherwise what the platform paints behind pages (the system background on iOS, the window background on Android).
 - **`Transparent` and the scroll edge values under `Normal`** lay the page out under the bar, and Spine adds `Top` to the scroll source's `SafeArea.ScrollInset`, so the first row starts below the bar at rest and scrolls under it.
-- **`Auto` follows the navigation bar's default:** `SmoothEdge` on iOS 26, `HardEdge` from iOS 27. Spine pins the style per version rather than leaving it to UIKit's automatic style, which is soft on iOS 26.4 and hard on iOS 27.0.
-- **`SmoothStatusBar`** puts UIKit's interaction on a view of its own, as tall as the status bar, holding a label: UIKit sizes the effect to the labels, images and controls in the container and ignores an empty one.
+- **`Auto` follows the navigation bar's default:** `SoftEdge` on iOS 26, `HardEdge` from iOS 27. Spine pins the style per version rather than leaving it to UIKit's automatic style, which is soft on iOS 26.4 and hard on iOS 27.0.
+- **`SoftStatusBar`** puts UIKit's interaction on a view of its own, as tall as the status bar, holding a label: UIKit sizes the effect to the labels, images and controls in the container and ignores an empty one.
 - **Before `Auto` on iOS 26 or later picks a scroll edge value,** the page's scroll view (`HeaderBar.ScrollSource`, or else the first `ScrollView` / `CollectionView`) must fill the page from the top: every container between the page and the list holds only the list, or is a grid in which the list spans all rows (a list with a floating button). A page with fixed content above its list keeps `Solid`, so nothing that does not scroll ends up under the bar. Sheets keep `Solid`.
 
 ### Overlay header
@@ -225,7 +225,7 @@ A page that opens on a photo, a map or a hero wants the content to start at the 
 - The page keeps clear what it wants to. `ViewModelBase.SafeAreaInsets.Top` reports status bar plus header height (`HeaderBarConstants.BarHeight`); a list takes it with `SafeArea.ScrollInset="Top"` to start below the bar, or leaves it off to start its first item (a photo) under the bar. Spine does not add a top inset under `Overlay`.
 - `HeaderBarForeground`: the title and the action icons take this colour instead of the theme's. It stays fixed on a `Solid` or scroll edge bar too, where white disappears in light mode; `Transparent` is the background that goes with it.
 - `StatusBarStyle`: applied when the page appears, when the page changes it, and on a theme change. On Android it sets the window's light/dark status bar appearance. On iOS it needs `<key>UIViewControllerBasedStatusBarAppearance</key><false/>` in `Info.plist`; without it Spine logs a hint and leaves the bar alone.
-- On iOS 26, `SmoothEdge` over a photo already softens the photo's top at rest, as UIKit does for anything under the edge. Use `Transparent` or `Solid` for a photo page.
+- On iOS 26, `SoftEdge` over a photo already softens the photo's top at rest, as UIKit does for anything under the edge. Use `Transparent` or `Solid` for a photo page.
 
 ### Large title
 
@@ -256,7 +256,7 @@ The iOS large title and the Material 3 medium top app bar: the page opens on its
 
 ### Scroll edge
 
-How the iOS 26 effect is drawn. On a page that gets `SmoothEdge` or `HardEdge`, the header's title row gets a `UIScrollEdgeElementContainerInteraction` pointing at the scroll view, and UIKit draws the edge effect as it does behind a `UINavigationBar`: from the top of the screen over the status bar and the whole bar. The glass page actions stay as they are.
+How the iOS 26 effect is drawn. On a page that gets `SoftEdge` or `HardEdge`, the header's title row gets a `UIScrollEdgeElementContainerInteraction` pointing at the scroll view, and UIKit draws the edge effect as it does behind a `UINavigationBar`: from the top of the screen over the status bar and the whole bar. The glass page actions stay as they are.
 
 - UIKit sizes the effect to the elements in the container view (labels, images, controls), not to the container itself: an empty view in the container does not count, and the effect stops below the lowest element. That is why the title label fills the bar's height. A page with a visible header bar but an empty title has nothing for UIKit to size the effect to.
 - Under an inline title with `HardEdge` the label ends with the 44-point item row instead, because that is where UIKit's own hard band stops behind an inline navigation bar title (see [Header bar height](#header-bar-height)).

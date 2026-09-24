@@ -7,7 +7,7 @@ namespace Plugin.Maui.Spine.Extensions;
 /// <summary>
 /// Attached properties, set on the page, for a header that follows the page's scroll: a large title
 /// (<see cref="NavigableAttribute.LargeTitle"/>), or content scrolling under the bar with a
-/// <see cref="HeaderBarBackground.Transparent"/> or <see cref="HeaderBarBackground.SmoothEdge"/> background. Which view it follows, and how far that view scrolls
+/// <see cref="HeaderBarBackground.Transparent"/> or <see cref="HeaderBarBackground.SoftEdge"/> background. Which view it follows, and how far that view scrolls
 /// before a large title has collapsed.
 /// </summary>
 /// <example>

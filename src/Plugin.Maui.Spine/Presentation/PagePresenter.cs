@@ -232,7 +232,7 @@ internal sealed partial class PagePresenter : Grid
     /// <summary>Installs or removes UIKit's scroll edge effect for the page; iOS and Mac Catalyst 26 only.</summary>
     partial void UpdateSystemScrollEdge();
 
-    /// <summary>Adds the element a <see cref="HeaderBarBackground.SmoothStatusBar"/> effect is sized to; Apple platforms only.</summary>
+    /// <summary>Adds the element a <see cref="HeaderBarBackground.SoftStatusBar"/> effect is sized to; Apple platforms only.</summary>
     partial void AddStatusBarEdge();
 
     /// <summary>Shows that element, as tall as the status bar, while the page asks for it.</summary>
@@ -324,7 +324,7 @@ internal sealed partial class PagePresenter : Grid
                 ],
                 new Point(0, 0), new Point(0, 1));
         }
-        else if (BarBackground is HeaderBarBackground.SmoothStatusBar)
+        else if (BarBackground is HeaderBarBackground.SoftStatusBar)
         {
             // The soft stand-in behind the status bar only, fading out before the title row.
             var statusBar = _page?.SystemBarInsets.Top ?? 0;
