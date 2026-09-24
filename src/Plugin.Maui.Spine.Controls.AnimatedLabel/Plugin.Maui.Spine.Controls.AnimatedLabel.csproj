@@ -30,4 +30,9 @@
 		<PackageReference Include="SkiaSharp.Views.Maui.Controls" />
 	</ItemGroup>
 
+	<!-- Declares the package to UseSpine(); see Plugin.Maui.Spine's build\Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
 </Project>

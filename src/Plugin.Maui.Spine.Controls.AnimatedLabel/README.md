@@ -6,12 +6,14 @@
 dotnet add package Plugin.Maui.Spine.Controls.AnimatedLabel
 ```
 
+`UseSpine()` registers the control. An app without Spine calls `UseAnimatedLabel()`:
+
 ```csharp
 using Plugin.Maui.Spine.Controls;
 
 builder
     .UseMauiApp<App>()
-    .UseAnimatedLabel();
+    .UseAnimatedLabel();   // not needed with UseSpine()
 ```
 
 ```xml

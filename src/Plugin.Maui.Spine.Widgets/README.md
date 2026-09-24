@@ -8,8 +8,8 @@ dotnet add package Plugin.Maui.Spine.Widgets
 
 ```csharp
 builder
-    .UseSpine(options => options.AddAssembly(typeof(MauiProgram).Assembly))
-    .UseSpineWidgets();
+    .UseSpine(options => options.AddAssembly(typeof(MauiProgram).Assembly));   // registers Widgets too
+    // .UseSpineWidgets(o => o.OpenWith<HomePage>())                           // only to change the options
 ```
 
 ```xml
