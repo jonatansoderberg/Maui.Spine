@@ -163,7 +163,7 @@ internal sealed class PageActionView : ContentView
         ApplyAction();
     }
 
-    // The option is read here rather than passed down: HeaderBar and PageActionView are built by
+    // The option is read here rather than passed down: HeaderBarView and PageActionView are built by
     // pages, not by DI, and the attached property is a no-op off Apple anyway.
     static bool UseGlassHeaderActions =>
         OperatingSystem.IsIOS()

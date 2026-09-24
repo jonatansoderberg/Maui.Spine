@@ -89,6 +89,18 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     public partial HeaderBarMode HeaderBarMode { get; set; }
 
+    /// <summary>
+    /// How far a <see cref="HeaderBarMode.CollapseOnScroll"/> header has collapsed: 0 while the
+    /// page's large title is in view, 1 once the header bar's own title has faded in. Follows the
+    /// scroll offset; bind to it to fade something of the page's own, such as a greeting in a hero.
+    /// </summary>
+    [ObservableProperty]
+    public partial double HeaderBarCollapseProgress { get; internal set; }
+
+    /// <summary>How far the collapsing header's background has faded in, 0 to 1. Read by the page presenter.</summary>
+    [ObservableProperty]
+    internal partial double ScrollEdgeProgress { get; set; }
+
     /// <summary>A fixed colour for the header bar's title and action icons, or <see langword="null"/> to follow the theme.</summary>
     [ObservableProperty]
     public partial Color? HeaderBarForeground { get; set; }

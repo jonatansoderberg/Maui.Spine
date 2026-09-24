@@ -34,7 +34,7 @@ public static partial class SpineExtensions
         scrollView.HorizontalScrollIndicatorInsets = edgeInsets;
     }
 
-    static UIScrollView? FindScrollView(UIView view)
+    internal static UIScrollView? FindScrollView(UIView view)
     {
         foreach (var subview in view.Subviews)
         {

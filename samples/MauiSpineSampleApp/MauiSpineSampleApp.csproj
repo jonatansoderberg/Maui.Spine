@@ -124,6 +124,15 @@
       <DependentUpon>OverlayPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Collapsing\CollapsingPage.View.xaml">
+      <DependentUpon>CollapsingPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Collapsing\CollapsingPage.ViewModel.cs">
+      <DependentUpon>CollapsingPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Lifetime\LifetimePage.View.xaml">
       <DependentUpon>LifetimePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

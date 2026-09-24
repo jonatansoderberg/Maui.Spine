@@ -1,0 +1,46 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Collapsing.CollapsingPage"
+    x:TypeArguments="CollapsingPageViewModel"
+    x:DataType="CollapsingPageViewModel"
+    HeaderBar.ScrollSource="{x:Reference List}">
+
+    <!-- Spine gives the list the status bar and the header as a top inset, so the large title
+         starts right under the bar and rows scroll away beneath it. -->
+    <CollectionView x:Name="List" ItemsSource="{Binding Rows}" SafeArea.ScrollInset="Bottom">
+        <CollectionView.Header>
+            <VerticalStackLayout Spacing="8">
+                <!-- The large title: size, weight, row height and margin from HeaderBarConstants,
+                     so it lines up with where the bar's title fades in. -->
+                <Label Text="{Binding Title}"
+                       FontSize="{x:Static HeaderBarConstants.LargeTitleFontSize}"
+                       FontAttributes="{x:Static HeaderBarConstants.LargeTitleFontAttributes}"
+                       HeightRequest="{x:Static HeaderBarConstants.LargeTitleHeight}"
+                       Margin="{x:Static HeaderBarConstants.LargeTitleMargin}"
+                       VerticalTextAlignment="Center"
+                       LineBreakMode="TailTruncation" />
+
+                <VerticalStackLayout Padding="16,0,16,8" Spacing="8">
+                    <PackageChips Packages="Plugin.Maui.Spine" />
+                    <Label Text="HeaderBar = HeaderBarMode.CollapseOnScroll: the page opens on its own large title. As it scrolls under the bar, the bar's title fades in and the bar turns from transparent to the page's background. With Reduce Motion on, both switch without a fade."
+                           FontSize="14" />
+                    <Label Text="{Binding ProgressText}" FontSize="13" TextColor="Gray" />
+
+                    <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                        <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                               Text="[NavigableRegion(Title = &quot;Inbox&quot;,&#10;  HeaderBar = HeaderBarMode.CollapseOnScroll)]&#10;&#10;&lt;SpinePage HeaderBar.ScrollSource=&#10;             &quot;{x:Reference List}&quot;&gt;&#10; &lt;CollectionView x:Name=&quot;List&quot;&gt;&#10;  &lt;CollectionView.Header&gt;&#10;   &lt;Label Text=&quot;{Binding Title}&quot;&#10;    FontSize=&quot;{x:Static HeaderBarConstants&#10;      .LargeTitleFontSize}&quot;&#10;    FontAttributes=&quot;{x:Static HeaderBarConstants&#10;      .LargeTitleFontAttributes}&quot;&#10;    HeightRequest=&quot;{x:Static HeaderBarConstants&#10;      .LargeTitleHeight}&quot;&#10;    Margin=&quot;{x:Static HeaderBarConstants&#10;      .LargeTitleMargin}&quot;&#10;    VerticalTextAlignment=&quot;Center&quot; /&gt;&#10;&#10;// ScrollSource: default the first&#10;//   ScrollView or CollectionView.&#10;// HeaderBar.CollapseDistance: where&#10;//   the bar's title is fully in.&#10;// HeaderBarCollapseProgress (0-1)&#10;//   on the view model follows it." />
+                    </Border>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+                <Grid Padding="16,14">
+                    <Label Text="{Binding .}" />
+                </Grid>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+
+</SpinePage>

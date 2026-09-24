@@ -57,9 +57,12 @@ internal static class NavigableMeta
         {
             SafeArea.SetScrollInset(scrollable, vm.ScrollInset);
         }
+
+        if (vm.HeaderBarMode == HeaderBarMode.CollapseOnScroll)
+            HeaderBar.Track(view, vm);
     }
 
-    static View? FindFirstScrollable(Element root)
+    internal static View? FindFirstScrollable(Element root)
     {
         var queue = new Queue<IVisualTreeElement>();
         queue.Enqueue(root);

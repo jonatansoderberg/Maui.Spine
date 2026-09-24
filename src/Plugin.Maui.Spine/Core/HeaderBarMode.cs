@@ -14,6 +14,16 @@ public enum HeaderBarMode
     /// (status bar plus header bar) so a list can take it with <c>SafeArea.ScrollInset="Top"</c>.
     /// </summary>
     Overlay,
+
+    /// <summary>
+    /// The iOS large-title / Material 3 medium top app bar: the page opens with its own large title
+    /// at the top of its scroll content, and as that title scrolls away under the bar the bar's
+    /// own title fades in and the bar turns from transparent to the theme background. Lays out like
+    /// <see cref="Overlay"/>; Spine gives the page's scroll source the top inset itself. See
+    /// <c>HeaderBar.ScrollSource</c>, <c>HeaderBar.CollapseDistance</c> and
+    /// <see cref="ViewModelBase.HeaderBarCollapseProgress"/>.
+    /// </summary>
+    CollapseOnScroll,
 }
 
 /// <summary>The colour of the status bar's clock and icons while a page is shown.</summary>
@@ -27,4 +37,10 @@ public enum StatusBarStyle
 
     /// <summary>Dark (black) clock and icons, for a page whose top is light.</summary>
     DarkContent,
+}
+
+internal static class HeaderBarModeExtensions
+{
+    /// <summary>Whether the header bar floats over content that starts at the top of the screen.</summary>
+    internal static bool Floats(this HeaderBarMode mode) => mode is HeaderBarMode.Overlay or HeaderBarMode.CollapseOnScroll;
 }
