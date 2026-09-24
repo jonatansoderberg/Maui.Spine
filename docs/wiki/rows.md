@@ -52,7 +52,7 @@ XAML namespaces: `Tap` and `Semantic` are in `Plugin.Maui.Spine.Extensions` (ass
 
 A row whose accessory is a `Switch` and that has no `Command` toggles the switch when tapped, which is also what a screen reader's activation does. `IsEnabled="False"` dims the row and takes away its press and command.
 
-The chevron is the header bar's back glyph (`arrowleft.svg`) turned around, so both arrows in an app are the same shape; in a right-to-left layout it points left.
+The chevron is the header bar's back glyph (`HeaderBarConstants.BackGlyph`) turned around, so both arrows in an app are the same shape; in a right-to-left layout it points left.
 
 The row has no background and no separator: put rows in whatever card or list the app draws (a `Border` with a `VerticalStackLayout`, a `CollectionView` template).
 

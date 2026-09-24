@@ -43,7 +43,7 @@ None.
 - **A switch row without a command toggles on row tap**: that is what TalkBack/VoiceOver activation of the merged row must do, and matches Android settings.
 - **Accessibility of disabled commands**: `CanExecute == false` reads as not enabled rather than setting `IsEnabled` (which would fight the app's own value).
 - **iOS `CollectionView` clears the button trait**: MAUI's cell binding (`UpdateAccessibilityTraits` for `SelectionMode.None`) removes it after our handler ran; the trait is re-applied on the next main-loop turn when the view sits in a `UICollectionViewCell`.
-- **Chevron = the header bar's `arrowleft.svg`**, rotated 180° (0° in right-to-left), tinted with the tertiary label colour. Shared shape, no font glyph, no second asset.
+- **Chevron = the header bar's back glyph**, read from `HeaderBarConstants.BackGlyph` (used by the header bar too, so a later glyph change follows in both), rotated 180° (0° in right-to-left), tinted with the tertiary label colour. Shared shape, no font glyph, no second asset.
 - **Colours** through `SpineRowStyleOptions` (`SpineTheme.Track` repaint): title in the label colour, detail/value secondary, chevron tertiary, icon `SpineTheme.GetAccent` (Transparent keeps SVG colours). Sizes follow each platform's list rows.
 - **No separators or background in `SpineRow`**: groups/cards are the app's; the sample draws them with `Border` + `BoxView`.
 - **Windows**: taps and hover/pressed fills (composition child visual) compile in CI but were not run; no button role is added for Narrator.

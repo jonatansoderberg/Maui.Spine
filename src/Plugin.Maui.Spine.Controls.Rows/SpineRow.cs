@@ -173,7 +173,7 @@ public class SpineRow : ContentView
             Margin = new Thickness(-6, 0, -9, 0),
             Rotation = 180,
         };
-        SvgImageSource.SetSvg(_chevron, "arrowleft.svg");
+        SvgImageSource.SetSvg(_chevron, Presentation.HeaderBarConstants.BackGlyph);
 
         _grid = new Grid
         {
