@@ -1,0 +1,119 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.DataGrid.DataGridPage"
+    x:TypeArguments="DataGridPageViewModel"
+    x:DataType="DataGridPageViewModel">
+
+    <Grid x:Name="PageRoot" RowDefinitions="Auto,*" RowSpacing="8" Padding="0,8,0,0">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup Name="Width">
+                <VisualState Name="Narrow">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter TargetName="Products" Property="DataGrid.LayoutMode" Value="Narrow" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState Name="Wide">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="640" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter TargetName="Products" Property="DataGrid.LayoutMode" Value="Wide" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <VerticalStackLayout Padding="16,0" Spacing="6">
+            <PackageChips Packages="Plugin.Maui.Spine.Controls.DataGrid" />
+            <Label Text="{Binding LastAction}" FontSize="13" MaxLines="2" LineBreakMode="TailTruncation" />
+            <HorizontalStackLayout Spacing="8">
+                <Switch IsToggled="{Binding IsGrouped}" VerticalOptions="Center" />
+                <Label Text="Group by category" VerticalOptions="Center" FontSize="14" />
+                <Switch IsToggled="{Binding ShowCode}" VerticalOptions="Center" Margin="12,0,0,0" />
+                <Label Text="Code" VerticalOptions="Center" FontSize="14" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+
+        <DataGrid x:Name="Products" Grid.Row="1"
+                  IsVisible="{Binding ShowGrid}"
+                  ItemsSource="{Binding Products}"
+                  GroupByPath="{Binding GroupByPath}"
+                  RowTappedCommand="{Binding RowTappedCommand}"
+                  RefreshCommand="{Binding RefreshCommand}"
+                  IsRefreshing="{Binding IsRefreshing}"
+                  LoadMoreCommand="{Binding LoadMoreCommand}"
+                  HasMoreItems="{Binding HasMoreItems}"
+                  IsLoadingMore="{Binding IsLoadingMore}"
+                  ShowLoadedStatus="True">
+            <DataGrid.Columns>
+                <DataGridColumn Key="Sku" Header="SKU" BindingPath="Sku" IsSortable="True"
+                                CellCommand="{Binding OpenSkuCommand}" />
+                <DataGridColumn Key="Name" Header="Product name" BindingPath="Name" IsSortable="True" />
+                <DataGridColumn Key="Category" Header="Category" BindingPath="Category" IsSortable="True" />
+                <DataGridColumn Key="Price" Header="Price" BindingPath="Price" Type="Price" IsSortable="True"
+                                HorizontalTextAlignment="End" />
+                <DataGridColumn Key="Stock" Header="In stock" BindingPath="Stock" IsSortable="True"
+                                HorizontalTextAlignment="End" />
+                <DataGridColumn Key="Updated" Header="Updated" BindingPath="Updated" Type="Date" IsSortable="True" />
+                <DataGridColumn Key="Favourite" Header="Starred" BindingPath="IsFavourite" Type="Checkbox"
+                                CellCommand="{Binding ToggleFavouriteCommand}" />
+            </DataGrid.Columns>
+
+            <DataGrid.Layouts>
+                <DataGridLayout Name="Wide" HeaderMode="TopHeaderRow"
+                                ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto">
+                    <DataGridCellPlacement ColumnKey="Sku" Column="0" />
+                    <DataGridCellPlacement ColumnKey="Name" Column="1" />
+                    <DataGridCellPlacement ColumnKey="Category" Column="2" />
+                    <DataGridCellPlacement ColumnKey="Price" Column="3" />
+                    <DataGridCellPlacement ColumnKey="Stock" Column="4" />
+                    <DataGridCellPlacement ColumnKey="Updated" Column="5" />
+                    <DataGridCellPlacement ColumnKey="Favourite" Column="6" HorizontalTextAlignment="Center" />
+                </DataGridLayout>
+
+                <DataGridLayout Name="Narrow" HeaderMode="StaticLayoutHeader"
+                                ColumnDefinitions="*,Auto,Auto" RowDefinitions="*,*">
+                    <DataGridCellPlacement ColumnKey="Name" Column="0" Row="0" VerticalTextAlignment="End" />
+                    <DataGridCellPlacement ColumnKey="Sku" Column="0" Row="1" VerticalTextAlignment="Start" />
+                    <DataGridCellPlacement ColumnKey="Price" Column="1" Row="0" VerticalTextAlignment="End" />
+                    <DataGridCellPlacement ColumnKey="Stock" Column="1" Row="1" VerticalTextAlignment="Start" />
+                    <DataGridCellPlacement ColumnKey="Favourite" Column="2" Row="0" RowSpan="2" />
+                </DataGridLayout>
+            </DataGrid.Layouts>
+
+            <DataGrid.LeftSwipeActions>
+                <DataGridSwipeAction Text="Star" IconSvg="Pin.svg" Command="{Binding ToggleFavouriteCommand}" />
+            </DataGrid.LeftSwipeActions>
+            <DataGrid.RightSwipeActions>
+                <DataGridSwipeAction Text="Delete" IconSvg="Trashcan.svg" BackgroundColor="#E5484D"
+                                     Command="{Binding DeleteCommand}" />
+            </DataGrid.RightSwipeActions>
+        </DataGrid>
+
+        <ScrollView Grid.Row="1" IsVisible="{Binding ShowCode}">
+            <VerticalStackLayout Padding="16,0,16,24" Spacing="10">
+                <Label Text="Columns say what the data is; layouts say where it goes. The page switches layouts with an AdaptiveTrigger: rotate for the wide table." FontSize="14" />
+                <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                    <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                           Text="&lt;DataGrid x:Name=&quot;Products&quot; ItemsSource=&quot;{Binding Products}&quot;&#10;          GroupByPath=&quot;{Binding GroupByPath}&quot;&#10;          RowTappedCommand=&quot;{Binding RowTappedCommand}&quot;&#10;          RefreshCommand=&quot;{Binding RefreshCommand}&quot; IsRefreshing=&quot;{Binding IsRefreshing}&quot;&#10;          LoadMoreCommand=&quot;{Binding LoadMoreCommand}&quot; HasMoreItems=&quot;{Binding HasMoreItems}&quot;&#10;          IsLoadingMore=&quot;{Binding IsLoadingMore}&quot;&gt;&#10;    &lt;DataGrid.Columns&gt;&#10;        &lt;DataGridColumn Key=&quot;Sku&quot; Header=&quot;SKU&quot; BindingPath=&quot;Sku&quot;&#10;                        IsSortable=&quot;True&quot; CellCommand=&quot;{Binding OpenSkuCommand}&quot; /&gt;&#10;        &lt;DataGridColumn Key=&quot;Name&quot; Header=&quot;Product name&quot; BindingPath=&quot;Name&quot; IsSortable=&quot;True&quot; /&gt;&#10;        &lt;DataGridColumn Key=&quot;Price&quot; Header=&quot;Price&quot; BindingPath=&quot;Price&quot; Type=&quot;Price&quot;&#10;                        IsSortable=&quot;True&quot; HorizontalTextAlignment=&quot;End&quot; /&gt;&#10;        &lt;DataGridColumn Key=&quot;Favourite&quot; Header=&quot;Starred&quot; BindingPath=&quot;IsFavourite&quot;&#10;                        Type=&quot;Checkbox&quot; CellCommand=&quot;{Binding ToggleFavouriteCommand}&quot; /&gt;&#10;        …&#10;    &lt;/DataGrid.Columns&gt;" />
+                </Border>
+                <Label Text="Two layouts over the same columns" FontAttributes="Bold" Margin="0,8,0,0" />
+                <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                    <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                           Text="&lt;DataGrid.Layouts&gt;&#10;    &lt;DataGridLayout Name=&quot;Wide&quot; HeaderMode=&quot;TopHeaderRow&quot;&#10;                    ColumnDefinitions=&quot;Auto,*,Auto,Auto,Auto,Auto,Auto&quot;&gt;&#10;        &lt;DataGridCellPlacement ColumnKey=&quot;Sku&quot; Column=&quot;0&quot; /&gt;&#10;        &lt;DataGridCellPlacement ColumnKey=&quot;Name&quot; Column=&quot;1&quot; /&gt;&#10;        …&#10;    &lt;/DataGridLayout&gt;&#10;    &lt;DataGridLayout Name=&quot;Narrow&quot; HeaderMode=&quot;StaticLayoutHeader&quot;&#10;                    ColumnDefinitions=&quot;*,Auto,Auto&quot; RowDefinitions=&quot;*,*&quot;&gt;&#10;        &lt;DataGridCellPlacement ColumnKey=&quot;Name&quot; Column=&quot;0&quot; Row=&quot;0&quot; /&gt;&#10;        &lt;DataGridCellPlacement ColumnKey=&quot;Sku&quot; Column=&quot;0&quot; Row=&quot;1&quot; /&gt;&#10;        &lt;DataGridCellPlacement ColumnKey=&quot;Price&quot; Column=&quot;1&quot; Row=&quot;0&quot; /&gt;&#10;        &lt;DataGridCellPlacement ColumnKey=&quot;Favourite&quot; Column=&quot;2&quot; RowSpan=&quot;2&quot; /&gt;&#10;    &lt;/DataGridLayout&gt;&#10;&lt;/DataGrid.Layouts&gt;&#10;&#10;&lt;!-- In the page's VisualStateManager --&gt;&#10;&lt;AdaptiveTrigger MinWindowWidth=&quot;640&quot; /&gt;&#10;&lt;Setter TargetName=&quot;Products&quot; Property=&quot;DataGrid.LayoutMode&quot; Value=&quot;Wide&quot; /&gt;" />
+                </Border>
+                <Label Text="Swipe actions" FontAttributes="Bold" Margin="0,8,0,0" />
+                <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                    <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                           Text="&lt;DataGrid.RightSwipeActions&gt;&#10;    &lt;DataGridSwipeAction Text=&quot;Delete&quot; IconSvg=&quot;Trashcan.svg&quot;&#10;                         BackgroundColor=&quot;#E5484D&quot; Command=&quot;{Binding DeleteCommand}&quot; /&gt;&#10;&lt;/DataGrid.RightSwipeActions&gt;" />
+                </Border>
+                <Label Text="No registration: the grid's texts (DataGrid.*, English and Swedish) register themselves the first time a grid is created." FontSize="14" Margin="0,8,0,0" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+
+</SpinePage>

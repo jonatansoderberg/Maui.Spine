@@ -5,6 +5,7 @@
       "src\\Plugin.Maui.Spine.Common\\Plugin.Maui.Spine.Common.csproj",
       "src\\Plugin.Maui.Spine.Controls.AnimatedLabel\\Plugin.Maui.Spine.Controls.AnimatedLabel.csproj",
       "src\\Plugin.Maui.Spine.Controls.Calendar\\Plugin.Maui.Spine.Controls.Calendar.csproj",
+      "src\\Plugin.Maui.Spine.Controls.DataGrid\\Plugin.Maui.Spine.Controls.DataGrid.csproj",
       "src\\Plugin.Maui.Spine.Controls.HeroCollectionView\\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj",
       "src\\Plugin.Maui.Spine.PushNotifications\\Plugin.Maui.Spine.PushNotifications.csproj",
       "src\\Plugin.Maui.Spine.Server\\Plugin.Maui.Spine.Server.csproj",

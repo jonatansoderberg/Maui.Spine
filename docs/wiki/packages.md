@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as ten NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as eleven NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -12,6 +12,7 @@ Spine ships as ten NuGet packages built from this repository, one per project un
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp | — |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers and week numbers | `Plugin.Maui.Spine` |
+| Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid on `CollectionView` with layouts, sorting, grouping and swipe actions | `Plugin.Maui.Spine` |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
 
@@ -21,7 +22,7 @@ Common ◄──────────────┬────────�
   │                   │
 Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons (loaded by Svg at startup)
   ▲           ▲
-  │        Calendar
+  │   Calendar, DataGrid
 PushNotifications                                    AnimatedLabel
 ```
 
