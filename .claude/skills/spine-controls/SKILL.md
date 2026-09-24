@@ -86,6 +86,10 @@ A SkiaSharp label that scrolls (marquee) or fades text that does not fit. Regist
 
 Give it a `HeightRequest`; it measures on the Skia canvas, not through MAUI's text layout.
 
+## Text in a control (`Plugin.Maui.Spine.Common`)
+
+A control never hard-codes words. It reads `SpineStrings.Current["Calendar.Today"]` with its own key prefix, ships its defaults as an embedded `strings.xml` (plus `strings.<culture>.xml` translations) registered with `SpineStrings.Current.AddDefaults(new EmbeddedXmlStringProvider(assembly))` from its `UseXxx()` call, and repaints through `SpineTheme.Track(this, Repaint)`, which a culture switch triggers as well. The app overrides any key by defining it in its own document.
+
 ## Documentation
 
 - SVG: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/svg.md

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Strings.Intro">One store for the app's text and Spine's. Keys are dotted; the app's documents are asked first, then each package's defaults.</s>
+  <s key="Strings.Greeting">Hello {0}, it is {1:HH:mm}.</s>
+  <s key="Strings.Apples.one">{0} apple in the basket</s>
+  <s key="Strings.Apples.zero">The basket is empty</s>
+  <s key="Strings.Apples.other">{0} apples in the basket</s>
+  <s key="Strings.Language">Language</s>
+  <s key="Strings.More">One more</s>
+  <s key="Strings.Fewer">One fewer</s>
+  <s key="Strings.OverrideNote">Header.Back is Spine's key; this app overrides it with "Home", which the back button reads for screen readers.</s>
+  <s key="Header.Back">Home</s>
+</strings>

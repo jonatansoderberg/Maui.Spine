@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings culture="sv">
+  <s key="Strings.Intro">En butik för appens och Spines text. Nycklarna har punkter; appens dokument frågas först, sedan varje pakets standardtexter.</s>
+  <s key="Strings.Greeting">Hej {0}, klockan är {1:HH:mm}.</s>
+  <s key="Strings.Apples.one">{0} äpple i korgen</s>
+  <s key="Strings.Apples.zero">Korgen är tom</s>
+  <s key="Strings.Apples.other">{0} äpplen i korgen</s>
+  <s key="Strings.Language">Språk</s>
+  <s key="Strings.More">Ett till</s>
+  <s key="Strings.Fewer">Ett färre</s>
+  <s key="Strings.OverrideNote">Header.Back är Spines nyckel; appen skriver över den med "Hem", som bakåtknappen läser upp för skärmläsare.</s>
+  <s key="Header.Back">Hem</s>
+</strings>

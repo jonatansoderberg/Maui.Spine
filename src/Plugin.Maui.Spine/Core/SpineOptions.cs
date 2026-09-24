@@ -71,6 +71,9 @@ public sealed class SpineOptions
     /// <summary>Theme persistence and token dictionaries; see <see cref="IThemeService"/>.</summary>
     public SpineThemeOptions Theme { get; } = new SpineThemeOptions();
 
+    /// <summary>User-facing text: providers and the stored culture; see <see cref="Plugin.Maui.Spine.Common.ISpineStrings"/>.</summary>
+    public SpineStringsOptions Strings { get; } = new SpineStringsOptions();
+
     /// <summary>
     /// Adds <paramref name="assembly"/> to the list of assemblies Spine will scan for navigable pages.
     /// Returns <see langword="this"/> for fluent chaining.

@@ -24,7 +24,13 @@
 
   <ItemGroup>
 	  <ProjectReference Include="..\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
+	  <ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
 	</ItemGroup>
+
+  <!-- The header bar's own words (back and close, for screen readers), overridable by the app. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
+  </ItemGroup>
 
   <!-- The header bar's own glyphs (back and close), so they resolve without the icon package. -->
   <ItemGroup>

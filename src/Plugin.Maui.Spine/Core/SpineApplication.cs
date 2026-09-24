@@ -49,6 +49,7 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
         _theme = _services.GetRequiredService<ThemeService>();
 
         _theme.Initialize(this);
+        StringsSetup.Initialize(_services.GetRequiredService<SpineOptions>());
     }
 
     /// <inheritdoc/>
