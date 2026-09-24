@@ -6,6 +6,10 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Plugin.Maui.Spine.Core;
 using WButton = Microsoft.UI.Xaml.Controls.Button;
+using MenuFlyout = Microsoft.UI.Xaml.Controls.MenuFlyout;
+using MenuFlyoutItem = Microsoft.UI.Xaml.Controls.MenuFlyoutItem;
+using MenuFlyoutSeparator = Microsoft.UI.Xaml.Controls.MenuFlyoutSeparator;
+using MenuFlyoutSubItem = Microsoft.UI.Xaml.Controls.MenuFlyoutSubItem;
 
 namespace Plugin.Maui.Spine.Extensions;
 
