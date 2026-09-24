@@ -191,6 +191,10 @@ public partial class Calendar : ContentView
 
     private CultureInfo EffectiveCulture => Culture ?? SpineStrings.Current.Culture;
 
+    // The calendar's own text (Calendar.* keys) is registered the first time a calendar is used,
+    // so the package needs no builder call.
+    static Calendar() => SpineStrings.Current.AddDefaults(new EmbeddedXmlStringProvider(typeof(Calendar).Assembly));
+
     public Calendar()
     {
         BuildVisualTree();

@@ -16,7 +16,7 @@ Port a production-tested month calendar (built from plain MAUI views) as its own
 - **Accent**: the app's `Primary` resource (`PrimaryDark` in dark mode when present, as in the MAUI template), else the iOS system blue.
 - **Nav arrows**: a MAUI `Path` chevron stroked with the accent; no icon font, no SVG lookup.
 - **Repaint**: `SpineTheme.Track(this, Repaint)` repaints colours and re-renders text, so both a theme switch and a culture switch (culture `null` = `SpineStrings.Current.Culture`) show at once.
-- **Strings** under `Calendar.*` (week column header, previous/next labels for screen readers, today/selected, week number), `strings.xml` + `strings.sv.xml`, registered by `UseSpineCalendar()`.
+- **Strings** under `Calendar.*` (week column header, previous/next labels for screen readers, today/selected, week number), `strings.xml` + `strings.sv.xml`, registered lazily from the control's static constructor (#355).
 - **Accessibility**: each day label gets the full date (long date pattern) plus today/selected; week numbers and picker months get descriptions; nav arrows get labels per view.
 - **Sample**: `Pages/Calendar/CalendarPage` in a `ScrollView` with toggles (week numbers, trailing days, first day of week, culture), the selected date, and code examples.
 - **Docs**: `docs/wiki/calendar.md`, packages table in README and `docs/wiki/packages.md`, `/spine-controls` skill, package icon.
@@ -27,7 +27,7 @@ None.
 
 ## Changes
 
-- New package `src/Plugin.Maui.Spine.Controls.Calendar`: `Calendar` (`Calendar.cs` properties and tree, `Calendar.Gestures.cs` tap/pan/slide, `Calendar.Rendering.cs` navigation and rendering), `CalendarStyleOptions` on the shared `SpineStyleOptions<T>`, `UseSpineCalendar()`, `Resources/Strings/strings.xml` + `strings.sv.xml`, README, package icon `assets/icons/calendar.png` (source in `assets/logo-src/`).
+- New package `src/Plugin.Maui.Spine.Controls.Calendar`: `Calendar` (`Calendar.cs` properties and tree, `Calendar.Gestures.cs` tap/pan/slide, `Calendar.Rendering.cs` navigation and rendering), `CalendarStyleOptions` on the shared `SpineStyleOptions<T>`, `Resources/Strings/strings.xml` + `strings.sv.xml`, README, package icon `assets/icons/calendar.png` (source in `assets/logo-src/`).
 - Event days and everything behind them dropped; the pickers' "current" marker is `CurrentHighlightColor`.
 - Theme-aware defaults; accent from the app's `Primary` / `PrimaryDark` resource, else system blue; selected text turns black on a light accent.
 - Nav arrows are MAUI `Path` chevrons stroked with the accent (no icon font).
@@ -37,12 +37,13 @@ None.
 - Every `BoxView` sets `BackgroundColor = Transparent`: the MAUI template's implicit `BoxView` style paints a grey square behind each round fill otherwise (seen on the first iOS run).
 - Weekday headers use `AbbreviatedDayNames` (trailing dot trimmed, first letter capitalised); `ShortestDayNames` gave single letters in English.
 - Sample: `Pages/Dates/DatesPage` ("Calendar" in the index, `calendarday.svg`), inside a `ScrollView`, with live theme and language switches, toggles for week numbers, trailing days and selection, first day of week, a culture pin, and code examples.
+- Registration moved from `UseSpineCalendar()` to a static constructor on `Calendar` (#355); the extension and the sample's call are removed.
 - Docs: `docs/wiki/calendar.md`, README and `docs/wiki/packages.md` rows (ten packages), `agent-skills.md`, `/spine-controls` skill; `Spine.slnx` and `Spine.Packages.slnf` list the project.
 
 ## Decisions
 
 - **Name `Calendar`, not `SpineCalendar`/`MonthCalendar`.** It matches the package and XAML users never see a clash. `System.Globalization.Calendar` only collides in a C# file that imports both namespaces; the docs show the alias. The sample needed none. The sample page lives in `Pages/Dates` because a `Pages.Calendar` namespace would shadow the type inside the sample.
-- **Registration is `UseSpineCalendar()`** (the brief's name) rather than `UseCalendar()`, which is generic enough to clash with other libraries.
+- **No builder call (#355).** The strings were first registered by a `UseSpineCalendar()` extension; per #355 a package whose only setup is its default strings registers them from the control's static constructor, so the extension is gone and the sample's `MauiProgram` does not mention the calendar. `AddDefaults` clears the string cache, so keys resolve even if a lookup ran earlier. Re-verified on iOS that the text resolves and a language switch still re-labels.
 - **No resource dictionary with tokens.** The source shipped one with brand colours; here the code defaults are theme-aware and an app overrides with a `DefaultCalendarStyleOptions` resource.
 - **Style colours are `Color?`** and `InheritColorsFrom` only fills unset ones, per the shared chain; fonts are plain values and only change by replacing `StyleOptions`, which rebuilds.
 - **Header title uses the text colour, not the accent** (the source drew it in the brand colour); only arrows, ring and fills carry the accent.

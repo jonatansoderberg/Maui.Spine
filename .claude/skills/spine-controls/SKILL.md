@@ -88,7 +88,7 @@ Give it a `HeightRequest`; it measures on the Skia canvas, not through MAUI's te
 
 ## Calendar (`Plugin.Maui.Spine.Controls.Calendar`)
 
-A month calendar from plain MAUI views: swipe or arrows between months, tap the title for a year and then a decade picker, ISO week numbers. Register with `builder.UseSpineCalendar()` (its `Calendar.*` strings); XAML namespace `Plugin.Maui.Spine.Controls` (assembly `Plugin.Maui.Spine.Controls.Calendar`).
+A month calendar from plain MAUI views: swipe or arrows between months, tap the title for a year and then a decade picker, ISO week numbers. No registration: its `Calendar.*` strings register themselves on first use; XAML namespace `Plugin.Maui.Spine.Controls` (assembly `Plugin.Maui.Spine.Controls.Calendar`).
 
 ```xml
 <Calendar SelectedDate="{Binding Date}" DisplayDate="{Binding Month}"

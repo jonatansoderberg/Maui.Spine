@@ -85,7 +85,7 @@
             <Label Text="Code" FontAttributes="Bold" Margin="0,8,0,0" />
             <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
                 <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
-                       Text="builder&#10;    .UseSpine(options =&gt; { … })&#10;    .UseSpineCalendar();   // Calendar.* strings&#10;&#10;&lt;Calendar SelectedDate=&quot;{Binding Date}&quot;&#10;          DisplayDate=&quot;{Binding Month}&quot;&#10;          ShowWeekNumbers=&quot;True&quot;&#10;          FirstDayOfWeek=&quot;Monday&quot; /&gt;&#10;&#10;// SelectedDate: DateTime.MinValue = none&#10;// DisplayDate: written as the 1st on navigation" />
+                       Text="// No registration: Calendar.* strings load on first use&#10;&#10;&lt;Calendar SelectedDate=&quot;{Binding Date}&quot;&#10;          DisplayDate=&quot;{Binding Month}&quot;&#10;          ShowWeekNumbers=&quot;True&quot;&#10;          FirstDayOfWeek=&quot;Monday&quot; /&gt;&#10;&#10;// SelectedDate: DateTime.MinValue = none&#10;// DisplayDate: written as the 1st on navigation" />
             </Border>
 
             <Label Text="Styling" FontAttributes="Bold" Margin="0,8,0,0" />

@@ -7,17 +7,9 @@ theme, and month and weekday names follow the culture.
 
 ## Setup
 
-```csharp
-using Plugin.Maui.Spine.Controls;
-
-builder
-    .UseMauiApp<App>()
-    .UseSpine(options => { /* … */ })
-    .UseSpineCalendar();
-```
-
-`UseSpineCalendar()` registers the calendar's own text (the week column header and the words a
-screen reader speaks) with [strings](strings.md). The package depends on `Plugin.Maui.Spine`.
+No registration is needed. The first calendar the app creates registers the calendar's own text
+(the week column header and the words a screen reader speaks) with [strings](strings.md). The
+package depends on `Plugin.Maui.Spine`.
 
 In XAML the control is in the `Plugin.Maui.Spine.Controls` namespace, assembly
 `Plugin.Maui.Spine.Controls.Calendar`; add it to the global namespace like the other controls:

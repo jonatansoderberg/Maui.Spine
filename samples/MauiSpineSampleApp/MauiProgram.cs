@@ -53,7 +53,6 @@ public static class MauiProgram
                 options.MacOS.CloseToBackground = true;
             })
             .UseSpineWidgets()
-            .UseSpineCalendar()
             .UseSharpnadoMaterialFrame(loggerEnable: false)
             .ConfigureFonts(fonts =>
             {

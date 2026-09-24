@@ -6,14 +6,7 @@
 dotnet add package Plugin.Maui.Spine.Controls.Calendar
 ```
 
-```csharp
-using Plugin.Maui.Spine.Controls;
-
-builder
-    .UseMauiApp<App>()
-    .UseSpine(options => { /* … */ })
-    .UseSpineCalendar();
-```
+No registration is needed: the calendar registers its own text the first time it is used.
 
 ```xml
 <Calendar SelectedDate="{Binding Date}" ShowWeekNumbers="True" FirstDayOfWeek="Monday" />
