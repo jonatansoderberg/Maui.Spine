@@ -34,7 +34,7 @@ None.
   - The band fallback is a `LinearGradientBrush` on the existing background `BoxView`, spanning both rows at bar height plus the fade.
   - `PagePresenter.Apple.cs` (new) installs and removes the interaction. It retries when either the title row or the scroll source gets a platform view.
 - `SafeAreaExtensions.Apple.cs`: a scroll view resting at its top stays at its new top when the inset changes. UIKit keeps the offset, so a `ScrollView` that got its top inset after its first layout rested with its first rows under the bar. The fix is cherry-picked onto #330's branch too.
-- Sample: `Pages/ScrollEdge/ScrollEdgePage` ("Scroll edge", icon `water.svg`), with coloured rows and a code example. The Collapsing header page's text now describes `Auto` on iOS 26.
+- Sample: `Pages/ScrollEdge/ScrollEdgePage` ("Scroll edge", icon `layers.svg`), with coloured rows and a code example. The Collapsing header page's text now describes `Auto` on iOS 26.
 - Docs: a "Scroll edge" section and the `HeaderBarBackground` row in `regions.md`, and the `/spine-page` skill.
 
 ## Verified
