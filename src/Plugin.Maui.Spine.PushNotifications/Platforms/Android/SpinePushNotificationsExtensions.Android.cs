@@ -73,7 +73,7 @@ public static partial class SpinePushNotificationsExtensions
         // Auto-cancel takes the notification down for a tap on the notification itself, not for a tap
         // on one of its buttons — so a button that opened the app does it here.
         if (action is not null && intent.GetIntExtra(AndroidNotifications.NotificationIdExtra, 0) is var id and not 0)
-            AndroidX.Core.App.NotificationManagerCompat.From(Platform.AppContext).Cancel(id);
+            AndroidX.Core.App.NotificationManagerCompat.From(Platform.AppContext)?.Cancel(id);
 
         await MainThread.InvokeOnMainThreadAsync(() => OpenedAsync(Services(), message, action));
     }

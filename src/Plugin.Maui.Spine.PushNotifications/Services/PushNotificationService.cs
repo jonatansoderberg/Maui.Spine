@@ -11,12 +11,6 @@ namespace Plugin.Maui.Spine.PushNotifications.Services;
 /// The shared half of the client: the installation id, the tags, and the decision of when the
 /// backend actually needs to hear from us.
 /// </summary>
-/// <param name="platform">The platform's answers.</param>
-/// <param name="client">The backend.</param>
-/// <param name="options">The app's settings.</param>
-/// <param name="services">Used to reach <see cref="ILiveActivityService"/> when Widgets is installed.</param>
-/// <param name="logger">Where failures are reported.</param>
-/// <param name="timeProvider">The clock the confirm window is measured against.</param>
 internal sealed class PushNotificationService : IPushNotificationService
 {
     private readonly IPushPlatform platform;
@@ -25,6 +19,12 @@ internal sealed class PushNotificationService : IPushNotificationService
     private readonly IServiceProvider services;
     private readonly ILogger<PushNotificationService> logger;
 
+    /// <param name="platform">The platform's answers.</param>
+    /// <param name="client">The backend.</param>
+    /// <param name="options">The app's settings.</param>
+    /// <param name="services">Used to reach <see cref="ILiveActivityService"/> when Widgets is installed.</param>
+    /// <param name="logger">Where failures are reported.</param>
+    /// <param name="timeProvider">The clock the confirm window is measured against.</param>
     internal PushNotificationService(
         IPushPlatform platform,
         PushRegistrationClient client,

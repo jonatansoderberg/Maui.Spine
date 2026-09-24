@@ -10,6 +10,6 @@ internal static partial class StatusBar
             return;
 
         // Light content on the bar means dark "appearance" is off.
-        WindowCompat.GetInsetsController(window, decorView).AppearanceLightStatusBars = !WantsLightContent(style);
+        WindowCompat.GetInsetsController(window, decorView)?.AppearanceLightStatusBars = !WantsLightContent(style);
     }
 }

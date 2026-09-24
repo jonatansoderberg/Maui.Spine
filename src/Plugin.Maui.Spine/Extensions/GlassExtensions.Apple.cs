@@ -1,6 +1,7 @@
 #if IOS || MACCATALYST
 
 using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
 using Foundation;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
@@ -50,9 +51,14 @@ public static partial class SpineExtensions
             return;
         }
 
-        if (!OperatingSystem.IsIOSVersionAtLeast(26))
-            return;
+        if (OperatingSystem.IsIOSVersionAtLeast(26))
+            ApplyGlassConfiguration(handler, button, view, style);
+    }
 
+    [SupportedOSPlatform("ios26.0")]
+    [SupportedOSPlatform("maccatalyst26.0")]
+    static void ApplyGlassConfiguration(IElementHandler handler, UIButton button, VisualElement view, GlassStyle style)
+    {
         // MAUI painted these a moment ago, and paints them again on every visual-state change.
         button.BackgroundColor = UIColor.Clear;
         button.Layer.CornerRadius = 0;
@@ -113,6 +119,8 @@ public static partial class SpineExtensions
         }
     }
 
+    [SupportedOSPlatform("ios26.0")]
+    [SupportedOSPlatform("maccatalyst26.0")]
     static UIButtonConfiguration BuildConfiguration(IElementHandler handler, UIButton button, VisualElement view, GlassStyle style, bool pressed)
     {
         var config = style switch

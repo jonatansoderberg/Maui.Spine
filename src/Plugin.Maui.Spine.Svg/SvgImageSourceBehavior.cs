@@ -12,7 +12,7 @@ namespace Plugin.Maui.Spine.Svg;
 /// </para>
 /// <para>
 /// SVG resources are resolved via the <see cref="ResourceNameCache"/> singleton registered
-/// by <see cref="MauiAppBuilderExtensions.UseEmbeddedSvgImages"/>.
+/// by <see cref="MauiAppBuilderExtensions.UseEmbeddedSvgImages(MauiAppBuilder)"/>.
 /// </para>
 /// </remarks>
 public class SvgImageSourceBehavior : Behavior<View>
@@ -97,6 +97,7 @@ public class SvgImageSourceBehavior : Behavior<View>
         set => SetValue(PaddingProperty, value);
     }
 
+    /// <inheritdoc/>
     protected override void OnAttachedTo(View bindable)
     {
         base.OnAttachedTo(bindable);
@@ -113,6 +114,7 @@ public class SvgImageSourceBehavior : Behavior<View>
         UpdateImage();
     }
 
+    /// <inheritdoc/>
     protected override void OnDetachingFrom(View bindable)
     {
         base.OnDetachingFrom(bindable);

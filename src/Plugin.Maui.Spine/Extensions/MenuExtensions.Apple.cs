@@ -28,8 +28,10 @@ public static partial class SpineExtensions
             if (handler.PlatformView is UIButton { Configuration: null } button && element is Button view
                 && view.IsSet(PopupPaddingAppliedProperty))
             {
+#pragma warning disable CA1422 // Deprecated, but it is what MAUI lays a button without a configuration out with.
                 var insets = button.ContentEdgeInsets;
                 button.ContentEdgeInsets = new UIEdgeInsets(insets.Top, insets.Left, insets.Bottom, (nfloat)PopupTrailingInset(view, insets.Right));
+#pragma warning restore CA1422
             }
         });
     }

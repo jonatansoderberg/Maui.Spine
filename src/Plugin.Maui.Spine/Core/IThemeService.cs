@@ -52,7 +52,7 @@ public interface IThemeService
     /// </summary>
     /// <remarks>
     /// The subscription lives exactly as long as the view: Spine holds it weakly and the view holds
-    /// it through its own <see cref="VisualElement.HandlerChanged"/> handler. Nothing is unsubscribed
+    /// it through its own <see cref="Element.HandlerChanged"/> handler. Nothing is unsubscribed
     /// by hand and an abandoned page is collected together with its subscriptions. The callback is
     /// not run at registration; paint the initial state yourself.
     /// </remarks>

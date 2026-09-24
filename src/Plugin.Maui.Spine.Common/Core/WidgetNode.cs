@@ -27,7 +27,7 @@ public abstract record WidgetNode
     /// Dimmed by the platform from a tap on any <see cref="W.Button"/> in the widget until the
     /// rebuild that follows the handler, so what the tap is about to change is seen to be changing.
     /// iOS only; Android renders the node as usual. Ignored on a button and inside its child. Set
-    /// with <see cref="W.Pending"/>.
+    /// with <see cref="WidgetNodeStyling.Pending{T}(T)"/>.
     /// </summary>
     public bool? Pending { get; init; }
 

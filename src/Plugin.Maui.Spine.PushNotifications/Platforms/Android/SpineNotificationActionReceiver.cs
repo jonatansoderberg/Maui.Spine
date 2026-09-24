@@ -29,7 +29,7 @@ internal sealed class SpineNotificationActionReceiver : BroadcastReceiver
         if (IPlatformApplication.Current?.Services is not { } services)
         {
             Android.Util.Log.Warn("Spine.PushNotifications", $"Button '{action}' was tapped before the app had started; it was not run.");
-            NotificationManagerCompat.From(context).Cancel(notificationId);
+            NotificationManagerCompat.From(context)?.Cancel(notificationId);
             return;
         }
 
@@ -44,7 +44,7 @@ internal sealed class SpineNotificationActionReceiver : BroadcastReceiver
             {
                 // Taken down either way: a button whose work is done has nothing left to offer, and a
                 // reply field keeps spinning until its notification is replaced or removed.
-                NotificationManagerCompat.From(context).Cancel(notificationId);
+                NotificationManagerCompat.From(context)?.Cancel(notificationId);
                 pending?.Finish();
             }
         });

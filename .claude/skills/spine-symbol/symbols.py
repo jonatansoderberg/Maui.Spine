@@ -296,8 +296,8 @@ def render(draft, out_dir, compare):
 def regenerate_constants():
     names = sorted(f[:-4] for f in os.listdir(IMAGES) if f.endswith(".svg"))
     s = open(CONSTANTS).read()
-    start, end = s.index("    public const string"), s.rindex("}")
-    consts = "".join(f'    public const string {x} = "{x}.svg";\n' for x in names)
+    start, end = s.index("{\n", s.index("class SpineIcons")) + 2, s.rindex("}")
+    consts = "".join(f'    /// <summary>The <c>{x}.svg</c> icon.</summary>\n    public const string {x} = "{x}.svg";\n' for x in names)
     every = "".join(f"        {x},\n" for x in names)
     s = s[:start] + consts + "\n    /// <summary>Every icon in the package, in ordinal order.</summary>\n    public static IReadOnlyList<string> All { get; } =\n    [\n" + every + "    ];\n" + s[end:]
     open(CONSTANTS, "w").write(s)

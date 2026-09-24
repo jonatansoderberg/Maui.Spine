@@ -15,6 +15,8 @@ namespace Plugin.Maui.Spine.PushNotifications;
 [IntentFilter(["com.google.firebase.MESSAGING_EVENT"])]
 public sealed class SpinePushNotificationsMessagingService : FirebaseMessagingService
 {
+    // The binding marks OnNewToken obsolete without a replacement; it is still how FCM reports a new token.
+#pragma warning disable CS0618, CS0672
     /// <inheritdoc />
     public override void OnNewToken(string token)
     {
@@ -22,6 +24,7 @@ public sealed class SpinePushNotificationsMessagingService : FirebaseMessagingSe
         // A rotated token is worthless until the backend hears about it; PushNotificationService listens for this.
         AndroidPushPlatform.SetHandle(token);
     }
+#pragma warning restore CS0618, CS0672
 
     /// <inheritdoc />
     public override void OnMessageReceived(RemoteMessage message)

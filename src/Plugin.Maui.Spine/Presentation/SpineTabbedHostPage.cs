@@ -152,7 +152,7 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
 
     /// <summary>
     /// Switches to the tab rooted by <paramref name="pageType"/>. No-op when it is already active.
-    /// The tab's region is realized lazily by the <see cref="CurrentPageChanged"/> handler.
+    /// The tab's region is realized lazily by <see cref="OnCurrentPageChangedCore"/>.
     /// </summary>
     internal Task SwitchToAsync(Type pageType)
     {

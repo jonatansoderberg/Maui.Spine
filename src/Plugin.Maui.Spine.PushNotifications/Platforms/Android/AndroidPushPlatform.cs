@@ -35,7 +35,7 @@ internal sealed class AndroidPushPlatform : IPushPlatform
     /// <see cref="PushStatus.Denied"/>, which is what the app needs to act on either way.
     /// </summary>
     public PushStatus Status =>
-        NotificationManagerCompat.From(Android.App.Application.Context).AreNotificationsEnabled()
+        NotificationManagerCompat.From(Android.App.Application.Context)?.AreNotificationsEnabled() == true
             ? PushStatus.Authorized
             : PushStatus.Denied;
 
@@ -55,8 +55,12 @@ internal sealed class AndroidPushPlatform : IPushPlatform
         MainThread.InvokeOnMainThreadAsync(() =>
         {
             var context = Android.App.Application.Context;
-            using var intent = new Intent(Android.Provider.Settings.ActionAppNotificationSettings);
-            intent.PutExtra(Android.Provider.Settings.ExtraAppPackage, context.PackageName);
+            // The notification page and its package extra are public from API 26; below that the app's own page.
+            using var intent = OperatingSystem.IsAndroidVersionAtLeast(26)
+                ? new Intent(Android.Provider.Settings.ActionAppNotificationSettings)
+                : new Intent(Android.Provider.Settings.ActionApplicationDetailsSettings, Android.Net.Uri.Parse($"package:{context.PackageName}"));
+            if (OperatingSystem.IsAndroidVersionAtLeast(26))
+                intent.PutExtra(Android.Provider.Settings.ExtraAppPackage, context.PackageName);
             intent.AddFlags(ActivityFlags.NewTask);
             context.StartActivity(intent);
         });
@@ -110,7 +114,9 @@ internal sealed class AndroidPushPlatform : IPushPlatform
         try
         {
             // GetToken returns a Google Play services Task, not a .NET one.
+#pragma warning disable CS0618 // Marked obsolete by the binding without a replacement; it is the only way to read the token.
             var token = await FirebaseMessaging.Instance.GetToken().AsAsync<Java.Lang.Object>();
+#pragma warning restore CS0618
             if (token?.ToString() is { Length: > 0 } value) SetHandle(value);
         }
         catch (Exception e)

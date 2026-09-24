@@ -7,7 +7,7 @@ namespace Plugin.Maui.Spine.Svg;
 /// A thread-safe cache that maps embedded SVG resource names to the assemblies that contain them.
 /// </summary>
 /// <remarks>
-/// Register this class as a singleton via <see cref="MauiAppBuilderExtensions.UseEmbeddedSvgImages"/>
+/// Register this class as a singleton via <see cref="MauiAppBuilderExtensions.UseEmbeddedSvgImages(MauiAppBuilder)"/>
 /// which also calls <see cref="Initialize"/> at startup. Inject it into any service that needs to
 /// resolve short SVG file names (e.g. <c>"icon.svg"</c>) to their fully-qualified manifest
 /// resource identifiers or to open the corresponding stream.
