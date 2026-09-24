@@ -24,7 +24,7 @@ public partial class MenusPageViewModel : ViewModelBase
         _filter = new MenuPicker(PickCommand)
         {
             new MenuAction("All items", "house.svg") { IsChecked = true },
-            new MenuAction("Favourites", "done.svg"),
+            new MenuAction("Favourites", "star.svg"),
             new MenuAction("Edited", "edit.svg"),
         };
 
@@ -33,7 +33,7 @@ public partial class MenusPageViewModel : ViewModelBase
             new MenuSection("Filter:") { _filter },
             new MenuSection
             {
-                new SubMenu("Media types", "fish.svg") { _photos, _videos },
+                new SubMenu("Media types", "image.svg") { _photos, _videos },
                 new SubMenu("View options")
                 {
                     new MenuAction("Sort by date", "clock.svg", PickCommand),
