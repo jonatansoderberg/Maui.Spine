@@ -17,7 +17,6 @@ public static class MauiProgram
         builder
             .UseMauiApp<App>()
             .UseAnimatedLabel()
-            .UseSpineDataGrid()
             .UseSvgIcon(options =>
             {
                 options.PaddingPercent = -0.08f;

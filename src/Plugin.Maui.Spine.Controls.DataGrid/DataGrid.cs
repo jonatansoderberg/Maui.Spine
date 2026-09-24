@@ -46,6 +46,10 @@ public partial class DataGrid : ContentView
     // The list width the realized rows were measured at; -1 while no row has been measured.
     private double _rowsMeasuredAtWidth = -1;
 
+    // The grid's texts (DataGrid.*, English and Swedish) register themselves the first time a grid
+    // is used, so the package needs no builder call. A static constructor runs once per process.
+    static DataGrid() => SpineStrings.Current.AddDefaults(new EmbeddedXmlStringProvider(typeof(DataGrid).Assembly));
+
     public DataGrid()
     {
         _headerHost = new ContentView { IsVisible = false };

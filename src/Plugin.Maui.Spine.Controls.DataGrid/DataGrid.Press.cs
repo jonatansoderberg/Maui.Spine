@@ -193,7 +193,8 @@ public partial class DataGrid
 
             if (CellCopied is { } confirm)
                 await confirm(column, text);
-            else
+            else if (!OperatingSystem.IsAndroidVersionAtLeast(33))
+                // Android 13 and later confirm a copy with their own clipboard overlay.
                 ShowBubble(SpineStrings.Current["DataGrid.Copied"], anchor: null, ResolveOptions());
         }
         catch (Exception ex)

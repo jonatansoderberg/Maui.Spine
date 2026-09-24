@@ -9,6 +9,9 @@ public partial class DataGridPageViewModel(IThemeService _theme) : ViewModelBase
 
     public ObservableCollection<Product> Products { get; } = new(Catalogue.Take(PageSize));
 
+    // How far into the catalogue the pages reach; a deleted row does not move it back.
+    private int _loaded = PageSize;
+
     [ObservableProperty]
     public partial bool HasMoreItems { get; set; } = true;
 
@@ -38,11 +41,7 @@ public partial class DataGridPageViewModel(IThemeService _theme) : ViewModelBase
 
         // Grouping and load more do not combine (see the docs), so grouping shows everything.
         if (value)
-        {
-            foreach (var product in Catalogue.Skip(Products.Count))
-                Products.Add(product);
-            HasMoreItems = false;
-        }
+            LoadUpTo(Catalogue.Count);
     }
 
     [RelayCommand]
@@ -50,10 +49,16 @@ public partial class DataGridPageViewModel(IThemeService _theme) : ViewModelBase
     {
         IsLoadingMore = true;
         await Task.Delay(800);
-        foreach (var product in Catalogue.Skip(Products.Count).Take(PageSize))
-            Products.Add(product);
-        HasMoreItems = Products.Count < Catalogue.Count;
+        LoadUpTo(_loaded + PageSize);
         IsLoadingMore = false;
+    }
+
+    private void LoadUpTo(int count)
+    {
+        foreach (var product in Catalogue.Take(count).Skip(_loaded))
+            Products.Add(product);
+        _loaded = Math.Max(_loaded, Math.Min(count, Catalogue.Count));
+        HasMoreItems = _loaded < Catalogue.Count;
     }
 
     [RelayCommand]
@@ -61,9 +66,8 @@ public partial class DataGridPageViewModel(IThemeService _theme) : ViewModelBase
     {
         await Task.Delay(1000);
         Products.Clear();
-        foreach (var product in Catalogue.Take(IsGrouped ? Catalogue.Count : PageSize))
-            Products.Add(product);
-        HasMoreItems = Products.Count < Catalogue.Count;
+        _loaded = 0;
+        LoadUpTo(IsGrouped ? Catalogue.Count : PageSize);
         IsRefreshing = false;
         LastAction = "Refreshed";
     }

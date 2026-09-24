@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as nine NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as ten NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -11,6 +11,7 @@ Spine ships as nine NuGet packages built from this repository, one per project u
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications | `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp | — |
+| Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid on `CollectionView` with layouts, sorting, grouping and swipe actions | `Plugin.Maui.Spine` |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
 
@@ -21,6 +22,8 @@ Common ◄──────────────┬────────�
 Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons (loaded by Svg at startup)
   ▲
 PushNotifications                                    AnimatedLabel
+
+DataGrid ──► Spine
 ```
 
 ## Which packages for which app
@@ -38,7 +41,7 @@ PushNotifications                                    AnimatedLabel
 
 | Package | Frameworks |
 |---|---|
-| MAUI packages (core, Svg, Widgets, PushNotifications, both controls) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
+| MAUI packages (core, Svg, Widgets, PushNotifications, the controls) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
 | `Plugin.Maui.Spine.Svg.Icons`, `Plugin.Maui.Spine.Common`, `Plugin.Maui.Spine.Server` | `net10.0` |
 
 Platform minimums: Android API 21 (API 23 with `Plugin.Maui.Spine.PushNotifications`, which Firebase requires), iOS 15, Mac Catalyst 15, Windows 10 17763.
