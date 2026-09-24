@@ -188,6 +188,22 @@ internal static class BottomSheetPageExtensions
 
             dialog.SetBehaviorAndStateProvider(behavior, () => lastSettledState);
 
+            // The sheet is laid out at full height and slid down to each detent, so the part of it
+            // below the screen is the overhang a page footer is lifted by. A drag moves the sheet
+            // with offsetTopAndBottom — no layout — and onSlide is the only callback that sees it.
+            var region = bottomSheetContent as NavigationRegion;
+            var smallestDetentPx = ResolveDetentHeightPx(sortedDetents[0]);
+
+            void ReportOverhang(AView sheet)
+            {
+                if (region is null || sheet.Parent is not AView parent || parent.Height == 0)
+                    return;
+
+                // Below the smallest detent the sheet is on its way out; the footer goes with it.
+                var overhangPx = Math.Clamp(sheet.Top + sheet.Height - parent.Height, 0, Math.Max(0, parent.Height - smallestDetentPx));
+                region.SetSheetOverhang(overhangPx / density);
+            }
+
             // Track the last stable state so a rejected cancel can snap back to it.
             behavior.AddBottomSheetCallback(new SheetStateCallback(
                 onStateChanged: (_, state) =>
@@ -198,8 +214,16 @@ internal static class BottomSheetPageExtensions
                     {
                         lastSettledState = state;
                     }
-                }
+                },
+                onSlide: (sheet, _) => ReportOverhang(sheet)
             ));
+
+            // The first position comes from a layout pass, not from a slide. BottomSheetBehavior
+            // offsets the sheet to its detent after the layout that raises LayoutChange, hence the post.
+            if (outerWrapper.Parent is AView sheetForLayout)
+                sheetForLayout.LayoutChange += (_, _) => sheetForLayout.Post(() => ReportOverhang(sheetForLayout));
+
+            dialog.DismissEvent += (_, _) => region?.SetSheetOverhang(0);
 
             dialog.Show();
 

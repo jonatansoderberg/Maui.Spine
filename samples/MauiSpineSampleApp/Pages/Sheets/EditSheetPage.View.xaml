@@ -1,0 +1,26 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Sheets.EditSheetPage"
+    x:TypeArguments="EditSheetPageViewModel"
+    x:DataType="EditSheetPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,0,20,16" Spacing="4">
+            <Label Text="Save and Cancel are page actions in the sheet's header bar, not buttons at the bottom: they are in the same place at every detent, next to the title."
+                   FontSize="14" Margin="0,0,0,8" />
+
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Options}" Spacing="4">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="EditSheetOption">
+                        <Grid ColumnDefinitions="*,Auto" MinimumHeightRequest="44">
+                            <Label Text="{Binding Name}" VerticalOptions="Center" />
+                            <Switch Grid.Column="1" IsToggled="{Binding IsOn}" VerticalOptions="Center" />
+                        </Grid>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>
