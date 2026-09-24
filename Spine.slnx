@@ -11,7 +11,9 @@
   <Project Path="src/Plugin.Maui.Spine/Plugin.Maui.Spine.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Svg/Plugin.Maui.Spine.Svg.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Svg.Icons/Plugin.Maui.Spine.Svg.Icons.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.Calendar/Plugin.Maui.Spine.Controls.Calendar.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.HeroCollectionView/Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.DataGrid/Plugin.Maui.Spine.Controls.DataGrid.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Shimmer/Plugin.Maui.Spine.Controls.Shimmer.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Widgets/Plugin.Maui.Spine.Widgets.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server/Plugin.Maui.Spine.Server.csproj" />

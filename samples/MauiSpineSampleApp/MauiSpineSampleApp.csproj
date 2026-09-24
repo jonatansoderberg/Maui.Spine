@@ -23,10 +23,10 @@
     <UseMaterial3>true</UseMaterial3>
     
 		<!-- Display name -->
-		<ApplicationTitle>MauiBottomSheetPoc</ApplicationTitle>
+		<ApplicationTitle>Spine Showcase</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.companyname.mauibottomsheetpoc</ApplicationId>
+		<ApplicationId>se.cosmomedia.spineshowcase</ApplicationId>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
@@ -40,10 +40,10 @@
 
 	<ItemGroup>
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\spinelogo.png" ForegroundScale="0.8" Color="#FFFFFF" />
 
 		<!-- Splash Screen -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+		<MauiSplashScreen Include="Resources\Splash\splashlogo.png" Color="#FFFFFF" BaseSize="160,160" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
@@ -198,6 +198,15 @@
       <DependentUpon>ResultsPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Dates\DatesPage.View.xaml">
+      <DependentUpon>DatesPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Dates\DatesPage.ViewModel.cs">
+      <DependentUpon>DatesPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Marquee\MarqueePage.View.xaml">
       <DependentUpon>MarqueePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -205,6 +214,15 @@
 
     <Compile Include="Pages\Marquee\MarqueePage.ViewModel.cs">
       <DependentUpon>MarqueePage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\DataGrid\DataGridPage.View.xaml">
+      <DependentUpon>DataGridPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\DataGrid\DataGridPage.ViewModel.cs">
+      <DependentUpon>DataGridPage.cs</DependentUpon>
     </Compile>
 
     <MauiXaml Update="Pages\Shimmer\ShimmerPage.View.xaml">
@@ -322,6 +340,8 @@
   
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.AnimatedLabel\Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Calendar\Plugin.Maui.Spine.Controls.Calendar.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.DataGrid\Plugin.Maui.Spine.Controls.DataGrid.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
