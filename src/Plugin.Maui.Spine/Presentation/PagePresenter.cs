@@ -1,5 +1,6 @@
 using System.Globalization;
 using Plugin.Maui.Spine.Core;
+using Plugin.Maui.Spine.Extensions;
 using Microsoft.Maui.Layouts;
 
 namespace Plugin.Maui.Spine.Presentation;
@@ -19,10 +20,9 @@ internal sealed partial class PagePresenter : Grid
     private Label? _titleLabel;
     private readonly TitleSlotLayout _titleBar;
 
-    // Behind the title row of a collapsing header: transparent at the top, solid once content
-    // scrolls under it. An opaque colour faded with Opacity, because a BoxView with an alpha
-    // colour paints over black on iOS.
-    private readonly BoxView _barBackground;
+    // Behind the title row when content is under the bar and the system draws nothing there: a
+    // material that fades in with Opacity as content scrolls under the bar.
+    private readonly ContentView _barBackground;
     private ContentPresenter _contentPresenter;
     private readonly ContentView _footerHost;
     private IPageFooterSource? _footerSource;
@@ -86,7 +86,7 @@ internal sealed partial class PagePresenter : Grid
         _titleBar = new TitleSlotLayout();
         _titleBar.Add(_titleLabel);
 
-        _barBackground = new BoxView { InputTransparent = true, IsVisible = false, Opacity = 0 };
+        _barBackground = new ContentView { InputTransparent = true, IsVisible = false, Opacity = 0 };
 
         Children.Add(_barBackground);
         Children.Add(_titleBar);
@@ -112,7 +112,11 @@ internal sealed partial class PagePresenter : Grid
         if (Application.Current is { } app)
             app.RequestedThemeChanged += (_, _) => ApplyTitleTextColor();
 
-        SpineTheme.Track(this, ApplyBarBackgroundColor);
+        SpineTheme.Track(this, () =>
+        {
+            ApplyBarBackgroundColor();
+            RefreshSoftEdge();
+        });
     }
 
     private ViewModelBase? _page;
@@ -232,6 +236,9 @@ internal sealed partial class PagePresenter : Grid
     /// <summary>Installs or removes UIKit's scroll edge effect for the page; iOS and Mac Catalyst 26 only.</summary>
     partial void UpdateSystemScrollEdge();
 
+    /// <summary>Brings UIKit's stretched soft edge (iOS 27) in line with the theme; Apple platforms only.</summary>
+    partial void RefreshSoftEdge();
+
     /// <summary>Adds the element a <see cref="HeaderBarBackground.SoftStatusBar"/> effect is sized to; Apple platforms only.</summary>
     partial void AddStatusBarEdge();
 
@@ -281,6 +288,12 @@ internal sealed partial class PagePresenter : Grid
     /// <summary>How far the status-bar stand-in band fades out below the status bar.</summary>
     private const double StatusBarBandFade = 16;
 
+    /// <summary>The page's colour over the soft blur, as much as UIKit's own soft edge whitens rows.</summary>
+    private const float ScrollEdgeBlurTint = 0.3f;
+
+    /// <summary>The page's colour over the hard blur: a frosted band that rows only faintly show through.</summary>
+    private const float ScrollEdgeHardBlurTint = 0.6f;
+
     /// <summary>How opaque the hard stand-in band is: rows only just show through, as through UIKit's frosted band.</summary>
     private const float ScrollEdgeHardBandAlpha = 0.96f;
 
@@ -293,66 +306,44 @@ internal sealed partial class PagePresenter : Grid
 
         if (BarBackground is HeaderBarBackground.Solid)
         {
-            _barBackground.Background = null;
-            _barBackground.Color = colour;
+            Material.SetKind(_barBackground, MaterialKind.Solid);
+            Material.SetTint(_barBackground, colour);
+            Material.SetFade(_barBackground, 0);
+            Material.SetEdgeLine(_barBackground, null);
             _barBackground.HeightRequest = -1;
             _barBackground.VerticalOptions = LayoutOptions.Fill;
             Grid.SetRowSpan(_barBackground, 1);
             return;
         }
 
+        // The scroll edge where the system does not draw it: a blur of the rows behind the bar where
+        // the platform has one, the page's colour where it does not, over the same band.
+        var blurs = Material.Resolve(MaterialKind.Blur) == MaterialKind.Blur;
         var bar = RowDefinitions[0].Height.Value;
         double height;
-        _barBackground.Color = null;
+        Material.SetKind(_barBackground, MaterialKind.Blur);
 
         if (BarBackground is HeaderBarBackground.HardEdge)
         {
-            // The stand-in for the hard style: the page's colour, nearly opaque, ending at the
-            // bar's bottom edge in a hairline, as a frosted band does.
+            // The hard style: nearly opaque, ending at the bar's bottom edge in a hairline.
             var hairline = HairlineThickness();
             height = bar + hairline;
-            var tint = colour.WithAlpha(ScrollEdgeHardBandAlpha);
-            var line = HairlineColour();
-            var edge = (float)(bar / height);
-
-            _barBackground.Background = new LinearGradientBrush(
-                [
-                    new GradientStop(tint, 0),
-                    new GradientStop(tint, edge),
-                    new GradientStop(line, edge),
-                    new GradientStop(line, 1),
-                ],
-                new Point(0, 0), new Point(0, 1));
-        }
-        else if (BarBackground is HeaderBarBackground.SoftStatusBar)
-        {
-            // The soft stand-in behind the status bar only, fading out before the title row.
-            var statusBar = _page?.SystemBarInsets.Top ?? 0;
-            height = statusBar + StatusBarBandFade;
-            var tint = colour.WithAlpha(ScrollEdgeBandAlpha);
-
-            _barBackground.Background = new LinearGradientBrush(
-                [
-                    new GradientStop(tint, 0),
-                    new GradientStop(tint, (float)(statusBar / height)),
-                    new GradientStop(colour.WithAlpha(0), 1),
-                ],
-                new Point(0, 0), new Point(0, 1));
+            Material.SetThickness(_barBackground, MaterialThickness.Chrome);
+            Material.SetTint(_barBackground, colour.WithAlpha(blurs ? ScrollEdgeHardBlurTint : ScrollEdgeHardBandAlpha));
+            Material.SetFade(_barBackground, 0);
+            Material.SetEdgeLine(_barBackground, HairlineColour());
         }
         else
         {
-            // The stand-in for the soft style: the page's colour, slightly see-through behind the
-            // bar, fading out below it so rows dissolve into the bar instead of meeting an edge.
-            height = bar + ScrollEdgeBandFade;
-            var tint = colour.WithAlpha(ScrollEdgeBandAlpha);
-
-            _barBackground.Background = new LinearGradientBrush(
-                [
-                    new GradientStop(tint, 0),
-                    new GradientStop(tint, (float)(bar / height)),
-                    new GradientStop(colour.WithAlpha(0), 1),
-                ],
-                new Point(0, 0), new Point(0, 1));
+            // The soft style: see-through behind the bar (or only the status bar), fading out below
+            // it so rows dissolve into the bar instead of meeting an edge.
+            var statusBarOnly = BarBackground is HeaderBarBackground.SoftStatusBar;
+            var fade = statusBarOnly ? StatusBarBandFade : ScrollEdgeBandFade;
+            height = (statusBarOnly ? _page?.SystemBarInsets.Top ?? 0 : bar) + fade;
+            Material.SetThickness(_barBackground, MaterialThickness.UltraThin);
+            Material.SetTint(_barBackground, colour.WithAlpha(blurs ? ScrollEdgeBlurTint : ScrollEdgeBandAlpha));
+            Material.SetFade(_barBackground, fade);
+            Material.SetEdgeLine(_barBackground, null);
         }
 
         _barBackground.HeightRequest = height;

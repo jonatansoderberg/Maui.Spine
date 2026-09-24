@@ -1,0 +1,108 @@
+using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform;
+using Plugin.Maui.Spine.Core;
+using AcrylicBrush = Microsoft.UI.Xaml.Media.AcrylicBrush;
+using GradientStop = Microsoft.UI.Xaml.Media.GradientStop;
+using LinearGradientBrush = Microsoft.UI.Xaml.Media.LinearGradientBrush;
+using SolidColorBrush = Microsoft.UI.Xaml.Media.SolidColorBrush;
+using WBrush = Microsoft.UI.Xaml.Media.Brush;
+using WPanel = Microsoft.UI.Xaml.Controls.Panel;
+using WPath = Microsoft.UI.Xaml.Shapes.Path;
+using WPoint = Windows.Foundation.Point;
+
+namespace Plugin.Maui.Spine.Extensions;
+
+public static partial class SpineExtensions
+{
+    // MAUI paints the background for these; the material is painted again after it.
+    static readonly string[] MaterialKeys = [Material.MapperKey, nameof(IView.Background), nameof(IBorderStroke.Shape), nameof(IView.Height)];
+
+    static readonly BindableProperty MaterialAppliedProperty = BindableProperty.CreateAttached(
+        "MaterialApplied", typeof(bool), typeof(SpineExtensions), false);
+
+    static void ConfigureMaterials()
+    {
+        foreach (var key in MaterialKeys)
+        {
+            BorderHandler.Mapper.AppendToMapping(key, ApplyMaterial);
+            ContentViewHandler.Mapper.AppendToMapping(key, ApplyMaterial);
+            LayoutHandler.Mapper.AppendToMapping(key, ApplyMaterial);
+        }
+    }
+
+    static void ApplyMaterial(IElementHandler handler, IElement element)
+    {
+        if (handler.PlatformView is not WPanel panel || element is not VisualElement visual)
+            return;
+
+        if (Material.GetKind(visual) == MaterialKind.None)
+        {
+            // MAUI paints the view's own background again.
+            if ((bool)visual.GetValue(MaterialAppliedProperty))
+            {
+                visual.SetValue(MaterialAppliedProperty, false);
+                handler.UpdateValue(nameof(IView.Background));
+            }
+            return;
+        }
+
+        if (!(bool)visual.GetValue(MaterialAppliedProperty))
+        {
+            visual.SetValue(MaterialAppliedProperty, true);
+            SpineTheme.Track(visual, () => visual.Handler?.UpdateValue(Material.MapperKey));
+        }
+
+        var brush = MaterialBrush(visual);
+
+        // A Border paints its shape with a path; anything else paints the panel.
+        if (panel.Children.OfType<WPath>().FirstOrDefault() is { } shape)
+            shape.Fill = brush;
+        else
+            panel.Background = brush;
+    }
+
+    static WBrush MaterialBrush(VisualElement view)
+    {
+        var kind = Material.Resolve(Material.GetKind(view));
+        var tint = Material.GetTint(view);
+        var fade = Material.GetFade(view);
+        var edge = Material.GetEdgeLine(view);
+
+        // Acrylic has no fade and no hairline; the header bar's band is the tinted surface instead.
+        if (kind is MaterialKind.Blur or MaterialKind.Glass && fade <= 0 && edge is null)
+        {
+            var colour = tint ?? Material.SurfaceColour(null, tinted: false);
+            return new AcrylicBrush
+            {
+                TintColor = colour.WithAlpha(1).ToWindowsColor(),
+                TintOpacity = tint is null ? 0.6 : tint.Alpha,
+                FallbackColor = colour.WithAlpha(1).ToWindowsColor(),
+            };
+        }
+
+        var fill = Material.SurfaceColour(tint, kind != MaterialKind.Solid);
+        if (fade <= 0 && edge is null)
+            return new SolidColorBrush(fill.ToWindowsColor());
+
+        // Stops in proportions of the element's height; ActualHeight is known once it has been laid out.
+        var height = Math.Max(1, view.Height > 0 ? view.Height : view.HeightRequest);
+        var gradient = new LinearGradientBrush { StartPoint = new WPoint(0, 0), EndPoint = new WPoint(0, 1) };
+        var bottom = 1 - Math.Min(fade, height) / height;
+        gradient.GradientStops.Add(new GradientStop { Color = fill.ToWindowsColor(), Offset = 0 });
+
+        if (edge is not null)
+        {
+            var line = bottom - 1 / height;
+            gradient.GradientStops.Add(new GradientStop { Color = fill.ToWindowsColor(), Offset = line });
+            gradient.GradientStops.Add(new GradientStop { Color = edge.ToWindowsColor(), Offset = line });
+            gradient.GradientStops.Add(new GradientStop { Color = edge.ToWindowsColor(), Offset = bottom });
+        }
+        else
+        {
+            gradient.GradientStops.Add(new GradientStop { Color = fill.ToWindowsColor(), Offset = bottom });
+        }
+
+        gradient.GradientStops.Add(new GradientStop { Color = fill.WithAlpha(0).ToWindowsColor(), Offset = 1 });
+        return gradient;
+    }
+}

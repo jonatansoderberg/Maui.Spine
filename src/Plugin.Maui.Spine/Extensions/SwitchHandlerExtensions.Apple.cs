@@ -12,6 +12,7 @@ public static partial class SpineExtensions
     static partial void ConfigureHandlers(MauiAppBuilder builder)
     {
         ConfigureGlassButtons();
+        ConfigureMaterials();
         ConfigureMenus();
         ConfigureScrollInsets();
         ConfigureTypography();
