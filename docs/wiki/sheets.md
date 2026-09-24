@@ -108,7 +108,8 @@ You can also specify:
 
 The sheet's grabber, its close/back button and its page actions sit in a row at the top of the sheet,
 and Spine keeps the page out of it: the content starts below the drag handle
-(`HeaderBarConstants.SheetTopPadding`) and below a title row the height of the header bar. Do not add
+(`HeaderBarConstants.SheetTopPadding`) and below a title row the height of the header bar
+(`HeaderBarConstants.BarHeight`, 54 points on iOS 26). Do not add
 top padding to clear the close button (`Padding="16,36,16,16"` and the like) — padding you add is
 spacing of your own, on top of that.
 

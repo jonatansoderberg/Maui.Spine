@@ -378,7 +378,8 @@ internal sealed partial class PagePresenter : Grid
     }
 
     // The title row is the header bar's height; under an overlay header it also holds the status
-    // bar the title is pushed down by, so the title still centres on the bar's own 44/48 points.
+    // bar the title is pushed down by. The title centres on the item row (Height) at the top of the
+    // bar, not on the whole bar, which is taller on iOS 26.
     private void ApplyTitleRowHeight()
     {
         if (!_titleLabel!.IsVisible)
@@ -388,7 +389,19 @@ internal sealed partial class PagePresenter : Grid
         }
 
         var overlayInset = _page?.HeaderBarFloats == true ? _page.SystemBarInsets.Top : 0;
-        RowDefinitions[0].Height = new GridLength(HeaderBarConstants.Height + overlayInset);
+        RowDefinitions[0].Height = new GridLength(HeaderBarConstants.BarHeight + overlayInset);
+
+        // Padding keeps the label as tall as the bar, so UIKit's edge effect covers all of it.
+        // UIKit's own hard band under an inline title in a pushed or root navigation stack stops
+        // at the items, though (a large title's and a sheet's reach the bar's bottom), so there
+        // the label ends with the item row.
+        var below = new Thickness(0, 0, 0, HeaderBarConstants.BarHeight - HeaderBarConstants.Height);
+        var itemsOnly = Background is HeaderBarBackground.ScrollEdgeHard
+            && _page?.LargeTitle != true
+            && (BindingContext as NavigationRegionViewModel)?.Presentation is not NavigationPresentation.Sheet;
+        _titleLabel.Padding = itemsOnly ? Thickness.Zero : below;
+        _titleLabel.Margin = itemsOnly ? below : Thickness.Zero;
+
         ApplyBarBackgroundColor();
     }
 

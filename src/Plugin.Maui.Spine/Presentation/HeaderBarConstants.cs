@@ -66,7 +66,8 @@ public static class HeaderBarConstants
 
 #elif IOS || MACCATALYST
 
-    // The UINavigationBar item size: a 44-point row, and 44-point circles for icon actions.
+    // The UINavigationBar item size: a 44-point row, and 44-point circles for icon actions. The
+    // bar itself can be taller, see BarHeight.
     public const double Height = 44;
 
     // Sheet presentation button size
@@ -83,7 +84,7 @@ public static class HeaderBarConstants
     // Space below the UISheetPresentationController grabber handle
     public const double SheetTopPadding = 20;
 
-    // UINavigationBar's large title: 34-point bold in a 52-point row below the 44-point bar.
+    // UINavigationBar's large title: 34-point bold in a 52-point row below the bar.
     /// <summary>Font size of a page's large title.</summary>
     public const double LargeTitleFontSize = 34;
     /// <summary>Weight of a page's large title.</summary>
@@ -120,6 +121,21 @@ public static class HeaderBarConstants
     /// <summary>Left and right margin of the large title.</summary>
     public const double LargeTitleSideMargin = 16;
 
+#endif
+
+    /// <summary>
+    /// The header bar's height below the status bar: the <see cref="Height"/> row that holds the
+    /// title and the actions, plus, on iOS and Mac Catalyst 26 and later, 10 points of bar below
+    /// it. That is a <c>UINavigationBar</c> there: 54 points with its 44-point items at the top
+    /// (44 points on earlier versions, in a sheet as well). Content below the bar, the scroll
+    /// inset of content under a floating bar, a solid bar background and the scroll edge effect
+    /// all start or end this far below the status bar. Equal to <see cref="Height"/> elsewhere.
+    /// </summary>
+    public static double BarHeight { get; } =
+#if IOS || MACCATALYST
+        OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26) ? 54 : Height;
+#else
+        Height;
 #endif
 
     /// <summary>
