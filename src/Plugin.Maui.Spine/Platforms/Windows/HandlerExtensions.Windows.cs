@@ -6,5 +6,6 @@ public static partial class SpineExtensions
     {
         ConfigureScrollInsets();
         ConfigureTypography();
+        ConfigureMenus();
     }
 }

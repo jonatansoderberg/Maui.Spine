@@ -173,7 +173,7 @@ public static partial class SpineExtensions
         // A Button without a Padding setter carries NaN, which MAUI itself replaces with the handler default.
         var padding = button.Padding.IsNaN ? ButtonHandler.DefaultPadding : button.Padding;
         config.ContentInsets = new NSDirectionalEdgeInsets(
-            (nfloat)padding.Top, (nfloat)padding.Left, (nfloat)padding.Bottom, (nfloat)padding.Right);
+            (nfloat)padding.Top, (nfloat)padding.Left, (nfloat)padding.Bottom, (nfloat)PopupTrailingInset(button, padding.Right));
 
         if (button.ImageSource is not null)
         {

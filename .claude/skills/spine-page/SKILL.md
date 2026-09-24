@@ -136,6 +136,8 @@ Load data in `OnAppearingAsync`; keep constructors cheap. For work that lives wi
 
 ## Page actions (header bar)
 
+An action that should open a menu rather than run a command is added in the constructor as `PageActions.Add(new PageAction(null, new MenuItems { new MenuSection("Filter:") { new MenuPicker(FilterCommand) { new MenuAction("All", "house.svg") { IsChecked = true }, … } }, new SubMenu("More") { … } }) { Svg = "more.svg" })`; the same `MenuItems` goes on a page button as `MenuButton.Items="{Binding SortMenu}"` (with `MenuButton.ShowsSelection="True"` for a pop-up whose text follows the pick). See docs/wiki/menus.md.
+
 Put `[PageAction]` on a `[RelayCommand]` method (or an `ICommand` property); Spine adds the button once, before the page appears:
 
 ```csharp

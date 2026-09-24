@@ -67,6 +67,17 @@ public sealed partial class PageAction : ObservableObject
         AsyncCommand = command;
     }
 
+    /// <summary>
+    /// Initializes a new <see cref="PageAction"/> that opens <paramref name="menu"/> when tapped.
+    /// </summary>
+    /// <param name="text">Label displayed on the button, or <see langword="null"/> for icon-only buttons.</param>
+    /// <param name="menu">The menu the button opens.</param>
+    public PageAction(string? text, MenuItems menu)
+    {
+        Text = text;
+        Menu = menu ?? throw new ArgumentNullException(nameof(menu));
+    }
+
     /// <summary>Label text displayed on the button. <see langword="null"/> for icon-only buttons.</summary>
     [ObservableProperty]
     public partial string? Text { get; set; }
@@ -78,8 +89,19 @@ public sealed partial class PageAction : ObservableObject
     [ObservableProperty]
     public partial string? Svg { get; set; }
 
-    /// <summary>The command executed when the button is tapped.</summary>
-    public ICommand Command { get; }
+    /// <summary>The command executed when the button is tapped; <see langword="null"/> for an action that opens a <see cref="Menu"/>.</summary>
+    public ICommand? Command { get; }
+
+    /// <summary>
+    /// A menu the button opens instead of running a command: sections, pickers, submenus and
+    /// toggles, rendered as the platform's own menu. See <see cref="Extensions.MenuButton"/>.
+    /// </summary>
+    [ObservableProperty]
+    public partial MenuItems? Menu { get; set; }
+
+    /// <summary>With a text action and a <see cref="Menu"/>, whether the text follows the picked row.</summary>
+    [ObservableProperty]
+    public partial bool MenuShowsSelection { get; set; }
 
     /// <summary>
     /// The async relay command, when the action was created with an <see cref="IAsyncRelayCommand"/>.

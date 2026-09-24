@@ -165,7 +165,8 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Navigation parameters** | Pass typed data into a page | [Navigation Parameters](docs/wiki/navigation-parameters.md) |
 | **Navigation results** | Await a typed result from a page | [Navigation Results](docs/wiki/navigation-results.md) |
 | **Page actions** | Header bar buttons driven by the ViewModel | [Page Actions](docs/wiki/page-actions.md) |
-| **Shortcuts** | OS dock/jump-list/tray menu integration | [Shortcuts](docs/wiki/shortcuts.md) |
+| **Shortcuts** | OS dock/jump-list/tray menu integration | [Menu buttons](docs/wiki/menus.md) | A button or header action that opens the platform's own menu: sections, pickers, submenus, toggles, destructive rows |
+| [Shortcuts](docs/wiki/shortcuts.md) |
 | **Windows options** | Window chrome, tray, single-instance | [Windows Options](docs/wiki/windows-options.md) |
 | **Custom transitions** | Replace the built-in slide animation | [Custom Transitions](docs/wiki/custom-transitions.md) |
 | **Widgets** | Home-screen widgets and Live Activities built from C# | [Widgets](docs/wiki/widgets.md) |
