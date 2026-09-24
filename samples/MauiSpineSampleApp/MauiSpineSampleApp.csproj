@@ -23,10 +23,10 @@
     <UseMaterial3>true</UseMaterial3>
     
 		<!-- Display name -->
-		<ApplicationTitle>MauiBottomSheetPoc</ApplicationTitle>
+		<ApplicationTitle>Spine Showcase</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.companyname.mauibottomsheetpoc</ApplicationId>
+		<ApplicationId>se.cosmomedia.spineshowcase</ApplicationId>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
@@ -40,10 +40,10 @@
 
 	<ItemGroup>
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\spinelogo.png" ForegroundScale="0.8" Color="#FFFFFF" />
 
 		<!-- Splash Screen -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+		<MauiSplashScreen Include="Resources\Splash\splashlogo.png" Color="#FFFFFF" BaseSize="160,160" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
