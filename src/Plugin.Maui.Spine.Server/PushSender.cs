@@ -179,6 +179,9 @@ public sealed class PushSender(
         };
     }
 
+    /// <param name="target">Who to reach.</param>
+    /// <param name="build">The envelope for each platform, or <see langword="null"/> to skip it.</param>
+    /// <param name="cancellationToken">Cancels the send.</param>
     /// <param name="address">
     /// Which token to send to, when it is not the device token. An installation it answers
     /// <see langword="null"/> for cannot be addressed at all and is reported rather than sent with

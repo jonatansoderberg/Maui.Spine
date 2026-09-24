@@ -1,6 +1,6 @@
 namespace MauiSpineSampleApp.Pages;
 
-/// <summary>One row in the toggle list. Every input writes to <see cref="Log"/>.</summary>
+/// <summary>One row in the toggle list. Every input writes to <see cref="ToggleListSheetViewModel.Log"/>.</summary>
 public partial class ToggleRow(ToggleListSheetViewModel _owner, string _name) : ObservableObject
 {
     public string Name => _name;

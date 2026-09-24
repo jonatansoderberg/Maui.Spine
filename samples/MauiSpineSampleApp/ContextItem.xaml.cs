@@ -21,7 +21,7 @@ public partial class ContextItem : ContentView
     public static readonly BindableProperty TitleProperty =
         BindableProperty.Create(nameof(Title), typeof(string), typeof(ContextItem));
 
-    public new string Title
+    public string Title
     {
         get => (string)GetValue(TitleProperty);
         set => SetValue(TitleProperty, value);

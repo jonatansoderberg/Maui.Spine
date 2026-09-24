@@ -43,7 +43,7 @@ internal static class AndroidNotifications
 
         if (!OperatingSystem.IsAndroidVersionAtLeast(26)) return;
 
-        var manager = NotificationManagerCompat.From(context);
+        if (NotificationManagerCompat.From(context) is not { } manager) return;
 
         foreach (var channel in _channels)
         {
@@ -54,7 +54,8 @@ internal static class AndroidNotifications
                 _ => NotificationManagerCompat.ImportanceDefault,
             };
 
-            var builder = new NotificationChannelCompat.Builder(channel.Id, importance).SetName(channel.Name);
+            var builder = new NotificationChannelCompat.Builder(channel.Id, importance);
+            builder.SetName(channel.Name);
 
             if (channel.Sound is { Length: > 0 } sound)
             {
@@ -99,20 +100,23 @@ internal static class AndroidNotifications
             ? StableId(collapse)
             : Interlocked.Increment(ref _nextId);
 
-        var builder = new NotificationCompat.Builder(context, channel)
-            .SetContentTitle(message.Title)
-            .SetContentText(message.Body)
-            .SetStyle(new NotificationCompat.BigTextStyle().BigText(message.Body ?? ""))
-            .SetSmallIcon(SmallIcon(context))
-            .SetAutoCancel(true)
-            .SetContentIntent(OpenIntent(context, message, action: null, id));
+        var builder = new NotificationCompat.Builder(context, channel);
+        builder.SetContentTitle(message.Title);
+        builder.SetContentText(message.Body);
+        builder.SetStyle(new NotificationCompat.BigTextStyle().BigText(message.Body ?? ""));
+        builder.SetSmallIcon(SmallIcon(context));
+        builder.SetAutoCancel(true);
+        builder.SetContentIntent(OpenIntent(context, message, action: null, id));
 
         if (picture is not null)
         {
             // The thumbnail beside the text when collapsed, the whole picture when expanded — and no
             // thumbnail repeated next to the full-size one.
-            builder.SetLargeIcon(picture)
-                .SetStyle(new NotificationCompat.BigPictureStyle().BigPicture(picture).BigLargeIcon((Bitmap?)null));
+            var style = new NotificationCompat.BigPictureStyle();
+            style.BigPicture(picture);
+            style.BigLargeIcon((Bitmap?)null);
+            builder.SetLargeIcon(picture);
+            builder.SetStyle(style);
         }
 
         if (message.Category is { Length: > 0 } category)
@@ -130,7 +134,7 @@ internal static class AndroidNotifications
         if (!presentation.HasFlag(PushPresentation.Sound))
             builder.SetSilent(true);
 
-        NotificationManagerCompat.From(context).Notify(id, builder.Build());
+        NotificationManagerCompat.From(context)?.Notify(id, builder.Build());
     }
 
     /// <summary>
@@ -188,7 +192,7 @@ internal static class AndroidNotifications
 
         // The system writes a reply's text into the intent, which it can only do to a mutable one.
         var flags = action.Reply is null
-            ? PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable
+            ? ImmutableFlags
             : OperatingSystem.IsAndroidVersionAtLeast(31)
                 ? PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Mutable
                 : PendingIntentFlags.UpdateCurrent;
@@ -197,7 +201,11 @@ internal static class AndroidNotifications
         var button = new NotificationCompat.Action.Builder(0, action.Title, pending);
 
         if (action.Reply is { } placeholder)
-            button.AddRemoteInput(new AndroidX.Core.App.RemoteInput.Builder(ReplyKey).SetLabel(placeholder).Build());
+        {
+            var reply = new AndroidX.Core.App.RemoteInput.Builder(ReplyKey);
+            reply.SetLabel(placeholder);
+            button.AddRemoteInput(reply.Build());
+        }
 
         return button.Build()!;
     }
@@ -227,6 +235,9 @@ internal static class AndroidNotifications
         }
     }
 
+    private static PendingIntentFlags ImmutableFlags =>
+        OperatingSystem.IsAndroidVersionAtLeast(23) ? PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable : PendingIntentFlags.UpdateCurrent;
+
     private static int SmallIcon(Context context)
     {
         // The app can override the icon by adding a drawable named spine_push_icon; otherwise the
@@ -250,8 +261,7 @@ internal static class AndroidNotifications
             intent.PutExtra(NotificationIdExtra, notificationId);
         }
 
-        var flags = PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable;
-        return PendingIntent.GetActivity(context, Interlocked.Increment(ref _nextId), intent, flags);
+        return PendingIntent.GetActivity(context, Interlocked.Increment(ref _nextId), intent, ImmutableFlags);
     }
 
     /// <summary>Reads a launch intent's extras back into a message, when the app was opened from a notification.</summary>

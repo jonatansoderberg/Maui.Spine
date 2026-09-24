@@ -23,12 +23,13 @@
 	<ItemGroup>
 		<PackageVersion Include="Xamarin.Firebase.Messaging" Version="125.1.1.1" />
 		<!--
-			Firebase Messaging pulls AndroidX.Fragment 1.9.0, which needs LiveData.Core 2.11.0.1, while
-			MAUI 10.0.50 pins it below 2.9.3. Referencing the newer one directly is what NuGet asks for;
-			it leaves NU1608 warnings about the violated upper bound, which is the normal state of a MAUI
-			app with Firebase in it.
+			Firebase Messaging pulls AndroidX.Fragment 1.9.0, which needs LiveData.Core and Runtime
+			2.11.0.1, while MAUI 10.0.50 brings LiveData and Process 2.9.2.1, which pin both below 2.9.3
+			(NU1608). Lifting all four to the same release lines them up again.
 		-->
+		<PackageVersion Include="Xamarin.AndroidX.Lifecycle.LiveData" Version="2.11.0.1" />
 		<PackageVersion Include="Xamarin.AndroidX.Lifecycle.LiveData.Core" Version="2.11.0.1" />
+		<PackageVersion Include="Xamarin.AndroidX.Lifecycle.Process" Version="2.11.0.1" />
 		<!--
 			Fragment.Ktx 1.8.x and Fragment 1.9.0 both carry androidx.fragment.app.FragmentKt, and D8 stops
 			on the duplicate. Pinning the Ktx facade to 1.9.0 too lines them up.

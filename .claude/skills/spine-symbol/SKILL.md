@@ -101,7 +101,7 @@ This copies the file to `Images/Wallet.svg` and regenerates the constants and th
   grep -rni "<old>.svg\|SpineIcons.<Old>" --exclude-dir=bin --exclude-dir=obj src samples docs .claude
   ```
 
-  Then run `install` again (or edit `SpineIcons.cs`), so that the constants and the count match the files.
+  Then run `install` again (or edit `SpineIcons.cs`, giving the constant a `<summary>` like the others), so that the constants and the count match the files.
 - If the icon list in the package README or `docs/wiki/svg.md` names the kinds of glyph, add the new kind when it is a new category.
 
 Build the package to confirm it still embeds everything, using the SDK with the MAUI workloads:

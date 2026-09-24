@@ -12,6 +12,7 @@ public static class PackageFiles
     /// and again whenever the package's copy changed size (a new build).
     /// </summary>
     /// <param name="fileName">The package file name, e.g. <c>"map.png"</c>.</param>
+    /// <param name="cancellationToken">Cancels the copy.</param>
     public static async Task<string> CachedPathAsync(string fileName, CancellationToken cancellationToken = default)
     {
         var target = Path.Combine(FileSystem.CacheDirectory, "spine-package", fileName);

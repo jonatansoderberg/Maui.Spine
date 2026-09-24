@@ -285,9 +285,9 @@ public sealed class SvgIcon
         matrix = matrix.PostConcat(SKMatrix.CreateTranslation(tx, ty));
 
         if (paint is null)
-            canvas.DrawPicture(picture, ref matrix);
+            canvas.DrawPicture(picture, in matrix);
         else
-            canvas.DrawPicture(picture, ref matrix, paint);
+            canvas.DrawPicture(picture, in matrix, paint);
     }
 
     // =========================================================

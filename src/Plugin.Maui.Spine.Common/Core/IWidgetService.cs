@@ -31,6 +31,7 @@ public interface IWidgetService
     /// </summary>
     /// <param name="fileName">The package file name, e.g. <c>"logo.png"</c>.</param>
     /// <param name="assetId">The asset id to store it under; defaults to <paramref name="fileName"/>.</param>
+    /// <param name="cancellationToken">Cancels the write.</param>
     Task StorePackageAssetAsync(string fileName, string? assetId = null, CancellationToken cancellationToken = default);
 
     /// <summary>The URL <see cref="WidgetTimeline.OpenUrl"/> should use to open the app at <paramref name="kind"/>.</summary>

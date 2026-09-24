@@ -1,5 +1,6 @@
 using Android.Content.Res;
 using Android.Graphics.Drawables;
+using AndroidX.Core.Content;
 using AndroidX.Core.View;
 using AndroidX.Core.View.Accessibility;
 using Microsoft.Maui.Platform;
@@ -79,7 +80,7 @@ internal sealed partial class TapState
         var value = new Android.Util.TypedValue();
         if (host.Context?.Theme?.ResolveAttribute(Android.Resource.Attribute.ColorControlHighlight, value, true) == true)
         {
-            if (value.ResourceId != 0 && host.Context.GetColorStateList(value.ResourceId) is { } list)
+            if (value.ResourceId != 0 && ContextCompat.GetColorStateList(host.Context, value.ResourceId) is { } list)
                 return new Android.Graphics.Color(list.DefaultColor);
 
             return new Android.Graphics.Color(value.Data);
@@ -148,12 +149,15 @@ public static partial class Semantic
 
         public bool Enabled { get; set; } = true;
 
-        public override void OnInitializeAccessibilityNodeInfo(AView host, AccessibilityNodeInfoCompat info)
+        public override void OnInitializeAccessibilityNodeInfo(AView? host, AccessibilityNodeInfoCompat? info)
         {
             if (inner is not null)
                 inner.OnInitializeAccessibilityNodeInfo(host, info);
             else
                 base.OnInitializeAccessibilityNodeInfo(host, info);
+
+            if (info is null)
+                return;
 
             if (Toggled is { } on)
             {
