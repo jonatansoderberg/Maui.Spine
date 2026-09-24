@@ -46,7 +46,7 @@ internal sealed class SystemInsetsProvider : Java.Lang.Object, ISystemInsetsProv
         var rootInsets = ViewCompat.GetRootWindowInsets(decorView);
         if (rootInsets is not null)
         {
-            var bars = rootInsets.GetInsets(WindowInsetsCompat.Type.SystemBars()) ?? AndroidX.Core.Graphics.Insets.None;
+            var bars = rootInsets.GetInsets(WindowInsetsCompat.Type.SystemBars())!;
 
             _systemBarInsets = new Thickness(
                 bars.Left / density,
@@ -97,7 +97,7 @@ internal sealed class SystemInsetsProvider : Java.Lang.Object, ISystemInsetsProv
         v.SetPadding(0, 0, 0, 0);
 
         var density = (double)(v.Resources?.DisplayMetrics?.Density ?? 1f);
-        var bars = insets.GetInsets(WindowInsetsCompat.Type.SystemBars()) ?? AndroidX.Core.Graphics.Insets.None;
+        var bars = insets.GetInsets(WindowInsetsCompat.Type.SystemBars())!;
 
         var newInsets = new Thickness(
             bars.Left / density,

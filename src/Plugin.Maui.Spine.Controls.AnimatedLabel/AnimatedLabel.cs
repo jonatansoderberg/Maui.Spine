@@ -255,8 +255,7 @@ public sealed class AnimatedLabel : SKCanvasView
     // Reused paint object: no per-frame allocation.
     private readonly SKPaint _imagePaint = new()
     {
-        IsAntialias = true,
-        FilterQuality = SKFilterQuality.High
+        IsAntialias = true
     };
 
     private static readonly SKSamplingOptions Sampling = new(SKFilterMode.Linear);

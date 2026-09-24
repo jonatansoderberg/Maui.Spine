@@ -95,8 +95,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             return;
 
         // The shown page's StatusBarStyle wins; Default follows the theme as before.
-        var insetsController = WindowCompat.GetInsetsController(activityWindow, decorView);
-        insetsController.AppearanceLightStatusBars = !StatusBar.WantsLightContent(StatusBar.Current);
+        WindowCompat.GetInsetsController(activityWindow, decorView)?.AppearanceLightStatusBars = !StatusBar.WantsLightContent(StatusBar.Current);
     }
 
     private void RegisterRootRegionBackHandler()

@@ -37,13 +37,11 @@ public static partial class SpineExtensions
         if (!Text.GetTrimToCapHeight(label))
             return;
 
-        var paint = textView.Paint;
-        if (paint is null)
+        if (textView.Paint is not { } paint || paint.GetFontMetrics() is not { } metrics)
             return;
 
         // TextView lays the first and last line out with Top/Bottom (font padding included),
         // and Android has no cap-height metric, so measure a capital.
-        var metrics = paint.GetFontMetrics();
         var bounds = new Android.Graphics.Rect();
         paint.GetTextBounds("H", 0, 1, bounds);
 

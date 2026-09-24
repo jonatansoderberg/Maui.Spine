@@ -19,7 +19,7 @@ namespace Plugin.Maui.Spine.Svg;
 public static class SvgBitmapLoader
 {
     /// <summary>
-    /// Optional registry set by <see cref="MauiAppBuilderExtensions.UseEmbeddedSvgImages"/>.
+    /// Optional registry set by <see cref="MauiAppBuilderExtensions.UseEmbeddedSvgImages(MauiAppBuilder)"/>.
     /// When set, stream resolution for embedded SVGs is delegated here first.
     /// </summary>
     internal static ResourceNameCache? Registry { get; set; }

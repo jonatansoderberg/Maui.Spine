@@ -619,26 +619,3 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     internal static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 }
-
-
-public static class User32
-{
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
-        int X, int Y, int cx, int cy, uint uFlags);
-
-    public const int GWL_STYLE = -16;
-    public const int WS_CAPTION = 0x00C00000;
-    public const int WS_SYSMENU = 0x00080000;
-    public const uint SWP_NOMOVE = 0x0002;
-    public const uint SWP_NOSIZE = 0x0001;
-    public const uint SWP_NOZORDER = 0x0004;
-    public const uint SWP_FRAMECHANGED = 0x0020;
-}

@@ -272,7 +272,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     {
         // Keep height fixed for consistency; allow width to be measured by content so text-only actions size dynamically.
 
-        var buttonGrid = Content as Grid;
+        if (Content is not Grid buttonGrid)
+            return;
 
         if (Presentation is NavigationPresentation.Sheet)
         {

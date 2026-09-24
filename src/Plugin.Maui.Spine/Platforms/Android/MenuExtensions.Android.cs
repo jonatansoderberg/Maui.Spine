@@ -64,10 +64,11 @@ public static partial class SpineExtensions
 
             if (OperatingSystem.IsAndroidVersionAtLeast(29))
                 popup.SetForceShowIcon(true);
+            var menu = popup.Menu!;
             if (OperatingSystem.IsAndroidVersionAtLeast(28))
-                popup.Menu.SetGroupDividerEnabled(true);
+                menu.SetGroupDividerEnabled(true);
 
-            Fill(popup.Menu, Items, 0, ref nextGroup, actions);
+            Fill(menu, Items, 0, ref nextGroup, actions);
 
             popup.MenuItemClick += (_, e) =>
             {
@@ -91,12 +92,12 @@ public static partial class SpineExtensions
                     case MenuSection section:
                         var sectionGroup = nextGroup++;
                         if (!string.IsNullOrEmpty(section.Title))
-                            menu.Add(sectionGroup, AView.GenerateViewId(), Menu.None, section.Title)!.SetEnabled(false);
+                            menu.Add(sectionGroup, AView.GenerateViewId(), IMenu.None, section.Title)!.SetEnabled(false);
                         Fill(menu, section.Items, sectionGroup, ref nextGroup, actions);
                         break;
 
                     case SubMenu subMenu:
-                        var sub = menu.AddSubMenu(group, AView.GenerateViewId(), Menu.None, subMenu.Title)!;
+                        var sub = menu.AddSubMenu(group, AView.GenerateViewId(), IMenu.None, subMenu.Title)!;
                         if (Icon(subMenu.Svg) is { } icon)
                             sub.SetIcon(icon);
                         Fill(sub, subMenu.Items, 0, ref nextGroup, actions);
@@ -115,7 +116,7 @@ public static partial class SpineExtensions
         void AddAction(IMenu menu, MenuAction action, MenuPicker? picker, int group, Dictionary<int, (MenuAction, MenuPicker?)> actions)
         {
             var id = AView.GenerateViewId();
-            var item = menu.Add(group, id, Menu.None, Title(action))!;
+            var item = menu.Add(group, id, IMenu.None, Title(action))!;
 
             item.SetEnabled(action.IsEnabled);
 
