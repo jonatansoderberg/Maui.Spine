@@ -101,7 +101,7 @@ Marked days: the calendar never holds events; set `MarkSource` to an `ICalendarM
 
 ## DataGrid (`Plugin.Maui.Spine.Controls.DataGrid`)
 
-A row grid on `CollectionView`: fixed-height rows, sorting, grouping, swipe actions, load more, pull-to-refresh. No registration (its `DataGrid.*` strings register on first use); XAML namespace `Plugin.Maui.Spine.Controls` (assembly `Plugin.Maui.Spine.Controls.DataGrid`). Columns say WHAT the data is (`Key`, `Header`, `BindingPath`, `Type` = Text/Number/Date/Price/Image/Glyph/Checkbox/Template, `IsSortable`, `SortMemberPath`, `CellCommand` for a link cell); named layouts say WHERE (`DataGridCellPlacement` Row/Column/spans), switched by `LayoutMode` from a VisualStateManager setter (`DataGrid.LayoutMode`, type-qualified).
+A row grid on `CollectionView`: fixed-height rows, sorting, grouping, swipe actions, load more, pull-to-refresh. `UseSpine()` registers it (`UseDataGrid()` without Spine: on Android it keeps row swipes out of scrolls; strings register on first use); a drag only swipes a row when it is mostly sideways; XAML namespace `Plugin.Maui.Spine.Controls` (assembly `Plugin.Maui.Spine.Controls.DataGrid`). Columns say WHAT the data is (`Key`, `Header`, `BindingPath`, `Type` = Text/Number/Date/Price/Image/Glyph/Checkbox/Template, `IsSortable`, `SortMemberPath`, `CellCommand` for a link cell); named layouts say WHERE (`DataGridCellPlacement` Row/Column/spans), switched by `LayoutMode` from a VisualStateManager setter (`DataGrid.LayoutMode`, type-qualified).
 
 ```xml
 <DataGrid x:Name="Orders" ItemsSource="{Binding Orders}" RowTappedCommand="{Binding OpenCommand}"

@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseDataGrid() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Controls.DataGrid" Register="Plugin.Maui.Spine.Controls.DataGridExtensions.UseDataGrid" />
+	</ItemGroup>
+</Project>

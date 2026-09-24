@@ -36,7 +36,7 @@ The MAUI packages target `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`
 
 ## 2. Register in `MauiProgram.cs`
 
-`UseSpine` registers every Spine package the app references — the SVG pipeline, Widgets, PushNotifications, AnimatedLabel; Calendar, DataGrid and HeroCollectionView need no registration at all. The list is generated at build time by `Plugin.Maui.Spine`'s build targets (no scanning at startup). Call a package's `UseXxx(o => …)` only to set its options; the order does not matter — every call configures the same options instance, before or after `UseSpine`.
+`UseSpine` registers every Spine package the app references — the SVG pipeline, Widgets, PushNotifications, AnimatedLabel, DataGrid; Calendar and HeroCollectionView need no registration at all. The list is generated at build time by `Plugin.Maui.Spine`'s build targets (no scanning at startup). Call a package's `UseXxx(o => …)` only to set its options; the order does not matter — every call configures the same options instance, before or after `UseSpine`.
 
 ```csharp
 using Plugin.Maui.Spine.Extensions;

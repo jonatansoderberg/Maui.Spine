@@ -31,7 +31,7 @@ A `DataGridColumn` has no position. Each named `DataGridLayout` places columns w
 
 ## Registration
 
-None. The grid's texts register themselves the first time a grid is created (see [Text](#text)), and it depends on `Plugin.Maui.Spine` only for the theme signal, the style-options chain and the string store. Add the namespace to the app's global XAML namespace:
+`UseSpine()` registers the grid, through `UseDataGrid()`: on Android that adds the view that keeps a row's swipe out of a scroll (see [Swipe actions](#swipe-actions)). An app without `UseSpine()` calls `builder.UseDataGrid()` itself; without it the grid works, but Android rows swipe as MAUI's `SwipeView` does on its own. The grid's texts register themselves the first time a grid is created (see [Text](#text)), and it depends on `Plugin.Maui.Spine` only for the theme signal, the style-options chain and the string store. Add the namespace to the app's global XAML namespace:
 
 ```csharp
 [assembly: XmlnsDefinition(
@@ -194,7 +194,11 @@ Groups are sorted by their text, the local sort applies within each group, and s
 </DataGrid.RightSwipeActions>
 ```
 
-Rows are only wrapped in a `SwipeView` when a grid has actions. The command parameter is the row item or the value at `CommandParameterPath`; `IsVisiblePath` and `IsEnabledPath` are bool paths on the row item for actions that apply to some rows only. `IconSvg` takes an embedded SVG (tinted with the text colour), or `IconGlyph` with `IconFontFamily` an icon-font glyph.
+Rows are only wrapped in a `SwipeView` when a grid has actions.
+
+A drag only becomes a swipe when it goes mostly sideways (within about 34° of the horizontal), measured once the finger has moved as far as a scroll needs: about 10 points on iOS, the system's touch slop on Android. Anything steeper is the list's for the whole drag, so a scroll that wobbles sideways never moves a row, and a row does not take a scroll that starts at a slight angle. A swipe that has started holds the list still. An open row can be dragged closed in any direction. On their own, MAUI's `SwipeView`s pick the direction from the first move: on iOS rows slid sideways while the list scrolled, and on Android the row took the whole drag and the list did not move.
+
+The command parameter is the row item or the value at `CommandParameterPath`; `IsVisiblePath` and `IsEnabledPath` are bool paths on the row item for actions that apply to some rows only. `IconSvg` takes an embedded SVG (tinted with the text colour), or `IconGlyph` with `IconFontFamily` an icon-font glyph.
 
 ## Pull-to-refresh and load more
 
