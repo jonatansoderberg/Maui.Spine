@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="DataGrid.Loading">Loading…</s>
+  <s key="DataGrid.Empty">No items</s>
+  <s key="DataGrid.LoadMore">Load more</s>
+  <s key="DataGrid.Status.More">Showing {0}</s>
+  <s key="DataGrid.Status.Loaded.one">{0} item</s>
+  <s key="DataGrid.Status.Loaded.other">{0} items</s>
+  <s key="DataGrid.Status.LoadedOfTotal">{0} of {1}</s>
+  <s key="DataGrid.Copied">Copied</s>
+  <s key="DataGrid.Header.SortedAscending">{0}, sorted ascending</s>
+  <s key="DataGrid.Header.SortedDescending">{0}, sorted descending</s>
+  <s key="DataGrid.Header.SortHint">Changes the sort order</s>
+  <s key="DataGrid.Group.Expanded">{0}, expanded</s>
+  <s key="DataGrid.Group.Collapsed">{0}, collapsed</s>
+  <s key="DataGrid.Group.ToggleHint">Shows or hides the group's rows</s>
+  <s key="DataGrid.Ungrouped">Other</s>
+</strings>
