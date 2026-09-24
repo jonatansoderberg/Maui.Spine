@@ -9,7 +9,7 @@ namespace Plugin.Maui.Spine.Presentation;
 /// <see cref="NavigationRegion"/>. The title label is bound to the page's ViewModel
 /// and its visibility is driven by <see cref="Plugin.Maui.Spine.Core.ViewModelBase.IsHeaderBarVisible"/>.
 /// </summary>
-internal sealed class PagePresenter : Grid
+internal sealed partial class PagePresenter : Grid
 {
     private const string HeaderBarTitleStyleKey = "HeaderBarTitle";
 
@@ -195,6 +195,8 @@ internal sealed class PagePresenter : Grid
             ApplyPageLayout();
         else if (e.PropertyName is nameof(ViewModelBase.HeaderBarCollapseProgress) or nameof(ViewModelBase.ScrollEdgeProgress))
             ApplyCollapse();
+        else if (e.PropertyName is nameof(ViewModelBase.HeaderBarScrollSource))
+            UpdateSystemScrollEdge();
     }
 
     private void ApplyPageLayout()
@@ -215,7 +217,19 @@ internal sealed class PagePresenter : Grid
         ApplyTitleTextColor();
         ApplyBarBackgroundColor();
         ApplyCollapse();
+        UpdateSystemScrollEdge();
     }
+
+    /// <summary>Installs or removes UIKit's scroll edge effect for the page; iOS and Mac Catalyst 26 only.</summary>
+    partial void UpdateSystemScrollEdge();
+
+    /// <summary>The background the page asked for, as far as this presenter paints it.</summary>
+    private HeaderBarBackground Background =>
+        _page is { HeaderBarFloats: true } page ? page.EffectiveHeaderBarBackground : HeaderBarBackground.Clear;
+
+    /// <summary>Whether UIKit draws this page's background: the system scroll edge effect.</summary>
+    private bool UsesSystemScrollEdge =>
+        Background == HeaderBarBackground.ScrollEdge && Services.NavigableMeta.HasSystemScrollEdge;
 
     // A large title's header shows its title as far as the page has scrolled, and a solid
     // background behind a floating header fades in the same way; otherwise the title is shown
@@ -236,13 +250,50 @@ internal sealed class PagePresenter : Grid
         _barBackground.Opacity = edge;
     }
 
+    // Solid, or the band that stands in for the scroll edge effect where the system has none.
     private bool HasSolidBackground() =>
-        _page is { HeaderBarFloats: true, EffectiveHeaderBarBackground: HeaderBarBackground.Solid };
+        Background is HeaderBarBackground.Solid || (Background is HeaderBarBackground.ScrollEdge && !UsesSystemScrollEdge);
+
+    /// <summary>How far the stand-in band fades out below the bar.</summary>
+    private const double ScrollEdgeBandFade = 24;
+
+    /// <summary>How opaque the stand-in band is behind the bar: rows stay faintly visible through it.</summary>
+    private const float ScrollEdgeBandAlpha = 0.9f;
 
     private void ApplyBarBackgroundColor()
     {
-        if (HasSolidBackground())
-            _barBackground.Color = PageBackground();
+        if (!HasSolidBackground())
+            return;
+
+        var colour = PageBackground();
+
+        if (Background is HeaderBarBackground.Solid)
+        {
+            _barBackground.Background = null;
+            _barBackground.Color = colour;
+            _barBackground.HeightRequest = -1;
+            _barBackground.VerticalOptions = LayoutOptions.Fill;
+            Grid.SetRowSpan(_barBackground, 1);
+            return;
+        }
+
+        // The stand-in for the scroll edge effect: the page's colour, slightly see-through behind
+        // the bar, fading out below it so rows dissolve into the bar instead of meeting an edge.
+        var bar = RowDefinitions[0].Height.Value;
+        var height = bar + ScrollEdgeBandFade;
+        var tint = colour.WithAlpha(ScrollEdgeBandAlpha);
+
+        _barBackground.Color = null;
+        _barBackground.Background = new LinearGradientBrush(
+            [
+                new GradientStop(tint, 0),
+                new GradientStop(tint, (float)(bar / height)),
+                new GradientStop(colour.WithAlpha(0), 1),
+            ],
+            new Point(0, 0), new Point(0, 1));
+        _barBackground.HeightRequest = height;
+        _barBackground.VerticalOptions = LayoutOptions.Start;
+        Grid.SetRowSpan(_barBackground, 2);
     }
 
     /// <summary>
@@ -289,6 +340,7 @@ internal sealed class PagePresenter : Grid
 
         var overlayInset = _page?.HeaderBarFloats == true ? _page.SystemBarInsets.Top : 0;
         RowDefinitions[0].Height = new GridLength(HeaderBarConstants.Height + overlayInset);
+        ApplyBarBackgroundColor();
     }
 
     private void ApplyResources()

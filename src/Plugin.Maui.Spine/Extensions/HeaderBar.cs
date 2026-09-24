@@ -6,8 +6,8 @@ namespace Plugin.Maui.Spine.Extensions;
 
 /// <summary>
 /// Attached properties, set on the page, for a header that follows the page's scroll: a large title
-/// (<see cref="NavigableAttribute.LargeTitle"/>) or a floating header with a solid background
-/// (<see cref="HeaderBarBackground.Solid"/>). Which view it follows, and how far that view scrolls
+/// (<see cref="NavigableAttribute.LargeTitle"/>), or content scrolling under the bar with a
+/// <see cref="HeaderBarBackground.Solid"/> or <see cref="HeaderBarBackground.ScrollEdge"/> background. Which view it follows, and how far that view scrolls
 /// before a large title has collapsed.
 /// </summary>
 /// <example>
@@ -138,6 +138,7 @@ public static class HeaderBar
             }
 
             _source = source;
+            viewModel.HeaderBarScrollSource = source;
             SafeArea.SetScrollInset(source, SafeArea.GetScrollInset(source) | SafeAreaEdges.Top);
 
             switch (source)
@@ -166,6 +167,7 @@ public static class HeaderBar
             }
 
             _source = null;
+            viewModel.HeaderBarScrollSource = null;
         }
 
         void OnDescendantAdded(object? sender, ElementEventArgs e)

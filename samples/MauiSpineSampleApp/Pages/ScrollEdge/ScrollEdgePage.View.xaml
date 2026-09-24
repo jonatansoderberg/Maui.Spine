@@ -1,0 +1,31 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.ScrollEdge.ScrollEdgePage"
+    x:TypeArguments="ScrollEdgePageViewModel"
+    x:DataType="ScrollEdgePageViewModel">
+
+    <!-- The list fills the page from the top, so it scrolls under the header bar; Spine gives it
+         the top inset, so the first row starts below the bar at rest. -->
+    <CollectionView ItemsSource="{Binding Rows}" SafeArea.ScrollInset="Bottom">
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="16,8,16,12" Spacing="8">
+                <PackageChips Packages="Plugin.Maui.Spine" />
+                <Label Text="HeaderBarBackground.ScrollEdge: content scrolls under the header bar and stays half visible behind a soft edge. On iOS 26 UIKit draws it, as behind a navigation bar, and Auto turns it on for list pages. Android and Windows get a band in the page colour that fades out below the bar. Reduce Transparency gives a solid bar."
+                       FontSize="14" />
+                <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                    <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                           Text="// iOS 26: automatic for a page whose list&#10;// fills it from the top. Explicit:&#10;[NavigableRegion(Title = &quot;Inbox&quot;,&#10;  HeaderBarBackground =&#10;    HeaderBarBackground.ScrollEdge)]&#10;&#10;// App-wide:&#10;options.RegionDefaults.HeaderBarBackground =&#10;  HeaderBarBackground.Solid;   // opt out&#10;&#10;// Scroll source: HeaderBar.ScrollSource,&#10;//   else the first ScrollView/CollectionView.&#10;// Combines with LargeTitle = true.&#10;// Reduce Transparency: Solid instead." />
+                </Border>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="Swatch">
+                <Border Margin="16,6" Padding="16,22" StrokeThickness="0" StrokeShape="RoundRectangle 14" BackgroundColor="{Binding Colour}">
+                    <Label Text="{Binding Name}" TextColor="White" FontAttributes="Bold" FontSize="17" />
+                </Border>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+
+</SpinePage>
