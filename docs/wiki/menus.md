@@ -19,7 +19,7 @@ submenus and destructive rows.
 var filter = new MenuPicker(FilterCommand)
 {
     new MenuAction("All items", "house.svg") { IsChecked = true },
-    new MenuAction("Favourites", "done.svg"),
+    new MenuAction("Favourites", "star.svg"),
     new MenuAction("Edited", "edit.svg"),
 };
 

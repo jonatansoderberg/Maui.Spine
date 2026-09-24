@@ -67,7 +67,7 @@ After that an icon is available by short name (e.g. `"myicon.svg"`) — no other
 
 ### The built-in icon set
 
-`Plugin.Maui.Spine.Svg.Icons` carries 166 ready-made icons — UI glyphs, rooms and appliances, media controls, weather symbols and status badges:
+`Plugin.Maui.Spine.Svg.Icons` carries 218 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Svg.Icons
