@@ -86,7 +86,7 @@ public class SpineRow : ContentView
 
     /// <summary>
     /// Draws the detail with <see cref="AnimatedLabel"/>, which scrolls text that does not fit instead
-    /// of truncating it. Needs <c>UseAnimatedLabel()</c> (SkiaSharp) in the app's builder.
+    /// of truncating it. Needs SkiaSharp: <c>UseSpine()</c> registers it, or <c>UseAnimatedLabel()</c> without Spine.
     /// </summary>
     public bool DetailMarquee
     {

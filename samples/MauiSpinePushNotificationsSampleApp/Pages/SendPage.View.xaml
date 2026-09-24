@@ -18,10 +18,11 @@
             <Picker ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" />
             <Label Text="{Binding Explanation}" FontSize="12" TextColor="Gray" />
 
-            <Grid ColumnDefinitions="*,Auto">
-                <Label Text="Only to this device" VerticalOptions="Center" />
-                <Switch Grid.Column="1" IsToggled="{Binding ToMe}" />
-            </Grid>
+            <SpineRow Title="Only to this device">
+                <SpineRow.Accessory>
+                    <Switch IsToggled="{Binding ToMe}" />
+                </SpineRow.Accessory>
+            </SpineRow>
 
             <Label Text="Tag expression" />
             <Entry Text="{Binding TagExpression}" IsEnabled="{Binding ToTags}" />
@@ -44,15 +45,17 @@
             <Label Text="Picture" IsVisible="{Binding ShowChannel}" />
             <Entry Text="{Binding Image}" Placeholder="https://…" Keyboard="Url" IsVisible="{Binding ShowChannel}" />
 
-            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ShowPriority}">
-                <Label Text="High priority" VerticalOptions="Center" />
-                <Switch Grid.Column="1" IsToggled="{Binding HighPriority}" />
-            </Grid>
+            <SpineRow Title="High priority" IsVisible="{Binding ShowPriority}">
+                <SpineRow.Accessory>
+                    <Switch IsToggled="{Binding HighPriority}" />
+                </SpineRow.Accessory>
+            </SpineRow>
 
-            <Grid ColumnDefinitions="*,Auto">
-                <Label Text="Wait 5 seconds before sending" VerticalOptions="Center" />
-                <Switch Grid.Column="1" IsToggled="{Binding Delay}" />
-            </Grid>
+            <SpineRow Title="Wait 5 seconds before sending">
+                <SpineRow.Accessory>
+                    <Switch IsToggled="{Binding Delay}" />
+                </SpineRow.Accessory>
+            </SpineRow>
 
             <Button Text="Send" Command="{Binding SendCommand}" Margin="0,8,0,0" />
             <Label Text="{Binding Result}" FontSize="12" />

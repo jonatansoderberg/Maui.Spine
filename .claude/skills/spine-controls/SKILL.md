@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers and week numbers), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers and week numbers), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), SpineRow (settings and key/value rows), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -119,6 +119,19 @@ A row grid on `CollectionView`: fixed-height rows, sorting, grouping, swipe acti
 
 `Width="Auto"` in a layout fits the widest header or value (measured, shared by every row); star columns truncate. `GroupByPath` groups with expandable headers (not together with load more). Rows bind by path through reflection: fine under MAUI's default partial trimming, preserve the row type's properties for full trimming or Native AOT. Colours follow the theme via `DataGridStyleOptions` (resource `DefaultDataGridStyleOptions`). See docs/wiki/data-grid.md.
 
+## Rows, Tap.Command and Semantic.Merge (`Plugin.Maui.Spine.Controls.Rows`, `Plugin.Maui.Spine`)
+
+`Tap.Command` / `Tap.CommandParameter` on any view: the whole view is the target, with native press feedback (iOS highlight, Android ripple, Windows hover/pressed), inner controls keep their touches, runs only when enabled and `CanExecute`. Use it instead of a `TapGestureRecognizer` plus `BackgroundColor="Transparent"`. `Semantic.Merge="True"` on a layout: children leave the accessibility tree, their texts (own `SemanticProperties.Description`, else `Label.Text`) join into one description; a `Switch` inside makes it a toggle, `Tap.Command` a button. Both in `Plugin.Maui.Spine.Extensions`; not `Semantics` (clashes with `Microsoft.Maui.Semantics`).
+
+`SpineRow` (namespace `Plugin.Maui.Spine.Controls`, assembly `Plugin.Maui.Spine.Controls.Rows`, no registration): `Icon` (SVG), `Title`, `Detail` (`DetailMarquee` for AnimatedLabel), `Value`, `Accessory`, `ShowChevron` (auto with a command), `Command`. A switch accessory without a command toggles on row tap. Always merged. No background or separators; put rows in a card. `SpineRowStyleOptions` / `DefaultSpineRowStyleOptions` for fonts and colours.
+
+```xml
+<SpineRow Icon="lamp.svg" Title="Appearance" Value="{Binding Theme}" Command="{Binding PickThemeCommand}" />
+<SpineRow Icon="bell.svg" Title="Notifications"><SpineRow.Accessory><Switch IsToggled="{Binding Notify}" /></SpineRow.Accessory></SpineRow>
+<SpineRow Title="Version" Value="1.0" />
+<Border Tap.Command="{Binding OpenCommand}" Tap.CommandParameter="{Binding .}" Semantic.Merge="True">...</Border>
+```
+
 ## Menu buttons (`Plugin.Maui.Spine`)
 
 `MenuButton.Items` on a `Button` or `ImageButton` (and `PageAction.Menu` for header actions) opens the platform's menu: `MenuItems` of `MenuAction` (Title, Svg, Command, IsChecked, IsEnabled, IsDestructive, KeepsMenuOpen), `MenuSection`, `SubMenu`, `MenuPicker` (single selection, `Selected`, a command run with the pick). A menu button has no Command. `MenuButton.ShowsSelection` makes the button text follow the pick. See docs/wiki/menus.md.
@@ -134,5 +147,6 @@ A control never hard-codes words. It reads `SpineStrings.Current["Calendar.Today
 - HeroCollectionView: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/hero-collection-view.md
 - AnimatedLabel: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/animated-label.md
 - Calendar: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/calendar.md
+- Rows and taps: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/rows.md
 - DataGrid: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/data-grid.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp

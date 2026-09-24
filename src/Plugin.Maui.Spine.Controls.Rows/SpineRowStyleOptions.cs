@@ -59,18 +59,6 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
         DetailColor ??= Color.FromArgb(dark ? "#98989F" : "#8A8A8E");
         ValueColor ??= DetailColor;
         ChevronColor ??= Color.FromArgb(dark ? "#5A5A5F" : "#C4C4C7");
-        IconColor ??= AppAccent(dark) ?? Color.FromArgb(dark ? "#0A84FF" : "#007AFF");
-    }
-
-    private static Color? AppAccent(bool dark)
-    {
-        var resources = Application.Current?.Resources;
-        if (resources is null)
-            return null;
-
-        if (dark && resources.TryGetValue("PrimaryDark", out var primaryDark) && primaryDark is Color darkColor)
-            return darkColor;
-
-        return resources.TryGetValue("Primary", out var primary) && primary is Color color ? color : null;
+        IconColor ??= SpineTheme.GetAccent(theme) ?? Color.FromArgb(dark ? "#0A84FF" : "#007AFF");
     }
 }
