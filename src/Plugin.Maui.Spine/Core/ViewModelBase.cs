@@ -109,18 +109,22 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     internal partial double ScrollEdgeProgress { get; set; }
 
-    /// <summary>Whether content starts at the top of the screen and scrolls under the header bar.</summary>
-    internal bool HeaderBarFloats => HeaderBarMode == HeaderBarMode.Overlay || LargeTitle;
+    /// <summary>
+    /// The background resolved from <see cref="HeaderBarBackground"/> for this page when Spine
+    /// applied its attribute: never <see cref="HeaderBarBackground.Auto"/>.
+    /// </summary>
+    internal HeaderBarBackground EffectiveHeaderBarBackground { get; set; } = HeaderBarBackground.Clear;
 
-    /// <summary>The background resolved from <see cref="HeaderBarBackground"/> for this page.</summary>
-    internal HeaderBarBackground EffectiveHeaderBarBackground => HeaderBarBackground switch
-    {
-        HeaderBarBackground.Auto => HeaderBarMode == HeaderBarMode.Overlay ? HeaderBarBackground.Clear : HeaderBarBackground.Solid,
-        var chosen => chosen,
-    };
+    /// <summary>Whether content starts at the top of the screen and scrolls under the header bar.</summary>
+    internal bool HeaderBarFloats =>
+        HeaderBarMode == HeaderBarMode.Overlay || LargeTitle || EffectiveHeaderBarBackground == HeaderBarBackground.ScrollEdge;
 
     /// <summary>Whether Spine follows the page's scroll offset: for the title, the background, or both.</summary>
-    internal bool FollowsScroll => HeaderBarFloats && (LargeTitle || EffectiveHeaderBarBackground == HeaderBarBackground.Solid);
+    internal bool FollowsScroll => HeaderBarFloats && (LargeTitle || EffectiveHeaderBarBackground != HeaderBarBackground.Clear);
+
+    /// <summary>The view whose scroll offset the header follows, once Spine has found it.</summary>
+    [ObservableProperty]
+    internal partial View? HeaderBarScrollSource { get; set; }
 
     /// <summary>A fixed colour for the header bar's title and action icons, or <see langword="null"/> to follow the theme.</summary>
     [ObservableProperty]

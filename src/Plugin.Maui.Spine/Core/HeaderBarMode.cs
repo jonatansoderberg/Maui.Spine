@@ -25,7 +25,9 @@ public enum HeaderBarBackground
 {
     /// <summary>
     /// <see cref="Clear"/> under an <see cref="HeaderBarMode.Overlay"/> header, whose page draws its
-    /// own top; <see cref="Solid"/> otherwise.
+    /// own top. On iOS and Mac Catalyst 26, <see cref="ScrollEdge"/> for a region or tab page whose
+    /// scroll view fills it from the top (so nothing that does not scroll ends up under the bar);
+    /// <see cref="Solid"/> otherwise.
     /// </summary>
     Auto,
 
@@ -37,6 +39,15 @@ public enum HeaderBarBackground
 
     /// <summary>Nothing: content shows through the bar at every offset.</summary>
     Clear,
+
+    /// <summary>
+    /// Content scrolls under the bar and stays half visible behind a soft edge: the iOS 26 scroll
+    /// edge effect, drawn by UIKit as it does for a navigation bar. Lays the page out under the bar
+    /// like <see cref="HeaderBarMode.Overlay"/>. Where the system effect does not exist (Android,
+    /// Windows) a band in the page's background colour that fades out below the bar stands in; on
+    /// iOS and Mac Catalyst before 26, and with Reduce Transparency on, it is <see cref="Solid"/>.
+    /// </summary>
+    ScrollEdge,
 }
 
 /// <summary>The colour of the status bar's clock and icons while a page is shown.</summary>

@@ -133,6 +133,15 @@
       <DependentUpon>CollapsingPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\ScrollEdge\ScrollEdgePage.View.xaml">
+      <DependentUpon>ScrollEdgePage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\ScrollEdge\ScrollEdgePage.ViewModel.cs">
+      <DependentUpon>ScrollEdgePage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Lifetime\LifetimePage.View.xaml">
       <DependentUpon>LifetimePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

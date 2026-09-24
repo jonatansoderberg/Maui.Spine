@@ -47,6 +47,8 @@ internal static class NavigableMeta
             vm.ScrollInset = sheetMeta.ScrollInset;
         }
 
+        vm.EffectiveHeaderBarBackground = ResolveBackground(view, vm, meta);
+
         // Populate raw system bar dimensions and the per-page complement insets.
         var insets = insetsProvider.SystemBarInsets;
         vm.SystemBarInsets = insets;
@@ -62,6 +64,71 @@ internal static class NavigableMeta
 
         if (vm.FollowsScroll)
             HeaderBar.Track(view, vm);
+    }
+
+    /// <summary>
+    /// Resolves <see cref="HeaderBarBackground.Auto"/> and falls back from
+    /// <see cref="HeaderBarBackground.ScrollEdge"/> where it cannot be drawn as asked.
+    /// </summary>
+    static HeaderBarBackground ResolveBackground(View view, ViewModelBase vm, NavigableAttribute meta)
+    {
+        var background = vm.HeaderBarBackground;
+
+        if (background == HeaderBarBackground.Auto)
+        {
+            // Automatic only where the system draws the effect, and only for a page whose scroll
+            // view fills it from the top: anything above the list that does not scroll would
+            // otherwise sit under the bar for good.
+            background = vm.HeaderBarMode == HeaderBarMode.Overlay
+                ? HeaderBarBackground.Clear
+                : HasSystemScrollEdge
+                    && meta.Presentation is not NavigationPresentation.Sheet
+                    && vm.IsHeaderBarVisible
+                    && (HeaderBar.GetScrollSource(view) ?? FindFirstScrollable(view)) is { } source
+                    && FillsFromTop(view, source)
+                        ? HeaderBarBackground.ScrollEdge
+                        : HeaderBarBackground.Solid;
+        }
+
+        if (background == HeaderBarBackground.ScrollEdge && HasSystemScrollEdge is false && IsApple)
+            background = HeaderBarBackground.Solid;
+
+        if (background == HeaderBarBackground.ScrollEdge && ReducedTransparency.IsOn)
+            background = HeaderBarBackground.Solid;
+
+        return background;
+    }
+
+    static bool IsApple => OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst();
+
+    /// <summary>Whether UIKit draws the scroll edge effect: iOS and Mac Catalyst 26.</summary>
+    internal static bool HasSystemScrollEdge =>
+        OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26);
+
+    /// <summary>
+    /// Whether <paramref name="source"/> covers <paramref name="page"/> from its top edge: every
+    /// container between them holds only that branch, or is a grid in which that branch spans all
+    /// rows (a list with a floating button over it).
+    /// </summary>
+    static bool FillsFromTop(Element page, Element source)
+    {
+        for (var child = source; child.Parent is { } parent && !ReferenceEquals(child, page); child = child.Parent)
+        {
+            if (ReferenceEquals(parent, page) || parent is ContentView or Border or ScrollView)
+                continue;
+
+            if (parent is Grid grid && child is BindableObject cell
+                && Grid.GetRow(cell) == 0
+                && Grid.GetRowSpan(cell) >= Math.Max(1, grid.RowDefinitions.Count))
+                continue;
+
+            if (parent is Layout layout && layout.Count == 1)
+                continue;
+
+            return false;
+        }
+
+        return true;
     }
 
     internal static View? FindFirstScrollable(Element root)
