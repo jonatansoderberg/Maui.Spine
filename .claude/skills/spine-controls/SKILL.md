@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -121,6 +121,19 @@ A row grid on `CollectionView`: fixed-height rows, sorting, grouping, swipe acti
 
 `Width="Auto"` in a layout fits the widest header or value (measured, shared by every row); star columns truncate. `GroupByPath` groups with expandable headers (not together with load more). Rows bind by path through reflection: fine under MAUI's default partial trimming, preserve the row type's properties for full trimming or Native AOT. Colours follow the theme via `DataGridStyleOptions` (resource `DefaultDataGridStyleOptions`). See docs/wiki/data-grid.md.
 
+## Shimmer and Skeleton (`Plugin.Maui.Spine.Controls.Shimmer`)
+
+Skeleton loading; no registration call. `Shimmer` shows a placeholder layout (empty `Border`s and `BoxView`s are the blocks, filled with a theme grey when they have no colour) and sweeps a band across it while `IsLoading`. `Skeleton.IsActive` on a real layout hides its leaf views and draws each as a block in its place (labels as bars), so nothing jumps when the data arrives; bind it to the loading flag. Overrides: `Skeleton.Lines` (bars and reserved lines for an empty label; pair with `MaxLines`), `Skeleton.Width` (0–1 fraction or units), `Skeleton.Height`. Band tuning: `WaveWidth` (fraction of the control's width) and `WaveOpacity` (peak alpha) on `Shimmer`, `Skeleton.WaveWidth`/`Skeleton.WaveOpacity` on the layout; everything else in `ShimmerStyleOptions` (instance, or resource `DefaultShimmerStyleOptions`). Reduce Motion gives static blocks.
+
+```xml
+<VerticalStackLayout Skeleton.IsActive="{Binding IsLoading}">
+    <Label Text="{Binding Name}" FontSize="20" />
+    <Label Text="{Binding Bio}" MaxLines="3" Skeleton.Lines="3" />
+</VerticalStackLayout>
+```
+
+Put `Skeleton.IsActive` on a layout (it throws on other views). For a list's first page, fill the items source with empty rows while loading.
+
 ## Menu buttons (`Plugin.Maui.Spine`)
 
 `MenuButton.Items` on a `Button` or `ImageButton` (and `PageAction.Menu` for header actions) opens the platform's menu: `MenuItems` of `MenuAction` (Title, Svg, Command, IsChecked, IsEnabled, IsDestructive, KeepsMenuOpen), `MenuSection`, `SubMenu`, `MenuPicker` (single selection, `Selected`, a command run with the pick). A menu button has no Command. `MenuButton.ShowsSelection` makes the button text follow the pick. See docs/wiki/menus.md.
@@ -137,4 +150,5 @@ A control never hard-codes words. It reads `SpineStrings.Current["Calendar.Today
 - AnimatedLabel: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/animated-label.md
 - Calendar: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/calendar.md
 - DataGrid: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/data-grid.md
+- Shimmer and Skeleton: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/shimmer.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp
