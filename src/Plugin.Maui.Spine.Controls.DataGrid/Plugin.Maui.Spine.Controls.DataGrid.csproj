@@ -28,4 +28,9 @@
 		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
 	</ItemGroup>
 
+	<!-- Declares the package to UseSpine(); see Plugin.Maui.Spine's build\Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
 </Project>

@@ -6,7 +6,7 @@
 dotnet add package Plugin.Maui.Spine.Controls.DataGrid
 ```
 
-No registration is needed.
+`UseSpine()` registers it. Without Spine, call `builder.UseDataGrid()`; it keeps a row's swipe out of a scroll on Android.
 
 ```xml
 <DataGrid ItemsSource="{Binding Orders}" RowTappedCommand="{Binding OpenOrderCommand}">

@@ -396,16 +396,13 @@ public partial class DataGrid
             return rowGrid;
 
         // A SwipeView costs a native container per row, so only pages with actions pay for it.
-        var swipe = new SwipeView { Content = rowGrid };
+        var swipe = CreateSwipeView(rowGrid);
         if (leftActions.Length > 0)
             swipe.LeftItems = BuildSwipeItems(leftActions, options);
         if (rightActions.Length > 0)
             swipe.RightItems = BuildSwipeItems(rightActions, options);
 
-        // A sideways drag is a swipe, not a press held still.
-        swipe.SwipeStarted += (_, _) => CancelRowPress();
-
-        return swipe;
+        return GateSwipe(swipe);
     }
 
     private void OnRowBindingContextChanged(object? sender, EventArgs e)

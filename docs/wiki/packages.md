@@ -51,7 +51,8 @@ PushNotifications                                    AnimatedLabel
 | `Plugin.Maui.Spine.PushNotifications` | Registered; call `UseSpinePushNotifications(o => …)` to set the backend, channels, handler | `UseSpinePushNotifications(o => …)` |
 | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Registered | `UseAnimatedLabel()` |
 | `Plugin.Maui.Spine.Controls.HeroCollectionView` | Nothing | Nothing (`UseHeroCollectionView()` still compiles, and does nothing) |
-| `Plugin.Maui.Spine.Controls.Calendar`, `.DataGrid` | Nothing: strings register from the control's static constructor | Nothing |
+| `Plugin.Maui.Spine.Controls.Calendar` | Nothing: strings register from the control's static constructor | Nothing |
+| `Plugin.Maui.Spine.Controls.DataGrid` | Registered | `UseDataGrid()` (on Android, keeps row swipes out of scrolls; the grid works without it) |
 | `Plugin.Maui.Spine.Controls.Rows` | Nothing (the marquee detail uses AnimatedLabel, which `UseSpine` registers) | Nothing; `UseAnimatedLabel()` for `DetailMarquee` |
 
 Every `UseXxx()` is idempotent. The first call registers the package; a later call only applies its `configure` delegate to the same options instance. An explicit configuring call therefore works before or after `UseSpine()`, and the options end up with both. Settings that decide what gets registered (a widget background-refresh handler, a push handler) are applied after every call, and the platform callbacks read the options when they run, not when they are registered.
@@ -95,7 +96,7 @@ These packages carry MSBuild files that run in the consuming app's build, import
 | Package | What its build files do |
 |---|---|
 | `Plugin.Maui.Spine` | Writes `SpineModules.g.cs` into the app: a `[ModuleInitializer]` that hands each referenced package's registration to `UseSpine()` (from the `SpineModule` items below). Only in an app project; `SpineGenerateModuleRegistrations=false` turns it off |
-| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.Controls.AnimatedLabel` | Declare their `SpineModule` in `<PackageId>.props` |
+| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.Controls.AnimatedLabel`, `.Controls.DataGrid` | Declare their `SpineModule` in `<PackageId>.props` |
 | `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other two contribute |
 | `Plugin.Maui.Spine.Widgets` | Compiles the WidgetKit extension and the bridge framework with `swiftc` on iOS; generates the manifest overlay and provider metadata on Android |
 | `Plugin.Maui.Spine.PushNotifications` | Contributes the `aps-environment` entitlement; compiles the Notification Service Extension on iOS when `SpinePushNotificationsImages` is on |
