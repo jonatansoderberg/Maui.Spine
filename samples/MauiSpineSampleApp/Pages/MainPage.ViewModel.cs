@@ -43,22 +43,23 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     // One row per sample page. Add a page here when it gets a page of its own.
     private static IEnumerable<Item> SampleIndex =>
     [
-        new("Bottom sheets", "Native sheets with detents, blur, full screen, page actions and a footer", "up.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
+        new("Bottom sheets", "Native sheets with detents, blur, full screen, page actions and a footer", "sheet.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
         new("Parameters and results", "Typed navigation parameters and awaited results", "return.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Results.ResultsPage>()),
-        new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "wired.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
+        new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "link.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
         new("Overlay header", "HeaderBarMode.Overlay, HeaderBarForeground and StatusBarStyle over a photo", "cam.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Overlay.OverlayPage>()),
         new("Page lifetime", "Poll, WhileVisible and PageLifetime: work that runs, pauses and stops with the page", "refresh.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Lifetime.LifetimePage>()),
         new("Menu buttons", "A header action, a pop-up button and an icon button that open native menus: sections, pickers, submenus, toggles", "more.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<Menus.MenusPage>()),
-        new("Page actions", "[PageAction] on a command; text, badge, enabled and visibility change live", "more.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<PageActions.PageActionsPage>()),
+        new("Page actions", "[PageAction] on a command; text, badge, enabled and visibility change live", "menu.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<PageActions.PageActionsPage>()),
         new("Liquid Glass", "Button and ImageButton as glass on iOS 26", "water.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg", n => n.NavigateToAsync<Glass.GlassPage>()),
         new("Scroll inset", "SafeArea.ScrollInset: a list that scrolls clear of the bottom bar it draws behind", "vertical.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<ScrollInset.ScrollInsetPage>()),
         new("Typography", "Text.FontFeatures (tabular digits) and Text.TrimToCapHeight", "edit.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Typography.TypographyPage>()),
-        new("AnimatedLabel", "Marquee for text that does not fit, fade on change", "horizontal.svg", "Plugin.Maui.Spine.Controls.AnimatedLabel", n => n.NavigateToAsync<Marquee.MarqueePage>()),
-        new("Calendar", "Month calendar with swipe, year and decade pickers, week numbers, marked days, theme and culture", "calendarday.svg", "Plugin.Maui.Spine.Controls.Calendar", n => n.NavigateToAsync<Dates.DatesPage>()),
-        new("DataGrid", "Rows with named Wide/Narrow layouts, sorting, grouping, swipe actions, load more and pull-to-refresh", "wordclock.svg", "Plugin.Maui.Spine.Controls.DataGrid, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<DataGrid.DataGridPage>()),
+        new("AnimatedLabel", "Marquee for text that does not fit, fade on change", "text.svg", "Plugin.Maui.Spine.Controls.AnimatedLabel", n => n.NavigateToAsync<Marquee.MarqueePage>()),
+        new("Calendar", "Month calendar with swipe, year and decade pickers, week numbers, marked days, theme and culture", "calendar.svg", "Plugin.Maui.Spine.Controls.Calendar", n => n.NavigateToAsync<Dates.DatesPage>()),
+        new("DataGrid", "Rows with named Wide/Narrow layouts, sorting, grouping, swipe actions, load more and pull-to-refresh", "grid.svg", "Plugin.Maui.Spine.Controls.DataGrid, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<DataGrid.DataGridPage>()),
+        new("Rows", "SpineRow settings and key/value rows, Tap.Command with press feedback on any view, Semantic.Merge for one screen-reader element", "list.svg", "Plugin.Maui.Spine.Controls.Rows, Plugin.Maui.Spine", n => n.NavigateToAsync<Rows.RowsPage>()),
         new("Shimmer", "Skeleton loading: a Shimmer over placeholders, and Skeleton.IsActive on the real list and detail layouts", "lightstrip.svg", "Plugin.Maui.Spine.Controls.Shimmer", n => n.NavigateToAsync<Shimmer.ShimmerPage>()),
-        new("Theming", "IThemeService: a stored light/dark choice, an app-wide accent, token dictionaries, a repaint hook for code-drawn views", "lamp.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Theme.ThemePage>()),
-        new("Strings", "ISpineStrings: embedded XML per culture, {String} with arguments and plurals, a runtime language switch", "wordclock.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Common", n => n.NavigateToAsync<Strings.StringsPage>()),
+        new("Theming", "IThemeService: a stored light/dark choice, an app-wide accent, token dictionaries, a repaint hook for code-drawn views", "theme.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Theme.ThemePage>()),
+        new("Strings", "ISpineStrings: embedded XML per culture, {String} with arguments and plurals, a runtime language switch", "globe.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Common", n => n.NavigateToAsync<Strings.StringsPage>()),
         new("SVG icons", "SvgImageSource on Image and ImageButton, the bundled icon set", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
     ];
 }

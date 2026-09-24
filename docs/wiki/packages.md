@@ -1,12 +1,12 @@
 # Packages
 
-Spine ships as twelve NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as thirteen NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
 | Core | `Plugin.Maui.Spine` | Navigation, sheets, tab host, header bar, glass buttons, shortcuts, Windows windowing, theme and string stores | `.Svg`, `.Common` |
 | Core | `Plugin.Maui.Spine.Svg` | Embedded SVG image sources, icon services, SVG-to-icon for tray and window icons | — |
-| Core | `Plugin.Maui.Spine.Svg.Icons` | 166 ready-made SVG icons, resolved by file name once referenced | — (found by `.Svg` at startup) |
+| Core | `Plugin.Maui.Spine.Svg.Icons` | 218 ready-made SVG icons, resolved by file name once referenced | — (found by `.Svg` at startup) |
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine`, `.Common` |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications | `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
@@ -14,6 +14,7 @@ Spine ships as twelve NuGet packages built from this repository, one per project
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid on `CollectionView` with layouts, sorting, grouping and swipe actions | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: `Shimmer` over placeholders, `Skeleton.IsActive` on real layouts | `Plugin.Maui.Spine` |
+| Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron | `Plugin.Maui.Spine`, `.AnimatedLabel` |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
 
@@ -23,7 +24,7 @@ Common ◄──────────────┬────────�
   │                   │
 Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons (loaded by Svg at startup)
   ▲           ▲
-  │   Calendar, DataGrid, Shimmer
+  │   Calendar, DataGrid, Shimmer, Rows
 PushNotifications                                    AnimatedLabel
 ```
 
@@ -51,6 +52,7 @@ PushNotifications                                    AnimatedLabel
 | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Registered | `UseAnimatedLabel()` |
 | `Plugin.Maui.Spine.Controls.HeroCollectionView` | Nothing | Nothing (`UseHeroCollectionView()` still compiles, and does nothing) |
 | `Plugin.Maui.Spine.Controls.Calendar`, `.DataGrid` | Nothing: strings register from the control's static constructor | Nothing |
+| `Plugin.Maui.Spine.Controls.Rows` | Nothing (the marquee detail uses AnimatedLabel, which `UseSpine` registers) | Nothing; `UseAnimatedLabel()` for `DetailMarquee` |
 
 Every `UseXxx()` is idempotent. The first call registers the package; a later call only applies its `configure` delegate to the same options instance. An explicit configuring call therefore works before or after `UseSpine()`, and the options end up with both. Settings that decide what gets registered (a widget background-refresh handler, a push handler) are applied after every call, and the platform callbacks read the options when they run, not when they are registered.
 

@@ -1,0 +1,119 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Rows.RowsPage"
+    x:TypeArguments="RowsPageViewModel"
+    x:DataType="RowsPageViewModel">
+
+    <ContentPage.Resources>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="Stroke" Value="{DynamicResource CardOutline}" />
+            <Setter Property="BackgroundColor" Value="{DynamicResource CardBackground}" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 14" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <!-- Opaque colour: a BoxView with an alpha colour paints over black on iOS. -->
+        <Style x:Key="Separator" TargetType="BoxView">
+            <Setter Property="HeightRequest" Value="1" />
+            <Setter Property="Color" Value="{DynamicResource CardOutline}" />
+            <Setter Property="Margin" Value="56,0,0,0" />
+        </Style>
+        <Style x:Key="Code" TargetType="Label">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontFamily" Value="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}" />
+        </Style>
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="10">
+            <PackageChips Packages="Plugin.Maui.Spine.Controls.Rows, Plugin.Maui.Spine" />
+
+            <Label Text="SpineRow: icon, title, detail, value, an accessory and the header bar's chevron. Tap a row for the platform's press feedback; a screen reader reads each row as one element."
+                   FontSize="14" />
+
+            <Label Text="{Binding LastTap}" FontSize="14" FontAttributes="Bold" />
+
+            <Label Text="Settings rows" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout>
+                    <SpineRow Icon="wireless.svg" Title="Wi-Fi" Detail="Tap the row or the switch">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding WiFi}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                    <BoxView Style="{StaticResource Separator}" />
+                    <SpineRow Icon="bell.svg" Title="Notifications">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding Notifications}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                    <BoxView Style="{StaticResource Separator}" />
+                    <SpineRow Icon="lamp.svg" Title="Appearance" Value="{Binding Theme}"
+                              Command="{Binding CycleThemeCommand}" />
+                    <BoxView Style="{StaticResource Separator}" />
+                    <SpineRow Icon="user.svg" Title="Account" Detail="Signed in"
+                              Command="{Binding OpenCommand}" CommandParameter="Account" />
+                    <BoxView Style="{StaticResource Separator}" />
+                    <SpineRow Icon="eye.svg" Title="Privacy" DetailMarquee="True"
+                              Detail="Location, camera, microphone, contacts, photos and every other permission the app asked for"
+                              Command="{Binding OpenCommand}" CommandParameter="Privacy" />
+                    <BoxView Style="{StaticResource Separator}" />
+                    <SpineRow Icon="printer.svg" Title="Printer" Detail="Disabled: no press, no command" IsEnabled="False"
+                              Command="{Binding OpenCommand}" CommandParameter="Printer" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <SpineRow Title="Rows can open" Detail="CanExecute of the rows' command">
+                    <SpineRow.Accessory>
+                        <Switch IsToggled="{Binding CanOpen}" />
+                    </SpineRow.Accessory>
+                </SpineRow>
+            </Border>
+
+            <Label Text="Key/value rows" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout>
+                    <SpineRow Title="Version" Value="1.0 (1)" />
+                    <BoxView Style="{StaticResource Separator}" Margin="16,0,0,0" />
+                    <SpineRow Title="Platform" Value="{OnPlatform iOS=iOS, Android=Android, MacCatalyst=Mac Catalyst, WinUI=Windows}" />
+                    <BoxView Style="{StaticResource Separator}" Margin="16,0,0,0" />
+                    <SpineRow Title="Wi-Fi" Value="{Binding WiFiState}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="Tap.Command on any view" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Border Style="{StaticResource Card}" Padding="16,14"
+                    Tap.Command="{Binding TapCardCommand}" Semantic.Merge="True">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12">
+                    <Label Text="A card is a button too" FontSize="17" FontAttributes="Bold" />
+                    <Label Grid.Row="1" Text="The whole card is the target, with the same press feedback and one screen-reader element."
+                           FontSize="13" TextColor="Gray" />
+                    <Label Grid.Column="1" Grid.RowSpan="2" Text="{Binding CardTaps}" FontSize="28"
+                           VerticalOptions="Center" />
+                </Grid>
+            </Border>
+
+            <Label Text="Semantic.Merge on your own layout" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Border Style="{StaticResource Card}" Padding="16,12">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Semantic.Merge="True">
+                    <Image SvgImageSource.Svg="energy.svg" WidthRequest="24" HeightRequest="24" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="Battery" VerticalOptions="Center" />
+                    <Label Grid.Column="2" Text="82 %" VerticalOptions="Center" TextColor="Gray" />
+                </Grid>
+            </Border>
+
+            <Label Text="Code" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                <Label Style="{StaticResource Code}"
+                       Text="// No registration needed&#10;&#10;&lt;SpineRow Icon=&quot;lamp.svg&quot; Title=&quot;Appearance&quot;&#10;          Value=&quot;{Binding Theme}&quot;&#10;          Command=&quot;{Binding PickThemeCommand}&quot; /&gt;&#10;&#10;&lt;SpineRow Icon=&quot;bell.svg&quot; Title=&quot;Notifications&quot;&gt;&#10;    &lt;SpineRow.Accessory&gt;&#10;        &lt;Switch IsToggled=&quot;{Binding Notify}&quot; /&gt;&#10;    &lt;/SpineRow.Accessory&gt;&#10;&lt;/SpineRow&gt;&#10;&#10;&lt;SpineRow Title=&quot;Version&quot; Value=&quot;1.0&quot; /&gt;" />
+            </Border>
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                <Label Style="{StaticResource Code}"
+                       Text="&lt;Border Tap.Command=&quot;{Binding OpenCommand}&quot;&#10;        Tap.CommandParameter=&quot;{Binding .}&quot;&#10;        Semantic.Merge=&quot;True&quot;&gt;&#10;    ...&#10;&lt;/Border&gt;&#10;&#10;&lt;Grid Semantic.Merge=&quot;True&quot;&gt;  &lt;!-- reads &quot;Battery, 82 %&quot; --&gt;&#10;    &lt;Label Text=&quot;Battery&quot; /&gt;&#10;    &lt;Label Grid.Column=&quot;1&quot; Text=&quot;82 %&quot; /&gt;&#10;&lt;/Grid&gt;" />
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

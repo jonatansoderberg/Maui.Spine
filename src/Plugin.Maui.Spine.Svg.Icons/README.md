@@ -1,6 +1,6 @@
 # Plugin.Maui.Spine.Svg.Icons
 
-A set of 166 embedded SVG icons for `Plugin.Maui.Spine.Svg`: UI glyphs (arrows, close, settings, refresh, plus, minus, edit, delete), rooms and appliances, media controls, weather symbols and status badges. Reference the package and the icons resolve by file name, the same way as SVGs embedded in your own app; no registration call is needed.
+A set of 218 embedded SVG icons for `Plugin.Maui.Spine.Svg`: UI glyphs (chevrons, close, settings, search, filter, share, menu, check, edit, delete), status and content symbols (info, warning, calendar, image, link, battery levels), rooms and appliances, media controls, weather symbols and status badges. Reference the package and the icons resolve by file name, the same way as SVGs embedded in your own app; no registration call is needed.
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Svg.Icons

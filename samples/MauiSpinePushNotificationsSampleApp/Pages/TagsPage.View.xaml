@@ -11,22 +11,26 @@
             <Label Text="What this installation subscribes to. The server matches them with a tag expression."
                    FontSize="12" TextColor="Gray" />
 
-            <Grid ColumnDefinitions="*,Auto">
-                <Label Text="kind:news" VerticalOptions="Center" />
-                <Switch Grid.Column="1" IsToggled="{Binding News}" />
-            </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-                <Label Text="kind:alerts" VerticalOptions="Center" />
-                <Switch Grid.Column="1" IsToggled="{Binding Alerts}" />
-            </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-                <Label Text="team:red" VerticalOptions="Center" />
-                <Switch Grid.Column="1" IsToggled="{Binding TeamRed}" />
-            </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-                <Label Text="team:blue" VerticalOptions="Center" />
-                <Switch Grid.Column="1" IsToggled="{Binding TeamBlue}" />
-            </Grid>
+            <SpineRow Title="kind:news">
+                <SpineRow.Accessory>
+                    <Switch IsToggled="{Binding News}" />
+                </SpineRow.Accessory>
+            </SpineRow>
+            <SpineRow Title="kind:alerts">
+                <SpineRow.Accessory>
+                    <Switch IsToggled="{Binding Alerts}" />
+                </SpineRow.Accessory>
+            </SpineRow>
+            <SpineRow Title="team:red">
+                <SpineRow.Accessory>
+                    <Switch IsToggled="{Binding TeamRed}" />
+                </SpineRow.Accessory>
+            </SpineRow>
+            <SpineRow Title="team:blue">
+                <SpineRow.Accessory>
+                    <Switch IsToggled="{Binding TeamBlue}" />
+                </SpineRow.Accessory>
+            </SpineRow>
 
             <Label Text="Own tags, one per line" Margin="0,8,0,0" />
             <Editor Text="{Binding Extra}" HeightRequest="90" AutoSize="Disabled" />

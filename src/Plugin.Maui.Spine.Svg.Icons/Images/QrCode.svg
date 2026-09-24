@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" version="1.1">
+<g>
+<path d="M7.81 6.25L18.75 6.25C19.61 6.25 20.31 6.95 20.31 7.81L20.31 18.75C20.31 19.61 19.61 20.31 18.75 20.31L7.81 20.31C6.95 20.31 6.25 19.61 6.25 18.75L6.25 7.81C6.25 6.95 6.95 6.25 7.81 6.25Z"  stroke="#000000" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M10.94 10.94L15.63 10.94L15.63 15.63L10.94 15.63Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+<path d="M31.25 6.25L42.19 6.25C43.05 6.25 43.75 6.95 43.75 7.81L43.75 18.75C43.75 19.61 43.05 20.31 42.19 20.31L31.25 20.31C30.39 20.31 29.69 19.61 29.69 18.75L29.69 7.81C29.69 6.95 30.39 6.25 31.25 6.25Z"  stroke="#000000" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M34.38 10.94L39.07 10.94L39.07 15.63L34.38 15.63Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+<path d="M7.81 29.69L18.75 29.69C19.61 29.69 20.31 30.39 20.31 31.25L20.31 42.19C20.31 43.05 19.61 43.75 18.75 43.75L7.81 43.75C6.95 43.75 6.25 43.05 6.25 42.19L6.25 31.25C6.25 30.39 6.95 29.69 7.81 29.69Z"  stroke="#000000" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M10.94 34.38L15.63 34.38L15.63 39.07L10.94 39.07Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+<path d="M29.69 29.69L32.82 29.69L32.82 32.82L29.69 32.82Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+<path d="M40.63 29.69L43.76 29.69L43.76 32.82L40.63 32.82Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+<path d="M35.16 35.16L38.29 35.16L38.29 38.29L35.16 38.29Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+<path d="M29.69 40.63L32.82 40.63L32.82 43.76L29.69 43.76Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+<path d="M35.16 40.63L38.29 40.63L38.29 43.76L35.16 43.76Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+<path d="M40.63 40.63L43.76 40.63L43.76 43.76L40.63 43.76Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+</g>
+</svg>
