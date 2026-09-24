@@ -48,7 +48,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "link.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
         new("Collapsing header", "LargeTitle: a large title that scrolls away into the header bar", "windowblinds.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Collapsing.CollapsingPage>()),
         new("Scroll edge", "HeaderBarBackground.ScrollEdge: content under the header bar with the iOS 26 edge effect", "layers.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<ScrollEdge.ScrollEdgePage>()),
-        new("Overlay header", "HeaderBarMode.Overlay, HeaderBarForeground and StatusBarStyle over a photo", "cam.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Overlay.OverlayPage>()),
+        new("Overlay header", "HeaderBarMode.Overlay, HeaderBarForeground and StatusBarStyle over a photo", "image.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Overlay.OverlayPage>()),
         new("Page lifetime", "Poll, WhileVisible and PageLifetime: work that runs, pauses and stops with the page", "refresh.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Lifetime.LifetimePage>()),
         new("Menu buttons", "A header action, a pop-up button and an icon button that open native menus: sections, pickers, submenus, toggles", "more.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<Menus.MenusPage>()),
         new("Page actions", "[PageAction] on a command; text, badge, enabled and visibility change live", "menu.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<PageActions.PageActionsPage>()),
