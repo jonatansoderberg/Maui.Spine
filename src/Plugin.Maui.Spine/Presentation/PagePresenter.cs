@@ -288,11 +288,14 @@ internal sealed partial class PagePresenter : Grid
     /// <summary>How far the status-bar stand-in band fades out below the status bar.</summary>
     private const double StatusBarBandFade = 16;
 
-    /// <summary>The page's colour over the soft blur, as much as UIKit's own soft edge whitens rows.</summary>
-    private const float ScrollEdgeBlurTint = 0.3f;
+    /// <summary>
+    /// Black over the soft blur, as much as iOS 26's soft edge darkened what it blurred: about a fifth
+    /// in light mode and two fifths in dark mode (the same as <c>SoftEdgeStretch</c> puts back on iOS 27).
+    /// </summary>
+    private const float SoftBlurDimLight = 0.22f, SoftBlurDimDark = 0.4f;
 
-    /// <summary>The page's colour over the hard blur: a frosted band that rows only faintly show through.</summary>
-    private const float ScrollEdgeHardBlurTint = 0.6f;
+    /// <summary>The page's colour over the hard blur: frosted, with the rows' colours still coming through, as UIKit's hard band.</summary>
+    private const float ScrollEdgeHardBlurTint = 0.4f;
 
     /// <summary>How opaque the hard stand-in band is: rows only just show through, as through UIKit's frosted band.</summary>
     private const float ScrollEdgeHardBandAlpha = 0.96f;
@@ -328,7 +331,7 @@ internal sealed partial class PagePresenter : Grid
             // The hard style: nearly opaque, ending at the bar's bottom edge in a hairline.
             var hairline = HairlineThickness();
             height = bar + hairline;
-            Material.SetThickness(_barBackground, MaterialThickness.Chrome);
+            Material.SetThickness(_barBackground, MaterialThickness.Regular);
             Material.SetTint(_barBackground, colour.WithAlpha(blurs ? ScrollEdgeHardBlurTint : ScrollEdgeHardBandAlpha));
             Material.SetFade(_barBackground, 0);
             Material.SetEdgeLine(_barBackground, HairlineColour());
@@ -340,8 +343,10 @@ internal sealed partial class PagePresenter : Grid
             var statusBarOnly = BarBackground is HeaderBarBackground.SoftStatusBar;
             var fade = statusBarOnly ? StatusBarBandFade : ScrollEdgeBandFade;
             height = (statusBarOnly ? _page?.SystemBarInsets.Top ?? 0 : bar) + fade;
-            Material.SetThickness(_barBackground, MaterialThickness.UltraThin);
-            Material.SetTint(_barBackground, colour.WithAlpha(blurs ? ScrollEdgeBlurTint : ScrollEdgeBandAlpha));
+            Material.SetThickness(_barBackground, MaterialThickness.Thin);
+            Material.SetTint(_barBackground, blurs
+                ? Colors.Black.WithAlpha(IsDarkTheme() ? SoftBlurDimDark : SoftBlurDimLight)
+                : colour.WithAlpha(ScrollEdgeBandAlpha));
             Material.SetFade(_barBackground, fade);
             Material.SetEdgeLine(_barBackground, null);
         }

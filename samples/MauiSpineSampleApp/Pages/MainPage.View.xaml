@@ -1,7 +1,6 @@
 <SpinePage
     xmlns="http://schemas.microsoft.com/dotnet/maui/global"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:sharpnado="http://sharpnado.com"
     xmlns:local="clr-namespace:MauiBottomSheetPoc"
     x:Class="MauiSpineSampleApp.Pages.MainPage"
     x:TypeArguments="MainPageViewModel"
@@ -24,12 +23,8 @@
             HeaderMinHeight="{Binding HeaderMinHeight}">
 
             <HeroCollectionView.HeaderOverlayContent>
-                <sharpnado:MaterialFrame
-                    CornerRadius="0"
-                    Elevation="0"
-                    Opacity="0.0"
-                    LightThemeBackgroundColor="{DynamicResource DynamicLightThemeColor}"
-                    MaterialTheme="{DynamicResource DynamicMaterialTheme}"/>
+                <!-- Fades in as the hero collapses: a blur of the photo behind the compact header. -->
+                <Border Material.Kind="Blur" StrokeThickness="0" Opacity="0" />
             </HeroCollectionView.HeaderOverlayContent>
 
             <HeroCollectionView.HeaderTopContent>

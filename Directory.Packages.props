@@ -48,7 +48,6 @@
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
 		<PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
-		<PackageVersion Include="Sharpnado.MaterialFrame.Maui" Version="3.0.2" />
 	</ItemGroup>
 
 	<!-- Tests -->
