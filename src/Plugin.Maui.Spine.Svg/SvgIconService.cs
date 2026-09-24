@@ -36,8 +36,7 @@ internal sealed class SvgIconService : ISvgIconService
         {
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                var fullName = assembly.GetManifestResourceNames()
-                    .FirstOrDefault(n => n.EndsWith(svgFileName, StringComparison.OrdinalIgnoreCase));
+                var fullName = SvgResourceMatch.Find(assembly.GetManifestResourceNames(), svgFileName, out _);
 
                 if (fullName is not null)
                 {

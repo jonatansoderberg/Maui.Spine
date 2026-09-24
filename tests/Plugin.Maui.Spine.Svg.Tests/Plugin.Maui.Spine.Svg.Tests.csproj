@@ -12,6 +12,7 @@
 	-->
 	<ItemGroup>
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Svg\SvgRasterizer.cs" Link="SvgRasterizer.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Svg\SvgResourceMatch.cs" Link="SvgResourceMatch.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

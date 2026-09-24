@@ -36,7 +36,7 @@ builder
     .UseEmbeddedSvgImages();
 ```
 
-This registers the `ResourceNameCache` singleton that resolves short SVG filenames to full embedded resource names.
+This registers the `ResourceNameCache` singleton that resolves short SVG filenames to full embedded resource names. The whole file name must match, case-insensitively: `lock.svg` finds `App.Images.Lock.svg` and never `Clock.svg` or `Unlock.svg`. A name found in more than one assembly or folder resolves to the shortest resource name and is reported in the debug output.
 
 `UseSvgIcon()` registers `ISvgIconService` on top of that, optionally with render defaults:
 

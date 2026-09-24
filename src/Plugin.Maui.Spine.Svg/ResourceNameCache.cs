@@ -27,6 +27,9 @@ public sealed class ResourceNameCache
     // UseEmbeddedSvgImages, or the other way round) adds only what is new.
     private static readonly HashSet<Assembly> _scanned = [];
 
+    // Short file name -> resolved resource name (or null), cleared whenever an assembly is added.
+    private static readonly ConcurrentDictionary<string, string?> _resolved = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Scans the given assemblies for embedded <c>.svg</c> resources and adds them to the cache.
     /// When <paramref name="assemblies"/> is <see langword="null"/> or empty, the application
@@ -61,6 +64,8 @@ public sealed class ResourceNameCache
                     _resourceMap.TryAdd(name, assembly);
                 }
             }
+
+            _resolved.Clear();
         }
     }
 
@@ -69,7 +74,8 @@ public sealed class ResourceNameCache
     /// </summary>
     /// <param name="svgFileName">
     /// The short file name to look up, e.g. <c>"arrow.svg"</c>. The match is case-insensitive
-    /// and performed against the trailing segment of each resource name.
+    /// and must be the whole file name: <c>"lock.svg"</c> finds <c>App.Images.Lock.svg</c>, not
+    /// <c>App.Images.Clock.svg</c>.
     /// </param>
     /// <param name="theme">
     /// The theme to resolve for. When <see cref="SvgTheme.Dark"/>, a resource whose name ends
@@ -82,21 +88,15 @@ public sealed class ResourceNameCache
     /// </returns>
     public string? Resolve(string svgFileName, SvgTheme theme = SvgTheme.Light)
     {
-        if (theme == SvgTheme.Dark)
-        {
-            var darkName = ToDarkFileName(svgFileName);
-            var darkMatch = _resourceMap.Keys.FirstOrDefault(k =>
-                k.EndsWith(darkName, StringComparison.OrdinalIgnoreCase));
-            if (darkMatch is not null) return darkMatch;
-        }
+        if (theme == SvgTheme.Dark && Find(ToDarkFileName(svgFileName)) is { } dark)
+            return dark;
 
-        return _resourceMap.Keys.FirstOrDefault(k =>
-            k.EndsWith(svgFileName, StringComparison.OrdinalIgnoreCase));
+        return Find(svgFileName);
     }
 
     /// <summary>
-    /// Opens a readable stream for the embedded SVG whose name ends with
-    /// <paramref name="svgFileName"/> (case-insensitive).
+    /// Opens a readable stream for the embedded SVG named <paramref name="svgFileName"/>
+    /// (case-insensitive; see <see cref="Resolve"/>).
     /// Returns <see langword="null"/> if no match is found.
     /// </summary>
     /// <param name="svgFileName">The short SVG file name, e.g. <c>"arrow.svg"</c>.</param>
@@ -104,22 +104,21 @@ public sealed class ResourceNameCache
     /// The theme to resolve for. When <see cref="SvgTheme.Dark"/>, a resource whose name ends
     /// with <c>"_dark.svg"</c> is tried first before falling back to the unthemed name.
     /// </param>
-    public Stream? OpenStream(string svgFileName, SvgTheme theme = SvgTheme.Light)
+    public Stream? OpenStream(string svgFileName, SvgTheme theme = SvgTheme.Light) =>
+        Resolve(svgFileName, theme) is { } name && _resourceMap.TryGetValue(name, out var assembly)
+            ? assembly.GetManifestResourceStream(name)
+            : null;
+
+    // Lookups run for every image source; the scan over all resource names is done once per name.
+    private static string? Find(string fileName) => _resolved.GetOrAdd(fileName, static name =>
     {
-        if (theme == SvgTheme.Dark)
-        {
-            var darkName = ToDarkFileName(svgFileName);
-            var darkEntry = _resourceMap.FirstOrDefault(kv =>
-                kv.Key.EndsWith(darkName, StringComparison.OrdinalIgnoreCase));
-            if (darkEntry.Key is not null)
-                return darkEntry.Value.GetManifestResourceStream(darkEntry.Key);
-        }
+        var match = SvgResourceMatch.Find(_resourceMap.Keys, name, out var ambiguous);
 
-        var entry = _resourceMap.FirstOrDefault(kv =>
-            kv.Key.EndsWith(svgFileName, StringComparison.OrdinalIgnoreCase));
+        if (ambiguous)
+            System.Diagnostics.Debug.WriteLine($"[Spine.Svg] '{name}' matches more than one embedded SVG; using '{match}'.");
 
-        return entry.Key is null ? null : entry.Value.GetManifestResourceStream(entry.Key);
-    }
+        return match;
+    });
 
     // Plugin.Maui.Spine.Svg.Icons is a resource-only package: an app that uses its icons by file
     // name references no type in it, so it is loaded by name rather than found through a reference.

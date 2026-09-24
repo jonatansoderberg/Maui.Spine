@@ -55,7 +55,7 @@
                     <SpineRow Icon="user.svg" Title="Account" Detail="Signed in"
                               Command="{Binding OpenCommand}" CommandParameter="Account" />
                     <BoxView Style="{StaticResource Separator}" />
-                    <SpineRow Icon="eye.svg" Title="Privacy" DetailMarquee="True"
+                    <SpineRow Icon="lock.svg" Title="Privacy" DetailMarquee="True"
                               Detail="Location, camera, microphone, contacts, photos and every other permission the app asked for"
                               Command="{Binding OpenCommand}" CommandParameter="Privacy" />
                     <BoxView Style="{StaticResource Separator}" />
