@@ -63,7 +63,8 @@ the page unless it is more horizontal than vertical.
 - **Today** — an accent ring, always drawn, with bold accent text.
 - **Today and selected** — the ring with a smaller fill inside it.
 - **Marked** — a soft accent circle behind the number; fainter on adjacent-month days. Under the
-  today ring when today is marked; the selected fill wins over it. With `MarkStyle="Dot"`, a small
+  today ring when today is marked, with the number in the marked colour so it stays readable; the
+  selected fill wins over it. With `MarkStyle="Dot"`, a small
   accent dot under the number instead, which stays on today and on the selected day.
 - **Year view** — the displayed month in an accent pill, the current month in a quieter highlight.
 - **Decade view** — the ten years and the next two, dimmed; the displayed year in an accent pill,
@@ -169,7 +170,7 @@ colour on one calendar keeps the rest themed.
 | `AccentColor` | the app's accent (`SpineTheme.GetAccent`: `IThemeService.Accent`, else the `Primary` resource, `PrimaryDark` in dark mode when present), else system blue | arrows, today ring, selected fill, displayed month/year pill |
 | `HeaderTextColor` | black / white | title |
 | `DayTextColor` | black / white | day numbers, picker cells |
-| `TodayTextColor` | accent | today's number |
+| `TodayTextColor` | accent | today's number, unless selected or marked |
 | `SelectedTextColor` | white, or black on a light accent | text on the accent fill |
 | `TrailingTextColor` | light grey / dark grey | adjacent-month days, next decade's years |
 | `DayOfWeekTextColor` | system grey | weekday row |
@@ -178,7 +179,7 @@ colour on one calendar keeps the rest themed.
 | `MarkStyle` | `Fill` | `Fill`: a circle behind a marked day; `Dot`: an accent dot under the number |
 | `MarkFillColor` | accent blended into the background (opaque) | the circle behind a marked day |
 | `TrailingMarkFillColor` | a fainter blend | the circle behind a marked adjacent-month day |
-| `MarkedTextColor` | black / white | a marked day's number, unless today or selected |
+| `MarkedTextColor` | black / white | a marked day's number (today included), unless selected |
 
 Colours are assigned in code, so `AppThemeBinding` does not reach them. The calendar repaints
 through `SpineTheme.Track` (see [theming](theming.md)) after every theme change and every culture

@@ -33,7 +33,7 @@ public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
     /// <summary>Day numbers that are neither today nor selected, and the picker cells.</summary>
     public Color? DayTextColor { get; set; }
 
-    /// <summary>Today's number when it is not selected.</summary>
+    /// <summary>Today's number when it is neither selected nor on a mark fill.</summary>
     public Color? TodayTextColor { get; set; }
 
     /// <summary>Text on the accent fill: the selected day and the displayed month or year.</summary>
@@ -59,7 +59,7 @@ public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
     /// <summary>The circle behind a marked day of an adjacent month: fainter, like the day's text.</summary>
     public Color? TrailingMarkFillColor { get; set; }
 
-    /// <summary>The number of a marked day on its fill, unless it is today or selected.</summary>
+    /// <summary>The number of a marked day on its fill (today too, inside its ring), unless it is selected.</summary>
     public Color? MarkedTextColor { get; set; }
 
     protected override void InheritColorsFrom(CalendarStyleOptions source)

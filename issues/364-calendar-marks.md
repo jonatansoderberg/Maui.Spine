@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/364
 **Branch:** issue/364-calendar-marks
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -64,7 +64,9 @@ None blocking.
 - **Dot style implemented** since the dot view is created lazily per cell (no extra views for Fill).
   Dot colour: accent; on the selected fill the selected text colour; on trailing days the trailing
   text colour.
-- **Today and marked:** the mark fill sits inside the today ring, number in the today colour.
+- **Today and marked:** the mark fill sits inside the today ring, and the number takes
+  `MarkedTextColor`: in dark mode the accent today-number on the accent-tinted fill was hard to read
+  (seen on the Android emulator); the ring still marks today.
   **Selected and marked:** the selected fill wins (with Dot, the dot remains, in the text colour).
 - **Dark defaults blend into `#2C2C2E`, not black.** Blended into black (as `CurrentHighlightColor`
   is) the fill came out darker than the card it sits on and read as a hole. Light: 18 % / 8 % accent

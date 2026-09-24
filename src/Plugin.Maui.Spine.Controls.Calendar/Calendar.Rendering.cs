@@ -272,11 +272,13 @@ public partial class Calendar
             cell.TodayRing.IsVisible = isToday;
             cell.InnerFill.IsVisible = isToday && isSelected;
 
+            // On a mark fill the number takes the marked colour even on today: the accent-coloured
+            // today number reads poorly on an accent-tinted fill, and the ring still says "today".
             cell.Label.TextColor =
                 isSelected ? style.SelectedTextColor
                 : cell.IsTrailing ? style.TrailingTextColor
-                : isToday ? style.TodayTextColor
                 : markFill ? style.MarkedTextColor
+                : isToday ? style.TodayTextColor
                 : style.DayTextColor;
 
             cell.Label.FontAttributes = isToday || isSelected ? FontAttributes.Bold : FontAttributes.None;
