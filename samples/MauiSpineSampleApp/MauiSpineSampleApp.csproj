@@ -198,6 +198,24 @@
       <DependentUpon>SheetsPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Sheets\LoginSheetPage.View.xaml">
+      <DependentUpon>LoginSheetPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Sheets\LoginSheetPage.ViewModel.cs">
+      <DependentUpon>LoginSheetPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Sheets\EditSheetPage.View.xaml">
+      <DependentUpon>EditSheetPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Sheets\EditSheetPage.ViewModel.cs">
+      <DependentUpon>EditSheetPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Results\ResultsPage.View.xaml">
       <DependentUpon>ResultsPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

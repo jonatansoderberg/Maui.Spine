@@ -1,9 +1,7 @@
 ﻿﻿using MauiBottomSheetPoc;
 using MauiSpineSampleApp.Resources.Styles;
 using Microsoft.Extensions.Logging;
-using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
-using Plugin.Maui.Spine.Widgets.Extensions;
 using Plugin.Maui.Spine.Svg;
 using Sharpnado.MaterialFrame;
 
@@ -16,7 +14,8 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseAnimatedLabel()
+            // UseSpine registers every Spine package the app references (AnimatedLabel, Widgets, …);
+            // a package's own call is only needed to change its options, before or after UseSpine.
             .UseSvgIcon(options =>
             {
                 options.PaddingPercent = -0.08f;
@@ -52,7 +51,6 @@ public static class MauiProgram
                 options.MacOS.TrayIconSvg = "water.svg";
                 options.MacOS.CloseToBackground = true;
             })
-            .UseSpineWidgets()
             .UseSharpnadoMaterialFrame(loggerEnable: false)
             .ConfigureFonts(fonts =>
             {

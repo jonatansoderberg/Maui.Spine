@@ -187,6 +187,17 @@ public sealed partial class NavigationRegion : ContentView
         _frameActionView.Margin = new Thickness(0, topMargin, 0, 0);
     }
 
+    /// <summary>
+    /// Reported by the Android sheet presenter: how far this region reaches below the visible edge
+    /// of the sheet, in device-independent units. The iOS and Windows sheets resize the region
+    /// instead, so there it stays zero.
+    /// </summary>
+    internal void SetSheetOverhang(double overhang)
+    {
+        ViewModel.FrontView.SetSheetOverhang(overhang);
+        ViewModel.BackView.SetSheetOverhang(overhang);
+    }
+
     private void OnSystemInsetsChanged()
     {
         MainThread.BeginInvokeOnMainThread(() =>
@@ -220,6 +231,14 @@ public sealed partial class NavigationRegion : ContentView
         // An overlay or collapsing header floats over content that starts at the top of the screen.
         if (vm.HeaderBarMode.Floats())
             safeAreaEdges &= ~SpineSafeArea.Top;
+
+#if ANDROID
+        // The sheet's wrapper view already pads its bottom for the navigation bar (and drops that
+        // padding while the keyboard is up), so padding the content as well left a second
+        // navigation bar's worth of empty sheet under it — under a footer most visibly.
+        if (ViewModel.Presentation is NavigationPresentation.Sheet)
+            safeAreaEdges &= ~SpineSafeArea.Bottom;
+#endif
 
         // A sheet starts below its own drag handle, not at the card's edge. Android gets this
         // from the handle wrapper that sits above the MAUI content; on iOS nothing does it, so

@@ -18,6 +18,8 @@ builder
     });
 ```
 
+`UseSpine()` also registers every other Spine package the app references (Widgets, PushNotifications, AnimatedLabel, …), from a list the build generates: no scanning at startup. A package's own `UseXxx(o => …)` is needed only to change its options.
+
 ```csharp
 [NavigableRegion(Title = "Settings")]
 public partial class SettingsPage : SpinePage { }

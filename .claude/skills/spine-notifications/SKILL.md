@@ -16,8 +16,7 @@ Check `/spine-setup` §7 for the project setup (Android minSdk 23, `google-servi
 ```csharp
 builder
     .UseSpine(…)
-    .UseSpineWidgets()                    // optional; before push, so Live Activity tokens are sent up
-    .UseSpinePushNotifications(o =>
+    .UseSpinePushNotifications(o =>        // UseSpine registers the package; this call sets the options (before or after UseSpine)
     {
         o.Backend = new Uri("https://api.example.com/push/");   // the server's MapSpinePushNotifications prefix; unset = local only
         o.Permission = PushPermission.WhenAsked;                // ask when the app calls RequestPermissionAsync
@@ -130,7 +129,7 @@ Works in ASP.NET Core Minimal APIs and in Azure Functions isolated workers (the 
 - Do ask for permission behind a user action, and only once per app (push and local share it).
 - Do derive notification and activity ids from the subject; never random ids.
 - Do send tokens up at every launch and foreground; they rotate.
-- Don't call `UseSpinePushNotifications` before `UseSpineWidgets`.
+- Don't leave out `UseSpinePushNotifications` in an app without `UseSpine`: nothing else registers it there.
 - Don't put `google-services.json` with real keys in a public repo; the sample's checked-in one is a placeholder.
 - Don't expect a Mac Catalyst debug build to get remote push without a provisioning profile named in `CodesignProvision`; it gets local notifications only.
 

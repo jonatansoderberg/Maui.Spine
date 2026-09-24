@@ -17,6 +17,8 @@ public static partial class SpineExtensions
     /// <summary>
     /// Registers the Spine navigation framework with the MAUI application.
     /// Call this from <c>MauiProgram.cs</c> before <c>builder.Build()</c>.
+    /// It also registers every other Spine package the app references (see <see cref="SpineModules"/>);
+    /// a package's own <c>UseXxx</c> call is needed only to change its options.
     /// </summary>
     /// <param name="builder">The <see cref="MauiAppBuilder"/> to configure.</param>
     /// <param name="configure">
@@ -149,6 +151,9 @@ public static partial class SpineExtensions
 
         // Register ISvgIconService (no-op if already registered via an explicit UseSvgIcon() call).
         builder.UseSvgIcon();
+
+        // Last, so a package's registration finds navigation, SVG and strings in place.
+        SpineModules.Run(builder);
 
         return builder;
     }

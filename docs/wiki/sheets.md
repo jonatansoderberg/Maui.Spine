@@ -102,6 +102,62 @@ You can also specify:
 
 ---
 
+## Layout inside a sheet
+
+### The top: the sheet's own buttons are already cleared
+
+The sheet's grabber, its close/back button and its page actions sit in a row at the top of the sheet,
+and Spine keeps the page out of it: the content starts below the drag handle
+(`HeaderBarConstants.SheetTopPadding`) and below a title row the height of the header bar. Do not add
+top padding to clear the close button (`Padding="16,36,16,16"` and the like) — padding you add is
+spacing of your own, on top of that.
+
+### Buttons: page actions for Save and Cancel, the footer for a primary action
+
+- **Save, Cancel, Done** — confirming or dismissing the sheet — are page actions in the sheet's header
+  bar, never a button stack at the bottom of the sheet. They are in the same place at every detent:
+
+  ```csharp
+  [PageAction("Cancel", Placement = PageActionPlacement.Primary)]   // replaces the close button
+  [RelayCommand] private Task Cancel() => _navigation.CloseAsync();
+
+  [PageAction("Save")]
+  [RelayCommand] private Task Save() => _navigation.ReturnAsync(_draft);
+  ```
+
+- **The sheet's own primary action** — *Log in* on a login sheet, *Continue* in a flow, *Pay* — goes in
+  `SpinePage.Footer`:
+
+  ```xml
+  <SpinePage …>
+      <ScrollView>
+          <VerticalStackLayout Padding="20,0,20,16" Spacing="12">
+              <Entry Text="{Binding Email}" Placeholder="Email" />
+              <Entry Text="{Binding Password}" IsPassword="True" Placeholder="Password" />
+          </VerticalStackLayout>
+      </ScrollView>
+
+      <SpinePage.Footer>
+          <Button Text="Log in" Command="{Binding LogInCommand}" Margin="20,12" />
+      </SpinePage.Footer>
+  </SpinePage>
+  ```
+
+The footer is outside the page's scrolling content and pinned to the bottom of the *visible* sheet: at
+Medium it sits at the Medium edge, and while the user drags between detents it follows the sheet
+frame by frame. The content above it ends where the footer begins, so a scrolling page can reach its
+last line at every detent. The footer gets the page's `BindingContext`.
+
+How the visible height is found differs per platform, with the same result:
+
+| Platform | How the sheet changes size | What Spine does |
+|---|---|---|
+| iOS | `UISheetPresentationController` resizes the sheet's view on every frame of a drag | Nothing: the page is laid out against the visible height |
+| Android | `BottomSheetBehavior` keeps the sheet at full height and slides it down | Reads how far the sheet hangs below the screen in `onSlide` and lays the page out above that |
+| Windows | The sheet host animates its own height | Nothing, as on iOS |
+
+---
+
 ## Opening a sheet
 
 Use the same `NavigateToAsync` API as for region pages — Spine detects the `[NavigableSheet]` attribute and presents it as a sheet automatically:

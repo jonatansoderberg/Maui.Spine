@@ -75,6 +75,8 @@ Useful attribute properties, all optional: `Lifetime` (`Transient` default; `Sin
 
 Sheets: `AllowedDetents = [SheetDetent.Compact | Medium | Expanded | FullScreen, "75%", "300px"]`, `InitialDetent`, `BackgroundPageOverlay = None | Dimmed | Blurred`. Override `OnCloseRequestedAsync` to guard dismissal; `OnDismissedAsync` runs when the user closes it without a result.
 
+Buttons in a sheet: Save, Cancel and Done are always page actions in the sheet's header bar (`[PageAction("Save")]`, `[PageAction("Cancel", Placement = PageActionPlacement.Primary)]`), never a button stack at the bottom. A sheet's own primary action (Log in, Continue, Pay) goes in `<SpinePage.Footer>`: outside the scrolling content, pinned to the bottom of the visible sheet at every detent and following it while dragged, with the page's `BindingContext`. Don't pad the top of a sheet page to clear the close button — Spine already starts the content below the handle and the header row.
+
 Tabs: `Order` is effectively required (assembly scan order is random; duplicates fail startup). At most five tabs. `SpineApplication`'s `x:TypeArguments` must be one of the tab pages and picks the initial tab. Re-selecting the active tab pops to root, then raises `OnTabReselectedAsync()` on the root's ViewModel. `ITabBadgeService.SetBadge<TPage>("3")` / `("")` for a dot / `(null)` to clear.
 
 ## Navigation

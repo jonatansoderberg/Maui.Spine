@@ -26,7 +26,7 @@ dotnet add package Plugin.Maui.Spine.Controls.AnimatedLabel
 
 ## Registration
 
-Call `UseAnimatedLabel()` in your `MauiProgram.cs` builder chain. This registers the SkiaSharp renderers required by the control.
+With `UseSpine()` nothing is needed: it registers the package, including the SkiaSharp renderers the control draws with. An app without Spine calls `UseAnimatedLabel()` in its `MauiProgram.cs` builder chain; calling it next to `UseSpine()` is harmless.
 
 ```csharp
 using Plugin.Maui.Spine.Controls;

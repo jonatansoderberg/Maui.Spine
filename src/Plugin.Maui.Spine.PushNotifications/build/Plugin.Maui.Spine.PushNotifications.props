@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseSpinePushNotifications() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.PushNotifications" Register="Plugin.Maui.Spine.PushNotifications.Extensions.SpinePushNotificationsExtensions.UseSpinePushNotifications" />
+	</ItemGroup>
+</Project>

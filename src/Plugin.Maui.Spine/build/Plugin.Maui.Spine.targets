@@ -1,0 +1,78 @@
+<Project>
+	<!--
+		UseSpine() registers every Spine package the app references, without scanning assemblies at
+		startup. A package that needs the MauiAppBuilder declares itself in its buildTransitive props:
+
+		  <SpineModule Include="Plugin.Maui.Spine.Controls.AnimatedLabel"
+		               Register="Plugin.Maui.Spine.Controls.AnimatedLabelExtensions.UseAnimatedLabel" />
+
+		Include is the package's assembly name; Register is a static method taking the builder (further
+		parameters must be optional). This target writes one C# file into the app with a
+		[ModuleInitializer] that hands each Register method to SpineModules, and UseSpine() runs them.
+
+		Only modules whose assembly is among the resolved references are written, so a declaration
+		imported for a package the app does not compile against is ignored. Only an app is given the
+		file (a library that references Spine would otherwise register every module a second time);
+		an Android app counts although the Android SDK sets its OutputType to Library;
+		set SpineGenerateModuleRegistrations to false to turn it off.
+
+		Consumed through a ProjectReference this file has to be imported explicitly, together with the
+		packages' build\*.props; samples\Directory.Build.targets does both for this repo.
+	-->
+
+	<PropertyGroup>
+		<SpineGenerateModuleRegistrations Condition="'$(SpineGenerateModuleRegistrations)' == ''">true</SpineGenerateModuleRegistrations>
+	</PropertyGroup>
+
+	<Target Name="_SpineGenerateModuleRegistrations"
+			BeforeTargets="CoreCompile"
+			Condition="'$(SpineGenerateModuleRegistrations)' == 'true' And '$(Language)' == 'C#' And ('$(OutputType)' == 'Exe' Or '$(OutputType)' == 'WinExe' Or '$(AndroidApplication)' == 'true')">
+
+		<ItemGroup>
+			<_SpineReferencedAssembly Include="@(ReferencePath->'%(Filename)')" />
+			<_SpineUnreferencedModule Include="@(SpineModule)" Exclude="@(_SpineReferencedAssembly)" />
+			<_SpineModule Include="@(SpineModule)" Exclude="@(_SpineUnreferencedModule)" />
+		</ItemGroup>
+
+		<PropertyGroup>
+			<_SpineCoreReferenced Condition="'%(_SpineReferencedAssembly.Identity)' == 'Plugin.Maui.Spine'">true</_SpineCoreReferenced>
+			<_SpineModulesFile>$(IntermediateOutputPath)SpineModules.g.cs</_SpineModulesFile>
+			<!-- MSBuild trims item specs; escaped spaces survive. -->
+			<_SpineIndent>%20%20%20%20</_SpineIndent>
+		</PropertyGroup>
+
+		<RemoveDuplicates Inputs="@(_SpineModule->'%(Register)')" Condition="'$(_SpineCoreReferenced)' == 'true'">
+			<Output TaskParameter="Filtered" ItemName="_SpineModuleRegister" />
+		</RemoveDuplicates>
+
+		<ItemGroup Condition="'@(_SpineModuleRegister)' != ''">
+			<_SpineModulesLine Include="// &lt;auto-generated&gt;" />
+			<_SpineModulesLine Include="//   Written by Plugin.Maui.Spine.targets from the SpineModule items of the referenced Spine packages." />
+			<_SpineModulesLine Include="// &lt;/auto-generated&gt;" />
+			<_SpineModulesLine Include="#pragma warning disable CA2255" />
+			<_SpineModulesLine Include="namespace Plugin.Maui.Spine.Generated" />
+			<_SpineModulesLine Include="{" />
+			<_SpineModulesLine Include="$(_SpineIndent)internal static class SpineModuleRegistrations" />
+			<_SpineModulesLine Include="$(_SpineIndent){" />
+			<_SpineModulesLine Include="$(_SpineIndent)$(_SpineIndent)[global::System.Runtime.CompilerServices.ModuleInitializer]" />
+			<_SpineModulesLine Include="$(_SpineIndent)$(_SpineIndent)internal static void Register()" />
+			<_SpineModulesLine Include="$(_SpineIndent)$(_SpineIndent){" />
+			<_SpineModulesLine Include="@(_SpineModuleRegister->'$(_SpineIndent)$(_SpineIndent)$(_SpineIndent)global::Plugin.Maui.Spine.Extensions.SpineModules.Add(static builder => global::%(Identity)(builder))%3B')" />
+			<_SpineModulesLine Include="$(_SpineIndent)$(_SpineIndent)}" />
+			<_SpineModulesLine Include="$(_SpineIndent)}" />
+			<_SpineModulesLine Include="}" />
+		</ItemGroup>
+
+		<WriteLinesToFile Condition="'@(_SpineModuleRegister)' != ''"
+						  File="$(_SpineModulesFile)"
+						  Lines="@(_SpineModulesLine)"
+						  Overwrite="true"
+						  WriteOnlyWhenDifferent="true" />
+
+		<ItemGroup Condition="'@(_SpineModuleRegister)' != ''">
+			<Compile Include="$(_SpineModulesFile)" />
+			<FileWrites Include="$(_SpineModulesFile)" />
+		</ItemGroup>
+	</Target>
+
+</Project>

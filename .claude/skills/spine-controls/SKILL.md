@@ -54,7 +54,7 @@ Glass is for controls that float over content (navigation, a floating action), n
 
 ## HeroCollectionView (`Plugin.Maui.Spine.Controls.HeroCollectionView`)
 
-A `CollectionView` with a collapsing sticky header, a title overlay and content slots over the image. Register with `builder.UseHeroCollectionView()`; XAML namespace `Plugin.Maui.Spine.Controls` (assembly `Plugin.Maui.Spine.Controls.HeroCollectionView`).
+A `CollectionView` with a collapsing sticky header, a title overlay and content slots over the image. No registration needed; XAML namespace `Plugin.Maui.Spine.Controls` (assembly `Plugin.Maui.Spine.Controls.HeroCollectionView`).
 
 ```xml
 <HeroCollectionView ItemsSource="{Binding Items}"
@@ -77,7 +77,7 @@ Slots: `HeaderTopContent`, `HeaderBottomContent`, `HeaderOverlayContent`, `Foote
 
 ## AnimatedLabel (`Plugin.Maui.Spine.Controls.AnimatedLabel`)
 
-A SkiaSharp label that scrolls (marquee) or fades text that does not fit. Register with `builder.UseAnimatedLabel()`.
+A SkiaSharp label that scrolls (marquee) or fades text that does not fit. `UseSpine()` registers it; without Spine call `builder.UseAnimatedLabel()`.
 
 ```xml
 <AnimatedLabel Text="{Binding NowPlaying}" TextColor="White" FontSize="16" FontFamily="OpenSans-Regular"

@@ -36,7 +36,7 @@ The MAUI packages target `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`
 
 ## 2. Register in `MauiProgram.cs`
 
-Order matters: `UseSpine` first, then widgets, then push notifications (push looks for widgets to turn Live Activity tokens on). Spine registers the SVG pipeline itself; do not call `UseEmbeddedSvgImages` or `UseSvgIcon` again.
+`UseSpine` registers every Spine package the app references — the SVG pipeline, Widgets, PushNotifications, AnimatedLabel; Calendar, DataGrid and HeroCollectionView need no registration at all. The list is generated at build time by `Plugin.Maui.Spine`'s build targets (no scanning at startup). Call a package's `UseXxx(o => …)` only to set its options; the order does not matter — every call configures the same options instance, before or after `UseSpine`.
 
 ```csharp
 using Plugin.Maui.Spine.Extensions;
@@ -50,17 +50,18 @@ builder
         options.AppTitle = "My App";
         options.Theme.UseTokens<LightTokens, DarkTokens>();  // optional: two ResourceDictionaries with the same keys, swapped on theme change
     })
-    .UseSpineWidgets()                                        // Plugin.Maui.Spine.Widgets
-    .UseSpinePushNotifications(o =>                           // Plugin.Maui.Spine.PushNotifications
+    // Widgets, AnimatedLabel, … are registered by UseSpine; these calls only configure:
+    .UseSpineWidgets(o => o.OpenWith<HomePage>())             // optional: Plugin.Maui.Spine.Widgets options
+    .UseSpinePushNotifications(o =>                           // Plugin.Maui.Spine.PushNotifications: backend, handler
     {
         o.Backend = new Uri("https://api.example.com/push/"); // leave unset for local-only notifications
         o.UseHandler<MyPushHandler>();
-    })
-    .UseHeroCollectionView()                                  // Plugin.Maui.Spine.Controls.HeroCollectionView
-    .UseAnimatedLabel();                                      // Plugin.Maui.Spine.Controls.AnimatedLabel
+    });
 
 return builder.Build();
 ```
+
+Without `UseSpine` (a control package on its own) nothing is registered automatically: call `UseAnimatedLabel()`, `UseSpinePushNotifications(…)` or `UseEmbeddedSvgImages(…)` yourself. If a package seems unregistered under `UseSpine`, look for `obj/<config>/<tfm>/SpineModules.g.cs` in the app: it lists what the build found. Referencing Spine as projects instead of packages means importing `Plugin.Maui.Spine`'s `build/Plugin.Maui.Spine.targets` and the packages' `build/*.props` yourself (the repo's `samples/Directory.Build.targets` shows how).
 
 `options.AddAssembly` is where Spine scans for `[NavigableRegion]`, `[NavigableSheet]`, `[NavigableTab]` and `[Widget]` classes and for embedded SVGs. Add every assembly that holds pages or widget providers.
 

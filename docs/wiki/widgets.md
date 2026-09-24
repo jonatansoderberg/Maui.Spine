@@ -61,11 +61,10 @@ On Android the smallest declared family is the widget's minimum size and the lar
 
 ```csharp
 builder
-    .UseSpine(options => options.AddAssembly(typeof(MauiProgram).Assembly))
-    .UseSpineWidgets();
+    .UseSpine(options => options.AddAssembly(typeof(MauiProgram).Assembly));
 ```
 
-`UseSpineWidgets` registers `IWidgetService` and `ILiveActivityService`, discovers `[Widget]` providers in the assemblies `UseSpine` was given, and routes the widget's open URL back into the app. Call it after `UseSpine`.
+`UseSpine` registers the package: `IWidgetService` and `ILiveActivityService`, the `[Widget]` providers in the assemblies `UseSpine` was given, and the route from the widget's open URL back into the app. Call `UseSpineWidgets(o => …)` only to change the options (`OpenWith<TPage>()`, `UseBackgroundRefresh<T>()`, …); before or after `UseSpine` both work, and every call configures the same options instance.
 
 ### 2. Declare each widget to the build
 

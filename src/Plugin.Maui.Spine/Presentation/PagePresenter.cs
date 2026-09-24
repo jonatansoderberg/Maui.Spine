@@ -24,6 +24,9 @@ internal sealed class PagePresenter : Grid
     // colour paints over black on iOS.
     private readonly BoxView _barBackground;
     private ContentPresenter _contentPresenter;
+    private readonly ContentView _footerHost;
+    private IPageFooterSource? _footerSource;
+    private double _sheetOverhang;
 
     /// <summary>
     /// The page view currently hosted in this presenter.
@@ -44,6 +47,7 @@ internal sealed class PagePresenter : Grid
                 converter: new TitleAlignmentToTextAlignmentConverter()));
 
             WatchPage(Content?.BindingContext as ViewModelBase);
+            WatchFooter(Content as IPageFooterSource);
 
             // The header bar measures its own actions and publishes the result on the region
             // view model, which is this presenter's BindingContext.
@@ -61,6 +65,7 @@ internal sealed class PagePresenter : Grid
 
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(0) });
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
+        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         _titleLabel = new Label
         {
@@ -82,6 +87,10 @@ internal sealed class PagePresenter : Grid
         Grid.SetRow(_contentPresenter, 1);
         Children.Add(_contentPresenter);
 
+        _footerHost = new ContentView { IsVisible = false };
+        Grid.SetRow(_footerHost, 2);
+        Children.Add(_footerHost);
+
         _titleLabel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IsVisible))
@@ -99,6 +108,63 @@ internal sealed class PagePresenter : Grid
     }
 
     private ViewModelBase? _page;
+
+    private void WatchFooter(IPageFooterSource? source)
+    {
+        if (!ReferenceEquals(source, _footerSource))
+        {
+            if (_footerSource is not null)
+                _footerSource.FooterChanged -= OnFooterChanged;
+
+            _footerSource = source;
+
+            if (source is not null)
+                source.FooterChanged += OnFooterChanged;
+        }
+
+        ApplyFooter();
+    }
+
+    private void OnFooterChanged(object? sender, EventArgs e) => ApplyFooter();
+
+    // The footer is a property value of the page, not one of its children, so it is hosted here,
+    // below the page, and handed the page's binding context by hand.
+    private void ApplyFooter()
+    {
+        var footer = _footerSource?.Footer;
+
+        _footerHost.Content = footer;
+        _footerHost.IsVisible = footer is not null;
+
+        if (footer is not null && _footerSource is BindableObject page)
+            _footerHost.SetBinding(BindingContextProperty, new Binding(nameof(BindingContext), source: page));
+        else
+            _footerHost.RemoveBinding(BindingContextProperty);
+
+        ApplySheetOverhang();
+    }
+
+    /// <summary>
+    /// How far the bottom of this presenter reaches below the visible edge of the sheet it is in.
+    /// Android's sheet keeps its full height and slides down to each detent instead of shrinking,
+    /// so the content ends this much higher and the footer is lifted with it — on every frame of a
+    /// drag, the way UIKit lays out a resizing sheet on iOS. Without it a page is laid out against
+    /// the full-height sheet and its bottom is out of reach at a smaller detent.
+    /// </summary>
+    internal void SetSheetOverhang(double overhang)
+    {
+        if (Math.Abs(overhang - _sheetOverhang) < 0.5)
+            return;
+
+        _sheetOverhang = overhang;
+        ApplySheetOverhang();
+    }
+
+    private void ApplySheetOverhang()
+    {
+        _footerHost.TranslationY = -_sheetOverhang;
+        _contentPresenter.Margin = new Thickness(0, 0, 0, _sheetOverhang);
+    }
 
     // The presenter follows the page for the two things that change its own layout: an overlay
     // header floats the title row over the content, and a fixed foreground colours the title.

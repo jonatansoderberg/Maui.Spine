@@ -1,0 +1,28 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Sheets.LoginSheetPage"
+    x:TypeArguments="LoginSheetPageViewModel"
+    x:DataType="LoginSheetPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,0,20,16" Spacing="12">
+            <Label Text="Log in is this sheet's own primary action, so it sits in the Footer: at the bottom of the visible sheet at every detent, following the sheet while you drag it."
+                   FontSize="14" />
+
+            <Label Text="Email" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Entry Text="{Binding Email}" Placeholder="you@example.com" Keyboard="Email" />
+
+            <Label Text="Password" FontAttributes="Bold" />
+            <Entry Text="{Binding Password}" Placeholder="Password" IsPassword="True" />
+
+            <Label Text="Forgot your password? Ask the person who set up your account."
+                   FontSize="12" TextColor="Gray" />
+        </VerticalStackLayout>
+    </ScrollView>
+
+    <SpinePage.Footer>
+        <Button Text="Log in" Command="{Binding LogInCommand}" Margin="20,12" />
+    </SpinePage.Footer>
+
+</SpinePage>
