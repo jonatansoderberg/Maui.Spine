@@ -23,6 +23,9 @@ internal static class NavigableMeta
         vm.TitleAlignment = meta.TitleAlignment;
         vm.IsHeaderBarVisible = meta.IsHeaderBarVisible;
         vm.IsBackButtonVisible = meta.IsBackButtonVisible;
+        vm.HeaderBarMode = meta.HeaderBar;
+        vm.HeaderBarForeground = meta.HeaderBarForeground is { } hex && Color.TryParse(hex, out var foreground) ? foreground : null;
+        vm.StatusBarStyle = meta.StatusBarStyle;
 
         if (meta is NavigableTabAttribute tabMeta)
         {
@@ -45,11 +48,7 @@ internal static class NavigableMeta
         // Populate raw system bar dimensions and the per-page complement insets.
         var insets = insetsProvider.SystemBarInsets;
         vm.SystemBarInsets = insets;
-        vm.SafeAreaInsets = new Thickness(
-            (vm.SafeAreaEdges & SafeAreaEdges.Left)   != 0 ? 0 : insets.Left,
-            (vm.SafeAreaEdges & SafeAreaEdges.Top)    != 0 ? 0 : insets.Top,
-            (vm.SafeAreaEdges & SafeAreaEdges.Right)  != 0 ? 0 : insets.Right,
-            (vm.SafeAreaEdges & SafeAreaEdges.Bottom) != 0 ? 0 : insets.Bottom);
+        vm.SafeAreaInsets = Presentation.NavigationRegion.SafeAreaInsetsFor(vm, insets);
 
         // The page's own value on the view wins; the attribute only fills in a view that says nothing.
         if (vm.ScrollInset != SafeAreaEdges.None

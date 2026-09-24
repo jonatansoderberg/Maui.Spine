@@ -29,6 +29,22 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
     public static readonly BindableProperty DefaultPageActionProperty = BindableProperty.Create(
         nameof(DefaultPageAction), typeof(PageAction), typeof(HeaderBar), default, propertyChanged: DefaultPageActionChanged);
 
+    /// <summary>A fixed colour for the actions' text and icons, or <see langword="null"/> to follow the theme.</summary>
+    public static readonly BindableProperty ForegroundProperty = BindableProperty.Create(
+        nameof(Foreground), typeof(Color), typeof(HeaderBar), null,
+        propertyChanged: static (b, _, v) =>
+        {
+            var bar = (HeaderBar)b;
+            bar._primaryPageActionView.Foreground = (Color?)v;
+            bar._secondaryPageActionView.Foreground = (Color?)v;
+        });
+
+    public Color? Foreground
+    {
+        get => (Color?)GetValue(ForegroundProperty);
+        set => SetValue(ForegroundProperty, value);
+    }
+
     public static readonly BindableProperty PrimaryPageActionProperty = BindableProperty.Create(
         nameof(PrimaryPageAction), typeof(PageAction), typeof(HeaderBar), default, propertyChanged: PrimaryPageActionChanged);
 
