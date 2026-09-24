@@ -37,6 +37,11 @@
     <EmbeddedResource Include="Resources\Svg\*.svg" />
   </ItemGroup>
 
+  <!-- The generator behind UseSpine()'s module registration; see build\Plugin.Maui.Spine.targets. -->
+  <ItemGroup>
+    <None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+  </ItemGroup>
+
   <ItemGroup>
     <Folder Include="Platforms\iOS\" />
     <Folder Include="Platforms\MacCatalyst\" />

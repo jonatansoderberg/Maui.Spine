@@ -5,47 +5,35 @@
     x:TypeArguments="TagsPageViewModel"
     x:DataType="TagsPageViewModel">
 
-    <!--
-        Spara sits outside the ScrollView on purpose. The sheet opens at the Medium detent, where the
-        content is taller than the sheet without looking scrollable, and a Spara inside the scroll is
-        simply not there until you drag the sheet up.
-    -->
-    <Grid RowDefinitions="*,Auto" Padding="16" RowSpacing="8">
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="8">
 
-        <ScrollView Grid.Row="0">
-            <VerticalStackLayout Spacing="8">
+            <Label Text="What this installation subscribes to. The server matches them with a tag expression."
+                   FontSize="12" TextColor="Gray" />
 
-                <Label Text="What this installation subscribes to. The server matches them with a tag expression."
-                       FontSize="12" TextColor="Gray" />
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="kind:news" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding News}" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="kind:alerts" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding Alerts}" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="team:red" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding TeamRed}" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="team:blue" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding TeamBlue}" />
+            </Grid>
 
-                <Grid ColumnDefinitions="*,Auto">
-                    <Label Text="kind:news" VerticalOptions="Center" />
-                    <Switch Grid.Column="1" IsToggled="{Binding News}" />
-                </Grid>
-                <Grid ColumnDefinitions="*,Auto">
-                    <Label Text="kind:alerts" VerticalOptions="Center" />
-                    <Switch Grid.Column="1" IsToggled="{Binding Alerts}" />
-                </Grid>
-                <Grid ColumnDefinitions="*,Auto">
-                    <Label Text="team:red" VerticalOptions="Center" />
-                    <Switch Grid.Column="1" IsToggled="{Binding TeamRed}" />
-                </Grid>
-                <Grid ColumnDefinitions="*,Auto">
-                    <Label Text="team:blue" VerticalOptions="Center" />
-                    <Switch Grid.Column="1" IsToggled="{Binding TeamBlue}" />
-                </Grid>
+            <Label Text="Own tags, one per line" Margin="0,8,0,0" />
+            <Editor Text="{Binding Extra}" HeightRequest="90" AutoSize="Disabled" />
 
-                <Label Text="Own tags, one per line" Margin="0,8,0,0" />
-                <Editor Text="{Binding Extra}" HeightRequest="90" AutoSize="Disabled" />
-
-            </VerticalStackLayout>
-        </ScrollView>
-
-        <VerticalStackLayout Grid.Row="1" Spacing="4">
-            <Button Text="Save" Command="{Binding ApplyCommand}" />
             <Label Text="{Binding Result}" IsVisible="{Binding HasResult}" FontSize="12" TextColor="Gray" />
-        </VerticalStackLayout>
 
-    </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
 
 </SpinePage>

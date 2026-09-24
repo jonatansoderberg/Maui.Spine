@@ -15,6 +15,7 @@ public static class MauiAppBuilderExtensions
     /// <remarks>
     /// Call this method inside <c>CreateMauiApp</c> before <c>builder.Build()</c>.
     /// When no assemblies are provided the application entry assembly is used.
+    /// <c>UseSpine()</c> calls it with its assemblies; calling it again only scans the new ones.
     /// </remarks>
     /// <param name="builder">The <see cref="MauiAppBuilder"/> to configure.</param>
     /// <param name="assemblies">
@@ -24,11 +25,16 @@ public static class MauiAppBuilderExtensions
     /// <returns>The same <paramref name="builder"/> instance to allow method chaining.</returns>
     public static MauiAppBuilder UseEmbeddedSvgImages(this MauiAppBuilder builder, params Assembly[] assemblies)
     {
-        if (!builder.Services.Any(sd => sd.ServiceType == typeof(ResourceNameCache)))
-            builder.Services.AddSingleton<ResourceNameCache>();
+        if (builder.Services.FirstOrDefault(static sd => sd.ServiceType == typeof(ResourceNameCache) && !sd.IsKeyedService)?.ImplementationInstance
+            is ResourceNameCache registered)
+        {
+            // Already set up by an earlier call: only the assemblies are new.
+            registered.Initialize(assemblies.Length > 0 ? assemblies : null);
+            return builder;
+        }
 
-        using var scope = builder.Services.BuildServiceProvider();
-        var registry = scope.GetRequiredService<ResourceNameCache>();
+        var registry = new ResourceNameCache();
+        builder.Services.AddSingleton(registry);
         registry.Initialize(assemblies.Length > 0 ? assemblies : null);
         SvgBitmapLoader.Registry = registry;
 

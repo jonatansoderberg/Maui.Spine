@@ -37,6 +37,45 @@ PushNotifications                                    AnimatedLabel
 | The push backend | `Plugin.Maui.Spine.Server` in the server project (brings `.Common`) |
 | A domain or test project that builds widget trees without MAUI | `Plugin.Maui.Spine.Common` |
 
+## Registration
+
+`UseSpine()` registers every Spine package the app references; `MauiProgram` needs no other Spine call unless it changes a package's options. The packages declare themselves at build time (see [Build assets](#build-assets-in-the-packages)), so there is no assembly scanning or reflection at startup, and the list is trim- and AOT-safe.
+
+| Package | With `UseSpine()` | Without `UseSpine()` |
+|---|---|---|
+| `Plugin.Maui.Spine.Svg` | Set up by `UseSpine`; call `UseSvgIcon(o => …)` only to change `SvgIconOptions` | `UseEmbeddedSvgImages(...)`, `UseSvgIcon()` |
+| `Plugin.Maui.Spine.Svg.Icons` | Nothing | Nothing (found by `.Svg`) |
+| `Plugin.Maui.Spine.Widgets` | Registered; call `UseSpineWidgets(o => …)` only to configure | Needs the core, so always with `UseSpine` |
+| `Plugin.Maui.Spine.PushNotifications` | Registered; call `UseSpinePushNotifications(o => …)` to set the backend, channels, handler | `UseSpinePushNotifications(o => …)` |
+| `Plugin.Maui.Spine.Controls.AnimatedLabel` | Registered | `UseAnimatedLabel()` |
+| `Plugin.Maui.Spine.Controls.HeroCollectionView` | Nothing | Nothing (`UseHeroCollectionView()` still compiles, and does nothing) |
+| `Plugin.Maui.Spine.Controls.Calendar`, `.DataGrid` | Nothing: strings register from the control's static constructor | Nothing |
+
+Every `UseXxx()` is idempotent. The first call registers the package; a later call only applies its `configure` delegate to the same options instance. An explicit configuring call therefore works before or after `UseSpine()`, and the options end up with both. Settings that decide what gets registered (a widget background-refresh handler, a push handler) are applied after every call, and the platform callbacks read the options when they run, not when they are registered.
+
+`UseSpine()` runs the package registrations last, after navigation, the SVG pipeline and strings are in place, in the order the build lists them. They do not depend on each other's order: Widgets and PushNotifications turn Live Activity push tokens on whichever of the two registers first.
+
+`SpineTheme.Track` and `SpineStrings.Current` work without `UseSpine()` as well: the theme tracker follows `Application.RequestedThemeChanged` and `SpineStrings.Changed` itself until `SpineApplication` hands it to the `IThemeService`, and `SpineStrings` answers from the packages' built-in defaults.
+
+### Adding a module to a package
+
+A package that has to touch the `MauiAppBuilder` (handlers, SkiaSharp, lifecycle events, services) becomes a module; one that only needs its strings registers them from the control's static constructor with `SpineStrings.Current.AddDefaults(...)` instead, and needs nothing below.
+
+1. Make the extension idempotent: return early when a marker (or the package's options instance) is already in `builder.Services`; with options, apply `configure` to the registered instance on every call. Read options in callbacks, not at registration.
+2. Add `build/<PackageId>.props`:
+   ```xml
+   <Project>
+   	<ItemGroup>
+   		<SpineModule Include="<AssemblyName>" Register="<Namespace>.<Type>.<UseMethod>" />
+   	</ItemGroup>
+   </Project>
+   ```
+   `Include` is the assembly name (only referenced assemblies are registered); `Register` is a static method whose first parameter is the `MauiAppBuilder` and whose other parameters are optional.
+3. Pack it: `<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />` in the csproj (already there when the package has a `build` folder).
+4. Say in the package README and wiki page that `UseSpine()` registers it, and when the explicit call is still needed.
+
+The samples reference the projects, not the packages; `samples/Directory.Build.targets` imports every `src/*/build/*.props` and the core's generator, so a new module is picked up there without further changes.
+
 ## Target frameworks
 
 | Package | Frameworks |
@@ -48,10 +87,12 @@ Platform minimums: Android API 21 (API 23 with `Plugin.Maui.Spine.PushNotificati
 
 ## Build assets in the packages
 
-Three packages carry MSBuild targets that run in the consuming app's build, imported automatically through `buildTransitive/`:
+These packages carry MSBuild files that run in the consuming app's build, imported automatically through `buildTransitive/`:
 
-| Package | What its targets do |
+| Package | What its build files do |
 |---|---|
+| `Plugin.Maui.Spine` | Writes `SpineModules.g.cs` into the app: a `[ModuleInitializer]` that hands each referenced package's registration to `UseSpine()` (from the `SpineModule` items below). Only in an app project; `SpineGenerateModuleRegistrations=false` turns it off |
+| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.Controls.AnimatedLabel` | Declare their `SpineModule` in `<PackageId>.props` |
 | `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other two contribute |
 | `Plugin.Maui.Spine.Widgets` | Compiles the WidgetKit extension and the bridge framework with `swiftc` on iOS; generates the manifest overlay and provider metadata on Android |
 | `Plugin.Maui.Spine.PushNotifications` | Contributes the `aps-environment` entitlement; compiles the Notification Service Extension on iOS when `SpinePushNotificationsImages` is on |

@@ -5,16 +5,34 @@
     x:TypeArguments="SheetsPageViewModel"
     x:DataType="SheetsPageViewModel">
 
-    <VerticalStackLayout Padding="20,16" Spacing="10">
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="10">
             <PackageChips Packages="Plugin.Maui.Spine" />
-        <Label Text="A [NavigableSheet] page opens as a native bottom sheet: UISheetPresentationController on iOS, BottomSheetDialog on Android. Detents, the drag handle, dimming and the close button come from the platform."
-               FontSize="14" />
+            <Label Text="A [NavigableSheet] page opens as a native bottom sheet: UISheetPresentationController on iOS, BottomSheetDialog on Android. Detents, the drag handle, dimming and the close button come from the platform."
+                   FontSize="14" />
 
-        <Button Text="Sheet with detents (Medium, Expanded) and a Save action" Command="{Binding ShowBottomSheetCommand}" />
-        <Button Text="Simple sheet with blurred background" Command="{Binding ShowSimpleBottomSheetCommand}" />
-        <Button Text="Full-screen sheet" Command="{Binding ShowFullscreenSheetCommand}" />
-        <Button Text="Small sheet (Compact detent)" Command="{Binding ShowSmallSheetCommand}" />
-        <Button Text="Sheet with switches in a template" Command="{Binding ShowToggleListCommand}" />
-    </VerticalStackLayout>
+            <Button Text="Sheet with detents (Medium, Expanded) and a Save action" Command="{Binding ShowBottomSheetCommand}" />
+            <Button Text="Simple sheet with blurred background" Command="{Binding ShowSimpleBottomSheetCommand}" />
+            <Button Text="Full-screen sheet" Command="{Binding ShowFullscreenSheetCommand}" />
+            <Button Text="Small sheet (Compact detent)" Command="{Binding ShowSmallSheetCommand}" />
+            <Button Text="Sheet with switches in a template" Command="{Binding ShowToggleListCommand}" />
+
+            <Label Text="Buttons in a sheet" FontAttributes="Bold" Margin="0,12,0,0" />
+            <Label Text="Save, Cancel and Done are page actions in the sheet's header bar. A sheet's own primary action — Log in, Continue, Pay — goes in SpinePage.Footer, which stays at the bottom of the visible sheet and follows it between detents."
+                   FontSize="14" />
+
+            <Button Text="Save and Cancel as page actions" Command="{Binding ShowEditSheetCommand}" />
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                       Text="[PageAction(&quot;Cancel&quot;, Placement = PageActionPlacement.Primary)]&#10;[RelayCommand] private Task Cancel() =&gt; _navigation.CloseAsync();&#10;&#10;[PageAction(&quot;Save&quot;)]&#10;[RelayCommand] private Task Save() =&gt; _navigation.CloseAsync();" />
+            </Border>
+
+            <Button Text="Log in sheet with a footer" Command="{Binding ShowLoginSheetCommand}" />
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                       Text="&lt;SpinePage …&gt;&#10;  &lt;ScrollView&gt; … fields … &lt;/ScrollView&gt;&#10;&#10;  &lt;SpinePage.Footer&gt;&#10;    &lt;Button Text=&quot;Log in&quot;&#10;            Command=&quot;{Binding LogInCommand}&quot;&#10;            Margin=&quot;20,12&quot; /&gt;&#10;  &lt;/SpinePage.Footer&gt;&#10;&lt;/SpinePage&gt;" />
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
 
 </SpinePage>

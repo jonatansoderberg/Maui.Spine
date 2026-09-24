@@ -27,15 +27,7 @@ dotnet add package Plugin.Maui.Spine.Controls.HeroCollectionView
 
 ## Registration
 
-Call `UseHeroCollectionView()` in your `MauiProgram.cs` builder chain:
-
-```csharp
-using Plugin.Maui.Spine.Controls;
-
-builder
-    .UseMauiApp<App>()
-    .UseHeroCollectionView();
-```
+None. The control needs no builder registration, with or without `UseSpine()`. `UseHeroCollectionView()` is kept so existing builder chains still compile, and does nothing.
 
 ---
 

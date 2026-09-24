@@ -76,19 +76,29 @@ public sealed class SpineStrings : ISpineStrings
     /// Adds the defaults a Spine package ships. Asked after every app provider, in the order the
     /// packages registered, so an app overrides any of their keys by defining it itself.
     /// </summary>
+    /// <remarks>
+    /// Does not raise <see cref="Changed"/>: a control registers its defaults lazily, the first time
+    /// one is created, and new defaults cannot change text that is already on screen. Raising it
+    /// would repaint every tracked view each time a control type is first used.
+    /// </remarks>
     public SpineStrings AddDefaults(IStringProvider provider)
     {
         _defaultProviders.Add(provider);
-        Reload();
+        DropCache();
         return this;
     }
 
     /// <summary>Drops every cached value and asks the providers again on the next lookup.</summary>
     public void Reload()
     {
+        DropCache();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void DropCache()
+    {
         _cache.Clear();
         _loaded.Clear();
-        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>Whether any provider has <paramref name="key"/> for the current culture or one of its parents.</summary>

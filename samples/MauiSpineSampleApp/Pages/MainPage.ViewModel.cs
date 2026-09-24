@@ -43,7 +43,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     // One row per sample page. Add a page here when it gets a page of its own.
     private static IEnumerable<Item> SampleIndex =>
     [
-        new("Bottom sheets", "Native sheets with detents, blur, full screen, switches in a template", "up.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
+        new("Bottom sheets", "Native sheets with detents, blur, full screen, page actions and a footer", "up.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
         new("Parameters and results", "Typed navigation parameters and awaited results", "return.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Results.ResultsPage>()),
         new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "wired.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
         new("Overlay header", "HeaderBarMode.Overlay, HeaderBarForeground and StatusBarStyle over a photo", "cam.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Overlay.OverlayPage>()),
@@ -57,7 +57,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         new("Calendar", "Month calendar with swipe, year and decade pickers, week numbers, theme and culture", "calendarday.svg", "Plugin.Maui.Spine.Controls.Calendar", n => n.NavigateToAsync<Dates.DatesPage>()),
         new("DataGrid", "Rows with named Wide/Narrow layouts, sorting, grouping, swipe actions, load more and pull-to-refresh", "wordclock.svg", "Plugin.Maui.Spine.Controls.DataGrid, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<DataGrid.DataGridPage>()),
         new("Rows", "SpineRow settings and key/value rows, Tap.Command with press feedback on any view, Semantic.Merge for one screen-reader element", "settings.svg", "Plugin.Maui.Spine.Controls.Rows, Plugin.Maui.Spine", n => n.NavigateToAsync<Rows.RowsPage>()),
-        new("Theming", "IThemeService: a stored light/dark choice, token dictionaries, a repaint hook for code-drawn views", "lamp.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Theme.ThemePage>()),
+        new("Theming", "IThemeService: a stored light/dark choice, an app-wide accent, token dictionaries, a repaint hook for code-drawn views", "lamp.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Theme.ThemePage>()),
         new("Strings", "ISpineStrings: embedded XML per culture, {String} with arguments and plurals, a runtime language switch", "wordclock.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Common", n => n.NavigateToAsync<Strings.StringsPage>()),
         new("SVG icons", "SvgImageSource on Image and ImageButton, the bundled icon set", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
     ];

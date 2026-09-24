@@ -11,7 +11,9 @@ public static partial class SpinePushNotificationsExtensions
 {
     /// <summary>
     /// Adds <see cref="IPushNotificationService"/>, wires the platform's push callbacks, and registers the app's
-    /// <see cref="IPushNotificationHandler"/>. Call after <c>UseSpine</c>.
+    /// <see cref="IPushNotificationHandler"/>. <c>UseSpine()</c> calls it for an app that references this
+    /// package; call it yourself to configure the options, before or after <c>UseSpine()</c>. The first
+    /// call registers the services; every call applies its <paramref name="configure"/> to the same options.
     /// </summary>
     /// <param name="builder">The application builder.</param>
     /// <param name="configure">The backend, the permission policy, the channels and the handler.</param>
@@ -26,11 +28,28 @@ public static partial class SpinePushNotificationsExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var options = new SpinePushNotificationsOptions();
+        var services = builder.Services;
+
+        if (services.FirstOrDefault(static d => d.ServiceType == typeof(SpinePushNotificationsOptions) && !d.IsKeyedService)?.ImplementationInstance
+            is not SpinePushNotificationsOptions options)
+        {
+            options = new SpinePushNotificationsOptions();
+            Register(builder, options);
+        }
+
         configure?.Invoke(options);
 
+        if (options.HandlerType is { } handler)
+            services.Replace(ServiceDescriptor.Transient(typeof(IPushNotificationHandler), handler));
+
+        return builder;
+    }
+
+    private static void Register(MauiAppBuilder builder, SpinePushNotificationsOptions options)
+    {
         var services = builder.Services;
         services.AddSingleton(options);
+        services.AddSingleton(new PushNotificationsRegistered());
         services.AddSingleton<PushRegistrationClient>();
         services.AddSingleton<IPushNotificationService>(sp => new PushNotificationService(
             sp.GetRequiredService<IPushPlatform>(),
@@ -42,15 +61,12 @@ public static partial class SpinePushNotificationsExtensions
 
         // When the app also uses Plugin.Maui.Spine.Widgets, Live Activity push tokens are what make
         // UpdateLiveActivityAsync work from a server, so they are on by default once both are present.
-        // UseSpineWidgets has to run first for this to see it; the wiki says so.
+        // With widgets registered second, UseSpineWidgets sees PushNotificationsRegistered instead.
         foreach (var registered in services)
         {
-            if (registered.ServiceType != typeof(SpineWidgetsOptions)) continue;
+            if (registered.ServiceType != typeof(SpineWidgetsOptions) || registered.IsKeyedService) continue;
             if (registered.ImplementationInstance is SpineWidgetsOptions widgets) widgets.LiveActivityPushTokens = true;
         }
-
-        if (options.HandlerType is { } handler)
-            services.AddTransient(typeof(IPushNotificationHandler), handler);
 
         ConfigurePlatform(builder, options);
 
@@ -59,8 +75,6 @@ public static partial class SpinePushNotificationsExtensions
         // wherever there is one, and the rule is in the code rather than in the order of two calls.
         services.TryAddSingleton<IPushPlatform, UnsupportedPushPlatform>();
         services.TryAddSingleton<ILocalNotificationService, UnsupportedLocalNotifications>();
-
-        return builder;
     }
 
     static partial void ConfigurePlatform(MauiAppBuilder builder, SpinePushNotificationsOptions options);

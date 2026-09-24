@@ -122,8 +122,8 @@ public class DataGridStyleOptions : SpineStyleOptions<DataGridStyleOptions>
     {
         var dark = theme == AppTheme.Dark;
 
-        // Neutral greys close to the platform's grouped-list surfaces, and the system blue.
-        var accent = dark ? Color.FromArgb("#0A84FF") : Color.FromArgb("#007AFF");
+        // Neutral greys close to the platform's grouped-list surfaces, and the app's accent or the system blue.
+        var accent = SpineTheme.GetAccent(theme) ?? Color.FromArgb(dark ? "#0A84FF" : "#007AFF");
         var text = dark ? Colors.White : Colors.Black;
         var muted = dark ? Color.FromArgb("#98989F") : Color.FromArgb("#6C6C70");
 
@@ -138,7 +138,7 @@ public class DataGridStyleOptions : SpineStyleOptions<DataGridStyleOptions>
         SortIndicatorColor ??= text;
         StatusTextColor ??= muted;
         SwipeActionBackgroundColor ??= accent;
-        SwipeActionTextColor ??= Colors.White;
+        SwipeActionTextColor ??= SpineAccent.TextOn(SwipeActionBackgroundColor);
         TooltipBackgroundColor ??= dark ? Color.FromArgb("#E5E5EA") : Color.FromArgb("#3A3A3C");
         TooltipTextColor ??= dark ? Colors.Black : Colors.White;
         // Darker than the column header, so a group header flush against it stays a separate band.

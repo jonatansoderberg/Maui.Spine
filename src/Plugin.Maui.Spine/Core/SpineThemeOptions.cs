@@ -9,6 +9,31 @@ public sealed class SpineThemeOptions
     /// </summary>
     public bool Persist { get; set; } = true;
 
+    /// <summary>
+    /// Colour resource that holds the light-mode accent and that <see cref="IThemeService.Accent"/>
+    /// overwrites. Default <c>Primary</c>, as in the MAUI template. <see langword="null"/> skips it.
+    /// </summary>
+    public string? AccentLightKey { get; set; } = "Primary";
+
+    /// <summary>
+    /// Colour resource that holds the dark-mode accent. Default <c>PrimaryDark</c>; an app without
+    /// one uses the light accent in dark mode too. <see langword="null"/> skips it.
+    /// </summary>
+    public string? AccentDarkKey { get; set; } = "PrimaryDark";
+
+    /// <summary>
+    /// Colour resource Spine keeps at the accent of the theme in effect, for
+    /// <c>{DynamicResource Accent}</c> in styles: one key that follows both a theme switch and
+    /// an accent change. Default <c>Accent</c>. <see langword="null"/> skips it.
+    /// </summary>
+    public string? AccentKey { get; set; } = "Accent";
+
+    /// <summary>
+    /// Colour resource Spine keeps at black or white, whichever reads on <see cref="AccentKey"/>
+    /// (see <see cref="SpineAccent.TextOn"/>). Default <c>OnAccent</c>. <see langword="null"/> skips it.
+    /// </summary>
+    public string? OnAccentKey { get; set; } = "OnAccent";
+
     internal Func<ResourceDictionary>? LightTokens { get; private set; }
 
     internal Func<ResourceDictionary>? DarkTokens { get; private set; }
