@@ -13,6 +13,17 @@ internal sealed class PageActionView : ContentView
         default(PageAction),
         propertyChanged: OnActionChanged);
 
+    /// <summary>A fixed colour for the text and the icon, or <see langword="null"/> to follow the theme.</summary>
+    public static readonly BindableProperty ForegroundProperty = BindableProperty.Create(
+        nameof(Foreground), typeof(Color), typeof(PageActionView), null,
+        propertyChanged: static (b, _, _) => ((PageActionView)b).ApplyForeground());
+
+    public Color? Foreground
+    {
+        get => (Color?)GetValue(ForegroundProperty);
+        set => SetValue(ForegroundProperty, value);
+    }
+
     public static readonly BindableProperty HideDisabledProperty = BindableProperty.Create(
         nameof(HideDisabled),
         typeof(bool),
@@ -22,6 +33,7 @@ internal sealed class PageActionView : ContentView
 
     readonly Button _textButton;
     readonly ImageButton _imageButton;
+    Action? _applyTextButtonColor;
     readonly Border _badge;
     readonly Label _badgeLabel;
     readonly bool _glass;
@@ -52,6 +64,12 @@ internal sealed class PageActionView : ContentView
 
         void ApplyTextButtonColor()
         {
+            if (Foreground is { } foreground)
+            {
+                _textButton.TextColor = foreground;
+                return;
+            }
+
             var isDark = Application.Current?.RequestedTheme == AppTheme.Dark
                 || (Application.Current?.RequestedTheme != AppTheme.Light
                     && Application.Current?.PlatformAppTheme == AppTheme.Dark);
@@ -59,6 +77,8 @@ internal sealed class PageActionView : ContentView
                 ? GetResourceColor("PrimaryDark", Color.FromArgb("#ac99ea"))
                 : GetResourceColor("Primary", Color.FromArgb("#512BD4"));
         }
+
+        _applyTextButtonColor = ApplyTextButtonColor;
 
         ApplyTextButtonColor();
 
@@ -175,6 +195,17 @@ internal sealed class PageActionView : ContentView
 
  
 
+    void ApplyForeground()
+    {
+        _applyTextButtonColor?.Invoke();
+
+        if (_imageButton.Behaviors.OfType<SvgImageSourceBehavior>().FirstOrDefault() is { } svg)
+        {
+            svg.TintColor = Foreground;
+            svg.UpdateImage();
+        }
+    }
+
     void OnActionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
@@ -261,7 +292,8 @@ internal sealed class PageActionView : ContentView
                 {
                     Svg = action.Svg!,
                     LightTintColor = Colors.Black,
-                    DarkTintColor = Colors.White
+                    DarkTintColor = Colors.White,
+                    TintColor = Foreground,
                 };
                 // A 24-point glyph in the 44-point glass circle, the size a UIBarButtonItem uses.
                 if (_glass)

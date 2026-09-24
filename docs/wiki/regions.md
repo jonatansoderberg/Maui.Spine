@@ -34,6 +34,9 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `TitlePlacement` | `TitlePlacement` | platform default | `HeaderBar` or `TitleBar` |
 | `TitleAlignment` | `TitleAlignment` | platform default | `Left` or `Center` |
 | `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually |
+| `HeaderBar` | `HeaderBarMode` | `Normal` | `Overlay` floats the header bar over content that starts at the top of the screen. See [Overlay header](#overlay-header) |
+| `HeaderBarForeground` | `string?` | `null` | A fixed colour (hex) for the header bar's title and action icons; `null` follows the theme |
+| `StatusBarStyle` | `StatusBarStyle` | `Default` | `LightContent` or `DarkContent` for the status bar's clock and icons while the page is shown |
 | `ScrollInset` | `SafeAreaEdges` | `None` | Edges on which the page's first `ScrollView` / `CollectionView` takes the safe-area inset as a native content inset, so it can scroll under an excluded bar and still reach its last row. See [Scrolling under a bar](#scrolling-under-a-bar) |
 
 Platform defaults:
@@ -152,6 +155,25 @@ public override async Task OnResumedAsync()
     await base.OnResumedAsync();
 }
 ```
+
+---
+
+## Overlay header
+
+A page that opens on a photo, a map or a hero wants the content to start at the top of the screen with the header floating over it, in a colour that reads on the image:
+
+```csharp
+[NavigableRegion(Title = "Trip",
+                 HeaderBar = HeaderBarMode.Overlay,
+                 HeaderBarForeground = "#FFFFFF",
+                 StatusBarStyle = StatusBarStyle.LightContent,
+                 SafeAreaEdges = SafeAreaEdges.Left | SafeAreaEdges.Right)]
+```
+
+- `HeaderBar = Overlay`: the content host is not padded at the top; the title row and the actions sit over the content, pushed down by the status bar. Page actions keep their glass on iOS 26, which is what makes them readable over imagery.
+- `HeaderBarForeground`: the title and the action icons take this colour instead of the theme's.
+- `StatusBarStyle`: applied when the page appears and again on a theme change. On Android it sets the window's light/dark status bar appearance. On iOS it needs `<key>UIViewControllerBasedStatusBarAppearance</key><false/>` in `Info.plist`; without it Spine logs a hint and leaves the bar alone.
+- `ViewModelBase.SafeAreaInsets.Top` reports status bar plus header height, so a list can take it with `SafeArea.ScrollInset="Top"` and still draw behind the bar. `HeaderBarConstants` is public for anything that needs the numbers.
 
 ---
 

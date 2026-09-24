@@ -1,6 +1,6 @@
 namespace Plugin.Maui.Spine.Presentation;
 
-internal static class HeaderBarConstants
+public static class HeaderBarConstants
 {
     // Use -1 to allow width to size to text content when no SVG is present
     public const double Auto = -1;
