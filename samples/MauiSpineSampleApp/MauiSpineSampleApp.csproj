@@ -207,6 +207,15 @@
       <DependentUpon>MarqueePage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\DataGrid\DataGridPage.View.xaml">
+      <DependentUpon>DataGridPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\DataGrid\DataGridPage.ViewModel.cs">
+      <DependentUpon>DataGridPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\SvgIcons\SvgIconsPage.View.xaml">
       <DependentUpon>SvgIconsPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -313,6 +322,7 @@
   
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.AnimatedLabel\Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.DataGrid\Plugin.Maui.Spine.Controls.DataGrid.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
