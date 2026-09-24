@@ -51,7 +51,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         new("Overlay header", "HeaderBarMode.Overlay, HeaderBarForeground and StatusBarStyle over a photo", "image.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Overlay.OverlayPage>()),
         new("Page lifetime", "Poll, WhileVisible and PageLifetime: work that runs, pauses and stops with the page", "refresh.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Lifetime.LifetimePage>()),
         new("Menu buttons", "A header action, a pop-up button and an icon button that open native menus: sections, pickers, submenus, toggles", "more.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<Menus.MenusPage>()),
-        new("Page actions", "[PageAction] on a command; text, badge, enabled and visibility change live", "menu.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<PageActions.PageActionsPage>()),
+        new("Page actions", "[PageAction] on a command; text, badge, enabled and visibility change live", "energy.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<PageActions.PageActionsPage>()),
         new("Liquid Glass", "Button and ImageButton as glass on iOS 26", "water.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg", n => n.NavigateToAsync<Glass.GlassPage>()),
         new("Scroll inset", "SafeArea.ScrollInset: a list that scrolls clear of the bottom bar it draws behind", "vertical.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<ScrollInset.ScrollInsetPage>()),
         new("Typography", "Text.FontFeatures (tabular digits) and Text.TrimToCapHeight", "edit.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Typography.TypographyPage>()),

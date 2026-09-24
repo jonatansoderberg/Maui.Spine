@@ -67,13 +67,13 @@ After that an icon is available by short name (e.g. `"myicon.svg"`) — no other
 
 ### The built-in icon set
 
-`Plugin.Maui.Spine.Svg.Icons` carries 218 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
+`Plugin.Maui.Spine.Svg.Icons` carries 219 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Svg.Icons
 ```
 
-Referencing it is all it takes: `Plugin.Maui.Spine.Svg` loads the assembly by name at startup and its files resolve like the app's own. `SpineIcons` lists every file name as a constant (`SpineIcons.Bell` is `"Bell.svg"`); plain strings work just as well. The package is `net10.0` and holds nothing but the SVG files and those constants; for a trimmed build its targets root the assembly so it is kept.
+Referencing it is all it takes: `Plugin.Maui.Spine.Svg` loads the assembly by name at startup and its files resolve like the app's own. `SpineIcons` lists every file name as a constant (`SpineIcons.Bell` is `"Bell.svg"`); plain strings work just as well. `SpineIcons.All` holds every name, for a picker or a gallery. The package is `net10.0` and holds nothing but the SVG files and those constants; for a trimmed build its targets root the assembly so it is kept.
 
 ---
 

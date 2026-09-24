@@ -17,7 +17,7 @@
             CanReorderItems="True"
             ItemsSource="{Binding Items}"
             HeaderImageSource="spine_hero2.png"
-            HeaderTitle="SPINE SAMPLES"
+            HeaderTitle="SPINE SHOWCASE"
             HeaderTitleFontFamily="BrandonGrotesqueBlack"
             HeaderTitleFontSize="25"
             HeaderMaxHeight="230"
@@ -57,7 +57,7 @@
 
                     <Label
                         InputTransparent="True"
-                        Text="SPINE SAMPLES"
+                        Text="SPINE SHOWCASE"
                         FontFamily="BrandonGrotesqueBlack"
                         FontSize="25"
                         TextTransform="Uppercase"

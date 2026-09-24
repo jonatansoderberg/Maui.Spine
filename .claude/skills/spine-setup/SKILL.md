@@ -16,7 +16,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 | The app needs | Install | Brings in |
 |---|---|---|
 | Navigation: regions, sheets, tabs, header bar, glass buttons, shortcuts, Windows windowing | `Plugin.Maui.Spine` | `Plugin.Maui.Spine.Svg` |
-| The built-in icon set (218 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
+| The built-in icon set (219 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
 | Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
 | Push and local notifications | `Plugin.Maui.Spine.PushNotifications` | `Plugin.Maui.Spine.Common` (not the core) |
 | The push backend, in an ASP.NET Core or Azure Functions project | `Plugin.Maui.Spine.Server` | `Plugin.Maui.Spine.Common` |

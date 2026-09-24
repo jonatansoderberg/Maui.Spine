@@ -92,7 +92,7 @@ The user can pick a letter, ask for changes ("A, but the gap in the corners"), a
 python3 .claude/skills/spine-symbol/symbols.py install <scratchpad>/symbols/out/Wallet@b.svg Wallet
 ```
 
-This copies the file to `Images/Wallet.svg` and regenerates the constants in `SpineIcons.cs` (ordinal order). It also updates the icon count in README.md, the wiki, the package README, the `spine-controls`/`spine-setup` skills and the SVG sample.
+This copies the file to `Images/Wallet.svg` and regenerates the constants and the `All` list in `SpineIcons.cs` (ordinal order); the sample's SVG page shows `SpineIcons.All`, so a new symbol appears there by itself. It also updates the icon count in README.md, the wiki, the package README, the `spine-controls`/`spine-setup` skills and the SVG sample.
 
 - Add `--framework` when Spine itself draws the symbol. This also copies the file in lower case to `src/Plugin.Maui.Spine/Resources/Svg/`, where the back button's `chevronleft.svg` and the sheet's `close.svg` live, so it resolves without the icon package.
 - When a new symbol **replaces** an existing one, delete the old file and point every use at the new name. Search for uses first:
