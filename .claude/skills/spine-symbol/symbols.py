@@ -297,7 +297,9 @@ def regenerate_constants():
     names = sorted(f[:-4] for f in os.listdir(IMAGES) if f.endswith(".svg"))
     s = open(CONSTANTS).read()
     start, end = s.index("    public const string"), s.rindex("}")
-    s = s[:start] + "".join(f'    public const string {x} = "{x}.svg";\n' for x in names) + s[end:]
+    consts = "".join(f'    public const string {x} = "{x}.svg";\n' for x in names)
+    every = "".join(f"        {x},\n" for x in names)
+    s = s[:start] + consts + "\n    /// <summary>Every icon in the package, in ordinal order.</summary>\n    public static IReadOnlyList<string> All { get; } =\n    [\n" + every + "    ];\n" + s[end:]
     open(CONSTANTS, "w").write(s)
     return len(names)
 

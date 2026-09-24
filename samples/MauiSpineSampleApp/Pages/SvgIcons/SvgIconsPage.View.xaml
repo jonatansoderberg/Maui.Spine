@@ -5,30 +5,33 @@
     x:TypeArguments="SvgIconsPageViewModel"
     x:DataType="SvgIconsPageViewModel">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="20,16" Spacing="10">
-            <PackageChips Packages="Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons" />
-            <Label Text="SvgImageSource.Svg renders an embedded SVG at the view's size and screen scale, tinted for the theme. The icons below ship with Plugin.Maui.Spine.Svg.Icons; an app's own SVGs work the same way."
-                   FontSize="14" />
+    <CollectionView ItemsSource="{Binding Icons}" Margin="12,0">
+        <CollectionView.ItemsLayout>
+            <GridItemsLayout Orientation="Vertical" Span="4" VerticalItemSpacing="12" />
+        </CollectionView.ItemsLayout>
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="8,16,8,8" Spacing="10">
+                <PackageChips Packages="Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons" />
+                <Label Text="SvgImageSource.Svg renders an embedded SVG at the view's size and screen scale, tinted for the theme. The icons below ship with Plugin.Maui.Spine.Svg.Icons; an app's own SVGs work the same way."
+                       FontSize="14" />
 
-            <Label Text="ImageButton, enabled and disabled" FontAttributes="Bold" Margin="0,8,0,0" />
-            <HorizontalStackLayout Spacing="16">
-                <ImageButton Padding="5" CornerRadius="50" SvgImageSource.Svg="fish.svg" WidthRequest="80" HeightRequest="80" Style="{StaticResource SvgImageButtonStyle}" />
-                <ImageButton Padding="5" CornerRadius="50" SvgImageSource.Svg="fish.svg" WidthRequest="80" HeightRequest="80" Style="{StaticResource SvgImageButtonStyle}" IsEnabled="False" />
-            </HorizontalStackLayout>
+                <Label Text="ImageButton, enabled and disabled" FontAttributes="Bold" Margin="0,8,0,0" />
+                <HorizontalStackLayout Spacing="16" HorizontalOptions="Center">
+                    <ImageButton Padding="5" CornerRadius="50" SvgImageSource.Svg="fish.svg" WidthRequest="80" HeightRequest="80" Style="{StaticResource SvgImageButtonStyle}" />
+                    <ImageButton Padding="5" CornerRadius="50" SvgImageSource.Svg="fish.svg" WidthRequest="80" HeightRequest="80" Style="{StaticResource SvgImageButtonStyle}" IsEnabled="False" />
+                </HorizontalStackLayout>
 
-            <Label Text="Image, a few icons from the set" FontAttributes="Bold" Margin="0,8,0,0" />
-            <FlexLayout Wrap="Wrap" JustifyContent="Start" BindableLayout.ItemsSource="{Binding Icons}">
-                <BindableLayout.ItemTemplate>
-                    <DataTemplate x:DataType="x:String">
-                        <VerticalStackLayout WidthRequest="80" Margin="0,0,0,12" Spacing="2">
-                            <Image WidthRequest="40" HeightRequest="40" HorizontalOptions="Center" SvgImageSource.Svg="{Binding .}" SvgImageSource.Padding="2" />
-                            <Label Text="{Binding .}" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" />
-                        </VerticalStackLayout>
-                    </DataTemplate>
-                </BindableLayout.ItemTemplate>
-            </FlexLayout>
-        </VerticalStackLayout>
-    </ScrollView>
+                <Label Text="Image, every icon in the set (SpineIcons.All)" FontAttributes="Bold" Margin="0,8,0,0" />
+            </VerticalStackLayout>
+        </CollectionView.Header>
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+                <VerticalStackLayout Spacing="2">
+                    <Image WidthRequest="40" HeightRequest="40" HorizontalOptions="Center" SvgImageSource.Svg="{Binding .}" SvgImageSource.Padding="2" />
+                    <Label Text="{Binding .}" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" LineBreakMode="MiddleTruncation" />
+                </VerticalStackLayout>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
 
 </SpinePage>
