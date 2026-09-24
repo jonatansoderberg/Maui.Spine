@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/329
 **Branch:** issue/329-rows
-**Status:** In Progress
+**Status:** Completed
 **Stage:** 3 of the app-review plan (#333)
 
 ## Plan
@@ -47,3 +47,9 @@ None.
 - **Colours** through `SpineRowStyleOptions` (`SpineTheme.Track` repaint): title in the label colour, detail/value secondary, chevron tertiary, icon `SpineTheme.GetAccent` (Transparent keeps SVG colours). Sizes follow each platform's list rows.
 - **No separators or background in `SpineRow`**: groups/cards are the app's; the sample draws them with `Border` + `BoxView`.
 - **Windows**: taps and hover/pressed fills (composition child visual) compile in CI but were not run; no button role is added for Narrator.
+
+## Verified
+
+- iOS, iPhone 17 simulator, light and dark: press highlight on rows (after the short delay, flashed on quick taps) and on the rounded card; commands run; the disabled row does nothing; with "Rows can open" off the command rows neither highlight nor run; tapping the Wi-Fi row or its switch toggles it once. Accessibility tree dumped from the running app (the simulator MCP `inspect` was unavailable): one element per row, card and merged grid with the joined label; Button trait on command rows; toggle-button trait with value 1/0 on switch rows; NotEnabled on the disabled row and on command rows while `CanExecute` is false; each item of the main list (`ContextItem`) is one button.
+- Android, Pixel 10 Pro emulator (`uiautomator dump --compressed`): one node per row: `android.widget.Switch` (checked follows the switch) for switch rows, `android.widget.Button` for command rows and the card, a plain node with the joined description for key/value rows and the merged grid, `enabled=false` for the disabled row and for command rows while `CanExecute` is false. Ripple on rows and a rounded ripple on the card; commands run, disabled ones do not, the row toggles its switch; dark mode colours.
+- Mac Catalyst: sample builds. Windows: CI build.
