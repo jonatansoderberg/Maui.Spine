@@ -36,7 +36,7 @@ The MAUI packages target `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`
 
 ## 2. Register in `MauiProgram.cs`
 
-Order matters: `UseSpine` first, then widgets, then push notifications (push looks for widgets to turn Live Activity tokens on). Spine registers the SVG pipeline itself; do not call `UseEmbeddedSvgImages` or `UseSvgIcon` again.
+`UseSpine` registers every Spine package the app references — the SVG pipeline, Widgets, PushNotifications, AnimatedLabel; Calendar, DataGrid and HeroCollectionView need no registration at all. The list is generated at build time by `Plugin.Maui.Spine`'s build targets (no scanning at startup). Call a package's `UseXxx(o => …)` only to set its options; the order does not matter — every call configures the same options instance, before or after `UseSpine`.
 
 ```csharp
 using Plugin.Maui.Spine.Extensions;
@@ -50,17 +50,18 @@ builder
         options.AppTitle = "My App";
         options.Theme.UseTokens<LightTokens, DarkTokens>();  // optional: two ResourceDictionaries with the same keys, swapped on theme change
     })
-    .UseSpineWidgets()                                        // Plugin.Maui.Spine.Widgets
-    .UseSpinePushNotifications(o =>                           // Plugin.Maui.Spine.PushNotifications
+    // Widgets, AnimatedLabel, … are registered by UseSpine; these calls only configure:
+    .UseSpineWidgets(o => o.OpenWith<HomePage>())             // optional: Plugin.Maui.Spine.Widgets options
+    .UseSpinePushNotifications(o =>                           // Plugin.Maui.Spine.PushNotifications: backend, handler
     {
         o.Backend = new Uri("https://api.example.com/push/"); // leave unset for local-only notifications
         o.UseHandler<MyPushHandler>();
-    })
-    .UseHeroCollectionView()                                  // Plugin.Maui.Spine.Controls.HeroCollectionView
-    .UseAnimatedLabel();                                      // Plugin.Maui.Spine.Controls.AnimatedLabel
+    });
 
 return builder.Build();
 ```
+
+Without `UseSpine` (a control package on its own) nothing is registered automatically: call `UseAnimatedLabel()`, `UseSpinePushNotifications(…)` or `UseEmbeddedSvgImages(…)` yourself. If a package seems unregistered under `UseSpine`, look for `obj/<config>/<tfm>/SpineModules.g.cs` in the app: it lists what the build found. Referencing Spine as projects instead of packages means importing `Plugin.Maui.Spine`'s `build/Plugin.Maui.Spine.targets` and the packages' `build/*.props` yourself (the repo's `samples/Directory.Build.targets` shows how).
 
 `options.AddAssembly` is where Spine scans for `[NavigableRegion]`, `[NavigableSheet]`, `[NavigableTab]` and `[Widget]` classes and for embedded SVGs. Add every assembly that holds pages or widget providers.
 
@@ -209,7 +210,7 @@ Then run and check the log for Spine's startup warnings: a `[Widget]` kind with 
 - Two `[NavigableTab]` pages with the same `Order` fail startup validation; set `Order` on every tab.
 - `NU1608` warnings about AndroidX `LiveData.Core` / `Fragment` are the normal state of a MAUI app with Firebase in it.
 - Strings: embed `Resources/Strings/strings.xml` and `strings.<culture>.xml` (`<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />`; without `WithCulture="false"` MSBuild moves `strings.sv.xml` into a satellite assembly), read them with `{String Key}` in XAML or `ISpineStrings` in C#, switch with `ISpineStrings.Culture` (stored). Override a Spine key such as `Header.Back` by defining it in the app's document. See docs/wiki/strings.md.
-- Theme: set `IThemeService.Current` (stored, applied at the next launch), never `Application.UserAppTheme`; no `RequestedThemeChanged` handler for the Android page background, Spine paints the window. Views that colour themselves in code call `SpineTheme.Track(this, Repaint)`. See docs/wiki/theming.md.
+- Theme: set `IThemeService.Current` (stored, applied at the next launch), never `Application.UserAppTheme`; no `RequestedThemeChanged` handler for the Android page background, Spine paints the window. Views that colour themselves in code call `SpineTheme.Track(this, Repaint)`. Accent: `IThemeService.Accent = new SpineAccent(light, dark)` (stored; null = the app's `Primary`/`PrimaryDark`) writes `Primary`, `PrimaryDark`, `Accent` and `OnAccent` and repaints like a theme switch; style with `{DynamicResource Accent}` / `{DynamicResource OnAccent}`, not `AppThemeBinding` over `StaticResource Primary`; code reads `SpineTheme.GetAccent(theme)`. See docs/wiki/theming.md.
 - Windows builds only on Windows; iOS and Mac Catalyst class libraries build on Windows, but an iOS *app* (and the widget extension) needs a Mac.
 
 ## Documentation

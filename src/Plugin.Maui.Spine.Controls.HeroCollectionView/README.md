@@ -6,13 +6,7 @@
 dotnet add package Plugin.Maui.Spine.Controls.HeroCollectionView
 ```
 
-```csharp
-using Plugin.Maui.Spine.Controls;
-
-builder
-    .UseMauiApp<App>()
-    .UseHeroCollectionView();
-```
+No registration is needed, with or without `UseSpine()`.
 
 ```xml
 <HeroCollectionView

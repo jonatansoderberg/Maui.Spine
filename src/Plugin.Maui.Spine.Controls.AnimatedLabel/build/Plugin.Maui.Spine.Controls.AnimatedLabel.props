@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseAnimatedLabel() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Controls.AnimatedLabel" Register="Plugin.Maui.Spine.Controls.AnimatedLabelExtensions.UseAnimatedLabel" />
+	</ItemGroup>
+</Project>

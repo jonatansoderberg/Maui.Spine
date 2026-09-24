@@ -18,8 +18,15 @@
 /// }
 /// </code>
 /// </example>
-public abstract class SpinePage<TViewModel> : ContentView, INavigable where TViewModel : ViewModelBase
+public abstract class SpinePage<TViewModel> : ContentView, INavigable, IPageFooterSource where TViewModel : ViewModelBase
 {
+    /// <summary>Identifies the <see cref="Footer"/> bindable property.</summary>
+    public static readonly BindableProperty FooterProperty = BindableProperty.Create(
+        nameof(Footer),
+        typeof(View),
+        typeof(SpinePage<TViewModel>),
+        propertyChanged: (bindable, _, _) => ((SpinePage<TViewModel>)bindable)._footerChanged?.Invoke(bindable, EventArgs.Empty));
+
     private static IServiceProvider _services => IPlatformApplication.Current?.Services ?? throw new PlatformNotSupportedException();
 
     /// <summary>
@@ -69,4 +76,36 @@ public abstract class SpinePage<TViewModel> : ContentView, INavigable where TVie
         get => _contentPresenter.Content;
         set => _contentPresenter.Content = value;
     }
+
+    /// <summary>
+    /// A view pinned to the bottom of the page, outside its scrolling content: the page's own
+    /// primary action, such as <em>Log in</em>, <em>Continue</em> or <em>Pay</em>. In a sheet it
+    /// stays at the bottom of the visible part of the sheet at every detent and follows the sheet
+    /// while it is dragged. The footer gets the page's <c>BindingContext</c>.
+    /// </summary>
+    /// <remarks>
+    /// Save, Cancel and Done are not footer buttons: they are page actions in the header bar
+    /// (<see cref="PageActionAttribute"/>).
+    /// </remarks>
+    public View? Footer
+    {
+        get => (View?)GetValue(FooterProperty);
+        set => SetValue(FooterProperty, value);
+    }
+
+    private EventHandler? _footerChanged;
+
+    event EventHandler? IPageFooterSource.FooterChanged
+    {
+        add => _footerChanged += value;
+        remove => _footerChanged -= value;
+    }
+}
+
+/// <summary>A page that may carry a <see cref="SpinePage{TViewModel}.Footer"/>, seen without its view model type.</summary>
+internal interface IPageFooterSource
+{
+    View? Footer { get; }
+
+    event EventHandler? FooterChanged;
 }

@@ -44,7 +44,7 @@
                                  Command="{Binding TapCommand}" CommandParameter="Settings" />
                     <ImageButton Style="{StaticResource SvgImageButtonStyle}" SvgImageSource.Svg="plus.svg" SvgImageSource.Padding="10"
                                  SvgImageSource.LightTintColor="White" SvgImageSource.DarkTintColor="White"
-                                 Glass.Style="Prominent" BackgroundColor="{StaticResource Primary}" WidthRequest="44" HeightRequest="44"
+                                 Glass.Style="Prominent" BackgroundColor="{DynamicResource Accent}" WidthRequest="44" HeightRequest="44"
                                  Command="{Binding TapCommand}" CommandParameter="Plus" />
                     <ImageButton Style="{StaticResource SvgImageButtonStyle}" SvgImageSource.Svg="arrowleft.svg" SvgImageSource.Padding="10"
                                  SvgImageSource.LightTintColor="White" SvgImageSource.DarkTintColor="White"

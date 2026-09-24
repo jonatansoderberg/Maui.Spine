@@ -73,9 +73,8 @@ internal sealed class PageActionView : ContentView
             var isDark = Application.Current?.RequestedTheme == AppTheme.Dark
                 || (Application.Current?.RequestedTheme != AppTheme.Light
                     && Application.Current?.PlatformAppTheme == AppTheme.Dark);
-            _textButton.TextColor = isDark
-                ? GetResourceColor("PrimaryDark", Color.FromArgb("#ac99ea"))
-                : GetResourceColor("Primary", Color.FromArgb("#512BD4"));
+            _textButton.TextColor = SpineTheme.GetAccent(isDark ? AppTheme.Dark : AppTheme.Light)
+                ?? Color.FromArgb(isDark ? "#0A84FF" : "#007AFF");
         }
 
         _applyTextButtonColor = ApplyTextButtonColor;
@@ -91,9 +90,8 @@ internal sealed class PageActionView : ContentView
             ApplyTextButtonColor();
         };
 
-        // Keep the colour in sync when the user switches light/dark theme at runtime.
-        if (Application.Current is { } currentApp)
-            currentApp.RequestedThemeChanged += (_, _) => ApplyTextButtonColor();
+        // Keep the colour in sync when the user switches the theme or the accent at runtime.
+        SpineTheme.Track(this, ApplyTextButtonColor);
 
         _imageButton = new ImageButton
         {
@@ -228,11 +226,6 @@ internal sealed class PageActionView : ContentView
         var view = (PageActionView)bindable;
         view._imageButton.ApplyCommonVisualStates(view.HideDisabled);
     }
-
-    static Color GetResourceColor(string key, Color fallback) =>
-        Application.Current?.Resources?.TryGetValue(key, out var value) == true && value is Color color
-            ? color
-            : fallback;
 
     async Task ApplyActionAnimatedAsync()
     {

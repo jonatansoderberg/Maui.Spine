@@ -49,6 +49,8 @@ public static class MauiProgram
 
 > **Android note:** `Assembly.GetEntryAssembly()` returns `null` on Android. Always use `typeof(MauiProgram).Assembly` (or any type in your app assembly) instead.
 
+`UseSpine` also registers every other Spine package the app references — Widgets, PushNotifications, AnimatedLabel and the rest — so they need no call of their own. Call a package's `UseXxx(o => …)` only to change its options; before or after `UseSpine` both work. See [Packages → Registration](packages.md#registration).
+
 ---
 
 ## 3. Set up the application class

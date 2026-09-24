@@ -1,4 +1,5 @@
 using AsyncAwaitBestPractices;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.LifecycleEvents;
 using Plugin.Maui.Spine.Common;
@@ -13,23 +14,37 @@ public static partial class SpineWidgetsExtensions
     /// <summary>
     /// Adds <see cref="IWidgetService"/> and <see cref="ILiveActivityService"/>, discovers
     /// <see cref="WidgetAttribute"/>-decorated providers in the Spine assemblies, and routes the
-    /// widget open URL back to <see cref="IWidgetLinkHandler"/>. Call after <c>UseSpine</c>.
+    /// widget open URL back to <see cref="IWidgetLinkHandler"/>. <c>UseSpine()</c> calls it for an app
+    /// that references this package; call it yourself only to configure the options, before or after
+    /// <c>UseSpine()</c>. The first call registers the services; every call applies its
+    /// <paramref name="configure"/> to the same options instance.
     /// </summary>
     public static MauiAppBuilder UseSpineWidgets(this MauiAppBuilder builder, Action<SpineWidgetsOptions>? configure = null)
     {
-        var options = new SpineWidgetsOptions();
+        var services = builder.Services;
+
+        if (services.FirstOrDefault(static d => d.ServiceType == typeof(SpineWidgetsOptions) && !d.IsKeyedService)?.ImplementationInstance
+            is not SpineWidgetsOptions options)
+        {
+            options = new SpineWidgetsOptions
+            {
+                // With Spine.PushNotifications registered first; it turns this on itself when it comes second.
+                LiveActivityPushTokens = services.Any(static d => d.ServiceType == typeof(PushNotificationsRegistered)),
+            };
+
+            services.AddSingleton(options);
+            services.AddSingleton<WidgetRegistry>();
+            services.AddSingleton<WidgetIconAssets>();
+            services.AddSingleton<IWidgetService, WidgetService>();
+            services.AddSingleton<ILiveActivityService, LiveActivityService>();
+
+            ConfigurePlatform(builder, options);
+        }
+
         configure?.Invoke(options);
 
-        var services = builder.Services;
-        services.AddSingleton(options);
-        services.AddSingleton<WidgetRegistry>();
-        services.AddSingleton<WidgetIconAssets>();
-        services.AddSingleton<IWidgetService, WidgetService>();
-        services.AddSingleton<ILiveActivityService, LiveActivityService>();
         if (options.BackgroundRefreshHandler is { } handler)
-            services.AddTransient(typeof(IBackgroundRefreshHandler), handler);
-
-        ConfigurePlatform(builder, options);
+            services.Replace(ServiceDescriptor.Transient(typeof(IBackgroundRefreshHandler), handler));
 
         return builder;
     }

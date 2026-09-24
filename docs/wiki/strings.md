@@ -92,5 +92,5 @@ through `Missing` and the debug output.
 
 `Plugin.Maui.Spine` ships `Header.Back` and `Header.Close` (English and Swedish), read for the
 back and close buttons' screen-reader descriptions. A control package ships its defaults the same
-way and registers them with `SpineStrings.Current.AddDefaults(...)` from its `UseXxx()` call; the
+way and registers them with `SpineStrings.Current.AddDefaults(...)` from the control's static constructor, the first time one is created (this does not raise `Changed`); the
 app's own documents always win.
