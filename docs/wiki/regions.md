@@ -178,11 +178,11 @@ The background only shows when content is under the bar: content that has scroll
 
 | Value | iOS / Mac Catalyst 26 | iOS / Mac Catalyst before 26 | Android | Windows | Pick it for |
 |---|---|---|---|---|---|
-| `Auto` (default) | `ScrollEdge` on a region or tab page whose list fills it from the top; `Solid` otherwise | `Solid` | `Solid` | `Solid` | Almost every page: the platform's own bar |
+| `Auto` (default) | `ScrollEdgeHard`, as a native navigation bar, on a region or tab page whose list fills it from the top; `Solid` otherwise | `Solid` | `Solid` | `Solid` | Almost every page: the platform's own bar |
 | `Solid` | The page's colour; content under the bar is hidden | Same | Same | Same | A classic bar; a photo page whose bar closes once the list scrolls |
 | `Transparent` | Nothing; content shows through, the title floats over it | Same | Same | Same | A photo or a map under an `Overlay` bar |
-| `ScrollEdge` | UIKit's scroll edge effect, soft style: content fades and blurs into the bar | `Solid` | The page's colour, slightly see-through behind the bar, fading out below it | As Android | Lists, as in iOS 26 system apps, when you want it on every platform |
-| `ScrollEdgeHard` | The hard style: a frosted, nearly opaque band with a clear edge | `Solid` | The page's colour, nearly opaque, with a hairline at the bar's bottom edge | As Android | A bar with more in it than a title: search, filters, several buttons |
+| `ScrollEdge` | UIKit's scroll edge effect, soft style: content fades and blurs into the bar | `Solid` | The page's colour, slightly see-through behind the bar, fading out below it | As Android | A lighter bar than the native one, where content should stay visible |
+| `ScrollEdgeHard` | The hard style: a frosted, nearly opaque band with a clear edge, as behind a native navigation bar | `Solid` | The page's colour, nearly opaque, with a hairline at the bar's bottom edge | As Android | The native iOS 26 look on every platform |
 
 Under `Overlay`, `Auto` is `Transparent`, since the page draws its own top. With Reduce Transparency on (iOS/Mac), or transparency effects off (Windows), both scroll edge values are `Solid`. `ViewModelBase.EffectiveHeaderBarBackground` says what the page got: what `Auto` resolved to, and `Solid` where a scroll edge value could not be drawn.
 
@@ -199,8 +199,8 @@ Under `Overlay`, `Auto` is `Transparent`, since the page draws its own top. With
 
 - **`Solid` under `Normal`** gives the bar a row of its own; the content starts and stays below it. Under `Overlay` or a large title, where content starts under the bar, the colour fades in over the first `HeaderBarConstants.ScrollEdgeFadeLength` points of scroll. The colour is the page's own background when it has an opaque one, otherwise what the platform paints behind pages (the system background on iOS, the window background on Android).
 - **`Transparent` and the scroll edge values under `Normal`** lay the page out under the bar, and Spine adds `Top` to the scroll source's `SafeArea.ScrollInset`, so the first row starts below the bar at rest and scrolls under it.
-- **`ScrollEdge` is always the soft style.** UIKit's automatic style looked the same as the hard one on an iOS 26.5 iPhone, so Spine never leaves the choice to the system.
-- **Before `Auto` on iOS 26 picks `ScrollEdge`,** the page's scroll view (`HeaderBar.ScrollSource`, or else the first `ScrollView` / `CollectionView`) must fill the page from the top: every container between the page and the list holds only the list, or is a grid in which the list spans all rows (a list with a floating button). A page with fixed content above its list keeps `Solid`, so nothing that does not scroll ends up under the bar. Sheets keep `Solid`.
+- **`Auto` is the hard style on iOS 26**, which is what a native navigation bar shows on an iPhone (iOS 26.5). **`ScrollEdge` is always the soft style**: Spine never leaves the choice to UIKit's automatic style, which resolved differently between iOS versions.
+- **Before `Auto` on iOS 26 picks `ScrollEdgeHard`,** the page's scroll view (`HeaderBar.ScrollSource`, or else the first `ScrollView` / `CollectionView`) must fill the page from the top: every container between the page and the list holds only the list, or is a grid in which the list spans all rows (a list with a floating button). A page with fixed content above its list keeps `Solid`, so nothing that does not scroll ends up under the bar. Sheets keep `Solid`.
 
 ### Overlay header
 
@@ -244,7 +244,7 @@ The iOS large title and the Material 3 medium top app bar: the page opens on its
 `HeaderBarLargeTitle` shows the page's title (set `Text` to show something else) in the platform's large-title size, weight, row height and margin, in the header's `HeaderBarForeground` when the page fixes one and in the app's label style otherwise. Spine measures it to decide when the bar's title fades in, wherever it sits in the scroll content. For a title of your own, the numbers are public on `HeaderBarConstants` (`LargeTitleFontSize`, `LargeTitleFontAttributes`, `LargeTitleHeight`, `LargeTitleMargin`); set `HeaderBar.CollapseDistance` on the page to where its text has gone.
 
 - A large title always has content scrolling under the bar, so the page is laid out under it. Under `Normal`, Spine adds `Top` to the scroll source's `SafeArea.ScrollInset`, so the large title starts right under the bar without the page doing anything.
-- The background is whatever `HeaderBarBackground` says: with `Auto` that is the scroll edge effect on iOS 26 and a bar that turns from transparent to the page's colour elsewhere.
+- The background is whatever `HeaderBarBackground` says: with `Auto` that is the hard scroll edge on iOS 26 and a bar that turns from transparent to the page's colour elsewhere.
 - `Overlay` and `LargeTitle` combine: a hero with a greeting in it, `HeaderBar.CollapseDistance` set to where the greeting has gone, and `HeaderBarBackground = Solid` so the bar closes over the photo once the list passes under it.
 - `HeaderBar.ScrollSource` (on the page) names the `ScrollView` or `CollectionView` to follow. Without it Spine follows the page's first one, and waits for it when the page builds it later (a state view that swaps in its body). On iOS Spine reads the native scroll offset, because MAUI's `CollectionView` stops raising `Scrolled` while only its header is on screen.
 - The bar's title fades in over the last `HeaderBarConstants.LargeTitleFadeLength` points before the collapse distance: `HeaderBar.CollapseDistance` when the page sets it, otherwise the offset at which the `HeaderBarLargeTitle`'s text has gone under the bar (its top in the scroll content plus half its row and half its font size), otherwise `HeaderBarConstants.LargeTitleCollapseDistance`.

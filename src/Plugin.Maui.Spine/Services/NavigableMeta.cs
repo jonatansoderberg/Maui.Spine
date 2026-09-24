@@ -98,7 +98,7 @@ internal static class NavigableMeta
 
         if (background == HeaderBarBackground.Auto)
         {
-            // Automatic only where the system draws the effect, and only for a page whose scroll
+            // The hard style, as behind a navigation bar. Only where the system draws the effect, and only for a page whose scroll
             // view fills it from the top: anything above the list that does not scroll would
             // otherwise sit under the bar for good.
             background = vm.HeaderBarMode == HeaderBarMode.Overlay
@@ -108,7 +108,7 @@ internal static class NavigableMeta
                     && vm.IsHeaderBarVisible
                     && (HeaderBar.GetScrollSource(view) ?? FindFirstScrollable(view)) is { } source
                     && FillsFromTop(view, source)
-                        ? HeaderBarBackground.ScrollEdge
+                        ? HeaderBarBackground.ScrollEdgeHard
                         : HeaderBarBackground.Solid;
         }
 
