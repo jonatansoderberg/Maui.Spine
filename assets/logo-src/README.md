@@ -14,6 +14,8 @@ The full-size originals behind `assets/icons/` (256×256 package icons) and `ass
 | `server.png` | `Plugin.Maui.Spine.Server` |
 | `hero-collection-view.png` | `Plugin.Maui.Spine.Controls.HeroCollectionView` |
 | `animated-label.png` | `Plugin.Maui.Spine.Controls.AnimatedLabel` |
+| `calendar.png` | `Plugin.Maui.Spine.Controls.Calendar` (the HeroCollectionView original with its list badge painted over by a calendar glyph) |
+| `data-grid.png` | `Plugin.Maui.Spine.Controls.DataGrid` (the controls icon with a table glyph in the badge) |
 
 Package icons are 1254×1254; nuget.org wants at most 1 MB per icon, so the packed copies are resized to 256×256:
 

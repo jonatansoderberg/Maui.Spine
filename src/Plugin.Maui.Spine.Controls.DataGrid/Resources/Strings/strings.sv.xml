@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings culture="sv">
+  <s key="DataGrid.Loading">Laddar…</s>
+  <s key="DataGrid.Empty">Inga rader</s>
+  <s key="DataGrid.LoadMore">Ladda fler</s>
+  <s key="DataGrid.Status.More">Visar {0}</s>
+  <s key="DataGrid.Status.Loaded.one">{0} rad</s>
+  <s key="DataGrid.Status.Loaded.other">{0} rader</s>
+  <s key="DataGrid.Status.LoadedOfTotal">{0} av {1}</s>
+  <s key="DataGrid.Copied">Kopierat</s>
+  <s key="DataGrid.Header.SortedAscending">{0}, stigande sortering</s>
+  <s key="DataGrid.Header.SortedDescending">{0}, fallande sortering</s>
+  <s key="DataGrid.Header.SortHint">Ändrar sorteringsordningen</s>
+  <s key="DataGrid.Group.Expanded">{0}, utfälld</s>
+  <s key="DataGrid.Group.Collapsed">{0}, hopfälld</s>
+  <s key="DataGrid.Group.ToggleHint">Visar eller döljer gruppens rader</s>
+  <s key="DataGrid.Ungrouped">Övrigt</s>
+</strings>
