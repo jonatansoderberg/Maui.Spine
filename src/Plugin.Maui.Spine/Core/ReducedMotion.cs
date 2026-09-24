@@ -4,7 +4,8 @@ namespace Plugin.Maui.Spine.Core;
 internal static class ReducedMotion
 {
     static bool _isOn;
-    static long _readAt = long.MinValue;
+    static bool _read;
+    static long _readAt;
 
     /// <summary>
     /// iOS and Mac Catalyst: Reduce Motion. Android: animations removed (animator duration scale
@@ -16,9 +17,10 @@ internal static class ReducedMotion
         get
         {
             var now = Environment.TickCount64;
-            if (now - _readAt > 1000)
+            if (!_read || now - _readAt > 1000)
             {
                 _isOn = Read();
+                _read = true;
                 _readAt = now;
             }
 
@@ -31,11 +33,10 @@ internal static class ReducedMotion
 #if IOS || MACCATALYST
         return UIKit.UIAccessibility.IsReduceMotionEnabled;
 #elif ANDROID
-        return OperatingSystem.IsAndroidVersionAtLeast(26)
-            ? !Android.Animation.ValueAnimator.AreAnimatorsEnabled()
-            : Android.Provider.Settings.Global.GetFloat(
-                  Android.App.Application.Context.ContentResolver,
-                  Android.Provider.Settings.Global.AnimatorDurationScale, 1f) == 0f;
+        // "Remove animations" sets the animator duration scale to 0.
+        return Android.Provider.Settings.Global.GetFloat(
+            Android.App.Application.Context.ContentResolver,
+            Android.Provider.Settings.Global.AnimatorDurationScale, 1f) == 0f;
 #elif WINDOWS
         return !new global::Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
 #else

@@ -190,7 +190,8 @@ internal sealed class PagePresenter : Grid
     private void OnPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.SystemBarInsets)
-            or nameof(ViewModelBase.HeaderBarForeground) or nameof(ViewModelBase.IsHeaderBarVisible))
+            or nameof(ViewModelBase.HeaderBarForeground) or nameof(ViewModelBase.IsHeaderBarVisible)
+            or nameof(ViewModelBase.LargeTitle) or nameof(ViewModelBase.HeaderBarBackground))
             ApplyPageLayout();
         else if (e.PropertyName is nameof(ViewModelBase.HeaderBarCollapseProgress) or nameof(ViewModelBase.ScrollEdgeProgress))
             ApplyCollapse();
@@ -198,9 +199,9 @@ internal sealed class PagePresenter : Grid
 
     private void ApplyPageLayout()
     {
-        var floats = _page?.HeaderBarMode.Floats() == true;
+        var floats = _page?.HeaderBarFloats == true;
 
-        // Overlay and collapsing: the content spans both rows and the title row sits over it,
+        // Overlay and large title: the content spans both rows and the title row sits over it,
         // pushed down by the status bar the content host no longer pads.
         Grid.SetRowSpan(_contentPresenter, floats ? 2 : 1);
         Grid.SetRow(_contentPresenter, floats ? 0 : 1);
@@ -216,13 +217,13 @@ internal sealed class PagePresenter : Grid
         ApplyCollapse();
     }
 
-    // A collapsing header shows its title and background as far as the page has scrolled; every
-    // other mode shows the title outright and has no background of its own.
+    // A large title's header shows its title as far as the page has scrolled, and a solid
+    // background behind a floating header fades in the same way; otherwise the title is shown
+    // outright and the bar has no background of its own.
     private void ApplyCollapse()
     {
-        var collapsing = _page?.HeaderBarMode == HeaderBarMode.CollapseOnScroll;
-
-        var edge = collapsing ? _page!.ScrollEdgeProgress : 0;
+        var solid = HasSolidBackground();
+        var edge = solid ? _page!.ScrollEdgeProgress : 0;
 
         // Read the colour again each time the background starts to show: the presenter may not
         // have been in the page tree when the layout was applied, and a theme binding upstream
@@ -230,14 +231,17 @@ internal sealed class PagePresenter : Grid
         if (edge > 0 && _barBackground.Opacity == 0)
             ApplyBarBackgroundColor();
 
-        _titleLabel!.Opacity = collapsing ? _page!.HeaderBarCollapseProgress : 1;
-        _barBackground.IsVisible = collapsing;
+        _titleLabel!.Opacity = _page?.LargeTitle == true ? _page.HeaderBarCollapseProgress : 1;
+        _barBackground.IsVisible = solid;
         _barBackground.Opacity = edge;
     }
 
+    private bool HasSolidBackground() =>
+        _page is { HeaderBarFloats: true, EffectiveHeaderBarBackground: HeaderBarBackground.Solid };
+
     private void ApplyBarBackgroundColor()
     {
-        if (_page?.HeaderBarMode == HeaderBarMode.CollapseOnScroll)
+        if (HasSolidBackground())
             _barBackground.Color = PageBackground();
     }
 
@@ -283,7 +287,7 @@ internal sealed class PagePresenter : Grid
             return;
         }
 
-        var overlayInset = _page?.HeaderBarMode.Floats() == true ? _page.SystemBarInsets.Top : 0;
+        var overlayInset = _page?.HeaderBarFloats == true ? _page.SystemBarInsets.Top : 0;
         RowDefinitions[0].Height = new GridLength(HeaderBarConstants.Height + overlayInset);
     }
 

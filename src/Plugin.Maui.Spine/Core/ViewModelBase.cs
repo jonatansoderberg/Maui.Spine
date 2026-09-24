@@ -89,17 +89,38 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     public partial HeaderBarMode HeaderBarMode { get; set; }
 
+    /// <summary>Whether the page opens on its own large title that collapses into the header bar. Set from the page's attribute.</summary>
+    [ObservableProperty]
+    public partial bool LargeTitle { get; set; }
+
+    /// <summary>What is behind the header bar while content scrolls under it. Set from the page's attribute.</summary>
+    [ObservableProperty]
+    public partial HeaderBarBackground HeaderBarBackground { get; set; }
+
     /// <summary>
-    /// How far a <see cref="HeaderBarMode.CollapseOnScroll"/> header has collapsed: 0 while the
-    /// page's large title is in view, 1 once the header bar's own title has faded in. Follows the
-    /// scroll offset; bind to it to fade something of the page's own, such as a greeting in a hero.
+    /// How far a <see cref="LargeTitle"/> page's header has collapsed: 0 while the large title is
+    /// in view, 1 once the header bar's own title has faded in. Follows the scroll offset; bind to
+    /// it to fade something of the page's own, such as a greeting in a hero.
     /// </summary>
     [ObservableProperty]
     public partial double HeaderBarCollapseProgress { get; internal set; }
 
-    /// <summary>How far the collapsing header's background has faded in, 0 to 1. Read by the page presenter.</summary>
+    /// <summary>How far the header's background has faded in, 0 to 1. Read by the page presenter.</summary>
     [ObservableProperty]
     internal partial double ScrollEdgeProgress { get; set; }
+
+    /// <summary>Whether content starts at the top of the screen and scrolls under the header bar.</summary>
+    internal bool HeaderBarFloats => HeaderBarMode == HeaderBarMode.Overlay || LargeTitle;
+
+    /// <summary>The background resolved from <see cref="HeaderBarBackground"/> for this page.</summary>
+    internal HeaderBarBackground EffectiveHeaderBarBackground => HeaderBarBackground switch
+    {
+        HeaderBarBackground.Auto => HeaderBarMode == HeaderBarMode.Overlay ? HeaderBarBackground.Clear : HeaderBarBackground.Solid,
+        var chosen => chosen,
+    };
+
+    /// <summary>Whether Spine follows the page's scroll offset: for the title, the background, or both.</summary>
+    internal bool FollowsScroll => HeaderBarFloats && (LargeTitle || EffectiveHeaderBarBackground == HeaderBarBackground.Solid);
 
     /// <summary>A fixed colour for the header bar's title and action icons, or <see langword="null"/> to follow the theme.</summary>
     [ObservableProperty]

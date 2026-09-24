@@ -14,16 +14,29 @@ public enum HeaderBarMode
     /// (status bar plus header bar) so a list can take it with <c>SafeArea.ScrollInset="Top"</c>.
     /// </summary>
     Overlay,
+}
+
+/// <summary>
+/// What is behind the header bar's title and actions while content scrolls under it: under an
+/// <see cref="HeaderBarMode.Overlay"/> header, and on a page with a large title (whose content
+/// always scrolls under the bar).
+/// </summary>
+public enum HeaderBarBackground
+{
+    /// <summary>
+    /// <see cref="Clear"/> under an <see cref="HeaderBarMode.Overlay"/> header, whose page draws its
+    /// own top; <see cref="Solid"/> otherwise.
+    /// </summary>
+    Auto,
 
     /// <summary>
-    /// The iOS large-title / Material 3 medium top app bar: the page opens with its own large title
-    /// at the top of its scroll content, and as that title scrolls away under the bar the bar's
-    /// own title fades in and the bar turns from transparent to the theme background. Lays out like
-    /// <see cref="Overlay"/>; Spine gives the page's scroll source the top inset itself. See
-    /// <c>HeaderBar.ScrollSource</c>, <c>HeaderBar.CollapseDistance</c> and
-    /// <see cref="ViewModelBase.HeaderBarCollapseProgress"/>.
+    /// Transparent while the content is at the top; the page's background once content scrolls
+    /// under the bar, faded in over <c>HeaderBarConstants.ScrollEdgeFadeLength</c> points.
     /// </summary>
-    CollapseOnScroll,
+    Solid,
+
+    /// <summary>Nothing: content shows through the bar at every offset.</summary>
+    Clear,
 }
 
 /// <summary>The colour of the status bar's clock and icons while a page is shown.</summary>
@@ -37,10 +50,4 @@ public enum StatusBarStyle
 
     /// <summary>Dark (black) clock and icons, for a page whose top is light.</summary>
     DarkContent,
-}
-
-internal static class HeaderBarModeExtensions
-{
-    /// <summary>Whether the header bar floats over content that starts at the top of the screen.</summary>
-    internal static bool Floats(this HeaderBarMode mode) => mode is HeaderBarMode.Overlay or HeaderBarMode.CollapseOnScroll;
 }

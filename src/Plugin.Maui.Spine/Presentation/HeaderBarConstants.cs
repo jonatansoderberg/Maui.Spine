@@ -14,7 +14,7 @@ public static class HeaderBarConstants
     public const uint FadeOutDuration = 90;
 
     /// <summary>
-    /// Where a <see cref="Core.HeaderBarMode.CollapseOnScroll"/> page puts its large title, as the
+    /// Where a <see cref="Core.NavigableAttribute.LargeTitle"/> page puts its large title, as the
     /// first thing in its scroll content: side margins, and nothing above (the scroll inset already
     /// starts it under the bar).
     /// </summary>
@@ -52,9 +52,9 @@ public static class HeaderBarConstants
     public const double SheetTopPadding = 0;
 
     // Material 3 medium top app bar: headline small (24 sp, regular) below the 48-point row.
-    /// <summary>Font size of a collapsing page's large title.</summary>
+    /// <summary>Font size of a page's large title.</summary>
     public const double LargeTitleFontSize = 24;
-    /// <summary>Weight of a collapsing page's large title.</summary>
+    /// <summary>Weight of a page's large title.</summary>
     public const FontAttributes LargeTitleFontAttributes = FontAttributes.None;
     /// <summary>Height of the large title's row.</summary>
     public const double LargeTitleHeight = 56;
@@ -81,9 +81,9 @@ public static class HeaderBarConstants
     public const double SheetTopPadding = 20;
 
     // UINavigationBar's large title: 34-point bold in a 52-point row below the 44-point bar.
-    /// <summary>Font size of a collapsing page's large title.</summary>
+    /// <summary>Font size of a page's large title.</summary>
     public const double LargeTitleFontSize = 34;
-    /// <summary>Weight of a collapsing page's large title.</summary>
+    /// <summary>Weight of a page's large title.</summary>
     public const FontAttributes LargeTitleFontAttributes = FontAttributes.Bold;
     /// <summary>Height of the large title's row.</summary>
     public const double LargeTitleHeight = 52;
@@ -108,9 +108,9 @@ public static class HeaderBarConstants
     public const double SheetTopPadding = 0;
 
     // WinUI's title-large text style.
-    /// <summary>Font size of a collapsing page's large title.</summary>
+    /// <summary>Font size of a page's large title.</summary>
     public const double LargeTitleFontSize = 28;
-    /// <summary>Weight of a collapsing page's large title.</summary>
+    /// <summary>Weight of a page's large title.</summary>
     public const FontAttributes LargeTitleFontAttributes = FontAttributes.Bold;
     /// <summary>Height of the large title's row.</summary>
     public const double LargeTitleHeight = 48;

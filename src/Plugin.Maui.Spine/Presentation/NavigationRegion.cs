@@ -229,7 +229,7 @@ public sealed partial class NavigationRegion : ContentView
         var safeAreaEdges = vm.SafeAreaEdges;
 
         // An overlay or collapsing header floats over content that starts at the top of the screen.
-        if (vm.HeaderBarMode.Floats())
+        if (vm.HeaderBarFloats)
             safeAreaEdges &= ~SpineSafeArea.Top;
 
 #if ANDROID
@@ -263,7 +263,7 @@ public sealed partial class NavigationRegion : ContentView
     internal static Thickness SafeAreaInsetsFor(ViewModelBase vm, Thickness insets)
     {
         var edges = vm.SafeAreaEdges;
-        var overlay = vm.HeaderBarMode.Floats();
+        var overlay = vm.HeaderBarFloats;
 
         // Under a floating header the content must keep the status bar and the bar itself clear.
         var top = overlay

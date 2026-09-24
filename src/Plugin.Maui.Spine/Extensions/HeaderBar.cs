@@ -5,12 +5,14 @@ using SafeAreaEdges = Plugin.Maui.Spine.Core.SafeAreaEdges;
 namespace Plugin.Maui.Spine.Extensions;
 
 /// <summary>
-/// Attached properties, set on the page, for a <see cref="HeaderBarMode.CollapseOnScroll"/> header:
-/// which view it follows and how far that view scrolls before the header has collapsed.
+/// Attached properties, set on the page, for a header that follows the page's scroll: a large title
+/// (<see cref="NavigableAttribute.LargeTitle"/>) or a floating header with a solid background
+/// (<see cref="HeaderBarBackground.Solid"/>). Which view it follows, and how far that view scrolls
+/// before a large title has collapsed.
 /// </summary>
 /// <example>
 /// <code>
-/// [NavigableTab(Title = "Inbox", HeaderBar = HeaderBarMode.CollapseOnScroll)]
+/// [NavigableTab(Title = "Inbox", LargeTitle = true)]
 /// </code>
 /// <code>
 /// &lt;SpinePage HeaderBar.ScrollSource="{x:Reference List}" …&gt;
@@ -27,8 +29,7 @@ namespace Plugin.Maui.Spine.Extensions;
 public static class HeaderBar
 {
     /// <summary>
-    /// The <see cref="ScrollView"/> or <see cref="CollectionView"/> whose offset collapses the
-    /// header. Unset, Spine follows the page's first one. Spine adds <c>Top</c> to its
+    /// The <see cref="ScrollView"/> or <see cref="CollectionView"/> whose offset drives the header. Unset, Spine follows the page's first one. Spine adds <c>Top</c> to its
     /// <c>SafeArea.ScrollInset</c> so its content starts under the header bar.
     /// </summary>
     public static readonly BindableProperty ScrollSourceProperty = BindableProperty.CreateAttached(
@@ -62,7 +63,7 @@ public static class HeaderBar
 
     static CollapseTracker? GetTracker(BindableObject page) => (CollapseTracker?)page.GetValue(TrackerProperty);
 
-    /// <summary>Starts following the page's scroll source; called by Spine for a collapsing page.</summary>
+    /// <summary>Starts following the page's scroll source; called by Spine for a page whose header follows it.</summary>
     internal static void Track(View page, ViewModelBase viewModel)
     {
         if (GetTracker(page) is not null)

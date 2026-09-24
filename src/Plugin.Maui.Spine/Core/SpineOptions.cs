@@ -29,6 +29,12 @@ public abstract class NavigableDefaults
     /// <summary>Default <see cref="HeaderBarMode"/>: <see cref="HeaderBarMode.Normal"/>.</summary>
     public HeaderBarMode HeaderBar { get; set; } = HeaderBarMode.Normal;
 
+    /// <summary>Default for a large title that collapses into the header bar: <see langword="false"/>.</summary>
+    public bool LargeTitle { get; set; }
+
+    /// <summary>Default <see cref="Core.HeaderBarBackground"/>: <see cref="HeaderBarBackground.Auto"/>.</summary>
+    public HeaderBarBackground HeaderBarBackground { get; set; } = HeaderBarBackground.Auto;
+
     /// <summary>
     /// Default colour of the header bar's title and action icons as a hex string, or
     /// <see langword="null"/> to follow the theme.
