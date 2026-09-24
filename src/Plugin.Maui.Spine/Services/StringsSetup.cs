@@ -37,10 +37,17 @@ internal static class StringsSetup
         if (options.Strings.Persist && Preferences.Default.Get(PreferenceKey, "") is { Length: > 0 } stored)
             strings.Culture = CultureInfo.GetCultureInfo(stored);
 
+        var persisted = strings.Culture.Name;
+
         strings.Changed += (_, _) =>
         {
-            if (options.Strings.Persist)
-                Preferences.Default.Set(PreferenceKey, strings.Culture.Name);
+            // Changed is also raised by Reload; storing then would pin the app to whatever culture
+            // was in effect, including the system's, instead of the user's choice.
+            if (options.Strings.Persist && strings.Culture.Name != persisted)
+            {
+                persisted = strings.Culture.Name;
+                Preferences.Default.Set(PreferenceKey, persisted);
+            }
 
             // Text lives in the same code-built views as colours do, so a culture switch repaints
             // whatever the theme would.
