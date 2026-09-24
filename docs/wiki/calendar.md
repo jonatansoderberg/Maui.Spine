@@ -92,7 +92,7 @@ colour on one calendar keeps the rest themed.
 |---|---|---|
 | `FontFamily` | app default | every label |
 | `DayFontSize` / `DayOfWeekFontSize` / `HeaderFontSize` / `PickerFontSize` / `WeekNumberFontSize` | 14 / 13 / 18 / 16 / 12 | |
-| `AccentColor` | the app's `Primary` resource (`PrimaryDark` in dark mode when present), else system blue | arrows, today ring, selected fill, displayed month/year pill |
+| `AccentColor` | the app's accent (`SpineTheme.GetAccent`: `IThemeService.Accent`, else the `Primary` resource, `PrimaryDark` in dark mode when present), else system blue | arrows, today ring, selected fill, displayed month/year pill |
 | `HeaderTextColor` | black / white | title |
 | `DayTextColor` | black / white | day numbers, picker cells |
 | `TodayTextColor` | accent | today's number |
