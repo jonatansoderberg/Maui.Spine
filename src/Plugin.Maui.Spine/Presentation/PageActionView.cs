@@ -275,6 +275,8 @@ internal sealed class PageActionView : ContentView
         _textButton.Opacity = action.IsEnabled ? 1 : 0.4;
 
         _badgeLabel.Text = action.Badge ?? string.Empty;
+        SemanticProperties.SetDescription(_imageButton, action.Description);
+        SemanticProperties.SetDescription(_textButton, action.Description);
         _badge.IsVisible = !string.IsNullOrEmpty(action.Badge);
 
         if (hasSvg)

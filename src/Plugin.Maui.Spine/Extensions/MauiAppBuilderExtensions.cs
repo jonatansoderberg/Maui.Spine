@@ -54,6 +54,7 @@ public static partial class SpineExtensions
         services.AddSingleton<TabBadgeService>();
         services.AddSingleton<ITabBadgeService>(sp => sp.GetRequiredService<TabBadgeService>());
         services.AddSingleton<ThemeService>();
+        services.AddSingleton<Plugin.Maui.Spine.Common.ISpineStrings>(Plugin.Maui.Spine.Common.SpineStrings.Current);
         services.AddSingleton<IThemeService>(sp => sp.GetRequiredService<ThemeService>());
 
         services.AddTransient<NavigationRegionViewModel>();
@@ -144,6 +145,7 @@ public static partial class SpineExtensions
         // SvgImageSource.Svg="..." in XAML and ISvgIconService.FromEmbeddedSvg("...").
         // Spine's own assembly carries the header bar's back and close glyphs.
         builder.UseEmbeddedSvgImages([.. options.Assemblies, typeof(SpineOptions).Assembly]);
+        StringsSetup.AddProviders(options);
 
         // Register ISvgIconService (no-op if already registered via an explicit UseSvgIcon() call).
         builder.UseSvgIcon();

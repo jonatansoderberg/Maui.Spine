@@ -1,3 +1,4 @@
+using Plugin.Maui.Spine.Common;
 ﻿using AsyncAwaitBestPractices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -108,7 +109,8 @@ internal partial class NavigationRegionViewModel : ObservableObject
         return new PageAction(null, BackCommand)
         {
             Svg = "arrowleft.svg",
-            Placement = PageActionPlacement.Primary
+            Placement = PageActionPlacement.Primary,
+            Description = SpineStrings.Current["Header.Back"],
         };
     }
 
@@ -123,7 +125,8 @@ internal partial class NavigationRegionViewModel : ObservableObject
         return new PageAction(null, CloseCommand)
         {
             Svg = "close.svg",
-            Placement = placement
+            Placement = placement,
+            Description = SpineStrings.Current["Header.Close"],
         };
     }
 
