@@ -114,6 +114,13 @@ public static partial class Semantic
                 host.ScreenReaderFocusable = true;
             else
                 host.Focusable = true;
+
+            // A child with a description of its own (a canvas label) would otherwise stay a node.
+            if (host is Android.Views.ViewGroup group)
+            {
+                for (var i = 0; i < group.ChildCount; i++)
+                    group.GetChildAt(i)?.ImportantForAccessibility = Android.Views.ImportantForAccessibility.NoHideDescendants;
+            }
         }
 
         var current = ViewCompat.GetAccessibilityDelegate(host);
