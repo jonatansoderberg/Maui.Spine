@@ -4,6 +4,6 @@ namespace MauiSpineSampleApp.Pages.SvgIcons;
 
 public partial class SvgIconsPageViewModel : ViewModelBase
 {
-    // Every icon in Plugin.Maui.Spine.Svg.Icons; the set has 219.
+    // Every icon in Plugin.Maui.Spine.Svg.Icons; the set has 220.
     public IReadOnlyList<string> Icons => SpineIcons.All;
 }

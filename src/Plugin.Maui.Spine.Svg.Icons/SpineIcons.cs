@@ -128,6 +128,8 @@ public static class SpineIcons
     public const string GripVertical = "GripVertical.svg";
     /// <summary>The <c>Hallway.svg</c> icon.</summary>
     public const string Hallway = "Hallway.svg";
+    /// <summary>The <c>HeaderBar.svg</c> icon.</summary>
+    public const string HeaderBar = "HeaderBar.svg";
     /// <summary>The <c>Heart.svg</c> icon.</summary>
     public const string Heart = "Heart.svg";
     /// <summary>The <c>Heat.svg</c> icon.</summary>
@@ -509,6 +511,7 @@ public static class SpineIcons
         GripHorizontal,
         GripVertical,
         Hallway,
+        HeaderBar,
         Heart,
         Heat,
         Help,
