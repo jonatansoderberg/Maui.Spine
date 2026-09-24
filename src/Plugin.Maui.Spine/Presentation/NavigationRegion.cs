@@ -196,13 +196,13 @@ public sealed partial class NavigationRegion : ContentView
             // Re-apply safe-area padding for the current page now that insets are known.
             if (ViewModel.CurrentRegionViewModel is { } vm)
             {
-                ApplySafeAreaPadding(_contentHostFront, vm.SafeAreaEdges);
+                ApplySafeAreaPadding(_contentHostFront, vm);
 
                 // Push the updated insets to the ViewModel so bindings that depend on
                 // SystemBarInsets / SafeAreaInsets reflect the measured values.
                 var insets = _insetsProvider.SystemBarInsets;
                 vm.SystemBarInsets = insets;
-                vm.SafeAreaInsets = GetSafeAreaInsets(vm.SafeAreaEdges);
+                vm.SafeAreaInsets = SafeAreaInsetsFor(vm, insets);
             }
         });
     }
@@ -212,9 +212,14 @@ public sealed partial class NavigationRegion : ContentView
     /// measured system bar insets. Edges included in <paramref name="safeAreaEdges"/> are padded;
     /// excluded edges allow content to extend behind the system bar.
     /// </summary>
-    internal void ApplySafeAreaPadding(ContentView host, SpineSafeArea safeAreaEdges)
+    internal void ApplySafeAreaPadding(ContentView host, ViewModelBase vm)
     {
         var insets = _insetsProvider.SystemBarInsets;
+        var safeAreaEdges = vm.SafeAreaEdges;
+
+        // An overlay header floats over content that starts at the top of the screen.
+        if (vm.HeaderBarMode == HeaderBarMode.Overlay)
+            safeAreaEdges &= ~SpineSafeArea.Top;
 
         // A sheet starts below its own drag handle, not at the card's edge. Android gets this
         // from the handle wrapper that sits above the MAUI content; on iOS nothing does it, so
@@ -236,14 +241,21 @@ public sealed partial class NavigationRegion : ContentView
     /// Computes the <see cref="Thickness"/> that a page should apply to its own content for the
     /// edges that Spine is <em>not</em> padding (i.e., edges excluded from <paramref name="safeAreaEdges"/>).
     /// </summary>
-    internal Thickness GetSafeAreaInsets(SpineSafeArea safeAreaEdges)
+    internal static Thickness SafeAreaInsetsFor(ViewModelBase vm, Thickness insets)
     {
-        var insets = _insetsProvider.SystemBarInsets;
+        var edges = vm.SafeAreaEdges;
+        var overlay = vm.HeaderBarMode == HeaderBarMode.Overlay;
+
+        // Under an overlay header the content must keep the status bar and the bar itself clear.
+        var top = overlay
+            ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.Height : 0)
+            : (edges & SpineSafeArea.Top) != 0 ? 0 : insets.Top;
+
         return new Thickness(
-            (safeAreaEdges & SpineSafeArea.Left)   != 0 ? 0 : insets.Left,
-            (safeAreaEdges & SpineSafeArea.Top)    != 0 ? 0 : insets.Top,
-            (safeAreaEdges & SpineSafeArea.Right)  != 0 ? 0 : insets.Right,
-            (safeAreaEdges & SpineSafeArea.Bottom) != 0 ? 0 : insets.Bottom);
+            (edges & SpineSafeArea.Left)   != 0 ? 0 : insets.Left,
+            top,
+            (edges & SpineSafeArea.Right)  != 0 ? 0 : insets.Right,
+            (edges & SpineSafeArea.Bottom) != 0 ? 0 : insets.Bottom);
     }
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -257,6 +269,11 @@ public sealed partial class NavigationRegion : ContentView
             _frameActionView?.SetBinding(HeaderBar.IsHeaderBarVisibleProperty, new Binding("IsHeaderBarVisible", source: ViewModel.CurrentRegionViewModel));
             _frameActionView?.SetBinding(HeaderBar.IsBackButtonVisibleProperty, new Binding("IsBackButtonVisible", source: ViewModel.CurrentRegionViewModel));
             _frameActionView?.SetBinding(HeaderBar.IsTitleBarVisibleProperty, new Binding("IsTitleBarVisible", source: ViewModel.CurrentRegionViewModel));
+            _frameActionView?.SetBinding(HeaderBar.ForegroundProperty, new Binding(nameof(ViewModelBase.HeaderBarForeground), source: ViewModel.CurrentRegionViewModel));
+
+            // A sheet keeps the status bar of the page under it.
+            if (ViewModel.Presentation is NavigationPresentation.Region && ViewModel.CurrentRegionViewModel is { } shown)
+                StatusBar.Apply(shown.StatusBarStyle);
 
             // Actions are now computed by the region view model (including back/close fallbacks)
             _frameActionView?.SetBinding(HeaderBar.PrimaryPageActionProperty, new Binding(nameof(NavigationRegionViewModel.PrimaryPageAction), source: ViewModel));
@@ -264,7 +281,7 @@ public sealed partial class NavigationRegion : ContentView
 
             // Apply safe-area padding for the new page on both content hosts.
             if (ViewModel.CurrentRegionViewModel is { } vm)
-                ApplySafeAreaPadding(_contentHostFront, vm.SafeAreaEdges);
+                ApplySafeAreaPadding(_contentHostFront, vm);
 
             ApplySafeAreaPaddingForPresenter(_contentHostBack, ViewModel.BackView);
         }
@@ -281,7 +298,7 @@ public sealed partial class NavigationRegion : ContentView
     private void ApplySafeAreaPaddingForPresenter(ContentView host, PagePresenter? presenter)
     {
         if (presenter?.Content?.BindingContext is ViewModelBase vm)
-            ApplySafeAreaPadding(host, vm.SafeAreaEdges);
+            ApplySafeAreaPadding(host, vm);
     }
 
     private void OnPointerReleased(object? sender, PointerEventArgs e) => _dragAccepted = false;

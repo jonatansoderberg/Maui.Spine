@@ -115,6 +115,15 @@
       <DependentUpon>ThemePage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Overlay\OverlayPage.View.xaml">
+      <DependentUpon>OverlayPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Overlay\OverlayPage.ViewModel.cs">
+      <DependentUpon>OverlayPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Lifetime\LifetimePage.View.xaml">
       <DependentUpon>LifetimePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

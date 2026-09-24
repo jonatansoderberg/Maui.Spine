@@ -1,0 +1,36 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Overlay.OverlayPage"
+    x:TypeArguments="OverlayPageViewModel"
+    x:DataType="OverlayPageViewModel">
+
+    <!-- The content starts at the very top: the photo runs behind the status bar and the header. -->
+    <Grid>
+        <Image Source="spine_hero2.png" Aspect="AspectFill" VerticalOptions="Start" HeightRequest="{Binding PhotoHeight}" />
+
+        <!-- SafeArea.ScrollInset="Top" takes status bar plus header as a content inset, so the
+             first row starts below the header while the photo still shows through the bar. -->
+        <CollectionView ItemsSource="{Binding Rows}" SafeArea.ScrollInset="Top,Bottom" BackgroundColor="Transparent">
+            <CollectionView.Header>
+                <!-- The list's content is inset by status bar plus header, so the header's top
+                     margin is the photo's height minus that inset: the text starts right under the
+                     photo, and the margin (unlike padding) paints nothing over it. -->
+                <VerticalStackLayout Margin="{Binding HeaderMargin}" Padding="16,8" Spacing="8" BackgroundColor="{AppThemeBinding Light=White, Dark=#1F1F1F}">
+                    <PackageChips Packages="Plugin.Maui.Spine" />
+                    <Label Text="HeaderBar = HeaderBarMode.Overlay floats the header over the content, which starts at the top of the screen; HeaderBarForeground fixes the title and icon colour; StatusBarStyle sets the clock's. SafeArea.ScrollInset=&quot;Top&quot; keeps the first row clear of the header while the photo shows through it."
+                           FontSize="14" />
+                    <Label Text="{Binding Log}" FontSize="13" TextColor="Gray" />
+                </VerticalStackLayout>
+            </CollectionView.Header>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                    <Grid Padding="16,14" BackgroundColor="{AppThemeBinding Light=White, Dark=#1F1F1F}">
+                        <Label Text="{Binding .}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+
+</SpinePage>
