@@ -13,6 +13,7 @@ internal static class ReduceMotion
 {
     private static readonly List<WeakReference<SkeletonOverlay>> Listeners = [];
     private static bool _observing;
+    private static readonly TimeSpan SettleDelay = TimeSpan.FromMilliseconds(500);
 
     public static bool IsEnabled
     {
@@ -43,7 +44,7 @@ internal static class ReduceMotion
         _observing = true;
 #if IOS || MACCATALYST
         Foundation.NSNotificationCenter.DefaultCenter.AddObserver(
-            new Foundation.NSString("UIAccessibilityReduceMotionStatusDidChangeNotification"), _ => Notify());
+            new Foundation.NSString("UIAccessibilityReduceMotionStatusDidChangeNotification"), _ => NotifyListeners());
 #elif ANDROID
         if (Android.App.Application.Context.ContentResolver is { } resolver
             && Settings.Global.GetUriFor(Settings.Global.AnimatorDurationScale) is { } uri)
@@ -55,10 +56,14 @@ internal static class ReduceMotion
         // overlay (re)starts, which covers navigating back to a page.
     }
 
-    private static void Notify()
+    private static void NotifyListeners()
     {
-        MainThread.BeginInvokeOnMainThread(() =>
+        MainThread.BeginInvokeOnMainThread(async () =>
         {
+            // The setting is observed before the app's own animator scale follows it on Android; a wave
+            // restarted at once is committed while MAUI's ticker still sees animations off and freezes.
+            await Task.Delay(SettleDelay);
+
             for (var i = Listeners.Count - 1; i >= 0; i--)
             {
                 if (Listeners[i].TryGetTarget(out var overlay))
@@ -70,10 +75,11 @@ internal static class ReduceMotion
     }
 
 #if ANDROID
-    // Delivered on the main looper, where the overlays live.
+    // Delivered on the main looper, where the overlays live. Qualified call: inside a Java object a bare
+    // Notify() binds to java.lang.Object.notify(), which throws (and took the app down) without a lock.
     private sealed class ScaleObserver() : ContentObserver(new Android.OS.Handler(Android.OS.Looper.MainLooper!))
     {
-        public override void OnChange(bool selfChange) => Notify();
+        public override void OnChange(bool selfChange) => ReduceMotion.NotifyListeners();
     }
 #endif
 }

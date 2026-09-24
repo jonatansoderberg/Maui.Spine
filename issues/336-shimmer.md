@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/336
 **Branch:** issue/336-shimmer
-**Status:** In Progress
+**Status:** Completed
 **Stage:** 3 of the app-review plan (#333), first item (it decides the style-options chain shared with #334 and #335)
 
 ## Plan
@@ -54,6 +54,7 @@ None.
 - **`SpineStyleOptions` unchanged.** One limitation found and documented in `shimmer.md`: the effective copy is cached per `SpineTheme.Version`, so mutating an options object's properties after it has been used shows at the next theme change; assign a new object instead. Left as is because the cache is the point of the design and #334/#335 build on it; worth a note for those ports.
 - **Rescans until the reserved sizes are laid out.** On iOS, when a `BindableLayout` rebuilt its rows at the moment the skeleton came on, the rows kept the measure they had without text (height 0) even after the labels got their minimum height, and no size change followed; the bars ended up stacked. A scan that finds a view smaller than the minimum it was given now invalidates the measure of the view and its containers up to the layout and scans again after 50 ms, at most ten times. Found by toggling Reload in the sample.
 - **The overlay survives a `BindableLayout` reset.** The reset removes it and `Skeleton` puts it straight back; the `Unloaded` of the removal can arrive after the re-add, so `Unloaded` is ignored while the overlay is still loaded, and the re-add re-attaches explicitly. Overlays still fading out are not treated as leaves of the next skeleton.
+- **Android Remove-animations observer:** the content observer is a Java object, so a bare `Notify()` inside it bound to `java.lang.Object.notify()` and crashed the app when the setting changed; the helper is named `NotifyListeners` and called qualified. Listeners are told 500 ms after the change, because the app's animator scale follows the setting later than the observer fires; a wave restarted at once froze. Verified live: wave stops at scale 0 and runs again at 1.
 - **Windows:** reduce-motion changes are picked up when an overlay (re)starts; `UISettings.AnimationsEnabledChanged` is not available on the minimum SDK.
 
 ## Design with #302
