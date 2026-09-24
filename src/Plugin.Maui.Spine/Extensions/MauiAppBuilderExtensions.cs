@@ -53,6 +53,8 @@ public static partial class SpineExtensions
         services.AddSingleton<SpineHostProvider>();
         services.AddSingleton<TabBadgeService>();
         services.AddSingleton<ITabBadgeService>(sp => sp.GetRequiredService<TabBadgeService>());
+        services.AddSingleton<ThemeService>();
+        services.AddSingleton<IThemeService>(sp => sp.GetRequiredService<ThemeService>());
 
         services.AddTransient<NavigationRegionViewModel>();
 
@@ -99,6 +101,7 @@ public static partial class SpineExtensions
                 sp.GetRequiredKeyedService<NavigationRegion>(BottomSheetRegionKey),
                 sp.GetRequiredService<SpineHostProvider>(),
                 sp.GetRequiredService<TabBadgeService>(),
+                sp.GetRequiredService<IThemeService>(),
                 sp.GetRequiredService<Plugin.Maui.Spine.Svg.ResourceNameCache>(),
                 sp)
             {

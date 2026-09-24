@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Resources.Styles.LightTokens">
+
+    <!-- Design tokens, light. DarkTokens.xaml declares the same keys; consume them with {DynamicResource}. -->
+    <Color x:Key="CardBackground">#FFFFFF</Color>
+    <Color x:Key="CardOutline">#E4E4E0</Color>
+    <Color x:Key="CardText">#1A1D21</Color>
+    <Color x:Key="CardAccent">#512BD4</Color>
+
+</ResourceDictionary>

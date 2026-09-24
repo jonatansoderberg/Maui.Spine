@@ -66,4 +66,36 @@ public sealed class SpineTabBarStyle
     /// Solid bar background. Discouraged on iOS 26 — forfeits the Liquid Glass material.
     /// </summary>
     public Color? BarBackgroundColor { get; set; }
+
+    /// <summary>
+    /// Resource key of a <see cref="Color"/> for the selected tab, read from the application
+    /// resources at every theme change, so a token that differs between light and dark follows
+    /// the switch. A key that resolves wins over <see cref="SelectedColor"/>.
+    /// </summary>
+    public string? SelectedColorKey { get; set; }
+
+    /// <summary>Resource key for the unselected tabs; see <see cref="SelectedColorKey"/>.</summary>
+    public string? UnselectedColorKey { get; set; }
+
+    /// <summary>Resource key for the badge background; see <see cref="SelectedColorKey"/>.</summary>
+    public string? BadgeBackgroundColorKey { get; set; }
+
+    /// <summary>Resource key for the badge text; see <see cref="SelectedColorKey"/>.</summary>
+    public string? BadgeTextColorKey { get; set; }
+
+    /// <summary>Resource key for the bar background; see <see cref="SelectedColorKey"/>.</summary>
+    public string? BarBackgroundColorKey { get; set; }
+
+    internal Color? Selected => Resolve(SelectedColorKey) ?? SelectedColor;
+    internal Color? Unselected => Resolve(UnselectedColorKey) ?? UnselectedColor;
+    internal Color? BadgeBackground => Resolve(BadgeBackgroundColorKey) ?? BadgeBackgroundColor;
+    internal Color? BadgeText => Resolve(BadgeTextColorKey) ?? BadgeTextColor;
+    internal Color? BarBackground => Resolve(BarBackgroundColorKey) ?? BarBackgroundColor;
+
+    private static Color? Resolve(string? key) =>
+        key is not null
+        && Application.Current?.Resources.TryGetValue(key, out var value) == true
+        && value is Color color
+            ? color
+            : null;
 }

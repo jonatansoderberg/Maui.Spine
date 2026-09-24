@@ -48,6 +48,7 @@ builder
     {
         options.AddAssembly(typeof(MauiProgram).Assembly);   // never Assembly.GetEntryAssembly(): null on Android
         options.AppTitle = "My App";
+        options.Theme.UseTokens<LightTokens, DarkTokens>();  // optional: two ResourceDictionaries with the same keys, swapped on theme change
     })
     .UseSpineWidgets()                                        // Plugin.Maui.Spine.Widgets
     .UseSpinePushNotifications(o =>                           // Plugin.Maui.Spine.PushNotifications
@@ -207,6 +208,7 @@ Then run and check the log for Spine's startup warnings: a `[Widget]` kind with 
 - A bare `<Compile Include="…ViewModel.cs">` next to the `<DependentUpon>` one gives duplicate-compilation errors.
 - Two `[NavigableTab]` pages with the same `Order` fail startup validation; set `Order` on every tab.
 - `NU1608` warnings about AndroidX `LiveData.Core` / `Fragment` are the normal state of a MAUI app with Firebase in it.
+- Theme: set `IThemeService.Current` (stored, applied at the next launch), never `Application.UserAppTheme`; no `RequestedThemeChanged` handler for the Android page background, Spine paints the window. Views that colour themselves in code call `SpineTheme.Track(this, Repaint)`. See docs/wiki/theming.md.
 - Windows builds only on Windows; iOS and Mac Catalyst class libraries build on Windows, but an iOS *app* (and the widget extension) needs a Mac.
 
 ## Documentation

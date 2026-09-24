@@ -1,0 +1,97 @@
+using Plugin.Maui.Spine.Core;
+
+namespace Plugin.Maui.Spine.Services;
+
+internal sealed class ThemeService(SpineOptions options) : IThemeService
+{
+    private const string PreferenceKey = "Spine.Theme";
+
+    private readonly ResourceDictionary _tokens = [];
+    private Application? _app;
+
+    // Application.RequestedThemeChanged is a weak event: a handler held only by the event manager
+    // is collected and silently stops running. The field roots it for the service's lifetime.
+    private EventHandler<AppThemeChangedEventArgs>? _handler;
+
+    public AppTheme Current
+    {
+        get => _app?.UserAppTheme ?? AppTheme.Unspecified;
+        set
+        {
+            if (options.Theme.Persist)
+                Preferences.Default.Set(PreferenceKey, (int)value);
+
+            if (_app is not null)
+                _app.UserAppTheme = value;
+        }
+    }
+
+    public AppTheme Effective => _app?.RequestedTheme == AppTheme.Dark ? AppTheme.Dark : AppTheme.Light;
+
+    public int Version => ThemeTracker.Version;
+
+    public event EventHandler? Changed;
+
+    public void Track(VisualElement view, Action onChanged) => ThemeTracker.Track(view, onChanged);
+
+    /// <summary>
+    /// Applies the stored choice and starts following the theme. Called from the application's
+    /// constructor, before the platform application handler connects, so Android's night mode is
+    /// set before the activity inflates its window.
+    /// </summary>
+    internal void Initialize(Application app)
+    {
+        _app = app;
+
+        if (options.Theme.Persist
+            && Preferences.Default.Get(PreferenceKey, (int)AppTheme.Unspecified) is var stored
+            && stored != (int)AppTheme.Unspecified)
+        {
+            app.UserAppTheme = (AppTheme)stored;
+        }
+
+        CopyTokens();
+
+        _handler = (_, _) => OnThemeChanged();
+        app.RequestedThemeChanged += _handler;
+    }
+
+    /// <summary>
+    /// Merges the token dictionary and resets the repaint registry for a new window. Called from
+    /// <c>CreateWindow</c>, after the app's <c>InitializeComponent</c> has installed its resources.
+    /// </summary>
+    internal void Attach()
+    {
+        if (_app is not null && options.Theme.LightTokens is not null
+            && !_app.Resources.MergedDictionaries.Contains(_tokens))
+        {
+            _app.Resources.MergedDictionaries.Add(_tokens);
+        }
+
+        ThemeTracker.Reset();
+    }
+
+    private void OnThemeChanged()
+    {
+        if (!MainThread.IsMainThread)
+        {
+            MainThread.BeginInvokeOnMainThread(OnThemeChanged);
+            return;
+        }
+
+        ThemeTracker.BeginChange();
+        CopyTokens();
+        Changed?.Invoke(this, EventArgs.Empty);
+        ThemeTracker.Notify();
+    }
+
+    private void CopyTokens()
+    {
+        var source = Effective == AppTheme.Dark ? options.Theme.DarkTokens : options.Theme.LightTokens;
+        if (source is null)
+            return;
+
+        foreach (var (key, value) in source())
+            _tokens[key] = value;
+    }
+}

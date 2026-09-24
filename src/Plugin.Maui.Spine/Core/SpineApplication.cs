@@ -25,6 +25,7 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
 
     private readonly ISpineHost _host;
     private readonly INavigationService _navigationService;
+    private readonly ThemeService _theme;
     private Window? _window;
 
     /// <summary>
@@ -45,6 +46,9 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
 
         _host = _services.GetRequiredService<ISpineHost>();
         _navigationService = _services.GetRequiredService<INavigationService>();
+        _theme = _services.GetRequiredService<ThemeService>();
+
+        _theme.Initialize(this);
     }
 
     /// <inheritdoc/>
@@ -52,6 +56,8 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
     {
         var window = new Window(_host.HostPage);
         _window = window;
+
+        _theme.Attach();
 
         this.BindingContext = _host.RootNavigationRegion.BindingContext;
 

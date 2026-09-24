@@ -25,7 +25,32 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         };
 
         // Re-apply whenever the user (or SettingsPage) switches theme.
-        RequestedThemeChanged += (_, _) => UpdateStatusBarAppearance();
+        RequestedThemeChanged += (_, _) =>
+        {
+            UpdateStatusBarAppearance();
+            ApplyWindowBackground();
+        };
+    }
+
+    /// <summary>
+    /// Paints the window with the theme's background colour as the theme now stands.
+    /// </summary>
+    /// <remarks>
+    /// The activity declares <c>UiMode</c> among its configuration changes, so a switch does not
+    /// recreate it and the window keeps the background drawable it was inflated with: a page with
+    /// no background of its own showed the old theme's colour behind the new theme's text. The
+    /// tab host paints the window with its bar's surface colour afterwards, on top of this.
+    /// </remarks>
+    private static void ApplyWindowBackground()
+    {
+        if (Platform.CurrentActivity is not { Window: { } window, Theme: { } theme })
+            return;
+
+        var value = new Android.Util.TypedValue();
+        if (!theme.ResolveAttribute(Android.Resource.Attribute.ColorBackground, value, true))
+            return;
+
+        window.SetBackgroundDrawable(new Android.Graphics.Drawables.ColorDrawable(new Android.Graphics.Color(value.Data)));
     }
 
     /// <summary>

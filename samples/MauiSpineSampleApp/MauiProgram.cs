@@ -1,4 +1,5 @@
-﻿using MauiBottomSheetPoc;
+﻿﻿using MauiBottomSheetPoc;
+using MauiSpineSampleApp.Resources.Styles;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
@@ -26,6 +27,7 @@ public static class MauiProgram
                 options.AddAssembly(typeof(MauiProgram).Assembly); //On Android, Assembly.GetEntryAssembly() returns null 
                 options.AppTitle = "My Maui App";
                 options.Shortcuts.UseHandler<ShortcutHandler>();
+                options.Theme.UseTokens<LightTokens, DarkTokens>();
                 options.RegionDefaults.IsTitleBarVisible = false;
                 options.RegionDefaults.IsHeaderBarVisible = true;
                 options.RegionDefaults.TitleAlignment = PlatformValue
