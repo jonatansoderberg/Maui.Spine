@@ -10,12 +10,16 @@
     <Color x:Key="AcrylicFrameBackgroundColor">#F1F1F1</Color>
 
 
-    <Color x:Key="Primary">#512BD4</Color>
-    <Color x:Key="PrimaryDark">#ac99ea</Color>
-    <Color x:Key="PrimaryDarkText">#242424</Color>
-    <Color x:Key="Secondary">#DFD8F7</Color>
-    <Color x:Key="SecondaryDarkText">#9880e5</Color>
-    <Color x:Key="Tertiary">#2B0B98</Color>
+    <!-- The accent: Apple's system blue. IThemeService.Accent overwrites Primary and PrimaryDark
+         when the user picks another one, and keeps Accent (the one for the theme in effect) and
+         OnAccent (text on it) up to date; use those two with {DynamicResource}. -->
+    <Color x:Key="Primary">#007AFF</Color>
+    <Color x:Key="PrimaryDark">#0A84FF</Color>
+    <Color x:Key="Accent">#007AFF</Color>
+    <Color x:Key="OnAccent">White</Color>
+    <Color x:Key="Secondary">#D6E8FF</Color>
+    <Color x:Key="SecondaryDarkText">#64A8FF</Color>
+    <Color x:Key="Tertiary">#0040DD</Color>
 
     <Color x:Key="White">White</Color>
     <Color x:Key="Black">Black</Color>

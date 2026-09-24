@@ -89,7 +89,7 @@
             </Border>
 
             <Label Text="Styling" FontAttributes="Bold" Margin="0,8,0,0" />
-            <Label Text="CalendarStyleOptions on one calendar, or DefaultCalendarStyleOptions in the app resources. Colours left unset follow the theme; the accent is the app's Primary colour."
+            <Label Text="CalendarStyleOptions on one calendar, or DefaultCalendarStyleOptions in the app resources. Colours left unset follow the theme; the accent is the app's (IThemeService.Accent, picked on the Theming page)."
                    FontSize="14" />
             <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
                 <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
