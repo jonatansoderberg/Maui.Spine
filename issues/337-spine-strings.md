@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/337
 **Branch:** issue/337-spine-strings
-**Status:** In Progress
+**Status:** Completed
 **Stage:** 2 of the app-review plan (#332)
 
 ## Plan
@@ -36,6 +36,7 @@ None.
 - Spine: references Common; `SpineOptions.Strings` (`Persist`, `AddProvider`); `StringsSetup` registers the app's embedded documents and Spine's defaults, applies the stored culture in the application constructor, stores it on change and repaints tracked views; `ISpineStrings` registered as the static instance; `{String}` markup extension (`Key`, `Count`, `Args`/`Arg1`/`Arg2`) as a `MultiBinding` re-converted on `Changed`; `PageAction.Description` set as the buttons' semantic description, the back and close actions read `Header.Back`/`Header.Close` from embedded `strings.xml`/`strings.sv.xml`.
 - Sample: `Resources/Strings/strings.xml` + `strings.sv.xml` embedded, `Pages/Strings/StringsPage` (language switch, formatted greeting, plural counter, C# lookup, `Header.Back` overridden as "Home", a missing key), index row.
 - Docs: `docs/wiki/strings.md`, README row, packages page and Common README (Spine now depends on Common), `/spine-setup` and `/spine-controls` skills.
+- Verified on the iPhone 17 simulator and the Pixel 10 Pro emulator: every `{String}` and the C# lookup swap on the switch, the plural forms follow the count (one, other, zero), `Header.Back` shows the app's override, a missing key shows as the key, and the language survives a relaunch. Mac Catalyst builds.
 
 ## Decisions
 
