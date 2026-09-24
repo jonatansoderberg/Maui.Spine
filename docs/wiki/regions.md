@@ -175,7 +175,22 @@ A page that opens on a photo, a map or a hero wants the content to start at the 
 - `HeaderBar = Overlay`: the content host is not padded at the top; the title row and the actions sit over the content, pushed down by the status bar. Page actions keep their glass on iOS 26, which is what makes them readable over imagery.
 - `HeaderBarForeground`: the title and the action icons take this colour instead of the theme's.
 - `StatusBarStyle`: applied when the page appears and again on a theme change. On Android it sets the window's light/dark status bar appearance. On iOS it needs `<key>UIViewControllerBasedStatusBarAppearance</key><false/>` in `Info.plist`; without it Spine logs a hint and leaves the bar alone.
-- `ViewModelBase.SafeAreaInsets.Top` reports status bar plus header height, so a list can take it with `SafeArea.ScrollInset="Top"` and still draw behind the bar. `HeaderBarConstants` is public for anything that needs the numbers.
+- `ViewModelBase.SafeAreaInsets.Top` reports status bar plus header height (`HeaderBarConstants.BarHeight`), so a list can take it with `SafeArea.ScrollInset="Top"` and still draw behind the bar. `HeaderBarConstants` is public for anything that needs the numbers.
+
+---
+
+## Header bar height
+
+The header bar is a row of items (`HeaderBarConstants.Height`: the back button, the title, the page actions) with the bar below it. `HeaderBarConstants.BarHeight` is the whole bar, measured from under the status bar. Everything that depends on the header's height uses it: where content below the bar starts, `SafeAreaInsets.Top` and the scroll inset under a floating bar, a `Solid` background, the Android/Windows scroll edge band, and the element UIKit sizes the scroll edge effect to.
+
+| Platform | `Height` (items) | `BarHeight` (bar) |
+|---|---|---|
+| iOS / Mac Catalyst 26 and later | 44 | 54: the items at the top, 10 points of bar below, as `UINavigationBar` |
+| iOS / Mac Catalyst before 26 | 44 | 44 |
+| Android | 48 | 48 |
+| Windows | 32 | 32 |
+
+The title's text centres on the item row, not on the whole bar, so it lines up with the buttons. Measured against a `UINavigationController` on the iOS 26 simulator: the bar is 54 points in a region and in a sheet (where it starts 16 points below the sheet's top edge), and a large title's 52-point row starts at the bar's bottom edge. The scroll edge effect differs by case. The soft style fades a little past the bar's bottom edge. The hard band ends at the bar's bottom edge under a large title and in a sheet. Under an inline title in a region, UIKit's hard band stops at the bottom of the items, 10 points above the bar's edge, and Spine does the same.
 
 ---
 
@@ -226,7 +241,7 @@ On iOS 26, content in system apps scrolls under the navigation bar and stays hal
 
 - With `Auto`, a region or tab page gets `ScrollEdge` on iOS and Mac Catalyst 26 when its header bar is visible and its scroll view fills the page from the top. Its scroll view is `HeaderBar.ScrollSource`, or else the first `ScrollView` / `CollectionView`. "Fills from the top" means every container between the page and the list holds only the list, or is a grid in which the list spans all rows (a list with a floating button). A page with fixed content above its list keeps the solid bar, so nothing that does not scroll ends up under the header. Sheets keep their own header.
 - The page is laid out as under `Overlay`, and the scroll view gets the top inset, so the first row starts below the bar at rest. The header's title row gets a `UIScrollEdgeElementContainerInteraction` pointing at the scroll view, and UIKit draws the edge effect as it does behind a `UINavigationBar`: from the top of the screen over the status bar and the whole bar. The glass page actions stay as they are.
-- UIKit sizes the effect to the elements in the container view (labels, images, controls), not to the container itself: an empty view in the container does not count, and the effect stops below the lowest element. That is why the title label fills the bar's height. A page with a visible header bar but an empty title has nothing for UIKit to size the effect to.
+- UIKit sizes the effect to the elements in the container view (labels, images, controls), not to the container itself: an empty view in the container does not count, and the effect stops below the lowest element. That is why the title label fills the bar's height. A page with a visible header bar but an empty title has nothing for UIKit to size the effect to. Under an inline title with `ScrollEdgeHard` the label ends with the 44-point item row instead, because that is where UIKit's own hard band stops behind an inline navigation bar title (see [Header bar height](#header-bar-height)).
 - The style follows UIKit's `UIScrollEdgeEffectStyle`:
 
 | Value | iOS / Mac Catalyst 26 | Android, Windows |

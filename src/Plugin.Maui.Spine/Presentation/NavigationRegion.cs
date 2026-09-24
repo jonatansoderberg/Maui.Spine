@@ -267,7 +267,7 @@ public sealed partial class NavigationRegion : ContentView
 
         // Under a floating header the content must keep the status bar and the bar itself clear.
         var top = overlay
-            ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.Height : 0)
+            ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.BarHeight : 0)
             : (edges & SpineSafeArea.Top) != 0 ? 0 : insets.Top;
 
         return new Thickness(
