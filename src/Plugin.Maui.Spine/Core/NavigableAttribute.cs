@@ -46,6 +46,8 @@ public abstract class NavigableAttribute : Attribute
         IsHeaderBarVisible = source.IsHeaderBarVisibleSet ? source.IsHeaderBarVisible : defaults.IsHeaderBarVisible;
         IsBackButtonVisible = source.IsBackButtonVisibleSet ? source.IsBackButtonVisible : defaults.IsBackButtonVisible;
         HeaderBar = source.HeaderBarSet ? source.HeaderBar : defaults.HeaderBar;
+        LargeTitle = source.LargeTitleSet ? source.LargeTitle : defaults.LargeTitle;
+        HeaderBarBackground = source.HeaderBarBackgroundSet ? source.HeaderBarBackground : defaults.HeaderBarBackground;
         HeaderBarForeground = source.HeaderBarForegroundSet ? source.HeaderBarForeground : defaults.HeaderBarForeground;
         StatusBarStyle = source.StatusBarStyleSet ? source.StatusBarStyle : defaults.StatusBarStyle;
     }
@@ -106,6 +108,27 @@ public abstract class NavigableAttribute : Attribute
     /// </summary>
     public HeaderBarMode HeaderBar { get => field; set { field = value; _headerBarSet = true; } }
     internal bool HeaderBarSet => _headerBarSet;
+
+    private bool _largeTitleSet;
+    /// <summary>
+    /// The page opens on its own large title, the first thing in its scroll content, and the
+    /// header bar's title fades in as that title scrolls under the bar: the iOS large title and the
+    /// Material 3 medium top app bar. The content starts at the top of the screen and scrolls under
+    /// the bar; Spine gives the page's scroll source the top inset. Size and place the title with
+    /// <c>HeaderBarConstants.LargeTitle…</c>. When not set the value is inherited from the relevant
+    /// <c>DefaultsConfig</c>.
+    /// </summary>
+    public bool LargeTitle { get => field; set { field = value; _largeTitleSet = true; } }
+    internal bool LargeTitleSet => _largeTitleSet;
+
+    private bool _headerBarBackgroundSet;
+    /// <summary>
+    /// What is behind the header bar while content scrolls under it; see
+    /// <see cref="Core.HeaderBarBackground"/>. When not set the value is inherited from the relevant
+    /// <c>DefaultsConfig</c>.
+    /// </summary>
+    public HeaderBarBackground HeaderBarBackground { get => field; set { field = value; _headerBarBackgroundSet = true; } }
+    internal bool HeaderBarBackgroundSet => _headerBarBackgroundSet;
 
     private bool _headerBarForegroundSet;
     /// <summary>

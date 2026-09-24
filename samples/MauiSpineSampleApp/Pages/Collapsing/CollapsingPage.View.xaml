@@ -1,0 +1,39 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Collapsing.CollapsingPage"
+    x:TypeArguments="CollapsingPageViewModel"
+    x:DataType="CollapsingPageViewModel">
+
+    <!-- Spine gives the list the status bar and the header as a top inset, so the large title
+         starts right under the bar and rows scroll away beneath it. -->
+    <CollectionView ItemsSource="{Binding Rows}" SafeArea.ScrollInset="Bottom">
+        <CollectionView.Header>
+            <VerticalStackLayout Spacing="8">
+                <!-- The large title: the page's title in the platform's large-title size and place,
+                     and what Spine measures to fade the bar's title in at the right offset. -->
+                <HeaderBarLargeTitle />
+
+                <VerticalStackLayout Padding="16,0,16,8" Spacing="8">
+                    <PackageChips Packages="Plugin.Maui.Spine" />
+                    <Label Text="LargeTitle = true: the page opens on its own large title. As it scrolls under the bar, the bar's title fades in, and with HeaderBarBackground Auto (Solid here) the bar turns from transparent to the page's background. With Reduce Motion on, both switch without a fade."
+                           FontSize="14" />
+                    <Label Text="{Binding ProgressText}" FontSize="13" TextColor="Gray" />
+
+                    <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                        <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                               Text="[NavigableRegion(Title = &quot;Inbox&quot;,&#10;  LargeTitle = true)]&#10;&#10;&lt;CollectionView ItemsSource=&quot;{Binding Mail}&quot;&gt;&#10;  &lt;CollectionView.Header&gt;&#10;    &lt;HeaderBarLargeTitle /&gt;&#10;  &lt;/CollectionView.Header&gt;&#10;&lt;/CollectionView&gt;&#10;&#10;// Text=&quot;...&quot; shows something else.&#10;// HeaderBar.ScrollSource on the page picks&#10;//   the list; default the first one.&#10;// HeaderBarCollapseProgress (0-1) on the&#10;//   view model follows the fade.&#10;// HeaderBarBackground = Solid | Clear&#10;// Own title: HeaderBarConstants.LargeTitle*&#10;//   + HeaderBar.CollapseDistance" />
+                    </Border>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+                <Grid Padding="16,14">
+                    <Label Text="{Binding .}" />
+                </Grid>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+
+</SpinePage>

@@ -35,6 +35,8 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `TitleAlignment` | `TitleAlignment` | platform default | `Left` or `Center` |
 | `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually |
 | `HeaderBar` | `HeaderBarMode` | `Normal` | `Overlay` floats the header bar over content that starts at the top of the screen. See [Overlay header](#overlay-header) |
+| `LargeTitle` | `bool` | `false` | The page opens on its own large title, which collapses into the header bar as it scrolls. See [Large title](#large-title) |
+| `HeaderBarBackground` | `HeaderBarBackground` | `Auto` | What is behind the header bar while content scrolls under it: `Solid` (transparent at the top, the page background once content passes under), `Clear`, or `Auto` (`Clear` under `Overlay`, `Solid` otherwise). See [Large title](#large-title) |
 | `HeaderBarForeground` | `string?` | `null` | A fixed colour (hex) for the header bar's title and action icons; `null` follows the theme |
 | `StatusBarStyle` | `StatusBarStyle` | `Default` | `LightContent` or `DarkContent` for the status bar's clock and icons while the page is shown |
 | `ScrollInset` | `SafeAreaEdges` | `None` | Edges on which the page's first `ScrollView` / `CollectionView` takes the safe-area inset as a native content inset, so it can scroll under an excluded bar and still reach its last row. See [Scrolling under a bar](#scrolling-under-a-bar) |
@@ -174,6 +176,43 @@ A page that opens on a photo, a map or a hero wants the content to start at the 
 - `HeaderBarForeground`: the title and the action icons take this colour instead of the theme's.
 - `StatusBarStyle`: applied when the page appears and again on a theme change. On Android it sets the window's light/dark status bar appearance. On iOS it needs `<key>UIViewControllerBasedStatusBarAppearance</key><false/>` in `Info.plist`; without it Spine logs a hint and leaves the bar alone.
 - `ViewModelBase.SafeAreaInsets.Top` reports status bar plus header height, so a list can take it with `SafeArea.ScrollInset="Top"` and still draw behind the bar. `HeaderBarConstants` is public for anything that needs the numbers.
+
+---
+
+## Large title
+
+The iOS large title and the Material 3 medium top app bar: the page opens on its own large title, and as that title scrolls away under the bar the bar's own title fades in and the bar turns from transparent to the page's background.
+
+```csharp
+[NavigableRegion(Title = "Inbox", LargeTitle = true)]
+```
+
+```xml
+<CollectionView ItemsSource="{Binding Messages}" SafeArea.ScrollInset="Bottom">
+    <CollectionView.Header>
+        <HeaderBarLargeTitle />
+    </CollectionView.Header>
+    …
+```
+
+`HeaderBarLargeTitle` shows the page's title (set `Text` to show something else) in the platform's large-title size, weight, row height and margin, in the header's `HeaderBarForeground` when the page fixes one and in the app's label style otherwise. Spine measures it to decide when the bar's title fades in, wherever it sits in the scroll content. For a title of your own, the numbers are public on `HeaderBarConstants` (`LargeTitleFontSize`, `LargeTitleFontAttributes`, `LargeTitleHeight`, `LargeTitleMargin`); set `HeaderBar.CollapseDistance` on the page to where its text has gone.
+
+Three settings, each on the attribute and as an app-wide default in `options.RegionDefaults` / `TabDefaults` / `SheetDefaults`, and independent of each other:
+
+| Setting | Decides |
+|---|---|
+| `HeaderBar` (`Normal`, `Overlay`) | Layout: whether the page draws its own top under the bar (a photo, a hero) |
+| `LargeTitle` | Whether the page opens on a large title that collapses into the bar |
+| `HeaderBarBackground` (`Auto`, `Solid`, `Clear`) | What is behind the bar while content scrolls under it |
+
+- A large title always has content scrolling under the bar, so it lays out like the overlay: content starts at the top of the screen and `SafeAreaInsets.Top` is status bar plus header. Spine adds `Top` to the scroll source's `SafeArea.ScrollInset`, so the large title starts right under the bar without the page doing anything.
+- `Overlay` and `LargeTitle` combine: a hero with a greeting in it, `HeaderBar.CollapseDistance` set to where the greeting has gone, and `HeaderBarBackground = Solid` so the bar closes over the photo once the list passes under it. `Overlay` with `Solid` and no large title gives the photo page whose bar turns solid on scroll; mind that a fixed `HeaderBarForeground` stays fixed on the solid bar.
+- `HeaderBar.ScrollSource` (on the page) names the `ScrollView` or `CollectionView` to follow. Without it Spine follows the page's first one, and waits for it when the page builds it later (a state view that swaps in its body).
+- The bar's title fades in over the last `HeaderBarConstants.LargeTitleFadeLength` points before the collapse distance: `HeaderBar.CollapseDistance` when the page sets it, otherwise the offset at which the `HeaderBarLargeTitle`'s text has gone under the bar (its top in the scroll content plus half its row and half its font size), otherwise `HeaderBarConstants.LargeTitleCollapseDistance`. A page whose large text is its own, a greeting in a hero for instance, sets the distance at which that text has gone.
+- With `Solid`, the background is in after `HeaderBarConstants.ScrollEdgeFadeLength` points, as soon as rows start passing under the bar. It is the page's own background when it has an opaque one, otherwise what the platform paints behind pages (the system background on iOS, the window background on Android).
+- `ViewModelBase.HeaderBarCollapseProgress` (0 to 1) follows the title's fade, for a page that fades something of its own with it.
+- With Reduce Motion on (iOS), animations removed (Android) or animation effects off (Windows) there is no fade: the title and the background switch at the middle of their ranges.
+- The large-title constants are per platform: 34-point bold in a 52-point row on iOS, 24 sp in 56 dp on Android (Material 3 medium top app bar), 28 on Windows, all with 16 points of side margin.
 
 ---
 

@@ -29,12 +29,20 @@ public static partial class SpineExtensions
         var inset = SafeArea.GetResolvedInset(view);
         var edgeInsets = new UIEdgeInsets((nfloat)inset.Top, (nfloat)inset.Left, (nfloat)inset.Bottom, (nfloat)inset.Right);
 
+        // UIKit keeps the content offset when the inset changes, so a view that was resting at
+        // its top would now rest inset points too high, its first rows under the bar the inset
+        // was meant to clear. Keep a resting view at its (new) top.
+        var atTop = scrollView.ContentOffset.Y <= -scrollView.AdjustedContentInset.Top + 0.5;
+
         scrollView.ContentInset = edgeInsets;
+
+        if (atTop)
+            scrollView.ContentOffset = new CoreGraphics.CGPoint(scrollView.ContentOffset.X, -scrollView.AdjustedContentInset.Top);
         scrollView.VerticalScrollIndicatorInsets = edgeInsets;
         scrollView.HorizontalScrollIndicatorInsets = edgeInsets;
     }
 
-    static UIScrollView? FindScrollView(UIView view)
+    internal static UIScrollView? FindScrollView(UIView view)
     {
         foreach (var subview in view.Subviews)
         {

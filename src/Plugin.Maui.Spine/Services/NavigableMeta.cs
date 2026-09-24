@@ -24,6 +24,8 @@ internal static class NavigableMeta
         vm.IsHeaderBarVisible = meta.IsHeaderBarVisible;
         vm.IsBackButtonVisible = meta.IsBackButtonVisible;
         vm.HeaderBarMode = meta.HeaderBar;
+        vm.LargeTitle = meta.LargeTitle;
+        vm.HeaderBarBackground = meta.HeaderBarBackground;
         vm.HeaderBarForeground = meta.HeaderBarForeground is { } hex && Color.TryParse(hex, out var foreground) ? foreground : null;
         vm.StatusBarStyle = meta.StatusBarStyle;
 
@@ -57,9 +59,12 @@ internal static class NavigableMeta
         {
             SafeArea.SetScrollInset(scrollable, vm.ScrollInset);
         }
+
+        if (vm.FollowsScroll)
+            HeaderBar.Track(view, vm);
     }
 
-    static View? FindFirstScrollable(Element root)
+    internal static View? FindFirstScrollable(Element root)
     {
         var queue = new Queue<IVisualTreeElement>();
         queue.Enqueue(root);

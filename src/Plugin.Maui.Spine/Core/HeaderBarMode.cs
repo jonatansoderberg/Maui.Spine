@@ -16,6 +16,29 @@ public enum HeaderBarMode
     Overlay,
 }
 
+/// <summary>
+/// What is behind the header bar's title and actions while content scrolls under it: under an
+/// <see cref="HeaderBarMode.Overlay"/> header, and on a page with a large title (whose content
+/// always scrolls under the bar).
+/// </summary>
+public enum HeaderBarBackground
+{
+    /// <summary>
+    /// <see cref="Clear"/> under an <see cref="HeaderBarMode.Overlay"/> header, whose page draws its
+    /// own top; <see cref="Solid"/> otherwise.
+    /// </summary>
+    Auto,
+
+    /// <summary>
+    /// Transparent while the content is at the top; the page's background once content scrolls
+    /// under the bar, faded in over <c>HeaderBarConstants.ScrollEdgeFadeLength</c> points.
+    /// </summary>
+    Solid,
+
+    /// <summary>Nothing: content shows through the bar at every offset.</summary>
+    Clear,
+}
+
 /// <summary>The colour of the status bar's clock and icons while a page is shown.</summary>
 public enum StatusBarStyle
 {

@@ -13,7 +13,7 @@ namespace Plugin.Maui.Spine.Presentation;
 /// </summary>
 public sealed partial class NavigationRegion : ContentView
 {
-    private readonly HeaderBar _frameActionView;
+    private readonly HeaderBarView _frameActionView;
     private readonly ContentView _contentHostFront;
     private readonly ContentView _contentHostBack;
     private readonly BoxView _backDragDimOverlay;
@@ -87,7 +87,7 @@ public sealed partial class NavigationRegion : ContentView
         _contentHostBack.SetBinding(ContentView.ContentProperty, nameof(NavigationRegionViewModel.BackView));
         _contentHostFront.SetBinding(ContentView.ContentProperty, nameof(NavigationRegionViewModel.FrontView));
 
-        _frameActionView = new HeaderBar
+        _frameActionView = new HeaderBarView
         {
             CloseCommand = viewModel.CloseCommand,
             BackCommand = viewModel.BackCommand,
@@ -95,8 +95,8 @@ public sealed partial class NavigationRegion : ContentView
             VerticalOptions = LayoutOptions.Start
         };
 
-        _frameActionView.SetBinding(HeaderBar.PrimaryPageActionProperty, new Binding(nameof(NavigationRegionViewModel.PrimaryPageAction), source: viewModel));
-        _frameActionView.SetBinding(HeaderBar.DefaultPageActionProperty, new Binding(nameof(NavigationRegionViewModel.SecondaryPageAction), source: viewModel));
+        _frameActionView.SetBinding(HeaderBarView.PrimaryPageActionProperty, new Binding(nameof(NavigationRegionViewModel.PrimaryPageAction), source: viewModel));
+        _frameActionView.SetBinding(HeaderBarView.DefaultPageActionProperty, new Binding(nameof(NavigationRegionViewModel.SecondaryPageAction), source: viewModel));
 
         // The header bar is the only thing that knows how wide its actions ended up. The title
         // lives in the page content, one visual tree away, so the measurement is routed through
@@ -228,8 +228,8 @@ public sealed partial class NavigationRegion : ContentView
         var insets = _insetsProvider.SystemBarInsets;
         var safeAreaEdges = vm.SafeAreaEdges;
 
-        // An overlay header floats over content that starts at the top of the screen.
-        if (vm.HeaderBarMode == HeaderBarMode.Overlay)
+        // An overlay or collapsing header floats over content that starts at the top of the screen.
+        if (vm.HeaderBarFloats)
             safeAreaEdges &= ~SpineSafeArea.Top;
 
 #if ANDROID
@@ -263,9 +263,9 @@ public sealed partial class NavigationRegion : ContentView
     internal static Thickness SafeAreaInsetsFor(ViewModelBase vm, Thickness insets)
     {
         var edges = vm.SafeAreaEdges;
-        var overlay = vm.HeaderBarMode == HeaderBarMode.Overlay;
+        var overlay = vm.HeaderBarFloats;
 
-        // Under an overlay header the content must keep the status bar and the bar itself clear.
+        // Under a floating header the content must keep the status bar and the bar itself clear.
         var top = overlay
             ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.Height : 0)
             : (edges & SpineSafeArea.Top) != 0 ? 0 : insets.Top;
@@ -285,18 +285,18 @@ public sealed partial class NavigationRegion : ContentView
             // IsHeaderBarVisible, so recalculate whenever the page changes.
             UpdateContainerMargin();
 
-            _frameActionView?.SetBinding(HeaderBar.IsHeaderBarVisibleProperty, new Binding("IsHeaderBarVisible", source: ViewModel.CurrentRegionViewModel));
-            _frameActionView?.SetBinding(HeaderBar.IsBackButtonVisibleProperty, new Binding("IsBackButtonVisible", source: ViewModel.CurrentRegionViewModel));
-            _frameActionView?.SetBinding(HeaderBar.IsTitleBarVisibleProperty, new Binding("IsTitleBarVisible", source: ViewModel.CurrentRegionViewModel));
-            _frameActionView?.SetBinding(HeaderBar.ForegroundProperty, new Binding(nameof(ViewModelBase.HeaderBarForeground), source: ViewModel.CurrentRegionViewModel));
+            _frameActionView?.SetBinding(HeaderBarView.IsHeaderBarVisibleProperty, new Binding("IsHeaderBarVisible", source: ViewModel.CurrentRegionViewModel));
+            _frameActionView?.SetBinding(HeaderBarView.IsBackButtonVisibleProperty, new Binding("IsBackButtonVisible", source: ViewModel.CurrentRegionViewModel));
+            _frameActionView?.SetBinding(HeaderBarView.IsTitleBarVisibleProperty, new Binding("IsTitleBarVisible", source: ViewModel.CurrentRegionViewModel));
+            _frameActionView?.SetBinding(HeaderBarView.ForegroundProperty, new Binding(nameof(ViewModelBase.HeaderBarForeground), source: ViewModel.CurrentRegionViewModel));
 
             // A sheet keeps the status bar of the page under it.
             if (ViewModel.Presentation is NavigationPresentation.Region && ViewModel.CurrentRegionViewModel is { } shown)
                 StatusBar.Apply(shown.StatusBarStyle);
 
             // Actions are now computed by the region view model (including back/close fallbacks)
-            _frameActionView?.SetBinding(HeaderBar.PrimaryPageActionProperty, new Binding(nameof(NavigationRegionViewModel.PrimaryPageAction), source: ViewModel));
-            _frameActionView?.SetBinding(HeaderBar.DefaultPageActionProperty, new Binding(nameof(NavigationRegionViewModel.SecondaryPageAction), source: ViewModel));
+            _frameActionView?.SetBinding(HeaderBarView.PrimaryPageActionProperty, new Binding(nameof(NavigationRegionViewModel.PrimaryPageAction), source: ViewModel));
+            _frameActionView?.SetBinding(HeaderBarView.DefaultPageActionProperty, new Binding(nameof(NavigationRegionViewModel.SecondaryPageAction), source: ViewModel));
 
             // Apply safe-area padding for the new page on both content hosts.
             if (ViewModel.CurrentRegionViewModel is { } vm)

@@ -9,32 +9,32 @@ using Microsoft.Maui.Platform;
 
 namespace Plugin.Maui.Spine.Presentation;
 
-internal class HeaderBar : Microsoft.Maui.Controls.ContentView
+internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 {
     public static readonly BindableProperty IsBackButtonVisibleProperty = BindableProperty.Create(
-        nameof(IsBackButtonVisible), typeof(bool), typeof(HeaderBar), true, propertyChanged: OnIsBackButtonVisibleChanged);
+        nameof(IsBackButtonVisible), typeof(bool), typeof(HeaderBarView), true, propertyChanged: OnIsBackButtonVisibleChanged);
 
     public static readonly BindableProperty IsHeaderBarVisibleProperty = BindableProperty.Create(
-        nameof(IsHeaderBarVisible), typeof(bool), typeof(HeaderBar), true, propertyChanged: OnIsHeaderBarVisibleChanged);
+        nameof(IsHeaderBarVisible), typeof(bool), typeof(HeaderBarView), true, propertyChanged: OnIsHeaderBarVisibleChanged);
 
     public static readonly BindableProperty IsTitleBarVisibleProperty = BindableProperty.Create(
-        nameof(IsTitleBarVisible), typeof(bool), typeof(HeaderBar), false, propertyChanged: OnIsTitleBarVisibleChanged);
+        nameof(IsTitleBarVisible), typeof(bool), typeof(HeaderBarView), false, propertyChanged: OnIsTitleBarVisibleChanged);
 
     public static readonly BindableProperty CloseCommandProperty = BindableProperty.Create(
-        nameof(CloseCommand), typeof(IAsyncRelayCommand), typeof(HeaderBar), default(IAsyncRelayCommand), propertyChanged: OnCloseCommandChanged);
+        nameof(CloseCommand), typeof(IAsyncRelayCommand), typeof(HeaderBarView), default(IAsyncRelayCommand), propertyChanged: OnCloseCommandChanged);
 
     public static readonly BindableProperty BackCommandProperty = BindableProperty.Create(
-        nameof(BackCommand), typeof(IAsyncRelayCommand), typeof(HeaderBar), default(IAsyncRelayCommand), propertyChanged: OnBackCommandChanged);
+        nameof(BackCommand), typeof(IAsyncRelayCommand), typeof(HeaderBarView), default(IAsyncRelayCommand), propertyChanged: OnBackCommandChanged);
 
     public static readonly BindableProperty DefaultPageActionProperty = BindableProperty.Create(
-        nameof(DefaultPageAction), typeof(PageAction), typeof(HeaderBar), default, propertyChanged: DefaultPageActionChanged);
+        nameof(DefaultPageAction), typeof(PageAction), typeof(HeaderBarView), default, propertyChanged: DefaultPageActionChanged);
 
     /// <summary>A fixed colour for the actions' text and icons, or <see langword="null"/> to follow the theme.</summary>
     public static readonly BindableProperty ForegroundProperty = BindableProperty.Create(
-        nameof(Foreground), typeof(Color), typeof(HeaderBar), null,
+        nameof(Foreground), typeof(Color), typeof(HeaderBarView), null,
         propertyChanged: static (b, _, v) =>
         {
-            var bar = (HeaderBar)b;
+            var bar = (HeaderBarView)b;
             bar._primaryPageActionView.Foreground = (Color?)v;
             bar._secondaryPageActionView.Foreground = (Color?)v;
         });
@@ -46,12 +46,12 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
     }
 
     public static readonly BindableProperty PrimaryPageActionProperty = BindableProperty.Create(
-        nameof(PrimaryPageAction), typeof(PageAction), typeof(HeaderBar), default, propertyChanged: PrimaryPageActionChanged);
+        nameof(PrimaryPageAction), typeof(PageAction), typeof(HeaderBarView), default, propertyChanged: PrimaryPageActionChanged);
 
     public static readonly BindableProperty PresentationProperty = BindableProperty.Create(
         nameof(Presentation),
         typeof(NavigationPresentation),
-        typeof(HeaderBar),
+        typeof(HeaderBarView),
         defaultValue: NavigationPresentation.RegionPresentation,
         propertyChanged: OnPresentationChanged);
 
@@ -130,39 +130,39 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
 
     static void DefaultPageActionChanged(BindableObject bindable, object oldValue, object newValue)
     {
-        var view = (HeaderBar)bindable;
+        var view = (HeaderBarView)bindable;
         view._secondaryPageActionView.Action = (PageAction?)newValue;
         view.UpdateSecondaryActionVisibility();
     }
 
     static void PrimaryPageActionChanged(BindableObject bindable, object oldValue, object newValue)
     {
-        var view = (HeaderBar)bindable;
+        var view = (HeaderBarView)bindable;
         view._primaryPageActionView.Action = (PageAction?)newValue;
         view.UpdatePrimaryActionVisibility();
     }
 
     static void OnIsHeaderBarVisibleChanged(BindableObject bindable, object oldValue, object newValue)
     {
-        var view = (HeaderBar)bindable;
+        var view = (HeaderBarView)bindable;
         view.SetIsHeaderBarVisible((bool)newValue);
     }
 
     static void OnIsBackButtonVisibleChanged(BindableObject bindable, object oldValue, object newValue)
     {
-        var view = (HeaderBar)bindable;
+        var view = (HeaderBarView)bindable;
         view.SetIsBackButtonVisible((bool)newValue);
     }
 
     static void OnIsTitleBarVisibleChanged(BindableObject bindable, object oldValue, object newValue)
     {
-        var view = (HeaderBar)bindable;
+        var view = (HeaderBarView)bindable;
         view.UpdateSecondaryActionVisibility();
     }
 
     static void OnPresentationChanged(BindableObject bindable, object oldValue, object newValue)
     {
-        var view = (HeaderBar)bindable;
+        var view = (HeaderBarView)bindable;
         view.UpdatePresentationSizes();
     }
 
@@ -384,7 +384,7 @@ internal class HeaderBar : Microsoft.Maui.Controls.ContentView
 #endif
     }
 
-    public HeaderBar()
+    public HeaderBarView()
     {
         _primaryPageActionView = new PageActionView
         {

@@ -46,6 +46,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         new("Bottom sheets", "Native sheets with detents, blur, full screen, page actions and a footer", "sheet.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
         new("Parameters and results", "Typed navigation parameters and awaited results", "return.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Results.ResultsPage>()),
         new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "link.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
+        new("Collapsing header", "LargeTitle: a large title that scrolls away into the header bar", "windowblinds.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Collapsing.CollapsingPage>()),
         new("Overlay header", "HeaderBarMode.Overlay, HeaderBarForeground and StatusBarStyle over a photo", "cam.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Overlay.OverlayPage>()),
         new("Page lifetime", "Poll, WhileVisible and PageLifetime: work that runs, pauses and stops with the page", "refresh.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Lifetime.LifetimePage>()),
         new("Menu buttons", "A header action, a pop-up button and an icon button that open native menus: sections, pickers, submenus, toggles", "more.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<Menus.MenusPage>()),

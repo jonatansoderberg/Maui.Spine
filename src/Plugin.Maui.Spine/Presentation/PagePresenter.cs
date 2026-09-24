@@ -18,6 +18,11 @@ internal sealed class PagePresenter : Grid
 
     private Label? _titleLabel;
     private readonly TitleSlotLayout _titleBar;
+
+    // Behind the title row of a collapsing header: transparent at the top, solid once content
+    // scrolls under it. An opaque colour faded with Opacity, because a BoxView with an alpha
+    // colour paints over black on iOS.
+    private readonly BoxView _barBackground;
     private ContentPresenter _contentPresenter;
     private readonly ContentView _footerHost;
     private IPageFooterSource? _footerSource;
@@ -74,6 +79,9 @@ internal sealed class PagePresenter : Grid
         _titleBar = new TitleSlotLayout();
         _titleBar.Add(_titleLabel);
 
+        _barBackground = new BoxView { InputTransparent = true, IsVisible = false, Opacity = 0 };
+
+        Children.Add(_barBackground);
         Children.Add(_titleBar);
 
         Grid.SetRow(_contentPresenter, 1);
@@ -95,6 +103,8 @@ internal sealed class PagePresenter : Grid
         // Keep the colour in sync when the user switches light/dark theme at runtime.
         if (Application.Current is { } app)
             app.RequestedThemeChanged += (_, _) => ApplyTitleTextColor();
+
+        SpineTheme.Track(this, ApplyBarBackgroundColor);
     }
 
     private ViewModelBase? _page;
@@ -180,25 +190,91 @@ internal sealed class PagePresenter : Grid
     private void OnPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.SystemBarInsets)
-            or nameof(ViewModelBase.HeaderBarForeground) or nameof(ViewModelBase.IsHeaderBarVisible))
+            or nameof(ViewModelBase.HeaderBarForeground) or nameof(ViewModelBase.IsHeaderBarVisible)
+            or nameof(ViewModelBase.LargeTitle) or nameof(ViewModelBase.HeaderBarBackground))
             ApplyPageLayout();
+        else if (e.PropertyName is nameof(ViewModelBase.HeaderBarCollapseProgress) or nameof(ViewModelBase.ScrollEdgeProgress))
+            ApplyCollapse();
     }
 
     private void ApplyPageLayout()
     {
-        var overlay = _page?.HeaderBarMode == HeaderBarMode.Overlay;
+        var floats = _page?.HeaderBarFloats == true;
 
-        // Overlay: the content spans both rows and the title row sits over it, pushed down by
-        // the status bar the content host no longer pads.
-        Grid.SetRowSpan(_contentPresenter, overlay ? 2 : 1);
-        Grid.SetRow(_contentPresenter, overlay ? 0 : 1);
-        _titleBar.Margin = overlay ? new Thickness(0, _page?.SystemBarInsets.Top ?? 0, 0, 0) : Thickness.Zero;
-        _titleBar.InputTransparent = overlay;
+        // Overlay and large title: the content spans both rows and the title row sits over it,
+        // pushed down by the status bar the content host no longer pads.
+        Grid.SetRowSpan(_contentPresenter, floats ? 2 : 1);
+        Grid.SetRow(_contentPresenter, floats ? 0 : 1);
+        _titleBar.Margin = floats ? new Thickness(0, _page?.SystemBarInsets.Top ?? 0, 0, 0) : Thickness.Zero;
+        _titleBar.InputTransparent = floats;
         // The title was added before the content and would draw under it once they share a row.
-        _titleBar.ZIndex = overlay ? 1 : 0;
+        _titleBar.ZIndex = floats ? 2 : 0;
+        _barBackground.ZIndex = floats ? 1 : 0;
 
         ApplyTitleRowHeight();
         ApplyTitleTextColor();
+        ApplyBarBackgroundColor();
+        ApplyCollapse();
+    }
+
+    // A large title's header shows its title as far as the page has scrolled, and a solid
+    // background behind a floating header fades in the same way; otherwise the title is shown
+    // outright and the bar has no background of its own.
+    private void ApplyCollapse()
+    {
+        var solid = HasSolidBackground();
+        var edge = solid ? _page!.ScrollEdgeProgress : 0;
+
+        // Read the colour again each time the background starts to show: the presenter may not
+        // have been in the page tree when the layout was applied, and a theme binding upstream
+        // may have settled after the theme callback ran.
+        if (edge > 0 && _barBackground.Opacity == 0)
+            ApplyBarBackgroundColor();
+
+        _titleLabel!.Opacity = _page?.LargeTitle == true ? _page.HeaderBarCollapseProgress : 1;
+        _barBackground.IsVisible = solid;
+        _barBackground.Opacity = edge;
+    }
+
+    private bool HasSolidBackground() =>
+        _page is { HeaderBarFloats: true, EffectiveHeaderBarBackground: HeaderBarBackground.Solid };
+
+    private void ApplyBarBackgroundColor()
+    {
+        if (HasSolidBackground())
+            _barBackground.Color = PageBackground();
+    }
+
+    /// <summary>
+    /// The colour the page sits on: the first opaque background from the page view up through the
+    /// host page (an app styles its <c>ContentPage</c>), otherwise what the platform paints behind
+    /// pages in the current theme, so the collapsed bar reads as the page continuing behind the title.
+    /// </summary>
+    private Color PageBackground()
+    {
+        for (Element? element = Content ?? (Element)this; element is not null; element = element.Parent)
+        {
+            if (element is VisualElement { BackgroundColor: { Alpha: >= 1 } own })
+                return own;
+        }
+
+        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark
+            || (Application.Current?.RequestedTheme != AppTheme.Light
+                && Application.Current?.PlatformAppTheme == AppTheme.Dark);
+
+#if IOS || MACCATALYST
+        var traits = UIKit.UITraitCollection.FromUserInterfaceStyle(isDark ? UIKit.UIUserInterfaceStyle.Dark : UIKit.UIUserInterfaceStyle.Light);
+        return Microsoft.Maui.Platform.ColorExtensions.ToColor(UIKit.UIColor.SystemBackground.GetResolvedColor(traits));
+#elif ANDROID
+        // The window background is what shows behind every page: the theme's background in the
+        // plain host, the bar's surface in the tab host.
+        if (Platform.CurrentActivity?.Window?.DecorView.Background is Android.Graphics.Drawables.ColorDrawable drawable)
+            return Microsoft.Maui.Platform.ColorExtensions.ToColor(drawable.Color);
+
+        return isDark ? Colors.Black : Colors.White;
+#else
+        return isDark ? Color.FromArgb("#202020") : Colors.White;
+#endif
     }
 
     // The title row is the header bar's height; under an overlay header it also holds the status
@@ -211,7 +287,7 @@ internal sealed class PagePresenter : Grid
             return;
         }
 
-        var overlayInset = _page?.HeaderBarMode == HeaderBarMode.Overlay ? _page.SystemBarInsets.Top : 0;
+        var overlayInset = _page?.HeaderBarFloats == true ? _page.SystemBarInsets.Top : 0;
         RowDefinitions[0].Height = new GridLength(HeaderBarConstants.Height + overlayInset);
     }
 
