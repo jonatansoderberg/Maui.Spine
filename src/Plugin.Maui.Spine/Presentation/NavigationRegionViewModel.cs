@@ -108,7 +108,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
 
         return new PageAction(null, BackCommand)
         {
-            Svg = "arrowleft.svg",
+            Svg = "chevronleft.svg",
             Placement = PageActionPlacement.Primary,
             Description = SpineStrings.Current["Header.Back"],
         };
