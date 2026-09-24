@@ -31,11 +31,12 @@ public enum HeaderBarMode
 public enum HeaderBarBackground
 {
     /// <summary>
-    /// What the platform's own bar does. On iOS and Mac Catalyst 26 that is
-    /// <see cref="ScrollEdgeHard"/>, the style a navigation bar shows, for a region or tab page whose scroll view fills it from the top
-    /// (a page with fixed content above its list gets <see cref="Solid"/>, so that content never
-    /// sits under the bar). Everywhere else it is <see cref="Solid"/>. Under
-    /// <see cref="HeaderBarMode.Overlay"/> it is <see cref="Transparent"/>: the page draws its own top.
+    /// What the platform's own bar does. On iOS and Mac Catalyst that is the navigation bar's default:
+    /// <see cref="SmoothEdge"/> on 26 and <see cref="HardEdge"/> from 27, for a region or tab page
+    /// whose scroll view fills it from the top (a page with fixed content above its list gets
+    /// <see cref="Solid"/>, so that content never sits under the bar). Everywhere else it is
+    /// <see cref="Solid"/>. Under <see cref="HeaderBarMode.Overlay"/> it is
+    /// <see cref="Transparent"/>: the page draws its own top.
     /// </summary>
     Auto,
 
@@ -54,28 +55,33 @@ public enum HeaderBarBackground
     Transparent,
 
     /// <summary>
-    /// Content under the bar stays half visible and fades and blurs into it: the iOS 26 scroll edge
-    /// effect with its soft style, drawn by UIKit over the status bar and the whole bar, as behind a
-    /// navigation bar, but softer than its default. Android and Windows show a band in the page's colour, slightly see-through
-    /// behind the bar and fading out below it. iOS and Mac Catalyst before 26, and Reduce
-    /// Transparency, give <see cref="Solid"/>.
+    /// Content under the header fades and blurs into it: UIKit's scroll edge effect with the soft
+    /// style, over the status bar and the whole bar, as behind a navigation bar on iOS 26. Android
+    /// and Windows show a band in the page's colour, slightly see-through behind the bar and fading
+    /// out below it. iOS and Mac Catalyst before 26, and Reduce Transparency, give <see cref="Solid"/>.
     /// </summary>
-    ScrollEdge,
+    SmoothEdge,
 
     /// <summary>
-    /// <see cref="ScrollEdge"/> with the hard style: a frosted, nearly opaque band that ends in a
-    /// clear edge: what a navigation bar shows on iOS 26, and what <see cref="Auto"/> gives there.
-    /// Android and Windows show the page's
-    /// colour, nearly opaque, down to the bar's bottom edge, with a hairline there.
+    /// <see cref="SmoothEdge"/> behind the status bar only: content fades out under the clock and the
+    /// icons, and stays sharp behind the title and the actions. Android and Windows show the band
+    /// behind the status bar only.
     /// </summary>
-    ScrollEdgeHard,
+    SmoothStatusBar,
+
+    /// <summary>
+    /// UIKit's scroll edge effect with the hard style: a frosted, nearly opaque band that ends in a
+    /// clear edge, as behind a navigation bar from iOS 27. Android and Windows show the page's colour,
+    /// nearly opaque, down to the bar's bottom edge, with a hairline there.
+    /// </summary>
+    HardEdge,
 }
 
 internal static class HeaderBarBackgroundExtensions
 {
     /// <summary>Whether <paramref name="background"/> is one of the scroll edge values.</summary>
     public static bool IsScrollEdge(this HeaderBarBackground background) =>
-        background is HeaderBarBackground.ScrollEdge or HeaderBarBackground.ScrollEdgeHard;
+        background is HeaderBarBackground.SmoothEdge or HeaderBarBackground.SmoothStatusBar or HeaderBarBackground.HardEdge;
 }
 
 /// <summary>The colour of the status bar's clock and icons while a page is shown.</summary>

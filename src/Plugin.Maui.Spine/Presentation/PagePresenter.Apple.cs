@@ -13,6 +13,36 @@ internal sealed partial class PagePresenter
     private View? _edgeSource;
     private UIScrollView? _edgeScrollView;
 
+    // The container a SmoothStatusBar effect is sized to: as tall as the status bar, holding a label,
+    // because UIKit ignores a container with no labels, images or controls in it.
+    private ContentView? _statusBarEdge;
+
+    partial void AddStatusBarEdge()
+    {
+        _statusBarEdge = new ContentView
+        {
+            InputTransparent = true,
+            IsVisible = false,
+            VerticalOptions = LayoutOptions.Start,
+            ZIndex = 2,
+            Content = new Label { Text = " ", VerticalOptions = LayoutOptions.Fill },
+        };
+        Children.Add(_statusBarEdge);
+    }
+
+    partial void ApplyStatusBarEdge()
+    {
+        if (_statusBarEdge is null)
+            return;
+
+        _statusBarEdge.IsVisible = BarBackground is HeaderBarBackground.SmoothStatusBar && UsesSystemScrollEdge;
+        _statusBarEdge.HeightRequest = _page?.SystemBarInsets.Top ?? 0;
+    }
+
+    /// <summary>The view the interaction goes on: the status-bar element, or the title row.</summary>
+    private View EdgeContainerView =>
+        BarBackground is HeaderBarBackground.SmoothStatusBar && _statusBarEdge is not null ? _statusBarEdge : _titleBar;
+
     /// <summary>
     /// Tells the page's scroll view that the title row floats over its top edge, so UIKit draws
     /// the same edge effect behind it as behind a navigation bar. UIKit sizes the effect to the
@@ -24,7 +54,8 @@ internal sealed partial class PagePresenter
     {
         var source = UsesSystemScrollEdge ? _page?.HeaderBarScrollSource : null;
 
-        if (ReferenceEquals(source, _edgeSource) && _edgeInteraction is not null)
+        if (ReferenceEquals(source, _edgeSource) && _edgeInteraction is not null
+            && ReferenceEquals(EdgeContainerView.Handler?.PlatformView, _edgeContainer))
         {
             ApplyEdgeStyle();
             return;
@@ -35,7 +66,7 @@ internal sealed partial class PagePresenter
 
         if (source is null
             || !OperatingSystem.IsIOSVersionAtLeast(26) && !OperatingSystem.IsMacCatalystVersionAtLeast(26)
-            || _titleBar.Handler?.PlatformView is not UIView container
+            || EdgeContainerView.Handler?.PlatformView is not UIView container
             || source.Handler?.PlatformView is not UIView platformView
             || (platformView as UIScrollView ?? SpineExtensions.FindScrollView(platformView)) is not { } scrollView)
             return;
@@ -64,9 +95,15 @@ internal sealed partial class PagePresenter
         if (source is not null)
             source.HandlerChanged += OnEdgeHandlerChanged;
 
-        _titleBar.HandlerChanged -= OnEdgeHandlerChanged;
-        if (source is not null)
-            _titleBar.HandlerChanged += OnEdgeHandlerChanged;
+        foreach (var container in (ReadOnlySpan<View?>)[_titleBar, _statusBarEdge])
+        {
+            if (container is null)
+                continue;
+
+            container.HandlerChanged -= OnEdgeHandlerChanged;
+            if (source is not null)
+                container.HandlerChanged += OnEdgeHandlerChanged;
+        }
     }
 
     private void OnEdgeHandlerChanged(object? sender, EventArgs e)
@@ -81,9 +118,8 @@ internal sealed partial class PagePresenter
             || !OperatingSystem.IsIOSVersionAtLeast(26) && !OperatingSystem.IsMacCatalystVersionAtLeast(26))
             return;
 
-        // Never the automatic style: UIKit resolved it to soft on the iOS 26.4 simulator, but it
-        // looked hard on an iOS 26.5 iPhone, where the two values could not be told apart.
-        scrollView.TopEdgeEffect.Style = BarBackground is HeaderBarBackground.ScrollEdgeHard
+        // Never the automatic style: UIKit resolves it to soft on iOS 26.4 and to hard on iOS 27.
+        scrollView.TopEdgeEffect.Style = BarBackground is HeaderBarBackground.HardEdge
             ? UIScrollEdgeEffectStyle.HardStyle
             : UIScrollEdgeEffectStyle.SoftStyle;
     }
