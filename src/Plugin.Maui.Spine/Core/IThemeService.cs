@@ -24,19 +24,30 @@ public interface IThemeService
     AppTheme Effective { get; }
 
     /// <summary>
-    /// Bumped on every change. A control that repaints itself compares the version it painted at
+    /// The app-wide accent the user picked, or <see langword="null"/> for the app's own colour
+    /// resources. Setting it writes the accent into the resources named by
+    /// <see cref="SpineThemeOptions.AccentLightKey"/>, <see cref="SpineThemeOptions.AccentDarkKey"/>,
+    /// <see cref="SpineThemeOptions.AccentKey"/> and <see cref="SpineThemeOptions.OnAccentKey"/>
+    /// and announces it like a theme change (<see cref="Version"/>, <see cref="Changed"/>,
+    /// <see cref="Track"/>). Stored with <see cref="Current"/> and applied again at the next
+    /// launch before the first page.
+    /// </summary>
+    SpineAccent? Accent { get; set; }
+
+    /// <summary>
+    /// Bumped on every change, of the theme or of the accent. A control that repaints itself compares the version it painted at
     /// with this one to decide whether it missed a change while detached.
     /// </summary>
     int Version { get; }
 
     /// <summary>
-    /// Raised on the UI thread after the theme changed and the token dictionary has been swapped,
+    /// Raised on the UI thread after the theme or the accent changed and the token dictionary has been swapped,
     /// so a handler reads a consistent palette.
     /// </summary>
     event EventHandler? Changed;
 
     /// <summary>
-    /// Runs <paramref name="onChanged"/> after every theme change while <paramref name="view"/> is
+    /// Runs <paramref name="onChanged"/> after every theme or accent change while <paramref name="view"/> is
     /// attached to a window, and once when it is attached again if the theme changed meanwhile.
     /// </summary>
     /// <remarks>

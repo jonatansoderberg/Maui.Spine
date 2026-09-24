@@ -8,6 +8,14 @@ namespace MauiSpineSampleApp;
 [IntentFilter([ Platform.Intent.ActionAppAction ], Categories = [ Intent.CategoryDefault ])]
 public class MainActivity : MauiAppCompatActivity
 {
+    // MAUI's Material 3 theme brings the baseline purple and ignores colors.xml; the overlay puts
+    // the default accent on native parts MAUI does not colour itself (the radio button circle).
+    protected override void OnApplyThemeResource(Android.Content.Res.Resources.Theme? theme, int resid, bool first)
+    {
+        base.OnApplyThemeResource(theme, resid, first);
+        theme?.ApplyStyle(MauiBottomSheetPoc.Resource.Style.AccentOverlay, force: true);
+    }
+
     protected override void OnResume()
     {
         base.OnResume();

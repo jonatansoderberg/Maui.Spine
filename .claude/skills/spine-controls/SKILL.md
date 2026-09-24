@@ -38,7 +38,7 @@ An SVG that does not resolve throws `FileNotFoundException: name.svg` at render 
 `Glass.Style` is an attached property on the ordinary `Button` and `ImageButton`; elsewhere the same markup renders the platform's normal button.
 
 ```xml
-<Button Text="Save" Glass.Style="Prominent" BackgroundColor="{StaticResource Primary}" Command="{Binding SaveCommand}" />
+<Button Text="Save" Glass.Style="Prominent" BackgroundColor="{DynamicResource Accent}" Command="{Binding SaveCommand}" />
 <ImageButton SvgImageSource.Svg="settings.svg" SvgImageSource.EnableSvg="True" SvgImageSource.Padding="10"
              Glass.Style="Regular" WidthRequest="44" HeightRequest="44" />
 ```
@@ -95,7 +95,7 @@ A month calendar from plain MAUI views: swipe or arrows between months, tap the 
           ShowWeekNumbers="True" ShowTrailingDays="True" FirstDayOfWeek="Monday" />
 ```
 
-`SelectedDate` is `DateTime.MinValue` for none and shows its month when set; `DisplayDate` is written as the 1st on navigation (reload month data on change). `Culture` null follows `SpineStrings.Current.Culture`. Colours follow the theme (accent = the app's `Primary` resource) and repaint on theme and culture changes; override with `CalendarStyleOptions` on the calendar or a `DefaultCalendarStyleOptions` resource, leaving colours null to keep them themed. Safe inside a `ScrollView`: vertical drags scroll the page. In C# next to `using System.Globalization;` alias it: `using Calendar = Plugin.Maui.Spine.Controls.Calendar;`.
+`SelectedDate` is `DateTime.MinValue` for none and shows its month when set; `DisplayDate` is written as the 1st on navigation (reload month data on change). `Culture` null follows `SpineStrings.Current.Culture`. Colours follow the theme (accent = `SpineTheme.GetAccent`: `IThemeService.Accent`, else the app's `Primary` resource) and repaint on theme and culture changes; override with `CalendarStyleOptions` on the calendar or a `DefaultCalendarStyleOptions` resource, leaving colours null to keep them themed. Safe inside a `ScrollView`: vertical drags scroll the page. In C# next to `using System.Globalization;` alias it: `using Calendar = Plugin.Maui.Spine.Controls.Calendar;`.
 
 ## DataGrid (`Plugin.Maui.Spine.Controls.DataGrid`)
 

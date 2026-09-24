@@ -8,6 +8,5 @@
     <Color x:Key="CardBackground">#1E2126</Color>
     <Color x:Key="CardOutline">#343941</Color>
     <Color x:Key="CardText">#F2F3F5</Color>
-    <Color x:Key="CardAccent">#B39DFF</Color>
 
 </ResourceDictionary>
