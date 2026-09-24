@@ -151,8 +151,8 @@ public static class Material
     internal static bool HasGlass =>
         OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26);
 
-    /// <summary>Whether the platform can blur what is behind a view: not on Android yet.</summary>
-    internal static bool HasBlur => !OperatingSystem.IsAndroid();
+    /// <summary>Whether the platform can blur what is behind a view: not on Android before 12.</summary>
+    internal static bool HasBlur => !OperatingSystem.IsAndroid() || OperatingSystem.IsAndroidVersionAtLeast(31);
 
     /// <summary>How see-through a tinted surface is.</summary>
     internal const float TintedAlpha = 0.72f;
