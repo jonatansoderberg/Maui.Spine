@@ -32,7 +32,7 @@ public enum HeaderBarBackground
 {
     /// <summary>
     /// What the platform's own bar does. On iOS and Mac Catalyst that is the navigation bar's default:
-    /// <see cref="SmoothEdge"/> on 26 and <see cref="HardEdge"/> from 27, for a region or tab page
+    /// <see cref="SoftEdge"/> on 26 and <see cref="HardEdge"/> from 27, for a region or tab page
     /// whose scroll view fills it from the top (a page with fixed content above its list gets
     /// <see cref="Solid"/>, so that content never sits under the bar). Everywhere else it is
     /// <see cref="Solid"/>. Under <see cref="HeaderBarMode.Overlay"/> it is
@@ -60,14 +60,14 @@ public enum HeaderBarBackground
     /// and Windows show a band in the page's colour, slightly see-through behind the bar and fading
     /// out below it. iOS and Mac Catalyst before 26, and Reduce Transparency, give <see cref="Solid"/>.
     /// </summary>
-    SmoothEdge,
+    SoftEdge,
 
     /// <summary>
-    /// <see cref="SmoothEdge"/> behind the status bar only: content fades out under the clock and the
+    /// <see cref="SoftEdge"/> behind the status bar only: content fades out under the clock and the
     /// icons, and stays sharp behind the title and the actions. Android and Windows show the band
     /// behind the status bar only.
     /// </summary>
-    SmoothStatusBar,
+    SoftStatusBar,
 
     /// <summary>
     /// UIKit's scroll edge effect with the hard style: a frosted, nearly opaque band that ends in a
@@ -81,7 +81,7 @@ internal static class HeaderBarBackgroundExtensions
 {
     /// <summary>Whether <paramref name="background"/> is one of the scroll edge values.</summary>
     public static bool IsScrollEdge(this HeaderBarBackground background) =>
-        background is HeaderBarBackground.SmoothEdge or HeaderBarBackground.SmoothStatusBar or HeaderBarBackground.HardEdge;
+        background is HeaderBarBackground.SoftEdge or HeaderBarBackground.SoftStatusBar or HeaderBarBackground.HardEdge;
 }
 
 /// <summary>The colour of the status bar's clock and icons while a page is shown.</summary>

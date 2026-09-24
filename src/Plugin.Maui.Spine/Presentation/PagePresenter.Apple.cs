@@ -13,7 +13,7 @@ internal sealed partial class PagePresenter
     private View? _edgeSource;
     private UIScrollView? _edgeScrollView;
 
-    // The container a SmoothStatusBar effect is sized to: as tall as the status bar, holding a label,
+    // The container a SoftStatusBar effect is sized to: as tall as the status bar, holding a label,
     // because UIKit ignores a container with no labels, images or controls in it.
     private ContentView? _statusBarEdge;
 
@@ -35,13 +35,13 @@ internal sealed partial class PagePresenter
         if (_statusBarEdge is null)
             return;
 
-        _statusBarEdge.IsVisible = BarBackground is HeaderBarBackground.SmoothStatusBar && UsesSystemScrollEdge;
+        _statusBarEdge.IsVisible = BarBackground is HeaderBarBackground.SoftStatusBar && UsesSystemScrollEdge;
         _statusBarEdge.HeightRequest = _page?.SystemBarInsets.Top ?? 0;
     }
 
     /// <summary>The view the interaction goes on: the status-bar element, or the title row.</summary>
     private View EdgeContainerView =>
-        BarBackground is HeaderBarBackground.SmoothStatusBar && _statusBarEdge is not null ? _statusBarEdge : _titleBar;
+        BarBackground is HeaderBarBackground.SoftStatusBar && _statusBarEdge is not null ? _statusBarEdge : _titleBar;
 
     /// <summary>
     /// Tells the page's scroll view that the title row floats over its top edge, so UIKit draws

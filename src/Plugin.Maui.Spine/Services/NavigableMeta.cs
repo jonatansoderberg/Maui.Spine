@@ -132,7 +132,7 @@ internal static class NavigableMeta
     static HeaderBarBackground NavigationBarEdge =>
         OperatingSystem.IsIOSVersionAtLeast(27) || OperatingSystem.IsMacCatalystVersionAtLeast(27)
             ? HeaderBarBackground.HardEdge
-            : HeaderBarBackground.SmoothEdge;
+            : HeaderBarBackground.SoftEdge;
 
     static bool IsApple => OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst();
 
