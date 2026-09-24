@@ -264,7 +264,7 @@ public sealed class SpineOptions
         /// Short SVG file name (e.g. <c>"app_icon.svg"</c>) used to generate the tray icon
         /// at runtime via <c>ISvgIconService</c>. The SVG must be an embedded resource in one
         /// of the assemblies registered via <see cref="SpineOptions.AddAssembly"/>.
-        /// Takes precedence over <see cref="TrayIconPathFactory"/> and <see cref="TrayIconPath"/>
+        /// Takes precedence over <see cref="TrayIconPath"/>
         /// when set.
         /// </summary>
         public string? TrayIconSvg { get; set; }

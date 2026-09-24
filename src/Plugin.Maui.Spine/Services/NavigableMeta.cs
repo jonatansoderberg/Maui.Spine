@@ -65,24 +65,27 @@ internal static class NavigableMeta
             SafeArea.SetScrollInset(scrollable, vm.ScrollInset);
         }
 
-        if (vm.FollowsScroll)
+        if (vm.HeaderBarFloats)
             HeaderBar.Track(view, vm);
 
         vm.ReapplyHeaderBar = () => ReapplyHeaderBar(view, vm, meta);
     }
 
     /// <summary>
-    /// Resolves the header again when the page changes <see cref="ViewModelBase.HeaderBarBackground"/>
-    /// or <see cref="ViewModelBase.HeaderBarMode"/> while it is shown: the page may now float under
-    /// the bar, or no longer, which changes the insets its content keeps clear.
+    /// Resolves the header again when the page changes <see cref="ViewModelBase.HeaderBarBackground"/>,
+    /// <see cref="ViewModelBase.HeaderBarMode"/> or <see cref="ViewModelBase.LargeTitle"/> while it is
+    /// shown: the page may now float under the bar, or no longer, which changes the insets its
+    /// content keeps clear.
     /// </summary>
     static void ReapplyHeaderBar(View view, ViewModelBase vm, NavigableAttribute meta)
     {
         vm.EffectiveHeaderBarBackground = ResolveBackground(view, vm, meta);
         vm.SafeAreaInsets = Presentation.NavigationRegion.SafeAreaInsetsFor(vm, vm.SystemBarInsets);
 
-        if (vm.FollowsScroll)
+        if (vm.HeaderBarFloats)
             HeaderBar.Track(view, vm);
+
+        HeaderBar.UpdateScrollInset(view);
     }
 
     /// <summary>
@@ -99,7 +102,7 @@ internal static class NavigableMeta
             // view fills it from the top: anything above the list that does not scroll would
             // otherwise sit under the bar for good.
             background = vm.HeaderBarMode == HeaderBarMode.Overlay
-                ? HeaderBarBackground.Clear
+                ? HeaderBarBackground.Transparent
                 : HasSystemScrollEdge
                     && meta.Presentation is not NavigationPresentation.Sheet
                     && vm.IsHeaderBarVisible
@@ -113,6 +116,10 @@ internal static class NavigableMeta
             background = HeaderBarBackground.Solid;
 
         if (background.IsScrollEdge() && ReducedTransparency.IsOn)
+            background = HeaderBarBackground.Solid;
+
+        // With no bar there is nothing for content to be behind.
+        if (!vm.IsHeaderBarVisible)
             background = HeaderBarBackground.Solid;
 
         return background;

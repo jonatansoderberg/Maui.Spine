@@ -115,31 +115,13 @@
       <DependentUpon>ThemePage.cs</DependentUpon>
     </Compile>
 
-    <MauiXaml Update="Pages\Overlay\OverlayPage.View.xaml">
-      <DependentUpon>OverlayPage.cs</DependentUpon>
+    <MauiXaml Update="Pages\HeaderBar\HeaderBarPage.View.xaml">
+      <DependentUpon>HeaderBarPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
     </MauiXaml>
 
-    <Compile Include="Pages\Overlay\OverlayPage.ViewModel.cs">
-      <DependentUpon>OverlayPage.cs</DependentUpon>
-    </Compile>
-
-    <MauiXaml Update="Pages\Collapsing\CollapsingPage.View.xaml">
-      <DependentUpon>CollapsingPage.cs</DependentUpon>
-      <Generator>MSBuild:Compile</Generator>
-    </MauiXaml>
-
-    <Compile Include="Pages\Collapsing\CollapsingPage.ViewModel.cs">
-      <DependentUpon>CollapsingPage.cs</DependentUpon>
-    </Compile>
-
-    <MauiXaml Update="Pages\ScrollEdge\ScrollEdgePage.View.xaml">
-      <DependentUpon>ScrollEdgePage.cs</DependentUpon>
-      <Generator>MSBuild:Compile</Generator>
-    </MauiXaml>
-
-    <Compile Include="Pages\ScrollEdge\ScrollEdgePage.ViewModel.cs">
-      <DependentUpon>ScrollEdgePage.cs</DependentUpon>
+    <Compile Include="Pages\HeaderBar\HeaderBarPage.ViewModel.cs">
+      <DependentUpon>HeaderBarPage.cs</DependentUpon>
     </Compile>
 
     <MauiXaml Update="Pages\Lifetime\LifetimePage.View.xaml">

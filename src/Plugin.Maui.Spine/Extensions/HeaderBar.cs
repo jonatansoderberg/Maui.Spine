@@ -7,7 +7,7 @@ namespace Plugin.Maui.Spine.Extensions;
 /// <summary>
 /// Attached properties, set on the page, for a header that follows the page's scroll: a large title
 /// (<see cref="NavigableAttribute.LargeTitle"/>), or content scrolling under the bar with a
-/// <see cref="HeaderBarBackground.Solid"/> or <see cref="HeaderBarBackground.ScrollEdge"/> background. Which view it follows, and how far that view scrolls
+/// <see cref="HeaderBarBackground.Transparent"/> or <see cref="HeaderBarBackground.ScrollEdge"/> background. Which view it follows, and how far that view scrolls
 /// before a large title has collapsed.
 /// </summary>
 /// <example>
@@ -24,8 +24,9 @@ namespace Plugin.Maui.Spine.Extensions;
 public static class HeaderBar
 {
     /// <summary>
-    /// The <see cref="ScrollView"/> or <see cref="CollectionView"/> whose offset drives the header. Unset, Spine follows the page's first one. Spine adds <c>Top</c> to its
-    /// <c>SafeArea.ScrollInset</c> so its content starts under the header bar.
+    /// The <see cref="ScrollView"/> or <see cref="CollectionView"/> whose offset drives the header. Unset, Spine follows the page's first one. Under a
+    /// <see cref="HeaderBarMode.Normal"/> header, Spine adds <c>Top</c> to its <c>SafeArea.ScrollInset</c>
+    /// so its content starts below the header bar at rest.
     /// </summary>
     public static readonly BindableProperty ScrollSourceProperty = BindableProperty.CreateAttached(
         "ScrollSource", typeof(View), typeof(HeaderBar), null,
@@ -102,6 +103,9 @@ public static class HeaderBar
         tracker.FindSource();
     }
 
+    /// <summary>Adds or removes the top inset Spine gives the page's scroll source, after its header changed.</summary>
+    internal static void UpdateScrollInset(View page) => GetTracker(page)?.ApplyInset();
+
     /// <summary>
     /// The title progress for <paramref name="offset"/>: 0 until the large title's last
     /// <see cref="HeaderBarConstants.LargeTitleFadeLength"/> points reach the bar, 1 once they are
@@ -138,6 +142,7 @@ public static class HeaderBar
     {
         View? _source;
         bool _waiting;
+        bool _addedTop;
 
         public void FindSource()
         {
@@ -167,7 +172,7 @@ public static class HeaderBar
 
             _source = source;
             viewModel.HeaderBarScrollSource = source;
-            SafeArea.SetScrollInset(source, SafeArea.GetScrollInset(source) | SafeAreaEdges.Top);
+            ApplyInset();
 
             switch (source)
             {
@@ -179,11 +184,49 @@ public static class HeaderBar
                     break;
             }
 
+            source.HandlerChanged += OnSourceHandlerChanged;
+            WatchNative();
             Update();
+        }
+
+        void OnSourceHandlerChanged(object? sender, EventArgs e)
+        {
+            WatchNative();
+            Update();
+        }
+
+        /// <summary>
+        /// A normal page that scrolls under the bar starts below it, so its scroll source takes the
+        /// bar as a top inset. An overlay page starts under the bar and keeps clear what it wants
+        /// itself; only the inset Spine added is taken away again.
+        /// </summary>
+        public void ApplyInset()
+        {
+            if (_source is not { } source)
+                return;
+
+            var wanted = viewModel.HeaderBarFloats && viewModel.HeaderBarMode == HeaderBarMode.Normal;
+            var edges = SafeArea.GetScrollInset(source);
+
+            if (wanted && (edges & SafeAreaEdges.Top) == 0)
+            {
+                _addedTop = true;
+                SafeArea.SetScrollInset(source, edges | SafeAreaEdges.Top);
+            }
+            else if (!wanted && _addedTop)
+            {
+                _addedTop = false;
+                SafeArea.SetScrollInset(source, edges & ~SafeAreaEdges.Top);
+            }
         }
 
         void Detach()
         {
+            if (_addedTop && _source is not null)
+                SafeArea.SetScrollInset(_source, SafeArea.GetScrollInset(_source) & ~SafeAreaEdges.Top);
+
+            _addedTop = false;
+
             switch (_source)
             {
                 case ScrollView scrollView:
@@ -194,7 +237,11 @@ public static class HeaderBar
                     break;
             }
 
+            if (_source is not null)
+                _source.HandlerChanged -= OnSourceHandlerChanged;
+
             _source = null;
+            WatchNative();
             viewModel.HeaderBarScrollSource = null;
         }
 
@@ -214,7 +261,7 @@ public static class HeaderBar
 
         void Update(double reported)
         {
-            _offset = NativeOffset(_source) ?? reported;
+            _offset = NativeOffset() ?? reported;
 
             var reduced = ReducedMotion.IsOn;
             viewModel.HeaderBarCollapseProgress = TitleProgress(_offset, EffectiveCollapseDistance(page, _source), reduced);
@@ -223,27 +270,39 @@ public static class HeaderBar
 
 #if IOS || MACCATALYST
         UIKit.UIScrollView? _native;
-        IElementHandler? _nativeHandler;
+        IDisposable? _offsetObserver;
+
+        // MAUI's CollectionView on iOS raises Scrolled only while one of its items is on screen, so
+        // a list whose header fills the screen went quiet on its way back to the top and left the
+        // header collapsed. The native offset is watched directly instead.
+        void WatchNative()
+        {
+            _offsetObserver?.Dispose();
+            _offsetObserver = null;
+
+            _native = _source?.Handler?.PlatformView is UIKit.UIView platformView
+                ? platformView as UIKit.UIScrollView ?? SpineExtensions.FindScrollView(platformView)
+                : null;
+
+            _offsetObserver = _native?.AddObserver("contentOffset", Foundation.NSKeyValueObservingOptions.New, _ => Update());
+        }
 
         // MAUI reports the raw content offset, which starts at minus the content inset once the
         // scroll view has one; measured from the inset instead, the top is 0 on every platform.
-        double? NativeOffset(View? source)
+        double? NativeOffset()
         {
-            if (source?.Handler is not { PlatformView: UIKit.UIView platformView } handler)
-                return null;
-
-            if (!ReferenceEquals(handler, _nativeHandler))
-            {
-                _nativeHandler = handler;
-                _native = platformView as UIKit.UIScrollView ?? SpineExtensions.FindScrollView(platformView);
-            }
+            // The list may build its native scroll view after its handler is set.
+            if (_native is null && _source?.Handler is not null)
+                WatchNative();
 
             return _native is { } scrollView
                 ? (double)(scrollView.ContentOffset.Y + scrollView.AdjustedContentInset.Top)
                 : null;
         }
 #else
-        static double? NativeOffset(View? source) => null;
+        static void WatchNative() { }
+
+        static double? NativeOffset() => null;
 #endif
     }
 }

@@ -113,8 +113,9 @@ public abstract class NavigableAttribute : Attribute
     /// <summary>
     /// The page opens on its own large title, the first thing in its scroll content, and the
     /// header bar's title fades in as that title scrolls under the bar: the iOS large title and the
-    /// Material 3 medium top app bar. The content starts at the top of the screen and scrolls under
-    /// the bar; Spine gives the page's scroll source the top inset. Size and place the title with
+    /// Material 3 medium top app bar. The content scrolls under the bar; under a
+    /// <see cref="HeaderBarMode.Normal"/> header Spine gives the page's scroll source the top inset,
+    /// so the large title starts below the bar. Size and place the title with
     /// <c>HeaderBarConstants.LargeTitle…</c>. When not set the value is inherited from the relevant
     /// <c>DefaultsConfig</c>.
     /// </summary>
@@ -123,7 +124,7 @@ public abstract class NavigableAttribute : Attribute
 
     private bool _headerBarBackgroundSet;
     /// <summary>
-    /// What is behind the header bar while content scrolls under it; see
+    /// What is behind the header bar when content is under it; see
     /// <see cref="Core.HeaderBarBackground"/>. When not set the value is inherited from the relevant
     /// <c>DefaultsConfig</c>.
     /// </summary>

@@ -9,11 +9,12 @@ public static class HeaderBarConstants
     /// <summary>The back button's glyph, an embedded SVG; a row's chevron is the same glyph turned around.</summary>
     public const string BackGlyph = "chevronleft.svg";
 
-    // Use -1 to allow width to size to text content when no SVG is present
+    /// <summary>Width that lets a header button size to its text when it has no icon.</summary>
     public const double Auto = -1;
 
-    // Header bar animation durations (ms)
+    /// <summary>How long a header bar action takes to fade in, in milliseconds.</summary>
     public const uint FadeInDuration = 60;
+    /// <summary>How long a header bar action takes to fade out, in milliseconds.</summary>
     public const uint FadeOutDuration = 90;
 
     /// <summary>
@@ -40,18 +41,26 @@ public static class HeaderBarConstants
 #if ANDROID
 
     // Button height (shared across sheet and region presentations)
+    /// <summary>Height of the header bar's item row and of its buttons.</summary>
     public const double Height = 48;
 
     // Sheet presentation button size
+    /// <summary>Width of a header bar button in a sheet.</summary>
     public const double SheetButtonWidth = 48;
+    /// <summary>Padding inside a header bar button in a sheet.</summary>
     public const double SheetButtonPadding = 8;
 
     // Region presentation button size
+    /// <summary>Width of a header bar button on a region page.</summary>
     public const double RegionButtonWidth = 48;
+    /// <summary>Padding inside a header bar button on a region page.</summary>
     public const double RegionButtonPadding = 8;
 
+    /// <summary>Space between the screen edge and the outermost header bar button on a region page.</summary>
     public const double RegionSideMargin = 4;
+    /// <summary>Space between the sheet edge and the outermost header bar button in a sheet.</summary>
     public const double SheetSideMargin = 10;
+    /// <summary>Space between a sheet's top edge and its header bar.</summary>
     public const double SheetTopPadding = 0;
 
     // Material 3 medium top app bar: headline small (24 sp, regular) below the 48-point row.
@@ -68,20 +77,28 @@ public static class HeaderBarConstants
 
     // The UINavigationBar item size: a 44-point row, and 44-point circles for icon actions. The
     // bar itself can be taller, see BarHeight.
+    /// <summary>Height of the header bar's item row and of its buttons.</summary>
     public const double Height = 44;
 
     // Sheet presentation button size
+    /// <summary>Width of a header bar button in a sheet.</summary>
     public const double SheetButtonWidth = 44;
+    /// <summary>Padding inside a header bar button in a sheet.</summary>
     public const double SheetButtonPadding = 0;
 
     // Region presentation button size
+    /// <summary>Width of a header bar button on a region page.</summary>
     public const double RegionButtonWidth = 48;
+    /// <summary>Padding inside a header bar button on a region page.</summary>
     public const double RegionButtonPadding = 0;
 
+    /// <summary>Space between the screen edge and the outermost header bar button on a region page.</summary>
     public const double RegionSideMargin = 8;
+    /// <summary>Space between the sheet edge and the outermost header bar button in a sheet.</summary>
     public const double SheetSideMargin = 16;
 
     // Space below the UISheetPresentationController grabber handle
+    /// <summary>Space between a sheet's top edge and its header bar.</summary>
     public const double SheetTopPadding = 20;
 
     // UINavigationBar's large title: 34-point bold in a 52-point row below the bar.
@@ -97,18 +114,26 @@ public static class HeaderBarConstants
 #else
 
     // Button height (shared across sheet and region presentations)
+    /// <summary>Height of the header bar's item row and of its buttons.</summary>
     public const double Height = 32;
 
     // Sheet presentation button size
+    /// <summary>Width of a header bar button in a sheet.</summary>
     public const double SheetButtonWidth = 32;
+    /// <summary>Padding inside a header bar button in a sheet.</summary>
     public const double SheetButtonPadding = 0;
 
     // Region presentation button size (width differs on desktop)
+    /// <summary>Width of a header bar button on a region page.</summary>
     public const double RegionButtonWidth = 48;
+    /// <summary>Padding inside a header bar button on a region page.</summary>
     public const double RegionButtonPadding = 0;
 
+    /// <summary>Space between the screen edge and the outermost header bar button on a region page.</summary>
     public const double RegionSideMargin = 0;
+    /// <summary>Space between the sheet edge and the outermost header bar button in a sheet.</summary>
     public const double SheetSideMargin = 16;
+    /// <summary>Space between a sheet's top edge and its header bar.</summary>
     public const double SheetTopPadding = 0;
 
     // WinUI's title-large text style.
