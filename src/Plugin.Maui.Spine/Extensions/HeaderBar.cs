@@ -15,15 +15,10 @@ namespace Plugin.Maui.Spine.Extensions;
 /// [NavigableTab(Title = "Inbox", LargeTitle = true)]
 /// </code>
 /// <code>
-/// &lt;SpinePage HeaderBar.ScrollSource="{x:Reference List}" …&gt;
-///     &lt;CollectionView x:Name="List" …&gt;
-///         &lt;CollectionView.Header&gt;
-///             &lt;Label Text="{Binding Title}"
-///                    FontSize="{x:Static HeaderBarConstants.LargeTitleFontSize}"
-///                    FontAttributes="{x:Static HeaderBarConstants.LargeTitleFontAttributes}"
-///                    HeightRequest="{x:Static HeaderBarConstants.LargeTitleHeight}"
-///                    Margin="{x:Static HeaderBarConstants.LargeTitleMargin}"
-///                    VerticalTextAlignment="Center" /&gt;
+/// &lt;CollectionView ItemsSource="{Binding Messages}"&gt;
+///     &lt;CollectionView.Header&gt;
+///         &lt;HeaderBarLargeTitle /&gt;
+///     &lt;/CollectionView.Header&gt;
 /// </code>
 /// </example>
 public static class HeaderBar
@@ -43,10 +38,10 @@ public static class HeaderBar
     public static void SetScrollSource(BindableObject page, View? value) => page.SetValue(ScrollSourceProperty, value);
 
     /// <summary>
-    /// The scroll offset at which the header has collapsed: the bar's title is fully in. Defaults
-    /// to <see cref="HeaderBarConstants.LargeTitleCollapseDistance"/>, the offset at which the text
-    /// of a large title laid out with <see cref="HeaderBarConstants"/> has passed under the bar. A
-    /// page whose large text sits lower, in a hero for instance, sets where that text has gone.
+    /// The scroll offset at which the header has collapsed: the bar's title is fully in. Unset, it
+    /// is measured from the page's <see cref="HeaderBarLargeTitle"/> (where its text has gone under
+    /// the bar), or is <see cref="HeaderBarConstants.LargeTitleCollapseDistance"/> without one. A
+    /// page whose large text is its own, in a hero for instance, sets where that text has gone.
     /// </summary>
     public static readonly BindableProperty CollapseDistanceProperty = BindableProperty.CreateAttached(
         "CollapseDistance", typeof(double), typeof(HeaderBar), HeaderBarConstants.LargeTitleCollapseDistance,
@@ -57,6 +52,39 @@ public static class HeaderBar
 
     /// <summary>Sets the scroll offset at which the header of <paramref name="page"/> has collapsed.</summary>
     public static void SetCollapseDistance(BindableObject page, double value) => page.SetValue(CollapseDistanceProperty, value);
+
+    /// <summary>The page's <see cref="HeaderBarLargeTitle"/>, registered by the title itself.</summary>
+    internal static readonly BindableProperty LargeTitleViewProperty = BindableProperty.CreateAttached(
+        "LargeTitleView", typeof(HeaderBarLargeTitle), typeof(HeaderBar), null,
+        propertyChanged: static (bindable, _, _) => GetTracker(bindable)?.Update());
+
+    /// <summary>
+    /// The collapse distance in effect for <paramref name="page"/>: the page's own value; else
+    /// where its <see cref="HeaderBarLargeTitle"/> text has gone under the bar, measured from the
+    /// title's place in the scroll content; else <see cref="HeaderBarConstants.LargeTitleCollapseDistance"/>.
+    /// </summary>
+    internal static double EffectiveCollapseDistance(BindableObject page, View? source)
+    {
+        if (page.IsSet(CollapseDistanceProperty))
+            return GetCollapseDistance(page);
+
+        if (page.GetValue(LargeTitleViewProperty) is HeaderBarLargeTitle { Height: > 0 } title)
+        {
+            // The title's top within the scroll content: the positions of it and its containers,
+            // up to the scroll view (or the list whose header it is).
+            var top = 0.0;
+            for (Element? element = title; element is VisualElement visual && !ReferenceEquals(element, source); element = element.Parent)
+            {
+                if (element is ScrollView or ItemsView)
+                    break;
+                top += visual.Y;
+            }
+
+            return top + (title.Height + title.FontSize) / 2;
+        }
+
+        return HeaderBarConstants.LargeTitleCollapseDistance;
+    }
 
     static readonly BindableProperty TrackerProperty = BindableProperty.CreateAttached(
         "Tracker", typeof(CollapseTracker), typeof(HeaderBar), null);
@@ -187,7 +215,7 @@ public static class HeaderBar
             _offset = NativeOffset(_source) ?? reported;
 
             var reduced = ReducedMotion.IsOn;
-            viewModel.HeaderBarCollapseProgress = TitleProgress(_offset, GetCollapseDistance(page), reduced);
+            viewModel.HeaderBarCollapseProgress = TitleProgress(_offset, EffectiveCollapseDistance(page, _source), reduced);
             viewModel.ScrollEdgeProgress = ScrollEdgeProgress(_offset, reduced);
         }
 

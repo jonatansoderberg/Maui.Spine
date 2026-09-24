@@ -55,6 +55,13 @@ None.
   - For `LargeTitle`, the title's opacity follows the collapse progress.
 - `Core/ReducedMotion.cs` (new): Reduce Motion on iOS/Mac, animator duration scale 0 on Android, `UISettings.AnimationsEnabled` on Windows. Cached for a second.
 - `HeaderBarConstants`: `LargeTitleFontSize`, `LargeTitleFontAttributes`, `LargeTitleHeight`, `LargeTitleSideMargin`, `LargeTitleMargin`, `LargeTitleCollapseDistance`, `LargeTitleFadeLength`, `ScrollEdgeFadeLength`, and a class summary.
+- `HeaderBarLargeTitle` (new, `Presentation`), added after the coordinator's review. It is a `Label` that:
+  - shows the page's title (`Text` overrides it);
+  - takes the large-title size, weight, row height and margin from `HeaderBarConstants`;
+  - takes `HeaderBarForeground` when the page fixes one, and is a level-1 heading for screen readers;
+  - registers itself on the page, so the collapse distance is measured from its place in the scroll content (its top plus half its row and half its font size). This applies unless the page sets `HeaderBar.CollapseDistance`; with no title registered, the fallback is `LargeTitleCollapseDistance`.
+
+  A large-title page is now one line of XAML. The constants stay public for custom titles.
 - Sample: `Pages/Collapsing/CollapsingPage` ("Collapsing header", icon `windowblinds.svg`, `LargeTitle = true`). It shows a large title, an explanation, the live progress and a code example above 40 rows.
 - Docs: a "Large title" section in `regions.md` with the three-setting table, two attribute rows, and the `/spine-page` skill.
 - Verified on iPhone 17 (iOS 26), before and after merging master:
@@ -79,7 +86,7 @@ None.
 - **Two ranges, not one.** The background follows content reaching the bar and is solid after 12 points, which is when iOS 26 shows its edge effect and Material 3 lifts its bar. The title follows the large title leaving. With one shared offset, rows would either show through a transparent bar or the title would come in while the large title is still visible.
 - **Default collapse distance is (row + font) / 2.** With the whole row height, the bar title only appeared after an empty row had also scrolled away, which was visibly late on iOS. At (row + font) / 2 it fades in while the text itself passes under the bar.
 - **Bar colour is the page's background.** There is no material until #300 or #366. The page's own colour reads as the page continuing behind the title, the way the iOS 26 bar does. The colour is searched up through the host page because apps style `ContentPage` (the sample does). The platform colour is only the fallback.
-- **Constants, not a LargeTitle control.** The issue asked for the size and position to come from `HeaderBarConstants`. The page keeps full control of its large title, and `CollapseDistance` covers titles that are not in the first row, such as a hero greeting.
+- **A ready-made `HeaderBarLargeTitle`, with the constants kept public.** The first version shipped only constants, so a page wrote a `Label` with four `x:Static` bindings and its own `Text` binding. After review, the view does that in one line, and Spine measures it, so `CollapseDistance` is right wherever the title sits. It is named `HeaderBarLargeTitle` rather than `LargeTitle` so it does not share a name with the attribute and view-model property `LargeTitle` (a `new LargeTitle()` inside a view model would resolve to the property). It does not fade itself: iOS lets the large title slide under the bar. A hero greeting stays the page's own, with `CollapseDistance` and `HeaderBarCollapseProgress`.
 - **HeroCollectionView does not opt in directly.**
   - It is a `CollectionView`, so the tracker already follows it as the first scrollable or as `ScrollSource`.
   - Its package does not reference the core package.

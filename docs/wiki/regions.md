@@ -188,18 +188,14 @@ The iOS large title and the Material 3 medium top app bar: the page opens on its
 ```
 
 ```xml
-<SpinePage HeaderBar.ScrollSource="{x:Reference List}" …>
-    <CollectionView x:Name="List" ItemsSource="{Binding Messages}" SafeArea.ScrollInset="Bottom">
-        <CollectionView.Header>
-            <Label Text="{Binding Title}"
-                   FontSize="{x:Static HeaderBarConstants.LargeTitleFontSize}"
-                   FontAttributes="{x:Static HeaderBarConstants.LargeTitleFontAttributes}"
-                   HeightRequest="{x:Static HeaderBarConstants.LargeTitleHeight}"
-                   Margin="{x:Static HeaderBarConstants.LargeTitleMargin}"
-                   VerticalTextAlignment="Center" />
-        </CollectionView.Header>
-        …
+<CollectionView ItemsSource="{Binding Messages}" SafeArea.ScrollInset="Bottom">
+    <CollectionView.Header>
+        <HeaderBarLargeTitle />
+    </CollectionView.Header>
+    …
 ```
+
+`HeaderBarLargeTitle` shows the page's title (set `Text` to show something else) in the platform's large-title size, weight, row height and margin, in the header's `HeaderBarForeground` when the page fixes one and in the app's label style otherwise. Spine measures it to decide when the bar's title fades in, wherever it sits in the scroll content. For a title of your own, the numbers are public on `HeaderBarConstants` (`LargeTitleFontSize`, `LargeTitleFontAttributes`, `LargeTitleHeight`, `LargeTitleMargin`); set `HeaderBar.CollapseDistance` on the page to where its text has gone.
 
 Three settings, each on the attribute and as an app-wide default in `options.RegionDefaults` / `TabDefaults` / `SheetDefaults`, and independent of each other:
 
@@ -212,7 +208,7 @@ Three settings, each on the attribute and as an app-wide default in `options.Reg
 - A large title always has content scrolling under the bar, so it lays out like the overlay: content starts at the top of the screen and `SafeAreaInsets.Top` is status bar plus header. Spine adds `Top` to the scroll source's `SafeArea.ScrollInset`, so the large title starts right under the bar without the page doing anything.
 - `Overlay` and `LargeTitle` combine: a hero with a greeting in it, `HeaderBar.CollapseDistance` set to where the greeting has gone, and `HeaderBarBackground = Solid` so the bar closes over the photo once the list passes under it. `Overlay` with `Solid` and no large title gives the photo page whose bar turns solid on scroll; mind that a fixed `HeaderBarForeground` stays fixed on the solid bar.
 - `HeaderBar.ScrollSource` (on the page) names the `ScrollView` or `CollectionView` to follow. Without it Spine follows the page's first one, and waits for it when the page builds it later (a state view that swaps in its body).
-- The bar's title fades in over the last `HeaderBarConstants.LargeTitleFadeLength` points before `HeaderBar.CollapseDistance`, which defaults to `HeaderBarConstants.LargeTitleCollapseDistance`: the offset at which the text of a large title laid out with the constants above has gone under the bar (half the row plus half the font size). A page whose large text sits lower, in a hero for instance, sets the distance at which that text has gone.
+- The bar's title fades in over the last `HeaderBarConstants.LargeTitleFadeLength` points before the collapse distance: `HeaderBar.CollapseDistance` when the page sets it, otherwise the offset at which the `HeaderBarLargeTitle`'s text has gone under the bar (its top in the scroll content plus half its row and half its font size), otherwise `HeaderBarConstants.LargeTitleCollapseDistance`. A page whose large text is its own, a greeting in a hero for instance, sets the distance at which that text has gone.
 - With `Solid`, the background is in after `HeaderBarConstants.ScrollEdgeFadeLength` points, as soon as rows start passing under the bar. It is the page's own background when it has an opaque one, otherwise what the platform paints behind pages (the system background on iOS, the window background on Android).
 - `ViewModelBase.HeaderBarCollapseProgress` (0 to 1) follows the title's fade, for a page that fades something of its own with it.
 - With Reduce Motion on (iOS), animations removed (Android) or animation effects off (Windows) there is no fade: the title and the background switch at the middle of their ranges.
