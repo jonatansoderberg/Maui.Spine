@@ -1,0 +1,98 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Shimmer.ShimmerPage"
+    x:TypeArguments="ShimmerPageViewModel"
+    x:DataType="ShimmerPageViewModel">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="10">
+            <PackageChips Packages="Plugin.Maui.Spine.Controls.Shimmer" />
+            <Label Text="Skeleton loading. The wave follows the theme, and with Reduce Motion on the placeholders stay still."
+                   FontSize="14" />
+            <HorizontalStackLayout Spacing="8">
+                <Switch IsToggled="{Binding IsDark}" VerticalOptions="Center" />
+                <Label Text="Dark theme" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
+            <!-- Shimmer: a placeholder layout of its own -->
+            <Label Text="Shimmer" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Label Text="Empty Borders and BoxViews are the blocks; the wave is clipped to them, so the gaps stay untouched."
+                   FontSize="14" />
+            <Border Padding="14" StrokeShape="RoundRectangle 12" StrokeThickness="1"
+                    BackgroundColor="{DynamicResource CardBackground}" Stroke="{DynamicResource CardOutline}">
+                <Shimmer IsLoading="{Binding IsWaveRunning}" WaveWidth="{Binding WaveWidth}" WaveOpacity="{Binding WaveOpacity}">
+                    <Grid ColumnDefinitions="48,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+                        <Border Grid.RowSpan="2" StrokeThickness="0" WidthRequest="48" HeightRequest="48" StrokeShape="Ellipse" />
+                        <Border Grid.Column="1" StrokeThickness="0" HeightRequest="16" WidthRequest="160" HorizontalOptions="Start"
+                                VerticalOptions="End" StrokeShape="RoundRectangle 4" />
+                        <Border Grid.Column="1" Grid.Row="1" StrokeThickness="0" HeightRequest="12" WidthRequest="100" HorizontalOptions="Start"
+                                VerticalOptions="Start" StrokeShape="RoundRectangle 4" />
+                        <Border Grid.Row="2" Grid.ColumnSpan="2" StrokeThickness="0" HeightRequest="72" Margin="0,4,0,0"
+                                StrokeShape="RoundRectangle 8" />
+                    </Grid>
+                </Shimmer>
+            </Border>
+            <HorizontalStackLayout Spacing="8">
+                <Switch IsToggled="{Binding IsWaveRunning}" VerticalOptions="Center" />
+                <Label Text="IsLoading" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            <Label Text="WaveWidth is the band's width as a fraction of the shimmer's own width (1 = as wide as the control); the band travels from fully off the left edge to fully off the right in WaveDuration, so a wider band also lingers longer. WaveOpacity is the peak alpha at the band's centre, 0 to 1."
+                   FontSize="13" Opacity="0.8" />
+            <Grid ColumnDefinitions="110,*,40" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                <Label Text="WaveWidth" VerticalOptions="Center" />
+                <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding WaveWidth}" />
+                <Label Grid.Column="2" Text="{Binding WaveWidth, StringFormat='{0:0.00}'}" VerticalOptions="Center" />
+                <Label Grid.Row="1" Text="WaveOpacity" VerticalOptions="Center" />
+                <Slider Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding WaveOpacity}" />
+                <Label Grid.Row="1" Grid.Column="2" Text="{Binding WaveOpacity, StringFormat='{0:0.00}'}" VerticalOptions="Center" />
+            </Grid>
+
+            <!-- Skeleton.IsActive: the real layout is its own skeleton -->
+            <Label Text="Skeleton.IsActive on a list" FontAttributes="Bold" Margin="0,12,0,0" />
+            <Label Text="The rows below are the real template. While loading, labels are bars and images blocks, in the places the content will take."
+                   FontSize="14" />
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Reload" Command="{Binding ReloadCommand}" />
+                <Switch IsToggled="{Binding IsLoading}" VerticalOptions="Center" />
+                <Label Text="Skeleton.IsActive" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            <VerticalStackLayout Spacing="12"
+                                 Skeleton.IsActive="{Binding IsLoading}"
+                                 BindableLayout.ItemsSource="{Binding People}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="PersonRow">
+                        <Grid ColumnDefinitions="44,*" ColumnSpacing="12">
+                            <Border StrokeShape="Ellipse" StrokeThickness="0" WidthRequest="44" HeightRequest="44">
+                                <Image Source="{Binding Photo}" Aspect="AspectFill" />
+                            </Border>
+                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                <Label Text="{Binding Name}" FontSize="15" FontAttributes="Bold" />
+                                <Label Text="{Binding Role}" FontSize="13" Opacity="0.7" Skeleton.Width="0.4" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <Label Text="Skeleton.IsActive on a detail card" FontAttributes="Bold" Margin="0,12,0,0" />
+            <Border StrokeShape="RoundRectangle 12" StrokeThickness="1"
+                    BackgroundColor="{DynamicResource CardBackground}" Stroke="{DynamicResource CardOutline}">
+                <VerticalStackLayout Padding="14" Spacing="10" Skeleton.IsActive="{Binding IsLoading}">
+                    <Image Source="{Binding Photo}" HeightRequest="140" Aspect="AspectFill" />
+                    <Label Text="{Binding PlaceName}" FontSize="20" FontAttributes="Bold" TextColor="{DynamicResource CardText}" />
+                    <Label Text="{Binding Bio}" FontSize="14" MaxLines="3" LineBreakMode="TailTruncation"
+                           TextColor="{DynamicResource CardText}" Skeleton.Lines="3" />
+                    <Button Text="Plan a trip" HorizontalOptions="Start" />
+                </VerticalStackLayout>
+            </Border>
+
+
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8" Margin="0,8,0,0">
+                <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                       Text="&lt;!-- no registration needed --&gt;&#10;&lt;Shimmer IsLoading=&quot;{Binding IsLoading}&quot;&#10;         WaveWidth=&quot;0.4&quot; WaveOpacity=&quot;0.25&quot;&gt;&#10;  &lt;VerticalStackLayout Spacing=&quot;10&quot;&gt;&#10;    &lt;Border StrokeThickness=&quot;0&quot;&#10;            HeightRequest=&quot;16&quot;&#10;            WidthRequest=&quot;160&quot; /&gt;&#10;  &lt;/VerticalStackLayout&gt;&#10;&lt;/Shimmer&gt;&#10;&#10;&lt;VerticalStackLayout&#10;    Skeleton.IsActive=&quot;{Binding IsLoading}&quot;&gt;&#10;  &lt;Image Source=&quot;{Binding Photo}&quot;&#10;         HeightRequest=&quot;140&quot; /&gt;&#10;  &lt;Label Text=&quot;{Binding Name}&quot;&#10;         FontSize=&quot;20&quot; /&gt;&#10;  &lt;Label Text=&quot;{Binding Bio}&quot;&#10;         MaxLines=&quot;3&quot;&#10;         Skeleton.Lines=&quot;3&quot; /&gt;&#10;&lt;/VerticalStackLayout&gt;&#10;&#10;&lt;!-- app-wide look --&gt;&#10;&lt;ShimmerStyleOptions&#10;    x:Key=&quot;DefaultShimmerStyleOptions&quot;&#10;    WaveDuration=&quot;0:0:1.4&quot; /&gt;" />
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>
