@@ -40,9 +40,9 @@ Out of scope, left for the parallel header-bar rewrite that is replacing these f
 | `Spine.Packages.slnf -c Release` (Android, iOS, Mac Catalyst) | 304 | 17 |
 | Sample, `net10.0-ios` | 260 | 19 |
 | Sample, `net10.0-android` | 29 | 7 |
-| CI (`windows-latest`, packages) | ~320 | see PR |
+| CI (`windows-latest`, packages incl. Windows) | 320 | 25 |
 
-Everything left is in the excluded files: `HeaderBarConstants.cs` (CS1591 ×11), `NavigationRegion.cs` (CS1734 ×2), `PagePresenter.cs` (CS0108 ×2, CS8603), `SpineOptions.cs` (CS1574), and the sample's `MainPage.*` (MVVMTK0033, MAUIG2045).
+Everything left is in the excluded files: `HeaderBarConstants.cs` (CS1591 ×11 locally, ×19 in CI with the Windows target), `NavigationRegion.cs` (CS1734 ×2), `PagePresenter.cs` (CS0108 ×2, CS8603), `SpineOptions.cs` (CS1574), and the sample's `MainPage.*` (MVVMTK0033, MAUIG2045).
 
 ## Decisions
 
