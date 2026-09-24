@@ -43,7 +43,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     // One row per sample page. Add a page here when it gets a page of its own.
     private static IEnumerable<Item> SampleIndex =>
     [
-        new("Bottom sheets", "Native sheets with detents, blur, full screen, switches in a template", "up.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
+        new("Bottom sheets", "Native sheets with detents, blur, full screen, page actions and a footer", "up.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
         new("Parameters and results", "Typed navigation parameters and awaited results", "return.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Results.ResultsPage>()),
         new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "wired.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
         new("Overlay header", "HeaderBarMode.Overlay, HeaderBarForeground and StatusBarStyle over a photo", "cam.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Overlay.OverlayPage>()),
