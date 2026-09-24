@@ -1,0 +1,101 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Dates.DatesPage"
+    x:TypeArguments="DatesPageViewModel"
+    x:DataType="DatesPageViewModel">
+
+    <!-- In a ScrollView on purpose: a vertical drag that starts on the calendar scrolls the page. -->
+    <ScrollView>
+        <VerticalStackLayout Padding="20,16" Spacing="10">
+            <PackageChips Packages="Plugin.Maui.Spine.Controls.Calendar" />
+
+            <Label Text="Swipe or tap the arrows to change month; tap the title for the months of the year, and again for the years of the decade. Colours follow the theme, names follow the culture."
+                   FontSize="14" />
+
+            <Border StrokeThickness="1" Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
+                    Padding="8,10" StrokeShape="RoundRectangle 16">
+                <Calendar SelectedDate="{Binding SelectedDate}"
+                          DisplayDate="{Binding DisplayDate}"
+                          ShowWeekNumbers="{Binding ShowWeekNumbers}"
+                          ShowTrailingDays="{Binding ShowTrailingDays}"
+                          ShowSelectedDate="{Binding ShowSelectedDate}"
+                          FirstDayOfWeek="{Binding FirstDayOfWeek}"
+                          Culture="{Binding Culture}" />
+            </Border>
+
+            <Label Text="{Binding SelectedText}" FontSize="14" />
+            <Label Text="{Binding DisplayText}" FontSize="14" />
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Today" Command="{Binding GoToTodayCommand}" />
+                <Button Text="Clear selection" Command="{Binding ClearSelectionCommand}" />
+            </HorizontalStackLayout>
+
+            <Label Text="Theme and language, switched live" FontAttributes="Bold" Margin="0,8,0,0" />
+            <HorizontalStackLayout Spacing="8"
+                                   RadioButtonGroup.GroupName="CalendarTheme"
+                                   RadioButtonGroup.SelectedValue="{Binding ThemeName}">
+                <RadioButton Content="System" Value="System" />
+                <RadioButton Content="Light" Value="Light" />
+                <RadioButton Content="Dark" Value="Dark" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="8"
+                                   RadioButtonGroup.GroupName="CalendarLanguage"
+                                   RadioButtonGroup.SelectedValue="{Binding Language}">
+                <RadioButton Content="English" Value="en" />
+                <RadioButton Content="Svenska" Value="sv" />
+            </HorizontalStackLayout>
+
+            <Label Text="Options" FontAttributes="Bold" Margin="0,8,0,0" />
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding ShowWeekNumbers}" />
+                <Label Text="ShowWeekNumbers" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding ShowTrailingDays}" />
+                <Label Text="ShowTrailingDays" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding ShowSelectedDate}" />
+                <Label Text="ShowSelectedDate" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
+            <Label Text="FirstDayOfWeek" FontAttributes="Bold" Margin="0,8,0,0" />
+            <HorizontalStackLayout Spacing="8"
+                                   RadioButtonGroup.GroupName="FirstDay"
+                                   RadioButtonGroup.SelectedValue="{Binding FirstDay}">
+                <RadioButton Content="Monday" Value="Monday" />
+                <RadioButton Content="Sunday" Value="Sunday" />
+                <RadioButton Content="Saturday" Value="Saturday" />
+            </HorizontalStackLayout>
+
+            <Label Text="Culture" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Label Text="App follows SpineStrings.Culture (the language above); the others pin the calendar's Culture."
+                   FontSize="14" />
+            <FlexLayout Wrap="Wrap"
+                        RadioButtonGroup.GroupName="Culture"
+                        RadioButtonGroup.SelectedValue="{Binding CultureName}">
+                <RadioButton Content="App" Value="App" Margin="0,0,8,0" />
+                <RadioButton Content="en-US" Value="en-US" Margin="0,0,8,0" />
+                <RadioButton Content="sv-SE" Value="sv-SE" Margin="0,0,8,0" />
+                <RadioButton Content="de-DE" Value="de-DE" Margin="0,0,8,0" />
+                <RadioButton Content="fi-FI" Value="fi-FI" Margin="0,0,8,0" />
+            </FlexLayout>
+
+            <Label Text="Code" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                       Text="builder&#10;    .UseSpine(options =&gt; { … })&#10;    .UseSpineCalendar();   // Calendar.* strings&#10;&#10;&lt;Calendar SelectedDate=&quot;{Binding Date}&quot;&#10;          DisplayDate=&quot;{Binding Month}&quot;&#10;          ShowWeekNumbers=&quot;True&quot;&#10;          FirstDayOfWeek=&quot;Monday&quot; /&gt;&#10;&#10;// SelectedDate: DateTime.MinValue = none&#10;// DisplayDate: written as the 1st on navigation" />
+            </Border>
+
+            <Label Text="Styling" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Label Text="CalendarStyleOptions on one calendar, or DefaultCalendarStyleOptions in the app resources. Colours left unset follow the theme; the accent is the app's Primary colour."
+                   FontSize="14" />
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                       Text="&lt;!-- App.xaml --&gt;&#10;&lt;CalendarStyleOptions x:Key=&quot;DefaultCalendarStyleOptions&quot;&#10;                      AccentColor=&quot;#E4572E&quot;&#10;                      DayFontSize=&quot;15&quot; /&gt;&#10;&#10;&lt;Calendar&gt;&#10;    &lt;Calendar.StyleOptions&gt;&#10;        &lt;CalendarStyleOptions WeekNumberBackgroundColor=&quot;#FFF1E6&quot; /&gt;&#10;    &lt;/Calendar.StyleOptions&gt;&#10;&lt;/Calendar&gt;" />
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>
