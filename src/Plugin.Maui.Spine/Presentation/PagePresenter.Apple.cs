@@ -1,5 +1,6 @@
 #if IOS || MACCATALYST
 
+using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Extensions;
 using UIKit;
 
@@ -10,19 +11,24 @@ internal sealed partial class PagePresenter
     private UIScrollEdgeElementContainerInteraction? _edgeInteraction;
     private UIView? _edgeContainer;
     private View? _edgeSource;
+    private UIScrollView? _edgeScrollView;
 
     /// <summary>
     /// Tells the page's scroll view that the title row floats over its top edge, so UIKit draws
-    /// the same soft edge effect behind it as behind a navigation bar. The title row is the
-    /// container because it spans the bar's width at the bar's height; the actions float in the
-    /// same band and are covered with it.
+    /// the same edge effect behind it as behind a navigation bar. UIKit sizes the effect to the
+    /// elements in the container, not to the container: it reaches from the top of the scroll view
+    /// to below the lowest of them. The title label fills the bar's height for that reason, so the
+    /// effect covers the status bar and the whole bar; the actions float in the same band.
     /// </summary>
     partial void UpdateSystemScrollEdge()
     {
         var source = UsesSystemScrollEdge ? _page?.HeaderBarScrollSource : null;
 
         if (ReferenceEquals(source, _edgeSource) && _edgeInteraction is not null)
+        {
+            ApplyEdgeStyle();
             return;
+        }
 
         RemoveEdgeInteraction();
         WatchEdgeHandlers(source);
@@ -34,7 +40,8 @@ internal sealed partial class PagePresenter
             || (platformView as UIScrollView ?? SpineExtensions.FindScrollView(platformView)) is not { } scrollView)
             return;
 
-        scrollView.TopEdgeEffect.Style = UIScrollEdgeEffectStyle.SoftStyle;
+        _edgeScrollView = scrollView;
+        ApplyEdgeStyle();
 
         _edgeInteraction = new UIScrollEdgeElementContainerInteraction
         {
@@ -68,13 +75,33 @@ internal sealed partial class PagePresenter
         UpdateSystemScrollEdge();
     }
 
+    private void ApplyEdgeStyle()
+    {
+        if (_edgeScrollView is not { } scrollView
+            || !OperatingSystem.IsIOSVersionAtLeast(26) && !OperatingSystem.IsMacCatalystVersionAtLeast(26))
+            return;
+
+        scrollView.TopEdgeEffect.Style = Background switch
+        {
+            HeaderBarBackground.ScrollEdgeSoft => UIScrollEdgeEffectStyle.SoftStyle,
+            HeaderBarBackground.ScrollEdgeHard => UIScrollEdgeEffectStyle.HardStyle,
+            _ => UIScrollEdgeEffectStyle.AutomaticStyle,
+        };
+    }
+
     private void RemoveEdgeInteraction()
     {
         if (_edgeInteraction is not null)
             _edgeContainer?.RemoveInteraction(_edgeInteraction);
 
+        // What the scroll view shows under the status bar without the interaction is the system's own.
+        if (_edgeScrollView is not null
+            && (OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26)))
+            _edgeScrollView.TopEdgeEffect.Style = UIScrollEdgeEffectStyle.AutomaticStyle;
+
         _edgeInteraction = null;
         _edgeContainer = null;
+        _edgeScrollView = null;
     }
 }
 

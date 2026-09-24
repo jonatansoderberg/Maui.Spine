@@ -18,6 +18,9 @@ internal static class NavigableMeta
 
         PageActionDiscovery.Populate(vm);
 
+        // Setting the attribute's values below is not a change made by the page.
+        vm.ReapplyHeaderBar = null;
+
         vm.Title = meta.Title;
         vm.TitlePlacement = meta.TitlePlacement;
         vm.TitleAlignment = meta.TitleAlignment;
@@ -64,11 +67,27 @@ internal static class NavigableMeta
 
         if (vm.FollowsScroll)
             HeaderBar.Track(view, vm);
+
+        vm.ReapplyHeaderBar = () => ReapplyHeaderBar(view, vm, meta);
     }
 
     /// <summary>
-    /// Resolves <see cref="HeaderBarBackground.Auto"/> and falls back from
-    /// <see cref="HeaderBarBackground.ScrollEdge"/> where it cannot be drawn as asked.
+    /// Resolves the header again when the page changes <see cref="ViewModelBase.HeaderBarBackground"/>
+    /// or <see cref="ViewModelBase.HeaderBarMode"/> while it is shown: the page may now float under
+    /// the bar, or no longer, which changes the insets its content keeps clear.
+    /// </summary>
+    static void ReapplyHeaderBar(View view, ViewModelBase vm, NavigableAttribute meta)
+    {
+        vm.EffectiveHeaderBarBackground = ResolveBackground(view, vm, meta);
+        vm.SafeAreaInsets = Presentation.NavigationRegion.SafeAreaInsetsFor(vm, vm.SystemBarInsets);
+
+        if (vm.FollowsScroll)
+            HeaderBar.Track(view, vm);
+    }
+
+    /// <summary>
+    /// Resolves <see cref="HeaderBarBackground.Auto"/> and falls back from the scroll edge values
+    /// where they cannot be drawn as asked.
     /// </summary>
     static HeaderBarBackground ResolveBackground(View view, ViewModelBase vm, NavigableAttribute meta)
     {
@@ -90,10 +109,10 @@ internal static class NavigableMeta
                         : HeaderBarBackground.Solid;
         }
 
-        if (background == HeaderBarBackground.ScrollEdge && HasSystemScrollEdge is false && IsApple)
+        if (background.IsScrollEdge() && HasSystemScrollEdge is false && IsApple)
             background = HeaderBarBackground.Solid;
 
-        if (background == HeaderBarBackground.ScrollEdge && ReducedTransparency.IsOn)
+        if (background.IsScrollEdge() && ReducedTransparency.IsOn)
             background = HeaderBarBackground.Solid;
 
         return background;

@@ -70,7 +70,14 @@ internal sealed partial class PagePresenter : Grid
         _titleLabel = new Label
         {
             HorizontalOptions = LayoutOptions.Fill,
+#if IOS || MACCATALYST
+            // UIKit sizes the scroll edge effect to the elements over the scroll view; a label as
+            // tall as the bar makes it cover the whole bar rather than stop below the text.
+            VerticalOptions = LayoutOptions.Fill,
+            VerticalTextAlignment = TextAlignment.Center,
+#else
             VerticalOptions = LayoutOptions.Center,
+#endif
             HorizontalTextAlignment = TextAlignment.Center,
             LineBreakMode = LineBreakMode.TailTruncation,
             IsVisible = false
@@ -191,7 +198,7 @@ internal sealed partial class PagePresenter : Grid
     {
         if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.SystemBarInsets)
             or nameof(ViewModelBase.HeaderBarForeground) or nameof(ViewModelBase.IsHeaderBarVisible)
-            or nameof(ViewModelBase.LargeTitle) or nameof(ViewModelBase.HeaderBarBackground))
+            or nameof(ViewModelBase.LargeTitle) or nameof(ViewModelBase.EffectiveHeaderBarBackground))
             ApplyPageLayout();
         else if (e.PropertyName is nameof(ViewModelBase.HeaderBarCollapseProgress) or nameof(ViewModelBase.ScrollEdgeProgress))
             ApplyCollapse();
@@ -229,7 +236,7 @@ internal sealed partial class PagePresenter : Grid
 
     /// <summary>Whether UIKit draws this page's background: the system scroll edge effect.</summary>
     private bool UsesSystemScrollEdge =>
-        Background == HeaderBarBackground.ScrollEdge && Services.NavigableMeta.HasSystemScrollEdge;
+        Background.IsScrollEdge() && Services.NavigableMeta.HasSystemScrollEdge;
 
     // A large title's header shows its title as far as the page has scrolled, and a solid
     // background behind a floating header fades in the same way; otherwise the title is shown
@@ -252,13 +259,16 @@ internal sealed partial class PagePresenter : Grid
 
     // Solid, or the band that stands in for the scroll edge effect where the system has none.
     private bool HasSolidBackground() =>
-        Background is HeaderBarBackground.Solid || (Background is HeaderBarBackground.ScrollEdge && !UsesSystemScrollEdge);
+        Background is HeaderBarBackground.Solid || (Background.IsScrollEdge() && !UsesSystemScrollEdge);
 
-    /// <summary>How far the stand-in band fades out below the bar.</summary>
+    /// <summary>How far the soft stand-in band fades out below the bar.</summary>
     private const double ScrollEdgeBandFade = 24;
 
-    /// <summary>How opaque the stand-in band is behind the bar: rows stay faintly visible through it.</summary>
+    /// <summary>How opaque the soft stand-in band is behind the bar: rows stay faintly visible through it.</summary>
     private const float ScrollEdgeBandAlpha = 0.9f;
+
+    /// <summary>How opaque the hard stand-in band is: rows only just show through, as through UIKit's frosted band.</summary>
+    private const float ScrollEdgeHardBandAlpha = 0.96f;
 
     private void ApplyBarBackgroundColor()
     {
@@ -277,24 +287,65 @@ internal sealed partial class PagePresenter : Grid
             return;
         }
 
-        // The stand-in for the scroll edge effect: the page's colour, slightly see-through behind
-        // the bar, fading out below it so rows dissolve into the bar instead of meeting an edge.
         var bar = RowDefinitions[0].Height.Value;
-        var height = bar + ScrollEdgeBandFade;
-        var tint = colour.WithAlpha(ScrollEdgeBandAlpha);
-
+        double height;
         _barBackground.Color = null;
-        _barBackground.Background = new LinearGradientBrush(
-            [
-                new GradientStop(tint, 0),
-                new GradientStop(tint, (float)(bar / height)),
-                new GradientStop(colour.WithAlpha(0), 1),
-            ],
-            new Point(0, 0), new Point(0, 1));
+
+        if (Background is HeaderBarBackground.ScrollEdgeHard)
+        {
+            // The stand-in for the hard style: the page's colour, nearly opaque, ending at the
+            // bar's bottom edge in a hairline, as a frosted band does.
+            var hairline = HairlineThickness();
+            height = bar + hairline;
+            var tint = colour.WithAlpha(ScrollEdgeHardBandAlpha);
+            var line = HairlineColour();
+            var edge = (float)(bar / height);
+
+            _barBackground.Background = new LinearGradientBrush(
+                [
+                    new GradientStop(tint, 0),
+                    new GradientStop(tint, edge),
+                    new GradientStop(line, edge),
+                    new GradientStop(line, 1),
+                ],
+                new Point(0, 0), new Point(0, 1));
+        }
+        else
+        {
+            // The stand-in for the soft style: the page's colour, slightly see-through behind the
+            // bar, fading out below it so rows dissolve into the bar instead of meeting an edge.
+            height = bar + ScrollEdgeBandFade;
+            var tint = colour.WithAlpha(ScrollEdgeBandAlpha);
+
+            _barBackground.Background = new LinearGradientBrush(
+                [
+                    new GradientStop(tint, 0),
+                    new GradientStop(tint, (float)(bar / height)),
+                    new GradientStop(colour.WithAlpha(0), 1),
+                ],
+                new Point(0, 0), new Point(0, 1));
+        }
+
         _barBackground.HeightRequest = height;
         _barBackground.VerticalOptions = LayoutOptions.Start;
         Grid.SetRowSpan(_barBackground, 2);
     }
+
+    /// <summary>One device pixel, the width of a system separator.</summary>
+    private static double HairlineThickness()
+    {
+        var density = DeviceDisplay.Current.MainDisplayInfo.Density;
+        return density > 0 ? 1 / density : 1;
+    }
+
+    /// <summary>A separator's colour in the current theme, as UIKit's hairline under a bar.</summary>
+    private static Color HairlineColour() =>
+        IsDarkTheme() ? Color.FromRgba(84, 84, 88, 166) : Color.FromRgba(60, 60, 67, 74);
+
+    private static bool IsDarkTheme() =>
+        Application.Current?.RequestedTheme == AppTheme.Dark
+        || (Application.Current?.RequestedTheme != AppTheme.Light
+            && Application.Current?.PlatformAppTheme == AppTheme.Dark);
 
     /// <summary>
     /// The colour the page sits on: the first opaque background from the page view up through the
@@ -309,9 +360,7 @@ internal sealed partial class PagePresenter : Grid
                 return own;
         }
 
-        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark
-            || (Application.Current?.RequestedTheme != AppTheme.Light
-                && Application.Current?.PlatformAppTheme == AppTheme.Dark);
+        var isDark = IsDarkTheme();
 
 #if IOS || MACCATALYST
         var traits = UIKit.UITraitCollection.FromUserInterfaceStyle(isDark ? UIKit.UIUserInterfaceStyle.Dark : UIKit.UIUserInterfaceStyle.Light);

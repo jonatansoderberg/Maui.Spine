@@ -11,21 +11,51 @@
         <CollectionView.Header>
             <VerticalStackLayout Padding="16,8,16,12" Spacing="8">
                 <PackageChips Packages="Plugin.Maui.Spine" />
-                <Label Text="HeaderBarBackground.ScrollEdge: content scrolls under the header bar and stays half visible behind a soft edge. On iOS 26 UIKit draws it, as behind a navigation bar, and Auto turns it on for list pages. Android and Windows get a band in the page colour that fades out below the bar. Reduce Transparency gives a solid bar."
+                <Label Text="HeaderBarBackground.ScrollEdge: content scrolls under the header bar and stays half visible behind it. On iOS 26 UIKit draws the edge effect over the status bar and the whole bar, as behind a navigation bar: soft (content fades and blurs into the bar) or hard (a frosted band with a hairline). ScrollEdge leaves the style to the system, soft on iPhone. Auto turns it on for list pages on iOS 26. Android and Windows get a band in the page colour. Reduce Transparency gives a solid bar."
+                       FontSize="14" />
+                <Label Text="Pick a background below and scroll: the page switches live. Solid and Clear only differ when content is under the bar, so turn on Overlay to compare them."
                        FontSize="14" />
                 <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
                     <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
-                           Text="// iOS 26: automatic for a page whose list&#10;// fills it from the top. Explicit:&#10;[NavigableRegion(Title = &quot;Inbox&quot;,&#10;  HeaderBarBackground =&#10;    HeaderBarBackground.ScrollEdge)]&#10;&#10;// App-wide:&#10;options.RegionDefaults.HeaderBarBackground =&#10;  HeaderBarBackground.Solid;   // opt out&#10;&#10;// Scroll source: HeaderBar.ScrollSource,&#10;//   else the first ScrollView/CollectionView.&#10;// Combines with LargeTitle = true.&#10;// Reduce Transparency: Solid instead." />
+                           Text="// iOS 26: automatic for a page whose list&#10;// fills it from the top. Explicit:&#10;[NavigableRegion(Title = &quot;Inbox&quot;,&#10;  HeaderBarBackground =&#10;    HeaderBarBackground.ScrollEdgeHard)]&#10;// ScrollEdge | ScrollEdgeSoft | ScrollEdgeHard&#10;&#10;// Live, from the view model:&#10;HeaderBarBackground =&#10;  HeaderBarBackground.ScrollEdgeSoft;&#10;&#10;// App-wide:&#10;options.RegionDefaults.HeaderBarBackground =&#10;  HeaderBarBackground.Solid;   // opt out&#10;&#10;// Scroll source: HeaderBar.ScrollSource,&#10;//   else the first ScrollView/CollectionView.&#10;// Combines with LargeTitle = true.&#10;// Reduce Transparency: Solid instead." />
                 </Border>
             </VerticalStackLayout>
         </CollectionView.Header>
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="Swatch">
-                <Border Margin="16,6" Padding="16,22" StrokeThickness="0" StrokeShape="RoundRectangle 14" BackgroundColor="{Binding Colour}">
-                    <Label Text="{Binding Name}" TextColor="White" FontAttributes="Bold" FontSize="17" />
+                <Border Margin="16,6" Padding="16,14" StrokeThickness="0" StrokeShape="RoundRectangle 14" BackgroundColor="{Binding Colour}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding Name}" TextColor="White" FontAttributes="Bold" FontSize="17" />
+                        <Label Text="{Binding Text}" TextColor="White" FontSize="14" />
+                    </VerticalStackLayout>
                 </Border>
             </DataTemplate>
         </CollectionView.ItemTemplate>
     </CollectionView>
+
+    <SpinePage.Footer>
+        <VerticalStackLayout Padding="16,10" Spacing="8">
+            <FlexLayout Wrap="Wrap" JustifyContent="Start" BindableLayout.ItemsSource="{Binding Backgrounds}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="BackgroundChoice">
+                        <Button Text="{Binding Label}" Margin="0,0,6,6" Padding="12,6" MinimumHeightRequest="34" FontSize="14" CornerRadius="17"
+                                BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                                Command="{Binding ChooseCommand}">
+                            <Button.Triggers>
+                                <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
+                                    <Setter Property="BackgroundColor" Value="#0A84FF" />
+                                    <Setter Property="TextColor" Value="White" />
+                                </DataTrigger>
+                            </Button.Triggers>
+                        </Button>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding Overlay}" VerticalOptions="Center" />
+                <Label Text="Overlay: the bar floats over the content" VerticalOptions="Center" FontSize="14" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </SpinePage.Footer>
 
 </SpinePage>

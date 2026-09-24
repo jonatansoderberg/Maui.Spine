@@ -298,6 +298,8 @@ public sealed partial class NavigationRegion : ContentView
             _frameActionView?.SetBinding(HeaderBarView.PrimaryPageActionProperty, new Binding(nameof(NavigationRegionViewModel.PrimaryPageAction), source: ViewModel));
             _frameActionView?.SetBinding(HeaderBarView.DefaultPageActionProperty, new Binding(nameof(NavigationRegionViewModel.SecondaryPageAction), source: ViewModel));
 
+            WatchCurrentPage(ViewModel.CurrentRegionViewModel);
+
             // Apply safe-area padding for the new page on both content hosts.
             if (ViewModel.CurrentRegionViewModel is { } vm)
                 ApplySafeAreaPadding(_contentHostFront, vm);
@@ -312,6 +314,31 @@ public sealed partial class NavigationRegion : ContentView
 
         if (e.PropertyName == nameof(NavigationRegionViewModel.BackView))
             ApplySafeAreaPaddingForPresenter(_contentHostBack, ViewModel.BackView);
+    }
+
+    private ViewModelBase? _watchedPage;
+
+    // A page that changes its header background or mode while shown may start or stop floating
+    // under the bar, which moves its content to the top of the screen or back below the bar.
+    private void WatchCurrentPage(ViewModelBase? page)
+    {
+        if (ReferenceEquals(page, _watchedPage))
+            return;
+
+        if (_watchedPage is not null)
+            _watchedPage.PropertyChanged -= OnCurrentPagePropertyChanged;
+
+        _watchedPage = page;
+
+        if (page is not null)
+            page.PropertyChanged += OnCurrentPagePropertyChanged;
+    }
+
+    private void OnCurrentPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.EffectiveHeaderBarBackground)
+            && sender is ViewModelBase page && ReferenceEquals(page, ViewModel.CurrentRegionViewModel))
+            ApplySafeAreaPadding(_contentHostFront, page);
     }
 
     private void ApplySafeAreaPaddingForPresenter(ContentView host, PagePresenter? presenter)
