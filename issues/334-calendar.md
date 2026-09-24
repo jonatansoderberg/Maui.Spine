@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/334
 **Branch:** issue/334-calendar
-**Status:** In Progress
+**Status:** Completed
 **Stage:** 3 of the app-review plan (#333)
 
 ## Plan
@@ -50,3 +50,10 @@ None.
 - **Calendar text keys follow `SpineStrings.Culture`** even when `Culture` pins the calendar to another culture: the pinned culture drives names and date formats, the strings store drives words.
 - **Mac Catalyst gets the same `ShouldBegin` restriction as iOS** (`#if IOS || MACCATALYST`): a click-drag is the pan; wheel and trackpad scrolling never start it.
 - **Windows is documented, not changed.** MAUI's pan recognizer sets the element's manipulation mode on WinUI; a mouse wheel scrolls as usual, a touch drag starting on the calendar may not scroll a parent `ScrollView`. Unverified without a Windows touch device, so no untested workaround was added.
+
+## Verified
+
+- iOS, iPhone 17 simulator, light and dark: selection, today+selected ring, swipe to the next month, arrows, year and decade drill-down and back, current-month highlight, a vertical drag starting on the calendar scrolls the page, live Dark ↔ Light and English ↔ Svenska switches repaint and re-label in place, Sunday start with de-DE and trailing days hidden. Re-checked after the #355 change: `Calendar.*` text resolves with no builder call and follows the language switch.
+- Android, Pixel 10 Pro emulator: the same selection, swipe, vertical scroll from the calendar, drill-down (2020–2029 → 2024 → June) and live theme and language switches.
+- Mac Catalyst: sample builds; not run. Windows: CI build.
+
