@@ -8,7 +8,7 @@ The repository ships a set of **skills** for AI coding agents (Claude Code and c
 | `spine-page` | Creating or changing a page: the three-file pattern, regions, sheets, tabs, typed parameters and results, page actions, lifecycle hooks |
 | `spine-widgets` | Building a widget or a Live Activity: the provider, the `W` tree, timelines, pictures and Lock Screen widgets, buttons, activity layouts |
 | `spine-notifications` | Push and local notifications on the client and the `Plugin.Maui.Spine.Server` backend |
-| `spine-controls` | `HeroCollectionView`, `AnimatedLabel`, `Calendar`, `SpineRow` / `Tap` / `Semantic.Merge`, SVG icons, Liquid Glass buttons |
+| `spine-controls` | `HeroCollectionView`, `AnimatedLabel`, `Calendar`, `Shimmer` and `Skeleton.IsActive`, `SpineRow` / `Tap` / `Semantic.Merge`, SVG icons, Liquid Glass buttons |
 
 They live in [`.claude/skills/`](https://github.com/jonatansoderberg/Maui.Spine/tree/master/.claude/skills) and are picked up automatically by agents working inside this repository.
 

@@ -32,6 +32,10 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
+    "Plugin.Maui.Spine.Controls", AssemblyName = "Plugin.Maui.Spine.Controls.Shimmer")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
     "Plugin.Maui.Spine.Controls", AssemblyName = "Plugin.Maui.Spine.Controls.Rows")]
 
 [assembly: XmlnsDefinition(
@@ -109,6 +113,10 @@
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.DataGrid")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
+    "MauiSpineSampleApp.Pages.Shimmer")]
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",

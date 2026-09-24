@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers and week numbers), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), SpineRow (settings and key/value rows), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers and week numbers), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -9,7 +9,7 @@ You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each co
 
 ## SVG icons (`Plugin.Maui.Spine.Svg`, comes with the core)
 
-Embed the app's icons and pass the assembly to `UseSpine` (`options.AddAssembly`) — that registers them. Reference **`Plugin.Maui.Spine.Svg.Icons`** for 166 ready-made glyphs (arrows, close, settings, refresh, plus, minus, edit, delete, rooms, appliances, media, weather); nothing to register, `SpineIcons.Bell` is `"Bell.svg"`.
+Embed the app's icons and pass the assembly to `UseSpine` (`options.AddAssembly`) — that registers them. Reference **`Plugin.Maui.Spine.Svg.Icons`** for 218 ready-made glyphs (chevrons, close, settings, search, filter, share, menu, check, info, warning, edit, delete, rooms, appliances, media, weather); nothing to register, `SpineIcons.Bell` is `"Bell.svg"`.
 
 ```xml
 <!-- MyApp.csproj -->
@@ -119,6 +119,19 @@ A row grid on `CollectionView`: fixed-height rows, sorting, grouping, swipe acti
 
 `Width="Auto"` in a layout fits the widest header or value (measured, shared by every row); star columns truncate. `GroupByPath` groups with expandable headers (not together with load more). Rows bind by path through reflection: fine under MAUI's default partial trimming, preserve the row type's properties for full trimming or Native AOT. Colours follow the theme via `DataGridStyleOptions` (resource `DefaultDataGridStyleOptions`). See docs/wiki/data-grid.md.
 
+## Shimmer and Skeleton (`Plugin.Maui.Spine.Controls.Shimmer`)
+
+Skeleton loading; no registration call. `Shimmer` shows a placeholder layout (empty `Border`s and `BoxView`s are the blocks, filled with a theme grey when they have no colour) and sweeps a band across it while `IsLoading`. `Skeleton.IsActive` on a real layout hides its leaf views and draws each as a block in its place (labels as bars), so nothing jumps when the data arrives; bind it to the loading flag. Overrides: `Skeleton.Lines` (bars and reserved lines for an empty label; pair with `MaxLines`), `Skeleton.Width` (0–1 fraction or units), `Skeleton.Height`. Band tuning: `WaveWidth` (fraction of the control's width) and `WaveOpacity` (peak alpha) on `Shimmer`, `Skeleton.WaveWidth`/`Skeleton.WaveOpacity` on the layout; everything else in `ShimmerStyleOptions` (instance, or resource `DefaultShimmerStyleOptions`). Reduce Motion gives static blocks.
+
+```xml
+<VerticalStackLayout Skeleton.IsActive="{Binding IsLoading}">
+    <Label Text="{Binding Name}" FontSize="20" />
+    <Label Text="{Binding Bio}" MaxLines="3" Skeleton.Lines="3" />
+</VerticalStackLayout>
+```
+
+Put `Skeleton.IsActive` on a layout (it throws on other views). For a list's first page, fill the items source with empty rows while loading.
+
 ## Rows, Tap.Command and Semantic.Merge (`Plugin.Maui.Spine.Controls.Rows`, `Plugin.Maui.Spine`)
 
 `Tap.Command` / `Tap.CommandParameter` on any view: the whole view is the target, with native press feedback (iOS highlight, Android ripple, Windows hover/pressed), inner controls keep their touches, runs only when enabled and `CanExecute`. Use it instead of a `TapGestureRecognizer` plus `BackgroundColor="Transparent"`. `Semantic.Merge="True"` on a layout: children leave the accessibility tree, their texts (own `SemanticProperties.Description`, else `Label.Text`) join into one description; a `Switch` inside makes it a toggle, `Tap.Command` a button. Both in `Plugin.Maui.Spine.Extensions`; not `Semantics` (clashes with `Microsoft.Maui.Semantics`).
@@ -149,4 +162,5 @@ A control never hard-codes words. It reads `SpineStrings.Current["Calendar.Today
 - Calendar: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/calendar.md
 - Rows and taps: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/rows.md
 - DataGrid: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/data-grid.md
+- Shimmer and Skeleton: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/shimmer.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp
