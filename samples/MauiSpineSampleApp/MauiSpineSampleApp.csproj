@@ -135,6 +135,15 @@
 
     <EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
 
+    <MauiXaml Update="Pages\Menus\MenusPage.View.xaml">
+      <DependentUpon>MenusPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Menus\MenusPage.ViewModel.cs">
+      <DependentUpon>MenusPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
       <DependentUpon>ScrollInsetPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

@@ -86,6 +86,10 @@ A SkiaSharp label that scrolls (marquee) or fades text that does not fit. Regist
 
 Give it a `HeightRequest`; it measures on the Skia canvas, not through MAUI's text layout.
 
+## Menu buttons (`Plugin.Maui.Spine`)
+
+`MenuButton.Items` on a `Button` or `ImageButton` (and `PageAction.Menu` for header actions) opens the platform's menu: `MenuItems` of `MenuAction` (Title, Svg, Command, IsChecked, IsEnabled, IsDestructive, KeepsMenuOpen), `MenuSection`, `SubMenu`, `MenuPicker` (single selection, `Selected`, a command run with the pick). A menu button has no Command. `MenuButton.ShowsSelection` makes the button text follow the pick. See docs/wiki/menus.md.
+
 ## Text in a control (`Plugin.Maui.Spine.Common`)
 
 A control never hard-codes words. It reads `SpineStrings.Current["Calendar.Today"]` with its own key prefix, ships its defaults as an embedded `strings.xml` (plus `strings.<culture>.xml` translations) registered with `SpineStrings.Current.AddDefaults(new EmbeddedXmlStringProvider(assembly))` from its `UseXxx()` call, and repaints through `SpineTheme.Track(this, Repaint)`, which a culture switch triggers as well. The app overrides any key by defining it in its own document.

@@ -9,6 +9,7 @@ public static partial class SpineExtensions
     {
         ConfigureScrollInsets();
         ConfigureTypography();
+        ConfigureMenus();
 
 
         ButtonHandler.Mapper.AppendToMapping("SpineCompactButton", static (handler, view) =>

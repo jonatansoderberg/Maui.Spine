@@ -246,6 +246,10 @@ internal sealed class PageActionView : ContentView
         _badgeLabel.Text = action.Badge ?? string.Empty;
         SemanticProperties.SetDescription(_imageButton, action.Description);
         SemanticProperties.SetDescription(_textButton, action.Description);
+
+        MenuButton.SetItems(_imageButton, action.Menu);
+        MenuButton.SetItems(_textButton, action.Menu);
+        MenuButton.SetShowsSelection(_textButton, action.MenuShowsSelection);
         _badge.IsVisible = !string.IsNullOrEmpty(action.Badge);
 
         if (hasSvg)
