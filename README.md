@@ -60,7 +60,7 @@
 
 ## Packages
 
-One version, twelve packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, thirteen packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -74,6 +74,7 @@ One version, twelve packages, all on [nuget.org](https://www.nuget.org/packages?
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers and week numbers |
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid: named layouts, sorting, grouping, swipe actions, load more |
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: a shimmer over placeholders, `Skeleton.IsActive` on real layouts |
+| Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and the string store; no MAUI |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions |
 
@@ -199,12 +200,13 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Calendar](docs/wiki/calendar.md) | Month calendar: swipe between months, year and decade pickers, ISO week numbers, theme and culture aware |
 | [DataGrid](docs/wiki/data-grid.md) | Row grid on `CollectionView`: Wide/Narrow layouts, sorting, grouping, swipe actions, load more, pull-to-refresh |
 | [Shimmer and Skeleton](docs/wiki/shimmer.md) | Skeleton loading that follows the theme and Reduce Motion; `Skeleton.IsActive` turns a real layout into its own skeleton |
+| [Rows and taps](docs/wiki/rows.md) | `SpineRow` settings and key/value rows; `Tap.Command` with native press feedback on any view; `Semantic.Merge` for one screen-reader element |
 | [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |
 | [Glass buttons](docs/wiki/glass-buttons.md) | `Glass.Style` on `Button` and `ImageButton`: Liquid Glass on iOS 26, no-op elsewhere |
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The ten packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The thirteen packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 

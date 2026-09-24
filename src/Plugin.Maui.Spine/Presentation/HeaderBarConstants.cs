@@ -2,6 +2,9 @@ namespace Plugin.Maui.Spine.Presentation;
 
 public static class HeaderBarConstants
 {
+    /// <summary>The back button's glyph, an embedded SVG; a row's chevron is the same glyph turned around.</summary>
+    public const string BackGlyph = "chevronleft.svg";
+
     // Use -1 to allow width to size to text content when no SVG is present
     public const double Auto = -1;
 

@@ -10,6 +10,9 @@
                 <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
                 <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- The pages already have their margins; rows run edge to edge inside them. -->
+            <SpineRowStyleOptions x:Key="DefaultSpineRowStyleOptions" Padding="0,4" />
         </ResourceDictionary>
     </SpineApplication.Resources>
 </SpineApplication>
