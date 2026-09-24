@@ -1,69 +1,71 @@
 namespace Plugin.Maui.Spine.Core;
 
-/// <summary>How Spine's header bar sits on a page.</summary>
+/// <summary>
+/// Where a page's content starts under Spine's header bar. What is behind the bar when content is
+/// under it is <see cref="HeaderBarBackground"/>.
+/// </summary>
 public enum HeaderBarMode
 {
-    /// <summary>The header bar takes its own row above the content.</summary>
+    /// <summary>
+    /// The content starts below the bar. When it scrolls under the bar (a large title, or a
+    /// <see cref="HeaderBarBackground.Transparent"/> or scroll edge background), Spine insets the
+    /// page's scroll view so its first row still starts below the bar at rest.
+    /// </summary>
     Normal,
 
     /// <summary>
-    /// The header bar floats over the content, which starts at the top of the screen behind the
-    /// status bar and the bar: for pages that open on a photo, a map or a hero. The title and the
-    /// actions keep a fixed colour through <c>HeaderBarForeground</c>, and
-    /// <see cref="ViewModelBase.SafeAreaInsets"/> reports the height the content must keep clear
-    /// (status bar plus header bar) so a list can take it with <c>SafeArea.ScrollInset="Top"</c>.
+    /// The content starts at the top of the screen, behind the status bar and the bar: for pages
+    /// that open on a photo, a map or a hero. The page keeps clear what it wants to:
+    /// <see cref="ViewModelBase.SafeAreaInsets"/> reports the height of the status bar plus the bar,
+    /// and a list takes it with <c>SafeArea.ScrollInset="Top"</c>. The title and the actions keep a
+    /// fixed colour through <c>HeaderBarForeground</c>.
     /// </summary>
     Overlay,
 }
 
 /// <summary>
-/// What is behind the header bar's title and actions while content scrolls under it: under an
-/// <see cref="HeaderBarMode.Overlay"/> header, and on a page with a large title (whose content
-/// always scrolls under the bar).
+/// What is behind the header bar's title and actions when content is under the bar: content
+/// scrolled under it, or the top of an <see cref="HeaderBarMode.Overlay"/> page. With nothing under
+/// the bar, every value looks the same.
 /// </summary>
 public enum HeaderBarBackground
 {
     /// <summary>
-    /// <see cref="Clear"/> under an <see cref="HeaderBarMode.Overlay"/> header, whose page draws its
-    /// own top. On iOS and Mac Catalyst 26, <see cref="ScrollEdge"/> for a region or tab page whose
-    /// scroll view fills it from the top (so nothing that does not scroll ends up under the bar);
-    /// <see cref="Solid"/> otherwise.
+    /// What the platform's own bar does. On iOS and Mac Catalyst 26 that is
+    /// <see cref="ScrollEdge"/>, for a region or tab page whose scroll view fills it from the top
+    /// (a page with fixed content above its list gets <see cref="Solid"/>, so that content never
+    /// sits under the bar). Everywhere else it is <see cref="Solid"/>. Under
+    /// <see cref="HeaderBarMode.Overlay"/> it is <see cref="Transparent"/>: the page draws its own top.
     /// </summary>
     Auto,
 
     /// <summary>
-    /// Transparent while the content is at the top; the page's background once content scrolls
-    /// under the bar, faded in over <c>HeaderBarConstants.ScrollEdgeFadeLength</c> points.
+    /// The page's background colour: content under the bar is hidden. Under
+    /// <see cref="HeaderBarMode.Normal"/> the bar takes its own row; over content that starts under
+    /// the bar (Overlay, a large title), the colour fades in over the first
+    /// <c>HeaderBarConstants.ScrollEdgeFadeLength</c> points of scroll.
     /// </summary>
     Solid,
 
-    /// <summary>Nothing: content shows through the bar at every offset.</summary>
-    Clear,
+    /// <summary>
+    /// Nothing: content shows through the bar at every offset, the title and the actions float over
+    /// it. For a photo or a map under an <see cref="HeaderBarMode.Overlay"/> bar.
+    /// </summary>
+    Transparent,
 
     /// <summary>
-    /// Content scrolls under the bar and stays half visible behind it: the iOS 26 scroll edge
-    /// effect, drawn by UIKit as it does for a navigation bar, over the status bar and the whole
-    /// bar. Lays the page out under the bar like <see cref="HeaderBarMode.Overlay"/>. The style is
-    /// UIKit's automatic one, as for a navigation bar: soft on iPhone; the system may choose hard
-    /// elsewhere, such as on the Mac. Where
-    /// the system effect does not exist (Android, Windows) the stand-in for
-    /// <see cref="ScrollEdgeSoft"/> is shown; on iOS and Mac Catalyst before 26, and with Reduce
-    /// Transparency on, it is <see cref="Solid"/>.
+    /// Content under the bar stays half visible and fades and blurs into it: the iOS 26 scroll edge
+    /// effect with its soft style, drawn by UIKit over the status bar and the whole bar, as behind a
+    /// navigation bar. Android and Windows show a band in the page's colour, slightly see-through
+    /// behind the bar and fading out below it. iOS and Mac Catalyst before 26, and Reduce
+    /// Transparency, give <see cref="Solid"/>.
     /// </summary>
     ScrollEdge,
 
     /// <summary>
-    /// <see cref="ScrollEdge"/> with the soft style: content fades and blurs into the bar. Android
-    /// and Windows show a band in the page's background colour, slightly see-through behind the
-    /// bar and fading out below it.
-    /// </summary>
-    ScrollEdgeSoft,
-
-    /// <summary>
-    /// <see cref="ScrollEdge"/> with the hard style: a frosted, nearly opaque band behind the bar
-    /// with a hairline at its bottom edge, for a bar with more in it than a title. Android and
-    /// Windows show the page's background colour, nearly opaque, down to the bar's bottom edge,
-    /// with a hairline there.
+    /// <see cref="ScrollEdge"/> with the hard style: a frosted, nearly opaque band that ends in a
+    /// clear edge, for a bar with more in it than a title. Android and Windows show the page's
+    /// colour, nearly opaque, down to the bar's bottom edge, with a hairline there.
     /// </summary>
     ScrollEdgeHard,
 }
@@ -72,7 +74,7 @@ internal static class HeaderBarBackgroundExtensions
 {
     /// <summary>Whether <paramref name="background"/> is one of the scroll edge values.</summary>
     public static bool IsScrollEdge(this HeaderBarBackground background) =>
-        background is HeaderBarBackground.ScrollEdge or HeaderBarBackground.ScrollEdgeSoft or HeaderBarBackground.ScrollEdgeHard;
+        background is HeaderBarBackground.ScrollEdge or HeaderBarBackground.ScrollEdgeHard;
 }
 
 /// <summary>The colour of the status bar's clock and icons while a page is shown.</summary>

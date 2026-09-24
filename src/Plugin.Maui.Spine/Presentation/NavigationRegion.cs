@@ -220,7 +220,7 @@ public sealed partial class NavigationRegion : ContentView
 
     /// <summary>
     /// Sets padding on a content host based on the page's <see cref="SafeAreaEdges"/> and the
-    /// measured system bar insets. Edges included in <paramref name="safeAreaEdges"/> are padded;
+    /// measured system bar insets. Edges included in the page's <see cref="ViewModelBase.SafeAreaEdges"/> are padded;
     /// excluded edges allow content to extend behind the system bar.
     /// </summary>
     internal void ApplySafeAreaPadding(ContentView host, ViewModelBase vm)
@@ -258,7 +258,7 @@ public sealed partial class NavigationRegion : ContentView
 
     /// <summary>
     /// Computes the <see cref="Thickness"/> that a page should apply to its own content for the
-    /// edges that Spine is <em>not</em> padding (i.e., edges excluded from <paramref name="safeAreaEdges"/>).
+    /// edges that Spine is <em>not</em> padding (i.e., edges excluded from the page's <see cref="ViewModelBase.SafeAreaEdges"/>).
     /// </summary>
     internal static Thickness SafeAreaInsetsFor(ViewModelBase vm, Thickness insets)
     {
@@ -318,8 +318,9 @@ public sealed partial class NavigationRegion : ContentView
 
     private ViewModelBase? _watchedPage;
 
-    // A page that changes its header background or mode while shown may start or stop floating
-    // under the bar, which moves its content to the top of the screen or back below the bar.
+    // A page that changes its header while shown may start or stop floating under the bar, which
+    // moves its content to the top of the screen or back below the bar; and it may change the
+    // status bar it wants.
     private void WatchCurrentPage(ViewModelBase? page)
     {
         if (ReferenceEquals(page, _watchedPage))
@@ -336,9 +337,14 @@ public sealed partial class NavigationRegion : ContentView
 
     private void OnCurrentPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (sender is not ViewModelBase page || !ReferenceEquals(page, ViewModel.CurrentRegionViewModel))
+            return;
+
         if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.EffectiveHeaderBarBackground)
-            && sender is ViewModelBase page && ReferenceEquals(page, ViewModel.CurrentRegionViewModel))
+            or nameof(ViewModelBase.LargeTitle))
             ApplySafeAreaPadding(_contentHostFront, page);
+        else if (e.PropertyName is nameof(ViewModelBase.StatusBarStyle) && ViewModel.Presentation is NavigationPresentation.Region)
+            StatusBar.Apply(page.StatusBarStyle);
     }
 
     private void ApplySafeAreaPaddingForPresenter(ContentView host, PagePresenter? presenter)

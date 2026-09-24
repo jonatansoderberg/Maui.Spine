@@ -81,12 +81,11 @@ internal sealed partial class PagePresenter
             || !OperatingSystem.IsIOSVersionAtLeast(26) && !OperatingSystem.IsMacCatalystVersionAtLeast(26))
             return;
 
-        scrollView.TopEdgeEffect.Style = Background switch
-        {
-            HeaderBarBackground.ScrollEdgeSoft => UIScrollEdgeEffectStyle.SoftStyle,
-            HeaderBarBackground.ScrollEdgeHard => UIScrollEdgeEffectStyle.HardStyle,
-            _ => UIScrollEdgeEffectStyle.AutomaticStyle,
-        };
+        // Never the automatic style: UIKit resolved it to soft on the iOS 26.4 simulator, but it
+        // looked hard on an iOS 26.5 iPhone, where the two values could not be told apart.
+        scrollView.TopEdgeEffect.Style = BarBackground is HeaderBarBackground.ScrollEdgeHard
+            ? UIScrollEdgeEffectStyle.HardStyle
+            : UIScrollEdgeEffectStyle.SoftStyle;
     }
 
     private void RemoveEdgeInteraction()

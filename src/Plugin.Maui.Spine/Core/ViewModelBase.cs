@@ -89,14 +89,17 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     public partial HeaderBarMode HeaderBarMode { get; set; }
 
-    /// <summary>Whether the page opens on its own large title that collapses into the header bar. Set from the page's attribute.</summary>
+    /// <summary>
+    /// Whether the page opens on its own large title that collapses into the header bar. Set from
+    /// the page's attribute; set it later to change the header while the page is shown.
+    /// </summary>
     [ObservableProperty]
     public partial bool LargeTitle { get; set; }
 
     /// <summary>
-    /// What is behind the header bar while content scrolls under it. Set from the page's attribute;
-    /// set it later to change the bar while the page is shown. Switching to or from a scroll edge
-    /// value lays the page out again, under the bar or below it.
+    /// What is behind the header bar when content is under it. Set from the page's attribute; set it
+    /// later to change the bar while the page is shown. The page is laid out again, under the bar or
+    /// below it. <see cref="EffectiveHeaderBarBackground"/> is what Spine made of it.
     /// </summary>
     [ObservableProperty]
     public partial HeaderBarBackground HeaderBarBackground { get; set; }
@@ -105,9 +108,11 @@ public abstract partial class ViewModelBase : ObservableObject
 
     partial void OnHeaderBarModeChanged(HeaderBarMode value) => ReapplyHeaderBar?.Invoke();
 
+    partial void OnLargeTitleChanged(bool value) => ReapplyHeaderBar?.Invoke();
+
     /// <summary>
-    /// Resolves the header again after <see cref="HeaderBarBackground"/> or <see cref="HeaderBarMode"/>
-    /// changes on a page Spine has shown. Set by Spine when it applies the page's attribute.
+    /// Resolves the header again after <see cref="HeaderBarBackground"/>, <see cref="HeaderBarMode"/>
+    /// or <see cref="LargeTitle"/> changes on a page Spine has shown. Set by Spine when it applies the page's attribute.
     /// </summary>
     internal Action? ReapplyHeaderBar { get; set; }
 
@@ -124,18 +129,20 @@ public abstract partial class ViewModelBase : ObservableObject
     internal partial double ScrollEdgeProgress { get; set; }
 
     /// <summary>
-    /// The background resolved from <see cref="HeaderBarBackground"/> for this page: never
-    /// <see cref="HeaderBarBackground.Auto"/>.
+    /// The background Spine resolved from <see cref="HeaderBarBackground"/> for this page, never
+    /// <see cref="HeaderBarBackground.Auto"/>: what <c>Auto</c> means here, and <see cref="HeaderBarBackground.Solid"/>
+    /// where a scroll edge value cannot be drawn (before iOS 26, or with Reduce Transparency on).
     /// </summary>
     [ObservableProperty]
-    internal partial HeaderBarBackground EffectiveHeaderBarBackground { get; set; } = HeaderBarBackground.Clear;
+    public partial HeaderBarBackground EffectiveHeaderBarBackground { get; internal set; } = HeaderBarBackground.Solid;
 
-    /// <summary>Whether content starts at the top of the screen and scrolls under the header bar.</summary>
+    /// <summary>
+    /// Whether the page is laid out under the header bar: content starts there (Overlay) or scrolls
+    /// under it. Only a <see cref="HeaderBarBackground.Solid"/> bar over a normal page, which hides
+    /// whatever would be under it, keeps a row of its own.
+    /// </summary>
     internal bool HeaderBarFloats =>
-        HeaderBarMode == HeaderBarMode.Overlay || LargeTitle || EffectiveHeaderBarBackground.IsScrollEdge();
-
-    /// <summary>Whether Spine follows the page's scroll offset: for the title, the background, or both.</summary>
-    internal bool FollowsScroll => HeaderBarFloats && (LargeTitle || EffectiveHeaderBarBackground != HeaderBarBackground.Clear);
+        HeaderBarMode == HeaderBarMode.Overlay || LargeTitle || EffectiveHeaderBarBackground != HeaderBarBackground.Solid;
 
     /// <summary>The view whose scroll offset the header follows, once Spine has found it.</summary>
     [ObservableProperty]

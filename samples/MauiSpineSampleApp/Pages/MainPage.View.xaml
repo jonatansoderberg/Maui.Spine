@@ -84,7 +84,7 @@
                         Title="{Binding Title}"
                         Description="{Binding Description}"
                         Packages="{Binding Packages}"
-                        Tap.Command="{Binding BindingContext.ItemTappedCommand, Source={x:Reference Page}}"
+                        Tap.Command="{PageCommand ItemTapped}"
                         Tap.CommandParameter="{Binding .}" />
                 </DataTemplate>
             </HeroCollectionView.ItemTemplate>

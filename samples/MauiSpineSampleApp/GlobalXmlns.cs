@@ -92,15 +92,7 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
-    "MauiSpineSampleApp.Pages.Overlay")]
-
-[assembly: XmlnsDefinition(
-    "http://schemas.microsoft.com/dotnet/maui/global",
-    "MauiSpineSampleApp.Pages.Collapsing")]
-
-[assembly: XmlnsDefinition(
-    "http://schemas.microsoft.com/dotnet/maui/global",
-    "MauiSpineSampleApp.Pages.ScrollEdge")]
+    "MauiSpineSampleApp.Pages.HeaderBar")]
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",

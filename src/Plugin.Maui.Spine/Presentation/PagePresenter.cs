@@ -230,13 +230,16 @@ internal sealed partial class PagePresenter : Grid
     /// <summary>Installs or removes UIKit's scroll edge effect for the page; iOS and Mac Catalyst 26 only.</summary>
     partial void UpdateSystemScrollEdge();
 
-    /// <summary>The background the page asked for, as far as this presenter paints it.</summary>
-    private HeaderBarBackground Background =>
-        _page is { HeaderBarFloats: true } page ? page.EffectiveHeaderBarBackground : HeaderBarBackground.Clear;
+    /// <summary>
+    /// The background the presenter paints behind the title row. A bar with a row of its own has
+    /// nothing under it and needs none: the page's own background shows.
+    /// </summary>
+    private HeaderBarBackground BarBackground =>
+        _page is { HeaderBarFloats: true } page ? page.EffectiveHeaderBarBackground : HeaderBarBackground.Transparent;
 
     /// <summary>Whether UIKit draws this page's background: the system scroll edge effect.</summary>
     private bool UsesSystemScrollEdge =>
-        Background.IsScrollEdge() && Services.NavigableMeta.HasSystemScrollEdge;
+        BarBackground.IsScrollEdge() && Services.NavigableMeta.HasSystemScrollEdge;
 
     // A large title's header shows its title as far as the page has scrolled, and a solid
     // background behind a floating header fades in the same way; otherwise the title is shown
@@ -259,7 +262,7 @@ internal sealed partial class PagePresenter : Grid
 
     // Solid, or the band that stands in for the scroll edge effect where the system has none.
     private bool HasSolidBackground() =>
-        Background is HeaderBarBackground.Solid || (Background.IsScrollEdge() && !UsesSystemScrollEdge);
+        BarBackground is HeaderBarBackground.Solid || (BarBackground.IsScrollEdge() && !UsesSystemScrollEdge);
 
     /// <summary>How far the soft stand-in band fades out below the bar.</summary>
     private const double ScrollEdgeBandFade = 24;
@@ -277,7 +280,7 @@ internal sealed partial class PagePresenter : Grid
 
         var colour = PageBackground();
 
-        if (Background is HeaderBarBackground.Solid)
+        if (BarBackground is HeaderBarBackground.Solid)
         {
             _barBackground.Background = null;
             _barBackground.Color = colour;
@@ -291,7 +294,7 @@ internal sealed partial class PagePresenter : Grid
         double height;
         _barBackground.Color = null;
 
-        if (Background is HeaderBarBackground.ScrollEdgeHard)
+        if (BarBackground is HeaderBarBackground.ScrollEdgeHard)
         {
             // The stand-in for the hard style: the page's colour, nearly opaque, ending at the
             // bar's bottom edge in a hairline, as a frosted band does.
@@ -364,7 +367,8 @@ internal sealed partial class PagePresenter : Grid
 
 #if IOS || MACCATALYST
         var traits = UIKit.UITraitCollection.FromUserInterfaceStyle(isDark ? UIKit.UIUserInterfaceStyle.Dark : UIKit.UIUserInterfaceStyle.Light);
-        return Microsoft.Maui.Platform.ColorExtensions.ToColor(UIKit.UIColor.SystemBackground.GetResolvedColor(traits));
+        return Microsoft.Maui.Platform.ColorExtensions.ToColor(UIKit.UIColor.SystemBackground.GetResolvedColor(traits))
+            ?? (isDark ? Colors.Black : Colors.White);
 #elif ANDROID
         // The window background is what shows behind every page: the theme's background in the
         // plain host, the bar's surface in the tab host.
@@ -396,7 +400,7 @@ internal sealed partial class PagePresenter : Grid
         // at the items, though (a large title's and a sheet's reach the bar's bottom), so there
         // the label ends with the item row.
         var below = new Thickness(0, 0, 0, HeaderBarConstants.BarHeight - HeaderBarConstants.Height);
-        var itemsOnly = Background is HeaderBarBackground.ScrollEdgeHard
+        var itemsOnly = BarBackground is HeaderBarBackground.ScrollEdgeHard
             && _page?.LargeTitle != true
             && (BindingContext as NavigationRegionViewModel)?.Presentation is not NavigationPresentation.Sheet;
         _titleLabel.Padding = itemsOnly ? Thickness.Zero : below;
@@ -511,7 +515,7 @@ internal sealed class TitleSlotLayout : Layout, ILayoutManager
 
     protected override ILayoutManager CreateLayoutManager() => this;
 
-    public Size Measure(double widthConstraint, double heightConstraint)
+    Size ILayoutManager.Measure(double widthConstraint, double heightConstraint)
     {
         _natural = Size.Zero;
 
@@ -529,7 +533,7 @@ internal sealed class TitleSlotLayout : Layout, ILayoutManager
         return new Size(width, _natural.Height);
     }
 
-    public Size ArrangeChildren(Rect bounds)
+    Size ILayoutManager.ArrangeChildren(Rect bounds)
     {
         if (Count == 0 || this[0] is not IView child)
             return bounds.Size;

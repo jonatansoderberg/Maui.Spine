@@ -1,0 +1,91 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.HeaderBar.HeaderBarPage"
+    x:TypeArguments="HeaderBarPageViewModel"
+    x:DataType="HeaderBarPageViewModel">
+
+    <!-- The list fills the page from the top: under a normal layout Spine insets it so the photo
+         starts below the bar, under Overlay the photo starts behind the status bar and the bar. -->
+    <CollectionView ItemsSource="{Binding Rows}" SafeArea.ScrollInset="Bottom">
+        <CollectionView.Header>
+            <VerticalStackLayout Spacing="0">
+                <Image Source="spine_hero2.png" Aspect="AspectFill" HeightRequest="260" />
+
+                <!-- Only shown while the page has a large title; Spine measures it to fade the bar's title in. -->
+                <HeaderBarLargeTitle IsVisible="{Binding LargeTitle}" Margin="16,8,16,0" />
+
+                <VerticalStackLayout Padding="16,8,16,12" Spacing="10">
+                    <PackageChips Packages="Plugin.Maui.Spine" />
+                    <Label FontSize="14"
+                           Text="Three settings shape the header bar. Layout says where the content starts, the large title whether the page opens on one, and the background what is behind the bar once content is under it. Pick a combination below and scroll: the page changes live." />
+
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Groups}" Spacing="8">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="ChoiceGroup">
+                                <Label FontSize="14">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="{Binding Name}" FontAttributes="Bold" />
+                                            <Span Text=" · " />
+                                            <Span Text="{Binding Selected.Label}" FontAttributes="Bold" />
+                                            <Span Text="&#10;" />
+                                            <Span Text="{Binding Selected.Description}" />
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+
+                    <Label Text="{Binding Resolved}" FontSize="13" TextColor="Gray" />
+
+                    <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                        <Label Text="{Binding Code}" FontSize="11"
+                               FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}" />
+                    </Border>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="Swatch">
+                <Border Margin="16,6" Padding="16,14" StrokeThickness="0" StrokeShape="RoundRectangle 14" BackgroundColor="{Binding Colour}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding Name}" TextColor="White" FontAttributes="Bold" FontSize="17" />
+                        <Label Text="{Binding Text}" TextColor="White" FontSize="14" />
+                    </VerticalStackLayout>
+                </Border>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+
+    <!-- One row of chips per setting, each bound to the view model property the attribute sets. -->
+    <SpinePage.Footer>
+        <VerticalStackLayout Padding="12,8,12,2" BindableLayout.ItemsSource="{Binding Groups}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="ChoiceGroup">
+                    <Grid ColumnDefinitions="84,*">
+                        <Label Text="{Binding Name}" FontSize="13" TextColor="Gray" Margin="0,8,0,0" VerticalOptions="Start" />
+                        <FlexLayout Grid.Column="1" Wrap="Wrap" BindableLayout.ItemsSource="{Binding Choices}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="Choice">
+                                    <Button Text="{Binding Label}" Margin="0,0,6,6" Padding="12,4" MinimumHeightRequest="32" HeightRequest="32" FontSize="14" CornerRadius="16"
+                                            BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                                            Command="{Binding ChooseCommand}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="BackgroundColor" Value="#0A84FF" />
+                                                <Setter Property="TextColor" Value="White" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+                    </Grid>
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+    </SpinePage.Footer>
+
+</SpinePage>
