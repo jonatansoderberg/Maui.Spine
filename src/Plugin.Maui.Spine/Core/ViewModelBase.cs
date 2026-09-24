@@ -85,6 +85,18 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     public partial bool IsBackButtonVisible { get; set; }
 
+    /// <summary>Whether the header bar takes its own row or floats over the content. Set from the page's attribute.</summary>
+    [ObservableProperty]
+    public partial HeaderBarMode HeaderBarMode { get; set; }
+
+    /// <summary>A fixed colour for the header bar's title and action icons, or <see langword="null"/> to follow the theme.</summary>
+    [ObservableProperty]
+    public partial Color? HeaderBarForeground { get; set; }
+
+    /// <summary>The status bar style Spine applies while this page is shown.</summary>
+    [ObservableProperty]
+    public partial StatusBarStyle StatusBarStyle { get; set; }
+
     /// <summary>Where the page title is rendered — header bar or title bar.</summary>
     [ObservableProperty]
     public partial TitlePlacement TitlePlacement { get; set; }

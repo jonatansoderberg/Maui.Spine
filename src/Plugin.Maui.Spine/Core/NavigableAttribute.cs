@@ -45,6 +45,9 @@ public abstract class NavigableAttribute : Attribute
         TitleAlignment = source.TitleAlignmentSet ? source.TitleAlignment : defaults.TitleAlignment;
         IsHeaderBarVisible = source.IsHeaderBarVisibleSet ? source.IsHeaderBarVisible : defaults.IsHeaderBarVisible;
         IsBackButtonVisible = source.IsBackButtonVisibleSet ? source.IsBackButtonVisible : defaults.IsBackButtonVisible;
+        HeaderBar = source.HeaderBarSet ? source.HeaderBar : defaults.HeaderBar;
+        HeaderBarForeground = source.HeaderBarForegroundSet ? source.HeaderBarForeground : defaults.HeaderBarForeground;
+        StatusBarStyle = source.StatusBarStyleSet ? source.StatusBarStyle : defaults.StatusBarStyle;
     }
 
     /// <summary>
@@ -95,6 +98,33 @@ public abstract class NavigableAttribute : Attribute
     /// </summary>
     public bool IsBackButtonVisible { get => field; set { field = value; _isBackButtonVisibleSet = true; } }
     internal bool IsBackButtonVisibleSet => _isBackButtonVisibleSet;
+
+    private bool _headerBarSet;
+    /// <summary>
+    /// <see cref="HeaderBarMode.Overlay"/> floats the header bar over content that starts at the
+    /// top of the screen. When not set the value is inherited from the relevant <c>DefaultsConfig</c>.
+    /// </summary>
+    public HeaderBarMode HeaderBar { get => field; set { field = value; _headerBarSet = true; } }
+    internal bool HeaderBarSet => _headerBarSet;
+
+    private bool _headerBarForegroundSet;
+    /// <summary>
+    /// A fixed colour for the header bar's title and action icons, as a hex string such as
+    /// <c>"#FFFFFF"</c>, for a page whose top is a photo or a colour of its own. <see langword="null"/>
+    /// follows the theme. When not set the value is inherited from the relevant <c>DefaultsConfig</c>.
+    /// </summary>
+    public string? HeaderBarForeground { get => field; set { field = value; _headerBarForegroundSet = true; } }
+    internal bool HeaderBarForegroundSet => _headerBarForegroundSet;
+
+    private bool _statusBarStyleSet;
+    /// <summary>
+    /// The colour of the status bar's clock and icons while this page is shown. Applied when the
+    /// page appears and again when the theme changes. On iOS it needs
+    /// <c>UIViewControllerBasedStatusBarAppearance</c> set to <c>false</c> in Info.plist.
+    /// When not set the value is inherited from the relevant <c>DefaultsConfig</c>.
+    /// </summary>
+    public StatusBarStyle StatusBarStyle { get => field; set { field = value; _statusBarStyleSet = true; } }
+    internal bool StatusBarStyleSet => _statusBarStyleSet;
 }
 
 /// <summary>
