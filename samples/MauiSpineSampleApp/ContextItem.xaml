@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:controls="clr-namespace:MauiSpineSampleApp.Controls"
              x:Class="MauiBottomSheetPoc.ContextItem"
-             x:Name="Root">
+             x:Name="Root"
+             Semantic.Merge="True">
 
     <Border
         BackgroundColor="Transparent"
@@ -11,12 +12,6 @@
         StrokeThickness="0"
         Padding="8,6"
         Margin="0">
-
-        <Border.GestureRecognizers>
-            <TapGestureRecognizer
-                Command="{Binding TapCommand, Source={x:Reference Root}}"
-                CommandParameter="{Binding TapCommandParameter, Source={x:Reference Root}}" />
-        </Border.GestureRecognizers>
 
         <Grid ColumnDefinitions="40, *, Auto" RowDefinitions="Auto, Auto, Auto"
               ColumnSpacing="12" RowSpacing="0"
@@ -50,6 +45,7 @@
                 Grid.Column="1"
                 Grid.Row="1"
                 Text="{Binding Description, Source={x:Reference Root}}"
+                SemanticProperties.Description="{Binding Description, Source={x:Reference Root}}"
                 FontSize="12"
                 TextColor="Gray"
                 HeightRequest="18"
