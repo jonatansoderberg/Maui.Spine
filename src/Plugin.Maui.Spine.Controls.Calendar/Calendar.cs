@@ -12,7 +12,8 @@ namespace Plugin.Maui.Spine.Controls;
 /// <remarks>
 /// <para>
 /// Day cells: <i>selected</i> is a filled accent circle, <i>today</i> an accent ring that is always
-/// drawn, and <i>today and selected</i> the ring with a smaller fill inside it.
+/// drawn, and <i>today and selected</i> the ring with a smaller fill inside it. Days that a
+/// <see cref="MarkSource"/> marks get a soft accent fill, or a dot (<see cref="CalendarMarkStyle"/>).
 /// </para>
 /// <para>
 /// Every view has two pages, the one on screen and the neighbour that slides in beside it; all 42 day
@@ -131,6 +132,10 @@ public partial class Calendar : ContentView
     private const double DayRowHeight = 40;
     private const double DayCircleSize = 36;
     private const double InnerCircleSize = 28;
+    private const double MarkDotSize = 5;
+
+    // Below the number and inside the inner fill, so a dot stays within every day look.
+    private const double MarkDotOffset = 11;
     private const double PickerRowHeight = 64;
 
     // Every BoxView sets its background: the MAUI template styles BoxView.BackgroundColor app-wide,
@@ -142,6 +147,9 @@ public partial class Calendar : ContentView
         public required Ellipse TodayRing;
         public required BoxView InnerFill;
         public required Label Label;
+
+        // Built the first time the dot mark style needs it.
+        public BoxView? Dot;
         public DateTime Date;
         public bool IsTrailing;
     }
@@ -159,6 +167,10 @@ public partial class Calendar : ContentView
         // The month the cells show; -1 makes the next render write the text again.
         public int Year = -1;
         public int Month = -1;
+
+        // The marked days among the cells, and the question to the mark source they came from.
+        public HashSet<DateOnly>? Marks;
+        public MarkQuery? MarkQuery;
     }
 
     /// <summary>A 3×4 picker: the year view's months or the decade view's years.</summary>
@@ -201,6 +213,9 @@ public partial class Calendar : ContentView
 
         // A theme or culture change repaints the views that exist rather than building new ones.
         SpineTheme.Track(this, Repaint);
+
+        Loaded += OnCalendarLoaded;
+        Unloaded += OnCalendarUnloaded;
     }
 
     private static DateTime FirstOfMonth(DateTime date) => new(date.Year, date.Month, 1);
@@ -499,6 +514,23 @@ public partial class Calendar : ContentView
         container.Add(label);
 
         return new DayCell { Container = container, Fill = fill, TodayRing = todayRing, InnerFill = innerFill, Label = label };
+    }
+
+    private static BoxView AddDot(DayCell cell)
+    {
+        var dot = new BoxView
+        {
+            CornerRadius = MarkDotSize / 2,
+            HeightRequest = MarkDotSize,
+            WidthRequest = MarkDotSize,
+            TranslationY = MarkDotOffset,
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions = LayoutOptions.Center,
+            BackgroundColor = Colors.Transparent,
+            InputTransparent = true,
+        };
+        cell.Container.Add(dot);
+        return dot;
     }
 
     private static PickerPage BuildPickerPage(CalendarStyleOptions style)

@@ -10,7 +10,8 @@ namespace Plugin.Maui.Spine.Controls;
 /// <remarks>
 /// A colour left <see langword="null"/> follows the theme. The accent defaults to the app's accent
 /// (<see cref="SpineTheme.GetAccent"/>: <see cref="IThemeService.Accent"/>, else the <c>Primary</c> /
-/// <c>PrimaryDark</c> colour resources) and to the system blue when the app has none.
+/// <c>PrimaryDark</c> colour resources) and to the system blue when the app has none. The mark
+/// fills are the accent blended into the background, opaque, so they follow an accent change.
 /// </remarks>
 public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
 {
@@ -49,6 +50,18 @@ public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
     public Color? WeekNumberBackgroundColor { get; set; }
     public Color? WeekNumberTextColor { get; set; }
 
+    /// <summary>How a day that <see cref="Calendar.MarkSource"/> marks is drawn.</summary>
+    public CalendarMarkStyle MarkStyle { get; set; } = CalendarMarkStyle.Fill;
+
+    /// <summary>The circle behind a marked day of the displayed month (<see cref="CalendarMarkStyle.Fill"/>).</summary>
+    public Color? MarkFillColor { get; set; }
+
+    /// <summary>The circle behind a marked day of an adjacent month: fainter, like the day's text.</summary>
+    public Color? TrailingMarkFillColor { get; set; }
+
+    /// <summary>The number of a marked day on its fill, unless it is today or selected.</summary>
+    public Color? MarkedTextColor { get; set; }
+
     protected override void InheritColorsFrom(CalendarStyleOptions source)
     {
         AccentColor ??= source.AccentColor;
@@ -61,6 +74,9 @@ public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
         CurrentHighlightColor ??= source.CurrentHighlightColor;
         WeekNumberBackgroundColor ??= source.WeekNumberBackgroundColor;
         WeekNumberTextColor ??= source.WeekNumberTextColor;
+        MarkFillColor ??= source.MarkFillColor;
+        TrailingMarkFillColor ??= source.TrailingMarkFillColor;
+        MarkedTextColor ??= source.MarkedTextColor;
     }
 
     protected override void ApplyThemeDefaults(AppTheme theme)
@@ -79,6 +95,13 @@ public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
 
         // Opaque on purpose: a BoxView with an alpha colour paints over black on iOS.
         CurrentHighlightColor ??= Blend(accent, dark ? Colors.Black : Colors.White, dark ? 0.35 : 0.18);
+
+        // Blended into a raised dark grey rather than black, so in dark mode a mark reads lighter
+        // than the surface it sits on, not as a hole in it.
+        var markBackground = dark ? Color.FromArgb("#2C2C2E") : Colors.White;
+        MarkFillColor ??= Blend(accent, markBackground, dark ? 0.42 : 0.18);
+        TrailingMarkFillColor ??= Blend(accent, markBackground, dark ? 0.15 : 0.08);
+        MarkedTextColor ??= text;
 
         WeekNumberBackgroundColor ??= Color.FromArgb(dark ? "#2C2C2E" : "#F2F2F7");
         WeekNumberTextColor ??= Color.FromArgb(dark ? "#AEAEB2" : "#6C6C70");

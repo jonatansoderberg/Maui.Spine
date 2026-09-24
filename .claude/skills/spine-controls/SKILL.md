@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers and week numbers), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -96,6 +96,8 @@ A month calendar from plain MAUI views: swipe or arrows between months, tap the 
 ```
 
 `SelectedDate` is `DateTime.MinValue` for none and shows its month when set; `DisplayDate` is written as the 1st on navigation (reload month data on change). `Culture` null follows `SpineStrings.Current.Culture`. Colours follow the theme (accent = `SpineTheme.GetAccent`: `IThemeService.Accent`, else the app's `Primary` resource) and repaint on theme and culture changes; override with `CalendarStyleOptions` on the calendar or a `DefaultCalendarStyleOptions` resource, leaving colours null to keep them themed. Safe inside a `ScrollView`: vertical drags scroll the page. In C# next to `using System.Globalization;` alias it: `using Calendar = Plugin.Maui.Spine.Controls.Calendar;`.
+
+Marked days: the calendar never holds events; set `MarkSource` to an `ICalendarMarkSource` (`GetMarkedDatesAsync(first, last, ct)` for the 42 days of a month page, plus a `Changed` event). It asks for the shown month and both neighbours (so a swipe finds marks ready), caches per page range, cancels stale questions, listens to `Changed` only while loaded (no page leak through a singleton source) and logs source exceptions instead of throwing. For dates already in a view model, bind a `CalendarMarks` (`Set`/`Add`/`Remove`/`Clear`, raises `Changed`); for a service, derive from `CalendarMarkSource` or use `CalendarMarkSource.From(delegate)` and call `NotifyChanged()`. Look: `MarkFillColor` / `TrailingMarkFillColor` / `MarkedTextColor` (accent blends by default) or `MarkStyle = CalendarMarkStyle.Dot`; screen readers add `Calendar.Marked` ("Has events", override the string when marks mean something else).
 
 ## DataGrid (`Plugin.Maui.Spine.Controls.DataGrid`)
 

@@ -205,8 +205,7 @@ public partial class Calendar
             var strings = SpineStrings.Current;
             page.WeekHeader.Text = strings["Calendar.WeekHeader"];
 
-            var firstOfMonth = new DateTime(year, month, 1);
-            var gridStart = firstOfMonth.AddDays(-(((int)firstOfMonth.DayOfWeek - (int)FirstDayOfWeek + 7) % 7));
+            var gridStart = GridStart(year, month);
 
             for (int i = 0; i < 42; i++)
             {
@@ -226,6 +225,7 @@ public partial class Calendar
             }
         }
 
+        EnsureMarks(page);
         RefreshDayVisuals(page);
     }
 
@@ -245,6 +245,8 @@ public partial class Calendar
         var strings = SpineStrings.Current;
         var today = Today.Date;
         var selected = SelectedDate.Date;
+        var marks = page.Marks;
+        bool dots = style.MarkStyle == CalendarMarkStyle.Dot;
 
         foreach (var cell in page.DayCells)
         {
@@ -258,9 +260,15 @@ public partial class Calendar
             var date = cell.Date;
             bool isToday = date == today;
             bool isSelected = ShowSelectedDate && selected != DateTime.MinValue.Date && date == selected;
+            bool isMarked = marks?.Contains(DateOnly.FromDateTime(date)) == true;
+            bool markFill = isMarked && !dots;
 
             // Today and selected: the fill stays clear, and the ring and the inner fill make the look.
-            cell.Fill.Color = isSelected && !isToday ? style.AccentColor : Colors.Transparent;
+            // Today and marked: the mark fill inside the ring.
+            cell.Fill.Color =
+                isSelected ? (isToday ? Colors.Transparent : style.AccentColor)
+                : markFill ? (cell.IsTrailing ? style.TrailingMarkFillColor : style.MarkFillColor)
+                : Colors.Transparent;
             cell.TodayRing.IsVisible = isToday;
             cell.InnerFill.IsVisible = isToday && isSelected;
 
@@ -268,15 +276,31 @@ public partial class Calendar
                 isSelected ? style.SelectedTextColor
                 : cell.IsTrailing ? style.TrailingTextColor
                 : isToday ? style.TodayTextColor
+                : markFill ? style.MarkedTextColor
                 : style.DayTextColor;
 
             cell.Label.FontAttributes = isToday || isSelected ? FontAttributes.Bold : FontAttributes.None;
+
+            if (isMarked && dots)
+            {
+                var dot = cell.Dot ??= AddDot(cell);
+                dot.Color = isSelected ? style.SelectedTextColor
+                    : cell.IsTrailing ? style.TrailingTextColor
+                    : style.AccentColor;
+                dot.IsVisible = true;
+            }
+            else if (cell.Dot is not null)
+            {
+                cell.Dot.IsVisible = false;
+            }
 
             var description = date.ToString("D", culture);
             if (isToday)
                 description += ", " + strings["Calendar.Today"];
             if (isSelected)
                 description += ", " + strings["Calendar.Selected"];
+            if (isMarked)
+                description += ", " + strings["Calendar.Marked"];
             SemanticProperties.SetDescription(cell.Label, description);
         }
     }
