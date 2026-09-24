@@ -35,11 +35,12 @@ public partial class HeaderBarPageViewModel : ViewModelBase
 
         _background = new("Background",
         [
-            new("Auto", "What the platform's own bar does: the hard scroll edge on iOS 26 when a list fills the page, as in native apps, Transparent under Overlay, Solid otherwise. The default; pick another value only to get a look on purpose.", () => HeaderBarBackground = HeaderBarBackground.Auto),
+            new("Auto", "What the platform's own bar does: on iOS the navigation bar's default when a list fills the page (Smooth on iOS 26, Hard from iOS 27), Transparent under Overlay, Solid otherwise. The default; pick another value only to get a look on purpose.", () => HeaderBarBackground = HeaderBarBackground.Auto),
             new("Solid", "The page's colour: content under the bar is hidden. A classic bar, or a photo that gives way to a plain bar once it scrolls.", () => HeaderBarBackground = HeaderBarBackground.Solid),
             new("Transparent", "Nothing: content shows through the bar, and the title floats over it. A photo or a map under an Overlay bar.", () => HeaderBarBackground = HeaderBarBackground.Transparent),
-            new("ScrollEdge", "Content fades and blurs into the bar: the iOS 26 soft scroll edge, a fading band on Android and Windows. A lighter look than the native bar's.", () => HeaderBarBackground = HeaderBarBackground.ScrollEdge),
-            new("Hard", "ScrollEdgeHard: a frosted, nearly opaque band with a clear bottom edge, as behind a native iOS 26 navigation bar. What Auto gives on iOS 26; ask for it to get it on Android and Windows too.", () => HeaderBarBackground = HeaderBarBackground.ScrollEdgeHard),
+            new("Smooth", "SmoothEdge: content fades and blurs into the whole header, the navigation bar's default on iOS 26. A fading band on Android and Windows.", () => HeaderBarBackground = HeaderBarBackground.SmoothEdge),
+            new("Status bar", "SmoothStatusBar: the same soft fade behind the status bar only; rows stay sharp behind the title and the actions. For a bar that should stay light.", () => HeaderBarBackground = HeaderBarBackground.SmoothStatusBar),
+            new("Hard", "HardEdge: a frosted, nearly opaque band with a clear bottom edge, the navigation bar's default from iOS 27. A nearly opaque band with a hairline on Android and Windows.", () => HeaderBarBackground = HeaderBarBackground.HardEdge),
         ]);
 
         _foreground = new("Foreground",

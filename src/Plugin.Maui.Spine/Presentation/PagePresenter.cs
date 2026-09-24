@@ -90,6 +90,7 @@ internal sealed partial class PagePresenter : Grid
 
         Children.Add(_barBackground);
         Children.Add(_titleBar);
+        AddStatusBarEdge();
 
         Grid.SetRow(_contentPresenter, 1);
         Children.Add(_contentPresenter);
@@ -224,11 +225,18 @@ internal sealed partial class PagePresenter : Grid
         ApplyTitleTextColor();
         ApplyBarBackgroundColor();
         ApplyCollapse();
+        ApplyStatusBarEdge();
         UpdateSystemScrollEdge();
     }
 
     /// <summary>Installs or removes UIKit's scroll edge effect for the page; iOS and Mac Catalyst 26 only.</summary>
     partial void UpdateSystemScrollEdge();
+
+    /// <summary>Adds the element a <see cref="HeaderBarBackground.SmoothStatusBar"/> effect is sized to; Apple platforms only.</summary>
+    partial void AddStatusBarEdge();
+
+    /// <summary>Shows that element, as tall as the status bar, while the page asks for it.</summary>
+    partial void ApplyStatusBarEdge();
 
     /// <summary>
     /// The background the presenter paints behind the title row. A bar with a row of its own has
@@ -270,6 +278,9 @@ internal sealed partial class PagePresenter : Grid
     /// <summary>How opaque the soft stand-in band is behind the bar: rows stay faintly visible through it.</summary>
     private const float ScrollEdgeBandAlpha = 0.9f;
 
+    /// <summary>How far the status-bar stand-in band fades out below the status bar.</summary>
+    private const double StatusBarBandFade = 16;
+
     /// <summary>How opaque the hard stand-in band is: rows only just show through, as through UIKit's frosted band.</summary>
     private const float ScrollEdgeHardBandAlpha = 0.96f;
 
@@ -294,7 +305,7 @@ internal sealed partial class PagePresenter : Grid
         double height;
         _barBackground.Color = null;
 
-        if (BarBackground is HeaderBarBackground.ScrollEdgeHard)
+        if (BarBackground is HeaderBarBackground.HardEdge)
         {
             // The stand-in for the hard style: the page's colour, nearly opaque, ending at the
             // bar's bottom edge in a hairline, as a frosted band does.
@@ -310,6 +321,21 @@ internal sealed partial class PagePresenter : Grid
                     new GradientStop(tint, edge),
                     new GradientStop(line, edge),
                     new GradientStop(line, 1),
+                ],
+                new Point(0, 0), new Point(0, 1));
+        }
+        else if (BarBackground is HeaderBarBackground.SmoothStatusBar)
+        {
+            // The soft stand-in behind the status bar only, fading out before the title row.
+            var statusBar = _page?.SystemBarInsets.Top ?? 0;
+            height = statusBar + StatusBarBandFade;
+            var tint = colour.WithAlpha(ScrollEdgeBandAlpha);
+
+            _barBackground.Background = new LinearGradientBrush(
+                [
+                    new GradientStop(tint, 0),
+                    new GradientStop(tint, (float)(statusBar / height)),
+                    new GradientStop(colour.WithAlpha(0), 1),
                 ],
                 new Point(0, 0), new Point(0, 1));
         }
@@ -400,7 +426,7 @@ internal sealed partial class PagePresenter : Grid
         // at the items, though (a large title's and a sheet's reach the bar's bottom), so there
         // the label ends with the item row.
         var below = new Thickness(0, 0, 0, HeaderBarConstants.BarHeight - HeaderBarConstants.Height);
-        var itemsOnly = BarBackground is HeaderBarBackground.ScrollEdgeHard
+        var itemsOnly = BarBackground is HeaderBarBackground.HardEdge
             && _page?.LargeTitle != true
             && (BindingContext as NavigationRegionViewModel)?.Presentation is not NavigationPresentation.Sheet;
         _titleLabel.Padding = itemsOnly ? Thickness.Zero : below;
