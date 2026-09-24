@@ -42,6 +42,7 @@ internal sealed class ThemeService(SpineOptions options) : IThemeService
     internal void Initialize(Application app)
     {
         _app = app;
+        ThemeTracker.TakeOver();
 
         if (options.Theme.Persist
             && Preferences.Default.Get(PreferenceKey, (int)AppTheme.Unspecified) is var stored

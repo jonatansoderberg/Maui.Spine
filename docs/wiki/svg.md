@@ -50,7 +50,7 @@ builder
     });
 ```
 
-`builder.UseSpine()` calls both for you — do not call them again when the app uses `Plugin.Maui.Spine`.
+`builder.UseSpine()` calls both for you. With Spine, call `UseSvgIcon(o => …)` only to change the options — before or after `UseSpine()`, every call configures the same `SvgIconOptions`. `UseEmbeddedSvgImages(...)` is additive: a later call scans only assemblies not seen before.
 
 ---
 
@@ -263,4 +263,4 @@ The cache key is a SHA-256 hash of the SVG file bytes, resource name, platform i
 - Do **not** use a returned icon path as a MAUI `ImageSource` — it is a raw file path for platform-native icon APIs.
 - Do **not** call `SvgIconService.GetOrCreateAsync` on the UI thread — it performs file I/O and should be awaited from a background context.
 - Do **not** use `SvgIconService` for inline MAUI view images — use the `SvgImageSource` attached properties instead.
-- Do **not** call `UseEmbeddedSvgImages()` or `UseSvgIcon()` when the app uses `Plugin.Maui.Spine` — `UseSpine()` already calls both.
+- Do **not** call `UseEmbeddedSvgImages()` or `UseSvgIcon()` when the app uses `Plugin.Maui.Spine` except to pass options or extra assemblies — `UseSpine()` already calls both.

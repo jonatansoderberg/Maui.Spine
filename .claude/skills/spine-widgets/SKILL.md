@@ -5,7 +5,7 @@ description: Build home-screen widgets, Lock Screen widgets and Live Activities 
 
 You are building a widget or a Live Activity with **Plugin.Maui.Spine.Widgets**. The app builds a small view tree in C#; Spine serializes it and a native renderer draws it — SwiftUI in a WidgetKit extension on iOS (compiled during the app's build, no Xcode project) and `RemoteViews` on Android. **No C# runs in the widget**: the renderer draws what the app last wrote. Full docs: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/widgets.md.
 
-Check `/spine-setup` §7 first: the package, `UseSpineWidgets()` after `UseSpine`, the `<SpineWidget>` items, and on iOS the App Group entitlement.
+Check `/spine-setup` §7 first: the package (registered by `UseSpine`; `UseSpineWidgets(o => …)` only for options), the `<SpineWidget>` items, and on iOS the App Group entitlement.
 
 Platforms: iOS 17+ (home screen, Lock Screen, Live Activities) and Android 5+ (home screen; Live Activities on Android 16+ as Live Updates). Mac Catalyst and Windows get no-op services — check `IWidgetService.IsSupported`.
 

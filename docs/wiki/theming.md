@@ -122,6 +122,11 @@ its own `HandlerChanged` handler, so view, callback and subscription are collect
 the page, whether or not MAUI disconnected its handler. All subscriptions are dropped when a new
 window is built; a live view lists itself again on its next handler change.
 
+`SpineTheme.Track` also works in an app that never calls `UseSpine()`, such as one that uses a
+single control package: until `SpineApplication` hands the job to `IThemeService`, the tracker
+follows `Application.RequestedThemeChanged` and `SpineStrings.Changed` itself, from the first
+subscription made once the application exists. Each change is announced once either way.
+
 `SpineTheme.Version` (or `IThemeService.Version`) is the counter behind the catch-up. A control
 that keeps a per-instance options object with colours can record the version it copied the app-wide
 defaults at and copy them again when the version moved, so overriding one padding value does not
