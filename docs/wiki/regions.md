@@ -36,7 +36,7 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually |
 | `HeaderBar` | `HeaderBarMode` | `Normal` | `Overlay` floats the header bar over content that starts at the top of the screen. See [Overlay header](#overlay-header) |
 | `LargeTitle` | `bool` | `false` | The page opens on its own large title, which collapses into the header bar as it scrolls. See [Large title](#large-title) |
-| `HeaderBarBackground` | `HeaderBarBackground` | `Auto` | What is behind the header bar while content scrolls under it: `ScrollEdge` (the iOS 26 scroll edge effect, a fading band elsewhere), `Solid` (transparent at the top, the page background once content passes under), `Clear`, or `Auto` (`Clear` under `Overlay`; `ScrollEdge` on iOS 26 for a list page; `Solid` otherwise). See [Scroll edge](#scroll-edge) |
+| `HeaderBarBackground` | `HeaderBarBackground` | `Auto` | What is behind the header bar while content scrolls under it: `ScrollEdge` (the iOS 26 scroll edge effect in the system's style, a fading band elsewhere), `ScrollEdgeSoft` / `ScrollEdgeHard` (the same with a chosen style), `Solid` (transparent at the top, the page background once content passes under), `Clear`, or `Auto` (`Clear` under `Overlay`; `ScrollEdge` on iOS 26 for a list page; `Solid` otherwise). See [Scroll edge](#scroll-edge) |
 | `HeaderBarForeground` | `string?` | `null` | A fixed colour (hex) for the header bar's title and action icons; `null` follows the theme |
 | `StatusBarStyle` | `StatusBarStyle` | `Default` | `LightContent` or `DarkContent` for the status bar's clock and icons while the page is shown |
 | `ScrollInset` | `SafeAreaEdges` | `None` | Edges on which the page's first `ScrollView` / `CollectionView` takes the safe-area inset as a native content inset, so it can scroll under an excluded bar and still reach its last row. See [Scrolling under a bar](#scrolling-under-a-bar) |
@@ -203,7 +203,7 @@ Three settings, each on the attribute and as an app-wide default in `options.Reg
 |---|---|
 | `HeaderBar` (`Normal`, `Overlay`) | Layout: whether the page draws its own top under the bar (a photo, a hero) |
 | `LargeTitle` | Whether the page opens on a large title that collapses into the bar |
-| `HeaderBarBackground` (`Auto`, `ScrollEdge`, `Solid`, `Clear`) | What is behind the bar while content scrolls under it |
+| `HeaderBarBackground` (`Auto`, `ScrollEdge`, `ScrollEdgeSoft`, `ScrollEdgeHard`, `Solid`, `Clear`) | What is behind the bar while content scrolls under it |
 
 - A large title always has content scrolling under the bar, so it lays out like the overlay: content starts at the top of the screen and `SafeAreaInsets.Top` is status bar plus header. Spine adds `Top` to the scroll source's `SafeArea.ScrollInset`, so the large title starts right under the bar without the page doing anything.
 - `Overlay` and `LargeTitle` combine: a hero with a greeting in it, `HeaderBar.CollapseDistance` set to where the greeting has gone, and `HeaderBarBackground = Solid` so the bar closes over the photo once the list passes under it. `Overlay` with `Solid` and no large title gives the photo page whose bar turns solid on scroll; mind that a fixed `HeaderBarForeground` stays fixed on the solid bar.
@@ -218,16 +218,31 @@ Three settings, each on the attribute and as an app-wide default in `options.Reg
 
 ## Scroll edge
 
-On iOS 26, content in system apps scrolls under the navigation bar and stays half visible behind a soft edge. Spine gives a list page the same effect without any page code:
+On iOS 26, content in system apps scrolls under the navigation bar and stays half visible behind it. Spine gives a list page the same effect without any page code:
 
 ```csharp
 [NavigableRegion(Title = "Inbox")]   // HeaderBarBackground.Auto: ScrollEdge on iOS 26
 ```
 
 - With `Auto`, a region or tab page gets `ScrollEdge` on iOS and Mac Catalyst 26 when its header bar is visible and its scroll view fills the page from the top. Its scroll view is `HeaderBar.ScrollSource`, or else the first `ScrollView` / `CollectionView`. "Fills from the top" means every container between the page and the list holds only the list, or is a grid in which the list spans all rows (a list with a floating button). A page with fixed content above its list keeps the solid bar, so nothing that does not scroll ends up under the header. Sheets keep their own header.
-- The page is laid out as under `Overlay`, and the scroll view gets the top inset, so the first row starts below the bar at rest. The header gets a `UIScrollEdgeElementContainerInteraction` pointing at the scroll view (soft style), and UIKit draws the edge effect as it does behind a `UINavigationBar`. The glass page actions stay as they are.
-- Set `HeaderBarBackground = HeaderBarBackground.ScrollEdge` to ask for it on any page and platform. Android and Windows then show a band in the page colour behind the bar, slightly see-through and fading out over 24 points below it, as rows pass under. iOS and Mac Catalyst before 26 show `Solid`.
-- Reduce Transparency (iOS/Mac) or transparency effects off (Windows) turn `ScrollEdge` into `Solid`. The setting is read when the page is navigated to.
+- The page is laid out as under `Overlay`, and the scroll view gets the top inset, so the first row starts below the bar at rest. The header's title row gets a `UIScrollEdgeElementContainerInteraction` pointing at the scroll view, and UIKit draws the edge effect as it does behind a `UINavigationBar`: from the top of the screen over the status bar and the whole bar. The glass page actions stay as they are.
+- UIKit sizes the effect to the elements in the container view (labels, images, controls), not to the container itself: an empty view in the container does not count, and the effect stops below the lowest element. That is why the title label fills the bar's height. A page with a visible header bar but an empty title has nothing for UIKit to size the effect to.
+- The style follows UIKit's `UIScrollEdgeEffectStyle`:
+
+| Value | iOS / Mac Catalyst 26 | Android, Windows |
+|---|---|---|
+| `ScrollEdge` | UIKit's automatic style, as behind a navigation bar: soft on iPhone; the system may choose hard elsewhere (the Mac) | As `ScrollEdgeSoft` |
+| `ScrollEdgeSoft` | Content fades and blurs into the bar, a little past its bottom edge | The page colour, slightly see-through behind the bar, fading out over 24 points below it |
+| `ScrollEdgeHard` | A frosted, nearly opaque band down to the bar's bottom edge, with a hairline there; for a bar with more in it than a title | The page colour, nearly opaque, down to the bar's bottom edge, with a hairline there |
+
+- Set one of them on the attribute to ask for it on any page and platform; `Auto` gives `ScrollEdge`. The Android and Windows stand-ins show as rows pass under. iOS and Mac Catalyst before 26 show `Solid`.
+- Reduce Transparency (iOS/Mac) or transparency effects off (Windows) turn every scroll edge value into `Solid`. The setting is read when the page is navigated to, and again when the page changes its background.
+- The background can change while the page is shown: set `HeaderBarBackground` (or `HeaderBarMode`) on the page's view model. Spine resolves it again (`Auto` and the fallbacks included) and lays the page out again, under the bar for a scroll edge value or `Overlay`, below it otherwise. The Scroll edge sample page switches between every value this way.
+
+```csharp
+// In the page's view model, e.g. from a setting:
+HeaderBarBackground = HeaderBarBackground.ScrollEdgeHard;
+```
 - It combines with `LargeTitle`: the large title slides under the edge while the bar's title fades in.
 - Opt out app-wide with `options.RegionDefaults.HeaderBarBackground = HeaderBarBackground.Solid` (and the same on `TabDefaults`), or per page on the attribute.
 

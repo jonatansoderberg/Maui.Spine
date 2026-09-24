@@ -41,13 +41,38 @@ public enum HeaderBarBackground
     Clear,
 
     /// <summary>
-    /// Content scrolls under the bar and stays half visible behind a soft edge: the iOS 26 scroll
-    /// edge effect, drawn by UIKit as it does for a navigation bar. Lays the page out under the bar
-    /// like <see cref="HeaderBarMode.Overlay"/>. Where the system effect does not exist (Android,
-    /// Windows) a band in the page's background colour that fades out below the bar stands in; on
-    /// iOS and Mac Catalyst before 26, and with Reduce Transparency on, it is <see cref="Solid"/>.
+    /// Content scrolls under the bar and stays half visible behind it: the iOS 26 scroll edge
+    /// effect, drawn by UIKit as it does for a navigation bar, over the status bar and the whole
+    /// bar. Lays the page out under the bar like <see cref="HeaderBarMode.Overlay"/>. The style is
+    /// UIKit's automatic one, as for a navigation bar: soft on iPhone; the system may choose hard
+    /// elsewhere, such as on the Mac. Where
+    /// the system effect does not exist (Android, Windows) the stand-in for
+    /// <see cref="ScrollEdgeSoft"/> is shown; on iOS and Mac Catalyst before 26, and with Reduce
+    /// Transparency on, it is <see cref="Solid"/>.
     /// </summary>
     ScrollEdge,
+
+    /// <summary>
+    /// <see cref="ScrollEdge"/> with the soft style: content fades and blurs into the bar. Android
+    /// and Windows show a band in the page's background colour, slightly see-through behind the
+    /// bar and fading out below it.
+    /// </summary>
+    ScrollEdgeSoft,
+
+    /// <summary>
+    /// <see cref="ScrollEdge"/> with the hard style: a frosted, nearly opaque band behind the bar
+    /// with a hairline at its bottom edge, for a bar with more in it than a title. Android and
+    /// Windows show the page's background colour, nearly opaque, down to the bar's bottom edge,
+    /// with a hairline there.
+    /// </summary>
+    ScrollEdgeHard,
+}
+
+internal static class HeaderBarBackgroundExtensions
+{
+    /// <summary>Whether <paramref name="background"/> is one of the scroll edge values.</summary>
+    public static bool IsScrollEdge(this HeaderBarBackground background) =>
+        background is HeaderBarBackground.ScrollEdge or HeaderBarBackground.ScrollEdgeSoft or HeaderBarBackground.ScrollEdgeHard;
 }
 
 /// <summary>The colour of the status bar's clock and icons while a page is shown.</summary>
