@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/380
 **Branch:** issue/380-build-warnings
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -42,7 +42,7 @@ Out of scope, left for the parallel header-bar rewrite that is replacing these f
 | Sample, `net10.0-android` | 29 | 7 |
 | CI (`windows-latest`, packages incl. Windows) | 320 | 25 |
 
-Everything left is in the excluded files: `HeaderBarConstants.cs` (CS1591 ×11 locally, ×19 in CI with the Windows target), `NavigationRegion.cs` (CS1734 ×2), `PagePresenter.cs` (CS0108 ×2, CS8603), `SpineOptions.cs` (CS1574), and the sample's `MainPage.*` (MVVMTK0033, MAUIG2045).
+Everything left is in the excluded files, and is fixed with the header-bar rewrite in #379: `HeaderBarConstants.cs` (CS1591 ×11 locally, ×19 in CI with the Windows target), `NavigationRegion.cs` (CS1734 ×2), `PagePresenter.cs` (CS0108 ×2, CS8603), `SpineOptions.cs` (CS1574), and the sample's `MainPage.*` (MVVMTK0033, MAUIG2045).
 
 ## Decisions
 
