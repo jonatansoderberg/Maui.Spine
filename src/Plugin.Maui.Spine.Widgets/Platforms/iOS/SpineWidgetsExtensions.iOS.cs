@@ -19,7 +19,8 @@ public static partial class SpineWidgetsExtensions
         var refreshTask = NSBundle.MainBundle.ObjectForInfoDictionary("BGTaskSchedulerPermittedIdentifiers") is NSArray permitted
             ? Enumerable.Range(0, (int)permitted.Count).Select(i => permitted.GetItem<NSString>((nuint)i).ToString()).FirstOrDefault(id => id.EndsWith(".spine-widgets.refresh", StringComparison.Ordinal))
             : null;
-        var background = refreshTask is not null && options.BackgroundRefreshInterval > TimeSpan.Zero;
+        // Read when the callbacks run, not here: an explicit UseSpineWidgets after UseSpine changes the options later.
+        bool Background() => refreshTask is not null && options.BackgroundRefreshInterval > TimeSpan.Zero;
 
         builder.ConfigureLifecycleEvents(events => events.AddiOS(ios =>
         {
@@ -27,7 +28,7 @@ public static partial class SpineWidgetsExtensions
             // backgrounded so the home screen shows the state the user just left.
             ios.FinishedLaunching((_, _) =>
             {
-                if (background) RegisterBackgroundRefresh(refreshTask!, options.BackgroundRefreshInterval);
+                if (Background()) RegisterBackgroundRefresh(refreshTask!, options.BackgroundRefreshInterval);
                 ListenForActions();
                 ListenForActivities();
                 ListenForWidgetPushToken();
@@ -42,7 +43,7 @@ public static partial class SpineWidgetsExtensions
             ios.DidEnterBackground(_ =>
             {
                 if (options.RefreshOnBackground) RefreshAllInBackground(Services());
-                if (background) ScheduleBackgroundRefresh(refreshTask!, options.BackgroundRefreshInterval);
+                if (Background()) ScheduleBackgroundRefresh(refreshTask!, options.BackgroundRefreshInterval);
             });
             ios.WillEnterForeground(_ =>
             {

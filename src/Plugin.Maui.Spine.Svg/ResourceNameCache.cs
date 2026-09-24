@@ -23,40 +23,43 @@ public sealed class ResourceNameCache
     /// </summary>
     public ResourceNameCache() { }
 
+    // The assemblies already scanned, so a later call (UseSpine after an explicit
+    // UseEmbeddedSvgImages, or the other way round) adds only what is new.
+    private static readonly HashSet<Assembly> _scanned = [];
+
     /// <summary>
-    /// Scans the given assemblies for embedded <c>.svg</c> resources and populates the cache.
+    /// Scans the given assemblies for embedded <c>.svg</c> resources and adds them to the cache.
     /// When <paramref name="assemblies"/> is <see langword="null"/> or empty, the application
     /// entry assembly is used as a fallback.
-    /// This method is idempotent — subsequent calls are no-ops once the cache has been populated.
+    /// Assemblies already scanned are skipped, so calling it again only adds new ones.
     /// </summary>
     public void Initialize(IEnumerable<Assembly>? assemblies = null)
     {
-        if (_resourceMap.Count > 0) return;
+        var sources = assemblies?.Where(a => a is not null).ToList() ?? [];
+
+        // If the caller supplied nothing at all, use the app entry assembly.
+        if (sources.Count == 0 && Assembly.GetEntryAssembly() is { } entryAssembly)
+            sources.Add(entryAssembly);
 
         // Always include the plugin's own assembly so its built-in SVG resources are
         // discoverable regardless of what the caller passes in.
-        var pluginAssembly = Assembly.GetAssembly(typeof(SvgBitmapLoader));
+        sources.Add(typeof(SvgBitmapLoader).Assembly);
 
-        var sources = (assemblies?.Where(a => a is not null) ?? Enumerable.Empty<Assembly>())
-            .Concat(pluginAssembly is not null ? [pluginAssembly] : [])
-            .Concat(LoadIconsAssembly() is { } icons ? [icons] : [])
-            .Distinct()
-            .ToList();
-
-        // If the caller supplied nothing at all, also include the app entry assembly.
-        if (assemblies is null || !assemblies.Any())
+        lock (_scanned)
         {
-            var entryAssembly = Assembly.GetEntryAssembly();
-            if (entryAssembly is not null && !sources.Contains(entryAssembly))
-                sources.Add(entryAssembly);
-        }
+            if (_scanned.Count == 0 && LoadIconsAssembly() is { } icons)
+                sources.Add(icons);
 
-        foreach (var assembly in sources)
-        {
-            foreach (var name in assembly.GetManifestResourceNames()
-                         .Where(n => n.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)))
+            foreach (var assembly in sources)
             {
-                _resourceMap.TryAdd(name, assembly);
+                if (!_scanned.Add(assembly))
+                    continue;
+
+                foreach (var name in assembly.GetManifestResourceNames()
+                             .Where(n => n.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)))
+                {
+                    _resourceMap.TryAdd(name, assembly);
+                }
             }
         }
     }

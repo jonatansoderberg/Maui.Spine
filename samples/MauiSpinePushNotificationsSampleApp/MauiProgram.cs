@@ -32,7 +32,8 @@ public static class MauiProgram
                 options.AppTitle = "Spine Push";
                 options.RegionDefaults.IsHeaderBarVisible = true;
             })
-            // The picture widget has no link handler of its own; a tap opens the app on Home.
+            // UseSpine has registered Widgets and PushNotifications already; these calls only
+            // configure them. The picture widget has no link handler of its own; a tap opens the app on Home.
             .UseSpineWidgets(options => options.OpenWith<HomePage>())
             .UseSpinePushNotifications(options =>
             {

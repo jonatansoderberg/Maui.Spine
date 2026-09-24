@@ -18,6 +18,8 @@ builder
     });
 ```
 
+`UseSpine()` registers the package on its own; `UseSpinePushNotifications` is there for the options and works before or after it. Without Spine, the call is required.
+
 ```csharp
 // Platforms/iOS/Program.cs — before UIApplication.Main, so the delegate methods exist when UIKit looks
 SpinePushNotifications.Install();

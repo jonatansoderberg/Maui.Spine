@@ -1,0 +1,12 @@
+<Project>
+
+	<!--
+		The samples reference the Spine projects rather than their packages, so what NuGet would import
+		from each package's buildTransitive folder is imported here: the core's module generator and
+		every package's module declaration. The generator keeps only the modules whose assembly a
+		sample actually references.
+	-->
+	<Import Project="$(MSBuildThisFileDirectory)../src/Plugin.Maui.Spine/build/Plugin.Maui.Spine.targets" />
+	<Import Project="$(MSBuildThisFileDirectory)../src/*/build/*.props" />
+
+</Project>

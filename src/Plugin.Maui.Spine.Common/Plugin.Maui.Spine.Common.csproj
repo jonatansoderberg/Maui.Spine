@@ -16,6 +16,8 @@
 	<ItemGroup>
 		<!-- The icon walk is shared with the widget renderer and tested directly. -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Widgets" />
+		<!-- The marker that tells Plugin.Maui.Spine.Widgets push is registered. -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.PushNotifications" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Tests" />
 	</ItemGroup>
 

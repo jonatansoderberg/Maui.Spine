@@ -12,7 +12,9 @@ public static class SvgIconExtensions
     /// </summary>
     /// <remarks>
     /// When used alongside <c>builder.UseSpine()</c> you do not need to call this method —
-    /// Spine registers <see cref="ISvgIconService"/> automatically.
+    /// Spine registers <see cref="ISvgIconService"/> automatically. Call it only to change
+    /// <see cref="SvgIconOptions"/>, before or after <c>UseSpine()</c>: every call configures the
+    /// same options instance, so calling it more than once is harmless.
     /// </remarks>
     /// <param name="builder">The <see cref="MauiAppBuilder"/> to configure.</param>
     /// <param name="configure">
@@ -21,14 +23,19 @@ public static class SvgIconExtensions
     /// <returns>The same <paramref name="builder"/> instance to allow method chaining.</returns>
     public static MauiAppBuilder UseSvgIcon(this MauiAppBuilder builder, Action<SvgIconOptions>? configure = null)
     {
-        var options = new SvgIconOptions();
+        var services = builder.Services;
+
+        if (services.FirstOrDefault(static d => d.ServiceType == typeof(SvgIconOptions) && !d.IsKeyedService)?.ImplementationInstance
+            is not SvgIconOptions options)
+        {
+            options = new SvgIconOptions();
+            services.AddSingleton(options);
+        }
+
         configure?.Invoke(options);
 
-        if (!builder.Services.Any(sd => sd.ServiceType == typeof(SvgIconOptions)))
-            builder.Services.AddSingleton(options);
-
-        if (!builder.Services.Any(sd => sd.ServiceType == typeof(ISvgIconService)))
-            builder.Services.AddSingleton<ISvgIconService, SvgIconService>();
+        if (!services.Any(static d => d.ServiceType == typeof(ISvgIconService)))
+            services.AddSingleton<ISvgIconService, SvgIconService>();
 
         return builder;
     }

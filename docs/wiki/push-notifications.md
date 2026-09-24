@@ -48,7 +48,6 @@ out. `send.http` has the same calls for anyone who prefers the editor.
 ```csharp
 builder
     .UseSpine(…)
-    .UseSpineWidgets()          // optional; when present, Live Activity push tokens are sent up
     .UseSpinePushNotifications(o =>
     {
         o.Backend = new Uri("https://api.example.com/push/");
@@ -58,8 +57,10 @@ builder
     });
 ```
 
-Call `UseSpinePushNotifications` **after** `UseSpineWidgets`, so it can see that Widgets is there and turn Live
-Activity push tokens on.
+`UseSpine()` registers the package on its own; the explicit call is there for the options, and works before or
+after `UseSpine()` — every call configures the same options instance. An app without Spine calls
+`UseSpinePushNotifications` itself. When the app also references `Plugin.Maui.Spine.Widgets`, Live Activity push
+tokens are turned on, whichever of the two registers first.
 
 ### One line on Apple platforms
 

@@ -4,7 +4,8 @@ namespace Plugin.Maui.Spine.Core;
 
 /// <summary>
 /// The static face of <see cref="IThemeService"/> for controls that subscribe in their constructor,
-/// before dependency injection is reachable.
+/// before dependency injection is reachable. Works without <c>UseSpine</c> too: the tracker then
+/// follows the application's theme and <see cref="Plugin.Maui.Spine.Common.SpineStrings"/> itself.
 /// </summary>
 public static class SpineTheme
 {
