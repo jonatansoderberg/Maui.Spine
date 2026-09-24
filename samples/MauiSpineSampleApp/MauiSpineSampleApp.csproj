@@ -198,6 +198,15 @@
       <DependentUpon>ResultsPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Dates\DatesPage.View.xaml">
+      <DependentUpon>DatesPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Dates\DatesPage.ViewModel.cs">
+      <DependentUpon>DatesPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Marquee\MarqueePage.View.xaml">
       <DependentUpon>MarqueePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -322,6 +331,7 @@
   
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.AnimatedLabel\Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Calendar\Plugin.Maui.Spine.Controls.Calendar.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.DataGrid\Plugin.Maui.Spine.Controls.DataGrid.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />

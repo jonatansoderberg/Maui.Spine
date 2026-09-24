@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Calendar.WeekHeader">Wk</s>
+  <s key="Calendar.Week">Week {0}</s>
+  <s key="Calendar.Today">Today</s>
+  <s key="Calendar.Selected">Selected</s>
+  <s key="Calendar.PreviousMonth">Previous month</s>
+  <s key="Calendar.NextMonth">Next month</s>
+  <s key="Calendar.PreviousYear">Previous year</s>
+  <s key="Calendar.NextYear">Next year</s>
+  <s key="Calendar.PreviousDecade">Previous decade</s>
+  <s key="Calendar.NextDecade">Next decade</s>
+  <s key="Calendar.ChooseMonth">Choose a month</s>
+  <s key="Calendar.ChooseYear">Choose a year</s>
+</strings>

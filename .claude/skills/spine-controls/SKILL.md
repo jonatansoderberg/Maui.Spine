@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers and week numbers), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -86,6 +86,17 @@ A SkiaSharp label that scrolls (marquee) or fades text that does not fit. Regist
 
 Give it a `HeightRequest`; it measures on the Skia canvas, not through MAUI's text layout.
 
+## Calendar (`Plugin.Maui.Spine.Controls.Calendar`)
+
+A month calendar from plain MAUI views: swipe or arrows between months, tap the title for a year and then a decade picker, ISO week numbers. No registration: its `Calendar.*` strings register themselves on first use; XAML namespace `Plugin.Maui.Spine.Controls` (assembly `Plugin.Maui.Spine.Controls.Calendar`).
+
+```xml
+<Calendar SelectedDate="{Binding Date}" DisplayDate="{Binding Month}"
+          ShowWeekNumbers="True" ShowTrailingDays="True" FirstDayOfWeek="Monday" />
+```
+
+`SelectedDate` is `DateTime.MinValue` for none and shows its month when set; `DisplayDate` is written as the 1st on navigation (reload month data on change). `Culture` null follows `SpineStrings.Current.Culture`. Colours follow the theme (accent = the app's `Primary` resource) and repaint on theme and culture changes; override with `CalendarStyleOptions` on the calendar or a `DefaultCalendarStyleOptions` resource, leaving colours null to keep them themed. Safe inside a `ScrollView`: vertical drags scroll the page. In C# next to `using System.Globalization;` alias it: `using Calendar = Plugin.Maui.Spine.Controls.Calendar;`.
+
 ## DataGrid (`Plugin.Maui.Spine.Controls.DataGrid`)
 
 A row grid on `CollectionView`: fixed-height rows, sorting, grouping, swipe actions, load more, pull-to-refresh. No registration (its `DataGrid.*` strings register on first use); XAML namespace `Plugin.Maui.Spine.Controls` (assembly `Plugin.Maui.Spine.Controls.DataGrid`). Columns say WHAT the data is (`Key`, `Header`, `BindingPath`, `Type` = Text/Number/Date/Price/Image/Glyph/Checkbox/Template, `IsSortable`, `SortMemberPath`, `CellCommand` for a link cell); named layouts say WHERE (`DataGridCellPlacement` Row/Column/spans), switched by `LayoutMode` from a VisualStateManager setter (`DataGrid.LayoutMode`, type-qualified).
@@ -122,5 +133,6 @@ A control never hard-codes words. It reads `SpineStrings.Current["Calendar.Today
 - Glass buttons: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/glass-buttons.md
 - HeroCollectionView: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/hero-collection-view.md
 - AnimatedLabel: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/animated-label.md
+- Calendar: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/calendar.md
 - DataGrid: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/data-grid.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp

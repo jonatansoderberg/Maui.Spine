@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings culture="sv">
+  <s key="Calendar.WeekHeader">v.</s>
+  <s key="Calendar.Week">Vecka {0}</s>
+  <s key="Calendar.Today">Idag</s>
+  <s key="Calendar.Selected">Vald</s>
+  <s key="Calendar.PreviousMonth">Föregående månad</s>
+  <s key="Calendar.NextMonth">Nästa månad</s>
+  <s key="Calendar.PreviousYear">Föregående år</s>
+  <s key="Calendar.NextYear">Nästa år</s>
+  <s key="Calendar.PreviousDecade">Föregående decennium</s>
+  <s key="Calendar.NextDecade">Nästa decennium</s>
+  <s key="Calendar.ChooseMonth">Välj en månad</s>
+  <s key="Calendar.ChooseYear">Välj ett år</s>
+</strings>
