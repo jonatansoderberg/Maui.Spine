@@ -171,4 +171,5 @@ Spine auto-discovers pages via assembly scanning — no manual DI registration n
 | Custom page transitions | [Custom Transitions](custom-transitions.md) |
 | Collapsing header collection view | [HeroCollectionView](hero-collection-view.md) |
 | Marquee label control | [AnimatedLabel](animated-label.md) |
+| Skeleton loading | [Shimmer and Skeleton](shimmer.md) |
 | SVG image rendering and icon files | [SVG](svg.md) |

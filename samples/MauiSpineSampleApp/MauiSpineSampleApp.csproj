@@ -207,6 +207,15 @@
       <DependentUpon>MarqueePage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Shimmer\ShimmerPage.View.xaml">
+      <DependentUpon>ShimmerPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Shimmer\ShimmerPage.ViewModel.cs">
+      <DependentUpon>ShimmerPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\SvgIcons\SvgIconsPage.View.xaml">
       <DependentUpon>SvgIconsPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -314,6 +323,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.AnimatedLabel\Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
