@@ -12,7 +12,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Calendar for .NET MAUI: a month calendar with swipe navigation, year and decade pickers, ISO week numbers and theme-aware colours, built from plain MAUI views.</Description>
+		<Description>Calendar for .NET MAUI: a month calendar with swipe navigation, year and decade pickers, ISO week numbers, days marked from an external source and theme-aware colours, built from plain MAUI views.</Description>
 		<SpineIcon>calendar.png</SpineIcon>
 		<PackageTags>$(PackageTags);calendar;date;datepicker;controls</PackageTags>
 	</PropertyGroup>

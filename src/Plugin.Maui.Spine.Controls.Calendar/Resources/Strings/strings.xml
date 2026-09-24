@@ -12,4 +12,5 @@
   <s key="Calendar.NextDecade">Next decade</s>
   <s key="Calendar.ChooseMonth">Choose a month</s>
   <s key="Calendar.ChooseYear">Choose a year</s>
+  <s key="Calendar.Marked">Has events</s>
 </strings>

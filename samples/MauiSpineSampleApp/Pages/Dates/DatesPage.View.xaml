@@ -21,7 +21,9 @@
                           ShowTrailingDays="{Binding ShowTrailingDays}"
                           ShowSelectedDate="{Binding ShowSelectedDate}"
                           FirstDayOfWeek="{Binding FirstDayOfWeek}"
-                          Culture="{Binding Culture}" />
+                          Culture="{Binding Culture}"
+                          MarkSource="{Binding MarkSource}"
+                          StyleOptions="{Binding CalendarStyle}" />
             </Border>
 
             <Label Text="{Binding SelectedText}" FontSize="14" />
@@ -30,6 +32,26 @@
                 <Button Text="Today" Command="{Binding GoToTodayCommand}" />
                 <Button Text="Clear selection" Command="{Binding ClearSelectionCommand}" />
             </HorizontalStackLayout>
+
+            <Label Text="Marked days" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Label Text="A stand-in service marks some days per month and answers after 300 ms. The calendar asks for the month it shows and both neighbours, so a swipe finds its marks ready; it never holds the events themselves."
+                   FontSize="14" />
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding ShowMarks}" />
+                <Label Text="MarkSource" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="8"
+                                   RadioButtonGroup.GroupName="MarkStyle"
+                                   RadioButtonGroup.SelectedValue="{Binding MarkStyleName}">
+                <RadioButton Content="Fill" Value="Fill" />
+                <RadioButton Content="Dot" Value="Dot" />
+            </HorizontalStackLayout>
+            <Button Text="Change the service's data" Command="{Binding ChangeEventsCommand}" HorizontalOptions="Start" />
+            <Label Text="{Binding MarkQueryText}" FontSize="14" />
+            <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
+                       Text="// Your service, asked per month page&#10;class EventMarks(IEventApi api)&#10;    : CalendarMarkSource&#10;{&#10;    public override async&#10;        ValueTask&lt;IReadOnlyCollection&lt;DateOnly&gt;&gt;&#10;        GetMarkedDatesAsync(DateOnly first,&#10;            DateOnly last, CancellationToken ct)&#10;        =&gt; await api.DaysWithEventsAsync(&#10;               first, last, ct);&#10;}&#10;// New data: marks.NotifyChanged();&#10;&#10;// Or in memory, from a view model&#10;public CalendarMarks Marks { get; } = new();&#10;Marks.Set(days); // Add, Remove, Clear&#10;&#10;&lt;Calendar MarkSource=&quot;{Binding Marks}&quot; /&gt;" />
+            </Border>
 
             <Label Text="Theme and language, switched live" FontAttributes="Bold" Margin="0,8,0,0" />
             <HorizontalStackLayout Spacing="8"
