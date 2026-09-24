@@ -43,7 +43,7 @@ None.
 - Sample: `Pages/Menus/MenusPage` (header "more" action with a titled picker section, a submenu of toggles and a destructive row; a glass pop-up "Name" button; an icon button with plain actions; last pick and a summary), index row "Menu buttons".
 - Docs: `docs/wiki/menus.md`, README row, a section in `page-actions.md`, `/spine-page` and `/spine-controls` skills.
 - Verified on the iPhone 17 simulator (iOS 26): the header action opens a menu with icons, a checked picker, a separator and two submenus; picking moves the check and runs the command; the glass pop-up button shows "Name ◇" on one line and reads "Date ◇" after a pick. On the Pixel 10 Pro emulator: the popup shows the section title, radio picker, icons, dividers and submenus; toggles flip in the submenu; the pop-up button follows the pick. Mac Catalyst builds; Windows via CI.
-- Windows: aliased `MenuFlyout`, `MenuFlyoutItem`, `MenuFlyoutSeparator` and `MenuFlyoutSubItem` to the WinUI types in `MenuExtensions.Windows.cs` (CS0104 against the MAUI types of the same names, as in `SpineApplication.Windows.cs`).
+- Windows: aliased `MenuFlyout`, `MenuFlyoutItem`, `MenuFlyoutSeparator`, `MenuFlyoutSubItem` and `SolidColorBrush` to the WinUI types in `MenuExtensions.Windows.cs` (CS0104 against the MAUI types of the same names, as in `SpineApplication.Windows.cs`).
 
 ## Decisions
 

@@ -10,6 +10,7 @@ using MenuFlyout = Microsoft.UI.Xaml.Controls.MenuFlyout;
 using MenuFlyoutItem = Microsoft.UI.Xaml.Controls.MenuFlyoutItem;
 using MenuFlyoutSeparator = Microsoft.UI.Xaml.Controls.MenuFlyoutSeparator;
 using MenuFlyoutSubItem = Microsoft.UI.Xaml.Controls.MenuFlyoutSubItem;
+using SolidColorBrush = Microsoft.UI.Xaml.Media.SolidColorBrush;
 
 namespace Plugin.Maui.Spine.Extensions;
 
