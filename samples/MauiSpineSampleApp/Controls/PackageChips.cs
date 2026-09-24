@@ -24,6 +24,7 @@ public sealed class PackageChips : ContentView
     public PackageChips()
     {
         Content = _layout;
+        SpineTheme.Track(this, Paint);
     }
 
     private void Rebuild()
@@ -39,7 +40,6 @@ public sealed class PackageChips : ContentView
                 FontSize = 10,
                 LineBreakMode = LineBreakMode.NoWrap,
             };
-            label.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#512BD4"), Color.FromArgb("#CFC2FF"));
 
             var pill = new Border
             {
@@ -49,11 +49,24 @@ public sealed class PackageChips : ContentView
                 Margin = new Thickness(0, 0, 6, 4),
                 Content = label,
             };
-            pill.SetAppThemeColor(Border.BackgroundColorProperty, Color.FromArgb("#22512BD4"), Color.FromArgb("#40B39DFF"));
-
             _layout.Children.Add(pill);
         }
 
         IsVisible = _layout.Children.Count > 0;
+        Paint();
+    }
+
+    // The app's accent, which the user can change on the Theme page: a tint behind accent text.
+    private void Paint()
+    {
+        var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
+        var accent = SpineTheme.GetAccent(dark ? AppTheme.Dark : AppTheme.Light) ?? Colors.Gray;
+
+        foreach (var pill in _layout.Children.OfType<Border>())
+        {
+            pill.BackgroundColor = accent.WithAlpha(dark ? 0.25f : 0.13f);
+            if (pill.Content is Label label)
+                label.TextColor = accent;
+        }
     }
 }

@@ -22,8 +22,8 @@ public sealed class TokenSwatch : ContentView
     private void Paint()
     {
         var resources = Application.Current?.Resources;
-        _border.BackgroundColor = resources?["CardAccent"] as Color;
-        _label.TextColor = resources?["CardBackground"] as Color;
+        _border.BackgroundColor = resources?["Accent"] as Color;
+        _label.TextColor = resources?["OnAccent"] as Color;
         _label.Text = $"Painted in code at theme version {SpineTheme.Version}";
     }
 }

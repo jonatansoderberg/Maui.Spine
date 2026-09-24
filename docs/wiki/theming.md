@@ -24,6 +24,61 @@ flash light. Turn the storage off with `options.Theme.Persist = false`.
 
 `Effective` is `Light` or `Dark`, never unspecified: what is on screen right now.
 
+## The accent
+
+`IThemeService.Accent` is the app-wide accent the user picked: a `SpineAccent` with a light and a
+dark colour, or `null` for the app's own colour resources.
+
+```csharp
+_theme.Accent = new SpineAccent(Color.FromArgb("#FF2D55"), Color.FromArgb("#FF375F"));  // light, dark
+_theme.Accent = new SpineAccent(Colors.Teal);                                          // same in both
+_theme.Accent = null;                                                                  // the app's own again
+```
+
+It is stored with the theme choice (`options.Theme.Persist`) and applied again when the first
+window is created, before the first page. Setting it writes four colour resources into the
+dictionary Spine merges into the application resources, and then announces the change exactly like
+a theme switch: `Version` is bumped, `Changed` is raised and every `Track` callback runs, so views
+that colour themselves in code repaint without navigation.
+
+| Option | Default key | Holds |
+|---|---|---|
+| `AccentLightKey` | `Primary` | the light-mode accent |
+| `AccentDarkKey` | `PrimaryDark` | the dark-mode accent |
+| `AccentKey` | `Accent` | the accent of the theme in effect |
+| `OnAccentKey` | `OnAccent` | black or white, whichever reads on `Accent` (`SpineAccent.TextOn`) |
+
+`Primary` and `PrimaryDark` are the MAUI template's names, so the Calendar, the DataGrid and the
+header bar's text actions, which read them, follow. Set a key to `null` to leave that resource
+alone. With `null` as the accent, `Accent` and `OnAccent` are still kept up to date from the app's
+own `Primary` / `PrimaryDark`, as they were when the first window was created.
+
+Styles that should follow the accent at runtime use the one key that changes with both the theme
+and the accent. `{AppThemeBinding Light={StaticResource Primary}, …}` captures the colour at load
+and does not see a runtime change.
+
+```xml
+<Color x:Key="Primary">#007AFF</Color>        <!-- the default accent, light -->
+<Color x:Key="PrimaryDark">#0A84FF</Color>    <!-- and dark -->
+
+<Style TargetType="Button">
+    <Setter Property="BackgroundColor" Value="{DynamicResource Accent}" />
+    <Setter Property="TextColor" Value="{DynamicResource OnAccent}" />
+</Style>
+<Style TargetType="Switch">
+    <Setter Property="OnColor" Value="{DynamicResource Accent}" />
+</Style>
+```
+
+A control drawn in code reads the accent with `SpineTheme.GetAccent(theme)` inside its `Track`
+callback; it returns `null` when the app declares no accent, and the control keeps its own default.
+A tab bar follows with `SelectedColorKey = "Accent"`.
+
+Native colours that come from the platform theme rather than from MAUI properties (Android's
+Material `colorPrimary`, which tints the radio button circle and the text cursor) are fixed at
+build time: give them the default accent in `Platforms/Android/Resources/values/colors.xml`. The
+sample's Theme page shows a picker of Apple's system colours.
+
 ## Android background
 
 MAUI's activity declares `UiMode` among its configuration changes, so a theme switch does not
@@ -106,7 +161,7 @@ public sealed class Gauge : SKCanvasView
 
     protected override void OnPaintSurface(SKPaintSurfaceEventArgs e)
     {
-        var accent = (Color)Application.Current!.Resources["CardAccent"];
+        var accent = SpineTheme.GetAccent(Application.Current!.RequestedTheme) ?? Colors.Blue;
         …
     }
 }
@@ -135,5 +190,5 @@ opt the control out of theming.
 ## Spine's own parts
 
 The header bar title, page action buttons and the Android status bar icons follow the theme on
-their own. The tab bar follows it on Android (Material colours re-read from the activity theme) and
+their own, and the page action text buttons follow the accent. The tab bar follows the theme on Android (Material colours re-read from the activity theme) and
 on every platform where its style uses keys.

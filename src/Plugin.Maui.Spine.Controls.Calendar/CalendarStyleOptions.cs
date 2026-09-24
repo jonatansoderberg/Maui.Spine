@@ -8,9 +8,9 @@ namespace Plugin.Maui.Spine.Controls;
 /// <c>DefaultCalendarStyleOptions</c>; see <see cref="SpineStyleOptions{TSelf}"/> for the chain.
 /// </summary>
 /// <remarks>
-/// A colour left <see langword="null"/> follows the theme. The accent defaults to the app's
-/// <c>Primary</c> colour resource (<c>PrimaryDark</c> in dark mode when there is one, as in the
-/// MAUI template) and to the system blue when the app has neither.
+/// A colour left <see langword="null"/> follows the theme. The accent defaults to the app's accent
+/// (<see cref="SpineTheme.GetAccent"/>: <see cref="IThemeService.Accent"/>, else the <c>Primary</c> /
+/// <c>PrimaryDark</c> colour resources) and to the system blue when the app has none.
 /// </remarks>
 public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
 {
@@ -67,13 +67,13 @@ public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
     {
         bool dark = theme == AppTheme.Dark;
 
-        var accent = AccentColor ??= AppAccent(dark) ?? Color.FromArgb(dark ? "#0A84FF" : "#007AFF");
+        var accent = AccentColor ??= SpineTheme.GetAccent(theme) ?? Color.FromArgb(dark ? "#0A84FF" : "#007AFF");
         var text = dark ? Colors.White : Colors.Black;
 
         HeaderTextColor ??= text;
         DayTextColor ??= text;
         TodayTextColor ??= accent;
-        SelectedTextColor ??= Luminance(accent) > 0.5 ? Colors.Black : Colors.White;
+        SelectedTextColor ??= SpineAccent.TextOn(accent);
         TrailingTextColor ??= Color.FromArgb(dark ? "#5A5A5E" : "#C7C7CC");
         DayOfWeekTextColor ??= Color.FromArgb("#8E8E93");
 
@@ -83,20 +83,6 @@ public class CalendarStyleOptions : SpineStyleOptions<CalendarStyleOptions>
         WeekNumberBackgroundColor ??= Color.FromArgb(dark ? "#2C2C2E" : "#F2F2F7");
         WeekNumberTextColor ??= Color.FromArgb(dark ? "#AEAEB2" : "#6C6C70");
     }
-
-    private static Color? AppAccent(bool dark)
-    {
-        var resources = Application.Current?.Resources;
-        if (resources is null)
-            return null;
-
-        if (dark && resources.TryGetValue("PrimaryDark", out var primaryDark) && primaryDark is Color darkColor)
-            return darkColor;
-
-        return resources.TryGetValue("Primary", out var primary) && primary is Color color ? color : null;
-    }
-
-    private static double Luminance(Color color) => 0.2126 * color.Red + 0.7152 * color.Green + 0.0722 * color.Blue;
 
     private static Color Blend(Color color, Color background, double amount) => new(
         (float)(background.Red + (color.Red - background.Red) * amount),
