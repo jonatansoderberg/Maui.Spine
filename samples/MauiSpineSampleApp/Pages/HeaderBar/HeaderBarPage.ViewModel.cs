@@ -35,11 +35,11 @@ public partial class HeaderBarPageViewModel : ViewModelBase
 
         _background = new("Background",
         [
-            new("Auto", "What the platform's own bar does: the scroll edge effect on iOS 26 when a list fills the page, Transparent under Overlay, Solid otherwise. The default; pick another value only to get a look on purpose.", () => HeaderBarBackground = HeaderBarBackground.Auto),
+            new("Auto", "What the platform's own bar does: the hard scroll edge on iOS 26 when a list fills the page, as in native apps, Transparent under Overlay, Solid otherwise. The default; pick another value only to get a look on purpose.", () => HeaderBarBackground = HeaderBarBackground.Auto),
             new("Solid", "The page's colour: content under the bar is hidden. A classic bar, or a photo that gives way to a plain bar once it scrolls.", () => HeaderBarBackground = HeaderBarBackground.Solid),
             new("Transparent", "Nothing: content shows through the bar, and the title floats over it. A photo or a map under an Overlay bar.", () => HeaderBarBackground = HeaderBarBackground.Transparent),
-            new("ScrollEdge", "Content fades and blurs into the bar: the iOS 26 soft scroll edge, a fading band on Android and Windows. Lists, as in iOS 26 system apps.", () => HeaderBarBackground = HeaderBarBackground.ScrollEdge),
-            new("Hard", "ScrollEdgeHard: a frosted, nearly opaque band with a clear bottom edge. A bar that holds more than a title: search, filters, several buttons.", () => HeaderBarBackground = HeaderBarBackground.ScrollEdgeHard),
+            new("ScrollEdge", "Content fades and blurs into the bar: the iOS 26 soft scroll edge, a fading band on Android and Windows. A lighter look than the native bar's.", () => HeaderBarBackground = HeaderBarBackground.ScrollEdge),
+            new("Hard", "ScrollEdgeHard: a frosted, nearly opaque band with a clear bottom edge, as behind a native iOS 26 navigation bar. What Auto gives on iOS 26; ask for it to get it on Android and Windows too.", () => HeaderBarBackground = HeaderBarBackground.ScrollEdgeHard),
         ]);
 
         _foreground = new("Foreground",
