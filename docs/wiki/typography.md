@@ -58,4 +58,4 @@ Meant for short all-caps or initials text. Text with descenders ("gy") will sit 
 
 ## Sample
 
-The sample app's **Typography** page shows a ticking clock and a score column with and without `TabularFigures`, and initials in circles with and without the trim.
+The sample app's **Typography** page shows a ticking clock and a score column with and without `tnum`, and initials in circles with and without the trim.
