@@ -111,10 +111,16 @@ internal static class BottomSheetPageExtensions
         {
             BackgroundPageOverlay.None => new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)),
             BackgroundPageOverlay.Dimmed => new SolidColorBrush(Windows.UI.Color.FromArgb(110, 0, 0, 0)),
-            _ => isDarkTheme
-                ? new AcrylicBrush { TintColor = Colors.Gray, TintOpacity = 0.2, FallbackColor = Colors.Gray }
-                : new AcrylicBrush { TintColor = Colors.White, TintOpacity = 0.6, FallbackColor = Colors.White }
+            _ => BlurredOverlayBrush(),
         };
+
+        // The same material as on the other platforms; the view only carries its values and is never shown.
+        static Brush BlurredOverlayBrush()
+        {
+            var owner = new Microsoft.Maui.Controls.ContentView();
+            Material.SetPreset(owner, MaterialPreset.BlurThin);
+            return SpineExtensions.MaterialBrush(owner);
+        }
 
         var overlay = new Grid
         {

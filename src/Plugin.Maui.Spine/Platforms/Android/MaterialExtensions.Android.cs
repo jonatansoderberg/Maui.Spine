@@ -90,6 +90,8 @@ internal sealed class MaterialDrawable : Drawable
     private float _blurRadius;
     private RenderNode? _behind;
     private bool _listening;
+    private float _presence = 1;
+    private (float Radius, Microsoft.Maui.Graphics.Color Fill) _full;
 
     public MaterialDrawable(AView host, float density)
     {
@@ -116,22 +118,48 @@ internal sealed class MaterialDrawable : Drawable
         if (kind == MaterialKind.Blur && OperatingSystem.IsAndroidVersionAtLeast(31))
         {
             var intensity = Material.BlurIntensity(owner);
-            _blurRadius = (float)(BlurRadius * intensity) * _density;
 
             // The thinnest system material has a little milk of its own; the header bar's band is its tint alone.
             var milk = Material.GetSystemBlur(owner) == SystemBlur.None ? Material.Surface().WithAlpha((float)(ThinnestMilk * intensity)) : null;
-            _fill = (Material.Over(tint, milk) ?? Colors.Transparent).ToPlatform();
+            _full = ((float)(BlurRadius * intensity) * _density, Material.Over(tint, milk) ?? Colors.Transparent);
         }
         else
         {
-            _blurRadius = 0;
-            _fill = (tint ?? Colors.Transparent).ToPlatform();
+            _full = (0, tint ?? Colors.Transparent);
         }
+
+        ApplyPresence();
 
         _edge = Material.GetEdgeLine(owner)?.ToPlatform();
         _fade = (float)(Material.GetFade(owner) * _density);
         _shape = (owner as IBorderStroke)?.Shape;
         InvalidateSelf();
+    }
+
+    /// <summary>
+    /// How much of the material shows, from 0 (none) to 1 (all of it): the blur radius and the tint
+    /// scale together. The overlay behind a sheet follows the sheet in and out with it.
+    /// </summary>
+    public float Presence
+    {
+        get => _presence;
+        set
+        {
+            value = Math.Clamp(value, 0, 1);
+            if (value == _presence)
+                return;
+
+            _presence = value;
+            ApplyPresence();
+            if (_host.TryGetTarget(out var host))
+                host.Invalidate();
+        }
+    }
+
+    private void ApplyPresence()
+    {
+        _blurRadius = _full.Radius * _presence;
+        _fill = _full.Fill.WithAlpha(_full.Fill.Alpha * _presence).ToPlatform();
     }
 
     private void Listen(bool on)

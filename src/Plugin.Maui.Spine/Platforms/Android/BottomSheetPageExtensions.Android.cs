@@ -93,14 +93,19 @@ internal static class BottomSheetPageExtensions
         var selectedHeightPx = ResolveDetentHeightPx(selectedDetent);
 
         SpineBottomSheetDialog? dialog = null;
+        SheetBlurOverlay? blurOverlay = null;
 
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
             dialog = new SpineBottomSheetDialog(activity, CanDismissAsync, HandleBackAsync, tcs);
 
             // ── Overlay ──────────────────────────────────────────────────────────
-            if (bottomSheetBuilder.BackgroundPageOverlay == BackgroundPageOverlay.None)
+            // The blur is drawn in the page's own window: the sheet's dialog is a window of its own,
+            // and a material can only record what is behind it in its window.
+            if (bottomSheetBuilder.BackgroundPageOverlay != BackgroundPageOverlay.Dimmed)
                 dialog.Window?.ClearFlags(WindowManagerFlags.DimBehind);
+            if (bottomSheetBuilder.BackgroundPageOverlay == BackgroundPageOverlay.Blurred)
+                blurOverlay = SheetBlurOverlay.Add(activity);
 
             // ── Drag handle + content wrapper ────────────────────────────────────
             // Detach the MAUI native view from any previous dialog's wrapper so it
@@ -204,6 +209,15 @@ internal static class BottomSheetPageExtensions
                 region.SetSheetOverhang(overhangPx / density);
             }
 
+            // The blur shows as much of itself as the sheet shows of its smallest detent: all of it at
+            // every detent, less as the sheet is dragged away.
+            void FollowSheet(AView sheet)
+            {
+                ReportOverhang(sheet);
+                if (blurOverlay is not null && sheet.Parent is AView parent && parent.Height > 0)
+                    blurOverlay.Slide = (float)((parent.Height - sheet.Top) / smallestDetentPx);
+            }
+
             // Track the last stable state so a rejected cancel can snap back to it.
             behavior.AddBottomSheetCallback(new SheetStateCallback(
                 onStateChanged: (_, state) =>
@@ -215,15 +229,19 @@ internal static class BottomSheetPageExtensions
                         lastSettledState = state;
                     }
                 },
-                onSlide: (sheet, _) => ReportOverhang(sheet)
+                onSlide: (sheet, _) => FollowSheet(sheet)
             ));
 
             // The first position comes from a layout pass, not from a slide. BottomSheetBehavior
             // offsets the sheet to its detent after the layout that raises LayoutChange, hence the post.
             if (outerWrapper.Parent is AView sheetForLayout)
-                sheetForLayout.LayoutChange += (_, _) => sheetForLayout.Post(() => ReportOverhang(sheetForLayout));
+                sheetForLayout.LayoutChange += (_, _) => sheetForLayout.Post(() => FollowSheet(sheetForLayout));
 
-            dialog.DismissEvent += (_, _) => region?.SetSheetOverhang(0);
+            dialog.DismissEvent += (_, _) =>
+            {
+                region?.SetSheetOverhang(0);
+                blurOverlay?.Remove();
+            };
 
             dialog.Show();
 
@@ -268,6 +286,74 @@ internal static class BottomSheetPageExtensions
         ActiveBottomSheetDismiss = null;
         ActiveBottomSheetChanged?.Invoke();
         return result;
+    }
+
+    // ── Blur overlay ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The <see cref="MaterialPreset.BlurThin"/> material over the page behind a sheet, in the page's
+    /// window. It fades in as the dialog slides up and out as it slides away (window animations no
+    /// callback reports), and in between shows as much of itself as <see cref="Slide"/> says.
+    /// </summary>
+    private sealed class SheetBlurOverlay
+    {
+        // The sheet dialog's window slides in and out in about this long.
+        private const long FadeMs = 250;
+
+        // The drawable reads its values from a MAUI view, as every material does; this one is never shown.
+        private readonly Microsoft.Maui.Controls.ContentView _owner = new();
+        private readonly FrameLayout _view;
+        private readonly MaterialDrawable _material;
+        private readonly Android.Animation.ValueAnimator _fade = Android.Animation.ValueAnimator.OfFloat(0, 1)!;
+        private float _slide = 1;
+
+        private SheetBlurOverlay(Android.Content.Context context)
+        {
+            Material.SetPreset(_owner, MaterialPreset.BlurThin);
+
+            _view = new FrameLayout(context) { Clickable = false, Focusable = false, ImportantForAccessibility = ImportantForAccessibility.No };
+            _material = new MaterialDrawable(_view, context.Resources?.DisplayMetrics?.Density ?? 1);
+            _material.Update(_owner);
+            _view.Background = _material;
+
+            _fade.SetDuration(FadeMs);
+            _fade.Update += (_, _) => Apply();
+            Apply();
+        }
+
+        public static SheetBlurOverlay Add(Android.App.Activity activity)
+        {
+            var overlay = new SheetBlurOverlay(activity);
+            (activity.Window?.DecorView as ViewGroup)?.AddView(overlay._view,
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
+            overlay._fade.Start();
+            return overlay;
+        }
+
+        /// <summary>How much of the sheet's smallest detent shows, from 0 up; 1 and more is all of the blur.</summary>
+        public float Slide
+        {
+            set
+            {
+                _slide = Math.Clamp(value, 0, 1);
+                Apply();
+            }
+        }
+
+        // A blur that grows, not a sharp page fading over a blurred one.
+        private void Apply() => _material.Presence = _fade.AnimatedFraction * _slide;
+
+        public void Remove()
+        {
+            var shown = _material.Presence;
+            _fade.Cancel();
+
+            var fadeOut = Android.Animation.ValueAnimator.OfFloat(0, 1)!;
+            fadeOut.SetDuration((long)(FadeMs * shown));
+            fadeOut.Update += (_, _) => _material.Presence = shown * (1 - fadeOut.AnimatedFraction);
+            fadeOut.AnimationEnd += (_, _) => (_view.Parent as ViewGroup)?.RemoveView(_view);
+            fadeOut.Start();
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────────
