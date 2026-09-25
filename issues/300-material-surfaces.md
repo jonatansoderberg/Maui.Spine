@@ -2,14 +2,52 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/300
 **Branch:** issue/300-material-surfaces
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
 ### Goal
 Replace Sharpnado.MaterialFrame and keep the experience the sample has today: the hero's `HeaderOverlayContent` is a `MaterialFrame` with `MaterialTheme="AcrylicBlur"` that fades in as the header collapses. On iOS that is a system blur. On Android it is a real-time blur of what is behind (a snapshot of the window), not only a tint. On Windows it is acrylic. The same material then also draws the header bar's Android/Windows stand-ins, instead of the hand-made gradient bands in `PagePresenter`.
 
-### Decisions taken with Jonatan (2026-09-24)
+#- Android 12+ real blur (`MaterialDrawable`):
+  - Before each frame (a `PreDraw` listener while the view is attached), what is behind the view is recorded into a `RenderNode`. That is the ancestors' backgrounds and the siblings drawn before it, from the window down, each at its place relative to the view.
+  - The node is blurred with `RenderEffect.CreateBlurEffect` (radius 8–40 dp by thickness).
+  - It is drawn in the view's background, clipped to the shape, with the surface colour (or `Tint`) over it.
+  - A fade is applied with a `SaveLayer` and a `DstIn` gradient. Before API 31 the surface colour is drawn.
+- Glass (iOS 26) is shaped with `UICornerConfiguration`: a capsule for an ellipse or a fully rounded rectangle, fixed corners otherwise. It is not masked.
+- `MaterialContainer` (new): a `ContentView` with `Spacing`. On iOS / Mac Catalyst 26 its content is moved into a `UIVisualEffectView` with `UIGlassContainerEffect`, so glass inside merges.
+- Header bar stand-ins on Android, tuned against iOS 27 on the phone:
+  - Soft: the blur darkened as iOS 26 does (22 % light, 40 % dark), with the fade starting inside the bar and ending further below it.
+  - Hard: a `Regular` blur with 40 % of the page colour and a hairline.
+- The sample:
+  - Sharpnado.MaterialFrame is replaced by `<Border Material.Kind="Blur" />` in the hero.
+  - A new **Materials** page (every kind, thickness and tint over a photo and over colour; interactive glass; a `MaterialContainer` with a gap slider; a live code example).
+  - A taller start-page hero: `SystemBarInsets.Top + 270`, so the photo's S starts below the Dynamic Island. The collapsed hero is a 36-point bar under the status bar, with the title (lifted 3.5 points) and the gear centred on one line; measured equal to 0.2 pt on iOS and Android.
+- `HeroCollectionView` resizes its header, spacer and overlay layouts when `HeaderMaxHeight` changes after the header was built.
+- Docs:
+  - `docs/wiki/materials.md` (new).
+  - `regions.md`: the stand-ins and the iOS 27 stretch.
+  - `hero-collection-view.md`, and the README tables.
+  - The `/spine-controls` skill.
+
+## Verified
+
+- **iPhone 17 simulator (iOS 26.4):**
+  - Every kind and thickness and a tint, light and dark.
+  - Glass merging in a `MaterialContainer` at gaps of 12, 4 and 0 points, apart at 40.
+  - The hero collapse with the Material blur.
+  - The collapsed-hero alignment.
+- **Jonatan's iPhone 16 Pro (iOS 27.0),** driven with the harness through `devicectl`:
+  - `SoftEdge` measured against iOS 26.4, band by band, in light and dark.
+  - Native `UINavigationController` references for soft, hard and automatic.
+- **Pixel 10 Pro emulator (Android 16):**
+  - Blur behind panels over a photo and over colour.
+  - The hero's compact header blurring the photo.
+  - `SoftEdge`, `SoftStatusBar` and `HardEdge` with real blur, light and dark.
+  - The collapsed-hero alignment.
+- Windows compiles in CI only. Android before 12 was not run: no emulator image; the code path is the tinted drawable from step 1.
+
+## Decisions taken with Jonatan (2026-09-24)
 - **Android blur:** real blur of what is behind from API 31 (a snapshot recorded into a `RenderNode` with `RenderEffect.CreateBlurEffect`, drawn on the GPU); a tinted surface below API 31.
 - **API:** attached properties on a `Border` or `ContentView`, in the shape of `Glass.Style`. They work from a `Style`, and the shape comes from `Border.StrokeShape`.
 - **Scope of this PR:** Blur/Tinted/Solid with fallbacks, Glass on iOS 26, the header bar on the material, Interactive glass and containers.
@@ -44,8 +82,8 @@ Replace Sharpnado.MaterialFrame and keep the experience the sample has today: th
 - **Windows:** the platform panel's `Background` becomes an `AcrylicBrush` or `SolidColorBrush`.
 
 ### Hero collapse (HeroCollectionView)
-- New `HeroCollectionView.HeaderMaterial` (`MaterialKind`, default `None`). When it is set and there is no `HeaderOverlayContent`, the hero makes the overlay itself: a `Border` with that material, faded in with the collapse exactly as the overlay is today.
-- The sample's main page uses `HeaderMaterial="Blur"`. Sharpnado.MaterialFrame is removed from the sample (package reference, `MaterialFrame.xaml`, `UseSharpnadoMaterialFrame`).
+- The compact header's blur is a `Border` with `Material.Kind="Blur"` as `HeaderOverlayContent`, which the hero already fades in with the collapse. (A `HeaderMaterial` property was planned, and dropped: see Decisions.)
+- Sharpnado.MaterialFrame is removed from the sample: the package reference, `MaterialFrame.xaml` and `UseSharpnadoMaterialFrame`.
 
 ### Header bar on the material
 
@@ -104,3 +142,10 @@ None.
   - The darkening matched iOS 26 to within a few levels in both themes (light 132/132, 139/137; dark 71/71, 86/87).
   - The unblurred rows are identical between the simulator and the device, so the images compare directly.
 - **Found by structure.** The class and layer names are private, but no private API is called: the code looks up views and layers, and sets a layer's frame and adds a sublayer. On a system that builds the edge differently nothing is found, and the soft edge stays UIKit's own (status bar only on 27).
+- **No `HeaderMaterial` on HeroCollectionView.** The hero package depends on `Plugin.Maui.Spine.Svg` only, and `Material` lives in the core. `HeaderOverlayContent` already fades a view in as the header collapses, so a `Border` with a material is one line in the app and adds no dependency.
+- **Android blur records what is behind, not the window.** A software snapshot of the whole window (what Sharpnado's AcrylicBlur did) redraws everything on the CPU each frame, and fails on hardware bitmaps. Recording the ancestors' backgrounds and the earlier siblings into a `RenderNode` stays on the GPU. It also never includes the view itself, so there is no feedback loop.
+  - The view's display list keeps pointing at the same node, so only the node is recorded again as content moves.
+  - The cost is that content inside the view is not blurred behind itself (it is not behind it), and system surfaces outside the view tree (`SurfaceView`) do not show.
+- **Android blur only from 12 (API 31),** as decided with Jonatan: `RenderEffect` needs it, and a CPU blur for older devices was not worth the code and the battery.
+- **Glass is shaped, not masked.** A mask on a `UIGlassEffect` view cuts off its edge highlights; `UICornerConfiguration` lets UIKit draw them.
+- **The start page's collapsed title is lifted with `TranslationY`.** It sits in an `AbsoluteLayout` by its bottom edge, where a margin does not move it.

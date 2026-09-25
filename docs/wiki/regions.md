@@ -181,9 +181,9 @@ The background only shows when content is under the bar: content that has scroll
 | `Auto` (default) | The navigation bar's default, on a region or tab page whose list fills it from the top: `SoftEdge` on iOS 26, `HardEdge` from iOS 27; `Solid` otherwise | `Solid` | `Solid` | `Solid` | Almost every page: the platform's own bar |
 | `Solid` | The page's colour; content under the bar is hidden | Same | Same | Same | A classic bar; a photo page whose bar closes once the list scrolls |
 | `Transparent` | Nothing; content shows through, the title floats over it | Same | Same | Same | A photo or a map under an `Overlay` bar |
-| `SoftEdge` | UIKit's scroll edge effect, soft style: content fades and blurs into the whole header | `Solid` | The page's colour, slightly see-through behind the bar, fading out below it | As Android | The iOS 26 navigation bar look, on every version |
-| `SoftStatusBar` | The soft effect behind the status bar only; content behind the title and the actions stays sharp | `Solid` | The same band behind the status bar only, fading out over 16 points | As Android | A light bar, where rows should stay readable behind the title |
-| `HardEdge` | The hard style: a frosted, nearly opaque band with a clear edge | `Solid` | The page's colour, nearly opaque, with a hairline at the bar's bottom edge | As Android | The iOS 27 navigation bar look, on every version and platform |
+| `SoftEdge` | UIKit's scroll edge effect, soft style: content fades and blurs into the whole header (on iOS 27 Spine stretches UIKit's soft edge back over the header, as on 26) | `Solid` | Android 12+: the rows under the header blurred, darkened as iOS 26 does, fading out from inside the bar to below it. Before 12: the page's colour, slightly see-through, fading out below the bar | The page's colour, slightly see-through, fading out below the bar | The iOS 26 navigation bar look, on every version |
+| `SoftStatusBar` | The soft effect behind the status bar only; content behind the title and the actions stays sharp | `Solid` | The same as `SoftEdge`, behind the status bar only | The same band behind the status bar only | A light bar, where rows should stay readable behind the title |
+| `HardEdge` | The hard style: a frosted, nearly opaque band with a clear edge | `Solid` | Android 12+: the rows blurred with the page's colour over them, frosted, with a hairline at the bar's bottom edge. Before 12: the page's colour, nearly opaque, with the hairline | The page's colour, nearly opaque, with the hairline | The iOS 27 navigation bar look, on every version and platform |
 
 Under `Overlay`, `Auto` is `Transparent`, since the page draws its own top. With Reduce Transparency on (iOS/Mac), or transparency effects off (Windows), every scroll edge value is `Solid`. `ViewModelBase.EffectiveHeaderBarBackground` says what the page got: what `Auto` resolved to, and `Solid` where a scroll edge value could not be drawn.
 
@@ -260,7 +260,8 @@ How the iOS 26 effect is drawn. On a page that gets `SoftEdge` or `HardEdge`, th
 
 - UIKit sizes the effect to the elements in the container view (labels, images, controls), not to the container itself: an empty view in the container does not count, and the effect stops below the lowest element. That is why the title label fills the bar's height. A page with a visible header bar but an empty title has nothing for UIKit to size the effect to.
 - Under an inline title with `HardEdge` the label ends with the 44-point item row instead, because that is where UIKit's own hard band stops behind an inline navigation bar title (see [Header bar height](#header-bar-height)).
-- The Android and Windows stand-ins fade in as rows pass under the bar.
+- The Android and Windows versions are a [material](materials.md) behind the bar and fade in as rows pass under it. On Android 12+ that is a real blur of the rows.
+- **iOS 27.** UIKit's soft edge only covers the status bar from iOS 27: its progressive blur layer is cut to the status bar's height. For `SoftEdge`, Spine finds that layer and keeps it as tall as the header plus 36 points, which stretches the blur's mask with it. It also puts back the darkening iOS 26 applied (22 % in light mode, 40 % in dark). The result was measured against iOS 26.4 band by band, for sharpness and luminance. The layer is found by its structure, not through private API; where it is not found, the edge stays UIKit's own.
 
 ### Changing the header while the page is shown
 
