@@ -45,10 +45,12 @@ A label's box is the font's line box: ascender to descender. Capital letters onl
 - The shift is applied as the label's `TranslationY`, so do not set `TranslationY` on a label that uses it.
 - iOS and Mac Catalyst use the font's ascender, descender and cap height; Android measures a capital with the label's paint. Windows has no cap-height metric on `TextBlock`, so it is a no-op there.
 
+How far it moves depends on the font. The platform fonts are drawn to sit close to centred, so on SF Pro the shift is under a point at 24 pt; a font with a lopsided line box, such as Josefin Sans (a short ascender over a deep descender), moves about a tenth of the font size.
+
 Meant for short all-caps or initials text. Text with descenders ("gy") will sit a little high, since the trim centres the capitals, not the whole glyph run.
 
 ---
 
 ## Sample
 
-The sample app's **Typography** page shows a ticking clock and a score column with and without `tnum`, and initials in circles with and without the trim.
+The sample app's **Typography** page shows a ticking clock and a score column with and without `tnum`, and initials and pills with and without the trim, in the system font and in Josefin Sans, with a line through each box's centre.

@@ -57,6 +57,7 @@ public static class MauiProgram
             {
                 fonts.AddFont("BrandonGrotesqueBlack.otf", "BrandonGrotesqueBlack");
                 fonts.AddFont("BrandonGrotesqueLight.otf", "BrandonGrotesqueLight");
+                fonts.AddFont("JosefinSans-Bold.ttf", "JosefinSansBold");
             });
 
 
