@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/400
 **Branch:** issue/400-blurred-sheet-background-on-every-platform-built-o
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -48,7 +48,7 @@
 - Android: `SheetBlurOverlay` is a view with a `MaterialDrawable` added to the activity's decor view, with the dialog's dim cleared. Its presence is a 250 ms fade (the dialog's window slide, which no callback reports) times the part of the smallest detent that shows (`onSlide` and the post-layout position). Closing fades it out and removes it.
 - Windows: the `Blurred` brush is `MaterialBrush` from a `BlurThin` owner (made `internal`). The overlay already faded in and out with the sheet.
 - `BackgroundPageOverlay.Blurred` doc comment and `docs/wiki/sheets.md`: what `Blurred` draws per platform.
-- Verified on the iPhone 17 simulator (iOS 26.4: opens blurred, the blur thins frame by frame as the sheet slides away) and the Pixel 10 Pro emulator (API 37: blurred when open, weaker mid-drag and back when let go, gone after closing).
+- Verified on Jonatan's iPhone (looks good), the iPhone 17 simulator (iOS 26.4: opens blurred, the blur thins frame by frame as the sheet slides away) and the Pixel 10 Pro emulator (API 37: blurred when open, weaker mid-drag and back when let go, gone after closing).
 
 ## Decisions
 
