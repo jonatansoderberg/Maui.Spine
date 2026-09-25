@@ -16,6 +16,9 @@ public partial class HeroCollectionView
 
     private double _lastAcceptedOffset = -1;
 
+    // How far the list is pulled past its top; the header is stretched by the same amount.
+    private double _stretch;
+
     private void OnScrolled(object? sender, ItemsViewScrolledEventArgs e)
     {
         if (_headerBorder == null) return;
@@ -25,7 +28,8 @@ public partial class HeroCollectionView
         var minH         = _minHeight;
         var collapseZone = _collapseZone;
 
-        // Top edge: snap to fully expanded and reset state.
+        // Top edge: snap to fully expanded and reset state. Past it (iOS bounce) the
+        // header stretches so its bottom stays on the first item.
         if (offset <= 0)
         {
             if (_currentHeight >= 0 && _currentHeight < maxH)
@@ -46,8 +50,12 @@ public partial class HeroCollectionView
                 ResetHeader();
                 ScheduleDragRegionUpdate();
             }
+
+            ApplyStretch(-offset);
             return;
         }
+
+        ApplyStretch(0);
 
         if (_currentHeight < 0)
             _currentHeight = maxH;
@@ -113,5 +121,26 @@ public partial class HeroCollectionView
         if (_headerBottomActionsLayout != null) _headerBottomActionsLayout.TranslationY = translation;
         if (_overlayView != null && opacityChanged) _overlayView.Opacity = t;
         ScheduleDragRegionUpdate();
+    }
+
+    // Scales the whole header uniformly from its top edge, so the image keeps its aspect ratio while
+    // growing to maxH + stretch. The title is scaled back to its own size and kept on the bottom edge.
+    private void ApplyStretch(double stretch)
+    {
+        if (stretch == _stretch) return;
+        _stretch = stretch;
+
+        double scale = (_maxHeight + stretch) / _maxHeight;
+        _headerBorder!.Scale = scale;
+        if (_headerBottomActionsLayout != null) _headerBottomActionsLayout.TranslationY = stretch;
+
+        if (_titleLabel == null) return;
+
+        double pivotX  = _headerBorder.Width / 2;
+        double x       = _titleLabel.X;
+        double bottom  = _titleLabel.Y + _titleLabel.Height;
+        _titleLabel.Scale        = 1 / scale;
+        _titleLabel.TranslationX = (x - pivotX) / scale + pivotX - x;
+        _titleLabel.TranslationY = (bottom + stretch) / scale - bottom;
     }
 }

@@ -20,6 +20,8 @@ public partial class HeroCollectionView
             TextTransform = TextTransform.Uppercase,
             TextColor = HeaderTitleColor ?? Colors.White,
             ZIndex = 100,
+            AnchorX = 0,
+            AnchorY = 1,
             Margin = new Thickness(10, -4),
             Shadow = new Shadow { Offset = new Point(0, 0), Radius = 2, Brush = new SolidColorBrush(Colors.Black), Opacity = 0.8f }
         };
@@ -58,6 +60,7 @@ public partial class HeroCollectionView
             HeightRequest    = _maxHeight,
             Margin           = new Thickness(0, 0, HeaderScrollBarInset, 0),
             ZIndex           = 1000,
+            AnchorY          = 0,
             StrokeThickness  = 0,
             VerticalOptions  = LayoutOptions.Start,
             InputTransparent = true,
