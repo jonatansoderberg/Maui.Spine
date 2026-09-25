@@ -24,6 +24,15 @@ public partial class HeroCollectionView
         if (_headerBorder == null) return;
 
         var offset       = e.VerticalOffset;
+        var delta        = e.VerticalDelta;
+#if IOS || MACCATALYST
+        var overshoot = BottomOvershoot();
+        if (overshoot > 0)
+        {
+            offset -= overshoot;
+            delta   = 0;
+        }
+#endif
         var maxH         = _maxHeight;
         var minH         = _minHeight;
         var collapseZone = _collapseZone;
@@ -60,12 +69,12 @@ public partial class HeroCollectionView
         if (_currentHeight < 0)
             _currentHeight = maxH;
 
-        // Derive direction: prefer VerticalDelta; fall back to offset comparison
+        // Derive direction: prefer the delta; fall back to offset comparison
         // when the platform reports 0 (common on Android mid-fling).
         int newDirection;
-        if (e.VerticalDelta > 0)
+        if (delta > 0)
             newDirection = 1;
-        else if (e.VerticalDelta < 0)
+        else if (delta < 0)
             newDirection = -1;
         else if (_lastAcceptedOffset >= 0)
             newDirection = offset > _lastAcceptedOffset + LayoutEpsilon ? 1
