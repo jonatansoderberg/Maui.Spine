@@ -50,6 +50,9 @@ public static class MauiProgram
                 options.MacOS.TrayIconSvg = "water.svg";
                 options.MacOS.CloseToBackground = true;
             })
+            // The crest on the SVG Icons page has its own colours; its red gets an exact dark tone,
+            // the rest the automatic one where an image turns AdjustColorsForDark on.
+            .UseEmbeddedSvgImages(options => options.DarkColors[Color.FromArgb("#D32F2F")] = Color.FromArgb("#C0605C"))
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("BrandonGrotesqueBlack.otf", "BrandonGrotesqueBlack");

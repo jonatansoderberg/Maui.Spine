@@ -151,6 +151,7 @@
     </Compile>
 
     <EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
+    <EmbeddedResource Include="Resources\Svg\*.svg" />
 
     <MauiXaml Update="Pages\Menus\MenusPage.View.xaml">
       <DependentUpon>MenusPage.cs</DependentUpon>

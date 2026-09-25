@@ -118,6 +118,22 @@ Referencing it is all it takes: `Plugin.Maui.Spine.Svg` loads the assembly by na
 The image is tinted black in the light theme and white in the dark one, which suits a monochrome
 icon.
 
+### Tint and the SVG's own colours
+
+An SVG that paints with `currentColor` takes the tint only there; every other colour in it stays.
+The weather symbols in `Plugin.Maui.Spine.Svg.Icons` work this way: the outline follows the theme
+(or `TintColor`) and the sun stays yellow.
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+  <circle cx="18" cy="18" r="8" stroke="currentColor" stroke-width="2" fill="#fcff00" />
+  <path d="M20 38h18a7 7 0 0 0 0-14" stroke="currentColor" stroke-width="2" fill="none" />
+</svg>
+```
+
+An SVG with no `currentColor` is tinted whole, as above. Without a tint (`Transparent`),
+`currentColor` is black.
+
 ### Full-colour SVG
 
 A logo, a flag or any SVG that should keep its own colours needs both tints set to `Transparent`.
@@ -133,6 +149,55 @@ Any colour with an alpha of 0 counts as no tint:
     HeightRequest="64" />
 ```
 
+### Dark tones for the SVG's own colours
+
+An SVG's own colours are usually chosen for a light background. In the dark theme,
+`AdjustColorsForDark` gives them dark tones; the tint is never changed.
+
+- **Your own pairs first.** `DarkColors` maps a light colour to the exact dark tone you want, the way
+  `SpineAccent` pairs a light and a dark accent. Colours match on red, green and blue; the SVG's alpha
+  is kept.
+- **The automatic rule for the rest.** Dark neutrals flip to light, so black ink becomes white.
+  Dark colours lift to a mid lightness with their hue kept, so navy becomes a clear blue rather than a
+  pastel. Every colour also loses `DarkColorMuting` of its chroma (default `0.15`), so a vivid red turns
+  more matte.
+
+Set the app-wide default and the pairs in `MauiProgram`, after `UseSpine()`:
+
+```csharp
+builder.UseEmbeddedSvgImages(options =>
+{
+    options.AdjustColorsForDark = true;
+    options.DarkColors[Color.FromArgb("#D32F2F")] = Color.FromArgb("#C0605C");
+    options.DarkColorMuting = 0.15;
+});
+```
+
+Then turn it on or off per image, which overrides the app-wide default:
+
+```xml
+<Image SvgImageSource.Svg="crest.svg" SvgImageSource.AdjustColorsForDark="True" />
+```
+
+Only colours the SVG sets itself change (`fill`, `stroke`, `color`, gradient `stop-color`, from
+attributes or styles), plus the default black of an unfilled shape. An SVG with no `currentColor` is
+tinted whole, so it has no own colours to adjust. Tray and window icons take the same option through
+`SvgIconOptions.AdjustColorsForDark`.
+
+### Line width
+
+The strokes scale with the image, so an icon drawn with 2-unit lines in a 50-unit view box has
+hairlines at 16 points and heavy lines at 96. `LineWidthScale` multiplies every stroke width: above
+`1` for a small icon, below for a large one.
+
+```xml
+<Image SvgImageSource.Svg="Settings.svg" WidthRequest="20" HeightRequest="20" SvgImageSource.LineWidthScale="1.5" />
+<Image SvgImageSource.Svg="Settings.svg" WidthRequest="96" HeightRequest="96" SvgImageSource.LineWidthScale="0.6" />
+```
+
+It covers widths set in attributes and styles and the default width of 1. `SvgIconOptions.LineWidthScale`
+does the same for tray and window icons.
+
 ---
 
 ## Attached properties reference
@@ -144,6 +209,8 @@ Any colour with an alpha of 0 counts as no tint:
 | `SvgImageSource.LightTintColor` | `Color` | `Black` | Tint applied in light theme; `Transparent` keeps the SVG's own colours |
 | `SvgImageSource.DarkTintColor` | `Color` | `White` | Tint applied in dark theme; `Transparent` keeps the SVG's own colours |
 | `SvgImageSource.Padding` | `Thickness` | `5` | Padding inside the rendered bitmap |
+| `SvgImageSource.AdjustColorsForDark` | `bool?` | `null` | Dark tones for the SVG's own colours in the dark theme; `null` follows `SvgImageOptions.AdjustColorsForDark` |
+| `SvgImageSource.LineWidthScale` | `double` | `1` | Multiplies every stroke width |
 
 Setting `Svg` or tint properties while `EnableSvg` is already `true` automatically re-renders the image.
 
@@ -225,7 +292,7 @@ string iconPath = await SvgIconService.GetOrCreateAsync(
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `Tint` | `Color` | `Colors.Black` | Colour blended over the SVG via `SrcIn` blend mode |
+| `Tint` | `Color` | `Colors.Black` | Colour of the SVG's `currentColor` parts, or of the whole SVG when it has none |
 | `Padding` | `Thickness` | `new Thickness(0)` | Inset inside the rendered bitmap |
 | `Sizes` | `IReadOnlyList<int>?` | `null` (platform default) | Override rendered pixel sizes |
 | `PngQuality` | `int` | `100` | PNG compression quality (0–100) |
@@ -251,6 +318,7 @@ The cache key is a SHA-256 hash of the SVG file bytes, resource name, platform i
 | `SvgImageSource` | Static class with attached bindable properties for XAML |
 | `SvgImageSourceBehavior` | `Behavior<View>` — hooks into `Image`/`ImageButton`, renders SVG at view size |
 | `SvgBitmapLoader` | Static renderer; SVG → PNG via SkiaSharp with in-memory cache |
+| `SvgImageOptions` | App-wide options: `AdjustColorsForDark`, `DarkColors`, `DarkColorMuting` |
 | `ResourceNameCache` | Singleton; scans embedded resources and resolves short filenames |
 | `SvgIconService` | Resolves, renders, caches, and returns icon file paths |
 | `PlatformIconKind` | `Tray` or `AppIcon` |

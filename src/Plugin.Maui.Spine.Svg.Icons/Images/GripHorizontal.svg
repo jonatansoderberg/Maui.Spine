@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" version="1.1">
 <g>
-<path d="M16.4 19.53C16.4 20.82 15.35 21.87 14.06 21.87C12.77 21.87 11.72 20.82 11.72 19.53C11.72 18.24 12.77 17.19 14.06 17.19C15.35 17.19 16.4 18.24 16.4 19.53Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
-<path d="M27.34 19.53C27.34 20.82 26.29 21.87 25 21.87C23.71 21.87 22.66 20.82 22.66 19.53C22.66 18.24 23.71 17.19 25 17.19C26.29 17.19 27.34 18.24 27.34 19.53Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
-<path d="M38.28 19.53C38.28 20.82 37.23 21.87 35.94 21.87C34.65 21.87 33.6 20.82 33.6 19.53C33.6 18.24 34.65 17.19 35.94 17.19C37.23 17.19 38.28 18.24 38.28 19.53Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
-<path d="M16.4 30.47C16.4 31.76 15.35 32.81 14.06 32.81C12.77 32.81 11.72 31.76 11.72 30.47C11.72 29.18 12.77 28.13 14.06 28.13C15.35 28.13 16.4 29.18 16.4 30.47Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
-<path d="M27.34 30.47C27.34 31.76 26.29 32.81 25 32.81C23.71 32.81 22.66 31.76 22.66 30.47C22.66 29.18 23.71 28.13 25 28.13C26.29 28.13 27.34 29.18 27.34 30.47Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
-<path d="M38.28 30.47C38.28 31.76 37.23 32.81 35.94 32.81C34.65 32.81 33.6 31.76 33.6 30.47C33.6 29.18 34.65 28.13 35.94 28.13C37.23 28.13 38.28 29.18 38.28 30.47Z"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>
+<path d="M16.4 19.53C16.4 20.82 15.35 21.87 14.06 21.87C12.77 21.87 11.72 20.82 11.72 19.53C11.72 18.24 12.77 17.19 14.06 17.19C15.35 17.19 16.4 18.24 16.4 19.53Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M27.34 19.53C27.34 20.82 26.29 21.87 25 21.87C23.71 21.87 22.66 20.82 22.66 19.53C22.66 18.24 23.71 17.19 25 17.19C26.29 17.19 27.34 18.24 27.34 19.53Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M38.28 19.53C38.28 20.82 37.23 21.87 35.94 21.87C34.65 21.87 33.6 20.82 33.6 19.53C33.6 18.24 34.65 17.19 35.94 17.19C37.23 17.19 38.28 18.24 38.28 19.53Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M16.4 30.47C16.4 31.76 15.35 32.81 14.06 32.81C12.77 32.81 11.72 31.76 11.72 30.47C11.72 29.18 12.77 28.13 14.06 28.13C15.35 28.13 16.4 29.18 16.4 30.47Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M27.34 30.47C27.34 31.76 26.29 32.81 25 32.81C23.71 32.81 22.66 31.76 22.66 30.47C22.66 29.18 23.71 28.13 25 28.13C26.29 28.13 27.34 29.18 27.34 30.47Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M38.28 30.47C38.28 31.76 37.23 32.81 35.94 32.81C34.65 32.81 33.6 31.76 33.6 30.47C33.6 29.18 34.65 28.13 35.94 28.13C37.23 28.13 38.28 29.18 38.28 30.47Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
 </g>
 </svg>
