@@ -203,7 +203,7 @@ public partial class Calendar
             }
 
             var strings = SpineStrings.Current;
-            page.WeekHeader.Text = strings["Calendar.WeekHeader"];
+            page.WeekHeader.Text = strings["Spine.Calendar.WeekHeader"];
 
             var gridStart = GridStart(year, month);
 
@@ -221,7 +221,7 @@ public partial class Calendar
             {
                 var week = ISOWeek.GetWeekOfYear(gridStart.AddDays(row * 7 + 3));
                 page.WeekLabels[row].Text = week.ToString(culture);
-                SemanticProperties.SetDescription(page.WeekLabels[row], strings.Get("Calendar.Week", week));
+                SemanticProperties.SetDescription(page.WeekLabels[row], strings.Get("Spine.Calendar.Week", week));
             }
         }
 
@@ -298,11 +298,11 @@ public partial class Calendar
 
             var description = date.ToString("D", culture);
             if (isToday)
-                description += ", " + strings["Calendar.Today"];
+                description += ", " + strings["Spine.Calendar.Today"];
             if (isSelected)
-                description += ", " + strings["Calendar.Selected"];
+                description += ", " + strings["Spine.Calendar.Selected"];
             if (isMarked)
-                description += ", " + strings["Calendar.Marked"];
+                description += ", " + strings["Spine.Calendar.Marked"];
             SemanticProperties.SetDescription(cell.Label, description);
         }
     }
@@ -374,16 +374,16 @@ public partial class Calendar
 
         SemanticProperties.SetHint(_titleLabel, _viewMode switch
         {
-            CalendarViewMode.Month => strings["Calendar.ChooseMonth"],
-            CalendarViewMode.Year => strings["Calendar.ChooseYear"],
+            CalendarViewMode.Month => strings["Spine.Calendar.ChooseMonth"],
+            CalendarViewMode.Year => strings["Spine.Calendar.ChooseYear"],
             _ => "",
         });
 
         var (previous, next) = _viewMode switch
         {
-            CalendarViewMode.Year => ("Calendar.PreviousYear", "Calendar.NextYear"),
-            CalendarViewMode.Decade => ("Calendar.PreviousDecade", "Calendar.NextDecade"),
-            _ => ("Calendar.PreviousMonth", "Calendar.NextMonth"),
+            CalendarViewMode.Year => ("Spine.Calendar.PreviousYear", "Spine.Calendar.NextYear"),
+            CalendarViewMode.Decade => ("Spine.Calendar.PreviousDecade", "Spine.Calendar.NextDecade"),
+            _ => ("Spine.Calendar.PreviousMonth", "Spine.Calendar.NextMonth"),
         };
 
         if (_previousButton is not null)

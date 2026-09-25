@@ -338,7 +338,7 @@ internal sealed class SkeletonOverlay : GraphicsView
     {
         if (_isLoading)
         {
-            SemanticProperties.SetDescription(this, SpineStrings.Current["Shimmer.Loading"]);
+            SemanticProperties.SetDescription(this, SpineStrings.Current["Spine.Shimmer.Loading"]);
             AutomationProperties.SetIsInAccessibleTree(this, true);
         }
         else

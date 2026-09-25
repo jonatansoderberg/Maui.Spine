@@ -194,17 +194,17 @@ Month and weekday names come from the culture. The rest is in [strings](strings.
 
 | Key | English |
 |---|---|
-| `Calendar.WeekHeader` | Wk |
-| `Calendar.Week` | Week {0} |
-| `Calendar.Today` / `Calendar.Selected` | Today / Selected |
-| `Calendar.Marked` | Has events |
-| `Calendar.PreviousMonth` / `NextMonth` / `PreviousYear` / `NextYear` / `PreviousDecade` / `NextDecade` | the arrows, per view |
-| `Calendar.ChooseMonth` / `Calendar.ChooseYear` | the title's hint in the month and year views |
+| `Spine.Calendar.WeekHeader` | Wk |
+| `Spine.Calendar.Week` | Week {0} |
+| `Spine.Calendar.Today` / `Spine.Calendar.Selected` | Today / Selected |
+| `Spine.Calendar.Marked` | Has events |
+| `Spine.Calendar.PreviousMonth` / `NextMonth` / `PreviousYear` / `NextYear` / `PreviousDecade` / `NextDecade` | the arrows, per view |
+| `Spine.Calendar.ChooseMonth` / `Spine.Calendar.ChooseYear` | the title's hint in the month and year views |
 
 These follow `SpineStrings.Current.Culture`, also when `Culture` pins the calendar to another culture.
 
 A screen reader hears each day as its full date (the culture's long date pattern) plus "Today",
-"Selected" and "Has events" where they apply (override `Calendar.Marked` when the marks mean
+"Selected" and "Has events" where they apply (override `Spine.Calendar.Marked` when the marks mean
 something else), week numbers as "Week 39", weekday headers by their full names, and
 picker months with their year.
 

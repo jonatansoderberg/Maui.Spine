@@ -396,14 +396,14 @@ public partial class DataGrid : ContentView
         set => SetValue(ShowLoadedStatusProperty, value);
     }
 
-    /// <summary>Format of the loaded count, e.g. <c>"{0} orders"</c>; defaults to <c>DataGrid.Status.Loaded</c>.</summary>
+    /// <summary>Format of the loaded count, e.g. <c>"{0} orders"</c>; defaults to <c>Spine.DataGrid.Status.Loaded</c>.</summary>
     public string? StatusTextFormat
     {
         get => (string?)GetValue(StatusTextFormatProperty);
         set => SetValue(StatusTextFormatProperty, value);
     }
 
-    /// <summary>Format used when <see cref="TotalItemCount"/> is set; defaults to <c>DataGrid.Status.LoadedOfTotal</c>.</summary>
+    /// <summary>Format used when <see cref="TotalItemCount"/> is set; defaults to <c>Spine.DataGrid.Status.LoadedOfTotal</c>.</summary>
     public string? StatusTextFormatWithTotal
     {
         get => (string?)GetValue(StatusTextFormatWithTotalProperty);
@@ -411,7 +411,7 @@ public partial class DataGrid : ContentView
     }
 
     /// <summary>
-    /// Format shown while more pages exist; defaults to <c>DataGrid.Status.More</c>. An empty string
+    /// Format shown while more pages exist; defaults to <c>Spine.DataGrid.Status.More</c>. An empty string
     /// shows no count, only the load-more link.
     /// </summary>
     public string? StatusTextFormatMore
@@ -434,14 +434,14 @@ public partial class DataGrid : ContentView
         set => SetValue(IsLoadingProperty, value);
     }
 
-    /// <summary>Text under the loading spinner; defaults to <c>DataGrid.Loading</c>.</summary>
+    /// <summary>Text under the loading spinner; defaults to <c>Spine.DataGrid.Loading</c>.</summary>
     public string? LoadingText
     {
         get => (string?)GetValue(LoadingTextProperty);
         set => SetValue(LoadingTextProperty, value);
     }
 
-    /// <summary>Text of the empty view; defaults to <c>DataGrid.Empty</c>.</summary>
+    /// <summary>Text of the empty view; defaults to <c>Spine.DataGrid.Empty</c>.</summary>
     public string? EmptyText
     {
         get => (string?)GetValue(EmptyTextProperty);
@@ -526,7 +526,7 @@ public partial class DataGrid : ContentView
         set => SetValue(UngroupedItemsModeProperty, value);
     }
 
-    /// <summary>Title of the ungrouped group; defaults to <c>DataGrid.Ungrouped</c>.</summary>
+    /// <summary>Title of the ungrouped group; defaults to <c>Spine.DataGrid.Ungrouped</c>.</summary>
     public string? UngroupedGroupText
     {
         get => (string?)GetValue(UngroupedGroupTextProperty);
@@ -772,7 +772,7 @@ public partial class DataGrid : ContentView
                 _groupsByKey[key] = group;
             }
             var displayText = group.IsUngrouped
-                ? UngroupedGroupText ?? SpineStrings.Current["DataGrid.Ungrouped"]
+                ? UngroupedGroupText ?? SpineStrings.Current["Spine.DataGrid.Ungrouped"]
                 : _groupDisplayGetter?.GetValue(items[0])?.ToString() ?? key.ToString() ?? string.Empty;
             group.Update(displayText, items.AsReadOnly());
             groups.Add(group);
@@ -1052,16 +1052,16 @@ public partial class DataGrid : ContentView
         {
             if (moreAvailable)
             {
-                var format = StatusTextFormatMore ?? strings["DataGrid.Status.More"];
+                var format = StatusTextFormatMore ?? strings["Spine.DataGrid.Status.More"];
                 text = format.Length > 0 ? string.Format(strings.Culture, format, count) : null;
             }
             else if (ShowLoadedStatus)
             {
                 text = TotalItemCount >= 0
-                    ? string.Format(strings.Culture, StatusTextFormatWithTotal ?? strings["DataGrid.Status.LoadedOfTotal"], count, TotalItemCount)
+                    ? string.Format(strings.Culture, StatusTextFormatWithTotal ?? strings["Spine.DataGrid.Status.LoadedOfTotal"], count, TotalItemCount)
                     : StatusTextFormat is { } format
                         ? string.Format(strings.Culture, format, count)
-                        : strings.Get("DataGrid.Status.Loaded", count);
+                        : strings.Get("Spine.DataGrid.Status.Loaded", count);
             }
         }
         var showLoadMore = moreAvailable && count > 0 && !IsLoadingMore;
@@ -1090,7 +1090,7 @@ public partial class DataGrid : ContentView
         _statusLabel.TextColor = options.StatusTextColor;
 
         _loadMoreLabel.IsVisible = showLoadMore;
-        _loadMoreLabel.Text = strings["DataGrid.LoadMore"];
+        _loadMoreLabel.Text = strings["Spine.DataGrid.LoadMore"];
         _loadMoreLabel.FontFamily = options.FontFamily;
         _loadMoreLabel.FontSize = options.StatusFontSize;
         _loadMoreLabel.TextColor = options.LinkColor;
@@ -1125,7 +1125,7 @@ public partial class DataGrid : ContentView
             Color = options.AccentColor,
             HorizontalOptions = LayoutOptions.Center,
         });
-        var text = LoadingText ?? SpineStrings.Current["DataGrid.Loading"];
+        var text = LoadingText ?? SpineStrings.Current["Spine.DataGrid.Loading"];
         if (text.Length > 0)
         {
             stack.Add(new Label
@@ -1142,7 +1142,7 @@ public partial class DataGrid : ContentView
 
     private View BuildDefaultEmptyView(DataGridStyleOptions options) => new Label
     {
-        Text = EmptyText ?? SpineStrings.Current["DataGrid.Empty"],
+        Text = EmptyText ?? SpineStrings.Current["Spine.DataGrid.Empty"],
         FontFamily = options.FontFamily,
         FontSize = options.FontSize,
         TextColor = options.MutedTextColor,

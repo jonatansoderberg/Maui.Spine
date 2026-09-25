@@ -135,7 +135,7 @@ public sealed partial class PageAction : ObservableObject
 
     /// <summary>
     /// What a screen reader says for the button, for an action that shows only an icon. Spine's
-    /// back and close buttons take theirs from <c>Header.Back</c> and <c>Header.Close</c> in the
+    /// back and close buttons take theirs from <c>Spine.Header.Back</c> and <c>Spine.Header.Close</c> in the
     /// string store.
     /// </summary>
     [ObservableProperty]

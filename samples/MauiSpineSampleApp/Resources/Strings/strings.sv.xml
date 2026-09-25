@@ -8,6 +8,6 @@
   <s key="Strings.Language">Språk</s>
   <s key="Strings.More">Ett till</s>
   <s key="Strings.Fewer">Ett färre</s>
-  <s key="Strings.OverrideNote">Header.Back är Spines nyckel; appen skriver över den med "Hem", som bakåtknappen läser upp för skärmläsare.</s>
-  <s key="Header.Back">Hem</s>
+  <s key="Strings.OverrideNote">Spine.Header.Back är Spines nyckel; appen skriver över den med "Hem", som bakåtknappen läser upp för skärmläsare.</s>
+  <s key="Spine.Header.Back">Hem</s>
 </strings>

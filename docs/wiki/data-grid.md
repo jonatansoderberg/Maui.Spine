@@ -247,17 +247,17 @@ The grid's own texts come from `SpineStrings.Current` under the `DataGrid.` pref
 
 | Key | English |
 |---|---|
-| `DataGrid.Loading` | Loading… |
-| `DataGrid.Empty` | No items |
-| `DataGrid.LoadMore` | Load more |
-| `DataGrid.Status.More` | Showing {0} |
-| `DataGrid.Status.Loaded.one` / `.other` | {0} item / {0} items |
-| `DataGrid.Status.LoadedOfTotal` | {0} of {1} |
-| `DataGrid.Copied` | Copied |
-| `DataGrid.Header.SortedAscending` / `SortedDescending` | {0}, sorted ascending / descending (screen readers) |
-| `DataGrid.Header.SortHint` | Changes the sort order |
-| `DataGrid.Group.Expanded` / `Collapsed` / `ToggleHint` | Group header descriptions for screen readers |
-| `DataGrid.Ungrouped` | Other |
+| `Spine.DataGrid.Loading` | Loading… |
+| `Spine.DataGrid.Empty` | No items |
+| `Spine.DataGrid.LoadMore` | Load more |
+| `Spine.DataGrid.Status.More` | Showing {0} |
+| `Spine.DataGrid.Status.Loaded.one` / `.other` | {0} item / {0} items |
+| `Spine.DataGrid.Status.LoadedOfTotal` | {0} of {1} |
+| `Spine.DataGrid.Copied` | Copied |
+| `Spine.DataGrid.Header.SortedAscending` / `SortedDescending` | {0}, sorted ascending / descending (screen readers) |
+| `Spine.DataGrid.Header.SortHint` | Changes the sort order |
+| `Spine.DataGrid.Group.Expanded` / `Collapsed` / `ToggleHint` | Group header descriptions for screen readers |
+| `Spine.DataGrid.Ungrouped` | Other |
 
 ---
 

@@ -14,7 +14,7 @@ The default source is XML, one document per culture, embedded in the app:
   <s key="Home.Greeting">Hej {0}!</s>
   <s key="Events.Count.one">{0} tävling</s>
   <s key="Events.Count.other">{0} tävlingar</s>
-  <s key="Header.Back">Tillbaka</s>   <!-- overrides Spine's own text for this key -->
+  <s key="Spine.Header.Back">Tillbaka</s>   <!-- overrides Spine's own text for this key -->
 </strings>
 ```
 
@@ -90,7 +90,10 @@ through `Missing` and the debug output.
 
 ## Spine's own text
 
-`Plugin.Maui.Spine` ships `Header.Back` and `Header.Close` (English and Swedish), read for the
+Every key Spine ships starts with `Spine.`, followed by the package's area (`Spine.Header.Back`,
+`Spine.Calendar.Today`, `Spine.DataGrid.Empty`), so an app's own keys never collide with them.
+
+`Plugin.Maui.Spine` ships `Spine.Header.Back` and `Spine.Header.Close` (English and Swedish), read for the
 back and close buttons' screen-reader descriptions. A control package ships its defaults the same
 way and registers them with `SpineStrings.Current.AddDefaults(...)` from the control's static constructor, the first time one is created (this does not raise `Changed`); the
 app's own documents always win.
