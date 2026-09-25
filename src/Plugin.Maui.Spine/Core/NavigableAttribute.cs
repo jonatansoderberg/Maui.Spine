@@ -11,7 +11,11 @@ public enum BackgroundPageOverlay
     /// <summary>A semi-transparent dark scrim is drawn over the background page.</summary>
     Dimmed,
 
-    /// <summary>The background page is blurred. Availability depends on the platform.</summary>
+    /// <summary>
+    /// The background page is blurred with the <see cref="Extensions.MaterialPreset.BlurThin"/> material,
+    /// which fades in and out with the sheet. Before Android 12, which cannot blur, the material's
+    /// stand-in: the theme's surface, mostly opaque.
+    /// </summary>
     Blurred,
 }
 

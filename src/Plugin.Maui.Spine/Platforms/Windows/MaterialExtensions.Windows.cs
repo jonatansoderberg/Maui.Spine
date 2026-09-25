@@ -61,7 +61,7 @@ public static partial class SpineExtensions
             panel.Background = brush;
     }
 
-    static WBrush MaterialBrush(VisualElement view)
+    internal static WBrush MaterialBrush(VisualElement view)
     {
         var kind = Material.Resolve(Material.GetKind(view));
         var fade = Material.GetFade(view);

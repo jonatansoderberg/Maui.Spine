@@ -55,12 +55,23 @@ public partial class OptionsPage { public OptionsPage() => InitializeComponent()
 |---|---|
 | `None` | The background page is fully visible, no treatment applied |
 | `Dimmed` | A semi-transparent dark scrim covers the background page |
-| `Blurred` | The background page is blurred (availability depends on platform) |
+| `Blurred` | The background page is blurred with the [`BlurThin`](materials.md) material |
 
 ```csharp
 [NavigableSheet(BackgroundPageOverlay = BackgroundPageOverlay.Blurred)]
 public partial class QuickPickPage { public QuickPickPage() => InitializeComponent(); }
 ```
+
+`Blurred` is the same material on every platform, drawn by the [Material](materials.md) implementation: a blur at intensity 0.55 with a little of the theme's surface over it. It follows the sheet. It fades in as the sheet slides up and out as it slides away. While the sheet is dragged down it weakens with it, and it comes back if the sheet is let go. It is equally strong at every detent.
+
+| Platform | How |
+|---|---|
+| iOS / Mac Catalyst | A system material over the page, its strength following the sheet's position frame by frame |
+| Android 12+ | Spine's GPU blur in the page's own window (the sheet's dialog is a window of its own), following the sheet's slide |
+| Android before 12 | The material's stand-in: the theme's surface at 72 %, since nothing behind a view can be blurred there |
+| Windows | Acrylic, faded in and out with the sheet; the opaque fallback where transparency effects are off |
+
+With Reduce Transparency on (iOS, Mac Catalyst) the system material turns opaque by itself.
 
 ---
 

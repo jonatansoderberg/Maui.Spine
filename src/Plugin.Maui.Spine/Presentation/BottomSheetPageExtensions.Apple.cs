@@ -1,6 +1,7 @@
 #if IOS || MACCATALYST
 
 using AsyncAwaitBestPractices;
+using CoreAnimation;
 using Foundation;
 using Microsoft.Maui.Platform;
 using Plugin.Maui.Spine.Core;
@@ -88,6 +89,7 @@ internal static class BottomSheetPageExtensions
             : UIUserInterfaceStyle.Light;
 
         // ── Detents ──────────────────────────────────────────────────────────────
+        SheetBlurOverlay? blurOverlay = null;
         var allowedDetents = bottomSheetBuilder.AllowedDetents.Count > 0
             ? bottomSheetBuilder.AllowedDetents
             : new List<SheetDetent> { SheetDetent.MediumDetent };
@@ -102,7 +104,7 @@ internal static class BottomSheetPageExtensions
             ConfigureDetents(spc, allowedDetents, selectedDetent, bottomSheetBuilder.BackgroundPageOverlay);
 
             if (bottomSheetBuilder.BackgroundPageOverlay == BackgroundPageOverlay.Blurred)
-                AddBlurOverlay(presenterVc);
+                blurOverlay = new SheetBlurOverlay(presenterVc.View!, spc);
 
             spc.Delegate = new SpineSheetDelegate(CanDismissAsync, HandleBackAsync, sheetVc);
         }
@@ -124,8 +126,8 @@ internal static class BottomSheetPageExtensions
 
         await tcs.Task;
 
-        if (bottomSheetBuilder.BackgroundPageOverlay == BackgroundPageOverlay.Blurred)
-            await MainThread.InvokeOnMainThreadAsync(() => RemoveBlurOverlay(presenterVc));
+        if (blurOverlay is not null)
+            await MainThread.InvokeOnMainThreadAsync(blurOverlay.Dispose);
 
         ActiveBottomSheetDismiss = null;
         ActiveBottomSheetChanged?.Invoke();
@@ -212,24 +214,58 @@ internal static class BottomSheetPageExtensions
 
     // ── Blur overlay ──────────────────────────────────────────────────────────────
 
-    private const string BlurOverlayTag = "SpineBlurOverlay";
-
-    private static void AddBlurOverlay(UIViewController vc)
+    /// <summary>
+    /// The <see cref="MaterialPreset.BlurThin"/> material over the page behind a sheet. It shows as much
+    /// of itself as the sheet shows of its own height, so it fades in as the sheet slides up, out as it
+    /// slides away, and follows the finger when the sheet is dragged, at the same strength at every detent.
+    /// </summary>
+    private sealed class SheetBlurOverlay : IDisposable
     {
-        var blurView = new UIVisualEffectView(UIBlurEffect.FromStyle(UIBlurEffectStyle.SystemMaterial))
+        // The surface reads its values from a MAUI view, as every material does; this one is never shown.
+        private readonly Microsoft.Maui.Controls.ContentView _owner = new();
+        private readonly MaterialSurfaceView _surface;
+        private readonly UISheetPresentationController _sheet;
+        private CADisplayLink? _link;
+
+        public SheetBlurOverlay(UIView page, UISheetPresentationController sheet)
         {
-            Frame = vc.View!.Bounds,
-            AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight,
-            AccessibilityIdentifier = BlurOverlayTag
-        };
-        vc.View!.AddSubview(blurView);
-    }
+            _sheet = sheet;
+            Material.SetPreset(_owner, MaterialPreset.BlurThin);
 
-    private static void RemoveBlurOverlay(UIViewController vc)
-    {
-        vc.View?.Subviews
-            .FirstOrDefault(v => v.AccessibilityIdentifier == BlurOverlayTag)
-            ?.RemoveFromSuperview();
+            _surface = new MaterialSurfaceView(_owner)
+            {
+                Frame = page.Bounds,
+                AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight,
+                UserInteractionEnabled = false,
+                Presence = 0,
+            };
+            page.AddSubview(_surface);
+            _surface.Update();
+
+            _link = CADisplayLink.Create(Follow);
+            _link.AddToRunLoop(NSRunLoop.Main, NSRunLoopMode.Common);
+        }
+
+        private void Follow()
+        {
+            if (_sheet.ContainerView is not { } container || _sheet.PresentedView?.Layer.PresentationLayer is not { } layer)
+                return;
+
+            // The layer in flight, not the model layer, which already holds where the animation ends.
+            var frame = container.Layer.ConvertRectFromLayer(layer.Frame, layer.SuperLayer);
+            if (frame.Height <= 0)
+                return;
+
+            _surface.Presence = (container.Bounds.Height - frame.Y) / frame.Height;
+        }
+
+        public void Dispose()
+        {
+            _link?.Invalidate();
+            _link = null;
+            _surface.RemoveFromSuperview();
+            _surface.Dispose();
+        }
     }
 
     // ── Presenter resolution ──────────────────────────────────────────────────────

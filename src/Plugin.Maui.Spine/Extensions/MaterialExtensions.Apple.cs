@@ -126,6 +126,29 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
     private IShape? _shape;
     private double _fade;
     private bool _glass;
+    private double _presence = 1;
+    private (UIBlurEffect Effect, double Amount, Color? Tint)? _blur;
+
+    /// <summary>
+    /// How much of the material shows, from 0 (none) to 1 (all of it): the blur and the tint scale
+    /// together. The overlay behind a sheet follows the sheet in and out with it.
+    /// </summary>
+    public double Presence
+    {
+        get => _presence;
+        set
+        {
+            value = Math.Clamp(value, 0, 1);
+            if (value == _presence)
+                return;
+
+            _presence = value;
+            if (_blur is not null)
+                ShowBlur();
+            else
+                Update();
+        }
+    }
 
     public void Update()
     {
@@ -133,12 +156,14 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
             return;
 
         var kind = Material.Resolve(Material.GetKind(owner));
-        var tint = Material.TintLayer(owner)?.ToPlatform();
+        var tintLayer = Material.TintLayer(owner);
+        var tint = Scaled(tintLayer);
 
         StopPartialEffect();
         Effect = null;
         BackgroundColor = null;
         ContentView.BackgroundColor = null;
+        _blur = null;
 
         // Only interactive glass takes touches: it reacts to those on views inside it.
         UserInteractionEnabled = false;
@@ -175,12 +200,8 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
                     SystemBlur.Regular => UIBlurEffectStyle.SystemMaterial,
                     _ => UIBlurEffectStyle.SystemUltraThinMaterial,
                 });
-                var amount = Material.BlurIntensity(owner);
-                if (amount < 1)
-                    StartPartialEffect(null, blur, amount);
-                else
-                    Effect = blur;
-                ContentView.BackgroundColor = tint;
+                _blur = (blur, Material.BlurIntensity(owner), tintLayer);
+                ShowBlur();
                 break;
 
             default:
@@ -194,6 +215,35 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
         UpdateEdgeLine(Material.GetEdgeLine(owner));
         SetNeedsLayout();
     }
+
+    /// <summary>
+    /// The blur at its intensity times <see cref="Presence"/>. While only the presence changes, the paused
+    /// animation already running is moved to the new fraction instead of being started again.
+    /// </summary>
+    private void ShowBlur()
+    {
+        var (blur, intensity, tint) = _blur!.Value;
+        var amount = intensity * _presence;
+
+        if (amount < 1 && _partial is not null && _partialEffect is { From: null } partial && partial.To == blur)
+        {
+            _partial.FractionComplete = (nfloat)amount;
+            _partialEffect = (null, blur, amount);
+        }
+        else
+        {
+            StopPartialEffect();
+            Effect = null;
+            if (amount >= 1)
+                Effect = blur;
+            else
+                StartPartialEffect(null, blur, amount);
+        }
+
+        ContentView.BackgroundColor = Scaled(tint);
+    }
+
+    private UIColor? Scaled(Color? tint) => tint?.WithAlpha(tint.Alpha * (float)_presence).ToPlatform();
 
     /// <summary>
     /// Interactive glass reacts only to touches on views inside it, so while it is interactive it holds
