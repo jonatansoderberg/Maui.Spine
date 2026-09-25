@@ -18,7 +18,13 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
     public Thickness GearMargin => DeviceInfo.Platform == DevicePlatform.WinUI
         ? new Thickness(0, 0, 144, 0)
-        : new Thickness(0, SystemBarInsets.Top + (CompactBar - 44) / 2, 10, 0);
+        : new Thickness(0, SystemBarInsets.Top + (CompactBar - 44) / 2, 10 + SystemBarInsets.Right, 0);
+
+    // The photo runs edge to edge; the title and the rows keep clear of the Dynamic Island and the
+    // rounded corners in landscape.
+    public Thickness TitleMargin => new(10 + SystemBarInsets.Left, -4, 10, -4);
+
+    public Thickness ListMargin => new(SystemBarInsets.Left, 0, SystemBarInsets.Right, 0);
 
     public double FooterHeight => SystemBarInsets.Bottom;
 
@@ -34,6 +40,8 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderMinHeight)));
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderMaxHeight)));
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(GearMargin)));
+            OnPropertyChanged(new PropertyChangedEventArgs(nameof(TitleMargin)));
+            OnPropertyChanged(new PropertyChangedEventArgs(nameof(ListMargin)));
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(FooterHeight)));
         }
     }
