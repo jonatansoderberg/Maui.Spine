@@ -13,7 +13,7 @@
                    FontSize="14" />
 
             <Label Text="Poll(1 s)" FontAttributes="Bold" Margin="0,8,0,0" />
-            <Label Text="{Binding Ticks, StringFormat='Ticks: {0}'}" FontSize="28" Text.FontFeatures="tnum" />
+            <Label Text="{Binding Ticks, StringFormat='Ticks: {0}'}" FontSize="28" Text.FontFeatures="TabularFigures" />
             <Label Text="{Binding LastTick, StringFormat='Last tick at {0}'}" TextColor="Gray" />
             <Label Text="Send the app to the background and come back: the count stops meanwhile and ticks at once on return. Leave the page and come back: it continues." FontSize="12" TextColor="Gray" />
 

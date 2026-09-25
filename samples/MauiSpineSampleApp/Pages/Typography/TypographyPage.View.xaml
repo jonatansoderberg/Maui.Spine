@@ -9,7 +9,7 @@
         <VerticalStackLayout Padding="20,16" Spacing="10">
             <PackageChips Packages="Plugin.Maui.Spine" />
 
-            <Label Text="Text.FontFeatures applies OpenType features to the label's own font. With tnum every digit takes the same width, so a ticking clock or a score column stops jittering."
+            <Label Text="Text.FontFeatures applies OpenType features to the label's own font. With TabularFigures every digit takes the same width, so a ticking clock or a score column stops jittering."
                    FontSize="14" />
 
             <Label Text="Clock, default digits" FontAttributes="Bold" Margin="0,8,0,0" />
@@ -17,12 +17,12 @@
                 <Label Text="{Binding Clock}" FontSize="34" FontFamily="BrandonGrotesqueLight" HorizontalOptions="Start" />
             </Border>
 
-            <Label Text="Clock, Text.FontFeatures=&quot;tnum&quot;" FontAttributes="Bold" />
+            <Label Text="Clock, Text.FontFeatures=&quot;TabularFigures&quot;" FontAttributes="Bold" />
             <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="12,8" StrokeShape="RoundRectangle 10">
-                <Label Text="{Binding Clock}" FontSize="34" FontFamily="BrandonGrotesqueLight" HorizontalOptions="Start" Text.FontFeatures="tnum" />
+                <Label Text="{Binding Clock}" FontSize="34" FontFamily="BrandonGrotesqueLight" HorizontalOptions="Start" Text.FontFeatures="TabularFigures" />
             </Border>
 
-            <Label Text="Score column (same font, tnum right, default left)" FontAttributes="Bold" Margin="0,8,0,0" />
+            <Label Text="Score column (same font, TabularFigures right, default left)" FontAttributes="Bold" Margin="0,8,0,0" />
             <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                 <VerticalStackLayout>
                     <Label Text="{Binding Score}" FontSize="28" />
@@ -30,9 +30,9 @@
                     <Label Text="10 – 1" FontSize="28" />
                 </VerticalStackLayout>
                 <VerticalStackLayout Grid.Column="1">
-                    <Label Text="{Binding Score}" FontSize="28" Text.FontFeatures="tnum" />
-                    <Label Text="11 – 11" FontSize="28" Text.FontFeatures="tnum" />
-                    <Label Text="10 – 1" FontSize="28" Text.FontFeatures="tnum" />
+                    <Label Text="{Binding Score}" FontSize="28" Text.FontFeatures="TabularFigures" />
+                    <Label Text="11 – 11" FontSize="28" Text.FontFeatures="TabularFigures" />
+                    <Label Text="10 – 1" FontSize="28" Text.FontFeatures="TabularFigures" />
                 </VerticalStackLayout>
             </Grid>
 
