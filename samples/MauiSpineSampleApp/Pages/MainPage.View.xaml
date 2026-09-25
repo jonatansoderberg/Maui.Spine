@@ -19,7 +19,7 @@
             HeaderTitle="SPINE SHOWCASE"
             HeaderTitleFontFamily="BrandonGrotesqueBlack"
             HeaderTitleFontSize="25"
-            HeaderMaxHeight="230"
+            HeaderMaxHeight="{Binding HeaderMaxHeight}"
             HeaderMinHeight="{Binding HeaderMinHeight}">
 
             <HeroCollectionView.HeaderOverlayContent>

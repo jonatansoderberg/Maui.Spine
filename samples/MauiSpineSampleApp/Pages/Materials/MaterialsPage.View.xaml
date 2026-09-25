@@ -1,0 +1,125 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Materials.MaterialsPage"
+    x:TypeArguments="MaterialsPageViewModel"
+    x:DataType="MaterialsPageViewModel">
+
+    <ScrollView SafeArea.ScrollInset="Bottom">
+        <VerticalStackLayout Spacing="0">
+
+            <!-- A panel over a photo: what a blur is for. -->
+            <Grid HeightRequest="300">
+                <Image Source="spine_hero2.png" Aspect="AspectFill" />
+                <Border Material.Kind="{Binding Kind}" Material.Thickness="{Binding Thickness}"
+                        Material.Tint="{Binding Tint}" Material.Interactive="{Binding Interactive}"
+                        StrokeThickness="0" StrokeShape="RoundRectangle 20"
+                        WidthRequest="260" HeightRequest="110" VerticalOptions="End" Margin="0,0,0,24" Padding="16">
+                    <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                        <Label Text="{Binding Caption}" FontAttributes="Bold" FontSize="17" HorizontalTextAlignment="Center" />
+                        <Label Text="Over the photo" FontSize="14" HorizontalTextAlignment="Center" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <!-- The same material over hard-edged colour, where blur and tint are easiest to tell apart. -->
+            <Grid HeightRequest="150" ColumnDefinitions="*,*,*,*,*,*">
+                <BoxView Color="#E4572E" />
+                <BoxView Grid.Column="1" Color="#F3A712" />
+                <BoxView Grid.Column="2" Color="#29335C" />
+                <BoxView Grid.Column="3" Color="#669BBC" />
+                <BoxView Grid.Column="4" Color="#A8C686" />
+                <BoxView Grid.Column="5" Color="#7B2D26" />
+                <Border Grid.ColumnSpan="6" Material.Kind="{Binding Kind}" Material.Thickness="{Binding Thickness}"
+                        Material.Tint="{Binding Tint}" Material.Interactive="{Binding Interactive}"
+                        StrokeThickness="0" StrokeShape="RoundRectangle 18"
+                        HeightRequest="80" Margin="24,0" Padding="16">
+                    <Label Text="Over colour" FontSize="15" FontAttributes="Bold" VerticalOptions="Center" HorizontalTextAlignment="Center" />
+                </Border>
+            </Grid>
+
+            <VerticalStackLayout Padding="16,12" Spacing="10">
+                <PackageChips Packages="Plugin.Maui.Spine" />
+                <Label FontSize="14"
+                       Text="Material.Kind gives a Border, ContentView or layout a platform material behind its content; the shape comes from StrokeShape. Pick a kind below and watch both panels." />
+
+                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Groups}" Spacing="8">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="ChoiceGroup">
+                            <Label FontSize="14">
+                                <Label.FormattedText>
+                                    <FormattedString>
+                                        <Span Text="{Binding Name}" FontAttributes="Bold" />
+                                        <Span Text=" · " />
+                                        <Span Text="{Binding Selected.Label}" FontAttributes="Bold" />
+                                        <Span Text="&#10;" />
+                                        <Span Text="{Binding Selected.Description}" />
+                                    </FormattedString>
+                                </Label.FormattedText>
+                            </Label>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+
+                <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8">
+                    <Label Text="{Binding Code}" FontSize="11"
+                           FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}" />
+                </Border>
+
+                <Label Text="MaterialContainer" FontAttributes="Bold" FontSize="15" Margin="0,8,0,0" />
+                <Label FontSize="14"
+                       Text="Glass surfaces in one container share their glass on iOS 26: bring the two buttons closer than the container's spacing (20) and they melt together, as the system's bar buttons do." />
+            </VerticalStackLayout>
+
+            <Grid HeightRequest="140">
+                <Image Source="spine_hero.png" Aspect="AspectFill" />
+                <MaterialContainer Spacing="20" HorizontalOptions="Center" VerticalOptions="Center">
+                    <HorizontalStackLayout Spacing="{Binding Gap}">
+                        <Border Material.Kind="Glass" Material.Interactive="True" StrokeThickness="0" StrokeShape="RoundRectangle 22"
+                                WidthRequest="96" HeightRequest="44">
+                            <Label Text="Left" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" />
+                        </Border>
+                        <Border Material.Kind="Glass" Material.Interactive="True" StrokeThickness="0" StrokeShape="RoundRectangle 22"
+                                WidthRequest="96" HeightRequest="44">
+                            <Label Text="Right" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" />
+                        </Border>
+                    </HorizontalStackLayout>
+                </MaterialContainer>
+            </Grid>
+
+            <VerticalStackLayout Padding="16,8,16,24" Spacing="4">
+                <Label Text="{Binding Gap, StringFormat='Gap between the buttons: {0:0}'}" FontSize="13" TextColor="Gray" />
+                <Slider Minimum="0" Maximum="60" Value="{Binding Gap}" />
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+
+    <SpinePage.Footer>
+        <VerticalStackLayout Padding="12,8,12,2" BindableLayout.ItemsSource="{Binding Groups}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="ChoiceGroup">
+                    <Grid ColumnDefinitions="84,*">
+                        <Label Text="{Binding Name}" FontSize="13" TextColor="Gray" Margin="0,8,0,0" VerticalOptions="Start" />
+                        <FlexLayout Grid.Column="1" Wrap="Wrap" BindableLayout.ItemsSource="{Binding Choices}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="Choice">
+                                    <Button Text="{Binding Label}" Margin="0,0,6,6" Padding="12,4" MinimumHeightRequest="32" HeightRequest="32" FontSize="14" CornerRadius="16"
+                                            BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                                            Command="{Binding ChooseCommand}">
+                                        <Button.Triggers>
+                                            <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
+                                                <Setter Property="BackgroundColor" Value="#0A84FF" />
+                                                <Setter Property="TextColor" Value="White" />
+                                            </DataTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+                    </Grid>
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </VerticalStackLayout>
+    </SpinePage.Footer>
+
+</SpinePage>

@@ -106,6 +106,14 @@ public partial class HeroCollectionView
     {
         _maxHeight    = value;
         _collapseZone = _maxHeight - _minHeight;
+
+        // The header's pieces are sized when it is built; a value that arrives later (bound to the
+        // status bar's height, say) sizes them again.
+        if (_headerBorder != null) _headerBorder.HeightRequest = value;
+        if (Header is BoxView spacer) spacer.HeightRequest = value;
+        if (_headerTopActionsLayout != null) _headerTopActionsLayout.HeightRequest = value;
+        if (_headerBottomActionsLayout != null) _headerBottomActionsLayout.HeightRequest = value;
+        if (_headerBorder is { TranslationY: 0 }) _currentHeight = value;
     }
 
     private void OnHeaderMinHeightChanged(double value)

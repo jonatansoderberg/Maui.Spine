@@ -172,3 +172,33 @@ public static class Material
         || (Application.Current?.RequestedTheme != AppTheme.Light
             && Application.Current?.PlatformAppTheme == AppTheme.Dark);
 }
+
+/// <summary>
+/// Holds glass surfaces that belong together, so they share one piece of glass: on iOS and Mac
+/// Catalyst 26, surfaces within <see cref="Spacing"/> of each other merge, and pull apart as they move
+/// away, as the system's own bar buttons do. Everywhere else an ordinary <see cref="ContentView"/>.
+/// </summary>
+/// <example>
+/// <code>
+/// &lt;MaterialContainer Spacing="16"&gt;
+///     &lt;HorizontalStackLayout Spacing="8"&gt;
+///         &lt;Border Material.Kind="Glass" StrokeShape="RoundRectangle 22" /&gt;
+///         &lt;Border Material.Kind="Glass" StrokeShape="RoundRectangle 22" /&gt;
+///     &lt;/HorizontalStackLayout&gt;
+/// &lt;/MaterialContainer&gt;
+/// </code>
+/// </example>
+public class MaterialContainer : ContentView
+{
+    /// <summary>How close two glass surfaces come before they merge. Default 20.</summary>
+    public static readonly BindableProperty SpacingProperty = BindableProperty.Create(
+        nameof(Spacing), typeof(double), typeof(MaterialContainer), 20d,
+        propertyChanged: static (bindable, _, _) => ((VisualElement)bindable).Handler?.UpdateValue(Material.MapperKey));
+
+    /// <summary>How close two glass surfaces come before they merge.</summary>
+    public double Spacing
+    {
+        get => (double)GetValue(SpacingProperty);
+        set => SetValue(SpacingProperty, value);
+    }
+}

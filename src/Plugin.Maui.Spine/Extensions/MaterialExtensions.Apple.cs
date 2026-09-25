@@ -24,12 +24,22 @@ public static partial class SpineExtensions
             ContentViewHandler.Mapper.AppendToMapping(key, ApplyMaterial);
             LayoutHandler.Mapper.AppendToMapping(key, ApplyMaterial);
         }
+
+        // A container moves the content MAUI gives it into its glass whenever the content changes.
+        ContentViewHandler.Mapper.AppendToMapping(nameof(IContentView.Content), ApplyMaterial);
     }
 
     static void ApplyMaterial(IElementHandler handler, IElement element)
     {
         if (handler.PlatformView is not UIView view || element is not VisualElement visual)
             return;
+
+        if (visual is MaterialContainer container)
+        {
+            if (OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26))
+                ApplyContainer(view, container);
+            return;
+        }
 
         var surface = view.Subviews.OfType<MaterialSurfaceView>().FirstOrDefault();
         var kind = Material.GetKind(visual);
@@ -56,6 +66,38 @@ public static partial class SpineExtensions
     }
 }
 
+public static partial class SpineExtensions
+{
+    // The glass surfaces inside merge only when they sit in the container effect's content view, so
+    // MAUI's content is moved there. Its frames stay right: the effect view is as large as the container.
+    [System.Runtime.Versioning.SupportedOSPlatform("ios26.0")]
+    [System.Runtime.Versioning.SupportedOSPlatform("maccatalyst26.0")]
+    static void ApplyContainer(UIView view, MaterialContainer container)
+    {
+        var glass = view.Subviews.OfType<MaterialContainerView>().FirstOrDefault();
+        if (glass is null)
+        {
+            glass = new MaterialContainerView
+            {
+                Frame = view.Bounds,
+                AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight,
+            };
+            view.InsertSubview(glass, 0);
+        }
+
+        glass.Effect = new UIGlassContainerEffect { Spacing = (nfloat)container.Spacing };
+
+        foreach (var child in view.Subviews)
+        {
+            if (child != glass)
+                glass.ContentView.AddSubview(child);
+        }
+    }
+}
+
+/// <summary>The glass container effect of a <see cref="MaterialContainer"/>.</summary>
+internal sealed class MaterialContainerView() : UIVisualEffectView((UIVisualEffect?)null);
+
 /// <summary>
 /// The material behind a view's content: one effect view at the back of the platform view, as large
 /// as it, clipped to the view's shape and, for the header bar, faded out at the bottom.
@@ -66,6 +108,7 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
     private UIView? _edgeLine;
     private IShape? _shape;
     private double _fade;
+    private bool _glass;
 
     public void Update()
     {
@@ -106,6 +149,7 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
         }
 
         _shape = (owner as IBorderStroke)?.Shape;
+        _glass = kind == MaterialKind.Glass;
         _fade = Material.GetFade(owner);
         UpdateEdgeLine(Material.GetEdgeLine(owner));
         SetNeedsLayout();
@@ -148,6 +192,14 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
             return;
         }
 
+        // Glass keeps its edge highlights only when UIKit shapes it; a mask cuts them off.
+        if (_glass && (OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26)) && GlassCorners(bounds) is { } corners)
+        {
+            CornerConfiguration = corners;
+            MaskView = null;
+            return;
+        }
+
         if (_shape is not null && bounds.Width > 0 && bounds.Height > 0)
         {
             var shape = MaskLayer<CAShapeLayer>(bounds);
@@ -157,6 +209,30 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
         }
 
         MaskView = null;
+    }
+
+    /// <summary>
+    /// The shape as UIKit's corners, where it is one: a capsule for an ellipse or a rounded
+    /// rectangle rounded all the way, fixed corners for any other rounded rectangle, square corners
+    /// with no shape.
+    /// </summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("ios26.0")]
+    [System.Runtime.Versioning.SupportedOSPlatform("maccatalyst26.0")]
+    private UICornerConfiguration? GlassCorners(CGRect bounds)
+    {
+        var half = (nfloat)(Math.Min(bounds.Width, bounds.Height) / 2);
+        return _shape switch
+        {
+            null => UICornerConfiguration.CreateUniformCorners(UICornerRadius.CreateFixed(0)),
+            Microsoft.Maui.Controls.Shapes.Ellipse => UICornerConfiguration.CreateCapsule(half),
+            Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius: var r } when r.TopLeft >= half && r.TopRight >= half && r.BottomLeft >= half && r.BottomRight >= half
+                => UICornerConfiguration.CreateCapsule(half),
+            Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius: var r }
+                => UICornerConfiguration.CreateCorners(
+                    UICornerRadius.CreateFixed((nfloat)r.TopLeft), UICornerRadius.CreateFixed((nfloat)r.TopRight),
+                    UICornerRadius.CreateFixed((nfloat)r.BottomLeft), UICornerRadius.CreateFixed((nfloat)r.BottomRight)),
+            _ => null,
+        };
     }
 
     private T MaskLayer<T>(CGRect bounds) where T : CALayer, new()
