@@ -100,16 +100,15 @@ internal static class NavigableMeta
         {
             // What a navigation bar shows. Only where the system draws the effect, and only for a page whose scroll
             // view fills it from the top: anything above the list that does not scroll would
-            // otherwise sit under the bar for good.
-            background = vm.HeaderBarMode == HeaderBarMode.Overlay
-                ? HeaderBarBackground.Transparent
-                : HasSystemScrollEdge
-                    && meta.Presentation is not NavigationPresentation.Sheet
-                    && vm.IsHeaderBarVisible
-                    && (HeaderBar.GetScrollSource(view) ?? FindFirstScrollable(view)) is { } source
-                    && FillsFromTop(view, source)
-                        ? NavigationBarEdge
-                        : HeaderBarBackground.Solid;
+            // otherwise sit under the bar for good. The same under Overlay: the background only
+            // shows once the content scrolls, whichever mode placed its top.
+            background = HasSystemScrollEdge
+                && meta.Presentation is not NavigationPresentation.Sheet
+                && vm.IsHeaderBarVisible
+                && (HeaderBar.GetScrollSource(view) ?? FindFirstScrollable(view)) is { } source
+                && FillsFromTop(view, source)
+                    ? NavigationBarEdge
+                    : HeaderBarBackground.Solid;
         }
 
         if (background.IsScrollEdge() && HasSystemScrollEdge is false && IsApple)

@@ -273,7 +273,11 @@ internal sealed partial class PagePresenter : Grid
         _titleLabel!.Opacity = _page?.LargeTitle == true ? _page.HeaderBarCollapseProgress : 1;
         _barBackground.IsVisible = solid;
         _barBackground.Opacity = edge;
+        ApplySystemScrollEdgeRest();
     }
+
+    /// <summary>Hides UIKit's scroll edge effect while the page is at rest; Apple platforms only.</summary>
+    partial void ApplySystemScrollEdgeRest();
 
     // Solid, or the band that stands in for the scroll edge effect where the system has none.
     private bool HasSolidBackground() =>
