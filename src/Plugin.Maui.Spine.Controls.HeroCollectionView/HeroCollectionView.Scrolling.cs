@@ -16,16 +16,32 @@ public partial class HeroCollectionView
 
     private double _lastAcceptedOffset = -1;
 
+    // How far the list is pulled past its top; the header is stretched by the same amount.
+    private double _stretch;
+
+    // Android pulls the list past its top by moving it rather than scrolling it (see the edge effect).
+    private double _topPull;
+
     private void OnScrolled(object? sender, ItemsViewScrolledEventArgs e)
     {
         if (_headerBorder == null) return;
 
         var offset       = e.VerticalOffset;
+        var delta        = e.VerticalDelta;
+#if IOS || MACCATALYST
+        var overshoot = BottomOvershoot();
+        if (overshoot > 0)
+        {
+            offset -= overshoot;
+            delta   = 0;
+        }
+#endif
         var maxH         = _maxHeight;
         var minH         = _minHeight;
         var collapseZone = _collapseZone;
 
-        // Top edge: snap to fully expanded and reset state.
+        // Top edge: snap to fully expanded and reset state. Past it (iOS bounce) the
+        // header stretches so its bottom stays on the first item.
         if (offset <= 0)
         {
             if (_currentHeight >= 0 && _currentHeight < maxH)
@@ -46,18 +62,22 @@ public partial class HeroCollectionView
                 ResetHeader();
                 ScheduleDragRegionUpdate();
             }
+
+            ApplyStretch(Math.Max(0, -offset) + _topPull);
             return;
         }
+
+        ApplyStretch(_topPull);
 
         if (_currentHeight < 0)
             _currentHeight = maxH;
 
-        // Derive direction: prefer VerticalDelta; fall back to offset comparison
+        // Derive direction: prefer the delta; fall back to offset comparison
         // when the platform reports 0 (common on Android mid-fling).
         int newDirection;
-        if (e.VerticalDelta > 0)
+        if (delta > 0)
             newDirection = 1;
-        else if (e.VerticalDelta < 0)
+        else if (delta < 0)
             newDirection = -1;
         else if (_lastAcceptedOffset >= 0)
             newDirection = offset > _lastAcceptedOffset + LayoutEpsilon ? 1
@@ -105,7 +125,10 @@ public partial class HeroCollectionView
 
         // TranslationY: 0 = fully expanded, -(maxH - minH) = fully collapsed.
         double translation    = -(maxH - _currentHeight);
-        double t              = Math.Round(Math.Clamp((maxH - _currentHeight) / collapseZone, 0, 1), 2);
+        double progress       = Math.Clamp((maxH - _currentHeight) / collapseZone, 0, 1);
+        // Eased out, so the overlay is already clear a short way into the collapse rather than
+        // reaching full strength only as the header closes.
+        double t              = Math.Round(1 - Math.Pow(1 - progress, 3), 2);
         bool   opacityChanged = t != _lastOverlayOpacity;
         if (opacityChanged) _lastOverlayOpacity = t;
 
@@ -113,5 +136,26 @@ public partial class HeroCollectionView
         if (_headerBottomActionsLayout != null) _headerBottomActionsLayout.TranslationY = translation;
         if (_overlayView != null && opacityChanged) _overlayView.Opacity = t;
         ScheduleDragRegionUpdate();
+    }
+
+    // Scales the whole header uniformly from its top edge, so the image keeps its aspect ratio while
+    // growing to maxH + stretch. The title is scaled back to its own size and kept on the bottom edge.
+    private void ApplyStretch(double stretch)
+    {
+        if (stretch == _stretch) return;
+        _stretch = stretch;
+
+        double scale = (_maxHeight + stretch) / _maxHeight;
+        _headerBorder!.Scale = scale;
+        if (_headerBottomActionsLayout != null) _headerBottomActionsLayout.TranslationY = stretch;
+
+        if (_titleLabel == null) return;
+
+        double pivotX  = _headerBorder.Width / 2;
+        double x       = _titleLabel.X;
+        double bottom  = _titleLabel.Y + _titleLabel.Height;
+        _titleLabel.Scale        = 1 / scale;
+        _titleLabel.TranslationX = (x - pivotX) / scale + pivotX - x;
+        _titleLabel.TranslationY = (bottom + stretch) / scale - bottom;
     }
 }
