@@ -63,7 +63,7 @@ Ny `docs/wiki/push-server.md` och rader i README:s dokumentations- och beroendet
 
 Inga öppna. Avgjorda 2026-09-08:
 
-1. **Registret** — in-memory räcker i det här issuet. `AzureTablePushInstallationStore` flyttar till #178.
+1. **Registret** — in-memory räcker i det här issuet. `AzureTablePushInstallationStore` flyttar till jonatansoderberg/Orientera#4.
 2. **Testprojektet** — `tests/Plugin.Maui.Spine.Server.Tests` enligt förslaget.
 3. **Windows** — `WnsTransport` väntar till v2/#179. `IPushTransport` hålls öppen.
 

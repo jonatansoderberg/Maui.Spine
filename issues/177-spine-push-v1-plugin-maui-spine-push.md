@@ -55,7 +55,7 @@ Steg för steg ur förstudiens §9: Apple-portalen, Firebase, entitlements, och 
 Inga öppna. Avgjorda 2026-09-08:
 
 1. **Entitlements** — alternativ b: ett gemensamt steg som både Widgets och Push bidrar nycklar till. #177 rör därmed Widgets-paketet.
-2. **Orienteras `ForegroundPresenter`** — tas bort i #178, inte här.
+2. **Orienteras `ForegroundPresenter`** — tas bort i jonatansoderberg/Orientera#4, inte här.
 3. **Standard-`PushPresentation`** — `Banner | Sound | List`.
 4. **Fallback** — dokumenterade overrides i appens `AppDelegate` är godtagbart om spiken faller.
 
@@ -71,7 +71,7 @@ Körd som slängkod i `MauiSpineSampleApp` mot iPhone 17 Pro-simulatorn. Referen
 4. **`UNUserNotificationCenter`-vägen fungerar end-to-end.** `xcrun simctl push` med en alert gav `WillPresentNotification` med hela `userInfo`, inklusive `spine.kind` och `spine.route`. Förgrundsvägen och `PushPresentation` går alltså att bygga och verifiera här.
 5. **Klassen finns före `UIApplication.Main`.** `objc_lookUpClass("AppDelegate")` svarar i `Main`, och `class_addMethod` lyckas där.
 
-Och en sak som **inte** går att verifiera här: `xcrun simctl push` levererar inte tysta pushar (`content-available`) till `didReceiveRemoteNotification:fetchCompletionHandler:` i simulatorn. Det visades genom att en helt vanlig `[Export]`-deklarerad implementation inte heller fälldes ut — det är alltså inte `class_addMethod` som fallerar, utan simulatorn som inte levererar. Den vägen kan bara verifieras på fysisk enhet, i #178.
+Och en sak som **inte** går att verifiera här: `xcrun simctl push` levererar inte tysta pushar (`content-available`) till `didReceiveRemoteNotification:fetchCompletionHandler:` i simulatorn. Det visades genom att en helt vanlig `[Export]`-deklarerad implementation inte heller fälldes ut — det är alltså inte `class_addMethod` som fallerar, utan simulatorn som inte levererar. Den vägen kan bara verifieras på fysisk enhet, i jonatansoderberg/Orientera#4.
 
 ### Steg 1 — det plattformsneutrala lagret
 
@@ -140,4 +140,4 @@ Och en sak som **inte** går att verifiera här: `xcrun simctl push` levererar i
 
 Simulatorn räcker längre än man tror: `xcrun simctl push` levererar en payload och driver både delegatmetoden och `UNUserNotificationCenter`-delegaten, så handler, `PushMessage`-form och `Route`-navigering går att verifiera här. Android verifieras i emulatorn med `adb`-intents och ett testmeddelande.
 
-**Det som inte går att verifiera på den här maskinen:** riktig APNs-registrering ger ingen token i simulatorn, och en fysisk enhet med profil och push-entitlement saknas — ingen signeringsidentitet finns, se minnesanteckningen `ios-build-environment`. Milstolpen "push till en fysisk iPhone" ligger i #178. Windows-TFM:en går inte att bygga här.
+**Det som inte går att verifiera på den här maskinen:** riktig APNs-registrering ger ingen token i simulatorn, och en fysisk enhet med profil och push-entitlement saknas — ingen signeringsidentitet finns, se minnesanteckningen `ios-build-environment`. Milstolpen "push till en fysisk iPhone" ligger i jonatansoderberg/Orientera#4. Windows-TFM:en går inte att bygga här.

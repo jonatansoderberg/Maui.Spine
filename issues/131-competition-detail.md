@@ -34,7 +34,7 @@ Sidan får konceptets form och lagar sina egna sju fynd i samma vända (D6).
    det värre i stället för bättre — kvar blir en triangulär kil, vilket är en ritning som inte
    målar om hela ytan och inte brickor som saknas. Om- centrering, `Map.Refresh()` och
    `ForceUpdate()` ändrade ingenting, och `TryUpdateViewportSize()` är dokumenterad men inte
-   publik i 5.1.0. Ändringen är utbackad; fyndet ligger som #133 och hör till etapp E — det
+   publik i 5.1.0. Ändringen är utbackad; fyndet ligger som jonatansoderberg/Orientera#3 och hör till etapp E — det
    verifieras isolerat och rapporteras uppåt.
 
    Sidans omdisposition begränsar det: kartan är inte längre hero utan en egen sektion längre ned.
@@ -60,7 +60,7 @@ Sidan får konceptets form och lagar sina egna sju fynd i samma vända (D6).
 **Verifierat:** build grön för maccatalyst och ios. Kört på iPhone 17 Pro (iOS 26) i båda teman:
 hero, "starttid ej satt", deadline utan ordinal, ingen "Visa tävling"-knapp, villkoren under de
 släckta knapparna, klassvalet med bock, mellanlandningen och vidare in i Eventors formulär.
-Sex av sju fynd lagade; kartan (fynd 1) är inte lagad och ligger som #133.
+Sex av sju fynd lagade; kartan (fynd 1) är inte lagad och ligger som jonatansoderberg/Orientera#3.
 
 ## Decisions
 
@@ -83,7 +83,7 @@ Sex av sju fynd lagade; kartan (fynd 1) är inte lagad och ligger som #133.
   orienteringens tecken, inte appens: vit uppe till vänster, orange nedanför diagonalen, likadan
   på varje karta i världen. En kontroll i varumärkets färg är inte längre en kontroll. Den står
   därför utanför paletten. Rättat här, och skrivet in i `design-system.md` och i #127:s changelog.
-- **Kartan ritar bara en del av sin yta** — #133, etapp E.
+- **Kartan ritar bara en del av sin yta** — jonatansoderberg/Orientera#3, etapp E.
 - `EventorEntrySheet` säger "Du är redan inloggad här" oavsett om sessionen finns. Utan inloggning
   möts man av Eventors "Du behöver vara inloggad för att anmäla dig" under en rubrik som påstår
   motsatsen. Hör till etapp C steg 2 tillsammans med annonsväggen och klassen i URL:en.
