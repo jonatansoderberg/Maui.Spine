@@ -282,6 +282,9 @@ internal sealed partial class PagePresenter : Grid
     /// <summary>How far the soft stand-in band fades out below the bar.</summary>
     private const double ScrollEdgeBandFade = 24;
 
+    /// <summary>How much longer a blurred soft band fades than a tinted one: it starts inside the bar and ends further below it.</summary>
+    private const double SoftBlurFadeFactor = 3.5;
+
     /// <summary>How opaque the soft stand-in band is behind the bar: rows stay faintly visible through it.</summary>
     private const float ScrollEdgeBandAlpha = 0.9f;
 
@@ -343,6 +346,14 @@ internal sealed partial class PagePresenter : Grid
             var statusBarOnly = BarBackground is HeaderBarBackground.SoftStatusBar;
             var fade = statusBarOnly ? StatusBarBandFade : ScrollEdgeBandFade;
             height = (statusBarOnly ? _page?.SystemBarInsets.Top ?? 0 : bar) + fade;
+
+            // A blur fades as UIKit's progressive one does: it starts to let go well inside the bar,
+            // not at its edge, and reaches further below it.
+            if (blurs)
+            {
+                height += fade;
+                fade *= SoftBlurFadeFactor;
+            }
             Material.SetThickness(_barBackground, MaterialThickness.Thin);
             Material.SetTint(_barBackground, blurs
                 ? Colors.Black.WithAlpha(IsDarkTheme() ? SoftBlurDimDark : SoftBlurDimLight)
