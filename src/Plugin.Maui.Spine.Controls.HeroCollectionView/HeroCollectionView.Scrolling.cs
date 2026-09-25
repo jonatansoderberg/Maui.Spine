@@ -19,6 +19,9 @@ public partial class HeroCollectionView
     // How far the list is pulled past its top; the header is stretched by the same amount.
     private double _stretch;
 
+    // Android pulls the list past its top by moving it rather than scrolling it (see the edge effect).
+    private double _topPull;
+
     private void OnScrolled(object? sender, ItemsViewScrolledEventArgs e)
     {
         if (_headerBorder == null) return;
@@ -60,11 +63,11 @@ public partial class HeroCollectionView
                 ScheduleDragRegionUpdate();
             }
 
-            ApplyStretch(-offset);
+            ApplyStretch(Math.Max(0, -offset) + _topPull);
             return;
         }
 
-        ApplyStretch(0);
+        ApplyStretch(_topPull);
 
         if (_currentHeight < 0)
             _currentHeight = maxH;

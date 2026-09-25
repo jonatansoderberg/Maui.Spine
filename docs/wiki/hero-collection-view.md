@@ -64,8 +64,10 @@ The control injects itself into a parent `Grid` when attached. The header is pin
 - **Scrolling down** — the header collapses from `HeaderMaxHeight` toward `HeaderMinHeight`.
 - **Scrolling up** — the header re-expands.
 - **At the top** — the header snaps back to fully expanded.
-- **Pulled past the top** (the iOS and Mac Catalyst bounce) — the header stretches with the list so its bottom edge stays on the first item. The image grows from the top edge in both width and height and keeps its aspect ratio; the title stays at its own size on the bottom edge. Releasing returns it to `HeaderMaxHeight`.
+- **Pulled past the top** — the header stretches with the list so its bottom edge stays on the first item. The image grows from the top edge in both width and height and keeps its aspect ratio; the title stays at its own size on the bottom edge. Releasing returns it to `HeaderMaxHeight`.
 - **Bouncing off the end** — the overshoot past the last item is ignored, so the header stays collapsed while the list springs back and expands only on a real scroll up.
+
+On iOS and Mac Catalyst this follows UIKit's bounce. Android's stretch overscroll does not report how far it moved the content, so the control replaces it with a rubber band of its own: the list moves with resistance while pulled past either end and springs back on release, and a fling that hits an end bounces.
 
 An anchor-based algorithm prevents floating-point drift over long scroll sessions.
 
