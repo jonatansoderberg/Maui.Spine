@@ -15,7 +15,8 @@ public enum HeaderBarMode
 
     /// <summary>
     /// The content starts at the top of the screen, behind the status bar and the bar: for pages
-    /// that open on a photo, a map or a hero. The page keeps clear what it wants to:
+    /// that open on a photo, a map or a hero. The background behaves as under <see cref="Normal"/>:
+    /// it shows once the content scrolls, not while the page is at rest. The page keeps clear what it wants to:
     /// <see cref="ViewModelBase.SafeAreaInsets"/> reports the height of the status bar plus the bar,
     /// and a list takes it with <c>SafeArea.ScrollInset="Top"</c>. The title and the actions keep a
     /// fixed colour through <c>HeaderBarForeground</c>.
@@ -24,9 +25,9 @@ public enum HeaderBarMode
 }
 
 /// <summary>
-/// What is behind the header bar's title and actions when content is under the bar: content
-/// scrolled under it, or the top of an <see cref="HeaderBarMode.Overlay"/> page. With nothing under
-/// the bar, every value looks the same.
+/// What is behind the header bar's title and actions once content scrolls under the bar. At rest
+/// it shows nothing, also on an <see cref="HeaderBarMode.Overlay"/> page whose top starts under the
+/// bar, as behind a navigation bar.
 /// </summary>
 public enum HeaderBarBackground
 {
@@ -35,8 +36,7 @@ public enum HeaderBarBackground
     /// <see cref="SoftEdge"/> on 26 and <see cref="HardEdge"/> from 27, for a region or tab page
     /// whose scroll view fills it from the top (a page with fixed content above its list gets
     /// <see cref="Solid"/>, so that content never sits under the bar). Everywhere else it is
-    /// <see cref="Solid"/>. Under <see cref="HeaderBarMode.Overlay"/> it is
-    /// <see cref="Transparent"/>: the page draws its own top.
+    /// <see cref="Solid"/>. The same under <see cref="HeaderBarMode.Overlay"/>.
     /// </summary>
     Auto,
 
@@ -88,7 +88,7 @@ internal static class HeaderBarBackgroundExtensions
 public enum StatusBarStyle
 {
     /// <summary>Follows the app theme: dark content on a light theme, light content on a dark one.</summary>
-    Default,
+    Auto,
 
     /// <summary>Light (white) clock and icons, for a page whose top is dark or a photo.</summary>
     LightContent,
