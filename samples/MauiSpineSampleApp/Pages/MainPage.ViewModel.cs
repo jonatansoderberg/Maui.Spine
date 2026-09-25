@@ -29,7 +29,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
     public double FooterHeight => SystemBarInsets.Bottom;
 
     // Filled before the page appears, so the first frame already has the rows and their icons.
-    public ObservableCollection<Item> Items { get; } = new(SampleIndex);
+    public ObservableCollection<Item> Items { get; } = new(SampleIndex.OrderBy(i => i.Title, StringComparer.OrdinalIgnoreCase));
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
@@ -55,7 +55,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
             await open(_navigation);
     }
 
-    // One row per sample page. Add a page here when it gets a page of its own.
+    // One row per sample page. Add a page here when it gets a page of its own; the list shows them by title.
     private static IEnumerable<Item> SampleIndex =>
     [
         new("Bottom sheets", "Native sheets with detents, blur, full screen, page actions and a footer", "sheet.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
