@@ -125,7 +125,10 @@ public partial class HeroCollectionView
 
         // TranslationY: 0 = fully expanded, -(maxH - minH) = fully collapsed.
         double translation    = -(maxH - _currentHeight);
-        double t              = Math.Round(Math.Clamp((maxH - _currentHeight) / collapseZone, 0, 1), 2);
+        double progress       = Math.Clamp((maxH - _currentHeight) / collapseZone, 0, 1);
+        // Eased out, so the overlay is already clear a short way into the collapse rather than
+        // reaching full strength only as the header closes.
+        double t              = Math.Round(1 - Math.Pow(1 - progress, 3), 2);
         bool   opacityChanged = t != _lastOverlayOpacity;
         if (opacityChanged) _lastOverlayOpacity = t;
 
