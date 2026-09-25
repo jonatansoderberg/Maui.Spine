@@ -29,8 +29,17 @@ public static partial class SpineExtensions
                 case "lnum": Typography.SetNumeralStyle(textBlock, FontNumeralStyle.Lining); break;
                 case "onum": Typography.SetNumeralStyle(textBlock, FontNumeralStyle.OldStyle); break;
                 case "smcp": Typography.SetCapitals(textBlock, FontCapitals.SmallCaps); break;
+                case "c2sc": Typography.SetCapitals(textBlock, FontCapitals.AllSmallCaps); break;
+                case "zero": Typography.SetSlashedZero(textBlock, true); break;
+                case "frac": Typography.SetFraction(textBlock, FontFraction.Stacked); break;
+                case "sups": Typography.SetVariants(textBlock, FontVariants.Superscript); break;
+                case "subs": Typography.SetVariants(textBlock, FontVariants.Subscript); break;
+                case "ordn": Typography.SetVariants(textBlock, FontVariants.Ordinal); break;
+                case "case": Typography.SetCaseSensitiveForms(textBlock, true); break;
                 case "kern": Typography.SetKerning(textBlock, true); break;
                 case "liga": Typography.SetStandardLigatures(textBlock, true); break;
+                case "dlig": Typography.SetDiscretionaryLigatures(textBlock, true); break;
+                case "calt": Typography.SetContextualAlternates(textBlock, true); break;
                 case "ss01": Typography.SetStylisticSet1(textBlock, true); break;
                 case "ss02": Typography.SetStylisticSet2(textBlock, true); break;
                 case "ss03": Typography.SetStylisticSet3(textBlock, true); break;

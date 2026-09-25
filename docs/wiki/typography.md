@@ -7,25 +7,32 @@ Two attached properties on `Label` that MAUI has no equivalent for: OpenType fea
 ## `Text.FontFeatures` — OpenType features
 
 ```xml
-<Label Text="{Binding Time}" Text.FontFeatures="tnum" />
-<Label Text="{Binding Price}" Text.FontFeatures="tnum,lnum" />
+<Label Text="{Binding Time}" Text.FontFeatures="TabularFigures" />
+<Label Text="{Binding Price}" Text.FontFeatures="TabularFigures, LiningFigures" />
+<Label Text="{Binding Code}" Text.FontFeatures="ss07" />
 ```
 
-A comma-separated list of four-letter OpenType tags applied to the label's **own** font: family, size and weight are preserved, and the features survive a later change of `Text` or font. The tag must exist in the font; `tnum` does in the system fonts on every platform and in most text faces.
+A comma-separated list of features applied to the label's **own** font: family, size and weight are preserved, and the features survive a later change of `Text` or font. Each entry is a name from the table below, or any four-letter OpenType tag for a feature without a name. The feature must exist in the font; tabular figures do in the system fonts on every platform and in most text faces.
 
-| Tag | Effect |
-|---|---|
-| `tnum` / `pnum` | Tabular (equal-width) or proportional digits. Use `tnum` for clocks, timers, scores and any column of numbers |
-| `lnum` / `onum` | Lining or old-style digits |
-| `smcp` | Small capitals |
-| `ss01`…`ss20` | Stylistic sets |
-| `liga`, `kern`, … | Any other tag the font supports |
+| Name | Tag | Effect |
+|---|---|---|
+| `TabularFigures` / `ProportionalFigures` | `tnum` / `pnum` | Equal-width or proportional digits. Use tabular figures for clocks, timers, scores and any column of numbers |
+| `LiningFigures` / `OldstyleFigures` | `lnum` / `onum` | Digits at cap height, or with ascenders and descenders like lower case |
+| `SlashedZero` | `zero` | A zero that cannot be read as the letter O |
+| `Fractions` | `frac` | 1/2 drawn as a fraction |
+| `Superscript` / `Subscript` / `Ordinals` | `sups` / `subs` / `ordn` | Raised or lowered glyphs, and 1st, 2nd |
+| `SmallCaps` / `AllSmallCaps` | `smcp` / `smcp`, `c2sc` | Lower case, or all letters, as small capitals |
+| `CaseSensitiveForms` | `case` | Punctuation moved up to sit with capitals |
+| `Kerning`, `StandardLigatures`, `DiscretionaryLigatures`, `ContextualAlternates` | `kern`, `liga`, `dlig`, `calt` | Turn these on where a font leaves them off |
+| `StylisticSet1`…`StylisticSet20` | `ss01`…`ss20` | The font's alternative glyph sets |
+
+Names are not case-sensitive. The tags are the ones CSS `font-feature-settings` and Android's `fontFeatureSettings` use, so a tag from a font's documentation can be pasted as it is.
 
 | Platform | How |
 |---|---|
 | iOS / Mac Catalyst | Core Text OpenType feature settings on the label's font descriptor |
 | Android | `TextView.FontFeatureSettings` |
-| Windows | `Typography` attached properties on the `TextBlock`, for the tags WinUI exposes (`tnum`, `pnum`, `lnum`, `onum`, `smcp`, `liga`, `kern`, `ss01`–`ss05`); other tags are ignored |
+| Windows | `Typography` attached properties on the `TextBlock`, for every named feature except `StylisticSet6` and up; other tags are ignored |
 
 Before this, equal-width digits meant shipping a second copy of the font with `tnum` baked in, or a handler that swapped in the system font.
 

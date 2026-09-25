@@ -6,7 +6,7 @@ namespace Plugin.Maui.Spine.Extensions;
 /// </summary>
 /// <example>
 /// <code>
-/// &lt;Label Text="{Binding Time}" Text.FontFeatures="tnum" /&gt;
+/// &lt;Label Text="{Binding Time}" Text.FontFeatures="TabularFigures" /&gt;
 /// &lt;Label Text="{Binding Initials}" Text.TrimToCapHeight="True" /&gt;
 /// </code>
 /// </example>
@@ -16,17 +16,19 @@ public static class Text
     internal const string TrimToCapHeightMapperKey = "SpineTrimToCapHeight";
 
     /// <summary>
-    /// Comma-separated OpenType feature tags applied to the label's font, e.g. <c>"tnum"</c> for
-    /// equal-width digits or <c>"tnum,ss01"</c>. The label keeps its font family, size and weight.
+    /// Comma-separated OpenType features applied to the label's font, by name or by tag:
+    /// <c>"TabularFigures"</c> for equal-width digits, <c>"TabularFigures, StylisticSet1"</c>, or a
+    /// four-letter tag such as <c>"tnum"</c> or <c>"ss07"</c> for a feature without a name.
+    /// The label keeps its font family, size and weight.
     /// </summary>
     public static readonly BindableProperty FontFeaturesProperty = BindableProperty.CreateAttached(
         "FontFeatures", typeof(string), typeof(Text), null,
         propertyChanged: static (bindable, _, _) => (bindable as View)?.Handler?.UpdateValue(FontFeaturesMapperKey));
 
-    /// <summary>Gets the OpenType feature tags applied to <paramref name="view"/>.</summary>
+    /// <summary>Gets the OpenType features applied to <paramref name="view"/>.</summary>
     public static string? GetFontFeatures(BindableObject view) => (string?)view.GetValue(FontFeaturesProperty);
 
-    /// <summary>Sets the OpenType feature tags applied to <paramref name="view"/>.</summary>
+    /// <summary>Sets the OpenType features applied to <paramref name="view"/>.</summary>
     public static void SetFontFeatures(BindableObject view, string? value) => view.SetValue(FontFeaturesProperty, value);
 
     /// <summary>
@@ -45,12 +47,47 @@ public static class Text
     /// <summary>Sets whether <paramref name="view"/> centres its capitals on its box.</summary>
     public static void SetTrimToCapHeight(BindableObject view, bool value) => view.SetValue(TrimToCapHeightProperty, value);
 
-    /// <summary>Splits the tag list into trimmed, lower-case, four-character tags.</summary>
+    static readonly Dictionary<string, string[]> FeatureNames = CreateFeatureNames();
+
+    static Dictionary<string, string[]> CreateFeatureNames()
+    {
+        var names = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["TabularFigures"] = ["tnum"],
+            ["ProportionalFigures"] = ["pnum"],
+            ["LiningFigures"] = ["lnum"],
+            ["OldstyleFigures"] = ["onum"],
+            ["SlashedZero"] = ["zero"],
+            ["Fractions"] = ["frac"],
+            ["Superscript"] = ["sups"],
+            ["Subscript"] = ["subs"],
+            ["Ordinals"] = ["ordn"],
+            ["SmallCaps"] = ["smcp"],
+            ["AllSmallCaps"] = ["smcp", "c2sc"],
+            ["CaseSensitiveForms"] = ["case"],
+            ["Kerning"] = ["kern"],
+            ["StandardLigatures"] = ["liga"],
+            ["DiscretionaryLigatures"] = ["dlig"],
+            ["ContextualAlternates"] = ["calt"],
+        };
+
+        for (var i = 1; i <= 20; i++)
+            names[$"StylisticSet{i}"] = [$"ss{i:00}"];
+
+        return names;
+    }
+
+    /// <summary>
+    /// Splits the feature list into lower-case, four-character OpenType tags; a feature name
+    /// becomes its tags, anything else that is four characters long is taken as a tag.
+    /// </summary>
     internal static IEnumerable<string> ParseTags(string? features) =>
         (features ?? string.Empty)
             .Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(t => t.Trim('\'', '"').ToLowerInvariant())
-            .Where(t => t.Length == 4);
+            .Select(t => t.Trim('\'', '"'))
+            .SelectMany(t => FeatureNames.TryGetValue(t, out var tags) ? tags : [t.ToLowerInvariant()])
+            .Where(t => t.Length == 4)
+            .Distinct();
 
     /// <summary>
     /// The distance the glyphs sit below the box centre for a font whose line box runs from
