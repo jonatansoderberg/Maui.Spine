@@ -50,6 +50,7 @@
             <HeroCollectionView.HeaderBottomContent>
                 <AbsoluteLayout InputTransparent="True" CascadeInputTransparent="False">
 
+                    <!-- Lifted so its capitals centre on the gear's line once the header has collapsed. -->
                     <Label
                         InputTransparent="True"
                         Text="SPINE SHOWCASE"
@@ -58,6 +59,7 @@
                         TextTransform="Uppercase"
                         TextColor="White"
                         Margin="10,-4"
+                        TranslationY="-3.5"
                         AbsoluteLayout.LayoutBounds="0, 1, AutoSize, AutoSize"
                         AbsoluteLayout.LayoutFlags="PositionProportional">
                         <Label.Shadow>

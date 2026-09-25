@@ -8,14 +8,17 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
     // The collapsed hero header keeps room for the gear, which sits where the header bar's
     // buttons sit on every other page: the status-bar inset down, 10 points in from the edge.
-    public double HeaderMinHeight => SystemBarInsets.Top + 44;
+    // The collapsed hero: a bar below the status bar with the title and the gear centred on one line.
+    private const double CompactBar = 36;
+
+    public double HeaderMinHeight => SystemBarInsets.Top + CompactBar;
 
     // Tall enough that the photo's S starts below the status bar (and the Dynamic Island) rather than behind it.
     public double HeaderMaxHeight => SystemBarInsets.Top + 270;
 
     public Thickness GearMargin => DeviceInfo.Platform == DevicePlatform.WinUI
         ? new Thickness(0, 0, 144, 0)
-        : new Thickness(0, SystemBarInsets.Top, 10, 0);
+        : new Thickness(0, SystemBarInsets.Top + (CompactBar - 44) / 2, 10, 0);
 
     public double FooterHeight => SystemBarInsets.Bottom;
 
