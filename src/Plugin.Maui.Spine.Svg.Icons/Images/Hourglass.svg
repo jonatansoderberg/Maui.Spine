@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" version="1.1">
 <g>
-<path d="M10.94 6.25L39.06 6.25"  stroke="#000000" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
-<path d="M10.94 43.75L39.06 43.75"  stroke="#000000" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
-<path d="M15.63 6.25L15.63 10.94C15.63 18.75 25 20.31 25 25C25 29.69 15.63 31.25 15.63 39.06L15.63 43.75"  stroke="#000000" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
-<path d="M34.38 6.25L34.38 10.94C34.38 18.75 25 20.31 25 25C25 29.69 34.38 31.25 34.38 39.06L34.38 43.75"  stroke="#000000" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
-<path d="M19.53 39.06L25 34.38L30.47 39.06Z"  stroke="#000000" stroke-width="1" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M10.94 6.25L39.06 6.25"  stroke="currentColor" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M10.94 43.75L39.06 43.75"  stroke="currentColor" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M15.63 6.25L15.63 10.94C15.63 18.75 25 20.31 25 25C25 29.69 15.63 31.25 15.63 39.06L15.63 43.75"  stroke="currentColor" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M34.38 6.25L34.38 10.94C34.38 18.75 25 20.31 25 25C25 29.69 34.38 31.25 34.38 39.06L34.38 43.75"  stroke="currentColor" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M19.53 39.06L25 34.38L30.47 39.06Z"  stroke="currentColor" stroke-width="1" stroke-opacity="1" fill-opacity="0"></path>
 </g>
 </svg>

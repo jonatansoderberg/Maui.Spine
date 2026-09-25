@@ -45,6 +45,16 @@ public class SvgImageSourceBehavior : Behavior<View>
         BindableProperty.Create(nameof(Padding), typeof(Thickness), typeof(SvgImageSourceBehavior), new Thickness(5),
             propertyChanged: static (b, _, _) => ((SvgImageSourceBehavior)b).UpdateImage());
 
+    /// <summary>Identifies the <see cref="AdjustColorsForDark"/> bindable property.</summary>
+    public static readonly BindableProperty AdjustColorsForDarkProperty =
+        BindableProperty.Create(nameof(AdjustColorsForDark), typeof(bool?), typeof(SvgImageSourceBehavior), null,
+            propertyChanged: static (b, _, _) => ((SvgImageSourceBehavior)b).UpdateImage());
+
+    /// <summary>Identifies the <see cref="LineWidthScale"/> bindable property.</summary>
+    public static readonly BindableProperty LineWidthScaleProperty =
+        BindableProperty.Create(nameof(LineWidthScale), typeof(double), typeof(SvgImageSourceBehavior), 1.0,
+            propertyChanged: static (b, _, _) => ((SvgImageSourceBehavior)b).UpdateImage());
+
     /// <summary>
     /// Gets or sets the short SVG resource name to render (e.g. <c>"icon.svg"</c>).
     /// </summary>
@@ -95,6 +105,27 @@ public class SvgImageSourceBehavior : Behavior<View>
     {
         get => (Thickness)GetValue(PaddingProperty);
         set => SetValue(PaddingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the SVG's own colours take their dark tones in the dark theme, from
+    /// <see cref="SvgImageOptions.DarkColors"/> or the automatic rule. The tint is left as it is.
+    /// <see langword="null"/> (the default) follows <see cref="SvgImageOptions.AdjustColorsForDark"/>.
+    /// </summary>
+    public bool? AdjustColorsForDark
+    {
+        get => (bool?)GetValue(AdjustColorsForDarkProperty);
+        set => SetValue(AdjustColorsForDarkProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a multiplier for every stroke width in the SVG: above <c>1</c> for thicker lines
+    /// when the icon is small, below for thinner ones when it is large. Defaults to <c>1</c>.
+    /// </summary>
+    public double LineWidthScale
+    {
+        get => (double)GetValue(LineWidthScaleProperty);
+        set => SetValue(LineWidthScaleProperty, value);
     }
 
     /// <inheritdoc/>
@@ -173,7 +204,8 @@ public class SvgImageSourceBehavior : Behavior<View>
         var tint = TintColor ?? (theme == AppTheme.Dark ? DarkTintColor : LightTintColor);
 
         var resourceName = _svgRegistry?.Resolve(Svg) ?? Svg;
-        var source = SvgBitmapLoader.LoadFromEmbedded(resourceName, width, height, tint, Padding);
+        var adjustColors = theme == AppTheme.Dark && (AdjustColorsForDark ?? SvgBitmapLoader.Options.AdjustColorsForDark);
+        var source = SvgBitmapLoader.LoadFromEmbedded(resourceName, width, height, tint, Padding, adjustColors, (float)LineWidthScale);
 
         // Already on the main thread is the common case (attach, size change), and a deferred set
         // lands one loop later than the cell that shows the view, which on Android is a visible

@@ -1,9 +1,5 @@
 using SkiaSharp;
-using Svg.Skia;
-using System.Globalization;
 using System.Security.Cryptography;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
 
 namespace Plugin.Maui.Spine.Svg;
 
@@ -219,10 +215,11 @@ public sealed class SvgIcon
 
     private byte[] RenderPng(int size, SvgTheme theme)
     {
-        var svgBytes = ApplyLineWidthScale(_svgBytes, _options.LineWidthScale);
-        using var stream = new MemoryStream(svgBytes);
-        using var svg = new SKSvg();
-        svg.Load(stream);
+        using var stream = new MemoryStream(_svgBytes);
+        var tintColor = theme == SvgTheme.Dark ? _options.DarkTintColor : _options.LightTintColor;
+        using var svg = SvgRasterizer.Load(stream, ToSKColor(tintColor), out var tintPaint,
+            theme == SvgTheme.Dark && _options.AdjustColorsForDark ? SvgBitmapLoader.DarkPalette : null, _options.LineWidthScale);
+        using var paint = tintPaint;
 
         if (svg.Picture is null)
             throw new InvalidOperationException("Failed to parse SVG content.");
@@ -231,9 +228,6 @@ public sealed class SvgIcon
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(SKColors.Transparent);
 
-        var tintColor = theme == SvgTheme.Dark ? _options.DarkTintColor : _options.LightTintColor;
-
-        using var paint = SvgRasterizer.TintPaint(ToSKColor(tintColor));
         DrawSvgScaled(canvas, svg.Picture, size, size, paint);
 
         using var image = SKImage.FromBitmap(bitmap);
@@ -243,10 +237,8 @@ public sealed class SvgIcon
 
     private byte[] BuildPdf(SvgTheme theme)
     {
-        var svgBytes = ApplyLineWidthScale(_svgBytes, _options.LineWidthScale);
-        using var stream = new MemoryStream(svgBytes);
-        using var svg = new SKSvg();
-        svg.Load(stream);
+        using var stream = new MemoryStream(_svgBytes);
+        using var svg = SvgRasterizer.Load(stream, SKColors.Transparent, out _, lineWidthScale: _options.LineWidthScale);
 
         if (svg.Picture is null)
             throw new InvalidOperationException("Failed to parse SVG content.");
@@ -300,41 +292,6 @@ public sealed class SvgIcon
             (byte)(color.Green * 255),
             (byte)(color.Blue * 255),
             (byte)(color.Alpha * 255));
-
-    private static byte[] ApplyLineWidthScale(byte[] svgBytes, float scale)
-    {
-        if (Math.Abs(scale - 1.0f) < 1e-6f) return svgBytes;
-
-        var doc = XDocument.Parse(System.Text.Encoding.UTF8.GetString(svgBytes));
-        foreach (var element in doc.Descendants())
-        {
-            var swAttr = element.Attribute("stroke-width");
-            if (swAttr is not null && float.TryParse(swAttr.Value,
-                    NumberStyles.Float, CultureInfo.InvariantCulture, out var sw))
-            {
-                swAttr.Value = (sw * scale).ToString(CultureInfo.InvariantCulture);
-            }
-
-            var styleAttr = element.Attribute("style");
-            if (styleAttr is not null)
-                styleAttr.Value = ScaleStrokeWidthInStyle(styleAttr.Value, scale);
-        }
-
-        return System.Text.Encoding.UTF8.GetBytes(doc.ToString(SaveOptions.DisableFormatting));
-    }
-
-    private static string ScaleStrokeWidthInStyle(string style, float scale) =>
-        Regex.Replace(
-            style,
-            @"stroke-width\s*:\s*([0-9]*\.?[0-9]+)",
-            m =>
-            {
-                if (float.TryParse(m.Groups[1].Value,
-                        NumberStyles.Float, CultureInfo.InvariantCulture, out var val))
-                    return $"stroke-width:{(val * scale).ToString(CultureInfo.InvariantCulture)}";
-                return m.Value;
-            },
-            RegexOptions.IgnoreCase);
 
     // =========================================================
     // File helpers

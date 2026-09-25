@@ -43,8 +43,8 @@ public sealed class SvgIconOptions
 
     /// <summary>
     /// Tint colour applied to the SVG when rendering with <see cref="Plugin.Maui.Spine.Svg.SvgTheme.Light"/>.
-    /// The tint is composited over the SVG using <c>SrcIn</c> blend mode, so only the
-    /// opaque areas of the SVG are affected.
+    /// An SVG that paints with <c>currentColor</c> takes the tint only there and keeps its other
+    /// colours; any other SVG is tinted wherever it is drawn.
     /// Use <see cref="Colors.Transparent"/> to keep the original SVG colours.
     /// Defaults to <see cref="Colors.Black"/>.
     /// </summary>
@@ -52,12 +52,19 @@ public sealed class SvgIconOptions
 
     /// <summary>
     /// Tint colour applied to the SVG when rendering with <see cref="Plugin.Maui.Spine.Svg.SvgTheme.Dark"/>.
-    /// The tint is composited over the SVG using <c>SrcIn</c> blend mode, so only the
-    /// opaque areas of the SVG are affected.
+    /// An SVG that paints with <c>currentColor</c> takes the tint only there and keeps its other
+    /// colours; any other SVG is tinted wherever it is drawn.
     /// Use <see cref="Colors.Transparent"/> to keep the original SVG colours.
     /// Defaults to <see cref="Colors.White"/>.
     /// </summary>
     public Color DarkTintColor { get; set; } = Colors.White;
+
+    /// <summary>
+    /// Gives the SVG's own colours their dark tones in the <see cref="Plugin.Maui.Spine.Svg.SvgTheme.Dark"/>
+    /// render, from <see cref="SvgImageOptions.DarkColors"/> or the automatic rule
+    /// (<see cref="SvgImageOptions.DarkColorMuting"/>). The tint is left as it is. Defaults to <see langword="false"/>.
+    /// </summary>
+    public bool AdjustColorsForDark { get; set; }
 
     /// <summary>
     /// PNG encoding quality in the range 0–100.

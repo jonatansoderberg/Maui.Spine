@@ -164,7 +164,7 @@ def existing(name):
     text = open(os.path.join(IMAGES, name + ".svg")).read()
     parts = []
     for d, rest in re.findall(r'<path d="([^"]*)"\s+([^>]*)>', text):
-        if 'fill="#000000"' in rest:
+        if 'fill="currentColor"' in rest:
             parts.append((d, "fill", 0))
         elif d:
             parts.append((d, "stroke", float(re.search(r'stroke-width="([0-9.]+)"', rest).group(1))))
@@ -175,9 +175,9 @@ def svg(parts):
     out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" version="1.1">', "<g>"]
     for d, kind, w in parts:
         if kind == "stroke":
-            out.append(f'<path d="{d}"  stroke="#000000" stroke-width="{n(w)}" stroke-opacity="1" fill-opacity="0"></path>')
+            out.append(f'<path d="{d}"  stroke="currentColor" stroke-width="{n(w)}" stroke-opacity="1" fill-opacity="0"></path>')
         else:
-            out.append(f'<path d="{d}"  stroke="#000000" stroke-width="0" stroke-opacity="1" fill="#000000" fill-opacity="1"></path>')
+            out.append(f'<path d="{d}"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>')
     return "\n".join(out + ["</g>", "</svg>", ""])
 
 
@@ -222,7 +222,7 @@ def gallery(out_dir, names, compare):
     import html
 
     def inline(path):
-        return open(path).read().replace("#000000", "currentColor").replace("<svg ", '<svg class="i" ', 1)
+        return open(path).read().replace("<svg ", '<svg class="i" ', 1)
 
     def tile(label, path, note=""):
         s = inline(path)

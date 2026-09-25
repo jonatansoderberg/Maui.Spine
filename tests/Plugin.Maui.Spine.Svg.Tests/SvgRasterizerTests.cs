@@ -16,9 +16,17 @@ public class SvgRasterizerTests
         </svg>
         """;
 
-    private static SKBitmap Render(SKColor tint)
+    /// <summary>A <c>currentColor</c> square on the left, a yellow one on the right.</summary>
+    private const string InkAndSun = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40">
+          <rect x="0" y="0" width="40" height="40" fill="currentColor" />
+          <rect x="60" y="0" width="40" height="40" fill="#FFFF00" />
+        </svg>
+        """;
+
+    private static SKBitmap Render(SKColor tint, string source = TwoColours)
     {
-        using var svg = new MemoryStream(Encoding.UTF8.GetBytes(TwoColours));
+        using var svg = new MemoryStream(Encoding.UTF8.GetBytes(source));
         return SKBitmap.Decode(SvgRasterizer.RenderPng(svg, 100, 40, tint));
     }
 
@@ -50,6 +58,34 @@ public class SvgRasterizerTests
         Assert.Equal(SKColors.White, bitmap.GetPixel(20, 20));
         Assert.Equal(SKColors.White, bitmap.GetPixel(80, 20));
         Assert.Equal(0, bitmap.GetPixel(50, 20).Alpha);
+    }
+
+    [Fact]
+    public void A_tint_recolours_only_the_current_colour_and_keeps_the_rest()
+    {
+        using var bitmap = Render(SKColors.White, InkAndSun);
+
+        Assert.Equal(SKColors.White, bitmap.GetPixel(20, 20));
+        Assert.Equal(new SKColor(0xFF, 0xFF, 0x00), bitmap.GetPixel(80, 20));
+        Assert.Equal(0, bitmap.GetPixel(50, 20).Alpha);
+    }
+
+    [Fact]
+    public void A_tints_alpha_reaches_the_current_colour()
+    {
+        using var bitmap = Render(SKColors.Red.WithAlpha(0x80), InkAndSun);
+
+        Assert.InRange(bitmap.GetPixel(20, 20).Alpha, 0x7F, 0x81);
+        Assert.Equal(new SKColor(0xFF, 0xFF, 0x00), bitmap.GetPixel(80, 20));
+    }
+
+    [Fact]
+    public void Without_a_tint_the_current_colour_is_black()
+    {
+        using var bitmap = Render(SKColors.Transparent, InkAndSun);
+
+        Assert.Equal(SKColors.Black, bitmap.GetPixel(20, 20));
+        Assert.Equal(new SKColor(0xFF, 0xFF, 0x00), bitmap.GetPixel(80, 20));
     }
 
     [Fact]

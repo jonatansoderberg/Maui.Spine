@@ -29,6 +29,8 @@ Embed the app's icons and pass the assembly to `UseSpine` (`options.AddAssembly`
 
 Names are matched case-insensitively against the end of the resource name, so folders do not matter; `name_dark.svg` next to `name.svg` is picked in dark mode. Rendered at the screen's scale (a 44-point icon on a 3× device is a 132-pixel bitmap).
 
+Colour: an SVG that uses `currentColor` takes the tint only there and keeps its other colours (the weather symbols' yellow sun); an SVG without it is tinted whole; `Transparent` tints keep every colour. `SvgImageSource.AdjustColorsForDark="True"` gives the SVG's own colours dark tones in dark mode: pairs from `builder.UseEmbeddedSvgImages(o => o.DarkColors[light] = dark)` first, otherwise dark ink flips to light, dark colours lift and all colours mute by `o.DarkColorMuting` (0.15); `o.AdjustColorsForDark` sets the app-wide default. `SvgImageSource.LineWidthScale` multiplies every stroke (above 1 for small icons, below for large).
+
 From C#: `svgIconService.FromEmbeddedSvg("settings.svg")` gives an `SvgIcon` (the header bar and the tab bar use this), and `SvgIconService.GetOrCreateAsync(name, registry, PlatformIconKind.Tray)` writes an `.ico` / `.png` for tray and window icons on Windows and Mac (`options.Windows.TrayIconSvg = "logo.svg"`).
 
 An SVG that does not resolve throws `FileNotFoundException: name.svg` at render time — the assembly is not registered, the file is not an `EmbeddedResource`, or the name is wrong.
