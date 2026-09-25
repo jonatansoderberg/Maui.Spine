@@ -19,6 +19,7 @@
             HeaderTitle="SPINE SHOWCASE"
             HeaderTitleFontFamily="BrandonGrotesqueBlack"
             HeaderTitleFontSize="25"
+            Margin="{Binding ListMargin}"
             HeaderMaxHeight="{Binding HeaderMaxHeight}"
             HeaderMinHeight="{Binding HeaderMinHeight}">
 
@@ -58,7 +59,7 @@
                         FontSize="25"
                         TextTransform="Uppercase"
                         TextColor="White"
-                        Margin="10,-4"
+                        Margin="{Binding TitleMargin}"
                         TranslationY="-3.5"
                         AbsoluteLayout.LayoutBounds="0, 1, AutoSize, AutoSize"
                         AbsoluteLayout.LayoutFlags="PositionProportional">

@@ -184,7 +184,9 @@ public sealed partial class NavigationRegion : ContentView
         if (ViewModel.Presentation is NavigationPresentation.Sheet)
             topMargin += HeaderBarConstants.SheetTopPadding;
 
-        _frameActionView.Margin = new Thickness(0, topMargin, 0, 0);
+        // The bar's buttons stay inside the safe area at the sides too, clear of the Dynamic Island
+        // and the rounded corners in landscape, as UIKit's navigation bar keeps them.
+        _frameActionView.Margin = new Thickness(insets.Left, topMargin, insets.Right, 0);
     }
 
     /// <summary>
