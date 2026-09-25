@@ -25,8 +25,21 @@ public static partial class SpineExtensions
             LayoutHandler.Mapper.AppendToMapping(key, ApplyMaterial);
         }
 
-        // A container moves the content MAUI gives it into its glass whenever the content changes.
+        // A container, and interactive glass, move the content MAUI gives them into their effect view
+        // whenever the content changes; MAUI looks for the old content among the view's own subviews
+        // to remove it, so it is handed back first.
+        ContentViewHandler.Mapper.PrependToMapping(nameof(IContentView.Content), ReleaseMaterialContent);
+        BorderHandler.Mapper.PrependToMapping(nameof(IContentView.Content), ReleaseMaterialContent);
         ContentViewHandler.Mapper.AppendToMapping(nameof(IContentView.Content), ApplyMaterial);
+        BorderHandler.Mapper.AppendToMapping(nameof(IContentView.Content), ApplyMaterial);
+        LayoutHandler.CommandMapper.AppendToMapping(nameof(ILayoutHandler.Add), (handler, layout, _) => ApplyMaterial(handler, layout));
+        LayoutHandler.CommandMapper.AppendToMapping(nameof(ILayoutHandler.Insert), (handler, layout, _) => ApplyMaterial(handler, layout));
+    }
+
+    static void ReleaseMaterialContent(IElementHandler handler, IElement element)
+    {
+        if (handler.PlatformView is UIView view && view.Subviews.OfType<MaterialSurfaceView>().FirstOrDefault() is { } surface)
+            surface.ReleaseContent(view);
     }
 
     static void ApplyMaterial(IElementHandler handler, IElement element)
@@ -42,10 +55,9 @@ public static partial class SpineExtensions
         }
 
         var surface = view.Subviews.OfType<MaterialSurfaceView>().FirstOrDefault();
-        var kind = Material.GetKind(visual);
-
-        if (kind == MaterialKind.None)
+        if (!Material.IsOn(visual))
         {
+            surface?.ReleaseContent(view);
             surface?.RemoveFromSuperview();
             return;
         }
@@ -63,6 +75,11 @@ public static partial class SpineExtensions
         }
 
         surface.Update();
+
+        if (surface.UserInteractionEnabled)
+            surface.HoldContent(view);
+        else
+            surface.ReleaseContent(view);
     }
 }
 
@@ -116,35 +133,58 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
             return;
 
         var kind = Material.Resolve(Material.GetKind(owner));
-        var tint = Material.GetTint(owner);
+        var tint = Material.TintLayer(owner)?.ToPlatform();
 
+        StopPartialEffect();
         Effect = null;
         BackgroundColor = null;
         ContentView.BackgroundColor = null;
 
+        // Only interactive glass takes touches: it reacts to those on views inside it.
+        UserInteractionEnabled = false;
+
         switch (kind)
         {
+            // UIKit morphs clear glass into regular glass, so the intensity between them is the morph paused.
             case MaterialKind.Glass when OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26):
-                var glass = UIGlassEffect.Create(UIGlassEffectStyle.Regular);
-                glass.TintColor = tint?.ToPlatform();
-                glass.Interactive = Material.GetInteractive(owner);
-                Effect = glass;
+                var interactive = Material.GetInteractive(owner);
+                UIGlassEffect Glass(UIGlassEffectStyle style)
+                {
+                    var glass = UIGlassEffect.Create(style);
+                    glass.TintColor = tint;
+                    glass.Interactive = interactive;
+                    return glass;
+                }
+
+                var intensity = Material.GetIntensity(owner);
+                if (intensity <= 0)
+                    Effect = Glass(UIGlassEffectStyle.Clear);
+                else if (intensity >= 1)
+                    Effect = Glass(UIGlassEffectStyle.Regular);
+                else
+                    StartPartialEffect(Glass(UIGlassEffectStyle.Clear), Glass(UIGlassEffectStyle.Regular), intensity);
+                UserInteractionEnabled = interactive;
                 break;
 
             case MaterialKind.Blur:
-                Effect = UIBlurEffect.FromStyle(Material.GetThickness(owner) switch
+                // The thinnest material, the most blur for the least milk, with the tint over it; the
+                // header bar's scroll edge keeps the system material it is tuned against.
+                var blur = UIBlurEffect.FromStyle(Material.GetSystemBlur(owner) switch
                 {
-                    MaterialThickness.UltraThin => UIBlurEffectStyle.SystemUltraThinMaterial,
-                    MaterialThickness.Thin => UIBlurEffectStyle.SystemThinMaterial,
-                    MaterialThickness.Thick => UIBlurEffectStyle.SystemThickMaterial,
-                    MaterialThickness.Chrome => UIBlurEffectStyle.SystemChromeMaterial,
-                    _ => UIBlurEffectStyle.SystemMaterial,
+                    SystemBlur.Thin => UIBlurEffectStyle.SystemThinMaterial,
+                    SystemBlur.Regular => UIBlurEffectStyle.SystemMaterial,
+                    _ => UIBlurEffectStyle.SystemUltraThinMaterial,
                 });
-                ContentView.BackgroundColor = tint?.ToPlatform();
+                var amount = Material.BlurIntensity(owner);
+                if (amount < 1)
+                    StartPartialEffect(null, blur, amount);
+                else
+                    Effect = blur;
+                ContentView.BackgroundColor = tint;
                 break;
 
             default:
-                BackgroundColor = Material.SurfaceColour(tint, kind == MaterialKind.Tinted).ToPlatform();
+                BackgroundColor = tint;
                 break;
         }
 
@@ -153,6 +193,30 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
         _fade = Material.GetFade(owner);
         UpdateEdgeLine(Material.GetEdgeLine(owner));
         SetNeedsLayout();
+    }
+
+    /// <summary>
+    /// Interactive glass reacts only to touches on views inside it, so while it is interactive it holds
+    /// the view's content. MAUI's frames stay right: the effect view is as large as the view.
+    /// </summary>
+    public void HoldContent(UIView view)
+    {
+        foreach (var child in view.Subviews)
+        {
+            if (child != this)
+                ContentView.AddSubview(child);
+        }
+    }
+
+    /// <summary>Hands the content <see cref="HoldContent"/> took back to the view, in front of the material.</summary>
+    public void ReleaseContent(UIView view)
+    {
+        var index = Array.IndexOf(view.Subviews, this) + 1;
+        foreach (var child in ContentView.Subviews)
+        {
+            if (child != _edgeLine)
+                view.InsertSubview(child, index++);
+        }
     }
 
     private void UpdateEdgeLine(Color? colour)
@@ -168,6 +232,70 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
         _edgeLine.BackgroundColor = colour.ToPlatform();
         if (_edgeLine.Superview is null)
             ContentView.AddSubview(_edgeLine);
+    }
+
+    // UIKit has no blur radius and no glass frosting. A material part of the way is the animation
+    // from the one effect to the other, paused there; it is started again whenever the view comes back
+    // on screen or the app to the foreground, as UIKit finishes paused animations when either leaves.
+    private UIViewPropertyAnimator? _partial;
+    private (UIVisualEffect? From, UIVisualEffect To, double Fraction)? _partialEffect;
+    private NSObject? _foreground;
+
+    private void StartPartialEffect(UIVisualEffect? from, UIVisualEffect to, double fraction)
+    {
+        _partialEffect = (from, to, fraction);
+        if (Window is null)
+            return;
+
+        StopPartialEffect(forget: false);
+        Effect = from;
+        _partial = new UIViewPropertyAnimator(1, UIViewAnimationCurve.Linear, () => Effect = to)
+        {
+            PausesOnCompletion = true,
+            FractionComplete = (nfloat)fraction,
+        };
+        _foreground ??= UIApplication.Notifications.ObserveWillEnterForeground((_, _) => RestartPartialEffect());
+    }
+
+    private void RestartPartialEffect()
+    {
+        if (_partialEffect is { } partial)
+            StartPartialEffect(partial.From, partial.To, partial.Fraction);
+    }
+
+    // A paused animator must be stopped before it is released, or UIKit throws.
+    private void StopPartialEffect(bool forget = true)
+    {
+        if (_partial is not null)
+        {
+            _partial.StopAnimation(true);
+            _partial = null;
+        }
+
+        if (forget)
+        {
+            _partialEffect = null;
+            _foreground?.Dispose();
+            _foreground = null;
+        }
+    }
+
+    public override void MovedToWindow()
+    {
+        base.MovedToWindow();
+
+        if (Window is null)
+            StopPartialEffect(forget: false);
+        else
+            RestartPartialEffect();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            StopPartialEffect();
+
+        base.Dispose(disposing);
     }
 
     public override void LayoutSubviews()

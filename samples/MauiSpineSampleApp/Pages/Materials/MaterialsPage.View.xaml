@@ -11,7 +11,7 @@
             <!-- A panel over a photo: what a blur is for. -->
             <Grid HeightRequest="300">
                 <Image Source="spine_hero2.png" Aspect="AspectFill" />
-                <Border Material.Kind="{Binding Kind}" Material.Thickness="{Binding Thickness}"
+                <Border Material.Kind="{Binding Kind}" Material.Intensity="{Binding Intensity}" Material.TintOpacity="{Binding TintOpacity}"
                         Material.Tint="{Binding Tint}" Material.Interactive="{Binding Interactive}"
                         StrokeThickness="0" StrokeShape="RoundRectangle 20"
                         WidthRequest="260" HeightRequest="110" VerticalOptions="End" Margin="0,0,0,24" Padding="16">
@@ -30,7 +30,7 @@
                 <BoxView Grid.Column="3" Color="#669BBC" />
                 <BoxView Grid.Column="4" Color="#A8C686" />
                 <BoxView Grid.Column="5" Color="#7B2D26" />
-                <Border Grid.ColumnSpan="6" Material.Kind="{Binding Kind}" Material.Thickness="{Binding Thickness}"
+                <Border Grid.ColumnSpan="6" Material.Kind="{Binding Kind}" Material.Intensity="{Binding Intensity}" Material.TintOpacity="{Binding TintOpacity}"
                         Material.Tint="{Binding Tint}" Material.Interactive="{Binding Interactive}"
                         StrokeThickness="0" StrokeShape="RoundRectangle 18"
                         HeightRequest="80" Margin="24,0" Padding="16">
@@ -41,12 +41,45 @@
             <VerticalStackLayout Padding="16,12" Spacing="10">
                 <PackageChips Packages="Plugin.Maui.Spine" />
                 <Label FontSize="14"
-                       Text="Material.Kind gives a Border, ContentView or layout a platform material behind its content; the shape comes from StrokeShape. Pick a kind below and watch both panels." />
+                       Text="A material is two layers behind a Border's content, in the shape of its StrokeShape: what is done to what is behind (Kind, as frosted as Intensity) and a colour over it (Tint, as opaque as TintOpacity). A Preset is a named set of those values. Pick below and watch both panels." />
+
+                <Label FontSize="14">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="Preset · " FontAttributes="Bold" />
+                            <Span Text="{Binding PresetSummary}" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+
+                <Label FontSize="14">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="Intensity" FontAttributes="Bold" />
+                            <Span Text=" · " />
+                            <Span Text="{Binding Intensity, StringFormat='{0:0.00}'}" FontAttributes="Bold" />
+                            <Span Text="&#10;" />
+                            <Span Text="{Binding IntensityDescription}" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+
+                <Label FontSize="14">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="Tint opacity" FontAttributes="Bold" />
+                            <Span Text=" · " />
+                            <Span Text="{Binding TintOpacity, StringFormat='{0:0.00}'}" FontAttributes="Bold" />
+                            <Span Text="&#10;" />
+                            <Span Text="How much of the tint shows over the material: the milk of the system's thicker materials, or on its own a tinted panel, solid at 1." />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
 
                 <VerticalStackLayout BindableLayout.ItemsSource="{Binding Groups}" Spacing="8">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="ChoiceGroup">
-                            <Label FontSize="14">
+                            <Label FontSize="14" IsVisible="{Binding IsVisible}">
                                 <Label.FormattedText>
                                     <FormattedString>
                                         <Span Text="{Binding Name}" FontAttributes="Bold" />
@@ -94,31 +127,47 @@
         </VerticalStackLayout>
     </ScrollView>
 
+    <SpinePage.Resources>
+        <DataTemplate x:Key="ChoiceRow" x:DataType="ChoiceGroup">
+            <Grid ColumnDefinitions="84,*" IsVisible="{Binding IsVisible}">
+                <Label Text="{Binding Name}" FontSize="13" TextColor="Gray" Margin="0,8,0,0" VerticalOptions="Start" />
+                <FlexLayout Grid.Column="1" Wrap="Wrap" BindableLayout.ItemsSource="{Binding Choices}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="Choice">
+                            <Button Text="{Binding Label}" Margin="0,0,6,6" Padding="12,4" MinimumHeightRequest="32" HeightRequest="32" FontSize="14" CornerRadius="16"
+                                    BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}"
+                                    Command="{Binding ChooseCommand}">
+                                <Button.Triggers>
+                                    <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
+                                        <Setter Property="BackgroundColor" Value="#0A84FF" />
+                                        <Setter Property="TextColor" Value="White" />
+                                    </DataTrigger>
+                                </Button.Triggers>
+                            </Button>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </FlexLayout>
+            </Grid>
+        </DataTemplate>
+    </SpinePage.Resources>
+
     <SpinePage.Footer>
-        <VerticalStackLayout Padding="12,8,12,2" BindableLayout.ItemsSource="{Binding Groups}">
-            <BindableLayout.ItemTemplate>
-                <DataTemplate x:DataType="ChoiceGroup">
-                    <Grid ColumnDefinitions="84,*">
-                        <Label Text="{Binding Name}" FontSize="13" TextColor="Gray" Margin="0,8,0,0" VerticalOptions="Start" />
-                        <FlexLayout Grid.Column="1" Wrap="Wrap" BindableLayout.ItemsSource="{Binding Choices}">
-                            <BindableLayout.ItemTemplate>
-                                <DataTemplate x:DataType="Choice">
-                                    <Button Text="{Binding Label}" Margin="0,0,6,6" Padding="12,4" MinimumHeightRequest="32" HeightRequest="32" FontSize="14" CornerRadius="16"
-                                            BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}"
-                                            Command="{Binding ChooseCommand}">
-                                        <Button.Triggers>
-                                            <DataTrigger TargetType="Button" Binding="{Binding IsSelected}" Value="True">
-                                                <Setter Property="BackgroundColor" Value="#0A84FF" />
-                                                <Setter Property="TextColor" Value="White" />
-                                            </DataTrigger>
-                                        </Button.Triggers>
-                                    </Button>
-                                </DataTemplate>
-                            </BindableLayout.ItemTemplate>
-                        </FlexLayout>
-                    </Grid>
-                </DataTemplate>
-            </BindableLayout.ItemTemplate>
+        <VerticalStackLayout Padding="12,8,12,2">
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding KindGroups}" BindableLayout.ItemTemplate="{StaticResource ChoiceRow}" />
+            <Grid ColumnDefinitions="84,*,40" Margin="0,0,0,4" IsVisible="{Binding UsesIntensity}">
+                <Label Text="Intensity" FontSize="13" TextColor="Gray" VerticalOptions="Center" />
+                <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding Intensity}" VerticalOptions="Center" />
+                <Label Grid.Column="2" Text="{Binding Intensity, StringFormat='{0:0.00}'}" FontSize="13" TextColor="Gray"
+                       HorizontalTextAlignment="End" VerticalOptions="Center" />
+            </Grid>
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding TintGroups}" BindableLayout.ItemTemplate="{StaticResource ChoiceRow}" />
+            <Grid ColumnDefinitions="84,*,40" Margin="0,0,0,6">
+                <Label Text="Opacity" FontSize="13" TextColor="Gray" VerticalOptions="Center" />
+                <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding TintOpacity}" VerticalOptions="Center" />
+                <Label Grid.Column="2" Text="{Binding TintOpacity, StringFormat='{0:0.00}'}" FontSize="13" TextColor="Gray"
+                       HorizontalTextAlignment="End" VerticalOptions="Center" />
+            </Grid>
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding LastGroups}" BindableLayout.ItemTemplate="{StaticResource ChoiceRow}" />
         </VerticalStackLayout>
     </SpinePage.Footer>
 
