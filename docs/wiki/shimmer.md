@@ -17,7 +17,7 @@ Skeleton loading for a page whose data is on its way. Two ways in, one drawing u
 
 The band is clipped to the placeholder blocks, so only the blocks light up and the gaps stay untouched. Placeholder and band colours follow the light/dark theme and repaint on a runtime switch. With Reduce Motion on (iOS, Mac Catalyst), Remove animations (Android) or Animation effects off (Windows), the placeholders stay and the band does not run.
 
-No registration is needed. The controls register their default text (the screen-reader announcement "Loading", key `Shimmer.Loading`) the first time they are used; an app overrides the key in its own strings (see [Strings](strings.md)).
+No registration is needed. The controls register their default text (the screen-reader announcement "Loading", key `Spine.Shimmer.Loading`) the first time they are used; an app overrides the key in its own strings (see [Strings](strings.md)).
 
 ---
 

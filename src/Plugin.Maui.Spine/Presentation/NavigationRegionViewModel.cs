@@ -110,7 +110,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         {
             Svg = HeaderBarConstants.BackGlyph,
             Placement = PageActionPlacement.Primary,
-            Description = SpineStrings.Current["Header.Back"],
+            Description = SpineStrings.Current["Spine.Header.Back"],
         };
     }
 
@@ -126,7 +126,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         {
             Svg = "close.svg",
             Placement = placement,
-            Description = SpineStrings.Current["Header.Close"],
+            Description = SpineStrings.Current["Spine.Header.Close"],
         };
     }
 

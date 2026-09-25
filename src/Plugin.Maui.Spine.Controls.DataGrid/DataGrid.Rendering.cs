@@ -282,11 +282,11 @@ public partial class DataGrid
         var direction = SortColumnKey == column.Key ? SortDirection : DataGridSortDirection.None;
         SemanticProperties.SetDescription(cell, direction switch
         {
-            DataGridSortDirection.Ascending => strings.Get("DataGrid.Header.SortedAscending", column.Header),
-            DataGridSortDirection.Descending => strings.Get("DataGrid.Header.SortedDescending", column.Header),
+            DataGridSortDirection.Ascending => strings.Get("Spine.DataGrid.Header.SortedAscending", column.Header),
+            DataGridSortDirection.Descending => strings.Get("Spine.DataGrid.Header.SortedDescending", column.Header),
             _ => column.Header,
         });
-        SemanticProperties.SetHint(cell, strings["DataGrid.Header.SortHint"]);
+        SemanticProperties.SetHint(cell, strings["Spine.DataGrid.Header.SortHint"]);
     }
 
     private static Microsoft.Maui.Controls.Shapes.Path BuildSortCaret(DataGridSortDirection direction, DataGridStyleOptions options)
@@ -551,8 +551,8 @@ public partial class DataGrid
         {
             var strings = SpineStrings.Current;
             SemanticProperties.SetDescription(chevronZone, strings.Get(
-                group.IsExpanded ? "DataGrid.Group.Expanded" : "DataGrid.Group.Collapsed", group.DisplayText));
-            SemanticProperties.SetHint(chevronZone, strings["DataGrid.Group.ToggleHint"]);
+                group.IsExpanded ? "Spine.DataGrid.Group.Expanded" : "Spine.DataGrid.Group.Collapsed", group.DisplayText));
+            SemanticProperties.SetHint(chevronZone, strings["Spine.DataGrid.Group.ToggleHint"]);
         }
 
         Apply();

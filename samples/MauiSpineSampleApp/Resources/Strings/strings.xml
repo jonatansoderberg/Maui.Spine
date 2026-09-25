@@ -8,6 +8,6 @@
   <s key="Strings.Language">Language</s>
   <s key="Strings.More">One more</s>
   <s key="Strings.Fewer">One fewer</s>
-  <s key="Strings.OverrideNote">Header.Back is Spine's key; this app overrides it with "Home", which the back button reads for screen readers.</s>
-  <s key="Header.Back">Home</s>
+  <s key="Strings.OverrideNote">Spine.Header.Back is Spine's key; this app overrides it with "Home", which the back button reads for screen readers.</s>
+  <s key="Spine.Header.Back">Home</s>
 </strings>

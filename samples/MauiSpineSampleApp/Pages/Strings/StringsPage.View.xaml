@@ -34,14 +34,14 @@
 
             <Label Text="Overriding a package key" FontAttributes="Bold" Margin="0,8,0,0" />
             <Label Text="{String Strings.OverrideNote}" FontSize="14" />
-            <Label Text="{String Header.Back}" FontSize="16" />
+            <Label Text="{String Spine.Header.Back}" FontSize="16" />
 
             <Label Text="A missing key shows as the key" FontAttributes="Bold" Margin="0,8,0,0" />
             <Label Text="{Binding Missing}" FontSize="16" />
 
             <Border StrokeThickness="0" BackgroundColor="#22808080" Padding="10,8" StrokeShape="RoundRectangle 8" Margin="0,8,0,0">
                 <Label FontSize="11" FontFamily="{OnPlatform iOS=Menlo, MacCatalyst=Menlo, Android=monospace, WinUI=Consolas}"
-                       Text="&lt;!-- Resources/Strings/strings.sv.xml, embedded --&gt;&#10;&lt;strings culture=&quot;sv&quot;&gt;&#10;  &lt;s key=&quot;Strings.Greeting&quot;&gt;Hej {0}, klockan är {1:HH:mm}.&lt;/s&gt;&#10;  &lt;s key=&quot;Strings.Apples.one&quot;&gt;{0} äpple i korgen&lt;/s&gt;&#10;  &lt;s key=&quot;Strings.Apples.other&quot;&gt;{0} äpplen i korgen&lt;/s&gt;&#10;  &lt;s key=&quot;Header.Back&quot;&gt;Hem&lt;/s&gt;   &lt;!-- overrides Spine --&gt;&#10;&lt;/strings&gt;&#10;&#10;&lt;Label Text=&quot;{String Strings.Greeting, Args={Binding UserName}}&quot; /&gt;&#10;&lt;Label Text=&quot;{String Strings.Apples, Count={Binding Apples}}&quot; /&gt;&#10;&#10;_strings.Get(&quot;Strings.Apples&quot;, count);&#10;_strings.Culture = CultureInfo.GetCultureInfo(&quot;sv&quot;);   // stored" />
+                       Text="&lt;!-- Resources/Strings/strings.sv.xml, embedded --&gt;&#10;&lt;strings culture=&quot;sv&quot;&gt;&#10;  &lt;s key=&quot;Strings.Greeting&quot;&gt;Hej {0}, klockan är {1:HH:mm}.&lt;/s&gt;&#10;  &lt;s key=&quot;Strings.Apples.one&quot;&gt;{0} äpple i korgen&lt;/s&gt;&#10;  &lt;s key=&quot;Strings.Apples.other&quot;&gt;{0} äpplen i korgen&lt;/s&gt;&#10;  &lt;s key=&quot;Spine.Header.Back&quot;&gt;Hem&lt;/s&gt;   &lt;!-- overrides Spine --&gt;&#10;&lt;/strings&gt;&#10;&#10;&lt;Label Text=&quot;{String Strings.Greeting, Args={Binding UserName}}&quot; /&gt;&#10;&lt;Label Text=&quot;{String Strings.Apples, Count={Binding Apples}}&quot; /&gt;&#10;&#10;_strings.Get(&quot;Strings.Apples&quot;, count);&#10;_strings.Culture = CultureInfo.GetCultureInfo(&quot;sv&quot;);   // stored" />
             </Border>
         </VerticalStackLayout>
     </ScrollView>
