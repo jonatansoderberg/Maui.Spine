@@ -53,4 +53,4 @@ Meant for short all-caps or initials text. Text with descenders ("gy") will sit 
 
 ## Sample
 
-The sample app's **Typography** page shows a ticking clock and a score column with and without `tnum`, and initials and pills with and without the trim, in the system font and in Josefin Sans, with a line through each box's centre.
+The sample app's **Typography** page shows a ticking clock and a score column with and without tabular figures, and initials and pills with and without the trim, in the system font and in Josefin Sans, with a line through each box's centre.
