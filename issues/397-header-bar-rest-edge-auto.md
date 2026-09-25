@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/397
 **Branch:** issue/397-header-bar-rest-edge-auto
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -26,4 +26,5 @@ Four findings from testing the header bar on iOS 27:
 
 - The edge is hidden for every style, not only `HardEdge`: over an `Overlay` page's photo even the soft edge showed at rest, and the user asked for backgrounds to behave identically in both modes.
 - Hidden via `TopEdgeEffect.Hidden` rather than removing the interaction, so the effect's layout (and the iOS 27 soft-edge stretch) stays in place and only appears.
+- Verified on the iPhone (iOS 27.0): the edge stays hidden at rest and appears on scroll, the large title cross-fades, Overlay behaves as Normal.
 - Apps on Spine that used `Overlay` without a background get the platform's bar on scroll instead of `Transparent`; `HeaderBarBackground = Transparent` keeps the old look.
