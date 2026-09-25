@@ -3,7 +3,6 @@ using MauiSpineSampleApp.Resources.Styles;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Svg;
-using Sharpnado.MaterialFrame;
 
 namespace MauiSpineSampleApp;
 
@@ -51,7 +50,6 @@ public static class MauiProgram
                 options.MacOS.TrayIconSvg = "water.svg";
                 options.MacOS.CloseToBackground = true;
             })
-            .UseSharpnadoMaterialFrame(loggerEnable: false)
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("BrandonGrotesqueBlack.otf", "BrandonGrotesqueBlack");

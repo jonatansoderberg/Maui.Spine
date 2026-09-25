@@ -8,11 +8,17 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
 
     // The collapsed hero header keeps room for the gear, which sits where the header bar's
     // buttons sit on every other page: the status-bar inset down, 10 points in from the edge.
-    public double HeaderMinHeight => SystemBarInsets.Top + 44;
+    // The collapsed hero: a bar below the status bar with the title and the gear centred on one line.
+    private const double CompactBar = 36;
+
+    public double HeaderMinHeight => SystemBarInsets.Top + CompactBar;
+
+    // Tall enough that the photo's S starts below the status bar (and the Dynamic Island) rather than behind it.
+    public double HeaderMaxHeight => SystemBarInsets.Top + 270;
 
     public Thickness GearMargin => DeviceInfo.Platform == DevicePlatform.WinUI
         ? new Thickness(0, 0, 144, 0)
-        : new Thickness(0, SystemBarInsets.Top, 10, 0);
+        : new Thickness(0, SystemBarInsets.Top + (CompactBar - 44) / 2, 10, 0);
 
     public double FooterHeight => SystemBarInsets.Bottom;
 
@@ -26,6 +32,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         if (e.PropertyName == nameof(SystemBarInsets))
         {
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderMinHeight)));
+            OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderMaxHeight)));
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(GearMargin)));
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(FooterHeight)));
         }
@@ -47,6 +54,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : ViewMod
         new("Parameters and results", "Typed navigation parameters and awaited results", "return.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Results.ResultsPage>()),
         new("Page binding", "{PageCommand} and {PageBinding} reach the page's view model from a template", "link.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
         new("Header bar", "Layout, large title, background, foreground and status bar: every combination live, with the code for it", "headerbar.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<HeaderBar.HeaderBarPage>()),
+        new("Materials", "Material.Kind: glass, blur, tinted and solid surfaces for any Border, and glass that merges in a MaterialContainer", "layers.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Materials.MaterialsPage>()),
         new("Page lifetime", "Poll, WhileVisible and PageLifetime: work that runs, pauses and stops with the page", "refresh.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Lifetime.LifetimePage>()),
         new("Menu buttons", "A header action, a pop-up button and an icon button that open native menus: sections, pickers, submenus, toggles", "more.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<Menus.MenusPage>()),
         new("Page actions", "[PageAction] on a command; text, badge, enabled and visibility change live", "energy.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<PageActions.PageActionsPage>()),

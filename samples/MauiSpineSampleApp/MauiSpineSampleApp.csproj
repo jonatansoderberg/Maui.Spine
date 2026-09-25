@@ -61,7 +61,6 @@
 		<PackageReference Include="CommunityToolkit.Mvvm" />
 		<PackageReference Include="Microsoft.Maui.Controls" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
-		<PackageReference Include="Sharpnado.MaterialFrame.Maui" />
 	</ItemGroup>
 
   
@@ -113,6 +112,15 @@
 
     <Compile Include="Pages\Theme\ThemePage.ViewModel.cs">
       <DependentUpon>ThemePage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Materials\MaterialsPage.View.xaml">
+      <DependentUpon>MaterialsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Materials\MaterialsPage.ViewModel.cs">
+      <DependentUpon>MaterialsPage.cs</DependentUpon>
     </Compile>
 
     <MauiXaml Update="Pages\HeaderBar\HeaderBarPage.View.xaml">
@@ -348,9 +356,6 @@
 			<DependentUpon>SmallSheetPage.cs</DependentUpon>
 		</MauiXaml>
 
-		<MauiXaml Update="Resources\Styles\MaterialFrame.xaml">
-		  <Generator>MSBuild:Compile</Generator>
-		</MauiXaml>
     
     <Compile Include="Pages\Settings\SettingsPage.ViewModel.cs">
       <DependentUpon>SettingsPage.cs</DependentUpon>

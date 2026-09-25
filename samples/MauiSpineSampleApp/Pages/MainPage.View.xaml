@@ -1,7 +1,6 @@
 <SpinePage
     xmlns="http://schemas.microsoft.com/dotnet/maui/global"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:sharpnado="http://sharpnado.com"
     xmlns:local="clr-namespace:MauiBottomSheetPoc"
     x:Class="MauiSpineSampleApp.Pages.MainPage"
     x:TypeArguments="MainPageViewModel"
@@ -20,16 +19,12 @@
             HeaderTitle="SPINE SHOWCASE"
             HeaderTitleFontFamily="BrandonGrotesqueBlack"
             HeaderTitleFontSize="25"
-            HeaderMaxHeight="230"
+            HeaderMaxHeight="{Binding HeaderMaxHeight}"
             HeaderMinHeight="{Binding HeaderMinHeight}">
 
             <HeroCollectionView.HeaderOverlayContent>
-                <sharpnado:MaterialFrame
-                    CornerRadius="0"
-                    Elevation="0"
-                    Opacity="0.0"
-                    LightThemeBackgroundColor="{DynamicResource DynamicLightThemeColor}"
-                    MaterialTheme="{DynamicResource DynamicMaterialTheme}"/>
+                <!-- Fades in as the hero collapses: a blur of the photo behind the compact header. -->
+                <Border Material.Kind="Blur" StrokeThickness="0" Opacity="0" />
             </HeroCollectionView.HeaderOverlayContent>
 
             <HeroCollectionView.HeaderTopContent>
@@ -55,6 +50,7 @@
             <HeroCollectionView.HeaderBottomContent>
                 <AbsoluteLayout InputTransparent="True" CascadeInputTransparent="False">
 
+                    <!-- Lifted so its capitals centre on the gear's line once the header has collapsed. -->
                     <Label
                         InputTransparent="True"
                         Text="SPINE SHOWCASE"
@@ -63,6 +59,7 @@
                         TextTransform="Uppercase"
                         TextColor="White"
                         Margin="10,-4"
+                        TranslationY="-3.5"
                         AbsoluteLayout.LayoutBounds="0, 1, AutoSize, AutoSize"
                         AbsoluteLayout.LayoutFlags="PositionProportional">
                         <Label.Shadow>

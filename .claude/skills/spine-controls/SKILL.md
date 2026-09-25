@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -51,6 +51,10 @@ An SVG that does not resolve throws `FileNotFoundException: name.svg` at render 
 | `Transient` | Nothing at rest, glass while pressed — an icon floating on rich content |
 
 Glass is for controls that float over content (navigation, a floating action), not for buttons inside the content, and never glass on glass. The header bar's own buttons are glass by default (`options.Apple.GlassHeaderActions = false` turns it off). `CornerRadius`, borders and background visual states are ignored on glass.
+
+## Materials (`Plugin.Maui.Spine`)
+
+`Material.Kind` on a `Border`, `ContentView` or layout draws a platform material behind its content: `Glass` (iOS 26 `UIGlassEffect`; blur elsewhere), `Blur` (iOS system material, Android 12+ a real GPU blur of what is behind, Windows acrylic; tinted on Android < 12), `Tinted`, `Solid`. `Material.Thickness` (`UltraThin`…`Chrome`) sets how much comes through a blur, `Material.Tint` bleeds a colour in, and `Material.Interactive="True"` makes glass react to touch. The shape comes from `StrokeShape`; leave `Background` unset. `MaterialContainer Spacing="20"` makes glass surfaces inside merge on iOS 26. Glass is for floating controls; panels use `Blur`/`Tinted`. For a hero's compact header: `<HeroCollectionView.HeaderOverlayContent><Border Material.Kind="Blur" StrokeThickness="0" /></HeroCollectionView.HeaderOverlayContent>`. Replaces Sharpnado.MaterialFrame. Docs: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/materials.md
 
 ## HeroCollectionView (`Plugin.Maui.Spine.Controls.HeroCollectionView`)
 

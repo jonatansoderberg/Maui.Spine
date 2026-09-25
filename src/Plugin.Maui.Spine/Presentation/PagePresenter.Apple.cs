@@ -12,6 +12,10 @@ internal sealed partial class PagePresenter
     private UIView? _edgeContainer;
     private View? _edgeSource;
     private UIScrollView? _edgeScrollView;
+    private SoftEdgeStretch? _softEdgeStretch;
+
+    /// <summary>How far below the header bar a stretched soft edge (iOS 27) fades out.</summary>
+    private const double SoftEdgeTail = 36;
 
     // The container a SoftStatusBar effect is sized to: as tall as the status bar, holding a label,
     // because UIKit ignores a container with no labels, images or controls in it.
@@ -58,6 +62,7 @@ internal sealed partial class PagePresenter
             && ReferenceEquals(EdgeContainerView.Handler?.PlatformView, _edgeContainer))
         {
             ApplyEdgeStyle();
+            UpdateSoftEdgeStretch();
             return;
         }
 
@@ -81,6 +86,27 @@ internal sealed partial class PagePresenter
         };
         container.AddInteraction(_edgeInteraction);
         _edgeContainer = container;
+        UpdateSoftEdgeStretch();
+    }
+
+    partial void RefreshSoftEdge() => _softEdgeStretch?.Apply();
+
+    // From iOS 27 UIKit's soft edge only covers the status bar; SoftEdge asks for the whole header.
+    private void UpdateSoftEdgeStretch()
+    {
+        var wanted = BarBackground is HeaderBarBackground.SoftEdge
+            && _edgeScrollView is not null
+            && (OperatingSystem.IsIOSVersionAtLeast(27) || OperatingSystem.IsMacCatalystVersionAtLeast(27));
+
+        if (!wanted)
+        {
+            _softEdgeStretch?.Dispose();
+            _softEdgeStretch = null;
+            return;
+        }
+
+        _softEdgeStretch ??= new SoftEdgeStretch(_edgeScrollView!, () => RowDefinitions[0].Height.Value + SoftEdgeTail);
+        _softEdgeStretch.Apply();
     }
 
     // Either side may not have a platform view yet (the page is built before it is shown), or may
@@ -134,6 +160,8 @@ internal sealed partial class PagePresenter
             && (OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26)))
             _edgeScrollView.TopEdgeEffect.Style = UIScrollEdgeEffectStyle.AutomaticStyle;
 
+        _softEdgeStretch?.Dispose();
+        _softEdgeStretch = null;
         _edgeInteraction = null;
         _edgeContainer = null;
         _edgeScrollView = null;
