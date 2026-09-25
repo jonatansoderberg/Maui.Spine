@@ -75,8 +75,8 @@ public static class SvgImageSource
     /// <summary>
     /// Identifies the <c>LightTintColor</c> attached property.
     /// The tint colour applied when the app is using the <see cref="AppTheme.Light"/> theme.
-    /// Defaults to <see cref="Colors.Black"/>, for a monochrome icon; <see cref="Colors.Transparent"/>
-    /// keeps the SVG's own colours.
+    /// Defaults to <see cref="Colors.Black"/>. An SVG that paints with <c>currentColor</c> takes the tint
+    /// only there; any other SVG is tinted whole. <see cref="Colors.Transparent"/> keeps the SVG's own colours.
     /// </summary>
     public static readonly BindableProperty LightTintColorProperty =
         BindableProperty.CreateAttached(
@@ -103,8 +103,8 @@ public static class SvgImageSource
     /// <summary>
     /// Identifies the <c>DarkTintColor</c> attached property.
     /// The tint colour applied when the app is using the <see cref="AppTheme.Dark"/> theme.
-    /// Defaults to <see cref="Colors.White"/>, for a monochrome icon; <see cref="Colors.Transparent"/>
-    /// keeps the SVG's own colours.
+    /// Defaults to <see cref="Colors.White"/>. An SVG that paints with <c>currentColor</c> takes the tint
+    /// only there; any other SVG is tinted whole. <see cref="Colors.Transparent"/> keeps the SVG's own colours.
     /// </summary>
     public static readonly BindableProperty DarkTintColorProperty =
         BindableProperty.CreateAttached(
@@ -152,6 +152,61 @@ public static class SvgImageSource
     /// <returns>The current <see cref="Thickness"/> padding.</returns>
     public static Thickness GetPadding(BindableObject obj)
         => (Thickness)obj.GetValue(PaddingProperty);
+
+
+
+    /// <summary>
+    /// Identifies the <c>AdjustColorsForDark</c> attached property.
+    /// Whether the SVG's own colours take their dark tones in the dark theme, from
+    /// <see cref="SvgImageOptions.DarkColors"/> or the automatic rule; the tint is left as it is.
+    /// <see langword="null"/> (the default) follows <see cref="SvgImageOptions.AdjustColorsForDark"/>.
+    /// </summary>
+    public static readonly BindableProperty AdjustColorsForDarkProperty =
+        BindableProperty.CreateAttached(
+            "AdjustColorsForDark",
+            typeof(bool?),
+            typeof(SvgImageSource),
+            null,
+            propertyChanged: OnAttachedValueChanged);
+
+    /// <summary>Sets whether the SVG's own colours take their dark tones on <paramref name="obj"/>.</summary>
+    /// <param name="obj">The target <see cref="BindableObject"/>.</param>
+    /// <param name="value"><see langword="true"/> or <see langword="false"/>, or <see langword="null"/> for the app-wide default.</param>
+    public static void SetAdjustColorsForDark(BindableObject obj, bool? value)
+        => obj.SetValue(AdjustColorsForDarkProperty, value);
+
+    /// <summary>Gets whether the SVG's own colours take their dark tones on <paramref name="obj"/>.</summary>
+    /// <param name="obj">The target <see cref="BindableObject"/>.</param>
+    /// <returns>The value set, or <see langword="null"/> for the app-wide default.</returns>
+    public static bool? GetAdjustColorsForDark(BindableObject obj)
+        => (bool?)obj.GetValue(AdjustColorsForDarkProperty);
+
+
+
+    /// <summary>
+    /// Identifies the <c>LineWidthScale</c> attached property.
+    /// Multiplies every stroke width in the SVG: above <c>1</c> for thicker lines when the icon is
+    /// small, below for thinner ones when it is large. Defaults to <c>1</c>.
+    /// </summary>
+    public static readonly BindableProperty LineWidthScaleProperty =
+        BindableProperty.CreateAttached(
+            "LineWidthScale",
+            typeof(double),
+            typeof(SvgImageSource),
+            1.0,
+            propertyChanged: OnAttachedValueChanged);
+
+    /// <summary>Sets the stroke width multiplier on <paramref name="obj"/>.</summary>
+    /// <param name="obj">The target <see cref="BindableObject"/>.</param>
+    /// <param name="value">The multiplier; <c>1</c> keeps the SVG's own widths.</param>
+    public static void SetLineWidthScale(BindableObject obj, double value)
+        => obj.SetValue(LineWidthScaleProperty, value);
+
+    /// <summary>Gets the stroke width multiplier on <paramref name="obj"/>.</summary>
+    /// <param name="obj">The target <see cref="BindableObject"/>.</param>
+    /// <returns>The multiplier.</returns>
+    public static double GetLineWidthScale(BindableObject obj)
+        => (double)obj.GetValue(LineWidthScaleProperty);
 
 
 
@@ -245,6 +300,8 @@ public static class SvgImageSource
         behavior.LightTintColor = GetLightTintColor(bindable);
         behavior.DarkTintColor = GetDarkTintColor(bindable);
         behavior.Padding = GetPadding(bindable);
+        behavior.AdjustColorsForDark = GetAdjustColorsForDark(bindable);
+        behavior.LineWidthScale = GetLineWidthScale(bindable);
         behavior.UpdateImage();
     }
 }

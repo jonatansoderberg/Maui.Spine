@@ -51,6 +51,21 @@ public static class MauiAppBuilderExtensions
     }
 
     /// <summary>
+    /// Registers the embedded SVG image services, like
+    /// <see cref="UseEmbeddedSvgImages(MauiAppBuilder, Assembly[])"/>, and sets the app-wide
+    /// <see cref="SvgImageOptions"/>. Call it after <c>UseSpine()</c> to set only the options.
+    /// </summary>
+    /// <param name="builder">The <see cref="MauiAppBuilder"/> to configure.</param>
+    /// <param name="configure">Sets the options.</param>
+    /// <param name="assemblies">The assemblies to scan for embedded SVG resources.</param>
+    /// <returns>The same <paramref name="builder"/> instance to allow method chaining.</returns>
+    public static MauiAppBuilder UseEmbeddedSvgImages(this MauiAppBuilder builder, Action<SvgImageOptions> configure, params Assembly[] assemblies)
+    {
+        configure(SvgBitmapLoader.Options);
+        return builder.UseEmbeddedSvgImages(assemblies);
+    }
+
+    /// <summary>
     /// Registers the embedded SVG image services with the MAUI application, using the
     /// application entry assembly for resource discovery.
     /// </summary>

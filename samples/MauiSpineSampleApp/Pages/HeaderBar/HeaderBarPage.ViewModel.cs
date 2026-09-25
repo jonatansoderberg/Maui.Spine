@@ -24,7 +24,7 @@ public partial class HeaderBarPageViewModel : ViewModelBase
         _layout = new("Layout",
         [
             new("Normal", "The content starts below the bar, and a list scrolls under it when the background lets it show. Most pages.", () => HeaderBarMode = HeaderBarMode.Normal),
-            new("Overlay", "The content starts at the top of the screen, behind the status bar and the bar. A page that opens on a photo, a map or a hero.", () => HeaderBarMode = HeaderBarMode.Overlay),
+            new("Overlay", "The content starts at the top of the screen, behind the status bar and the bar. A page that opens on a photo, a map or a hero. The background behaves as under Normal.", () => HeaderBarMode = HeaderBarMode.Overlay),
         ]);
 
         _largeTitle = new("Large title",
@@ -35,7 +35,7 @@ public partial class HeaderBarPageViewModel : ViewModelBase
 
         _background = new("Background",
         [
-            new("Auto", "What the platform's own bar does: on iOS the navigation bar's default when a list fills the page (Soft on iOS 26, Hard from iOS 27), Transparent under Overlay, Solid otherwise. The default; pick another value only to get a look on purpose.", () => HeaderBarBackground = HeaderBarBackground.Auto),
+            new("Auto", "What the platform's own bar does: on iOS the navigation bar's default when a list fills the page (Soft on iOS 26, Hard from iOS 27), Solid otherwise, under Normal and Overlay alike. The default; pick another value only to get a look on purpose.", () => HeaderBarBackground = HeaderBarBackground.Auto),
             new("Solid", "The page's colour: content under the bar is hidden. A classic bar, or a photo that gives way to a plain bar once it scrolls.", () => HeaderBarBackground = HeaderBarBackground.Solid),
             new("Transparent", "Nothing: content shows through the bar, and the title floats over it. A photo or a map under an Overlay bar.", () => HeaderBarBackground = HeaderBarBackground.Transparent),
             new("Soft", "SoftEdge: content fades and blurs into the whole header, the navigation bar's default on iOS 26. A fading band on Android and Windows.", () => HeaderBarBackground = HeaderBarBackground.SoftEdge),
@@ -45,13 +45,13 @@ public partial class HeaderBarPageViewModel : ViewModelBase
 
         _foreground = new("Foreground",
         [
-            new("Theme", "The title and the icons follow light and dark mode.", () => HeaderBarForeground = null),
+            new("Auto", "The title and the icons follow light and dark mode.", () => HeaderBarForeground = null),
             new("White", "A fixed white title and icons, for a dark photo under a Transparent bar. Over a Solid or scroll edge bar in light mode it disappears.", () => HeaderBarForeground = Colors.White),
         ]);
 
         _statusBar = new("Status bar",
         [
-            new("Default", "The clock and icons follow the theme.", () => StatusBarStyle = StatusBarStyle.Default),
+            new("Auto", "The clock and icons follow the theme.", () => StatusBarStyle = StatusBarStyle.Auto),
             new("Light", "White clock and icons, for a dark photo at the top.", () => StatusBarStyle = StatusBarStyle.LightContent),
             new("Dark", "Black clock and icons, for a light photo at the top.", () => StatusBarStyle = StatusBarStyle.DarkContent),
         ]);
@@ -114,7 +114,7 @@ public partial class HeaderBarPageViewModel : ViewModelBase
                 settings.Add($"HeaderBarBackground =\n    HeaderBarBackground.{HeaderBarBackground}");
             if (HeaderBarForeground is not null)
                 settings.Add("HeaderBarForeground = \"#FFFFFF\"");
-            if (StatusBarStyle != StatusBarStyle.Default)
+            if (StatusBarStyle != StatusBarStyle.Auto)
                 settings.Add($"StatusBarStyle =\n    StatusBarStyle.{StatusBarStyle}");
 
             var code = new StringBuilder("[NavigableRegion(Title = \"Inbox\"");

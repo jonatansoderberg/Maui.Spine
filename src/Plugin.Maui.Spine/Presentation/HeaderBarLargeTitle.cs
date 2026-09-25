@@ -8,7 +8,8 @@ namespace Plugin.Maui.Spine.Presentation;
 /// page's scroll content. It shows the page's title (set <see cref="Label.Text"/> to show something
 /// else), takes the platform's large-title size, weight, row height and margin from
 /// <see cref="HeaderBarConstants"/>, the header's foreground colour when the page fixes one, and is
-/// what Spine measures to know when the header bar's title should be in.
+/// what Spine measures to know when the header bar's title should be in. It fades out as the bar's
+/// title fades in, and back in as the page returns to the top.
 /// </summary>
 /// <example>
 /// <code>
@@ -63,6 +64,7 @@ public class HeaderBarLargeTitle : Label
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         ApplyForeground();
+        ApplyCollapse();
 
         _page.SetValue(HeaderBar.LargeTitleViewProperty, this);
     }
@@ -77,13 +79,20 @@ public class HeaderBarLargeTitle : Label
 
         _page = null;
         _viewModel = null;
+        Opacity = 1;
     }
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ViewModelBase.HeaderBarForeground))
             ApplyForeground();
+        else if (e.PropertyName is nameof(ViewModelBase.HeaderBarCollapseProgress) or nameof(ViewModelBase.LargeTitle))
+            ApplyCollapse();
     }
+
+    // The large title and the bar's title cross-fade: one is out as the other is in.
+    private void ApplyCollapse() =>
+        Opacity = _viewModel is { LargeTitle: true } vm ? 1 - vm.HeaderBarCollapseProgress : 1;
 
     // A fixed header colour (a title over a photo) applies to the large title too; otherwise the
     // app's Label style and theme decide, as for any other text.

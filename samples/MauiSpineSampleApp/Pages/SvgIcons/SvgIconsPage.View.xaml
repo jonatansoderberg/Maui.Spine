@@ -21,6 +21,38 @@
                     <ImageButton Padding="5" CornerRadius="50" SvgImageSource.Svg="fish.svg" WidthRequest="80" HeightRequest="80" Style="{StaticResource SvgImageButtonStyle}" IsEnabled="False" />
                 </HorizontalStackLayout>
 
+                <Label Text="Tint and the SVG's own colours" FontAttributes="Bold" Margin="0,8,0,0" />
+                <Label Text="Parts drawn with currentColor take the tint; every other colour in the SVG stays, like the sun and the lightning. Left: the theme's tint. Right: TintColor set to Primary."
+                       FontSize="14" />
+                <HorizontalStackLayout Spacing="16" HorizontalOptions="Center">
+                    <Image SvgImageSource.Svg="Weather2.svg" WidthRequest="64" HeightRequest="64" SvgImageSource.Padding="2" />
+                    <Image SvgImageSource.Svg="Weather22.svg" WidthRequest="64" HeightRequest="64" SvgImageSource.Padding="2" />
+                    <Image SvgImageSource.Svg="Weather2.svg" WidthRequest="64" HeightRequest="64" SvgImageSource.Padding="2" SvgImageSource.TintColor="{StaticResource Primary}" />
+                    <Image SvgImageSource.Svg="Weather22.svg" WidthRequest="64" HeightRequest="64" SvgImageSource.Padding="2" SvgImageSource.TintColor="{StaticResource Primary}" />
+                </HorizontalStackLayout>
+
+                <Label Text="Dark tones for the SVG's own colours" FontAttributes="Bold" Margin="0,8,0,0" />
+                <Label Text="The crest is drawn for a light background. In dark mode, AdjustColorsForDark (right) flips dark ink to light, lifts the navy and mutes the colours; the red takes the exact tone MauiProgram maps it to. Left: the colours as drawn."
+                       FontSize="14" />
+                <HorizontalStackLayout Spacing="32" HorizontalOptions="Center">
+                    <Image SvgImageSource.Svg="Crest.svg" WidthRequest="80" HeightRequest="80" SvgImageSource.Padding="2" />
+                    <Image SvgImageSource.Svg="Crest.svg" WidthRequest="80" HeightRequest="80" SvgImageSource.Padding="2" SvgImageSource.AdjustColorsForDark="True" />
+                </HorizontalStackLayout>
+
+                <Label Text="Line width" FontAttributes="Bold" Margin="0,8,0,0" />
+                <Label Text="SvgImageSource.LineWidthScale multiplies every stroke: thicker lines for a small icon, thinner for a large one."
+                       FontSize="14" />
+                <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                    <Image Grid.Column="0" SvgImageSource.Svg="Settings.svg" WidthRequest="24" HeightRequest="24" SvgImageSource.Padding="0" VerticalOptions="Center" />
+                    <Image Grid.Column="1" SvgImageSource.Svg="Settings.svg" WidthRequest="24" HeightRequest="24" SvgImageSource.Padding="0" VerticalOptions="Center" SvgImageSource.LineWidthScale="1.5" />
+                    <Image Grid.Column="2" SvgImageSource.Svg="Settings.svg" WidthRequest="80" HeightRequest="80" SvgImageSource.Padding="0" />
+                    <Image Grid.Column="3" SvgImageSource.Svg="Settings.svg" WidthRequest="80" HeightRequest="80" SvgImageSource.Padding="0" SvgImageSource.LineWidthScale="0.6" />
+                    <Label Grid.Row="1" Grid.Column="0" Text="24, ×1" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" />
+                    <Label Grid.Row="1" Grid.Column="1" Text="24, ×1.5" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" />
+                    <Label Grid.Row="1" Grid.Column="2" Text="80, ×1" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" />
+                    <Label Grid.Row="1" Grid.Column="3" Text="80, ×0.6" FontSize="10" TextColor="Gray" HorizontalTextAlignment="Center" />
+                </Grid>
+
                 <Label Text="Image, every icon in the set (SpineIcons.All)" FontAttributes="Bold" Margin="0,8,0,0" />
             </VerticalStackLayout>
         </CollectionView.Header>

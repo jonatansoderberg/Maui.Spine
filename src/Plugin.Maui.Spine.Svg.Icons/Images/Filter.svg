@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" version="1.1">
 <g>
-<path d="M6.25 9.38L43.75 9.38L28.13 26.56L28.13 40.63L21.88 37.5L21.88 26.56Z"  stroke="#000000" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M6.25 9.38L43.75 9.38L28.13 26.56L28.13 40.63L21.88 37.5L21.88 26.56Z"  stroke="currentColor" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
 </g>
 </svg>

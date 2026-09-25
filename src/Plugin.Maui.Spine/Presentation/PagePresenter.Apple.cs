@@ -78,6 +78,7 @@ internal sealed partial class PagePresenter
 
         _edgeScrollView = scrollView;
         ApplyEdgeStyle();
+        ApplySystemScrollEdgeRest();
 
         _edgeInteraction = new UIScrollEdgeElementContainerInteraction
         {
@@ -138,6 +139,20 @@ internal sealed partial class PagePresenter
         UpdateSystemScrollEdge();
     }
 
+    // A navigation bar shows no edge until content scrolls under it, but on iOS 27 the interaction's
+    // hard band shows over a scroll view still at its top, and an Overlay page's top is under the
+    // bar at rest and would get any style's edge there.
+    partial void ApplySystemScrollEdgeRest()
+    {
+        if (_edgeScrollView is not { } scrollView
+            || !OperatingSystem.IsIOSVersionAtLeast(26) && !OperatingSystem.IsMacCatalystVersionAtLeast(26))
+            return;
+
+        var hidden = _page is not { ScrollEdgeProgress: > 0 };
+        if (scrollView.TopEdgeEffect.Hidden != hidden)
+            scrollView.TopEdgeEffect.Hidden = hidden;
+    }
+
     private void ApplyEdgeStyle()
     {
         if (_edgeScrollView is not { } scrollView
@@ -158,7 +173,10 @@ internal sealed partial class PagePresenter
         // What the scroll view shows under the status bar without the interaction is the system's own.
         if (_edgeScrollView is not null
             && (OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26)))
+        {
             _edgeScrollView.TopEdgeEffect.Style = UIScrollEdgeEffectStyle.AutomaticStyle;
+            _edgeScrollView.TopEdgeEffect.Hidden = false;
+        }
 
         _softEdgeStretch?.Dispose();
         _softEdgeStretch = null;

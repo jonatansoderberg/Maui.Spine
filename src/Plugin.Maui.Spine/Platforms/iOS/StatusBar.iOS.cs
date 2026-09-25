@@ -16,7 +16,7 @@ internal static partial class StatusBar
 
         if (_appControlled != true)
         {
-            if (!_warned && style != StatusBarStyle.Default)
+            if (!_warned && style != StatusBarStyle.Auto)
             {
                 _warned = true;
                 System.Diagnostics.Debug.WriteLine("[Spine] StatusBarStyle needs <key>UIViewControllerBasedStatusBarAppearance</key><false/> in Info.plist to take effect on iOS.");

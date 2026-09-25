@@ -201,7 +201,7 @@ internal sealed partial class PagePresenter : Grid
 
     private void OnPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.SystemBarInsets)
+        if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.SystemBarInsets) or nameof(ViewModelBase.SafeAreaInsets)
             or nameof(ViewModelBase.HeaderBarForeground) or nameof(ViewModelBase.IsHeaderBarVisible)
             or nameof(ViewModelBase.LargeTitle) or nameof(ViewModelBase.EffectiveHeaderBarBackground))
             ApplyPageLayout();
@@ -219,7 +219,9 @@ internal sealed partial class PagePresenter : Grid
         // pushed down by the status bar the content host no longer pads.
         Grid.SetRowSpan(_contentPresenter, floats ? 2 : 1);
         Grid.SetRow(_contentPresenter, floats ? 0 : 1);
-        _titleBar.Margin = floats ? new Thickness(0, _page?.SystemBarInsets.Top ?? 0, 0, 0) : Thickness.Zero;
+        // A page that draws under a side of the safe area still keeps its title inside it.
+        var sides = _page?.SafeAreaInsets ?? Thickness.Zero;
+        _titleBar.Margin = new Thickness(sides.Left, floats ? _page?.SystemBarInsets.Top ?? 0 : 0, sides.Right, 0);
         _titleBar.InputTransparent = floats;
         // The title was added before the content and would draw under it once they share a row.
         _titleBar.ZIndex = floats ? 2 : 0;
@@ -273,7 +275,11 @@ internal sealed partial class PagePresenter : Grid
         _titleLabel!.Opacity = _page?.LargeTitle == true ? _page.HeaderBarCollapseProgress : 1;
         _barBackground.IsVisible = solid;
         _barBackground.Opacity = edge;
+        ApplySystemScrollEdgeRest();
     }
+
+    /// <summary>Hides UIKit's scroll edge effect while the page is at rest; Apple platforms only.</summary>
+    partial void ApplySystemScrollEdgeRest();
 
     // Solid, or the band that stands in for the scroll edge effect where the system has none.
     private bool HasSolidBackground() =>
