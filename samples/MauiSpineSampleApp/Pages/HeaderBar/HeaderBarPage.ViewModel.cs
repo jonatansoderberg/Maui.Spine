@@ -160,11 +160,15 @@ public sealed partial class ChoiceGroup(string name, IReadOnlyList<Choice> choic
     [ObservableProperty]
     public partial Choice? Selected { get; private set; }
 
+    [ObservableProperty]
+    public partial bool IsVisible { get; set; } = true;
+
+    /// <summary>Selects the choice at <paramref name="index"/>; -1 selects none.</summary>
     public void Select(int index)
     {
         for (var i = 0; i < Choices.Count; i++)
             Choices[i].IsSelected = i == index;
 
-        Selected = Choices[index];
+        Selected = index >= 0 ? Choices[index] : null;
     }
 }

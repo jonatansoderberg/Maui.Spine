@@ -315,10 +315,12 @@ internal sealed partial class PagePresenter : Grid
             return;
 
         var colour = PageBackground();
+        Material.SetTintOpacity(_barBackground, 1);
 
         if (BarBackground is HeaderBarBackground.Solid)
         {
-            Material.SetKind(_barBackground, MaterialKind.Solid);
+            Material.SetKind(_barBackground, MaterialKind.None);
+            Material.SetSystemBlur(_barBackground, SystemBlur.None);
             Material.SetTint(_barBackground, colour);
             Material.SetFade(_barBackground, 0);
             Material.SetEdgeLine(_barBackground, null);
@@ -340,7 +342,7 @@ internal sealed partial class PagePresenter : Grid
             // The hard style: nearly opaque, ending at the bar's bottom edge in a hairline.
             var hairline = HairlineThickness();
             height = bar + hairline;
-            Material.SetThickness(_barBackground, MaterialThickness.Regular);
+            Material.SetSystemBlur(_barBackground, SystemBlur.Regular);
             Material.SetTint(_barBackground, colour.WithAlpha(blurs ? ScrollEdgeHardBlurTint : ScrollEdgeHardBandAlpha));
             Material.SetFade(_barBackground, 0);
             Material.SetEdgeLine(_barBackground, HairlineColour());
@@ -360,7 +362,7 @@ internal sealed partial class PagePresenter : Grid
                 height += fade;
                 fade *= SoftBlurFadeFactor;
             }
-            Material.SetThickness(_barBackground, MaterialThickness.Thin);
+            Material.SetSystemBlur(_barBackground, SystemBlur.Thin);
             Material.SetTint(_barBackground, blurs
                 ? Colors.Black.WithAlpha(IsDarkTheme() ? SoftBlurDimDark : SoftBlurDimLight)
                 : colour.WithAlpha(ScrollEdgeBandAlpha));

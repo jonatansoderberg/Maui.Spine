@@ -25,7 +25,7 @@
 
             <HeroCollectionView.HeaderOverlayContent>
                 <!-- Fades in as the hero collapses: a blur of the photo behind the compact header. -->
-                <Border Material.Kind="Blur" Material.Thickness="UltraThin" StrokeThickness="0" Opacity="0" />
+                <Border Material.Preset="BlurUltraThin" StrokeThickness="0" Opacity="0" />
             </HeroCollectionView.HeaderOverlayContent>
 
             <HeroCollectionView.HeaderTopContent>

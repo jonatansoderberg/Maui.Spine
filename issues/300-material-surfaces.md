@@ -149,3 +149,20 @@ None.
 - **Android blur only from 12 (API 31),** as decided with Jonatan: `RenderEffect` needs it, and a CPU blur for older devices was not worth the code and the battery.
 - **Glass is shaped, not masked.** A mask on a `UIGlassEffect` view cuts off its edge highlights; `UICornerConfiguration` lets UIKit draw them.
 - **The start page's collapsed title is lifted with `TranslationY`.** It sits in an `AbsoluteLayout` by its bottom edge, where a margin does not move it.
+
+## Follow-up: the showcase review (after the merge)
+
+Feedback from the Materials page: thickness did nothing on glass, the thickness scale read in the wrong order (Chrome looked thinner than Thick), the blurs were nearly opaque, and Interactive did nothing. `Material` was not in a released package yet, so its API was reworked.
+
+- **Two layers.** What is done to what is behind: `Material.Kind` (`None`, `Blur`, `Glass`), as frosted as `Material.Intensity` (0–1). A colour over it: `Material.Tint` (the theme's surface when unset) as opaque as `Material.TintOpacity` (0–1). `MaterialThickness`, `Tinted` and `Solid` are gone: a tinted panel is a tint opacity without a kind, a solid one is tint opacity 1.
+- **Intensity on iOS** is the animation from one effect to the other, paused part of the way (`UIViewPropertyAnimator.FractionComplete`), restarted when the view comes back on screen or the app to the foreground. A blur goes from none to the ultra-thin system material; glass morphs from UIKit's clear glass to its regular glass (pixel-identical at the ends).
+- **Presets** (`Material.Preset`: `GlassClear`, `GlassRegular`, `BlurUltraThin`, `BlurThin`, `BlurRegular`, `BlurThick`) are named sets of Kind, Intensity and TintOpacity that a view's own values override; `Material.Values(preset)` returns them.
+- **Interactive glass** holds the view's content inside its effect view while it is interactive: UIKit only lets glass react to touches on views inside it, and MAUI's content lay beside it.
+- The header bar's scroll edge keeps the system thin and standard materials it is tuned against, through an internal `SystemBlur`.
+
+Decisions:
+
+- **Thickness became tint opacity.** Apple's thicker materials blur about as much as the ultra-thin one and differ mostly in milk (measured over the sample photo: thin, regular and thick are ultra-thin plus about 50, 75 and 90 % of the surface). That is why only ultra-thin read as a blur, and why the milk is its own dial.
+- **The blur presets are a scale of their own, not copies of Apple's.** Copies made thin, regular and thick nearly solid on the phone; Jonatan wanted blur and milk to grow together (ultra-thin 0.3/0, thin 0.55/0.15, regular 0.8/0.3, thick 1/0.45).
+- **Chrome has no preset**: it is the system bars' material and sits between regular and thick.
+- **The sample hero uses `BlurUltraThin`**, chosen on the phone.

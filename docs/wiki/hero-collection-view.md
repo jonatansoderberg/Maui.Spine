@@ -79,7 +79,7 @@ The header supports several content slots for customisation:
 
 | Slot | Type | Description |
 |---|---|---|
-| `HeaderOverlayContent` | `View` | Custom content placed over the header image, faded in as the header collapses. A `<Border Material.Kind="Blur" StrokeThickness="0" />` gives the compact header a blur of the image behind it (see [Materials](materials.md)) |
+| `HeaderOverlayContent` | `View` | Custom content placed over the header image, faded in as the header collapses. A `<Border Material.Preset="BlurUltraThin" StrokeThickness="0" />` gives the compact header a blur of the image behind it (see [Materials](materials.md)) |
 | `HeaderTopContent` | `View` | Content pinned to the top of the header |
 | `HeaderBottomContent` | `View` | Content pinned to the bottom of the header |
 | `HeaderChildrenLayout` | `Layout` | The layout container for child elements (default: `AbsoluteLayout`) |

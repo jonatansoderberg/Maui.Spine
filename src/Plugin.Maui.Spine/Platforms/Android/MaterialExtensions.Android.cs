@@ -42,7 +42,7 @@ public static partial class SpineExtensions
             ? (material, layers.NumberOfLayers > 1 ? layers.GetDrawable(1) : null)
             : ((MaterialDrawable?)null, view.Background);
 
-        if (Material.GetKind(visual) == MaterialKind.None)
+        if (!Material.IsOn(visual))
         {
             if (own.Item1 is not null)
                 view.Background = own.Item2;
@@ -102,31 +102,30 @@ internal sealed class MaterialDrawable : Drawable
             Listen(true);
     }
 
-    /// <summary>How far a blur of each thickness spreads, and how much of the surface colour lies over it.</summary>
-    private static (float Radius, float Overlay) BlurOf(MaterialThickness thickness) => thickness switch
-    {
-        MaterialThickness.UltraThin => (8, 0.1f),
-        MaterialThickness.Thin => (16, 0.25f),
-        MaterialThickness.Thick => (32, 0.55f),
-        MaterialThickness.Chrome => (40, 0.7f),
-        _ => (24, 0.4f),
-    };
+    /// <summary>How far a blur spreads at full intensity; the tint over it is what makes a material thicker.</summary>
+    private const float BlurRadius = 24;
+
+    /// <summary>How much of the surface lies over the thinnest blur, as over the system's ultra-thin material.</summary>
+    private const float ThinnestMilk = 0.1f;
 
     public void Update(VisualElement owner)
     {
         var kind = Material.Resolve(Material.GetKind(owner));
-        var tint = Material.GetTint(owner);
+        var tint = Material.TintLayer(owner);
 
         if (kind == MaterialKind.Blur && OperatingSystem.IsAndroidVersionAtLeast(31))
         {
-            var (radius, overlay) = BlurOf(Material.GetThickness(owner));
-            _blurRadius = radius * _density;
-            _fill = (tint ?? Material.SurfaceColour(null, tinted: false).WithAlpha(overlay)).ToPlatform();
+            var intensity = Material.BlurIntensity(owner);
+            _blurRadius = (float)(BlurRadius * intensity) * _density;
+
+            // The thinnest system material has a little milk of its own; the header bar's band is its tint alone.
+            var milk = Material.GetSystemBlur(owner) == SystemBlur.None ? Material.Surface().WithAlpha((float)(ThinnestMilk * intensity)) : null;
+            _fill = (Material.Over(tint, milk) ?? Colors.Transparent).ToPlatform();
         }
         else
         {
             _blurRadius = 0;
-            _fill = Material.SurfaceColour(tint, kind != MaterialKind.Solid).ToPlatform();
+            _fill = (tint ?? Colors.Transparent).ToPlatform();
         }
 
         _edge = Material.GetEdgeLine(owner)?.ToPlatform();

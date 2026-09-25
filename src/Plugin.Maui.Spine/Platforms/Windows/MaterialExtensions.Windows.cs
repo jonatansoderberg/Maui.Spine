@@ -35,7 +35,7 @@ public static partial class SpineExtensions
         if (handler.PlatformView is not WPanel panel || element is not VisualElement visual)
             return;
 
-        if (Material.GetKind(visual) == MaterialKind.None)
+        if (!Material.IsOn(visual))
         {
             // MAUI paints the view's own background again.
             if ((bool)visual.GetValue(MaterialAppliedProperty))
@@ -64,23 +64,25 @@ public static partial class SpineExtensions
     static WBrush MaterialBrush(VisualElement view)
     {
         var kind = Material.Resolve(Material.GetKind(view));
-        var tint = Material.GetTint(view);
         var fade = Material.GetFade(view);
         var edge = Material.GetEdgeLine(view);
+        var tint = Material.TintLayer(view);
 
-        // Acrylic has no fade and no hairline; the header bar's band is the tinted surface instead.
+        // Acrylic has no fade and no hairline; the header bar's band is the tinted surface instead. Its
+        // blur radius is fixed, so a weaker one is acrylic let through.
         if (kind is MaterialKind.Blur or MaterialKind.Glass && fade <= 0 && edge is null)
         {
-            var colour = tint ?? Material.SurfaceColour(null, tinted: false);
+            var colour = Material.Over(tint, Material.Surface().WithAlpha(0.1f))!;
             return new AcrylicBrush
             {
                 TintColor = colour.WithAlpha(1).ToWindowsColor(),
-                TintOpacity = tint is null ? 0.6 : tint.Alpha,
+                TintOpacity = colour.Alpha,
                 FallbackColor = colour.WithAlpha(1).ToWindowsColor(),
+                Opacity = Material.BlurIntensity(view),
             };
         }
 
-        var fill = Material.SurfaceColour(tint, kind != MaterialKind.Solid);
+        var fill = tint ?? Colors.Transparent;
         if (fade <= 0 && edge is null)
             return new SolidColorBrush(fill.ToWindowsColor());
 
