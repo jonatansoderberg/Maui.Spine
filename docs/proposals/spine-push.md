@@ -1,6 +1,6 @@
 # Spine.Push — remote push från Spine, klient och server (förstudie, rev 1)
 
-**Status:** Proposal — inget implementerat. Issues per leveranssteg i §11: [#175](https://github.com/jonatansoderberg/Maui.Spine/issues/175) (projektstruktur), [#176](https://github.com/jonatansoderberg/Maui.Spine/issues/176) (server), [#177](https://github.com/jonatansoderberg/Maui.Spine/issues/177) (klient), [#180](https://github.com/jonatansoderberg/Maui.Spine/issues/180) (sample), [#178](https://github.com/jonatansoderberg/Maui.Spine/issues/178) (Orientera), [#179](https://github.com/jonatansoderberg/Maui.Spine/issues/179) (v2).
+**Status:** Proposal — inget implementerat. Issues per leveranssteg i §11: [#175](https://github.com/jonatansoderberg/Maui.Spine/issues/175) (projektstruktur), [#176](https://github.com/jonatansoderberg/Maui.Spine/issues/176) (server), [#177](https://github.com/jonatansoderberg/Maui.Spine/issues/177) (klient), [#180](https://github.com/jonatansoderberg/Maui.Spine/issues/180) (sample), [Orientera#4](https://github.com/jonatansoderberg/Orientera/issues/4) (Orientera), [#179](https://github.com/jonatansoderberg/Maui.Spine/issues/179) (v2).
 **Fråga:** Kan Spine göra remote push lika enkelt som widgets blev: registrering, rättigheter, taggar, popup- och tysta notiser, koppling till Live Activities och widgets, på alla plattformar Spine stödjer — och kan ett litet .NET-bibliotek på servern skicka allt detta utan att appen behöver veta hur APNs, FCM och WNS skiljer sig?
 **Svar:** Ja, med tre paket: `Plugin.Maui.Spine.Push` i appen, `Plugin.Maui.Spine.Server` på servern och det delade `Plugin.Maui.Spine.Common`. Rekommendationen är att **skicka direkt till APNs, FCM v1 och WNS** från serverbiblioteket och äga enhetsregistret själv, i stället för Azure Notification Hubs. Skälen står i §3; kortversionen är att ANH inte kan skicka de pushtyper Spine redan behöver (Live Activity, iOS 26-widgetar, broadcast-kanaler), inte når MAUI-appar på Windows och inte fått en SDK-release sedan februari 2024.
 
@@ -411,7 +411,7 @@ Gemensamt för de som fungerar bra: ett **handler-objekt** i stället för lösa
 
 ## 11. Leveransplan
 
-**v1 — kärnan (#175, #176, #177, #180, #178)**
+**v1 — kärnan (#175, #176, #177, #180, Orientera#4)**
 1. Projektstruktur ([#175](https://github.com/jonatansoderberg/Maui.Spine/issues/175)): `Plugin.Maui.Spine.Common` (net10.0) bryts ut ur Widgets; kontrollerna får ett paket var under `Plugin.Maui.Spine.Controls.<Vad>` (`HeroCollectionView`, `AnimatedLabel`); `SvgImage` + `SvgIcon` → `Plugin.Maui.Spine.Svg`; wikin rättas. Förutsättning för serverbiblioteket.
 2. `Plugin.Maui.Spine.Common` + `Plugin.Maui.Spine.Server`: APNs- och FCM-transport, in-memory- och Table Storage-register, tagguttryck, `MapSpinePush`, Functions-hjälpare, `PushResult`. Testbart utan app: integrationstest mot APNs sandbox med en riktig token.
 3. `Plugin.Maui.Spine.Push` iOS + Android: `UseSpinePush`, rättigheter, registrering, handler, kanaler, targets (entitlements, plist, manifest). Live Activity-tokens upp i installationen; `UpdateLiveActivityAsync` på servern. Android Live Update via data-push.

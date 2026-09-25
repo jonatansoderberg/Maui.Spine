@@ -87,4 +87,4 @@ Inga öppna. Avgjorda 2026-09-08:
 
 Simulator: `xcrun simctl push` mot appen ska ge en rad i **Logg** med rätt `Kind` och `Route`, och ett tapp ska navigera. Emulator: `POST /send` från sample-servern, som också visar `PushResult` i appen. Sample-servern körs lokalt med `dotnet run`.
 
-**Vad som inte går att verifiera här:** en riktig APNs-token kräver fysisk enhet med profil och push-entitlement, som inte finns på den här maskinen. FCM kräver ett Firebase-projekt. Kedjan hela vägen — `POST /send` till en fysisk iPhone — är milstolpen som ligger kvar i #178. Windows-TFM:en går inte att bygga här.
+**Vad som inte går att verifiera här:** en riktig APNs-token kräver fysisk enhet med profil och push-entitlement, som inte finns på den här maskinen. FCM kräver ett Firebase-projekt. Kedjan hela vägen — `POST /send` till en fysisk iPhone — är milstolpen som ligger kvar i jonatansoderberg/Orientera#4. Windows-TFM:en går inte att bygga här.
