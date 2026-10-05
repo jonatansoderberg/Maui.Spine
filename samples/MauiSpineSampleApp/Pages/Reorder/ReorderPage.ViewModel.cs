@@ -13,9 +13,9 @@ public partial class ReorderPageViewModel : SampleViewModel
     {
         _mode = new("Mode",
         [
-            new("Long-press", "Hold a card anywhere until it lifts, then drag it. A normal drag still scrolls.", () => Mode = ReorderMode.LongPress),
-            new("Handle", "The grip picks the card up the moment it is touched; the rest of the card scrolls and taps as usual.", () => Mode = ReorderMode.Handle),
-            new("Edit", "The grips show only while editing: tap Edit at the top right, drag, then Done.", () => Mode = ReorderMode.Edit),
+            new("Long-press", "Hold a card anywhere until it lifts, then drag it. A normal drag still scrolls.", () => (Mode, EditButton) = (ReorderMode.LongPress, false)),
+            new("Handle", "The grip picks the card up the moment it is touched; the rest of the card scrolls and taps as usual.", () => (Mode, EditButton) = (ReorderMode.Handle, false)),
+            new("Edit button", "Handles with Reorder.IsEnabled bound to an edit state: the grips show only while editing. Tap Edit at the top right, drag, then Done.", () => (Mode, EditButton) = (ReorderMode.Handle, true)),
         ]);
 
         _layout = new("Layout",
@@ -55,8 +55,15 @@ public partial class ReorderPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial ReorderMode Mode { get; set; } = ReorderMode.Handle;
 
+    // Whether an Edit button in the header turns reordering on and off.
+    [ObservableProperty]
+    public partial bool EditButton { get; set; }
+
     [ObservableProperty]
     public partial bool IsEditing { get; set; }
+
+    // Reorder.IsEnabled: always without the Edit button, only while editing with it.
+    public bool CanReorder => !EditButton || IsEditing;
 
     [ObservableProperty]
     public partial bool Grid { get; set; }
@@ -86,19 +93,21 @@ public partial class ReorderPageViewModel : SampleViewModel
 
         switch (e.PropertyName)
         {
-            case nameof(Mode):
-                _edit.IsVisible = Mode == ReorderMode.Edit;
+            case nameof(EditButton):
+                _edit.IsVisible = EditButton;
                 IsEditing = false;
+                OnPropertyChanged(new PropertyChangedEventArgs(nameof(CanReorder)));
                 break;
             case nameof(IsEditing):
                 _edit.Text = IsEditing ? "Done" : "Edit";
+                OnPropertyChanged(new PropertyChangedEventArgs(nameof(CanReorder)));
                 break;
             case nameof(Grid):
                 OnPropertyChanged(new PropertyChangedEventArgs(nameof(IsList)));
                 break;
         }
 
-        if (e.PropertyName is nameof(Mode) or nameof(Grid))
+        if (e.PropertyName is nameof(Mode) or nameof(EditButton) or nameof(Grid))
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(Code)));
     }
 
@@ -108,7 +117,7 @@ public partial class ReorderPageViewModel : SampleViewModel
         get
         {
             var layout = Grid ? "\n    ItemsLayout=\"VerticalGrid, 2\"" : "";
-            var editing = Mode == ReorderMode.Edit ? "\n    Reorder.IsEditing=\"{Binding IsEditing}\"" : "";
+            var editing = EditButton ? "\n    Reorder.IsEnabled=\"{Binding IsEditing}\"" : "";
             var handle = Mode == ReorderMode.LongPress
                 ? ""
                 : "\n      <Image Grid.Column=\"2\"\n             SvgImageSource.Svg=\"griphorizontal.svg\"\n             Reorder.IsHandle=\"True\" />";

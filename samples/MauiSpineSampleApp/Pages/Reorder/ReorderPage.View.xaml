@@ -66,7 +66,7 @@
             IsVisible="{Binding IsList}"
             ItemsSource="{Binding Cards}"
             Reorder.Mode="{Binding Mode}"
-            Reorder.IsEditing="{Binding IsEditing}"
+            Reorder.IsEnabled="{Binding CanReorder}"
             Reorder.Command="{Binding MovedCommand}">
 
             <CollectionView.Header>
@@ -101,7 +101,7 @@
             ItemsSource="{Binding Cards}"
             ItemsLayout="VerticalGrid, 2"
             Reorder.Mode="{Binding Mode}"
-            Reorder.IsEditing="{Binding IsEditing}"
+            Reorder.IsEnabled="{Binding CanReorder}"
             Reorder.Command="{Binding MovedCommand}">
 
             <CollectionView.Header>

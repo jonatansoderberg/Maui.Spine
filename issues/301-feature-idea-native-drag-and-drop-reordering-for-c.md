@@ -77,7 +77,7 @@ Mapper entries appended to `CollectionViewHandler2` (iOS/Mac) and `CollectionVie
 
 ## Changes
 
-- `Reorder` (`Mode`, `IsEditing`, `Command`, `IsHandle`), `ReorderMode` and `ReorderMove` in
+- `Reorder` (`Mode`, `IsEnabled`, `Command`, `IsHandle`), `ReorderMode` and `ReorderMove` in
   `src/Plugin.Maui.Spine/Extensions/Reorder.cs`, with a per-list `ReorderState` and a per-handle
   `ReorderHandleState` that follow their handlers like `TapState`.
 - iOS / Mac Catalyst (`Extensions/Reorder.Apple.cs`): `UICollectionView` interactive movement driven by
@@ -95,8 +95,8 @@ Mapper entries appended to `CollectionViewHandler2` (iOS/Mac) and `CollectionVie
   "Reorder". Strings `Spine.Reorder.*` in English and Swedish.
 - Haptics: Medium on lift (iOS; Android's `ItemTouchHelper` plays its own long-press), Selection on
   every new place, Light on the drop.
-- Showcase: gallery page "Reorder" (`Pages/Reorder/`) with Long-press / Handle / Edit, List / Grid, an
-  Edit/Done page action and the last move; the Hero page's Reorder option uses `Reorder.Mode`.
+- Showcase: gallery page "Reorder" (`Pages/Reorder/`) with Long-press / Handle / Edit button, List / Grid,
+  an Edit/Done page action that drives `Reorder.IsEnabled` and the last move; the Hero page's Reorder option uses `Reorder.Mode`.
 - Docs: `docs/wiki/reorder.md`, README rows, the core package README, a section in
   `hero-collection-view.md`, and the `spine-controls` skill.
 
@@ -118,8 +118,12 @@ Mapper entries appended to `CollectionViewHandler2` (iOS/Mac) and `CollectionVie
 - Android: no shadow on the lifted row. `ItemTouchHelper` raises the row's container, which has no
   outline of its own (the card's shape is drawn by the MAUI `Border` inside it), so only the scale shows.
 - Handles attach to their list when their item joins it (`ChildAdded`), because the template builds a
-  handle before its item has a parent. Spine owns the handle's `IsVisible`: shown in `Handle` and while
-  editing in `Edit`, hidden in `LongPress` and `Off`.
+  handle before its item has a parent. Spine owns the handle's `IsVisible`: shown in `Handle` while
+  `IsEnabled`, hidden otherwise and in `LongPress` and `Off`.
+- `ReorderMode.Edit` and `Reorder.IsEditing` replaced by `Reorder.IsEnabled` (default true) in every
+  mode (Jonatan, 2026-10-05): Edit was only Handle plus an on/off switch, and the switch is useful in
+  every mode, for example while a list loads. An edit button is now `Mode="Handle"` with `IsEnabled`
+  bound to the edit state.
 - The Showcase shows List and Grid as two lists over the same cards: on iOS a list does not change its
   `ItemsLayout` once shown (MAUI 10.0.50, `CollectionViewHandler2`). `HeaderBar.ScrollSource` follows the
   visible one so it starts below the header bar.

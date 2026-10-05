@@ -180,7 +180,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Glass buttons** | `Button`/`ImageButton` as Liquid Glass on iOS 26, normal buttons elsewhere | [Glass buttons](docs/wiki/glass-buttons.md) |
 | **Materials** | Glass, blur, tinted and solid surfaces for any `Border`: system materials on iOS, a real blur on Android 12+, acrylic on Windows | [Materials](docs/wiki/materials.md) |
 | **Haptics** | Success, warning, error, selection and impacts from the platform's own generators, on a tap, a header action, a tab switch or a sheet detent | [Haptics](docs/wiki/haptics.md) |
-| **Reorder** | Drag the items of any `CollectionView` to a new place: a long-press, a grip handle or an edit mode, with haptics and screen-reader actions | [Reorder](docs/wiki/reorder.md) |
+| **Reorder** | Drag the items of any `CollectionView` to a new place: a long-press or a grip handle, with haptics and screen-reader actions | [Reorder](docs/wiki/reorder.md) |
 
 ---
 
@@ -213,7 +213,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Glass buttons](docs/wiki/glass-buttons.md) | `Glass.Style` on `Button` and `ImageButton`: Liquid Glass on iOS 26, no-op elsewhere |
 | [Materials](docs/wiki/materials.md) | `Material.Kind` on a `Border`, `ContentView` or layout: glass, blur, tinted, solid; `MaterialContainer` for glass that merges |
 | [Haptics](docs/wiki/haptics.md) | `Haptics.Success()` … `Impact()`, `Haptics.OnTap` on buttons and rows, `PageAction.Haptic`, opt-in haptics for tab switches and sheet detents |
-| [Reorder](docs/wiki/reorder.md) | `Reorder.Mode` on any `CollectionView`: long-press, handle or edit mode, the list moved for you, `Reorder.Command` after the drop, Move up/down for screen readers |
+| [Reorder](docs/wiki/reorder.md) | `Reorder.Mode` on any `CollectionView`: long-press or handle, `Reorder.IsEnabled` for an Edit button, the list moved for you, `Reorder.Command` after the drop, Move up/down for screen readers |
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |

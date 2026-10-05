@@ -16,15 +16,10 @@ public enum ReorderMode
 
     /// <summary>
     /// Only a view marked with <see cref="Reorder.IsHandleProperty"/> starts a drag, at once on touch.
-    /// The rest of the item scrolls and taps as usual.
+    /// The rest of the item scrolls and taps as usual. With <see cref="Reorder.IsEnabledProperty"/>
+    /// bound to an edit state, the handles show on demand, the way a table in edit mode shows them.
     /// </summary>
     Handle,
-
-    /// <summary>
-    /// Like <see cref="Handle"/>, but only while <see cref="Reorder.IsEditingProperty"/> is true; the
-    /// handles are hidden otherwise, the way a table in edit mode shows them on demand.
-    /// </summary>
-    Edit,
 }
 
 /// <summary>An item a user moved in a list with <see cref="Reorder.ModeProperty"/>.</summary>
@@ -80,15 +75,16 @@ public static class Reorder
             propertyChanged: OnModeChanged);
 
     /// <summary>
-    /// Attached property: in <see cref="ReorderMode.Edit"/>, whether the list is being edited, which
-    /// shows the handles and lets them drag.
+    /// Attached property: whether the list's items can move right now, in any mode. True by default.
+    /// False hides the handles and turns the long-press and the screen-reader actions off; bind it to
+    /// an edit state to show the handles on demand, or turn it off while the list loads or saves.
     /// </summary>
-    public static readonly BindableProperty IsEditingProperty =
+    public static readonly BindableProperty IsEnabledProperty =
         BindableProperty.CreateAttached(
-            "IsEditing",
+            "IsEnabled",
             typeof(bool),
             typeof(Reorder),
-            false,
+            true,
             propertyChanged: static (bindable, _, _) => GetState(bindable)?.Update());
 
     /// <summary>
@@ -104,8 +100,7 @@ public static class Reorder
 
     /// <summary>
     /// Attached property: marks a view in the item template as the handle that drags the item in
-    /// <see cref="ReorderMode.Handle"/> and <see cref="ReorderMode.Edit"/>. Spine shows it while it
-    /// can drag and hides it otherwise, so leave its <see cref="VisualElement.IsVisible"/> to Spine.
+    /// <see cref="ReorderMode.Handle"/>. Spine shows it while it can drag and hides it otherwise, so leave its <see cref="VisualElement.IsVisible"/> to Spine.
     /// </summary>
     public static readonly BindableProperty IsHandleProperty =
         BindableProperty.CreateAttached(
@@ -127,11 +122,11 @@ public static class Reorder
     /// <summary>Sets how the items of <paramref name="view"/> are picked up.</summary>
     public static void SetMode(BindableObject view, ReorderMode value) => view.SetValue(ModeProperty, value);
 
-    /// <summary>Gets whether <paramref name="view"/> is being edited.</summary>
-    public static bool GetIsEditing(BindableObject view) => (bool)view.GetValue(IsEditingProperty);
+    /// <summary>Gets whether the items of <paramref name="view"/> can move right now.</summary>
+    public static bool GetIsEnabled(BindableObject view) => (bool)view.GetValue(IsEnabledProperty);
 
-    /// <summary>Sets whether <paramref name="view"/> is being edited.</summary>
-    public static void SetIsEditing(BindableObject view, bool value) => view.SetValue(IsEditingProperty, value);
+    /// <summary>Sets whether the items of <paramref name="view"/> can move right now.</summary>
+    public static void SetIsEnabled(BindableObject view, bool value) => view.SetValue(IsEnabledProperty, value);
 
     /// <summary>Gets the command that runs after an item of <paramref name="view"/> has moved.</summary>
     public static ICommand? GetCommand(BindableObject view) => (ICommand?)view.GetValue(CommandProperty);
@@ -229,13 +224,12 @@ internal sealed partial class ReorderState : IDisposable
     public bool LongPressActive => Mode == ReorderMode.LongPress && CanReorder;
 
     /// <summary>Whether the handles show and drag.</summary>
-    public bool HandlesActive =>
-        (Mode == ReorderMode.Handle || Mode == ReorderMode.Edit && Reorder.GetIsEditing(_list)) && CanReorder;
+    public bool HandlesActive => Mode == ReorderMode.Handle && CanReorder;
 
     /// <summary>Whether items can move at all right now.</summary>
     public bool IsActive => LongPressActive || HandlesActive;
 
-    bool CanReorder => !_list.IsGrouped && _list.ItemsSource is IList { IsReadOnly: false, IsFixedSize: false };
+    bool CanReorder => Reorder.GetIsEnabled(_list) && !_list.IsGrouped && _list.ItemsSource is IList { IsReadOnly: false, IsFixedSize: false };
 
     IList? Source => _list.ItemsSource as IList;
 

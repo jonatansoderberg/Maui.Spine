@@ -37,7 +37,7 @@ var result = await navigation.NavigateToWithResultAsync<PickerSheet, Choice>();
 - **Header bar and page actions** — back button, title, and ViewModel-driven action buttons.
 - **Glass** — `Glass.Style` on any `Button` or `ImageButton`; Liquid Glass on iOS 26, a normal button elsewhere.
 - **Haptics** — `Haptics.Success()`, `Selection()`, `Impact()` and `Haptics.OnTap` from the platform's own generators, on iOS and Android.
-- **Reorder** — `Reorder.Mode` on any `CollectionView`: drag items to a new place by a long-press, a handle or in edit mode, with haptics and screen-reader actions.
+- **Reorder** — `Reorder.Mode` on any `CollectionView`: drag items to a new place by a long-press or a handle, with haptics and screen-reader actions.
 - **Shortcuts** — the app-icon menu, jump list and tray menu through one handler interface, with icons from SVG.
 - **Windows** — window size and position, tray icon, single instance, custom title bar.
 

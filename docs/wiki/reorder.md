@@ -41,20 +41,31 @@ private Task SaveOrderAsync(ReorderMove move) => _store.SaveOrderAsync(Cards);
 | `Off` | The default. Items stay where they are. |
 | `LongPress` | A long-press anywhere on an item lifts it. A normal drag still scrolls the list. |
 | `Handle` | Only a view marked with `Reorder.IsHandle` starts a drag, and it starts as soon as the handle is touched, the way a table's reorder control does. The rest of the item scrolls and taps as usual. |
-| `Edit` | Like `Handle`, but only while `Reorder.IsEditing` is true. The handles are hidden otherwise. |
 
 Any view in the item template can be the handle: a grip icon (`griphorizontal.svg` in the icon set), a thumbnail or a whole column. Spine shows the handles while they can drag and hides them otherwise, so leave their `IsVisible` to Spine. In `LongPress` mode the handles are hidden, because the whole item is the handle.
 
 `Handle` is the safest mode on a page with the back-swipe, because a drag on a handle never competes with a horizontal swipe.
 
-### Edit mode
+## Turning it on and off
 
-Bind `Reorder.IsEditing` to the view model and toggle it from a header action:
+`Reorder.IsEnabled` says whether the items can move right now, in any mode. It is true by default. While it is false, the handles are hidden, a long-press does nothing and the screen-reader actions are gone.
+
+Use it to turn reordering off while the list loads or saves:
 
 ```xml
 <CollectionView ItemsSource="{Binding Cards}"
-                Reorder.Mode="Edit"
-                Reorder.IsEditing="{Binding IsEditing}"
+                Reorder.Mode="LongPress"
+                Reorder.IsEnabled="{Binding IsLoaded}" />
+```
+
+### An Edit button
+
+Bind `Reorder.IsEnabled` to an edit state and toggle it from a header action. The handles then show only while editing, the way a table in edit mode shows its reorder controls:
+
+```xml
+<CollectionView ItemsSource="{Binding Cards}"
+                Reorder.Mode="Handle"
+                Reorder.IsEnabled="{Binding IsEditing}"
                 Reorder.Command="{Binding SaveOrderCommand}" />
 ```
 
@@ -94,7 +105,7 @@ A header and a footer stay where they are. Grouped lists (`IsGrouped="True"`) ar
 | iOS | `UICollectionView`'s interactive movement. The item scales up slightly and casts a shadow; with Reduce Motion it only casts the shadow. |
 | Mac Catalyst | As on iOS. A long-press with the pointer needs only 0.1 seconds. |
 | Android | `ItemTouchHelper`. The item scales up slightly, unless animations are turned off. The lift haptic is the one `ItemTouchHelper` plays itself. |
-| Windows | `ListView`'s own reordering. A mouse drags at once, so `Handle` and `Edit` work on the whole item. There are no screen-reader actions and no haptics. |
+| Windows | `ListView`'s own reordering. A mouse drags at once, so `Handle` works on the whole item. There are no screen-reader actions and no haptics. |
 
 ## Screen readers
 
@@ -106,8 +117,8 @@ The action names are the strings `Spine.Reorder.MoveUp`, `Spine.Reorder.MoveDown
 
 ## MAUI's CanReorderItems
 
-`CollectionView.CanReorderItems` is MAUI's own, simpler reordering. It has no handle, no edit mode, no haptics and no screen-reader actions. Leave it unset on a list that has a `Reorder.Mode`, because Spine sets it itself where it needs it.
+`CollectionView.CanReorderItems` is MAUI's own, simpler reordering. It has no handle, no on/off switch, no haptics and no screen-reader actions. Leave it unset on a list that has a `Reorder.Mode`, because Spine sets it itself where it needs it.
 
 ## In the Showcase
 
-The **Reorder** page has every mode, as a list and as a grid, with the code for each combination. The **HeroCollectionView** page has a `LongPress` option.
+The **Reorder** page has every mode and an Edit button, as a list and as a grid, with the code for each combination. The **HeroCollectionView** page has a `LongPress` option.
