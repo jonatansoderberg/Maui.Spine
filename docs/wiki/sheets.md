@@ -44,6 +44,7 @@ public partial class OptionsPage { public OptionsPage() => InitializeComponent()
 | `IsBackButtonVisible` | `bool` | `true` | Show/hide the back/close button |
 | `TitleAlignment` | `TitleAlignment` | `Center` | `Left` or `Center` |
 | `SafeAreaEdges` | `SafeAreaEdges` | `All` | Which edges Spine pads for system bars. Exclude an edge to render edge-to-edge behind it — use `ViewModelBase.SafeAreaInsets` to offset content manually |
+| `KeyboardAvoidance` | `bool` | `true` | The content and footer end above the on-screen keyboard while it is up. Turn it off for a page that handles the keyboard itself. See [The on-screen keyboard](regions.md#the-on-screen-keyboard) |
 
 ---
 

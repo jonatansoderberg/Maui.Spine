@@ -157,6 +157,8 @@ internal static class BottomSheetPageExtensions
 
             dialog.SetCancelable(true);
             dialog.Window?.SetSoftInputMode(SoftInput.AdjustResize);
+            if (dialog.Window?.DecorView is { } decor)
+                SystemInsetsProvider.FollowKeyboard(decor);
 
             // ── Behavior ─────────────────────────────────────────────────────────
             var behavior = dialog.Behavior;
@@ -628,6 +630,7 @@ internal static class BottomSheetPageExtensions
             var imeInsets     = insets.GetInsets(WindowInsetsCompat.Type.Ime()) ?? AndroidX.Core.Graphics.Insets.None;
             var bottomPadding = imeInsets!.Bottom > 0 || !padsBottom() ? 0 : sysBarInsets!.Bottom;
             v.SetPadding(v.PaddingLeft, v.PaddingTop, v.PaddingRight, bottomPadding);
+            SystemInsetsProvider.ReportKeyboard(v, insets);
             return insets;
         }
     }

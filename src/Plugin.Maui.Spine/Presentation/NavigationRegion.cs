@@ -66,6 +66,7 @@ public sealed partial class NavigationRegion : ContentView
         _container = new Grid();
         
         _insetsProvider.InsetsChanged += OnSystemInsetsChanged;
+        SoftKeyboard.Changed += () => OnKeyboardChanged(animate: true);
 
         _contentHostBack = new ContentView();
 
@@ -85,6 +86,13 @@ public sealed partial class NavigationRegion : ContentView
 
         _contentHostFront = new ContentView();
         _container.Children.Add(_contentHostFront);
+
+        // The region can move or resize under a keyboard that stays put, as in a rotation.
+        _contentHostFront.SizeChanged += (_, _) =>
+        {
+            if (SoftKeyboard.Top is not null || _keyboardOverlap > 0)
+                OnKeyboardChanged(animate: false);
+        };
 
         _contentHostBack.SetBinding(ContentView.ContentProperty, nameof(NavigationRegionViewModel.BackView));
         _contentHostFront.SetBinding(ContentView.ContentProperty, nameof(NavigationRegionViewModel.FrontView));
@@ -309,12 +317,68 @@ public sealed partial class NavigationRegion : ContentView
             sheetTop = 0;
 #endif
 
+        var bottom = (safeAreaEdges & SpineSafeArea.Bottom) != 0 ? insets.Bottom : 0;
+
+        // The keyboard ends the page where it begins, footer included, the way adjustResize and
+        // UIKit's keyboard layout guide do.
+        if (vm.KeyboardAvoidance)
+            bottom = Math.Max(bottom, _keyboardOverlap);
+
         host.Padding = new Thickness(
             (safeAreaEdges & SpineSafeArea.Left)   != 0 ? insets.Left   : 0,
             ((safeAreaEdges & SpineSafeArea.Top)   != 0 ? insets.Top    : 0) + sheetTop,
             (safeAreaEdges & SpineSafeArea.Right)  != 0 ? insets.Right  : 0,
-            (safeAreaEdges & SpineSafeArea.Bottom) != 0 ? insets.Bottom : 0);
+            bottom);
     }
+
+    private double _keyboardOverlap;
+
+    /// <summary>
+    /// Follows the on-screen keyboard: how far it covers this region becomes the page's
+    /// <see cref="ViewModelBase.KeyboardInset"/> and, unless the page opted out, its content host's
+    /// bottom padding. Only the region that holds the focused field takes it, so a page under a
+    /// sheet, or in another tab, stays where it is.
+    /// </summary>
+    private void OnKeyboardChanged(bool animate)
+    {
+        var overlap = 0.0;
+        if (SoftKeyboard.Top is { } top && ContainsFocus())
+            overlap = Math.Max(0, VisibleBottomOnScreen() - top);
+
+        if (Math.Abs(overlap - _keyboardOverlap) < UpdateEpsilon)
+            return;
+
+        _keyboardOverlap = overlap;
+
+        if (ViewModel.CurrentRegionViewModel is not { } vm)
+            return;
+
+        void Apply()
+        {
+            ApplyKeyboardInset(vm);
+            ApplySafeAreaPadding(_contentHostFront, vm);
+        }
+
+        if (animate)
+            AnimateWithKeyboard(Apply);
+        else
+            Apply();
+    }
+
+    private void ApplyKeyboardInset(ViewModelBase vm)
+    {
+        vm.KeyboardInset = _keyboardOverlap;
+        vm.SafeAreaInsets = SafeAreaInsetsFor(vm, vm.SystemBarInsets);
+    }
+
+#if !IOS && !ANDROID
+    private bool ContainsFocus() => false;
+    private double VisibleBottomOnScreen() => 0;
+#endif
+
+#if !IOS
+    private static void AnimateWithKeyboard(Action apply) => apply();
+#endif
 
 #if ANDROID
     private bool RunsToSheetEdge(ViewModelBase vm) =>
@@ -347,11 +411,14 @@ public sealed partial class NavigationRegion : ContentView
             ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.BarHeight : 0)
             : (edges & SpineSafeArea.Top) != 0 ? 0 : insets.Top;
 
+        // Above the keyboard the page no longer reaches the screen's bottom edge.
+        var bottom = (edges & SpineSafeArea.Bottom) != 0 || (vm.KeyboardAvoidance && vm.KeyboardInset > 0) ? 0 : insets.Bottom;
+
         return new Thickness(
             (edges & SpineSafeArea.Left)   != 0 ? 0 : insets.Left,
             top,
             (edges & SpineSafeArea.Right)  != 0 ? 0 : insets.Right,
-            (edges & SpineSafeArea.Bottom) != 0 ? 0 : insets.Bottom);
+            bottom);
     }
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -389,7 +456,10 @@ public sealed partial class NavigationRegion : ContentView
 
             // Apply safe-area padding for the new page on both content hosts.
             if (ViewModel.CurrentRegionViewModel is { } vm)
+            {
+                ApplyKeyboardInset(vm);
                 ApplySafeAreaPadding(_contentHostFront, vm);
+            }
 
             ApplySafeAreaPaddingForPresenter(_contentHostBack, ViewModel.BackView);
         }
@@ -434,6 +504,11 @@ public sealed partial class NavigationRegion : ContentView
 #if MACCATALYST
             UpdateContainerMargin();
 #endif
+        }
+        else if (e.PropertyName is nameof(ViewModelBase.KeyboardAvoidance))
+        {
+            ApplyKeyboardInset(page);
+            ApplySafeAreaPadding(_contentHostFront, page);
         }
         else if (e.PropertyName is nameof(ViewModelBase.StatusBarStyle) && ViewModel.Presentation is NavigationPresentation.Region)
             StatusBar.Apply(page.StatusBarStyle);

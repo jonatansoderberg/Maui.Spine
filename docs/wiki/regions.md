@@ -41,6 +41,7 @@ public partial class SettingsPage { public SettingsPage() => InitializeComponent
 | `HeaderBarGlass` | `HeaderBarGlass` | `Regular` | The Liquid Glass of the header bar's buttons on iOS 26: `Regular`, or `Clear` for a bar that lies over a photo or a map. Where the buttons are not glass (Android, Windows), `Clear` puts each on a dark translucent circle so it reads over the picture |
 | `StatusBarStyle` | `StatusBarStyle` | `Auto` | `Auto` follows the theme; `LightContent` or `DarkContent` fix the status bar's clock and icons while the page is shown |
 | `ScrollInset` | `SafeAreaEdges` | `None` | Edges on which the page's first `ScrollView` / `CollectionView` takes the safe-area inset as a native content inset, so it can scroll under an excluded bar and still reach its last row. See [Scrolling under a bar](#scrolling-under-a-bar) |
+| `KeyboardAvoidance` | `bool` | `true` | The content and footer end above the on-screen keyboard while it is up. Turn it off for a page that handles the keyboard itself. See [The on-screen keyboard](#the-on-screen-keyboard) |
 
 Platform defaults:
 
@@ -328,6 +329,28 @@ To apply it without touching the list, set it on the attribute — or once for e
 ```
 
 Spine then sets `SafeArea.ScrollInset` on the page's first `ScrollView` or `CollectionView`. A view that sets its own value keeps it.
+
+---
+
+## The on-screen keyboard
+
+While the on-screen keyboard is up, the page ends where the keyboard begins: the content host's bottom padding becomes the part of the region the keyboard covers, so a list shrinks, a footer moves up with it, and a field at the foot of the page stays in view. The padding moves with the keyboard: inside a UIKit animation with the keyboard's own duration and curve on iOS, frame by frame from `WindowInsetsAnimationCompat` on Android. It works the same in a region, a tab and a sheet, and nothing is needed on the page.
+
+Only the region that holds the focused field moves. A page under an open sheet, or in another tab, stays where it is. A floating or undocked keyboard (iPad, or Gboard's floating mode) covers nothing the page could move away from, so it changes nothing.
+
+`ViewModelBase.KeyboardInset` reports how far the keyboard covers the region, in device-independent units, and goes back to `0` when it hides. While it is up, `SafeAreaInsets.Bottom` is `0`: the page no longer reaches the home indicator or the gesture bar, so a list with `ScrollInset = Bottom` loses that extra space above the keyboard.
+
+A page that handles the keyboard itself turns it off on the attribute, or for every page through `options.RegionDefaults`, `TabDefaults` and `SheetDefaults`. `KeyboardInset` is still reported:
+
+```csharp
+[NavigableRegion(Title = "Chat", KeyboardAvoidance = false)]
+```
+
+`KeyboardAvoidance` can also be changed on the view model while the page is shown.
+
+**MAUI's `SafeAreaEdges="SoftInput"`** has no effect inside a Spine page. Spine turns off MAUI's safe-area handling on its hosts so that it can pad each page itself, and the keyboard inset goes through that same handling. Use `KeyboardAvoidance` and `KeyboardInset` instead.
+
+**On Android** Spine sets the activity window to `adjustResize`. Edge to edge, that no longer resizes the window: it hands the keyboard's height to Spine, which lifts the page. `adjustPan` would slide the whole window, header bar included, on top of that.
 
 ---
 

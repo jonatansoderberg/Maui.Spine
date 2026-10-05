@@ -63,7 +63,15 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
     {
         // Disable the default system-bar fitting so content can draw behind the bars.
         if (Platform.CurrentActivity?.Window is { } activityWindow)
+        {
             WindowCompat.SetDecorFitsSystemWindows(activityWindow, false);
+
+            // Edge to edge, adjustResize no longer resizes the window: it hands the keyboard's
+            // height to the insets listener, and NavigationRegion lifts the page by it. Pan would
+            // slide the whole window, header bar included, on top of that.
+            var state = activityWindow.Attributes?.SoftInputMode & Android.Views.SoftInput.MaskState ?? 0;
+            activityWindow.SetSoftInputMode(state | Android.Views.SoftInput.AdjustResize);
+        }
 
         var insetsProvider = _services.GetRequiredService<ISystemInsetsProvider>() as SystemInsetsProvider;
         if (insetsProvider is null)

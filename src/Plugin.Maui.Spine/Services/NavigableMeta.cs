@@ -32,6 +32,7 @@ internal static class NavigableMeta
         vm.HeaderBarForeground = meta.HeaderBarForeground is { } hex && Color.TryParse(hex, out var foreground) ? foreground : null;
         vm.HeaderBarGlass = meta.HeaderBarGlass;
         vm.StatusBarStyle = meta.StatusBarStyle;
+        vm.KeyboardAvoidance = meta.KeyboardAvoidance;
 
         if (meta is NavigableTabAttribute tabMeta)
         {
