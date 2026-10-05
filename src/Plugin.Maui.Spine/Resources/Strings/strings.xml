@@ -8,4 +8,9 @@
   <s key="Spine.State.Error.Title">Couldn't load</s>
   <s key="Spine.State.Error.Retry">Try again</s>
   <s key="Spine.State.Empty.Title">Nothing here yet</s>
+  <s key="Spine.Reorder.Handle">Reorder</s>
+  <s key="Spine.Reorder.MoveUp">Move up</s>
+  <s key="Spine.Reorder.MoveDown">Move down</s>
+  <s key="Spine.Reorder.MoveToTop">Move to top</s>
+  <s key="Spine.Reorder.MoveToBottom">Move to bottom</s>
 </strings>
