@@ -55,6 +55,7 @@ public abstract class NavigableAttribute : Attribute
         HeaderBarForeground = source.HeaderBarForegroundSet ? source.HeaderBarForeground : defaults.HeaderBarForeground;
         HeaderBarGlass = source.HeaderBarGlassSet ? source.HeaderBarGlass : defaults.HeaderBarGlass;
         StatusBarStyle = source.StatusBarStyleSet ? source.StatusBarStyle : defaults.StatusBarStyle;
+        KeyboardAvoidance = source.KeyboardAvoidanceSet ? source.KeyboardAvoidance : defaults.KeyboardAvoidance;
     }
 
     /// <summary>
@@ -165,6 +166,16 @@ public abstract class NavigableAttribute : Attribute
     /// </summary>
     public StatusBarStyle StatusBarStyle { get => field; set { field = value; _statusBarStyleSet = true; } }
     internal bool StatusBarStyleSet => _statusBarStyleSet;
+
+    private bool _keyboardAvoidanceSet;
+    /// <summary>
+    /// Whether the page's content and footer end above the on-screen keyboard while it is up, so a
+    /// field at the foot of the page stays visible. Set it to <see langword="false"/> for a page that
+    /// handles the keyboard itself; <see cref="ViewModelBase.KeyboardInset"/> is reported either way.
+    /// When not set the value is inherited from the relevant <c>DefaultsConfig</c>.
+    /// </summary>
+    public bool KeyboardAvoidance { get => field; set { field = value; _keyboardAvoidanceSet = true; } }
+    internal bool KeyboardAvoidanceSet => _keyboardAvoidanceSet;
 }
 
 /// <summary>

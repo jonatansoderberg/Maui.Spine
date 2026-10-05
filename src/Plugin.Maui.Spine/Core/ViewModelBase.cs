@@ -77,6 +77,18 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     public partial Thickness SystemBarInsets { get; set; }
 
+    /// <summary>
+    /// How far the on-screen keyboard covers the region that shows this page, in device-independent
+    /// units, or 0 while it is down. Spine lifts the page above it unless
+    /// <see cref="KeyboardAvoidance"/> is off; a page that handles the keyboard itself reads it here.
+    /// </summary>
+    [ObservableProperty]
+    public partial double KeyboardInset { get; set; }
+
+    /// <summary>Whether Spine ends the page's content and footer above the on-screen keyboard. Set from the page's attribute.</summary>
+    [ObservableProperty]
+    public partial bool KeyboardAvoidance { get; set; }
+
     /// <summary>Controls whether Spine's in-page header bar is shown for this page.</summary>
     [ObservableProperty]
     public partial bool IsHeaderBarVisible { get; set; }

@@ -12,6 +12,58 @@ public sealed partial class NavigationRegion
         _contentHostFront.Loaded += (_, _) => RestrictBackSwipe();
     }
 
+#if IOS
+    // The focused field may be anywhere under the region, including in a sheet presented over it
+    // (a view controller of its own, so not under this view): the sheet's own region takes that one.
+    private bool ContainsFocus() =>
+        _contentHostFront.Handler?.PlatformView is UIView view && FindFirstResponder(view) is not null;
+
+    private static UIView? FindFirstResponder(UIView view)
+    {
+        if (view.IsFirstResponder)
+            return view;
+
+        foreach (var subview in view.Subviews)
+        {
+            if (FindFirstResponder(subview) is { } found)
+                return found;
+        }
+
+        return null;
+    }
+
+    private double VisibleBottomOnScreen()
+    {
+        if (_contentHostFront.Handler?.PlatformView is not UIView view || view.Window?.Screen is not { } screen)
+            return 0;
+
+        return view.ConvertRectToCoordinateSpace(view.Bounds, screen.CoordinateSpace).Bottom;
+    }
+
+    /// <summary>
+    /// Lays the region out again inside a UIKit animation with the keyboard's own duration and
+    /// curve, so the content's new frames move with the keyboard rather than jump ahead of it.
+    /// </summary>
+    private void AnimateWithKeyboard(Action apply)
+    {
+        if (SoftKeyboard.Duration <= TimeSpan.Zero || Handler?.PlatformView is not UIView { Window: { } window })
+        {
+            apply();
+            return;
+        }
+
+        var options = (UIViewAnimationOptions)((ulong)SoftKeyboard.Curve << 16)
+            | UIViewAnimationOptions.BeginFromCurrentState
+            | UIViewAnimationOptions.AllowUserInteraction;
+
+        UIView.Animate(SoftKeyboard.Duration.TotalSeconds, 0, options, () =>
+        {
+            apply();
+            window.LayoutIfNeeded();
+        }, () => { });
+    }
+#endif
+
     private bool? _frontClippedBeforeRound;
 
     partial void RoundFront(bool round)

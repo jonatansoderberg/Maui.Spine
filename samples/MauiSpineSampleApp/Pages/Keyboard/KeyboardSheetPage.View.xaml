@@ -1,0 +1,35 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Keyboard.KeyboardSheetPage"
+    x:TypeArguments="KeyboardSheetPageViewModel"
+    x:DataType="KeyboardSheetPageViewModel">
+
+    <CollectionView ItemsSource="{Binding Messages}">
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="12">
+                <SpineSection Footer="On by default for regions, tabs and sheets. Turn it off with KeyboardAvoidance = false on the page's attribute, or for every page in RegionDefaults.">
+                    <SpineRow Title="Keyboard avoidance">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding KeyboardAvoidance}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                    <SpineRow Title="{Binding InsetText}" />
+                </SpineSection>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+                <Label Text="{Binding .}" FontSize="15" Padding="{x:Static HeaderBarConstants.PagePadding}" Margin="0,6" />
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+
+    <SpinePage.Footer>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Padding="{x:Static HeaderBarConstants.PagePadding}" Margin="0,8">
+            <Entry Text="{Binding Draft}" Placeholder="Message" ReturnType="Send" ReturnCommand="{Binding SendCommand}" />
+            <Button Grid.Column="1" Text="Send" Command="{Binding SendCommand}" />
+        </Grid>
+    </SpinePage.Footer>
+
+</SpinePage>

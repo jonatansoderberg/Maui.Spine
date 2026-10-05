@@ -46,6 +46,9 @@ public abstract class NavigableDefaults
 
     /// <summary>Default <see cref="StatusBarStyle"/>: <see cref="StatusBarStyle.Auto"/>.</summary>
     public StatusBarStyle StatusBarStyle { get; set; } = StatusBarStyle.Auto;
+
+    /// <summary>Default for <see cref="NavigableAttribute.KeyboardAvoidance"/>: <see langword="true"/>.</summary>
+    public bool KeyboardAvoidance { get; set; } = true;
 }
 
 /// <summary>

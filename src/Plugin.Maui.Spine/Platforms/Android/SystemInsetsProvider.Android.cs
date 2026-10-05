@@ -12,6 +12,7 @@ internal sealed class SystemInsetsProvider : Java.Lang.Object, ISystemInsetsProv
 {
     private Thickness _systemBarInsets;
     private bool _hasMeasured;
+    private static bool _imeAnimating;
 
     /// <inheritdoc/>
     public Thickness SystemBarInsets => _systemBarInsets;
@@ -80,6 +81,7 @@ internal sealed class SystemInsetsProvider : Java.Lang.Object, ISystemInsetsProv
     internal void AttachTo(Android.Views.View nativeView)
     {
         ViewCompat.SetOnApplyWindowInsetsListener(nativeView, this);
+        FollowKeyboard(nativeView.RootView ?? nativeView);
         ViewCompat.RequestApplyInsets(nativeView);
     }
 
@@ -112,9 +114,88 @@ internal sealed class SystemInsetsProvider : Java.Lang.Object, ISystemInsetsProv
             InsetsChanged?.Invoke();
         }
 
-        // Consume system bar insets so MAUI's own listener cannot re-apply padding.
+        ReportKeyboard(v, insets);
+
+        // Consume system bar insets so MAUI's own listener cannot re-apply padding, and the
+        // keyboard's, which NavigationRegion answers for the page (SoftKeyboard).
         return new WindowInsetsCompat.Builder(insets)
             .SetInsets(WindowInsetsCompat.Type.SystemBars(), AndroidX.Core.Graphics.Insets.None)!
+            .SetInsets(WindowInsetsCompat.Type.Ime(), AndroidX.Core.Graphics.Insets.None)!
             .Build();
+    }
+
+    /// <summary>
+    /// Reports where the keyboard ends up, from the insets <paramref name="view"/> in the activity's
+    /// or a sheet's window was given. Only the window with the focus owns the keyboard: the activity
+    /// gets the keyboard's insets too while a sheet's field has it, ahead of the sheet's animation.
+    /// While the keyboard moves, those insets are already its end state; the animation reports the frames.
+    /// </summary>
+    internal static void ReportKeyboard(Android.Views.View view, WindowInsetsCompat insets)
+    {
+        if (!_imeAnimating && view.HasWindowFocus)
+            ReportKeyboardAt(view.RootView ?? view, insets);
+    }
+
+    /// <summary>
+    /// Reports the keyboard's top edge on screen. Its inset is measured up from the bottom of the
+    /// window, which <paramref name="root"/> fills edge to edge.
+    /// </summary>
+    private static void ReportKeyboardAt(Android.Views.View root, WindowInsetsCompat insets)
+    {
+        var ime = insets.GetInsets(WindowInsetsCompat.Type.Ime())!.Bottom;
+        if (ime <= 0)
+        {
+            SoftKeyboard.Report(null, TimeSpan.Zero);
+            return;
+        }
+
+        var density = (double)(root.Resources?.DisplayMetrics?.Density ?? 1f);
+        var location = new int[2];
+        root.GetLocationOnScreen(location);
+        SoftKeyboard.Report((location[1] + root.Height - ime) / density, TimeSpan.Zero);
+    }
+
+    /// <summary>
+    /// Reports the keyboard frame by frame while it moves over the window that <paramref name="root"/>
+    /// is the root of: the activity's, or a sheet's dialog. On the root, above the view MAUI gives
+    /// its own callback: MAUI's stops the dispatch, so a callback below it never hears of the move.
+    /// </summary>
+    internal static void FollowKeyboard(Android.Views.View root) =>
+        ViewCompat.SetWindowInsetsAnimationCallback(root, new ImeAnimationCallback(root));
+
+    /// <summary>
+    /// Follows the keyboard frame by frame while it slides in or out, so the page's padding moves
+    /// with it as it does in a native app, instead of jumping to the end at the start.
+    /// </summary>
+    private sealed class ImeAnimationCallback(Android.Views.View root)
+        : WindowInsetsAnimationCompat.Callback(DispatchModeContinueOnSubtree)
+    {
+        public override void OnPrepare(WindowInsetsAnimationCompat? animation)
+        {
+            if (animation is not null && IsIme(animation))
+                _imeAnimating = true;
+        }
+
+        public override WindowInsetsCompat OnProgress(WindowInsetsCompat? insets, IList<WindowInsetsAnimationCompat>? runningAnimations)
+        {
+            if (insets is not null && runningAnimations?.Any(IsIme) == true)
+                ReportKeyboardAt(root, insets);
+
+            return insets!;
+        }
+
+        public override void OnEnd(WindowInsetsAnimationCompat? animation)
+        {
+            if (animation is null || !IsIme(animation))
+                return;
+
+            _imeAnimating = false;
+
+            if (ViewCompat.GetRootWindowInsets(root) is { } insets)
+                ReportKeyboardAt(root, insets);
+        }
+
+        private static bool IsIme(WindowInsetsAnimationCompat animation) =>
+            (animation.TypeMask & WindowInsetsCompat.Type.Ime()) != 0;
     }
 }

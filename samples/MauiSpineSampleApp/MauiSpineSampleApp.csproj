@@ -140,6 +140,20 @@
       <DependentUpon>HeroPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Keyboard\KeyboardPage.View.xaml">
+      <DependentUpon>KeyboardPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <MauiXaml Update="Pages\Keyboard\KeyboardSheetPage.View.xaml">
+      <DependentUpon>KeyboardPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Keyboard\KeyboardPage.ViewModel.cs">
+      <DependentUpon>KeyboardPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Haptics\HapticsPage.View.xaml">
       <DependentUpon>HapticsPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
