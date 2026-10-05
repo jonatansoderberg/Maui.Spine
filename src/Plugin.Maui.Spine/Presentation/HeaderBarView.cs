@@ -61,6 +61,38 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         set => SetValue(GlassProperty, value);
     }
 
+    /// <summary>Whether the bar lies over the page's content at rest (an Overlay header).</summary>
+    public static readonly BindableProperty OverContentProperty = BindableProperty.Create(
+        nameof(OverContent), typeof(bool), typeof(HeaderBarView), false,
+        propertyChanged: static (b, _, v) =>
+        {
+            var bar = (HeaderBarView)b;
+            bar._primaryPageActionView.OverContent = (bool)v;
+            bar._secondaryPageActionView.OverContent = (bool)v;
+        });
+
+    public bool OverContent
+    {
+        get => (bool)GetValue(OverContentProperty);
+        set => SetValue(OverContentProperty, value);
+    }
+
+    /// <summary>How far the bar's own background has faded in, 0 to 1.</summary>
+    public static readonly BindableProperty BackgroundProgressProperty = BindableProperty.Create(
+        nameof(BackgroundProgress), typeof(double), typeof(HeaderBarView), 0.0,
+        propertyChanged: static (b, _, v) =>
+        {
+            var bar = (HeaderBarView)b;
+            bar._primaryPageActionView.BackgroundProgress = (double)v;
+            bar._secondaryPageActionView.BackgroundProgress = (double)v;
+        });
+
+    public double BackgroundProgress
+    {
+        get => (double)GetValue(BackgroundProgressProperty);
+        set => SetValue(BackgroundProgressProperty, value);
+    }
+
     public static readonly BindableProperty PrimaryPageActionProperty = BindableProperty.Create(
         nameof(PrimaryPageAction), typeof(PageAction), typeof(HeaderBarView), default, propertyChanged: PrimaryPageActionChanged);
 

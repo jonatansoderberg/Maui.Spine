@@ -432,6 +432,7 @@ public sealed partial class NavigationRegion : ContentView
             _frameActionView?.SetBinding(HeaderBarView.IsTitleBarVisibleProperty, new Binding("IsTitleBarVisible", source: header));
             _frameActionView?.SetBinding(HeaderBarView.ForegroundProperty, new Binding(nameof(ViewModelBase.HeaderBarForeground), source: header));
             _frameActionView?.SetBinding(HeaderBarView.GlassProperty, new Binding(nameof(ViewModelBase.HeaderBarGlass), source: header));
+            WatchHeaderPage(header);
         }
 
         if (e.PropertyName == nameof(ViewModel.CurrentRegionViewModel))
@@ -471,6 +472,45 @@ public sealed partial class NavigationRegion : ContentView
 
         if (e.PropertyName == nameof(NavigationRegionViewModel.BackView))
             ApplySafeAreaPaddingForPresenter(_contentHostBack, ViewModel.BackView);
+    }
+
+    private ViewModelBase? _watchedHeaderPage;
+
+    // What the bar lies over decides whether its buttons need a container of their own: the page's
+    // content under an Overlay header, until the bar's own background fades in over it. The progress is
+    // internal to the view model, so it is followed here rather than bound.
+    private void WatchHeaderPage(ViewModelBase? page)
+    {
+        if (!ReferenceEquals(page, _watchedHeaderPage))
+        {
+            if (_watchedHeaderPage is not null)
+                _watchedHeaderPage.PropertyChanged -= OnHeaderPagePropertyChanged;
+
+            _watchedHeaderPage = page;
+
+            if (page is not null)
+                page.PropertyChanged += OnHeaderPagePropertyChanged;
+        }
+
+        ApplyHeaderPage();
+    }
+
+    private void OnHeaderPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.ScrollEdgeProgress)
+            or nameof(ViewModelBase.EffectiveHeaderBarBackground))
+            ApplyHeaderPage();
+    }
+
+    private void ApplyHeaderPage()
+    {
+        var page = _watchedHeaderPage;
+        _frameActionView.OverContent = page?.HeaderBarMode == HeaderBarMode.Overlay;
+
+        // A transparent bar never draws a background, so its buttons keep their container.
+        _frameActionView.BackgroundProgress = page is not null && page.EffectiveHeaderBarBackground != HeaderBarBackground.Transparent
+            ? page.ScrollEdgeProgress
+            : 0;
     }
 
     private ViewModelBase? _watchedPage;
