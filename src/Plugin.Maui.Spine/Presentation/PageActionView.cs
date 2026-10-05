@@ -32,6 +32,28 @@ internal sealed class PageActionView : ContentView
         nameof(Glass), typeof(HeaderBarGlass), typeof(PageActionView), HeaderBarGlass.Regular,
         propertyChanged: static (b, _, _) => ((PageActionView)b).ForEachFace(f => f.ApplyGlass()));
 
+    /// <summary>Whether the bar lies over the page's content at rest: a hero, a photo or a map under an Overlay header.</summary>
+    public static readonly BindableProperty OverContentProperty = BindableProperty.Create(
+        nameof(OverContent), typeof(bool), typeof(PageActionView), false,
+        propertyChanged: static (b, _, _) => ((PageActionView)b).ForEachFace(f => f.ApplyGlass()));
+
+    /// <summary>How far the bar's own background has faded in, 0 to 1; a container behind the button fades out as it does.</summary>
+    public static readonly BindableProperty BackgroundProgressProperty = BindableProperty.Create(
+        nameof(BackgroundProgress), typeof(double), typeof(PageActionView), 0.0,
+        propertyChanged: static (b, _, _) => ((PageActionView)b).ForEachFace(f => f.ApplyContainerFade()));
+
+    public bool OverContent
+    {
+        get => (bool)GetValue(OverContentProperty);
+        set => SetValue(OverContentProperty, value);
+    }
+
+    public double BackgroundProgress
+    {
+        get => (double)GetValue(BackgroundProgressProperty);
+        set => SetValue(BackgroundProgressProperty, value);
+    }
+
     /// <summary>
     /// Padding inside an icon button, between its slot and its glyph. Not the view's own
     /// <see cref="Microsoft.Maui.Controls.Layout.Padding"/>: that pads the slot as well, and the two together
@@ -523,7 +545,40 @@ internal sealed class PageActionView : ContentView
 
         bool Scrim => !_owner._glass && !_prominent && _owner.Glass == HeaderBarGlass.Clear;
 
-        bool Filled => _prominent || Scrim;
+        // Under an Overlay header with regular glass, the button is Material 3's filled tonal icon button
+        // instead: a circle in the surface container's tone, which reads over the picture as iOS 26's
+        // frosted glass does, where a bare icon would not.
+        bool Tonal => !_owner._glass && !_prominent && _owner.Glass == HeaderBarGlass.Regular && _owner.OverContent;
+
+        bool Filled => _prominent || Scrim || Tonal;
+
+        // Slightly translucent, so the picture still shows through a little, as through glass.
+        static readonly Color TonalLight = Color.FromRgba(0.95f, 0.95f, 0.96f, 0.88f);
+        static readonly Color TonalDark = Color.FromRgba(0.17f, 0.17f, 0.18f, 0.88f);
+
+        // The tone that contrasts with the icon: a light circle under a dark icon and the other way round, so a
+        // white foreground chosen for a dark photo does not land on a light circle.
+        Color TonalFill()
+        {
+            var icon = _owner.Foreground ?? (IsDark ? Colors.White : Colors.Black);
+            return icon.GetLuminosity() > 0.5f ? TonalDark : TonalLight;
+        }
+
+        // A container stands in for the bar's background while the bar has none: as the background fades
+        // in on scroll it fades out, and the button is a plain icon button on the bar.
+        Color ContainerFill(Color fill)
+        {
+            var fade = Math.Round(1 - Math.Clamp(_owner.BackgroundProgress, 0, 1), 2);
+            return fill.WithAlpha(fill.Alpha * (float)fade);
+        }
+
+        Color? _appliedFill;
+
+        public void ApplyContainerFade()
+        {
+            if (Scrim || Tonal)
+                ApplyForeground();
+        }
 
         bool _filledShape;
 
@@ -574,7 +629,10 @@ internal sealed class PageActionView : ContentView
             _imageButton.CornerRadius = filled || Circles ? (int)(FilledSize / 2) : 0;
             _textButton.CornerRadius = filled ? (int)Math.Round(_owner.HeightRequest / 2) : -1;
             if (!filled)
+            {
                 _imageButton.ApplyCommonVisualStates(_owner.HideDisabled);
+                _appliedFill = null;
+            }
 
             if (_imageButton.Behaviors.OfType<SvgImageSourceBehavior>().FirstOrDefault() is { } svg)
             {
@@ -626,7 +684,11 @@ internal sealed class PageActionView : ContentView
             }
             Add("Normal", fill, 1);
             Add("PointerOver", fill, 1);
-            Add("Pressed", fill.WithAlpha(0.75f), 1);
+            // A container faded out with the bar's background leaves Material's state layer as the only press feedback
+            var pressed = fill.Alpha < 0.1f
+                ? (IsDark ? Colors.White : Colors.Black).WithAlpha(0.1f)
+                : fill.WithAlpha(fill.Alpha * 0.75f);
+            Add("Pressed", pressed, 1);
             Add("Disabled", fill, _owner.HideDisabled ? 0 : 0.4);
             VisualStateManager.SetVisualStateGroups(_imageButton, [group]);
         }
@@ -654,7 +716,14 @@ internal sealed class PageActionView : ContentView
         public void ApplyHideDisabled()
         {
             if (!Filled || _owner._glass)
+            {
                 _imageButton.ApplyCommonVisualStates(_owner.HideDisabled);
+                return;
+            }
+
+            // The filled states dim a disabled button by HideDisabled too
+            _appliedFill = null;
+            ApplyForeground();
         }
 
         public void ApplyGlass()
@@ -678,11 +747,16 @@ internal sealed class PageActionView : ContentView
         public void ApplyForeground()
         {
             // Read again on every theme or accent change, so the prominent fill follows the accent
-            var fill = _prominent ? Fill() : Scrim ? ScrimFill : Colors.Transparent;
+            var fill = _prominent ? Fill() : Scrim ? ContainerFill(ScrimFill) : Tonal ? ContainerFill(TonalFill()) : Colors.Transparent;
             _imageButton.BackgroundColor = fill;
             _textButton.BackgroundColor = fill;
-            if (Filled && !_owner._glass)
+
+            // The states are rebuilt only when the fill changes: a fade calls this on every scroll frame
+            if (Filled && !_owner._glass && !fill.Equals(_appliedFill))
+            {
+                _appliedFill = fill;
                 ApplyFilledStates(fill);
+            }
 
             if (_prominent)
                 _textButton.TextColor = OnFill();

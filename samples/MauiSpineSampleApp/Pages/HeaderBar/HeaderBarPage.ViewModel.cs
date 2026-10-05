@@ -17,7 +17,7 @@ public partial class HeaderBarPageViewModel : SampleViewModel
 
     public IReadOnlyList<ChoiceGroup> Groups { get; }
 
-    readonly ChoiceGroup _layout, _largeTitle, _background, _foreground, _statusBar;
+    readonly ChoiceGroup _layout, _largeTitle, _background, _foreground, _glass, _statusBar;
 
     public HeaderBarPageViewModel()
     {
@@ -49,6 +49,12 @@ public partial class HeaderBarPageViewModel : SampleViewModel
             new("White", "A fixed white title and icons, for a dark photo under a Transparent bar. Over a Solid or scroll edge bar in light mode it disappears.", () => HeaderBarForeground = Colors.White),
         ]);
 
+        _glass = new("Button glass",
+        [
+            new("Regular", "Frosted glass on iOS 26. Elsewhere a plain icon button, and under an Overlay bar a tonal circle (Material 3's filled tonal icon button) that fades out as the bar's background fades in.", () => HeaderBarGlass = HeaderBarGlass.Regular),
+            new("Clear", "Clear glass on iOS 26, for a bar over a photo or a map. Elsewhere a dark translucent circle on every page, which also fades out as the bar's background fades in.", () => HeaderBarGlass = HeaderBarGlass.Clear),
+        ]);
+
         _statusBar = new("Status bar",
         [
             new("Auto", "The clock and icons follow the theme.", () => StatusBarStyle = StatusBarStyle.Auto),
@@ -56,7 +62,7 @@ public partial class HeaderBarPageViewModel : SampleViewModel
             new("Dark", "Black clock and icons, for a light photo at the top.", () => StatusBarStyle = StatusBarStyle.DarkContent),
         ]);
 
-        Groups = [_layout, _largeTitle, _background, _foreground, _statusBar];
+        Groups = [_layout, _largeTitle, _background, _foreground, _glass, _statusBar];
     }
 
     [RelayCommand]
@@ -75,7 +81,7 @@ public partial class HeaderBarPageViewModel : SampleViewModel
         base.OnPropertyChanged(e);
 
         if (e.PropertyName is nameof(HeaderBarMode) or nameof(LargeTitle) or nameof(HeaderBarBackground)
-            or nameof(EffectiveHeaderBarBackground) or nameof(HeaderBarForeground) or nameof(StatusBarStyle))
+            or nameof(EffectiveHeaderBarBackground) or nameof(HeaderBarForeground) or nameof(HeaderBarGlass) or nameof(StatusBarStyle))
             Sync();
     }
 
@@ -89,6 +95,7 @@ public partial class HeaderBarPageViewModel : SampleViewModel
         _largeTitle.Select(LargeTitle ? 1 : 0);
         _background.Select((int)HeaderBarBackground);
         _foreground.Select(HeaderBarForeground is null ? 0 : 1);
+        _glass.Select((int)HeaderBarGlass);
         _statusBar.Select((int)StatusBarStyle);
 
         OnPropertyChanged(nameof(Resolved));
@@ -117,6 +124,8 @@ public partial class HeaderBarPageViewModel : SampleViewModel
                 settings.Add($"HeaderBarBackground =\n    HeaderBarBackground.{HeaderBarBackground}");
             if (HeaderBarForeground is not null)
                 settings.Add("HeaderBarForeground = \"#FFFFFF\"");
+            if (HeaderBarGlass != HeaderBarGlass.Regular)
+                settings.Add($"HeaderBarGlass = HeaderBarGlass.{HeaderBarGlass}");
             if (StatusBarStyle != StatusBarStyle.Auto)
                 settings.Add($"StatusBarStyle =\n    StatusBarStyle.{StatusBarStyle}");
 
