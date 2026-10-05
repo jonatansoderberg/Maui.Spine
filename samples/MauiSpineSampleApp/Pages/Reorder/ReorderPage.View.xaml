@@ -1,0 +1,132 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Reorder.ReorderPage"
+    x:TypeArguments="ReorderPageViewModel"
+    x:DataType="ReorderPageViewModel"
+    BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}"
+    HeaderBar.ScrollSource="{x:Reference CardList}">
+
+    <!-- The list on screen is the one that starts below the header bar. -->
+    <SpinePage.Triggers>
+        <DataTrigger TargetType="ContentView" Binding="{Binding Grid}" Value="True">
+            <Setter Property="HeaderBar.ScrollSource" Value="{x:Reference TileGrid}" />
+        </DataTrigger>
+    </SpinePage.Triggers>
+
+    <SpinePage.Resources>
+        <!-- Android lists have no grouped background, so the cards take a tone of their own. -->
+        <OnPlatform x:Key="CardLight" x:TypeArguments="Color" Default="White">
+            <On Platform="Android" Value="#F0F0F4" />
+        </OnPlatform>
+        <OnPlatform x:Key="CardDark" x:TypeArguments="Color" Default="#1C1C1E">
+            <On Platform="Android" Value="#25252A" />
+        </OnPlatform>
+
+        <!-- The example card heads both lists, so it stays put while the cards below it move. -->
+        <ControlTemplate x:Key="Intro" x:DataType="ReorderPageViewModel">
+            <VerticalStackLayout Padding="0,16,0,8" Spacing="12" BindingContext="{Binding Source={RelativeSource TemplatedParent}, Path=BindingContext}">
+                <ExampleCodeSwitch />
+                <PackageChips Packages="Plugin.Maui.Spine" />
+
+                <Example Title="Reorder a list"
+                         Summary="Drag a card to a new place. It lifts, the others make room, and a haptic marks the lift, every new place and the drop. Spine moves the card in the ObservableCollection and then runs Reorder.Command once, for saving the order. With VoiceOver or TalkBack, every card offers Move up and Move down."
+                         OptionsCommand="{Binding ShowOptionsCommand}"
+                         Code="{Binding Code}"
+                         Margin="0,12,0,0">
+                    <VerticalStackLayout Spacing="2">
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Groups}" Spacing="2">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="ChoiceGroup">
+                                    <Label FontSize="15">
+                                        <Label.FormattedText>
+                                            <FormattedString>
+                                                <Span Text="{Binding Name}" />
+                                                <Span Text=": " />
+                                                <Span Text="{Binding Selected.Label}" FontAttributes="Bold" />
+                                            </FormattedString>
+                                        </Label.FormattedText>
+                                    </Label>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                        <Label Text="{Binding LastMove}" FontSize="15" Margin="0,6,0,0" />
+                    </VerticalStackLayout>
+                </Example>
+            </VerticalStackLayout>
+        </ControlTemplate>
+    </SpinePage.Resources>
+
+    <!-- A list does not switch between a column and a grid once shown on iOS, so each layout has its
+         own list over the same cards. -->
+    <Grid>
+
+        <CollectionView
+            x:Name="CardList"
+            IsVisible="{Binding IsList}"
+            ItemsSource="{Binding Cards}"
+            Reorder.Mode="{Binding Mode}"
+            Reorder.IsEnabled="{Binding CanReorder}"
+            Reorder.Command="{Binding MovedCommand}">
+
+            <CollectionView.Header>
+                <ContentView ControlTemplate="{StaticResource Intro}" Margin="{x:Static HeaderBarConstants.PagePadding}" />
+            </CollectionView.Header>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="ReorderCard">
+                    <Border Margin="16,5" Padding="14,12,6,12" StrokeThickness="0" StrokeShape="RoundRectangle 14"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Semantic.Merge="True">
+                            <Image SvgImageSource.Svg="{Binding Icon}" WidthRequest="26" HeightRequest="26" VerticalOptions="Center" />
+                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" />
+                                <Label Text="{Binding Text}" FontSize="14" Opacity="0.7" />
+                            </VerticalStackLayout>
+                            <Image Grid.Column="2" SvgImageSource.Svg="griphorizontal.svg"
+                                   WidthRequest="44" HeightRequest="44" Opacity="0.5" VerticalOptions="Center"
+                                   Reorder.IsHandle="True" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+        </CollectionView>
+
+        <!-- Tiles 10 apart, their outer edges on the page margin. -->
+        <CollectionView
+            x:Name="TileGrid"
+            IsVisible="{Binding Grid}"
+            Margin="{Binding GridMargin}"
+            ItemsSource="{Binding Cards}"
+            ItemsLayout="VerticalGrid, 2"
+            Reorder.Mode="{Binding Mode}"
+            Reorder.IsEnabled="{Binding CanReorder}"
+            Reorder.Command="{Binding MovedCommand}">
+
+            <CollectionView.Header>
+                <ContentView ControlTemplate="{StaticResource Intro}" Margin="5,0" />
+            </CollectionView.Header>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="ReorderCard">
+                    <Border Margin="5" Padding="14,10,4,14" StrokeThickness="0" StrokeShape="RoundRectangle 14"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}">
+                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="4" Semantic.Merge="True">
+                            <Image SvgImageSource.Svg="{Binding Icon}" WidthRequest="26" HeightRequest="26"
+                                   HorizontalOptions="Start" VerticalOptions="Center" />
+                            <Image Grid.Column="1" SvgImageSource.Svg="griphorizontal.svg"
+                                   WidthRequest="40" HeightRequest="40" Opacity="0.5"
+                                   Reorder.IsHandle="True" />
+                            <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Title}" FontSize="16" FontAttributes="Bold"
+                                   LineBreakMode="TailTruncation" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+        </CollectionView>
+
+    </Grid>
+
+</SpinePage>

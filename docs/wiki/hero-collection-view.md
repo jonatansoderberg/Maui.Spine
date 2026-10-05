@@ -73,6 +73,10 @@ An anchor-based algorithm prevents floating-point drift over long scroll session
 
 ---
 
+## Reordering rows
+
+`HeroCollectionView` is a `CollectionView`, so `Reorder.Mode` works on it unchanged: a long-press or a grip handle lets the user drag rows to a new place under the collapsing header. See [Reorder](reorder.md).
+
 ## Header content slots
 
 The header supports several content slots for customisation:

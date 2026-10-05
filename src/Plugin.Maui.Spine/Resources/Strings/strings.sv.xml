@@ -8,4 +8,9 @@
   <s key="Spine.State.Error.Title">Det gick inte att ladda</s>
   <s key="Spine.State.Error.Retry">Försök igen</s>
   <s key="Spine.State.Empty.Title">Här finns inget än</s>
+  <s key="Spine.Reorder.Handle">Ändra ordning</s>
+  <s key="Spine.Reorder.MoveUp">Flytta upp</s>
+  <s key="Spine.Reorder.MoveDown">Flytta ned</s>
+  <s key="Spine.Reorder.MoveToTop">Flytta överst</s>
+  <s key="Spine.Reorder.MoveToBottom">Flytta nederst</s>
 </strings>

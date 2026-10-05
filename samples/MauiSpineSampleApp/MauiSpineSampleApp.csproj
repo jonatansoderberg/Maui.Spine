@@ -163,6 +163,15 @@
       <DependentUpon>HapticsPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Reorder\ReorderPage.View.xaml">
+      <DependentUpon>ReorderPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Reorder\ReorderPage.ViewModel.cs">
+      <DependentUpon>ReorderPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Theme\ThemePage.View.xaml">
       <DependentUpon>ThemePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using MauiSpineSampleApp.Pages.HeaderBar;
 using Plugin.Maui.Spine.Controls;
+using Plugin.Maui.Spine.Extensions;
 
 namespace MauiSpineSampleApp.Pages.Hero;
 
@@ -34,8 +35,8 @@ public partial class HeroPageViewModel : SampleViewModel
 
         _reorder = new("Reorder",
         [
-            new("Off", "Rows stay where they are.", () => CanReorder = false),
-            new("On", "CanReorderItems: hold a row and drag it to a new place. The list moves the item in its ObservableCollection.", () => CanReorder = true),
+            new("Off", "Rows stay where they are.", () => ReorderMode = ReorderMode.Off),
+            new("On", "Reorder.Mode=\"LongPress\": hold a row until it lifts and drag it to a new place. Spine moves the item in the ObservableCollection.", () => ReorderMode = ReorderMode.LongPress),
         ]);
 
         _image.Select(0);
@@ -62,7 +63,7 @@ public partial class HeroPageViewModel : SampleViewModel
     public partial bool Blur { get; set; } = true;
 
     [ObservableProperty]
-    public partial bool CanReorder { get; set; }
+    public partial ReorderMode ReorderMode { get; set; }
 
     [ObservableProperty]
     public partial double HeaderMaxHeight { get; set; } = 320;
@@ -80,7 +81,7 @@ public partial class HeroPageViewModel : SampleViewModel
         if (e.PropertyName == nameof(SafeAreaInsets))
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(HeaderMinHeight)));
 
-        if (e.PropertyName is nameof(ImageCollapse) or nameof(Blur) or nameof(HeaderMaxHeight) or nameof(CanReorder))
+        if (e.PropertyName is nameof(ImageCollapse) or nameof(Blur) or nameof(HeaderMaxHeight) or nameof(ReorderMode))
             OnPropertyChanged(new PropertyChangedEventArgs(nameof(Code)));
     }
 
@@ -90,7 +91,7 @@ public partial class HeroPageViewModel : SampleViewModel
         get
         {
             var collapse = ImageCollapse == HeroImageCollapse.Slide ? "\n    HeaderImageCollapse=\"Slide\"" : "";
-            var reorder = CanReorder ? "\n    CanReorderItems=\"True\"" : "";
+            var reorder = ReorderMode == ReorderMode.LongPress ? "\n    Reorder.Mode=\"LongPress\"" : "";
             var overlay = Blur
                 ? "\n\n  <HeroCollectionView.HeaderOverlayContent>\n    <Border Material.Preset=\"BlurUltraThin\"\n            StrokeThickness=\"0\" />\n  </HeroCollectionView.HeaderOverlayContent>"
                 : "";

@@ -12,7 +12,7 @@
             HeaderImageSource="mountain.png"
             HeaderTitle=""
             HeaderImageCollapse="{Binding ImageCollapse}"
-            CanReorderItems="{Binding CanReorder}"
+            Reorder.Mode="{Binding ReorderMode}"
             HeaderMaxHeight="{Binding HeaderMaxHeight}"
             HeaderMinHeight="{Binding HeaderMinHeight}">
 

@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), Reorder.Mode, embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -192,6 +192,23 @@ Pitfalls:
 ## Haptics (`Plugin.Maui.Spine`)
 
 `Haptics.Success()`, `Warning()`, `Error()`, `Selection()`, `Impact(HapticImpact.Light|Medium|Heavy|Soft|Rigid)` or `Haptics.Play(Haptic.X)`, from any thread; the platform's own generators, so the system haptics setting applies; Mac Catalyst and Windows play nothing. `Haptics.OnTap="Selection"` on a `Button`, `ImageButton`, `SpineRow` or any view with `Tap.Command` plays before the command (ignored on other views). `PageAction.Haptic` / `[PageAction(Haptic = …)]` for header actions. `options.Haptics.TabSwitch` and `options.Haptics.SheetDetent` (off by default) for user tab switches and sheet drags. Android: `options.Android.HapticEngine = AndroidHapticEngine.Vibrator` for composed patterns (needs `android.permission.VIBRATE`, falls back to the view engine with a logcat warning). Semantic, not decorative: Success after a save, Error on a failure, Selection when a choice changes. Verify Android with `adb shell dumpsys vibrator_manager`; the simulator and emulators do not vibrate. See docs/wiki/haptics.md.
+
+## Reorder (`Plugin.Maui.Spine`)
+
+`Reorder.Mode="LongPress|Handle"` on any `CollectionView` or `HeroCollectionView` (namespace `Plugin.Maui.Spine.Extensions`). `Handle`: mark a view in the item template with `Reorder.IsHandle="True"` (the set's `griphorizontal.svg`); it drags at once on touch and Spine owns its `IsVisible`. `Reorder.IsEnabled` (default true) turns moving off in any mode and hides the handles; bind it to an edit state toggled from a header action for handles on demand, or to a loaded flag. Spine moves the item in `ItemsSource` itself, so it must be a changeable `IList` (`ObservableCollection<T>`); `Reorder.Command` runs once after the drop with `ReorderMove(From, To, Item)`, for saving the order. Ungrouped lists only; header and footer stay put. Haptics and VoiceOver/TalkBack Move up/down actions come with it; put `Semantic.Merge="True"` on the item root. Do not also set MAUI's `CanReorderItems`. Windows: whole-item drag, no actions. See docs/wiki/reorder.md.
+
+```xml
+<CollectionView ItemsSource="{Binding Cards}" Reorder.Mode="Handle" Reorder.Command="{Binding SaveOrderCommand}">
+    <CollectionView.ItemTemplate>
+        <DataTemplate x:DataType="Card">
+            <Grid ColumnDefinitions="*,44" Semantic.Merge="True">
+                <Label Text="{Binding Title}" />
+                <Image Grid.Column="1" SvgImageSource.Svg="griphorizontal.svg" Reorder.IsHandle="True" />
+            </Grid>
+        </DataTemplate>
+    </CollectionView.ItemTemplate>
+</CollectionView>
+```
 
 ## Menu buttons (`Plugin.Maui.Spine`)
 
