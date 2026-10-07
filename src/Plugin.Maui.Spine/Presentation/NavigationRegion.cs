@@ -189,10 +189,9 @@ public sealed partial class NavigationRegion : ContentView
     /// Computes the container margin from measured system bar insets.
     /// </summary>
     /// <remarks>
-    /// On iOS and Android the platform offsets the page content by the system bars whatever the
-    /// page asked for, so the margin counteracts that offset and lets
-    /// <see cref="ApplySafeAreaPadding"/> put the insets back per page. On the other platforms the
-    /// margin is zero.
+    /// On iOS the platform offsets the page content by the system bars whatever the page asked for,
+    /// so the margin counteracts that offset and lets <see cref="ApplySafeAreaPadding"/> put the
+    /// insets back per page. On the other platforms the margin is zero.
     /// </remarks>
     private void UpdateContainerMargin()
     {
@@ -218,28 +217,15 @@ public sealed partial class NavigationRegion : ContentView
 #endif
 
 #if ANDROID
-        // Same story as iOS at the top: the platform offsets the page content by the status bar
-        // whatever the page asked for, so a page that excluded the top edge never got to draw
-        // behind it. Counteract the offset and let ApplySafeAreaPadding put it back for the
-        // pages that did ask for it.
-        //
-        // The top only. The bottom belongs to the Material bar: it applies the navigation inset
-        // to itself and reports its own height as each tab's bottom inset (ApplyTabBarInset), so
-        // pulling the container down there would drag content under a bar that is not painted to
-        // be drawn under.
-        //
-        // Not in a sheet: it is a dialog window of its own, which nothing offsets by the status bar,
-        // so pulling it up hid the top of a page that excluded Top above the sheet's edge, and the
-        // scanner centred its aim in a frame a status bar taller than the part that showed.
+        // Nothing offsets the container on Android: SystemInsetsProvider consumes the bars and the
+        // display cutout above it, so MAUI's layouts get no insets to pad for. A margin that
+        // counteracted an offset held only where the cutout happened to be as tall as the status
+        // bar, and on a tablet it pulled the header bar under the status bar.
+        _container.Margin = Thickness.Zero;
+
+        // A sheet is a dialog window of its own, not under the status bar.
         if (ViewModel.Presentation is NavigationPresentation.Sheet)
-        {
-            _container.Margin = Thickness.Zero;
             insets.Top = 0;
-        }
-        else
-        {
-            _container.Margin = new Thickness(0, -insets.Top, 0, 0);
-        }
 #endif
 
 #if MACCATALYST

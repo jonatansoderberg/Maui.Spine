@@ -10,6 +10,13 @@ namespace Plugin.Maui.Spine.Core;
 /// </summary>
 internal sealed class SystemInsetsProvider : Java.Lang.Object, ISystemInsetsProvider, IOnApplyWindowInsetsListener
 {
+    /// <summary>
+    /// The system bars and the display cutout: what a page keeps clear of. MAUI pads its layouts
+    /// for the cutout as well, so a cutout left unconsumed offset the region on a phone with a
+    /// camera hole and nowhere else.
+    /// </summary>
+    internal static readonly int SafeAreaTypes = WindowInsetsCompat.Type.SystemBars() | WindowInsetsCompat.Type.DisplayCutout();
+
     private Thickness _systemBarInsets;
     private bool _hasMeasured;
     private static bool _imeAnimating;
@@ -47,7 +54,7 @@ internal sealed class SystemInsetsProvider : Java.Lang.Object, ISystemInsetsProv
         var rootInsets = ViewCompat.GetRootWindowInsets(decorView);
         if (rootInsets is not null)
         {
-            var bars = rootInsets.GetInsets(WindowInsetsCompat.Type.SystemBars())!;
+            var bars = rootInsets.GetInsets(SafeAreaTypes)!;
 
             _systemBarInsets = new Thickness(
                 bars.Left / density,
@@ -99,7 +106,7 @@ internal sealed class SystemInsetsProvider : Java.Lang.Object, ISystemInsetsProv
         v.SetPadding(0, 0, 0, 0);
 
         var density = (double)(v.Resources?.DisplayMetrics?.Density ?? 1f);
-        var bars = insets.GetInsets(WindowInsetsCompat.Type.SystemBars())!;
+        var bars = insets.GetInsets(SafeAreaTypes)!;
 
         var newInsets = new Thickness(
             bars.Left / density,
@@ -119,7 +126,7 @@ internal sealed class SystemInsetsProvider : Java.Lang.Object, ISystemInsetsProv
         // Consume system bar insets so MAUI's own listener cannot re-apply padding, and the
         // keyboard's, which NavigationRegion answers for the page (SoftKeyboard).
         return new WindowInsetsCompat.Builder(insets)
-            .SetInsets(WindowInsetsCompat.Type.SystemBars(), AndroidX.Core.Graphics.Insets.None)!
+            .SetInsets(SafeAreaTypes, AndroidX.Core.Graphics.Insets.None)!
             .SetInsets(WindowInsetsCompat.Type.Ime(), AndroidX.Core.Graphics.Insets.None)!
             .Build();
     }

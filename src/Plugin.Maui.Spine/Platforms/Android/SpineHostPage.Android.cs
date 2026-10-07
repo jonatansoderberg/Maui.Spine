@@ -80,7 +80,7 @@ partial class SpineHostPage
                 return insets;
 
             return new WindowInsetsCompat.Builder(insets)
-                .SetInsets(WindowInsetsCompat.Type.SystemBars(), AndroidX.Core.Graphics.Insets.None)!
+                .SetInsets(SystemInsetsProvider.SafeAreaTypes, AndroidX.Core.Graphics.Insets.None)!
                 .Build();
         }
     }
