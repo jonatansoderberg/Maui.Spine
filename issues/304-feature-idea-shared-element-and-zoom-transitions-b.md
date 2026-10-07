@@ -113,7 +113,8 @@ The interactive swipe keeps the normal slide. The element flies only on the back
     - `NavigationRegion.OnPanUpdated` became `OnBackSwipe(status, x, y)`, fed by the pan recognizer on iOS/Mac/Windows and by the host on Android.
     - Verified on the Pixel_Tablet emulator: the plain detail page slides back; the zoom page shrinks under the finger, springs back on a short swipe and zooms into the tile on a long one. The iOS swipe is unchanged.
     - The system back gesture (the first few millimetres at the edge) is the system's own and goes back without following the finger.
-- Mac Catalyst (the iOS code) and Windows (no flight; the usual transition) compile; neither has been run.
+- **Mac Catalyst (2026-10-07):** the iOS code runs as is. In a `screencapture -v` recording of the Showcase window, the zoom grows out of the Weather tile and shrinks back into it with the card as its focus. The tiles had to be clicked with real mouse clicks: an accessibility press on a `Tap.Command` view does nothing on the Mac (a separate matter).
+- Windows (no flight; the usual transition) compiles; it has not been run.
 
 - **Showcase page (2026-10-07):** Transitions follows the gallery pattern: an intro header with `ExampleCodeSwitch`, `PackageChips` and one `Example` ("Move a view between pages") whose "Try options" picks Shared element, Zoom, or Zoom without a focus, with matching code. One `TransitionDetailPage` takes a `TransitionTarget(Tile, Kind)` and binds `Transition.Tag` on the page root and on its card according to the kind (`TransitionZoomPage` is gone). The tiles carry a `Key` (`tile-2`), so the code reads `Transition.Tag="{Binding Key}"`. Gallery icon: a new symbol, `Expand` (a small card with an arrow to the far corner of a large frame), drawn with `/spine-symbol` (Jonatan picked variant A of four); the set now has 223.
 
