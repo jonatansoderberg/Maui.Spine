@@ -65,17 +65,18 @@
             x:Name="CardList"
             IsVisible="{Binding IsList}"
             ItemsSource="{Binding Cards}"
+            SafeArea.PageMargin="True"
             Reorder.Mode="{Binding Mode}"
             Reorder.IsEnabled="{Binding CanReorder}"
             Reorder.Command="{Binding MovedCommand}">
 
             <CollectionView.Header>
-                <ContentView ControlTemplate="{StaticResource Intro}" Margin="{x:Static HeaderBarConstants.PagePadding}" />
+                <ContentView ControlTemplate="{StaticResource Intro}" />
             </CollectionView.Header>
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="ReorderCard">
-                    <Border Margin="16,5" Padding="14,12,6,12" StrokeThickness="0" StrokeShape="RoundRectangle 14"
+                    <Border Margin="0,5" Padding="14,12,6,12" StrokeThickness="0" StrokeShape="RoundRectangle 14"
                             BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}">
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Semantic.Merge="True">
                             <Image SvgImageSource.Svg="{Binding Icon}" WidthRequest="26" HeightRequest="26" VerticalOptions="Center" />
@@ -93,24 +94,28 @@
 
         </CollectionView>
 
-        <!-- Tiles 10 apart, their outer edges on the page margin. -->
+        <!-- The list reaches the page's sides, so the header bar's scroll edge covers the bar;
+             SafeArea.PageMargin lays the tiles and the intro out inside the page margin. -->
         <CollectionView
             x:Name="TileGrid"
             IsVisible="{Binding Grid}"
-            Margin="{Binding GridMargin}"
             ItemsSource="{Binding Cards}"
-            ItemsLayout="VerticalGrid, 2"
+            SafeArea.PageMargin="True"
             Reorder.Mode="{Binding Mode}"
             Reorder.IsEnabled="{Binding CanReorder}"
             Reorder.Command="{Binding MovedCommand}">
 
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
+            </CollectionView.ItemsLayout>
+
             <CollectionView.Header>
-                <ContentView ControlTemplate="{StaticResource Intro}" Margin="5,0" />
+                <ContentView ControlTemplate="{StaticResource Intro}" />
             </CollectionView.Header>
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="ReorderCard">
-                    <Border Margin="5" Padding="14,10,4,14" StrokeThickness="0" StrokeShape="RoundRectangle 14"
+                    <Border Padding="14,10,4,14" StrokeThickness="0" StrokeShape="RoundRectangle 14"
                             BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}">
                         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="4" Semantic.Merge="True">
                             <Image SvgImageSource.Svg="{Binding Icon}" WidthRequest="26" HeightRequest="26"

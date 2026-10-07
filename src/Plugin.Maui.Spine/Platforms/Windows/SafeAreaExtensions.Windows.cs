@@ -18,7 +18,8 @@ public static partial class SpineExtensions
             return;
 
         var inset = SafeArea.GetResolvedInset(view);
-        var thickness = new Microsoft.UI.Xaml.Thickness(inset.Left, inset.Top, inset.Right, inset.Bottom);
+        var margin = SafeArea.PageMarginOf(view);
+        var thickness = new Microsoft.UI.Xaml.Thickness(inset.Left + margin.Left, inset.Top, inset.Right + margin.Right, inset.Bottom);
 
         switch (handler.PlatformView)
         {

@@ -35,6 +35,30 @@ public static class SafeArea
     /// <summary>Sets the edges on which <paramref name="view"/> adds the page's safe-area inset to its scrollable range.</summary>
     public static void SetScrollInset(BindableObject view, SafeAreaEdges value) => view.SetValue(ScrollInsetProperty, value);
 
+    /// <summary>
+    /// Lays a <see cref="CollectionView"/>'s rows out inside <see cref="Presentation.HeaderBarConstants.PageMargin"/>
+    /// on the left and right while the list itself reaches the page's sides, so its items line up
+    /// with the header bar's buttons and the rest of the page, and the header bar's scroll edge,
+    /// which is as wide as the list, still covers the bar. Its header and footer are inside the
+    /// margin too. A grid keeps the margin at its outer edges only; the gap between its columns is
+    /// <see cref="GridItemsLayout.HorizontalItemSpacing"/>.
+    /// </summary>
+    public static readonly BindableProperty PageMarginProperty = BindableProperty.CreateAttached(
+        "PageMargin", typeof(bool), typeof(SafeArea), false,
+        propertyChanged: static (bindable, _, _) => (bindable as View)?.Handler?.UpdateValue(MapperKey));
+
+    /// <summary>Gets whether <paramref name="view"/> lays its rows out inside the page margin.</summary>
+    public static bool GetPageMargin(BindableObject view) => (bool)view.GetValue(PageMarginProperty);
+
+    /// <summary>Sets whether <paramref name="view"/> lays its rows out inside the page margin.</summary>
+    public static void SetPageMargin(BindableObject view, bool value) => view.SetValue(PageMarginProperty, value);
+
+    /// <summary>The page margin a list asked for with <see cref="PageMarginProperty"/>, on its left and right; zero otherwise.</summary>
+    internal static Thickness PageMarginOf(View view) =>
+        view is ItemsView && GetPageMargin(view)
+            ? new Thickness(Presentation.HeaderBarConstants.PageMargin, 0)
+            : Thickness.Zero;
+
     /// <summary>The inset resolved for the view right now, read by the platform mappers.</summary>
     internal static readonly BindableProperty ResolvedInsetProperty = BindableProperty.CreateAttached(
         "ResolvedInset", typeof(Thickness), typeof(SafeArea), Thickness.Zero,

@@ -1,0 +1,66 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Transitions.TransitionsPage"
+    x:TypeArguments="TransitionsPageViewModel"
+    x:DataType="TransitionsPageViewModel"
+    BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}"
+    HeaderBar.ScrollSource="{x:Reference TileGrid}">
+
+    <!-- The list reaches the page's sides, so the header bar's scroll edge covers the bar;
+         SafeArea.PageMargin lays the intro and the tiles out inside the page margin. -->
+    <CollectionView
+        x:Name="TileGrid"
+        ItemsSource="{Binding Tiles}"
+        SafeArea.PageMargin="True">
+
+        <CollectionView.ItemsLayout>
+            <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
+        </CollectionView.ItemsLayout>
+
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="0,16,0,16" Spacing="12">
+                <ExampleCodeSwitch />
+                <PackageChips Packages="Plugin.Maui.Spine" />
+
+                <Example Title="Move a view between pages"
+                         Summary="Give a view on one page and a view on the page it opens the same Transition.Tag, and Spine carries it from one to the other on the push and back on the pop. On the page itself, the tag zooms the page out of the view instead. Tap a tile."
+                         OptionsCommand="{Binding ShowOptionsCommand}"
+                         Code="{Binding Code}"
+                         Margin="0,12,0,0">
+                    <VerticalStackLayout Spacing="4">
+                        <Label FontSize="15">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="{Binding KindGroup.Name}" />
+                                    <Span Text=": " />
+                                    <Span Text="{Binding KindGroup.Selected.Label}" FontAttributes="Bold" />
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                        <Label Text="{Binding KindGroup.Selected.Description}" FontSize="15" Opacity="0.7" />
+                    </VerticalStackLayout>
+                </Example>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="TransitionTile">
+                <Border HeightRequest="120" StrokeThickness="0" StrokeShape="RoundRectangle 18"
+                        BackgroundColor="{Binding Color}"
+                        Transition.Tag="{Binding Key}"
+                        Tap.Command="{Binding Source={RelativeSource AncestorType={x:Type TransitionsPageViewModel}}, Path=OpenCommand}"
+                        Tap.CommandParameter="{Binding .}"
+                        Semantic.Merge="True">
+                    <Grid Padding="14" RowDefinitions="*,Auto">
+                        <Image SvgImageSource.Svg="{Binding Icon}" WidthRequest="30" HeightRequest="30"
+                               HorizontalOptions="Start" VerticalOptions="Start" />
+                        <Label Grid.Row="1" Text="{Binding Title}" TextColor="White" FontSize="17" FontAttributes="Bold" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+
+    </CollectionView>
+
+</SpinePage>

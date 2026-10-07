@@ -14,6 +14,9 @@ public static partial class SpineExtensions
         ScrollViewHandler.Mapper.AppendToMapping(SafeArea.MapperKey, ApplyScrollInset);
         CollectionViewHandler.Mapper.AppendToMapping(SafeArea.MapperKey, ApplyScrollInset);
         CollectionViewHandler2.Mapper.AppendToMapping(SafeArea.MapperKey, ApplyScrollInset);
+
+        // A new items layout is a new UICollectionViewLayout, without the page margin.
+        CollectionViewHandler2.Mapper.AppendToMapping(nameof(StructuredItemsView.ItemsLayout), ApplyScrollInset);
     }
 
     static void ApplyScrollInset(IElementHandler handler, IElement element)
@@ -40,6 +43,45 @@ public static partial class SpineExtensions
             scrollView.ContentOffset = new CoreGraphics.CGPoint(scrollView.ContentOffset.X, -scrollView.AdjustedContentInset.Top);
         scrollView.VerticalScrollIndicatorInsets = edgeInsets;
         scrollView.HorizontalScrollIndicatorInsets = edgeInsets;
+
+        if (scrollView is UICollectionView collectionView)
+            ApplyPageMargin(collectionView, SafeArea.PageMarginOf(view));
+    }
+
+    /// <summary>
+    /// Insets a collection view's sections by <paramref name="margin"/> on the left and right. A
+    /// compositional layout lays its sections out inside the insets its configuration refers to,
+    /// and ignores the scroll view's own side content inset; so the margin becomes the collection
+    /// view's layout margins, and the layout refers to those.
+    /// </summary>
+    static void ApplyPageMargin(UICollectionView collectionView, Thickness margin)
+    {
+        if (collectionView.CollectionViewLayout is not UICollectionViewCompositionalLayout layout)
+            return;
+
+        var reference = margin == Thickness.Zero ? UIContentInsetsReference.Automatic : UIContentInsetsReference.LayoutMargins;
+        var margins = new NSDirectionalEdgeInsets(0, (nfloat)margin.Left, 0, (nfloat)margin.Right);
+        var configuration = layout.Configuration;
+
+        if (configuration.ContentInsetsReference == reference && collectionView.DirectionalLayoutMargins == margins
+            && configuration.BoundarySupplementaryItems.All(item => item.ContentInsets == margins))
+            return;
+
+        // Only the margins asked for: not the superview's, and not the safe area, which Spine's
+        // own scroll inset already keeps clear (the top one would push the rows down twice).
+        collectionView.PreservesSuperviewLayoutMargins = false;
+        collectionView.InsetsLayoutMarginsFromSafeArea = false;
+        collectionView.DirectionalLayoutMargins = margins;
+
+        // A list's header and footer belong to the whole layout rather than to a section, and the
+        // insets the sections refer to do not reach them; a grid's are its section's. Both end up
+        // inside the margin.
+        foreach (var item in configuration.BoundarySupplementaryItems)
+            item.ContentInsets = margins;
+
+        // The configuration is handed out as a copy, and the layout only takes a whole new one.
+        configuration.ContentInsetsReference = reference;
+        layout.Configuration = configuration;
     }
 
     internal static UIScrollView? FindScrollView(UIView view)

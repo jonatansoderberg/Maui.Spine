@@ -96,6 +96,8 @@ public static class SpineIcons
     public const string Edit = "Edit.svg";
     /// <summary>The <c>Energy.svg</c> icon.</summary>
     public const string Energy = "Energy.svg";
+    /// <summary>The <c>Expand.svg</c> icon.</summary>
+    public const string Expand = "Expand.svg";
     /// <summary>The <c>ExternalLink.svg</c> icon.</summary>
     public const string ExternalLink = "ExternalLink.svg";
     /// <summary>The <c>Eye.svg</c> icon.</summary>
@@ -499,6 +501,7 @@ public static class SpineIcons
         Dryer,
         Edit,
         Energy,
+        Expand,
         ExternalLink,
         Eye,
         EyeOff,

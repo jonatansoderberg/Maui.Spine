@@ -172,6 +172,24 @@
       <DependentUpon>ReorderPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Transitions\TransitionsPage.View.xaml">
+      <DependentUpon>TransitionsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Transitions\TransitionsPage.ViewModel.cs">
+      <DependentUpon>TransitionsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Transitions\TransitionDetailPage.View.xaml">
+      <DependentUpon>TransitionDetailPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Transitions\TransitionDetailPage.ViewModel.cs">
+      <DependentUpon>TransitionDetailPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Theme\ThemePage.View.xaml">
       <DependentUpon>ThemePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

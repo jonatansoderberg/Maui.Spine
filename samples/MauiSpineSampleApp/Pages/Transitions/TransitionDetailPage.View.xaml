@@ -1,0 +1,25 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Transitions.TransitionDetailPage"
+    x:TypeArguments="TransitionDetailPageViewModel"
+    x:DataType="TransitionDetailPageViewModel"
+    BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}"
+    Transition.Tag="{Binding PageTag}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="16">
+            <Border HeightRequest="240" StrokeThickness="0" StrokeShape="RoundRectangle 24"
+                    BackgroundColor="{Binding Tile.Color}"
+                    Transition.Tag="{Binding CardTag}">
+                <Grid Padding="20" RowDefinitions="*,Auto">
+                    <Image SvgImageSource.Svg="{Binding Tile.Icon}" WidthRequest="56" HeightRequest="56"
+                           HorizontalOptions="Start" VerticalOptions="Start" />
+                    <Label Grid.Row="1" Text="{Binding Tile.Title}" TextColor="White" FontSize="28" FontAttributes="Bold" />
+                </Grid>
+            </Border>
+            <Label FontSize="17" Text="{Binding Text}" />
+        </VerticalStackLayout>
+    </ScrollView>
+
+</SpinePage>

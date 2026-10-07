@@ -91,6 +91,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
         new("Page actions", "A header button from a command; change its text, badge, enabled state and visibility live, or replace Back", "energy.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<PageActions.PageActionsPage>()),
         new("Haptics", "Success, warning, error, selection and impacts from the platform's own generators, on a tap, a header action, a tab switch or a sheet", "haptic.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Haptics.HapticsPage>()),
         new("Reorder", "Drag items of any CollectionView to a new place: a long-press or a grip handle, shown on demand with an Edit button, with haptics and screen-reader actions", "griphorizontal.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Reorder.ReorderPage>()),
+        new("Transitions", "A view carried from one page to the next and back, or a page that grows out of the view it opens from and shrinks back into it under the finger", "expand.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Transitions.TransitionsPage>()),
         new("Keyboard", "A field at the foot of the page stays above the on-screen keyboard and moves with it, in a region, a tab or a sheet", "keyboard.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Keyboard.KeyboardPage>()),
         new("Liquid Glass", "Glass.Style turns a Button or ImageButton into Liquid Glass on iOS 26; the same markup is a normal button elsewhere", "water.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg", n => n.NavigateToAsync<Glass.GlassPage>()),
         new("Scroll inset", "A list that runs behind the home indicator yet scrolls its last row clear, per page, per list or app-wide", "vertical.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<ScrollInset.ScrollInsetPage>()),
@@ -107,7 +108,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
         new("Live Activities", "A game on the lock screen and in the Dynamic Island, updated from the app: a countdown to face-off, the score, a button at the final whistle", "timer.svg", "Plugin.Maui.Spine.Widgets", n => n.NavigateToAsync<LiveActivities.LiveActivitiesPage>()),
         new("Shortcuts", "Straight to a page from the app icon, the jump list or the tray menu, through one handler", "next.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Shortcuts.ShortcutsPage>()),
         new("Strings", "Text per language from embedded XML: values and plurals in XAML, the same store from C#, a live language switch", "globe.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Common", n => n.NavigateToAsync<Strings.StringsPage>()),
-        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 222 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
+        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 223 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
     ];
 }
 
