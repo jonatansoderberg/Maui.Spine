@@ -18,8 +18,14 @@ public partial class TransitionsPageViewModel(INavigationService navigation) : S
         new(12, "Photos", "image.svg", Color.FromArgb("#E07A5F")),
     ];
 
+    // Zoom: the page opened has the tile's tag on itself and grows out of it; otherwise the tile flies to the page.
+    [ObservableProperty]
+    public partial bool Zoom { get; set; }
+
     [RelayCommand]
-    private Task Open(TransitionTile tile) => navigation.NavigateToAsync<TransitionDetailPage, TransitionTile>(tile);
+    private Task Open(TransitionTile tile) => Zoom
+        ? navigation.NavigateToAsync<TransitionZoomPage, TransitionTile>(tile)
+        : navigation.NavigateToAsync<TransitionDetailPage, TransitionTile>(tile);
 }
 
 public sealed record TransitionTile(int Id, string Title, string Icon, Color Color);

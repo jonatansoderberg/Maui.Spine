@@ -648,13 +648,17 @@ public sealed partial class NavigationRegion : ContentView
 
         try
         {
-            await Task.WhenAll(
-                push ? _transitions.AnimatePushAsync(transition) : _transitions.AnimatePopAsync(transition),
-                flight?.FlyAsync(_transitions.InteractiveGestureDuration, _transitions.InteractiveGestureEasing) ?? Task.CompletedTask);
+            if (flight is { IsZoom: true })
+                await ZoomAsync(flight, push);
+            else
+                await Task.WhenAll(
+                    push ? _transitions.AnimatePushAsync(transition) : _transitions.AnimatePopAsync(transition),
+                    flight?.FlyAsync(_transitions.InteractiveGestureDuration, _transitions.InteractiveGestureEasing) ?? Task.CompletedTask);
         }
         finally
         {
             commit();
+            _frameActionView.Opacity = 1;
 
             foreach (var layer in (View[])[_contentHostFront, _contentHostBack])
             {
@@ -669,6 +673,46 @@ public sealed partial class NavigationRegion : ContentView
             // The views land where their pictures are, now that the layers are back at rest.
             flight?.Dispose();
         }
+    }
+
+    // The zoom a back-swipe drives while it lasts, and how far right the finger is.
+    private SharedElementFlight? _zoomDrag;
+    private double _zoomDragX;
+
+    /// <summary>
+    /// The zoom between the page being swiped away and its view on the page under it, when the
+    /// page grew out of one that is on screen. A back-swipe moves no other shared element: the
+    /// page slides away with it.
+    /// </summary>
+    private async Task<SharedElementFlight?> FindZoomDragAsync()
+    {
+        var flight = await SharedElementFlight.FindAsync(_container, _contentHostFront, ViewModel.FrontView, ViewModel.BackView, push: false);
+        if (flight is { IsZoom: true })
+            return flight;
+
+        flight?.Dispose();
+        return null;
+    }
+
+    /// <summary>How long a page takes to grow out of its view or shrink back into it, in milliseconds.</summary>
+    private const uint ZoomDuration = 450;
+
+    /// <summary>
+    /// A zoom in place of the slide: the page grows out of its view (or shrinks back into it)
+    /// while the page under it stays where it is and dims, and the header bar fades in with the
+    /// page it now belongs to.
+    /// </summary>
+    private Task ZoomAsync(SharedElementFlight flight, bool push)
+    {
+        if (!push)
+            _backDragDimOverlay.Opacity = BackDimOpacity;
+
+        _frameActionView.Opacity = 0;
+
+        return Task.WhenAll(
+            flight.ZoomAsync(push, ZoomDuration),
+            _backDragDimOverlay.SpineFadeToAsync(push ? BackDimOpacity : 0, ZoomDuration, Easing.CubicOut),
+            _frameActionView.SpineFadeToAsync(1, ZoomDuration, Easing.CubicOut));
     }
 
     private double GetEffectiveWidth()
@@ -764,6 +808,18 @@ public sealed partial class NavigationRegion : ContentView
                     _isDragging = true;
                     vm.StartInteractiveBack();
                     LiftFront(true);
+                    _zoomDrag = await FindZoomDragAsync();
+                }
+
+                // A page that grew out of a view shrinks back towards it under the finger instead
+                // of sliding away; the page under it stays where it is.
+                if (_zoomDrag is { } zoom)
+                {
+                    _zoomDragX = deltaX;
+                    var progress = _gestureWidth > 0 ? Math.Clamp(deltaX / _gestureWidth, 0, 1) : 0;
+                    zoom.Follow(deltaX, e.TotalY, progress);
+                    _backDragDimOverlay.Opacity = BackDimOpacity * (1 - progress);
+                    break;
                 }
 
                 _contentHostFront.TranslationX = Math.Max(0, deltaX);
@@ -781,6 +837,36 @@ public sealed partial class NavigationRegion : ContentView
                 var currentX = _contentHostFront.TranslationX;
                 var duration = _transitions.InteractiveGestureDuration;
                 var easing = _transitions.InteractiveGestureEasing;
+
+                if (_zoomDrag is { } zoom)
+                {
+                    _zoomDrag = null;
+
+                    if (_gestureWidth > 0 && _zoomDragX > _gestureWidth * DragCompleteThreshold && e.StatusType == GestureStatus.Completed)
+                    {
+                        await Task.WhenAll(
+                            zoom.ZoomAsync(push: false, ZoomDuration),
+                            _backDragDimOverlay.SpineFadeToAsync(0, ZoomDuration, Easing.CubicOut));
+
+                        // The view's picture covers the shrunk page until the pages swap and the zoom
+                        // lets go of the layer.
+                        LiftFront(false);
+                        await vm.CompleteInteractiveBackAsync();
+                    }
+                    else
+                    {
+                        await Task.WhenAll(
+                            zoom.RestoreAsync(ZoomDuration),
+                            _backDragDimOverlay.SpineFadeToAsync(BackDimOpacity, ZoomDuration, Easing.CubicOut));
+
+                        vm.CancelInteractiveBack();
+                    }
+
+                    zoom.Dispose();
+                    ResetInteractiveState();
+                    _isDragging = false;
+                    break;
+                }
 
                 if (_gestureWidth > 0 && currentX > _gestureWidth * DragCompleteThreshold && e.StatusType == GestureStatus.Completed)
                 {

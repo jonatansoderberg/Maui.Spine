@@ -87,6 +87,17 @@ The interactive swipe keeps the normal slide. The element flies only on the back
   - Windows: the margin is added to the `ListViewBase` padding (compiled on the Mac only).
   - Showcase: Transitions and both Reorder lists use `SafeArea.PageMargin="True"` and `GridItemsLayout` spacing. The push sample's Log uses it too. The warning text, `CLAUDE.md`, the `spine-page` skill and a new wiki section "Lists inside the page margin" in `regions.md` point to it.
 
+- **Zoom on iOS (2026-10-07):** a `Transition.Tag` on the arriving page's root makes the page grow out of the view with that tag on the page under it. A pop, by button or `BackAsync`, shrinks it back into the view, which is found again by its tag. The back-swipe shrinks the page under the finger: it follows the finger and its corners round. Let go past a third of the width and it zooms into the view; otherwise it springs back.
+  - `SharedElementFlight.AddZoom` / `ZoomAsync` / `Follow` / `RestoreAsync` (Apple):
+    - The front layer's content is scaled with the layer's `sublayerTransform` until it covers the view, centred on it, and cut by a `CALayer` mask (the view's size and corners over the scale, because the mask is scaled with the content). Core Animation moves the scale, the mask and its corners together (450 ms, a no-bounce spring curve).
+    - The view's picture lies over the small page: it fades out over the first 35 % of a push and fades in over the last 35 % of a pop.
+  - `NavigationRegion`:
+    - `ZoomAsync` replaces `ISpineTransitions` for a zoom. The page under it stays in place and dims, and the header bar fades in.
+    - `OnPanUpdated` drives `Follow` when `FindZoomDragAsync` finds a zoom. Any other shared element is let go, and the page slides as before.
+  - Without its view on screen (scrolled away), a zoom page moves as usual.
+  - Showcase: `TransitionZoomPage` (the tag on its root) and a "Zoom into the page" switch on Transitions.
+  - Verified in recordings on the iPhone 17 Pro simulator: push, button pop, a cancelled swipe and a completed swipe.
+
 ## Spike findings
 
 - **Measuring on push:** the arriving page's `ScrollView` gets its top inset (status bar + header bar, 116 pt) only in `Loaded`, which MAUI raises from the main queue after the page is put in the window. Measured synchronously, the target came out 116 pt too high, even after `LayoutIfNeeded` on the container, the window or the root view. Waiting a frame was not needed: a single `Task.Yield()` is enough. The front layer is hidden (`Opacity = 0`) across that hop, so a frame drawn in between shows only the page still on screen. The hop happens only when the two pages share a tag.
@@ -94,6 +105,9 @@ The interactive swipe keeps the normal slide. The element flies only on the back
 - **Landing:** recorded at 60 fps, push and pop land exactly on the view (diffs of the target rect). After the pictures are removed, only one frame differs, by about 1 100 px of anti-aliasing in the 540 × 360 px cell crop.
 
 ## Decisions
+
+- **The zoom scales the layer's content (`sublayerTransform`), not the view (`Transform`):** on a pop, Spine pads the page coming back, MAUI lays the region out again during the animation, and setting the frame of a view under a transform made the page balloon. MAUI never touches the sublayer transform or the layer's mask. The mask is scaled with the content, so its rectangle and radius are given before that scale.
+- **A zoom page whose view is not on screen moves as usual**, rather than shrinking to the centre as the plan said: simpler, and it never pretends to land somewhere.
 
 - **Spine-driven on every platform, not native page transitions:** Spine pages are views in one region, so UIKit's zoom transition, fragment transitions and `ConnectedAnimationService` have nothing to attach to. One snapshot and layer approach keeps behaviour consistent and testable on the Mac.
 - **Zoom is chosen by the tag on the target page's root** (Jonatan, 2026-10-06), not by a navigation parameter or a mode on the source. No change to `INavigationService`, and pop finds the source by the same tag.

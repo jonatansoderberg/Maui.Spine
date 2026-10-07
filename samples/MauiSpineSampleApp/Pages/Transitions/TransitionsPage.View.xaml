@@ -18,6 +18,13 @@
             <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
         </CollectionView.ItemsLayout>
 
+        <CollectionView.Header>
+            <Grid ColumnDefinitions="*,Auto" Padding="0,8,0,16">
+                <Label Text="Zoom into the page" FontSize="17" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding Zoom}" />
+            </Grid>
+        </CollectionView.Header>
+
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="TransitionTile">
                 <Border HeightRequest="120" StrokeThickness="0" StrokeShape="RoundRectangle 18"

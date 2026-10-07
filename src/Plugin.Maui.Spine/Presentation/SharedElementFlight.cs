@@ -9,9 +9,13 @@ namespace Plugin.Maui.Spine.Presentation;
 /// on the one page to where it rests on the other, over the pages while they move. The views
 /// themselves are hidden until the flight lands.
 /// </summary>
+/// <remarks>
+/// A tag on a page itself makes a zoom instead: the page grows out of the view with its tag on the
+/// page under it, and shrinks back into it when it leaves (<see cref="IsZoom"/>).
+/// </remarks>
 internal sealed partial class SharedElementFlight : IDisposable
 {
-    private readonly List<(VisualElement Source, VisualElement Target, double SourceOpacity, double TargetOpacity)> _hidden = [];
+    private readonly List<(VisualElement View, double Opacity)> _hidden = [];
 
     /// <summary>
     /// The flight between <paramref name="leaving"/> and <paramref name="arriving"/>, or
@@ -39,6 +43,18 @@ internal sealed partial class SharedElementFlight : IDisposable
         var targets = Transition.TaggedIn(arriving);
         if (Create(container, front) is not { } flight)
             return null;
+
+        // The page in the front layer, the one that grows or shrinks when its own tag is set.
+        if (((push ? arriving : leaving) as PagePresenter)?.Content is { } page && Transition.GetTag(page) is { Length: > 0 } pageTag)
+        {
+            // Without its view on screen the page moves as usual: a picture of the whole page
+            // flying into a stranger's place would not be a zoom.
+            if ((push ? sources : targets).TryGetValue(pageTag, out var views) && flight.AddZoom(views, push))
+                return flight;
+
+            flight.Dispose();
+            return null;
+        }
 
         foreach (var (tag, targetViews) in targets)
         {
@@ -75,21 +91,20 @@ internal sealed partial class SharedElementFlight : IDisposable
         }
     }
 
-    private void Hide(VisualElement source, VisualElement target)
+    private void Hide(params VisualElement[] views)
     {
-        _hidden.Add((source, target, source.Opacity, target.Opacity));
-        source.Opacity = 0;
-        target.Opacity = 0;
+        foreach (var view in views)
+        {
+            _hidden.Add((view, view.Opacity));
+            view.Opacity = 0;
+        }
     }
 
     /// <summary>Shows the views again and takes the pictures away.</summary>
     public void Dispose()
     {
-        foreach (var (source, target, sourceOpacity, targetOpacity) in _hidden)
-        {
-            source.Opacity = sourceOpacity;
-            target.Opacity = targetOpacity;
-        }
+        foreach (var (view, opacity) in _hidden)
+            view.Opacity = opacity;
 
         RemovePictures();
         _hidden.Clear();
@@ -111,15 +126,41 @@ internal sealed partial class SharedElementFlight : IDisposable
     /// <summary>Pairs the first of <paramref name="sources"/> on screen with the first of <paramref name="targets"/> that has a place.</summary>
     private partial void Add(List<VisualElement> sources, List<VisualElement> targets);
 
+    /// <summary>
+    /// Makes this flight a zoom between the front layer's page and the first of
+    /// <paramref name="views"/> on screen, on the page under it; <see langword="false"/> when none is.
+    /// </summary>
+    private partial bool AddZoom(List<VisualElement> views, bool push);
+
+    /// <summary>Whether the front layer's page grows out of a view, or shrinks into one, rather than pictures flying.</summary>
+    public partial bool IsZoom { get; }
+
     /// <summary>Flies every picture to its place.</summary>
     public partial Task FlyAsync(uint length, Easing easing);
+
+    /// <summary>Grows the front layer's page out of its view (<paramref name="push"/>), or shrinks it back into it.</summary>
+    public partial Task ZoomAsync(bool push, uint length);
+
+    /// <summary>
+    /// Puts the front layer's page where a back-swipe has it, <paramref name="progress"/> of the way
+    /// across: shrunk, and moved by <paramref name="x"/> and <paramref name="y"/> with the finger.
+    /// </summary>
+    public partial void Follow(double x, double y, double progress);
+
+    /// <summary>Brings the page back to its full size after a back-swipe that was let go of.</summary>
+    public partial Task RestoreAsync(uint length);
 
     private partial void RemovePictures();
 
 #if !IOS && !MACCATALYST
     private static partial SharedElementFlight? Create(View container, View front) => null;
     private partial void Add(List<VisualElement> sources, List<VisualElement> targets) { }
+    private partial bool AddZoom(List<VisualElement> views, bool push) => false;
+    public partial bool IsZoom => false;
     public partial Task FlyAsync(uint length, Easing easing) => Task.CompletedTask;
+    public partial Task ZoomAsync(bool push, uint length) => Task.CompletedTask;
+    public partial void Follow(double x, double y, double progress) { }
+    public partial Task RestoreAsync(uint length) => Task.CompletedTask;
     private partial void RemovePictures() { }
 #endif
 }

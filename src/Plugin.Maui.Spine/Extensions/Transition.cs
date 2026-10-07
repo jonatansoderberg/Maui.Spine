@@ -2,9 +2,13 @@ namespace Plugin.Maui.Spine.Extensions;
 
 /// <summary>
 /// Links a view on one page to a view on the page navigated to, so that a push or a pop between
-/// them moves the view from one page to the other. A tag on an element of the page arriving makes
-/// it a shared element: the view flies from its place on one page to its place on the other while
-/// the pages move as usual. Nothing to register.
+/// them moves the view from one page to the other. Nothing to register.
+/// <list type="bullet">
+/// <item>On a view inside the page arriving, it makes a shared element: the view flies from its
+/// place on one page to its place on the other while the pages move as usual.</item>
+/// <item>On the page arriving itself, it makes a zoom: the page grows out of the view with its tag,
+/// shrinks back into it when it leaves, and shrinks under the finger on a back-swipe.</item>
+/// </list>
 /// </summary>
 /// <remarks>
 /// Tags pair up within one navigation stack (a region, a tab or a sheet); a page opened as a sheet,
@@ -19,6 +23,9 @@ namespace Plugin.Maui.Spine.Extensions;
 ///
 /// &lt;!-- the detail page --&gt;
 /// &lt;Image Source="{Binding Poster}" Transition.Tag="{Binding Id, StringFormat='poster-{0}'}" /&gt;
+///
+/// &lt;!-- or a page that grows out of the poster --&gt;
+/// &lt;SpinePage ... Transition.Tag="{Binding Id, StringFormat='poster-{0}'}"&gt;
 /// </code>
 /// </example>
 public static class Transition
