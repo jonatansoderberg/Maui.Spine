@@ -13,10 +13,11 @@ namespace Plugin.Maui.Spine.Scanner;
 /// declares <c>android.permission.CAMERA</c> itself and needs API 23. The view asks for the permission when it first
 /// shows; when anything stops it from scanning, <see cref="Problem"/> and <see cref="ProblemChanged"/> say why.</para>
 /// <para>The camera runs only while the native view is in a window and <see cref="IsScanning"/> is true. It stops,
-/// with the torch off, the moment the view leaves its window, whether or not the page tells anyone it closed.</para>
+/// with the torch off, the moment the view leaves its window, whether or not the page tells anyone it closed, and lets
+/// go of the capture session and reader there, so a handler that is never disconnected leaks nothing.</para>
 /// <para>The camera focuses continuously; a tap on the view focuses on that spot until the scene changes (iOS) or for
-/// five seconds (Android). On iOS the scanner also zooms in when the camera cannot focus close, as on the Pro iPhones,
-/// and, when only linear codes are read, keeps autofocus to near distances.</para>
+/// five seconds (Android). The scanner zooms in when the camera cannot focus close, as on the Pro iPhones and tablets
+/// with a wide lens, and on iOS, when only linear codes are read, keeps autofocus to near distances.</para>
 /// </remarks>
 /// <example>
 /// <code language="xml"><![CDATA[
@@ -46,6 +47,10 @@ public class BarcodeScannerView : View
     public static readonly BindableProperty ScanAreaProperty = BindableProperty.Create(
         nameof(ScanArea), typeof(Rect?), typeof(BarcodeScannerView));
 
+    public static readonly BindableProperty ConfirmationReadsProperty = BindableProperty.Create(
+        nameof(ConfirmationReads), typeof(int), typeof(BarcodeScannerView), 2,
+        validateValue: static (_, value) => value is int reads && reads >= 1);
+
     private static readonly BindablePropertyKey ProblemPropertyKey = BindableProperty.CreateReadOnly(
         nameof(Problem), typeof(ScannerProblem?), typeof(BarcodeScannerView), null);
 
@@ -61,8 +66,14 @@ public class BarcodeScannerView : View
 
     public static readonly BindableProperty IsTorchAvailableProperty = IsTorchAvailablePropertyKey.BindableProperty;
 
+    // Reads of the same value this many analysed frames apart, or closer, count as in a row
+    private const int ConfirmationFrameGap = 2;
+
     private string? _lastValue;
     private DateTime _lastAt;
+    private string? _candidate;
+    private int _candidateReads;
+    private long _candidateFrame;
 
     internal const string FocusCommand = "SpineScannerFocus";
 
@@ -101,6 +112,10 @@ public class BarcodeScannerView : View
         set => SetValue(IsScanningProperty, value);
     }
 
+    /// <summary>
+    /// Whether the torch is lit while the camera runs. Set back to <see langword="false"/> when scanning stops or the view
+    /// leaves its window, so a torch button never shows a lamp that is off.
+    /// </summary>
     public bool IsTorchOn
     {
         get => (bool)GetValue(IsTorchOnProperty);
@@ -117,6 +132,19 @@ public class BarcodeScannerView : View
         set => SetValue(DetectedCommandProperty, value);
     }
 
+    /// <summary>
+    /// How many reads of the same value in a row it takes before a standard code is reported; default 2, 1 reports at
+    /// once. The platform readers check the check digit, but a partly seen linear code can still come out as another
+    /// valid number; a second read costs one frame. "In a row" is counted in analysed frames: reads at most two frames
+    /// apart, with no other value in between. A light grid is reported on its first read: it is read a few times a
+    /// second at most, and Data Matrix corrects its own errors.
+    /// </summary>
+    public int ConfirmationReads
+    {
+        get => (int)GetValue(ConfirmationReadsProperty);
+        set => SetValue(ConfirmationReadsProperty, value);
+    }
+
     /// <summary>How long the same value stays quiet after it was reported, while the camera keeps seeing it.</summary>
     public TimeSpan RepeatInterval
     {
@@ -125,9 +153,10 @@ public class BarcodeScannerView : View
     }
 
     /// <summary>
-    /// Where in the view a code counts, in device-independent units: a code is reported only when all its corners lie
-    /// inside, so one at the edge of the picture is not read by mistake. <see langword="null"/>, the default, counts the
-    /// whole view.
+    /// Where in the view a code counts, in device-independent units: a code whose centre lies outside is ignored, so the
+    /// neighbouring code on a shelf or a sheet is not read by mistake. A code may be larger than the area (held close, a
+    /// code outgrows any aim), so only its centre is tested. When several codes are inside, the one nearest the area's
+    /// centre wins. <see langword="null"/>, the default, counts the whole view.
     /// </summary>
     public Rect? ScanArea
     {
@@ -151,9 +180,27 @@ public class BarcodeScannerView : View
     /// <summary><see cref="Problem"/> changed, with a message to show.</summary>
     public event EventHandler<ScannerProblemEventArgs>? ProblemChanged;
 
-    internal void RaiseDetected(BarcodeScanResult result)
+    /// <summary>
+    /// The codes one frame held, placed in this view, with the frame's number in the camera's count of analysed frames.
+    /// Main thread only. Picks the code in the scan area, then lets it through once it has been read
+    /// <see cref="ConfirmationReads"/> times in a row.
+    /// </summary>
+    internal void RaiseFrame(IReadOnlyList<BarcodeScanResult> codes, long frame)
     {
-        if (ScanArea is { } area && result.Corners.Any(c => !area.Contains(c))) return;
+        if (Pick(codes) is not { } result) return;
+
+        // A frame number that does not move forward (a new handler counts afresh) starts over
+        long gap = frame - _candidateFrame;
+        if (result.Value == _candidate && gap > 0 && gap <= ConfirmationFrameGap)
+            _candidateReads++;
+        else
+        {
+            _candidate = result.Value;
+            _candidateReads = 1;
+        }
+        _candidateFrame = frame;
+        if (!result.IsLightGrid && _candidateReads < ConfirmationReads) return;
+
         var now = DateTime.UtcNow;
         if (result.Value == _lastValue && now - _lastAt < RepeatInterval)
         {
@@ -168,6 +215,29 @@ public class BarcodeScannerView : View
             command.Execute(result);
     }
 
+    private BarcodeScanResult? Pick(IReadOnlyList<BarcodeScanResult> codes)
+    {
+        if (codes.Count == 0) return null;
+        if (ScanArea is not { } area) return codes[0];
+
+        BarcodeScanResult? best = null;
+        double bestDistance = double.MaxValue;
+        foreach (var code in codes)
+        {
+            // A reader that gave no corners cannot be placed; it only counts when nothing narrows the view
+            if (code.Corners.Count == 0) continue;
+            var centre = new Point(code.Corners.Average(c => c.X), code.Corners.Average(c => c.Y));
+            if (!area.Contains(centre)) continue;
+            double distance = centre.Distance(area.Center);
+            if (distance < bestDistance)
+            {
+                best = code;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
     internal void RaiseProblem(ScannerProblem? problem, string? message)
     {
         if (problem == Problem && problem is null) return;
@@ -176,6 +246,12 @@ public class BarcodeScannerView : View
     }
 
     internal void SetTorchAvailable(bool available) => SetValue(IsTorchAvailablePropertyKey, available);
+
+    /// <summary>The camera stopped and took the lamp with it.</summary>
+    internal void SetTorchOff()
+    {
+        if (IsTorchOn) IsTorchOn = false;
+    }
 
     internal void SetDiagnostics(string? text) => SetValue(DiagnosticsPropertyKey, text);
 }

@@ -36,11 +36,11 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
     protected override void ConnectHandler(ScannerPreviewView platformView)
     {
         base.ConnectHandler(platformView);
-        platformView.Detected = r => VirtualView?.RaiseDetected(r);
+        platformView.Detected = (codes, frame) => VirtualView?.RaiseFrame(codes, frame);
         platformView.Problem = (p, m) => VirtualView?.RaiseProblem(p, m);
         platformView.TorchAvailable = a => VirtualView?.SetTorchAvailable(a);
         platformView.DiagnosticsChanged = d => VirtualView?.SetDiagnostics(d);
-        platformView.TorchChanged = on => { if (VirtualView is { } v && v.IsTorchOn != on) v.IsTorchOn = on; };
+        platformView.TorchSwitchedOff = () => VirtualView?.SetTorchOff();
         platformView.SetOnScreen(platformView.Window is not null);
     }
 
@@ -56,6 +56,11 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
 /// their own as bi-planar full-range YUV: Vision reads the standard codes from the pixel buffer, and the light-grid reader
 /// reads the Y plane, which is luminance as it is.
 /// </summary>
+/// <remarks>
+/// The session is taken apart when the view leaves its window, not only in <see cref="Shutdown"/>: a host that never
+/// disconnects the handlers of a closed sheet or popup would otherwise keep a configured session, its observers and the
+/// frame delegate (which holds this view) for every scan.
+/// </remarks>
 public sealed class ScannerPreviewView : UIView
 {
     private static readonly TimeSpan FrameTimeout = TimeSpan.FromSeconds(2);
@@ -72,13 +77,15 @@ public sealed class ScannerPreviewView : UIView
     private FrameDelegate? _frames;
     private NSTimer? _watchdog;
     private bool _configured, _configuring, _wanted = true, _onScreen;
-    private volatile bool _torch, _shutdown;
+    private volatile bool _torch, _shutdown, _interrupted;
     private int _torchQueued;
+    // Main thread only: moves on with every release, so a configuration that finishes after one is known to be stale
+    private int _generation;
     private long _lastFrame;
     private int _processing;
 
     internal readonly FrameReader Reader = new();
-    internal Action<BarcodeScanResult>? Detected;
+    internal Action<IReadOnlyList<BarcodeScanResult>, long>? Detected;
 
     /// <summary>Places a hit's corners, in buffer pixels, in this view; main thread only.</summary>
     private BarcodeScanResult Place(FrameHit hit)
@@ -92,7 +99,7 @@ public sealed class ScannerPreviewView : UIView
     }
     internal Action<ScannerProblem?, string?>? Problem;
     internal Action<bool>? TorchAvailable;
-    internal Action<bool>? TorchChanged;
+    internal Action? TorchSwitchedOff;
     internal Action<string?>? DiagnosticsChanged;
 
     public ScannerPreviewView()
@@ -175,18 +182,52 @@ public sealed class ScannerPreviewView : UIView
     {
         if (_shutdown) return;
         _shutdown = true;
+        Release();
+    }
+
+    /// <summary>
+    /// Main thread. Takes the session apart and drops the observers; the next <see cref="Update"/> configures afresh. The
+    /// work on the session runs on its queue, after anything already queued there, a configuration included.
+    /// </summary>
+    private void Release()
+    {
+        _generation++;
         StopWatchdog();
         foreach (var o in _observers) o.Dispose();
         _observers.Clear();
+        _configured = false;
+        _interrupted = false;
+        _frames = null;
         _queue.DispatchAsync(() =>
         {
             ApplyTorch(false);
-            _session.StopRunning();
+            if (_session.Running) _session.StopRunning();
             _session.BeginConfiguration();
-            foreach (var output in _session.Outputs) _session.RemoveOutput(output);
-            foreach (var input in _session.Inputs) _session.RemoveInput(input);
+            ClearSession();
             _session.CommitConfiguration();
+            _device = null;
         });
+    }
+
+    /// <summary>Session queue, inside a configuration. Removes every output (and its delegate) and input.</summary>
+    private void ClearSession()
+    {
+        foreach (var output in _session.Outputs)
+        {
+            // The output holds the delegate, and the delegate holds this view
+            if (output is AVCaptureVideoDataOutput video) video.SetSampleBufferDelegate(null, null);
+            _session.RemoveOutput(output);
+        }
+        foreach (var input in _session.Inputs) _session.RemoveInput(input);
+    }
+
+    // The property follows the lamp: a stop is the end of the torch, and the next start begins without it. A watchdog
+    // restart does not come through here, so the torch survives that
+    private void SwitchTorchOff()
+    {
+        if (!_torch) return;
+        _torch = false;
+        TorchSwitchedOff?.Invoke();
     }
 
     private async void Update()
@@ -195,6 +236,12 @@ public sealed class ScannerPreviewView : UIView
         bool run = _wanted && _onScreen;
         if (!run)
         {
+            SwitchTorchOff();
+            if (!_onScreen)
+            {
+                Release();
+                return;
+            }
             StopWatchdog();
             // The preview keeps the last frame, so a stop after a hit shows the code that was read
             if (_previewLayer.Connection is { } connection) connection.Enabled = false;
@@ -210,10 +257,22 @@ public sealed class ScannerPreviewView : UIView
         {
             if (_configuring) return;
             _configuring = true;
-            try { _configured = await ConfigureAsync(); }
+            int generation = _generation;
+            bool configured = false;
+            try { configured = await ConfigureAsync(); }
             catch (Exception ex) { Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} ({ex.Message})"); }
             finally { _configuring = false; }
-            if (!_configured || _shutdown || !(_wanted && _onScreen)) return;
+
+            // Released while the permission prompt or the configuration was pending: what was set up may already have
+            // been taken apart, or may have been set up after the release. Either way start clean
+            if (generation != _generation || _shutdown || !_onScreen)
+            {
+                Release();
+                if (!_shutdown && _onScreen) Update();
+                return;
+            }
+            _configured = configured;
+            if (!_configured || !_wanted) return;
         }
 
         Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
@@ -240,47 +299,24 @@ public sealed class ScannerPreviewView : UIView
             return false;
         }
 
-        _device = AVCaptureDevice.GetDefaultDevice(AVCaptureDeviceType.BuiltInWideAngleCamera, AVMediaTypes.Video, AVCaptureDevicePosition.Back)
+        var device = AVCaptureDevice.GetDefaultDevice(AVCaptureDeviceType.BuiltInWideAngleCamera, AVMediaTypes.Video, AVCaptureDevicePosition.Back)
             ?? AVCaptureDevice.GetDefaultDevice(AVMediaTypes.Video);
-        if (_device is null)
+        if (device is null)
         {
             Report(ScannerProblem.NoCamera);
             return false;
         }
 
-        _session.BeginConfiguration();
-        try
+        // On the session queue like every other change to the session, so a release queued before it cannot take apart
+        // what it sets up afterwards
+        var frames = new FrameDelegate(this);
+        var failure = await OnSessionQueue(() => Configure(device, frames));
+        if (failure is not null)
         {
-            // Enough detail for a 12 × 12 grid across a room, small enough to read every frame
-            _session.SessionPreset = _session.CanSetSessionPreset(AVCaptureSession.Preset1280x720)
-                ? AVCaptureSession.Preset1280x720
-                : AVCaptureSession.PresetHigh;
-            var input = AVCaptureDeviceInput.FromDevice(_device, out var error);
-            if (input is null || !_session.CanAddInput(input))
-            {
-                Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} ({error?.LocalizedDescription})");
-                return false;
-            }
-            _session.AddInput(input);
-
-            var output = new AVCaptureVideoDataOutput
-            {
-                AlwaysDiscardsLateVideoFrames = true,
-                WeakVideoSettings = new CVPixelBufferAttributes { PixelFormatType = CVPixelFormatType.CV420YpCbCr8BiPlanarFullRange }.Dictionary,
-            };
-            _frames = new FrameDelegate(this);
-            output.SetSampleBufferDelegate(_frames, _frameQueue);
-            if (!_session.CanAddOutput(output))
-            {
-                Report(ScannerProblem.Failed);
-                return false;
-            }
-            _session.AddOutput(output);
+            Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} ({failure})");
+            return false;
         }
-        finally
-        {
-            _session.CommitConfiguration();
-        }
+        _frames = frames;
 
         _queue.DispatchAsync(() =>
         {
@@ -288,17 +324,74 @@ public sealed class ScannerPreviewView : UIView
             ApplyLens();
         });
         // After the permission prompt this may run off the main thread; the header only follows main-thread changes
-        bool hasTorch = _device.HasTorch;
+        bool hasTorch = device.HasTorch;
         BeginInvokeOnMainThread(() => { if (!_shutdown) TorchAvailable?.Invoke(hasTorch); });
 
         _observers.Add(AVCaptureSession.Notifications.ObserveRuntimeError(_session, (_, e) =>
             Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} ({e.Error?.LocalizedDescription})")));
-        _observers.Add(AVCaptureSession.Notifications.ObserveWasInterrupted(_session, (_, _) => Report(ScannerProblem.Interrupted)));
-        _observers.Add(AVCaptureSession.Notifications.ObserveInterruptionEnded(_session, (_, _) => Report(null)));
+        // While another app or a call has the camera no frames come, and that is not a stuck camera: the watchdog
+        // leaves it alone, so the explanation stays on screen and the session is not restarted under the interruption
+        _observers.Add(AVCaptureSession.Notifications.ObserveWasInterrupted(_session, (_, _) =>
+        {
+            _interrupted = true;
+            Report(ScannerProblem.Interrupted);
+        }));
+        _observers.Add(AVCaptureSession.Notifications.ObserveInterruptionEnded(_session, (_, _) =>
+        {
+            Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
+            _interrupted = false;
+            Report(null);
+        }));
         // After a tap, the phone moving on hands focus back to the camera, as the Camera app does
-        _observers.Add(AVCaptureDevice.Notifications.ObserveSubjectAreaDidChange(_device, (_, _) => _queue.DispatchAsync(() =>
+        _observers.Add(AVCaptureDevice.Notifications.ObserveSubjectAreaDidChange(device, (_, _) => _queue.DispatchAsync(() =>
             Focus(Centre, AVCaptureFocusMode.ContinuousAutoFocus, AVCaptureExposureMode.ContinuousAutoExposure, watchScene: false))));
         return true;
+    }
+
+    /// <summary>Session queue. Input and output for <paramref name="device"/>; the reason when it cannot be done.</summary>
+    private string? Configure(AVCaptureDevice device, FrameDelegate frames)
+    {
+        _session.BeginConfiguration();
+        try
+        {
+            // Whatever a configuration that failed half-way left behind
+            ClearSession();
+            // Enough detail for a 12 × 12 grid across a room, small enough to read every frame
+            _session.SessionPreset = _session.CanSetSessionPreset(AVCaptureSession.Preset1280x720)
+                ? AVCaptureSession.Preset1280x720
+                : AVCaptureSession.PresetHigh;
+            var input = AVCaptureDeviceInput.FromDevice(device, out var error);
+            if (input is null || !_session.CanAddInput(input))
+                return error?.LocalizedDescription ?? "the camera input could not be added";
+            _session.AddInput(input);
+
+            var output = new AVCaptureVideoDataOutput
+            {
+                AlwaysDiscardsLateVideoFrames = true,
+                WeakVideoSettings = new CVPixelBufferAttributes { PixelFormatType = CVPixelFormatType.CV420YpCbCr8BiPlanarFullRange }.Dictionary,
+            };
+            output.SetSampleBufferDelegate(frames, _frameQueue);
+            if (!_session.CanAddOutput(output))
+                return "the camera output could not be added";
+            _session.AddOutput(output);
+            _device = device;
+            return null;
+        }
+        finally
+        {
+            _session.CommitConfiguration();
+        }
+    }
+
+    private Task<T> OnSessionQueue<T>(Func<T> work)
+    {
+        var done = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _queue.DispatchAsync(() =>
+        {
+            try { done.SetResult(work()); }
+            catch (Exception ex) { done.SetException(ex); }
+        });
+        return done.Task;
     }
 
     /// <summary>Runs on the session queue only.</summary>
@@ -370,6 +463,7 @@ public sealed class ScannerPreviewView : UIView
             if (device.AutoFocusRangeRestrictionSupported) device.AutoFocusRangeRestriction = range;
             device.VideoZoomFactor = zoom;
             device.UnlockForConfiguration();
+            Reader.Zoom = (float)zoom;
         }
         catch (Exception ex)
         {
@@ -402,8 +496,10 @@ public sealed class ScannerPreviewView : UIView
         _watchdog ??= NSTimer.CreateRepeatingScheduledTimer(0.5, _ =>
         {
             DiagnosticsChanged?.Invoke(Reader.TakeDiagnostics());
-            // A frame still being read is slow, not stuck; only a silent camera on screen is restarted
-            if (Window is null || !_wanted || Volatile.Read(ref _processing) != 0 || Stopwatch.GetElapsedTime(Interlocked.Read(ref _lastFrame)) < FrameTimeout) return;
+            // A frame still being read is slow, not stuck, and an interrupted camera is held by someone else; only a
+            // silent camera on screen is restarted
+            if (Window is null || !_wanted || _interrupted || Volatile.Read(ref _processing) != 0
+                || Stopwatch.GetElapsedTime(Interlocked.Read(ref _lastFrame)) < FrameTimeout) return;
             Report(ScannerProblem.NoFrames);
             Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
             _queue.DispatchAsync(() =>
@@ -443,23 +539,25 @@ public sealed class ScannerPreviewView : UIView
 
                 using var pixels = sampleBuffer.GetImageBuffer() as CVPixelBuffer;
                 if (pixels is null) return;
+                long frame = owner.Reader.NextFrame();
                 long started = Stopwatch.GetTimestamp();
 
                 var formats = owner.Reader.Formats;
-                FrameHit? result = null;
+                List<FrameHit>? hits = null;
                 // Its own guard: a Vision failure must not keep the light-grid reader from the frame
                 if (formats != BarcodeFormat.None)
                 {
-                    try { result = ReadStandard(pixels, formats); }
+                    try { hits = ReadStandard(pixels, formats); }
                     catch (Exception ex) { owner.Reader.ReportError("Vision", ex); }
                 }
 
-                if (result is null && owner.Reader.WantsLightGrid)
+                if (hits is null && owner.Reader.WantsLightGrid)
                 {
                     pixels.Lock(CVPixelBufferLock.ReadOnly);
                     try
                     {
-                        result = owner.Reader.ReadLightGrid(Plane(pixels, out int w, out int h, out int stride), w, h, stride);
+                        if (owner.Reader.ReadLightGrid(Plane(pixels, out int w, out int h, out int stride), w, h, stride) is { } grid)
+                            hits = [grid];
                     }
                     finally
                     {
@@ -467,14 +565,14 @@ public sealed class ScannerPreviewView : UIView
                     }
                 }
 
-                owner.Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, result is not null);
+                owner.Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, hits is not null);
                 if (!_healthy)
                 {
                     _healthy = true;
                     owner.Report(null);
                 }
-                if (result is not null)
-                    owner.BeginInvokeOnMainThread(() => { if (!owner._shutdown) owner.Detected?.Invoke(owner.Place(result)); });
+                if (hits is not null)
+                    owner.BeginInvokeOnMainThread(() => { if (!owner._shutdown) owner.Detected?.Invoke(hits.ConvertAll(owner.Place), frame); });
             }
             catch (Exception ex)
             {
@@ -494,7 +592,8 @@ public sealed class ScannerPreviewView : UIView
             }
         }
 
-        private FrameHit? ReadStandard(CVPixelBuffer pixels, BarcodeFormat formats)
+        /// <summary>Every code Vision found in the frame; <see langword="null"/> when there was none.</summary>
+        private List<FrameHit>? ReadStandard(CVPixelBuffer pixels, BarcodeFormat formats)
         {
             if (formats != _requested)
             {
@@ -508,11 +607,12 @@ public sealed class ScannerPreviewView : UIView
             float w = pixels.Width, h = pixels.Height;
             // Vision's points are normalised with the origin at the bottom left
             System.Numerics.Vector2 Pixel(CGPoint p) => new((float)p.X * w, (1 - (float)p.Y) * h);
+            List<FrameHit>? hits = null;
             foreach (var observation in _barcodes.GetResults<VNBarcodeObservation>() ?? [])
                 if (observation.PayloadStringValue is { Length: > 0 } value && FromVision(observation.Symbology) is var format && format != BarcodeFormat.None)
-                    return new FrameHit(new BarcodeScanResult(value, format),
-                        [Pixel(observation.TopLeft), Pixel(observation.TopRight), Pixel(observation.BottomRight), Pixel(observation.BottomLeft)], w, h);
-            return null;
+                    (hits ??= []).Add(new FrameHit(new BarcodeScanResult(value, format),
+                        [Pixel(observation.TopLeft), Pixel(observation.TopRight), Pixel(observation.BottomRight), Pixel(observation.BottomLeft)], w, h));
+            return hits;
         }
 
         private static unsafe ReadOnlySpan<byte> Plane(CVPixelBuffer pixels, out int width, out int height, out int stride)

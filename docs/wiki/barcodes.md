@@ -164,7 +164,7 @@ Keep the background light and the quiet zone clear; a scanner needs light around
 
 3. **Android:** API 23 or later. CameraX 1.6 declares 23, so an app below it fails the manifest merge; set `SupportedOSPlatformVersion` for Android to 23.0. The package declares `android.permission.CAMERA` itself (and `android.hardware.camera.any` as not required), so the app's manifest needs nothing. ML Kit's model is bundled, so scanning works offline from the first launch.
 
-The view asks for the camera permission the first time it shows.
+The view asks for the camera permission the first time it shows. On Android a permission granted later in Settings is picked up when the app comes back, without reopening the scanner (iOS restarts the app when a privacy setting changes).
 
 ### The scan sheet
 
@@ -172,7 +172,7 @@ The view asks for the camera permission the first time it shows.
 By default:
 - it opens at half height and can be pulled to full screen;
 - the camera fills the sheet under a transparent header, with Spine's close button and, when the device has one, a torch that turns white while it is on and taps with a light haptic;
-- **aim corners**, white with a soft shadow like the system code scanner, breathe outwards where to point the camera: square for 2D codes and light grids, wide when only linear codes are read. Only a code inside them counts, with a margin of a fifth of their shorter side, so another code elsewhere in the picture is not read by mistake; with `ShowReticle` off the whole camera counts;
+- **aim corners**, white with a soft shadow like the system code scanner, breathe outwards where to point the camera: square for 2D codes and light grids, wide when only linear codes are read. Only a code whose centre is inside them counts, with a margin of a fifth of their shorter side, and of several there the one nearest the middle, so another code elsewhere in the picture is not read by mistake; with `ShowReticle` off the whole camera counts;
 - on a hit, the frame stops, the code is redrawn as accent dots in the perspective it was found in, straightens to a flat code square to the screen in the middle of the aim corners and **bursts towards the user** while the frame dims to half, with the success haptic and a short sound; the sheet closes when that has finished, about half a second later.
 
 For a light grid the dots are the code encoded again from its value and turned to match the lamps that were lit, so each dot lands on its lamp. For a 2D code from the platform reader the code is encoded again with default options, so the dots may differ in detail from the pattern on screen.
@@ -225,24 +225,25 @@ For a scanner inside a page of the app's own:
 | `Formats` | The standard symbologies to read; default `All`. `None` leaves only `LightGrid` |
 | `LightGrid` | A `LightGridOptions` to read a grid of lamps as well; `null` (default) skips it |
 | `IsScanning` | Whether the camera runs; default `true`. Turn it off to pause without leaving the page |
-| `IsTorchOn` | The torch; two-way |
+| `IsTorchOn` | The torch; two-way. Set back to `false` when scanning stops or the view leaves its window |
 | `IsTorchAvailable` | Read-only: whether the camera in use has a torch |
 | `RepeatInterval` | How long the same value stays quiet after it was reported, while the camera keeps seeing it; default 2 s |
-| `ScanArea` | A `Rect?` in the view's device-independent units: a code is reported only when all its corners lie inside. `null` (default) counts the whole view |
+| `ScanArea` | A `Rect?` in the view's device-independent units: a code counts only when its centre lies inside, and of several codes inside, the one nearest the area's centre wins. `null` (default) counts the whole view |
+| `ConfirmationReads` | How many reads of the same value in a row a standard code needs before it is reported; default 2, 1 reports at once. Counted in analysed frames (at most two apart); a light grid is reported on its first read |
 | `Detected` | Event with `BarcodeDetectedEventArgs.Result`, on the main thread |
 | `DetectedCommand` | Run with the `BarcodeScanResult`, on the main thread, when `CanExecute` allows |
 | `Problem` | Read-only: what stops the view from scanning, or `null` while it scans |
-| `Diagnostics` | Read-only, twice a second: frames per second, time per frame, and for a light grid whether it was found and read, plus the latest error |
+| `Diagnostics` | Read-only, twice a second: frames per second, time per frame, the zoom when above 1×, and for a light grid whether it was found and read, plus the latest error |
 | `ProblemChanged` | Event with `Problem` and a localised `Message` to show; `Problem` is `null` when scanning resumes |
 
-The camera runs only while the native view is in a window and `IsScanning` is true, and it stops, with the torch off, the moment the view leaves its window. That follows the native view, not MAUI's `Loaded` and `Unloaded` or the page's lifecycle, which a closing sheet does not always raise; a camera left running there would fight the next scanner for the device. When scanning stops the view keeps the last frame on screen. The torch is switched on the camera's own queue and only the latest wish is applied, so fast taps do not queue up. Frames are 1280 × 720, or the closest size the camera has: enough detail for a 12 × 12 grid across a room, small enough to read every frame.
+The camera runs only while the native view is in a window and `IsScanning` is true, and it stops, with the torch off, the moment the view leaves its window. That follows the native view, not MAUI's `Loaded` and `Unloaded` or the page's lifecycle, which a closing sheet does not always raise; a camera left running there would fight the next scanner for the device. Leaving the window also lets go of everything the camera holds (the capture session and its observers on iOS, the ML Kit reader on Android), so a host that never disconnects the handler of a closed sheet or popup does not keep one per scan; the next time the view shows, the camera starts afresh. When scanning stops the view keeps the last frame on screen. The torch is switched on the camera's own queue and only the latest wish is applied, so fast taps do not queue up. Frames are 1280 × 720, or the closest size the camera has: enough detail for a 12 × 12 grid across a room, small enough to read every frame.
 
-The camera focuses continuously on the middle of the picture. A tap on the view focuses and meters on that spot instead: on iOS until the phone moves on to a new scene, on Android for five seconds; then the camera focuses by itself again. On iOS the scanner also sets the lens for what it reads:
+The camera focuses continuously on the middle of the picture. A tap on the view focuses and meters on that spot instead: on iOS until the phone moves on to a new scene, on Android for five seconds; then the camera focuses by itself again. The scanner also sets the lens for what it reads:
 
-- when it reads only linear codes and no light grid, autofocus is kept to near distances, where product codes are scanned;
-- unless it reads a light grid, it zooms in when the camera cannot focus close: far enough that an EAN-13 held at the closest sharp distance spans half the preview, at most 3×. That is about 2× on the Pro iPhones, whose wide camera focuses no closer than about 20 cm, and nothing on a camera that focuses close. With a light grid it stays at 1×, to see a clock across a room.
+- unless it reads a light grid, it zooms in when the camera cannot focus close: far enough that an EAN-13 held at the closest sharp distance spans half the preview, at most 3×. That is about 2× on the Pro iPhones, whose wide camera focuses no closer than about 20 cm, about 1.8× on a tablet's wide camera in landscape, and nothing on a camera that focuses close. Without it the user moves closer to fill the aim, past the closest focus, and every frame blurs. On Android the zoom is worked out again when the preview changes size, as when a tablet is turned. With a light grid it stays at 1×, to see a clock across a room;
+- on iOS, when it reads only linear codes and no light grid, autofocus is kept to near distances, where product codes are scanned.
 
-A code held in front of the camera is seen many times a second. `RepeatInterval` turns that into one report: the same value is reported again only after the camera has not seen it for that long. A different value is reported at once. To stop after the first hit, set `IsScanning` to false in the command, as the scan sheet does.
+A code held in front of the camera is seen many times a second. `ConfirmationReads` first asks for the same value twice in a row: the platform readers check the check digit, but a partly seen linear code can still come out as another valid number, and the second read costs one frame. `RepeatInterval` then turns the stream of reads into one report: the same value is reported again only after the camera has not seen it for that long. A different value is reported once it is confirmed. To stop after the first hit, set `IsScanning` to false in the command, as the scan sheet does.
 
 On iOS the standard formats are tried first on each frame, then the light grid. On Android the light grid comes first, because ML Kit reads asynchronously and holds the frame until it is done.
 
@@ -252,8 +253,8 @@ On iOS the standard formats are tried first on each frame, then the light grid. 
 |---|---|---|
 | `PermissionDenied` | The user said no to the camera, or turned it off in Settings | `Spine.Scanner.PermissionDenied` |
 | `NoCamera` | No camera, or none the scanner can use | `Spine.Scanner.NoCamera` |
-| `Interrupted` | The system took the camera away: a call, another app, split view | `Spine.Scanner.Interrupted` |
-| `NoFrames` | No frame for two seconds; the scanner restarts the camera | `Spine.Scanner.NoFrames` |
+| `Interrupted` | The system took the camera away: a call, another app, split view; on Android also do-not-disturb or too many cameras open. Cleared when the camera comes back | `Spine.Scanner.Interrupted` |
+| `NoFrames` | No frame for two seconds from a camera that is open and not interrupted; the scanner restarts the camera | `Spine.Scanner.NoFrames` |
 | `Failed` | Anything else, including a missing `NSCameraUsageDescription`; the message has the details | `Spine.Scanner.Failed` |
 
 The texts ship in English and Swedish under `Spine.Scanner.*`, with `Spine.Scanner.Title`, `Spine.Scanner.Prompt` and `Spine.Scanner.Torch` for the sheet. An app overrides any key in its own strings (see [Strings](strings.md)). A problem that comes from a platform error carries the platform's own message in brackets after the default text, so a report from a user says what went wrong.

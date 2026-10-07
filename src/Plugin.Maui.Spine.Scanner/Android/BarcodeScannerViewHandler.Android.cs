@@ -3,7 +3,9 @@ using System.Diagnostics;
 using Android.App;
 using Android.Content;
 using Android.Gms.Tasks;
+using Android.Hardware.Camera2;
 using Android.Runtime;
+using AndroidX.Camera.Camera2.InterOp;
 using AndroidX.Camera.Core;
 using AndroidX.Camera.Core.ResolutionSelector;
 using AndroidX.Camera.Lifecycle;
@@ -29,7 +31,7 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
         new PropertyMapper<BarcodeScannerView, BarcodeScannerViewHandler>(ViewMapper)
         {
             [nameof(BarcodeScannerView.Formats)] = static (h, v) => h._camera?.SetFormats(v.Formats),
-            [nameof(BarcodeScannerView.LightGrid)] = static (h, v) => h._camera?.Reader.SetLightGrid(v.LightGrid),
+            [nameof(BarcodeScannerView.LightGrid)] = static (h, v) => h._camera?.SetLightGrid(v.LightGrid),
             [nameof(BarcodeScannerView.IsScanning)] = static (h, v) => h._camera?.SetWanted(v.IsScanning),
             [nameof(BarcodeScannerView.IsTorchOn)] = static (h, v) => h._camera?.SetTorch(v.IsTorchOn),
         };
@@ -63,9 +65,10 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
     {
         _camera = new ScannerCamera(Context, _previewView!, _still!)
         {
-            Detected = r => VirtualView?.RaiseDetected(r),
+            Detected = (codes, frame) => VirtualView?.RaiseFrame(codes, frame),
             Problem = (p, m) => VirtualView?.RaiseProblem(p, m),
             TorchAvailable = a => VirtualView?.SetTorchAvailable(a),
+            TorchSwitchedOff = () => VirtualView?.SetTorchOff(),
             DiagnosticsChanged = d => VirtualView?.SetDiagnostics(d),
         };
         base.ConnectHandler(platformView);
@@ -94,35 +97,55 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
 /// case bound to the activity's lifecycle. Each frame's Y plane goes to the light-grid reader; ML Kit reads the
 /// standard codes from the same frame.
 /// </summary>
+/// <remarks>
+/// Everything heavy is let go when the view leaves its window, not only in <see cref="Shutdown"/>: a host that never
+/// disconnects the handlers of a closed sheet or popup would otherwise keep an ML Kit reader for every scan.
+/// </remarks>
 internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
 {
     private static readonly TimeSpan FrameTimeout = TimeSpan.FromSeconds(2);
 
+    // One analysis thread for the app, never shut down: a thread per scanner would outlive every view whose handler is
+    // never disconnected, and ML Kit hands its results back on this executor, so shutting it down with a frame still
+    // being read threw RejectedExecutionException on ML Kit's own thread
+    private static readonly Lazy<IExecutorService> AnalysisThread = new(() => Executors.NewSingleThreadExecutor()!);
+
     private readonly Context _context;
     private readonly PreviewView _preview;
     private readonly Android.Widget.ImageView _still;
-    private readonly IExecutorService _analysisThread = Executors.NewSingleThreadExecutor()!;
     private ProcessCameraProvider? _provider;
     private Preview? _previewCase;
     private ImageAnalysis? _analysisCase;
     private ICamera? _cameraControl;
+    private LiveData? _cameraState;
+    private CameraStateObserver? _cameraStateObserver;
+    private ILifecycleOwner? _resumeOwner;
+    private ResumeObserver? _resumeObserver;
     private IBarcodeScanner? _mlKit;
     private BarcodeFormat _mlKitFormats = BarcodeFormat.None;
     private System.Threading.Timer? _watchdog;
     private byte[] _luminance = [];
     private bool _wanted = true, _onScreen, _torch, _bound, _starting, _healthy = true;
-    private volatile bool _shutdown;
+    // Main thread only. _cameraOpen: frames can be expected; _interrupted: another app holds the camera
+    private bool _cameraOpen, _interrupted, _permissionDenied;
+    private volatile bool _shutdown, _analysing;
     private long _lastFrame;
+    // Written by the analysis thread, read on the main thread: the upright size of the analysed frames
+    private int _frameWidth, _frameHeight;
+    // Main thread only: the view and frame size and grid setting the zoom was last worked out for; cleared with every bind
+    private (int, int, int, int, bool) _zoomFor;
 
     public ScannerCamera(Context context, PreviewView preview, Android.Widget.ImageView still)
     {
         _context = context;
         _preview = preview;
         _still = still;
+        // A turned tablet resizes the preview, and the share of the picture a code fills with it
+        _preview.LayoutChange += (_, _) => ApplyCloseUpZoom();
     }
 
     public FrameReader Reader { get; } = new();
-    public Action<BarcodeScanResult>? Detected;
+    public Action<IReadOnlyList<BarcodeScanResult>, long>? Detected;
 
     /// <summary>Places a hit's corners, in upright image pixels, in the preview, which fills and centres the image.</summary>
     private BarcodeScanResult Place(FrameHit hit)
@@ -137,9 +160,16 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     }
     public Action<ScannerProblem?, string?>? Problem;
     public Action<bool>? TorchAvailable;
+    public Action? TorchSwitchedOff;
     public Action<string?>? DiagnosticsChanged;
 
     public void SetFormats(BarcodeFormat formats) => Reader.Formats = formats;
+
+    public void SetLightGrid(LightGridOptions? options)
+    {
+        Reader.SetLightGrid(options);
+        ApplyCloseUpZoom();
+    }
 
     public void SetWanted(bool wanted)
     {
@@ -163,10 +193,20 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     {
         if (_shutdown) return;
         _shutdown = true;
-        Unbind();
-        _analysisThread.Shutdown();
-        _mlKit?.Close();
-        _mlKit = null;
+        Release();
+    }
+
+    /// <summary>Lets go of the camera and the reader; the next <see cref="Update"/> starts afresh.</summary>
+    private void Release()
+    {
+        Unbind(keepLastFrame: false);
+        StopWatchingResume();
+        // On the analysis thread, after any frame still being read there, so a late frame cannot create a new reader
+        AnalysisThread.Value.Execute(new Java.Lang.Runnable(() =>
+        {
+            _mlKit?.Close();
+            _mlKit = null;
+        }));
     }
 
     private async void Update()
@@ -175,7 +215,10 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         bool run = _wanted && _onScreen;
         if (!run)
         {
-            Unbind();
+            // Paused on screen (after a hit): the last frame stays. Off screen: nothing is left holding on
+            if (_onScreen) Unbind(keepLastFrame: true);
+            else Release();
+            SwitchTorchOff();
             return;
         }
         if (_bound || _starting) return;
@@ -186,7 +229,17 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         finally { _starting = false; }
 
         // The page may have left while the permission prompt or the provider was pending
-        if (_bound && (_shutdown || !(_wanted && _onScreen))) Unbind();
+        if (_shutdown || !_onScreen) Release();
+        else if (_bound && !_wanted) Unbind(keepLastFrame: true);
+    }
+
+    // The property follows the lamp: a stop is the end of the torch, and the next start begins without it. A watchdog
+    // restart does not come through here, so the torch survives that
+    private void SwitchTorchOff()
+    {
+        if (!_torch) return;
+        _torch = false;
+        TorchSwitchedOff?.Invoke();
     }
 
     private async Task BindAsync()
@@ -204,9 +257,13 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         }
         if (status != PermissionStatus.Granted)
         {
+            _permissionDenied = true;
+            WatchResume();
             Report(ScannerProblem.PermissionDenied);
             return;
         }
+        _permissionDenied = false;
+        StopWatchingResume();
 
         if (Platform.CurrentActivity is not ILifecycleOwner owner)
         {
@@ -238,17 +295,95 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
             .SetResolutionSelector(resolution)!
             .SetBackpressureStrategy(ImageAnalysis.StrategyKeepOnlyLatest)!
             .Build()!;
-        analysisCase.SetAnalyzer(_analysisThread, this);
+        analysisCase.SetAnalyzer(AnalysisThread.Value, this);
         _analysisCase = analysisCase;
 
         _cameraControl = _provider.BindToLifecycle(owner, selector, previewCase, analysisCase);
         _bound = true;
+        _analysing = true;
         _still.Visibility = Android.Views.ViewStates.Gone;
         Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
         TorchAvailable?.Invoke(_cameraControl.CameraInfo?.HasFlashUnit == true);
         ApplyTorch();
         Report(null);
+        // CameraX says when the camera is open, closed with the activity, or taken by another app. ObserveForever, not
+        // Observe(activity): a lifecycle-bound observer goes quiet once the activity stops, so the close that comes with
+        // the background never arrives and the watchdog takes the silence for a stuck camera. Removed in Unbind: the
+        // camera's LiveData outlives this view and would otherwise hold it
+        _cameraOpen = _interrupted = false;
+        _cameraState = _cameraControl.CameraInfo?.CameraState;
+        if (_cameraState is not null)
+        {
+            _cameraStateObserver = new CameraStateObserver(this);
+            _cameraState.ObserveForever(_cameraStateObserver);
+        }
         _watchdog ??= new System.Threading.Timer(_ => CheckFrames(), null, TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.5));
+    }
+
+    /// <summary>Main thread (LiveData). Turns CameraX's camera state into <see cref="ScannerProblem"/>.</summary>
+    private void OnCameraState(CameraState state)
+    {
+        if (_shutdown || !_bound) return;
+        bool open = state.GetType()?.Equals(CameraState.Type.Open) == true;
+        if (open && !_cameraOpen)
+            // The two seconds without a frame count from when the camera opened, not from the bind
+            Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
+        _cameraOpen = open;
+
+        int? error = state.Error?.Code;
+        switch (error)
+        {
+            // Another app or a call has the camera; CameraX opens it again by itself once it is free
+            case CameraState.ErrorCameraInUse or CameraState.ErrorMaxCamerasInUse or CameraState.ErrorDoNotDisturbModeEnabled:
+                _interrupted = true;
+                Report(ScannerProblem.Interrupted);
+                break;
+            case CameraState.ErrorCameraDisabled or CameraState.ErrorCameraFatalError or CameraState.ErrorStreamConfig or CameraState.ErrorCameraRemoved:
+                Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} (CameraX error {error})");
+                break;
+            default:
+                if (open && _interrupted)
+                {
+                    _interrupted = false;
+                    Report(null);
+                }
+                break;
+        }
+    }
+
+    // A refused permission is only granted in Settings, and Android does not restart the app for a grant, so the
+    // scanner looks again each time the app comes back. It only checks, never asks: a resume also follows the
+    // permission dialog itself, and asking there would put the question straight back to someone who just said no
+    private void WatchResume()
+    {
+        if (_resumeObserver is not null || Platform.CurrentActivity is not ILifecycleOwner owner) return;
+        _resumeOwner = owner;
+        _resumeObserver = new ResumeObserver(this);
+        owner.Lifecycle.AddObserver(_resumeObserver);
+    }
+
+    private void StopWatchingResume()
+    {
+        if (_resumeObserver is not null) _resumeOwner?.Lifecycle.RemoveObserver(_resumeObserver);
+        _resumeObserver = null;
+        _resumeOwner = null;
+    }
+
+    private async void OnResumed()
+    {
+        if (_shutdown || !_permissionDenied || _starting) return;
+        try
+        {
+            if (await Permissions.CheckStatusAsync<Permissions.Camera>() != PermissionStatus.Granted) return;
+        }
+        catch (Exception ex)
+        {
+            Reader.ReportError("permission", ex);
+            return;
+        }
+        _permissionDenied = false;
+        StopWatchingResume();
+        Update();
     }
 
     private Task<ProcessCameraProvider> ProviderAsync()
@@ -263,14 +398,25 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         return tcs.Task;
     }
 
-    private void Unbind()
+    private void Unbind(bool keepLastFrame)
     {
         _watchdog?.Dispose();
         _watchdog = null;
+        if (_cameraStateObserver is not null) _cameraState?.RemoveObserver(_cameraStateObserver);
+        _cameraStateObserver = null;
+        _cameraState = null;
+        _cameraOpen = _interrupted = false;
+        // A new bind starts at zoom 1; its first frame works the zoom out again
+        _zoomFor = default;
+        Reader.Zoom = 1;
+        Volatile.Write(ref _frameWidth, 0);
+        Volatile.Write(ref _frameHeight, 0);
         if (!_bound) return;
         _bound = false;
-        // Keep the last frame on screen, so a stop after a hit shows the code that was read
-        if (!_shutdown && _preview.Bitmap is { } frame)
+        _analysing = false;
+        // Keep the last frame on screen, so a stop after a hit shows the code that was read. Only then: the copy is a
+        // bitmap the size of the view, and nobody sees it after a restart or off screen
+        if (keepLastFrame && !_shutdown && _preview.Bitmap is { } frame)
         {
             _still.SetImageBitmap(frame);
             _still.Visibility = Android.Views.ViewStates.Visible;
@@ -296,23 +442,84 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         catch (Exception ex) { Reader.ReportError("focus", ex); }
     }
 
+    /// <summary>
+    /// Main thread. Zooms for the current view and frame size, once per size. Unless a light grid is read across a room,
+    /// the camera zooms in by as much as it cannot focus close, as on iOS.
+    /// </summary>
+    private void ApplyCloseUpZoom()
+    {
+        if (_shutdown || !_bound || _cameraControl is not { CameraInfo: { } info } camera) return;
+        int frameWidth = Volatile.Read(ref _frameWidth), frameHeight = Volatile.Read(ref _frameHeight);
+        int viewWidth = _preview.Width, viewHeight = _preview.Height;
+        bool lightGrid = Reader.WantsLightGrid;
+        if (frameWidth <= 0 || frameHeight <= 0 || viewWidth <= 0 || viewHeight <= 0) return;
+        if ((viewWidth, viewHeight, frameWidth, frameHeight, lightGrid) == _zoomFor) return;
+        _zoomFor = (viewWidth, viewHeight, frameWidth, frameHeight, lightGrid);
+        try
+        {
+            float zoom = lightGrid ? 1 : CloseUpZoom(info, viewWidth, viewHeight, frameWidth, frameHeight);
+            camera.CameraControl?.SetZoomRatio(zoom);
+            Reader.Zoom = zoom;
+        }
+        catch (Exception ex)
+        {
+            Reader.ReportError("zoom", ex);
+        }
+    }
+
+    /// <summary>
+    /// The zoom at which an EAN-13 (37 mm) held at the camera's closest focus distance spans half the preview's width.
+    /// A tablet's wide camera focuses no closer than about 10 cm, where a code fills only a quarter of a landscape
+    /// preview: the user moves closer to fill the aim, past the closest focus, and every frame blurs. Zoomed in, the
+    /// code fills the aim where the picture is sharp, and the zoom crops the sensor before the frame is scaled down, so
+    /// a module gets more pixels too. 1 for a camera that focuses close, or one without the lens data to tell.
+    /// </summary>
+    private static float CloseUpZoom(ICameraInfo info, int viewWidth, int viewHeight, int frameWidth, int frameHeight)
+    {
+        const double codeWidth = 37, share = 0.5, most = 3;
+        var camera2 = Camera2CameraInfo.From(info);
+        // In diopters (1 / metres); 0 is a fixed-focus lens, which has no closest distance to work from
+        double diopters = (camera2.GetCameraCharacteristic(CameraCharacteristics.LensInfoMinimumFocusDistance!) as Java.Lang.Float)?.FloatValue() ?? 0;
+        float[]? focal = camera2.GetCameraCharacteristic(CameraCharacteristics.LensInfoAvailableFocalLengths!) is { } lengths
+            ? JNIEnv.GetArray<float>(lengths.Handle)
+            : null;
+        var sensor = camera2.GetCameraCharacteristic(CameraCharacteristics.SensorInfoPhysicalSize!) as Android.Util.SizeF;
+        if (diopters <= 0 || focal is not { Length: > 0 } || focal[0] <= 0 || sensor is not { Width: > 0, Height: > 0 }) return 1;
+
+        double closest = 1000 / diopters;
+        // The frame is the largest crop of the sensor in the frame's aspect; its sides across the scene at that distance
+        double sensorLong = Math.Max(sensor.Width, sensor.Height), sensorShort = Math.Min(sensor.Width, sensor.Height);
+        double aspect = (double)Math.Max(frameWidth, frameHeight) / Math.Min(frameWidth, frameHeight);
+        double longSide = closest * (aspect >= sensorLong / sensorShort ? sensorLong : sensorShort * aspect) / focal[0];
+        double shortSide = longSide / aspect;
+        // The frame size is upright, as the preview shows it; the preview fills and centres it, cropping one side
+        double across = frameWidth >= frameHeight ? longSide : shortSide, down = frameWidth >= frameHeight ? shortSide : longSide;
+        double visible = viewWidth / Math.Max(viewWidth / across, viewHeight / down);
+        double max = Math.Min(most, info.ZoomState?.Value?.JavaCast<IZoomState>()?.MaxZoomRatio ?? 1);
+        double zoom = Math.Clamp(visible * share / codeWidth, 1, Math.Max(1, max));
+        return zoom < 1.05 ? 1 : (float)zoom;
+    }
+
     private void ApplyTorch()
     {
         if (_cameraControl?.CameraInfo?.HasFlashUnit == true)
             _cameraControl.CameraControl?.EnableTorch(_torch);
     }
 
-    // No frame for two seconds: say so and bind again, rather than show a frozen preview
+    // No frame for two seconds from an open camera: say so and bind again, rather than show a frozen preview. A camera
+    // that is not open is not stuck: CameraX closes it while the app is in the background and keeps retrying one that
+    // another app holds, and binding again there every two seconds would only churn
     private void CheckFrames()
     {
         var diagnostics = Reader.TakeDiagnostics();
-        MainThread.BeginInvokeOnMainThread(() => { if (!_shutdown) DiagnosticsChanged?.Invoke(diagnostics); });
-        if (!_bound || _shutdown || Stopwatch.GetElapsedTime(Interlocked.Read(ref _lastFrame)) < FrameTimeout) return;
-        Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
-        Report(ScannerProblem.NoFrames);
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            Unbind();
+            if (_shutdown) return;
+            DiagnosticsChanged?.Invoke(diagnostics);
+            if (!_bound || !_cameraOpen || _interrupted || Stopwatch.GetElapsedTime(Interlocked.Read(ref _lastFrame)) < FrameTimeout) return;
+            Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
+            Report(ScannerProblem.NoFrames);
+            Unbind(keepLastFrame: false);
             Update();
         });
     }
@@ -330,7 +537,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         bool handedOff = false;
         try
         {
-            if (_shutdown) return;
+            if (_shutdown || !_analysing) return;
             Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
             if (!_healthy)
             {
@@ -338,12 +545,21 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
                 Report(null);
             }
 
+            long frame = Reader.NextFrame();
             long started = Stopwatch.GetTimestamp();
             int rotation = image.ImageInfo?.RotationDegrees ?? 0;
+            bool upright = rotation % 180 == 0;
+            int width = upright ? image.Width : image.Height, height = upright ? image.Height : image.Width;
+            if (width != Volatile.Read(ref _frameWidth) || height != Volatile.Read(ref _frameHeight))
+            {
+                Volatile.Write(ref _frameWidth, width);
+                Volatile.Write(ref _frameHeight, height);
+                MainThread.BeginInvokeOnMainThread(ApplyCloseUpZoom);
+            }
             if (Reader.WantsLightGrid && ReadLightGrid(image) is { } grid)
             {
                 Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, true);
-                Post(Upright(grid, rotation));
+                Post([Upright(grid, rotation)], frame);
                 return;
             }
 
@@ -354,34 +570,29 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
                 return;
             }
 
-            var input = InputImage.FromMediaImage(media, image.ImageInfo?.RotationDegrees ?? 0);
+            var input = InputImage.FromMediaImage(media, rotation);
             handedOff = true;
             // ML Kit reads the frame asynchronously; the frame is closed when it is done
-            MlKitFor(formats).Process(input).AddOnCompleteListener(_analysisThread, new CompleteListener(task =>
+            MlKitFor(formats).Process(input).AddOnCompleteListener(AnalysisThread.Value, new CompleteListener(task =>
             {
-                bool read = false;
+                List<FrameHit>? hits = null;
                 try
                 {
+                    // Every code in the frame, not just the first: the one in the aim is picked once they are placed
                     if (task.IsSuccessful && task.Result is { } list)
                         foreach (var item in list.JavaCast<JavaList>()!)
                             if ((item as MLBarcode ?? (item as Java.Lang.Object)?.JavaCast<MLBarcode>()) is { RawValue: { Length: > 0 } value } barcode
                                 && FromMlKit(barcode.Format) is var format && format != BarcodeFormat.None)
-                            {
                                 // ML Kit gives corners in the upright image, the frame turned by its rotation
-                                bool turned = rotation % 180 != 0;
-                                var points = barcode.GetCornerPoints() ?? [];
-                                Post(new FrameHit(new BarcodeScanResult(value, format),
-                                    [.. points.Select(p => new System.Numerics.Vector2(p.X, p.Y))],
-                                    turned ? image.Height : image.Width, turned ? image.Width : image.Height));
-                                read = true;
-                                break;
-                            }
+                                (hits ??= []).Add(new FrameHit(new BarcodeScanResult(value, format),
+                                    [.. (barcode.GetCornerPoints() ?? []).Select(p => new System.Numerics.Vector2(p.X, p.Y))], width, height));
                 }
                 finally
                 {
-                    Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, read);
+                    Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, hits is not null);
                     image.Close();
                 }
+                if (hits is not null) Post(hits, frame);
             }));
         }
         catch (Exception ex)
@@ -437,8 +648,8 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         return _mlKit = BarcodeScanning.GetClient(options);
     }
 
-    private void Post(FrameHit hit) =>
-        MainThread.BeginInvokeOnMainThread(() => { if (!_shutdown) Detected?.Invoke(Place(hit)); });
+    private void Post(List<FrameHit> hits, long frame) =>
+        MainThread.BeginInvokeOnMainThread(() => { if (!_shutdown) Detected?.Invoke(hits.ConvertAll(Place), frame); });
 
     private void Report(ScannerProblem? problem, string? message = null)
     {
@@ -487,6 +698,22 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     private sealed class CompleteListener(Action<Android.Gms.Tasks.Task> done) : Java.Lang.Object, IOnCompleteListener
     {
         public void OnComplete(Android.Gms.Tasks.Task task) => done(task);
+    }
+
+    private sealed class CameraStateObserver(ScannerCamera owner) : Java.Lang.Object, IObserver
+    {
+        public void OnChanged(Java.Lang.Object? value)
+        {
+            if (value?.JavaCast<CameraState>() is { } state) owner.OnCameraState(state);
+        }
+    }
+
+    private sealed class ResumeObserver(ScannerCamera owner) : Java.Lang.Object, ILifecycleEventObserver
+    {
+        public void OnStateChanged(ILifecycleOwner source, Lifecycle.Event e)
+        {
+            if (Lifecycle.Event.OnResume?.Equals(e) == true) owner.OnResumed();
+        }
     }
 }
 #endif

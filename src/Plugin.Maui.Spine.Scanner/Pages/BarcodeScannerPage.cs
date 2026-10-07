@@ -168,8 +168,8 @@ public sealed class BarcodeScannerPage : SpinePage<BarcodeScannerPageViewModel>,
         UpdateScanArea();
     }
 
-    // Codes are read inside the aim corners, with room around them: a code held a little off or a little too close
-    // still counts, one elsewhere in the picture does not. Without corners, the whole camera counts.
+    // A code counts when its centre is inside the aim corners, with room around them: a code held a little off still
+    // counts, one elsewhere in the picture does not. Without corners, the whole camera counts.
     private void UpdateScanArea()
     {
         double width = _overlay.Width, height = _overlay.Height;
@@ -320,6 +320,8 @@ public sealed partial class BarcodeScannerPageViewModel : ViewModelBase, IReceiv
             field = value;
             Hint = value ?? _prompt;
             OnPropertyChanged(nameof(Hint));
+            // Disabled rather than hidden: the header is settled before the sheet shows and never moves under the user
+            _torch.IsEnabled = value is null;
         }
     }
 

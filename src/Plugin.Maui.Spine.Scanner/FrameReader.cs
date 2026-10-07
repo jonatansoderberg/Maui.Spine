@@ -12,12 +12,16 @@ internal sealed class FrameReader
     private readonly object _statsGate = new();
     private long _statsSince = System.Diagnostics.Stopwatch.GetTimestamp();
     private int _frames, _gridsFound, _codesRead;
+    private long _frameNumber;
     private double _milliseconds;
     private string _lastGrid = "";
     private string? _lastError;
 
     /// <summary>Set from the main thread; read on the frame queue.</summary>
     public volatile BarcodeFormat Formats = BarcodeFormat.All;
+
+    /// <summary>The camera's zoom, for the diagnostics line; set wherever the zoom is applied.</summary>
+    public volatile float Zoom = 1;
 
     public void SetLightGrid(LightGridOptions? options)
     {
@@ -56,6 +60,12 @@ internal sealed class FrameReader
         Console.WriteLine($"[Spine.Scanner] {where}: {ex}");
     }
 
+    /// <summary>
+    /// Numbers an analysed frame, with a code or without, so <see cref="BarcodeScannerView.ConfirmationReads"/> is counted
+    /// in frames rather than time; call once per frame, on the frame queue.
+    /// </summary>
+    public long NextFrame() => Interlocked.Increment(ref _frameNumber);
+
     /// <summary>Counts one frame and how long it took; call once per analysed frame.</summary>
     public void CountFrame(double milliseconds, bool read)
     {
@@ -69,7 +79,7 @@ internal sealed class FrameReader
 
     /// <summary>
     /// What the camera and readers did since the last call, such as
-    /// <c>14 frames/s · 38 ms · light grid: grid found, not read (12 of 14)</c>; <see langword="null"/> before any frame.
+    /// <c>14 frames/s · 38 ms · zoom 1.8× · light grid: grid found, not read (12 of 14)</c>; <see langword="null"/> before any frame.
     /// </summary>
     public string? TakeDiagnostics()
     {
@@ -79,6 +89,7 @@ internal sealed class FrameReader
             string error = _lastError is { } e ? $"\n{e}" : "";
             if (_frames == 0) return seconds > 2 ? "no frames from the camera" + error : null;
             var text = $"{_frames / seconds:F0} frames/s · {_milliseconds / _frames:F0} ms"
+                + (Zoom > 1 ? $" · zoom {Zoom:F1}×" : "")
                 + (WantsLightGrid ? $" · light grid: {_lastGrid} ({_gridsFound} of {_frames})" : "")
                 + (_codesRead > 0 ? $" · {_codesRead} read" : "")
                 + error;
