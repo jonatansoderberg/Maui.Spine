@@ -77,7 +77,7 @@ public sealed class ScannerPreviewView : UIView
     private FrameDelegate? _frames;
     private NSTimer? _watchdog;
     private bool _configured, _configuring, _wanted = true, _onScreen;
-    private volatile bool _torch, _shutdown;
+    private volatile bool _torch, _shutdown, _interrupted;
     private int _torchQueued;
     // Main thread only: moves on with every release, so a configuration that finishes after one is known to be stale
     private int _generation;
@@ -196,6 +196,7 @@ public sealed class ScannerPreviewView : UIView
         foreach (var o in _observers) o.Dispose();
         _observers.Clear();
         _configured = false;
+        _interrupted = false;
         _frames = null;
         _queue.DispatchAsync(() =>
         {
@@ -318,8 +319,19 @@ public sealed class ScannerPreviewView : UIView
 
         _observers.Add(AVCaptureSession.Notifications.ObserveRuntimeError(_session, (_, e) =>
             Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} ({e.Error?.LocalizedDescription})")));
-        _observers.Add(AVCaptureSession.Notifications.ObserveWasInterrupted(_session, (_, _) => Report(ScannerProblem.Interrupted)));
-        _observers.Add(AVCaptureSession.Notifications.ObserveInterruptionEnded(_session, (_, _) => Report(null)));
+        // While another app or a call has the camera no frames come, and that is not a stuck camera: the watchdog
+        // leaves it alone, so the explanation stays on screen and the session is not restarted under the interruption
+        _observers.Add(AVCaptureSession.Notifications.ObserveWasInterrupted(_session, (_, _) =>
+        {
+            _interrupted = true;
+            Report(ScannerProblem.Interrupted);
+        }));
+        _observers.Add(AVCaptureSession.Notifications.ObserveInterruptionEnded(_session, (_, _) =>
+        {
+            Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
+            _interrupted = false;
+            Report(null);
+        }));
         // After a tap, the phone moving on hands focus back to the camera, as the Camera app does
         _observers.Add(AVCaptureDevice.Notifications.ObserveSubjectAreaDidChange(device, (_, _) => _queue.DispatchAsync(() =>
             Focus(Centre, AVCaptureFocusMode.ContinuousAutoFocus, AVCaptureExposureMode.ContinuousAutoExposure, watchScene: false))));
@@ -473,8 +485,10 @@ public sealed class ScannerPreviewView : UIView
         _watchdog ??= NSTimer.CreateRepeatingScheduledTimer(0.5, _ =>
         {
             DiagnosticsChanged?.Invoke(Reader.TakeDiagnostics());
-            // A frame still being read is slow, not stuck; only a silent camera on screen is restarted
-            if (Window is null || !_wanted || Volatile.Read(ref _processing) != 0 || Stopwatch.GetElapsedTime(Interlocked.Read(ref _lastFrame)) < FrameTimeout) return;
+            // A frame still being read is slow, not stuck, and an interrupted camera is held by someone else; only a
+            // silent camera on screen is restarted
+            if (Window is null || !_wanted || _interrupted || Volatile.Read(ref _processing) != 0
+                || Stopwatch.GetElapsedTime(Interlocked.Read(ref _lastFrame)) < FrameTimeout) return;
             Report(ScannerProblem.NoFrames);
             Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
             _queue.DispatchAsync(() =>

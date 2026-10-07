@@ -114,11 +114,15 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     private Preview? _previewCase;
     private ImageAnalysis? _analysisCase;
     private ICamera? _cameraControl;
+    private LiveData? _cameraState;
+    private CameraStateObserver? _cameraStateObserver;
     private IBarcodeScanner? _mlKit;
     private BarcodeFormat _mlKitFormats = BarcodeFormat.None;
     private System.Threading.Timer? _watchdog;
     private byte[] _luminance = [];
     private bool _wanted = true, _onScreen, _torch, _bound, _starting, _healthy = true;
+    // Main thread only. _cameraOpen: frames can be expected; _interrupted: another app holds the camera
+    private bool _cameraOpen, _interrupted;
     private volatile bool _shutdown, _analysing;
     private long _lastFrame;
 
@@ -269,7 +273,49 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         TorchAvailable?.Invoke(_cameraControl.CameraInfo?.HasFlashUnit == true);
         ApplyTorch();
         Report(null);
+        // CameraX says when the camera is open, closed with the activity, or taken by another app. ObserveForever, not
+        // Observe(activity): a lifecycle-bound observer goes quiet once the activity stops, so the close that comes with
+        // the background never arrives and the watchdog takes the silence for a stuck camera. Removed in Unbind: the
+        // camera's LiveData outlives this view and would otherwise hold it
+        _cameraOpen = _interrupted = false;
+        _cameraState = _cameraControl.CameraInfo?.CameraState;
+        if (_cameraState is not null)
+        {
+            _cameraStateObserver = new CameraStateObserver(this);
+            _cameraState.ObserveForever(_cameraStateObserver);
+        }
         _watchdog ??= new System.Threading.Timer(_ => CheckFrames(), null, TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(0.5));
+    }
+
+    /// <summary>Main thread (LiveData). Turns CameraX's camera state into <see cref="ScannerProblem"/>.</summary>
+    private void OnCameraState(CameraState state)
+    {
+        if (_shutdown || !_bound) return;
+        bool open = state.GetType()?.Equals(CameraState.Type.Open) == true;
+        if (open && !_cameraOpen)
+            // The two seconds without a frame count from when the camera opened, not from the bind
+            Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
+        _cameraOpen = open;
+
+        int? error = state.Error?.Code;
+        switch (error)
+        {
+            // Another app or a call has the camera; CameraX opens it again by itself once it is free
+            case CameraState.ErrorCameraInUse or CameraState.ErrorMaxCamerasInUse or CameraState.ErrorDoNotDisturbModeEnabled:
+                _interrupted = true;
+                Report(ScannerProblem.Interrupted);
+                break;
+            case CameraState.ErrorCameraDisabled or CameraState.ErrorCameraFatalError or CameraState.ErrorStreamConfig or CameraState.ErrorCameraRemoved:
+                Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} (CameraX error {error})");
+                break;
+            default:
+                if (open && _interrupted)
+                {
+                    _interrupted = false;
+                    Report(null);
+                }
+                break;
+        }
     }
 
     private Task<ProcessCameraProvider> ProviderAsync()
@@ -288,6 +334,10 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     {
         _watchdog?.Dispose();
         _watchdog = null;
+        if (_cameraStateObserver is not null) _cameraState?.RemoveObserver(_cameraStateObserver);
+        _cameraStateObserver = null;
+        _cameraState = null;
+        _cameraOpen = _interrupted = false;
         if (!_bound) return;
         _bound = false;
         _analysing = false;
@@ -325,16 +375,19 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
             _cameraControl.CameraControl?.EnableTorch(_torch);
     }
 
-    // No frame for two seconds: say so and bind again, rather than show a frozen preview
+    // No frame for two seconds from an open camera: say so and bind again, rather than show a frozen preview. A camera
+    // that is not open is not stuck: CameraX closes it while the app is in the background and keeps retrying one that
+    // another app holds, and binding again there every two seconds would only churn
     private void CheckFrames()
     {
         var diagnostics = Reader.TakeDiagnostics();
-        MainThread.BeginInvokeOnMainThread(() => { if (!_shutdown) DiagnosticsChanged?.Invoke(diagnostics); });
-        if (!_bound || _shutdown || Stopwatch.GetElapsedTime(Interlocked.Read(ref _lastFrame)) < FrameTimeout) return;
-        Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
-        Report(ScannerProblem.NoFrames);
         MainThread.BeginInvokeOnMainThread(() =>
         {
+            if (_shutdown) return;
+            DiagnosticsChanged?.Invoke(diagnostics);
+            if (!_bound || !_cameraOpen || _interrupted || Stopwatch.GetElapsedTime(Interlocked.Read(ref _lastFrame)) < FrameTimeout) return;
+            Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
+            Report(ScannerProblem.NoFrames);
             Unbind(keepLastFrame: false);
             Update();
         });
@@ -510,6 +563,14 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     private sealed class CompleteListener(Action<Android.Gms.Tasks.Task> done) : Java.Lang.Object, IOnCompleteListener
     {
         public void OnComplete(Android.Gms.Tasks.Task task) => done(task);
+    }
+
+    private sealed class CameraStateObserver(ScannerCamera owner) : Java.Lang.Object, IObserver
+    {
+        public void OnChanged(Java.Lang.Object? value)
+        {
+            if (value?.JavaCast<CameraState>() is { } state) owner.OnCameraState(state);
+        }
     }
 }
 #endif
