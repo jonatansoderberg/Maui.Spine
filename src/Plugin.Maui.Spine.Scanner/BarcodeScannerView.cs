@@ -13,10 +13,11 @@ namespace Plugin.Maui.Spine.Scanner;
 /// declares <c>android.permission.CAMERA</c> itself and needs API 23. The view asks for the permission when it first
 /// shows; when anything stops it from scanning, <see cref="Problem"/> and <see cref="ProblemChanged"/> say why.</para>
 /// <para>The camera runs only while the native view is in a window and <see cref="IsScanning"/> is true. It stops,
-/// with the torch off, the moment the view leaves its window, whether or not the page tells anyone it closed.</para>
+/// with the torch off, the moment the view leaves its window, whether or not the page tells anyone it closed, and lets
+/// go of the capture session and reader there, so a handler that is never disconnected leaks nothing.</para>
 /// <para>The camera focuses continuously; a tap on the view focuses on that spot until the scene changes (iOS) or for
-/// five seconds (Android). On iOS the scanner also zooms in when the camera cannot focus close, as on the Pro iPhones,
-/// and, when only linear codes are read, keeps autofocus to near distances.</para>
+/// five seconds (Android). The scanner zooms in when the camera cannot focus close, as on the Pro iPhones and tablets
+/// with a wide lens, and on iOS, when only linear codes are read, keeps autofocus to near distances.</para>
 /// </remarks>
 /// <example>
 /// <code language="xml"><![CDATA[
