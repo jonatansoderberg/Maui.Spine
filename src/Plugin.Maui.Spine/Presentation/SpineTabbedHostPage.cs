@@ -140,8 +140,16 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
                     svgResources.Resolve(icon) ?? icon, 96, 96, Colors.Black);
 #endif
 
-            _slots.Add(new TabSlot { Definition = definition, Page = page, Insets = tabInsets });
+            var slot = new TabSlot { Definition = definition, Page = page, Insets = tabInsets };
+            _slots.Add(slot);
             Children.Add(page);
+
+            // A lightbox covers the whole screen, the tab bar too, as Photos does.
+            region.CoversTabBarChanged += covers =>
+            {
+                if (ReferenceEquals(slot, _activeSlot))
+                    PlatformSetTabBarHidden(covers);
+            };
         }
 
         _activeSlot = _slots[0];
@@ -295,6 +303,9 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
 
     // Platform partials: native controller/bar wiring (badges, reselection, style, icons, insets).
     partial void PlatformAttach();
+
+    /// <summary>Hides the tab bar, or brings it back, animated.</summary>
+    partial void PlatformSetTabBarHidden(bool hidden);
     partial void PlatformApplyBadge(int index, string? text);
 
     /// <inheritdoc/>

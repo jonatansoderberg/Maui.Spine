@@ -410,3 +410,59 @@ public sealed class NavigableSheetAttribute : NavigableAttribute
     public SafeAreaEdges ScrollInset { get => field; set { field = value; _scrollInsetSet = true; } }
     internal bool ScrollInsetSet => _scrollInsetSet;
 }
+
+/// <summary>
+/// Marks a page as a lightbox: a full-screen image viewer on black, pushed onto the current stack
+/// like a region page. Put a <see cref="Presentation.Lightbox"/> on it. The page grows out of the
+/// thumbnail whose <see cref="Extensions.Transition.TagProperty"/> matches the image shown, and
+/// shrinks back into the thumbnail of the image showing when it closes, by its close button, the
+/// system back or a drag down. Apply it to a class that derives from <see cref="SpinePage{TViewModel}"/>.
+/// </summary>
+/// <remarks>
+/// The header bar lies over the image, transparent with a white foreground, with a close button
+/// in place of the back button; the status bar is light. A tap on the image hides and shows them.
+/// The page has no edge back-swipe, because a swipe from the left edge pages to the previous image.
+/// </remarks>
+/// <example>
+/// <code>
+/// [NavigableLightbox]
+/// public partial class PhotoPage : INavigableWithParameter&lt;PhotoSet&gt; { public PhotoPage() => InitializeComponent(); }
+/// </code>
+/// </example>
+public sealed class NavigableLightboxAttribute : NavigableAttribute
+{
+    /// <summary>Initializes a new <see cref="NavigableLightboxAttribute"/> with default settings.</summary>
+    public NavigableLightboxAttribute()
+        : base(NavigationPresentation.RegionPresentation) { }
+
+    private NavigableLightboxAttribute(NavigableLightboxAttribute source, SpineOptions.RegionDefaultsConfig defaults)
+        : base(source, defaults, NavigationPresentation.RegionPresentation)
+    {
+        Share = source.Share;
+        Save = source.Save;
+        IsTitleBarVisible = defaults.IsTitleBarVisible;
+
+        HeaderBar = HeaderBarMode.Overlay;
+        LargeTitle = false;
+        HeaderBarBackground = HeaderBarBackground.Transparent;
+        HeaderBarForeground = "#FFFFFF";
+        HeaderBarGlass = HeaderBarGlass.Clear;
+        StatusBarStyle = StatusBarStyle.LightContent;
+        KeyboardAvoidance = false;
+    }
+
+    internal NavigableLightboxAttribute WithDefaults(SpineOptions.RegionDefaultsConfig defaults) => new(this, defaults);
+
+    /// <summary>Whether the header bar has a Share button that shares the image showing. Defaults to <see langword="true"/>.</summary>
+    public bool Share { get; init; } = true;
+
+    /// <summary>
+    /// Whether the header bar has a Save button that saves the image showing to the photo library.
+    /// Defaults to <see langword="true"/>. On iOS and Mac Catalyst it is shown only when the app's
+    /// Info.plist has <c>NSPhotoLibraryAddUsageDescription</c>.
+    /// </summary>
+    public bool Save { get; init; } = true;
+
+    /// <summary>Whether the native window title bar is shown (desktop only); the region default.</summary>
+    internal bool IsTitleBarVisible { get; }
+}

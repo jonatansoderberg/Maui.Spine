@@ -73,4 +73,5 @@ On a push, Spine waits for the page arriving to settle before it measures it: on
 ## See also
 
 - [Custom Transitions](custom-transitions.md): the page motion a shared element flies over, and how to replace it.
+- [Lightbox](lightbox.md): a photo viewer built on the zoom, whose tag and focus follow the photo showing.
 - [Regions](regions.md#interactive-back-swipe-gesture): the back-swipe gesture.

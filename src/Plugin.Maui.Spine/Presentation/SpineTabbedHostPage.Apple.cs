@@ -61,6 +61,36 @@ public partial class SpineTabbedHostPage
         ApplyAllBadges();
     }
 
+    /// <remarks>
+    /// The bar slides down out of sight and fades, by its transform alone. UIKit's own
+    /// <c>setTabBarHidden</c> takes the bar out of the tab's safe area, which moves the region the
+    /// lightbox lies in while it zooms; the region already reaches under the bar.
+    /// </remarks>
+    partial void PlatformSetTabBarHidden(bool hidden)
+    {
+#if IOS
+        if (Controller?.TabBar is not { } bar)
+            return;
+
+        var drop = bar.Frame.Height + (bar.Window?.SafeAreaInsets.Bottom ?? 0);
+        if (!hidden)
+            bar.Hidden = false;
+
+        var animator = new UIViewPropertyAnimator(0.35, new UISpringTimingParameters(1));
+        animator.AddAnimations(() =>
+        {
+            bar.Transform = hidden ? CoreGraphics.CGAffineTransform.MakeTranslation(0, drop) : CoreGraphics.CGAffineTransform.MakeIdentity();
+            bar.Alpha = hidden ? 0 : 1;
+        });
+        animator.AddCompletion(position =>
+        {
+            if (position == UIViewAnimatingPosition.End && hidden)
+                bar.Hidden = true;
+        });
+        animator.StartAnimation();
+#endif
+    }
+
     partial void PlatformApplyBadge(int index, string? text)
     {
         if (Controller?.ViewControllers is not { } controllers || index >= controllers.Length)

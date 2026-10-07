@@ -1,0 +1,75 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Photos.PhotosPage"
+    x:TypeArguments="PhotosPageViewModel"
+    x:DataType="PhotosPageViewModel"
+    BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}"
+    HeaderBar.ScrollSource="{x:Reference PhotoGrid}">
+
+    <CollectionView
+        x:Name="PhotoGrid"
+        ItemsSource="{Binding Photos}"
+        SafeArea.PageMargin="True">
+
+        <CollectionView.ItemsLayout>
+            <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="4" VerticalItemSpacing="4" />
+        </CollectionView.ItemsLayout>
+
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="0,16,0,16" Spacing="12">
+                <ExampleCodeSwitch />
+                <PackageChips Packages="Plugin.Maui.Spine" />
+
+                <Example Title="Open a photo"
+                         Summary="A [NavigableLightbox] page with a Lightbox on it shows photos on black: swipe sideways between them, pinch or double-tap to zoom, tap to hide the bars, and drag down to close. Tap a photo."
+                         OptionsCommand="{Binding ShowOptionsCommand}"
+                         Code="{Binding Code}"
+                         Margin="0,12,0,0">
+                    <VerticalStackLayout Spacing="4">
+                        <Label FontSize="15">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="{Binding KindGroup.Name}" />
+                                    <Span Text=": " />
+                                    <Span Text="{Binding KindGroup.Selected.Label}" FontAttributes="Bold" />
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                        <Label Text="{Binding KindGroup.Selected.Description}" FontSize="15" Opacity="0.7" />
+                    </VerticalStackLayout>
+                </Example>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="Photo">
+                <Image Source="{Binding File}" Aspect="AspectFill" HeightRequest="118"
+                       Transition.Tag="{Binding Key}"
+                       Tap.Command="{Binding Source={RelativeSource AncestorType={x:Type PhotosPageViewModel}}, Path=OpenCommand}"
+                       Tap.CommandParameter="{Binding .}"
+                       SemanticProperties.Description="{Binding Caption}" />
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+
+        <CollectionView.Footer>
+            <VerticalStackLayout Padding="0,24,0,16">
+                <Example Title="Open from a sheet"
+                         Summary="The same lightbox page, opened from photos in a sheet, covers the whole screen, the sheet too, as a photo opened from a sheet does in the system's own apps. It opens out of the thumbnail in the sheet and closes back into it, and the sheet stays.">
+                    <Button Text="Show photos in a sheet" Command="{Binding OpenSheetCommand}" />
+                    <Example.Code>
+                        // Nothing to change: from a sheet,
+                        // Spine opens the lightbox over it
+                        [NavigableSheet(Title = "Photos")]
+                        public partial class PhotoSheetPage { … }
+
+                        await navigation.NavigateToAsync&lt;
+                            PhotoViewerPage, PhotoSet&gt;(new(images, index));
+                    </Example.Code>
+                </Example>
+            </VerticalStackLayout>
+        </CollectionView.Footer>
+
+    </CollectionView>
+
+</SpinePage>

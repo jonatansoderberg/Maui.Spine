@@ -1,3 +1,5 @@
+using AsyncAwaitBestPractices;
+using CommunityToolkit.Mvvm.Input;
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Extensions;
 using SpineSafeArea = Plugin.Maui.Spine.Core.SafeAreaEdges;
@@ -14,6 +16,7 @@ namespace Plugin.Maui.Spine.Presentation;
 public sealed partial class NavigationRegion : ContentView
 {
     private readonly HeaderBarView _frameActionView;
+    private readonly LightboxToolbar _lightboxToolbar;
     private readonly ContentView _contentHostFront;
     private readonly ContentView _contentHostBack;
     private readonly ContentView _backLayer;
@@ -40,6 +43,26 @@ public sealed partial class NavigationRegion : ContentView
     internal const double BackDimOpacity = 0.2;
 
     private NavigationRegionViewModel ViewModel => (NavigationRegionViewModel)BindingContext;
+
+    /// <summary>
+    /// Whether the region is laid over the whole window by Spine itself (a lightbox's overlay), not
+    /// placed in a page that the platform offsets by the system bars.
+    /// </summary>
+    internal bool FillsWindow
+    {
+        get;
+        init
+        {
+            field = value;
+            UpdateContainerMargin();
+        }
+    }
+
+    /// <summary>
+    /// The page under this region in another one (a sheet's page under a lightbox's overlay): the
+    /// page its root stands for, where a lightbox's thumbnail is.
+    /// </summary>
+    internal Element? PageUnder { get; init; }
 
     /// <summary>
     /// Initializes the <see cref="NavigationRegion"/> with the provided ViewModel and presentation style.
@@ -119,6 +142,9 @@ public sealed partial class NavigationRegion : ContentView
 
         _container.Children.Add(_frameActionView);
 
+        _lightboxToolbar = new LightboxToolbar();
+        _container.Children.Add(_lightboxToolbar);
+
         _contentHostFront.PropertyChanged += (_, e) =>
         {
             if (_cutsBack && e.PropertyName == nameof(TranslationX))
@@ -132,7 +158,7 @@ public sealed partial class NavigationRegion : ContentView
         host.Accepts = x =>
         {
             var width = GetEffectiveWidth();
-            return width > 0 && x < width * DragEdgeThreshold && ViewModel.BackEnabled();
+            return width > 0 && x < width * DragEdgeThreshold && ViewModel.BackEnabled() && !FrontIsLightbox;
         };
         host.Swiped = (status, x, y) =>
         {
@@ -171,6 +197,17 @@ public sealed partial class NavigationRegion : ContentView
     private void UpdateContainerMargin()
     {
         var insets = _insetsProvider.SystemBarInsets;
+
+#if ANDROID
+        // Nothing offsets an overlay's window on Android, so there is nothing to counteract; the bars
+        // are its padding. On iOS the view is offset by the window's safe area like any page.
+        if (FillsWindow)
+        {
+            _container.Margin = Thickness.Zero;
+            _frameActionView.Margin = new Thickness(insets.Left, insets.Top, insets.Right, 0);
+            return;
+        }
+#endif
 
 #if IOS
         // ContentPage's safe area cannot be disabled on iOS — MAUI always offsets the page
@@ -292,6 +329,9 @@ public sealed partial class NavigationRegion : ContentView
                 vm.SystemBarInsets = insets;
                 vm.SafeAreaInsets = SafeAreaInsetsFor(vm, insets);
             }
+
+            if (FrontIsLightbox)
+                UpdateLightboxToolbar();
         });
     }
 
@@ -634,8 +674,9 @@ public sealed partial class NavigationRegion : ContentView
         else
         {
             // Transparent rather than cleared: clearing the value leaves the native colour behind
-            // on iOS, and the page then kept the old theme's colour after a theme change.
-            _contentHostFront.BackgroundColor = lift ? ViewModel.FrontView.PageBackground() : Colors.Transparent;
+            // on iOS, and the page then kept the old theme's colour after a theme change. A
+            // lightbox carries nothing but its image: its black is the dim under it.
+            _contentHostFront.BackgroundColor = lift && !FrontIsLightbox ? ViewModel.FrontView.PageBackground() : Colors.Transparent;
         }
 
         RoundFront(lift);
@@ -659,13 +700,32 @@ public sealed partial class NavigationRegion : ContentView
             flatten: () => LiftFront(false));
 
         LiftFront(true);
+        _transitioning = true;
 
-        var flight = await SharedElementFlight.FindAsync(_container, _contentHostFront, transition.OutgoingPage, transition.IncomingPage, push);
+        // A lightbox arriving brings its toolbar, which fades in with the rest of its chrome, and
+        // takes the tab bar away; one leaving gives it back as it goes.
+        if (push && FrontIsLightbox)
+        {
+            UpdateLightboxToolbar();
+            _lightboxToolbar.Opacity = 0;
+            CoverTabBar(true);
+        }
+        else if (!push && FrontIsLightbox)
+        {
+            GiveBackTabBarEarly();
+        }
+
+        // Under an overlay, the page the root stands for is the other region's.
+        var leaving = push ? PageUnder ?? transition.OutgoingPage : transition.OutgoingPage;
+        var arriving = push ? transition.IncomingPage : PageUnder ?? transition.IncomingPage;
+        var flight = await SharedElementFlight.FindAsync(_container, _contentHostFront, leaving, arriving, push);
 
         try
         {
             if (flight is { IsZoom: true })
                 await ZoomAsync(flight, push);
+            else if (IsLightbox(push ? transition.IncomingPage : transition.OutgoingPage))
+                await FadeLightboxAsync(push);
             else
                 await Task.WhenAll(
                     push ? _transitions.AnimatePushAsync(transition) : _transitions.AnimatePopAsync(transition),
@@ -674,7 +734,13 @@ public sealed partial class NavigationRegion : ContentView
         finally
         {
             commit();
-            _frameActionView.Opacity = 1;
+            UpdateLightboxToolbar();
+            CoverTabBar(FrontIsLightbox);
+            SetChrome(1);
+
+            // A lightbox closed with its chrome hidden took the status bar with it.
+            if (IsLightbox(transition.OutgoingPage))
+                StatusBar.SetHidden(false);
 
             foreach (var layer in (View[])[_contentHostFront, _contentHostBack])
             {
@@ -683,11 +749,12 @@ public sealed partial class NavigationRegion : ContentView
                 layer.Opacity = 1;
             }
 
-            _backDragDimOverlay.Opacity = 0;
+            _backDragDimOverlay.Opacity = RestingDim;
             LiftFront(false);
 
             // The views land where their pictures are, now that the layers are back at rest.
             flight?.Dispose();
+            _transitioning = false;
         }
     }
 
@@ -702,7 +769,7 @@ public sealed partial class NavigationRegion : ContentView
     /// </summary>
     private async Task<SharedElementFlight?> FindZoomDragAsync()
     {
-        var flight = await SharedElementFlight.FindAsync(_container, _contentHostFront, ViewModel.FrontView, ViewModel.BackView, push: false);
+        var flight = await SharedElementFlight.FindAsync(_container, _contentHostFront, ViewModel.FrontView, PageUnder ?? ViewModel.BackView, push: false);
         if (flight is { IsZoom: true })
             return flight;
 
@@ -718,18 +785,225 @@ public sealed partial class NavigationRegion : ContentView
     /// while the page under it stays where it is and dims, and the header bar fades in with the
     /// page it now belongs to.
     /// </summary>
+    /// <remarks>
+    /// A lightbox's black is the dim, at full strength, so that it fades in and out around the
+    /// image rather than growing out of the thumbnail with it.
+    /// </remarks>
     private Task ZoomAsync(SharedElementFlight flight, bool push)
     {
+        var dim = FrontIsLightbox ? 1 : BackDimOpacity;
+
         if (!push)
-            _backDragDimOverlay.Opacity = BackDimOpacity;
+            _backDragDimOverlay.Opacity = dim;
 
         _frameActionView.Opacity = 0;
 
         return Task.WhenAll(
             flight.ZoomAsync(push, ZoomDuration),
-            _backDragDimOverlay.SpineFadeToAsync(push ? BackDimOpacity : 0, ZoomDuration, Easing.CubicOut),
-            _frameActionView.SpineFadeToAsync(1, ZoomDuration, Easing.CubicOut));
+            _backDragDimOverlay.SpineFadeToAsync(push ? dim : 0, ZoomDuration, Easing.CubicOut),
+            _frameActionView.SpineFadeToAsync(1, ZoomDuration, Easing.CubicOut),
+            FrontIsLightbox ? FadeLightboxChromeAsync(push, push ? ZoomDuration : LightboxFadeDuration / 2) : Task.CompletedTask);
     }
+
+    /// <summary>
+    /// Fades a lightbox's own chrome in as it arrives, or out as it leaves: its title and its
+    /// toolbar. They lie over the image and are no part of the picture that zooms.
+    /// </summary>
+    private Task FadeLightboxChromeAsync(bool push, uint length)
+    {
+        var title = ViewModel.FrontView.TitleBar;
+        if (push)
+        {
+            title.Opacity = 0;
+            _lightboxToolbar.Opacity = 0;
+        }
+
+        return Task.WhenAll(
+            title.SpineFadeToAsync(push ? 1 : 0, length, Easing.CubicOut),
+            _lightboxToolbar.SpineFadeToAsync(push ? 1 : 0, length, Easing.CubicOut));
+    }
+
+    /// <summary>How long a lightbox takes to fade in or out when it has no thumbnail to zoom from, in milliseconds.</summary>
+    private const uint LightboxFadeDuration = 250;
+
+    /// <summary>
+    /// A lightbox with no thumbnail on screen to grow out of (or shrink into) fades in on its black,
+    /// or out of it: a page sliding in would carry a black panel across the page under it.
+    /// </summary>
+    private Task FadeLightboxAsync(bool push)
+    {
+        _contentHostFront.Opacity = push ? 0 : 1;
+        _backDragDimOverlay.Opacity = push ? 0 : 1;
+
+        return Task.WhenAll(
+            _contentHostFront.SpineFadeToAsync(push ? 1 : 0, LightboxFadeDuration, Easing.CubicOut),
+            _backDragDimOverlay.SpineFadeToAsync(push ? 1 : 0, LightboxFadeDuration, Easing.CubicOut),
+            _lightboxToolbar.SpineFadeToAsync(push ? 1 : 0, LightboxFadeDuration, Easing.CubicOut));
+    }
+
+    private static bool IsLightbox(Element? page) => (page as PagePresenter)?.Content?.BindingContext is ViewModelBase { Lightbox: not null };
+
+    /// <summary>
+    /// Raised with <see langword="true"/> when a lightbox comes to the front, and
+    /// <see langword="false"/> as it starts to leave: a tab host hides its tab bar meanwhile.
+    /// </summary>
+    internal event Action<bool>? CoversTabBarChanged;
+
+    private bool _coversTabBar;
+
+    private void CoverTabBar(bool covers)
+    {
+        if (covers == _coversTabBar)
+            return;
+
+        _coversTabBar = covers;
+        CoversTabBarChanged?.Invoke(covers);
+    }
+
+    /// <summary>
+    /// Brings the tab bar back as a lightbox starts to leave, where that moves nothing but the bar:
+    /// on iOS it slides in by its transform. On Android the bar takes its own room, and the region
+    /// would shrink under the zoom, so it comes back once the pages have swapped.
+    /// </summary>
+    private void GiveBackTabBarEarly()
+    {
+#if IOS || MACCATALYST
+        CoverTabBar(false);
+#endif
+    }
+
+    /// <summary>Whether the front page is a lightbox, which shows no edge back-swipe and sits on black.</summary>
+    private bool FrontIsLightbox => IsLightbox(ViewModel.FrontView);
+
+    /// <summary>The dim at rest: none, or under a lightbox, black.</summary>
+    private double RestingDim => FrontIsLightbox ? 1 : 0;
+
+    /// <summary>The lightbox on the front page, if it is a lightbox page.</summary>
+    private Lightbox? FrontLightbox =>
+        FrontIsLightbox && ViewModel.FrontView.Content is IVisualTreeElement page
+            ? page.GetVisualTreeDescendants().OfType<Lightbox>().FirstOrDefault()
+            : null;
+
+    /// <summary>How much of a lightbox's chrome shows at rest: none once a tap has hidden it.</summary>
+    private double ChromeOpacity => FrontLightbox is { IsChromeVisible: false } ? 0 : 1;
+
+    /// <summary>
+    /// Fades a lightbox's chrome: the header bar, the page's title and the caption. The bar takes
+    /// no touches while it is hidden.
+    /// </summary>
+    private void SetChrome(double opacity)
+    {
+        _frameActionView.Opacity = opacity;
+        _frameActionView.InputTransparent = opacity <= 0;
+        _lightboxToolbar.Opacity = opacity;
+        _lightboxToolbar.InputTransparent = opacity <= 0;
+        ViewModel.FrontView.TitleBar.Opacity = opacity;
+        FrontLightbox?.FadeChrome?.Invoke(opacity);
+    }
+
+    // The lightbox page whose actions the toolbar shows, watched for actions it adds or removes.
+    private ViewModelBase? _toolbarPage;
+    private static bool _warnedSave;
+
+    /// <summary>
+    /// Fills the toolbar for the lightbox in front, or hides it: Share and Save as its attribute
+    /// asks, then the page's own <see cref="PageActionPlacement.Secondary"/> actions, which a
+    /// lightbox shows here rather than in the header bar.
+    /// </summary>
+    private void UpdateLightboxToolbar()
+    {
+        var page = FrontIsLightbox ? ViewModel.CurrentRegionViewModel : null;
+        if (!ReferenceEquals(page, _toolbarPage))
+        {
+            if (_toolbarPage is not null)
+                _toolbarPage.PageActionsChanged -= UpdateLightboxToolbar;
+
+            _toolbarPage = page;
+
+            if (page is not null)
+                page.PageActionsChanged += UpdateLightboxToolbar;
+        }
+
+        var actions = new List<PageAction>();
+        var lightbox = FrontLightbox;
+
+        if (page?.Lightbox is { } meta && lightbox is not null)
+        {
+            if (meta.Share && Lightbox.CanShare)
+            {
+                PageAction? share = null;
+                share = new PageAction(null, new AsyncRelayCommand(() => lightbox.ShareAsync(_lightboxToolbar.ViewOf(share!))))
+                {
+                    Svg = "share.svg",
+                    Description = Common.SpineStrings.Current["Spine.Lightbox.Share"],
+                };
+                actions.Add(share);
+            }
+
+            if (meta.Save && Lightbox.CanSaveToPhotos)
+            {
+                PageAction? save = null;
+                save = new PageAction(null, new AsyncRelayCommand(async () =>
+                {
+                    if (!await lightbox.SaveAsync())
+                        return;
+
+                    // A tick in place of the button for a moment says it went into the library.
+                    save!.Svg = "check.svg";
+                    save.Description = Common.SpineStrings.Current["Spine.Lightbox.Saved"];
+                    await Task.Delay(1500);
+                    save.Svg = "download.svg";
+                    save.Description = Common.SpineStrings.Current["Spine.Lightbox.Save"];
+                }))
+                {
+                    Svg = "download.svg",
+                    Description = Common.SpineStrings.Current["Spine.Lightbox.Save"],
+                };
+                actions.Add(save);
+            }
+            else if (meta.Save && !_warnedSave && (DeviceInfo.Platform == DevicePlatform.iOS || DeviceInfo.Platform == DevicePlatform.MacCatalyst))
+            {
+                _warnedSave = true;
+                Console.WriteLine("[Spine] Lightbox: Save needs <key>NSPhotoLibraryAddUsageDescription</key> in Info.plist; the button is left out.");
+            }
+
+            actions.AddRange(page.PageActions.Where(action => action is { IsVisible: true, Placement: PageActionPlacement.Secondary }));
+        }
+
+        // A lightbox covers the tab bar, so it keeps clear of the window's edge rather than the bar.
+        var bottom = (_insetsProvider as TabInsetsProvider)?.WindowInsets.Bottom ?? _insetsProvider.SystemBarInsets.Bottom;
+
+        // With nothing at the foot of the window (a Mac, a sheet), the buttons stand off its edge
+        // as they do off the sides.
+        if (bottom <= 0)
+            bottom = _frameActionView.SideMargin;
+
+        // The same side margins as the header bar's buttons above it.
+        var side = _frameActionView.SideMargin;
+        var insets = _insetsProvider.SystemBarInsets;
+        _lightboxToolbar.Show(actions, _frameActionView);
+        _lightboxToolbar.Margin = new Thickness(insets.Left + side, 0, insets.Right + side, bottom);
+
+        if (lightbox is not null)
+            lightbox.BottomInset = bottom + (_lightboxToolbar.IsVisible ? HeaderBarConstants.Height : 0);
+    }
+
+    /// <summary>How long a lightbox's chrome takes to fade in or out on a tap, in milliseconds.</summary>
+    private const uint ChromeFadeDuration = 200;
+
+    /// <summary>Shows or hides a lightbox's chrome, and the status bar with it, after a tap on the image.</summary>
+    internal void ShowChrome(bool visible)
+    {
+        if (!FrontIsLightbox || _dismissing)
+            return;
+
+        StatusBar.SetHidden(!visible);
+        this.AbortAnimation(ChromeAnimation);
+        new Animation(SetChrome, _frameActionView.Opacity, visible ? 1 : 0)
+            .Commit(this, ChromeAnimation, length: ChromeFadeDuration, easing: Easing.CubicOut);
+    }
+
+    private const string ChromeAnimation = "SpineLightboxChrome";
 
     private double GetEffectiveWidth()
     {
@@ -749,7 +1023,7 @@ public sealed partial class NavigationRegion : ContentView
         if (width > 0 && pos.HasValue)
         {
             var edgeLimit = width * DragEdgeThreshold;
-            _dragAccepted = pos.Value.X < edgeLimit;
+            _dragAccepted = pos.Value.X < edgeLimit && !FrontIsLightbox;
         }
     }
 
@@ -780,7 +1054,7 @@ public sealed partial class NavigationRegion : ContentView
 
     private void ResetInteractiveState()
     {
-        _backDragDimOverlay.Opacity = 0;
+        _backDragDimOverlay.Opacity = RestingDim;
         _contentHostBack.TranslationX = 0;
 
         LiftFront(false);
@@ -911,6 +1185,137 @@ public sealed partial class NavigationRegion : ContentView
                 ResetInteractiveState();
 
                 _isDragging = false;
+                break;
+            }
+        }
+    }
+
+    // A lightbox's drag down to close while it lasts, and the zoom it drives: none when the
+    // thumbnail of the image showing is not on screen.
+    private bool _dismissing;
+    private SharedElementFlight? _dismissZoom;
+
+    /// <summary>How far down a lightbox has to be dragged to close when let go slowly.</summary>
+    private const double DismissDistance = 100;
+
+    /// <summary>How fast a lightbox let go of moving down closes however far it went, in units a second.</summary>
+    private const double DismissVelocity = 800;
+
+    /// <summary>
+    /// The region's height for a drag down: its own, or, for an overlay whose root the platform
+    /// lays out rather than MAUI (an Android dialog), the screen's.
+    /// </summary>
+    private double DragHeight =>
+        Height > 0 ? Height
+        : _container.Height > 0 ? _container.Height
+        : DeviceDisplay.Current.MainDisplayInfo is { Density: > 0 } display ? display.Height / display.Density : 0;
+
+    /// <summary>Whether the front page can be dragged down to close: something is under it, and no other gesture is moving it.</summary>
+    internal bool CanDismissByDrag => ViewModel.BackEnabled() && !_isDragging && !_dismissing && !_transitioning;
+
+    // A push or a pop is moving the layers; a drag would take hold of them half-way.
+    private bool _transitioning;
+
+    /// <summary>
+    /// A lightbox's drag down to close, as it goes: where the finger came down on the page, how far
+    /// it has moved since, and on release how fast it was moving down, in units a second. The
+    /// image stays under the finger and shrinks as it is drawn down, as in Photos, and the black
+    /// fades; let go, it flies into the thumbnail of the image showing.
+    /// </summary>
+    internal async void OnDismissDrag(GestureStatus status, Point start, double x, double y, double velocityY)
+    {
+        var vm = ViewModel;
+
+        switch (status)
+        {
+            case GestureStatus.Started:
+                if (!CanDismissByDrag)
+                    return;
+
+                _dismissing = true;
+                vm.StartInteractiveBack();
+                LiftFront(true);
+                _dismissZoom = await FindZoomDragAsync();
+                break;
+
+            case GestureStatus.Running:
+            {
+                if (!_dismissing)
+                    return;
+
+                // The black is gone once the image is halfway down.
+                var height = DragHeight;
+                var progress = height > 0 ? Math.Clamp(y / (height / 2), 0, 1) : 0;
+
+                if (_dismissZoom is { } zoom)
+                {
+                    zoom.Carry(start, x, y, height > 0 ? Math.Clamp(y / height, 0, 1) : 0);
+                }
+                else
+                {
+                    _contentHostFront.TranslationX = x;
+                    _contentHostFront.TranslationY = y;
+                }
+
+                _backDragDimOverlay.Opacity = 1 - progress;
+                SetChrome(ChromeOpacity * (1 - Math.Min(1, progress * 4)));
+                break;
+            }
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+            {
+                if (!_dismissing)
+                    return;
+
+                var zoom = _dismissZoom;
+                _dismissZoom = null;
+
+                if (status == GestureStatus.Completed && (y > DismissDistance || velocityY > DismissVelocity))
+                {
+                    GiveBackTabBarEarly();
+
+                    // Without a thumbnail to land in, the image carries on down and fades.
+                    await Task.WhenAll(
+                        zoom?.ZoomAsync(push: false, ZoomDuration)
+                            ?? Task.WhenAll(
+                                _contentHostFront.SpineTranslateToAsync(x, Math.Max(y, 0) + DragHeight, LightboxFadeDuration, Easing.CubicIn),
+                                _contentHostFront.SpineFadeToAsync(0, LightboxFadeDuration, Easing.CubicIn)),
+                        _backDragDimOverlay.SpineFadeToAsync(0, ZoomDuration, Easing.CubicOut));
+
+                    LiftFront(false);
+                    await vm.CompleteInteractiveBackAsync();
+                    CoverTabBar(FrontIsLightbox);
+                    StatusBar.SetHidden(false);
+
+                    // The page under it shows its own header, which comes in as the lightbox's went.
+                    UpdateLightboxToolbar();
+                    ViewModel.FrontView.TitleBar.Opacity = 1;
+                    _frameActionView.InputTransparent = false;
+                    _frameActionView.SpineFadeToAsync(1, LightboxFadeDuration, Easing.CubicOut).SafeFireAndForget();
+                }
+                else
+                {
+                    var chrome = ChromeOpacity;
+                    var from = _frameActionView.Opacity;
+                    var restore = new TaskCompletionSource();
+                    new Animation(v => SetChrome(from + (chrome - from) * v), 0, 1)
+                        .Commit(this, ChromeAnimation, length: ZoomDuration, easing: Easing.CubicOut, finished: (_, _) => restore.TrySetResult());
+
+                    await Task.WhenAll(
+                        zoom?.RestoreAsync(ZoomDuration) ?? _contentHostFront.SpineTranslateToAsync(0, 0, ZoomDuration, Easing.CubicOut),
+                        _backDragDimOverlay.SpineFadeToAsync(1, ZoomDuration, Easing.CubicOut),
+                        restore.Task);
+
+                    vm.CancelInteractiveBack();
+                }
+
+                zoom?.Dispose();
+                _contentHostFront.TranslationX = 0;
+                _contentHostFront.TranslationY = 0;
+                _contentHostFront.Opacity = 1;
+                ResetInteractiveState();
+                _dismissing = false;
                 break;
             }
         }

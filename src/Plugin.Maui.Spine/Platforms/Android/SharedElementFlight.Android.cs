@@ -30,6 +30,10 @@ internal sealed partial class SharedElementFlight
     private RectF? _zoomFocus;
     private float _zoomFocusRadius;
 
+    // Whether the focus is a picture the view shows a crop of (a lightbox's image and its
+    // thumbnail), so the view's picture is that crop of the focus rather than all of it.
+    private bool _cropsFocus;
+
     // Where the page is now, and the outline that cuts it; the outline it had before the zoom.
     private ZoomState? _zoomNow;
     private ZoomOutline? _outline;
@@ -103,7 +107,13 @@ internal sealed partial class SharedElementFlight
             return false;
 
         // The focus in the page's own coordinates, at rest; one scrolled out of the page is no focus.
-        if (focus is not null && NativeOf(focus) is { IsAttachedToWindow: true } focusView)
+        _cropsFocus = focus is IZoomFocus;
+        if (focus is IZoomFocus own)
+        {
+            if (own.FocusIn(_front) is { } rect && rect.Width() > 0 && rect.Height() > 0)
+                _zoomFocus = rect;
+        }
+        else if (focus is not null && NativeOf(focus) is { IsAttachedToWindow: true } focusView)
         {
             var rect = RectIn(focusView, _front);
             if (rect.Width() > 0 && rect.Height() > 0 && RectF.Intersects(rect, new RectF(0, 0, _front.Width, _front.Height)))
@@ -165,8 +175,13 @@ internal sealed partial class SharedElementFlight
         {
             // The view's picture rides on the focus and fades over the whole zoom, as a shared
             // element's pictures do, so the little that differs between them never shows as a jump.
-            (fromFrame, toFrame) = push ? (zoom.Frame, FocusOnScreen(to)) : (FocusOnScreen(from), zoom.Frame);
-            (fromRadius, toRadius) = push ? (zoom.Radius, _zoomFocusRadius) : (_zoomFocusRadius * from.Scale, zoom.Radius);
+            // A thumbnail is the crop of the focus that the outline closes on, so it rides on that
+            // crop and its corners are the outline's: where it lies, the page shows the same.
+            var track = _cropsFocus ? small.Mask : _zoomFocus;
+            (fromFrame, toFrame) = push ? (zoom.Frame, OnScreen(track, to)) : (OnScreen(track, from), zoom.Frame);
+            (fromRadius, toRadius) = _cropsFocus
+                ? (push ? (zoom.Radius, 0f) : (from.Radius * from.Scale, zoom.Radius))
+                : (push ? (zoom.Radius, _zoomFocusRadius) : (_zoomFocusRadius * from.Scale, zoom.Radius));
         }
         else
         {
@@ -210,6 +225,24 @@ internal sealed partial class SharedElementFlight
             new RectF(0, 0, _front.Width, _front.Height), FollowRadius * _density * (float)progress / scale));
     }
 
+    /// <summary>How far a drag down the whole page shrinks a lightbox's image.</summary>
+    private const float CarryScale = 0.5f;
+
+    public partial void Carry(Microsoft.Maui.Graphics.Point anchor, double x, double y, double progress)
+    {
+        if (ZoomGeometry() is null)
+            return;
+
+        // The scale is about the layer's centre, so the move puts the anchor back under the finger.
+        var scale = (float)(1 - (1 - CarryScale) * Math.Clamp(progress, 0, 1));
+        var (cx, cy) = (_front.Width / 2f, _front.Height / 2f);
+        var (ax, ay) = ((float)anchor.X * _density, (float)anchor.Y * _density);
+        var tx = ax + (float)x * _density - cx - scale * (ax - cx);
+        var ty = ay + (float)y * _density - cy - scale * (ay - cy);
+
+        Apply(new ZoomState(scale, tx, ty, new RectF(0, 0, _front.Width, _front.Height), 0));
+    }
+
     public partial Task RestoreAsync(uint length)
     {
         if (_zoomNow is not { } from)
@@ -245,6 +278,7 @@ internal sealed partial class SharedElementFlight
             _outline = null;
             _zoomFocus = null;
             _zoomFocusRadius = 0;
+            _cropsFocus = false;
         }
     }
 
@@ -308,9 +342,8 @@ internal sealed partial class SharedElementFlight
     }
 
     /// <summary>Where the focus is in the container under <paramref name="state"/>.</summary>
-    private RectF FocusOnScreen(ZoomState state)
+    private RectF OnScreen(RectF focus, ZoomState state)
     {
-        var focus = _zoomFocus!;
         var centerX = _front.Width / 2f;
         var centerY = _front.Height / 2f;
         var x = _front.Left + centerX + (focus.CenterX() - centerX) * state.Scale + state.X;
@@ -340,10 +373,11 @@ internal sealed partial class SharedElementFlight
 
     private static RectF RectIn(AView view, AView ancestor)
     {
+        // On screen: a lightbox's overlay is a window of its own, over the sheet the view is in.
         var at = new int[2];
         var origin = new int[2];
-        view.GetLocationInWindow(at);
-        ancestor.GetLocationInWindow(origin);
+        view.GetLocationOnScreen(at);
+        ancestor.GetLocationOnScreen(origin);
         var left = at[0] - origin[0];
         var top = at[1] - origin[1];
         return new RectF(left, top, left + view.Width, top + view.Height);

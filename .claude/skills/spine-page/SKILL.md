@@ -207,5 +207,6 @@ A tap can play a haptic: `[PageAction("Save", Role = PageActionRole.Confirm, Hap
 - Regions / Sheets / Tab host: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/regions.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/sheets.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/tab-host.md
 - Loading states: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/loading-states.md
 - Shared elements and zoom: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/transitions.md
+- Lightbox (a `[NavigableLightbox]` photo viewer page with a `Lightbox`): https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/lightbox.md
 - Parameters / Results / Page actions: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/navigation-parameters.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/navigation-results.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/page-actions.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp/Pages

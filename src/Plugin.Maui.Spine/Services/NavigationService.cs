@@ -20,6 +20,9 @@ internal sealed class NavigationService : INavigationService
     private ISpineHost _host => _hostProvider.Current
         ?? throw new InvalidOperationException("No Spine host is active yet.");
 
+    /// <summary>The stack going back, returning or closing acts on: a lightbox's overlay while it shows.</summary>
+    private NavigationRegionViewModel Active => LightboxOverlay.Current?.ViewModel ?? _host.ActiveRegionViewModel;
+
     /// <summary>
     /// Initializes the service with the DI container, page registry, host provider, and insets provider.
     /// </summary>
@@ -260,7 +263,7 @@ internal sealed class NavigationService : INavigationService
     /// <inheritdoc/>
     public async Task ReturnAsync(object? result)
     {
-        var activeVm = _host.ActiveRegionViewModel;
+        var activeVm = Active;
         var currentVm = activeVm.CurrentRegionViewModel;
 
         if (currentVm is null)
@@ -286,7 +289,7 @@ internal sealed class NavigationService : INavigationService
     /// <inheritdoc/>
     public async Task CloseAsync()
     {
-        var activeVm = _host.ActiveRegionViewModel;
+        var activeVm = Active;
 
         if (activeVm.Presentation is NavigationPresentation.Sheet && !activeVm.BackEnabled())
             await activeVm.CloseAsync();
@@ -298,7 +301,7 @@ internal sealed class NavigationService : INavigationService
     private sealed record Returned(object? Value);
 
     /// <inheritdoc/>
-    public Task BackAsync() => _host.ActiveRegionViewModel.BackAsync();
+    public Task BackAsync() => Active.BackAsync();
 
     /// <inheritdoc/>
     public async Task SetRootAsync<TNode>() where TNode : INavigable
@@ -369,7 +372,15 @@ internal sealed class NavigationService : INavigationService
 
     private Task NavigateRegionAsync(View view)
     {
-        // Always navigate region pages in the root region, even if a sheet is active.
+        // A lightbox opened from a sheet covers the whole screen, the sheet too, as a photo opened
+        // from a sheet does in the system's own apps; it opens out of its thumbnail in the sheet and
+        // closes back into it, and the sheet stays. Under the sheet it would not be seen.
+        if (view.GetType().IsDefined(typeof(NavigableLightboxAttribute), inherit: false)
+            && _host.ActiveRegionViewModel is { Presentation: NavigationPresentation.Sheet } sheet
+            && _host.HostPage.Handler?.MauiContext is { } context)
+            return LightboxOverlay.ShowAsync(_services, context, view, sheet.FrontView);
+
+        // Every other region page goes in the root region, even if a sheet is active.
         if (_host.RootNavigationRegion.BindingContext is NavigationRegionViewModel rootVm)
             return rootVm.NavigateToAsync(view);
 

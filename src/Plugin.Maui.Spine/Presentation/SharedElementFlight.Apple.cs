@@ -21,6 +21,10 @@ internal sealed partial class SharedElementFlight
     private CGRect? _zoomFocus;
     private nfloat _zoomFocusRadius;
 
+    // Whether the focus is a picture the view shows a crop of (a lightbox's image and its
+    // thumbnail), so the view's picture is that crop of the focus rather than all of it.
+    private bool _cropsFocus;
+
     /// <summary>
     /// The part of a zoom during which the view's picture fades, out at its start or in at its end:
     /// short, so that a focus that is not quite the view (its text a little elsewhere) is not seen
@@ -92,7 +96,8 @@ internal sealed partial class SharedElementFlight
             return false;
 
         // The focus in the page's own coordinates, at rest; one scrolled out of the page is no focus.
-        if (focus is not null && NativeOf(focus) is { Window: not null } focusView)
+        _cropsFocus = focus is IZoomFocus;
+        if (focus is not null && (focus is IZoomFocus own ? own.FocusView : NativeOf(focus)) is { Window: not null } focusView)
         {
             var rect = focusView.ConvertRectToView(focusView.Bounds, _front);
             if (rect.Width > 0 && rect.Height > 0 && rect.IntersectsWith(_front.Bounds))
@@ -151,11 +156,14 @@ internal sealed partial class SharedElementFlight
             // (or back), and fades in over the whole of a pop (out over a push), as a shared
             // element's pictures do: the focus and the view differ a little (their padding, their
             // text), and spread over the zoom that difference never shows as a jump.
-            var focusNow = FocusOnScreen(fromTransform);
-            var (fromFrame, toFrame) = push ? (zoom.Frame, FocusOnScreen(toTransform)) : (focusNow, zoom.Frame);
+            // A thumbnail is the crop of the focus that the mask closes on, so it rides on that
+            // crop and its corners are the mask's: where it lies, the page shows the same.
+            var track = _cropsFocus ? geometry.SmallMask : _zoomFocus.Value;
+            var (fromFrame, toFrame) = push ? (zoom.Frame, OnScreen(track, toTransform)) : (OnScreen(track, fromTransform), zoom.Frame);
+            var radiusNow = _cropsFocus ? _zoomMask!.CornerRadius : _zoomFocusRadius;
             var (fromRadius, toRadius) = push
-                ? (zoom.Radius, _zoomFocusRadius)
-                : (_zoomFocusRadius * fromTransform.M11, zoom.Radius);
+                ? (zoom.Radius, _cropsFocus ? 0 : _zoomFocusRadius)
+                : (radiusNow * fromTransform.M11, zoom.Radius);
 
             var picture = zoom.Picture.Layer;
             picture.Frame = fromFrame;
@@ -175,12 +183,12 @@ internal sealed partial class SharedElementFlight
     }
 
     /// <summary>
-    /// Where the focus is on screen, in the container's coordinates, under
-    /// <paramref name="transform"/>: a scale about the page's centre and a move, nothing else.
+    /// Where <paramref name="focus"/>, a rect in the page's coordinates, is on screen, in the
+    /// container's coordinates, under <paramref name="transform"/>: a scale about the page's centre
+    /// and a move, nothing else.
     /// </summary>
-    private CGRect FocusOnScreen(CoreAnimation.CATransform3D transform)
+    private CGRect OnScreen(CGRect focus, CoreAnimation.CATransform3D transform)
     {
-        var focus = _zoomFocus!.Value;
         var bounds = _front.Bounds;
         var frame = _front.Frame;
         var scale = transform.M11;
@@ -234,6 +242,29 @@ internal sealed partial class SharedElementFlight
 
         // In the page's own coordinates, which the scale shrinks.
         _zoomMask.CornerRadius = (nfloat)(FollowRadius * progress) / scale;
+        CoreAnimation.CATransaction.Commit();
+    }
+
+    /// <summary>How far a drag down the whole page shrinks a lightbox's image.</summary>
+    private const double CarryScale = 0.5;
+
+    public partial void Carry(Point anchor, double x, double y, double progress)
+    {
+        if (ZoomGeometry() is null)
+            return;
+
+        // The scale is about the page's centre, so the move puts the anchor back under the finger.
+        var bounds = _front.Bounds;
+        var scale = (nfloat)(1 - (1 - CarryScale) * Math.Clamp(progress, 0, 1));
+        var tx = (nfloat)(anchor.X + x) - bounds.GetMidX() - scale * ((nfloat)anchor.X - bounds.GetMidX());
+        var ty = (nfloat)(anchor.Y + y) - bounds.GetMidY() - scale * ((nfloat)anchor.Y - bounds.GetMidY());
+
+        CoreAnimation.CATransaction.Begin();
+        CoreAnimation.CATransaction.DisableActions = true;
+        _front.Layer.SublayerTransform = CoreAnimation.CATransform3D.MakeScale(scale, scale, 1)
+            .Concat(CoreAnimation.CATransform3D.MakeTranslation(tx, ty, 0));
+        _zoomMask!.Frame = bounds;
+        _zoomMask.CornerRadius = 0;
         CoreAnimation.CATransaction.Commit();
     }
 
@@ -413,6 +444,7 @@ internal sealed partial class SharedElementFlight
             _zoomMask = null;
             _zoomFocus = null;
             _zoomFocusRadius = 0;
+            _cropsFocus = false;
         }
 
         foreach (var (picture, _, _, _) in _pictures)

@@ -33,5 +33,8 @@
 	<!-- Lets Spine set StatusBarStyle per page (see the Overlay header sample). -->
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<!-- Lets the Lightbox sample's Save button add the photo showing to Photos. -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Saves the photo you are looking at to your library.</string>
 </dict>
 </plist>

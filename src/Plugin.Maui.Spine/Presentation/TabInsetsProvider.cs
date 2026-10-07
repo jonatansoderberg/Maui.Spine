@@ -34,6 +34,9 @@ internal sealed class TabInsetsProvider : ISystemInsetsProvider
         }
     }
 
+    /// <summary>The window's own insets, without the tab bar: what a page over the tab bar, such as a lightbox, keeps clear of.</summary>
+    public Thickness WindowInsets => _inner.SystemBarInsets;
+
     /// <summary>
     /// Overrides the bottom inset reported to this tab's region (pass <see langword="null"/>
     /// to fall back to the global value). Raises <see cref="InsetsChanged"/> on change.

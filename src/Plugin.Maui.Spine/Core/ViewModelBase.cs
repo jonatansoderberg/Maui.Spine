@@ -128,6 +128,9 @@ public abstract partial class ViewModelBase : ObservableObject
     /// </summary>
     internal Action? ReapplyHeaderBar { get; set; }
 
+    /// <summary>The page's <see cref="NavigableLightboxAttribute"/> when it is a lightbox, otherwise <see langword="null"/>.</summary>
+    internal NavigableLightboxAttribute? Lightbox { get; set; }
+
     /// <summary>
     /// How far a <see cref="LargeTitle"/> page's header has collapsed: 0 while the large title is
     /// in view, 1 once the header bar's own title has faded in. Follows the scroll offset; bind to

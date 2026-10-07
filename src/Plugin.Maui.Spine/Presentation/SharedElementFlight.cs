@@ -15,7 +15,12 @@ namespace Plugin.Maui.Spine.Presentation;
 /// </remarks>
 internal sealed partial class SharedElementFlight : IDisposable
 {
-    private readonly List<(VisualElement View, double Opacity)> _hidden = [];
+    private readonly List<VisualElement> _hidden = [];
+
+    // Every view a flight has hidden, how many flights hide it, and its opacity before the first
+    // did. Two flights can overlap on a view (a drag let go while a pop starts), and the second
+    // must not take the first one's 0 for the view's own opacity and leave it hidden for good.
+    private static readonly Dictionary<VisualElement, (int Count, double Opacity)> HiddenViews = [];
 
     /// <summary>
     /// The flight between <paramref name="leaving"/> and <paramref name="arriving"/>, or
@@ -37,7 +42,7 @@ internal sealed partial class SharedElementFlight : IDisposable
             return null;
 
         if (push)
-            await SettleAsync(front);
+            await SettleAsync(front, Transition.TaggedIn(arriving).Values.SelectMany(views => views).OfType<IZoomFocus>().FirstOrDefault());
 
         // Looked up again: the page may have built views while it settled.
         var targets = Transition.TaggedIn(arriving);
@@ -83,19 +88,29 @@ internal sealed partial class SharedElementFlight : IDisposable
     /// from the main queue a moment later, and that moves every view in them. Its layer is hidden
     /// meanwhile, so if a frame is drawn, it is the page still showing.
     /// </summary>
-    private static async Task SettleAsync(View layer)
+    /// <remarks>
+    /// A focus that shows a picture of its own, such as a lightbox's image, is waited for as well,
+    /// for a moment: until the picture has arrived, it has no size to line up with.
+    /// </remarks>
+    private static async Task SettleAsync(View layer, IZoomFocus? focus)
     {
         layer.Opacity = 0;
 
         try
         {
             await NextLayoutAsync(layer);
+
+            if (focus is not null)
+                await Task.WhenAny(focus.WhenReadyAsync(), Task.Delay(FocusWait));
         }
         finally
         {
             layer.Opacity = 1;
         }
     }
+
+    /// <summary>How long a push waits for a focus's picture to arrive before it zooms without it, in milliseconds.</summary>
+    private const int FocusWait = 300;
 
     /// <summary>
     /// Waits until <paramref name="layer"/> has been laid out with the page it was just given:
@@ -108,16 +123,32 @@ internal sealed partial class SharedElementFlight : IDisposable
     {
         foreach (var view in views)
         {
-            _hidden.Add((view, view.Opacity));
+            HiddenViews[view] = HiddenViews.TryGetValue(view, out var hidden)
+                ? (hidden.Count + 1, hidden.Opacity)
+                : (1, view.Opacity);
+
+            _hidden.Add(view);
             view.Opacity = 0;
         }
     }
 
-    /// <summary>Shows the views again and takes the pictures away.</summary>
+    /// <summary>Shows the views again, unless another flight still hides them, and takes the pictures away.</summary>
     public void Dispose()
     {
-        foreach (var (view, opacity) in _hidden)
-            view.Opacity = opacity;
+        foreach (var view in _hidden)
+        {
+            if (!HiddenViews.TryGetValue(view, out var hidden))
+                continue;
+
+            if (hidden.Count > 1)
+            {
+                HiddenViews[view] = (hidden.Count - 1, hidden.Opacity);
+                continue;
+            }
+
+            HiddenViews.Remove(view);
+            view.Opacity = hidden.Opacity;
+        }
 
         RemovePictures();
         _hidden.Clear();
@@ -162,6 +193,14 @@ internal sealed partial class SharedElementFlight : IDisposable
     /// </summary>
     public partial void Follow(double x, double y, double progress);
 
+    /// <summary>
+    /// Puts the front layer's page where a lightbox's drag down has it: shrunk by
+    /// <paramref name="progress"/> about the point <paramref name="anchor"/> (in the page's
+    /// coordinates) where the finger came down, which stays under the finger as it moves by
+    /// <paramref name="x"/> and <paramref name="y"/>.
+    /// </summary>
+    public partial void Carry(Point anchor, double x, double y, double progress);
+
     /// <summary>Brings the page back to its full size after a back-swipe that was let go of.</summary>
     public partial Task RestoreAsync(uint length);
 
@@ -176,7 +215,28 @@ internal sealed partial class SharedElementFlight : IDisposable
     public partial Task FlyAsync(uint length, Easing easing) => Task.CompletedTask;
     public partial Task ZoomAsync(bool push, uint length) => Task.CompletedTask;
     public partial void Follow(double x, double y, double progress) { }
+    public partial void Carry(Point anchor, double x, double y, double progress) { }
     public partial Task RestoreAsync(uint length) => Task.CompletedTask;
     private partial void RemovePictures() { }
 #endif
+}
+
+/// <summary>
+/// A view on a zoom page whose focus is a part of it that has a native view of its own, such as the
+/// image a <see cref="Lightbox"/> shows, rather than the view itself. The page then lines that part
+/// up with the other page's view, and is cut to that view's shape within it: a square thumbnail
+/// grows into the whole image around it.
+/// </summary>
+internal interface IZoomFocus
+{
+#if IOS || MACCATALYST
+    /// <summary>The native view that shows the focus, or <see langword="null"/> when there is none yet.</summary>
+    UIKit.UIView? FocusView { get; }
+#elif ANDROID
+    /// <summary>Where the focus is drawn, in <paramref name="ancestor"/>'s pixels, or <see langword="null"/> when there is none yet.</summary>
+    Android.Graphics.RectF? FocusIn(Android.Views.View ancestor);
+#endif
+
+    /// <summary>Completes once the focus has its picture and its place.</summary>
+    Task WhenReadyAsync();
 }

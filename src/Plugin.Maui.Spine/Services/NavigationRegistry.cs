@@ -53,6 +53,7 @@ internal sealed class NavigationRegistry
                     NavigableTabAttribute tab       => tab.WithDefaults(_options.TabDefaults),
                     NavigableRegionAttribute region => region.WithDefaults(_options.RegionDefaults),
                     NavigableSheetAttribute sheet   => sheet.WithDefaults(_options.SheetDefaults),
+                    NavigableLightboxAttribute box  => box.WithDefaults(_options.RegionDefaults),
                     _                               => attr,
                 };
             }

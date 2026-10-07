@@ -138,11 +138,14 @@ internal partial class NavigationRegionViewModel : ObservableObject
         if (!BackEnabled())
             return null;
 
+        // A lightbox closes rather than going back, as a photo viewer does, though it is a page on the stack.
+        var closes = HeaderRegionViewModel?.Lightbox is not null;
+
         return new PageAction(null, BackCommand)
         {
-            Svg = HeaderBarConstants.BackGlyph,
+            Svg = closes ? "close.svg" : HeaderBarConstants.BackGlyph,
             Placement = PageActionPlacement.Primary,
-            Description = SpineStrings.Current["Spine.Header.Back"],
+            Description = SpineStrings.Current[closes ? "Spine.Header.Close" : "Spine.Header.Back"],
         };
     }
 
@@ -199,6 +202,10 @@ internal partial class NavigationRegionViewModel : ObservableObject
     {
         get
         {
+            // A lightbox shows its trailing actions in its toolbar, under the image.
+            if (HeaderRegionViewModel?.Lightbox is not null)
+                return null;
+
             // Explicit wins
             var explicitSecondary = GetExplicitAction(PageActionPlacement.Secondary);
             if (explicitSecondary is not null)
@@ -241,7 +248,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
 
-        await PlayTransitionAsync(NavigationDirection.NavigateTo, () => BackView.Content = null);
+        await PlayTransitionAsync(NavigationDirection.NavigateTo, RestBackView);
         await _frameTransition.ResetHiddenViewAsync(current);
 
         InvokeOnAppearing(NavigationDirection.NavigateTo);
@@ -330,7 +337,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
 
         if (current != null)
         {
-            var animate = BackView.Content is null;
+            var animate = !_completingInteractiveBack;
 
             BackView.Content = prev;
 
@@ -345,6 +352,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
                 BackView.Content = null;
                 FrontView.Content = prev;
                 FrontView.IsVisible = true;
+                RestBackView();
             }
 
             // A completed back-swipe has already moved the pages.
@@ -365,6 +373,24 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderRegionViewModel));
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
+
+        if (_stack.Count == 1)
+            WentBackToRoot?.Invoke();
+    }
+
+    /// <summary>
+    /// Raised when a pop has brought the stack back to its root, after the pages have swapped: a
+    /// lightbox's overlay goes then.
+    /// </summary>
+    internal event Action? WentBackToRoot;
+
+    /// <summary>Makes <paramref name="root"/> the only page, at once, before the region is shown.</summary>
+    internal void SetRootWithoutTransition(View root)
+    {
+        _stack.Clear();
+        _stack.Push(root);
+        FrontView.Content = root;
+        BackView.Content = null;
     }
 
     /// <summary>The topmost page of <paramref name="pageType"/> on this stack, or <see langword="null"/>.</summary>
@@ -416,6 +442,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
             BackView.Content = null;
             FrontView.Content = target;
             FrontView.IsVisible = true;
+            RestBackView();
         });
 
         _arrivingHeader = null;
@@ -471,8 +498,19 @@ internal partial class NavigationRegionViewModel : ObservableObject
     internal void CancelInteractiveBack()
     {
         _isInteractiveBack = false;
-        BackView.Content = null;
+        RestBackView();
     }
+
+    /// <summary>
+    /// Empties the back layer once the pages are at rest, except under a lightbox: the page under
+    /// it stays there, behind its black, so that a drag down shows it at once. Put back in the
+    /// layer only as the drag began, it was sometimes not drawn on the phone until the drag ended.
+    /// </summary>
+    private void RestBackView() =>
+        BackView.Content = CurrentRegionViewModel?.Lightbox is not null ? _stack.Skip(1).FirstOrDefault() : null;
+
+    // Set while a completed back-swipe or drag pops the page it has already moved away.
+    private bool _completingInteractiveBack;
 
     internal void StartInteractiveBack()
     {
@@ -498,8 +536,18 @@ internal partial class NavigationRegionViewModel : ObservableObject
                 return;
         }
 
-        if (BackCommand.CanExecute(null))
+        if (!BackCommand.CanExecute(null))
+            return;
+
+        _completingInteractiveBack = true;
+        try
+        {
             await BackCommand.ExecuteAsync(null);
+        }
+        finally
+        {
+            _completingInteractiveBack = false;
+        }
     }
 
     /// <summary>
@@ -517,6 +565,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         _stack.Clear();
         _stack.Push(root);
         FrontView.Content = root;
+        BackView.Content = null;
 
         // Pre-notify so NavigationRegion applies safe-area padding for the root page
         // before the set-root animation plays.

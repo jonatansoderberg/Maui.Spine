@@ -1,0 +1,10 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Photos.PhotoViewerPage"
+    x:TypeArguments="PhotoViewerPageViewModel"
+    x:DataType="PhotoViewerPageViewModel">
+
+    <Lightbox ItemsSource="{Binding Images}" Position="{Binding Index}" />
+
+</SpinePage>
