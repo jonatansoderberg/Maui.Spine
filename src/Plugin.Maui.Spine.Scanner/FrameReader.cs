@@ -12,6 +12,7 @@ internal sealed class FrameReader
     private readonly object _statsGate = new();
     private long _statsSince = System.Diagnostics.Stopwatch.GetTimestamp();
     private int _frames, _gridsFound, _codesRead;
+    private long _frameNumber;
     private double _milliseconds;
     private string _lastGrid = "";
     private string? _lastError;
@@ -58,6 +59,12 @@ internal sealed class FrameReader
         }
         Console.WriteLine($"[Spine.Scanner] {where}: {ex}");
     }
+
+    /// <summary>
+    /// Numbers an analysed frame, with a code or without, so <see cref="BarcodeScannerView.ConfirmationReads"/> is counted
+    /// in frames rather than time; call once per frame, on the frame queue.
+    /// </summary>
+    public long NextFrame() => Interlocked.Increment(ref _frameNumber);
 
     /// <summary>Counts one frame and how long it took; call once per analysed frame.</summary>
     public void CountFrame(double milliseconds, bool read)

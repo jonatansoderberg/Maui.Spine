@@ -36,7 +36,7 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
     protected override void ConnectHandler(ScannerPreviewView platformView)
     {
         base.ConnectHandler(platformView);
-        platformView.Detected = r => VirtualView?.RaiseDetected(r);
+        platformView.Detected = (codes, frame) => VirtualView?.RaiseFrame(codes, frame);
         platformView.Problem = (p, m) => VirtualView?.RaiseProblem(p, m);
         platformView.TorchAvailable = a => VirtualView?.SetTorchAvailable(a);
         platformView.DiagnosticsChanged = d => VirtualView?.SetDiagnostics(d);
@@ -85,7 +85,7 @@ public sealed class ScannerPreviewView : UIView
     private int _processing;
 
     internal readonly FrameReader Reader = new();
-    internal Action<BarcodeScanResult>? Detected;
+    internal Action<IReadOnlyList<BarcodeScanResult>, long>? Detected;
 
     /// <summary>Places a hit's corners, in buffer pixels, in this view; main thread only.</summary>
     private BarcodeScanResult Place(FrameHit hit)
@@ -539,23 +539,25 @@ public sealed class ScannerPreviewView : UIView
 
                 using var pixels = sampleBuffer.GetImageBuffer() as CVPixelBuffer;
                 if (pixels is null) return;
+                long frame = owner.Reader.NextFrame();
                 long started = Stopwatch.GetTimestamp();
 
                 var formats = owner.Reader.Formats;
-                FrameHit? result = null;
+                List<FrameHit>? hits = null;
                 // Its own guard: a Vision failure must not keep the light-grid reader from the frame
                 if (formats != BarcodeFormat.None)
                 {
-                    try { result = ReadStandard(pixels, formats); }
+                    try { hits = ReadStandard(pixels, formats); }
                     catch (Exception ex) { owner.Reader.ReportError("Vision", ex); }
                 }
 
-                if (result is null && owner.Reader.WantsLightGrid)
+                if (hits is null && owner.Reader.WantsLightGrid)
                 {
                     pixels.Lock(CVPixelBufferLock.ReadOnly);
                     try
                     {
-                        result = owner.Reader.ReadLightGrid(Plane(pixels, out int w, out int h, out int stride), w, h, stride);
+                        if (owner.Reader.ReadLightGrid(Plane(pixels, out int w, out int h, out int stride), w, h, stride) is { } grid)
+                            hits = [grid];
                     }
                     finally
                     {
@@ -563,14 +565,14 @@ public sealed class ScannerPreviewView : UIView
                     }
                 }
 
-                owner.Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, result is not null);
+                owner.Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, hits is not null);
                 if (!_healthy)
                 {
                     _healthy = true;
                     owner.Report(null);
                 }
-                if (result is not null)
-                    owner.BeginInvokeOnMainThread(() => { if (!owner._shutdown) owner.Detected?.Invoke(owner.Place(result)); });
+                if (hits is not null)
+                    owner.BeginInvokeOnMainThread(() => { if (!owner._shutdown) owner.Detected?.Invoke(hits.ConvertAll(owner.Place), frame); });
             }
             catch (Exception ex)
             {
@@ -590,7 +592,8 @@ public sealed class ScannerPreviewView : UIView
             }
         }
 
-        private FrameHit? ReadStandard(CVPixelBuffer pixels, BarcodeFormat formats)
+        /// <summary>Every code Vision found in the frame; <see langword="null"/> when there was none.</summary>
+        private List<FrameHit>? ReadStandard(CVPixelBuffer pixels, BarcodeFormat formats)
         {
             if (formats != _requested)
             {
@@ -604,11 +607,12 @@ public sealed class ScannerPreviewView : UIView
             float w = pixels.Width, h = pixels.Height;
             // Vision's points are normalised with the origin at the bottom left
             System.Numerics.Vector2 Pixel(CGPoint p) => new((float)p.X * w, (1 - (float)p.Y) * h);
+            List<FrameHit>? hits = null;
             foreach (var observation in _barcodes.GetResults<VNBarcodeObservation>() ?? [])
                 if (observation.PayloadStringValue is { Length: > 0 } value && FromVision(observation.Symbology) is var format && format != BarcodeFormat.None)
-                    return new FrameHit(new BarcodeScanResult(value, format),
-                        [Pixel(observation.TopLeft), Pixel(observation.TopRight), Pixel(observation.BottomRight), Pixel(observation.BottomLeft)], w, h);
-            return null;
+                    (hits ??= []).Add(new FrameHit(new BarcodeScanResult(value, format),
+                        [Pixel(observation.TopLeft), Pixel(observation.TopRight), Pixel(observation.BottomRight), Pixel(observation.BottomLeft)], w, h));
+            return hits;
         }
 
         private static unsafe ReadOnlySpan<byte> Plane(CVPixelBuffer pixels, out int width, out int height, out int stride)

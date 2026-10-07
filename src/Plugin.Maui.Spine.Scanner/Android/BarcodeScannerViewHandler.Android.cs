@@ -65,7 +65,7 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
     {
         _camera = new ScannerCamera(Context, _previewView!, _still!)
         {
-            Detected = r => VirtualView?.RaiseDetected(r),
+            Detected = (codes, frame) => VirtualView?.RaiseFrame(codes, frame),
             Problem = (p, m) => VirtualView?.RaiseProblem(p, m),
             TorchAvailable = a => VirtualView?.SetTorchAvailable(a),
             TorchSwitchedOff = () => VirtualView?.SetTorchOff(),
@@ -145,7 +145,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     }
 
     public FrameReader Reader { get; } = new();
-    public Action<BarcodeScanResult>? Detected;
+    public Action<IReadOnlyList<BarcodeScanResult>, long>? Detected;
 
     /// <summary>Places a hit's corners, in upright image pixels, in the preview, which fills and centres the image.</summary>
     private BarcodeScanResult Place(FrameHit hit)
@@ -545,6 +545,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
                 Report(null);
             }
 
+            long frame = Reader.NextFrame();
             long started = Stopwatch.GetTimestamp();
             int rotation = image.ImageInfo?.RotationDegrees ?? 0;
             bool upright = rotation % 180 == 0;
@@ -558,7 +559,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
             if (Reader.WantsLightGrid && ReadLightGrid(image) is { } grid)
             {
                 Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, true);
-                Post(Upright(grid, rotation));
+                Post([Upright(grid, rotation)], frame);
                 return;
             }
 
@@ -569,34 +570,29 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
                 return;
             }
 
-            var input = InputImage.FromMediaImage(media, image.ImageInfo?.RotationDegrees ?? 0);
+            var input = InputImage.FromMediaImage(media, rotation);
             handedOff = true;
             // ML Kit reads the frame asynchronously; the frame is closed when it is done
             MlKitFor(formats).Process(input).AddOnCompleteListener(AnalysisThread.Value, new CompleteListener(task =>
             {
-                bool read = false;
+                List<FrameHit>? hits = null;
                 try
                 {
+                    // Every code in the frame, not just the first: the one in the aim is picked once they are placed
                     if (task.IsSuccessful && task.Result is { } list)
                         foreach (var item in list.JavaCast<JavaList>()!)
                             if ((item as MLBarcode ?? (item as Java.Lang.Object)?.JavaCast<MLBarcode>()) is { RawValue: { Length: > 0 } value } barcode
                                 && FromMlKit(barcode.Format) is var format && format != BarcodeFormat.None)
-                            {
                                 // ML Kit gives corners in the upright image, the frame turned by its rotation
-                                bool turned = rotation % 180 != 0;
-                                var points = barcode.GetCornerPoints() ?? [];
-                                Post(new FrameHit(new BarcodeScanResult(value, format),
-                                    [.. points.Select(p => new System.Numerics.Vector2(p.X, p.Y))],
-                                    turned ? image.Height : image.Width, turned ? image.Width : image.Height));
-                                read = true;
-                                break;
-                            }
+                                (hits ??= []).Add(new FrameHit(new BarcodeScanResult(value, format),
+                                    [.. (barcode.GetCornerPoints() ?? []).Select(p => new System.Numerics.Vector2(p.X, p.Y))], width, height));
                 }
                 finally
                 {
-                    Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, read);
+                    Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, hits is not null);
                     image.Close();
                 }
+                if (hits is not null) Post(hits, frame);
             }));
         }
         catch (Exception ex)
@@ -652,8 +648,8 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         return _mlKit = BarcodeScanning.GetClient(options);
     }
 
-    private void Post(FrameHit hit) =>
-        MainThread.BeginInvokeOnMainThread(() => { if (!_shutdown) Detected?.Invoke(Place(hit)); });
+    private void Post(List<FrameHit> hits, long frame) =>
+        MainThread.BeginInvokeOnMainThread(() => { if (!_shutdown) Detected?.Invoke(hits.ConvertAll(Place), frame); });
 
     private void Report(ScannerProblem? problem, string? message = null)
     {
