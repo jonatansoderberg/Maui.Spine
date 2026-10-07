@@ -10,8 +10,10 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="16">
+            <!-- The same tag inside the page: the card is what lines up with the tile as the page grows and shrinks. -->
             <Border HeightRequest="240" StrokeThickness="0" StrokeShape="RoundRectangle 24"
-                    BackgroundColor="{Binding Tile.Color}">
+                    BackgroundColor="{Binding Tile.Color}"
+                    Transition.Tag="{Binding Tile.Id, StringFormat='tile-{0}'}">
                 <Grid Padding="20" RowDefinitions="*,Auto">
                     <Image SvgImageSource.Svg="{Binding Tile.Icon}" WidthRequest="56" HeightRequest="56"
                            HorizontalOptions="Start" VerticalOptions="Start" />

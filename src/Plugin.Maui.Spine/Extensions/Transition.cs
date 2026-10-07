@@ -7,7 +7,10 @@ namespace Plugin.Maui.Spine.Extensions;
 /// <item>On a view inside the page arriving, it makes a shared element: the view flies from its
 /// place on one page to its place on the other while the pages move as usual.</item>
 /// <item>On the page arriving itself, it makes a zoom: the page grows out of the view with its tag,
-/// shrinks back into it when it leaves, and shrinks under the finger on a back-swipe.</item>
+/// shrinks back into it when it leaves, and shrinks under the finger on a back-swipe. The same tag
+/// on a view inside that page makes it the part of the page that lines up with the other view, so
+/// the page shrinks into it as that view (a poster, a card) rather than as a miniature of itself;
+/// without one, the page's middle lines up.</item>
 /// </list>
 /// </summary>
 /// <remarks>
@@ -24,8 +27,10 @@ namespace Plugin.Maui.Spine.Extensions;
 /// &lt;!-- the detail page --&gt;
 /// &lt;Image Source="{Binding Poster}" Transition.Tag="{Binding Id, StringFormat='poster-{0}'}" /&gt;
 ///
-/// &lt;!-- or a page that grows out of the poster --&gt;
+/// &lt;!-- or a page that grows out of the poster, lining its own poster up with it --&gt;
 /// &lt;SpinePage ... Transition.Tag="{Binding Id, StringFormat='poster-{0}'}"&gt;
+///     ...
+///     &lt;Image Source="{Binding Poster}" Transition.Tag="{Binding Id, StringFormat='poster-{0}'}" /&gt;
 /// </code>
 /// </example>
 public static class Transition

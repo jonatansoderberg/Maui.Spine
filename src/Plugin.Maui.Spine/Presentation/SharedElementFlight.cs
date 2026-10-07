@@ -47,9 +47,15 @@ internal sealed partial class SharedElementFlight : IDisposable
         // The page in the front layer, the one that grows or shrinks when its own tag is set.
         if (((push ? arriving : leaving) as PagePresenter)?.Content is { } page && Transition.GetTag(page) is { Length: > 0 } pageTag)
         {
+            // The page's own view with the same tag, if it has one, is what lines up with the other
+            // page's view: the page shrinks into it as that view, not as a miniature of itself.
+            var focus = (push ? targets : sources).TryGetValue(pageTag, out var own)
+                ? own.FirstOrDefault(view => !ReferenceEquals(view, page))
+                : null;
+
             // Without its view on screen the page moves as usual: a picture of the whole page
             // flying into a stranger's place would not be a zoom.
-            if ((push ? sources : targets).TryGetValue(pageTag, out var views) && flight.AddZoom(views, push))
+            if ((push ? sources : targets).TryGetValue(pageTag, out var views) && flight.AddZoom(views, push, focus))
                 return flight;
 
             flight.Dispose();
@@ -129,8 +135,10 @@ internal sealed partial class SharedElementFlight : IDisposable
     /// <summary>
     /// Makes this flight a zoom between the front layer's page and the first of
     /// <paramref name="views"/> on screen, on the page under it; <see langword="false"/> when none is.
+    /// <paramref name="focus"/>, a view on the page itself, is the part of the page that lines up
+    /// with that view; without one, the page's middle does.
     /// </summary>
-    private partial bool AddZoom(List<VisualElement> views, bool push);
+    private partial bool AddZoom(List<VisualElement> views, bool push, VisualElement? focus);
 
     /// <summary>Whether the front layer's page grows out of a view, or shrinks into one, rather than pictures flying.</summary>
     public partial bool IsZoom { get; }
@@ -155,7 +163,7 @@ internal sealed partial class SharedElementFlight : IDisposable
 #if !IOS && !MACCATALYST
     private static partial SharedElementFlight? Create(View container, View front) => null;
     private partial void Add(List<VisualElement> sources, List<VisualElement> targets) { }
-    private partial bool AddZoom(List<VisualElement> views, bool push) => false;
+    private partial bool AddZoom(List<VisualElement> views, bool push, VisualElement? focus) => false;
     public partial bool IsZoom => false;
     public partial Task FlyAsync(uint length, Easing easing) => Task.CompletedTask;
     public partial Task ZoomAsync(bool push, uint length) => Task.CompletedTask;

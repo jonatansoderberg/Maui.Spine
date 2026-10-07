@@ -95,6 +95,7 @@ The interactive swipe keeps the normal slide. The element flies only on the back
     - `ZoomAsync` replaces `ISpineTransitions` for a zoom. The page under it stays in place and dims, and the header bar fades in.
     - `OnPanUpdated` drives `Follow` when `FindZoomDragAsync` finds a zoom. Any other shared element is let go, and the page slides as before.
   - Without its view on screen (scrolled away), a zoom page moves as usual.
+  - **Focus (Jonatan found the pop "a little choppy"):** the shrinking page was a centre-cropped miniature of itself that switched to the tile's picture at the end. The same tag on a view inside the zoom page now makes that view the page's focus, like UIKit's zoom alignment rect: the page is scaled and moved so that the focus covers the other page's view, and the mask is the view's size and corners about the focus. The page shrinks into the card as the card, and the picture's crossfade is shortened from 35 % to 20 % of the zoom, so the labels, which sit a little differently, are seen twice only briefly. Without a focus, the page's middle lines up as before.
   - Showcase: `TransitionZoomPage` (the tag on its root) and a "Zoom into the page" switch on Transitions.
   - Verified in recordings on the iPhone 17 Pro simulator: push, button pop, a cancelled swipe and a completed swipe.
 

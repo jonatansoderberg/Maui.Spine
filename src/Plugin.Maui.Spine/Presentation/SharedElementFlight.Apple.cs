@@ -16,8 +16,15 @@ internal sealed partial class SharedElementFlight
     // picture of it over the page while the page is small.
     private (CGRect Frame, nfloat Radius, UIView Picture)? _zoom;
 
-    /// <summary>The part of a zoom during which the view's picture fades, out at its start or in at its end.</summary>
-    private const double ZoomFadeShare = 0.35;
+    // The part of the zooming page that lines up with that view, in the page's coordinates.
+    private CGRect? _zoomFocus;
+
+    /// <summary>
+    /// The part of a zoom during which the view's picture fades, out at its start or in at its end:
+    /// short, so that a focus that is not quite the view (its text a little elsewhere) is not seen
+    /// twice for long.
+    /// </summary>
+    private const double ZoomFadeShare = 0.2;
 
     private SharedElementFlight(UIView container, UIView front)
     {
@@ -75,10 +82,18 @@ internal sealed partial class SharedElementFlight
 
     public partial bool IsZoom => _zoom is not null;
 
-    private partial bool AddZoom(List<VisualElement> views, bool push)
+    private partial bool AddZoom(List<VisualElement> views, bool push, VisualElement? focus)
     {
         if (Place(views) is not { } view)
             return false;
+
+        // The focus in the page's own coordinates, at rest; one scrolled out of the page is no focus.
+        if (focus is not null && NativeOf(focus) is { Window: not null } focusView)
+        {
+            var rect = focusView.ConvertRectToView(focusView.Bounds, _front);
+            if (rect.Width > 0 && rect.Height > 0 && rect.IntersectsWith(_front.Bounds))
+                _zoomFocus = rect;
+        }
 
         var radius = RadiusOf(view.Element, view.View);
 
@@ -177,19 +192,25 @@ internal sealed partial class SharedElementFlight
         var frame = _front.Frame;
         var bounds = _front.Bounds;
 
-        // The view's place in the page's own coordinates, and the scale at which the page covers it.
+        // The view's place in the page's own coordinates; the part of the page that lines up with
+        // it (the focus, or the whole page about its middle); and the scale at which that part
+        // covers the view.
         var place = new CGRect(zoom.Frame.X - frame.X, zoom.Frame.Y - frame.Y, zoom.Frame.Width, zoom.Frame.Height);
-        var scale = nfloat.Max(place.Width / bounds.Width, place.Height / bounds.Height);
+        var focus = _zoomFocus ?? bounds;
+        var scale = nfloat.Max(place.Width / focus.Width, place.Height / focus.Height);
 
-        // Scaled about the page's centre, then moved so that the centre lands on the view's.
+        // Scaled about the page's centre, then moved so that the focus's centre lands on the view's.
         var small = CoreAnimation.CATransform3D.MakeScale(scale, scale, 1)
-            .Concat(CoreAnimation.CATransform3D.MakeTranslation(place.GetMidX() - bounds.GetMidX(), place.GetMidY() - bounds.GetMidY(), 0));
+            .Concat(CoreAnimation.CATransform3D.MakeTranslation(
+                place.GetMidX() - bounds.GetMidX() - scale * (focus.GetMidX() - bounds.GetMidX()),
+                place.GetMidY() - bounds.GetMidY() - scale * (focus.GetMidY() - bounds.GetMidY()),
+                0));
 
         // The mask is scaled with the content, so it is the view's place before that scale: the
-        // view's size and corners over the scale, about the page's centre.
+        // view's size and corners over the scale, about the focus's centre.
         var smallMask = new CGRect(
-            bounds.GetMidX() - place.Width / scale / 2,
-            bounds.GetMidY() - place.Height / scale / 2,
+            focus.GetMidX() - place.Width / scale / 2,
+            focus.GetMidY() - place.Height / scale / 2,
             place.Width / scale,
             place.Height / scale);
 
@@ -324,6 +345,7 @@ internal sealed partial class SharedElementFlight
             _zoom = null;
             _zoomGeometry = null;
             _zoomMask = null;
+            _zoomFocus = null;
         }
 
         foreach (var (picture, _, _, _) in _pictures)
