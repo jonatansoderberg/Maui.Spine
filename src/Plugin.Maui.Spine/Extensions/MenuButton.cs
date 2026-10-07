@@ -81,9 +81,13 @@ public static class MenuButton
     }
 
     /// <summary>The PNG for a menu icon, at <paramref name="size"/> points, or <see langword="null"/>.</summary>
-    internal static byte[]? Icon(IElementHandler handler, string? svg, double size, Color tint)
+    internal static byte[]? Icon(IElementHandler handler, string? svg, double size, Color tint) =>
+        handler.MauiContext?.Services is { } services ? Icon(services, svg, size, tint) : null;
+
+    /// <summary>The PNG for a menu icon, at <paramref name="size"/> points, or <see langword="null"/>.</summary>
+    internal static byte[]? Icon(IServiceProvider services, string? svg, double size, Color tint)
     {
-        if (string.IsNullOrWhiteSpace(svg) || handler.MauiContext?.Services is not { } services)
+        if (string.IsNullOrWhiteSpace(svg))
             return null;
 
         var names = services.GetService<Svg.ResourceNameCache>();

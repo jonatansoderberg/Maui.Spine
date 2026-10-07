@@ -175,6 +175,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Shortcuts** | OS dock/jump-list/tray menu integration | [Shortcuts](docs/wiki/shortcuts.md) |
 | **Menu buttons** | A button or header action that opens the platform's own menu: sections, pickers, submenus, toggles, destructive rows | [Menu buttons](docs/wiki/menus.md) |
 | **Context menus** | A long press or right click on any view opens the system's context menu, lifted with its shape on iOS; one shared menu for every row of a list | [Context menus](docs/wiki/menus.md#context-menus) |
+| **Action sheets** | `ShowActionsAsync` from a view model: the platform's action sheet with icons and destructive rows, the picked row as the result, a popover at the button on iPad | [Action sheets](docs/wiki/menus.md#action-sheets) |
 | **Windows options** | Window chrome, tray, single-instance | [Windows Options](docs/wiki/windows-options.md) |
 | **Custom transitions** | Replace the built-in slide animation | [Custom Transitions](docs/wiki/custom-transitions.md) |
 | **Shared elements and zoom** | One `Transition.Tag` on each page: a view flies from one page to the next and back, or the page grows out of the view it opens from and shrinks back into it under the finger | [Shared Elements and Zoom](docs/wiki/transitions.md) |
