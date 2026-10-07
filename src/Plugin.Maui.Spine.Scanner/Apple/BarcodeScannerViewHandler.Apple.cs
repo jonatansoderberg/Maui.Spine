@@ -56,6 +56,11 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
 /// their own as bi-planar full-range YUV: Vision reads the standard codes from the pixel buffer, and the light-grid reader
 /// reads the Y plane, which is luminance as it is.
 /// </summary>
+/// <remarks>
+/// The session is taken apart when the view leaves its window, not only in <see cref="Shutdown"/>: a host that never
+/// disconnects the handlers of a closed sheet or popup would otherwise keep a configured session, its observers and the
+/// frame delegate (which holds this view) for every scan.
+/// </remarks>
 public sealed class ScannerPreviewView : UIView
 {
     private static readonly TimeSpan FrameTimeout = TimeSpan.FromSeconds(2);
@@ -74,6 +79,8 @@ public sealed class ScannerPreviewView : UIView
     private bool _configured, _configuring, _wanted = true, _onScreen;
     private volatile bool _torch, _shutdown;
     private int _torchQueued;
+    // Main thread only: moves on with every release, so a configuration that finishes after one is known to be stale
+    private int _generation;
     private long _lastFrame;
     private int _processing;
 
@@ -175,18 +182,42 @@ public sealed class ScannerPreviewView : UIView
     {
         if (_shutdown) return;
         _shutdown = true;
+        Release();
+    }
+
+    /// <summary>
+    /// Main thread. Takes the session apart and drops the observers; the next <see cref="Update"/> configures afresh. The
+    /// work on the session runs on its queue, after anything already queued there, a configuration included.
+    /// </summary>
+    private void Release()
+    {
+        _generation++;
         StopWatchdog();
         foreach (var o in _observers) o.Dispose();
         _observers.Clear();
+        _configured = false;
+        _frames = null;
         _queue.DispatchAsync(() =>
         {
             ApplyTorch(false);
-            _session.StopRunning();
+            if (_session.Running) _session.StopRunning();
             _session.BeginConfiguration();
-            foreach (var output in _session.Outputs) _session.RemoveOutput(output);
-            foreach (var input in _session.Inputs) _session.RemoveInput(input);
+            ClearSession();
             _session.CommitConfiguration();
+            _device = null;
         });
+    }
+
+    /// <summary>Session queue, inside a configuration. Removes every output (and its delegate) and input.</summary>
+    private void ClearSession()
+    {
+        foreach (var output in _session.Outputs)
+        {
+            // The output holds the delegate, and the delegate holds this view
+            if (output is AVCaptureVideoDataOutput video) video.SetSampleBufferDelegate(null, null);
+            _session.RemoveOutput(output);
+        }
+        foreach (var input in _session.Inputs) _session.RemoveInput(input);
     }
 
     private async void Update()
@@ -195,6 +226,11 @@ public sealed class ScannerPreviewView : UIView
         bool run = _wanted && _onScreen;
         if (!run)
         {
+            if (!_onScreen)
+            {
+                Release();
+                return;
+            }
             StopWatchdog();
             // The preview keeps the last frame, so a stop after a hit shows the code that was read
             if (_previewLayer.Connection is { } connection) connection.Enabled = false;
@@ -210,10 +246,22 @@ public sealed class ScannerPreviewView : UIView
         {
             if (_configuring) return;
             _configuring = true;
-            try { _configured = await ConfigureAsync(); }
+            int generation = _generation;
+            bool configured = false;
+            try { configured = await ConfigureAsync(); }
             catch (Exception ex) { Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} ({ex.Message})"); }
             finally { _configuring = false; }
-            if (!_configured || _shutdown || !(_wanted && _onScreen)) return;
+
+            // Released while the permission prompt or the configuration was pending: what was set up may already have
+            // been taken apart, or may have been set up after the release. Either way start clean
+            if (generation != _generation || _shutdown || !_onScreen)
+            {
+                Release();
+                if (!_shutdown && _onScreen) Update();
+                return;
+            }
+            _configured = configured;
+            if (!_configured || !_wanted) return;
         }
 
         Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
@@ -240,47 +288,24 @@ public sealed class ScannerPreviewView : UIView
             return false;
         }
 
-        _device = AVCaptureDevice.GetDefaultDevice(AVCaptureDeviceType.BuiltInWideAngleCamera, AVMediaTypes.Video, AVCaptureDevicePosition.Back)
+        var device = AVCaptureDevice.GetDefaultDevice(AVCaptureDeviceType.BuiltInWideAngleCamera, AVMediaTypes.Video, AVCaptureDevicePosition.Back)
             ?? AVCaptureDevice.GetDefaultDevice(AVMediaTypes.Video);
-        if (_device is null)
+        if (device is null)
         {
             Report(ScannerProblem.NoCamera);
             return false;
         }
 
-        _session.BeginConfiguration();
-        try
+        // On the session queue like every other change to the session, so a release queued before it cannot take apart
+        // what it sets up afterwards
+        var frames = new FrameDelegate(this);
+        var failure = await OnSessionQueue(() => Configure(device, frames));
+        if (failure is not null)
         {
-            // Enough detail for a 12 × 12 grid across a room, small enough to read every frame
-            _session.SessionPreset = _session.CanSetSessionPreset(AVCaptureSession.Preset1280x720)
-                ? AVCaptureSession.Preset1280x720
-                : AVCaptureSession.PresetHigh;
-            var input = AVCaptureDeviceInput.FromDevice(_device, out var error);
-            if (input is null || !_session.CanAddInput(input))
-            {
-                Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} ({error?.LocalizedDescription})");
-                return false;
-            }
-            _session.AddInput(input);
-
-            var output = new AVCaptureVideoDataOutput
-            {
-                AlwaysDiscardsLateVideoFrames = true,
-                WeakVideoSettings = new CVPixelBufferAttributes { PixelFormatType = CVPixelFormatType.CV420YpCbCr8BiPlanarFullRange }.Dictionary,
-            };
-            _frames = new FrameDelegate(this);
-            output.SetSampleBufferDelegate(_frames, _frameQueue);
-            if (!_session.CanAddOutput(output))
-            {
-                Report(ScannerProblem.Failed);
-                return false;
-            }
-            _session.AddOutput(output);
+            Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} ({failure})");
+            return false;
         }
-        finally
-        {
-            _session.CommitConfiguration();
-        }
+        _frames = frames;
 
         _queue.DispatchAsync(() =>
         {
@@ -288,7 +313,7 @@ public sealed class ScannerPreviewView : UIView
             ApplyLens();
         });
         // After the permission prompt this may run off the main thread; the header only follows main-thread changes
-        bool hasTorch = _device.HasTorch;
+        bool hasTorch = device.HasTorch;
         BeginInvokeOnMainThread(() => { if (!_shutdown) TorchAvailable?.Invoke(hasTorch); });
 
         _observers.Add(AVCaptureSession.Notifications.ObserveRuntimeError(_session, (_, e) =>
@@ -296,9 +321,55 @@ public sealed class ScannerPreviewView : UIView
         _observers.Add(AVCaptureSession.Notifications.ObserveWasInterrupted(_session, (_, _) => Report(ScannerProblem.Interrupted)));
         _observers.Add(AVCaptureSession.Notifications.ObserveInterruptionEnded(_session, (_, _) => Report(null)));
         // After a tap, the phone moving on hands focus back to the camera, as the Camera app does
-        _observers.Add(AVCaptureDevice.Notifications.ObserveSubjectAreaDidChange(_device, (_, _) => _queue.DispatchAsync(() =>
+        _observers.Add(AVCaptureDevice.Notifications.ObserveSubjectAreaDidChange(device, (_, _) => _queue.DispatchAsync(() =>
             Focus(Centre, AVCaptureFocusMode.ContinuousAutoFocus, AVCaptureExposureMode.ContinuousAutoExposure, watchScene: false))));
         return true;
+    }
+
+    /// <summary>Session queue. Input and output for <paramref name="device"/>; the reason when it cannot be done.</summary>
+    private string? Configure(AVCaptureDevice device, FrameDelegate frames)
+    {
+        _session.BeginConfiguration();
+        try
+        {
+            // Whatever a configuration that failed half-way left behind
+            ClearSession();
+            // Enough detail for a 12 × 12 grid across a room, small enough to read every frame
+            _session.SessionPreset = _session.CanSetSessionPreset(AVCaptureSession.Preset1280x720)
+                ? AVCaptureSession.Preset1280x720
+                : AVCaptureSession.PresetHigh;
+            var input = AVCaptureDeviceInput.FromDevice(device, out var error);
+            if (input is null || !_session.CanAddInput(input))
+                return error?.LocalizedDescription ?? "the camera input could not be added";
+            _session.AddInput(input);
+
+            var output = new AVCaptureVideoDataOutput
+            {
+                AlwaysDiscardsLateVideoFrames = true,
+                WeakVideoSettings = new CVPixelBufferAttributes { PixelFormatType = CVPixelFormatType.CV420YpCbCr8BiPlanarFullRange }.Dictionary,
+            };
+            output.SetSampleBufferDelegate(frames, _frameQueue);
+            if (!_session.CanAddOutput(output))
+                return "the camera output could not be added";
+            _session.AddOutput(output);
+            _device = device;
+            return null;
+        }
+        finally
+        {
+            _session.CommitConfiguration();
+        }
+    }
+
+    private Task<T> OnSessionQueue<T>(Func<T> work)
+    {
+        var done = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _queue.DispatchAsync(() =>
+        {
+            try { done.SetResult(work()); }
+            catch (Exception ex) { done.SetException(ex); }
+        });
+        return done.Task;
     }
 
     /// <summary>Runs on the session queue only.</summary>

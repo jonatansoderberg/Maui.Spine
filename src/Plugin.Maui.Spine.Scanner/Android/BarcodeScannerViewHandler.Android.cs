@@ -94,14 +94,22 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
 /// case bound to the activity's lifecycle. Each frame's Y plane goes to the light-grid reader; ML Kit reads the
 /// standard codes from the same frame.
 /// </summary>
+/// <remarks>
+/// Everything heavy is let go when the view leaves its window, not only in <see cref="Shutdown"/>: a host that never
+/// disconnects the handlers of a closed sheet or popup would otherwise keep an ML Kit reader for every scan.
+/// </remarks>
 internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
 {
     private static readonly TimeSpan FrameTimeout = TimeSpan.FromSeconds(2);
 
+    // One analysis thread for the app, never shut down: a thread per scanner would outlive every view whose handler is
+    // never disconnected, and ML Kit hands its results back on this executor, so shutting it down with a frame still
+    // being read threw RejectedExecutionException on ML Kit's own thread
+    private static readonly Lazy<IExecutorService> AnalysisThread = new(() => Executors.NewSingleThreadExecutor()!);
+
     private readonly Context _context;
     private readonly PreviewView _preview;
     private readonly Android.Widget.ImageView _still;
-    private readonly IExecutorService _analysisThread = Executors.NewSingleThreadExecutor()!;
     private ProcessCameraProvider? _provider;
     private Preview? _previewCase;
     private ImageAnalysis? _analysisCase;
@@ -111,7 +119,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     private System.Threading.Timer? _watchdog;
     private byte[] _luminance = [];
     private bool _wanted = true, _onScreen, _torch, _bound, _starting, _healthy = true;
-    private volatile bool _shutdown;
+    private volatile bool _shutdown, _analysing;
     private long _lastFrame;
 
     public ScannerCamera(Context context, PreviewView preview, Android.Widget.ImageView still)
@@ -163,10 +171,19 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     {
         if (_shutdown) return;
         _shutdown = true;
-        Unbind();
-        _analysisThread.Shutdown();
-        _mlKit?.Close();
-        _mlKit = null;
+        Release();
+    }
+
+    /// <summary>Lets go of the camera and the reader; the next <see cref="Update"/> starts afresh.</summary>
+    private void Release()
+    {
+        Unbind(keepLastFrame: false);
+        // On the analysis thread, after any frame still being read there, so a late frame cannot create a new reader
+        AnalysisThread.Value.Execute(new Java.Lang.Runnable(() =>
+        {
+            _mlKit?.Close();
+            _mlKit = null;
+        }));
     }
 
     private async void Update()
@@ -175,7 +192,9 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         bool run = _wanted && _onScreen;
         if (!run)
         {
-            Unbind();
+            // Paused on screen (after a hit): the last frame stays. Off screen: nothing is left holding on
+            if (_onScreen) Unbind(keepLastFrame: true);
+            else Release();
             return;
         }
         if (_bound || _starting) return;
@@ -186,7 +205,8 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         finally { _starting = false; }
 
         // The page may have left while the permission prompt or the provider was pending
-        if (_bound && (_shutdown || !(_wanted && _onScreen))) Unbind();
+        if (_shutdown || !_onScreen) Release();
+        else if (_bound && !_wanted) Unbind(keepLastFrame: true);
     }
 
     private async Task BindAsync()
@@ -238,11 +258,12 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
             .SetResolutionSelector(resolution)!
             .SetBackpressureStrategy(ImageAnalysis.StrategyKeepOnlyLatest)!
             .Build()!;
-        analysisCase.SetAnalyzer(_analysisThread, this);
+        analysisCase.SetAnalyzer(AnalysisThread.Value, this);
         _analysisCase = analysisCase;
 
         _cameraControl = _provider.BindToLifecycle(owner, selector, previewCase, analysisCase);
         _bound = true;
+        _analysing = true;
         _still.Visibility = Android.Views.ViewStates.Gone;
         Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
         TorchAvailable?.Invoke(_cameraControl.CameraInfo?.HasFlashUnit == true);
@@ -263,14 +284,16 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         return tcs.Task;
     }
 
-    private void Unbind()
+    private void Unbind(bool keepLastFrame)
     {
         _watchdog?.Dispose();
         _watchdog = null;
         if (!_bound) return;
         _bound = false;
-        // Keep the last frame on screen, so a stop after a hit shows the code that was read
-        if (!_shutdown && _preview.Bitmap is { } frame)
+        _analysing = false;
+        // Keep the last frame on screen, so a stop after a hit shows the code that was read. Only then: the copy is a
+        // bitmap the size of the view, and nobody sees it after a restart or off screen
+        if (keepLastFrame && !_shutdown && _preview.Bitmap is { } frame)
         {
             _still.SetImageBitmap(frame);
             _still.Visibility = Android.Views.ViewStates.Visible;
@@ -312,7 +335,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         Report(ScannerProblem.NoFrames);
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            Unbind();
+            Unbind(keepLastFrame: false);
             Update();
         });
     }
@@ -330,7 +353,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         bool handedOff = false;
         try
         {
-            if (_shutdown) return;
+            if (_shutdown || !_analysing) return;
             Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
             if (!_healthy)
             {
@@ -357,7 +380,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
             var input = InputImage.FromMediaImage(media, image.ImageInfo?.RotationDegrees ?? 0);
             handedOff = true;
             // ML Kit reads the frame asynchronously; the frame is closed when it is done
-            MlKitFor(formats).Process(input).AddOnCompleteListener(_analysisThread, new CompleteListener(task =>
+            MlKitFor(formats).Process(input).AddOnCompleteListener(AnalysisThread.Value, new CompleteListener(task =>
             {
                 bool read = false;
                 try
