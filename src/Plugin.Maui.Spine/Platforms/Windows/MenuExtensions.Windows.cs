@@ -45,7 +45,7 @@ public static partial class SpineExtensions
         void Build()
         {
             var flyout = new MenuFlyout();
-            FillFlyout(handler, view, flyout.Items, items, ref flyout);
+            FillFlyout(handler, view, flyout.Items, items, ref flyout, null);
             button.Flyout = flyout;
         }
 
@@ -53,7 +53,7 @@ public static partial class SpineExtensions
         MenuObservers.Add(button, new MenuObserver(items, Build));
     }
 
-    static void FillFlyout(IElementHandler handler, VisualElement owner, IList<MenuFlyoutItemBase> target, IEnumerable<MenuElement> elements, ref MenuFlyout root)
+    static void FillFlyout(IElementHandler handler, VisualElement owner, IList<MenuFlyoutItemBase> target, IEnumerable<MenuElement> elements, ref MenuFlyout root, object? parameter)
     {
         var pickerCount = 0;
 
@@ -61,8 +61,8 @@ public static partial class SpineExtensions
         {
             switch (element)
             {
-                case MenuAction action:
-                    target.Add(BuildItem(handler, owner, action, null, null));
+                case MenuAction { IsVisible: true } action:
+                    target.Add(BuildItem(handler, owner, action, null, null, parameter));
                     break;
 
                 case MenuSection section:
@@ -70,20 +70,20 @@ public static partial class SpineExtensions
                         target.Add(new MenuFlyoutSeparator());
                     if (!string.IsNullOrEmpty(section.Title))
                         target.Add(new MenuFlyoutItem { Text = section.Title, IsEnabled = false });
-                    FillFlyout(handler, owner, target, section.Items, ref root);
+                    FillFlyout(handler, owner, target, section.Items, ref root, parameter);
                     target.Add(new MenuFlyoutSeparator());
                     break;
 
-                case SubMenu subMenu:
+                case SubMenu { IsVisible: true } subMenu:
                     var sub = new MenuFlyoutSubItem { Text = subMenu.Title, Icon = BuildIcon(handler, subMenu.Svg) };
-                    FillFlyout(handler, owner, sub.Items, subMenu.Items, ref root);
+                    FillFlyout(handler, owner, sub.Items, subMenu.Items, ref root, parameter);
                     target.Add(sub);
                     break;
 
                 case MenuPicker picker:
                     var group = $"SpinePicker{pickerCount++}-{picker.GetHashCode()}";
-                    foreach (var choice in picker.Items)
-                        target.Add(BuildItem(handler, owner, choice, picker, group));
+                    foreach (var choice in picker.Items.Where(a => a.IsVisible))
+                        target.Add(BuildItem(handler, owner, choice, picker, group, parameter));
                     break;
             }
         }
@@ -96,7 +96,7 @@ public static partial class SpineExtensions
         }
     }
 
-    static MenuFlyoutItemBase BuildItem(IElementHandler handler, VisualElement owner, MenuAction action, MenuPicker? picker, string? group)
+    static MenuFlyoutItemBase BuildItem(IElementHandler handler, VisualElement owner, MenuAction action, MenuPicker? picker, string? group, object? parameter)
     {
         MenuFlyoutItem item = picker is not null
             ? new RadioMenuFlyoutItem { GroupName = group, IsChecked = action.IsChecked }
@@ -111,7 +111,7 @@ public static partial class SpineExtensions
         if (action.IsDestructive)
             item.Foreground = new SolidColorBrush(Microsoft.UI.Colors.Firebrick);
 
-        item.Click += (_, _) => MenuButton.Pick(owner, action, picker);
+        item.Click += (_, _) => MenuButton.Pick(owner, action, picker, parameter);
 
         return item;
     }

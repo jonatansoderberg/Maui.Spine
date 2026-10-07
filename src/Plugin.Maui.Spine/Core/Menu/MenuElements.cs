@@ -10,7 +10,10 @@ public abstract class MenuElement : ObservableObject
 {
 }
 
-/// <summary>The items a menu button shows, in order. Change it and the native menu follows.</summary>
+/// <summary>
+/// The items a menu shows, in order: a menu button's, a header action's or a context menu's.
+/// Change it and the native menu follows.
+/// </summary>
 public sealed class MenuItems : ObservableCollection<MenuElement>
 {
     /// <summary>An empty menu.</summary>
@@ -59,6 +62,13 @@ public sealed partial class MenuAction : MenuElement
     /// <summary>Whether the row can be picked.</summary>
     [ObservableProperty]
     public partial bool IsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Whether the row is in the menu at all. A context menu hides what does not apply rather than
+    /// dimming it, so "Follow" and "Unfollow" can share a menu with one of them visible.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsVisible { get; set; } = true;
 
     /// <summary>Styled as destructive (red) on platforms that have the notion.</summary>
     [ObservableProperty]
@@ -117,6 +127,10 @@ public sealed partial class SubMenu : MenuElement, IEnumerable<MenuElement>
     /// <summary>An SVG resource name shown beside the title.</summary>
     [ObservableProperty]
     public partial string? Svg { get; set; }
+
+    /// <summary>Whether the row is in the menu at all.</summary>
+    [ObservableProperty]
+    public partial bool IsVisible { get; set; } = true;
 
     /// <summary>The nested menu's entries.</summary>
     public ObservableCollection<MenuElement> Items { get; } = [];

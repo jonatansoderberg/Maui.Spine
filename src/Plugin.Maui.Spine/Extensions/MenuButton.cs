@@ -55,23 +55,26 @@ public static class MenuButton
     /// <summary>
     /// What every platform does when a row is picked: a toggle flips, a picker moves its check and
     /// runs its command, the action's own command runs, and a pop-up button takes the title.
+    /// <paramref name="parameter"/> goes to an action without a <see cref="MenuAction.CommandParameter"/>
+    /// of its own: a context menu's <see cref="ContextMenu.CommandParameterProperty"/>, so one menu serves every row.
     /// </summary>
-    internal static void Pick(VisualElement owner, MenuAction action, MenuPicker? picker)
+    internal static void Pick(VisualElement owner, MenuAction action, MenuPicker? picker, object? parameter = null)
     {
         if (picker is not null)
         {
             picker.Selected = action;
-            var parameter = action.CommandParameter ?? action;
-            if (picker.Command?.CanExecute(parameter) == true)
-                picker.Command.Execute(parameter);
+            var pickerParameter = action.CommandParameter ?? action;
+            if (picker.Command?.CanExecute(pickerParameter) == true)
+                picker.Command.Execute(pickerParameter);
         }
         else if (action.KeepsMenuOpen)
         {
             action.IsChecked = !action.IsChecked;
         }
 
-        if (action.Command?.CanExecute(action.CommandParameter) == true)
-            action.Command.Execute(action.CommandParameter);
+        var actionParameter = action.CommandParameter ?? parameter;
+        if (action.Command?.CanExecute(actionParameter) == true)
+            action.Command.Execute(actionParameter);
 
         if (GetShowsSelection(owner) && owner is Button button)
             button.Text = action.Title;

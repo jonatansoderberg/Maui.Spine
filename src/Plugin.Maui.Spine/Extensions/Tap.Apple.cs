@@ -81,6 +81,20 @@ internal sealed partial class TapState
         });
     }
 
+    /// <summary>
+    /// A context menu took the touch: the highlight goes, since the view is lifted without it, and
+    /// so does the tap, since the finger lifts from the menu, not from the view.
+    /// </summary>
+    internal void AbandonPress()
+    {
+        if (_press is { State: UIGestureRecognizerState.Possible } press)
+            press.State = UIGestureRecognizerState.Failed;
+
+        _pressId++;
+        _pressed = false;
+        Paint(animated: false);
+    }
+
     void CancelPress()
     {
         _pressId++;

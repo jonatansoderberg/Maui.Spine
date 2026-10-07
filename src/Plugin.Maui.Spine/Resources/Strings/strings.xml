@@ -19,4 +19,5 @@
   <s key="Spine.Reorder.MoveDown">Move down</s>
   <s key="Spine.Reorder.MoveToTop">Move to top</s>
   <s key="Spine.Reorder.MoveToBottom">Move to bottom</s>
+  <s key="Spine.ContextMenu.Open">Show actions</s>
 </strings>

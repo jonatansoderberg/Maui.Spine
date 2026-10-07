@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), Reorder.Mode, embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), ContextMenu.Items (long-press / right-click menus on any view), Reorder.Mode, embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -210,9 +210,11 @@ Pitfalls:
 </CollectionView>
 ```
 
-## Menu buttons (`Plugin.Maui.Spine`)
+## Menu buttons and context menus (`Plugin.Maui.Spine`)
 
-`MenuButton.Items` on a `Button` or `ImageButton` (and `PageAction.Menu` for header actions) opens the platform's menu: `MenuItems` of `MenuAction` (Title, Svg, Command, IsChecked, IsEnabled, IsDestructive, KeepsMenuOpen), `MenuSection`, `SubMenu`, `MenuPicker` (single selection, `Selected`, a command run with the pick). A menu button has no Command. `MenuButton.ShowsSelection` makes the button text follow the pick. See docs/wiki/menus.md.
+`MenuButton.Items` on a `Button` or `ImageButton` (and `PageAction.Menu` for header actions) opens the platform's menu: `MenuItems` of `MenuAction` (Title, Svg, Command, IsChecked, IsEnabled, IsVisible, IsDestructive, KeepsMenuOpen), `MenuSection`, `SubMenu`, `MenuPicker` (single selection, `Selected`, a command run with the pick). A menu button has no Command. `MenuButton.ShowsSelection` makes the button text follow the pick. See docs/wiki/menus.md.
+
+`ContextMenu.Items` on any view gives it the system context menu (long press, right click) with the same `MenuItems`: a lifted, rounded preview on iOS 16+, a compact menu on Mac, a `PopupMenu` on Android, `ContextFlyout` on Windows. For list rows, set it on the template root with one shared menu, `ContextMenu.Items="{PageBinding RowMenu}" ContextMenu.CommandParameter="{Binding .}"`: an action without its own `CommandParameter` gets the row. Built when it opens. Hide rows that don't apply with `IsVisible` rather than disabling them. `Tap.Command` on the same view still runs on a tap. See docs/wiki/menus.md#context-menus.
 
 ## Text in a control (`Plugin.Maui.Spine.Common`)
 
