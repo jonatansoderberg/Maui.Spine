@@ -116,13 +116,15 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     private ICamera? _cameraControl;
     private LiveData? _cameraState;
     private CameraStateObserver? _cameraStateObserver;
+    private ILifecycleOwner? _resumeOwner;
+    private ResumeObserver? _resumeObserver;
     private IBarcodeScanner? _mlKit;
     private BarcodeFormat _mlKitFormats = BarcodeFormat.None;
     private System.Threading.Timer? _watchdog;
     private byte[] _luminance = [];
     private bool _wanted = true, _onScreen, _torch, _bound, _starting, _healthy = true;
     // Main thread only. _cameraOpen: frames can be expected; _interrupted: another app holds the camera
-    private bool _cameraOpen, _interrupted;
+    private bool _cameraOpen, _interrupted, _permissionDenied;
     private volatile bool _shutdown, _analysing;
     private long _lastFrame;
 
@@ -182,6 +184,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     private void Release()
     {
         Unbind(keepLastFrame: false);
+        StopWatchingResume();
         // On the analysis thread, after any frame still being read there, so a late frame cannot create a new reader
         AnalysisThread.Value.Execute(new Java.Lang.Runnable(() =>
         {
@@ -228,9 +231,13 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         }
         if (status != PermissionStatus.Granted)
         {
+            _permissionDenied = true;
+            WatchResume();
             Report(ScannerProblem.PermissionDenied);
             return;
         }
+        _permissionDenied = false;
+        StopWatchingResume();
 
         if (Platform.CurrentActivity is not ILifecycleOwner owner)
         {
@@ -316,6 +323,41 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
                 }
                 break;
         }
+    }
+
+    // A refused permission is only granted in Settings, and Android does not restart the app for a grant, so the
+    // scanner looks again each time the app comes back. It only checks, never asks: a resume also follows the
+    // permission dialog itself, and asking there would put the question straight back to someone who just said no
+    private void WatchResume()
+    {
+        if (_resumeObserver is not null || Platform.CurrentActivity is not ILifecycleOwner owner) return;
+        _resumeOwner = owner;
+        _resumeObserver = new ResumeObserver(this);
+        owner.Lifecycle.AddObserver(_resumeObserver);
+    }
+
+    private void StopWatchingResume()
+    {
+        if (_resumeObserver is not null) _resumeOwner?.Lifecycle.RemoveObserver(_resumeObserver);
+        _resumeObserver = null;
+        _resumeOwner = null;
+    }
+
+    private async void OnResumed()
+    {
+        if (_shutdown || !_permissionDenied || _starting) return;
+        try
+        {
+            if (await Permissions.CheckStatusAsync<Permissions.Camera>() != PermissionStatus.Granted) return;
+        }
+        catch (Exception ex)
+        {
+            Reader.ReportError("permission", ex);
+            return;
+        }
+        _permissionDenied = false;
+        StopWatchingResume();
+        Update();
     }
 
     private Task<ProcessCameraProvider> ProviderAsync()
@@ -570,6 +612,14 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         public void OnChanged(Java.Lang.Object? value)
         {
             if (value?.JavaCast<CameraState>() is { } state) owner.OnCameraState(state);
+        }
+    }
+
+    private sealed class ResumeObserver(ScannerCamera owner) : Java.Lang.Object, ILifecycleEventObserver
+    {
+        public void OnStateChanged(ILifecycleOwner source, Lifecycle.Event e)
+        {
+            if (Lifecycle.Event.OnResume?.Equals(e) == true) owner.OnResumed();
         }
     }
 }

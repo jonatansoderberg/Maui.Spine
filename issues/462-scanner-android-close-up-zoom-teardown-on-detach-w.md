@@ -56,6 +56,7 @@ All work is in `src/Plugin.Maui.Spine.Scanner`. One commit per numbered item, so
 
 - **Release on leaving the window (2, 3).** Android: `ScannerCamera.Release()` unbinds and closes the ML Kit client on the analysis thread; leaving the window releases, pausing on screen only unbinds and keeps the still. One app-wide analysis executor, never shut down; `_analysing` keeps a late frame from creating a new client. Apple: `Release()` bumps `_generation`, disposes the observers and empties the session on its queue (clearing the output's delegate); `Configure` runs on the session queue, and a configuration overtaken by a release starts clean.
 - **Watchdog and camera state (4, 5).** Android observes `CameraInfo.CameraState` with `ObserveForever` (removed in `Unbind`); the watchdog restarts only an OPEN, uninterrupted camera that sent no frame for 2 s, and the frame clock starts when the camera opens. Camera-in-use / max-cameras / do-not-disturb errors report `Interrupted` (cleared when it opens again); disabled / fatal / stream-config / removed report `Failed`. Apple sets `_interrupted` in `WasInterrupted`, clears it and resets the frame clock in `InterruptionEnded`, and the watchdog skips while it is set.
+- **Permission granted in Settings (6).** Android: after `PermissionDenied`, a `ResumeObserver` (`ILifecycleEventObserver`) on the activity checks the status on `ON_RESUME`, never requests, and starts the camera once granted. Removed when granted and on release.
 
 ## Decisions
 
