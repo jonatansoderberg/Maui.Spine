@@ -3,7 +3,9 @@ using System.Diagnostics;
 using Android.App;
 using Android.Content;
 using Android.Gms.Tasks;
+using Android.Hardware.Camera2;
 using Android.Runtime;
+using AndroidX.Camera.Camera2.InterOp;
 using AndroidX.Camera.Core;
 using AndroidX.Camera.Core.ResolutionSelector;
 using AndroidX.Camera.Lifecycle;
@@ -29,7 +31,7 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
         new PropertyMapper<BarcodeScannerView, BarcodeScannerViewHandler>(ViewMapper)
         {
             [nameof(BarcodeScannerView.Formats)] = static (h, v) => h._camera?.SetFormats(v.Formats),
-            [nameof(BarcodeScannerView.LightGrid)] = static (h, v) => h._camera?.Reader.SetLightGrid(v.LightGrid),
+            [nameof(BarcodeScannerView.LightGrid)] = static (h, v) => h._camera?.SetLightGrid(v.LightGrid),
             [nameof(BarcodeScannerView.IsScanning)] = static (h, v) => h._camera?.SetWanted(v.IsScanning),
             [nameof(BarcodeScannerView.IsTorchOn)] = static (h, v) => h._camera?.SetTorch(v.IsTorchOn),
         };
@@ -128,12 +130,18 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     private bool _cameraOpen, _interrupted, _permissionDenied;
     private volatile bool _shutdown, _analysing;
     private long _lastFrame;
+    // Written by the analysis thread, read on the main thread: the upright size of the analysed frames
+    private int _frameWidth, _frameHeight;
+    // Main thread only: the view and frame size and grid setting the zoom was last worked out for; cleared with every bind
+    private (int, int, int, int, bool) _zoomFor;
 
     public ScannerCamera(Context context, PreviewView preview, Android.Widget.ImageView still)
     {
         _context = context;
         _preview = preview;
         _still = still;
+        // A turned tablet resizes the preview, and the share of the picture a code fills with it
+        _preview.LayoutChange += (_, _) => ApplyCloseUpZoom();
     }
 
     public FrameReader Reader { get; } = new();
@@ -156,6 +164,12 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     public Action<string?>? DiagnosticsChanged;
 
     public void SetFormats(BarcodeFormat formats) => Reader.Formats = formats;
+
+    public void SetLightGrid(LightGridOptions? options)
+    {
+        Reader.SetLightGrid(options);
+        ApplyCloseUpZoom();
+    }
 
     public void SetWanted(bool wanted)
     {
@@ -392,6 +406,11 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         _cameraStateObserver = null;
         _cameraState = null;
         _cameraOpen = _interrupted = false;
+        // A new bind starts at zoom 1; its first frame works the zoom out again
+        _zoomFor = default;
+        Reader.Zoom = 1;
+        Volatile.Write(ref _frameWidth, 0);
+        Volatile.Write(ref _frameHeight, 0);
         if (!_bound) return;
         _bound = false;
         _analysing = false;
@@ -421,6 +440,64 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         var action = new FocusMeteringAction.Builder(target, FocusMeteringAction.FlagAf | FocusMeteringAction.FlagAe).Build();
         try { control.StartFocusAndMetering(action); }
         catch (Exception ex) { Reader.ReportError("focus", ex); }
+    }
+
+    /// <summary>
+    /// Main thread. Zooms for the current view and frame size, once per size. Unless a light grid is read across a room,
+    /// the camera zooms in by as much as it cannot focus close, as on iOS.
+    /// </summary>
+    private void ApplyCloseUpZoom()
+    {
+        if (_shutdown || !_bound || _cameraControl is not { CameraInfo: { } info } camera) return;
+        int frameWidth = Volatile.Read(ref _frameWidth), frameHeight = Volatile.Read(ref _frameHeight);
+        int viewWidth = _preview.Width, viewHeight = _preview.Height;
+        bool lightGrid = Reader.WantsLightGrid;
+        if (frameWidth <= 0 || frameHeight <= 0 || viewWidth <= 0 || viewHeight <= 0) return;
+        if ((viewWidth, viewHeight, frameWidth, frameHeight, lightGrid) == _zoomFor) return;
+        _zoomFor = (viewWidth, viewHeight, frameWidth, frameHeight, lightGrid);
+        try
+        {
+            float zoom = lightGrid ? 1 : CloseUpZoom(info, viewWidth, viewHeight, frameWidth, frameHeight);
+            camera.CameraControl?.SetZoomRatio(zoom);
+            Reader.Zoom = zoom;
+        }
+        catch (Exception ex)
+        {
+            Reader.ReportError("zoom", ex);
+        }
+    }
+
+    /// <summary>
+    /// The zoom at which an EAN-13 (37 mm) held at the camera's closest focus distance spans half the preview's width.
+    /// A tablet's wide camera focuses no closer than about 10 cm, where a code fills only a quarter of a landscape
+    /// preview: the user moves closer to fill the aim, past the closest focus, and every frame blurs. Zoomed in, the
+    /// code fills the aim where the picture is sharp, and the zoom crops the sensor before the frame is scaled down, so
+    /// a module gets more pixels too. 1 for a camera that focuses close, or one without the lens data to tell.
+    /// </summary>
+    private static float CloseUpZoom(ICameraInfo info, int viewWidth, int viewHeight, int frameWidth, int frameHeight)
+    {
+        const double codeWidth = 37, share = 0.5, most = 3;
+        var camera2 = Camera2CameraInfo.From(info);
+        // In diopters (1 / metres); 0 is a fixed-focus lens, which has no closest distance to work from
+        double diopters = (camera2.GetCameraCharacteristic(CameraCharacteristics.LensInfoMinimumFocusDistance!) as Java.Lang.Float)?.FloatValue() ?? 0;
+        float[]? focal = camera2.GetCameraCharacteristic(CameraCharacteristics.LensInfoAvailableFocalLengths!) is { } lengths
+            ? JNIEnv.GetArray<float>(lengths.Handle)
+            : null;
+        var sensor = camera2.GetCameraCharacteristic(CameraCharacteristics.SensorInfoPhysicalSize!) as Android.Util.SizeF;
+        if (diopters <= 0 || focal is not { Length: > 0 } || focal[0] <= 0 || sensor is not { Width: > 0, Height: > 0 }) return 1;
+
+        double closest = 1000 / diopters;
+        // The frame is the largest crop of the sensor in the frame's aspect; its sides across the scene at that distance
+        double sensorLong = Math.Max(sensor.Width, sensor.Height), sensorShort = Math.Min(sensor.Width, sensor.Height);
+        double aspect = (double)Math.Max(frameWidth, frameHeight) / Math.Min(frameWidth, frameHeight);
+        double longSide = closest * (aspect >= sensorLong / sensorShort ? sensorLong : sensorShort * aspect) / focal[0];
+        double shortSide = longSide / aspect;
+        // The frame size is upright, as the preview shows it; the preview fills and centres it, cropping one side
+        double across = frameWidth >= frameHeight ? longSide : shortSide, down = frameWidth >= frameHeight ? shortSide : longSide;
+        double visible = viewWidth / Math.Max(viewWidth / across, viewHeight / down);
+        double max = Math.Min(most, info.ZoomState?.Value?.JavaCast<IZoomState>()?.MaxZoomRatio ?? 1);
+        double zoom = Math.Clamp(visible * share / codeWidth, 1, Math.Max(1, max));
+        return zoom < 1.05 ? 1 : (float)zoom;
     }
 
     private void ApplyTorch()
@@ -470,6 +547,14 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
 
             long started = Stopwatch.GetTimestamp();
             int rotation = image.ImageInfo?.RotationDegrees ?? 0;
+            bool upright = rotation % 180 == 0;
+            int width = upright ? image.Width : image.Height, height = upright ? image.Height : image.Width;
+            if (width != Volatile.Read(ref _frameWidth) || height != Volatile.Read(ref _frameHeight))
+            {
+                Volatile.Write(ref _frameWidth, width);
+                Volatile.Write(ref _frameHeight, height);
+                MainThread.BeginInvokeOnMainThread(ApplyCloseUpZoom);
+            }
             if (Reader.WantsLightGrid && ReadLightGrid(image) is { } grid)
             {
                 Reader.CountFrame(Stopwatch.GetElapsedTime(started).TotalMilliseconds, true);

@@ -463,6 +463,7 @@ public sealed class ScannerPreviewView : UIView
             if (device.AutoFocusRangeRestrictionSupported) device.AutoFocusRangeRestriction = range;
             device.VideoZoomFactor = zoom;
             device.UnlockForConfiguration();
+            Reader.Zoom = (float)zoom;
         }
         catch (Exception ex)
         {
