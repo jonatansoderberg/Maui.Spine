@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/462
 **Branch:** issue/462-scanner-android-close-up-zoom-teardown-on-detach-w
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -61,6 +61,18 @@ All work is in `src/Plugin.Maui.Spine.Scanner`. One commit per numbered item, so
 - **Android close-up zoom (1).** `ScannerCamera.CloseUpZoom` works out the visible width at the closest focus from Camera2's minimum focus distance, focal length and physical sensor size, the upright frame and the preview's fill-centre crop, and zooms so an EAN-13 spans half of it (1–3×, capped by the camera's max, 1 below 1.05). `ApplyCloseUpZoom` runs on the main thread when the frame size is first known after a bind, on `PreviewView.LayoutChange` and when the light grid changes, once per (view, frame, grid) combination; 1× while a light grid is read. `FrameReader.Zoom` puts `zoom 1.8×` in the diagnostics line on both platforms.
 - **Aim selection and confirmation reads (8, 9).** Android no longer stops at the first ML Kit code and Apple returns every Vision observation; each frame's hits go to `BarcodeScannerView.RaiseFrame(codes, frame)` with a number from `FrameReader.NextFrame()`. `ScanArea` tests each code's centre and picks the one nearest the area's centre (a code without corners counts only without a `ScanArea`). New `ConfirmationReads` (default 2, at least 1): the same value read in frames at most 2 apart, with no other value in between; light-grid hits are reported on the first read. The scan sheet's comment on its scan area follows the centre test.
 - **Docs.** `docs/wiki/barcodes.md` (release on leaving the window, Android permission pick-up, torch write-back, centre-based `ScanArea`, `ConfirmationReads`, zoom on both platforms and in `Diagnostics`, when `Interrupted` / `NoFrames` are reported), `BarcodeScannerView` remarks and the `spine-controls` skill. The package README says nothing these change.
+
+## Verification
+
+Android emulator (Pixel 10 Pro, own instance on 5554), the Showcase with an injected test harness (not committed):
+- **Open/close ×5:** threads stay at 69–70, `pool-` threads at 9 throughout. On `origin/master` (control build) they go 9 → 10 after the second scan and stay there: a Spine sheet keeps and reuses its handler, so the old leak was one reader and thread per handler, not per scan.
+- **Background and back with the scanner open:** no problem events; frames resume at once. Control: `NoFrames` and a rebind every 2 s while in the background.
+- **Camera taken by another app** (Camera app in a freeform window): `Interrupted` ("The camera is in use by something else."), cleared when the camera came back.
+- **Permission:** revoked with user-fixed → `PermissionDenied`; granted with `pm grant`, then home and back → the camera started without reopening the sheet.
+- **Selection and confirmation:** 12 synthetic cases through `RaiseFrame` (one read, two in a row, two frames apart, three apart, another value in between, nearest the centre, centre outside, code larger than the area, light grid, frame number going back, `ConfirmationReads = 1`, no area) all pass.
+- The emulator's virtual camera reports no zoom (1×); the zoom needs a real wide lens.
+
+iPhone 16 Pro (Jonatan, 2026-10-07): `zoom 2.0×` in the diagnostics line; aim selection, torch write-back, opening and closing the sheet repeatedly and the rest all worked.
 
 ## Decisions
 
