@@ -51,11 +51,19 @@ internal static class NavigableMeta
             vm.SafeAreaEdges = sheetMeta.SafeAreaEdges;
             vm.ScrollInset = sheetMeta.ScrollInset;
         }
+        else if (meta is NavigableLightboxAttribute lightboxMeta)
+        {
+            // The image fills the screen; the header bar and the caption keep clear of the bars.
+            vm.IsTitleBarVisible = lightboxMeta.IsTitleBarVisible;
+            vm.SafeAreaEdges = SafeAreaEdges.None;
+            vm.ScrollInset = SafeAreaEdges.None;
+            vm.Lightbox = lightboxMeta;
+        }
 
         vm.EffectiveHeaderBarBackground = ResolveBackground(view, vm, meta);
 
         // Populate raw system bar dimensions and the per-page complement insets.
-        var insets = Presentation.NavigationRegion.SystemBarInsetsFor(vm, insetsProvider, meta is NavigableRegionAttribute);
+        var insets = Presentation.NavigationRegion.SystemBarInsetsFor(vm, insetsProvider, meta is NavigableRegionAttribute or NavigableLightboxAttribute);
         vm.SystemBarInsets = insets;
         vm.SafeAreaInsets = Presentation.NavigationRegion.SafeAreaInsetsFor(vm, insets);
 
@@ -82,7 +90,7 @@ internal static class NavigableMeta
     static void ReapplyHeaderBar(View view, ViewModelBase vm, NavigableAttribute meta, ISystemInsetsProvider insetsProvider)
     {
         vm.EffectiveHeaderBarBackground = ResolveBackground(view, vm, meta);
-        vm.SystemBarInsets = Presentation.NavigationRegion.SystemBarInsetsFor(vm, insetsProvider, meta is NavigableRegionAttribute);
+        vm.SystemBarInsets = Presentation.NavigationRegion.SystemBarInsetsFor(vm, insetsProvider, meta is NavigableRegionAttribute or NavigableLightboxAttribute);
         vm.SafeAreaInsets = Presentation.NavigationRegion.SafeAreaInsetsFor(vm, vm.SystemBarInsets);
 
         if (vm.HeaderBarFloats)

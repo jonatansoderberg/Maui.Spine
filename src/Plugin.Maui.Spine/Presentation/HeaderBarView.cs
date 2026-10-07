@@ -310,11 +310,11 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
     // Glass buttons are 44-point circles whose edge lines up with the page's content, as a
     // UINavigationBar's do; without glass the older, platform-specific slots stay.
-    double SideMargin => PageActionView.UseGlassHeaderActions
+    internal double SideMargin => PageActionView.UseGlassHeaderActions
         ? HeaderBarConstants.PageMargin
         : Presentation is NavigationPresentation.Sheet ? HeaderBarConstants.SheetSideMargin : HeaderBarConstants.RegionSideMargin;
 
-    double IconButtonWidth => PageActionView.UseGlassHeaderActions
+    internal double IconButtonWidth => PageActionView.UseGlassHeaderActions
         ? HeaderBarConstants.Height
         : Presentation is NavigationPresentation.Sheet
             ? HeaderBarConstants.SheetButtonWidth

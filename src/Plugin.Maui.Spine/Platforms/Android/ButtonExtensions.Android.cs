@@ -8,7 +8,11 @@ public static partial class SpineExtensions
     static partial void ConfigureHandlers(MauiAppBuilder builder)
     {
         // A region's front layer takes the back-swipe over from the page under it.
-        builder.ConfigureMauiHandlers(handlers => handlers.AddHandler<Presentation.BackSwipeHost, Presentation.BackSwipeHostHandler>());
+        builder.ConfigureMauiHandlers(handlers =>
+        {
+            handlers.AddHandler<Presentation.BackSwipeHost, Presentation.BackSwipeHostHandler>();
+            handlers.AddHandler<Presentation.Lightbox, Presentation.LightboxHandler>();
+        });
 
         ConfigureScrollInsets();
         ConfigureMaterials();

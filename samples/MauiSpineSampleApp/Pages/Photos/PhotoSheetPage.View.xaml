@@ -1,0 +1,26 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Photos.PhotoSheetPage"
+    x:TypeArguments="PhotoSheetPageViewModel"
+    x:DataType="PhotoSheetPageViewModel">
+
+    <CollectionView ItemsSource="{Binding Photos}" SafeArea.PageMargin="True">
+
+        <CollectionView.ItemsLayout>
+            <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="4" VerticalItemSpacing="4" />
+        </CollectionView.ItemsLayout>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="Photo">
+                <Image Source="{Binding File}" Aspect="AspectFill" HeightRequest="110"
+                       Transition.Tag="{Binding Key}"
+                       Tap.Command="{Binding Source={RelativeSource AncestorType={x:Type PhotoSheetPageViewModel}}, Path=OpenCommand}"
+                       Tap.CommandParameter="{Binding .}"
+                       SemanticProperties.Description="{Binding Caption}" />
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+
+    </CollectionView>
+
+</SpinePage>

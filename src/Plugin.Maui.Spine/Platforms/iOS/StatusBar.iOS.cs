@@ -36,4 +36,15 @@ internal static partial class StatusBar
         UIApplication.SharedApplication.SetStatusBarStyle(uiStyle, animated: true);
 #pragma warning restore CA1422
     }
+
+    static partial void SetHiddenPlatform(bool hidden)
+    {
+        _appControlled ??= NSBundle.MainBundle.ObjectForInfoDictionary("UIViewControllerBasedStatusBarAppearance") is NSNumber flag && !flag.BoolValue;
+        if (_appControlled != true)
+            return;
+
+#pragma warning disable CA1422 // As above.
+        UIApplication.SharedApplication.SetStatusBarHidden(hidden, UIStatusBarAnimation.Fade);
+#pragma warning restore CA1422
+    }
 }

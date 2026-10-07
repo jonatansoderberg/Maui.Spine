@@ -38,5 +38,8 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+	<!-- Lets the Lightbox sample's Save button add the photo showing to Photos. -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Saves the photo you are looking at to your library.</string>
 </dict>
 </plist>

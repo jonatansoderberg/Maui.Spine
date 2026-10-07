@@ -17,6 +17,8 @@ public static partial class SpineExtensions
         ConfigureScrollInsets();
         ConfigureTypography();
 
+        builder.ConfigureMauiHandlers(handlers => handlers.AddHandler<Presentation.Lightbox, Presentation.LightboxHandler>());
+
         SwitchHandler.Mapper.AppendToMapping("SpineInstantSwitch", static (handler, _) =>
         {
             if (handler.PlatformView is not UISwitch uiSwitch)

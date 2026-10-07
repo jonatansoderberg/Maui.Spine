@@ -20,6 +20,9 @@ internal sealed partial class PagePresenter : Grid
     private Label? _titleLabel;
     private readonly TitleSlotLayout _titleBar;
 
+    /// <summary>The row the page's title sits in, part of the page; a lightbox fades it with its other chrome.</summary>
+    internal View TitleBar => _titleBar;
+
     // Behind the title row when content is under the bar and the system draws nothing there: a
     // material that fades in with Opacity as content scrolls under the bar.
     private readonly ContentView _barBackground;

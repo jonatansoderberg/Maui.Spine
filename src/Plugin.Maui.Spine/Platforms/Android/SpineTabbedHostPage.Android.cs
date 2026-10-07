@@ -36,6 +36,57 @@ public partial class SpineTabbedHostPage
         ApplyAllBadges();
     }
 
+    /// <remarks>
+    /// The Material bar takes its own room beside the content, so hiding it lets the tab's region
+    /// reach the bottom of the window. It goes at once, before a lightbox measures where it opens
+    /// from, and fades back in once the lightbox has gone.
+    /// </remarks>
+    partial void PlatformSetTabBarHidden(bool hidden)
+    {
+        if (_bottomNav is not { } bar)
+            return;
+
+        var content = TabContent(bar);
+
+        if (hidden)
+        {
+            bar.Animate()?.Cancel();
+            bar.Visibility = ViewStates.Gone;
+
+            // With the bar gone, the content keeps the system navigation bar's inset at its foot,
+            // which the bar used to take on itself; the lightbox reaches under it, as over the bar.
+            if (content?.LayoutParameters is ViewGroup.MarginLayoutParams margins)
+            {
+                _contentBottomMargin = margins.BottomMargin;
+                margins.BottomMargin = 0;
+                content.LayoutParameters = margins;
+            }
+
+            return;
+        }
+
+        if (content?.LayoutParameters is ViewGroup.MarginLayoutParams restore && _contentBottomMargin is { } margin)
+        {
+            restore.BottomMargin = margin;
+            content.LayoutParameters = restore;
+            _contentBottomMargin = null;
+        }
+
+        bar.Alpha = 0;
+        bar.Visibility = ViewStates.Visible;
+        bar.Animate()?.Alpha(1).SetDuration(200).Start();
+    }
+
+    private int? _contentBottomMargin;
+
+    /// <summary>The container the tabs' pages are shown in, beside the bar.</summary>
+    private static Android.Views.View? TabContent(Android.Views.View bar)
+    {
+        var context = bar.Context;
+        var id = context?.Resources?.GetIdentifier("navigationlayout_content", "id", context.PackageName) ?? 0;
+        return id == 0 ? null : bar.RootView?.FindViewById(id);
+    }
+
     private void OnBottomNavLayoutChange(object? sender, Android.Views.View.LayoutChangeEventArgs e) =>
         ApplyTabBarInset();
 

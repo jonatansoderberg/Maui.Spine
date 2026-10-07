@@ -2,6 +2,12 @@
 <strings culture="sv">
   <s key="Spine.Header.Back">Tillbaka</s>
   <s key="Spine.Header.Close">Stäng</s>
+  <s key="Spine.Lightbox.Share">Dela</s>
+  <s key="Spine.Lightbox.Save">Spara i Bilder</s>
+  <s key="Spine.Lightbox.Saved">Sparad</s>
+  <s key="Spine.Lightbox.SaveDenied.Title">Bilden kan inte sparas</s>
+  <s key="Spine.Lightbox.SaveDenied.Message">Låt appen lägga till bilder i Inställningar och försök igen.</s>
+  <s key="Spine.Lightbox.SaveFailed.Title">Bilden sparades inte</s>
   <s key="Spine.Header.Done">Klar</s>
   <s key="Spine.Header.Cancel">Avbryt</s>
   <s key="Spine.State.Loading">Laddar</s>

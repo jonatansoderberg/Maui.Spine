@@ -8,5 +8,7 @@ public static partial class SpineExtensions
         ConfigureMaterials();
         ConfigureTypography();
         ConfigureMenus();
+
+        builder.ConfigureMauiHandlers(handlers => handlers.AddHandler<Presentation.Lightbox, Presentation.LightboxHandler>());
     }
 }

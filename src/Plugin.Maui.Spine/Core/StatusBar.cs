@@ -25,4 +25,9 @@ internal static partial class StatusBar
     };
 
     static partial void ApplyPlatform(StatusBarStyle style);
+
+    /// <summary>Hides the status bar, or shows it again, where the platform lets the application do so.</summary>
+    internal static void SetHidden(bool hidden) => SetHiddenPlatform(hidden);
+
+    static partial void SetHiddenPlatform(bool hidden);
 }

@@ -2,6 +2,12 @@
 <strings>
   <s key="Spine.Header.Back">Back</s>
   <s key="Spine.Header.Close">Close</s>
+  <s key="Spine.Lightbox.Share">Share</s>
+  <s key="Spine.Lightbox.Save">Save to Photos</s>
+  <s key="Spine.Lightbox.Saved">Saved</s>
+  <s key="Spine.Lightbox.SaveDenied.Title">Can't save the photo</s>
+  <s key="Spine.Lightbox.SaveDenied.Message">Allow the app to add photos in Settings, then try again.</s>
+  <s key="Spine.Lightbox.SaveFailed.Title">The photo wasn't saved</s>
   <s key="Spine.Header.Done">Done</s>
   <s key="Spine.Header.Cancel">Cancel</s>
   <s key="Spine.State.Loading">Loading</s>
