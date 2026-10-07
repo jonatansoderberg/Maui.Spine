@@ -16,8 +16,10 @@ internal sealed partial class SharedElementFlight
     // picture of it over the page while the page is small.
     private (CGRect Frame, nfloat Radius, UIView Picture)? _zoom;
 
-    // The part of the zooming page that lines up with that view, in the page's coordinates.
+    // The part of the zooming page that lines up with that view, in the page's coordinates, and its
+    // corner radius.
     private CGRect? _zoomFocus;
+    private nfloat _zoomFocusRadius;
 
     /// <summary>
     /// The part of a zoom during which the view's picture fades, out at its start or in at its end:
@@ -92,22 +94,27 @@ internal sealed partial class SharedElementFlight
         {
             var rect = focusView.ConvertRectToView(focusView.Bounds, _front);
             if (rect.Width > 0 && rect.Height > 0 && rect.IntersectsWith(_front.Bounds))
+            {
                 _zoomFocus = rect;
+                _zoomFocusRadius = RadiusOf(focus, focusView);
+            }
         }
 
         var radius = RadiusOf(view.Element, view.View);
 
-        // On a pop the view is on the page that just came back into the back layer, not drawn there yet.
-        var image = new UIImageView(Picture(view.View, onScreen: push, FillOf(view.Element)))
+        // One layer, so that Core Animation can move its frame and corners with the page's and the
+        // picture fills whatever size it has on the way. On a pop the view is on the page that
+        // just came back into the back layer, not drawn there yet.
+        var picture = new UIImageView(Picture(view.View, onScreen: push, FillOf(view.Element)))
         {
+            Frame = view.Frame,
             ContentMode = UIViewContentMode.ScaleAspectFill,
-            AutoresizingMask = UIViewAutoresizing.FlexibleDimensions,
+            UserInteractionEnabled = false,
+            ClipsToBounds = true,
+            Alpha = push ? 1 : 0,
         };
-        var picture = new UIView(view.Frame) { UserInteractionEnabled = false, ClipsToBounds = true, Alpha = push ? 1 : 0 };
         picture.Layer.CornerRadius = radius;
         picture.Layer.CornerCurve = CoreAnimation.CACornerCurve.Circular;
-        image.Frame = picture.Bounds;
-        picture.AddSubview(image);
 
         _container.InsertSubviewAbove(picture, _front);
         _zoom = (view.Frame, radius, picture);
@@ -133,14 +140,71 @@ internal sealed partial class SharedElementFlight
             return Task.CompletedTask;
 
         // A pop starts where the page is: at rest, or wherever a back-swipe has left it.
-        var task = push
-            ? AnimateZoom(geometry.Small, geometry.SmallMask, geometry.SmallRadius, CoreAnimation.CATransform3D.Identity, _front.Bounds, 0, length)
-            : AnimateZoom(_front.Layer.SublayerTransform, _zoomMask!.Frame, _zoomMask.CornerRadius, geometry.Small, geometry.SmallMask, geometry.SmallRadius, length);
+        var fromTransform = push ? geometry.Small : _front.Layer.SublayerTransform;
+        var toTransform = push ? CoreAnimation.CATransform3D.Identity : geometry.Small;
 
-        var fade = new UIViewPropertyAnimator(length * ZoomFadeShare / 1000.0, UIViewAnimationCurve.EaseInOut, () => zoom.Picture.Alpha = push ? 0 : 1);
-        fade.StartAnimation(push ? 0 : length * (1 - ZoomFadeShare) / 1000.0);
+        if (_zoomFocus is not null)
+        {
+            // The view's picture rides on the focus, from wherever the focus is to the view's place
+            // (or back), and fades in over the whole of a pop (out over a push), as a shared
+            // element's pictures do: the focus and the view differ a little (their padding, their
+            // text), and spread over the zoom that difference never shows as a jump.
+            var focusNow = FocusOnScreen(fromTransform);
+            var (fromFrame, toFrame) = push ? (zoom.Frame, FocusOnScreen(toTransform)) : (focusNow, zoom.Frame);
+            var (fromRadius, toRadius) = push
+                ? (zoom.Radius, _zoomFocusRadius)
+                : (_zoomFocusRadius * fromTransform.M11, zoom.Radius);
 
-        return task;
+            var picture = zoom.Picture.Layer;
+            picture.Frame = fromFrame;
+            AnimateLayer(picture, fromFrame, toFrame, fromRadius, toRadius, push ? 1 : 0, push ? 0 : 1, length);
+        }
+        else
+        {
+            // Without a focus the page shrinks as a miniature of itself, which looks nothing like
+            // the view: its picture fades in only as the page lands, and out as it starts to grow.
+            var fade = new UIViewPropertyAnimator(length * ZoomFadeShare / 1000.0, UIViewAnimationCurve.EaseInOut, () => zoom.Picture.Alpha = push ? 0 : 1);
+            fade.StartAnimation(push ? 0 : length * (1 - ZoomFadeShare) / 1000.0);
+        }
+
+        return push
+            ? AnimateZoom(fromTransform, geometry.SmallMask, geometry.SmallRadius, toTransform, _front.Bounds, 0, length)
+            : AnimateZoom(fromTransform, _zoomMask!.Frame, _zoomMask.CornerRadius, toTransform, geometry.SmallMask, geometry.SmallRadius, length);
+    }
+
+    /// <summary>
+    /// Where the focus is on screen, in the container's coordinates, under
+    /// <paramref name="transform"/>: a scale about the page's centre and a move, nothing else.
+    /// </summary>
+    private CGRect FocusOnScreen(CoreAnimation.CATransform3D transform)
+    {
+        var focus = _zoomFocus!.Value;
+        var bounds = _front.Bounds;
+        var frame = _front.Frame;
+        var scale = transform.M11;
+
+        var x = bounds.GetMidX() + (focus.GetMidX() - bounds.GetMidX()) * scale + transform.M41;
+        var y = bounds.GetMidY() + (focus.GetMidY() - bounds.GetMidY()) * scale + transform.M42;
+        return new CGRect(frame.X + x - focus.Width * scale / 2, frame.Y + y - focus.Height * scale / 2, focus.Width * scale, focus.Height * scale);
+    }
+
+    /// <summary>Moves a layer's frame, corners and opacity on the zoom's curve.</summary>
+    private static void AnimateLayer(CoreAnimation.CALayer layer, CGRect fromFrame, CGRect toFrame, nfloat fromRadius, nfloat toRadius, float fromOpacity, float toOpacity, uint length)
+    {
+        CoreAnimation.CATransaction.Begin();
+        CoreAnimation.CATransaction.DisableActions = true;
+
+        layer.Frame = toFrame;
+        layer.CornerRadius = toRadius;
+        layer.Opacity = toOpacity;
+
+        var duration = length / 1000.0;
+        layer.AddAnimation(ZoomAnimation("bounds", Foundation.NSValue.FromCGRect(new CGRect(CGPoint.Empty, fromFrame.Size)), Foundation.NSValue.FromCGRect(new CGRect(CGPoint.Empty, toFrame.Size)), duration), "spine.zoom.bounds");
+        layer.AddAnimation(ZoomAnimation("position", Foundation.NSValue.FromCGPoint(new CGPoint(fromFrame.GetMidX(), fromFrame.GetMidY())), Foundation.NSValue.FromCGPoint(new CGPoint(toFrame.GetMidX(), toFrame.GetMidY())), duration), "spine.zoom.position");
+        layer.AddAnimation(ZoomAnimation("cornerRadius", Foundation.NSNumber.FromNFloat(fromRadius), Foundation.NSNumber.FromNFloat(toRadius), duration), "spine.zoom.radius");
+        layer.AddAnimation(ZoomAnimation("opacity", Foundation.NSNumber.FromFloat(fromOpacity), Foundation.NSNumber.FromFloat(toOpacity), duration), "spine.zoom.opacity");
+
+        CoreAnimation.CATransaction.Commit();
     }
 
     /// <summary>How far a back-swipe across the whole page shrinks it: to this share of its size.</summary>
@@ -346,6 +410,7 @@ internal sealed partial class SharedElementFlight
             _zoomGeometry = null;
             _zoomMask = null;
             _zoomFocus = null;
+            _zoomFocusRadius = 0;
         }
 
         foreach (var (picture, _, _, _) in _pictures)
