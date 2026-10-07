@@ -320,6 +320,8 @@ public sealed partial class BarcodeScannerPageViewModel : ViewModelBase, IReceiv
             field = value;
             Hint = value ?? _prompt;
             OnPropertyChanged(nameof(Hint));
+            // Disabled rather than hidden: the header is settled before the sheet shows and never moves under the user
+            _torch.IsEnabled = value is null;
         }
     }
 

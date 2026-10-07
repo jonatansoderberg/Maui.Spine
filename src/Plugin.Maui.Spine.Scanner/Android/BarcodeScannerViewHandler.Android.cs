@@ -66,6 +66,7 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
             Detected = r => VirtualView?.RaiseDetected(r),
             Problem = (p, m) => VirtualView?.RaiseProblem(p, m),
             TorchAvailable = a => VirtualView?.SetTorchAvailable(a),
+            TorchSwitchedOff = () => VirtualView?.SetTorchOff(),
             DiagnosticsChanged = d => VirtualView?.SetDiagnostics(d),
         };
         base.ConnectHandler(platformView);
@@ -151,6 +152,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
     }
     public Action<ScannerProblem?, string?>? Problem;
     public Action<bool>? TorchAvailable;
+    public Action? TorchSwitchedOff;
     public Action<string?>? DiagnosticsChanged;
 
     public void SetFormats(BarcodeFormat formats) => Reader.Formats = formats;
@@ -202,6 +204,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
             // Paused on screen (after a hit): the last frame stays. Off screen: nothing is left holding on
             if (_onScreen) Unbind(keepLastFrame: true);
             else Release();
+            SwitchTorchOff();
             return;
         }
         if (_bound || _starting) return;
@@ -214,6 +217,15 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         // The page may have left while the permission prompt or the provider was pending
         if (_shutdown || !_onScreen) Release();
         else if (_bound && !_wanted) Unbind(keepLastFrame: true);
+    }
+
+    // The property follows the lamp: a stop is the end of the torch, and the next start begins without it. A watchdog
+    // restart does not come through here, so the torch survives that
+    private void SwitchTorchOff()
+    {
+        if (!_torch) return;
+        _torch = false;
+        TorchSwitchedOff?.Invoke();
     }
 
     private async Task BindAsync()

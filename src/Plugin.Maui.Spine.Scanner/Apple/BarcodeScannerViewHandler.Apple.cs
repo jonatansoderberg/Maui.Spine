@@ -40,7 +40,7 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
         platformView.Problem = (p, m) => VirtualView?.RaiseProblem(p, m);
         platformView.TorchAvailable = a => VirtualView?.SetTorchAvailable(a);
         platformView.DiagnosticsChanged = d => VirtualView?.SetDiagnostics(d);
-        platformView.TorchChanged = on => { if (VirtualView is { } v && v.IsTorchOn != on) v.IsTorchOn = on; };
+        platformView.TorchSwitchedOff = () => VirtualView?.SetTorchOff();
         platformView.SetOnScreen(platformView.Window is not null);
     }
 
@@ -99,7 +99,7 @@ public sealed class ScannerPreviewView : UIView
     }
     internal Action<ScannerProblem?, string?>? Problem;
     internal Action<bool>? TorchAvailable;
-    internal Action<bool>? TorchChanged;
+    internal Action? TorchSwitchedOff;
     internal Action<string?>? DiagnosticsChanged;
 
     public ScannerPreviewView()
@@ -221,12 +221,22 @@ public sealed class ScannerPreviewView : UIView
         foreach (var input in _session.Inputs) _session.RemoveInput(input);
     }
 
+    // The property follows the lamp: a stop is the end of the torch, and the next start begins without it. A watchdog
+    // restart does not come through here, so the torch survives that
+    private void SwitchTorchOff()
+    {
+        if (!_torch) return;
+        _torch = false;
+        TorchSwitchedOff?.Invoke();
+    }
+
     private async void Update()
     {
         if (_shutdown) return;
         bool run = _wanted && _onScreen;
         if (!run)
         {
+            SwitchTorchOff();
             if (!_onScreen)
             {
                 Release();

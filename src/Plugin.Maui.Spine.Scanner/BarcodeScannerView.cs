@@ -101,6 +101,10 @@ public class BarcodeScannerView : View
         set => SetValue(IsScanningProperty, value);
     }
 
+    /// <summary>
+    /// Whether the torch is lit while the camera runs. Set back to <see langword="false"/> when scanning stops or the view
+    /// leaves its window, so a torch button never shows a lamp that is off.
+    /// </summary>
     public bool IsTorchOn
     {
         get => (bool)GetValue(IsTorchOnProperty);
@@ -176,6 +180,12 @@ public class BarcodeScannerView : View
     }
 
     internal void SetTorchAvailable(bool available) => SetValue(IsTorchAvailablePropertyKey, available);
+
+    /// <summary>The camera stopped and took the lamp with it.</summary>
+    internal void SetTorchOff()
+    {
+        if (IsTorchOn) IsTorchOn = false;
+    }
 
     internal void SetDiagnostics(string? text) => SetValue(DiagnosticsPropertyKey, text);
 }
