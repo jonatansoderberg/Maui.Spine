@@ -107,7 +107,12 @@ The interactive swipe keeps the normal slide. The element flies only on the back
   - One `ValueAnimator` drives the layer's scale and move, the outline, and the picture's frame, corners and alpha together. The flight uses the `ISpineTransitions` easing; the zoom uses `PathInterpolator(0.2, 0.9, 0.25, 1)`, the iOS curve.
   - A push waits for the arriving page's next layout pass (`OnPreDraw`, at most 100 ms) instead of iOS's single main-queue hop (`NextLayoutAsync` per platform), with the front layer hidden meanwhile.
   - Verified in `screenrecord` videos on the Pixel_Tablet emulator (emulator-5556; the Pixel_10_Pro AVD was in use by another session on 5554): shared element push and pop, zoom in and zoom out. Frame by frame, the landing picture's left edge eases into the cell at 1290 px and stays there, with no jump at the switch.
-  - The back-swipe could not be tested there: `adb input swipe` did nothing even on a plain detail page without any transition code, so the swipe itself never reaches Spine on that emulator. This is spun off as its own task ("Check Spine's back-swipe on Android").
+  - **The back-swipe never worked on Android (the follow-up task "Check Spine's back-swipe on Android", done here on request):**
+    - Logging showed that neither `PointerPressed` nor a single pan update reached `NavigationRegion`. A page's `ScrollView` or `CollectionView` takes the touch at `ACTION_DOWN`, and MAUI's gesture recognizers on the front layer only see touches no child took. On iOS a recognizer on an ancestor sees every touch.
+    - Fix: the front layer is now `BackSwipeHost` (a `ContentView`). On Android it gets `BackSwipeHostHandler`, registered in `ConfigureHandlers`, whose `BackSwipeViewGroup` (a `ContentViewGroup`) watches touches in `OnInterceptTouchEvent`. Once a drag from the leading quarter has run rightward past the touch slop, more sideways than vertical, it takes the drag, and the page gets `ACTION_CANCEL`. Distances are measured in screen coordinates because the layer moves with the finger, and the swipe starts where it was taken, so the page does not jump by the slop.
+    - `NavigationRegion.OnPanUpdated` became `OnBackSwipe(status, x, y)`, fed by the pan recognizer on iOS/Mac/Windows and by the host on Android.
+    - Verified on the Pixel_Tablet emulator: the plain detail page slides back; the zoom page shrinks under the finger, springs back on a short swipe and zooms into the tile on a long one. The iOS swipe is unchanged.
+    - The system back gesture (the first few millimetres at the edge) is the system's own and goes back without following the finger.
 - Mac Catalyst (the iOS code) and Windows (no flight; the usual transition) compile; neither has been run.
 
 ## Spike findings

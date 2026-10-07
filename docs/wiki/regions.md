@@ -411,6 +411,8 @@ On mobile, the user can swipe from the left edge to go back, matching the native
 
 The gesture only claims a drag that starts at the leading edge, runs rightward and more sideways than up or down, and only while there is a page to go back to. Anything else — a vertical drag in a list, a drag inside a canvas that handles its own touches, a drag on the root page — is left to the content. On iOS and Mac Catalyst that is enforced on the native pan recognizer before it begins, since a `UIPanGestureRecognizer` that has begun cancels the touches of the views under it.
 
+On Android the page's own views see a touch first: a `ScrollView` or `CollectionView` takes it as it goes down, so a gesture recognizer on the region never saw a swipe there. The region's front layer therefore watches every touch on its way to the page (`OnInterceptTouchEvent`), and once a drag from the leading quarter has run rightward past the touch slop, more sideways than up or down, it takes the rest of the drag; the page gets a cancel, as a list does when a pager takes a sideways drag. With gesture navigation the first few millimetres at the screen's edge belong to the system's own back gesture, which also goes back (without following the finger).
+
 ---
 
 ## Overriding global defaults per page

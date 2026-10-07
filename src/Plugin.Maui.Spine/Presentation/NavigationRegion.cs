@@ -84,7 +84,7 @@ public sealed partial class NavigationRegion : ContentView
         };
         _container.Children.Add(_backDragDimOverlay);
 
-        _contentHostFront = new ContentView();
+        _contentHostFront = new BackSwipeHost();
         _container.Children.Add(_contentHostFront);
 
         // The region can move or resize under a keyboard that stays put, as in a rotation.
@@ -125,6 +125,21 @@ public sealed partial class NavigationRegion : ContentView
                 CutBackAt(_contentHostFront.TranslationX);
         };
 
+#if ANDROID
+        // The page's own scroll view takes every touch first on Android, so the layer watches them on
+        // their way down instead (BackSwipeHost) and a pan recognizer here would never begin.
+        var host = (BackSwipeHost)_contentHostFront;
+        host.Accepts = x =>
+        {
+            var width = GetEffectiveWidth();
+            return width > 0 && x < width * DragEdgeThreshold && ViewModel.BackEnabled();
+        };
+        host.Swiped = (status, x, y) =>
+        {
+            _dragAccepted = true;
+            OnBackSwipe(status, x, y);
+        };
+#else
         var panGesture = new PanGestureRecognizer();
         panGesture.PanUpdated += OnPanUpdated;
         _contentHostFront.GestureRecognizers.Add(panGesture);
@@ -133,6 +148,7 @@ public sealed partial class NavigationRegion : ContentView
         pointerGesture.PointerPressed += OnPointerPressed;
         pointerGesture.PointerReleased += OnPointerReleased;
         _contentHostFront.GestureRecognizers.Add(pointerGesture);
+#endif
 
         RestrictBackSwipeOnPlatform();
 
@@ -773,7 +789,10 @@ public sealed partial class NavigationRegion : ContentView
         _lastOpacity = double.NaN;
     }
 
-    private async void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
+    private void OnPanUpdated(object? sender, PanUpdatedEventArgs e) => OnBackSwipe(e.StatusType, e.TotalX, e.TotalY);
+
+    /// <summary>The back-swipe as it goes: how far it has moved sideways and down since it began.</summary>
+    private async void OnBackSwipe(GestureStatus status, double totalX, double totalY)
     {
         if (!_dragAccepted)
             return;
@@ -782,10 +801,10 @@ public sealed partial class NavigationRegion : ContentView
         if (!vm.BackEnabled())
             return;
 
-        switch (e.StatusType)
+        switch (status)
         {
             case GestureStatus.Started:
-                _dragStartX = e.TotalX;
+                _dragStartX = totalX;
                 _isDragging = false;
 
                 _gestureWidth = GetEffectiveWidth();
@@ -793,13 +812,13 @@ public sealed partial class NavigationRegion : ContentView
                 // Ensure any previous interactive state doesn't leak into non-interactive back animations
                 ResetInteractiveState();
 
-                if (e.TotalX < 0)
+                if (totalX < 0)
                     _dragAccepted = false;
                 break;
 
             case GestureStatus.Running:
             {
-                var deltaX = e.TotalX - _dragStartX;
+                var deltaX = totalX - _dragStartX;
                 if (deltaX <= 0)
                     return;
 
@@ -817,7 +836,7 @@ public sealed partial class NavigationRegion : ContentView
                 {
                     _zoomDragX = deltaX;
                     var progress = _gestureWidth > 0 ? Math.Clamp(deltaX / _gestureWidth, 0, 1) : 0;
-                    zoom.Follow(deltaX, e.TotalY, progress);
+                    zoom.Follow(deltaX, totalY, progress);
                     _backDragDimOverlay.Opacity = BackDimOpacity * (1 - progress);
                     break;
                 }
@@ -842,7 +861,7 @@ public sealed partial class NavigationRegion : ContentView
                 {
                     _zoomDrag = null;
 
-                    if (_gestureWidth > 0 && _zoomDragX > _gestureWidth * DragCompleteThreshold && e.StatusType == GestureStatus.Completed)
+                    if (_gestureWidth > 0 && _zoomDragX > _gestureWidth * DragCompleteThreshold && status == GestureStatus.Completed)
                     {
                         await Task.WhenAll(
                             zoom.ZoomAsync(push: false, ZoomDuration),
@@ -868,7 +887,7 @@ public sealed partial class NavigationRegion : ContentView
                     break;
                 }
 
-                if (_gestureWidth > 0 && currentX > _gestureWidth * DragCompleteThreshold && e.StatusType == GestureStatus.Completed)
+                if (_gestureWidth > 0 && currentX > _gestureWidth * DragCompleteThreshold && status == GestureStatus.Completed)
                 {
                     await Task.WhenAll(
                         vm.CompleteInteractiveBackAnimationAsync(_contentHostFront, _contentHostBack, currentX),
