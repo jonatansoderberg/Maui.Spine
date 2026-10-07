@@ -12,6 +12,10 @@ internal sealed partial class PagePresenter
     private UIView? _edgeContainer;
     private View? _edgeSource;
     private UIScrollView? _edgeScrollView;
+    private View? _narrowSource;
+
+    // The pages already warned about a scroll source narrower than themselves.
+    private static readonly HashSet<Type> WarnedNarrow = [];
     private SoftEdgeStretch? _softEdgeStretch;
 
     /// <summary>How far below the header bar a stretched soft edge (iOS 27) fades out.</summary>
@@ -87,10 +91,37 @@ internal sealed partial class PagePresenter
         };
         container.AddInteraction(_edgeInteraction);
         _edgeContainer = container;
+        WatchWidth(source);
         UpdateSoftEdgeStretch();
     }
 
     partial void RefreshSoftEdge() => _softEdgeStretch?.Apply();
+
+    // UIKit draws the edge inside the scroll view and no wider, so a list with a side margin, or
+    // inside a parent with side padding, leaves the bar's sides without it. A list cannot simply be
+    // widened by Spine: a collection view's grid ignores side content insets, and a margin set from
+    // code would cut the page's binding to it. So the page's author is told, once per page.
+    private void WatchWidth(View source)
+    {
+        if (_narrowSource is not null)
+            _narrowSource.SizeChanged -= OnEdgeSourceSizeChanged;
+
+        _narrowSource = source;
+        source.SizeChanged += OnEdgeSourceSizeChanged;
+        OnEdgeSourceSizeChanged(source, EventArgs.Empty);
+    }
+
+    private void OnEdgeSourceSizeChanged(object? sender, EventArgs e)
+    {
+        if (sender is not View source || source.Width <= 0 || Width <= 0 || source.Width >= Width - 0.5
+            || Content?.GetType() is not { } page || !WarnedNarrow.Add(page))
+            return;
+
+        Console.WriteLine($"[Spine] {page.Name}: the header bar's scroll source ({source.GetType().Name}) is {source.Width:0} wide on a "
+            + $"{Width:0} wide page, so UIKit's scroll edge effect under the header bar leaves {Width - source.Width:0} of the page's "
+            + "sides uncovered. Let the list reach the page's sides and keep the page margin inside it: "
+            + "SafeArea.PageMargin=\"True\" on a CollectionView, HeaderBarConstants.PagePadding on a ScrollView's content.");
+    }
 
     // From iOS 27 UIKit's soft edge only covers the status bar; SoftEdge asks for the whole header.
     private void UpdateSoftEdgeStretch()
@@ -178,6 +209,10 @@ internal sealed partial class PagePresenter
             _edgeScrollView.TopEdgeEffect.Hidden = false;
         }
 
+        if (_narrowSource is not null)
+            _narrowSource.SizeChanged -= OnEdgeSourceSizeChanged;
+
+        _narrowSource = null;
         _softEdgeStretch?.Dispose();
         _softEdgeStretch = null;
         _edgeInteraction = null;

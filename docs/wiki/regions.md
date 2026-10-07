@@ -281,8 +281,28 @@ How the iOS 26 effect is drawn. On a page that gets `SoftEdge` or `HardEdge`, th
 
 - UIKit sizes the effect to the elements in the container view (labels, images, controls), not to the container itself: an empty view in the container does not count, and the effect stops below the lowest element. That is why the title label fills the bar's height. A page with a visible header bar but an empty title has nothing for UIKit to size the effect to.
 - Under an inline title with `HardEdge` the label ends with the 44-point item row instead, because that is where UIKit's own hard band stops behind an inline navigation bar title (see [Header bar height](#header-bar-height)).
+- **The effect is as wide as the scroll view.** UIKit draws it inside the scroll view, so a list with a side `Margin`, or inside a parent with side `Padding`, leaves the bar's sides without it. Let the scroll source reach the page's sides and keep the page margin inside it: `SafeArea.PageMargin="True"` on a `CollectionView` (see [Lists inside the page margin](#lists-inside-the-page-margin)), `HeaderBarConstants.PagePadding` on a `ScrollView`'s content. Spine writes a `[Spine]` line to the console, once per page, when the scroll source is narrower than the page.
 - The Android and Windows versions are a [material](materials.md) behind the bar and fade in as rows pass under it. On Android 12+ that is a real blur of the rows.
 - **iOS 27.** UIKit's soft edge only covers the status bar from iOS 27: its progressive blur layer is cut to the status bar's height. For `SoftEdge`, Spine finds that layer and keeps it as tall as the header plus 36 points, which stretches the blur's mask with it. It also puts back the darkening iOS 26 applied (22 % in light mode, 40 % in dark). The result was measured against iOS 26.4 band by band, for sharpness and luminance. The layer is found by its structure, not through private API; where it is not found, the edge stays UIKit's own.
+
+### Lists inside the page margin
+
+Every page lines its content up with the header bar's outermost buttons: `HeaderBarConstants.PageMargin`, 16 points (20 on wide iPhones and iPad, 16 dp on Android). A `CollectionView` gets that margin inside itself with one attached property, so the list still reaches the page's sides and the scroll edge covers the whole bar:
+
+```xml
+<CollectionView ItemsSource="{Binding Tiles}" SafeArea.PageMargin="True">
+    <CollectionView.ItemsLayout>
+        <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
+    </CollectionView.ItemsLayout>
+    ...
+</CollectionView>
+```
+
+- The rows, the `Header` and the `Footer` are laid out inside the margin; give them no side margin of their own. A grid keeps the margin at its outer edges only, and the gap between its columns is `HorizontalItemSpacing`. With a uniform margin on each item instead, that gap would come out twice the outer edge.
+- **iOS and Mac Catalyst:** the margin becomes the collection view's layout margins, and its compositional layout lays its sections out inside them (`ContentInsetsReference = LayoutMargins`). A list's header and footer, which belong to the layout rather than a section, get the margin as their content insets. A side content inset would not do: the compositional layout ignores it.
+- **Android:** the margin is added to the `RecyclerView`'s padding (with `clipToPadding` off, as for `SafeArea.ScrollInset`), on top of the negative padding MAUI gives a list with item spacing.
+- **Windows:** the margin is added to the list's `Padding`.
+- A `ScrollView` has no `PageMargin`: put `Padding="{x:Static HeaderBarConstants.PagePadding}"` on its content.
 
 ### Changing the header while the page is shown
 

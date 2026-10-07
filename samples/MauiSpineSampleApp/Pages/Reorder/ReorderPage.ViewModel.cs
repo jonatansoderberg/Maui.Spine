@@ -73,9 +73,6 @@ public partial class ReorderPageViewModel : SampleViewModel
 
     public bool IsList => !Grid;
 
-    // Each tile has a margin of 5, so the grid is inset by the rest of the page margin.
-    public Thickness GridMargin { get; } = new(HeaderBarConstants.PageMargin - 5, 0);
-
     [RelayCommand]
     private Task ShowOptions() => ShowOptionsAsync("Reorder", [.. Groups]);
 

@@ -11,6 +11,12 @@
 - No unnecessary abstractions — solve the problem at hand, not hypothetical future ones.
 - Write no comments unless the *why* is non-obvious (hidden constraint, subtle invariant, specific bug workaround).
 
+## Page and Sample Guidelines
+- **Every page has the same side margin: `HeaderBarConstants.PageMargin`** (16, or 20 on wide iPhones and iPad), the line the header bar's outermost buttons sit on. Give it with `HeaderBarConstants.PagePadding` / `PageMargin`, never a hard-coded number, so every page lines up with the header bar and with every other page.
+- **The margin goes inside the scroll source, never on it.** The `ScrollView` / `CollectionView` under the header bar reaches the page's sides: no side `Margin` on it and no side `Padding` on a parent between it and the page. UIKit draws the header's scroll edge effect inside the scroll view and no wider, so a narrower list leaves the bar's sides without it. This slipped into the Showcase twice (Icon set in #445; Transitions, Reorder and the push sample's Log in #304). Spine prints `[Spine] <Page>: the header bar's scroll source … leaves … of the page's sides uncovered` when it happens; check the app's console output after adding a page.
+  - **`CollectionView`** (list or grid): `SafeArea.PageMargin="True"` lays its rows, header and footer out inside the page margin while the list reaches the sides. Items then have no side margin of their own; the gap between a grid's columns is `GridItemsLayout.HorizontalItemSpacing`.
+  - **`ScrollView`:** `Padding="{x:Static HeaderBarConstants.PagePadding}"` on its content.
+
 ## GitHub Issue Workflow
 
 ### Starting an issue
