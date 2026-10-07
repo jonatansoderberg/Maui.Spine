@@ -32,7 +32,7 @@ public static partial class SpineAnimation
     /// The cubic Bézier control points of MAUI's built-in easings (the curves on easings.net, which
     /// MAUI's formulas follow); <see langword="null"/> for an easing that is not one of them.
     /// </summary>
-    private static (CGPoint, CGPoint)? CurveOf(Easing easing)
+    internal static (CGPoint, CGPoint)? CurveOf(Easing easing)
     {
         static (CGPoint, CGPoint) Curve(double x1, double y1, double x2, double y2) => (new(x1, y1), new(x2, y2));
 

@@ -1,0 +1,40 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Transitions.TransitionsPage"
+    x:TypeArguments="TransitionsPageViewModel"
+    x:DataType="TransitionsPageViewModel"
+    BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}"
+    HeaderBar.ScrollSource="{x:Reference TileGrid}">
+
+    <!-- The list reaches the page's sides, so the header bar's scroll edge covers the bar;
+         SafeArea.PageMargin lays the tiles out inside the page margin. -->
+    <CollectionView
+        x:Name="TileGrid"
+        ItemsSource="{Binding Tiles}"
+        SafeArea.PageMargin="True">
+
+        <CollectionView.ItemsLayout>
+            <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="10" VerticalItemSpacing="10" />
+        </CollectionView.ItemsLayout>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="TransitionTile">
+                <Border HeightRequest="120" StrokeThickness="0" StrokeShape="RoundRectangle 18"
+                        BackgroundColor="{Binding Color}"
+                        Transition.Tag="{Binding Id, StringFormat='tile-{0}'}"
+                        Tap.Command="{Binding Source={RelativeSource AncestorType={x:Type TransitionsPageViewModel}}, Path=OpenCommand}"
+                        Tap.CommandParameter="{Binding .}"
+                        Semantic.Merge="True">
+                    <Grid Padding="14" RowDefinitions="*,Auto">
+                        <Image SvgImageSource.Svg="{Binding Icon}" WidthRequest="30" HeightRequest="30"
+                               HorizontalOptions="Start" VerticalOptions="Start" />
+                        <Label Grid.Row="1" Text="{Binding Title}" TextColor="White" FontSize="17" FontAttributes="Bold" />
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+
+    </CollectionView>
+
+</SpinePage>

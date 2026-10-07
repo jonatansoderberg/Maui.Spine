@@ -644,9 +644,13 @@ public sealed partial class NavigationRegion : ContentView
 
         LiftFront(true);
 
+        var flight = await SharedElementFlight.FindAsync(_container, _contentHostFront, transition.OutgoingPage, transition.IncomingPage, push);
+
         try
         {
-            await (push ? _transitions.AnimatePushAsync(transition) : _transitions.AnimatePopAsync(transition));
+            await Task.WhenAll(
+                push ? _transitions.AnimatePushAsync(transition) : _transitions.AnimatePopAsync(transition),
+                flight?.FlyAsync(_transitions.InteractiveGestureDuration, _transitions.InteractiveGestureEasing) ?? Task.CompletedTask);
         }
         finally
         {
@@ -661,6 +665,9 @@ public sealed partial class NavigationRegion : ContentView
 
             _backDragDimOverlay.Opacity = 0;
             LiftFront(false);
+
+            // The views land where their pictures are, now that the layers are back at rest.
+            flight?.Dispose();
         }
     }
 
