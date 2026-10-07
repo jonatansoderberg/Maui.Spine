@@ -182,6 +182,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Widgets** | Home-screen widgets and Live Activities built from C# | [Widgets](docs/wiki/widgets.md) |
 | **Glass buttons** | `Button`/`ImageButton` as Liquid Glass on iOS 26, normal buttons elsewhere | [Glass buttons](docs/wiki/glass-buttons.md) |
 | **Materials** | Glass, blur, tinted and solid surfaces for any `Border`: system materials on iOS, a real blur on Android 12+, acrylic on Windows | [Materials](docs/wiki/materials.md) |
+| **Motion** | `Motion.Depth` moves a view as the device tilts: layers at different depths give parallax, and a light inside a material panel sweeps over it | [Motion](docs/wiki/motion.md) |
 | **Haptics** | Success, warning, error, selection and impacts from the platform's own generators, on a tap, a header action, a tab switch or a sheet detent | [Haptics](docs/wiki/haptics.md) |
 | **Reorder** | Drag the items of any `CollectionView` to a new place: a long-press or a grip handle, with haptics and screen-reader actions | [Reorder](docs/wiki/reorder.md) |
 
@@ -217,6 +218,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [SVG](docs/wiki/svg.md) | SVG-to-bitmap rendering with theme-aware tinting, and SVG-to-icon files for tray and window icons |
 | [Glass buttons](docs/wiki/glass-buttons.md) | `Glass.Style` on `Button` and `ImageButton`: Liquid Glass on iOS 26, no-op elsewhere |
 | [Materials](docs/wiki/materials.md) | `Material.Kind` on a `Border`, `ContentView` or layout: glass, blur, tinted, solid; `MaterialContainer` for glass that merges |
+| [Motion](docs/wiki/motion.md) | `Motion.Depth` on any view: parallax from the device's tilt with the system's motion effects on iOS and the rotation sensor on Android; a highlight that sweeps over a material |
 | [Haptics](docs/wiki/haptics.md) | `Haptics.Success()` … `Impact()`, `Haptics.OnTap` on buttons and rows, `PageAction.Haptic`, opt-in haptics for tab switches and sheet detents |
 | [Reorder](docs/wiki/reorder.md) | `Reorder.Mode` on any `CollectionView`: long-press or handle, `Reorder.IsEnabled` for an Edit button, the list moved for you, `Reorder.Command` after the drop, Move up/down for screen readers |
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |

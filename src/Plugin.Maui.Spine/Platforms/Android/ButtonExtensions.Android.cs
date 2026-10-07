@@ -18,6 +18,7 @@ public static partial class SpineExtensions
         ConfigureMaterials();
         ConfigureTypography();
         ConfigureMenus();
+        MotionState.ConfigureMapper();
 
 
         ButtonHandler.Mapper.AppendToMapping("SpineCompactButton", static (handler, view) =>
