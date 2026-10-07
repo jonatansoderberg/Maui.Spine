@@ -8,6 +8,7 @@
   <s key="Spine.DataGrid.Status.Loaded.other">{0} rader</s>
   <s key="Spine.DataGrid.Status.LoadedOfTotal">{0} av {1}</s>
   <s key="Spine.DataGrid.Copied">Kopierat</s>
+  <s key="Spine.DataGrid.CopyColumn">Kopiera {0}</s>
   <s key="Spine.DataGrid.Header.SortedAscending">{0}, stigande sortering</s>
   <s key="Spine.DataGrid.Header.SortedDescending">{0}, fallande sortering</s>
   <s key="Spine.DataGrid.Header.SortHint">Ändrar sorteringsordningen</s>

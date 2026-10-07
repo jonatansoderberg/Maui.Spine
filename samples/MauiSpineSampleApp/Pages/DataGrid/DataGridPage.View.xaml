@@ -54,6 +54,7 @@
                       IsRefreshing="{Binding IsRefreshing}"
                       IsRefreshEnabled="{Binding IsRefreshEnabled}"
                       IsCellCopyEnabled="{Binding IsCellCopyEnabled}"
+                      RowContextMenu="{Binding RowMenu}"
                       LoadMoreCommand="{Binding LoadMoreCommand}"
                       HasMoreItems="{Binding HasMoreItems}"
                       IsLoadingMore="{Binding IsLoadingMore}"
@@ -110,6 +111,7 @@
                     &lt;DataGrid x:Name="Products"
                               ItemsSource="{Binding Products}"
                               RowTappedCommand="{Binding OpenCommand}"
+                              RowContextMenu="{Binding RowMenu}"
                               GroupByPath="Category"&gt;
                       &lt;DataGrid.Columns&gt;
                         &lt;DataGridColumn Key="Name" BindingPath="Name"
@@ -146,6 +148,19 @@
                     &lt;AdaptiveTrigger MinWindowWidth="640" /&gt;
                     &lt;Setter TargetName="Products"
                             Property="DataGrid.LayoutMode" Value="Wide" /&gt;
+
+                    // One menu for every row; a long press or a right click
+                    // opens it, with "Copy &lt;column&gt;" on top.
+                    RowMenu =
+                    [
+                        new MenuSection
+                        {
+                            new MenuAction("Details", "info.svg", OpenCommand),
+                            new MenuAction("Star", "star.svg", StarCommand),
+                        },
+                        new MenuAction("Delete", "trashcan.svg", DeleteCommand)
+                            { IsDestructive = true },
+                    ];
 
                     // Also: RefreshCommand for pull to refresh,
                     // LoadMoreCommand and HasMoreItems for paging.

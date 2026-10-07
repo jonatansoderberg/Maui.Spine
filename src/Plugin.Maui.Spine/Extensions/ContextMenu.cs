@@ -62,6 +62,15 @@ public static class ContextMenu
     /// <summary>Sets the fallback parameter of the context menu of <paramref name="view"/>.</summary>
     public static void SetCommandParameter(BindableObject view, object? value) => view.SetValue(CommandParameterProperty, value);
 
+    /// <summary>
+    /// Opens the context menu of <paramref name="view"/> from code, for a view whose own long press
+    /// never reaches the platform's: on Android a view with MAUI gesture recognizers takes the touch
+    /// before the long click. Android shows the menu with the long-press haptic, Windows shows its
+    /// flyout. iOS and Mac Catalyst open a context menu only from the system's own gesture, so there
+    /// it returns <see langword="false"/>, as it does for a view without a menu or with nothing visible.
+    /// </summary>
+    public static bool Show(View view) => GetState(view)?.Show() ?? false;
+
     internal static ContextMenuState? GetState(BindableObject view) => (ContextMenuState?)view.GetValue(StateProperty);
 
     static void OnItemsChanged(BindableObject bindable, object? oldValue, object? newValue)
@@ -123,6 +132,14 @@ internal sealed partial class ContextMenuState : IDisposable
             UpdatePlatform();
     }
 
+    public bool Show()
+    {
+        var shown = false;
+        if (_connected && CanOpen)
+            ShowPlatform(ref shown);
+        return shown;
+    }
+
     public void Dispose()
     {
         Disconnect();
@@ -175,4 +192,6 @@ internal sealed partial class ContextMenuState : IDisposable
     partial void DisconnectPlatform();
 
     partial void UpdatePlatform();
+
+    partial void ShowPlatform(ref bool shown);
 }

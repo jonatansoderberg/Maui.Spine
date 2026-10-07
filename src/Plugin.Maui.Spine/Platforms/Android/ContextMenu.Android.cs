@@ -54,6 +54,13 @@ internal sealed partial class ContextMenuState
             Common.SpineStrings.Current["Spine.ContextMenu.Open"], null);
     }
 
+    partial void ShowPlatform(ref bool shown)
+    {
+        shown = Open();
+        if (shown)
+            _host?.PerformHapticFeedback(Android.Views.FeedbackConstants.LongPress);
+    }
+
     bool Open()
     {
         if (_host is not { } host || !CanOpen || Items is not { } items || View.Handler is not { } handler)

@@ -31,10 +31,33 @@ public partial class DataGridPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial bool IsCellCopyEnabled { get; set; } = true;
 
+    [ObservableProperty]
+    public partial bool HasRowMenu { get; set; } = true;
+
+    // One menu for every row; each action gets the row's product. The grid adds "Copy <column>" on top.
+    private readonly MenuItems _rowMenu;
+
+    public MenuItems? RowMenu => HasRowMenu ? _rowMenu : null;
+
+    public DataGridPageViewModel()
+    {
+        _rowMenu =
+        [
+            new MenuSection
+            {
+                new MenuAction("Details", "info.svg", RowTappedCommand),
+                new MenuAction("Star", "star.svg", ToggleFavouriteCommand),
+            },
+            new MenuAction("Delete", "trashcan.svg", DeleteCommand) { IsDestructive = true },
+        ];
+    }
+
+    partial void OnHasRowMenuChanged(bool value) => OnPropertyChanged(nameof(RowMenu));
+
     public bool ShowGrid => !ShowCode;
 
     [ObservableProperty]
-    public partial string LastAction { get; set; } = "Tap a header to sort, or a row, a SKU or a star. Swipe a row; long-press a header or a value.";
+    public partial string LastAction { get; set; } = "Tap a header to sort, or a row, a SKU or a star. Swipe a row; long-press a header, or a row for its menu.";
 
     public string? GroupByPath => IsGrouped ? nameof(Product.Category) : null;
 
@@ -87,7 +110,8 @@ public partial class DataGridPageViewModel : SampleViewModel
     private Task ShowGridOptions() => ShowOptionsAsync("DataGrid",
         new ToggleOption("Group by category", "Rows under a header per category. Grouping shows every row: it does not combine with load more.", () => IsGrouped, v => IsGrouped = v),
         new ToggleOption("Pull to refresh", "Pull the list down to load it again.", () => IsRefreshEnabled, v => IsRefreshEnabled = v),
-        new ToggleOption("Copy on long-press", "Long-press a value to copy what it shows.", () => IsCellCopyEnabled, v => IsCellCopyEnabled = v));
+        new ToggleOption("Row menu", "Long-press a row, or right-click it, for its context menu: copy the value you pressed, details, star or delete.", () => HasRowMenu, v => HasRowMenu = v),
+        new ToggleOption("Copy on long-press", "Long-press a value to copy what it shows. With the row menu, Copy is the menu's first row.", () => IsCellCopyEnabled, v => IsCellCopyEnabled = v));
 
     [RelayCommand]
     private void RowTapped(Product product) => LastAction = $"Row: {product.Name}";

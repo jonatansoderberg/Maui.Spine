@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Plugin.Maui.Spine.Common;
+using Plugin.Maui.Spine.Extensions;
 
 namespace Plugin.Maui.Spine.Controls;
 
@@ -14,7 +15,8 @@ namespace Plugin.Maui.Spine.Controls;
 /// <see cref="DataGridStyleOptions.LongPressDuration"/> it is a tap, held past it a long press. Which
 /// cell was hit is found by matching the press point against the row's cells, so a link cell, a
 /// checkbox cell and the row itself share the recognizer, and a long-pressed text cell copies the text
-/// its label already shows: no reflection, no extra binding and no extra view.
+/// its label already shows: no reflection, no extra binding and no extra view. With a
+/// <see cref="RowContextMenu"/> the long press opens the menu instead, and the copy is its first row.
 /// </para>
 /// <para>
 /// One recognizer rather than a tap recognizer per row plus a pointer recognizer per row and per link
@@ -62,18 +64,42 @@ public partial class DataGrid
     private void AttachRowPress(Grid row, RowCell[] cells)
     {
         var pointer = new PointerGestureRecognizer();
+
+        // With a row menu a right click opens it, and says which cell its copy row is for; it neither taps nor copies.
+        if (_rowMenu is not null)
+            pointer.Buttons = ButtonsMask.Primary | ButtonsMask.Secondary;
+
         pointer.PointerPressed += (_, e) =>
         {
-            if (e.GetPosition(row) is { } point)
-                BeginRowPress(row, point, FindCell(cells, point));
+            if (e.GetPosition(row) is not { } point)
+                return;
+
+            var cell = FindCell(cells, point);
+            TargetCopyRow(row, cell);
+
+            if (e.Button != ButtonsMask.Secondary)
+                BeginRowPress(row, point, cell);
+#if ANDROID
+            else
+                ContextMenu.Show(row);
+#endif
         };
         pointer.PointerMoved += (_, e) =>
         {
-            if (_press is { } press
-                && ReferenceEquals(press.Row, row)
-                && e.GetPosition(row) is { } point
-                && point.Distance(press.Point) > PressSlop)
-                CancelRowPress();
+            if (e.GetPosition(row) is not { } point)
+                return;
+
+            if (_press is { } press && ReferenceEquals(press.Row, row))
+            {
+                if (point.Distance(press.Point) > PressSlop)
+                    CancelRowPress();
+            }
+            else if (_rowMenu is not null)
+            {
+                // A mouse hovering: a right click on Mac Catalyst raises no press, so the copy row
+                // follows the cell under the pointer instead.
+                TargetCopyRow(row, FindCell(cells, point));
+            }
         };
         pointer.PointerReleased += (_, _) => EndRowPress(row);
         row.GestureRecognizers.Add(pointer);
@@ -115,6 +141,16 @@ public partial class DataGrid
 
         // From here the press is a long one, whatever it finds: the release must not also tap.
         press.LongPressed = true;
+
+        // The row's context menu opens on this press, and copying is a row of it. On Android the row's
+        // recognizer takes the touch before the view's own long click, so the grid opens the menu.
+        if (_rowMenu is not null)
+        {
+#if ANDROID
+            ContextMenu.Show(press.Row);
+#endif
+            return;
+        }
 
         if (press.Cell is not { CopySource: { } label } cell
             || label.Handler is null

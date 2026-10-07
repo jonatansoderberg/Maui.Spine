@@ -196,6 +196,10 @@ public partial class DataGrid : ContentView
         nameof(IsCellCopyEnabled), typeof(bool), typeof(DataGrid), true,
         propertyChanged: (b, _, _) => ((DataGrid)b).QueueRebuild());
 
+    public static readonly BindableProperty RowContextMenuProperty = BindableProperty.Create(
+        nameof(RowContextMenu), typeof(MenuItems), typeof(DataGrid),
+        propertyChanged: (b, oldValue, newValue) => ((DataGrid)b).OnRowContextMenuChanged((MenuItems?)oldValue, (MenuItems?)newValue));
+
     public static readonly BindableProperty RefreshCommandProperty = BindableProperty.Create(
         nameof(RefreshCommand), typeof(ICommand), typeof(DataGrid),
         propertyChanged: (b, _, value) =>
@@ -335,11 +339,26 @@ public partial class DataGrid : ContentView
         set => SetValue(RowTappedCommandProperty, value);
     }
 
-    /// <summary>Long-pressing a text cell copies what it shows. On by default.</summary>
+    /// <summary>
+    /// Long-pressing a text cell copies what it shows. On by default. With a <see cref="RowContextMenu"/>
+    /// the copy is a row of the menu instead, "Copy <i>column</i>".
+    /// </summary>
     public bool IsCellCopyEnabled
     {
         get => (bool)GetValue(IsCellCopyEnabledProperty);
         set => SetValue(IsCellCopyEnabledProperty, value);
+    }
+
+    /// <summary>
+    /// The context menu of every row, opened with a long press or a right click: the same
+    /// <see cref="MenuItems"/> as <c>ContextMenu.Items</c>. A picked action without a
+    /// <see cref="MenuAction.CommandParameter"/> of its own gets the row's item. While it is set, the
+    /// copy of a long-pressed text cell is the menu's first row rather than happening on the press.
+    /// </summary>
+    public MenuItems? RowContextMenu
+    {
+        get => (MenuItems?)GetValue(RowContextMenuProperty);
+        set => SetValue(RowContextMenuProperty, value);
     }
 
     public ICommand? RefreshCommand

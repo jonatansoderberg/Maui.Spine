@@ -61,14 +61,14 @@ public static partial class SpineExtensions
         }
     }
 
+    // A destructive row is red, its icon too, as UIKit draws it.
+    static readonly Color DestructiveColor = Color.FromRgb(211, 47, 47);
+
     /// <summary>
     /// Shows <paramref name="items"/> as a <see cref="PopupMenu"/> anchored to <paramref name="anchor"/>:
     /// a menu button's menu on a tap, a context menu on a long press. A pick runs through
     /// <see cref="MenuButton.Pick"/> with <paramref name="parameter"/> as the fallback parameter.
     /// </summary>
-    // A destructive row is red, its icon too, as UIKit draws it.
-    static readonly Color DestructiveColor = Color.FromRgb(211, 47, 47);
-
     internal static PopupMenu? ShowPopup(IElementHandler handler, AView anchor, MenuItems items, VisualElement owner, object? parameter)
     {
         if (anchor.Context is not { } context)

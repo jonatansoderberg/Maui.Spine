@@ -129,6 +129,8 @@ private void Remove(Race race) => Races.Remove(race);
   `RoundRectangle`, filled with its background (or the system background when it has none). iOS
   15 lifts a plain rectangle. Mac Catalyst, Android and Windows show the menu without a preview,
   because the platforms have none.
+- **Opening it from code.** `ContextMenu.Show(view)` opens the menu on Android, with the long-press haptic, and on Windows. Use it for a view whose own long press never reaches the platform's: on Android, a view with MAUI gesture recognizers takes the touch before the long click. iOS and Mac Catalyst open a context menu only from the system's gesture, so there it returns `false`.
+- **In a `DataGrid`**, set `RowContextMenu` on the grid instead (see [DataGrid](data-grid.md#row-context-menu)).
 - **Don't mix it with `FlyoutBase.ContextFlyout`** on the same view. Windows and Mac Catalyst
   would then have two mechanisms fighting over the right click.
 

@@ -391,6 +391,7 @@ public partial class DataGrid
         }
 
         AttachRowPress(rowGrid, [.. cells]);
+        AttachRowMenu(rowGrid);
 
         if (leftActions.Length == 0 && rightActions.Length == 0)
             return rowGrid;
