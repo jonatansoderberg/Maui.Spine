@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseMeshBackground() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Controls.MeshBackground" Register="Plugin.Maui.Spine.Controls.MeshBackgroundExtensions.UseMeshBackground" />
+	</ItemGroup>
+</Project>

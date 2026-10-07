@@ -192,6 +192,24 @@
       <DependentUpon>TransitionDetailPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Mesh\MeshPage.View.xaml">
+      <DependentUpon>MeshPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Mesh\MeshPage.ViewModel.cs">
+      <DependentUpon>MeshPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Mesh\MeshFullScreenPage.View.xaml">
+      <DependentUpon>MeshFullScreenPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Mesh\MeshFullScreenPage.ViewModel.cs">
+      <DependentUpon>MeshFullScreenPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Photos\PhotosPage.View.xaml">
       <DependentUpon>PhotosPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -537,6 +555,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Rows\Plugin.Maui.Spine.Controls.Rows.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\Plugin.Maui.Spine.Controls.MeshBackground.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
