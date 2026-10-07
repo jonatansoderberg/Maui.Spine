@@ -37,6 +37,15 @@ internal sealed partial class ContextMenuState
         _host = null;
     }
 
+    partial void ShowPlatform(ref bool shown)
+    {
+        if (_host is null || _flyout is null)
+            return;
+
+        _flyout.ShowAt(_host);
+        shown = true;
+    }
+
     void OnOpening(object? sender, object e)
     {
         if (_flyout is not { } flyout)

@@ -8,6 +8,7 @@
   <s key="Spine.DataGrid.Status.Loaded.other">{0} items</s>
   <s key="Spine.DataGrid.Status.LoadedOfTotal">{0} of {1}</s>
   <s key="Spine.DataGrid.Copied">Copied</s>
+  <s key="Spine.DataGrid.CopyColumn">Copy {0}</s>
   <s key="Spine.DataGrid.Header.SortedAscending">{0}, sorted ascending</s>
   <s key="Spine.DataGrid.Header.SortedDescending">{0}, sorted descending</s>
   <s key="Spine.DataGrid.Header.SortHint">Changes the sort order</s>

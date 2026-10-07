@@ -160,9 +160,36 @@ Long-pressing a text cell (`Text`, `Number`, `Date`, `Price`, links included) co
 DataGrid.CellCopied = (column, text) => snackbar.ShowAsync($"{column.Header} copied");   // the app's own confirmation
 ```
 
-`IsCellCopyEnabled="False"` turns copying off for a grid.
+`IsCellCopyEnabled="False"` turns copying off for a grid. With a [row context menu](#row-context-menu), the long press opens the menu instead, and the copy is the menu's first row.
 
 Each row carries one `PointerGestureRecognizer`, which times the press itself: released early it is a tap (dispatched to the link, the checkbox or the row by where it landed), held for `LongPressDuration` (500 ms) it is a long press. A scroll, a swipe or a finger that drifts more than 10 units cancels it.
+
+### Row context menu
+
+```xml
+<DataGrid ItemsSource="{Binding Products}" RowContextMenu="{Binding RowMenu}" />
+```
+
+```csharp
+public MenuItems RowMenu { get; } =
+[
+    new MenuSection
+    {
+        new MenuAction("Details", "info.svg", OpenCommand),
+        new MenuAction("Star", "star.svg", StarCommand),
+    },
+    new MenuAction("Delete", "trashcan.svg", DeleteCommand) { IsDestructive = true },
+];
+```
+
+`RowContextMenu` gives every row the platform's own context menu, opened with a long press or a right click. It uses the same `MenuItems` as `ContextMenu.Items` and menu buttons (see [Menu buttons and context menus](menus.md#context-menus)).
+
+- **Parameter.** A picked action without a `CommandParameter` of its own gets the row's item.
+- **Copy.** When the menu opens on a text cell that shows text, a "Copy *column*" row (`Spine.DataGrid.CopyColumn`, "Copy {0}") sits on top. It copies what that cell shows and confirms like a long-press copy (the "Copied" bubble, or `CellCopied`). On another cell, or with `IsCellCopyEnabled="False"`, the copy row is left out.
+- **Taps and swipes.** A tap still goes to the link, the checkbox or `RowTappedCommand`. The long press opens the menu, and no tap follows. Swipe actions are unchanged.
+- **iOS and iPadOS** lift the row under a `UIContextMenuInteraction`.
+- **Android** opens a `PopupMenu` at the row from the grid's own long press, since the row's recognizer takes the touch before the view's long click. A right click with a mouse opens it as well.
+- **Mac Catalyst and Windows** open it with a right click. The copy row follows the cell under the pointer, because Mac Catalyst reports no press for a right click.
 
 ---
 
@@ -285,4 +312,4 @@ Cells bind by property path, because templates built in code cannot use compiled
 
 ## Sample
 
-The sample app's **DataGrid** page (`samples/MauiSpineSampleApp/Pages/DataGrid`) shows the Wide/Narrow layouts (rotate the device), sorting, grouping, a link and a checkbox column, swipe actions, load more, pull-to-refresh, the header tooltip, cell copy and a theme toggle in the header bar.
+The sample app's **DataGrid** page (`samples/MauiSpineSampleApp/Pages/DataGrid`) shows the Wide/Narrow layouts (rotate the device), sorting, grouping, a link and a checkbox column, swipe actions, a row context menu with the copy row, load more, pull-to-refresh, the header tooltip, cell copy and a theme toggle in the header bar.

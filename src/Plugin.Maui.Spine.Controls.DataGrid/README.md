@@ -1,6 +1,6 @@
 # Plugin.Maui.Spine.Controls.DataGrid
 
-`DataGrid` is a responsive row grid for .NET MAUI on `CollectionView`: fixed-height rows, named layouts (Wide/Narrow) over the same columns, sortable headers, grouping with expandable headers, swipe actions, load more and pull-to-refresh. Colours follow the light or dark theme; texts come in English and Swedish and can be overridden.
+`DataGrid` is a responsive row grid for .NET MAUI on `CollectionView`: fixed-height rows, named layouts (Wide/Narrow) over the same columns, sortable headers, grouping with expandable headers, swipe actions, a row context menu, load more and pull-to-refresh. Colours follow the light or dark theme; texts come in English and Swedish and can be overridden.
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Controls.DataGrid

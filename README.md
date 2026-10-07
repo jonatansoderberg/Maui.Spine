@@ -209,7 +209,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [HeroCollectionView](docs/wiki/hero-collection-view.md) | Collapsing sticky header, adaptive overlay |
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
 | [Calendar](docs/wiki/calendar.md) | Month calendar: swipe between months, year and decade pickers, ISO week numbers, marked days, theme and culture aware |
-| [DataGrid](docs/wiki/data-grid.md) | Row grid on `CollectionView`: Wide/Narrow layouts, sorting, grouping, swipe actions, load more, pull-to-refresh |
+| [DataGrid](docs/wiki/data-grid.md) | Row grid on `CollectionView`: Wide/Narrow layouts, sorting, grouping, swipe actions, a row context menu, load more, pull-to-refresh |
 | [Loading states](docs/wiki/loading-states.md) | `TaskState` and `StateView`: loading, error with retry, empty and content from one load that lives with the page |
 | [Shimmer and Skeleton](docs/wiki/shimmer.md) | Skeleton loading that follows the theme and Reduce Motion; `Skeleton.IsActive` turns a real layout into its own skeleton |
 | [Rows and taps](docs/wiki/rows.md) | `SpineRow` settings and key/value rows; `Tap.Command` with native press feedback on any view; `Semantic.Merge` for one screen-reader element |
