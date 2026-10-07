@@ -105,6 +105,52 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
     readonly PageActionView _primaryPageActionView;
     readonly PageActionView _secondaryPageActionView;
+    SearchField? _searchField;
+
+    /// <summary>
+    /// The page's search field when it goes at the trailing end of the bar (iPad, Mac Catalyst),
+    /// left of the trailing action; <see langword="null"/> for none.
+    /// </summary>
+    public PageSearch? Search
+    {
+        get => _searchField?.Search;
+        set
+        {
+            if (ReferenceEquals(value, Search) || (value is null && _searchField is null))
+                return;
+
+            if (_searchField is null)
+            {
+                _searchField = new SearchField
+                {
+                    HorizontalOptions = LayoutOptions.End,
+                    VerticalOptions = LayoutOptions.Center,
+                    HeightRequest = HeaderBarConstants.Height,
+                };
+                _searchField.SizeChanged += (_, _) => PublishActionSlots();
+                ((Grid)Content).Add(_searchField, 2);
+                ApplySearchWidth();
+                ApplySearchGap();
+            }
+
+            _searchField.Search = value;
+            _searchField.IsVisible = value is not null;
+            PublishActionSlots();
+        }
+    }
+
+    // As wide as a Mac toolbar's search field, but never more than two fifths of the bar.
+    void ApplySearchWidth()
+    {
+        if (_searchField is not null)
+            _searchField.WidthRequest = Width > 0 ? Math.Min(SearchField.TrailingWidth, Width * 0.4) : SearchField.TrailingWidth;
+    }
+
+    void ApplySearchGap()
+    {
+        if (_searchField is not null)
+            _searchField.Margin = new Thickness(0, 0, _secondaryPageActionView.IsVisible ? HeaderBarConstants.TitleActionGap : 0, 0);
+    }
 
     /// <summary>
     /// Raised when <see cref="PrimaryActionSlot"/> or <see cref="SecondaryActionSlot"/> changes.
@@ -280,6 +326,10 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     {
         var primary = SlotFor(_primaryPageActionView, leading: true);
         var secondary = SlotFor(_secondaryPageActionView, leading: false);
+
+        // The title keeps clear of a search field at the trailing end too.
+        if (_searchField is { IsVisible: true, Bounds.Width: > 0 } field && Width > 0)
+            secondary = Math.Max(secondary, Width - field.Bounds.Left);
 
         if (primary.Equals(PrimaryActionSlot) && secondary.Equals(SecondaryActionSlot))
             return;
@@ -498,7 +548,16 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
         _primaryPageActionView.SizeChanged += (_, _) => PublishActionSlots();
         _secondaryPageActionView.SizeChanged += (_, _) => PublishActionSlots();
-        SizeChanged += (_, _) => PublishActionSlots();
+        _secondaryPageActionView.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IsVisible))
+                ApplySearchGap();
+        };
+        SizeChanged += (_, _) =>
+        {
+            ApplySearchWidth();
+            PublishActionSlots();
+        };
 
         UpdatePresentationSizes();
     }

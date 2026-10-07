@@ -203,6 +203,21 @@ public static class HeaderBarConstants
 #endif
 
     /// <summary>
+    /// The height of the row a page's search field takes below the header bar (see
+    /// <see cref="Core.PageSearch"/>): a <c>UISearchController</c>'s stacked search bar on iOS and Mac
+    /// Catalyst, 52 points, or 60 from 26, whose field is taller; Material 3's 56-point search bar
+    /// with 8 below it on Android; a 32-point <c>AutoSuggestBox</c> with room around it on Windows.
+    /// </summary>
+    public static double SearchRowHeight { get; } =
+#if IOS || MACCATALYST
+        OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26) ? 60 : 52;
+#elif ANDROID
+        64;
+#else
+        48;
+#endif
+
+    /// <summary>
     /// The scroll offset at which a large title laid out with these constants has gone under the
     /// bar: its text is centred in the row, so the text's lower edge is half a row plus half a font
     /// size down. The default <c>HeaderBar.CollapseDistance</c>.

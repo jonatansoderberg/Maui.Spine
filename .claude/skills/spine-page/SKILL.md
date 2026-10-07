@@ -183,6 +183,10 @@ A tap can play a haptic: `[PageAction("Save", Role = PageActionRole.Confirm, Hap
 
 `PageAction` is observable: set `Text`, `Svg`, `Badge` ("3", "•"), `IsEnabled`, `IsVisible` or `Haptic` on the instance while the page shows and the header follows. Find a declared one with `PageActions.First(a => a.Command == FilterCommand)`. Adding or removing from `PageActions` at runtime also updates the header.
 
+## Search in the header bar
+
+Put `[PageSearch(Placeholder = "Search towns", Submit = nameof(OpenFirstCommand))]` on the `[ObservableProperty] public partial string Query { get; set; } = "";` that holds the text, and filter the page's own list in `partial void OnQueryChanged(string value)`; nothing goes in XAML. Spine creates `ViewModelBase.Search` (a `PageSearch`) before the page appears and keeps it and `Query` in step both ways. `Search.IsActive = true` starts a search (focus and keyboard), `Search.IsVisible = false` hides the field. Placement `Automatic`: a row below the header bar on phones, Android, Windows and in sheets, the trailing end of the bar on iPad and Mac Catalyst (wide windows); `SearchPlacement.Top` forces the row. One per page; no header bar, no field. Spine draws no results view. See docs/wiki/search.md.
+
 ## Binding to the page from a template
 
 `{PageCommand Pick}` binds `PickCommand` on the page's view model from inside a `DataTemplate`; `{PageBinding Path}` binds any member of it (supports `Mode`, `Converter`, `StringFormat`). Use them instead of `RelativeSource AncestorType` bindings.
@@ -208,5 +212,6 @@ A tap can play a haptic: `[PageAction("Save", Role = PageActionRole.Confirm, Hap
 - Loading states: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/loading-states.md
 - Shared elements and zoom: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/transitions.md
 - Lightbox (a `[NavigableLightbox]` photo viewer page with a `Lightbox`): https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/lightbox.md
+- Search in the header bar: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/search.md
 - Parameters / Results / Page actions: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/navigation-parameters.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/navigation-results.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/page-actions.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp/Pages

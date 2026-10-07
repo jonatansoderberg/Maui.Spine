@@ -1,0 +1,25 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Search.SearchSheetPage"
+    x:TypeArguments="SearchSheetPageViewModel"
+    x:DataType="SearchSheetPageViewModel">
+
+    <CollectionView ItemsSource="{Binding Towns}">
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="4">
+                <Label Text="A sheet always has the field in a row below its header bar." FontSize="15" />
+                <Label Text="{Binding CountText}" FontSize="13" Opacity="0.6" Margin="0,8,0,0" />
+            </VerticalStackLayout>
+        </CollectionView.Header>
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="Town">
+                <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Margin="0,8" Spacing="2">
+                    <Label Text="{Binding Name}" FontSize="17" />
+                    <Label Text="{Binding County}" FontSize="13" Opacity="0.6" />
+                </VerticalStackLayout>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+
+</SpinePage>

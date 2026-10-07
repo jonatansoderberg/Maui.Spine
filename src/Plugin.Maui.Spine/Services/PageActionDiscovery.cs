@@ -8,7 +8,8 @@ namespace Plugin.Maui.Spine.Services;
 
 /// <summary>
 /// Turns <see cref="PageActionAttribute"/> declarations on a view model into
-/// <see cref="PageAction"/> instances, once per view model instance.
+/// <see cref="PageAction"/> instances, and its <see cref="PageSearchAttribute"/> into
+/// <see cref="ViewModelBase.Search"/>, once per view model instance.
 /// </summary>
 internal static class PageActionDiscovery
 {
@@ -28,6 +29,7 @@ internal static class PageActionDiscovery
             return;
 
         viewModel.DeclaredActionsAdded = true;
+        viewModel.Search ??= PageSearchDiscovery.Create(viewModel);
 
         foreach (var template in _templates.GetOrAdd(viewModel.GetType(), Scan))
         {
@@ -62,7 +64,7 @@ internal static class PageActionDiscovery
             var commandName = attribute.Command ?? member switch
             {
                 PropertyInfo property when IsCommand(property) => property.Name,
-                MethodInfo method => CommandNameFor(method.Name),
+                MethodInfo method => ToolkitNames.CommandFor(method.Name),
                 _ => member.Name,
             };
 
@@ -79,11 +81,4 @@ internal static class PageActionDiscovery
     }
 
     private static bool IsCommand(PropertyInfo property) => typeof(ICommand).IsAssignableFrom(property.PropertyType);
-
-    // CommunityToolkit.Mvvm's rule for the generated property: drop a trailing "Async", append "Command".
-    private static string CommandNameFor(string methodName)
-    {
-        var name = methodName.EndsWith("Async", StringComparison.Ordinal) ? methodName[..^5] : methodName;
-        return name + "Command";
-    }
 }

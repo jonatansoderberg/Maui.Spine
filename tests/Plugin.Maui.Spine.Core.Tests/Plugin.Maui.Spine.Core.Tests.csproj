@@ -8,11 +8,15 @@
 
 	<!--
 		Plugin.Maui.Spine targets only MAUI platforms, which a net10.0 test cannot reference.
-		TaskState and the shortcut icon names have no MAUI types, so they are compiled in here directly.
+		TaskState, the shortcut icon names and the search declaration have no MAUI types, so they are compiled in here directly.
 	-->
 	<ItemGroup>
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\TaskState.cs" Link="TaskState.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\ShortcutIcons.Names.cs" Link="ShortcutIcons.Names.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\PageSearch.cs" Link="PageSearch.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\PageSearchAttribute.cs" Link="PageSearchAttribute.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Services\PageSearchDiscovery.cs" Link="PageSearchDiscovery.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Services\ToolkitNames.cs" Link="ToolkitNames.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

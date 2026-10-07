@@ -172,6 +172,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Navigation parameters** | Pass typed data into a page | [Navigation Parameters](docs/wiki/navigation-parameters.md) |
 | **Navigation results** | Await a typed result from a page | [Navigation Results](docs/wiki/navigation-results.md) |
 | **Page actions** | Header bar buttons driven by the ViewModel | [Page Actions](docs/wiki/page-actions.md) |
+| **Search** | `[PageSearch]` on a string property: a search field with the header bar, in a row below it or at its trailing end on iPad and Mac, kept in step with the property | [Search](docs/wiki/search.md) |
 | **Shortcuts** | OS dock/jump-list/tray menu integration | [Shortcuts](docs/wiki/shortcuts.md) |
 | **Menu buttons** | A button or header action that opens the platform's own menu: sections, pickers, submenus, toggles, destructive rows | [Menu buttons](docs/wiki/menus.md) |
 | **Context menus** | A long press or right click on any view opens the system's context menu, lifted with its shape on iOS; one shared menu for every row of a list | [Context menus](docs/wiki/menus.md#context-menus) |
@@ -198,6 +199,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Navigation Parameters](docs/wiki/navigation-parameters.md) | Pass typed data to a page |
 | [Navigation Results](docs/wiki/navigation-results.md) | Await a typed result from a page |
 | [Page Actions](docs/wiki/page-actions.md) | Header bar buttons (text and SVG icons) |
+| [Search](docs/wiki/search.md) | `[PageSearch]` and `PageSearch`: the field with the header bar, its placement per platform, `IsActive` and `IsVisible` from code, the search key's command |
 | [Shortcuts](docs/wiki/shortcuts.md) | App shortcuts and tray menu |
 | [Windows Platform Options](docs/wiki/windows-options.md) | Window size, tray, single-instance, title bar |
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
