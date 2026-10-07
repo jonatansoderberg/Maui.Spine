@@ -19,4 +19,5 @@
   <s key="Spine.Reorder.MoveDown">Flytta ned</s>
   <s key="Spine.Reorder.MoveToTop">Flytta överst</s>
   <s key="Spine.Reorder.MoveToBottom">Flytta nederst</s>
+  <s key="Spine.ContextMenu.Open">Visa åtgärder</s>
 </strings>

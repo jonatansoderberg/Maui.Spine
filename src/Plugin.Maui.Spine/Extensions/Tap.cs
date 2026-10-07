@@ -230,8 +230,11 @@ internal sealed partial class TapState : IDisposable
     }
 
     /// <summary>The corner radius the press highlight follows: a <see cref="Border"/>'s rounded shape.</summary>
-    double CornerRadius() =>
-        _view is Border { StrokeShape: Microsoft.Maui.Controls.Shapes.RoundRectangle shape } ? shape.CornerRadius.TopLeft : 0;
+    double CornerRadius() => CornerRadiusOf(_view);
+
+    /// <summary>The corner radius of <paramref name="view"/>'s shape: a <see cref="Border"/>'s rounding, else 0.</summary>
+    internal static double CornerRadiusOf(View view) =>
+        view is Border { StrokeShape: Microsoft.Maui.Controls.Shapes.RoundRectangle shape } ? shape.CornerRadius.TopLeft : 0;
 
     partial void ConnectPlatform(object platformView);
 

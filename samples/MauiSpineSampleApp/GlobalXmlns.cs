@@ -136,6 +136,10 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
+    "MauiSpineSampleApp.Pages.ContextMenus")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.Dates")]
 
 [assembly: XmlnsDefinition(

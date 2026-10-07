@@ -1,0 +1,100 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.ContextMenus.ContextMenusPage"
+    x:TypeArguments="ContextMenusPageViewModel"
+    x:DataType="ContextMenusPageViewModel">
+
+    <SpinePage.Resources>
+        <Color x:Key="CardLight">#F2F2F7</Color>
+        <Color x:Key="CardDark">#1C1C1E</Color>
+    </SpinePage.Resources>
+
+    <SampleLayout Packages="Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons">
+
+        <Example Title="A card with a menu"
+                 Summary="Long-press the card, or right-click it with a mouse, for the platform's own context menu. A tap still opens it. iOS lifts the card with its rounded corners; Android shows the menu at the card. The ⋯ button in the header opens the same menu.">
+            <VerticalStackLayout Spacing="10">
+                <Border Padding="16,14" StrokeThickness="0" StrokeShape="RoundRectangle 16"
+                        BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
+                        Tap.Command="{Binding OpenCommand}" Semantic.Merge="True"
+                        ContextMenu.Items="{Binding CardMenu}">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Night sprint" FontSize="17" FontAttributes="Bold" />
+                        <Label Text="Uppsala · Friday 18:30" FontSize="15" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
+                    </VerticalStackLayout>
+                </Border>
+                <Label Text="{Binding CardStatus}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;Border Tap.Command="{Binding OpenCommand}"
+                        ContextMenu.Items="{Binding CardMenu}"&gt;
+                    ...
+                &lt;/Border&gt;
+
+                CardMenu =
+                [
+                    new MenuSection
+                    {
+                        follow,
+                        unfollow,   // IsVisible = false until followed
+                        new MenuAction("Add to calendar", "calendar.svg", AddToCalendarCommand),
+                    },
+                    new MenuAction("Share", "share.svg", ShareCommand),
+                ];
+
+                // The same menu in the header bar.
+                PageActions.Add(new PageAction(null, CardMenu) { Svg = "more.svg" });
+            </Example.Code>
+        </Example>
+
+        <Example Title="One menu for every row"
+                 Summary="Set the menu on the row template's root. One shared menu serves every row: ContextMenu.CommandParameter hands each command the row it was opened on. The menu is built when it opens, so a recycled row shows its own item.">
+            <VerticalStackLayout Spacing="10">
+                <CollectionView ItemsSource="{Binding Races}" HeightRequest="330">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="Race">
+                            <Border Margin="0,3" Padding="16,10" StrokeThickness="0" StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
+                                    ContextMenu.Items="{PageBinding RowMenu}"
+                                    ContextMenu.CommandParameter="{Binding .}">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" />
+                                    <Label Text="{Binding Details}" FontSize="14" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+                <Label Text="{Binding RowStatus}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;CollectionView ItemsSource="{Binding Races}"&gt;
+                    &lt;CollectionView.ItemTemplate&gt;
+                        &lt;DataTemplate x:DataType="Race"&gt;
+                            &lt;Border ContextMenu.Items="{PageBinding RowMenu}"
+                                    ContextMenu.CommandParameter="{Binding .}"&gt;
+                                ...
+                            &lt;/Border&gt;
+                        &lt;/DataTemplate&gt;
+                    &lt;/CollectionView.ItemTemplate&gt;
+                &lt;/CollectionView&gt;
+
+                RowMenu =
+                [
+                    new MenuSection
+                    {
+                        new MenuAction("Copy name", "copy.svg", CopyCommand),
+                        new MenuAction("Share", "share.svg", ShareCommand),
+                    },
+                    new MenuAction("Remove", "trashcan.svg", RemoveCommand) { IsDestructive = true },
+                ];
+
+                [RelayCommand]
+                private void Remove(Race race) =&gt; Races.Remove(race);
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

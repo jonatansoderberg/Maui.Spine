@@ -285,6 +285,15 @@
       <DependentUpon>MenusPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\ContextMenus\ContextMenusPage.View.xaml">
+      <DependentUpon>ContextMenusPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\ContextMenus\ContextMenusPage.ViewModel.cs">
+      <DependentUpon>ContextMenusPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
       <DependentUpon>ScrollInsetPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

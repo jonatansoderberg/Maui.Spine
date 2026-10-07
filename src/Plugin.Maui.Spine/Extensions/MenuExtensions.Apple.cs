@@ -59,6 +59,9 @@ public static partial class SpineExtensions
         {
             button.Menu = null;
             button.ShowsMenuAsPrimaryAction = false;
+
+            // A context menu on the same button takes the menu back.
+            ContextMenu.GetState(view)?.Refresh();
             return;
         }
 
@@ -84,10 +87,10 @@ public static partial class SpineExtensions
         MenuObservers.Add(button, new MenuObserver(items, Build));
     }
 
-    static UIMenu BuildMenu(IElementHandler handler, VisualElement owner, IEnumerable<MenuElement> elements) =>
-        UIMenu.Create(string.Empty, null, UIMenuIdentifier.None, UIMenuOptions.DisplayInline, BuildChildren(handler, owner, elements));
+    static UIMenu BuildMenu(IElementHandler handler, VisualElement owner, IEnumerable<MenuElement> elements, object? parameter = null) =>
+        UIMenu.Create(string.Empty, null, UIMenuIdentifier.None, UIMenuOptions.DisplayInline, BuildChildren(handler, owner, elements, parameter));
 
-    static UIMenuElement[] BuildChildren(IElementHandler handler, VisualElement owner, IEnumerable<MenuElement> elements)
+    static UIMenuElement[] BuildChildren(IElementHandler handler, VisualElement owner, IEnumerable<MenuElement> elements, object? parameter)
     {
         var children = new List<UIMenuElement>();
 
@@ -95,18 +98,18 @@ public static partial class SpineExtensions
         {
             switch (element)
             {
-                case MenuAction action:
-                    children.Add(BuildAction(handler, owner, action, null));
+                case MenuAction { IsVisible: true } action:
+                    children.Add(BuildAction(handler, owner, action, null, parameter));
                     break;
 
                 case MenuSection section:
                     children.Add(UIMenu.Create(section.Title ?? string.Empty, null, UIMenuIdentifier.None, UIMenuOptions.DisplayInline,
-                        BuildChildren(handler, owner, section.Items)));
+                        BuildChildren(handler, owner, section.Items, parameter)));
                     break;
 
-                case SubMenu subMenu:
+                case SubMenu { IsVisible: true } subMenu:
                     children.Add(UIMenu.Create(subMenu.Title, MenuImage(handler, subMenu.Svg), UIMenuIdentifier.None, 0,
-                        BuildChildren(handler, owner, subMenu.Items)));
+                        BuildChildren(handler, owner, subMenu.Items, parameter)));
                     break;
 
                 case MenuPicker picker:
@@ -115,7 +118,7 @@ public static partial class SpineExtensions
                         options |= UIMenuOptions.SingleSelection;
 
                     children.Add(UIMenu.Create(string.Empty, null, UIMenuIdentifier.None, options,
-                        [.. picker.Items.Select(a => BuildAction(handler, owner, a, picker))]));
+                        [.. picker.Items.Where(a => a.IsVisible).Select(a => BuildAction(handler, owner, a, picker, parameter))]));
                     break;
             }
         }
@@ -123,9 +126,9 @@ public static partial class SpineExtensions
         return [.. children];
     }
 
-    static UIAction BuildAction(IElementHandler handler, VisualElement owner, MenuAction action, MenuPicker? picker)
+    static UIAction BuildAction(IElementHandler handler, VisualElement owner, MenuAction action, MenuPicker? picker, object? parameter)
     {
-        var uiAction = UIAction.Create(action.Title, MenuImage(handler, action.Svg), null, _ => MenuButton.Pick(owner, action, picker));
+        var uiAction = UIAction.Create(action.Title, MenuImage(handler, action.Svg), null, _ => MenuButton.Pick(owner, action, picker, parameter));
 
         uiAction.State = action.IsChecked ? UIMenuElementState.On : UIMenuElementState.Off;
 
