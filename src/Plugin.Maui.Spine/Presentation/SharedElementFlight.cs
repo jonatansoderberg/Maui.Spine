@@ -89,13 +89,20 @@ internal sealed partial class SharedElementFlight : IDisposable
 
         try
         {
-            await Task.Yield();
+            await NextLayoutAsync(layer);
         }
         finally
         {
             layer.Opacity = 1;
         }
     }
+
+    /// <summary>
+    /// Waits until <paramref name="layer"/> has been laid out with the page it was just given:
+    /// one turn of the main queue on iOS, where the layout itself is synchronous; the next layout
+    /// pass on Android, which runs ahead of the frame it draws.
+    /// </summary>
+    private static partial Task NextLayoutAsync(View layer);
 
     private void Hide(params VisualElement[] views)
     {
@@ -160,7 +167,8 @@ internal sealed partial class SharedElementFlight : IDisposable
 
     private partial void RemovePictures();
 
-#if !IOS && !MACCATALYST
+#if !IOS && !MACCATALYST && !ANDROID
+    private static partial Task NextLayoutAsync(View layer) => Task.CompletedTask;
     private static partial SharedElementFlight? Create(View container, View front) => null;
     private partial void Add(List<VisualElement> sources, List<VisualElement> targets) { }
     private partial bool AddZoom(List<VisualElement> views, bool push, VisualElement? focus) => false;

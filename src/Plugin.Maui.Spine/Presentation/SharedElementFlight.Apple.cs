@@ -34,6 +34,8 @@ internal sealed partial class SharedElementFlight
         _front = front;
     }
 
+    private static async partial Task NextLayoutAsync(View layer) => await Task.Yield();
+
     private static partial SharedElementFlight? Create(View container, View front)
     {
         if (container.Handler?.PlatformView is not UIView containerView || NativeOf(front) is not { } frontView)

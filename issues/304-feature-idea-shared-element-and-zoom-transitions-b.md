@@ -101,6 +101,15 @@ The interactive swipe keeps the normal slide. The element flies only on the back
   - Showcase: `TransitionZoomPage` (the tag on its root) and a "Zoom into the page" switch on Transitions.
   - Verified in recordings on the iPhone 17 Pro simulator: push, button pop, a cancelled swipe and a completed swipe.
 
+- **Android (2026-10-07):** `Platforms/Android/SharedElementFlight.Android.cs` implements the same flight and zoom.
+  - The pictures are bitmaps drawn from the views (`View.Draw` on the view's fill colour), shown by a small `PictureView` that crops them about their middle and clips rounded corners. It is added to the region's container right above the front layer and laid out by hand: MAUI's layout only arranges the views it knows.
+  - The zoom scales and moves the front layer itself (pivot at its centre) and clips it with a rounded `ViewOutlineProvider`. MAUI lays the layer out by position and size only, so the problem iOS had with a frame set under a transform does not exist here.
+  - One `ValueAnimator` drives the layer's scale and move, the outline, and the picture's frame, corners and alpha together. The flight uses the `ISpineTransitions` easing; the zoom uses `PathInterpolator(0.2, 0.9, 0.25, 1)`, the iOS curve.
+  - A push waits for the arriving page's next layout pass (`OnPreDraw`, at most 100 ms) instead of iOS's single main-queue hop (`NextLayoutAsync` per platform), with the front layer hidden meanwhile.
+  - Verified in `screenrecord` videos on the Pixel_Tablet emulator (emulator-5556; the Pixel_10_Pro AVD was in use by another session on 5554): shared element push and pop, zoom in and zoom out. Frame by frame, the landing picture's left edge eases into the cell at 1290 px and stays there, with no jump at the switch.
+  - The back-swipe could not be tested there: `adb input swipe` did nothing even on a plain detail page without any transition code, so the swipe itself never reaches Spine on that emulator. This is spun off as its own task ("Check Spine's back-swipe on Android").
+- Mac Catalyst (the iOS code) and Windows (no flight; the usual transition) compile; neither has been run.
+
 ## Spike findings
 
 - **Measuring on push:** the arriving page's `ScrollView` gets its top inset (status bar + header bar, 116 pt) only in `Loaded`, which MAUI raises from the main queue after the page is put in the window. Measured synchronously, the target came out 116 pt too high, even after `LayoutIfNeeded` on the container, the window or the root view. Waiting a frame was not needed: a single `Task.Yield()` is enough. The front layer is hidden (`Opacity = 0`) across that hop, so a frame drawn in between shows only the page still on screen. The hop happens only when the two pages share a tag.
