@@ -6,8 +6,8 @@ namespace Plugin.Maui.Spine.Core;
 /// Spine registers a platform-specific singleton implementation automatically.
 /// </summary>
 /// <remarks>
-/// On Android the insets are measured from <c>WindowInsetsCompat.Type.SystemBars()</c>
-/// after edge-to-edge is enabled. On other platforms the insets are always
+/// On Android the insets are measured from <c>WindowInsetsCompat.Type.SystemBars()</c> and
+/// <c>DisplayCutout()</c> after edge-to-edge is enabled. On other platforms the insets are always
 /// <see cref="Thickness.Zero"/> because the system bars are either handled natively or
 /// do not require manual compensation.
 /// </remarks>
