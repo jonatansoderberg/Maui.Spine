@@ -125,6 +125,10 @@ if (result is { IsSuccess: true, Value: { } picked }) …
 
 Both at once: implement both interfaces and call `NavigateToWithResultAsync<TPage, TParam, TResult>(param)`.
 
+### Shared elements and zoom
+
+`Transition.Tag` (namespace `Plugin.Maui.Spine.Extensions`) carries a view from one page to the next in the same stack. The same tag on a view on each page makes a shared element: it flies between them on the push and back on the pop, while the pages slide. The tag on the page arriving itself (its root `SpinePage`) makes a zoom: the page grows out of the view with that tag and shrinks back into it, under the finger on the back-swipe. The same tag on a view inside the zooming page makes that view its focus, the part that lines up with the tapped view; give one whenever the page shows what was tapped. Make tags unique per item (`Key => $"tile-{Id}"`), so a list matches the right row. A view scrolled out of sight, Reduce Motion, sheets and tab switches get the usual transition. iOS, Mac Catalyst and Android; Windows plays the usual transition.
+
 ## Lifecycle
 
 | Hook | When |
@@ -202,5 +206,6 @@ A tap can play a haptic: `[PageAction("Save", Role = PageActionRole.Confirm, Hap
 - Page pattern: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/page-pattern.md
 - Regions / Sheets / Tab host: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/regions.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/sheets.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/tab-host.md
 - Loading states: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/loading-states.md
+- Shared elements and zoom: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/transitions.md
 - Parameters / Results / Page actions: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/navigation-parameters.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/navigation-results.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/page-actions.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp/Pages

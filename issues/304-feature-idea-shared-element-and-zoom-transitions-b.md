@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/304
 **Branch:** issue/304-feature-idea-shared-element-and-zoom-transitions-b
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 
@@ -117,6 +117,8 @@ The interactive swipe keeps the normal slide. The element flies only on the back
 - Windows (no flight; the usual transition) compiles; it has not been run.
 
 - **Showcase page (2026-10-07):** Transitions follows the gallery pattern: an intro header with `ExampleCodeSwitch`, `PackageChips` and one `Example` ("Move a view between pages") whose "Try options" picks Shared element, Zoom, or Zoom without a focus, with matching code. One `TransitionDetailPage` takes a `TransitionTarget(Tile, Kind)` and binds `Transition.Tag` on the page root and on its card according to the kind (`TransitionZoomPage` is gone). The tiles carry a `Key` (`tile-2`), so the code reads `Transition.Tag="{Binding Key}"`. Gallery icon: a new symbol, `Expand` (a small card with an arrow to the far corner of a large frame), drawn with `/spine-symbol` (Jonatan picked variant A of four); the set now has 223.
+
+- **Docs (2026-10-07):** the new wiki page `docs/wiki/transitions.md` (Shared Elements and Zoom) covers the shared element, the zoom, the focus, when the usual transition plays, and the platforms. It is linked from README.md (feature table and wiki index), the package README, `custom-transitions.md` and the `spine-page` skill.
 
 ## Spike findings
 

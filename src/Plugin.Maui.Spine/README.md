@@ -38,6 +38,7 @@ var result = await navigation.NavigateToWithResultAsync<PickerSheet, Choice>();
 - **Glass** — `Glass.Style` on any `Button` or `ImageButton`; Liquid Glass on iOS 26, a normal button elsewhere.
 - **Haptics** — `Haptics.Success()`, `Selection()`, `Impact()` and `Haptics.OnTap` from the platform's own generators, on iOS and Android.
 - **Reorder** — `Reorder.Mode` on any `CollectionView`: drag items to a new place by a long-press or a handle, with haptics and screen-reader actions.
+- **Shared elements and zoom** — `Transition.Tag` on a view on each page flies it from one page to the next; on the page itself, the page grows out of the view and shrinks back into it, under the finger on the back-swipe.
 - **Shortcuts** — the app-icon menu, jump list and tray menu through one handler interface, with icons from SVG.
 - **Windows** — window size and position, tray icon, single instance, custom title bar.
 
@@ -47,5 +48,5 @@ Platforms: Android, iOS, Mac Catalyst, Windows.
 
 - [Getting started](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/getting-started.md)
 - [Regions](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/regions.md), [Sheets](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/sheets.md), [Tab host](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/tab-host.md)
-- [Page actions](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/page-actions.md), [Glass buttons](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/glass-buttons.md), [Haptics](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/haptics.md), [Reorder](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/reorder.md), [Shortcuts](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/shortcuts.md), [Windows options](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/windows-options.md)
+- [Page actions](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/page-actions.md), [Glass buttons](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/glass-buttons.md), [Haptics](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/haptics.md), [Reorder](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/reorder.md), [Shared elements and zoom](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/transitions.md), [Shortcuts](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/shortcuts.md), [Windows options](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/windows-options.md)
 - [All packages](https://github.com/jonatansoderberg/Maui.Spine#packages)

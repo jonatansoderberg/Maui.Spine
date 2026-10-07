@@ -19,6 +19,8 @@ Inside a sheet the pages sit on the sheet's own surface, which a moving page can
 
 Animation duration is platform-aware: 300 ms on iOS/Android/Mac, 250 ms on Windows.
 
+To carry a view from one page to the next, or zoom a page out of the view it opens from, tag the views rather than writing a transition: see [Shared Elements and Zoom](transitions.md). A shared element flies over whatever motion the region's `ISpineTransitions` plays, at its pace.
+
 ---
 
 ## Layers
