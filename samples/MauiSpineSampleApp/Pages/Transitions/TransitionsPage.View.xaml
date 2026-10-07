@@ -8,7 +8,7 @@
     HeaderBar.ScrollSource="{x:Reference TileGrid}">
 
     <!-- The list reaches the page's sides, so the header bar's scroll edge covers the bar;
-         SafeArea.PageMargin lays the tiles out inside the page margin. -->
+         SafeArea.PageMargin lays the intro and the tiles out inside the page margin. -->
     <CollectionView
         x:Name="TileGrid"
         ItemsSource="{Binding Tiles}"
@@ -19,17 +19,36 @@
         </CollectionView.ItemsLayout>
 
         <CollectionView.Header>
-            <Grid ColumnDefinitions="*,Auto" Padding="0,8,0,16">
-                <Label Text="Zoom into the page" FontSize="17" VerticalOptions="Center" />
-                <Switch Grid.Column="1" IsToggled="{Binding Zoom}" />
-            </Grid>
+            <VerticalStackLayout Padding="0,16,0,16" Spacing="12">
+                <ExampleCodeSwitch />
+                <PackageChips Packages="Plugin.Maui.Spine" />
+
+                <Example Title="Move a view between pages"
+                         Summary="Give a view on one page and a view on the page it opens the same Transition.Tag, and Spine carries it from one to the other on the push and back on the pop. On the page itself, the tag zooms the page out of the view instead. Tap a tile."
+                         OptionsCommand="{Binding ShowOptionsCommand}"
+                         Code="{Binding Code}"
+                         Margin="0,12,0,0">
+                    <VerticalStackLayout Spacing="4">
+                        <Label FontSize="15">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="{Binding KindGroup.Name}" />
+                                    <Span Text=": " />
+                                    <Span Text="{Binding KindGroup.Selected.Label}" FontAttributes="Bold" />
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                        <Label Text="{Binding KindGroup.Selected.Description}" FontSize="15" Opacity="0.7" />
+                    </VerticalStackLayout>
+                </Example>
+            </VerticalStackLayout>
         </CollectionView.Header>
 
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="TransitionTile">
                 <Border HeightRequest="120" StrokeThickness="0" StrokeShape="RoundRectangle 18"
                         BackgroundColor="{Binding Color}"
-                        Transition.Tag="{Binding Id, StringFormat='tile-{0}'}"
+                        Transition.Tag="{Binding Key}"
                         Tap.Command="{Binding Source={RelativeSource AncestorType={x:Type TransitionsPageViewModel}}, Path=OpenCommand}"
                         Tap.CommandParameter="{Binding .}"
                         Semantic.Merge="True">

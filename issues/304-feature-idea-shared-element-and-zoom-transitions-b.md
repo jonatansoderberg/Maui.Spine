@@ -115,6 +115,8 @@ The interactive swipe keeps the normal slide. The element flies only on the back
     - The system back gesture (the first few millimetres at the edge) is the system's own and goes back without following the finger.
 - Mac Catalyst (the iOS code) and Windows (no flight; the usual transition) compile; neither has been run.
 
+- **Showcase page (2026-10-07):** Transitions follows the gallery pattern: an intro header with `ExampleCodeSwitch`, `PackageChips` and one `Example` ("Move a view between pages") whose "Try options" picks Shared element, Zoom, or Zoom without a focus, with matching code. One `TransitionDetailPage` takes a `TransitionTarget(Tile, Kind)` and binds `Transition.Tag` on the page root and on its card according to the kind (`TransitionZoomPage` is gone). The tiles carry a `Key` (`tile-2`), so the code reads `Transition.Tag="{Binding Key}"`. Gallery icon: `layers.svg` for now.
+
 ## Spike findings
 
 - **Measuring on push:** the arriving page's `ScrollView` gets its top inset (status bar + header bar, 116 pt) only in `Loaded`, which MAUI raises from the main queue after the page is put in the window. Measured synchronously, the target came out 116 pt too high, even after `LayoutIfNeeded` on the container, the window or the root view. Waiting a frame was not needed: a single `Task.Yield()` is enough. The front layer is hidden (`Opacity = 0`) across that hop, so a frame drawn in between shows only the page still on screen. The hop happens only when the two pages share a tag.
