@@ -302,7 +302,15 @@ public sealed partial class BarcodeScannerPageViewModel : ViewModelBase, IReceiv
 
     /// <summary>Known when the sheet is created, not when the camera starts, so the header never changes under the user.</summary>
     [ObservableProperty]
-    public partial bool IsTorchAvailable { get; set; } = TorchSupport.IsAvailable;
+    public partial bool IsTorchSupported { get; set; } = TorchSupport.IsSupported;
+
+    /// <summary>The old name of <see cref="IsTorchSupported"/>.</summary>
+    [Obsolete("Use IsTorchSupported.")]
+    public bool IsTorchAvailable
+    {
+        get => IsTorchSupported;
+        set => IsTorchSupported = value;
+    }
 
     [ObservableProperty]
     public partial bool ShowDiagnostics { get; set; }
@@ -372,9 +380,9 @@ public sealed partial class BarcodeScannerPageViewModel : ViewModelBase, IReceiv
         IsTorchOn = false;
     }
 
-    partial void OnIsTorchAvailableChanged(bool value) => UpdateActions();
+    partial void OnIsTorchSupportedChanged(bool value) => UpdateActions();
 
-    private void UpdateActions() => _torch.IsVisible = Options.ShowTorch && IsTorchAvailable;
+    private void UpdateActions() => _torch.IsVisible = Options.ShowTorch && IsTorchSupported;
 
     partial void OnIsTorchOnChanged(bool value) => _torch.IsSelected = value;
 

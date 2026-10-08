@@ -64,6 +64,25 @@ A soft light inside a [material](materials.md) panel, with a deep negative depth
 
 On Android the listener runs only while at least one view with a depth is attached to a window and the app is in front. It stops when the last such view leaves the screen or the app goes to the background, so a page with depth costs nothing once you leave it. A device with neither rotation sensor shows the views where the layout put them.
 
+## Availability
+
+```csharp
+Motion.IsSupported   // the device can follow the tilt at all; fixed while the app runs
+Motion.IsEnabled     // IsSupported, and the user has not asked the system for less motion
+```
+
+`Motion.IsSupported` is `true` on iOS and iPadOS, and on Android when the device has a game rotation vector or rotation vector sensor (the same lookup the listener uses). It is `false` on Mac Catalyst, on Windows and for an iPhone app running on a Mac. Use it to hide a setting for the effect where it would do nothing:
+
+```xml
+<SpineRow Title="Motion" IsVisible="{x:Static Motion.IsSupported}">
+    <SpineRow.Accessory>
+        <Switch IsToggled="{Binding UseMotion}" />
+    </SpineRow.Accessory>
+</SpineRow>
+```
+
+Reduce Motion does not change `IsSupported`: the device can still do it, and the user can turn the setting off again. `Motion.IsEnabled` adds that setting, so an app can say why nothing moves. Read it when you need it, for example when the page appears, because the setting can change while the app runs. The iOS simulator reports `true` but has no tilt to feed the effect.
+
 ## Reduce Motion
 
 - **iOS:** the system turns its motion effects off under *Reduce Motion*.

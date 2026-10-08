@@ -60,6 +60,8 @@
                  Summary="A ready-made sheet that returns the first code it reads: Vision on iOS, ML Kit on Android, and the light-grid reader for a code shown by lamps, such as the word clock above."
                  OptionsCommand="{Binding ShowScanOptionsCommand}">
             <VerticalStackLayout Spacing="12">
+                <Label Text="This device has no camera, so the sheet can only show why it cannot scan. BarcodeScannerView.IsSupported is false."
+                       IsVisible="{Binding IsScannerUnsupported}" FontSize="15" FontAttributes="Bold" />
                 <Button Text="Scan a code" Command="{Binding ScanCommand}" HorizontalOptions="Start" />
                 <Label Text="{Binding ScanResult}" FontSize="15" />
             </VerticalStackLayout>

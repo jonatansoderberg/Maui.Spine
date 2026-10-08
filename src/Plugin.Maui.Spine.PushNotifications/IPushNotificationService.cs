@@ -62,6 +62,13 @@ public interface IPushNotificationService
     PushStatus Status { get; }
 
     /// <summary>
+    /// Whether this platform has push at all: <see langword="true"/> on iOS, Mac Catalyst and Android, and
+    /// <see langword="false"/> on Windows, where <see cref="Status"/> is <see cref="PushStatus.Unsupported"/>.
+    /// Whether the user allows notifications is <see cref="Status"/>, which can change.
+    /// </summary>
+    bool IsSupported => Status != PushStatus.Unsupported;
+
+    /// <summary>
     /// The APNs device token or FCM registration token this installation is reached through, and the
     /// one thing a registration cannot go out without. <see langword="null"/> until the platform has
     /// issued one — which on Apple is some time after permission is granted, and on Android means

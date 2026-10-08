@@ -105,18 +105,23 @@ public static partial class Haptics
             return null;
         }
 
-        var vibrator = OperatingSystem.IsAndroidVersionAtLeast(31)
-            ? (context.GetSystemService(Context.VibratorManagerService) as VibratorManager)?.DefaultVibrator
-#pragma warning disable CA1422 // The pre-31 way to reach the vibrator.
-            : context.GetSystemService(Context.VibratorService) as Vibrator;
-#pragma warning restore CA1422
-
-        if (vibrator is not { HasVibrator: true })
+        if (SystemVibrator() is not { HasVibrator: true } vibrator)
         {
             Android.Util.Log.Warn("Spine", "HapticEngine.Vibrator: this device has no vibrator; playing haptics through the view instead.");
             return null;
         }
 
         return _vibrator = vibrator;
+    }
+
+    /// <summary>The system's default vibrator; asking whether it has hardware needs no permission.</summary>
+    static Vibrator? SystemVibrator()
+    {
+        var context = Platform.AppContext;
+        return OperatingSystem.IsAndroidVersionAtLeast(31)
+            ? (context.GetSystemService(Context.VibratorManagerService) as VibratorManager)?.DefaultVibrator
+#pragma warning disable CA1422 // The pre-31 way to reach the vibrator.
+            : context.GetSystemService(Context.VibratorService) as Vibrator;
+#pragma warning restore CA1422
     }
 }

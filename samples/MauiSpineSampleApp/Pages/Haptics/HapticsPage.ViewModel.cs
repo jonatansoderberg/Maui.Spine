@@ -22,6 +22,8 @@ public partial class HapticsPageViewModel : SampleViewModel
         PageActions.Remove(PageActions.Single(a => a.Menu == ThemeMenu));
     }
 
+    public bool IsUnsupported => !Plugin.Maui.Spine.Extensions.Haptics.IsSupported;
+
     public bool UseVibrator
     {
         get => _options.Android.HapticEngine == AndroidHapticEngine.Vibrator;

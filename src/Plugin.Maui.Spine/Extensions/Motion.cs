@@ -1,3 +1,5 @@
+using Plugin.Maui.Spine.Core;
+
 namespace Plugin.Maui.Spine.Extensions;
 
 /// <summary>
@@ -14,7 +16,8 @@ namespace Plugin.Maui.Spine.Extensions;
 /// side, or a parent that clips it, such as a <see cref="Border"/>. The motion stops under Reduce
 /// Motion on iOS and when animations are removed on Android. A soft gradient inside a material
 /// <see cref="Border"/> with a depth of its own makes a highlight that sweeps over the surface.
-/// <c>UseSpine()</c> sets it up; nothing else to register.
+/// <c>UseSpine()</c> sets it up; nothing else to register. <see cref="IsSupported"/> says whether the
+/// device can move the views at all, <see cref="IsEnabled"/> whether they move now.
 /// </remarks>
 /// <example>
 /// <code>
@@ -38,6 +41,35 @@ public static class Motion
             typeof(Motion),
             0d,
             propertyChanged: OnDepthChanged);
+
+    /// <summary>
+    /// Whether this device can move a view by its tilt: <see langword="true"/> on iOS and iPadOS, on
+    /// Android when the device has a game rotation vector or rotation vector sensor, and
+    /// <see langword="false"/> on Mac Catalyst, Windows and an iPhone app running on a Mac. Fixed for
+    /// the app's lifetime, so an app can hide a setting for the effect where it would do nothing.
+    /// Reduce Motion does not change it; see <see cref="IsEnabled"/>.
+    /// </summary>
+    public static bool IsSupported => _isSupported ??= ReadIsSupported();
+
+    /// <summary>
+    /// Whether views with a depth move now: <see cref="IsSupported"/>, and the user has not asked the
+    /// system for less motion (Reduce Motion on iOS, Remove animations on Android). Read it when it is
+    /// needed rather than keeping it, because the user can change the setting while the app runs.
+    /// </summary>
+    public static bool IsEnabled => IsSupported && !ReducedMotion.IsOn;
+
+    static bool? _isSupported;
+
+    static bool ReadIsSupported()
+    {
+#if IOS
+        return !Foundation.NSProcessInfo.ProcessInfo.IsiOSApplicationOnMac;
+#elif ANDROID
+        return MotionState.TiltSensor() is not null;
+#else
+        return false;
+#endif
+    }
 
     static readonly BindableProperty StateProperty =
         BindableProperty.CreateAttached("State", typeof(MotionState), typeof(Motion), null);

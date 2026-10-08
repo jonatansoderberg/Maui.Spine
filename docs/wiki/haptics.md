@@ -8,6 +8,18 @@ Spine's haptics are semantic. You name what happened, such as a success, a warni
 
 The haptics are in the core package, and nothing needs to be registered.
 
+## Availability
+
+`Haptics.IsSupported` says whether this device can play haptics at all, so an app can hide a haptics setting where it would do nothing:
+
+| Platform | `Haptics.IsSupported` |
+|---|---|
+| iOS | `true` on an iPhone whose hardware Core Haptics supports; `false` on an iPad and in the simulator |
+| Android | `true` when the device has a vibrator (`Vibrator.HasVibrator`; no permission needed to ask) |
+| Mac Catalyst, Windows | `false` |
+
+It is fixed while the app runs. The user's own system haptics or touch-feedback setting does not change it, and the calls stay safe either way.
+
 ## From code
 
 ```csharp

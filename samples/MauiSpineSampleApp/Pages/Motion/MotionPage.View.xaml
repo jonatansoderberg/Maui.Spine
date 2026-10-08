@@ -14,30 +14,33 @@
 
         <Example Title="Layers at different depths"
                  Summary="Tilt the phone. The photo sits behind the screen and moves one way, the badge floats above it and moves the other, and the card between them moves a little. iOS moves them with the system's motion effects, Android with the rotation sensor. Mac and Windows have no tilt, so nothing moves there.">
-            <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" HeightRequest="260">
-                <Grid>
-                    <!-- 16 points of margin to spare, so the photo's edges never show. -->
-                    <Image Source="lightbox_mountain_valley.jpg" Aspect="AspectFill" Margin="-16"
-                           Motion.Depth="-14" />
-                    <Border Padding="18,14" Margin="0,0,0,28" WidthRequest="240" VerticalOptions="End"
-                            StrokeThickness="0" StrokeShape="RoundRectangle 16"
-                            BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
-                            Motion.Depth="4">
-                        <Border.Shadow>
-                            <Shadow Brush="Black" Opacity="0.3" Radius="16" Offset="0,6" />
-                        </Border.Shadow>
-                        <VerticalStackLayout Spacing="4">
-                            <Label Text="Mountain valley" FontSize="17" FontAttributes="Bold" />
-                            <Label Text="Three layers, three depths" FontSize="15" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
-                        </VerticalStackLayout>
-                    </Border>
-                    <Border WidthRequest="56" HeightRequest="56" Margin="0,0,52,92" HorizontalOptions="End" VerticalOptions="End"
-                            StrokeThickness="0" StrokeShape="RoundRectangle 28" BackgroundColor="#F3A712"
-                            Motion.Depth="16">
-                        <Image SvgImageSource.Svg="star.svg" SvgImageSource.TintColor="White" WidthRequest="28" HeightRequest="28" />
-                    </Border>
-                </Grid>
-            </Border>
+            <VerticalStackLayout Spacing="12">
+                <Label Text="{Binding Notice}" IsVisible="{Binding HasNotice}" FontSize="15" FontAttributes="Bold" />
+                <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" HeightRequest="260">
+                    <Grid>
+                        <!-- 16 points of margin to spare, so the photo's edges never show. -->
+                        <Image Source="lightbox_mountain_valley.jpg" Aspect="AspectFill" Margin="-16"
+                               Motion.Depth="-14" />
+                        <Border Padding="18,14" Margin="0,0,0,28" WidthRequest="240" VerticalOptions="End"
+                                StrokeThickness="0" StrokeShape="RoundRectangle 16"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
+                                Motion.Depth="4">
+                            <Border.Shadow>
+                                <Shadow Brush="Black" Opacity="0.3" Radius="16" Offset="0,6" />
+                            </Border.Shadow>
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Mountain valley" FontSize="17" FontAttributes="Bold" />
+                                <Label Text="Three layers, three depths" FontSize="15" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Border WidthRequest="56" HeightRequest="56" Margin="0,0,52,92" HorizontalOptions="End" VerticalOptions="End"
+                                StrokeThickness="0" StrokeShape="RoundRectangle 28" BackgroundColor="#F3A712"
+                                Motion.Depth="16">
+                            <Image SvgImageSource.Svg="star.svg" SvgImageSource.TintColor="White" WidthRequest="28" HeightRequest="28" />
+                        </Border>
+                    </Grid>
+                </Border>
+            </VerticalStackLayout>
             <Example.Code>
                 &lt;Border StrokeShape="RoundRectangle 20"&gt;
                     &lt;Grid&gt;
@@ -113,7 +116,7 @@
                     <Border WidthRequest="200" HeightRequest="90" HorizontalOptions="Center" VerticalOptions="Center"
                             StrokeThickness="0" StrokeShape="RoundRectangle 16"
                             BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
-                            Motion.Depth="{Binding Depth}">
+                            Motion.Depth="{Binding CardDepth}">
                         <Label Text="{Binding Depth, StringFormat='Depth {0:0}'}" FontSize="17" FontAttributes="Bold"
                                HorizontalOptions="Center" VerticalOptions="Center" />
                     </Border>
@@ -126,6 +129,32 @@
                 &lt;/Border&gt;
 
                 &lt;Slider Minimum="-30" Maximum="30" Value="{Binding Depth}" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="A setting only where it works"
+                 Summary="Motion.IsSupported says whether the device can follow the tilt at all, and stays the same while the app runs: false on a Mac, on Windows and on an Android device without a rotation sensor. Show a motion setting only where it is true. Motion.IsEnabled also says whether the user has asked the system for less motion, which can change at any time. The switch turns the card above on and off.">
+            <VerticalStackLayout Spacing="12">
+                <SpineSection IsVisible="{Binding IsSupported}">
+                    <SpineRow Title="Motion">
+                        <SpineRow.Accessory>
+                            <Switch IsToggled="{Binding UseMotion}" />
+                        </SpineRow.Accessory>
+                    </SpineRow>
+                </SpineSection>
+                <Label Text="{Binding Availability}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;SpineSection IsVisible="{x:Static Motion.IsSupported}"&gt;
+                    &lt;SpineRow Title="Motion"&gt;
+                        &lt;SpineRow.Accessory&gt;
+                            &lt;Switch IsToggled="{Binding UseMotion}" /&gt;
+                        &lt;/SpineRow.Accessory&gt;
+                    &lt;/SpineRow&gt;
+                &lt;/SpineSection&gt;
+
+                if (!Motion.IsEnabled)
+                    Footer = "Reduce Motion is on.";
             </Example.Code>
         </Example>
 

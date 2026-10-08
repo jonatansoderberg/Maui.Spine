@@ -65,7 +65,8 @@ public enum HapticImpact
 /// iOS uses <c>UINotificationFeedbackGenerator</c>, <c>UISelectionFeedbackGenerator</c> and
 /// <c>UIImpactFeedbackGenerator</c>. Android uses <c>View.PerformHapticFeedback</c>, or
 /// <c>VibrationEffect</c> with <see cref="SpineOptions.AndroidPlatformOptions.HapticEngine"/>.
-/// Mac Catalyst and Windows play nothing. Safe to call from any thread.
+/// Mac Catalyst and Windows play nothing. Safe to call from any thread. <see cref="IsSupported"/> says
+/// whether this device can play any.
 /// </remarks>
 /// <example>
 /// <code>
@@ -96,6 +97,27 @@ public static partial class Haptics
     public static void SetOnTap(BindableObject view, Haptic value) => view.SetValue(OnTapProperty, value);
 
     internal static SpineOptions Options { get; set; } = new();
+
+    /// <summary>
+    /// Whether this device can play haptics: an iPhone with a Taptic Engine (not an iPad, not the
+    /// simulator; read from Core Haptics), an Android device with a vibrator, and never Mac Catalyst or
+    /// Windows. Fixed for the app's lifetime, so an app can hide a haptics setting where it would do
+    /// nothing. The user's own system haptics setting does not change it.
+    /// </summary>
+    public static bool IsSupported => _isSupported ??= ReadIsSupported();
+
+    static bool? _isSupported;
+
+    static bool ReadIsSupported()
+    {
+#if IOS
+        return CoreHaptics.CHHapticEngine.GetHardwareCapabilities().SupportsHaptics;
+#elif ANDROID
+        return SystemVibrator() is { HasVibrator: true };
+#else
+        return false;
+#endif
+    }
 
     /// <summary>Plays <paramref name="haptic"/>.</summary>
     public static void Play(Haptic haptic)

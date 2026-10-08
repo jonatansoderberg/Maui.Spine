@@ -67,7 +67,7 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
         {
             Detected = (codes, frame) => VirtualView?.RaiseFrame(codes, frame),
             Problem = (p, m) => VirtualView?.RaiseProblem(p, m),
-            TorchAvailable = a => VirtualView?.SetTorchAvailable(a),
+            TorchSupported = a => VirtualView?.SetTorchSupported(a),
             TorchSwitchedOff = () => VirtualView?.SetTorchOff(),
             DiagnosticsChanged = d => VirtualView?.SetDiagnostics(d),
         };
@@ -159,7 +159,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         return hit.Result with { Corners = corners };
     }
     public Action<ScannerProblem?, string?>? Problem;
-    public Action<bool>? TorchAvailable;
+    public Action<bool>? TorchSupported;
     public Action? TorchSwitchedOff;
     public Action<string?>? DiagnosticsChanged;
 
@@ -303,7 +303,7 @@ internal sealed class ScannerCamera : Java.Lang.Object, ImageAnalysis.IAnalyzer
         _analysing = true;
         _still.Visibility = Android.Views.ViewStates.Gone;
         Interlocked.Exchange(ref _lastFrame, Stopwatch.GetTimestamp());
-        TorchAvailable?.Invoke(_cameraControl.CameraInfo?.HasFlashUnit == true);
+        TorchSupported?.Invoke(_cameraControl.CameraInfo?.HasFlashUnit == true);
         ApplyTorch();
         Report(null);
         // CameraX says when the camera is open, closed with the activity, or taken by another app. ObserveForever, not
