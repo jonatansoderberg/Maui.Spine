@@ -91,6 +91,10 @@ void OnEditingChanged(bool editing) => FilterAction.IsVisible = !editing;
 
 ---
 
+## A search field
+
+`[PageSearch]` on a string property puts a search field with the header bar, declared the same way as an action. See [Search](search.md).
+
 ## An action that opens a menu
 
 `new PageAction(null, menu) { Svg = "more.svg" }` opens a native menu instead of running a command: sections, a picker with checkmarks, submenus, toggles and destructive rows, from one `MenuItems` declaration. See [Menu buttons](menus.md).

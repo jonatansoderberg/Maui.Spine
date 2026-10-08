@@ -113,6 +113,8 @@ public sealed partial class NavigationRegion : ContentView
         // The region can move or resize under a keyboard that stays put, as in a rotation.
         _contentHostFront.SizeChanged += (_, _) =>
         {
+            ApplyCompactWidth(ViewModel.CurrentRegionViewModel);
+
             if (SoftKeyboard.Top is not null || _keyboardOverlap > 0)
                 OnKeyboardChanged(animate: false);
         };
@@ -448,9 +450,9 @@ public sealed partial class NavigationRegion : ContentView
         var edges = vm.SafeAreaEdges;
         var overlay = vm.HeaderBarFloats;
 
-        // Under a floating header the content must keep the status bar and the bar itself clear.
+        // Under a floating header the content must keep the status bar, the bar itself and a search row below it clear.
         var top = overlay
-            ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.BarHeight : 0)
+            ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.BarHeight + vm.SearchRowHeight : 0)
             : (edges & SpineSafeArea.Top) != 0 ? 0 : insets.Top;
 
         // Above the keyboard the page no longer reaches the screen's bottom edge.
@@ -496,6 +498,7 @@ public sealed partial class NavigationRegion : ContentView
             _frameActionView?.SetBinding(HeaderBarView.DefaultPageActionProperty, new Binding(nameof(NavigationRegionViewModel.SecondaryPageAction), source: ViewModel));
 
             WatchCurrentPage(ViewModel.CurrentRegionViewModel);
+            ApplyCompactWidth(ViewModel.CurrentRegionViewModel);
 
             // Apply safe-area padding for the new page on both content hosts.
             if (ViewModel.CurrentRegionViewModel is { } vm)
@@ -514,6 +517,13 @@ public sealed partial class NavigationRegion : ContentView
 
         if (e.PropertyName == nameof(NavigationRegionViewModel.BackView))
             ApplySafeAreaPaddingForPresenter(_contentHostBack, ViewModel.BackView);
+    }
+
+    // A narrow region keeps the header bar's room for the title; see SearchField.TrailingMinRegionWidth.
+    private void ApplyCompactWidth(ViewModelBase? page)
+    {
+        if (page is not null && _contentHostFront.Width > 0)
+            page.IsCompactWidth = _contentHostFront.Width < SearchField.TrailingMinRegionWidth;
     }
 
     private ViewModelBase? _watchedHeaderPage;
@@ -540,7 +550,7 @@ public sealed partial class NavigationRegion : ContentView
     private void OnHeaderPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.ScrollEdgeProgress)
-            or nameof(ViewModelBase.EffectiveHeaderBarBackground))
+            or nameof(ViewModelBase.EffectiveHeaderBarBackground) or nameof(ViewModelBase.SearchLayout))
             ApplyHeaderPage();
     }
 
@@ -548,6 +558,7 @@ public sealed partial class NavigationRegion : ContentView
     {
         var page = _watchedHeaderPage;
         _frameActionView.OverContent = page?.HeaderBarMode == HeaderBarMode.Overlay;
+        _frameActionView.Search = page is { SearchLayout: SearchLayout.Trailing } ? page.Search : null;
 
         // A transparent bar never draws a background, so its buttons keep their container.
         _frameActionView.BackgroundProgress = page is not null && page.EffectiveHeaderBarBackground != HeaderBarBackground.Transparent

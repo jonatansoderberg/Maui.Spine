@@ -29,6 +29,9 @@ internal sealed partial class PagePresenter : Grid
     private ContentPresenter _contentPresenter;
     private readonly ContentView _footerHost;
     private IPageFooterSource? _footerSource;
+
+    // The page's search field in the row below the header bar, at the bottom of the title row.
+    private SearchField? _searchField;
     private double _sheetOverhang;
 
     /// <summary>
@@ -206,7 +209,8 @@ internal sealed partial class PagePresenter : Grid
     {
         if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.SystemBarInsets) or nameof(ViewModelBase.SafeAreaInsets)
             or nameof(ViewModelBase.HeaderBarForeground) or nameof(ViewModelBase.IsHeaderBarVisible)
-            or nameof(ViewModelBase.LargeTitle) or nameof(ViewModelBase.EffectiveHeaderBarBackground))
+            or nameof(ViewModelBase.LargeTitle) or nameof(ViewModelBase.EffectiveHeaderBarBackground)
+            or nameof(ViewModelBase.SearchLayout))
             ApplyPageLayout();
         else if (e.PropertyName is nameof(ViewModelBase.HeaderBarCollapseProgress) or nameof(ViewModelBase.ScrollEdgeProgress))
             ApplyCollapse();
@@ -230,6 +234,7 @@ internal sealed partial class PagePresenter : Grid
         _titleBar.ZIndex = floats ? 2 : 0;
         _barBackground.ZIndex = floats ? 1 : 0;
 
+        ApplySearchRow(sides);
         ApplyTitleRowHeight();
         ApplyTitleTextColor();
         ApplyBarBackgroundColor();
@@ -425,6 +430,49 @@ internal sealed partial class PagePresenter : Grid
 #endif
     }
 
+    /// <summary>
+    /// Shows the page's search field at the bottom of the title row when it goes in the row below
+    /// the header bar, inside the same side margin as the page's content.
+    /// </summary>
+    private void ApplySearchRow(Thickness sides)
+    {
+        var shown = _page is { SearchLayout: SearchLayout.Row };
+
+        if (!shown)
+        {
+            if (_searchField is not null)
+            {
+                _searchField.IsVisible = false;
+                _searchField.Search = null;
+            }
+            return;
+        }
+
+        if (_searchField is null)
+        {
+            _searchField = new SearchField { VerticalOptions = LayoutOptions.End };
+            Children.Add(_searchField);
+        }
+
+        _searchField.Search = _page!.Search;
+        _searchField.IsVisible = true;
+        _searchField.HeightRequest = HeaderBarConstants.SearchRowHeight;
+        _searchField.Margin = new Thickness(sides.Left + SearchRowInset, 0, sides.Right + SearchRowInset, 0);
+        // Over the content and the bar's background when they share the row.
+        _searchField.ZIndex = 3;
+    }
+
+    /// <summary>
+    /// How far in from the page's sides the search row starts: the page margin, less the room
+    /// UIKit's search bar keeps around its field.
+    /// </summary>
+    private static double SearchRowInset =>
+#if IOS || MACCATALYST
+        HeaderBarConstants.PageMargin - 8;
+#else
+        HeaderBarConstants.PageMargin;
+#endif
+
     // The title row is the header bar's height; under an overlay header it also holds the status
     // bar the title is pushed down by. The title centres on the item row (Height) at the top of the
     // bar, not on the whole bar, which is taller on iOS 26.
@@ -437,15 +485,17 @@ internal sealed partial class PagePresenter : Grid
         }
 
         var overlayInset = _page?.HeaderBarFloats == true ? _page.SystemBarInsets.Top : 0;
-        RowDefinitions[0].Height = new GridLength(HeaderBarConstants.BarHeight + overlayInset);
+        var search = _page?.SearchRowHeight ?? 0;
+        RowDefinitions[0].Height = new GridLength(HeaderBarConstants.BarHeight + overlayInset + search);
 
-        // Padding keeps the label as tall as the bar, so UIKit's edge effect covers all of it.
-        // UIKit's own hard band under an inline title in a pushed or root navigation stack stops
-        // at the items, though (a large title's and a sheet's reach the bar's bottom), so there
-        // the label ends with the item row.
-        var below = new Thickness(0, 0, 0, HeaderBarConstants.BarHeight - HeaderBarConstants.Height);
+        // Padding keeps the label as tall as the bar and a search row below it, so UIKit's edge
+        // effect covers all of it. UIKit's own hard band under an inline title in a pushed or root
+        // navigation stack stops at the items, though (a large title's, a sheet's and one over a
+        // search field reach the bar's bottom), so there the label ends with the item row.
+        var below = new Thickness(0, 0, 0, HeaderBarConstants.BarHeight - HeaderBarConstants.Height + search);
         var itemsOnly = BarBackground is HeaderBarBackground.HardEdge
             && _page?.LargeTitle != true
+            && search == 0
             && (BindingContext as NavigationRegionViewModel)?.Presentation is not NavigationPresentation.Sheet;
         _titleLabel.Padding = itemsOnly ? Thickness.Zero : below;
         _titleLabel.Margin = itemsOnly ? below : Thickness.Zero;

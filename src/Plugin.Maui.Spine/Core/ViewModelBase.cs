@@ -192,6 +192,67 @@ public abstract partial class ViewModelBase : ObservableObject
     public ObservableCollection<PageAction> PageActions { get; } = new();
 
     /// <summary>
+    /// The page's search field, shown with the header bar: created from <see cref="PageSearchAttribute"/>
+    /// before the page first appears, or set by hand. <see langword="null"/> for none; set it to
+    /// <see langword="null"/> or <see cref="PageSearch.IsVisible"/> to <see langword="false"/> to take the field away.
+    /// </summary>
+    [ObservableProperty]
+    public partial PageSearch? Search { get; set; }
+
+    partial void OnSearchChanged(PageSearch? oldValue, PageSearch? newValue)
+    {
+        if (oldValue is not null)
+            oldValue.PropertyChanged -= OnSearchPropertyChanged;
+
+        if (newValue is not null)
+            newValue.PropertyChanged += OnSearchPropertyChanged;
+
+        OnSearchLayoutChanged();
+    }
+
+    partial void OnIsHeaderBarVisibleChanged(bool value) => OnPropertyChanged(nameof(SearchLayout));
+
+    private void OnSearchPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PageSearch.IsVisible) or nameof(PageSearch.Placement))
+            OnSearchLayoutChanged();
+    }
+
+    // The row below the bar changes the top inset of a page under a floating header.
+    private void OnSearchLayoutChanged()
+    {
+        OnPropertyChanged(nameof(SearchLayout));
+        ReapplyHeaderBar?.Invoke();
+    }
+
+    /// <summary>Whether the page is shown in a sheet. Set from its attribute.</summary>
+    internal bool InSheet { get; set; }
+
+    /// <summary>Whether the region that shows the page is too narrow for a search field in its header bar. Set by the region.</summary>
+    internal bool IsCompactWidth
+    {
+        get;
+        set
+        {
+            if (field == value)
+                return;
+
+            field = value;
+            OnSearchLayoutChanged();
+        }
+    }
+
+    /// <summary>Where Spine shows <see cref="Search"/>: nowhere without a header bar.</summary>
+    internal Presentation.SearchLayout SearchLayout =>
+        Search is { IsVisible: true } search && IsHeaderBarVisible
+            ? Presentation.SearchField.Resolve(search.Placement, InSheet, IsCompactWidth)
+            : Presentation.SearchLayout.None;
+
+    /// <summary>How much the search row adds below the header bar.</summary>
+    internal double SearchRowHeight =>
+        SearchLayout is Presentation.SearchLayout.Row ? Presentation.HeaderBarConstants.SearchRowHeight : 0;
+
+    /// <summary>
     /// The first visible action with <see cref="PageActionPlacement.Secondary"/> placement,
     /// or <see langword="null"/> if none exists.
     /// Bound to the secondary (right-hand) action slot in the header bar.
