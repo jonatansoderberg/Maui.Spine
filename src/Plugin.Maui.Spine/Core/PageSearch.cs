@@ -60,15 +60,19 @@ public sealed partial class PageSearch : ObservableObject
     [ObservableProperty]
     public partial bool IsVisible { get; set; } = true;
 
-    // Set while the field is shown only for the search that is going on.
-    private bool _shownForSearch;
+    /// <summary>
+    /// Whether the field is shown only for the search that is going on: it was hidden when the
+    /// search started. Such a field takes the header bar's own row, where a field shown at rest
+    /// has a row of its own below the bar. Set before <see cref="IsVisible"/> changes.
+    /// </summary>
+    internal bool ShownForSearch { get; private set; }
 
     // The field is shown before the search starts, so it is there to take the focus.
     partial void OnIsActiveChanged(bool value)
     {
         if (value && !IsVisible)
         {
-            _shownForSearch = true;
+            ShownForSearch = true;
             IsVisible = true;
         }
     }
@@ -76,7 +80,7 @@ public sealed partial class PageSearch : ObservableObject
     partial void OnIsVisibleChanged(bool value)
     {
         if (!value)
-            _shownForSearch = false;
+            ShownForSearch = false;
     }
 
     // And hidden once the end of the search has been handled, so the header bar comes back first.
@@ -84,7 +88,7 @@ public sealed partial class PageSearch : ObservableObject
     {
         base.OnPropertyChanged(e);
 
-        if (e.PropertyName == nameof(IsActive) && !IsActive && _shownForSearch)
+        if (e.PropertyName == nameof(IsActive) && !IsActive && ShownForSearch)
             IsVisible = false;
     }
 

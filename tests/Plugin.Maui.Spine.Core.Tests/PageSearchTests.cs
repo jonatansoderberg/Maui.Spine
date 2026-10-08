@@ -54,4 +54,32 @@ public class PageSearchTests
 
         Assert.True(search.IsVisible);
     }
+
+    [Fact]
+    public void A_field_shown_only_for_the_search_says_so_before_it_is_shown()
+    {
+        var search = new PageSearch { IsVisible = false };
+        var shownForSearchWhenVisible = false;
+        search.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PageSearch.IsVisible) && search.IsVisible)
+                shownForSearchWhenVisible = search.ShownForSearch;
+        };
+
+        search.IsActive = true;
+        Assert.True(shownForSearchWhenVisible);
+
+        search.IsActive = false;
+        Assert.False(search.ShownForSearch);
+    }
+
+    [Fact]
+    public void A_field_shown_at_rest_is_not_shown_for_the_search()
+    {
+        var search = new PageSearch();
+
+        search.IsActive = true;
+
+        Assert.False(search.ShownForSearch);
+    }
 }

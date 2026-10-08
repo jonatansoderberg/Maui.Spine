@@ -7,13 +7,13 @@ internal sealed partial class SearchField
     /// <summary>Material 3's search bar: the leading icon in a 48-point slot from the bar's edge, the text 68 points in.</summary>
     private const double LeadingIconSlot = 48;
 
-    /// <summary>Material 3's search view: the clear button is a 56-point target at the trailing edge.</summary>
-    private const double ClearButtonSize = 56;
+    /// <summary>The clear button: a 48-point target at the trailing edge, where the header bar's trailing action is while searching.</summary>
+    private const double ClearButtonSize = HeaderBarConstants.Height;
 
     // SearchView underlines its query; inside the capsule the capsule is the field's edge. Its own
     // insets come off, so the icons and the text sit where Material 3's search bar and search view
     // put them: the magnifier centred 24 points in from the capsule's edge with the text after it,
-    // and at the other end a clear button as wide as the search view's.
+    // and at the other end a clear button as wide as the header bar's buttons.
     partial void ConfigurePlatform()
     {
         if (_bar.Handler?.PlatformView is Android.Views.View searchView && searchView.Context is { } context)

@@ -78,6 +78,10 @@ public sealed partial class NavigationRegion
             return;
         }
 
+        // What changed before the animation (a field shown for the search) is laid out where it
+        // starts, rather than growing out of an empty frame inside the animation.
+        window.LayoutIfNeeded();
+
         void Run()
         {
             apply();

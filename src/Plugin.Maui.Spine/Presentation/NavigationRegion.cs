@@ -452,7 +452,7 @@ public sealed partial class NavigationRegion : ContentView
 
         // Under a floating header the content must keep the status bar, the bar itself and a search row below it clear.
         var top = overlay
-            ? insets.Top + (vm.IsHeaderBarVisible ? vm.HeaderBarHeight + vm.SearchRowHeight : 0)
+            ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.BarHeight + vm.SearchRowHeight : 0)
             : (edges & SpineSafeArea.Top) != 0 ? 0 : insets.Top;
 
         // Above the keyboard the page no longer reaches the screen's bottom edge.
@@ -634,10 +634,11 @@ public sealed partial class NavigationRegion : ContentView
     private const uint SearchDuration = 300;
 
     /// <summary>
-    /// Has the header bar give way to a search that starts in the row below it, and brings it back
-    /// when the search ends, as a navigation bar does under a <c>UISearchController</c>: the bar's
-    /// buttons and the title slide up and fade, and the field and the content under it move up
-    /// into the bar's place. Under Reduce Motion the change cross-fades on Apple platforms and is
+    /// Has the header bar give way to a search, and brings it back when the search ends: the bar's
+    /// buttons and the title slide up and fade while the field goes up into the bar's row, and the
+    /// content moves up into the place of the row the field leaves, all in one motion. A field shown
+    /// only for the search is already in the bar's row: the bar and the field change places and the
+    /// content stays. Under Reduce Motion the change cross-fades on Apple platforms and is
     /// immediate elsewhere.
     /// </summary>
     private void AnimateSearch(ViewModelBase page)
@@ -654,20 +655,27 @@ public sealed partial class NavigationRegion : ContentView
             page.SafeAreaInsets = SafeAreaInsetsFor(page, page.SystemBarInsets);
         }
 
+        void Finished()
+        {
+            ClipForSearch(false);
+            page.SearchAnimationFinished();
+        }
+
         ClipForSearch(true);
+        page.SearchAnimationStarted();
 
 #if IOS || MACCATALYST
-        AnimateSearchOnPlatform(() => Apply(target), () => ClipForSearch(false));
+        AnimateSearchOnPlatform(() => Apply(target), Finished);
 #else
         if (ReducedMotion.IsOn)
         {
             Apply(target);
-            ClipForSearch(false);
+            Finished();
             return;
         }
 
         new Animation(Apply, page.SearchProgress, target)
-            .Commit(this, SearchAnimation, length: SearchDuration, easing: Easing.CubicInOut, finished: (_, _) => ClipForSearch(false));
+            .Commit(this, SearchAnimation, length: SearchDuration, easing: Easing.CubicInOut, finished: (_, _) => Finished());
 #endif
     }
 
