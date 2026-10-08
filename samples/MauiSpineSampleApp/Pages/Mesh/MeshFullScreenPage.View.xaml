@@ -1,0 +1,38 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Mesh.MeshFullScreenPage"
+    x:TypeArguments="MeshFullScreenPageViewModel"
+    x:DataType="MeshFullScreenPageViewModel">
+
+    <Grid>
+        <MeshBackground Preset="{Binding Settings.Preset}" Drift="{Binding Settings.Drift}"
+                        Columns="{Binding Settings.Columns}" Rows="{Binding Settings.Rows}"
+                        FrameRate="{Binding Settings.FrameRate}" />
+
+        <VerticalStackLayout Padding="{Binding SafeAreaInsets}" Margin="{x:Static HeaderBarConstants.PagePadding}"
+                             Spacing="16" VerticalOptions="Center">
+            <Border Material.Kind="Glass" StrokeThickness="0" StrokeShape="RoundRectangle 28" Padding="22">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Good evening" FontSize="28" FontAttributes="Bold" />
+                    <Label Text="Liquid Glass over a mesh that fills the screen, behind the status bar, the header bar and the home indicator." FontSize="15" />
+                </VerticalStackLayout>
+            </Border>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                <Border Material.Kind="Blur" StrokeThickness="0" StrokeShape="RoundRectangle 22" Padding="18">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Blur" FontSize="17" FontAttributes="Bold" />
+                        <Label Text="Material.Kind" FontSize="13" />
+                    </VerticalStackLayout>
+                </Border>
+                <Border Grid.Column="1" Material.TintOpacity="0.6" StrokeThickness="0" StrokeShape="RoundRectangle 22" Padding="18">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Tint" FontSize="17" FontAttributes="Bold" />
+                        <Label Text="Material.TintOpacity" FontSize="13" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+        </VerticalStackLayout>
+    </Grid>
+
+</SpinePage>

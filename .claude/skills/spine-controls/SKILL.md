@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), ContextMenu.Items (long-press / right-click menus on any view), Reorder.Mode, embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), MeshBackground (mesh gradients that drift slowly behind glass), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), ContextMenu.Items (long-press / right-click menus on any view), Reorder.Mode, SegmentedControl and TopTabs (native segmented control, in-page tabs), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, tilt parallax with Motion.Depth, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -9,7 +9,7 @@ You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each co
 
 ## SVG icons (`Plugin.Maui.Spine.Svg`, comes with the core)
 
-Embed the app's icons and pass the assembly to `UseSpine` (`options.AddAssembly`) — that registers them. Reference **`Plugin.Maui.Spine.Svg.Icons`** for 223 ready-made glyphs (chevrons, close, settings, search, filter, share, menu, check, info, warning, edit, delete, rooms, appliances, media, weather); nothing to register, `SpineIcons.Bell` is `"Bell.svg"`.
+Embed the app's icons and pass the assembly to `UseSpine` (`options.AddAssembly`) — that registers them. Reference **`Plugin.Maui.Spine.Svg.Icons`** for 224 ready-made glyphs (chevrons, close, settings, search, filter, share, menu, check, info, warning, edit, delete, rooms, appliances, media, weather); nothing to register, `SpineIcons.Bell` is `"Bell.svg"`.
 
 ```xml
 <!-- MyApp.csproj -->
@@ -58,6 +58,10 @@ Glass is for controls that float over content (navigation, a floating action), n
 
 A material on a `Border`, `ContentView` or layout is two layers behind its content: `Material.Kind` (`None`, `Blur`, `Glass`) as frosted as `Material.Intensity` (0–1; blur none→full, glass clear→regular), and `Material.Tint` (default the theme's surface) as opaque as `Material.TintOpacity` (0–1). A tinted panel is `TintOpacity` without a kind; solid is `TintOpacity="1"`. `Material.Preset` (`GlassClear`, `GlassRegular`, `BlurUltraThin`, `BlurThin`, `BlurRegular`, `BlurThick`) is only a named set of Kind/Intensity/TintOpacity, each overridable. Blur is iOS's thinnest system material, Android 12+ a real GPU blur, Windows acrylic; glass falls back to blur off iOS 26. `Material.Interactive="True"` makes glass react to touch. A `Stroke` draws over the material. The shape comes from `StrokeShape`; leave `Background` unset. `MaterialContainer Spacing="20"` makes glass surfaces inside merge on iOS 26. Glass is for floating controls; panels use `Blur` or a tint. For a hero's compact header: `<HeroCollectionView.HeaderOverlayContent><Border Material.Preset="BlurUltraThin" StrokeThickness="0" /></HeroCollectionView.HeaderOverlayContent>`. Replaces Sharpnado.MaterialFrame. Docs: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/materials.md
 
+
+## Motion (`Plugin.Maui.Spine`)
+
+`Motion.Depth="12"` on any view moves it by up to 12 points as the device tilts (full at about 20°), on top of its own translation and without a relayout; it settles back to the middle while the phone is held still. Positive floats above the screen (moves toward the edge tilting away), negative sits behind it; layers at different depths give parallax. iOS: the system's `UIInterpolatingMotionEffect` (off under Reduce Motion). Android: the game rotation vector through one shared listener, running only while a view with a depth is on screen and the app is in front; off when animations are removed. Mac Catalyst and Windows: nothing moves. Give a moving view room (`Margin="-16"` on a background photo with depth -14) or put it in a clipping `Border`. A highlight on a material: a radial-gradient `Border` with `InputTransparent="True"` and a deep negative depth (-70) inside a `Material.Preset` panel. The iOS simulator never moves; on the Android emulator use `adb emu sensor set gyroscope-uncalibrated x:y:z` for a moment. Docs: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/motion.md
 ## HeroCollectionView (`Plugin.Maui.Spine.Controls.HeroCollectionView`)
 
 A `CollectionView` with a collapsing sticky header, a title overlay and content slots over the image. No registration needed; XAML namespace `Plugin.Maui.Spine.Controls` (assembly `Plugin.Maui.Spine.Controls.HeroCollectionView`).
@@ -146,6 +150,21 @@ Skeleton loading; no registration call. `Shimmer` shows a placeholder layout (em
 
 Put `Skeleton.IsActive` on a layout (it throws on other views). For a list's first page, fill the items source with empty rows while loading, or let a `TaskState` with a `placeholder` do it: `Skeleton.IsActive="{Binding People.IsLoading}"` on a layout bound to `People.Value` (see the spine-page skill, Loading data).
 
+## MeshBackground (`Plugin.Maui.Spine.Controls.MeshBackground`)
+
+A mesh gradient behind content, above all behind `Material.Kind` glass and blur; `UseSpine()` registers it (`UseMeshBackground()` without Spine). It fills the space it is given: first child of a `Grid`, or set `HeightRequest` in a stack. `Preset` (`Accent` default, from `IThemeService.Accent` / `Primary`; `Aurora`; `Sunset`) gives light and dark colours and repaints on theme or accent changes; `Colors` (one per point, row by row, repeated when shorter; XAML `Colors="#0A84FF, #BF5AF2"`) overrides it. `Columns`/`Rows` 2–8 (default 3 × 3). `Drift` `None` (default, drawn once), `Slow`, `Medium`, `Fast`; `FrameRate` caps redraws (default 30). It stops redrawing off screen, on a covered page, in the background, and stays still under Reduce Motion. Not in the accessibility tree, takes no touches.
+
+```xml
+<Grid>
+    <MeshBackground Preset="Aurora" Drift="Slow" />
+    <Border Material.Kind="Glass" StrokeThickness="0" StrokeShape="RoundRectangle 24" Padding="20" VerticalOptions="Center">
+        <Label Text="Good evening" />
+    </Border>
+</Grid>
+```
+
+For a whole page: `[NavigableRegion(HeaderBar = HeaderBarMode.Overlay, HeaderBarBackground = HeaderBarBackground.Transparent, SafeAreaEdges = SafeAreaEdges.None)]` and `Padding="{Binding SafeAreaInsets}"` on the content over the mesh.
+
 ## Rows, Tap.Command and Semantic.Merge (`Plugin.Maui.Spine.Controls.Rows`, `Plugin.Maui.Spine`)
 
 `Tap.Command` / `Tap.CommandParameter` on any view: the whole view is the target, with native press feedback (iOS highlight, Android ripple, Windows hover/pressed), inner controls keep their touches, runs only when enabled and `CanExecute`. Use it instead of a `TapGestureRecognizer` plus `BackgroundColor="Transparent"`. `Semantic.Merge="True"` on a layout: children leave the accessibility tree, their texts (own `SemanticProperties.Description`, else `Label.Text`) join into one description; a `Switch` inside makes it a toggle, `Tap.Command` a button. Both in `Plugin.Maui.Spine.Extensions`; not `Semantics` (clashes with `Microsoft.Maui.Semantics`).
@@ -216,6 +235,12 @@ Pitfalls:
 
 `ContextMenu.Items` on any view gives it the system context menu (long press, right click) with the same `MenuItems`: a lifted, rounded preview on iOS 16+, a compact menu on Mac, a `PopupMenu` on Android, `ContextFlyout` on Windows. For list rows, set it on the template root with one shared menu, `ContextMenu.Items="{PageBinding RowMenu}" ContextMenu.CommandParameter="{Binding .}"`: an action without its own `CommandParameter` gets the row. Built when it opens. Hide rows that don't apply with `IsVisible` rather than disabling them. `Tap.Command` on the same view still runs on a tap. On Android a view with MAUI gesture recognizers never gets the long click; open the menu from its own long press with `ContextMenu.Show(view)`. A `DataGrid` takes `RowContextMenu` (the item as parameter, "Copy <column>" on top for the pressed cell). See docs/wiki/menus.md#context-menus.
 
+## Segmented control and top tabs (`Plugin.Maui.Spine`)
+
+`SegmentedControl` is the platform's own: `UISegmentedControl` on iOS/Mac (glass on iOS 26), Material segmented buttons on Android, `SelectorBar` on Windows. `<Segment Title="Week" Svg="calendar.svg" IsEnabled="..." />` children (they bind against the control's context), `SelectedIndex` two-way (-1 for none), `SelectionChanged`. Fill gives equal widths; Start/Center is as wide as the widest segment times their count. `SelectedSegmentColor` fills the picked segment (text black or white); unset, iOS keeps UIKit's neutral thumb and Android uses a tone of the app accent; bind `{DynamicResource Accent}` to follow the accent on iOS too. Give an icon segment a `Title` for screen readers.
+
+`TopTabs` with `<TopTab Title="Class">content</TopTab>` children (or `TopTab.ContentTemplate` to defer building the view) shows a segmented bar over the picked tab's content. A tab is added on first pick and kept (hidden) afterwards, so lists keep their scroll. Unless the page sets `HeaderBar.ScrollSource`, TopTabs points it at the visible tab's first ScrollView/CollectionView. No swipe between tabs. For root-level tabs use `[NavigableTab]` instead. See docs/wiki/segmented-control.md.
+
 ## Text in a control (`Plugin.Maui.Spine.Common`)
 
 A control never hard-codes words. It reads `SpineStrings.Current["Spine.Calendar.Today"]` under its own `Spine.<Control>.` key prefix, ships its defaults as an embedded `strings.xml` (plus `strings.<culture>.xml` translations) registered with `SpineStrings.Current.AddDefaults(new EmbeddedXmlStringProvider(assembly))` from the control's static constructor (no builder call needed), and repaints through `SpineTheme.Track(this, Repaint)`, which a culture switch triggers as well. The app overrides any key by defining it in its own document.
@@ -225,11 +250,13 @@ A control never hard-codes words. It reads `SpineStrings.Current["Spine.Calendar
 - SVG: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/svg.md
 - Glass buttons: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/glass-buttons.md
 - Haptics: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/haptics.md
+- Segmented control and top tabs: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/segmented-control.md
 - HeroCollectionView: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/hero-collection-view.md
 - AnimatedLabel: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/animated-label.md
 - Calendar: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/calendar.md
 - Rows and taps: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/rows.md
 - DataGrid: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/data-grid.md
 - Shimmer and Skeleton: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/shimmer.md
+- MeshBackground: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/mesh-background.md
 - Barcodes and scanning: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/barcodes.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp

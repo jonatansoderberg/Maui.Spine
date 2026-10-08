@@ -297,6 +297,16 @@ internal sealed class NavigationService : INavigationService
             await activeVm.BackAsync();
     }
 
+    /// <inheritdoc/>
+    public Task<MenuAction?> ShowActionsAsync(ActionSheet sheet, View? anchor = null)
+    {
+        ArgumentNullException.ThrowIfNull(sheet);
+
+        return sheet.VisibleActions.Count == 0
+            ? Task.FromResult<MenuAction?>(null)
+            : MainThread.InvokeOnMainThreadAsync(() => ActionSheetPresenter.ShowAsync(_services, sheet, anchor));
+    }
+
     /// <summary>A value delivered through <see cref="ReturnAsync"/>, which may itself be null.</summary>
     private sealed record Returned(object? Value);
 
