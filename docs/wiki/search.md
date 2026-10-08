@@ -54,13 +54,22 @@ The attribute also works on a toolkit field (`[ObservableProperty] private strin
 | `Text` | The text, the same as the declared property |
 | `Placeholder` | The prompt |
 | `IsActive` | Whether a search is going on. Set it to `true` to start one from code (the field takes the focus and the keyboard comes up), `false` to end it. It follows the user too; see [While searching](#while-searching) |
-| `IsVisible` | Set it to `false` to take the field away; the content moves up |
+| `IsVisible` | Set it to `false` to take the field away; the content moves up. A hidden field still searches: `IsActive = true` shows it for as long as the search goes on and hides it again when the search ends |
 | `Placement` | Where the field goes |
 | `SubmitCommand` | The search key's command (set when the search is created) |
 
 ```csharp
 Search!.IsActive = true;          // a "Search" row elsewhere on the page
 Search.IsVisible = Items.Count > 0;
+```
+
+A page that starts its search from a button of its own, with no field at rest, hides the field and starts the search from the button. The field appears in the header bar's place while the search goes on, and goes away with it:
+
+```csharp
+Search!.IsVisible = false;        // once, when the page is created
+
+[RelayCommand]
+private void Find() => Search!.IsActive = true;
 ```
 
 Without the attribute, set `Search = new PageSearch { Placeholder = "…", SubmitCommand = … }` yourself and follow `Search.Text` through `PropertyChanged`. Setting `Search = null` removes the field.

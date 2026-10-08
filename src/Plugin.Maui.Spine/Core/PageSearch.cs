@@ -52,9 +52,41 @@ public sealed partial class PageSearch : ObservableObject
     [ObservableProperty]
     public partial bool IsActive { get; set; }
 
-    /// <summary>Whether the field is shown. Defaults to <see langword="true"/>.</summary>
+    /// <summary>
+    /// Whether the field is shown. Defaults to <see langword="true"/>. A hidden field still searches:
+    /// setting <see cref="IsActive"/> shows it for as long as the search goes on and hides it again
+    /// when the search ends, for a page that starts its search from a button of its own.
+    /// </summary>
     [ObservableProperty]
     public partial bool IsVisible { get; set; } = true;
+
+    // Set while the field is shown only for the search that is going on.
+    private bool _shownForSearch;
+
+    // The field is shown before the search starts, so it is there to take the focus.
+    partial void OnIsActiveChanged(bool value)
+    {
+        if (value && !IsVisible)
+        {
+            _shownForSearch = true;
+            IsVisible = true;
+        }
+    }
+
+    partial void OnIsVisibleChanged(bool value)
+    {
+        if (!value)
+            _shownForSearch = false;
+    }
+
+    // And hidden once the end of the search has been handled, so the header bar comes back first.
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+
+        if (e.PropertyName == nameof(IsActive) && !IsActive && _shownForSearch)
+            IsVisible = false;
+    }
 
     /// <summary>Run with the text as its parameter when the keyboard's search key is pressed; <see langword="null"/> for none.</summary>
     public ICommand? SubmitCommand { get; init; }
