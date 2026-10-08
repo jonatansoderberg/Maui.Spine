@@ -169,6 +169,7 @@ Spine auto-discovers pages via assembly scanning — no manual DI registration n
 | Returning results from pages | [Navigation Results](navigation-results.md) |
 | Header bar & page actions | [Page Actions](page-actions.md) |
 | App shortcuts & tray icon | [Shortcuts](shortcuts.md) |
+| Spotlight and searchable items | [Searchable items](searchable-items.md) |
 | Windows desktop options | [Windows Platform Options](windows-options.md) |
 | Custom page transitions | [Custom Transitions](custom-transitions.md) |
 | Collapsing header collection view | [HeroCollectionView](hero-collection-view.md) |

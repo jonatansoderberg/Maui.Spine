@@ -330,6 +330,24 @@
       <DependentUpon>ContextMenusPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\SearchableItems\SearchableItemsPage.View.xaml">
+      <DependentUpon>SearchableItemsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\SearchableItems\SearchableItemsPage.ViewModel.cs">
+      <DependentUpon>SearchableItemsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\SearchableItems\RoomPage.View.xaml">
+      <DependentUpon>RoomPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\SearchableItems\RoomPage.ViewModel.cs">
+      <DependentUpon>RoomPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Search\SearchPage.View.xaml">
       <DependentUpon>SearchPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

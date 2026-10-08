@@ -313,8 +313,28 @@ internal sealed class NavigationService : INavigationService
     /// <inheritdoc/>
     public Task BackAsync() => Active.BackAsync();
 
+    private readonly TaskCompletionSource _rootSet = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// Completes when the first root page is in place. A way into the app from outside that arrives on
+    /// a cold start (a search result) waits for it, or the root page would replace what it showed.
+    /// </summary>
+    internal Task WhenRootSet => _rootSet.Task;
+
     /// <inheritdoc/>
     public async Task SetRootAsync<TNode>() where TNode : INavigable
+    {
+        try
+        {
+            await SetRootCoreAsync<TNode>();
+        }
+        finally
+        {
+            _rootSet.TrySetResult();
+        }
+    }
+
+    private async Task SetRootCoreAsync<TNode>() where TNode : INavigable
     {
         if (_registry.IsTab(typeof(TNode)))
         {

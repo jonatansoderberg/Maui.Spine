@@ -175,6 +175,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Page actions** | Header bar buttons driven by the ViewModel | [Page Actions](docs/wiki/page-actions.md) |
 | **Search** | `[PageSearch]` on a string property: a search field with the header bar, in a row below it or at its trailing end on iPad and Mac, kept in step with the property | [Search](docs/wiki/search.md) |
 | **Shortcuts** | OS dock/jump-list/tray menu integration | [Shortcuts](docs/wiki/shortcuts.md) |
+| **Searchable items** | The app's content in Spotlight (and as shortcuts on Android); a tapped result opens its page with a typed parameter, also from a cold start | [Searchable items](docs/wiki/searchable-items.md) |
 | **Menu buttons** | A button or header action that opens the platform's own menu: sections, pickers, submenus, toggles, destructive rows | [Menu buttons](docs/wiki/menus.md) |
 | **Context menus** | A long press or right click on any view opens the system's context menu, lifted with its shape on iOS; one shared menu for every row of a list | [Context menus](docs/wiki/menus.md#context-menus) |
 | **Segmented control and top tabs** | The platform's own segmented control with text or SVG icons, and `TopTabs` that build each tab's content when it is first picked and keep it | [Segmented control](docs/wiki/segmented-control.md) |
@@ -205,6 +206,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Page Actions](docs/wiki/page-actions.md) | Header bar buttons (text and SVG icons) |
 | [Search](docs/wiki/search.md) | `[PageSearch]` and `PageSearch`: the field with the header bar, its placement per platform, `IsActive` and `IsVisible` from code, the search key's command |
 | [Shortcuts](docs/wiki/shortcuts.md) | App shortcuts and tray menu |
+| [Searchable items](docs/wiki/searchable-items.md) | Spotlight and searchable items that open a page |
 | [Windows Platform Options](docs/wiki/windows-options.md) | Window size, tray, single-instance, title bar |
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
 | [Shared Elements and Zoom](docs/wiki/transitions.md) | `Transition.Tag` on a view on each page for a shared element, on the page itself for a zoom; a focus view inside the zooming page; the back-swipe zoom |
