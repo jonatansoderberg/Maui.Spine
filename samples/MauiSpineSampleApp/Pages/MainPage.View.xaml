@@ -42,6 +42,7 @@
                         SvgImageSource.Svg="palette.svg"
                         SvgImageSource.Padding="{OnPlatform Default=5, iOS=9.5, Android=8}"
                         SvgImageSource.LineWidthScale="{x:Static HeaderBarConstants.GlyphLineWidthScale}"
+                        SvgImageSource.RoundLineEnds="True"
                         Glass.Style="Clear"
                         MenuButton.Items="{Binding ThemeMenu}"
                         SemanticProperties.Description="Theme and accent"

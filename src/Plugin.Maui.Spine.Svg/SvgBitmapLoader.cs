@@ -34,9 +34,9 @@ public static class SvgBitmapLoader
 
     private static readonly ConcurrentDictionary<string, Lazy<ReadOnlyMemory<byte>>> _imageCache = new(StringComparer.OrdinalIgnoreCase);
     
-    private static string BuildImageCacheKey(string resourceName, double width, double height, Color tint, Thickness padding, bool adjustColorsForDark, float lineWidthScale) =>
+    private static string BuildImageCacheKey(string resourceName, double width, double height, Color tint, Thickness padding, bool adjustColorsForDark, float lineWidthScale, bool roundLineEnds) =>
         string.Create(CultureInfo.InvariantCulture,
-            $"{resourceName}|{width:F2}x{height:F2}|{tint.Red:F3},{tint.Green:F3},{tint.Blue:F3},{tint.Alpha:F3}|{padding.Left:F2},{padding.Top:F2},{padding.Right:F2},{padding.Bottom:F2}|{adjustColorsForDark}|{lineWidthScale:F3}");
+            $"{resourceName}|{width:F2}x{height:F2}|{tint.Red:F3},{tint.Green:F3},{tint.Blue:F3},{tint.Alpha:F3}|{padding.Left:F2},{padding.Top:F2},{padding.Right:F2},{padding.Bottom:F2}|{adjustColorsForDark}|{lineWidthScale:F3}|{roundLineEnds}");
 
     /// <summary>
     /// Loads an embedded SVG resource and returns a MAUI <see cref="ImageSource"/> rendered at
@@ -65,12 +65,16 @@ public static class SvgBitmapLoader
     /// Multiplies every stroke width in the SVG: above <c>1</c> for thicker lines at small sizes, below
     /// for thinner ones at large sizes. <c>1</c> keeps the SVG's own.
     /// </param>
+    /// <param name="roundLineEnds">
+    /// Ends every stroke in a half circle and rounds its corners, as SF Symbols and Material icons do;
+    /// with thicker lines, square ends look cut off.
+    /// </param>
     /// <returns>
     /// A stream-backed <see cref="ImageSource"/>, or <see langword="null"/> if
     /// <paramref name="svgName"/> is null or white-space.
     /// </returns>
     public static ImageSource? LoadFromEmbedded(string svgName, double width, double height, Color tint, Thickness padding,
-        bool adjustColorsForDark = false, float lineWidthScale = 1)
+        bool adjustColorsForDark = false, float lineWidthScale = 1, bool roundLineEnds = false)
     {
         if (string.IsNullOrWhiteSpace(svgName))
             return null;
@@ -82,11 +86,11 @@ public static class SvgBitmapLoader
         var pixelHeight = height * scale;
         var pixelPadding = new Thickness(padding.Left * scale, padding.Top * scale, padding.Right * scale, padding.Bottom * scale);
 
-        var key = BuildImageCacheKey(svgName, pixelWidth, pixelHeight, tint, pixelPadding, adjustColorsForDark, lineWidthScale);
+        var key = BuildImageCacheKey(svgName, pixelWidth, pixelHeight, tint, pixelPadding, adjustColorsForDark, lineWidthScale, roundLineEnds);
 
         var lazyImage = _imageCache.GetOrAdd(key, _ =>
             new Lazy<ReadOnlyMemory<byte>>(
-                () => RenderSvgToPng(svgName, pixelWidth, pixelHeight, tint, pixelPadding, adjustColorsForDark, lineWidthScale),
+                () => RenderSvgToPng(svgName, pixelWidth, pixelHeight, tint, pixelPadding, adjustColorsForDark, lineWidthScale, roundLineEnds),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         return new SvgBitmapImageSource(svgName, lazyImage.Value, scale);
@@ -139,7 +143,7 @@ public static class SvgBitmapLoader
     }
 
     private static ReadOnlyMemory<byte> RenderSvgToPng(string resourceName, double width, double height, Color tint, Thickness padding,
-        bool adjustColorsForDark, float lineWidthScale)
+        bool adjustColorsForDark, float lineWidthScale, bool roundLineEnds)
     {
         if (resourceName is null)
             throw new FileNotFoundException(resourceName);
@@ -153,6 +157,6 @@ public static class SvgBitmapLoader
         return SvgRasterizer.RenderPng(stream, (int)Math.Round(width), (int)Math.Round(height),
             new SKColor((byte)(tint.Red * 255), (byte)(tint.Green * 255), (byte)(tint.Blue * 255), (byte)(tint.Alpha * 255)),
             adjustColorsForDark ? DarkPalette : null, lineWidthScale,
-            (float)padding.Left, (float)padding.Top, (float)padding.Right, (float)padding.Bottom);
+            (float)padding.Left, (float)padding.Top, (float)padding.Right, (float)padding.Bottom, roundLineEnds);
     }
 }

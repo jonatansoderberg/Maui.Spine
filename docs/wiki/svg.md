@@ -198,6 +198,14 @@ hairlines at 16 points and heavy lines at 96. `LineWidthScale` multiplies every 
 It covers widths set in attributes and styles and the default width of 1. `SvgIconOptions.LineWidthScale`
 does the same for tray and window icons.
 
+`RoundLineEnds` ends every stroke in a half circle and rounds its corners, as SF Symbols and Material
+icons do. The Spine set leaves the SVG default, square ends and sharp corners, which look cut off once
+the lines are made heavier; the header bar turns it on together with its `LineWidthScale`.
+
+```xml
+<Image SvgImageSource.Svg="chevronleft.svg" SvgImageSource.LineWidthScale="1.5" SvgImageSource.RoundLineEnds="True" />
+```
+
 ---
 
 ## Attached properties reference
@@ -211,6 +219,7 @@ does the same for tray and window icons.
 | `SvgImageSource.Padding` | `Thickness` | `5` | Padding inside the rendered bitmap |
 | `SvgImageSource.AdjustColorsForDark` | `bool?` | `null` | Dark tones for the SVG's own colours in the dark theme; `null` follows `SvgImageOptions.AdjustColorsForDark` |
 | `SvgImageSource.LineWidthScale` | `double` | `1` | Multiplies every stroke width |
+| `SvgImageSource.RoundLineEnds` | `bool` | `false` | Round ends and corners on every stroke |
 
 Setting `Svg` or tint properties while `EnableSvg` is already `true` automatically re-renders the image.
 

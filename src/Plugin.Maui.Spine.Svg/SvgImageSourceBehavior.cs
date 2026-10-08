@@ -55,6 +55,11 @@ public class SvgImageSourceBehavior : Behavior<View>
         BindableProperty.Create(nameof(LineWidthScale), typeof(double), typeof(SvgImageSourceBehavior), 1.0,
             propertyChanged: static (b, _, _) => ((SvgImageSourceBehavior)b).UpdateImage());
 
+    /// <summary>Identifies the <see cref="RoundLineEnds"/> bindable property.</summary>
+    public static readonly BindableProperty RoundLineEndsProperty =
+        BindableProperty.Create(nameof(RoundLineEnds), typeof(bool), typeof(SvgImageSourceBehavior), false,
+            propertyChanged: static (b, _, _) => ((SvgImageSourceBehavior)b).UpdateImage());
+
     /// <summary>
     /// Gets or sets the short SVG resource name to render (e.g. <c>"icon.svg"</c>).
     /// </summary>
@@ -126,6 +131,16 @@ public class SvgImageSourceBehavior : Behavior<View>
     {
         get => (double)GetValue(LineWidthScaleProperty);
         set => SetValue(LineWidthScaleProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether every stroke ends in a half circle and turns round corners, as SF Symbols and
+    /// Material icons do. Defaults to <see langword="false"/>, the SVG's own ends.
+    /// </summary>
+    public bool RoundLineEnds
+    {
+        get => (bool)GetValue(RoundLineEndsProperty);
+        set => SetValue(RoundLineEndsProperty, value);
     }
 
     /// <inheritdoc/>
@@ -205,7 +220,7 @@ public class SvgImageSourceBehavior : Behavior<View>
 
         var resourceName = _svgRegistry?.Resolve(Svg) ?? Svg;
         var adjustColors = theme == AppTheme.Dark && (AdjustColorsForDark ?? SvgBitmapLoader.Options.AdjustColorsForDark);
-        var source = SvgBitmapLoader.LoadFromEmbedded(resourceName, width, height, tint, Padding, adjustColors, (float)LineWidthScale);
+        var source = SvgBitmapLoader.LoadFromEmbedded(resourceName, width, height, tint, Padding, adjustColors, (float)LineWidthScale, RoundLineEnds);
 
         // Already on the main thread is the common case (attach, size change), and a deferred set
         // lands one loop later than the cell that shows the view, which on Android is a visible

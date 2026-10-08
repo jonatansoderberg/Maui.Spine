@@ -39,7 +39,9 @@ internal static class SvgRasterizer
     /// to keep them. The tint is left as it is, and an SVG tinted whole has no own colours left to adjust.
     /// </param>
     /// <param name="lineWidthScale">Multiplies every stroke width; <c>1</c> keeps the SVG's own.</param>
-    public static SKSvg Load(Stream svg, SKColor tint, out SKPaint? paint, SvgDarkPalette? darkPalette = null, float lineWidthScale = 1)
+    /// <param name="roundLineEnds">Ends every stroke in a half circle and rounds its corners, as SF Symbols and Material do.</param>
+    public static SKSvg Load(Stream svg, SKColor tint, out SKPaint? paint, SvgDarkPalette? darkPalette = null, float lineWidthScale = 1,
+        bool roundLineEnds = false)
     {
         var document = new SKSvg();
 
@@ -54,7 +56,7 @@ internal static class SvgRasterizer
         if (paint is not null)
             darkPalette = null;
 
-        if (!tintCurrentColor && darkPalette is null && !scaleStrokes)
+        if (!tintCurrentColor && darkPalette is null && !scaleStrokes && !roundLineEnds)
         {
             document.Load(buffer);
             return document;
@@ -64,6 +66,9 @@ internal static class SvgRasterizer
 
         if (scaleStrokes)
             ScaleStrokes(model, lineWidthScale);
+
+        if (roundLineEnds)
+            RoundLineEnds(model);
 
         if (tintCurrentColor)
             model.Color = new SvgColourServer(System.Drawing.Color.FromArgb(tint.Alpha, tint.Red, tint.Green, tint.Blue));
@@ -90,6 +95,21 @@ internal static class SvgRasterizer
         }
     }
 
+    /// <summary>
+    /// Gives every stroke round ends and round corners: on the root, which the rest inherit, and on every
+    /// element that sets its own.
+    /// </summary>
+    private static void RoundLineEnds(SvgDocument document)
+    {
+        foreach (var element in document.Descendants().Prepend(document))
+        {
+            if (element == document || element.ContainsAttribute("stroke-linecap"))
+                element.StrokeLineCap = SvgStrokeLineCap.Round;
+            if (element == document || element.ContainsAttribute("stroke-linejoin"))
+                element.StrokeLineJoin = SvgStrokeLineJoin.Round;
+        }
+    }
+
     /// <summary>Renders <paramref name="svg"/> into a <paramref name="width"/> × <paramref name="height"/> PNG.</summary>
     /// <param name="svg">The SVG document.</param>
     /// <param name="width">Bitmap width in pixels.</param>
@@ -100,14 +120,16 @@ internal static class SvgRasterizer
     /// </param>
     /// <param name="darkPalette">Gives the SVG's own colours their dark tones, or <see langword="null"/> to keep them.</param>
     /// <param name="lineWidthScale">Multiplies every stroke width; <c>1</c> keeps the SVG's own.</param>
+    /// <param name="roundLineEnds">Ends every stroke in a half circle and rounds its corners.</param>
     /// <param name="left">Inset from the left edge, in pixels.</param>
     /// <param name="top">Inset from the top edge, in pixels.</param>
     /// <param name="right">Inset from the right edge, in pixels.</param>
     /// <param name="bottom">Inset from the bottom edge, in pixels.</param>
     /// <returns>The encoded PNG.</returns>
-    public static byte[] RenderPng(Stream svg, int width, int height, SKColor tint, SvgDarkPalette? darkPalette = null, float lineWidthScale = 1, float left = 0, float top = 0, float right = 0, float bottom = 0)
+    public static byte[] RenderPng(Stream svg, int width, int height, SKColor tint, SvgDarkPalette? darkPalette = null, float lineWidthScale = 1, float left = 0, float top = 0, float right = 0, float bottom = 0,
+        bool roundLineEnds = false)
     {
-        using var document = Load(svg, tint, out var tintPaint, darkPalette, lineWidthScale);
+        using var document = Load(svg, tint, out var tintPaint, darkPalette, lineWidthScale, roundLineEnds);
         using var paint = tintPaint;
         var picture = document.Picture ?? throw new InvalidOperationException("The SVG could not be parsed.");
 

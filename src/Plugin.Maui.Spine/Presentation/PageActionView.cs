@@ -518,7 +518,7 @@ internal sealed class PageActionView : ContentView
             var size = GlyphSize(svg);
             _morphIcon.WidthRequest = size;
             _morphIcon.HeightRequest = size;
-            _morphIcon.Source = SvgBitmapLoader.LoadFromEmbedded(resource, size, size, tint, Thickness.Zero, lineWidthScale: (float)LineWidthScale(svg));
+            _morphIcon.Source = SvgBitmapLoader.LoadFromEmbedded(resource, size, size, tint, Thickness.Zero, lineWidthScale: (float)LineWidthScale(svg), roundLineEnds: true);
         }
 
         /// <summary>A glass icon is a circle as tall as the row; otherwise it fills the slot the bar gives it.</summary>
@@ -828,6 +828,7 @@ internal sealed class PageActionView : ContentView
                         TintColor = _prominent ? OnFill() : _owner.Foreground,
                         Padding = GlyphPadding(action.Svg),
                         LineWidthScale = LineWidthScale(action.Svg),
+                        RoundLineEnds = true,
                     };
                     _imageButton.Behaviors.Add(behavior);
                     _currentSvg = action.Svg;
