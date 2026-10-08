@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" version="1.1">
+<g>
+<path d="M18.75 12.5L18.75 31.25L39.06 31.25"  stroke="currentColor" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M18.75 6.25L23.44 12.5L14.06 12.5Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M45.31 31.25L39.06 35.94L39.06 26.56Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M18.75 31.25L9.56 40.44"  stroke="currentColor" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M6.25 43.75L7.35 36.01L13.99 42.65Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+</g>
+</svg>
