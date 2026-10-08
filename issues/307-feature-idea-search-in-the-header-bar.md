@@ -85,6 +85,13 @@ Jonatan saw too many X's on his iPhone while searching: the field's clear button
 - `Core/PageSearch.cs`: `IsActive` documented as "a search is going on".
 - Showcase: the submit no longer ends the search; a row "End the search" (`IsActive = false`); the footer explains the behaviour.
 - Docs: `docs/wiki/search.md` "While searching" with two iOS screenshots (page light, sheet dark), the `/spine-page` skill.
+- Review round with Jonatan (same branch):
+  - **Clear button bug:** MAUI hid UIKit's cancel button when the text went empty, leaving a search that could not be ended. Fixed, then superseded by the next point.
+  - **Spine's own cancel button on Apple:** UIKit's cancel button is off for good (MAUI turns it on with text; Spine turns it off again, also asynchronously); a `PageActionView` with `close.svg` and `Spine.Header.Cancel` sits beside the field, 44 points, at the page margin, 11 points from the field (measured on a native `UISearchController`). It follows `SearchProgress`, so it comes and goes with the bar's animation and nothing else; the glyph weight is the header actions' (#493).
+  - **44-point field on Apple:** `SearchField.Bar` + `BarHandler` (`MauiSearchBar` subclass) holds `UISearchTextField` to 44 points, centred, after UIKit's layout and whenever its frame changes (KVO on `frame`); the handler sets MAUI's private `_editor` field so typing, font and colours keep working (a visible console warning if MAUI renames it, and the field then keeps UIKit's height). 17-point text.
+  - **Android to Material 3:** measured against a native `SearchBar` + `SearchView` built in the harness. At rest the capsule matches (56 points, 16 in, magnifier centred at 24, text at 68; SearchView's own insets removed). While searching the capsule opens into the search view header: square, full width, 72 points (the row grows by 8 on Android), divider in Material's outline colour, back arrow (AppCompat's, as Material's) at the leading edge, clear button 56 points wide with its icon at its own size, icons in on-surface-variant, 16-point text. The magnifier is put back right after SearchView's own focus handling.
+  - **Leaving a page ends its search** (`SendDisappearingAsync`: back, push, tab switch; `BottomSheetCoordinator` after a sheet is dismissed), so the keyboard goes down with the page.
+  - Showcase: the Top switch says what it does ("iPad, Mac: a row instead of the header bar").
 
 ## Decisions
 
@@ -113,6 +120,11 @@ Jonatan saw too many X's on his iPhone while searching: the field's clear button
 - **The title keeps 2 % opacity while hidden** (see Changes); invisible in practice, and the scroll edge effect keeps working.
 - **Clipping only during the animation:** at rest the hidden bar is fully transparent, so nothing needs clipping, and a clipped page could cut shadows at its edges.
 - **A large title page:** the large title is page content and stays in the list under the field; UIKit hides it with the bar. Left as it is.
+- **Leaving a page ends its search** (Jonatan, review): UIKit keeps a search controller active under a pushed page, but a page left with the keyboard up kept the keyboard; ending it on every disappearance is simpler and what he asked for. Supersedes "a page comes back as its search left it".
+- **Spine's own cancel button instead of UIKit's** (Jonatan, review): UIKit's came and went with the text and was larger than the header actions. The field in the bar (iPad, Mac) has no cancel button at all now.
+- **The 44-point field needs MAUI internals** (a handler subclass that sets `SearchBarHandler._editor` by reflection): no public API sizes UIKit's field. If MAUI renames the field the bar falls back to MAUI's own and says so on the console.
+- **Android's active state is Material 3's search view header, not a full-screen search view:** the page's own list is the result list, so it stays visible below the header.
+- **AppCompat's back arrow on Android's search header**, as Material's search view, though Spine's header bar uses a chevron for back.
 
 ## Verification
 
@@ -121,3 +133,9 @@ Jonatan saw too many X's on his iPhone while searching: the field's clear button
 - **emulator-5556 (a Pixel Tablet AVD, not a phone):** the capsule without the underline in light and dark; typing and the IME search key (Gboard was in its floating-toolbar mode) run `Submit`; the clear X; the sheet's row.
 - **Windows:** compiled only. **Unit tests:** `PageSearchDiscoveryTests` (13), the core test project passes (42).
 
+
+### While searching (branch `fix/search-hides-header-bar`)
+
+- **iPhone 17 Pro simulator (iOS 26.4):** page (light) and sheet (dark): focus → header bar, title, back, page actions and the sheet's close slide up and fade, the field and the list move up (recorded with `simctl io recordVideo`, frames checked: one ~300 ms spring, the cancel button slides in with the field shrinking) → X → everything comes back. Field 44 × 315 at x 16, cancel 44 × 44 at x 342 (the native measurements). Clear → type → clear: the cancel button's pixels do not change (max diff 21/255 against 255 for the field). Clear then dismiss the keyboard: the search stays and the X ends it. The search key / keyboard down keeps the search with the X enabled. Reduce Motion: cross-fade. The scroll edge effect under the field while searching. Back swipe and a back from code with an active search: the field lets go, the text is cleared. A sheet swiped down with an active search.
+- **emulator-5556 (a Pixel Tablet AVD, not a phone):** Material 3 `SearchBar`/`SearchView` reference next to Spine, in pixels: rest 1536 × 112 at x 32, icon slot 40–136, text at 136 (both); searching 1600 × 144 at y 48, back 0–96, text 96–1488, clear 1488–1600 with a 28-px glyph, divider 2 px in (121,116,126) (both). Clear → type → clear keeps the back arrow; keyboard down keeps the search, the back arrow ends it; system back (the activity dispatcher) ends the search first, then goes back; leaving the page with an active search hides the keyboard; closing a sheet with an active search hides the keyboard; sheet in dark.
+- **Not verified:** the slide animation on Android (MAUI animations finish at once on this emulator, a plain `Animation` in the harness too, so only the end states were seen); the sheet dialog's own back key on Android (adb key events break Gboard, see memory); iOS 27 and the physical iPhone (glass alpha while fading, the stretched soft edge); iPad/Mac (the field in the bar is unchanged apart from losing UIKit's cancel button); Windows (compiled only).

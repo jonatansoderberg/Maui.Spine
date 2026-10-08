@@ -218,8 +218,7 @@ internal sealed partial class PagePresenter : Grid
             UpdateSystemScrollEdge();
         else if (e.PropertyName is nameof(ViewModelBase.SearchProgress))
         {
-            if (_searchField is not null)
-                _searchField.SearchProgress = _page!.SearchProgress;
+            ApplySearchRowFrame();
             ApplyTitleBarMargin();
             ApplyTitleRowHeight();
             ApplyCollapse();
@@ -235,14 +234,13 @@ internal sealed partial class PagePresenter : Grid
         // pushed down by the status bar the content host no longer pads.
         Grid.SetRowSpan(_contentPresenter, floats ? 2 : 1);
         Grid.SetRow(_contentPresenter, floats ? 0 : 1);
-        var sides = _page?.SafeAreaInsets ?? Thickness.Zero;
         ApplyTitleBarMargin();
         _titleBar.InputTransparent = floats;
         // The title was added before the content and would draw under it once they share a row.
         _titleBar.ZIndex = floats ? 2 : 0;
         _barBackground.ZIndex = floats ? 1 : 0;
 
-        ApplySearchRow(sides);
+        ApplySearchRow();
         ApplyTitleRowHeight();
         ApplyTitleTextColor();
         ApplyBarBackgroundColor();
@@ -460,7 +458,7 @@ internal sealed partial class PagePresenter : Grid
     /// Shows the page's search field at the bottom of the title row when it goes in the row below
     /// the header bar, inside the same side margin as the page's content.
     /// </summary>
-    private void ApplySearchRow(Thickness sides)
+    private void ApplySearchRow()
     {
         var shown = _page is { SearchLayout: SearchLayout.Row };
 
@@ -481,12 +479,24 @@ internal sealed partial class PagePresenter : Grid
         }
 
         _searchField.Search = _page!.Search;
-        _searchField.SearchProgress = _page.SearchProgress;
         _searchField.IsVisible = true;
-        _searchField.HeightRequest = HeaderBarConstants.SearchRowHeight;
-        _searchField.Margin = new Thickness(sides.Left + SearchRowInset, 0, sides.Right + SearchRowInset, 0);
         // Over the content and the bar's background when they share the row.
         _searchField.ZIndex = 3;
+        ApplySearchRowFrame();
+    }
+
+    // The row's height and side margin, and the field's own state, as far as a search has taken the
+    // header bar's place; on Android the field runs to the sides then, as Material's search view header.
+    private void ApplySearchRowFrame()
+    {
+        if (_searchField is not { IsVisible: true } || _page is not { } page)
+            return;
+
+        var sides = page.SafeAreaInsets;
+        var inset = SearchRowInset * (SearchField.FullWidthWhileSearching ? 1 - page.SearchProgress : 1);
+        _searchField.SearchProgress = page.SearchProgress;
+        _searchField.HeightRequest = page.SearchRowHeight;
+        _searchField.Margin = new Thickness(sides.Left + inset, 0, sides.Right + inset, 0);
     }
 
     /// <summary>

@@ -38,6 +38,12 @@ internal sealed partial class SearchField : ContentView
 #else
         _bar = new SearchBar { VerticalOptions = LayoutOptions.Center };
 #endif
+        // The platform's own search field text: 17 points on Apple, Material 3's body large on Android.
+#if ANDROID
+        _bar.FontSize = 16;
+#elif IOS || MACCATALYST
+        _bar.FontSize = 17;
+#endif
         _bar.SearchButtonPressed += (_, _) => Submit();
         _bar.TextChanged += (_, _) => ApplyCancelButton();
         _bar.Focused += (_, _) =>
@@ -184,11 +190,25 @@ internal sealed partial class SearchField : ContentView
     /// </summary>
     partial void ApplyCancelButton();
 
+    /// <summary>
+    /// How much the search row grows while a search goes on: on Android to the 72 points of
+    /// Material 3's search view header, which then fills it edge to edge.
+    /// </summary>
+    internal static double RowGrowthWhileSearching =>
+#if ANDROID
+        CapsuleHeight + ActiveGrowth - HeaderBarConstants.SearchRowHeight;
+#else
+        0;
+#endif
+
+    /// <summary>Whether the field runs to the row's sides while a search goes on (Android's search view header).</summary>
+    internal static bool FullWidthWhileSearching => OperatingSystem.IsAndroid();
+
     /// <summary>Whether the button that ends the search shows.</summary>
     private bool ShowsCancelButton => OutlastsFocus ? _search?.IsActive == true : _bar.IsFocused;
 
-#if !IOS && !MACCATALYST
-    /// <summary>How far the search has taken the header bar's place; only Apple's cancel button follows it.</summary>
+#if !IOS && !MACCATALYST && !ANDROID
+    /// <summary>How far the search has taken the header bar's place; Windows' field does not follow it.</summary>
     internal double SearchProgress
     {
         set { }
@@ -196,17 +216,28 @@ internal sealed partial class SearchField : ContentView
 #endif
 
 #if ANDROID
-    /// <summary>Height of the Material 3 capsule.</summary>
+    /// <summary>Height of the Material 3 search bar, a capsule at rest.</summary>
     private const double CapsuleHeight = 56;
+
+    /// <summary>
+    /// How much taller Material 3's search view header is than the bar: 72 points, flat and full
+    /// width, while a search goes on.
+    /// </summary>
+    private const double ActiveGrowth = 16;
 
     /// <summary>Material 3's icon button: a 48-point target around a 24-point icon.</summary>
     private const double BackButtonSize = 48;
 
+    /// <summary>The room inside the capsule's ends at rest.</summary>
+    private const double CapsulePadding = 4;
+
     private ImageButton? _back;
+    private Border? _capsule;
+    private BoxView? _divider;
 
     // Material 3's search bar: a fully rounded field on a tonal surface, here a tint of the
-    // foreground so it sits on whatever the page's background is. While a search goes on, a back
-    // arrow at its leading end ends it, as in Material's search view.
+    // foreground so it sits on whatever the page's background is. While a search goes on it opens
+    // into the search view's header (see SearchProgress), with a back arrow at its leading end.
     private View Chrome(SearchBar bar)
     {
         _back = new ImageButton
@@ -217,6 +248,8 @@ internal sealed partial class SearchField : ContentView
             CornerRadius = (int)(BackButtonSize / 2),
             BackgroundColor = Colors.Transparent,
             VerticalOptions = LayoutOptions.Center,
+            // AppCompat's back arrow, the one Material's search view and top app bar show.
+            Source = "abc_ic_ab_back_material",
             IsVisible = false,
         };
         _back.Clicked += (_, _) => End();
@@ -226,33 +259,52 @@ internal sealed partial class SearchField : ContentView
         row.Add(_back, 0);
         row.Add(bar, 1);
 
-        var capsule = new Border
+        _divider = new BoxView { HeightRequest = 1, VerticalOptions = LayoutOptions.End, Opacity = 0, IsVisible = false, InputTransparent = true };
+        row.Add(_divider);
+        Grid.SetColumnSpan(_divider, 2);
+
+        _capsule = new Border
         {
             StrokeThickness = 0,
             StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = CapsuleHeight / 2 },
             HeightRequest = CapsuleHeight,
             VerticalOptions = LayoutOptions.Center,
-            Padding = new Thickness(4, 0),
+            Padding = new Thickness(CapsulePadding, 0),
             Content = row,
         };
 
         void Paint()
         {
             var dark = Material.IsDark();
-            capsule.BackgroundColor = dark ? Colors.White.WithAlpha(0.1f) : Colors.Black.WithAlpha(0.06f);
-            PaintBackArrow(dark);
+            _capsule.BackgroundColor = dark ? Colors.White.WithAlpha(0.1f) : Colors.Black.WithAlpha(0.06f);
+            // Material 3's outline colour, which its search view's divider is drawn in.
+            _divider.Color = dark ? Color.FromRgb(147, 143, 153) : Color.FromRgb(121, 116, 126);
+            PaintIcons(dark);
         }
 
         Paint();
-        SpineTheme.Track(capsule, Paint);
-        return capsule;
+        SpineTheme.Track(_capsule, Paint);
+        return _capsule;
     }
 
-    private void PaintBackArrow(bool dark)
+    /// <summary>
+    /// How far the search has taken the header bar's place, 0 to 1: the capsule opens into
+    /// Material 3's search view header — square, the full width (the title row drops the row's side
+    /// margin), 72 points tall, with a divider under it.
+    /// </summary>
+    internal double SearchProgress
     {
-        var names = IPlatformApplication.Current?.Services.GetService<Svg.ResourceNameCache>();
-        if (_back is not null && names?.Resolve(HeaderBarConstants.BackGlyph) is { } resource)
-            _back.Source = Svg.SvgBitmapLoader.LoadFromEmbedded(resource, 24, 24, dark ? Colors.White : Colors.Black);
+        set
+        {
+            if (_capsule is null)
+                return;
+
+            ((Microsoft.Maui.Controls.Shapes.RoundRectangle)_capsule.StrokeShape!).CornerRadius = CapsuleHeight / 2 * (1 - value);
+            _capsule.HeightRequest = CapsuleHeight + ActiveGrowth * value;
+            _capsule.Padding = new Thickness(CapsulePadding * (1 - value), 0);
+            _divider!.Opacity = value;
+            _divider.IsVisible = value > 0;
+        }
     }
 #elif IOS || MACCATALYST
     /// <summary>

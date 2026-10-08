@@ -507,8 +507,7 @@ public sealed partial class NavigationRegion : ContentView
             // Apply safe-area padding for the new page on both content hosts.
             if (ViewModel.CurrentRegionViewModel is { } vm)
             {
-                // A page comes back as its search left it: a page left in the middle of one shows
-                // the field in the header bar's place, as UIKit keeps a search controller active.
+                // The page's header comes back as its search is, without an animation.
                 this.AbortAnimation(SearchAnimation);
                 vm.SearchProgress = vm.SearchHidesHeaderBar ? 1 : 0;
                 ApplyKeyboardInset(vm);

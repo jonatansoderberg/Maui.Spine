@@ -257,7 +257,9 @@ public abstract partial class ViewModelBase : ObservableObject
 
     /// <summary>How much the search row adds below the header bar.</summary>
     internal double SearchRowHeight =>
-        SearchLayout is Presentation.SearchLayout.Row ? Presentation.HeaderBarConstants.SearchRowHeight : 0;
+        SearchLayout is Presentation.SearchLayout.Row
+            ? Presentation.HeaderBarConstants.SearchRowHeight + Presentation.SearchField.RowGrowthWhileSearching * SearchProgress
+            : 0;
 
     /// <summary>
     /// Whether the header bar gives way to the search row while a search is going on, as a
@@ -355,6 +357,11 @@ public abstract partial class ViewModelBase : ObservableObject
     {
         _appeared = false;
         EndLifetime();
+
+        // A page that leaves ends its search, so the keyboard goes down with it (a pop, a push, a
+        // sheet dismissed, another tab), as UIKit does with a search controller's view controller.
+        if (Search is { IsActive: true } search)
+            search.IsActive = false;
 
         return OnDisappearingAsync(navigationDirection);
     }

@@ -67,6 +67,11 @@ internal sealed class BottomSheetCoordinator : IDisposable
 
                 await bottomSheetTask;
                 IsSheetActive = false;
+
+                // The keyboard went with the sheet; its page's search ends with it too.
+                if (vm.CurrentRegionViewModel?.Search is { IsActive: true } search)
+                    MainThread.BeginInvokeOnMainThread(() => search.IsActive = false);
+
                 closed.TrySetResult();
 #else
                 await Task.CompletedTask;
