@@ -123,6 +123,9 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             // no sheet is active.
             if (BottomSheetPageExtensions.ActiveBottomSheetDismiss is not null)
             {
+                if (sheetVm.TryEndSearch())
+                    return;
+
                 if (sheetVm.BackEnabled())
                     sheetVm.BackAsync().SafeFireAndForget();
                 else
@@ -131,6 +134,11 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             }
 
             var rootVm = RootVm();
+
+            // A search that has taken the header bar's place ends before the page goes back.
+            if (rootVm.TryEndSearch())
+                return;
+
             if (rootVm.BackEnabled())
             {
                 rootVm.BackAsync().SafeFireAndForget();
@@ -146,6 +154,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         // can still handle root back — otherwise back presses leave the app via the default path.
         void UpdateEnabled() =>
             callback.Enabled = RootVm().BackEnabled()
+                || RootVm().CurrentRegionViewModel is { SearchHidesHeaderBar: true }
                 || BottomSheetPageExtensions.ActiveBottomSheetDismiss is not null
                 || _host.CanHandleRootBack;
 
@@ -166,6 +175,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         UpdateEnabled();
         sheetVm.BackCommand.CanExecuteChanged += (_, _) => UpdateEnabled();
         BottomSheetPageExtensions.ActiveBottomSheetChanged += UpdateEnabled;
+        NavigationRegion.SearchChanged += UpdateEnabled;
         _host.ActiveRegionChanged += () =>
         {
             Resubscribe();

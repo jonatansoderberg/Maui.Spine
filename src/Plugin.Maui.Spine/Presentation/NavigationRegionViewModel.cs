@@ -303,6 +303,19 @@ internal partial class NavigationRegionViewModel : ObservableObject
     /// Returning silently instead would make <c>BackAsync</c> a call that does nothing and says
     /// nothing — which reads, from inside a sheet, as a button that is broken.
     /// </remarks>
+    /// <summary>
+    /// Ends the shown page's search where it has taken the header bar's place, as back does first
+    /// on Android; <see langword="false"/> when there is none.
+    /// </summary>
+    internal bool TryEndSearch()
+    {
+        if (CurrentRegionViewModel is not { SearchHidesHeaderBar: true, Search: { } search })
+            return false;
+
+        search.IsActive = false;
+        return true;
+    }
+
     [RelayCommand(CanExecute = nameof(BackEnabled))]
     public async Task BackAsync()
     {

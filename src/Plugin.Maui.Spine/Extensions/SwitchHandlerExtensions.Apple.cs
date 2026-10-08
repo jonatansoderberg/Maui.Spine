@@ -21,6 +21,7 @@ public static partial class SpineExtensions
         {
             handlers.AddHandler<Presentation.Lightbox, Presentation.LightboxHandler>();
             handlers.AddHandler<Presentation.SegmentedControl, Presentation.SegmentedControlHandler>();
+            handlers.AddHandler<Presentation.SearchField.Bar, Presentation.SearchField.BarHandler>();
         });
 
         SwitchHandler.Mapper.AppendToMapping("SpineInstantSwitch", static (handler, _) =>

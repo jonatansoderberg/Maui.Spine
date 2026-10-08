@@ -77,9 +77,14 @@ internal static class BottomSheetPageExtensions
         // Returns true if the back press was consumed by in-sheet navigation.
         async Task<bool> HandleBackAsync()
         {
-            if (bottomSheetContent is NavigationRegion region
-                && region.BindingContext is NavigationRegionViewModel regionVm
-                && regionVm.BackEnabled())
+            if (bottomSheetContent is not NavigationRegion { BindingContext: NavigationRegionViewModel regionVm })
+                return false;
+
+            // A search that has taken the header bar's place ends before the sheet goes back.
+            if (regionVm.TryEndSearch())
+                return true;
+
+            if (regionVm.BackEnabled())
             {
                 await regionVm.BackAsync();
                 return true;

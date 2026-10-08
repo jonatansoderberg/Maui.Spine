@@ -216,6 +216,14 @@ internal sealed partial class PagePresenter : Grid
             ApplyCollapse();
         else if (e.PropertyName is nameof(ViewModelBase.HeaderBarScrollSource))
             UpdateSystemScrollEdge();
+        else if (e.PropertyName is nameof(ViewModelBase.SearchProgress))
+        {
+            ApplySearchRowFrame();
+            ApplyTitleBarMargin();
+            ApplyTitleRowHeight();
+            ApplyCollapse();
+            RefreshSoftEdge();
+        }
     }
 
     private void ApplyPageLayout()
@@ -226,21 +234,30 @@ internal sealed partial class PagePresenter : Grid
         // pushed down by the status bar the content host no longer pads.
         Grid.SetRowSpan(_contentPresenter, floats ? 2 : 1);
         Grid.SetRow(_contentPresenter, floats ? 0 : 1);
-        // A page that draws under a side of the safe area still keeps its title inside it.
-        var sides = _page?.SafeAreaInsets ?? Thickness.Zero;
-        _titleBar.Margin = new Thickness(sides.Left, floats ? _page?.SystemBarInsets.Top ?? 0 : 0, sides.Right, 0);
+        ApplyTitleBarMargin();
         _titleBar.InputTransparent = floats;
         // The title was added before the content and would draw under it once they share a row.
         _titleBar.ZIndex = floats ? 2 : 0;
         _barBackground.ZIndex = floats ? 1 : 0;
 
-        ApplySearchRow(sides);
+        ApplySearchRow();
         ApplyTitleRowHeight();
         ApplyTitleTextColor();
         ApplyBarBackgroundColor();
         ApplyCollapse();
         ApplyStatusBarEdge();
         UpdateSystemScrollEdge();
+    }
+
+    // A page that draws under a side of the safe area still keeps its title inside it. While a search
+    // takes the header bar's place the title goes up with the bar, keeping its height, and fades.
+    private void ApplyTitleBarMargin()
+    {
+        var floats = _page?.HeaderBarFloats == true;
+        var sides = _page?.SafeAreaInsets ?? Thickness.Zero;
+        var top = floats ? _page?.SystemBarInsets.Top ?? 0 : 0;
+        var givenWay = _page is { } page ? HeaderBarConstants.BarHeight - page.HeaderBarHeight : 0;
+        _titleBar.Margin = new Thickness(sides.Left, top - givenWay, sides.Right, 0);
     }
 
     /// <summary>Installs or removes UIKit's scroll edge effect for the page; iOS and Mac Catalyst 26 only.</summary>
@@ -280,11 +297,18 @@ internal sealed partial class PagePresenter : Grid
         if (edge > 0 && _barBackground.Opacity == 0)
             ApplyBarBackgroundColor();
 
-        _titleLabel!.Opacity = _page?.LargeTitle == true ? _page.HeaderBarCollapseProgress : 1;
+        _titleLabel!.Opacity = (_page?.LargeTitle == true ? _page.HeaderBarCollapseProgress : 1) * Math.Max(1 - (_page?.SearchProgress ?? 0), SearchTitleOpacity);
         _barBackground.IsVisible = solid;
         _barBackground.Opacity = edge;
         ApplySystemScrollEdgeRest();
     }
+
+    /// <summary>
+    /// What is left of the title while a search has the header bar's place: next to nothing, but UIKit
+    /// sizes its scroll edge effect to the labels in the title row and passes over a label that is
+    /// fully transparent, which left the rows sharp under the field and the status bar.
+    /// </summary>
+    private const double SearchTitleOpacity = 0.02;
 
     /// <summary>Hides UIKit's scroll edge effect while the page is at rest; Apple platforms only.</summary>
     partial void ApplySystemScrollEdgeRest();
@@ -434,7 +458,7 @@ internal sealed partial class PagePresenter : Grid
     /// Shows the page's search field at the bottom of the title row when it goes in the row below
     /// the header bar, inside the same side margin as the page's content.
     /// </summary>
-    private void ApplySearchRow(Thickness sides)
+    private void ApplySearchRow()
     {
         var shown = _page is { SearchLayout: SearchLayout.Row };
 
@@ -450,16 +474,29 @@ internal sealed partial class PagePresenter : Grid
 
         if (_searchField is null)
         {
-            _searchField = new SearchField { VerticalOptions = LayoutOptions.End };
+            _searchField = new SearchField { VerticalOptions = LayoutOptions.End, OutlastsFocus = SearchField.HidesHeaderBar };
             Children.Add(_searchField);
         }
 
         _searchField.Search = _page!.Search;
         _searchField.IsVisible = true;
-        _searchField.HeightRequest = HeaderBarConstants.SearchRowHeight;
-        _searchField.Margin = new Thickness(sides.Left + SearchRowInset, 0, sides.Right + SearchRowInset, 0);
         // Over the content and the bar's background when they share the row.
         _searchField.ZIndex = 3;
+        ApplySearchRowFrame();
+    }
+
+    // The row's height and side margin, and the field's own state, as far as a search has taken the
+    // header bar's place; on Android the field runs to the sides then, as Material's search view header.
+    private void ApplySearchRowFrame()
+    {
+        if (_searchField is not { IsVisible: true } || _page is not { } page)
+            return;
+
+        var sides = page.SafeAreaInsets;
+        var inset = SearchRowInset * (SearchField.FullWidthWhileSearching ? 1 - page.SearchProgress : 1);
+        _searchField.SearchProgress = page.SearchProgress;
+        _searchField.HeightRequest = page.SearchRowHeight;
+        _searchField.Margin = new Thickness(sides.Left + inset, 0, sides.Right + inset, 0);
     }
 
     /// <summary>
@@ -486,7 +523,7 @@ internal sealed partial class PagePresenter : Grid
 
         var overlayInset = _page?.HeaderBarFloats == true ? _page.SystemBarInsets.Top : 0;
         var search = _page?.SearchRowHeight ?? 0;
-        RowDefinitions[0].Height = new GridLength(HeaderBarConstants.BarHeight + overlayInset + search);
+        RowDefinitions[0].Height = new GridLength((_page?.HeaderBarHeight ?? HeaderBarConstants.BarHeight) + overlayInset + search);
 
         // Padding keeps the label as tall as the bar and a search row below it, so UIKit's edge
         // effect covers all of it. UIKit's own hard band under an inline title in a pushed or root

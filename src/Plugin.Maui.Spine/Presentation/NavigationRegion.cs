@@ -452,7 +452,7 @@ public sealed partial class NavigationRegion : ContentView
 
         // Under a floating header the content must keep the status bar, the bar itself and a search row below it clear.
         var top = overlay
-            ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.BarHeight + vm.SearchRowHeight : 0)
+            ? insets.Top + (vm.IsHeaderBarVisible ? vm.HeaderBarHeight + vm.SearchRowHeight : 0)
             : (edges & SpineSafeArea.Top) != 0 ? 0 : insets.Top;
 
         // Above the keyboard the page no longer reaches the screen's bottom edge.
@@ -500,9 +500,16 @@ public sealed partial class NavigationRegion : ContentView
             WatchCurrentPage(ViewModel.CurrentRegionViewModel);
             ApplyCompactWidth(ViewModel.CurrentRegionViewModel);
 
+#if ANDROID
+            SearchChanged?.Invoke();
+#endif
+
             // Apply safe-area padding for the new page on both content hosts.
             if (ViewModel.CurrentRegionViewModel is { } vm)
             {
+                // The page's header comes back as its search is, without an animation.
+                this.AbortAnimation(SearchAnimation);
+                vm.SearchProgress = vm.SearchHidesHeaderBar ? 1 : 0;
                 ApplyKeyboardInset(vm);
                 ApplySafeAreaPadding(_contentHostFront, vm);
             }
@@ -550,7 +557,8 @@ public sealed partial class NavigationRegion : ContentView
     private void OnHeaderPagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(ViewModelBase.HeaderBarMode) or nameof(ViewModelBase.ScrollEdgeProgress)
-            or nameof(ViewModelBase.EffectiveHeaderBarBackground) or nameof(ViewModelBase.SearchLayout))
+            or nameof(ViewModelBase.EffectiveHeaderBarBackground) or nameof(ViewModelBase.SearchLayout)
+            or nameof(ViewModelBase.SearchProgress))
             ApplyHeaderPage();
     }
 
@@ -559,6 +567,7 @@ public sealed partial class NavigationRegion : ContentView
         var page = _watchedHeaderPage;
         _frameActionView.OverContent = page?.HeaderBarMode == HeaderBarMode.Overlay;
         _frameActionView.Search = page is { SearchLayout: SearchLayout.Trailing } ? page.Search : null;
+        _frameActionView.SearchProgress = page?.SearchProgress ?? 0;
 
         // A transparent bar never draws a background, so its buttons keep their container.
         _frameActionView.BackgroundProgress = page is not null && page.EffectiveHeaderBarBackground != HeaderBarBackground.Transparent
@@ -605,6 +614,76 @@ public sealed partial class NavigationRegion : ContentView
         }
         else if (e.PropertyName is nameof(ViewModelBase.StatusBarStyle) && ViewModel.Presentation is NavigationPresentation.Region)
             StatusBar.Apply(page.StatusBarStyle);
+        else if (e.PropertyName is nameof(ViewModelBase.SearchHidesHeaderBar))
+        {
+            AnimateSearch(page);
+#if ANDROID
+            SearchChanged?.Invoke();
+#endif
+        }
+    }
+
+#if ANDROID
+    /// <summary>Raised when a shown page's search starts or stops hiding the header bar: back ends such a search first.</summary>
+    internal static event Action? SearchChanged;
+#endif
+
+    private const string SearchAnimation = "SpineSearchHeader";
+
+    /// <summary>How long the header bar takes to give way to a search, or to come back, in milliseconds.</summary>
+    private const uint SearchDuration = 300;
+
+    /// <summary>
+    /// Has the header bar give way to a search that starts in the row below it, and brings it back
+    /// when the search ends, as a navigation bar does under a <c>UISearchController</c>: the bar's
+    /// buttons and the title slide up and fade, and the field and the content under it move up
+    /// into the bar's place. Under Reduce Motion the change cross-fades on Apple platforms and is
+    /// immediate elsewhere.
+    /// </summary>
+    private void AnimateSearch(ViewModelBase page)
+    {
+        var target = page.SearchHidesHeaderBar ? 1.0 : 0.0;
+        this.AbortAnimation(SearchAnimation);
+
+        if (Math.Abs(page.SearchProgress - target) < 0.001)
+            return;
+
+        void Apply(double progress)
+        {
+            page.SearchProgress = progress;
+            page.SafeAreaInsets = SafeAreaInsetsFor(page, page.SystemBarInsets);
+        }
+
+        ClipForSearch(true);
+
+#if IOS || MACCATALYST
+        AnimateSearchOnPlatform(() => Apply(target), () => ClipForSearch(false));
+#else
+        if (ReducedMotion.IsOn)
+        {
+            Apply(target);
+            ClipForSearch(false);
+            return;
+        }
+
+        new Animation(Apply, page.SearchProgress, target)
+            .Commit(this, SearchAnimation, length: SearchDuration, easing: Easing.CubicInOut, finished: (_, _) => ClipForSearch(false));
+#endif
+    }
+
+    private int _searchClips;
+
+    /// <summary>
+    /// Clips the header bar and the page to their own bounds while the bar slides away or back, so
+    /// its buttons and the title go under the edge they slide past (a sheet's top, the status bar)
+    /// rather than over it. Counted, as animations may overlap.
+    /// </summary>
+    private void ClipForSearch(bool clip)
+    {
+        _searchClips = Math.Max(0, _searchClips + (clip ? 1 : -1));
+        var clips = _searchClips > 0;
+        _frameActionView.IsClippedToBounds = clips;
+        ViewModel.FrontView.IsClippedToBounds = clips;
     }
 
     private void ApplySafeAreaPaddingForPresenter(ContentView host, PagePresenter? presenter)

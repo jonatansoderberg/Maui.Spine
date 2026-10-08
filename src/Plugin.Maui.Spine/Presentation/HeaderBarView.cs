@@ -139,6 +139,29 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         }
     }
 
+    /// <summary>
+    /// How far the bar has given way to the page's search, 0 to 1: its buttons slide up out of the
+    /// way and fade, as a navigation bar does under a <c>UISearchController</c>.
+    /// </summary>
+    public double SearchProgress
+    {
+        get;
+        set
+        {
+            // Only on a change: the region sets it with every change of the header's page.
+            if (field == value || Content is null)
+                return;
+
+            field = value;
+            Content.TranslationY = -HeaderBarConstants.BarHeight * value;
+            UpdateInputTransparent();
+
+            // A hidden bar's own fade owns the opacity then.
+            if (IsHeaderBarVisible)
+                Content.Opacity = 1 - value;
+        }
+    }
+
     // As wide as a Mac toolbar's search field, but never more than two fifths of the bar.
     void ApplySearchWidth()
     {
@@ -194,7 +217,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
     private bool _isChromeHidden;
 
-    void UpdateInputTransparent() => InputTransparent = _isChromeHidden || !IsHeaderBarVisible;
+    // A bar that has given way to a search lies over the field that took its place.
+    void UpdateInputTransparent() => InputTransparent = _isChromeHidden || !IsHeaderBarVisible || SearchProgress > 0;
 
     public bool IsTitleBarVisible
     {

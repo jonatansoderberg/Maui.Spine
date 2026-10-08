@@ -64,6 +64,34 @@ public sealed partial class NavigationRegion
     }
 #endif
 
+    /// <summary>
+    /// Lays the region out for the search's new state inside one UIKit animation, so the bar's
+    /// buttons, the title, the field and the list's inset all move on the same curve; under Reduce
+    /// Motion the region cross-fades to it instead.
+    /// </summary>
+    private void AnimateSearchOnPlatform(Action apply, Action completed)
+    {
+        if (Handler?.PlatformView is not UIView { Window: { } window } view)
+        {
+            apply();
+            completed();
+            return;
+        }
+
+        void Run()
+        {
+            apply();
+            window.LayoutIfNeeded();
+        }
+
+        var options = UIViewAnimationOptions.BeginFromCurrentState | UIViewAnimationOptions.AllowUserInteraction;
+
+        if (ReducedMotion.IsOn)
+            UIView.Transition(view, SearchDuration / 1000.0 * 2 / 3, options | UIViewAnimationOptions.TransitionCrossDissolve, Run, completed);
+        else
+            UIView.AnimateNotify(SearchDuration / 1000.0, 0, 1, 0, options, Run, _ => completed());
+    }
+
     private bool? _frontClippedBeforeRound;
 
     partial void RoundFront(bool round)
