@@ -140,6 +140,7 @@ None. `UseSpine()` registers the handler mappings. Add the namespace to the app'
 ## Also built on it
 
 - **The header bar's scroll edge where the system does not draw one** (Android, Windows) is a `Blur` material with a fade (`SoftEdge`, `SoftStatusBar`) or a hairline (`HardEdge`). On Android 12+ that is a real blur of the rows under the bar. On iOS 27 it keeps the system's thin (soft) and standard (hard) materials, which it is tuned against. See [Header bar backgrounds](regions.md#backgrounds).
+- **A highlight that sweeps over a panel as the phone tilts** is a soft gradient inside the material with a [`Motion.Depth`](motion.md#a-highlight-that-sweeps-over-a-surface) of its own.
 
 ## Sample
 
