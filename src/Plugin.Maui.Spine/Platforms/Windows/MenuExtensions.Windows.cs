@@ -116,9 +116,12 @@ public static partial class SpineExtensions
         return item;
     }
 
-    static IconElement? BuildIcon(IElementHandler handler, string? svg)
+    static IconElement? BuildIcon(IElementHandler handler, string? svg) =>
+        handler.MauiContext?.Services is { } services ? BuildIcon(services, svg) : null;
+
+    internal static IconElement? BuildIcon(IServiceProvider services, string? svg)
     {
-        if (MenuButton.Icon(handler, svg, 16, Colors.Black) is not { } png)
+        if (MenuButton.Icon(services, svg, 16, Colors.Black) is not { } png)
             return null;
 
         var image = new BitmapImage();

@@ -134,6 +134,81 @@ private void Remove(Race race) => Races.Remove(race);
 - **Don't mix it with `FlyoutBase.ContextFlyout`** on the same view. Windows and Mac Catalyst
   would then have two mechanisms fighting over the right click.
 
+## Action sheets
+
+`INavigationService.ShowActionsAsync` shows the platform's own action sheet from a view model and
+waits for the pick. The rows are the same `MenuAction` as in a menu, so a row with an icon, a
+command and `IsDestructive` reads the same everywhere.
+
+<p align="center">
+  <img src="images/action-sheet-ios.png" width="260" alt="An action sheet on iOS 26 with Share, Add to calendar, Copy link, a red Remove row and Cancel, each with an icon">
+  <img src="images/action-sheet-android.png" width="260" alt="The same action sheet on an Android tablet as a Material bottom sheet with a drag handle">
+</p>
+<p align="center"><sub>The same sheet on iOS 26 and on an Android tablet</sub></p>
+
+```csharp
+var picked = await _navigation.ShowActionsAsync(new ActionSheet("Night sprint", "Uppsala · Friday 18:30")
+{
+    Actions =
+    [
+        new("Share", SpineIcons.Share, ShareCommand),
+        new("Add to calendar", SpineIcons.Calendar, AddToCalendarCommand),
+        new("Remove", SpineIcons.Trashcan, RemoveCommand) { IsDestructive = true },
+    ],
+});
+
+if (picked is null)
+    Status = "Cancelled";
+```
+
+- **The result** is the picked `MenuAction`, or `null` when the sheet was cancelled: the Cancel
+  row, a tap outside, a swipe down or Back. The row's command has already run when the task
+  completes, so use either style. A confirmation needs no command at all:
+
+  ```csharp
+  var delete = new MenuAction("Delete 12 results", SpineIcons.Trashcan) { IsDestructive = true };
+  var picked = await _navigation.ShowActionsAsync(new ActionSheet(null, "This can't be undone.") { Actions = [delete] });
+  if (picked == delete)
+      DeleteResults();
+  ```
+
+- **The rows** take `Title`, `Svg`, `Command`, `CommandParameter`, `IsDestructive`, `IsEnabled`
+  and `IsVisible`. `IsChecked` and `KeepsMenuOpen` belong to menus and are not shown. A sheet is
+  one flat list: no sections, submenus or pickers. A sheet with no visible row shows nothing and
+  returns `null`.
+- **One set of rows for many items.** `ActionSheet.CommandParameter` goes to a row's command when
+  the row has none of its own, as `ContextMenu.CommandParameter` does for a shared row menu.
+- **`CancelText`** names the Cancel row on iOS; it defaults to the localised `Spine.Header.Cancel`.
+- **The anchor.** Pass the view the sheet is about, usually the button that opened it:
+  `ShowActionsAsync(sheet, anchor: button)`. iPad shows the sheet as a popover with its arrow on
+  the view, iOS 26 grows the sheet out of it on the iPhone too, and Windows opens its flyout there.
+  Without an anchor iPad centres the popover. Android and the Mac do not use it. From XAML, hand the
+  button over with `CommandParameter="{Binding Source={RelativeSource Self}}"`.
+
+```xml
+<ImageButton SvgImageSource.Svg="more.svg"
+             Command="{PageBinding ShowActionsCommand}"
+             CommandParameter="{Binding Source={RelativeSource Self}}" />
+```
+
+```csharp
+[RelayCommand]
+private Task ShowActions(View button)
+{
+    var runner = (Runner)button.BindingContext;
+    return _navigation.ShowActionsAsync(new ActionSheet(runner.Name)
+    {
+        Actions = RunnerActions,   // the same rows for every runner
+        CommandParameter = runner,
+    }, anchor: button);
+}
+```
+
+**Menu or action sheet?** A menu belongs to a control: a header action, a button or a long press
+on a row, and it opens at that control. An action sheet is something the view model decides to
+ask, after a tap on a plain button or as the confirmation of a destructive step. On iOS 26 both
+grow out of their source; the action sheet also has a title and a message.
+
 ## Platform notes
 
 | Platform | Building block | Notes |
@@ -150,6 +225,15 @@ Context menus:
 | Mac Catalyst | `UIContextMenuInteraction` | Right click or Ctrl-click. A compact menu at the pointer with icons, no preview. |
 | Android | `PopupMenu` anchored to the view | Long press, and right click on API 23+. It shows below the view, or above it when there is no room. TalkBack offers the long press as "Show actions" (`Spine.ContextMenu.Open`). |
 | Windows | `UIElement.ContextFlyout` | Right click, or press and hold with a finger or pen. The flyout is filled when it opens. |
+
+Action sheets:
+
+| Platform | Building block | Notes |
+|---|---|---|
+| iOS, iPadOS | `UIAlertController`, `ActionSheet` style | Icons as template images through the `UIAlertAction` `image` key. Destructive rows red, a Cancel row last. On iOS 26 a sheet without an anchor floats in the middle of the screen, and one with an anchor grows out of it, without the Cancel row. On iPad a popover at the anchor or centred. The sheet follows the app's Light or Dark choice. VoiceOver reads the title, message and rows; an icon adds nothing. |
+| Mac Catalyst | `UIAlertController`, `ActionSheet` style | macOS presents it as an alert with the icons and a Cancel row; the anchor is not used. |
+| Android | Material `BottomSheetDialog` | The M3 drag handle, the title and message, then one 56 dp row per action with a 24 dp icon; destructive rows in `colorError`, disabled rows dimmed. No Cancel row: a swipe down, the scrim or Back cancels. TalkBack hears the title when the sheet opens, the title as a heading and each row as a button. Long lists scroll. |
+| Windows | `MenuFlyout` | At the anchor, or in the middle of the window. The title and message are dimmed rows over a separator. A click outside cancels. |
 
 Icons are the same SVG names as everywhere else in Spine (`Plugin.Maui.Spine.Svg.Icons` or the
 app's own embedded SVGs), rendered as template images so the menu tints them.

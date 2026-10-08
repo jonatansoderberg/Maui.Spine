@@ -94,6 +94,21 @@ public interface INavigationService
     Task CloseAsync();
 
     /// <summary>
+    /// Shows <paramref name="sheet"/> as the platform's own action sheet and waits for a pick: a
+    /// <c>UIAlertController</c> action sheet on iOS and Mac Catalyst, a Material bottom sheet on
+    /// Android, a <c>MenuFlyout</c> on Windows. The picked row's command runs, with the row's
+    /// <see cref="MenuAction.CommandParameter"/> or else the sheet's, before the task completes.
+    /// </summary>
+    /// <param name="sheet">The title, message and rows.</param>
+    /// <param name="anchor">
+    /// The view the sheet is about, typically the button that opened it: iPad points its popover at
+    /// it, iOS 26 grows the sheet out of it on the iPhone too, and Windows opens the flyout there.
+    /// Without one iPad centres the popover. Android and the Mac do not use it.
+    /// </param>
+    /// <returns>The picked row, or <see langword="null"/> when the sheet was cancelled or has no visible row.</returns>
+    Task<MenuAction?> ShowActionsAsync(ActionSheet sheet, View? anchor = null);
+
+    /// <summary>
     /// Replaces the entire navigation stack with <typeparamref name="TPage"/> as the sole root page.
     /// Typically called once at app startup from <see cref="SpineApplication{TNavigable}"/>.
     /// </summary>
