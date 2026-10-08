@@ -61,9 +61,17 @@ public class BarcodeScannerView : View
 
     public static readonly BindableProperty DiagnosticsProperty = DiagnosticsPropertyKey.BindableProperty;
 
+    private static readonly BindablePropertyKey IsTorchSupportedPropertyKey = BindableProperty.CreateReadOnly(
+        nameof(IsTorchSupported), typeof(bool), typeof(BarcodeScannerView), false);
+
+    public static readonly BindableProperty IsTorchSupportedProperty = IsTorchSupportedPropertyKey.BindableProperty;
+
+#pragma warning disable CS0618 // The old name stays bindable until it is removed.
     private static readonly BindablePropertyKey IsTorchAvailablePropertyKey = BindableProperty.CreateReadOnly(
         nameof(IsTorchAvailable), typeof(bool), typeof(BarcodeScannerView), false);
+#pragma warning restore CS0618
 
+    [Obsolete("Use IsTorchSupportedProperty.")]
     public static readonly BindableProperty IsTorchAvailableProperty = IsTorchAvailablePropertyKey.BindableProperty;
 
     // Reads of the same value this many analysed frames apart, or closer, count as in a row
@@ -122,8 +130,39 @@ public class BarcodeScannerView : View
         set => SetValue(IsTorchOnProperty, value);
     }
 
-    /// <summary>Whether the camera in use has a torch.</summary>
-    public bool IsTorchAvailable => (bool)GetValue(IsTorchAvailableProperty);
+    /// <summary>Whether the camera in use has a torch. Known once the camera has started.</summary>
+    public bool IsTorchSupported => (bool)GetValue(IsTorchSupportedProperty);
+
+    /// <summary>The old name of <see cref="IsTorchSupported"/>.</summary>
+    [Obsolete("Use IsTorchSupported.")]
+    public bool IsTorchAvailable => IsTorchSupported;
+
+    /// <summary>
+    /// Whether this device has a camera the scanner can use: one on iOS and Mac Catalyst (none in the iOS simulator),
+    /// any camera on Android, and never on Windows. Asks for no permission and starts no camera, so an app can hide its
+    /// scan button where scanning cannot work. A camera the user has refused still counts: that shows as
+    /// <see cref="ScannerProblem.PermissionDenied"/> once the view runs.
+    /// </summary>
+    public static bool IsSupported
+    {
+        get
+        {
+            try
+            {
+#if IOS || MACCATALYST
+                return AVFoundation.AVCaptureDevice.GetDefaultDevice(AVFoundation.AVMediaTypes.Video) is not null;
+#elif ANDROID
+                return Android.App.Application.Context.PackageManager?.HasSystemFeature(Android.Content.PM.PackageManager.FeatureCameraAny) == true;
+#else
+                return false;
+#endif
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
 
     /// <summary>Run with the <see cref="BarcodeScanResult"/> for each code read, on the main thread.</summary>
     public ICommand? DetectedCommand
@@ -245,7 +284,11 @@ public class BarcodeScannerView : View
         ProblemChanged?.Invoke(this, new ScannerProblemEventArgs(problem, message));
     }
 
-    internal void SetTorchAvailable(bool available) => SetValue(IsTorchAvailablePropertyKey, available);
+    internal void SetTorchSupported(bool supported)
+    {
+        SetValue(IsTorchSupportedPropertyKey, supported);
+        SetValue(IsTorchAvailablePropertyKey, supported);
+    }
 
     /// <summary>The camera stopped and took the lamp with it.</summary>
     internal void SetTorchOff()

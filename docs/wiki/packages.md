@@ -108,6 +108,27 @@ The samples reference the projects, not the packages; `samples/Directory.Build.t
 
 Platform minimums: Android API 21 (API 23 with `Plugin.Maui.Spine.PushNotifications`, which Firebase requires, and with `Plugin.Maui.Spine.Scanner`, which CameraX requires), iOS 15, Mac Catalyst 15, Windows 10 17763.
 
+## Feature availability
+
+Some features depend on the platform or the device. Spine answers the question the same way everywhere, so an app can hide or adapt the UI for a feature that would do nothing:
+
+- **`IsSupported`**: the platform and the device can do this at all. Fixed for the app's lifetime, synchronous, cheap, and it never asks the user for a permission. A static property on the static or attached-property class, an instance property on a service.
+- **`IsEnabled`**, or an existing specific name such as `AreActivitiesEnabled`: a state the user or the system can change while the app runs (Live Activities switched off in Settings, Reduce Motion). Read it when you need it. It is never folded into `IsSupported`; a permission has its own status, such as `IPushNotificationService.Status`.
+
+| Feature | Supported | Enabled now |
+|---|---|---|
+| [Motion](motion.md#availability) | `Motion.IsSupported` | `Motion.IsEnabled` (not under Reduce Motion) |
+| [Haptics](haptics.md#availability) | `Haptics.IsSupported` | |
+| [Materials](materials.md#availability) | `Material.IsSupported(MaterialKind)` | |
+| [Scanner](barcodes.md#availability) | `BarcodeScannerView.IsSupported` | `IsTorchSupported` per camera, once it runs |
+| [Search index](searchable-items.md#platform-behavior) | `ISearchIndex.IsSupported` | |
+| [Widgets](widgets.md#platforms) | `IWidgetService.IsSupported` | |
+| [Live Activities](widgets.md#platforms) | `ILiveActivityService.IsSupported` | `ILiveActivityService.AreActivitiesEnabled` |
+| [Controls](widgets.md#platforms) | `IControlService.IsSupported` | |
+| [Push](push-notifications.md#permission-tags-registration) | `IPushNotificationService.IsSupported` | `IPushNotificationService.Status` |
+| [Local notifications](push-notifications.md#local-notifications) | `ILocalNotificationService.IsSupported` | |
+| [Background tasks](background-tasks.md) | Every platform; `IBackgroundTasks.RunsWhileClosed` says whether the system runs them while the app is closed | |
+
 ## Build assets in the packages
 
 These packages carry MSBuild files that run in the consuming app's build, imported automatically through `buildTransitive/`:

@@ -79,6 +79,8 @@ public partial class BarcodesPageViewModel(INavigationService _navigation) : Sam
     [ObservableProperty]
     public partial string ScanResult { get; set; } = "Nothing scanned yet";
 
+    public bool IsScannerUnsupported => !BarcodeScannerView.IsSupported;
+
     [ObservableProperty]
     public partial bool ShowScanDiagnostics { get; set; }
 

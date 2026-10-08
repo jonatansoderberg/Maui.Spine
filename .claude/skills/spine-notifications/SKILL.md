@@ -61,6 +61,7 @@ await push.RequestPermissionAsync();                              // the one per
 await push.SetTagsAsync(["kind:news", "team:red"]);                // replaces; AddTagsAsync / RemoveTagsAsync edit
 await push.RefreshAsync();                                        // re-register (token rotated, tags changed)
 push.IsRegistered;                                                // the backend reaches this device
+push.IsSupported;                                                 // false on Windows; hide notification settings there
 ```
 
 Tags are opaque strings the server matches with expressions (`kind:news && !muted`). Put the user in a tag (`user:123`) and let the server's `AllowTags` keep clients from claiming others.

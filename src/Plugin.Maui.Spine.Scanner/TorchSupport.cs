@@ -6,7 +6,7 @@ namespace Plugin.Maui.Spine.Scanner;
 /// </summary>
 internal static class TorchSupport
 {
-    public static bool IsAvailable
+    public static bool IsSupported
     {
         get
         {

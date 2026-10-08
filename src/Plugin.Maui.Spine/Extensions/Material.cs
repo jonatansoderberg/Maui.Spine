@@ -209,6 +209,15 @@ public static class Material
     internal static bool IsOn(BindableObject view) => GetKind(view) != MaterialKind.None || GetTintOpacity(view) > 0;
 
     /// <summary>
+    /// Whether <paramref name="kind"/> is drawn as itself on this device: <see cref="MaterialKind.Glass"/>
+    /// on iOS and Mac Catalyst 26 and later, <see cref="MaterialKind.Blur"/> everywhere but Android before
+    /// 12. Where it is not, a view asking for it gets the next one down (glass becomes a blur, a blur the
+    /// tint alone), so this is only for an app that would rather choose something else itself.
+    /// Reduce Transparency does not change it.
+    /// </summary>
+    public static bool IsSupported(MaterialKind kind) => Resolve(kind) == kind;
+
+    /// <summary>
     /// What <paramref name="kind"/> is drawn as here: glass only where the system has it, blur only
     /// where the platform can blur what is behind a view, and else the tint alone.
     /// </summary>

@@ -226,7 +226,7 @@ For a scanner inside a page of the app's own:
 | `LightGrid` | A `LightGridOptions` to read a grid of lamps as well; `null` (default) skips it |
 | `IsScanning` | Whether the camera runs; default `true`. Turn it off to pause without leaving the page |
 | `IsTorchOn` | The torch; two-way. Set back to `false` when scanning stops or the view leaves its window |
-| `IsTorchAvailable` | Read-only: whether the camera in use has a torch |
+| `IsTorchSupported` | Read-only: whether the camera in use has a torch, known once the camera has started. `IsTorchAvailable` is the old name, kept as an obsolete alias |
 | `RepeatInterval` | How long the same value stays quiet after it was reported, while the camera keeps seeing it; default 2 s |
 | `ScanArea` | A `Rect?` in the view's device-independent units: a code counts only when its centre lies inside, and of several codes inside, the one nearest the area's centre wins. `null` (default) counts the whole view |
 | `ConfirmationReads` | How many reads of the same value in a row a standard code needs before it is reported; default 2, 1 reports at once. Counted in analysed frames (at most two apart); a light grid is reported on its first read |
@@ -246,6 +246,14 @@ The camera focuses continuously on the middle of the picture. A tap on the view 
 A code held in front of the camera is seen many times a second. `ConfirmationReads` first asks for the same value twice in a row: the platform readers check the check digit, but a partly seen linear code can still come out as another valid number, and the second read costs one frame. `RepeatInterval` then turns the stream of reads into one report: the same value is reported again only after the camera has not seen it for that long. A different value is reported once it is confirmed. To stop after the first hit, set `IsScanning` to false in the command, as the scan sheet does.
 
 On iOS the standard formats are tried first on each frame, then the light grid. On Android the light grid comes first, because ML Kit reads asynchronously and holds the frame until it is done.
+
+### Availability
+
+`BarcodeScannerView.IsSupported` says whether this device has a camera the scanner can use, without asking for permission or starting a camera, so an app can hide its scan button where scanning cannot work. It is `true` on iOS and Mac Catalyst with a camera (`false` in the iOS simulator), on Android with any camera, and `false` on Windows. A camera the user has refused still counts as supported; that shows up as `PermissionDenied` once the view runs.
+
+```xml
+<Button Text="Scan" Command="{Binding ScanCommand}" IsVisible="{x:Static BarcodeScannerView.IsSupported}" />
+```
 
 ### Problems
 

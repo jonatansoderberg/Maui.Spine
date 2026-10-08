@@ -235,6 +235,10 @@ dotnet build -f net10.0-ios -r iossimulator-arm64 -p:CodesignKey=-   # macOS
 
 Then run and check the log for Spine's startup warnings: a `[Widget]` kind with no `<SpineWidget>` item, a missing `google-services.json`, a page attribute problem. Spine fails fast and names what is wrong; read the message before changing configuration.
 
+## Feature availability
+
+Ask before showing UI for a feature the device may lack. One rule across Spine: `IsSupported` = the platform and device can do it at all (fixed for the app's lifetime, synchronous, no permission prompt; static on static/attached-property classes such as `Motion.IsSupported`, `Haptics.IsSupported`, `BarcodeScannerView.IsSupported`, `Material.IsSupported(kind)`; instance on services such as `IWidgetService`, `ILiveActivityService`, `IControlService`, `ISearchIndex`, `IPushNotificationService`, `ILocalNotificationService`). `IsEnabled` (or a specific name such as `AreActivitiesEnabled`) = state the user or system can change (Reduce Motion, Live Activities off in Settings); read it when needed and never fold it into `IsSupported`. Table: docs/wiki/packages.md#feature-availability.
+
 ## Gotchas
 
 - `Assembly.GetEntryAssembly()` is `null` on Android — always `typeof(MauiProgram).Assembly`.

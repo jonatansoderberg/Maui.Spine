@@ -141,6 +141,11 @@ await push.SetTagsAsync(["kind:results-published", "competition:59691"]);
 quiet authorization, notifications arrive in the Notification Center and the user is asked to keep
 them after seeing one — or `AtLaunch`.
 
+`push.IsSupported` says whether the platform has push at all: `true` on iOS, Mac Catalyst and
+Android, `false` on Windows (where `Status` is `Unsupported`). It is fixed while the app runs; whether
+the user allows notifications is `Status`, which can change. Hide a notification setting where
+`IsSupported` is false, and check `ILocalNotificationService.IsSupported` the same way for local ones.
+
 Spine adds `platform:`, `os:` and `app:` tags of its own, so a sender can address a platform or a
 version without the app doing anything.
 

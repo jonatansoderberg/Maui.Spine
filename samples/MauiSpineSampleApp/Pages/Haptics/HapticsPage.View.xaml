@@ -11,6 +11,8 @@
         <Example Title="The vocabulary"
                  Summary="Say what happened, and the platform picks the feel: success, warning or error when a task ends, a tick when a selection changes, an impact for something landing. They follow the phone's own haptics setting. iOS and Android; the Mac and Windows play nothing.">
             <VerticalStackLayout Spacing="10">
+                <Label Text="This device plays no haptics, so the rows below do nothing here. Haptics.IsSupported is false."
+                       IsVisible="{Binding IsUnsupported}" FontSize="15" FontAttributes="Bold" />
                 <SpineSection Header="Notifications">
                     <SpineRow Title="Success" Command="{Binding PlayCommand}" CommandParameter="{x:Static Haptic.Success}" />
                     <SpineRow Title="Warning" Command="{Binding PlayCommand}" CommandParameter="{x:Static Haptic.Warning}" />

@@ -38,7 +38,7 @@ public sealed class BarcodeScannerViewHandler() : ViewHandler<BarcodeScannerView
         base.ConnectHandler(platformView);
         platformView.Detected = (codes, frame) => VirtualView?.RaiseFrame(codes, frame);
         platformView.Problem = (p, m) => VirtualView?.RaiseProblem(p, m);
-        platformView.TorchAvailable = a => VirtualView?.SetTorchAvailable(a);
+        platformView.TorchSupported = a => VirtualView?.SetTorchSupported(a);
         platformView.DiagnosticsChanged = d => VirtualView?.SetDiagnostics(d);
         platformView.TorchSwitchedOff = () => VirtualView?.SetTorchOff();
         platformView.SetOnScreen(platformView.Window is not null);
@@ -98,7 +98,7 @@ public sealed class ScannerPreviewView : UIView
         return hit.Result with { Corners = corners };
     }
     internal Action<ScannerProblem?, string?>? Problem;
-    internal Action<bool>? TorchAvailable;
+    internal Action<bool>? TorchSupported;
     internal Action? TorchSwitchedOff;
     internal Action<string?>? DiagnosticsChanged;
 
@@ -325,7 +325,7 @@ public sealed class ScannerPreviewView : UIView
         });
         // After the permission prompt this may run off the main thread; the header only follows main-thread changes
         bool hasTorch = device.HasTorch;
-        BeginInvokeOnMainThread(() => { if (!_shutdown) TorchAvailable?.Invoke(hasTorch); });
+        BeginInvokeOnMainThread(() => { if (!_shutdown) TorchSupported?.Invoke(hasTorch); });
 
         _observers.Add(AVCaptureSession.Notifications.ObserveRuntimeError(_session, (_, e) =>
             Report(ScannerProblem.Failed, $"{ScannerStrings.For(ScannerProblem.Failed)} ({e.Error?.LocalizedDescription})")));

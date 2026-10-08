@@ -54,6 +54,10 @@ Apple's guidance applies everywhere: glass belongs to the controls that float ov
 
 With Reduce Transparency (iOS, Mac Catalyst) or transparency effects off (Windows), the system materials turn opaque by themselves, and so does a tint without a blur.
 
+### Availability
+
+A kind the platform cannot draw falls back by itself, as the table shows, so most apps never need to ask. An app that would rather choose something else itself, such as a solid bar instead of floating glass, asks `Material.IsSupported(kind)`: `true` when the kind is drawn as itself here. `Glass` is supported on iOS and Mac Catalyst 26 and later, `Blur` everywhere but Android before 12, and `None` everywhere. Reduce Transparency does not change it.
+
 <p align="center">
   <img src="images/materials-intensity-ios.png" width="720" alt="Blur at intensity 0.15, 0.4, 0.7 and 1 (top), glass at 0, 0.25, 0.5 and 1 (bottom) on iOS 26">
 </p>

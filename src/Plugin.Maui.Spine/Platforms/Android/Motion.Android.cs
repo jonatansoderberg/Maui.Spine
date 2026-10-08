@@ -118,18 +118,26 @@ internal sealed partial class MotionState
 
     static void Start()
     {
-        if (Android.App.Application.Context.GetSystemService(Context.SensorService) is not SensorManager manager)
-            return;
-
-        // The game rotation vector leaves out the compass, which would make the layers drift; the
-        // rotation vector is the fallback on devices without a gyroscope.
-        if ((manager.GetDefaultSensor(SensorType.GameRotationVector) ?? manager.GetDefaultSensor(SensorType.RotationVector)) is not { } sensor)
+        if (TiltSensor() is not (var manager, var sensor))
             return;
 
         Tracker.Reset();
         _listener = new TiltListener(manager);
         // Above SensorDelay's named rates the binding passes a sampling period in microseconds: 60 Hz.
         manager.RegisterListener(_listener, sensor, (SensorDelay)16_667);
+    }
+
+    /// <summary>The sensor the tilt is read from, or <see langword="null"/> when the device has neither.</summary>
+    internal static (SensorManager Manager, Sensor Sensor)? TiltSensor()
+    {
+        if (Android.App.Application.Context.GetSystemService(Context.SensorService) is not SensorManager manager)
+            return null;
+
+        // The game rotation vector leaves out the compass, which would make the layers drift; the
+        // rotation vector is the fallback on devices without a gyroscope.
+        return (manager.GetDefaultSensor(SensorType.GameRotationVector) ?? manager.GetDefaultSensor(SensorType.RotationVector)) is { } sensor
+            ? (manager, sensor)
+            : null;
     }
 
     static void Stop()
