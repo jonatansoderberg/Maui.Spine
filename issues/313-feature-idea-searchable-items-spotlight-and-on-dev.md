@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/313
 **Branch:** issue/313-feature-idea-searchable-items-spotlight-and-on-dev
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 
