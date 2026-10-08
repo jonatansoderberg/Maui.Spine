@@ -14,6 +14,8 @@ public static class SpineIcons
     public const string Auto = "Auto.svg";
     /// <summary>The <c>Awning.svg</c> icon.</summary>
     public const string Awning = "Awning.svg";
+    /// <summary>The <c>Axes3D.svg</c> icon.</summary>
+    public const string Axes3D = "Axes3D.svg";
     /// <summary>The <c>Barcode.svg</c> icon.</summary>
     public const string Barcode = "Barcode.svg";
     /// <summary>The <c>Bathroom.svg</c> icon.</summary>
@@ -462,6 +464,7 @@ public static class SpineIcons
         Arrow,
         Auto,
         Awning,
+        Axes3D,
         Barcode,
         Bathroom,
         Battery0,

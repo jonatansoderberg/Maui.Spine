@@ -102,7 +102,7 @@
             </Example.Code>
         </Example>
 
-        <Example Title="224 icons ready to use"
+        <Example Title="225 icons ready to use"
                  Summary="Plugin.Maui.Spine.Svg.Icons adds a matching set of chevrons, actions, rooms, appliances, media controls and weather symbols. Reference the package and use them by name; nothing to register.">
             <VerticalStackLayout Spacing="12">
                 <FlexLayout Wrap="Wrap" JustifyContent="SpaceAround" BindableLayout.ItemsSource="{Binding Preview}">

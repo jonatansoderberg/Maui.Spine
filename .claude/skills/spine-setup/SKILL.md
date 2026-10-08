@@ -16,9 +16,9 @@ All Spine packages share one version. Reference every Spine package the app uses
 | The app needs | Install | Brings in |
 |---|---|---|
 | Navigation: regions, sheets, tabs, header bar, glass buttons, shortcuts, Windows windowing | `Plugin.Maui.Spine` | `Plugin.Maui.Spine.Svg` |
-| The built-in icon set (223 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
+| The built-in icon set (225 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
 | Home-screen widgets, Live Activities, Control Center controls and Quick Settings tiles from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
-| The built-in icon set (224 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
+| The built-in icon set (225 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
 | Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
 | Push and local notifications | `Plugin.Maui.Spine.PushNotifications` | `Plugin.Maui.Spine.Common` (not the core) |
 | Background work while the app is closed (`[BackgroundTask]`), widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` | the core and `Plugin.Maui.Spine.Common` |
