@@ -1,6 +1,6 @@
 ---
 name: spine-page
-description: Add or change a page in a Plugin.Maui.Spine app — the three-file page pattern, [NavigableRegion] / [NavigableSheet] / [NavigableTab], typed navigation parameters and results, page actions in the header bar, lifecycle hooks, loading data with TaskState and StateView (loading, error with retry, empty), dismiss guards, and tab badges. Use when creating pages, navigating between them, loading their data, or wiring header-bar buttons. Invoke as /spine-page.
+description: Add or change a page in a Plugin.Maui.Spine app — the three-file page pattern, [NavigableRegion] / [NavigableSheet] / [NavigableTab], typed navigation parameters and results, action sheets (ShowActionsAsync), page actions in the header bar, lifecycle hooks, loading data with TaskState and StateView (loading, error with retry, empty), dismiss guards, and tab badges. Use when creating pages, navigating between them, loading their data, or wiring header-bar buttons. Invoke as /spine-page.
 ---
 
 You are adding or changing a page in an app built on **Plugin.Maui.Spine**. Spine discovers pages by attribute (no route tables, no DI registration) and every navigation call is one typed async method. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -125,6 +125,13 @@ if (result is { IsSuccess: true, Value: { } picked }) …
 
 Both at once: implement both interfaces and call `NavigateToWithResultAsync<TPage, TParam, TResult>(param)`.
 
+### Found from the platform's search
+
+A page with a parameter can be opened from Spotlight (iOS, Mac) or a shortcut (Android): inject `ISearchIndex` and `await searchIndex.UpsertAsync(new SearchableItem(Id: $"room-{id}", Title: name, Target: NavigationTarget.To<RoomPage, RoomId>(new RoomId(id)), Description: summary, Icon: "kitchen", Keywords: ["…"]))`; `RemoveAsync(id)` takes it away. A tapped result is opened with `ShowAsync<TPage, TParam>`, also on a cold start (over the root page). The parameter is stored as JSON and read back later, maybe by a newer app version: pass a small serialisable id, not the loaded data; one that cannot round-trip throws from `UpsertAsync`. A result whose page or parameter type no longer fits is logged and removed. `[Searchable(Description = …, Icon = …, Keywords = […])]` on a page makes it a fixed entry, indexed at startup, opened without a parameter. Windows has no index (`IsSupported` is false). See docs/wiki/searchable-items.md.
+### Action sheets
+
+For a choice that needs no page, ask for the platform's action sheet and await the pick: `var picked = await _navigation.ShowActionsAsync(new ActionSheet("Night sprint", "optional message") { Actions = [new("Share", "share.svg", ShareCommand), new("Remove", "trashcan.svg", RemoveCommand) { IsDestructive = true }] });`. The rows are `MenuAction`s (Title, Svg, Command, CommandParameter, IsDestructive, IsEnabled, IsVisible); the picked row's command runs, then the task returns the row, or `null` on cancel. `ActionSheet.CommandParameter` goes to rows without their own (one set of rows for every list item); pass `anchor: button` so iPad points the popover at it (iOS 26 grows the sheet out of it on the iPhone too) — from XAML `CommandParameter="{Binding Source={RelativeSource Self}}"`. iOS: `UIAlertController` with a Cancel row (`CancelText`); Android: a Material bottom sheet; Windows: a `MenuFlyout`. A menu that belongs to a button or a row is `MenuButton.Items`/`PageAction.Menu`/`ContextMenu.Items` instead.
+
 ### Shared elements and zoom
 
 `Transition.Tag` (namespace `Plugin.Maui.Spine.Extensions`) carries a view from one page to the next in the same stack. The same tag on a view on each page makes a shared element: it flies between them on the push and back on the pop, while the pages slide. The tag on the page arriving itself (its root `SpinePage`) makes a zoom: the page grows out of the view with that tag and shrinks back into it, under the finger on the back-swipe. The same tag on a view inside the zooming page makes that view its focus, the part that lines up with the tapped view; give one whenever the page shows what was tapped. Make tags unique per item (`Key => $"tile-{Id}"`), so a list matches the right row. A view scrolled out of sight, Reduce Motion, sheets and tab switches get the usual transition. iOS, Mac Catalyst and Android; Windows plays the usual transition.
@@ -183,6 +190,10 @@ A tap can play a haptic: `[PageAction("Save", Role = PageActionRole.Confirm, Hap
 
 `PageAction` is observable: set `Text`, `Svg`, `Badge` ("3", "•"), `IsEnabled`, `IsVisible` or `Haptic` on the instance while the page shows and the header follows. Find a declared one with `PageActions.First(a => a.Command == FilterCommand)`. Adding or removing from `PageActions` at runtime also updates the header.
 
+## Search in the header bar
+
+Put `[PageSearch(Placeholder = "Search towns", Submit = nameof(OpenFirstCommand))]` on the `[ObservableProperty] public partial string Query { get; set; } = "";` that holds the text, and filter the page's own list in `partial void OnQueryChanged(string value)`; nothing goes in XAML. Spine creates `ViewModelBase.Search` (a `PageSearch`) before the page appears and keeps it and `Query` in step both ways. `Search.IsActive = true` starts a search (focus and keyboard), `Search.IsVisible = false` hides the field. Placement `Automatic`: a row below the header bar on phones, Android, Windows and in sheets, the trailing end of the bar on iPad and Mac Catalyst (wide windows); `SearchPlacement.Top` forces the row. One per page; no header bar, no field. Spine draws no results view. See docs/wiki/search.md.
+
 ## Binding to the page from a template
 
 `{PageCommand Pick}` binds `PickCommand` on the page's view model from inside a `DataTemplate`; `{PageBinding Path}` binds any member of it (supports `Mode`, `Converter`, `StringFormat`). Use them instead of `RelativeSource AncestorType` bindings.
@@ -208,5 +219,7 @@ A tap can play a haptic: `[PageAction("Save", Role = PageActionRole.Confirm, Hap
 - Loading states: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/loading-states.md
 - Shared elements and zoom: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/transitions.md
 - Lightbox (a `[NavigableLightbox]` photo viewer page with a `Lightbox`): https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/lightbox.md
+- Search in the header bar: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/search.md
+- Action sheets: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/menus.md#action-sheets
 - Parameters / Results / Page actions: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/navigation-parameters.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/navigation-results.md · https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/page-actions.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp/Pages

@@ -143,6 +143,7 @@ public static partial class SpineExtensions
             RegisterNavigables(services, options.Assemblies);
 
         RegisterShortcuts(builder, options);
+        RegisterSearch(builder);
 
         // Initialize SVG resource cache with the app's assemblies — fixes both
         // SvgImageSource.Svg="..." in XAML and ISvgIconService.FromEmbeddedSvg("...").
@@ -190,6 +191,15 @@ private static void RegisterShortcuts(MauiAppBuilder builder, SpineOptions optio
 
         // After MAUI's own initializer, which hands the shortcuts to the platform.
         services.AddSingleton<IMauiInitializeService>(new ShortcutIcons.Initializer(config.Items));
+    }
+
+    private static void RegisterSearch(MauiAppBuilder builder)
+    {
+        builder.Services.AddSingleton<SearchIndex>();
+        builder.Services.AddSingleton<ISearchIndex>(sp => sp.GetRequiredService<SearchIndex>());
+        // After the shortcuts' initializer: on Android, MAUI's app actions replace every dynamic shortcut, the search ones too.
+        builder.Services.AddSingleton<IMauiInitializeService>(new SearchIndex.Initializer());
+        SearchIndex.ConfigurePlatform(builder);
     }
 
     private static void RegisterNavigables(IServiceCollection services, IEnumerable<Assembly> assemblies)

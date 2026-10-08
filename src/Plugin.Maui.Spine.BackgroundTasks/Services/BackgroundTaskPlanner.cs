@@ -1,0 +1,45 @@
+namespace Plugin.Maui.Spine.BackgroundTasks.Services;
+
+/// <summary>
+/// Which tasks are due and when the next one is. A task is due an interval after its last run
+/// started, whatever that run's outcome, so a failing task is retried on its schedule rather than in
+/// a loop; one that has never run is due at once. A task without an interval is never due.
+/// </summary>
+internal static class BackgroundTaskPlanner
+{
+    public static DateTimeOffset? NextDue(TimeSpan interval, BackgroundTaskState? state, DateTimeOffset now) =>
+        interval <= TimeSpan.Zero ? null
+        : state?.LastStarted is { } started ? started + interval
+        : now;
+
+    /// <summary>The tasks due at <paramref name="now"/>, the most overdue first.</summary>
+    public static IReadOnlyList<string> Due(
+        IEnumerable<(string Name, TimeSpan Interval)> tasks,
+        IReadOnlyDictionary<string, BackgroundTaskState> states,
+        DateTimeOffset now) =>
+        [.. tasks
+            .Select(t => (t.Name, Due: NextDue(t.Interval, states.GetValueOrDefault(t.Name), now)))
+            .Where(t => t.Due <= now)
+            .OrderBy(t => t.Due)
+            .ThenBy(t => t.Name, StringComparer.Ordinal)
+            .Select(t => t.Name)];
+
+    /// <summary>
+    /// When the platform should next run one of <paramref name="tasks"/>, never before
+    /// <paramref name="now"/>; <see langword="null"/> when none has an interval.
+    /// </summary>
+    public static DateTimeOffset? Earliest(
+        IEnumerable<(string Name, TimeSpan Interval)> tasks,
+        IReadOnlyDictionary<string, BackgroundTaskState> states,
+        DateTimeOffset now)
+    {
+        DateTimeOffset? earliest = null;
+        foreach (var (name, interval) in tasks)
+        {
+            if (NextDue(interval, states.GetValueOrDefault(name), now) is not { } due) continue;
+            if (earliest is null || due < earliest) earliest = due;
+        }
+
+        return earliest is { } at && at < now ? now : earliest;
+    }
+}

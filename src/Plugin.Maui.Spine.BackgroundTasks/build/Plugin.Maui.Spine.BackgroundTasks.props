@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseSpineBackgroundTasks() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.BackgroundTasks" Register="Plugin.Maui.Spine.BackgroundTasks.SpineBackgroundTasksExtensions.UseSpineBackgroundTasks" />
+	</ItemGroup>
+</Project>

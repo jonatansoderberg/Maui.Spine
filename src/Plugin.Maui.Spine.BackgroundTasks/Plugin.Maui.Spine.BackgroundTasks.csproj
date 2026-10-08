@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<AssemblyName>Plugin.Maui.Spine.BackgroundTasks</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.BackgroundTasks</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Background tasks for .NET MAUI: [BackgroundTask] classes discovered at startup and run by BGTaskScheduler on iOS and JobScheduler on Android, with a timer while the app runs on Windows and Mac Catalyst. Keeps widgets fresh without the app on screen.</Description>
+		<SpineIcon>background-tasks.png</SpineIcon>
+		<PackageTags>$(PackageTags);background;bgtaskscheduler;jobscheduler;widgets</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AsyncAwaitBestPractices" />
+		<PackageReference Include="Microsoft.Maui.Controls" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+	<!-- The module declaration and the Info.plist step; a ProjectReference consumer imports
+	     build\Plugin.Maui.Spine.BackgroundTasks.targets explicitly. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.BackgroundTasks.Tests" />
+	</ItemGroup>
+
+</Project>

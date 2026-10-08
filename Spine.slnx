@@ -16,7 +16,9 @@
   <Project Path="src/Plugin.Maui.Spine.Controls.HeroCollectionView/Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.DataGrid/Plugin.Maui.Spine.Controls.DataGrid.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Shimmer/Plugin.Maui.Spine.Controls.Shimmer.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.MeshBackground/Plugin.Maui.Spine.Controls.MeshBackground.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Widgets/Plugin.Maui.Spine.Widgets.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.BackgroundTasks/Plugin.Maui.Spine.BackgroundTasks.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server/Plugin.Maui.Spine.Server.csproj" />
   <Project Path="src/Plugin.Maui.Spine.PushNotifications/Plugin.Maui.Spine.PushNotifications.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Barcodes/Plugin.Maui.Spine.Barcodes.csproj" />
@@ -28,4 +30,5 @@
   <Project Path="tests/Plugin.Maui.Spine.Barcodes.Tests/Plugin.Maui.Spine.Barcodes.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Controls.Tests/Plugin.Maui.Spine.Controls.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Images.Tests/Plugin.Maui.Spine.Images.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.BackgroundTasks.Tests/Plugin.Maui.Spine.BackgroundTasks.Tests.csproj" />
 </Solution>

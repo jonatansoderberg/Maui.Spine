@@ -454,7 +454,7 @@ internal static class BottomSheetPageExtensions
     /// <paramref name="fallback"/> if the attribute is not present or resolution fails.
     /// Attribute IDs are looked up at runtime so no generated Resource class is needed.
     /// </summary>
-    private static Android.Graphics.Color ResolveMaterialColor(
+    internal static Android.Graphics.Color ResolveMaterialColor(
         Android.Content.Context context,
         string attrName,
         Android.Graphics.Color fallback)

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<IsPackable>false</IsPackable>
+		<RootNamespace>Plugin.Maui.Spine.BackgroundTasks.Tests</RootNamespace>
+	</PropertyGroup>
+
+	<!--
+		Plugin.Maui.Spine.BackgroundTasks targets only MAUI platforms, which a net10.0 test cannot reference.
+		The planner and the stored schedule have no MAUI types, so they are compiled in here directly.
+	-->
+	<ItemGroup>
+		<Compile Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Services\BackgroundTaskPlanner.cs" Link="BackgroundTaskPlanner.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Services\BackgroundTaskState.cs" Link="BackgroundTaskState.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" />
+		<PackageReference Include="xunit" />
+		<PackageReference Include="xunit.runner.visualstudio" />
+	</ItemGroup>
+
+</Project>

@@ -16,9 +16,10 @@ All Spine packages share one version. Reference every Spine package the app uses
 | The app needs | Install | Brings in |
 |---|---|---|
 | Navigation: regions, sheets, tabs, header bar, glass buttons, shortcuts, Windows windowing | `Plugin.Maui.Spine` | `Plugin.Maui.Spine.Svg` |
-| The built-in icon set (223 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
+| The built-in icon set (224 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
 | Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
 | Push and local notifications | `Plugin.Maui.Spine.PushNotifications` | `Plugin.Maui.Spine.Common` (not the core) |
+| Background work while the app is closed (`[BackgroundTask]`), widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` | the core and `Plugin.Maui.Spine.Common` |
 | The push backend, in an ASP.NET Core or Azure Functions project | `Plugin.Maui.Spine.Server` | `Plugin.Maui.Spine.Common` |
 | `HeroCollectionView` (collapsing hero header) | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `Plugin.Maui.Spine.Svg` |
 | `AnimatedLabel` (marquee) | `Plugin.Maui.Spine.Controls.AnimatedLabel` | — |
@@ -32,6 +33,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 dotnet add package Plugin.Maui.Spine
 dotnet add package Plugin.Maui.Spine.Widgets            # if widgets
 dotnet add package Plugin.Maui.Spine.PushNotifications  # if notifications
+dotnet add package Plugin.Maui.Spine.BackgroundTasks    # if background tasks
 ```
 
 With central package management, add matching `<PackageVersion>` lines to `Directory.Packages.props` instead of versions in the csproj.
@@ -185,6 +187,19 @@ The extension's bundle id is `$(ApplicationId).SpineWidgets` (override with `Spi
 ```xml
 <key>NSCameraUsageDescription</key>
 <string>Scans codes with the camera.</string>
+```
+
+### Background tasks
+
+Nothing to declare by hand. On iOS the build adds `UIBackgroundModes: fetch` and one task identifier, `<ApplicationId>.spine.refresh`, to `Info.plist` (merged with the app's own modes and identifiers); `<SpineBackgroundTasksProcessing>true</SpineBackgroundTasksProcessing>` adds `processing` and `.spine.processing` for tasks marked `Long`. On Android the package declares its `JobService`, `RECEIVE_BOOT_COMPLETED` and `ACCESS_NETWORK_STATE`. Register nothing: `UseSpine` finds `[BackgroundTask]` classes in the assemblies it scans. With Widgets in the app, the widgets' background refresh becomes the task `spine.widgets`. Tasks never run on a clock: iOS decides, Android runs a job at most every 15 minutes, and Windows/Mac Catalyst run tasks only while the app is open. BGTaskScheduler does not run in the simulator (booking logs `BGTaskSchedulerErrorDomain error 1`). See https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/background-tasks.md.
+
+```csharp
+[BackgroundTask("standings", IntervalMinutes = 30, RequiresNetwork = true, Widgets = ["team"])]
+public sealed class StandingsTask(IStandingsApi api, StandingsStore store) : IBackgroundTask
+{
+    public async Task RunAsync(BackgroundTaskRun run, CancellationToken ct) =>
+        await store.SaveAsync(await api.FetchAsync(ct), ct);   // honour ct: ~30 s on iOS
+}
 ```
 
 ### Push notifications

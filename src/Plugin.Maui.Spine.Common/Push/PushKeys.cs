@@ -41,6 +41,13 @@ public static class PushKeys
     public const string Widget = "spine.widget";
 
     /// <summary>
+    /// The name of a background task to run when a <see cref="Kinds.Silent"/> or <see cref="Kinds.Widget"/>
+    /// message arrives, before the widgets are rebuilt. Needs <c>Plugin.Maui.Spine.BackgroundTasks</c> in the
+    /// app; the task gets the push's time (about 30 seconds on iOS, 20 on Android).
+    /// </summary>
+    public const string Task = "spine.task";
+
+    /// <summary>
     /// The id an undelivered message is replaced by. On APNs this is the <c>apns-collapse-id</c>
     /// header, which the device does not pass on, so it travels as data too.
     /// </summary>
