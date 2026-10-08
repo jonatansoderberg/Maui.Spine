@@ -208,6 +208,30 @@ public static class SvgImageSource
     public static double GetLineWidthScale(BindableObject obj)
         => (double)obj.GetValue(LineWidthScaleProperty);
 
+    /// <summary>
+    /// Identifies the <c>RoundLineEnds</c> attached property: every stroke ends in a half circle and turns
+    /// round corners, as SF Symbols and Material icons do. Defaults to <see langword="false"/>.
+    /// </summary>
+    public static readonly BindableProperty RoundLineEndsProperty =
+        BindableProperty.CreateAttached(
+            "RoundLineEnds",
+            typeof(bool),
+            typeof(SvgImageSource),
+            false,
+            propertyChanged: OnAttachedValueChanged);
+
+    /// <summary>Sets whether the strokes on <paramref name="obj"/> get round ends and corners.</summary>
+    /// <param name="obj">The target <see cref="BindableObject"/>.</param>
+    /// <param name="value"><see langword="true"/> for round ends and corners.</param>
+    public static void SetRoundLineEnds(BindableObject obj, bool value)
+        => obj.SetValue(RoundLineEndsProperty, value);
+
+    /// <summary>Gets whether the strokes on <paramref name="obj"/> get round ends and corners.</summary>
+    /// <param name="obj">The target <see cref="BindableObject"/>.</param>
+    /// <returns><see langword="true"/> for round ends and corners.</returns>
+    public static bool GetRoundLineEnds(BindableObject obj)
+        => (bool)obj.GetValue(RoundLineEndsProperty);
+
 
 
     /// <summary>
@@ -302,6 +326,7 @@ public static class SvgImageSource
         behavior.Padding = GetPadding(bindable);
         behavior.AdjustColorsForDark = GetAdjustColorsForDark(bindable);
         behavior.LineWidthScale = GetLineWidthScale(bindable);
+        behavior.RoundLineEnds = GetRoundLineEnds(bindable);
         behavior.UpdateImage();
     }
 }

@@ -169,18 +169,18 @@ SVG images require **Plugin.Maui.Spine.Svg** (included transitively with Spine).
 private Task OpenSettings() { /* ... */ }
 ```
 
-The header bar draws the glyph at the size and weight of the platform's own bar icons, so a Spine icon sits next to a system one without looking thin. The numbers are on `HeaderBarConstants`, measured against a `UINavigationBar` on iOS 26 and a `MaterialToolbar` on Android:
+The header bar draws the glyph at the size of the platform's own bar icons, with round line ends and corners like theirs, and heavier than Spine's own lines: about halfway between those and the system icons' 2-point lines, so a Spine icon sits next to a system one without looking thin. The numbers are on `HeaderBarConstants`, measured against a `UINavigationBar` on iOS 26 and a `MaterialToolbar` on Android:
 
 | | iOS and Mac Catalyst | Android | Windows |
 | --- | --- | --- | --- |
 | `GlyphSize` | 25 points | 24 dp | 22 |
-| `GlyphLineWidthScale` | 2 (2-point lines, like SF Symbols) | 2.05 (2 dp, like Material Symbols at weight 400) | 1 |
-| `BackGlyphSize` / `BackGlyphLineWidthScale` | 34 / 1.84 (UIKit's larger back chevron) | 24 / 2.05 | 22 / 1 |
+| `GlyphLineWidthScale` | 1.5 (1.5-point lines; SF Symbols have 2) | 1.5 (1.45 dp; Material Symbols at weight 400 have 2) | 1 |
+| `BackGlyphSize` / `BackGlyphLineWidthScale` | 34 / 1.4 (UIKit's larger back chevron) | 24 / 1.5 | 22 / 1 |
 
-The scale multiplies the SVG's own strokes, so it assumes icons drawn like the Spine set: 2-unit lines in a 50-unit view box. A button of your own that should match the bar takes the same values, `SvgImageSource.LineWidthScale="{x:Static HeaderBarConstants.GlyphLineWidthScale}"`.
+The scale multiplies the SVG's own strokes, so it assumes icons drawn like the Spine set: 2-unit lines in a 50-unit view box. A button of your own that should match the bar takes the same values, `SvgImageSource.LineWidthScale="{x:Static HeaderBarConstants.GlyphLineWidthScale}"` and `SvgImageSource.RoundLineEnds="True"`.
 
 <p align="center">
-  <img src="images/header-glyph-weight.png" width="640" alt="Back and palette glyphs before and after, next to the native UINavigationBar and MaterialToolbar icons, light and dark">
+  <img src="images/header-glyph-weight.png" width="640" alt="A native UINavigationBar with SF Symbols above Spine's header bar on iOS 26: the same glass circles, Spine's glyphs with round ends and slightly lighter lines">
 </p>
 
 ---
