@@ -95,4 +95,36 @@ public class SvgRasterizerTests
         using var paint = SvgRasterizer.TintPaint(SKColors.Black);
         Assert.NotNull(paint);
     }
+    /// <summary>A 10-unit line from x 30 to 70, and the same line asking for square ends itself.</summary>
+    private const string Line = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40">
+          <path d="M30 10H70" stroke="currentColor" stroke-width="10" fill="none" />
+          <path d="M30 30H70" stroke="currentColor" stroke-width="10" fill="none" stroke-linecap="butt" />
+        </svg>
+        """;
+
+    private static SKBitmap RenderLine(bool roundLineEnds)
+    {
+        using var svg = new MemoryStream(Encoding.UTF8.GetBytes(Line));
+        return SKBitmap.Decode(SvgRasterizer.RenderPng(svg, 100, 40, SKColors.Black, roundLineEnds: roundLineEnds));
+    }
+
+    [Fact]
+    public void A_line_ends_square_at_its_end_point_by_default()
+    {
+        using var bitmap = RenderLine(roundLineEnds: false);
+
+        Assert.Equal(0, bitmap.GetPixel(73, 10).Alpha);
+        Assert.Equal(0, bitmap.GetPixel(27, 30).Alpha);
+    }
+
+    [Fact]
+    public void Round_line_ends_reach_half_a_line_width_past_the_end_point_also_where_the_svg_asks_for_square_ones()
+    {
+        using var bitmap = RenderLine(roundLineEnds: true);
+
+        Assert.Equal(SKColors.Black, bitmap.GetPixel(73, 10));
+        Assert.Equal(SKColors.Black, bitmap.GetPixel(27, 30));
+        Assert.Equal(0, bitmap.GetPixel(75, 5).Alpha);
+    }
 }

@@ -83,14 +83,15 @@ public static class HeaderBarConstants
     public const double RegionButtonPadding = 0;
 
     // Material 3's icon button: a 24-point Material Symbols icon, weight 400, whose lines are 2 points
-    // wide; Spine's 2-unit lines in a 50-unit view box are 0.96 points at that size.
+    // wide; Spine's 2-unit lines in a 50-unit view box are 0.96 points at that size. Spine stops at about
+    // 1.45 points, between its own weight and Material's, with round ends as Material has.
     /// <summary>Size of the square a header bar button's SVG glyph is drawn in.</summary>
     public const double GlyphSize = 24;
     /// <summary>
     /// Stroke multiplier for a header bar button's SVG glyph, so it has the weight of the platform's
     /// own bar icons (<see cref="Svg.SvgImageSourceBehavior.LineWidthScale"/>).
     /// </summary>
-    public const double GlyphLineWidthScale = 2.05;
+    public const double GlyphLineWidthScale = 1.5;
     // Material's back arrow is an ordinary 24-point icon.
     /// <summary>Size of the square the back button's glyph (<see cref="BackGlyph"/>) is drawn in.</summary>
     public const double BackGlyphSize = GlyphSize;
@@ -144,20 +145,21 @@ public static class HeaderBarConstants
 
     // Measured against a UINavigationBar on iOS 26: its SF Symbols (paintpalette 22 points tall, xmark
     // 17) have lines 2 points wide, where Spine's 2-unit lines in a 50-unit view box are 1 point wide
-    // in a 25-point square, the square that gives Spine's glyphs the same height.
+    // in a 25-point square, the square that gives Spine's glyphs the same height. Spine stops at 1.5
+    // points, between its own weight and the symbols', with round ends as the symbols have.
     /// <summary>Size of the square a header bar button's SVG glyph is drawn in.</summary>
     public const double GlyphSize = 25;
     /// <summary>
     /// Stroke multiplier for a header bar button's SVG glyph, so it has the weight of the platform's
     /// own bar icons (<see cref="Svg.SvgImageSourceBehavior.LineWidthScale"/>).
     /// </summary>
-    public const double GlyphLineWidthScale = 2;
+    public const double GlyphLineWidthScale = 1.5;
     // The navigation bar's back chevron is larger and heavier than the symbols beside it: 11 by 19
-    // points with lines 2.5 points wide.
+    // points with lines 2.5 points wide; Spine's is about 1.9.
     /// <summary>Size of the square the back button's glyph (<see cref="BackGlyph"/>) is drawn in.</summary>
     public const double BackGlyphSize = 34;
     /// <summary>Stroke multiplier for the back button's glyph.</summary>
-    public const double BackGlyphLineWidthScale = 1.84;
+    public const double BackGlyphLineWidthScale = 1.4;
 
     /// <summary>Space between the screen edge and the outermost header bar button on a region page.</summary>
     public const double RegionSideMargin = 8;
