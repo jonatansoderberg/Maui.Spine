@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/310
 **Branch:** issue/310-feature-idea-meshbackground-animated-mesh-and-auro
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 
