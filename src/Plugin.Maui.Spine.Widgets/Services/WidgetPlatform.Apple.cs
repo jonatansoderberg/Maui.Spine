@@ -137,22 +137,13 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 
     public void WriteTimeline(string kind, string json)
     {
-        if (_containerPath is null) return;
-        Directory.CreateDirectory(_containerPath);
-        var target = Path.Combine(_containerPath, kind + ".json");
-        var temp = target + ".tmp";
-        File.WriteAllText(temp, json);
-        File.Move(temp, target, overwrite: true);
+        if (_containerPath is not null) AtomicFile.WriteAllText(Path.Combine(_containerPath, kind + ".json"), json);
     }
 
-    public async Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken)
-    {
-        if (_containerPath is null) return;
-        var target = Path.Combine(_containerPath, "assets", assetId);
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        await using var file = File.Create(target);
-        await png.CopyToAsync(file, cancellationToken);
-    }
+    public Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken) =>
+        _containerPath is null
+            ? Task.CompletedTask
+            : AtomicFile.WriteAsync(Path.Combine(_containerPath, "assets", assetId), png, cancellationToken);
 
     /// <summary>Nothing to do: WidgetKit fetches the timeline's remote source itself on every reload.</summary>
     public Task FetchRemoteAsync(string kind, Uri source, CancellationToken cancellationToken) => Task.CompletedTask;
@@ -229,12 +220,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 
     public void WriteControl(string kind, string json)
     {
-        if (_containerPath is null) return;
-        var directory = Path.Combine(_containerPath, "controls");
-        Directory.CreateDirectory(directory);
-        var target = Path.Combine(directory, kind + ".json");
-        File.WriteAllText(target + ".tmp", json);
-        File.Move(target + ".tmp", target, overwrite: true);
+        if (_containerPath is not null) AtomicFile.WriteAllText(Path.Combine(_containerPath, "controls", kind + ".json"), json);
     }
 
     public void ReloadControl(string kind)

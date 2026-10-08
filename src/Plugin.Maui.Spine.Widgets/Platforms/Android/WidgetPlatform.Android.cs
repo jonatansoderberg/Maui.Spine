@@ -36,22 +36,13 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 
     public void WriteTimeline(string kind, string json)
     {
-        if (!IsSupported) return;
-        var target = WidgetStore.TimelinePath(_context, kind);
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        var temp = target + ".tmp";
-        File.WriteAllText(temp, json);
-        File.Move(temp, target, overwrite: true);
+        if (IsSupported) AtomicFile.WriteAllText(WidgetStore.TimelinePath(_context, kind), json);
     }
 
-    public async Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken)
-    {
-        if (!IsSupported && !AreControlsSupported) return;
-        var target = Path.Combine(WidgetStore.AssetsDirectory(_context), assetId);
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        await using var file = File.Create(target);
-        await png.CopyToAsync(file, cancellationToken);
-    }
+    public Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken) =>
+        IsSupported || AreControlsSupported
+            ? AtomicFile.WriteAsync(Path.Combine(WidgetStore.AssetsDirectory(_context), assetId), png, cancellationToken)
+            : Task.CompletedTask;
 
     public void Reload(string kind)
     {
@@ -119,11 +110,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 
     public void WriteControl(string kind, string json)
     {
-        if (!AreControlsSupported) return;
-        var target = WidgetStore.ControlPath(_context, kind);
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        File.WriteAllText(target + ".tmp", json);
-        File.Move(target + ".tmp", target, overwrite: true);
+        if (AreControlsSupported) AtomicFile.WriteAllText(WidgetStore.ControlPath(_context, kind), json);
     }
 
     public void ReloadControl(string kind)

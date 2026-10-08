@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Common.Serialization;
@@ -11,6 +12,8 @@ internal sealed class WidgetService(
     IServiceProvider _services,
     ILogger<WidgetService> _logger) : IWidgetService
 {
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshing = new(StringComparer.Ordinal);
+
     public bool IsSupported => _platform.IsSupported;
 
     public string? PushToken => _platform.WidgetPushToken;
@@ -40,6 +43,22 @@ internal sealed class WidgetService(
         var providerType = _registry.ProviderTypeFor(kind)
             ?? throw new InvalidOperationException($"No [Widget(\"{kind}\")] provider was discovered.");
 
+        // The launch refresh and a background run often start together. One at a time per kind, so the
+        // timeline written last is the one built last.
+        var gate = _refreshing.GetOrAdd(kind, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            await BuildAndWriteAsync(kind, providerType, cancellationToken);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task BuildAndWriteAsync(string kind, Type providerType, CancellationToken cancellationToken)
+    {
         var provider = (IWidgetProvider)ActivatorUtilities.CreateInstance(_services, providerType);
         var timeline = await provider.BuildTimelineAsync(new WidgetContext(kind), cancellationToken);
         if (timeline.Entries.Count == 0)

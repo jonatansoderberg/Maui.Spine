@@ -18,6 +18,7 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     private const int Pixels = 128;
 
     private readonly HashSet<string> _stored = [];
+    private readonly SemaphoreSlim _storing = new(1, 1);
 
     public static string AssetId(string name) => "icons/" + name + ".png";
 
@@ -29,18 +30,25 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     {
         if (!_platform.IsSupported && !_platform.AreControlsSupported) return;
 
-        foreach (var name in names.Distinct(StringComparer.Ordinal))
+        // A refresh running beside this one must not write its tree before the icons it shares are on disk,
+        // so it waits here rather than skipping a name another caller is still storing.
+        await _storing.WaitAsync(cancellationToken);
+        try
         {
-            lock (_stored) if (!_stored.Add(name)) continue;
-
-            using var stream = Open(name);
-            if (stream is null || Render(stream) is not { } png)
+            foreach (var name in names.Distinct(StringComparer.Ordinal))
             {
-                lock (_stored) _stored.Remove(name);
-                continue;
-            }
+                if (_stored.Contains(name)) continue;
 
-            await _platform.StoreAssetAsync(AssetId(name), new MemoryStream(png), cancellationToken);
+                using var stream = Open(name);
+                if (stream is null || Render(stream) is not { } png) continue;
+
+                await _platform.StoreAssetAsync(AssetId(name), new MemoryStream(png), cancellationToken);
+                _stored.Add(name);
+            }
+        }
+        finally
+        {
+            _storing.Release();
         }
     }
 

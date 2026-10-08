@@ -139,9 +139,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
             if (!check.RootElement.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
                 throw new InvalidDataException("not a timeline document");
 
-        var target = WidgetStore.RemoteCachePath(context, kind);
-        File.WriteAllText(target + ".tmp", json);
-        File.Move(target + ".tmp", target, overwrite: true);
+        AtomicFile.WriteAllText(WidgetStore.RemoteCachePath(context, kind), json);
         Update(context, kind);
     }
 
@@ -241,7 +239,7 @@ internal abstract class SpineAppWidget(int _index) : AppWidgetProvider
         try
         {
             if (manager.SetWidgetPreview(component, AppWidgetCategory.HomeScreen, renderer.Root(tree, null)))
-                File.WriteAllText(path, hash);
+                AtomicFile.WriteAllText(path, hash);
             else if (RateLimited.TryAdd(kind, 0))
                 Android.Util.Log.Info(Tag, $"The picker preview of widget \"{kind}\" was rate-limited by the system; it is tried again at the next update.");
         }
