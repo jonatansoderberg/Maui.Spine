@@ -37,12 +37,13 @@ A soft light inside a [material](materials.md) panel, with a deep negative depth
 ```xml
 <Border Material.Preset="BlurThin" StrokeThickness="0" StrokeShape="RoundRectangle 24">
     <Grid>
-        <Border WidthRequest="280" HeightRequest="280" StrokeThickness="0" InputTransparent="True"
+        <Border WidthRequest="200" HeightRequest="200" StrokeThickness="0" InputTransparent="True"
                 HorizontalOptions="Center" VerticalOptions="Center"
                 Motion.Depth="-70">
             <Border.Background>
                 <RadialGradientBrush>
-                    <GradientStop Color="#73FFFFFF" Offset="0" />
+                    <GradientStop Color="#E6FFFFFF" Offset="0" />
+                    <GradientStop Color="#59FFFFFF" Offset="0.45" />
                     <GradientStop Color="#00FFFFFF" Offset="1" />
                 </RadialGradientBrush>
             </Border.Background>
