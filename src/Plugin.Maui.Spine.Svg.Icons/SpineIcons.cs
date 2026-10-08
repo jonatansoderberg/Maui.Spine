@@ -252,6 +252,8 @@ public static class SpineIcons
     public const string Reverse = "Reverse.svg";
     /// <summary>The <c>Search.svg</c> icon.</summary>
     public const string Search = "Search.svg";
+    /// <summary>The <c>SearchItem.svg</c> icon.</summary>
+    public const string SearchItem = "SearchItem.svg";
     /// <summary>The <c>Segmented.svg</c> icon.</summary>
     public const string Segmented = "Segmented.svg";
     /// <summary>The <c>Settings.svg</c> icon.</summary>
@@ -585,6 +587,7 @@ public static class SpineIcons
         Return,
         Reverse,
         Search,
+        SearchItem,
         Segmented,
         Settings,
         Share,
