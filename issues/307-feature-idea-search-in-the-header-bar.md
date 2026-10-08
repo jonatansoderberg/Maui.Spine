@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/307
 **Branch:** issue/307-feature-idea-search-in-the-header-bar
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 
