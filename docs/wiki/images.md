@@ -19,7 +19,7 @@
 dotnet add package Plugin.Maui.Spine.Images
 ```
 
-`UseSpine()` registers it. To change the options, or in an app without Spine's core, call `UseSpineImages` in `MauiProgram`, before or after `UseSpine()` but after `UseMauiApp`:
+`UseSpine()` registers it. To change the options, or in an app without Spine's core, call `UseSpineImages` in `MauiProgram`, anywhere in the chain (before or after `UseSpine()` and `UseMauiApp`):
 
 ```csharp
 builder.UseSpineImages(options =>
@@ -153,5 +153,5 @@ MAUI decodes each photo at 1600 × 1200 (7.7 MB of pixels) on the main thread wh
 - **Animated GIFs** are played by MAUI's own stream service, from the cached file, at full size.
 - **Android's disk cache size** is Glide's 250 MB: MAUI owns Glide's configuration, and changing it needs an API Glide marks as for tests only. `DiskCacheSize` and `MemoryCacheSize` do not apply there.
 - **Windows has no memory cache** of decoded images (WinUI keeps what is on screen); whether a `BitmapImage` can be shared between views is not verified. The Windows code is compiled, not run.
-- **Registration order.** MAUI Controls registers its own service for `UriImageSource` in `UseMauiApp`; Spine's replaces it because it is registered later. Call `UseSpineImages` (or `UseSpine`) after `UseMauiApp`, as every MAUI app does.
+- **Registration order does not matter.** MAUI Controls registers its own service for `UriImageSource` in `UseMauiApp`, and with a plain `ConfigureImageSources` the last registration wins. Spine adds its service when MAUI builds its image source services, after every `ConfigureImageSources` call, so `UseSpineImages` (or `UseSpine`) may come before or after `UseMauiApp`. A check at startup throws, naming the fix, if another library still replaces it (by swapping MAUI's `IImageSourceServiceCollection` after Spine's registration).
 - **Image URLs in a widget's remote document** (a backend pointing a widget at a picture the app has not stored) are a separate step for the widget renderer.

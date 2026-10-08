@@ -70,7 +70,7 @@ PushNotifications                                    AnimatedLabel
 | `Plugin.Maui.Spine.Controls.Rows` | Nothing (the marquee detail uses AnimatedLabel, which `UseSpine` registers) | Nothing; `UseAnimatedLabel()` for `DetailMarquee` |
 | `Plugin.Maui.Spine.Barcodes` | Nothing | Nothing |
 | `Plugin.Maui.Spine.Scanner` | Registered: the camera handlers, the scan sheet and its strings | `UseSpineScanner()`; the view works, the scan sheet needs Spine |
-| `Plugin.Maui.Spine.Images` | Registered; call `UseSpineImages(o => …)` only to change `SpineImagesOptions` | `UseSpineImages()`, after `UseMauiApp` |
+| `Plugin.Maui.Spine.Images` | Registered; call `UseSpineImages(o => …)` only to change `SpineImagesOptions` | `UseSpineImages()` |
 
 Every `UseXxx()` is idempotent. The first call registers the package; a later call only applies its `configure` delegate to the same options instance. An explicit configuring call therefore works before or after `UseSpine()`, and the options end up with both. Settings that decide what gets registered (a widget background-refresh handler, a push handler) are applied after every call, and the platform callbacks read the options when they run, not when they are registered.
 

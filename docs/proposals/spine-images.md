@@ -35,7 +35,7 @@ The source is `dotnet/maui` `main` (2026-09-28). The repo pins `Microsoft.Maui.C
 | `CacheValidity` | Not read | Not read | Not read |
 | Downsampling | No, full decoding at scale 1 | Yes, to the view's size. With `wrap_content` the screen's largest dimension is used. | No (but `DecodePixelWidth` exists, §3.3) |
 | Animated GIF | Yes (`ImageAnimationHelper`) | Yes (Glide) | Yes (WinUI) |
-| Replaceable | Yes: `ConfigureImageSources` + `AddService<UriImageSource, …>`. A concrete type wins over MAUI's interface registration (`ImageSourceToImageSourceServiceTypeMapping.FindImageSourceServiceType`). | The same, but Glide's request is built in Java and cannot be changed from outside | The same |
+| Replaceable | Yes: `ConfigureImageSources` + `AddService<UriImageSource, …>`. *Correction (2026-10-08):* MAUI Controls registers its own service for the concrete `UriImageSource` in `UseMauiApp`, so the concrete type alone does not win; the last registration does. Spine wraps MAUI's `IImageSourceServiceCollection` factory so its service is added after every registration, whatever the order (follow-up to PR #476). | The same, but Glide's request is built in Java and cannot be changed from outside | The same |
 
 The Glide configuration cannot be reached the way the issue assumes. MAUI owns the app's only `AppGlideModule` (`MauiGlideModule`), and it only sets the log level in `applyOptions`. A `LibraryGlideModule` from Spine can register components but cannot change the `GlideBuilder` (disk cache size, memory size). The only way there is `Glide.init(Context, GlideBuilder)` before the first load. The method is public but marked `@VisibleForTesting` in 4.16.0, so it should not be used in v1.
 
