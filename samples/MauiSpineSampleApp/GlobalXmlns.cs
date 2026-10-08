@@ -181,3 +181,7 @@
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.Photos")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
+    "MauiSpineSampleApp.Pages.BackgroundTasks")]

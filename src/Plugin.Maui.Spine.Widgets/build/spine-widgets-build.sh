@@ -5,7 +5,7 @@
 set -euo pipefail
 
 OUT=""; SOURCES=""; SDK="iphonesimulator"; ARCH="arm64"; MIN_OS="17.0"; CONFIG="Debug"
-BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; URL_SCHEME=""; LIVE="true"; BACKGROUND="true"; FREQUENT="false"
+BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; URL_SCHEME=""; LIVE="true"; FREQUENT="false"
 PROVISION=""; REQUIRE_PROVISION="false"; PUSH="false"; PUSH_ENV="development"
 WIDGETS=()
 
@@ -23,7 +23,6 @@ while [[ $# -gt 0 ]]; do
     --display-name) DISPLAY_NAME="$2"; shift 2;;
     --url-scheme) URL_SCHEME="$2"; shift 2;;
     --live-activities) LIVE="$2"; shift 2;;
-    --background-refresh) BACKGROUND="$2"; shift 2;;
     --frequent-updates) FREQUENT="$2"; shift 2;;
     --provision) PROVISION="$2"; shift 2;;
     --require-provision) REQUIRE_PROVISION="$2"; shift 2;;
@@ -259,11 +258,8 @@ fi
 	<key>NSSupportsLiveActivities</key><$( [[ "$LIVE" == "true" ]] && echo true || echo false )/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key><$( [[ "$FREQUENT" == "true" ]] && echo true || echo false )/>
 PLIST
-  if [[ "$BACKGROUND" == "true" ]]; then
-    cat <<PLIST
-	<key>BGTaskSchedulerPermittedIdentifiers</key><array><string>$(plist_escape "$URL_SCHEME").spine-widgets.refresh</string></array>
-PLIST
-  fi
+  # BGTaskSchedulerPermittedIdentifiers is an array, which the SDK replaces rather than merges; the
+  # targets contribute the identifier to the one list Plugin.Maui.Spine.Common.targets writes.
   if [[ -n "$URL_SCHEME" ]]; then
     cat <<PLIST
 	<key>CFBundleURLTypes</key>

@@ -61,7 +61,7 @@
 
 ## Packages
 
-One version, fifteen packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, sixteen packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -70,6 +70,7 @@ One version, fifteen packages, all on [nuget.org](https://www.nuget.org/packages
 | Core | `Plugin.Maui.Spine.Svg.Icons` | 223 ready-made SVG icons, resolved by file name once referenced |
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications |
+| Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes run by BGTaskScheduler and JobScheduler while the app is closed |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source |
@@ -180,6 +181,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Shared elements and zoom** | One `Transition.Tag` on each page: a view flies from one page to the next and back, or the page grows out of the view it opens from and shrinks back into it under the finger | [Shared Elements and Zoom](docs/wiki/transitions.md) |
 | **Lightbox** | `[NavigableLightbox]` and a `Lightbox`: photos full screen on black that open out of their thumbnail, page sideways, pinch and double-tap zoom, drag down to close into the thumbnail, Share and Save | [Lightbox](docs/wiki/lightbox.md) |
 | **Widgets** | Home-screen widgets and Live Activities built from C# | [Widgets](docs/wiki/widgets.md) |
+| **Background tasks** | `[BackgroundTask]` classes the system runs while the app is closed, with their status, a run on request or from a push, and the widgets rebuilt after them | [Background tasks](docs/wiki/background-tasks.md) |
 | **Glass buttons** | `Button`/`ImageButton` as Liquid Glass on iOS 26, normal buttons elsewhere | [Glass buttons](docs/wiki/glass-buttons.md) |
 | **Materials** | Glass, blur, tinted and solid surfaces for any `Border`: system materials on iOS, a real blur on Android 12+, acrylic on Windows | [Materials](docs/wiki/materials.md) |
 | **Haptics** | Success, warning, error, selection and impacts from the platform's own generators, on a tap, a header action, a tab switch or a sheet detent | [Haptics](docs/wiki/haptics.md) |
@@ -204,6 +206,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Shared Elements and Zoom](docs/wiki/transitions.md) | `Transition.Tag` on a view on each page for a shared element, on the page itself for a zoom; a focus view inside the zooming page; the back-swipe zoom |
 | [Lightbox](docs/wiki/lightbox.md) | A full-screen photo viewer page: opening from the thumbnail, paging, zoom, drag down to close, Share, Save and the page's own actions |
 | [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets and Dynamic Island, built from C# |
+| [Background tasks](docs/wiki/background-tasks.md) | `[BackgroundTask]` on BGTaskScheduler and JobScheduler: what runs when on each platform, status, requests, `spine.task` from a push, and the widgets' refresh as a task |
 | [Push (client)](docs/wiki/push-notifications.md) | Permission, tokens, tags, and the handler that sees every message |
 | [Push (server)](docs/wiki/push-notifications-server.md) | The backend half: register, tag expressions, APNs and FCM |
 | [HeroCollectionView](docs/wiki/hero-collection-view.md) | Collapsing sticky header, adaptive overlay |
@@ -222,7 +225,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The fifteen packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The sixteen packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 
@@ -245,6 +248,7 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | Windows tray icon + close-to-background | `MauiProgram.cs` options |
 | Home-screen and Lock Screen widgets with buttons (iOS, Android) | `Widgets/Hockey/ScoreWidget.cs`, `Widgets/SampleWidget.cs`, `WidgetsPage` |
 | Live Activity updated from the app, with a lock-screen button (iOS, Android 16) | `Widgets/Hockey/ScoreActivity.cs`, `LiveActivitiesPage` |
+| Background tasks: a scheduled task that rebuilds a widget, one that fails, status and Run now | `BackgroundTasks/SampleSyncTask.cs`, `BackgroundTasksPage` |
 | Liquid Glass buttons (iOS 26) | `MainPage` → `GlassPage` (second item in the list) |
 
 ### Push sample

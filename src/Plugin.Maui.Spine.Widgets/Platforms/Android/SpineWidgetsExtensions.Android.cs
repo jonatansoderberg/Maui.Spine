@@ -36,7 +36,9 @@ public static partial class SpineWidgetsExtensions
             {
                 if (activity is SpineWidgetLinkActivity) return;
                 if (options.RefreshOnBackground) RefreshAllInBackground(Services());
-                if (WidgetStore.Kinds(activity).Length > 0) SpineBackgroundReceiver.Schedule(activity, options.BackgroundRefreshInterval);
+                // With Plugin.Maui.Spine.BackgroundTasks a job runs the refresh; an alarm booked by an earlier version is cancelled.
+                if (BackgroundTasksOwnRefresh(Services())) SpineBackgroundReceiver.Schedule(activity, TimeSpan.Zero);
+                else if (WidgetStore.Kinds(activity).Length > 0) SpineBackgroundReceiver.Schedule(activity, options.BackgroundRefreshInterval);
             });
         }));
 

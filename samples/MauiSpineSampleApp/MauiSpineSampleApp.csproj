@@ -510,6 +510,15 @@
       <DependentUpon>OptionsSheet.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\BackgroundTasks\BackgroundTasksPage.View.xaml">
+      <DependentUpon>BackgroundTasksPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\BackgroundTasks\BackgroundTasksPage.ViewModel.cs">
+      <DependentUpon>BackgroundTasksPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\SvgIcons\SvgIconSetPage.View.xaml">
       <DependentUpon>SvgIconSetPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -539,6 +548,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg.Icons\Plugin.Maui.Spine.Svg.Icons.csproj" />
 	</ItemGroup>
@@ -556,5 +566,6 @@
 	</ItemGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.BackgroundTasks\build\Plugin.Maui.Spine.BackgroundTasks.targets" />
 
 </Project>
