@@ -81,9 +81,14 @@
 		those and the app's own modes.
 
 		  <SpineBackgroundMode Include="remote-notification" />
+
+		BGTaskSchedulerPermittedIdentifiers is an array too, and every package that schedules a BGTask
+		needs its identifier in it, so it goes into the same file the same way:
+
+		  <SpineBackgroundTaskIdentifier Include="$(ApplicationId).spine.refresh" />
 	-->
 	<Target Name="_SpineWriteBackgroundModes"
-			Condition="'$(_SpineEntitlementsApplies)' == 'true' And '@(SpineBackgroundMode)' != ''"
+			Condition="'$(_SpineEntitlementsApplies)' == 'true' And ('@(SpineBackgroundMode)' != '' Or '@(SpineBackgroundTaskIdentifier)' != '')"
 			DependsOnTargets="_DetectAppManifest"
 			BeforeTargets="CollectAppManifests;_CompileAppManifestInputs;_CompileAppManifest">
 
@@ -98,12 +103,24 @@
 				 Condition="'$(AppBundleManifest)' != '' And Exists('$(AppBundleManifest)')">
 			<Output TaskParameter="Result" ItemName="_SpineAppBackgroundMode" />
 		</XmlPeek>
+		<XmlPeek XmlInputPath="$(AppBundleManifest)" ProhibitDtd="false"
+				 Query="/plist/dict/key[.='BGTaskSchedulerPermittedIdentifiers']/following-sibling::*[1]/string/text()"
+				 Condition="'$(AppBundleManifest)' != '' And Exists('$(AppBundleManifest)')">
+			<Output TaskParameter="Result" ItemName="_SpineAppBackgroundTaskIdentifier" />
+		</XmlPeek>
 
 		<ItemGroup>
 			<_SpineBackgroundModeAll Include="@(_SpineAppBackgroundMode);@(SpineBackgroundMode)" />
 		</ItemGroup>
 		<RemoveDuplicates Inputs="@(_SpineBackgroundModeAll)">
 			<Output TaskParameter="Filtered" ItemName="_SpineBackgroundModeUnique" />
+		</RemoveDuplicates>
+
+		<ItemGroup>
+			<_SpineBackgroundTaskIdentifierAll Include="@(_SpineAppBackgroundTaskIdentifier);@(SpineBackgroundTaskIdentifier)" />
+		</ItemGroup>
+		<RemoveDuplicates Inputs="@(_SpineBackgroundTaskIdentifierAll)">
+			<Output TaskParameter="Filtered" ItemName="_SpineBackgroundTaskIdentifierUnique" />
 		</RemoveDuplicates>
 
 		<MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_SpineBackgroundModesFile)'))" />
@@ -114,10 +131,20 @@
 			<_SpineBackgroundModesLine Include="&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;" />
 			<_SpineBackgroundModesLine Include="&lt;plist version=&quot;1.0&quot;&gt;" />
 			<_SpineBackgroundModesLine Include="&lt;dict&gt;" />
+		</ItemGroup>
+		<ItemGroup Condition="'@(_SpineBackgroundModeUnique)' != ''">
 			<_SpineBackgroundModesLine Include="&lt;key&gt;UIBackgroundModes&lt;/key&gt;" />
 			<_SpineBackgroundModesLine Include="&lt;array&gt;" />
 			<_SpineBackgroundModesLine Include="@(_SpineBackgroundModeUnique->'&lt;string&gt;%(Identity)&lt;/string&gt;')" />
 			<_SpineBackgroundModesLine Include="&lt;/array&gt;" />
+		</ItemGroup>
+		<ItemGroup Condition="'@(_SpineBackgroundTaskIdentifierUnique)' != ''">
+			<_SpineBackgroundModesLine Include="&lt;key&gt;BGTaskSchedulerPermittedIdentifiers&lt;/key&gt;" />
+			<_SpineBackgroundModesLine Include="&lt;array&gt;" />
+			<_SpineBackgroundModesLine Include="@(_SpineBackgroundTaskIdentifierUnique->'&lt;string&gt;%(Identity)&lt;/string&gt;')" />
+			<_SpineBackgroundModesLine Include="&lt;/array&gt;" />
+		</ItemGroup>
+		<ItemGroup>
 			<_SpineBackgroundModesLine Include="&lt;/dict&gt;" />
 			<_SpineBackgroundModesLine Include="&lt;/plist&gt;" />
 		</ItemGroup>
@@ -128,7 +155,7 @@
 			<PartialAppManifest Include="$(_SpineBackgroundModesFile)" />
 		</ItemGroup>
 
-		<Message Importance="normal" Text="Spine: UIBackgroundModes written to $(_SpineBackgroundModesFile) with @(_SpineBackgroundModeUnique, ', ')." />
+		<Message Importance="normal" Text="Spine: UIBackgroundModes (@(_SpineBackgroundModeUnique, ', ')) and BGTaskSchedulerPermittedIdentifiers (@(_SpineBackgroundTaskIdentifierUnique, ', ')) written to $(_SpineBackgroundModesFile)." />
 	</Target>
 
 </Project>

@@ -26,7 +26,8 @@ public sealed class SpineWidgetsOptions
     /// <summary>
     /// How often the app asks the platform for a background run that rebuilds the widgets (and runs
     /// the <see cref="IBackgroundRefreshHandler"/>, if any). A request, not a promise: iOS and Android
-    /// both stretch it when the device is idle. <see cref="TimeSpan.Zero"/> turns the runs off.
+    /// both stretch it when the device is idle. <see cref="TimeSpan.Zero"/> turns the runs off. With
+    /// <c>Plugin.Maui.Spine.BackgroundTasks</c> it is the interval of that package's task <c>spine.widgets</c>.
     /// </summary>
     public TimeSpan BackgroundRefreshInterval { get; set; } = TimeSpan.FromMinutes(30);
 

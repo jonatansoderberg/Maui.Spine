@@ -35,6 +35,8 @@ Android's widget picker shows the widget itself from Android 15, once the app ha
 
 Constructed through DI every time it runs, so inject services as in a ViewModel. It runs **only in the app's process**: at launch, when the app goes to the background, in background runs, after a button tap, on `RefreshAsync`, and on Android at the `Refresh(after)` alarm.
 
+To fetch fresh data while the app is closed, add `Plugin.Maui.Spine.BackgroundTasks` and a `[BackgroundTask("sync", IntervalMinutes = 30, Widgets = ["next-event"])]` class: the widget is rebuilt after each completed run, and Widgets' own background refresh (`BackgroundRefreshInterval`, `UseBackgroundRefresh<T>()`) then runs as the task `spine.widgets` instead of on its own schedule.
+
 ```csharp
 [Widget("next-event")]
 public sealed class NextEventWidget(IEventService _events, IWidgetService _widgets) : IWidgetProvider
