@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseSpineImages() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Images" Register="Plugin.Maui.Spine.Images.SpineImagesExtensions.UseSpineImages" />
+	</ItemGroup>
+</Project>

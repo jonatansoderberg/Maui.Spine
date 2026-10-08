@@ -1,0 +1,84 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Images.ImagesPage"
+    x:TypeArguments="ImagesPageViewModel"
+    x:DataType="ImagesPageViewModel"
+    BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}"
+    HeaderBar.ScrollSource="{x:Reference PhotoGrid}">
+
+    <CollectionView
+        x:Name="PhotoGrid"
+        ItemsSource="{Binding Photos}"
+        SafeArea.PageMargin="True">
+
+        <CollectionView.ItemsLayout>
+            <GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="4" VerticalItemSpacing="4" />
+        </CollectionView.ItemsLayout>
+
+        <CollectionView.Header>
+            <VerticalStackLayout Padding="0,16,0,16" Spacing="12">
+                <ExampleCodeSwitch />
+                <PackageChips Packages="Plugin.Maui.Spine.Images, Plugin.Maui.Spine.Common" />
+
+                <Example Title="Large photos, light lists"
+                         Summary="Two hundred photos of 1600 × 1200 pixels from picsum.photos. Each is decoded at the size of its cell, off the main thread, and kept in memory and on disk; a BlurHash shows in its colours until it arrives. Nothing in the markup but the hash: every UriImageSource goes through the cache."
+                         Margin="0,12,0,0">
+                    <Label Text="Scroll the grid below; scroll back up and the photos are already there." FontSize="15" Opacity="0.7" />
+                    <Example.Code>
+                        &lt;Image Source="{Binding Url}"
+                               ImageOptions.BlurHash="{Binding Hash}"
+                               Aspect="AspectFill" HeightRequest="118" /&gt;
+
+                        // ImageOptions.Downsample is on by default;
+                        // turn it off for an image that must keep
+                        // every pixel, such as one to zoom into.
+                    </Example.Code>
+                </Example>
+
+                <Example Title="Prefetch and clear"
+                         Summary="IImageCache downloads photos before a list needs them, so they show at once, or offline. On Android the photos go into Glide's cache, which MAUI already loads through.">
+                    <VerticalStackLayout Spacing="10">
+                        <HorizontalStackLayout Spacing="10">
+                            <Button Text="Prefetch all" Command="{Binding PrefetchCommand}" />
+                            <Button Text="Clear the cache" Command="{Binding ClearCommand}" />
+                        </HorizontalStackLayout>
+                        <Label Text="{Binding CacheStatus}" FontSize="15" />
+                    </VerticalStackLayout>
+                    <Example.Code>
+                        public partial class GalleryViewModel(IImageCache images)
+                        {
+                            Task Prefetch() =&gt; images.PrefetchAsync(
+                                Photos.Select(p =&gt; p.Url));
+
+                            Task Clear() =&gt; images.ClearAsync();
+                        }
+                    </Example.Code>
+                </Example>
+
+                <Example Title="A photo for a widget"
+                         Summary="A widget or Live Activity cannot reach the app's cache. LoadPngAsync gives it its own copy at the size it shows, which the widget keeps until the app replaces it.">
+                    <Label Text="See the Widgets page for widgets themselves." FontSize="15" Opacity="0.7" />
+                    <Example.Code>
+                        await using var png = await images.LoadPngAsync(
+                            team.LogoUrl, maxPixelSize: 120);
+                        await widgets.StoreAssetAsync(
+                            $"logo-{team.Id}.png", png);
+                        await widgets.RefreshAsync&lt;GamesWidget&gt;();
+                    </Example.Code>
+                </Example>
+            </VerticalStackLayout>
+        </CollectionView.Header>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate x:DataType="RemotePhoto">
+                <Image Source="{Binding Url}"
+                       ImageOptions.BlurHash="{Binding Hash}"
+                       Aspect="AspectFill" HeightRequest="118"
+                       SemanticProperties.Description="{Binding Caption}" />
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+
+    </CollectionView>
+
+</SpinePage>

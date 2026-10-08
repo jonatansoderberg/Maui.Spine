@@ -21,6 +21,7 @@ The full-size originals behind `assets/icons/` (256×256 package icons) and `ass
 | `mesh-background.png` | `Plugin.Maui.Spine.Controls.MeshBackground` (the DataGrid icon with its badge filled by a mesh gradient and a warped 3 × 3 mesh glyph) |
 | `barcodes.png` | `Plugin.Maui.Spine.Barcodes` (the Spine mark with a QR glyph in a green corner) |
 | `scanner.png` | `Plugin.Maui.Spine.Scanner` (the Spine mark with a scan-frame glyph in a blue corner) |
+| `images.png` | `Plugin.Maui.Spine.Images` (the Scanner original with its corner turned magenta and a picture glyph instead of the scan frame) |
 | `background-tasks.png` | `Plugin.Maui.Spine.BackgroundTasks` (the Scanner icon's corner in teal, with a clock glyph) |
 
 Package icons are 1254×1254; nuget.org wants at most 1 MB per icon, so the packed copies are resized to 256×256:

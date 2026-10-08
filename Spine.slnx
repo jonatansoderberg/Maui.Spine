@@ -23,10 +23,12 @@
   <Project Path="src/Plugin.Maui.Spine.PushNotifications/Plugin.Maui.Spine.PushNotifications.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Barcodes/Plugin.Maui.Spine.Barcodes.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Scanner/Plugin.Maui.Spine.Scanner.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Images/Plugin.Maui.Spine.Images.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Core.Tests/Plugin.Maui.Spine.Core.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Server.Tests/Plugin.Maui.Spine.Server.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Svg.Tests/Plugin.Maui.Spine.Svg.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Barcodes.Tests/Plugin.Maui.Spine.Barcodes.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Controls.Tests/Plugin.Maui.Spine.Controls.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.Images.Tests/Plugin.Maui.Spine.Images.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.BackgroundTasks.Tests/Plugin.Maui.Spine.BackgroundTasks.Tests.csproj" />
 </Solution>

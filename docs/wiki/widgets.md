@@ -557,6 +557,15 @@ With more slots than entries, the sixty days in the timeline map to sixty differ
 
 Rendering sixty pictures takes time. Skip a slot whose file is already current (keep the day it was drawn for in `Preferences`), and the daily rebuild draws one picture instead of sixty.
 
+#### Pictures from the web
+
+The extension cannot reach the app's image cache, and should not: a cache may drop a file the widget still shows. With [Plugin.Maui.Spine.Images](images.md) installed, `IImageCache.LoadPngAsync` gives the widget its own copy at the size it draws, from the cache when the app has already shown the picture:
+
+```csharp
+await using var png = await images.LoadPngAsync(team.LogoUrl, maxPixelSize: 120);
+await _widgets.StoreAssetAsync($"logo-{team.Id}.png", png);
+```
+
 ### Pictures drawn by the app
 
 The tree vocabulary is small on purpose: every node has to mean the same thing to SwiftUI and to `RemoteViews`. A design that needs more — a typeface of its own, text set at an exact size, a shape, a shadow, a chart, a page that looks like paper — is drawn by the app into a PNG, stored, and shown with `W.Image` or as the surface. The app already has SkiaSharp: Spine's SVG pipeline brings it, and the icons of `W.Icon` are rasterized with it.
