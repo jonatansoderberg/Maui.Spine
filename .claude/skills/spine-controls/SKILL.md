@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), ContextMenu.Items (long-press / right-click menus on any view), Reorder.Mode, embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), remote images (Plugin.Maui.Spine.Images: cache, downsampling, IImageCache prefetch, ImageOptions.BlurHash placeholders), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), ContextMenu.Items (long-press / right-click menus on any view), Reorder.Mode, embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -159,6 +159,20 @@ Put `Skeleton.IsActive` on a layout (it throws on other views). For a list's fir
 <Border Tap.Command="{Binding OpenCommand}" Tap.CommandParameter="{Binding .}" Semantic.Merge="True">...</Border>
 ```
 
+## Remote images (`Plugin.Maui.Spine.Images`)
+
+Install it and every `UriImageSource` an `Image` shows goes through Spine's cache, with no markup change; `UseSpine()` registers it (`UseSpineImages(o => …)` for `SpineImagesOptions`: `DiskCacheSize`, `MemoryCacheSize`, `MaxConcurrentDownloads`, `PrefetchValidity`). iOS/Mac Catalyst: `NSCache` + disk cache, ImageIO decodes at the view's size off the main thread; Windows: disk cache + `DecodePixelWidth`; Android keeps MAUI's Glide cache. XAML namespace `Plugin.Maui.Spine.Images` in the assembly of the same name.
+
+```xml
+<Image Source="{Binding PhotoUrl}" ImageOptions.BlurHash="{Binding PhotoHash}" Aspect="AspectFill" HeightRequest="118" />
+<Image Source="{Binding ZoomableUrl}" ImageOptions.Downsample="False" />  <!-- on by default -->
+```
+
+- Give a placeholder image a size (requested or from its layout); the hash is drawn at 32 px in the view's proportions. Compute hashes on the server with `BlurHash.Encode(rgba, w, h)` from `Plugin.Maui.Spine.Common`.
+- Inject `IImageCache`: `PrefetchAsync(uris)`, `ContainsAsync(uri)`, `ClearAsync(ImageCacheScope.All)`, `LoadPngAsync(uri, maxPixelSize)`.
+- A widget never reads the image cache: `LoadPngAsync` → `IWidgetService.StoreAssetAsync(fixedId, png)`.
+- Only `Image` is decoded for its own box; an `ImageButton` with a URL gets the screen's size. GIFs play at full size through MAUI.
+
 ## Barcodes (`Plugin.Maui.Spine.Barcodes`, `Plugin.Maui.Spine.Scanner`)
 
 Two packages: **Barcodes** draws codes (no camera, no permissions, nothing to register; also targets `net10.0` for a server or a test), **Scanner** reads them with the camera (`UseSpine()` registers it; `UseSpineScanner()` without Spine, then the view works but not the sheet). XAML namespaces `Plugin.Maui.Spine.Barcodes` and `Plugin.Maui.Spine.Scanner`, each in the assembly of the same name.
@@ -232,4 +246,5 @@ A control never hard-codes words. It reads `SpineStrings.Current["Spine.Calendar
 - DataGrid: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/data-grid.md
 - Shimmer and Skeleton: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/shimmer.md
 - Barcodes and scanning: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/barcodes.md
+- Remote images: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/images.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp

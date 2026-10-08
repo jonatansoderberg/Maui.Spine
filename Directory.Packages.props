@@ -13,6 +13,11 @@
 		<PackageVersion Include="Svg.Skia" Version="3.6.0" />
 	</ItemGroup>
 
+	<!-- Plugin.Maui.Spine.Images: its net10.0 core logs without MAUI, which brings the same version on the MAUI TFMs. -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+	</ItemGroup>
+
 	<!-- Plugin.Maui.Spine.Barcodes -->
 	<ItemGroup>
 		<PackageVersion Include="ZXing.Net" Version="0.16.11" />

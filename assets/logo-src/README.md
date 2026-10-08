@@ -20,6 +20,7 @@ The full-size originals behind `assets/icons/` (256×256 package icons) and `ass
 | `shimmer.png` | `Plugin.Maui.Spine.Controls.Shimmer` (the AnimatedLabel icon with the corner emblem replaced by three shimmering bars) |
 | `barcodes.png` | `Plugin.Maui.Spine.Barcodes` (the Spine mark with a QR glyph in a green corner) |
 | `scanner.png` | `Plugin.Maui.Spine.Scanner` (the Spine mark with a scan-frame glyph in a blue corner) |
+| `images.png` | `Plugin.Maui.Spine.Images` (the Scanner original with its corner turned magenta and a picture glyph instead of the scan frame) |
 
 Package icons are 1254×1254; nuget.org wants at most 1 MB per icon, so the packed copies are resized to 256×256:
 

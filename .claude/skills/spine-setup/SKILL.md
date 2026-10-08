@@ -24,6 +24,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 | `AnimatedLabel` (marquee) | `Plugin.Maui.Spine.Controls.AnimatedLabel` | — |
 | QR codes and other barcodes on screen (`BarcodeView`, `Barcode.Encode`, SVG) | `Plugin.Maui.Spine.Barcodes` | — |
 | Scanning codes with the camera (`BarcodeScannerView`, the scan sheet) | `Plugin.Maui.Spine.Scanner` | the core and `Plugin.Maui.Spine.Barcodes` |
+| Remote images in lists: memory and disk cache, decoding at the view's size, prefetching, BlurHash placeholders | `Plugin.Maui.Spine.Images` | `Plugin.Maui.Spine.Common` (not the core) |
 | A domain or test project that builds widget trees without MAUI | `Plugin.Maui.Spine.Common` | — |
 | A server or test project that encodes barcodes or reads a light grid | `Plugin.Maui.Spine.Barcodes` (its `net10.0` build) | — |
 
@@ -39,7 +40,7 @@ The MAUI packages target `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`
 
 ## 2. Register in `MauiProgram.cs`
 
-`UseSpine` registers every Spine package the app references — the SVG pipeline, Widgets, PushNotifications, AnimatedLabel, DataGrid, Scanner; Calendar, HeroCollectionView and Barcodes need no registration at all. The list is generated at build time by `Plugin.Maui.Spine`'s build targets (no scanning at startup). Call a package's `UseXxx(o => …)` only to set its options; the order does not matter — every call configures the same options instance, before or after `UseSpine`.
+`UseSpine` registers every Spine package the app references — the SVG pipeline, Widgets, PushNotifications, AnimatedLabel, DataGrid, Scanner, Images; Calendar, HeroCollectionView and Barcodes need no registration at all. The list is generated at build time by `Plugin.Maui.Spine`'s build targets (no scanning at startup). Call a package's `UseXxx(o => …)` only to set its options; the order does not matter — every call configures the same options instance, before or after `UseSpine`.
 
 ```csharp
 using Plugin.Maui.Spine.Extensions;
@@ -64,7 +65,7 @@ builder
 return builder.Build();
 ```
 
-Without `UseSpine` (a control package on its own) nothing is registered automatically: call `UseAnimatedLabel()`, `UseSpinePushNotifications(…)`, `UseSpineScanner()` or `UseEmbeddedSvgImages(…)` yourself (without Spine the scanner view works, the scan sheet does not). If a package seems unregistered under `UseSpine`, look for `obj/<config>/<tfm>/SpineModules.g.cs` in the app: it lists what the build found. Referencing Spine as projects instead of packages means importing `Plugin.Maui.Spine`'s `build/Plugin.Maui.Spine.targets` and the packages' `build/*.props` yourself (the repo's `samples/Directory.Build.targets` shows how).
+Without `UseSpine` (a control package on its own) nothing is registered automatically: call `UseAnimatedLabel()`, `UseSpinePushNotifications(…)`, `UseSpineScanner()`, `UseSpineImages()` (after `UseMauiApp`) or `UseEmbeddedSvgImages(…)` yourself (without Spine the scanner view works, the scan sheet does not). If a package seems unregistered under `UseSpine`, look for `obj/<config>/<tfm>/SpineModules.g.cs` in the app: it lists what the build found. Referencing Spine as projects instead of packages means importing `Plugin.Maui.Spine`'s `build/Plugin.Maui.Spine.targets` and the packages' `build/*.props` yourself (the repo's `samples/Directory.Build.targets` shows how).
 
 `options.AddAssembly` is where Spine scans for `[NavigableRegion]`, `[NavigableSheet]`, `[NavigableTab]` and `[Widget]` classes and for embedded SVGs. Add every assembly that holds pages or widget providers.
 

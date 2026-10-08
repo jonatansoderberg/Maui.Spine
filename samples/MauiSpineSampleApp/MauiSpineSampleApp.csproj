@@ -285,6 +285,15 @@
       <DependentUpon>MenusPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Images\ImagesPage.View.xaml">
+      <DependentUpon>ImagesPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Images\ImagesPage.ViewModel.cs">
+      <DependentUpon>ImagesPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\ContextMenus\ContextMenusPage.View.xaml">
       <DependentUpon>ContextMenusPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -531,6 +540,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Barcodes\Plugin.Maui.Spine.Barcodes.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Scanner\Plugin.Maui.Spine.Scanner.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Images\Plugin.Maui.Spine.Images.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.AnimatedLabel\Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Calendar\Plugin.Maui.Spine.Controls.Calendar.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.DataGrid\Plugin.Maui.Spine.Controls.DataGrid.csproj" />

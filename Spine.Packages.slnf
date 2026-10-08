@@ -10,6 +10,7 @@
       "src\\Plugin.Maui.Spine.Controls.HeroCollectionView\\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj",
       "src\\Plugin.Maui.Spine.Controls.Rows\\Plugin.Maui.Spine.Controls.Rows.csproj",
       "src\\Plugin.Maui.Spine.Controls.Shimmer\\Plugin.Maui.Spine.Controls.Shimmer.csproj",
+      "src\\Plugin.Maui.Spine.Images\\Plugin.Maui.Spine.Images.csproj",
       "src\\Plugin.Maui.Spine.PushNotifications\\Plugin.Maui.Spine.PushNotifications.csproj",
       "src\\Plugin.Maui.Spine.Scanner\\Plugin.Maui.Spine.Scanner.csproj",
       "src\\Plugin.Maui.Spine.Server\\Plugin.Maui.Spine.Server.csproj",
@@ -20,6 +21,7 @@
       "tests\\Plugin.Maui.Spine.Barcodes.Tests\\Plugin.Maui.Spine.Barcodes.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Controls.Tests\\Plugin.Maui.Spine.Controls.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Core.Tests\\Plugin.Maui.Spine.Core.Tests.csproj",
+      "tests\\Plugin.Maui.Spine.Images.Tests\\Plugin.Maui.Spine.Images.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Server.Tests\\Plugin.Maui.Spine.Server.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Svg.Tests\\Plugin.Maui.Spine.Svg.Tests.csproj"
     ]
