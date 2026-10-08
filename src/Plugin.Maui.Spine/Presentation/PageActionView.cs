@@ -344,8 +344,6 @@ internal sealed class PageActionView : ContentView
         // The icon of a morphing action, drawn over its glass circle; taps go to the button under it.
         readonly Image _morphIcon = new()
         {
-            WidthRequest = 24,
-            HeightRequest = 24,
             HorizontalOptions = LayoutOptions.Center,
             VerticalOptions = LayoutOptions.Center,
             InputTransparent = true,
@@ -404,8 +402,8 @@ internal sealed class PageActionView : ContentView
             else
             {
                 _imageButton.SetBinding(VisualElement.HeightRequestProperty, new Binding(nameof(HeightRequest), source: owner));
+                _imageButton.SetBinding(ImageButton.PaddingProperty, new Binding(nameof(ButtonPadding), source: owner));
             }
-            _imageButton.SetBinding(ImageButton.PaddingProperty, new Binding(nameof(ButtonPadding), source: owner));
             ApplyIconWidth();
 
             if (owner._glass)
@@ -508,7 +506,7 @@ internal sealed class PageActionView : ContentView
             _textButton.CommandParameter = action.CommandParameter;
         }
 
-        // A 24-point glyph, the size a UIBarButtonItem uses, tinted like the icon buttons.
+        // The glyph at the size and weight a UIBarButtonItem's symbol has, tinted like the icon buttons.
         void ApplyMorphingImage()
         {
             var names = IPlatformApplication.Current?.Services.GetService<ResourceNameCache>();
@@ -517,7 +515,10 @@ internal sealed class PageActionView : ContentView
 
             var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
             var tint = _prominent ? OnFill() : _owner.Foreground ?? (dark ? Colors.White : Colors.Black);
-            _morphIcon.Source = SvgBitmapLoader.LoadFromEmbedded(resource, 24, 24, tint);
+            var size = GlyphSize(svg);
+            _morphIcon.WidthRequest = size;
+            _morphIcon.HeightRequest = size;
+            _morphIcon.Source = SvgBitmapLoader.LoadFromEmbedded(resource, size, size, tint, Thickness.Zero, lineWidthScale: (float)LineWidthScale(svg));
         }
 
         /// <summary>A glass icon is a circle as tall as the row; otherwise it fills the slot the bar gives it.</summary>
@@ -529,8 +530,24 @@ internal sealed class PageActionView : ContentView
 
         const double FilledSize = 40;
 
-        // How far an SVG glyph sits inside its button: SvgImageSourceBehavior's default padding.
+        // How far a filled circle's outer edge sits inside its slot.
         const double GlyphInset = 5;
+
+        // The back button's chevron has a size and weight of its own, as UIKit's back indicator does.
+        static double GlyphSize(string? svg) =>
+            svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.BackGlyphSize : HeaderBarConstants.GlyphSize;
+
+        static double LineWidthScale(string? svg) =>
+            svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.BackGlyphLineWidthScale : HeaderBarConstants.GlyphLineWidthScale;
+
+        // The inset that centres the glyph at its size in the glass circle, the 40-point circle or the bare slot.
+        Thickness GlyphPadding(string? svg)
+        {
+            var side = _owner._glass ? _owner.HeightRequest
+                : Filled || Circles ? FilledSize
+                : Math.Min(_owner.HeightRequest, _owner.IconWidth);
+            return new Thickness(Math.Max(0, (side - GlyphSize(svg)) / 2));
+        }
 
         // Material 3's icon button: a 40-point circle (the state layer, or the fill) centred in a 48-point
         // touch target, with a 24-point icon. Every icon button on Android has that shape, filled or not, so
@@ -593,20 +610,8 @@ internal sealed class PageActionView : ContentView
                 return;
 
             _filledShape = filled;
-            if (Circles)
-            {
-                // Only what is inside the circle changes: a filled one draws its glyph with its own inset
-                if (filled)
-                {
-                    _imageButton.RemoveBinding(ImageButton.PaddingProperty);
-                    _imageButton.Padding = new Thickness(0);
-                }
-                else
-                {
-                    _imageButton.SetBinding(ImageButton.PaddingProperty, new Binding(nameof(ButtonPadding), source: _owner));
-                }
-            }
-            else if (filled)
+            // An Android circle keeps its size and its glyph; only its fill changes
+            if (!Circles && filled)
             {
                 // The circle's outer edge goes where a bare glyph's would be, on whichever side the slot is,
                 // so a circle and an icon line up with each other and with the page's content
@@ -619,7 +624,7 @@ internal sealed class PageActionView : ContentView
                 _imageButton.Padding = new Thickness(0);
                 _imageButton.Margin = leading ? new Thickness(outer, 0, 0, 0) : new Thickness(0, 0, outer, 0);
             }
-            else
+            else if (!Circles)
             {
                 _imageButton.HorizontalOptions = LayoutOptions.End;
                 _imageButton.Margin = new Thickness(0);
@@ -635,13 +640,7 @@ internal sealed class PageActionView : ContentView
             }
 
             if (_imageButton.Behaviors.OfType<SvgImageSourceBehavior>().FirstOrDefault() is { } svg)
-            {
-                if (filled)
-                    svg.Padding = new Thickness(8);
-                else
-                    svg.ClearValue(SvgImageSourceBehavior.PaddingProperty);
-                svg.UpdateImage();
-            }
+                svg.Padding = GlyphPadding(svg.Svg);
         }
 
         /// <summary>
@@ -827,13 +826,9 @@ internal sealed class PageActionView : ContentView
                         LightTintColor = Colors.Black,
                         DarkTintColor = Colors.White,
                         TintColor = _prominent ? OnFill() : _owner.Foreground,
+                        Padding = GlyphPadding(action.Svg),
+                        LineWidthScale = LineWidthScale(action.Svg),
                     };
-                    // A 24-point glyph in the 44-point glass circle, the size a UIBarButtonItem uses; the same
-                    // in the 40-point filled circle
-                    if (_owner._glass)
-                        behavior.Padding = new Thickness(10);
-                    else if (Filled)
-                        behavior.Padding = new Thickness(8);
                     _imageButton.Behaviors.Add(behavior);
                     _currentSvg = action.Svg;
                 }
