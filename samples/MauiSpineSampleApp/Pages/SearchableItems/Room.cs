@@ -1,4 +1,4 @@
-namespace MauiSpineSampleApp.Pages.Search;
+namespace MauiSpineSampleApp.Pages.SearchableItems;
 
 /// <summary>What a search result stores to open a room: the id, not the room.</summary>
 public sealed record RoomId(string Value);

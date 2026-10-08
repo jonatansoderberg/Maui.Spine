@@ -1,9 +1,9 @@
 <SpinePage
     xmlns="http://schemas.microsoft.com/dotnet/maui/global"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    x:Class="MauiSpineSampleApp.Pages.Search.SearchPage"
-    x:TypeArguments="SearchPageViewModel"
-    x:DataType="SearchPageViewModel"
+    x:Class="MauiSpineSampleApp.Pages.SearchableItems.SearchableItemsPage"
+    x:TypeArguments="SearchableItemsPageViewModel"
+    x:DataType="SearchableItemsPageViewModel"
     BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}">
 
     <SampleLayout Packages="Plugin.Maui.Spine">
@@ -56,9 +56,9 @@
         <Example Title="Pages as fixed entries"
                  Summary="[Searchable] puts a page itself in the search, indexed at every start. This page and Theming have it: search for “Spotlight” or “dark mode”.">
             <Example.Code>
-                [NavigableRegion(Title = "Search")]
+                [NavigableRegion(Title = "Searchable items")]
                 [Searchable(Title = "Spotlight and app search", Icon = "search", Keywords = ["spotlight"])]
-                public partial class SearchPage { }
+                public partial class SearchableItemsPage { }
             </Example.Code>
         </Example>
 

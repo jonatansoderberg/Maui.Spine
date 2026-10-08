@@ -1,4 +1,4 @@
-namespace MauiSpineSampleApp.Pages.Search;
+namespace MauiSpineSampleApp.Pages.SearchableItems;
 
 public partial class RoomPageViewModel : SampleViewModel, IReceivesNavigationParameter<RoomId>
 {

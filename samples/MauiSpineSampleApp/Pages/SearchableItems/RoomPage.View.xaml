@@ -1,7 +1,7 @@
 <SpinePage
     xmlns="http://schemas.microsoft.com/dotnet/maui/global"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    x:Class="MauiSpineSampleApp.Pages.Search.RoomPage"
+    x:Class="MauiSpineSampleApp.Pages.SearchableItems.RoomPage"
     x:TypeArguments="RoomPageViewModel"
     x:DataType="RoomPageViewModel"
     BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}">

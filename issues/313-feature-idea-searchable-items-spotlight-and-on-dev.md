@@ -38,8 +38,8 @@ No study exists for #313 in `docs/proposals/`, so this plan follows the issue's 
 - `IsSupported` is false and every call is a no-op.
 
 ### Showcase and docs
-- New page `Pages/Search/SearchPage` ("Search"): index a few people (reusing `PersonDetailPage` and `PersonData`), remove them, show what is indexed; `[Searchable]` on the Search page and the Theme page.
-- `docs/wiki/search.md`, linked where the wiki links feature pages; README/package lists; `spine-page` skill.
+- New page `Pages/SearchableItems/SearchableItemsPage` ("Searchable items"): index a few people (reusing `PersonDetailPage` and `PersonData`), remove them, show what is indexed; `[Searchable]` on the Search page and the Theme page.
+- `docs/wiki/searchable-items.md`, linked where the wiki links feature pages; README/package lists; `spine-page` skill.
 
 ## Open Questions
 
@@ -58,10 +58,12 @@ None blocking; see Decisions for the choices made without the owner.
 - `Services/NavigationRegistry.cs`: `Find(fullName)` and `Pages`.
 - `Extensions/MauiAppBuilderExtensions.cs`: registers `ISearchIndex`, the startup sync and the platform hooks.
 - Tests: `tests/Plugin.Maui.Spine.Core.Tests/SearchRecordsTests.cs` (round trip, two parameter types, page gone, parameter type changed, JSON no longer fits, unstorable parameter, required id/title, content comparison).
-- Showcase: `Pages/Search` (Search page with six rooms, `RoomPage` with `RoomId`), `[Searchable]` on the Search and Theming pages, `SampleIndex`, `GlobalXmlns.cs`, csproj.
-- Docs: `docs/wiki/search.md` with two screenshots, links from README, getting started and the package README; `spine-page` skill.
+- Showcase: `Pages/SearchableItems` (Searchable items page with six rooms, `RoomPage` with `RoomId`), `[Searchable]` on the Searchable items and Theming pages, `SampleIndex`, `GlobalXmlns.cs`, csproj.
+- Docs: `docs/wiki/searchable-items.md` with two screenshots, links from README, getting started and the package README; `spine-page` skill.
 
 ## Decisions
+
+0. **Names:** the wiki page is `searchable-items.md` and the Showcase page "Searchable items" (`Pages/SearchableItems`), because #307 (search in the header bar, PR #473) uses `search.md` and "Search".
 
 1. **Core package, not a new package.** Core Spotlight is a system framework and Android uses `ShortcutManager` from Mono.Android, so nothing new is referenced. Shortcuts already live in the core.
 2. **Android: dynamic shortcuts, not AppSearch.** Verified on the Pixel Tablet emulator (Android 16, Pixel launcher): the launcher's search listed neither the Showcase's dynamic shortcuts nor documents it put in the platform's AppSearch (`android.app.appsearch`, schema displayed by system, spike in the scratchpad), while it did list a preinstalled app's shortcut (Clock). Its "Control search results" lists only Contacts and Play Store. So no third-party route reached the system search there. Shortcuts at least show in the long-press menu when there is room, may be searched by other launchers, need no package, and their tap path is the same as a launcher search hit's (`LauncherApps.startShortcut`), which was verified. Jetpack AppSearch was ruled out for the reason in `docs/proposals/spine-background-tasks.md` (a binding with Room/Kotlin/Lifecycle deps, `androidx-binding-drift`); the platform AppSearch would only serve in-app search, which v1 does not offer. **Review:** the alternative is `IsSupported = false` on Android until a surface exists.

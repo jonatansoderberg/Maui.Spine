@@ -1,11 +1,11 @@
-namespace MauiSpineSampleApp.Pages.Search;
+namespace MauiSpineSampleApp.Pages.SearchableItems;
 
-public partial class SearchPageViewModel : SampleViewModel
+public partial class SearchableItemsPageViewModel : SampleViewModel
 {
     private readonly ISearchIndex _index;
     private readonly INavigationService _navigation;
 
-    public SearchPageViewModel(ISearchIndex index, INavigationService navigation)
+    public SearchableItemsPageViewModel(ISearchIndex index, INavigationService navigation)
     {
         _index = index;
         _navigation = navigation;

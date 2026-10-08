@@ -1,9 +1,9 @@
-# Search
+# Searchable items
 
 **Searchable items** put the app's content in the platform's search: Spotlight on iOS and the Mac, the launcher on Android. Each item carries a typed target, a page and its parameter, and a tapped result opens that page, also when the app was not running. No route strings, no URL scheme.
 
 <p align="center">
-  <img src="images/search-spotlight-ios.png" width="482" alt="A Spotlight result from the Spine Showcase: Kitchen, 21 °C · 3 lamps on, with the kitchen icon on a blue tile">
+  <img src="images/searchable-items-spotlight-ios.png" width="482" alt="A Spotlight result from the Spine Showcase: Kitchen, 21 °C · 3 lamps on, with the kitchen icon on a blue tile">
 </p>
 <p align="center"><sub>A room from the Showcase in Spotlight, with its SVG icon drawn on the accent</sub></p>
 
@@ -114,7 +114,7 @@ Android has no index a third-party app can fill for the system to show, so each 
 - Whether the launcher's search lists shortcuts depends on the launcher. The Pixel launcher on the Android 16 emulator listed a preinstalled app's shortcut (Clock's "Start stopwatch") but not the Showcase's, nor documents the Showcase put in the platform's AppSearch.
 
 <p align="center">
-  <img src="images/search-shortcuts-android.png" width="310" alt="The Showcase's long-press menu on Android with four rooms as shortcuts, each with its icon on a blue tile">
+  <img src="images/searchable-items-shortcuts-android.png" width="310" alt="The Showcase's long-press menu on Android with four rooms as shortcuts, each with its icon on a blue tile">
 </p>
 <p align="center"><sub>Search items as shortcuts in the long-press menu on Android</sub></p>
 

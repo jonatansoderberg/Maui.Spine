@@ -140,7 +140,7 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
-    "MauiSpineSampleApp.Pages.Search")]
+    "MauiSpineSampleApp.Pages.SearchableItems")]
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
