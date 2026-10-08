@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/314
 **Branch:** issue/314-feature-idea-motion-parallax-depth-that-reacts-to
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 
