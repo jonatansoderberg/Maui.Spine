@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/305
 **Branch:** issue/305-feature-idea-spineimages-native-image-cache-with-p
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 
