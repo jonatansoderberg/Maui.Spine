@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" version="1.1">
+<g>
+<path d="M9.38 9.38L40.62 9.38C42.35 9.38 43.75 10.78 43.75 12.51L43.75 37.5C43.75 39.23 42.35 40.63 40.62 40.63L9.38 40.63C7.65 40.63 6.25 39.23 6.25 37.5L6.25 12.51C6.25 10.78 7.65 9.38 9.38 9.38Z"  stroke="currentColor" stroke-width="2" stroke-opacity="1" fill-opacity="0"></path>
+<path d="M19.54 19.53C19.54 21.69 17.79 23.44 15.63 23.44C13.47 23.44 11.72 21.69 11.72 19.53C11.72 17.37 13.47 15.62 15.63 15.62C17.79 15.62 19.54 17.37 19.54 19.53Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M25 15.63L35.94 15.63C36.8 15.63 37.5 16.33 37.5 17.19L37.5 17.19C37.5 18.05 36.8 18.75 35.94 18.75L25 18.75C24.14 18.75 23.44 18.05 23.44 17.19L23.44 17.19C23.44 16.33 24.14 15.63 25 15.63Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M25.01 20.31L29.69 20.31C30.55 20.31 31.25 21.01 31.25 21.88L31.25 21.88C31.25 22.74 30.55 23.44 29.69 23.44L25.01 23.44C24.14 23.44 23.44 22.74 23.44 21.88L23.44 21.88C23.44 21.01 24.14 20.31 25.01 20.31Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M14.06 28.13L35.94 28.13C36.8 28.13 37.5 28.83 37.5 29.69L37.5 29.69C37.5 30.55 36.8 31.25 35.94 31.25L14.06 31.25C13.2 31.25 12.5 30.55 12.5 29.69L12.5 29.69C12.5 28.83 13.2 28.13 14.06 28.13Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+<path d="M14.06 32.81L28.13 32.81C28.99 32.81 29.69 33.51 29.69 34.38L29.69 34.38C29.69 35.24 28.99 35.94 28.13 35.94L14.06 35.94C13.2 35.94 12.5 35.24 12.5 34.38L12.5 34.38C12.5 33.51 13.2 32.81 14.06 32.81Z"  stroke="currentColor" stroke-width="0" stroke-opacity="1" fill="currentColor" fill-opacity="1"></path>
+</g>
+</svg>
