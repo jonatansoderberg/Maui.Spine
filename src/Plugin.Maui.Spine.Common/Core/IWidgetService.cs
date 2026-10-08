@@ -9,7 +9,10 @@ public interface IWidgetService
     /// <summary>The widget kinds discovered from the Spine assemblies.</summary>
     IReadOnlyList<string> Kinds { get; }
 
-    /// <summary>Rebuilds the timeline of <paramref name="kind"/> and asks the platform to reload it.</summary>
+    /// <summary>
+    /// Rebuilds the timeline of <paramref name="kind"/> and asks the platform to reload it. Refreshes of the
+    /// same kind run one at a time: a call made while one is running waits for it, then builds again.
+    /// </summary>
     Task RefreshAsync(string kind, CancellationToken cancellationToken = default);
 
     /// <summary>Rebuilds the timeline of the widget provided by <typeparamref name="TProvider"/>.</summary>
@@ -20,7 +23,8 @@ public interface IWidgetService
 
     /// <summary>
     /// Stores a bitmap in the shared container so trees can show it with <see cref="W.Image"/>.
-    /// Keep images small: the renderer runs under a tight memory limit.
+    /// Keep images small: the renderer runs under a tight memory limit. The stored file is replaced whole,
+    /// so it is safe to store the same asset from refreshes that run at the same time.
     /// </summary>
     Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken = default);
 

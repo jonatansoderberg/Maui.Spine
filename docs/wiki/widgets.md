@@ -395,6 +395,8 @@ await _widgets.RefreshAllAsync();                // all of them
 
 Every widget is also rebuilt automatically when the app launches and when it moves to the background, so the home screen shows the state the user just left. Turn that off with `UseSpineWidgets(o => o.RefreshOnBackground = false)`. On Android `Refresh(after)` is honoured by the app itself: an alarm wakes the widget receiver, which runs the provider in the background without any UI.
 
+Refreshes often overlap — the launch refresh with a background run, a button tap with a push. Those of the same kind run one at a time: a second call waits for the first and then builds again, so the timeline written last is the one built last. Different kinds still build side by side, and `StoreAssetAsync` replaces a picture whole, so providers that store the same asset can run together.
+
 ### Background runs
 
 Beyond the reloads a widget asks for, the app books a **background run** of its own every `BackgroundRefreshInterval` (default 30 minutes) — a `BGAppRefreshTask` on iOS, an alarm on Android. Each run rebuilds every widget, and first runs the app's `IBackgroundRefreshHandler` if one is registered, so data can be synced before the trees are built:
