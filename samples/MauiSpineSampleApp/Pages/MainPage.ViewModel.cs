@@ -31,9 +31,11 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
         ? HeaderBarConstants.RegionSideMargin + (HeaderBarConstants.RegionButtonWidth - ThemeButton) / 2
         : HeaderBarConstants.PageMargin;
 
+    // As tall as the status bar and header bar on the other pages (HeroPage's SafeAreaInsets.Top), so the
+    // compact hero is the same height everywhere; on iOS 26 the bar is taller than its button row.
     public double HeaderMinHeight => DeviceInfo.Platform == DevicePlatform.MacCatalyst
         ? 2 * MacCloseButtonCentre
-        : SystemBarInsets.Top + CompactBar;
+        : SystemBarInsets.Top + HeaderBarConstants.BarHeight;
 
     // Tall enough that the photo's S starts below the status bar (and the Dynamic Island) rather than behind it.
     public double HeaderMaxHeight => SystemBarInsets.Top + 270;
