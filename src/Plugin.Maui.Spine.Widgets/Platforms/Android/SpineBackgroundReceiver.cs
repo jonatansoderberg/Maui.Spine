@@ -29,6 +29,8 @@ internal sealed class SpineBackgroundReceiver : BroadcastReceiver
         }
 
         if (intent?.Action != Action) return;
+        // An alarm an earlier version booked; Plugin.Maui.Spine.BackgroundTasks runs the refresh now.
+        if (Extensions.SpineWidgetsExtensions.BackgroundTasksOwnRefresh(services)) return;
 
         var options = services.GetRequiredService<SpineWidgetsOptions>();
         Schedule(context, options.BackgroundRefreshInterval);

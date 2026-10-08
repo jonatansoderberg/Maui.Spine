@@ -192,6 +192,24 @@
       <DependentUpon>TransitionDetailPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Mesh\MeshPage.View.xaml">
+      <DependentUpon>MeshPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Mesh\MeshPage.ViewModel.cs">
+      <DependentUpon>MeshPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Mesh\MeshFullScreenPage.View.xaml">
+      <DependentUpon>MeshFullScreenPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Mesh\MeshFullScreenPage.ViewModel.cs">
+      <DependentUpon>MeshFullScreenPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Photos\PhotosPage.View.xaml">
       <DependentUpon>PhotosPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -285,6 +303,33 @@
       <DependentUpon>MenusPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Images\ImagesPage.View.xaml">
+      <DependentUpon>ImagesPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Images\ImagesPage.ViewModel.cs">
+      <DependentUpon>ImagesPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Segmented\SegmentedPage.View.xaml">
+      <DependentUpon>SegmentedPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Segmented\SegmentedPage.ViewModel.cs">
+      <DependentUpon>SegmentedPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Segmented\TopTabsPage.View.xaml">
+      <DependentUpon>TopTabsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Segmented\TopTabsPage.ViewModel.cs">
+      <DependentUpon>TopTabsPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\ContextMenus\ContextMenusPage.View.xaml">
       <DependentUpon>ContextMenusPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -292,6 +337,56 @@
 
     <Compile Include="Pages\ContextMenus\ContextMenusPage.ViewModel.cs">
       <DependentUpon>ContextMenusPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\SearchableItems\SearchableItemsPage.View.xaml">
+      <DependentUpon>SearchableItemsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\SearchableItems\SearchableItemsPage.ViewModel.cs">
+      <DependentUpon>SearchableItemsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\SearchableItems\RoomPage.View.xaml">
+      <DependentUpon>RoomPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\SearchableItems\RoomPage.ViewModel.cs">
+      <DependentUpon>RoomPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Search\SearchPage.View.xaml">
+      <DependentUpon>SearchPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <MauiXaml Update="Pages\Search\SearchSheetPage.View.xaml">
+      <DependentUpon>SearchPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Search\SearchPage.ViewModel.cs">
+      <DependentUpon>SearchPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Motion\MotionPage.View.xaml">
+      <DependentUpon>MotionPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Motion\MotionPage.ViewModel.cs">
+      <DependentUpon>MotionPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\ActionSheets\ActionSheetsPage.View.xaml">
+      <DependentUpon>ActionSheetsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\ActionSheets\ActionSheetsPage.ViewModel.cs">
+      <DependentUpon>ActionSheetsPage.cs</DependentUpon>
     </Compile>
 
     <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
@@ -501,6 +596,15 @@
       <DependentUpon>WidgetsPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\ControlCenter\ControlCenterPage.View.xaml">
+      <DependentUpon>ControlCenterPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\ControlCenter\ControlCenterPage.ViewModel.cs">
+      <DependentUpon>ControlCenterPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Options\OptionsSheet.View.xaml">
       <DependentUpon>OptionsSheet.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -508,6 +612,15 @@
 
     <Compile Include="Pages\Options\OptionsSheet.ViewModel.cs">
       <DependentUpon>OptionsSheet.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\BackgroundTasks\BackgroundTasksPage.View.xaml">
+      <DependentUpon>BackgroundTasksPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\BackgroundTasks\BackgroundTasksPage.ViewModel.cs">
+      <DependentUpon>BackgroundTasksPage.cs</DependentUpon>
     </Compile>
 
     <MauiXaml Update="Pages\SvgIcons\SvgIconSetPage.View.xaml">
@@ -531,14 +644,17 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Barcodes\Plugin.Maui.Spine.Barcodes.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Scanner\Plugin.Maui.Spine.Scanner.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Images\Plugin.Maui.Spine.Images.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.AnimatedLabel\Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Calendar\Plugin.Maui.Spine.Controls.Calendar.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.DataGrid\Plugin.Maui.Spine.Controls.DataGrid.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Rows\Plugin.Maui.Spine.Controls.Rows.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\Plugin.Maui.Spine.Controls.MeshBackground.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg.Icons\Plugin.Maui.Spine.Svg.Icons.csproj" />
 	</ItemGroup>
@@ -554,7 +670,13 @@
 		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" />
 		<SpineWidget Include="score" DisplayName="Live score" Description="The game while it is on, then the next game and the latest results." Families="Small,Medium,AccessoryCircular,AccessoryRectangular,AccessoryInline" />
 	</ItemGroup>
+	<!-- Controls: Control Center on iOS 18, Quick Settings tiles on Android; the providers are the [Control] classes in Widgets\Hockey\. -->
+	<ItemGroup>
+		<SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Description="Hear about every goal in the live score, or not." Icon="bell" />
+		<SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Description="A goal for the Owls in the running game, without opening the app." Icon="hockey.puck" />
+	</ItemGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.BackgroundTasks\build\Plugin.Maui.Spine.BackgroundTasks.targets" />
 
 </Project>

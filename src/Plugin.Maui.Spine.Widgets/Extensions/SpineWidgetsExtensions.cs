@@ -12,8 +12,8 @@ namespace Plugin.Maui.Spine.Widgets.Extensions;
 public static partial class SpineWidgetsExtensions
 {
     /// <summary>
-    /// Adds <see cref="IWidgetService"/> and <see cref="ILiveActivityService"/>, discovers
-    /// <see cref="WidgetAttribute"/>-decorated providers in the Spine assemblies, and routes the
+    /// Adds <see cref="IWidgetService"/>, <see cref="ILiveActivityService"/> and <see cref="IControlService"/>, discovers
+    /// <see cref="WidgetAttribute"/>- and <see cref="ControlAttribute"/>-decorated providers in the Spine assemblies, and routes the
     /// widget open URL back to <see cref="IWidgetLinkHandler"/>. <c>UseSpine()</c> calls it for an app
     /// that references this package; call it yourself only to configure the options, before or after
     /// <c>UseSpine()</c>. The first call registers the services; every call applies its
@@ -37,6 +37,13 @@ public static partial class SpineWidgetsExtensions
             services.AddSingleton<WidgetIconAssets>();
             services.AddSingleton<IWidgetService, WidgetService>();
             services.AddSingleton<ILiveActivityService, LiveActivityService>();
+            services.AddSingleton<IControlService, ControlService>();
+
+            // The background refresh as a task of Plugin.Maui.Spine.BackgroundTasks, when the app has it:
+            // iOS allows one pending refresh request per app, so it cannot keep a schedule of its own beside
+            // that package's. Without the package nobody reads this, and the platform code below books it.
+            services.AddSingleton(new SpineBackgroundTaskRegistration(WidgetsTask, () => options.BackgroundRefreshInterval,
+                static (services, _, cancellationToken) => RunBackgroundRefreshAsync(services, cancellationToken)));
 
             ConfigurePlatform(builder, options);
         }
@@ -49,11 +56,17 @@ public static partial class SpineWidgetsExtensions
         return builder;
     }
 
+    /// <summary>The name of the widgets' background refresh among the tasks of Plugin.Maui.Spine.BackgroundTasks.</summary>
+    internal const string WidgetsTask = "spine.widgets";
+
     static partial void ConfigurePlatform(MauiAppBuilder builder, SpineWidgetsOptions options);
+
+    /// <summary>Whether Plugin.Maui.Spine.BackgroundTasks runs the background refresh as its task <see cref="WidgetsTask"/>.</summary>
+    internal static bool BackgroundTasksOwnRefresh(IServiceProvider services) => services.GetService<IBackgroundTasks>() is not null;
 
     /// <summary>
     /// One background run: the app's <see cref="IBackgroundRefreshHandler"/> first, if registered, then
-    /// every widget. A failing handler is logged and does not stop the widgets from being rebuilt.
+    /// every widget and control. A failing handler is logged and does not stop them from being rebuilt.
     /// </summary>
     internal static async Task RunBackgroundRefreshAsync(IServiceProvider services, CancellationToken cancellationToken)
     {
@@ -64,6 +77,7 @@ public static partial class SpineWidgetsExtensions
             catch (Exception e) when (e is not OperationCanceledException) { logger.LogError(e, "The background refresh handler failed."); }
         }
         await services.GetRequiredService<IWidgetService>().RefreshAllAsync(cancellationToken);
+        await services.GetRequiredService<IControlService>().RefreshAllAsync(cancellationToken);
     }
 
     /// <summary>
@@ -99,12 +113,44 @@ public static partial class SpineWidgetsExtensions
         await services.GetRequiredService<IWidgetService>().RefreshAsync(kind, cancellationToken);
     }
 
-    /// <summary>Runs <see cref="IWidgetService.RefreshAllAsync"/> without blocking the caller; failures are logged.</summary>
+    /// <summary>
+    /// A tapped control: the provider's <see cref="IControlProvider.OnActionAsync"/> on the main thread, then
+    /// the control rebuilt, so what the tap changed shows — also when the handler refused it.
+    /// </summary>
+    internal static async Task HandleControlActionAsync(IServiceProvider services, string kind, bool? isOn, DateTimeOffset at, CancellationToken cancellationToken = default)
+    {
+        var registry = services.GetRequiredService<WidgetRegistry>();
+        var logger = services.GetRequiredService<ILogger<IControlService>>();
+        if (registry.ControlProviderTypeFor(kind) is not { } providerType)
+        {
+            logger.LogWarning("Control \"{Kind}\" was tapped but no [Control] provider is registered for it.", kind);
+            return;
+        }
+
+        try
+        {
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                var provider = (IControlProvider)ActivatorUtilities.CreateInstance(services, providerType);
+                return provider.OnActionAsync(new ControlAction(kind, isOn, at));
+            });
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Handling the tap on control \"{Kind}\" failed.", kind);
+        }
+
+        await services.GetRequiredService<IControlService>().RefreshAsync(kind, cancellationToken);
+    }
+
+    /// <summary>Runs <see cref="IWidgetService.RefreshAllAsync"/> and <see cref="IControlService.RefreshAllAsync"/> without blocking the caller; failures are logged.</summary>
     internal static void RefreshAllInBackground(IServiceProvider services)
     {
         var widgets = services.GetRequiredService<IWidgetService>();
+        var controls = services.GetRequiredService<IControlService>();
         var logger = services.GetRequiredService<ILogger<IWidgetService>>();
         widgets.RefreshAllAsync().SafeFireAndForget(e => logger.LogError(e, "Background widget refresh failed."));
+        controls.RefreshAllAsync().SafeFireAndForget(e => logger.LogError(e, "Background control refresh failed."));
     }
 
     /// <summary>

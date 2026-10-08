@@ -116,6 +116,7 @@ await sender.SendAsync(PushTarget.Tags("kind:news && !muted"), new PushNotificat
     Title = "Results published", Body = "Your class is in.", Route = "results/59691", Channel = "news",
 });
 await sender.SendSilentAsync(PushTarget.User("123"), new Dictionary<string, string> { ["refresh"] = "orders" });
+await sender.SendSilentAsync(PushTarget.User("123"), new Dictionary<string, string> { [PushKeys.Task] = "standings" });  // runs the app's [BackgroundTask("standings")] (Plugin.Maui.Spine.BackgroundTasks)
 await sender.RefreshWidgetsAsync(PushTarget.All, kind: "next-event");
 await sender.UpdateLiveActivityAsync(PushTarget.Installation(id), kind: "delivery:42", layout, LiveActivityEvent.Update);
 ```

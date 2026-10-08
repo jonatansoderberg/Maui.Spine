@@ -22,16 +22,20 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
 
     public static string AssetId(string name) => "icons/" + name + ".png";
 
-    public async Task EnsureAsync(IEnumerable<WidgetNode?> trees, CancellationToken cancellationToken)
+    public Task EnsureAsync(IEnumerable<WidgetNode?> trees, CancellationToken cancellationToken) =>
+        EnsureAsync(trees.SelectMany(WidgetTree.Icons), cancellationToken);
+
+    /// <summary>Icons by name: a control's, which Android draws on its Quick Settings tile.</summary>
+    public async Task EnsureAsync(IEnumerable<string> names, CancellationToken cancellationToken)
     {
-        if (!_platform.IsSupported) return;
+        if (!_platform.IsSupported && !_platform.AreControlsSupported) return;
 
         // A refresh running beside this one must not write its tree before the icons it shares are on disk,
         // so it waits here rather than skipping a name another caller is still storing.
         await _storing.WaitAsync(cancellationToken);
         try
         {
-            foreach (var name in trees.SelectMany(WidgetTree.Icons).Distinct(StringComparer.Ordinal))
+            foreach (var name in names.Distinct(StringComparer.Ordinal))
             {
                 if (_stored.Contains(name)) continue;
 

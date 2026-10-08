@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/478
 **Branch:** issue/478-widgets-concurrent-refreshes-fail-with-ioexception
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 Two refreshes run at once when the app's launch refresh (`RefreshAllInBackground` from `OnCreate` / foreground) meets a background run (the `SpineBackgroundReceiver` alarm, or the `spine.widgets` JobScheduler job from #308, which starts right after it is booked). Seen on emulator-5556 (Pixel Tablet AVD) as `IOException … team-owls.png … being used by another process`.
@@ -22,6 +22,7 @@ Approach — both halves, because neither covers the other:
 - `Services/AtomicFile.cs`: `WriteAllText` and `WriteAsync` write `<path>.<guid>.tmp` and `File.Move(..., overwrite: true)` it over the target; the temp file is deleted on failure.
 - Android `WidgetPlatform.WriteTimeline`/`StoreAssetAsync`, `SpineAppWidget.FetchRemoteAsync` (remote cache) and the picker-preview hash file use it.
 - Apple `WidgetPlatform.WriteTimeline`/`StoreAssetAsync` use it.
+- After merging master (#477, Control Center controls): both platforms' `WriteControl` use it too, and the icon lock covers `EnsureAsync(names)`, which control tiles call.
 - `WidgetService.RefreshAsync(kind)` waits on a per-kind `SemaphoreSlim` around build, icons, write, remote fetch and reload.
 - `WidgetIconAssets.EnsureAsync` runs under one `SemaphoreSlim`; a name is added to the stored set after the write succeeds, so a failed write is retried.
 - `IWidgetService` docs and `docs/wiki/widgets.md` ("Refreshing from the app") say that refreshes of one kind run one at a time and that `StoreAssetAsync` replaces a picture whole.

@@ -1,13 +1,13 @@
 ---
 name: spine-widgets
-description: Build home-screen widgets, Lock Screen widgets and Live Activities with Plugin.Maui.Spine.Widgets — the [Widget] provider, the W tree vocabulary and its limits, timelines with future entries and per-entry surfaces, stored pictures (rotating asset slots, pictures drawn with Skia), buttons that run without opening the app, Live Activity layouts for the lock screen and Dynamic Island, and the iOS App Group / MSBuild setup. Use when adding or changing a widget or Live Activity. Invoke as /spine-widgets.
+description: Build home-screen widgets, Lock Screen widgets, Live Activities, and Control Center controls / Quick Settings tiles with Plugin.Maui.Spine.Widgets — the [Widget] provider, the W tree vocabulary and its limits, timelines with future entries and per-entry surfaces, stored pictures (rotating asset slots, pictures drawn with Skia), buttons that run without opening the app, Live Activity layouts for the lock screen and Dynamic Island, [Control] toggles and buttons for iOS 18 Control Center and Android Quick Settings, and the iOS App Group / MSBuild setup. Use when adding or changing a widget, Live Activity or control. Invoke as /spine-widgets.
 ---
 
 You are building a widget or a Live Activity with **Plugin.Maui.Spine.Widgets**. The app builds a small view tree in C#; Spine serializes it and a native renderer draws it — SwiftUI in a WidgetKit extension on iOS (compiled during the app's build, no Xcode project) and `RemoteViews` on Android. **No C# runs in the widget**: the renderer draws what the app last wrote. Full docs: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/widgets.md.
 
 Check `/spine-setup` §7 first: the package (registered by `UseSpine`; `UseSpineWidgets(o => …)` only for options), the `<SpineWidget>` items, and on iOS the App Group entitlement.
 
-Platforms: iOS 17+ (home screen, Lock Screen, Live Activities), Mac Catalyst (the same widgets on the desktop, no Live Activities) and Android 5+ (home screen; Live Activities on Android 16+ as Live Updates). Windows gets no-op services — check `IWidgetService.IsSupported`.
+Platforms: iOS 17+ (home screen, Lock Screen, Live Activities), Mac Catalyst (the same widgets on the desktop, no Live Activities) and Android 5+ (home screen; Live Activities on Android 16+ as Live Updates). Windows gets no-op services — check `IWidgetService.IsSupported`. Controls (§6b): iOS 18+ and Android 7+, `IControlService.IsSupported`.
 
 ---
 
@@ -34,6 +34,8 @@ Android's widget picker shows the widget itself from Android 15, once the app ha
 ## 2. Write the provider
 
 Constructed through DI every time it runs, so inject services as in a ViewModel. It runs **only in the app's process**: at launch, when the app goes to the background, in background runs, after a button tap, on `RefreshAsync`, and on Android at the `Refresh(after)` alarm.
+
+To fetch fresh data while the app is closed, add `Plugin.Maui.Spine.BackgroundTasks` and a `[BackgroundTask("sync", IntervalMinutes = 30, Widgets = ["next-event"])]` class: the widget is rebuilt after each completed run, and Widgets' own background refresh (`BackgroundRefreshInterval`, `UseBackgroundRefresh<T>()`) then runs as the task `spine.widgets` instead of on its own schedule.
 
 ```csharp
 [Widget("next-event")]
@@ -172,6 +174,34 @@ await activity.EndAsync();
 - A `W.Button` in an activity reaches the `[Widget]` provider whose kind equals the **activity's kind**; with no such provider the tap is dropped. Android Live Updates have no buttons.
 - An activity lives at most 8 hours on iOS. For around-the-clock subjects, let the server restart it with the push-to-start token (see the wiki, "Keeping one on screen around the clock").
 - Push updates: `UseSpineWidgets(o => o.LiveActivityPushTokens = true)`, send `activity.GetPushTokenAsync()` and `GetPushToStartTokenAsync()` to the backend at every launch and foreground; `Plugin.Maui.Spine.Server`'s `IPushSender` has `StartLiveActivityAsync`, `UpdateLiveActivityAsync` and `BroadcastLiveActivityAsync`.
+
+## 6b. Controls (Control Center, Quick Settings)
+
+A toggle or a button with a title, an icon and a state: iOS 18 Control Center, Lock Screen and Action button; an Android Quick Settings tile. Not on Mac Catalyst or Windows. Declare each to the build — `Type` is required and fixes the native control:
+
+```xml
+<SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Description="…" Icon="bell" />
+<SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Icon="hockey.puck" />
+```
+
+```csharp
+[Control("goal-alerts")]
+public sealed class GoalAlertsControl(ISettings _settings) : IControlProvider
+{
+    public Task<ControlState> GetStateAsync(ControlContext context, CancellationToken cancellationToken) =>
+        Task.FromResult(ControlState.Toggle("Goal alerts", _settings.GoalAlerts, "bell") with { Tint = WidgetColor.Orange });
+
+    public Task OnActionAsync(ControlAction action)      // main thread; action.IsOn (null for a button), action.At
+    { _settings.GoalAlerts = action.IsOn == true; return Task.CompletedTask; }
+}
+```
+
+- `ControlState.Button(title, icon, status)` for a button; `Status` is its second line (and the tile's subtitle). A toggle's On/Off text is the system's own on iOS.
+- **iOS draws only SF Symbols in a control**: `Icon` is the SF Symbol on iOS and an SVG (dots as underscores) on Android. When the names differ, set `Symbol` for iOS.
+- The tap runs in the app's process (launched in the background when needed), then `GetStateAsync` runs again and the control is redrawn. Call `IControlService.RefreshAsync(kind)` when the app changes what a control shows.
+- `IControlService.RequestAddAsync(kind)` shows Android 13's add-tile prompt (from a user's button press); `false` on iOS, where the user adds controls from Control Center's +.
+- At most nine controls; a kind cannot be both a widget and a control. An app with controls and no widgets still gets the extension.
+- Test: simulator Control Center (swipe from the top-right, + → Add a Control); `adb shell cmd statusbar add-tile <pkg>/plugin.maui.spine.widgets.SpineControlTile0` and `click-tile`.
 
 ## 7. Build and test
 

@@ -16,6 +16,7 @@ internal static class NavigableMeta
         if (view.BindingContext is not ViewModelBase vm)
             return;
 
+        vm.InSheet = meta.Presentation is NavigationPresentation.Sheet;
         PageActionDiscovery.Populate(vm);
 
         // Setting the attribute's values below is not a change made by the page.

@@ -32,6 +32,7 @@ internal sealed record WidgetTimelineEntryDocument(
     UseStringEnumConverter = true)]
 [JsonSerializable(typeof(WidgetTimelineDocument))]
 [JsonSerializable(typeof(LiveActivityLayout))]
+[JsonSerializable(typeof(ControlState))]
 [JsonSerializable(typeof(WidgetNode))]
 [JsonSerializable(typeof(IReadOnlyDictionary<string, WidgetNode>))]
 internal sealed partial class WidgetJsonContext : JsonSerializerContext;
@@ -86,6 +87,15 @@ public static class WidgetJson
     /// <exception cref="JsonException">The JSON is not a layout.</exception>
     public static LiveActivityLayout? DeserializeLayout(string json) =>
         JsonSerializer.Deserialize(json, WidgetJsonContext.Default.LiveActivityLayout);
+
+    /// <summary>The control's state as the native control reads it: <c>spine-widgets/controls/&lt;kind&gt;.json</c>.</summary>
+    public static string Serialize(ControlState state) =>
+        JsonSerializer.Serialize(state, (JsonTypeInfo<ControlState>)Written.GetTypeInfo(typeof(ControlState)));
+
+    /// <summary>Reads a control's state back from the JSON <see cref="Serialize(ControlState)"/> wrote.</summary>
+    /// <exception cref="JsonException">The JSON is not a control state.</exception>
+    public static ControlState? DeserializeControl(string json) =>
+        JsonSerializer.Deserialize(json, WidgetJsonContext.Default.ControlState);
 
     /// <summary>The JSON name of <paramref name="family"/>; the Swift side switches on the same strings.</summary>
     public static string FamilyKey(WidgetFamily family) => family switch

@@ -64,6 +64,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.PushNotifications\Plugin.Maui.Spine.PushNotifications.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Rows\Plugin.Maui.Spine.Controls.Rows.csproj" />
 	</ItemGroup>
 
@@ -76,5 +77,6 @@
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.PushNotifications\build\Plugin.Maui.Spine.PushNotifications.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.BackgroundTasks\build\Plugin.Maui.Spine.BackgroundTasks.targets" />
 
 </Project>

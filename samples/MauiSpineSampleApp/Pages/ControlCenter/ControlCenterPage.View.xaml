@@ -1,0 +1,76 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.ControlCenter.ControlCenterPage"
+    x:TypeArguments="ControlCenterPageViewModel"
+    x:DataType="ControlCenterPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Widgets">
+
+        <Example Title="Controls outside the app"
+                 Summary="Two controls written in C#: a toggle and a button. iOS 18 shows them in Control Center, on the Lock Screen and on the Action button; Android shows them as Quick Settings tiles. A tap runs the app's handler in the background, so the app never comes to the front.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding Support}" FontSize="15" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10" IsVisible="{Binding CanRequestAdd}">
+                    <Button Text="Add Goal alerts" Command="{Binding AddAlertsCommand}" />
+                    <Button Grid.Column="1" Text="Add Goal Owls" Command="{Binding AddGoalCommand}" />
+                </Grid>
+                <Label Text="{Binding Added}" FontSize="15" IsVisible="{Binding CanRequestAdd}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Icon="bell" /&gt;
+                &lt;SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Icon="hockey.puck" /&gt;
+
+                // Android 13 and later: the system's prompt to add the tile
+                await _controls.RequestAddAsync("goal-alerts");
+            </Example.Code>
+        </Example>
+
+        <Example Title="A toggle"
+                 Summary="Goal alerts on or off. The system flips the toggle the moment it is tapped, and the handler gets the new value; switch it here and Control Center follows.">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="Goal alerts" FontSize="17" VerticalOptions="Center" />
+                <Switch Grid.Column="1" IsToggled="{Binding Score.GoalAlerts}" />
+            </Grid>
+            <Example.Code>
+                [Control("goal-alerts")]
+                public sealed class GoalAlertsControl(LiveScore _score) : IControlProvider
+                {
+                    public Task&lt;ControlState&gt; GetStateAsync(ControlContext context, CancellationToken ct) =&gt;
+                        Task.FromResult(ControlState.Toggle("Goal alerts", _score.GoalAlerts, "bell")
+                            with { Tint = WidgetColor.Orange });
+
+                    public Task OnActionAsync(ControlAction action)
+                    {
+                        _score.GoalAlerts = action.IsOn == true;
+                        return Task.CompletedTask;
+                    }
+                }
+
+                // Changed in the app
+                await _controls.RefreshAsync("goal-alerts");
+            </Example.Code>
+        </Example>
+
+        <Example Title="A button that runs without opening the app"
+                 Summary="A goal for the Owls in the running game: the score under the button, the widget and the Live Activity all change. Tap Face-off now to start the game; between games the button says when the next one is.">
+            <VerticalStackLayout Spacing="10">
+                <Scoreboard BindingContext="{Binding Score}" />
+                <Button Text="{Binding Score.StepButton}" Command="{Binding Score.StepCommand}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                [Control("goal")]
+                public sealed class GoalControl(LiveScore _score) : IControlProvider
+                {
+                    public Task&lt;ControlState&gt; GetStateAsync(ControlContext context, CancellationToken ct) =&gt;
+                        Task.FromResult(ControlState.Button("Goal Owls", "plus", status: "NPO 2–1 RVF")
+                            with { Symbol = "hockey.puck" });   // iOS draws only SF Symbols
+
+                    public Task OnActionAsync(ControlAction action) =&gt; _score.GoalForFollowedAsync();
+                }
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

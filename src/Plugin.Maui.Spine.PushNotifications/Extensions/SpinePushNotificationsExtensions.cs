@@ -168,6 +168,10 @@ public static partial class SpinePushNotificationsExtensions
 
         try
         {
+            // A task first, so a widget message rebuilds the widgets from what it fetched.
+            if ((message.Kind is PushKind.Silent or PushKind.Widget) && message.Data.GetValueOrDefault(PushKeys.Task) is { Length: > 0 } task)
+                await RunTaskAsync(services, task, logger, cancellationToken);
+
             switch (message.Kind)
             {
                 case PushKind.Widget when services.GetService<IWidgetService>() is { } widgets:
@@ -189,6 +193,23 @@ public static partial class SpinePushNotificationsExtensions
             logger.LogError(e, "Spine.PushNotifications: handling a {Kind} message failed.", message.Kind);
             return false;
         }
+    }
+
+    private static async Task RunTaskAsync(IServiceProvider services, string task, ILogger logger, CancellationToken cancellationToken)
+    {
+        if (services.GetService<IBackgroundTasks>() is not { } tasks)
+        {
+            logger.LogWarning("Spine.PushNotifications: the push asks for background task \"{Task}\", but Plugin.Maui.Spine.BackgroundTasks is not registered.", task);
+            return;
+        }
+
+        if (!tasks.Names.Contains(task))
+        {
+            logger.LogWarning("Spine.PushNotifications: the push asks for background task \"{Task}\", which the app does not declare.", task);
+            return;
+        }
+
+        await tasks.RequestAsync(task, BackgroundTaskTrigger.Push, cancellationToken);
     }
 
     private static async Task<bool> LiveActivityAsync(

@@ -14,7 +14,9 @@ namespace Plugin.Maui.Spine.Widgets.Services;
 /// <param name="Kind">The widget kind the button belongs to.</param>
 /// <param name="ActionId">The id given to <see cref="W.Button"/>.</param>
 /// <param name="At">When the button was tapped.</param>
-internal readonly record struct RecordedAction(string? Id, string Kind, string ActionId, DateTimeOffset At);
+/// <param name="Control">Whether the tap was on a control rather than a widget's button.</param>
+/// <param name="IsOn">The value a toggle control was switched to; <see langword="null"/> otherwise.</param>
+internal readonly record struct RecordedAction(string? Id, string Kind, string ActionId, DateTimeOffset At, bool Control = false, bool? IsOn = null);
 
 /// <summary>
 /// iOS: the timeline documents live in the App Group container the extension reads, and WidgetKit
@@ -25,18 +27,22 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 {
     private const string BridgeClassName = "SpineWidgetBridge";
     private const string AppGroupInfoKey = "SpineWidgetsAppGroup";
+    private const string ControlsInfoKey = "SpineWidgetsControls";
 
     private readonly ILogger<WidgetPlatform> _logger;
     private readonly object _actionsLock = new();
     private readonly IntPtr _bridge;
     private readonly string? _appGroup;
     private readonly string? _containerPath;
+    private readonly bool _hasControls;
 
     public WidgetPlatform(SpineWidgetsOptions options, ILogger<WidgetPlatform> logger)
     {
         _logger = logger;
         _bridge = Class.GetHandle(BridgeClassName);
         _appGroup = options.AppGroup ?? NSBundle.MainBundle.ObjectForInfoDictionary(AppGroupInfoKey)?.ToString();
+        // The kinds the build compiled into the extension; Mac Catalyst builds list none.
+        _hasControls = NSBundle.MainBundle.ObjectForInfoDictionary(ControlsInfoKey) is NSArray { Count: > 0 };
 
         if (_bridge != IntPtr.Zero && options.LiveActivityPushTokens)
             Send(_bridge, Selector.GetHandle("enablePushTokens"));
@@ -96,7 +102,11 @@ internal sealed class WidgetPlatform : IWidgetPlatform
                 var root = document.RootElement;
                 if (root.TryGetProperty("kind", out var kind) && root.TryGetProperty("actionId", out var action)
                     && kind.GetString() is { Length: > 0 } k && action.GetString() is { Length: > 0 } a)
-                    actions.Add(new RecordedAction(root.TryGetProperty("id", out var id) ? id.GetString() : null, k, a, TappedAt(root)));
+                {
+                    var control = root.TryGetProperty("control", out var c) && c.ValueKind == System.Text.Json.JsonValueKind.True;
+                    bool? isOn = root.TryGetProperty("isOn", out var on) && on.ValueKind is System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False ? on.GetBoolean() : null;
+                    actions.Add(new RecordedAction(root.TryGetProperty("id", out var id) ? id.GetString() : null, k, a, TappedAt(root), control, isOn));
+                }
             }
             catch (System.Text.Json.JsonException) { }
         }
@@ -205,6 +215,23 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     {
         if (IsSupported) Send(_bridge, Selector.GetHandle("refreshWidgetPushToken"));
     }
+
+    public bool AreControlsSupported => IsSupported && _hasControls && OperatingSystem.IsIOSVersionAtLeast(18) && !OperatingSystem.IsMacCatalyst();
+
+    public void WriteControl(string kind, string json)
+    {
+        if (_containerPath is not null) AtomicFile.WriteAllText(Path.Combine(_containerPath, "controls", kind + ".json"), json);
+    }
+
+    public void ReloadControl(string kind)
+    {
+        if (!IsSupported) return;
+        using var value = new NSString(kind);
+        Send(_bridge, Selector.GetHandle("reloadControlsWithKind:"), value.Handle);
+    }
+
+    /// <summary>iOS has no prompt to add a control; the user adds it from Control Center's edit mode.</summary>
+    public Task<bool> RequestAddControlAsync(string kind, ControlState state) => Task.FromResult(false);
 
     public string? PushToken(string id)
     {

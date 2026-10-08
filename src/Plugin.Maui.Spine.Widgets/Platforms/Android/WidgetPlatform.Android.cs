@@ -1,5 +1,6 @@
 using Android.Content;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Common;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
@@ -12,6 +13,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
 {
     private readonly Context _context = Android.App.Application.Context;
     private readonly string[] _kinds;
+    private readonly string[] _controls;
     private readonly ILogger<WidgetPlatform> _logger;
     private readonly LiveUpdateNotifications? _live;
 
@@ -19,13 +21,14 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     {
         _logger = logger;
         _kinds = WidgetStore.Kinds(_context);
+        _controls = WidgetStore.ControlKinds(_context);
 
         // Live Updates — promoted ongoing notifications — arrived with Android 16; older versions have no
         // Live Activity, and a plain notification would not be one.
         if (OperatingSystem.IsAndroidVersionAtLeast(36))
             _live = new LiveUpdateNotifications(_context, new WidgetIcons(_context), logger);
 
-        if (_kinds.Length == 0)
+        if (_kinds.Length == 0 && _controls.Length == 0)
             logger.LogWarning("No widget receivers in the manifest; widgets are disabled. Is build/Plugin.Maui.Spine.Widgets.targets imported and at least one <SpineWidget> declared?");
     }
 
@@ -37,7 +40,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     }
 
     public Task StoreAssetAsync(string assetId, Stream png, CancellationToken cancellationToken) =>
-        IsSupported
+        IsSupported || AreControlsSupported
             ? AtomicFile.WriteAsync(Path.Combine(WidgetStore.AssetsDirectory(_context), assetId), png, cancellationToken)
             : Task.CompletedTask;
 
@@ -101,4 +104,22 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     public void RefreshWidgetPushToken() { }
 
     public string? PushToken(string id) => null;
+
+    // Quick Settings tiles arrived with Android 7.
+    public bool AreControlsSupported => _controls.Length > 0 && OperatingSystem.IsAndroidVersionAtLeast(24);
+
+    public void WriteControl(string kind, string json)
+    {
+        if (AreControlsSupported) AtomicFile.WriteAllText(WidgetStore.ControlPath(_context, kind), json);
+    }
+
+    public void ReloadControl(string kind)
+    {
+        if (OperatingSystem.IsAndroidVersionAtLeast(24) && AreControlsSupported) SpineControlTile.Update(_context, kind);
+    }
+
+    public Task<bool> RequestAddControlAsync(string kind, ControlState state) =>
+        OperatingSystem.IsAndroidVersionAtLeast(33) && AreControlsSupported
+            ? SpineControlTile.RequestAddAsync(_context, kind, state, _logger)
+            : Task.FromResult(false);
 }

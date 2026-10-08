@@ -297,14 +297,44 @@ internal sealed class NavigationService : INavigationService
             await activeVm.BackAsync();
     }
 
+    /// <inheritdoc/>
+    public Task<MenuAction?> ShowActionsAsync(ActionSheet sheet, View? anchor = null)
+    {
+        ArgumentNullException.ThrowIfNull(sheet);
+
+        return sheet.VisibleActions.Count == 0
+            ? Task.FromResult<MenuAction?>(null)
+            : MainThread.InvokeOnMainThreadAsync(() => ActionSheetPresenter.ShowAsync(_services, sheet, anchor));
+    }
+
     /// <summary>A value delivered through <see cref="ReturnAsync"/>, which may itself be null.</summary>
     private sealed record Returned(object? Value);
 
     /// <inheritdoc/>
     public Task BackAsync() => Active.BackAsync();
 
+    private readonly TaskCompletionSource _rootSet = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// Completes when the first root page is in place. A way into the app from outside that arrives on
+    /// a cold start (a search result) waits for it, or the root page would replace what it showed.
+    /// </summary>
+    internal Task WhenRootSet => _rootSet.Task;
+
     /// <inheritdoc/>
     public async Task SetRootAsync<TNode>() where TNode : INavigable
+    {
+        try
+        {
+            await SetRootCoreAsync<TNode>();
+        }
+        finally
+        {
+            _rootSet.TrySetResult();
+        }
+    }
+
+    private async Task SetRootCoreAsync<TNode>() where TNode : INavigable
     {
         if (_registry.IsTab(typeof(TNode)))
         {

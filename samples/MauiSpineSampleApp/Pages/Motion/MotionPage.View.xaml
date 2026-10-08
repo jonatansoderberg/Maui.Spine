@@ -1,0 +1,132 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Motion.MotionPage"
+    x:TypeArguments="MotionPageViewModel"
+    x:DataType="MotionPageViewModel">
+
+    <SpinePage.Resources>
+        <Color x:Key="CardLight">#F2F2F7</Color>
+        <Color x:Key="CardDark">#1C1C1E</Color>
+    </SpinePage.Resources>
+
+    <SampleLayout Packages="Plugin.Maui.Spine">
+
+        <Example Title="Layers at different depths"
+                 Summary="Tilt the phone. The photo sits behind the screen and moves one way, the badge floats above it and moves the other, and the card between them moves a little. iOS moves them with the system's motion effects, Android with the rotation sensor. Mac and Windows have no tilt, so nothing moves there.">
+            <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" HeightRequest="260">
+                <Grid>
+                    <!-- 16 points of margin to spare, so the photo's edges never show. -->
+                    <Image Source="lightbox_mountain_valley.jpg" Aspect="AspectFill" Margin="-16"
+                           Motion.Depth="-14" />
+                    <Border Padding="18,14" Margin="0,0,0,28" WidthRequest="240" VerticalOptions="End"
+                            StrokeThickness="0" StrokeShape="RoundRectangle 16"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
+                            Motion.Depth="4">
+                        <Border.Shadow>
+                            <Shadow Brush="Black" Opacity="0.3" Radius="16" Offset="0,6" />
+                        </Border.Shadow>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Mountain valley" FontSize="17" FontAttributes="Bold" />
+                            <Label Text="Three layers, three depths" FontSize="15" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
+                        </VerticalStackLayout>
+                    </Border>
+                    <Border WidthRequest="56" HeightRequest="56" Margin="0,0,52,92" HorizontalOptions="End" VerticalOptions="End"
+                            StrokeThickness="0" StrokeShape="RoundRectangle 28" BackgroundColor="#F3A712"
+                            Motion.Depth="16">
+                        <Image SvgImageSource.Svg="star.svg" SvgImageSource.TintColor="White" WidthRequest="28" HeightRequest="28" />
+                    </Border>
+                </Grid>
+            </Border>
+            <Example.Code>
+                &lt;Border StrokeShape="RoundRectangle 20"&gt;
+                    &lt;Grid&gt;
+                        &lt;!-- behind the screen; margin to spare --&gt;
+                        &lt;Image Source="valley.jpg" Margin="-16"
+                               Motion.Depth="-14" /&gt;
+
+                        &lt;Border Motion.Depth="4" ...&gt;
+                            ...
+                        &lt;/Border&gt;
+
+                        &lt;!-- above the screen --&gt;
+                        &lt;Border Motion.Depth="16" ...&gt;
+                            &lt;Image SvgImageSource.Svg="star.svg" /&gt;
+                        &lt;/Border&gt;
+                    &lt;/Grid&gt;
+                &lt;/Border&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="A highlight that sweeps over the surface"
+                 Summary="A soft light inside a material panel, with a deep negative depth, slides across the panel as the phone tilts. The panel clips it to its shape, so it reads as a reflection on the surface.">
+            <Grid HeightRequest="200">
+                <Border StrokeThickness="0" StrokeShape="RoundRectangle 16">
+                    <Image Source="lightbox_aurora.jpg" Aspect="AspectFill" />
+                </Border>
+                <Border Material.Preset="BlurThin" StrokeThickness="0" StrokeShape="RoundRectangle 24"
+                        HeightRequest="120" Margin="28,0">
+                    <Grid>
+                        <Border WidthRequest="280" HeightRequest="280" StrokeThickness="0" InputTransparent="True"
+                                HorizontalOptions="Center" VerticalOptions="Center"
+                                Motion.Depth="-70">
+                            <Border.Background>
+                                <RadialGradientBrush Center="0.5,0.5" Radius="0.5">
+                                    <GradientStop Color="#73FFFFFF" Offset="0" />
+                                    <GradientStop Color="#00FFFFFF" Offset="1" />
+                                </RadialGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <VerticalStackLayout VerticalOptions="Center" Spacing="4">
+                            <Label Text="Aurora" FontSize="17" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                            <Label Text="Tilt to move the light" FontSize="14" HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+            </Grid>
+            <Example.Code>
+                &lt;Border Material.Preset="BlurThin"
+                        StrokeShape="RoundRectangle 24"&gt;
+                    &lt;Grid&gt;
+                        &lt;Border WidthRequest="280" HeightRequest="280"
+                                StrokeThickness="0" InputTransparent="True"
+                                Motion.Depth="-70"&gt;
+                            &lt;Border.Background&gt;
+                                &lt;RadialGradientBrush&gt;
+                                    &lt;GradientStop Color="#73FFFFFF" Offset="0" /&gt;
+                                    &lt;GradientStop Color="#00FFFFFF" Offset="1" /&gt;
+                                &lt;/RadialGradientBrush&gt;
+                            &lt;/Border.Background&gt;
+                        &lt;/Border&gt;
+                        &lt;Label Text="Aurora" /&gt;
+                    &lt;/Grid&gt;
+                &lt;/Border&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Try a depth"
+                 Summary="Drag the slider and tilt the phone: the card moves by up to its depth in points at full tilt, about 20 degrees, and slowly settles back to the middle while the phone is held still. Negative depths move it the other way. With Reduce Motion on iOS, or animations removed on Android, nothing moves.">
+            <VerticalStackLayout Spacing="14">
+                <Grid HeightRequest="150">
+                    <Border WidthRequest="200" HeightRequest="90" HorizontalOptions="Center" VerticalOptions="Center"
+                            StrokeThickness="0" StrokeShape="RoundRectangle 16"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
+                            Motion.Depth="{Binding Depth}">
+                        <Label Text="{Binding Depth, StringFormat='Depth {0:0}'}" FontSize="17" FontAttributes="Bold"
+                               HorizontalOptions="Center" VerticalOptions="Center" />
+                    </Border>
+                </Grid>
+                <Slider Minimum="-30" Maximum="30" Value="{Binding Depth}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;Border Motion.Depth="{Binding Depth}" ...&gt;
+                    &lt;Label Text="{Binding Depth, StringFormat='Depth {0:0}'}" /&gt;
+                &lt;/Border&gt;
+
+                &lt;Slider Minimum="-30" Maximum="30" Value="{Binding Depth}" /&gt;
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

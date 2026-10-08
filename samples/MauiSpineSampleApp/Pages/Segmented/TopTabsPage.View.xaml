@@ -1,0 +1,44 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Segmented.TopTabsPage"
+    x:TypeArguments="TopTabsPageViewModel"
+    x:DataType="TopTabsPageViewModel">
+
+    <SpinePage.Resources>
+        <DataTemplate x:Key="ResultRow" x:DataType="RaceResult">
+            <Grid Padding="20,10" ColumnDefinitions="36,*,Auto" ColumnSpacing="8">
+                <Label Text="{Binding Place}" FontSize="16" FontAttributes="Bold" VerticalOptions="Center" />
+                <VerticalStackLayout Grid.Column="1" Spacing="2">
+                    <Label Text="{Binding Name}" FontSize="16" />
+                    <Label Text="{Binding Detail}" FontSize="14" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
+                </VerticalStackLayout>
+                <Label Grid.Column="2" Text="{Binding Time}" FontSize="16" VerticalOptions="Center" />
+            </Grid>
+        </DataTemplate>
+    </SpinePage.Resources>
+
+    <TopTabs SelectedIndex="{Binding Section}">
+        <TopTab Title="Class">
+            <CollectionView ItemsSource="{Binding ClassResults}" ItemTemplate="{StaticResource ResultRow}" />
+        </TopTab>
+        <TopTab Title="Club">
+            <CollectionView ItemsSource="{Binding ClubResults}" ItemTemplate="{StaticResource ResultRow}" />
+        </TopTab>
+        <TopTab Title="Me" Svg="user.svg">
+            <TopTab.ContentTemplate>
+                <DataTemplate x:DataType="TopTabsPageViewModel">
+                    <VerticalStackLayout Padding="20,16" Spacing="8">
+                        <Label Text="Elin Andersson" FontSize="22" FontAttributes="Bold" />
+                        <Label Text="D21 · 1st of 27 · 24:12" FontSize="16" />
+                        <Label FontSize="14" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}"
+                               Text="{Binding OpenedAt, StringFormat='Page opened at {0:HH:mm:ss}'}" />
+                        <Label FontSize="14" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}"
+                               Text="{Binding Now, StringFormat='This tab was built at {0:HH:mm:ss}'}" />
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </TopTab.ContentTemplate>
+        </TopTab>
+    </TopTabs>
+
+</SpinePage>

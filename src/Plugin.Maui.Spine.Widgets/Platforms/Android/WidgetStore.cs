@@ -36,10 +36,21 @@ internal static class WidgetStore
         }
     }
 
+    /// <summary>The state document of control <paramref name="kind"/>.</summary>
+    public static string ControlPath(Context context, string kind) => Path.Combine(Root(context), "controls", kind + ".json");
+
     /// <summary>The kinds the build declared, in the order the receivers were assigned; empty when the targets did not run.</summary>
-    public static string[] Kinds(Context context)
+    public static string[] Kinds(Context context) => Strings(context, "spine_widget_kinds");
+
+    /// <summary>The control kinds the build declared, in the order the tile services were assigned.</summary>
+    public static string[] ControlKinds(Context context) => Strings(context, "spine_control_kinds");
+
+    /// <summary><c>toggle</c> or <c>button</c> per control, in the same order.</summary>
+    public static string[] ControlTypes(Context context) => Strings(context, "spine_control_types");
+
+    private static string[] Strings(Context context, string name)
     {
-        var id = context.Resources!.GetIdentifier("spine_widget_kinds", "array", context.PackageName);
+        var id = context.Resources!.GetIdentifier(name, "array", context.PackageName);
         return id == 0 ? [] : context.Resources.GetStringArray(id) ?? [];
     }
 }

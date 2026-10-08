@@ -8,7 +8,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Contracts shared between Spine apps and servers: the widget and Live Activity tree model, push installations, tags and keys. No MAUI dependency.</Description>
+		<Description>Contracts shared between Spine apps and servers: the widget and Live Activity tree model, push installations, tags and keys, background tasks. No MAUI dependency.</Description>
 		<SpineIcon>common.png</SpineIcon>
 		<PackageTags>$(PackageTags);widgets;push;contracts</PackageTags>
 	</PropertyGroup>
@@ -18,6 +18,9 @@
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Widgets" />
 		<!-- The marker that tells Plugin.Maui.Spine.Widgets push is registered. -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.PushNotifications" />
+		<!-- The built-in tasks other Spine packages contribute (SpineBackgroundTaskRegistration). -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.BackgroundTasks" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.BackgroundTasks.Tests" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Tests" />
 	</ItemGroup>
 

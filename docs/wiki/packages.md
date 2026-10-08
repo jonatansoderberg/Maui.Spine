@@ -1,23 +1,26 @@
 # Packages
 
-Spine ships as fifteen NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as eighteen NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
 | Core | `Plugin.Maui.Spine` | Navigation, sheets, tab host, header bar, glass buttons, shortcuts, Windows windowing, theme and string stores | `.Svg`, `.Common` |
 | Core | `Plugin.Maui.Spine.Svg` | Embedded SVG image sources, icon services, SVG-to-icon for tray and window icons | — |
-| Core | `Plugin.Maui.Spine.Svg.Icons` | 223 ready-made SVG icons, resolved by file name once referenced | — (found by `.Svg` at startup) |
+| Core | `Plugin.Maui.Spine.Svg.Icons` | 224 ready-made SVG icons, resolved by file name once referenced | — (found by `.Svg` at startup) |
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine`, `.Common` |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications | `.Common` |
+| Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes on BGTaskScheduler (iOS) and JobScheduler (Android), a timer while the app runs elsewhere | `Plugin.Maui.Spine`, `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp | — |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid on `CollectionView` with layouts, sorting, grouping and swipe actions | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: `Shimmer` over placeholders, `Skeleton.IsActive` on real layouts | `Plugin.Maui.Spine` |
+| Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients from the accent, a preset or your own colours, drifting slowly | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron | `Plugin.Maui.Spine`, `.AnimatedLabel` |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes; `LightGridReader` for a code shown by lamps | — |
 | Controls | `Plugin.Maui.Spine.Scanner` | Camera scanning: `BarcodeScannerView` and the `BarcodeScannerPage` sheet; Vision on Apple, ML Kit on Android | `Plugin.Maui.Spine`, `.Barcodes` |
-| Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server; no MAUI | — |
+| Controls | `Plugin.Maui.Spine.Images` | Every `UriImageSource` through a memory and disk cache, decoded at the view's size; `IImageCache`; BlurHash placeholders. Its `net10.0` build holds only the disk cache | `.Common` |
+| Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and `BlurHash`; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
 
 ```
@@ -25,9 +28,11 @@ Common ◄──────────────┬────────�
   ▲                   │
   │                   │
 Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons (loaded by Svg at startup)
-  ▲           ▲
-  │   Calendar, DataGrid, Shimmer, Rows, Scanner ──► Barcodes
+  ▲           ▲  ▲
+  │           │  └── BackgroundTasks (and Common; runs Widgets' refresh through Common)
+  │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Scanner ──► Barcodes
 PushNotifications                                    AnimatedLabel
+  Images ──► Common
 ```
 
 ## Which packages for which app
@@ -38,8 +43,11 @@ PushNotifications                                    AnimatedLabel
 | Navigation with the built-in icon set | `Plugin.Maui.Spine`, `Plugin.Maui.Spine.Svg.Icons` |
 | Widgets or Live Activities | `Plugin.Maui.Spine.Widgets` (brings the core and `.Common`) |
 | Push or local notifications | `Plugin.Maui.Spine.PushNotifications` (brings `.Common`; the core is not required) |
+| Work while the app is closed, or widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` (brings the core and `.Common`) |
 | QR codes and other barcodes on screen | `Plugin.Maui.Spine.Barcodes` (no camera, no permissions) |
 | Scanning codes with the camera | `Plugin.Maui.Spine.Scanner` (brings the core and `.Barcodes`) |
+| Lists of remote photos, prefetching, BlurHash placeholders | `Plugin.Maui.Spine.Images` (brings `.Common`; the core is not required) |
+| A server that computes BlurHashes on upload | `Plugin.Maui.Spine.Common` (`BlurHash.Encode`) |
 | The push backend | `Plugin.Maui.Spine.Server` in the server project (brings `.Common`) |
 | A domain or test project that builds widget trees without MAUI | `Plugin.Maui.Spine.Common` |
 | A server or test project that encodes barcodes or reads a light grid | `Plugin.Maui.Spine.Barcodes` (its `net10.0` build has no MAUI) |
@@ -54,6 +62,7 @@ PushNotifications                                    AnimatedLabel
 | `Plugin.Maui.Spine.Svg.Icons` | Nothing | Nothing (found by `.Svg`) |
 | `Plugin.Maui.Spine.Widgets` | Registered; call `UseSpineWidgets(o => …)` only to configure | Needs the core, so always with `UseSpine` |
 | `Plugin.Maui.Spine.PushNotifications` | Registered; call `UseSpinePushNotifications(o => …)` to set the backend, channels, handler | `UseSpinePushNotifications(o => …)` |
+| `Plugin.Maui.Spine.BackgroundTasks` | Registered; call `UseSpineBackgroundTasks(o => …)` only to change intervals or the catch-up run | Needs the core, so always with `UseSpine` |
 | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Registered | `UseAnimatedLabel()` |
 | `Plugin.Maui.Spine.Controls.HeroCollectionView` | Nothing | Nothing (`UseHeroCollectionView()` still compiles, and does nothing) |
 | `Plugin.Maui.Spine.Controls.Calendar` | Nothing: strings register from the control's static constructor | Nothing |
@@ -61,6 +70,7 @@ PushNotifications                                    AnimatedLabel
 | `Plugin.Maui.Spine.Controls.Rows` | Nothing (the marquee detail uses AnimatedLabel, which `UseSpine` registers) | Nothing; `UseAnimatedLabel()` for `DetailMarquee` |
 | `Plugin.Maui.Spine.Barcodes` | Nothing | Nothing |
 | `Plugin.Maui.Spine.Scanner` | Registered: the camera handlers, the scan sheet and its strings | `UseSpineScanner()`; the view works, the scan sheet needs Spine |
+| `Plugin.Maui.Spine.Images` | Registered; call `UseSpineImages(o => …)` only to change `SpineImagesOptions` | `UseSpineImages()`, after `UseMauiApp` |
 
 Every `UseXxx()` is idempotent. The first call registers the package; a later call only applies its `configure` delegate to the same options instance. An explicit configuring call therefore works before or after `UseSpine()`, and the options end up with both. Settings that decide what gets registered (a widget background-refresh handler, a push handler) are applied after every call, and the platform callbacks read the options when they run, not when they are registered.
 
@@ -91,8 +101,9 @@ The samples reference the projects, not the packages; `samples/Directory.Build.t
 
 | Package | Frameworks |
 |---|---|
-| MAUI packages (core, Svg, Widgets, PushNotifications, the controls, Scanner) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
+| MAUI packages (core, Svg, Widgets, PushNotifications, BackgroundTasks, the controls, Scanner) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
 | `Plugin.Maui.Spine.Barcodes` | `net10.0` (encoding, `LightGridReader`) and the four MAUI frameworks (adding `BarcodeView`) |
+| `Plugin.Maui.Spine.Images` | `net10.0` (the disk cache only, for tests) and the four MAUI frameworks |
 | `Plugin.Maui.Spine.Svg.Icons`, `Plugin.Maui.Spine.Common`, `Plugin.Maui.Spine.Server` | `net10.0` |
 
 Platform minimums: Android API 21 (API 23 with `Plugin.Maui.Spine.PushNotifications`, which Firebase requires, and with `Plugin.Maui.Spine.Scanner`, which CameraX requires), iOS 15, Mac Catalyst 15, Windows 10 17763.
@@ -104,10 +115,11 @@ These packages carry MSBuild files that run in the consuming app's build, import
 | Package | What its build files do |
 |---|---|
 | `Plugin.Maui.Spine` | Writes `SpineModules.g.cs` into the app: a `[ModuleInitializer]` that hands each referenced package's registration to `UseSpine()` (from the `SpineModule` items below). Only in an app project; `SpineGenerateModuleRegistrations=false` turns it off |
-| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Scanner` | Declare their `SpineModule` in `<PackageId>.props` |
-| `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other two contribute |
+| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Scanner`, `.Images` | Declare their `SpineModule` in `<PackageId>.props` |
+| `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other packages contribute, and one partial `Info.plist` with `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers` from the `SpineBackgroundMode` and `SpineBackgroundTaskIdentifier` items, merged with the app's own |
 | `Plugin.Maui.Spine.Widgets` | Compiles the WidgetKit extension and the bridge framework with `swiftc` on iOS; generates the manifest overlay and provider metadata on Android |
 | `Plugin.Maui.Spine.PushNotifications` | Contributes the `aps-environment` entitlement; compiles the Notification Service Extension on iOS when `SpinePushNotificationsImages` is on |
+| `Plugin.Maui.Spine.BackgroundTasks` | Contributes `fetch` (and `processing` with `SpineBackgroundTasksProcessing`) and the `<ApplicationId>.spine.refresh` / `.spine.processing` task identifiers on iOS |
 
 The Swift sources ship under `native/` in the packages; nothing has to be added to the app for them. The native steps run only for inner iOS builds on macOS, so a Windows host and design-time builds are untouched.
 
