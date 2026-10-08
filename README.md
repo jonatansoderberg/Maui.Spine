@@ -173,6 +173,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Navigation results** | Await a typed result from a page | [Navigation Results](docs/wiki/navigation-results.md) |
 | **Page actions** | Header bar buttons driven by the ViewModel | [Page Actions](docs/wiki/page-actions.md) |
 | **Shortcuts** | OS dock/jump-list/tray menu integration | [Shortcuts](docs/wiki/shortcuts.md) |
+| **Search** | The app's content in Spotlight (and as shortcuts on Android); a tapped result opens its page with a typed parameter, also from a cold start | [Search](docs/wiki/search.md) |
 | **Menu buttons** | A button or header action that opens the platform's own menu: sections, pickers, submenus, toggles, destructive rows | [Menu buttons](docs/wiki/menus.md) |
 | **Context menus** | A long press or right click on any view opens the system's context menu, lifted with its shape on iOS; one shared menu for every row of a list | [Context menus](docs/wiki/menus.md#context-menus) |
 | **Windows options** | Window chrome, tray, single-instance | [Windows Options](docs/wiki/windows-options.md) |
@@ -199,6 +200,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Navigation Results](docs/wiki/navigation-results.md) | Await a typed result from a page |
 | [Page Actions](docs/wiki/page-actions.md) | Header bar buttons (text and SVG icons) |
 | [Shortcuts](docs/wiki/shortcuts.md) | App shortcuts and tray menu |
+| [Search](docs/wiki/search.md) | Spotlight and searchable items that open a page |
 | [Windows Platform Options](docs/wiki/windows-options.md) | Window size, tray, single-instance, title bar |
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
 | [Shared Elements and Zoom](docs/wiki/transitions.md) | `Transition.Tag` on a view on each page for a shared element, on the page itself for a zoom; a focus view inside the zooming page; the back-swipe zoom |

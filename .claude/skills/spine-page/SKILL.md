@@ -125,6 +125,10 @@ if (result is { IsSuccess: true, Value: { } picked }) …
 
 Both at once: implement both interfaces and call `NavigateToWithResultAsync<TPage, TParam, TResult>(param)`.
 
+### Found from the platform's search
+
+A page with a parameter can be opened from Spotlight (iOS, Mac) or a shortcut (Android): inject `ISearchIndex` and `await searchIndex.UpsertAsync(new SearchableItem(Id: $"room-{id}", Title: name, Target: NavigationTarget.To<RoomPage, RoomId>(new RoomId(id)), Description: summary, Icon: "kitchen", Keywords: ["…"]))`; `RemoveAsync(id)` takes it away. A tapped result is opened with `ShowAsync<TPage, TParam>`, also on a cold start (over the root page). The parameter is stored as JSON and read back later, maybe by a newer app version: pass a small serialisable id, not the loaded data; one that cannot round-trip throws from `UpsertAsync`. A result whose page or parameter type no longer fits is logged and removed. `[Searchable(Description = …, Icon = …, Keywords = […])]` on a page makes it a fixed entry, indexed at startup, opened without a parameter. Windows has no index (`IsSupported` is false). See docs/wiki/search.md.
+
 ### Shared elements and zoom
 
 `Transition.Tag` (namespace `Plugin.Maui.Spine.Extensions`) carries a view from one page to the next in the same stack. The same tag on a view on each page makes a shared element: it flies between them on the push and back on the pop, while the pages slide. The tag on the page arriving itself (its root `SpinePage`) makes a zoom: the page grows out of the view with that tag and shrinks back into it, under the finger on the back-swipe. The same tag on a view inside the zooming page makes that view its focus, the part that lines up with the tapped view; give one whenever the page shows what was tapped. Make tags unique per item (`Key => $"tile-{Id}"`), so a list matches the right row. A view scrolled out of sight, Reduce Motion, sheets and tab switches get the usual transition. iOS, Mac Catalyst and Android; Windows plays the usual transition.

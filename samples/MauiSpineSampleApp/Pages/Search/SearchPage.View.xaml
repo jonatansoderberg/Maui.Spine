@@ -1,0 +1,77 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Search.SearchPage"
+    x:TypeArguments="SearchPageViewModel"
+    x:DataType="SearchPageViewModel"
+    BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}">
+
+    <SampleLayout Packages="Plugin.Maui.Spine">
+
+        <Example Title="Found from the Home Screen"
+                 Summary="Put the app's content in the platform's search. Each item carries a typed target, a page and its parameter, and a tapped result opens that page, also when the app was not running. No route strings.">
+            <VerticalStackLayout Spacing="10">
+                <SpineSection Header="Rooms">
+                    <SpineRow Title="Kitchen" Value="21 °C · 3 lamps on" Icon="kitchen.svg" Command="{Binding OpenCommand}" CommandParameter="kitchen" />
+                    <SpineRow Title="Living room" Value="22 °C · TV on" Icon="livingroom.svg" Command="{Binding OpenCommand}" CommandParameter="living-room" />
+                    <SpineRow Title="Bedroom" Value="19 °C · Blinds down" Icon="bedroom.svg" Command="{Binding OpenCommand}" CommandParameter="bedroom" />
+                    <SpineRow Title="Office" Value="21 °C · Printer idle" Icon="office.svg" Command="{Binding OpenCommand}" CommandParameter="office" />
+                    <SpineRow Title="Bathroom" Value="24 °C · Floor heating" Icon="bathroom.svg" Command="{Binding OpenCommand}" CommandParameter="bathroom" />
+                    <SpineRow Title="Hallway" Value="20 °C · Door locked" Icon="hallway.svg" Command="{Binding OpenCommand}" CommandParameter="hallway" />
+                </SpineSection>
+                <HorizontalStackLayout Spacing="10">
+                    <Button Text="Index the rooms" Command="{Binding IndexCommand}" />
+                    <Button Text="Remove them" Command="{Binding RemoveAllCommand}" />
+                </HorizontalStackLayout>
+                <Label Text="{Binding Status}" FontSize="15" />
+                <Label Text="{Binding Where}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                public sealed record RoomId(string Value);
+
+                [NavigableRegion(Title = "Room")]
+                public partial class RoomPage : INavigableWithParameter&lt;RoomId&gt; { }
+
+                await searchIndex.UpsertAsync(new SearchableItem(
+                    Id: "room-kitchen",
+                    Title: "Kitchen",
+                    Target: NavigationTarget.To&lt;RoomPage, RoomId&gt;(new RoomId("kitchen")),
+                    Description: "21 °C · 3 lamps on",
+                    Icon: "kitchen",
+                    Keywords: ["fridge", "stove"]));
+
+                await searchIndex.RemoveAsync("room-kitchen");
+            </Example.Code>
+        </Example>
+
+        <Example Title="Store an id, not the data"
+                 Summary="The parameter is kept as JSON and read back when the result is tapped, maybe by a newer version of the app. Pass the id the page loads from. A parameter that cannot be stored throws when it is indexed, not when the result is tapped.">
+            <Label Text="A result whose page is gone, or whose stored parameter no longer fits, is logged, removed from the index, and the app opens as usual." FontSize="15" />
+            <Example.Code>
+                // The parameter's JSON comes back to a page that may have changed since.
+                NavigationTarget.To&lt;RoomPage, RoomId&gt;(new RoomId("kitchen"))
+            </Example.Code>
+        </Example>
+
+        <Example Title="Pages as fixed entries"
+                 Summary="[Searchable] puts a page itself in the search, indexed at every start. This page and Theming have it: search for “Spotlight” or “dark mode”.">
+            <Example.Code>
+                [NavigableRegion(Title = "Search")]
+                [Searchable(Title = "Spotlight and app search", Icon = "search", Keywords = ["spotlight"])]
+                public partial class SearchPage { }
+            </Example.Code>
+        </Example>
+
+        <Example Title="Where they appear"
+                 Summary="iOS and the Mac index with Core Spotlight. Android has no index a third-party app can fill for the system, so each item becomes a dynamic shortcut: in the long-press menu when there is room, and in launchers that search shortcuts. About 15 fit beside the app's own shortcuts, the newest first.">
+            <SpineSection>
+                <SpineRow Title="iOS" Value="Spotlight, from the Home Screen" />
+                <SpineRow Title="Mac" Value="Spotlight" />
+                <SpineRow Title="Android" Value="Dynamic shortcuts" />
+                <SpineRow Title="Windows" Value="Not supported" />
+            </SpineSection>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

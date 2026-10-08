@@ -405,6 +405,20 @@ public sealed class SpineOptions
     /// <summary>Configuration for platform shortcuts (app actions, tray menu items).</summary>
     public ShortcutsConfig Shortcuts { get; } = new ShortcutsConfig();
 
+    /// <summary>Configuration for <see cref="ISearchIndex"/>.</summary>
+    public SearchConfig Search { get; } = new SearchConfig();
+
+    /// <summary>Configuration for <see cref="ISearchIndex"/>.</summary>
+    public sealed class SearchConfig
+    {
+        /// <summary>
+        /// How a <see cref="NavigationTarget"/>'s parameter is stored. The default reads and writes
+        /// public properties by reflection; a trimmed build that turns reflection off gives it a
+        /// source-generated context: <c>new JsonSerializerOptions { TypeInfoResolver = AppJson.Default }</c>.
+        /// </summary>
+        public System.Text.Json.JsonSerializerOptions JsonOptions { get; set; } = System.Text.Json.JsonSerializerOptions.Default;
+    }
+
     /// <summary>
     /// Configures the platform shortcuts (app actions / tray menu items) for the application.
     /// Call <see cref="UseHandler{THandler}"/> inside the <c>options.Shortcuts</c> delegate to
