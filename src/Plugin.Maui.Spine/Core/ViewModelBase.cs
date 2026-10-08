@@ -207,6 +207,7 @@ public abstract partial class ViewModelBase : ObservableObject
         if (newValue is not null)
             newValue.PropertyChanged += OnSearchPropertyChanged;
 
+        SearchInPlace = newValue is { IsVisible: true, ShownForSearch: true };
         OnSearchLayoutChanged();
     }
 
@@ -218,7 +219,16 @@ public abstract partial class ViewModelBase : ObservableObject
 
     private void OnSearchPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(PageSearch.IsVisible) or nameof(PageSearch.Placement))
+        if (e.PropertyName is nameof(PageSearch.IsVisible) && sender is PageSearch search)
+        {
+            if (search is { IsVisible: true, ShownForSearch: true })
+                SearchInPlace = true;
+            else if (!search.IsVisible && _searchAnimations == 0)
+                SearchInPlace = false;
+
+            OnSearchLayoutChanged();
+        }
+        else if (e.PropertyName is nameof(PageSearch.Placement))
             OnSearchLayoutChanged();
         else if (e.PropertyName is nameof(PageSearch.IsActive))
             OnPropertyChanged(nameof(SearchHidesHeaderBar));
@@ -249,16 +259,54 @@ public abstract partial class ViewModelBase : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Whether the field takes the header bar's own row rather than a row below it: it was hidden
+    /// when its search started (<see cref="PageSearch.ShownForSearch"/>), so the bar and the field
+    /// change places and the content stays where it is. It stays set until the bar has come back,
+    /// so the field fades out in its place as the bar comes in.
+    /// </summary>
+    internal bool SearchInPlace { get; private set; }
+
+    private int _searchAnimations;
+
+    /// <summary>
+    /// Counts the region's animations of <see cref="SearchProgress"/>, which may overlap: a field
+    /// shown in place stays until the last one has finished.
+    /// </summary>
+    internal void SearchAnimationStarted() => _searchAnimations++;
+
+    /// <inheritdoc cref="SearchAnimationStarted"/>
+    internal void SearchAnimationFinished()
+    {
+        _searchAnimations = Math.Max(0, _searchAnimations - 1);
+        ReleaseSearchInPlace();
+    }
+
+    // The bar is back: a field shown in place for the search that ended goes, and one the page
+    // showed meanwhile moves to the row below the bar.
+    private void ReleaseSearchInPlace()
+    {
+        if (!SearchInPlace || _searchAnimations > 0 || Search is { IsVisible: true, ShownForSearch: true })
+            return;
+
+        SearchInPlace = false;
+        OnSearchLayoutChanged();
+    }
+
     /// <summary>Where Spine shows <see cref="Search"/>: nowhere without a header bar.</summary>
     internal Presentation.SearchLayout SearchLayout =>
-        Search is { IsVisible: true } search && IsHeaderBarVisible
+        Search is { } search && (search.IsVisible || SearchInPlace) && IsHeaderBarVisible
             ? Presentation.SearchField.Resolve(search.Placement, InSheet, IsCompactWidth)
             : Presentation.SearchLayout.None;
 
-    /// <summary>How much the search row adds below the header bar.</summary>
+    /// <summary>
+    /// How much the search row adds below the header bar: its height at rest, nothing once a search
+    /// has taken the bar's row (the content moves up into the row's place as the field goes up into
+    /// the bar's), and nothing for a field in the bar's row (<see cref="SearchInPlace"/>).
+    /// </summary>
     internal double SearchRowHeight =>
-        SearchLayout is Presentation.SearchLayout.Row
-            ? Presentation.HeaderBarConstants.SearchRowHeight + Presentation.SearchField.RowGrowthWhileSearching * SearchProgress
+        SearchLayout is Presentation.SearchLayout.Row && !SearchInPlace
+            ? Presentation.HeaderBarConstants.SearchRowHeight * (1 - SearchProgress)
             : 0;
 
     /// <summary>
@@ -285,9 +333,6 @@ public abstract partial class ViewModelBase : ObservableObject
             OnPropertyChanged();
         }
     }
-
-    /// <summary>The header bar's height below the status bar as the page lays out: less as a search takes its place.</summary>
-    internal double HeaderBarHeight => Presentation.HeaderBarConstants.BarHeight * (1 - SearchProgress);
 
     /// <summary>
     /// The first visible action with <see cref="PageActionPlacement.Secondary"/> placement,

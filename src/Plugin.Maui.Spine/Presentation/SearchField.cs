@@ -191,15 +191,25 @@ internal sealed partial class SearchField : ContentView
     partial void ApplyCancelButton();
 
     /// <summary>
-    /// How much the search row grows while a search goes on: on Android to the 72 points of
-    /// Material 3's search view header, which then fills it edge to edge.
+    /// How tall the field's slot is while a search goes on, centred on the header bar's item row:
+    /// on Apple the search row's height, which centres UIKit's 44-point field on the row; on Android
+    /// the row itself, which the search header then fills.
     /// </summary>
-    internal static double RowGrowthWhileSearching =>
+    internal static double ActiveRowHeight =>
 #if ANDROID
-        CapsuleHeight + ActiveGrowth - HeaderBarConstants.SearchRowHeight;
+        HeaderBarConstants.Height;
 #else
-        0;
+        HeaderBarConstants.SearchRowHeight;
 #endif
+
+    /// <summary>How far below the bar's row a field shown only for the search starts as it comes in.</summary>
+    internal static double InPlaceRise => HeaderBarConstants.Height / 2;
+
+    /// <summary>
+    /// How far in from the sides the field's buttons sit while a search runs it to the sides
+    /// (Android): the header bar's own side margin, so they take the places of its buttons.
+    /// </summary>
+    internal double SideMarginWhileSearching { get; set; }
 
     /// <summary>Whether the field runs to the row's sides while a search goes on (Android's search view header).</summary>
     internal static bool FullWidthWhileSearching => OperatingSystem.IsAndroid();
@@ -218,12 +228,6 @@ internal sealed partial class SearchField : ContentView
 #if ANDROID
     /// <summary>Height of the Material 3 search bar, a capsule at rest.</summary>
     private const double CapsuleHeight = 56;
-
-    /// <summary>
-    /// How much taller Material 3's search view header is than the bar: 72 points, flat and full
-    /// width, while a search goes on.
-    /// </summary>
-    private const double ActiveGrowth = 16;
 
     /// <summary>Material 3's icon button: a 48-point target around a 24-point icon.</summary>
     private const double BackButtonSize = 48;
@@ -288,9 +292,10 @@ internal sealed partial class SearchField : ContentView
     }
 
     /// <summary>
-    /// How far the search has taken the header bar's place, 0 to 1: the capsule opens into
-    /// Material 3's search view header — square, the full width (the title row drops the row's side
-    /// margin), 72 points tall, with a divider under it.
+    /// How far the search has taken the header bar's place, 0 to 1: the capsule opens into a
+    /// search header in the top app bar's row — square, the full width (the title row drops the
+    /// row's side margin), as tall as the row, its back arrow and clear button where the bar's
+    /// buttons are, with a divider under it.
     /// </summary>
     internal double SearchProgress
     {
@@ -300,9 +305,11 @@ internal sealed partial class SearchField : ContentView
                 return;
 
             ((Microsoft.Maui.Controls.Shapes.RoundRectangle)_capsule.StrokeShape!).CornerRadius = CapsuleHeight / 2 * (1 - value);
-            _capsule.HeightRequest = CapsuleHeight + ActiveGrowth * value;
-            _capsule.Padding = new Thickness(CapsulePadding * (1 - value), 0);
-            _divider!.Opacity = value;
+            _capsule.HeightRequest = CapsuleHeight + (HeaderBarConstants.Height - CapsuleHeight) * value;
+            var padding = CapsulePadding + (SideMarginWhileSearching - CapsulePadding) * value;
+            _capsule.Padding = new Thickness(padding, 0);
+            _divider!.Margin = new Thickness(-padding, 0);
+            _divider.Opacity = value;
             _divider.IsVisible = value > 0;
         }
     }

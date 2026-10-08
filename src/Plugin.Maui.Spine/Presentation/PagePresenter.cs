@@ -256,7 +256,7 @@ internal sealed partial class PagePresenter : Grid
         var floats = _page?.HeaderBarFloats == true;
         var sides = _page?.SafeAreaInsets ?? Thickness.Zero;
         var top = floats ? _page?.SystemBarInsets.Top ?? 0 : 0;
-        var givenWay = _page is { } page ? HeaderBarConstants.BarHeight - page.HeaderBarHeight : 0;
+        var givenWay = HeaderBarConstants.BarHeight * (_page?.SearchProgress ?? 0);
         _titleBar.Margin = new Thickness(sides.Left, top - givenWay, sides.Right, 0);
     }
 
@@ -474,7 +474,7 @@ internal sealed partial class PagePresenter : Grid
 
         if (_searchField is null)
         {
-            _searchField = new SearchField { VerticalOptions = LayoutOptions.End, OutlastsFocus = SearchField.HidesHeaderBar };
+            _searchField = new SearchField { VerticalOptions = LayoutOptions.Start, OutlastsFocus = SearchField.HidesHeaderBar };
             Children.Add(_searchField);
         }
 
@@ -485,18 +485,43 @@ internal sealed partial class PagePresenter : Grid
         ApplySearchRowFrame();
     }
 
-    // The row's height and side margin, and the field's own state, as far as a search has taken the
-    // header bar's place; on Android the field runs to the sides then, as Material's search view header.
+    // The field's frame and its own state as far as a search has taken the header bar's place. At
+    // rest it is in the row below the bar; while searching it is centred on the bar's item row, its
+    // button where the bar's trailing action is. A field shown only for the search stays in the
+    // bar's row and comes in from a little below it as the bar goes. On Android the field runs to
+    // the sides while searching, as Material's search view header.
     private void ApplySearchRowFrame()
     {
         if (_searchField is not { IsVisible: true } || _page is not { } page)
             return;
 
+        var progress = page.SearchProgress;
         var sides = page.SafeAreaInsets;
-        var inset = SearchRowInset * (SearchField.FullWidthWhileSearching ? 1 - page.SearchProgress : 1);
-        _searchField.SearchProgress = page.SearchProgress;
-        _searchField.HeightRequest = page.SearchRowHeight;
-        _searchField.Margin = new Thickness(sides.Left + inset, 0, sides.Right + inset, 0);
+        var inset = SearchRowInset * (SearchField.FullWidthWhileSearching ? 1 - progress : 1);
+        var overlayInset = page.HeaderBarFloats ? page.SystemBarInsets.Top : 0;
+
+        var activeHeight = SearchField.ActiveRowHeight;
+        var activeTop = (HeaderBarConstants.Height - activeHeight) / 2;
+        double top, height;
+
+        if (page.SearchInPlace)
+        {
+            top = activeTop + SearchField.InPlaceRise * (1 - progress);
+            height = activeHeight;
+        }
+        else
+        {
+            top = HeaderBarConstants.BarHeight + (activeTop - HeaderBarConstants.BarHeight) * progress;
+            height = HeaderBarConstants.SearchRowHeight + (activeHeight - HeaderBarConstants.SearchRowHeight) * progress;
+        }
+
+        _searchField.SideMarginWhileSearching = (BindingContext as NavigationRegionViewModel)?.Presentation is NavigationPresentation.Sheet
+            ? HeaderBarConstants.SheetSideMargin
+            : HeaderBarConstants.RegionSideMargin;
+        _searchField.SearchProgress = progress;
+        _searchField.Opacity = page.SearchInPlace ? progress : 1;
+        _searchField.HeightRequest = height;
+        _searchField.Margin = new Thickness(sides.Left + inset, overlayInset + top, sides.Right + inset, 0);
     }
 
     /// <summary>
@@ -523,16 +548,19 @@ internal sealed partial class PagePresenter : Grid
 
         var overlayInset = _page?.HeaderBarFloats == true ? _page.SystemBarInsets.Top : 0;
         var search = _page?.SearchRowHeight ?? 0;
-        RowDefinitions[0].Height = new GridLength((_page?.HeaderBarHeight ?? HeaderBarConstants.BarHeight) + overlayInset + search);
+        RowDefinitions[0].Height = new GridLength(HeaderBarConstants.BarHeight + overlayInset + search);
 
         // Padding keeps the label as tall as the bar and a search row below it, so UIKit's edge
         // effect covers all of it. UIKit's own hard band under an inline title in a pushed or root
         // navigation stack stops at the items, though (a large title's, a sheet's and one over a
-        // search field reach the bar's bottom), so there the label ends with the item row.
-        var below = new Thickness(0, 0, 0, HeaderBarConstants.BarHeight - HeaderBarConstants.Height + search);
+        // search field reach the bar's bottom), so there the label ends with the item row. The
+        // search row's height at rest, also while a search takes it away: a padding is not
+        // animated, and the title would drop as the row started to shrink.
+        var row = _page is { SearchLayout: SearchLayout.Row, SearchInPlace: false };
+        var below = new Thickness(0, 0, 0, HeaderBarConstants.BarHeight - HeaderBarConstants.Height + (row ? HeaderBarConstants.SearchRowHeight : 0));
         var itemsOnly = BarBackground is HeaderBarBackground.HardEdge
             && _page?.LargeTitle != true
-            && search == 0
+            && !row
             && (BindingContext as NavigationRegionViewModel)?.Presentation is not NavigationPresentation.Sheet;
         _titleLabel.Padding = itemsOnly ? Thickness.Zero : below;
         _titleLabel.Margin = itemsOnly ? below : Thickness.Zero;

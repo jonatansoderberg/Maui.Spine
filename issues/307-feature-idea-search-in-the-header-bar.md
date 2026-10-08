@@ -93,6 +93,16 @@ Jonatan saw too many X's on his iPhone while searching: the field's clear button
   - **Leaving a page ends its search** (`SendDisappearingAsync`: back, push, tab switch; `BottomSheetCoordinator` after a sheet is dismissed), so the keyboard goes down with the page.
   - Showcase: the Top switch says what it does ("iPad, Mac: a row instead of the header bar").
 
+### The active search on the header bar's row (branch `fix/search-reveals-hidden-field`, Jonatan 2026-10-08)
+
+- `PagePresenter`: the field's frame follows `SearchProgress`: at rest in the row below the bar; while searching its slot is centred on the bar's item row, so on iOS the X has exactly the trailing action's frame (in a sheet the close button's) and the field runs from the page margin to it. The title row shrinks by the search row (not the bar) as the field goes up, so the list glides up into the row's place on the same animation. The title label keeps its rest padding during the animation (a padding change is not animated and dropped the title 30 points on the first frame).
+- `PageSearch.ShownForSearch` (internal) and `ViewModelBase.SearchInPlace`: a field hidden at rest and shown only for the search takes the header bar's own row; no search row is added, so the content does not move. The field fades in rising from half a row below as the bar slides up and fades, and the reverse when the search ends. `SearchInPlace` holds until the region's last search animation has finished (`SearchAnimationStarted/Finished`), so the field fades out in place instead of vanishing.
+- `ViewModelBase.HeaderBarHeight` removed: the bar keeps its height; only the search row's contribution changes.
+- iOS: the region lays out what changed before the search animation (a field shown for the search) before animating, so it does not grow out of an empty frame.
+- Android: the search header is the top app bar's row (48 points) instead of Material's 72; the back arrow is where the navigation icon is and the clear button (48 points, was 56) where the trailing action is; the divider runs to the edges.
+- **The jank when a search ended** was case 3: `IsVisible = false` arrived right after the end started, removed the search row in one step and the list jumped up 54–60 points, then glided down with the bar. Case 2 measured smooth on the simulator before the change; the remaining glitch there was the title padding above, introduced and fixed in this round.
+- Tests: `ShownForSearch` is set before `IsVisible` is raised and cleared after the search; not set for a field shown at rest. Docs and the `/spine-page` skill follow; the two iOS "while searching" screenshots are retaken.
+
 ## Decisions
 
 - **v1 is step 3 + step 6 of the study.** Steps 2 and 4 (the iOS 26 spike, then the bottom capsule, the search button and the lift above the keyboard) are follow-ups: the decision of 2026-09-30 says the spike runs before the bottom capsule is built. Until then `Automatic` on iPhone with iOS 26 is the row below the bar.
@@ -126,6 +136,13 @@ Jonatan saw too many X's on his iPhone while searching: the field's clear button
 - **Android's active state is Material 3's search view header, not a full-screen search view:** the page's own list is the result list, so it stays visible below the header.
 - **AppCompat's back arrow on Android's search header**, as Material's search view, though Spine's header bar uses a chevron for back.
 
+### The active search on the header bar's row
+
+- **Deliberately less native than UIKit** (Jonatan): UIKit keeps an active search field 8 points below the bar's row; Spine centres it on the row so the X takes the trailing action's place.
+- **Android's search header is 48 points, not Material's 72**, for the same reason: back arrow and clear button take the bar's button frames.
+- **A field the page shows during an in-place search** moves to the row below the bar once the bar has come back (a one-step change of layout); rare, not animated.
+- **The in-place field rises from half the item row (22 points on iOS, 24 on Android)** while the bar keeps its existing slide (the bar's full height) and fade.
+
 ## Verification
 
 - **iPhone 17 Pro simulator (iOS 26):** the row in light and dark; typing (simulator keyboard tool) filters the list; `Query` from code and `PageSearch.Text` sync both ways; the search key runs `Submit`; `IsActive` from code focuses; cancel shows only while focused and clears and ends the search; `IsVisible = false` removes the row; rows scroll under the bar and the field with the soft edge; the sheet's row; Solid background. The simulator showed no soft keyboard.
@@ -139,3 +156,9 @@ Jonatan saw too many X's on his iPhone while searching: the field's clear button
 - **iPhone 17 Pro simulator (iOS 26.4):** page (light) and sheet (dark): focus → header bar, title, back, page actions and the sheet's close slide up and fade, the field and the list move up (recorded with `simctl io recordVideo`, frames checked: one ~300 ms spring, the cancel button slides in with the field shrinking) → X → everything comes back. Field 44 × 315 at x 16, cancel 44 × 44 at x 342 (the native measurements). Clear → type → clear: the cancel button's pixels do not change (max diff 21/255 against 255 for the field). Clear then dismiss the keyboard: the search stays and the X ends it. The search key / keyboard down keeps the search with the X enabled. Reduce Motion: cross-fade. The scroll edge effect under the field while searching. Back swipe and a back from code with an active search: the field lets go, the text is cleared. A sheet swiped down with an active search.
 - **emulator-5556 (a Pixel Tablet AVD, not a phone):** Material 3 `SearchBar`/`SearchView` reference next to Spine, in pixels: rest 1536 × 112 at x 32, icon slot 40–136, text at 136 (both); searching 1600 × 144 at y 48, back 0–96, text 96–1488, clear 1488–1600 with a 28-px glyph, divider 2 px in (121,116,126) (both). Clear → type → clear keeps the back arrow; keyboard down keeps the search, the back arrow ends it; system back (the activity dispatcher) ends the search first, then goes back; leaving the page with an active search hides the keyboard; closing a sheet with an active search hides the keyboard; sheet in dark.
 - **Not verified:** the slide animation on Android (MAUI animations finish at once on this emulator, a plain `Animation` in the harness too, so only the end states were seen); the sheet dialog's own back key on Android (adb key events break Gboard, see memory); iOS 27 and the physical iPhone (glass alpha while fading, the stretched soft edge); iPad/Mac (the field in the bar is unchanged apart from losing UIKit's cancel button); Windows (compiled only).
+
+### The active search on the header bar's row
+
+- **iPhone 17 Pro simulator, soft keyboard on**, `simctl io recordVideo` at 60 fps, content offset found per frame by matching a strip of the list: page light and dark: X 342,62 44×44 = palette 342,62 44×44; sheet (region coordinates): X 342,20 44×44 = close 342,20 44×44. Field visible at rest: list 176 → 116 (−60 pt) in 15 frames, monotonic, last five steps ≤ 1 pt, and back the same way (light and dark). Field hidden: the list's offset is 0.0 in all ~300 frames of start and end, light and dark; in the sheet (presentation-layer trace) the first row stays at 74 in every frame of both. Before the change the end of case 3 jumped −54 pt in one frame.
+- **emulator-5556 (Pixel Tablet AVD):** MAUI animations finish in one frame there; end states: back arrow 4,24 48×48 = the bar's back button, field 52–796 (clear at the trailing action's place), list 136 → 72 and back; hidden field: list at 72 in every sampled frame of start and end.
+- Mac Catalyst built, Windows compiled, core tests 73 passed. Not verified: physical iPhone (glass alpha while the field and the bar cross-fade), Android sheet, Reduce Motion (unchanged code path).
