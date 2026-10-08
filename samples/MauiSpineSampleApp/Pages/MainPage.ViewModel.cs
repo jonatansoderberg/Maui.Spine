@@ -89,6 +89,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
         new("Page lifetime", "Poll, WhileVisible and PageLifetime: work that refreshes, listens and cancels with the page", "refresh.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Lifetime.LifetimePage>()),
         new("Menu buttons", "Native menus from a header action, a pop-up button that shows its pick, and an icon button with sections, submenus and toggles", "more.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<Menus.MenusPage>()),
         new("Context menus", "Long-press or right-click any view for the platform's own menu: a lifted card on iOS, one shared menu for every row of a list", "menu.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<ContextMenus.ContextMenusPage>()),
+        new("Segmented control", "The platform's own segmented control with text or icons, and top tabs that build each tab's content when it is first picked", "segmented.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<Segmented.SegmentedPage>()),
         new("Action sheets", "Typed action sheets from a view model: rows with icons and a destructive one, the picked row as the result, a popover at the button on iPad", "list.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<ActionSheets.ActionSheetsPage>()),
         new("Page actions", "A header button from a command; change its text, badge, enabled state and visibility live, or replace Back", "energy.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<PageActions.PageActionsPage>()),
         new("Haptics", "Success, warning, error, selection and impacts from the platform's own generators, on a tap, a header action, a tab switch or a sheet", "haptic.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Haptics.HapticsPage>()),
@@ -111,7 +112,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
         new("Live Activities", "A game on the lock screen and in the Dynamic Island, updated from the app: a countdown to face-off, the score, a button at the final whistle", "timer.svg", "Plugin.Maui.Spine.Widgets", n => n.NavigateToAsync<LiveActivities.LiveActivitiesPage>()),
         new("Shortcuts", "Straight to a page from the app icon, the jump list or the tray menu, through one handler", "next.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Shortcuts.ShortcutsPage>()),
         new("Strings", "Text per language from embedded XML: values and plurals in XAML, the same store from C#, a live language switch", "globe.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Common", n => n.NavigateToAsync<Strings.StringsPage>()),
-        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 223 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
+        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 224 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
     ];
 }
 
