@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/307
 **Branch:** issue/307-feature-idea-search-in-the-header-bar
-**Status:** In Progress
+**Status:** In Review
 
 ## Plan
 
@@ -70,7 +70,7 @@ None that block v1; see Decisions.
 - `Presentation/HeaderBarConstants.cs`: public `SearchRowHeight` (iOS/Mac 52, 60 from 26; Android 64; Windows 48).
 - Showcase page **Search** (`Pages/Search`): a list of towns filtered by `[PageSearch]`, switches for `IsVisible` and `Top`, `IsActive` from code, clear from code, the submitted text, and the same page as a sheet.
 - `tests/Plugin.Maui.Spine.Core.Tests/PageSearchDiscoveryTests.cs`: discovery, both directions of the sync, submit, toolkit names and the three errors.
-- Docs: `docs/wiki/search.md` with iOS and Mac screenshots, README rows, the package README, `page-actions.md`, the `/spine-page` skill and the study's status line.
+- Docs: `docs/wiki/search.md` with iOS, Android and Mac screenshots, README rows, the package README, `page-actions.md`, the `/spine-page` skill and the study's status line.
 
 ## Decisions
 
@@ -86,3 +86,11 @@ None that block v1; see Decisions.
 - **Android capsule colour:** a tint of the foreground (black 6 %, white 10 %) rather than Material's `colorSurfaceContainerHigh`, which MAUI's MaterialComponents theme does not define; the tint sits on any page background.
 - **No header bar, no field.** The row lives in the title row, which a page without a header bar does not have.
 - **A large title page gets the row above the large title** (the large title is page content); UIKit puts it below. Listed as a follow-up.
+
+## Verification
+
+- **iPhone 17 Pro simulator (iOS 26):** the row in light and dark; typing (simulator keyboard tool) filters the list; `Query` from code and `PageSearch.Text` sync both ways; the search key runs `Submit`; `IsActive` from code focuses; cancel shows only while focused and clears and ends the search; `IsVisible = false` removes the row; rows scroll under the bar and the field with the soft edge; the sheet's row; Solid background. The simulator showed no soft keyboard.
+- **Mac Catalyst:** a ~430-point window gets the row; at 1000 points the field moves to the trailing end of the bar with the title centred.
+- **emulator-5556 (a Pixel Tablet AVD, not a phone):** the capsule without the underline in light and dark; typing and the IME search key (Gboard was in its floating-toolbar mode) run `Submit`; the clear X; the sheet's row.
+- **Windows:** compiled only. **Unit tests:** `PageSearchDiscoveryTests` (13), the core test project passes (42).
+

@@ -206,7 +206,7 @@ public static class HeaderBarConstants
     /// The height of the row a page's search field takes below the header bar (see
     /// <see cref="Core.PageSearch"/>): a <c>UISearchController</c>'s stacked search bar on iOS and Mac
     /// Catalyst, 52 points, or 60 from 26, whose field is taller; Material 3's 56-point search bar
-    /// with 8 below it on Android; a 32-point <c>AutoSuggestBox</c> with room around it on Windows.
+    /// centred in 64 points on Android; a 32-point <c>AutoSuggestBox</c> with room around it on Windows.
     /// </summary>
     public static double SearchRowHeight { get; } =
 #if IOS || MACCATALYST
