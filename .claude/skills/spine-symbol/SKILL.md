@@ -44,6 +44,7 @@ Helpers (coordinates are viewBox units, 0–50):
 - `rot(cx, cy, deg)` gives a transform to pass as `tf=`, for rotated shapes such as the links in `Link`.
 - `meet(c1, r1, c2, r2)` and `angle(c, p)` build outlines from overlapping circles, as in `Cloud`.
 - `existing("Bell")` returns an existing icon's parts, to add a badge or a slash on top.
+- `knockout(parts, a, b, gap=2.34)` cuts the stroked parts where a slash from `a` to `b` crosses them, leaving a gap on each side; add the slash itself after it (`TemperatureRestore`).
 - `g(steps)` is a coordinate on the grid (`g(4)` = 6.25).
 
 Make the alternatives genuinely different (outline vs. filled detail, a different metaphor, a different composition), not the same drawing with slightly moved points.
@@ -60,7 +61,7 @@ These rules are measured from the set; follow them exactly:
   - Dots are r 1.56 for detail and 2.34 for grips and bullets.
   - Chevrons span 12.5 × 25 centred on 25.
   - Full-width lines run 7.81–42.19.
-- Draw the glyph in `currentColor`, which is what takes the tint. A fixed colour (the yellow sun in the weather symbols) is only for a part that means that colour; it stays the same in both themes, so it must read on light and dark. Never draw white "cut-outs" on a filled part, since white vanishes on a white tint in dark mode: make the hole with `fill-rule="evenodd"` instead (`RepeatOne`). One concept per icon, and it has to read at 24 points.
+- Draw the glyph in `currentColor`, which is what takes the tint. A fixed colour (the yellow sun in the weather symbols) is only for a part that means that colour; it stays the same in both themes, so it must read on light and dark. Never draw white "cut-outs" on a filled part, since white vanishes on a white tint in dark mode: make the hole with `fill-rule="evenodd"` instead (`RepeatOne`). A slash that needs clearance round it gets a gap cut with `knockout`, never a white outline. One concept per icon, and it has to read at 24 points.
 - Name files after the symbol in PascalCase with no dots (`.run` would become a culture suffix). Numbers are fine: `Battery25`.
 - Use existing icons and sites such as https://fluenticons.co/browse/ (Fluent's icons by letter, e.g. `/browse/h/`, with one page per icon at `/icon/<name>/`) and phosphoricons.com only as inspiration for the idea. Draw the shape yourself in this style; never copy path data.
 

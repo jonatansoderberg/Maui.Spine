@@ -184,6 +184,149 @@ def svg(parts):
     return "\n".join(out + ["</g>", "</svg>", ""])
 
 
+
+# ------------------------------------------------------------------ slashes
+
+def _parse(d):
+    toks = re.findall(r"[MLCZ]|-?\d*\.?\d+", d)
+    subs, i, cmd, cur, start = [], 0, None, None, None
+    while i < len(toks):
+        if toks[i] in "MLCZ":
+            cmd = toks[i]; i += 1
+            if cmd == "Z":
+                if cur != start:
+                    subs[-1]["segs"].append(("L", cur, start))
+                subs[-1]["closed"], cur = True, start
+                continue
+        nums = lambda k: [float(x) for x in toks[i:i + k]]
+        if cmd == "M":
+            x, y = nums(2); i += 2
+            cur = start = (x, y); subs.append({"segs": [], "closed": False}); cmd = "L"
+        elif cmd == "L":
+            x, y = nums(2); i += 2
+            subs[-1]["segs"].append(("L", cur, (x, y))); cur = (x, y)
+        elif cmd == "C":
+            v = nums(6); i += 6
+            p = (v[4], v[5]); subs[-1]["segs"].append(("C", cur, (v[0], v[1]), (v[2], v[3]), p)); cur = p
+    return subs
+
+
+def _lerp(a, b, t):
+    return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+
+
+def _at(s, t):
+    if s[0] == "L":
+        return _lerp(s[1], s[2], t)
+    p0, p1, p2, p3 = s[1:]
+    a, b, c = _lerp(p0, p1, t), _lerp(p1, p2, t), _lerp(p2, p3, t)
+    return _lerp(_lerp(a, b, t), _lerp(b, c, t), t)
+
+
+def _split(s, t):
+    if s[0] == "L":
+        m = _lerp(s[1], s[2], t)
+        return ("L", s[1], m), ("L", m, s[2])
+    p0, p1, p2, p3 = s[1:]
+    a, b, c = _lerp(p0, p1, t), _lerp(p1, p2, t), _lerp(p2, p3, t)
+    ab, bc = _lerp(a, b, t), _lerp(b, c, t)
+    m = _lerp(ab, bc, t)
+    return ("C", p0, a, ab, m), ("C", m, bc, c, p3)
+
+
+def _sub(s, t0, t1):
+    if t1 < 1:
+        s = _split(s, t1)[0]
+        t0 = t0 / t1
+    if t0 > 0:
+        s = _split(s, t0)[1]
+    return s
+
+
+def _dist(p, a, b):
+    ax, ay = b[0] - a[0], b[1] - a[1]
+    t = max(0, min(1, ((p[0] - a[0]) * ax + (p[1] - a[1]) * ay) / (ax * ax + ay * ay)))
+    q = (a[0] + ax * t, a[1] + ay * t)
+    return math.hypot(p[0] - q[0], p[1] - q[1])
+
+
+def _keep(s, inside):
+    N = 400
+    flags = [not inside(_at(s, i / N)) for i in range(N + 1)]
+    runs, i = [], 0
+    while i <= N:
+        if flags[i]:
+            j = i
+            while j < N and flags[j + 1]:
+                j += 1
+            runs.append([i / N, j / N]); i = j + 1
+        else:
+            i += 1
+    for r in runs:  # refine boundaries
+        for k, outward in ((0, -1), (1, 1)):
+            if (k == 0 and r[0] > 0) or (k == 1 and r[1] < 1):
+                lo, hi = (r[k] + outward / N, r[k])
+                for _ in range(30):
+                    mid = (lo + hi) / 2
+                    if inside(_at(s, mid)):
+                        lo = mid
+                    else:
+                        hi = mid
+                r[k] = hi
+    return runs
+
+
+def _emit(pieces):
+    out = []
+    for piece in pieces:
+        s0 = piece[0]
+        out.append(f"M{n(s0[1][0])} {n(s0[1][1])}")
+        for s in piece:
+            pts = s[2:]
+            out.append(("L" if s[0] == "L" else "C") + " ".join(f"{n(x)} {n(y)}" for x, y in pts))
+    return "".join(out)
+
+
+def knockout(parts, a, b, gap=2.34):
+    """Cuts every stroked part where it comes within `gap` of the slash a-b, so the background shows
+    round the slash in both themes. Draw the slash itself on top afterwards (TemperatureRestore)."""
+    out = []
+    for d, kind, w in parts:
+        if kind != "stroke":
+            out.append((d, kind, w)); continue
+        inside = lambda p: _dist(p, a, b) < gap + w / 2
+        pieces = []
+        for sub in _parse(d):
+            cut, cur = False, []
+            subpieces = []
+            for s in sub["segs"]:
+                for t0, t1 in _keep(s, inside):
+                    if t0 > 0 and cur:
+                        subpieces.append(cur); cur = []
+                    cur.append(_sub(s, t0, t1))
+                    if t1 < 1:
+                        subpieces.append(cur); cur = []; cut = True
+                    if t0 > 0:
+                        cut = True
+                if not _keep(s, inside):
+                    cut = True
+                    if cur:
+                        subpieces.append(cur); cur = []
+            if cur:
+                subpieces.append(cur)
+            if sub["closed"] and not cut:
+                pieces.append(("closed", subpieces[0]))
+                continue
+            if sub["closed"] and len(subpieces) > 1 and subpieces[-1][-1][-1] == sub["segs"][-1][-1] \
+                    and subpieces[0][0][1] == sub["segs"][0][1]:
+                subpieces[0] = subpieces.pop() + subpieces[0]
+            pieces += [("open", p) for p in subpieces]
+        if pieces:
+            d2 = "".join(_emit([p]) + ("Z" if k == "closed" else "") for k, p in pieces)
+            out.append((d2, kind, w))
+    return out
+
+
 ICONS = {}
 
 
