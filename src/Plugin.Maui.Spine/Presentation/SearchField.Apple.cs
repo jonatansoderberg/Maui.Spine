@@ -37,6 +37,16 @@ internal sealed partial class SearchField
         if (_bar.Handler?.PlatformView is not UISearchBar searchBar)
             return;
 
+        ShowCancelButton(searchBar);
+
+        // MAUI hides the cancel button itself when the text goes empty (the clear button), after
+        // the text has reached the view; put it back once it has, so a search that goes on can
+        // still be ended.
+        CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() => ShowCancelButton(searchBar));
+    }
+
+    private void ShowCancelButton(UISearchBar searchBar)
+    {
         var shows = ShowsCancelButton;
         if (searchBar.ShowsCancelButton != shows)
             searchBar.SetShowsCancelButton(shows, animated: true);

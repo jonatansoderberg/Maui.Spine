@@ -35,6 +35,7 @@ internal sealed partial class SearchField : ContentView
     {
         _bar = new SearchBar { VerticalOptions = LayoutOptions.Center };
         _bar.SearchButtonPressed += (_, _) => Submit();
+        _bar.TextChanged += (_, _) => ApplyCancelButton();
         _bar.Focused += (_, _) =>
         {
             SetActive(true);
