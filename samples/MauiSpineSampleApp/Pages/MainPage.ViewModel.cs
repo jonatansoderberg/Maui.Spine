@@ -108,7 +108,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
         new("Calendar", "Month calendar to pick a date, with days marked from your own service", "calendar.svg", "Plugin.Maui.Spine.Controls.Calendar", n => n.NavigateToAsync<Dates.DatesPage>()),
         new("DataGrid", "One set of columns, a layout per width: a table when wide, two-line rows on a phone", "grid.svg", "Plugin.Maui.Spine.Controls.DataGrid, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<DataGrid.DataGridPage>()),
         new("HeroCollectionView", "A list under a photo that collapses to a compact header: the photo centred or sliding, a blur that fades in, a stretch when pulled", "image.svg", "Plugin.Maui.Spine.Controls.HeroCollectionView", n => n.NavigateToAsync<Hero.HeroPage>()),
-        new("MeshBackground", "A mesh gradient behind glass: coloured points blended smoothly, drifting slowly, from the accent, a preset or your own colours", "sunset.svg", "Plugin.Maui.Spine.Controls.MeshBackground", n => n.NavigateToAsync<Mesh.MeshPage>()),
+        new("MeshBackground", "A mesh gradient behind glass: coloured points blended smoothly, drifting slowly, from the accent, a preset or your own colours", "meshbackground.svg", "Plugin.Maui.Spine.Controls.MeshBackground", n => n.NavigateToAsync<Mesh.MeshPage>()),
         new("Rows", "Settings and key/value rows in one control, any view as a button with press feedback, one screen-reader element per row", "list.svg", "Plugin.Maui.Spine.Controls.Rows, Plugin.Maui.Spine", n => n.NavigateToAsync<Rows.RowsPage>()),
         new("Shimmer", "Loading placeholders: a shimmer over empty blocks, or the real layout as its own skeleton", "skeleton.svg", "Plugin.Maui.Spine.Controls.Shimmer", n => n.NavigateToAsync<Shimmer.ShimmerPage>()),
         new("Theming", "Light, dark or the system, an app-wide accent, colours that follow the theme, a repaint hook for code-drawn views", "theme.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Theme.ThemePage>()),
@@ -119,7 +119,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
         new("Searchable items", "The app's content in Spotlight and as Android shortcuts, each result opening its page with a typed parameter, also from a cold start", "searchitem.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<SearchableItems.SearchableItemsPage>()),
         new("Shortcuts", "Straight to a page from the app icon, the jump list or the tray menu, through one handler", "externallink.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Shortcuts.ShortcutsPage>()),
         new("Strings", "Text per language from embedded XML: values and plurals in XAML, the same store from C#, a live language switch", "globe.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Common", n => n.NavigateToAsync<Strings.StringsPage>()),
-        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 227 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
+        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 228 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
     ];
 }
 

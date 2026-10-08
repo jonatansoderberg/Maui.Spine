@@ -190,6 +190,8 @@ public static class SpineIcons
     public const string Map = "Map.svg";
     /// <summary>The <c>Menu.svg</c> icon.</summary>
     public const string Menu = "Menu.svg";
+    /// <summary>The <c>MeshBackground.svg</c> icon.</summary>
+    public const string MeshBackground = "MeshBackground.svg";
     /// <summary>The <c>Microowen.svg</c> icon.</summary>
     public const string Microowen = "Microowen.svg";
     /// <summary>The <c>Minus.svg</c> icon.</summary>
@@ -556,6 +558,7 @@ public static class SpineIcons
         MailboxUnread,
         Map,
         Menu,
+        MeshBackground,
         Microowen,
         Minus,
         More,
