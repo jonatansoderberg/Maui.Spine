@@ -12,12 +12,14 @@ public static partial class SpineExtensions
         {
             handlers.AddHandler<Presentation.BackSwipeHost, Presentation.BackSwipeHostHandler>();
             handlers.AddHandler<Presentation.Lightbox, Presentation.LightboxHandler>();
+            handlers.AddHandler<Presentation.SegmentedControl, Presentation.SegmentedControlHandler>();
         });
 
         ConfigureScrollInsets();
         ConfigureMaterials();
         ConfigureTypography();
         ConfigureMenus();
+        MotionState.ConfigureMapper();
 
 
         ButtonHandler.Mapper.AppendToMapping("SpineCompactButton", static (handler, view) =>

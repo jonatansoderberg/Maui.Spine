@@ -1,0 +1,16 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.SearchableItems.RoomPage"
+    x:TypeArguments="RoomPageViewModel"
+    x:DataType="RoomPageViewModel"
+    BackgroundColor="{AppThemeBinding Light={x:Static SpineSection.PageBackgroundLight}, Dark={x:Static SpineSection.PageBackgroundDark}}">
+
+    <VerticalStackLayout Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,24" Spacing="16">
+        <Image SvgImageSource.Svg="{Binding Icon}" WidthRequest="72" HeightRequest="72" HorizontalOptions="Center" />
+        <Label Text="{Binding Title}" FontSize="28" FontAttributes="Bold" HorizontalOptions="Center" />
+        <Label Text="{Binding Summary}" FontSize="17" HorizontalOptions="Center" />
+        <Label Text="{Binding OpenedAt}" FontSize="13" Opacity="0.6" HorizontalOptions="Center" />
+    </VerticalStackLayout>
+
+</SpinePage>

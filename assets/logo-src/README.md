@@ -18,6 +18,7 @@ The full-size originals behind `assets/icons/` (256×256 package icons) and `ass
 | `rows.png` | `Plugin.Maui.Spine.Controls.Rows` (the HeroCollectionView original with its list bars shortened and a chevron after each) |
 | `data-grid.png` | `Plugin.Maui.Spine.Controls.DataGrid` (the controls icon with a table glyph in the badge) |
 | `shimmer.png` | `Plugin.Maui.Spine.Controls.Shimmer` (the AnimatedLabel icon with the corner emblem replaced by three shimmering bars) |
+| `mesh-background.png` | `Plugin.Maui.Spine.Controls.MeshBackground` (the DataGrid icon with its badge filled by a mesh gradient and a warped 3 × 3 mesh glyph) |
 | `barcodes.png` | `Plugin.Maui.Spine.Barcodes` (the Spine mark with a QR glyph in a green corner) |
 | `scanner.png` | `Plugin.Maui.Spine.Scanner` (the Spine mark with a scan-frame glyph in a blue corner) |
 | `background-tasks.png` | `Plugin.Maui.Spine.BackgroundTasks` (the Scanner icon's corner in teal, with a clock glyph) |
