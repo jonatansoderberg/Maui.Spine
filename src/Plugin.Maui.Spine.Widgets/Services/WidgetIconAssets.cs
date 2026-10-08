@@ -21,11 +21,15 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
 
     public static string AssetId(string name) => "icons/" + name + ".png";
 
-    public async Task EnsureAsync(IEnumerable<WidgetNode?> trees, CancellationToken cancellationToken)
-    {
-        if (!_platform.IsSupported) return;
+    public Task EnsureAsync(IEnumerable<WidgetNode?> trees, CancellationToken cancellationToken) =>
+        EnsureAsync(trees.SelectMany(WidgetTree.Icons), cancellationToken);
 
-        foreach (var name in trees.SelectMany(WidgetTree.Icons).Distinct(StringComparer.Ordinal))
+    /// <summary>Icons by name: a control's, which Android draws on its Quick Settings tile.</summary>
+    public async Task EnsureAsync(IEnumerable<string> names, CancellationToken cancellationToken)
+    {
+        if (!_platform.IsSupported && !_platform.AreControlsSupported) return;
+
+        foreach (var name in names.Distinct(StringComparer.Ordinal))
         {
             lock (_stored) if (!_stored.Add(name)) continue;
 

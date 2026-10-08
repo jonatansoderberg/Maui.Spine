@@ -501,6 +501,15 @@
       <DependentUpon>WidgetsPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\ControlCenter\ControlCenterPage.View.xaml">
+      <DependentUpon>ControlCenterPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\ControlCenter\ControlCenterPage.ViewModel.cs">
+      <DependentUpon>ControlCenterPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Options\OptionsSheet.View.xaml">
       <DependentUpon>OptionsSheet.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -553,6 +562,11 @@
 	<ItemGroup>
 		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" />
 		<SpineWidget Include="score" DisplayName="Live score" Description="The game while it is on, then the next game and the latest results." Families="Small,Medium,AccessoryCircular,AccessoryRectangular,AccessoryInline" />
+	</ItemGroup>
+	<!-- Controls: Control Center on iOS 18, Quick Settings tiles on Android; the providers are the [Control] classes in Widgets\Hockey\. -->
+	<ItemGroup>
+		<SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Description="Hear about every goal in the live score, or not." Icon="bell" />
+		<SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Description="A goal for the Owls in the running game, without opening the app." Icon="hockey.puck" />
 	</ItemGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />

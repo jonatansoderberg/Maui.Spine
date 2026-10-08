@@ -13,8 +13,17 @@ struct Manifest: Decodable {
         var description: String
         var families: [String]
     }
+    /// A <SpineControl> item; `type` is "toggle" or "button".
+    struct Control: Decodable {
+        var kind: String
+        var displayName: String
+        var description: String
+        var type: String
+        var icon: String?
+    }
     var appGroup: String
     var widgets: [Entry]
+    var controls: [Control]?
 
     static let current: Manifest = {
         guard let url = Bundle.main.url(forResource: "spine-widgets", withExtension: "json"),

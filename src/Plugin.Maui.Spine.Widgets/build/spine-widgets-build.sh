@@ -8,6 +8,7 @@ OUT=""; SOURCES=""; SDK="iphonesimulator"; ARCH="arm64"; MIN_OS="17.0"; CONFIG="
 BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; URL_SCHEME=""; LIVE="true"; BACKGROUND="true"; FREQUENT="false"
 PROVISION=""; REQUIRE_PROVISION="false"; PUSH="false"; PUSH_ENV="development"
 WIDGETS=()
+CONTROLS=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,13 +31,28 @@ while [[ $# -gt 0 ]]; do
     --push) PUSH="$2"; shift 2;;
     --push-environment) PUSH_ENV="$2"; shift 2;;
     --widget) WIDGETS+=("$2"); shift 2;;
+    --control) CONTROLS+=("$2"); shift 2;;
     *) echo "spine-widgets-build.sh: unknown argument $1" >&2; exit 2;;
   esac
 done
 
 [[ -n "$OUT" && -n "$SOURCES" && -n "$BUNDLE_ID" && -n "$APP_GROUP" ]] || { echo "spine-widgets-build.sh: --out, --sources, --bundle-id and --app-group are required" >&2; exit 2; }
-[[ ${#WIDGETS[@]} -gt 0 ]] || { echo "spine-widgets-build.sh: at least one --widget is required" >&2; exit 2; }
+[[ ${#WIDGETS[@]} -gt 0 || ${#CONTROLS[@]} -gt 0 ]] || { echo "spine-widgets-build.sh: at least one --widget or --control is required" >&2; exit 2; }
 [[ ${#WIDGETS[@]} -le 9 ]] || { echo "spine-widgets-build.sh: WidgetKit bundles hold at most 10 widgets; Spine reserves one for Live Activities" >&2; exit 2; }
+[[ ${#CONTROLS[@]} -le 9 ]] || { echo "spine-widgets-build.sh: at most nine <SpineControl> items are supported; ${#CONTROLS[@]} declared" >&2; exit 2; }
+
+# A control's kind lives beside the widgets' in one WidgetKit bundle, so a kind cannot be both. The type
+# decides which native control is generated, so it is checked here rather than guessed.
+for cspec in ${CONTROLS[@]+"${CONTROLS[@]}"}; do
+  IFS='|' read -r ckind ctype _ <<< "$cspec"
+  case "$(printf '%s' "$ctype" | tr '[:upper:]' '[:lower:]')" in
+    toggle|button) ;;
+    *) echo "spine-widgets-build.sh: <SpineControl Include=\"$ckind\"> needs Type=\"Toggle\" or Type=\"Button\", not \"$ctype\"" >&2; exit 2;;
+  esac
+  for wspec in ${WIDGETS[@]+"${WIDGETS[@]}"}; do
+    [[ "${wspec%%|*}" != "$ckind" ]] || { echo "spine-widgets-build.sh: \"$ckind\" is declared both as a <SpineWidget> and a <SpineControl>; give them different kinds" >&2; exit 2; }
+  done
+done
 
 case "$ARCH" in x64) ARCH="x86_64";; esac
 # Mac Catalyst compiles the same iOS sources against the macOS SDK, where the iOS frameworks it uses
@@ -51,6 +67,9 @@ case "$SDK" in
   iphoneos) TARGET="$ARCH-apple-ios$MIN_OS"; PLATFORM="iPhoneOS";;
   maccatalyst)
     TARGET="$ARCH-apple-ios$MIN_OS-macabi"; PLATFORM="MacOSX"; XCRUN_SDK="macosx"; CATALYST=true; LIVE="false"
+    # Mac Catalyst apps have no Control Center controls; the items are Android tiles and iOS controls only.
+    [[ ${#CONTROLS[@]} -eq 0 ]] || echo "spine-widgets-build.sh: Mac Catalyst has no controls; the ${#CONTROLS[@]} <SpineControl> item(s) are left out of this build"
+    CONTROLS=()
     MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)"
     IOS_SUPPORT=(-Fsystem "$MACOS_SDK/System/iOSSupport/System/Library/Frameworks"
                  -I "$MACOS_SDK/System/iOSSupport/usr/lib/swift"
@@ -110,7 +129,7 @@ MANIFEST="$APPEX_RES/spine-widgets.json"
 {
   printf '{"appGroup":"%s","widgets":[' "$(json_escape "$APP_GROUP")"
   first=1
-  for spec in "${WIDGETS[@]}"; do
+  for spec in ${WIDGETS[@]+"${WIDGETS[@]}"}; do
     IFS='|' read -r kind display description families <<< "$spec"
     [[ -n "$display" ]] || display="$kind"
     fams=""
@@ -123,6 +142,17 @@ MANIFEST="$APPEX_RES/spine-widgets.json"
     first=0
     printf '{"kind":"%s","displayName":"%s","description":"%s","families":[%s]}' \
       "$(json_escape "$kind")" "$(json_escape "$display")" "$(json_escape "$description")" "$fams"
+  done
+  printf '],"controls":['
+  first=1
+  for spec in ${CONTROLS[@]+"${CONTROLS[@]}"}; do
+    IFS='|' read -r kind type display description icon <<< "$spec"
+    [[ -n "$display" ]] || display="$kind"
+    [[ $first -eq 1 ]] || printf ','
+    first=0
+    printf '{"kind":"%s","type":"%s","displayName":"%s","description":"%s"%s}' \
+      "$(json_escape "$kind")" "$(printf '%s' "$type" | tr '[:upper:]' '[:lower:]')" "$(json_escape "$display")" "$(json_escape "$description")" \
+      "$( [[ -n "$icon" ]] && printf ',"icon":"%s"' "$(json_escape "$icon")" )"
   done
   printf ']}'
 } > "$MANIFEST"
@@ -143,11 +173,42 @@ BUNDLE="$GEN/SpineWidgetBundle.swift"
     echo "}"
     echo
   done
+  # Controls are iOS 18 types in an extension that runs on 17, so they sit in a bundle of their own behind
+  # if #available. The Live Activity and that bundle share a second bundle, which keeps the main one
+  # within the ten widgets a bundle body holds.
+  for ((i = 0; i < ${#CONTROLS[@]}; i++)); do
+    IFS='|' read -r _ type _ <<< "${CONTROLS[$i]}"
+    echo "@available(iOS 18.0, *)"
+    echo "struct SpineControl_$i: ControlWidget {"
+    echo "    var body: some ControlWidgetConfiguration { spine$( [[ "$(printf '%s' "$type" | tr '[:upper:]' '[:lower:]')" == "toggle" ]] && echo Toggle || echo Button )Configuration(index: $i) }"
+    echo "}"
+    echo
+  done
+  if [[ ${#CONTROLS[@]} -gt 0 ]]; then
+    echo "@available(iOS 18.0, *)"
+    echo "struct SpineControlBundle: WidgetBundle {"
+    echo "    var body: some Widget {"
+    for ((i = 0; i < ${#CONTROLS[@]}; i++)); do echo "        SpineControl_$i()"; done
+    echo "    }"
+    echo "}"
+    echo
+  fi
+  EXTRAS=false
+  if [[ "$LIVE" == "true" || ${#CONTROLS[@]} -gt 0 ]]; then
+    EXTRAS=true
+    echo "struct SpineExtrasBundle: WidgetBundle {"
+    echo "    var body: some Widget {"
+    [[ "$LIVE" == "true" ]] && echo "        SpineLiveActivity()"
+    [[ ${#CONTROLS[@]} -gt 0 ]] && echo "        if #available(iOS 18.0, *) { SpineControlBundle().body }"
+    echo "    }"
+    echo "}"
+    echo
+  fi
   echo "@main"
   echo "struct SpineWidgetBundle: WidgetBundle {"
   echo "    var body: some Widget {"
   for ((i = 0; i < ${#WIDGETS[@]}; i++)); do echo "        SpineWidget_$i()"; done
-  [[ "$LIVE" == "true" ]] && echo "        SpineLiveActivity()"
+  [[ "$EXTRAS" == "true" ]] && echo "        SpineExtrasBundle().body"
   echo "    }"
   echo "}"
 } > "$BUNDLE"
@@ -258,6 +319,7 @@ fi
 	<key>SpineWidgetsAppGroup</key><string>$APP_GROUP</string>
 	<key>NSSupportsLiveActivities</key><$( [[ "$LIVE" == "true" ]] && echo true || echo false )/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key><$( [[ "$FREQUENT" == "true" ]] && echo true || echo false )/>
+	<key>SpineWidgetsControls</key><array>$(for spec in ${CONTROLS[@]+"${CONTROLS[@]}"}; do printf '<string>%s</string>' "$(plist_escape "${spec%%|*}")"; done)</array>
 PLIST
   if [[ "$BACKGROUND" == "true" ]]; then
     cat <<PLIST
@@ -305,7 +367,7 @@ app_intents_metadata() {  # <module> <output dir> <const values> <target> <min o
 }
 
 # --- Bridge framework ------------------------------------------------------------------------------
-BRIDGE_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineWidgetBridge.swift")
+BRIDGE_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineControlIntent.swift" "$SOURCES/SpineWidgetBridge.swift")
 xcrun -sdk "$XCRUN_SDK" swiftc \
   -target "$TARGET" "${OPT[@]}" ${IOS_SUPPORT[@]+"${IOS_SUPPORT[@]}"} -parse-as-library \
   -emit-library -module-name SpineWidgetBridge \
@@ -334,7 +396,7 @@ PLIST
 } > "$FRAMEWORK_INFO/Info.plist"
 
 # --- Widget extension --------------------------------------------------------------------------------
-EXT_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineWidgetRenderer.swift" "$SOURCES/SpineWidgetPush.swift" "$BUNDLE")
+EXT_SOURCES=("$SOURCES/SpineWidgetShared.swift" "$SOURCES/SpineWidgetIntent.swift" "$SOURCES/SpineControlIntent.swift" "$SOURCES/SpineWidgetRenderer.swift" "$SOURCES/SpineControls.swift" "$SOURCES/SpineWidgetPush.swift" "$BUNDLE")
 xcrun -sdk "$XCRUN_SDK" swiftc \
   -target "$EXT_TARGET" "${OPT[@]}" ${IOS_SUPPORT[@]+"${IOS_SUPPORT[@]}"} -parse-as-library -application-extension \
   -module-name "$NAME" \
@@ -429,4 +491,4 @@ codesign --force --sign - --timestamp=none "$FRAMEWORK"
 codesign --force --sign - --timestamp=none --entitlements "$OUT/$NAME.entitlements" "$APPEX"
 
 date +%s > "$OUT/build.stamp"
-echo "spine-widgets-build.sh: built $APPEX ($EXT_TARGET$( [[ "$PUSH" == "true" ]] && echo ", widget push" )), $FRAMEWORK and $APP/Metadata.appintents for $TARGET"
+echo "spine-widgets-build.sh: built $APPEX ($EXT_TARGET, ${#WIDGETS[@]} widget(s), ${#CONTROLS[@]} control(s)$( [[ "$PUSH" == "true" ]] && echo ", widget push" )), $FRAMEWORK and $APP/Metadata.appintents for $TARGET"

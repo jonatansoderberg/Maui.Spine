@@ -135,6 +135,20 @@ public final class SpineWidgetBridge: NSObject {
         WidgetCenter.shared.reloadTimelines(ofKind: kind)
     }
 
+    /// Asks Control Center to read a control's document again. iOS 18 and later; controls do not exist on
+    /// Mac Catalyst.
+    @objc public static func reloadControls(kind: String) {
+#if !targetEnvironment(macCatalyst)
+        if #available(iOS 18.0, *) { ControlCenter.shared.reloadControls(ofKind: kind) }
+#endif
+    }
+
+    @objc public static func reloadAllControls() {
+#if !targetEnvironment(macCatalyst)
+        if #available(iOS 18.0, *) { ControlCenter.shared.reloadAllControls() }
+#endif
+    }
+
 #if !targetEnvironment(macCatalyst)
     @objc public static func activitiesEnabled() -> Bool {
         ActivityAuthorizationInfo().areActivitiesEnabled

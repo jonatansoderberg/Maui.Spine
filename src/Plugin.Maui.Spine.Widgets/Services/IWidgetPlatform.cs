@@ -1,3 +1,4 @@
+using Plugin.Maui.Spine.Common;
 using System.Collections.ObjectModel;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
@@ -44,6 +45,18 @@ internal interface IWidgetPlatform
 
     /// <summary>Asks for the widget push token again; the platform says so through its notification when it changed.</summary>
     void RefreshWidgetPushToken();
+
+    /// <summary>Whether the build declared controls and the platform shows them (iOS 18, Android 7).</summary>
+    bool AreControlsSupported { get; }
+
+    /// <summary>Writes the state document of control <paramref name="kind"/> where the native control reads it.</summary>
+    void WriteControl(string kind, string json);
+
+    /// <summary>Asks the system to draw control <paramref name="kind"/> again from its document.</summary>
+    void ReloadControl(string kind);
+
+    /// <summary>Asks the user to add the control (Android 13's tile prompt); <see langword="false"/> where there is none.</summary>
+    Task<bool> RequestAddControlAsync(string kind, ControlState state);
 }
 
 /// <summary>Used on platforms without a renderer; every call is a no-op so app code stays unconditional.</summary>
@@ -64,4 +77,8 @@ internal sealed class NoOpWidgetPlatform : IWidgetPlatform
     public string? PushToken(string id) => null;
     public string? WidgetPushToken => null;
     public void RefreshWidgetPushToken() { }
+    public bool AreControlsSupported => false;
+    public void WriteControl(string kind, string json) { }
+    public void ReloadControl(string kind) { }
+    public Task<bool> RequestAddControlAsync(string kind, ControlState state) => Task.FromResult(false);
 }
