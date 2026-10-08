@@ -8,7 +8,7 @@
     <CollectionView ItemsSource="{Binding Towns}">
         <CollectionView.Header>
             <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="12">
-                <SpineSection Footer="[PageSearch] on a string property puts a search field with the header bar; the property follows the field both ways, and the page filters its own list in OnQueryChanged. Automatic is a row below the bar, and the trailing end of the bar on iPad and Mac.">
+                <SpineSection Footer="[PageSearch] on a string property puts a search field with the header bar; the property follows the field both ways, and the page filters its own list in OnQueryChanged. Automatic is a row below the bar, and the trailing end of the bar on iPad and Mac. While a search goes on in the row, the header bar gives way to the field until the X (back on Android) ends it.">
                     <SpineRow Title="Show the search field">
                         <SpineRow.Accessory>
                             <Switch IsToggled="{Binding ShowsSearch}" />
@@ -20,6 +20,7 @@
                         </SpineRow.Accessory>
                     </SpineRow>
                     <SpineRow Title="Start a search" Detail="Search.IsActive = true" Command="{Binding StartSearchCommand}" />
+                    <SpineRow Title="End the search" Detail="Search.IsActive = false" Command="{Binding EndSearchCommand}" />
                     <SpineRow Title="Clear from code" Detail="Query = &quot;&quot;" Command="{Binding ClearCommand}" />
                     <SpineRow Title="Submitted" Value="{Binding Submitted}" />
                     <SpineRow Title="Open as a sheet" Command="{Binding OpenSheetCommand}" />

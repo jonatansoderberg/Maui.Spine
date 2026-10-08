@@ -86,10 +86,8 @@ public partial class SearchPageViewModel(INavigationService navigation) : Sample
     [RelayCommand]
     private void OpenFirst(string text)
     {
+        // The keyboard goes away and the search goes on, with its results, until the X ends it.
         Submitted = Towns.FirstOrDefault() is { } first ? $"“{text}”: {first.Name} first" : $"“{text}”: no town";
-
-        if (Search is not null)
-            Search.IsActive = false;
     }
 
     [RelayCommand]
@@ -97,6 +95,13 @@ public partial class SearchPageViewModel(INavigationService navigation) : Sample
     {
         if (Search is not null)
             Search.IsActive = true;
+    }
+
+    [RelayCommand]
+    private void EndSearch()
+    {
+        if (Search is not null)
+            Search.IsActive = false;
     }
 
     [RelayCommand]

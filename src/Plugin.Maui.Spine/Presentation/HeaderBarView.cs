@@ -139,6 +139,32 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         }
     }
 
+    /// <summary>
+    /// How far the bar has given way to the page's search, 0 to 1: its buttons slide up out of the
+    /// way and fade, as a navigation bar does under a <c>UISearchController</c>.
+    /// </summary>
+    public double SearchProgress
+    {
+        get;
+        set
+        {
+            // Only on a change: the region sets it with every change of the header's page, and a
+            // lightbox's hidden chrome owns InputTransparent meanwhile.
+            if (field == value || Content is null)
+                return;
+
+            field = value;
+            Content.TranslationY = -HeaderBarConstants.BarHeight * value;
+
+            // The bar's strip lies over the field that has taken its place.
+            InputTransparent = value > 0 || !IsHeaderBarVisible;
+
+            // A hidden bar's own fade owns the opacity then.
+            if (IsHeaderBarVisible)
+                Content.Opacity = 1 - value;
+        }
+    }
+
     // As wide as a Mac toolbar's search field, but never more than two fifths of the bar.
     void ApplySearchWidth()
     {
@@ -267,7 +293,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
         // Hiding fades and collapses the content, but this view keeps its full-width strip and
         // would still swallow touches meant for whatever the page draws underneath (a hero header).
-        InputTransparent = !isVisible;
+        InputTransparent = !isVisible || SearchProgress > 0;
 
         // The whole bar only fades: shrinking every item at once reads as the bar sinking away.
         _ = AnimateVisibility(Content, isVisible, scales: false);

@@ -210,18 +210,25 @@ public abstract partial class ViewModelBase : ObservableObject
         OnSearchLayoutChanged();
     }
 
-    partial void OnIsHeaderBarVisibleChanged(bool value) => OnPropertyChanged(nameof(SearchLayout));
+    partial void OnIsHeaderBarVisibleChanged(bool value)
+    {
+        OnPropertyChanged(nameof(SearchLayout));
+        OnPropertyChanged(nameof(SearchHidesHeaderBar));
+    }
 
     private void OnSearchPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(PageSearch.IsVisible) or nameof(PageSearch.Placement))
             OnSearchLayoutChanged();
+        else if (e.PropertyName is nameof(PageSearch.IsActive))
+            OnPropertyChanged(nameof(SearchHidesHeaderBar));
     }
 
     // The row below the bar changes the top inset of a page under a floating header.
     private void OnSearchLayoutChanged()
     {
         OnPropertyChanged(nameof(SearchLayout));
+        OnPropertyChanged(nameof(SearchHidesHeaderBar));
         ReapplyHeaderBar?.Invoke();
     }
 
@@ -251,6 +258,34 @@ public abstract partial class ViewModelBase : ObservableObject
     /// <summary>How much the search row adds below the header bar.</summary>
     internal double SearchRowHeight =>
         SearchLayout is Presentation.SearchLayout.Row ? Presentation.HeaderBarConstants.SearchRowHeight : 0;
+
+    /// <summary>
+    /// Whether the header bar gives way to the search row while a search is going on, as a
+    /// <c>UISearchController</c> hides its navigation bar: in the row only, so not where the field
+    /// sits in the bar (iPad, Mac), and not on Windows (see <see cref="Presentation.SearchField.HidesHeaderBar"/>).
+    /// </summary>
+    internal bool SearchHidesHeaderBar =>
+        Presentation.SearchField.HidesHeaderBar && Search is { IsActive: true } && SearchLayout is Presentation.SearchLayout.Row;
+
+    /// <summary>
+    /// How far the header bar has given way to an active search, from 0 (the bar shows) to 1 (the
+    /// field has taken its place). Moved by the region, which animates it.
+    /// </summary>
+    internal double SearchProgress
+    {
+        get;
+        set
+        {
+            if (field == value)
+                return;
+
+            field = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>The header bar's height below the status bar as the page lays out: less as a search takes its place.</summary>
+    internal double HeaderBarHeight => Presentation.HeaderBarConstants.BarHeight * (1 - SearchProgress);
 
     /// <summary>
     /// The first visible action with <see cref="PageActionPlacement.Secondary"/> placement,

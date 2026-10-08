@@ -34,11 +34,38 @@ internal sealed partial class SearchField
 
     partial void ApplyCancelButton()
     {
-        if (_bar.Handler?.PlatformView is UISearchBar searchBar && searchBar.ShowsCancelButton != _bar.IsFocused)
-            searchBar.SetShowsCancelButton(_bar.IsFocused, animated: true);
+        if (_bar.Handler?.PlatformView is not UISearchBar searchBar)
+            return;
+
+        var shows = ShowsCancelButton;
+        if (searchBar.ShowsCancelButton != shows)
+            searchBar.SetShowsCancelButton(shows, animated: true);
+
+        // UIKit disables the cancel button as the field lets go of the keyboard; a search that goes
+        // on after it (the search key) keeps it working, as a UISearchController does.
+        if (shows && !_bar.IsFocused)
+            CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() => EnableCancelButton(searchBar, searchBar.SearchTextField));
     }
 
-    private static void OnCancelClicked(object? sender, EventArgs e) => (sender as UISearchBar)?.ResignFirstResponder();
+    private static void EnableCancelButton(UIView view, UIView field)
+    {
+        foreach (var subview in view.Subviews)
+        {
+            if (ReferenceEquals(subview, field))
+                continue;
+
+            if (subview is UIButton button)
+                button.Enabled = true;
+            else
+                EnableCancelButton(subview, field);
+        }
+    }
+
+    private void OnCancelClicked(object? sender, EventArgs e)
+    {
+        End();
+        (sender as UISearchBar)?.ResignFirstResponder();
+    }
 }
 
 #endif

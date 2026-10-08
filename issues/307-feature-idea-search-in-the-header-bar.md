@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/307
 **Branch:** issue/307-feature-idea-search-in-the-header-bar
-**Status:** Completed
+**Status:** In Review
 
 ## Plan
 
@@ -72,6 +72,20 @@ None that block v1; see Decisions.
 - `tests/Plugin.Maui.Spine.Core.Tests/PageSearchDiscoveryTests.cs`: discovery, both directions of the sync, submit, toolkit names and the three errors.
 - Docs: `docs/wiki/search.md` with iOS, Android and Mac screenshots, README rows, the package README, `page-actions.md`, the `/spine-page` skill and the study's status line.
 
+### While searching, the header bar gives way (branch `fix/search-hides-header-bar`)
+
+Jonatan saw too many X's on his iPhone while searching: the field's clear button, UIKit's round cancel X beside it and, in a sheet, the sheet's close X right above. His decision: do it the native way, as `UISearchController` with `hidesNavigationBarDuringPresentation`.
+
+- `Core/ViewModelBase.cs`: internal `SearchHidesHeaderBar` (an active search in the row, not on Windows), `SearchProgress` (0–1, moved by the region) and `HeaderBarHeight` (the bar's height as the page lays out, less as a search takes its place).
+- `Presentation/NavigationRegion.cs` (+ `.Apple.cs`): animates `SearchProgress` when `SearchHidesHeaderBar` changes. Apple: one `UIView` spring animation around a layout pass, so the bar's buttons, the title, the field and the list's content inset move on one curve; a cross-fade under Reduce Motion. Android/Windows: a 300 ms MAUI animation, immediate with animations removed. The header bar and the page are clipped to their bounds during the animation, so the buttons and the title slide under a sheet's top edge rather than over it. `SafeAreaInsetsFor` uses `HeaderBarHeight`, so a list under a floating header moves up with the field. A page shown again comes back as its search left it.
+- `Presentation/HeaderBarView.cs`: `SearchProgress` slides the bar's content up by the bar's height and fades it; the bar's strip takes no touches meanwhile (it lay over the field).
+- `Presentation/PagePresenter.cs`: the title row shrinks by the bar's height; the title goes up with it, keeping its height, and fades to 2 % (UIKit passes over a fully transparent label when it sizes the scroll edge effect, which left rows sharp under the field).
+- `Presentation/SearchField.cs` (+ `.Apple.cs`, Android): `OutlastsFocus` for the row's field: focus starts the search, but losing the focus (the search key) no longer ends it; the cancel button (iOS) and a new back arrow in the capsule (Android, in the magnifier's place) show while it goes on and end it. Ending a search clears its text. iOS re-enables UIKit's cancel button, which UIKit disables when the field lets go of the keyboard.
+- Android back: `NavigationRegionViewModel.TryEndSearch()` runs first in the activity's back callback (enabled while a search hides the bar) and in the sheet dialog's back handling.
+- `Core/PageSearch.cs`: `IsActive` documented as "a search is going on".
+- Showcase: the submit no longer ends the search; a row "End the search" (`IsActive = false`); the footer explains the behaviour.
+- Docs: `docs/wiki/search.md` "While searching" with two iOS screenshots (page light, sheet dark), the `/spine-page` skill.
+
 ## Decisions
 
 - **v1 is step 3 + step 6 of the study.** Steps 2 and 4 (the iOS 26 spike, then the bottom capsule, the search button and the lift above the keyboard) are follow-ups: the decision of 2026-09-30 says the spike runs before the bottom capsule is built. Until then `Automatic` on iPhone with iOS 26 is the row below the bar.
@@ -86,6 +100,19 @@ None that block v1; see Decisions.
 - **Android capsule colour:** a tint of the foreground (black 6 %, white 10 %) rather than Material's `colorSurfaceContainerHigh`, which MAUI's MaterialComponents theme does not define; the tint sits on any page background.
 - **No header bar, no field.** The row lives in the title row, which a page without a header bar does not have.
 - **A large title page gets the row above the large title** (the large title is page content); UIKit puts it below. Listed as a follow-up.
+
+### While searching (branch `fix/search-hides-header-bar`)
+
+- **`IsActive` now means "a search is going on", as `UISearchController.isActive`,** not "the field has the focus", where the field is in the row. The search outlasts the keyboard (after the search key the results stay with the bar hidden) and ends with the X, back or code. Following the focus would have brought the bar back, and taken the X away, every time the keyboard went down.
+- **Ending a search clears the text**, as UIKit does when a search controller is dismissed, so the list is whole again when the bar comes back. The Showcase's submit no longer sets `IsActive = false`.
+- **iPad and Mac Catalyst with the field in the bar: unchanged.** UIKit keeps the bar on iPad; the field is already in it. There the search still follows the focus.
+- **Windows: unchanged.** Its `AutoSuggestBox` has no button to end a search with, and hiding the bar would leave only Escape/click-away, which could not be tried without a Windows machine. The search follows the focus there.
+- **Android: the Material equivalent** — the bar's buttons and title slide away and the capsule takes the top app bar's place; a back arrow replaces the magnifier at the capsule's leading end, as in Material 3's search view, and system back ends the search before it navigates.
+- **The animation is a single UIKit animation on Apple platforms**, not a per-frame MAUI animation: frames, alpha and the list's content inset all move on the same spring, also in Debug builds. 300 ms, critically damped.
+- **Reduce Motion: a 0.2 s cross-fade of the region on iOS;** Android with animations removed is immediate (MAUI animations cannot run then).
+- **The title keeps 2 % opacity while hidden** (see Changes); invisible in practice, and the scroll edge effect keeps working.
+- **Clipping only during the animation:** at rest the hidden bar is fully transparent, so nothing needs clipping, and a clipped page could cut shadows at its edges.
+- **A large title page:** the large title is page content and stays in the list under the field; UIKit hides it with the bar. Left as it is.
 
 ## Verification
 
