@@ -116,10 +116,10 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
         new("Widgets", "A live score on the home screen and the Lock Screen, written in C#: buttons that run without opening the app, a timeline that turns at face-off", "stack.svg", "Plugin.Maui.Spine.Widgets", n => n.NavigateToAsync<Widgets.WidgetsPage>()),
         new("Live Activities", "A game on the lock screen and in the Dynamic Island, updated from the app: a countdown to face-off, the score, a button at the final whistle", "timer.svg", "Plugin.Maui.Spine.Widgets", n => n.NavigateToAsync<LiveActivities.LiveActivitiesPage>()),
         new("Control Center", "A toggle and a button in Control Center and Quick Settings, written in C#: goal alerts on or off, and a goal scored without opening the app", "remote.svg", "Plugin.Maui.Spine.Widgets", n => n.NavigateToAsync<ControlCenter.ControlCenterPage>()),
-        new("Searchable items", "The app's content in Spotlight and as Android shortcuts, each result opening its page with a typed parameter, also from a cold start", "search.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<SearchableItems.SearchableItemsPage>()),
+        new("Searchable items", "The app's content in Spotlight and as Android shortcuts, each result opening its page with a typed parameter, also from a cold start", "searchitem.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<SearchableItems.SearchableItemsPage>()),
         new("Shortcuts", "Straight to a page from the app icon, the jump list or the tray menu, through one handler", "externallink.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Shortcuts.ShortcutsPage>()),
         new("Strings", "Text per language from embedded XML: values and plurals in XAML, the same store from C#, a live language switch", "globe.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Common", n => n.NavigateToAsync<Strings.StringsPage>()),
-        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 226 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
+        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 227 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
     ];
 }
 
