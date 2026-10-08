@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/312
 **Branch:** issue/312-feature-idea-control-center-controls-and-quick-set
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 
