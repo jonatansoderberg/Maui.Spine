@@ -18,13 +18,16 @@ All Spine packages share one version. Reference every Spine package the app uses
 | Navigation: regions, sheets, tabs, header bar, glass buttons, shortcuts, Windows windowing | `Plugin.Maui.Spine` | `Plugin.Maui.Spine.Svg` |
 | The built-in icon set (228 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
 | Home-screen widgets, Live Activities, Control Center controls and Quick Settings tiles from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
-| The built-in icon set (228 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
-| Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
 | Push and local notifications | `Plugin.Maui.Spine.PushNotifications` | `Plugin.Maui.Spine.Common` (not the core) |
 | Background work while the app is closed (`[BackgroundTask]`), widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` | the core and `Plugin.Maui.Spine.Common` |
 | The push backend, in an ASP.NET Core or Azure Functions project | `Plugin.Maui.Spine.Server` | `Plugin.Maui.Spine.Common` |
 | `HeroCollectionView` (collapsing hero header) | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `Plugin.Maui.Spine.Svg` |
 | `AnimatedLabel` (marquee) | `Plugin.Maui.Spine.Controls.AnimatedLabel` | — |
+| `Calendar` (month calendar, marked days) | `Plugin.Maui.Spine.Controls.Calendar` | the core |
+| `DataGrid` (responsive row grid) | `Plugin.Maui.Spine.Controls.DataGrid` | the core |
+| `SpineRow` / `SpineSection` (settings and key/value rows) | `Plugin.Maui.Spine.Controls.Rows` | the core and `Plugin.Maui.Spine.Controls.AnimatedLabel` |
+| `Shimmer` and `Skeleton.IsActive` (skeleton loading) | `Plugin.Maui.Spine.Controls.Shimmer` | the core |
+| `MeshBackground` (mesh gradients behind glass) | `Plugin.Maui.Spine.Controls.MeshBackground` | the core |
 | QR codes and other barcodes on screen (`BarcodeView`, `Barcode.Encode`, SVG) | `Plugin.Maui.Spine.Barcodes` | — |
 | Scanning codes with the camera (`BarcodeScannerView`, the scan sheet) | `Plugin.Maui.Spine.Scanner` | the core and `Plugin.Maui.Spine.Barcodes` |
 | Remote images in lists: memory and disk cache, decoding at the view's size, prefetching, BlurHash placeholders | `Plugin.Maui.Spine.Images` | `Plugin.Maui.Spine.Common` (not the core) |

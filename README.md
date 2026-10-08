@@ -187,7 +187,6 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Shared elements and zoom** | One `Transition.Tag` on each page: a view flies from one page to the next and back, or the page grows out of the view it opens from and shrinks back into it under the finger | [Shared Elements and Zoom](docs/wiki/transitions.md) |
 | **Lightbox** | `[NavigableLightbox]` and a `Lightbox`: photos full screen on black that open out of their thumbnail, page sideways, pinch and double-tap zoom, drag down to close into the thumbnail, Share and Save | [Lightbox](docs/wiki/lightbox.md) |
 | **Widgets** | Home-screen widgets, Live Activities, Control Center controls and Quick Settings tiles built from C# | [Widgets](docs/wiki/widgets.md) |
-| **Widgets** | Home-screen widgets and Live Activities built from C# | [Widgets](docs/wiki/widgets.md) |
 | **Background tasks** | `[BackgroundTask]` classes the system runs while the app is closed, with their status, a run on request or from a push, and the widgets rebuilt after them | [Background tasks](docs/wiki/background-tasks.md) |
 | **Glass buttons** | `Button`/`ImageButton` as Liquid Glass on iOS 26, normal buttons elsewhere | [Glass buttons](docs/wiki/glass-buttons.md) |
 | **Materials** | Glass, blur, tinted and solid surfaces for any `Border`: system materials on iOS, a real blur on Android 12+, acrylic on Windows | [Materials](docs/wiki/materials.md) |
@@ -205,6 +204,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Three-File Page Pattern](docs/wiki/page-pattern.md) | Code-behind, XAML, and ViewModel explained |
 | [Regions](docs/wiki/regions.md) | Stack navigation, lifecycle hooks, back-swipe gesture |
 | [Sheets](docs/wiki/sheets.md) | Bottom sheets, detents, overlays, dismiss guards |
+| [Tab host](docs/wiki/tab-host.md) | `[NavigableTab]` pages in the native tab bar: badges, reselection, the floating bar on iOS 26 |
 | [Navigation Parameters](docs/wiki/navigation-parameters.md) | Pass typed data to a page |
 | [Navigation Results](docs/wiki/navigation-results.md) | Await a typed result from a page |
 | [Page Actions](docs/wiki/page-actions.md) | Header bar buttons (text and SVG icons) |
@@ -217,7 +217,6 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Lightbox](docs/wiki/lightbox.md) | A full-screen photo viewer page: opening from the thumbnail, paging, zoom, drag down to close, Share, Save and the page's own actions |
 | [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets, Dynamic Island, Control Center and Quick Settings, built from C# |
 | [Segmented control and top tabs](docs/wiki/segmented-control.md) | `SegmentedControl` on `UISegmentedControl`, Material segmented buttons and `SelectorBar`; `TopTabs` with lazy, kept tab content that the header bar follows |
-| [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets and Dynamic Island, built from C# |
 | [Background tasks](docs/wiki/background-tasks.md) | `[BackgroundTask]` on BGTaskScheduler and JobScheduler: what runs when on each platform, status, requests, `spine.task` from a push, and the widgets' refresh as a task |
 | [Push (client)](docs/wiki/push-notifications.md) | Permission, tokens, tags, and the handler that sees every message |
 | [Push (server)](docs/wiki/push-notifications-server.md) | The backend half: register, tag expressions, APNs and FCM |
