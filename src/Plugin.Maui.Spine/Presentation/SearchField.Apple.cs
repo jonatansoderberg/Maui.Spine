@@ -1,18 +1,19 @@
 #if IOS || MACCATALYST
 
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform;
 using UIKit;
 
 namespace Plugin.Maui.Spine.Presentation;
 
 internal sealed partial class SearchField
 {
-    // MAUI shows the cancel button whenever there is text, where UIKit leaves it disabled and grey
-    // once the field has lost the focus; a search field shows it while the search is going on.
+    // UIKit's cancel button stays off: MAUI shows it whenever there is text, also while the text
+    // is cleared, and Spine's own button (SearchField.Chrome) ends the search instead.
     static SearchField() =>
         SearchBarHandler.Mapper.AppendToMapping(nameof(ISearchBar.Text), (_, view) =>
         {
-            if (view is SearchBar { Parent: SearchField field })
+            if (view is SearchBar { Parent: Grid { Parent: SearchField field } })
                 field.ApplyCancelButton();
         });
 
@@ -26,9 +27,6 @@ internal sealed partial class SearchField
         searchBar.SearchBarStyle = UISearchBarStyle.Minimal;
         searchBar.BackgroundImage = new UIImage();
 
-        // MAUI's cancel only clears the text; a search field's cancel also ends the search.
-        searchBar.CancelButtonClicked -= OnCancelClicked;
-        searchBar.CancelButtonClicked += OnCancelClicked;
         ApplyCancelButton();
     }
 
@@ -37,44 +35,43 @@ internal sealed partial class SearchField
         if (_bar.Handler?.PlatformView is not UISearchBar searchBar)
             return;
 
-        ShowCancelButton(searchBar);
+        HideCancelButton(searchBar);
 
-        // MAUI hides the cancel button itself when the text goes empty (the clear button), after
-        // the text has reached the view; put it back once it has, so a search that goes on can
-        // still be ended.
-        CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() => ShowCancelButton(searchBar));
+        // MAUI turns it on itself as the user types, after the text has reached the view.
+        CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() => HideCancelButton(searchBar));
     }
 
-    private void ShowCancelButton(UISearchBar searchBar)
-    {
-        var shows = ShowsCancelButton;
-        if (searchBar.ShowsCancelButton != shows)
-            searchBar.SetShowsCancelButton(shows, animated: true);
+    /// <summary>The search bar Spine shows: MAUI's, with a field as tall as the header bar's buttons.</summary>
+    internal sealed class Bar : SearchBar;
 
-        // UIKit disables the cancel button as the field lets go of the keyboard; a search that goes
-        // on after it (the search key) keeps it working, as a UISearchController does.
-        if (shows && !_bar.IsFocused)
-            CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() => EnableCancelButton(searchBar, searchBar.SearchTextField));
+    internal sealed class BarHandler : SearchBarHandler
+    {
+        protected override MauiSearchBar CreatePlatformView() => new FieldHeightSearchBar();
     }
 
-    private static void EnableCancelButton(UIView view, UIView field)
+    // A standalone UISearchBar on iOS 26 lays its field out 51 points tall, where a search
+    // controller's in a navigation bar is 44, as tall as the bar's buttons; there is no API for it,
+    // so the field is held to that height, centred, after UIKit's own layout.
+    private sealed class FieldHeightSearchBar : MauiSearchBar
     {
-        foreach (var subview in view.Subviews)
+        public override void LayoutSubviews()
         {
-            if (ReferenceEquals(subview, field))
-                continue;
+            base.LayoutSubviews();
 
-            if (subview is UIButton button)
-                button.Enabled = true;
-            else
-                EnableCancelButton(subview, field);
+            var field = SearchTextField;
+            var height = (nfloat)HeaderBarConstants.Height;
+            if (field.Superview is null || Math.Abs(field.Frame.Height - height) < 0.5)
+                return;
+
+            var frame = field.Frame;
+            field.Frame = new CoreGraphics.CGRect(frame.X, frame.Y + (frame.Height - height) / 2, frame.Width, height);
         }
     }
 
-    private void OnCancelClicked(object? sender, EventArgs e)
+    private static void HideCancelButton(UISearchBar searchBar)
     {
-        End();
-        (sender as UISearchBar)?.ResignFirstResponder();
+        if (searchBar.ShowsCancelButton)
+            searchBar.SetShowsCancelButton(false, animated: false);
     }
 }
 

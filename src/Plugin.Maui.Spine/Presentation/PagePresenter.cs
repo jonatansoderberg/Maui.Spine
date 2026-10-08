@@ -218,6 +218,8 @@ internal sealed partial class PagePresenter : Grid
             UpdateSystemScrollEdge();
         else if (e.PropertyName is nameof(ViewModelBase.SearchProgress))
         {
+            if (_searchField is not null)
+                _searchField.SearchProgress = _page!.SearchProgress;
             ApplyTitleBarMargin();
             ApplyTitleRowHeight();
             ApplyCollapse();
@@ -479,6 +481,7 @@ internal sealed partial class PagePresenter : Grid
         }
 
         _searchField.Search = _page!.Search;
+        _searchField.SearchProgress = _page.SearchProgress;
         _searchField.IsVisible = true;
         _searchField.HeightRequest = HeaderBarConstants.SearchRowHeight;
         _searchField.Margin = new Thickness(sides.Left + SearchRowInset, 0, sides.Right + SearchRowInset, 0);

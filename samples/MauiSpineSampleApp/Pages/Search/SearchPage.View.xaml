@@ -14,7 +14,7 @@
                             <Switch IsToggled="{Binding ShowsSearch}" />
                         </SpineRow.Accessory>
                     </SpineRow>
-                    <SpineRow Title="Always in a row (Top)">
+                    <SpineRow Title="Always in a row (Top)" Detail="iPad, Mac: a row instead of the header bar">
                         <SpineRow.Accessory>
                             <Switch IsToggled="{Binding AlwaysInRow}" />
                         </SpineRow.Accessory>

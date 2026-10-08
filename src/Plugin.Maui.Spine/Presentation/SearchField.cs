@@ -33,7 +33,11 @@ internal sealed partial class SearchField : ContentView
 
     public SearchField()
     {
+#if IOS || MACCATALYST
+        _bar = new Bar { VerticalOptions = LayoutOptions.Center };
+#else
         _bar = new SearchBar { VerticalOptions = LayoutOptions.Center };
+#endif
         _bar.SearchButtonPressed += (_, _) => Submit();
         _bar.TextChanged += (_, _) => ApplyCancelButton();
         _bar.Focused += (_, _) =>
@@ -173,13 +177,23 @@ internal sealed partial class SearchField : ContentView
     partial void ConfigurePlatform();
 
     /// <summary>
-    /// Shows the button that ends the search while there is one to end: UIKit's cancel button, a
-    /// back arrow in the capsule on Android. A field that ends with the focus shows it while focused.
+    /// Keeps the platform's part of the end-search control right after a change of focus, text or
+    /// <see cref="PageSearch.IsActive"/>: on Apple, UIKit's own cancel button off (Spine's button
+    /// follows <see cref="SearchProgress"/>); on Android, the back arrow in the capsule while a
+    /// search goes on (or, for a field that ends with the focus, while it is focused).
     /// </summary>
     partial void ApplyCancelButton();
 
     /// <summary>Whether the button that ends the search shows.</summary>
     private bool ShowsCancelButton => OutlastsFocus ? _search?.IsActive == true : _bar.IsFocused;
+
+#if !IOS && !MACCATALYST
+    /// <summary>How far the search has taken the header bar's place; only Apple's cancel button follows it.</summary>
+    internal double SearchProgress
+    {
+        set { }
+    }
+#endif
 
 #if ANDROID
     /// <summary>Height of the Material 3 capsule.</summary>
@@ -239,6 +253,73 @@ internal sealed partial class SearchField : ContentView
         var names = IPlatformApplication.Current?.Services.GetService<Svg.ResourceNameCache>();
         if (_back is not null && names?.Resolve(HeaderBarConstants.BackGlyph) is { } resource)
             _back.Source = Svg.SvgBitmapLoader.LoadFromEmbedded(resource, 24, 24, dark ? Colors.White : Colors.Black);
+    }
+#elif IOS || MACCATALYST
+    /// <summary>
+    /// Space between UIKit's field and the cancel button, beyond the room the bar keeps around its
+    /// field: 11 points in all, as a <c>UISearchController</c>'s on iOS 26.
+    /// </summary>
+    private const double CancelGap = 3;
+
+    /// <summary>The room UIKit's search bar keeps above and below its field.</summary>
+    private const double FieldInset = 10;
+
+    /// <summary>
+    /// How far in from the row's trailing edge the cancel button sits: the room UIKit's search bar
+    /// keeps around its field, so the button lines up with the page margin as the header's actions do.
+    /// </summary>
+    private const double CancelTrailing = 8;
+
+    private PageActionView? _cancel;
+    private ColumnDefinition? _cancelColumn;
+
+    // UIKit's own cancel button is off (see SearchField.Apple.cs): it comes and goes with the text,
+    // and is larger than the header bar's actions. In its place, a button like those actions.
+    private View Chrome(SearchBar bar)
+    {
+        // As tall as a search controller's bar around its 44-point field (see FieldHeightSearchBar).
+        bar.HeightRequest = HeaderBarConstants.Height + 2 * FieldInset;
+
+        _cancel = new PageActionView
+        {
+            HorizontalOptions = LayoutOptions.Start,
+            VerticalOptions = LayoutOptions.Center,
+            HeightRequest = HeaderBarConstants.Height,
+            IconWidth = PageActionView.UseGlassHeaderActions ? HeaderBarConstants.Height : HeaderBarConstants.SheetButtonWidth,
+            ButtonPadding = new Thickness(HeaderBarConstants.SheetButtonPadding),
+            Margin = new Thickness(CancelGap, 0, CancelTrailing, 0),
+            Opacity = 0,
+            InputTransparent = true,
+            Action = new PageAction(null, new CommunityToolkit.Mvvm.Input.RelayCommand(End))
+            {
+                Svg = "close.svg",
+                Description = Common.SpineStrings.Current["Spine.Header.Cancel"],
+            },
+        };
+
+        _cancelColumn = new ColumnDefinition(0);
+        var row = new Grid { ColumnDefinitions = [new(GridLength.Star), _cancelColumn] };
+        row.Add(bar, 0);
+        row.Add(_cancel, 1);
+        return row;
+    }
+
+    /// <summary>
+    /// How far the search has taken the header bar's place, 0 to 1: the cancel button comes in with
+    /// it, and goes with it, and nothing else shows or hides it. Set by the page's title row, inside
+    /// the region's animation, so the button moves on the same curve as the bar.
+    /// </summary>
+    internal double SearchProgress
+    {
+        set
+        {
+            if (_cancel is null || _cancelColumn is null)
+                return;
+
+            _cancelColumn.Width = (CancelGap + HeaderBarConstants.Height + CancelTrailing) * value;
+            _cancel.Opacity = value;
+            _cancel.InputTransparent = value < 1;
+        }
     }
 #else
     private static View Chrome(SearchBar bar) => bar;
