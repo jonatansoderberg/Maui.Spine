@@ -36,7 +36,7 @@ internal sealed class SpineBackgroundJobService : JobService
         _runs[parameters.JobId] = cancellation;
         Task.Run(async () =>
         {
-            try { await tasks.RunScheduledAsync(name, cancellation.Token); }
+            try { await tasks.RunScheduledAsync(name, SpineBackgroundTasksExtensions.MinimumPeriod, cancellation.Token); }
             catch (Exception e) { logger.LogError(e, "Background task \"{Name}\" failed in its job.", name); }
             finally
             {

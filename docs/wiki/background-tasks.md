@@ -102,7 +102,9 @@ A task that has fresh data for one widget names it in `Widgets = [...]` and leav
 
 **iOS.** Apple allows one pending refresh request per app and requires a handler for every identifier listed in `Info.plist` before launch finishes. So Spine does not use one identifier per task. The build writes two fixed identifiers, `<ApplicationId>.spine.refresh` and (optionally) `<ApplicationId>.spine.processing`, and Spine registers them in MAUI's `FinishedLaunching`. That is in time also when iOS launches the app in the background for the task. Spine then books the refresh request for the earliest time a task is due, and books it again when the app goes to the background and after every run. When iOS grants a run, Spine runs every task that is due, the most overdue first, until the time runs out. A task is due one interval after its last run started. A task that has never run is due at once.
 
-**Android.** Each task with an interval gets a periodic `JobScheduler` job with a stable id, persisted across restarts, with its network and charging constraints. Jobs are checked when the app comes to the foreground and when it leaves. A job whose parameters have not changed is left alone, because booking it again would restart its period. Jobs of tasks that no longer have an interval are cancelled. A new job may run right after it is booked.
+**Android.** Each task with an interval gets a periodic `JobScheduler` job with a stable id, persisted across restarts, with its network and charging constraints. Jobs are checked when the app comes to the foreground and when it leaves. A job whose parameters have not changed is left alone, because booking it again would restart its period. Jobs of tasks that no longer have an interval are cancelled.
+
+A job skips its run when the task started less than half its period ago, by any trigger. JobScheduler starts a newly booked periodic job at once, so on a first launch the job would otherwise repeat the catch-up's run a few seconds later. The half period leaves room for a job that comes early in its window, so the job's own next run is not lost. In the other order, a job first and then the catch-up, the catch-up finds the task not due and leaves it. Either way a first launch runs every task once.
 
 **Windows and Mac Catalyst.** `BackgroundTaskBuilder` on Windows needs an MSIX package, and Spine apps run unpackaged. On Mac Catalyst, BGTaskScheduler does not launch the app. So a timer in the running app checks every minute for tasks that are due, starting 5 seconds after launch.
 
@@ -134,4 +136,4 @@ A task marked `Long` runs as a `BGProcessingTask` when the app sets `SpineBackgr
   adb shell dumpsys jobscheduler | grep <package>
   adb shell cmd jobscheduler run -f <package> <job id>
   ```
-  The job id is logged when Spine books the job (`Booked background task "standings" as job 1338566023 every 15 min.`).
+  The job id is logged when Spine books the job (`Booked background task "standings" as job 1338566023 every 15 min.`). A forced run follows the same rule as any job, because Android does not tell the app that a run was forced: within half a period of the task's last start it is skipped and logged (`skipped its scheduled run: it started 61 s ago`). Wait out the half period, or use `RequestAsync`, which never skips.

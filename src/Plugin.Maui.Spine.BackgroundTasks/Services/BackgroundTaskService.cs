@@ -105,13 +105,34 @@ internal sealed class BackgroundTaskService(
     }
 
     /// <summary>
-    /// Runs <paramref name="name"/> for the platform's own schedule (an Android job), due or not: the
-    /// platform has already decided it is time.
+    /// Runs <paramref name="name"/> for the platform's own schedule (an Android job), due or not, since
+    /// the platform has decided it is time, unless the task started less than half its period ago
+    /// (<see cref="BackgroundTaskPlanner.SkipsScheduledRun"/>). The period is the task's interval, at
+    /// least <paramref name="minimumPeriod"/>. A skipped run gives <see cref="BackgroundTaskOutcome.None"/>.
     /// </summary>
-    public Task<BackgroundTaskOutcome> RunScheduledAsync(string name, CancellationToken cancellationToken) =>
-        registry.Find(name) is { } task
-            ? RunAsync(task, BackgroundTaskTrigger.Scheduled, cancellationToken)
-            : Task.FromResult(LogUnknown(name));
+    public Task<BackgroundTaskOutcome> RunScheduledAsync(string name, TimeSpan minimumPeriod, CancellationToken cancellationToken)
+    {
+        if (registry.Find(name) is not { } task) return Task.FromResult(LogUnknown(name));
+
+        var interval = IntervalOf(task);
+        var period = interval < minimumPeriod ? minimumPeriod : interval;
+        BackgroundTaskState? state;
+        lock (_gate)
+        {
+            // A run in progress is joined below rather than skipped.
+            state = _running.ContainsKey(name) ? null : States().GetValueOrDefault(name);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (BackgroundTaskPlanner.SkipsScheduledRun(period, state, now))
+        {
+            logger.LogInformation("Background task \"{Name}\" skipped its scheduled run: it started {Seconds} s ago ({Trigger}), less than half its {Minutes} min period.",
+                name, (int)(now - state!.LastStarted!.Value).TotalSeconds, state.LastTrigger, (int)period.TotalMinutes);
+            return Task.FromResult(BackgroundTaskOutcome.None);
+        }
+
+        return RunAsync(task, BackgroundTaskTrigger.Scheduled, cancellationToken);
+    }
 
     private BackgroundTaskOutcome LogUnknown(string name)
     {

@@ -12,6 +12,20 @@ internal static class BackgroundTaskPlanner
         : state?.LastStarted is { } started ? started + interval
         : now;
 
+    /// <summary>
+    /// Whether a run the platform starts on its own clock (an Android job) is skipped: it is when the
+    /// task started less than half of <paramref name="period"/> ago, by any trigger. A run that comes
+    /// seconds after another (JobScheduler starts a newly booked job at once, right after the catch-up
+    /// on activation) is dropped, while the job's own next period, never much shorter than
+    /// <paramref name="period"/>, still runs. A start dated in the future (the clock was set back)
+    /// skips nothing.
+    /// </summary>
+    public static bool SkipsScheduledRun(TimeSpan period, BackgroundTaskState? state, DateTimeOffset now) =>
+        period > TimeSpan.Zero
+        && state?.LastStarted is { } started
+        && started <= now
+        && now - started < period / 2;
+
     /// <summary>The tasks due at <paramref name="now"/>, the most overdue first.</summary>
     public static IReadOnlyList<string> Due(
         IEnumerable<(string Name, TimeSpan Interval)> tasks,
