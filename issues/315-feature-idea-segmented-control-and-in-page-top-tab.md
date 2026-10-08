@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/315
 **Branch:** issue/315-feature-idea-segmented-control-and-in-page-top-tab
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 
