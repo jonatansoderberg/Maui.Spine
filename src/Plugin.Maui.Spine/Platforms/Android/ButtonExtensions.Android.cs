@@ -12,6 +12,7 @@ public static partial class SpineExtensions
         {
             handlers.AddHandler<Presentation.BackSwipeHost, Presentation.BackSwipeHostHandler>();
             handlers.AddHandler<Presentation.Lightbox, Presentation.LightboxHandler>();
+            handlers.AddHandler<Presentation.SegmentedControl, Presentation.SegmentedControlHandler>();
         });
 
         ConfigureScrollInsets();

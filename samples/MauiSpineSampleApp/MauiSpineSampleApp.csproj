@@ -303,6 +303,24 @@
       <DependentUpon>MenusPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Segmented\SegmentedPage.View.xaml">
+      <DependentUpon>SegmentedPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Segmented\SegmentedPage.ViewModel.cs">
+      <DependentUpon>SegmentedPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Segmented\TopTabsPage.View.xaml">
+      <DependentUpon>TopTabsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Segmented\TopTabsPage.ViewModel.cs">
+      <DependentUpon>TopTabsPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\ContextMenus\ContextMenusPage.View.xaml">
       <DependentUpon>ContextMenusPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -310,6 +328,15 @@
 
     <Compile Include="Pages\ContextMenus\ContextMenusPage.ViewModel.cs">
       <DependentUpon>ContextMenusPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\ActionSheets\ActionSheetsPage.View.xaml">
+      <DependentUpon>ActionSheetsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\ActionSheets\ActionSheetsPage.ViewModel.cs">
+      <DependentUpon>ActionSheetsPage.cs</DependentUpon>
     </Compile>
 
     <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">

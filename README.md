@@ -67,7 +67,7 @@ One version, sixteen packages, all on [nuget.org](https://www.nuget.org/packages
 |---|---|---|
 | Core | `Plugin.Maui.Spine` | Navigation, sheets, tab host, header bar, glass buttons, shortcuts, Windows windowing |
 | Core | `Plugin.Maui.Spine.Svg` | Embedded SVG image sources and icon services (a dependency of the core) |
-| Core | `Plugin.Maui.Spine.Svg.Icons` | 223 ready-made SVG icons, resolved by file name once referenced |
+| Core | `Plugin.Maui.Spine.Svg.Icons` | 224 ready-made SVG icons, resolved by file name once referenced |
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header |
@@ -176,6 +176,8 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Shortcuts** | OS dock/jump-list/tray menu integration | [Shortcuts](docs/wiki/shortcuts.md) |
 | **Menu buttons** | A button or header action that opens the platform's own menu: sections, pickers, submenus, toggles, destructive rows | [Menu buttons](docs/wiki/menus.md) |
 | **Context menus** | A long press or right click on any view opens the system's context menu, lifted with its shape on iOS; one shared menu for every row of a list | [Context menus](docs/wiki/menus.md#context-menus) |
+| **Segmented control and top tabs** | The platform's own segmented control with text or SVG icons, and `TopTabs` that build each tab's content when it is first picked and keep it | [Segmented control](docs/wiki/segmented-control.md) |
+| **Action sheets** | `ShowActionsAsync` from a view model: the platform's action sheet with icons and destructive rows, the picked row as the result, a popover at the button on iPad | [Action sheets](docs/wiki/menus.md#action-sheets) |
 | **Windows options** | Window chrome, tray, single-instance | [Windows Options](docs/wiki/windows-options.md) |
 | **Custom transitions** | Replace the built-in slide animation | [Custom Transitions](docs/wiki/custom-transitions.md) |
 | **Shared elements and zoom** | One `Transition.Tag` on each page: a view flies from one page to the next and back, or the page grows out of the view it opens from and shrinks back into it under the finger | [Shared Elements and Zoom](docs/wiki/transitions.md) |
@@ -204,6 +206,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
 | [Shared Elements and Zoom](docs/wiki/transitions.md) | `Transition.Tag` on a view on each page for a shared element, on the page itself for a zoom; a focus view inside the zooming page; the back-swipe zoom |
 | [Lightbox](docs/wiki/lightbox.md) | A full-screen photo viewer page: opening from the thumbnail, paging, zoom, drag down to close, Share, Save and the page's own actions |
+| [Segmented control and top tabs](docs/wiki/segmented-control.md) | `SegmentedControl` on `UISegmentedControl`, Material segmented buttons and `SelectorBar`; `TopTabs` with lazy, kept tab content that the header bar follows |
 | [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets and Dynamic Island, built from C# |
 | [Push (client)](docs/wiki/push-notifications.md) | Permission, tokens, tags, and the handler that sees every message |
 | [Push (server)](docs/wiki/push-notifications-server.md) | The backend half: register, tag expressions, APNs and FCM |
