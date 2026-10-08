@@ -77,4 +77,53 @@ public class BackgroundTaskPlannerTests
 
         Assert.Equal(Now, BackgroundTaskPlanner.Earliest([("a", Quarter)], states, Now));
     }
+
+    [Fact]
+    public void A_scheduled_run_seconds_after_the_catch_up_is_skipped()
+    {
+        // First launch: the catch-up ran the task, then JobScheduler starts the newly booked job.
+        var state = new BackgroundTaskState { LastStarted = Now.AddSeconds(-3), LastTrigger = BackgroundTaskTrigger.CatchUp };
+
+        Assert.True(BackgroundTaskPlanner.SkipsScheduledRun(Quarter, state, Now));
+    }
+
+    [Fact]
+    public void A_scheduled_run_that_never_ran_or_is_a_period_on_runs()
+    {
+        Assert.False(BackgroundTaskPlanner.SkipsScheduledRun(Quarter, null, Now));
+        Assert.False(BackgroundTaskPlanner.SkipsScheduledRun(Quarter, new BackgroundTaskState(), Now));
+        Assert.False(BackgroundTaskPlanner.SkipsScheduledRun(Quarter, new BackgroundTaskState { LastStarted = Now.AddMinutes(-15) }, Now));
+    }
+
+    [Fact]
+    public void A_scheduled_run_is_skipped_for_less_than_half_its_period()
+    {
+        // A job may come a little early in its window, so a run that is not quite due still runs.
+        Assert.True(BackgroundTaskPlanner.SkipsScheduledRun(Quarter, new BackgroundTaskState { LastStarted = Now.AddMinutes(-7) }, Now));
+        Assert.False(BackgroundTaskPlanner.SkipsScheduledRun(Quarter, new BackgroundTaskState { LastStarted = Now.AddMinutes(-7.5) }, Now));
+        Assert.False(BackgroundTaskPlanner.SkipsScheduledRun(Quarter, new BackgroundTaskState { LastStarted = Now.AddMinutes(-12) }, Now));
+    }
+
+    [Fact]
+    public void The_job_first_then_the_catch_up_runs_the_task_once()
+    {
+        var states = new Dictionary<string, BackgroundTaskState>
+        {
+            ["a"] = new() { LastStarted = Now.AddSeconds(-3), LastTrigger = BackgroundTaskTrigger.Scheduled },
+        };
+
+        Assert.Empty(BackgroundTaskPlanner.Due([("a", Quarter)], states, Now));
+    }
+
+    [Fact]
+    public void A_start_in_the_future_skips_no_scheduled_run()
+    {
+        Assert.False(BackgroundTaskPlanner.SkipsScheduledRun(Quarter, new BackgroundTaskState { LastStarted = Now.AddHours(1) }, Now));
+    }
+
+    [Fact]
+    public void Without_a_period_nothing_is_skipped()
+    {
+        Assert.False(BackgroundTaskPlanner.SkipsScheduledRun(TimeSpan.Zero, new BackgroundTaskState { LastStarted = Now }, Now));
+    }
 }

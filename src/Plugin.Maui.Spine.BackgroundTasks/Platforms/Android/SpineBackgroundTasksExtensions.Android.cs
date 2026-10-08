@@ -11,7 +11,7 @@ namespace Plugin.Maui.Spine.BackgroundTasks;
 public static partial class SpineBackgroundTasksExtensions
 {
     // JobScheduler's floor for a periodic job.
-    private static readonly TimeSpan MinimumPeriod = TimeSpan.FromMinutes(15);
+    internal static readonly TimeSpan MinimumPeriod = TimeSpan.FromMinutes(15);
 
     static partial void ConfigurePlatform(MauiAppBuilder builder, SpineBackgroundTasksOptions options)
     {
