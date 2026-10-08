@@ -176,4 +176,5 @@ Spine auto-discovers pages via assembly scanning — no manual DI registration n
 | Marquee label control | [AnimatedLabel](animated-label.md) |
 | Loading, error and empty states | [Loading states](loading-states.md) |
 | Skeleton loading | [Shimmer and Skeleton](shimmer.md) |
+| Mesh gradient backgrounds | [MeshBackground](mesh-background.md) |
 | SVG image rendering and icon files | [SVG](svg.md) |

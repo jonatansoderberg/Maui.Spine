@@ -7,6 +7,8 @@ Spine's tab host gives an app N root-level bottom tabs, each owning its **own na
 </p>
 <p align="center"><sub>Orientera, an app built on Spine: three [NavigableTab] pages in UITabBarController's Liquid Glass bar, each tab with its own Spine stack</sub></p>
 
+For sections inside one page (Class / Club / Me), use [`TopTabs`](segmented-control.md#toptabs): a segmented control over lazily created content, with no navigation stack of its own.
+
 ---
 
 ## Platforms

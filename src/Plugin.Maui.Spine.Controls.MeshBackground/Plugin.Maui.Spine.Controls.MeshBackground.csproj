@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+
+		<AssemblyName>Plugin.Maui.Spine.Controls.MeshBackground</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Controls</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>MeshBackground for .NET MAUI: a mesh gradient on SkiaSharp, a grid of coloured points blended smoothly, that can drift slowly. Colours from the theme's accent or a preset (Aurora, Sunset), light and dark; a capped frame rate, paused off screen and in the background, still under Reduce Motion.</Description>
+		<SpineIcon>mesh-background.png</SpineIcon>
+		<PackageTags>$(PackageTags);gradient;mesh;aurora;background;skiasharp;controls</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<PackageReference Include="SkiaSharp.Views.Maui.Controls" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+	</ItemGroup>
+
+	<!-- Declares the package to UseSpine(); see Plugin.Maui.Spine's build\Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
+</Project>

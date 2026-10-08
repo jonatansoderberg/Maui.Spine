@@ -1,0 +1,107 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.ActionSheets.ActionSheetsPage"
+    x:TypeArguments="ActionSheetsPageViewModel"
+    x:DataType="ActionSheetsPageViewModel">
+
+    <SpinePage.Resources>
+        <Color x:Key="CardLight">#F2F2F7</Color>
+        <Color x:Key="CardDark">#1C1C1E</Color>
+    </SpinePage.Resources>
+
+    <SampleLayout Packages="Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons">
+
+        <Example Title="Actions with icons"
+                 Summary="The platform's own action sheet from a view model: a UIAlertController sheet on iOS with a Cancel row, a Material bottom sheet on Android, a flyout on Windows. Each row is a MenuAction with an SVG icon and a command; a destructive row is red. The awaited result is the picked row, or null when the sheet was cancelled.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Race actions" Command="{Binding ShowRaceActionsCommand}" HorizontalOptions="Start" />
+                <Label Text="{Binding RaceStatus}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                var picked = await _navigation.ShowActionsAsync(
+                    new ActionSheet("Night sprint", "Uppsala · Friday 18:30")
+                    {
+                        Actions =
+                        [
+                            new("Share", "share.svg", ShareCommand),
+                            new("Add to calendar", "calendar.svg", AddToCalendarCommand),
+                            new("Copy link", "link.svg", CopyLinkCommand),
+                            new("Remove", "trashcan.svg", RemoveCommand) { IsDestructive = true },
+                        ],
+                    });
+
+                if (picked is null)
+                    Status = "Cancelled";
+            </Example.Code>
+        </Example>
+
+        <Example Title="Confirm a destructive step"
+                 Summary="A message and one destructive row, the shape iOS uses to confirm a deletion. No command is needed: compare the awaited row.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Delete results…" Command="{Binding DeleteResultsCommand}" HorizontalOptions="Start" />
+                <Label Text="{Binding ResultsStatus}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                var delete = new MenuAction("Delete 12 results", "trashcan.svg") { IsDestructive = true };
+
+                var picked = await _navigation.ShowActionsAsync(
+                    new ActionSheet(null, "The results are deleted from this phone. This can't be undone.")
+                    {
+                        Actions = [delete],
+                    });
+
+                if (picked == delete)
+                    DeleteResults();
+            </Example.Code>
+        </Example>
+
+        <Example Title="From a row, pointing at its button"
+                 Summary="Pass the button as the anchor: iOS 26 grows the sheet out of it, iPad points a popover at it, and Windows opens the flyout there. One set of rows serves every row: the sheet's CommandParameter hands each command its runner.">
+            <VerticalStackLayout Spacing="10">
+                <VerticalStackLayout BindableLayout.ItemsSource="{Binding Runners}" Spacing="6">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="Runner">
+                            <Border Padding="16,6,6,6" StrokeThickness="0" StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                                        <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" />
+                                        <Label Text="{Binding Details}" FontSize="14" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
+                                    </VerticalStackLayout>
+                                    <ImageButton Grid.Column="1" SvgImageSource.Svg="more.svg" SvgImageSource.Padding="10"
+                                                 WidthRequest="44" HeightRequest="44" BackgroundColor="Transparent"
+                                                 Command="{PageBinding ShowRunnerActionsCommand}"
+                                                 CommandParameter="{Binding Source={RelativeSource Self}}"
+                                                 SemanticProperties.Description="{Binding Name, StringFormat='Actions for {0}'}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+                <Label Text="{Binding RowStatus}" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;ImageButton SvgImageSource.Svg="more.svg"
+                             Command="{PageBinding ShowActionsCommand}"
+                             CommandParameter="{Binding Source={RelativeSource Self}}" /&gt;
+
+                [RelayCommand]
+                private Task ShowActions(View button)
+                {
+                    var runner = (Runner)button.BindingContext;
+                    return _navigation.ShowActionsAsync(new ActionSheet(runner.Name)
+                    {
+                        Actions = RunnerActions,   // the same rows for every runner
+                        CommandParameter = runner,
+                    }, anchor: button);
+                }
+
+                [RelayCommand]
+                private void Disqualify(Runner runner) =&gt; Runners.Remove(runner);
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>
