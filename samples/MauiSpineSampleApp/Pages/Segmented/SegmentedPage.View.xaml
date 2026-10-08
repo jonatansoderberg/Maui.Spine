@@ -1,0 +1,100 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Segmented.SegmentedPage"
+    x:TypeArguments="SegmentedPageViewModel"
+    x:DataType="SegmentedPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine, Plugin.Maui.Spine.Svg.Icons">
+
+        <Example Title="Pick one of a few"
+                 Summary="The platform's own control: UISegmentedControl on iOS and the Mac (glass on iOS 26), Material segmented buttons on Android, a SelectorBar on Windows. SelectedIndex is two-way, so the view model can move it too.">
+            <VerticalStackLayout Spacing="12">
+                <SegmentedControl SelectedIndex="{Binding Range}">
+                    <Segment Title="Day" />
+                    <Segment Title="Week" />
+                    <Segment Title="Month" />
+                </SegmentedControl>
+                <Label Text="{Binding RangeText}" FontSize="15" />
+                <Button Text="Next range" Command="{Binding NextRangeCommand}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;SegmentedControl SelectedIndex="{Binding Range}"&gt;
+                    &lt;Segment Title="Day" /&gt;
+                    &lt;Segment Title="Week" /&gt;
+                    &lt;Segment Title="Month" /&gt;
+                &lt;/SegmentedControl&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Icons"
+                 Summary="A segment takes an SVG from the app's resources, tinted like its text. With a title too, the title is what a screen reader says. The second row is as wide as its segments.">
+            <VerticalStackLayout Spacing="12">
+                <SegmentedControl SelectedIndex="{Binding View}">
+                    <Segment Title="List" Svg="list.svg" />
+                    <Segment Title="Grid" Svg="grid.svg" />
+                    <Segment Title="Map" Svg="map.svg" />
+                </SegmentedControl>
+                <Label Text="{Binding ViewText}" FontSize="15" />
+                <SegmentedControl SelectedIndex="{Binding View}" HorizontalOptions="Start">
+                    <Segment Svg="list.svg" Title="List" />
+                    <Segment Svg="grid.svg" Title="Grid" />
+                    <Segment Svg="map.svg" Title="Map" />
+                </SegmentedControl>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;SegmentedControl SelectedIndex="{Binding View}"&gt;
+                    &lt;Segment Title="List" Svg="list.svg" /&gt;
+                    &lt;Segment Title="Grid" Svg="grid.svg" /&gt;
+                    &lt;Segment Title="Map" Svg="map.svg" /&gt;
+                &lt;/SegmentedControl&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Colour and disabled segments"
+                 Summary="SelectedSegmentColor fills the picked segment, with black or white text to read on it. Unset, iOS keeps its own neutral thumb and Android fills the segment with a tone of the app's accent. A segment can be disabled on its own.">
+            <VerticalStackLayout Spacing="12">
+                <SegmentedControl SelectedIndex="{Binding Sport}" SelectedSegmentColor="{DynamicResource Accent}">
+                    <Segment Title="Foot" />
+                    <Segment Title="Bike" />
+                    <Segment Title="Ski" IsEnabled="{Binding IsWinterOpen}" />
+                </SegmentedControl>
+                <HorizontalStackLayout Spacing="12">
+                    <Switch IsToggled="{Binding IsWinterOpen}" VerticalOptions="Center" />
+                    <Label Text="Ski season" FontSize="15" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;SegmentedControl SelectedIndex="{Binding Sport}"
+                                  SelectedSegmentColor="{DynamicResource Accent}"&gt;
+                    &lt;Segment Title="Foot" /&gt;
+                    &lt;Segment Title="Bike" /&gt;
+                    &lt;Segment Title="Ski" IsEnabled="{Binding IsWinterOpen}" /&gt;
+                &lt;/SegmentedControl&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Top tabs"
+                 Summary="TopTabs puts a segmented control over the content of the picked tab. A tab is built the first time it is picked and kept afterwards, so a list keeps its place. The header bar follows the list showing.">
+            <Button Text="Open the results" Command="{Binding OpenTopTabsCommand}" HorizontalOptions="Start" />
+            <Example.Code>
+                &lt;TopTabs SelectedIndex="{Binding Section}"&gt;
+                    &lt;TopTab Title="Class"&gt;
+                        &lt;CollectionView ItemsSource="{Binding ClassResults}" /&gt;
+                    &lt;/TopTab&gt;
+                    &lt;TopTab Title="Club"&gt;
+                        &lt;CollectionView ItemsSource="{Binding ClubResults}" /&gt;
+                    &lt;/TopTab&gt;
+                    &lt;TopTab Title="Me"&gt;
+                        &lt;!-- Not built until the tab is first picked. --&gt;
+                        &lt;TopTab.ContentTemplate&gt;
+                            &lt;DataTemplate&gt; ... &lt;/DataTemplate&gt;
+                        &lt;/TopTab.ContentTemplate&gt;
+                    &lt;/TopTab&gt;
+                &lt;/TopTabs&gt;
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

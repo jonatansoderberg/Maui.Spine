@@ -1,0 +1,75 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Mesh.MeshPage"
+    x:TypeArguments="MeshPageViewModel"
+    x:DataType="MeshPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.MeshBackground, Plugin.Maui.Spine">
+
+        <Example Title="Behind glass"
+                 Summary="A grid of coloured points blended into each other, drifting slowly: what glass and blur need behind them to look like glass. The colours come from a preset in a light and a dark version; the Accent preset follows the app's accent."
+                 OptionsCommand="{Binding ShowMeshOptionsCommand}"
+                 Code="{Binding Code}">
+            <VerticalStackLayout Spacing="12">
+                <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" HeightRequest="420">
+                    <Grid>
+                        <MeshBackground Preset="{Binding Preset}" Drift="{Binding Drift}"
+                                        Columns="{Binding Columns}" Rows="{Binding Rows}" FrameRate="{Binding FrameRate}" />
+
+                        <VerticalStackLayout Padding="16" Spacing="14" VerticalOptions="Center">
+                            <Border Material.Kind="Glass" StrokeThickness="0" StrokeShape="RoundRectangle 24" Padding="18">
+                                <VerticalStackLayout Spacing="4">
+                                    <Label Text="Good evening" FontSize="22" FontAttributes="Bold" />
+                                    <Label Text="Liquid Glass over a living background" FontSize="15" />
+                                </VerticalStackLayout>
+                            </Border>
+                            <Border Material.Kind="Blur" StrokeThickness="0" StrokeShape="RoundRectangle 18" Padding="16">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Blur" FontSize="15" FontAttributes="Bold" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="Material.Kind" FontSize="13" VerticalOptions="Center" />
+                                </Grid>
+                            </Border>
+                            <Border Material.TintOpacity="0.6" StrokeThickness="0" StrokeShape="RoundRectangle 18" Padding="16">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Tint" FontSize="15" FontAttributes="Bold" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="Material.TintOpacity" FontSize="13" VerticalOptions="Center" />
+                                </Grid>
+                            </Border>
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+                <Button Text="Fill the screen" Command="{Binding OpenFullScreenCommand}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+        </Example>
+
+        <Example Title="Your own colours"
+                 Summary="Colors takes one colour per point, row by row from the top left, and repeats a shorter list. Four day themes for a calendar, each a 3 × 3 mesh."
+                 OptionsCommand="{Binding ShowDayOptionsCommand}"
+                 Code="{Binding DayCode}">
+            <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" HeightRequest="220">
+                <Grid>
+                    <MeshBackground Colors="{Binding DayColors}" Drift="Slow" />
+                    <Border Material.Kind="Glass" StrokeThickness="0" StrokeShape="RoundRectangle 20" Padding="20,10"
+                            HorizontalOptions="Center" VerticalOptions="Center">
+                        <Label Text="{Binding DayName}" FontSize="20" FontAttributes="Bold" />
+                    </Border>
+                </Grid>
+            </Border>
+        </Example>
+
+        <Example Title="A short list"
+                 Summary="Two colours on a 5 × 4 grid: the list repeats row by row, so they alternate like a chessboard, and a medium drift turns the squares into waves. In XAML, Colors is a comma-separated list.">
+            <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" HeightRequest="180">
+                <MeshBackground Columns="5" Rows="4" Colors="#0A84FF, #BF5AF2" Drift="Medium" />
+            </Border>
+            <Example.Code>
+                &lt;MeshBackground Columns="5" Rows="4"
+                                Colors="#0A84FF, #BF5AF2"
+                                Drift="Medium" /&gt;
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

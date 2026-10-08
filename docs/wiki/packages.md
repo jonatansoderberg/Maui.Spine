@@ -1,12 +1,12 @@
 # Packages
 
-Spine ships as fifteen NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as sixteen NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
 | Core | `Plugin.Maui.Spine` | Navigation, sheets, tab host, header bar, glass buttons, shortcuts, Windows windowing, theme and string stores | `.Svg`, `.Common` |
 | Core | `Plugin.Maui.Spine.Svg` | Embedded SVG image sources, icon services, SVG-to-icon for tray and window icons | — |
-| Core | `Plugin.Maui.Spine.Svg.Icons` | 223 ready-made SVG icons, resolved by file name once referenced | — (found by `.Svg` at startup) |
+| Core | `Plugin.Maui.Spine.Svg.Icons` | 224 ready-made SVG icons, resolved by file name once referenced | — (found by `.Svg` at startup) |
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine`, `.Common` |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications | `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
@@ -14,6 +14,7 @@ Spine ships as fifteen NuGet packages built from this repository, one per projec
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid on `CollectionView` with layouts, sorting, grouping and swipe actions | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: `Shimmer` over placeholders, `Skeleton.IsActive` on real layouts | `Plugin.Maui.Spine` |
+| Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients from the accent, a preset or your own colours, drifting slowly | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron | `Plugin.Maui.Spine`, `.AnimatedLabel` |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes; `LightGridReader` for a code shown by lamps | — |
 | Controls | `Plugin.Maui.Spine.Scanner` | Camera scanning: `BarcodeScannerView` and the `BarcodeScannerPage` sheet; Vision on Apple, ML Kit on Android | `Plugin.Maui.Spine`, `.Barcodes` |
@@ -26,7 +27,7 @@ Common ◄──────────────┬────────�
   │                   │
 Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons (loaded by Svg at startup)
   ▲           ▲
-  │   Calendar, DataGrid, Shimmer, Rows, Scanner ──► Barcodes
+  │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Scanner ──► Barcodes
 PushNotifications                                    AnimatedLabel
 ```
 
