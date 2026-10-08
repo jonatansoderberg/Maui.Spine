@@ -69,7 +69,7 @@ builder
 return builder.Build();
 ```
 
-Without `UseSpine` (a control package on its own) nothing is registered automatically: call `UseAnimatedLabel()`, `UseSpinePushNotifications(…)`, `UseSpineScanner()`, `UseSpineImages()` (after `UseMauiApp`) or `UseEmbeddedSvgImages(…)` yourself (without Spine the scanner view works, the scan sheet does not). If a package seems unregistered under `UseSpine`, look for `obj/<config>/<tfm>/SpineModules.g.cs` in the app: it lists what the build found. Referencing Spine as projects instead of packages means importing `Plugin.Maui.Spine`'s `build/Plugin.Maui.Spine.targets` and the packages' `build/*.props` yourself (the repo's `samples/Directory.Build.targets` shows how).
+Without `UseSpine` (a control package on its own) nothing is registered automatically: call `UseAnimatedLabel()`, `UseSpinePushNotifications(…)`, `UseSpineScanner()`, `UseSpineImages()` or `UseEmbeddedSvgImages(…)` yourself (without Spine the scanner view works, the scan sheet does not). If a package seems unregistered under `UseSpine`, look for `obj/<config>/<tfm>/SpineModules.g.cs` in the app: it lists what the build found. Referencing Spine as projects instead of packages means importing `Plugin.Maui.Spine`'s `build/Plugin.Maui.Spine.targets` and the packages' `build/*.props` yourself (the repo's `samples/Directory.Build.targets` shows how).
 
 `options.AddAssembly` is where Spine scans for `[NavigableRegion]`, `[NavigableSheet]`, `[NavigableTab]`, `[Widget]` and `[Control]` classes and for embedded SVGs. Add every assembly that holds pages or widget providers.
 

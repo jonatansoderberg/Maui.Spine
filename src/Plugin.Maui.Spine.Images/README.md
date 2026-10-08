@@ -11,7 +11,7 @@ Remote images for .NET MAUI that stay light in a long list. Every `UriImageSourc
 dotnet add package Plugin.Maui.Spine.Images
 ```
 
-`UseSpine()` registers it. Without Spine's core, call `builder.UseSpineImages()`.
+`UseSpine()` registers it. Without Spine's core, call `builder.UseSpineImages()`; before or after `UseMauiApp`, the order does not matter.
 
 ```xml
 <Image Source="{Binding PhotoUrl}"

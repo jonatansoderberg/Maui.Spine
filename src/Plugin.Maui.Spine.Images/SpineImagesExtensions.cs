@@ -12,7 +12,8 @@ public static class SpineImagesExtensions
     /// Sends every <see cref="UriImageSource"/> through Spine's image cache and registers
     /// <see cref="IImageCache"/> and <see cref="ImageOptions"/>. <c>UseSpine()</c> calls it for an app that
     /// references this package; call it yourself to change the options (before or after <c>UseSpine()</c>),
-    /// or in an app without Spine's core. Calling it more than once only applies the options.
+    /// or in an app without Spine's core. The order relative to <c>UseMauiApp</c> does not matter. Calling it
+    /// more than once only applies the options.
     /// </summary>
     public static MauiAppBuilder UseSpineImages(this MauiAppBuilder builder, Action<SpineImagesOptions>? configure = null)
     {
@@ -26,10 +27,9 @@ public static class SpineImagesExtensions
             SpineImageCache.Create(services.GetRequiredService<SpineImagesOptions>(), services.GetService<ILoggerFactory>()?.CreateLogger<IImageCache>()));
 
 #if IOS || MACCATALYST || WINDOWS
-        // MAUI Controls registers its UriImageSourceService for UriImageSource in UseMauiApp; a later
-        // registration for the same type replaces it. MAUI's image source factory creates services without
-        // the app's container, so the service finds the cache through SpineImageCache.Shared.
-        builder.ConfigureImageSources(static services => services.AddService<UriImageSource, SpineUriImageSourceService>());
+        // MAUI's image source factory creates services without the app's container, so the service finds the
+        // cache through SpineImageCache.Shared.
+        builder.OverrideImageSourceService<UriImageSource, SpineUriImageSourceService>();
 #endif
         ImageOptions.Configure();
         return builder;
