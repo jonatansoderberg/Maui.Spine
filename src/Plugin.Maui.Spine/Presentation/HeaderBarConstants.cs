@@ -72,15 +72,30 @@ public static class HeaderBarConstants
     // Sheet presentation button size
     /// <summary>Width of a header bar button in a sheet.</summary>
     public const double SheetButtonWidth = 48;
-    // Inside the 40-point circle: with the SVG's own 5-point inset, a 24-point icon.
+    // The icon's inset inside the 40-point circle comes from GlyphSize.
     /// <summary>Padding inside a header bar button in a sheet.</summary>
-    public const double SheetButtonPadding = 3;
+    public const double SheetButtonPadding = 0;
 
     // Region presentation button size
     /// <summary>Width of a header bar button on a region page.</summary>
     public const double RegionButtonWidth = 48;
     /// <summary>Padding inside a header bar button on a region page.</summary>
-    public const double RegionButtonPadding = 3;
+    public const double RegionButtonPadding = 0;
+
+    // Material 3's icon button: a 24-point Material Symbols icon, weight 400, whose lines are 2 points
+    // wide; Spine's 2-unit lines in a 50-unit view box are 0.96 points at that size.
+    /// <summary>Size of the square a header bar button's SVG glyph is drawn in.</summary>
+    public const double GlyphSize = 24;
+    /// <summary>
+    /// Stroke multiplier for a header bar button's SVG glyph, so it has the weight of the platform's
+    /// own bar icons (<see cref="Svg.SvgImageSourceBehavior.LineWidthScale"/>).
+    /// </summary>
+    public const double GlyphLineWidthScale = 2.05;
+    // Material's back arrow is an ordinary 24-point icon.
+    /// <summary>Size of the square the back button's glyph (<see cref="BackGlyph"/>) is drawn in.</summary>
+    public const double BackGlyphSize = GlyphSize;
+    /// <summary>Stroke multiplier for the back button's glyph.</summary>
+    public const double BackGlyphLineWidthScale = GlyphLineWidthScale;
 
     // Material 3's top app bar: 4 points to the 48-point touch target, whose 40-point circle starts at 8
     // and whose icon lines up with the content at PageMargin.
@@ -127,6 +142,23 @@ public static class HeaderBarConstants
     /// <summary>Padding inside a header bar button on a region page.</summary>
     public const double RegionButtonPadding = 0;
 
+    // Measured against a UINavigationBar on iOS 26: its SF Symbols (paintpalette 22 points tall, xmark
+    // 17) have lines 2 points wide, where Spine's 2-unit lines in a 50-unit view box are 1 point wide
+    // in a 25-point square, the square that gives Spine's glyphs the same height.
+    /// <summary>Size of the square a header bar button's SVG glyph is drawn in.</summary>
+    public const double GlyphSize = 25;
+    /// <summary>
+    /// Stroke multiplier for a header bar button's SVG glyph, so it has the weight of the platform's
+    /// own bar icons (<see cref="Svg.SvgImageSourceBehavior.LineWidthScale"/>).
+    /// </summary>
+    public const double GlyphLineWidthScale = 2;
+    // The navigation bar's back chevron is larger and heavier than the symbols beside it: 11 by 19
+    // points with lines 2.5 points wide.
+    /// <summary>Size of the square the back button's glyph (<see cref="BackGlyph"/>) is drawn in.</summary>
+    public const double BackGlyphSize = 34;
+    /// <summary>Stroke multiplier for the back button's glyph.</summary>
+    public const double BackGlyphLineWidthScale = 1.84;
+
     /// <summary>Space between the screen edge and the outermost header bar button on a region page.</summary>
     public const double RegionSideMargin = 8;
     /// <summary>Space between the sheet edge and the outermost header bar button in a sheet.</summary>
@@ -165,6 +197,20 @@ public static class HeaderBarConstants
     public const double RegionButtonWidth = 48;
     /// <summary>Padding inside a header bar button on a region page.</summary>
     public const double RegionButtonPadding = 0;
+
+    // The glyph a 32-point button has always drawn, at the SVG's own weight: Segoe Fluent Icons are
+    // drawn with 1-pixel lines at 16 pixels, close to Spine's at this size.
+    /// <summary>Size of the square a header bar button's SVG glyph is drawn in.</summary>
+    public const double GlyphSize = 22;
+    /// <summary>
+    /// Stroke multiplier for a header bar button's SVG glyph, so it has the weight of the platform's
+    /// own bar icons (<see cref="Svg.SvgImageSourceBehavior.LineWidthScale"/>).
+    /// </summary>
+    public const double GlyphLineWidthScale = 1;
+    /// <summary>Size of the square the back button's glyph (<see cref="BackGlyph"/>) is drawn in.</summary>
+    public const double BackGlyphSize = GlyphSize;
+    /// <summary>Stroke multiplier for the back button's glyph.</summary>
+    public const double BackGlyphLineWidthScale = GlyphLineWidthScale;
 
     /// <summary>Space between the screen edge and the outermost header bar button on a region page.</summary>
     public const double RegionSideMargin = 0;
