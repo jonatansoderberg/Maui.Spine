@@ -264,6 +264,8 @@ public static class SpineIcons
     public const string Shuffle = "Shuffle.svg";
     /// <summary>The <c>SignOut.svg</c> icon.</summary>
     public const string SignOut = "SignOut.svg";
+    /// <summary>The <c>Skeleton.svg</c> icon.</summary>
+    public const string Skeleton = "Skeleton.svg";
     /// <summary>The <c>SmartClock.svg</c> icon.</summary>
     public const string SmartClock = "SmartClock.svg";
     /// <summary>The <c>SmokeDetector.svg</c> icon.</summary>
@@ -589,6 +591,7 @@ public static class SpineIcons
         Sheet,
         Shuffle,
         SignOut,
+        Skeleton,
         SmartClock,
         SmokeDetector,
         Sort,
