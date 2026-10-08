@@ -5,10 +5,14 @@ using System.Reflection;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
-/// <summary>Maps widget kinds to provider types, discovered by scanning the Spine assemblies for <see cref="WidgetAttribute"/>.</summary>
+/// <summary>
+/// Maps widget and control kinds to provider types, discovered by scanning the Spine assemblies for
+/// <see cref="WidgetAttribute"/> and <see cref="ControlAttribute"/> in one pass.
+/// </summary>
 internal sealed class WidgetRegistry
 {
     private readonly Dictionary<string, Type> _providers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Type> _controls = new(StringComparer.Ordinal);
 
     public WidgetRegistry(SpineOptions spineOptions, ILogger<WidgetRegistry> logger)
     {
@@ -16,6 +20,15 @@ internal sealed class WidgetRegistry
         foreach (var type in SafeTypes(assembly))
         {
             if (!type.IsClass || type.IsAbstract) continue;
+
+            if (type.GetCustomAttribute<ControlAttribute>() is { } control)
+            {
+                if (!typeof(IControlProvider).IsAssignableFrom(type))
+                    logger.LogWarning("{Type} is decorated with [Control(\"{Kind}\")] but does not implement IControlProvider; ignored.", type.FullName, control.Kind);
+                else if (!_controls.TryAdd(control.Kind, type))
+                    logger.LogWarning("Control kind \"{Kind}\" is declared by both {First} and {Second}; the first wins.", control.Kind, _controls[control.Kind].FullName, type.FullName);
+            }
+
             if (type.GetCustomAttribute<WidgetAttribute>() is not { } widget) continue;
 
             if (!typeof(IWidgetProvider).IsAssignableFrom(type))
@@ -29,9 +42,17 @@ internal sealed class WidgetRegistry
         }
 
         Kinds = [.. _providers.Keys.Order(StringComparer.Ordinal)];
+        ControlKinds = [.. _controls.Keys.Order(StringComparer.Ordinal)];
     }
 
     public IReadOnlyList<string> Kinds { get; }
+
+    public IReadOnlyList<string> ControlKinds { get; }
+
+    public Type? ControlProviderTypeFor(string kind) => _controls.GetValueOrDefault(kind);
+
+    public string? ControlKindFor(Type providerType) =>
+        _controls.FirstOrDefault(p => p.Value == providerType).Key;
 
     public Type? ProviderTypeFor(string kind) => _providers.GetValueOrDefault(kind);
 

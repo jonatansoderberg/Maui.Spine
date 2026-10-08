@@ -16,14 +16,17 @@ namespace MauiSpineSampleApp.Widgets.Hockey;
 public sealed partial class LiveScore : ObservableObject
 {
     private const string GameKey = "live-score-game";
+    private const string AlertsKey = "live-score-goal-alerts";
 
     private readonly IWidgetService _widgets;
     private readonly ILiveActivityService _activities;
+    private readonly IControlService _controls;
 
-    public LiveScore(IWidgetService widgets, ILiveActivityService activities)
+    public LiveScore(IWidgetService widgets, ILiveActivityService activities, IControlService controls)
     {
         _widgets = widgets;
         _activities = activities;
+        _controls = controls;
         Game = Load();
 
         // The user may swipe the activity away, or iOS may end it; the button follows.
@@ -39,6 +42,23 @@ public sealed partial class LiveScore : ObservableObject
     public string Details => Game.Phase == GamePhase.Scheduled ? Game.Day(DateTimeOffset.Now) : Game.Shots;
 
     public ObservableCollection<string> GoalLines { get; } = [];
+
+    /// <summary>
+    /// Whether the user wants to hear about goals. A real app would subscribe to a push tag here; the sample
+    /// only keeps the choice, which the Control Center toggle and the page's switch both change.
+    /// </summary>
+    public bool GoalAlerts
+    {
+        get => Preferences.Default.Get(AlertsKey, true);
+        set
+        {
+            if (value == GoalAlerts) return;
+            Preferences.Default.Set(AlertsKey, value);
+            OnPropertyChanged();
+            // Switched in the app: Control Center and Quick Settings follow.
+            _ = _controls.RefreshAsync(GoalAlertsControl.Kind);
+        }
+    }
 
     public string GoalHomeText => $"Goal {Game.Home.ShortName}";
     public string GoalAwayText => $"Goal {Game.Away.ShortName}";
@@ -121,6 +141,9 @@ public sealed partial class LiveScore : ObservableObject
         _ => NextGameAsync(),
     };
 
+    /// <summary>A goal for the followed club; run from the Control Center button with the app in the background.</summary>
+    public Task GoalForFollowedAsync() => GoalAsync(Teams.Followed);
+
     [RelayCommand]
     private Task GoalHome() => GoalAsync(Game.Home);
 
@@ -191,6 +214,8 @@ public sealed partial class LiveScore : ObservableObject
             await running.UpdateAsync(ScoreActivity.Layout(game, DateTimeOffset.Now, ActivityLink), DateTimeOffset.Now + ScoreActivity.StaleAfter);
 
         await _widgets.RefreshAsync(ScoreWidget.Kind);
+        // The goal button's second line is the score.
+        await _controls.RefreshAsync(GoalControl.Kind);
     }
 
     /// <summary>Saved by the app, so a widget built in a process the platform started sees the same game.</summary>

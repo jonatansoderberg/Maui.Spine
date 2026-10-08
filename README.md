@@ -186,6 +186,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | **Custom transitions** | Replace the built-in slide animation | [Custom Transitions](docs/wiki/custom-transitions.md) |
 | **Shared elements and zoom** | One `Transition.Tag` on each page: a view flies from one page to the next and back, or the page grows out of the view it opens from and shrinks back into it under the finger | [Shared Elements and Zoom](docs/wiki/transitions.md) |
 | **Lightbox** | `[NavigableLightbox]` and a `Lightbox`: photos full screen on black that open out of their thumbnail, page sideways, pinch and double-tap zoom, drag down to close into the thumbnail, Share and Save | [Lightbox](docs/wiki/lightbox.md) |
+| **Widgets** | Home-screen widgets, Live Activities, Control Center controls and Quick Settings tiles built from C# | [Widgets](docs/wiki/widgets.md) |
 | **Widgets** | Home-screen widgets and Live Activities built from C# | [Widgets](docs/wiki/widgets.md) |
 | **Background tasks** | `[BackgroundTask]` classes the system runs while the app is closed, with their status, a run on request or from a push, and the widgets rebuilt after them | [Background tasks](docs/wiki/background-tasks.md) |
 | **Glass buttons** | `Button`/`ImageButton` as Liquid Glass on iOS 26, normal buttons elsewhere | [Glass buttons](docs/wiki/glass-buttons.md) |
@@ -214,6 +215,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Custom Transitions](docs/wiki/custom-transitions.md) | Replace the default slide animation |
 | [Shared Elements and Zoom](docs/wiki/transitions.md) | `Transition.Tag` on a view on each page for a shared element, on the page itself for a zoom; a focus view inside the zooming page; the back-swipe zoom |
 | [Lightbox](docs/wiki/lightbox.md) | A full-screen photo viewer page: opening from the thumbnail, paging, zoom, drag down to close, Share, Save and the page's own actions |
+| [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets, Dynamic Island, Control Center and Quick Settings, built from C# |
 | [Segmented control and top tabs](docs/wiki/segmented-control.md) | `SegmentedControl` on `UISegmentedControl`, Material segmented buttons and `SelectorBar`; `TopTabs` with lazy, kept tab content that the header bar follows |
 | [Widgets and Live Activities](docs/wiki/widgets.md) | Home-screen widgets and Dynamic Island, built from C# |
 | [Background tasks](docs/wiki/background-tasks.md) | `[BackgroundTask]` on BGTaskScheduler and JobScheduler: what runs when on each platform, status, requests, `spine.task` from a push, and the widgets' refresh as a task |

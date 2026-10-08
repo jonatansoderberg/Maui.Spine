@@ -124,7 +124,11 @@ public static partial class SpineWidgetsExtensions
     private static async Task HandleRecordedActionAsync(IServiceProvider services, WidgetPlatform platform, RecordedAction action)
     {
         var started = Environment.TickCount64;
-        try { await HandleActionAsync(services, action.Kind, action.ActionId, action.At); }
+        try
+        {
+            if (action.Control) await HandleControlActionAsync(services, action.Kind, action.IsOn, action.At);
+            else await HandleActionAsync(services, action.Kind, action.ActionId, action.At);
+        }
         finally
         {
             if (action.Id is { } id) platform.CompleteAction(id);

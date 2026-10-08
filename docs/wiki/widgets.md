@@ -4,7 +4,7 @@
 dotnet add package Plugin.Maui.Spine.Widgets
 ```
 
-Spine widgets let an app build a **home-screen widget** and a **Live Activity** from C#, with no Xcode project, no app-specific Swift and no Android platform code. The app builds a small view tree, Spine serializes it, and a generic native renderer draws it — with SwiftUI in a widget extension on iOS, with `RemoteViews` in the app's own process on Android.
+Spine widgets let an app build a **home-screen widget**, a **Live Activity** and a **Control Center control or Quick Settings tile** from C#, with no Xcode project, no app-specific Swift and no Android platform code. The app builds a small view tree, Spine serializes it, and a generic native renderer draws it — with SwiftUI in a widget extension on iOS, with `RemoteViews` in the app's own process on Android.
 
 The reasoning behind the design — why C# cannot run inside a WidgetKit extension, and why a serialized tree is the answer — is in the [Spine.Widgets proposal](../proposals/spine-widgets.md).
 
@@ -34,6 +34,7 @@ On every platform without an implementation the services are still injectable an
 | **Home-screen widget** | iOS home screen and Today view; Android launcher | A [timeline](#the-timeline) of trees, one per family or one [adaptive](#adaptive-trees) tree |
 | **Lock-screen accessory** | iOS Lock Screen: a circle, a rectangle, or the line above the clock | The same provider, with trees for the `Accessory…` families; see [Lock-screen widgets](#lock-screen-widgets) |
 | **Live Activity** | iOS Lock Screen banner and the Dynamic Island (compact, expanded, minimal); Android 16 status-bar chip and promoted notification | A [`LiveActivityLayout`](#live-activities), updated by the app or by push |
+| **Control** | iOS 18 Control Center, Lock Screen and Action button; Android Quick Settings tile | A [`ControlState`](#controls) — a toggle or a button — from an `IControlProvider` |
 
 What every one of them can show is the [tree vocabulary](#the-tree): stacks, text, system-drawn timers, SVG icons, stored pictures, a progress bar, and buttons that run C# without opening the app. What they cannot show — a chart, a custom font, a rotated or clipped shape — the app can still draw itself, as a picture; see [Pictures drawn by the app](#pictures-drawn-by-the-app).
 
@@ -742,6 +743,89 @@ On Android there is no eight-hour limit and no tokens: a Live Update is reached 
 
 ---
 
+## Controls
+
+A **control** is a toggle or a button with a title, an icon and a state, shown outside the app: in **Control Center**, on the **Lock Screen** and on the **Action button** on iOS 18, and as a **Quick Settings tile** on Android 7 and later. A tap runs the app's handler in its own process, the same way a widget's [button](#buttons) does, so the app never comes to the front.
+
+<p align="center">
+  <img src="images/control-center-ios.png" width="300" alt="A toggle and a button from the Showcase in Control Center on iOS">
+  <img src="images/quick-settings-android.png" width="300" alt="The same two controls as Quick Settings tiles on Android">
+</p>
+<p align="center"><sub>The Showcase's two controls: "Goal alerts" (a toggle) and "Goal Owls" (a button that scores in the running game)</sub></p>
+
+| Platform | Control | Where the user adds it |
+|---|---|---|
+| iOS 18+ | `ControlWidgetToggle` / `ControlWidgetButton` in the same widget extension | Control Center → **+** → *Add a Control*; Lock Screen → *Customize*; Settings → *Action Button* |
+| Android 7+ | A `TileService` per control | Quick Settings → pencil; or the app asks with `RequestAddAsync` on Android 13+ |
+| Mac Catalyst, Windows | None — `IControlService.IsSupported` is `false` | — |
+
+### Declare it to the build
+
+As with widgets, the native side exists before any C# runs, so each control is an MSBuild item. `Include` is the kind and must match the attribute; `Type` decides which native control is generated, and is required.
+
+```xml
+<ItemGroup>
+  <SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Description="Hear about every goal, or not." Icon="bell" />
+  <SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Icon="hockey.puck" />
+</ItemGroup>
+```
+
+`DisplayName` and `Description` are what iOS's control gallery shows, and `DisplayName` is the tile's label on Android until the app has run. `Icon` is the gallery's SF Symbol before the app has stored a state of its own. At most nine controls; a kind cannot be both a `<SpineWidget>` and a `<SpineControl>`. An app may declare controls and no widgets; the extension is built either way.
+
+### Write the provider
+
+```csharp
+[Control("goal-alerts")]
+public sealed class GoalAlertsControl(ISettings _settings) : IControlProvider
+{
+    public Task<ControlState> GetStateAsync(ControlContext context, CancellationToken cancellationToken) =>
+        Task.FromResult(ControlState.Toggle("Goal alerts", _settings.GoalAlerts, "bell") with { Tint = WidgetColor.Orange });
+
+    public async Task OnActionAsync(ControlAction action)   // main thread; action.IsOn, action.At
+    {
+        _settings.GoalAlerts = action.IsOn == true;
+        await _push.SetTagAsync("goals", action.IsOn == true);
+    }
+}
+
+[Control("goal")]
+public sealed class GoalControl(LiveScore _score) : IControlProvider
+{
+    public Task<ControlState> GetStateAsync(ControlContext context, CancellationToken cancellationToken) =>
+        Task.FromResult(ControlState.Button("Goal Owls", "plus", status: _score.Line) with { Symbol = "hockey.puck" });
+
+    public Task OnActionAsync(ControlAction action) => _score.GoalForFollowedAsync();   // action.IsOn is null
+}
+```
+
+The provider is constructed through DI every time it runs. `GetStateAsync` runs at launch, when the app goes to the background, in [background runs](#background-runs), after every tap, on `IControlService.RefreshAsync(kind)` — call it when the app changes what the control shows — and on Android each time the Quick Settings panel shows the tile. `OnActionAsync` runs on the main thread, and the control is rebuilt when it returns, also when the handler refused the change: the rebuilt state is what the control then shows.
+
+| `ControlState` | iOS | Android |
+|---|---|---|
+| `Title` | The control's title | The tile's label |
+| `IsOn` | The toggle's value; `null` makes it a button | Active / inactive; a button tile is inactive |
+| `Icon` | The SF Symbol of that name | An SVG of that name (dots as underscores), drawn as the tile's white mask — the same lookup as [`W.Icon`](#icons) |
+| `Symbol` | The SF Symbol, when it is not named like `Icon` | — |
+| `Status` | A button's second line. A toggle shows iOS's own *On* / *Off* in the user's language | The tile's subtitle (Android 10+); without one Android says *On* / *Off* |
+| `Tint` | The color of a toggle that is on | — (the system accent) |
+
+**iOS draws only symbols in a control.** An SVG that is not also an SF Symbol name leaves the control empty there, so either pick a name both have (`bell`, `clock`, `star`, `plus`) or set `Symbol`.
+
+### What happens on a tap
+
+- **iOS:** the control runs one of two App Intents Spine carries — a `SetValueIntent` for toggles, a plain intent for buttons. Both are `LiveActivityIntent`s and declared in the app's own `Metadata.appintents`, so iOS runs them in the app's process and launches it in the background when it is not running — the arrangement the widget button already uses. A toggle flips the moment it is tapped; Spine also writes the new value into the stored state first, so it holds even if iOS ran the intent in the extension, where the tap is then handled at the app's next launch. The intent waits for .NET to rebuild the control, up to 25 seconds.
+- **Android:** the tile's service runs in the app's process. A toggle flips at once, the handler runs, and the tile is redrawn from the rebuilt state. Spine does not call `unlockAndRun`, so on a locked phone the handler runs without asking the user to unlock.
+
+### Asking the user to add one
+
+```csharp
+if (await _controls.RequestAddAsync("goal-alerts")) { /* added, or already there */ }
+```
+
+On Android 13 and later this is the system's *"… wants to add the following tile to Quick Settings"* prompt; it must come from a button the user pressed while the app is in front. iOS has no such prompt and returns `false` — tell the user where Control Center's **+** is instead.
+
+---
+
 ## Update budgets
 
 Three separate mechanisms decide what the user actually sees, and only one of them is budgeted. Designing against the wrong one is the single most common way a widget ends up looking broken.
@@ -957,6 +1041,9 @@ What Spine widgets cannot do, and what to do instead.
 | Color a Live Update on Android | Android does not promote a colorized notification | Leave `Background` to iOS |
 | Widgets on Windows | Not implemented | The services are no-ops there; check `IsSupported` |
 | A Live Activity on the Mac | ActivityKit does not exist on macOS | A widget, or a notification |
+| A control drawn from the tree vocabulary, or with an SVG on iOS | A control is a fixed template, and iOS draws only SF Symbols in one | `Title`, `Status`, `Icon`/`Symbol`, `Tint` |
+| A control with a parameter (the user picks which light) | Spine's controls are static; there is no configuration intent | One kind per choice |
+| Controls on the Mac or on Windows | Mac Catalyst apps have no Control Center controls; Windows has no equivalent | — |
 
 ---
 
@@ -969,6 +1056,8 @@ What Spine widgets cannot do, and what to do instead.
 - **Live Activity on the Lock Screen.** Start it from the app, lock, and wait a few seconds. A **slow** swipe to the left on the activity dismisses it; a quick one unlocks the phone instead. The bridge logs every dismissal and end: `xcrun simctl spawn booted log show --last 3m --predicate 'eventMessage CONTAINS "SpineWidgetBridge"'`. The extension logs under `[SpineWidgets]`.
 - **Pushes in the simulator.** `xcrun simctl push` hands the payload straight to SpringBoard: it never runs a notification service extension, so anything a service extension adds — an image, a mutated body — appears only with a real APNs push, which the simulator on Apple silicon can receive.
 - **Background runs** cannot be exercised in the simulator. On a device, pause in the debugger and run the `_simulateLaunchForTaskWithIdentifier:` command in [Background runs](#background-runs).
+- **Controls (iOS simulator).** Swipe down from the top-right corner for Control Center, tap **+** → *Add a Control* and search for the app; drag a control's corner to show its title and status. Taps in Control Center reach the app like on a device; `[SpineWidgets] control toggle … handled by the app in … ms` in the log says the intent ran in the app's process.
+- **Tiles (Android).** `adb shell cmd statusbar add-tile <package>/plugin.maui.spine.widgets.SpineControlTile0` adds the first control's tile, `click-tile` taps it and `remove-tile` removes it. A force-stopped app's tile does nothing until the app is launched again; that is Android's stopped state, not Spine.
 - **Android.** Place the widget from the launcher's widget picker; logcat's `SpineWidgets` tag has the receiver's messages. An emulator reaches a server on your machine through `adb reverse`.
 - **Pictures.** Render the painter from a unit test or a console app and look at the PNG before building for a device.
 
@@ -987,6 +1076,9 @@ What Spine widgets cannot do, and what to do instead.
 | A Lock Screen widget loses its colors | iOS draws accessories in one tint; see [Lock-screen widgets](#lock-screen-widgets). |
 | The countdown stands still | Text the app computed instead of a `W.Timer` node. |
 | A button changes the widget only after the app is opened (iOS) | The intent ran in the extension: the app bundle has no `Metadata.appintents` in its root, or the one there is stale. The build writes it from the bridge framework; `rm -rf obj/spinewidgets` and build again, and check the `.app` root. |
+| A control is not in iOS's control gallery | The kind has no `<SpineControl>` item, the device runs iOS 17, or the app was never launched after install. |
+| A control's icon is empty (iOS) | Its `Icon` is not an SF Symbol name; set `Symbol`. |
+| A tile shows the item's name and a dot (Android) | The app has not stored a state yet, or the icon's SVG was not found (logcat `SpineWidgets`). |
 | `StartAsync` returns `null` | Live Activities are off in Settings, or the app was not in the foreground. On Android: the notification permission was denied, or the device is older than Android 16. |
 | Build error about the App Group | The app's `CodesignEntitlements` does not list the group; see [setup](#3-give-the-app-the-app-group-entitlement). |
 | `SIGKILL (Code Signature Invalid)` at launch | A stale app bundle. Delete `bin/…/<App>.app` and `obj/…/<rid>/codesign` and build again. |

@@ -25,21 +25,30 @@ struct SpineWidgetIntent: LiveActivityIntent {
     }
 
     func perform() async throws -> some IntentResult {
+        await ActionRelay.relay(kind: kind, actionId: actionId, control: false, isOn: nil)
+        return .result()
+    }
+}
+
+/// What every Spine intent does with a tap: record it, tell the app, and — in the app's process — wait
+/// for .NET to report it handled. Shared by the widget button and the controls.
+enum ActionRelay {
+    static func relay(kind: String, actionId: String, control: Bool, isOn: Bool?) async {
         let id = UUID().uuidString
-        ActionLog.append(id: id, kind: kind, actionId: actionId)
+        let what = control ? "control \(actionId)" : "tap \"\(actionId)\" on"
+        ActionLog.append(id: id, kind: kind, actionId: actionId, control: control, isOn: isOn)
         ActionLog.notify()
         if ActionLog.isExtension {
-            NSLog("[SpineWidgets] tap \"%@\" on %@ recorded by the extension; the app handles it when next active", actionId, kind)
+            NSLog("[SpineWidgets] %@ %@ recorded by the extension; the app handles it when next active", what, kind)
         } else {
             // Apple gives perform() 30 seconds, launch included; leave a margin so a slow handler ends
             // in a reload of whatever is there rather than a system error.
             let started = Date.now
             let handled = await ActionCompletions.wait(id: id, seconds: 25)
             let ms = Int(Date.now.timeIntervalSince(started) * 1000)
-            if handled { NSLog("[SpineWidgets] tap \"%@\" on %@ handled by the app in %d ms", actionId, kind, ms) }
-            else { NSLog("[SpineWidgets] tap \"%@\" on %@ not answered by the app within %d ms; returning", actionId, kind, ms) }
+            if handled { NSLog("[SpineWidgets] %@ %@ handled by the app in %d ms", what, kind, ms) }
+            else { NSLog("[SpineWidgets] %@ %@ not answered by the app within %d ms; returning", what, kind, ms) }
         }
-        return .result()
     }
 }
 
@@ -53,11 +62,13 @@ enum ActionLog {
 
     static var isExtension: Bool { Bundle.main.bundleURL.pathExtension == "appex" }
 
-    static func append(id: String, kind: String, actionId: String) {
+    static func append(id: String, kind: String, actionId: String, control: Bool = false, isOn: Bool? = nil) {
         guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)?
             .appendingPathComponent("spine-widgets") else { return }
         try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let line = "{\"id\":\"\(id)\",\"kind\":\"\(kind.escaped)\",\"actionId\":\"\(actionId.escaped)\",\"at\":\(Date.now.timeIntervalSince1970)}\n"
+        // A control's line says so, and a toggle's carries the value it was switched to.
+        let extra = (control ? ",\"control\":true" : "") + (isOn.map { ",\"isOn\":\($0)" } ?? "")
+        let line = "{\"id\":\"\(id)\",\"kind\":\"\(kind.escaped)\",\"actionId\":\"\(actionId.escaped)\",\"at\":\(Date.now.timeIntervalSince1970)\(extra)}\n"
         let url = root.appendingPathComponent("actions.jsonl")
         if let handle = try? FileHandle(forWritingTo: url) {
             handle.seekToEndOfFile(); handle.write(Data(line.utf8)); try? handle.close()
