@@ -178,6 +178,24 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         set => SetValue(IsHeaderBarVisibleProperty, value);
     }
 
+    /// <summary>
+    /// Whether a lightbox has faded the bar out. The bar takes touches only while it is neither hidden
+    /// by its page nor faded out, so either one alone keeps it from swallowing touches meant for the page.
+    /// </summary>
+    public bool IsChromeHidden
+    {
+        get => _isChromeHidden;
+        set
+        {
+            _isChromeHidden = value;
+            UpdateInputTransparent();
+        }
+    }
+
+    private bool _isChromeHidden;
+
+    void UpdateInputTransparent() => InputTransparent = _isChromeHidden || !IsHeaderBarVisible;
+
     public bool IsTitleBarVisible
     {
         get => (bool)GetValue(IsTitleBarVisibleProperty);
@@ -267,7 +285,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
         // Hiding fades and collapses the content, but this view keeps its full-width strip and
         // would still swallow touches meant for whatever the page draws underneath (a hero header).
-        InputTransparent = !isVisible;
+        UpdateInputTransparent();
 
         // The whole bar only fades: shrinking every item at once reads as the bar sinking away.
         _ = AnimateVisibility(Content, isVisible, scales: false);
