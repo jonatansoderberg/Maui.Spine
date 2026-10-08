@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/308
 **Branch:** issue/308-feature-idea-background-tasks-backgroundtask-over
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 
