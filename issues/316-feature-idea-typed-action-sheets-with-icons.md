@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/316
 **Branch:** issue/316-feature-idea-typed-action-sheets-with-icons
-**Status:** In Review
+**Status:** Completed
 
 ## Plan
 
