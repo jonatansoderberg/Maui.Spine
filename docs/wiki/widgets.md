@@ -97,7 +97,7 @@ On iOS the items become the widget extension; on Android they become manifest en
 | `SpineWidgetsAppGroup` | `group.$(ApplicationId)` | The App Group the app and the extension share. |
 | `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. On Android: whether the manifest gets the notification permissions a Live Update needs. |
 | `SpineWidgetsFrequentUpdates` | `false` | Declares `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget of Live Activities. |
-| `SpineWidgetsBackgroundRefresh` | `true` | Adds `UIBackgroundModes: fetch` and the task identifier for [background runs](#background-runs); on Android, the alarm receiver. |
+| `SpineWidgetsBackgroundRefresh` | `true` | Adds `UIBackgroundModes: fetch` and the task identifier for [background runs](#background-runs); on Android, the alarm receiver. With `Plugin.Maui.Spine.BackgroundTasks` the identifier is that package's instead. |
 | `SpineWidgetsMinimumOSVersion` | `17.0` | Deployment target of the extension. |
 | `SpineWidgetsExtensionName` | `SpineWidgets` | Bundle name of the appex. |
 | `SpineWidgetsCodesignProvision` | *(empty)* | Names the extension's own provisioning profile. Empty means the installed profile whose App ID matches is used. |
@@ -411,6 +411,8 @@ public sealed class SyncHandler(IRaceService _races) : IBackgroundRefreshHandler
 
 A run has little time: about 30 seconds on iOS, 20 on Android. The handler's token is cancelled when it runs out, so pass it on to every HTTP call and database query. On Android a handler that is still running 5 seconds after that is left behind: the run is ended without it, so the system does not report the app as not responding, and a warning naming the handler is logged. A widget's `Refresh(after)` alarm and a button tap have the same limit on Android.
 
+**With `Plugin.Maui.Spine.BackgroundTasks` in the app**, this run is that package's built-in task `spine.widgets`, scheduled together with the app's own `[BackgroundTask]` classes under one iOS identifier and as a `JobScheduler` job on Android; the options above stay the same. See [Background tasks](background-tasks.md#widgets). A task that fetches data for one widget can name it with `Widgets = ["kind"]` instead of going through the handler. Without that package, the rest of this section applies.
+
 The interval is a request: iOS decides when a task actually runs from how the app is used (typically a few times an hour, sometimes not for hours), Android batches alarms in Doze. `TimeSpan.Zero` turns the runs off. The build adds `UIBackgroundModes: fetch` (beside the modes the app declares itself) and the task identifier to `Info.plist` (`SpineWidgetsBackgroundRefresh=false` to leave them out) and the alarm receiver to the Android manifest. On iOS the task cannot be exercised in the simulator; on a device, pause in the debugger and run `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"<ApplicationId>.spine-widgets.refresh"]`.
 
 ### Remote source
@@ -555,6 +557,15 @@ foreach (var day in days)                                            // today an
 With more slots than entries, the sixty days in the timeline map to sixty different slots, and the day that a rebuild adds takes the slot of one that has already passed — so no entry the platform may still show is overwritten under it. The container holds 64 pictures for good, never more. The same arithmetic works for any key that increases: a week number, an episode index.
 
 Rendering sixty pictures takes time. Skip a slot whose file is already current (keep the day it was drawn for in `Preferences`), and the daily rebuild draws one picture instead of sixty.
+
+#### Pictures from the web
+
+The extension cannot reach the app's image cache, and should not: a cache may drop a file the widget still shows. With [Plugin.Maui.Spine.Images](images.md) installed, `IImageCache.LoadPngAsync` gives the widget its own copy at the size it draws, from the cache when the app has already shown the picture:
+
+```csharp
+await using var png = await images.LoadPngAsync(team.LogoUrl, maxPixelSize: 120);
+await _widgets.StoreAssetAsync($"logo-{team.Id}.png", png);
+```
 
 ### Pictures drawn by the app
 

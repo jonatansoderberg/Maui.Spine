@@ -39,6 +39,12 @@ public static partial class SpineWidgetsExtensions
             services.AddSingleton<ILiveActivityService, LiveActivityService>();
             services.AddSingleton<IControlService, ControlService>();
 
+            // The background refresh as a task of Plugin.Maui.Spine.BackgroundTasks, when the app has it:
+            // iOS allows one pending refresh request per app, so it cannot keep a schedule of its own beside
+            // that package's. Without the package nobody reads this, and the platform code below books it.
+            services.AddSingleton(new SpineBackgroundTaskRegistration(WidgetsTask, () => options.BackgroundRefreshInterval,
+                static (services, _, cancellationToken) => RunBackgroundRefreshAsync(services, cancellationToken)));
+
             ConfigurePlatform(builder, options);
         }
 
@@ -50,7 +56,13 @@ public static partial class SpineWidgetsExtensions
         return builder;
     }
 
+    /// <summary>The name of the widgets' background refresh among the tasks of Plugin.Maui.Spine.BackgroundTasks.</summary>
+    internal const string WidgetsTask = "spine.widgets";
+
     static partial void ConfigurePlatform(MauiAppBuilder builder, SpineWidgetsOptions options);
+
+    /// <summary>Whether Plugin.Maui.Spine.BackgroundTasks runs the background refresh as its task <see cref="WidgetsTask"/>.</summary>
+    internal static bool BackgroundTasksOwnRefresh(IServiceProvider services) => services.GetService<IBackgroundTasks>() is not null;
 
     /// <summary>
     /// One background run: the app's <see cref="IBackgroundRefreshHandler"/> first, if registered, then

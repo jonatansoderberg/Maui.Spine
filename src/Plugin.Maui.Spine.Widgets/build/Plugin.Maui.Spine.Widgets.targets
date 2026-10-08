@@ -14,7 +14,8 @@
 		                 Icon is the gallery's SF Symbol until the app has run; the provider's state names it after that.)
 		  SpineWidgetsAppGroup        default group.$(ApplicationId)   (iOS)
 		  SpineWidgetsLiveActivities  default true                      (iOS: the activity in the bundle; Android: the notification permissions)
-		  SpineWidgetsBackgroundRefresh default true                    (iOS: UIBackgroundModes fetch + the BGTaskScheduler identifier; Android: the alarm receiver)
+		  SpineWidgetsBackgroundRefresh default true                    (iOS: UIBackgroundModes fetch + the BGTaskScheduler identifier; Android: the alarm receiver;
+		                                                                 with Plugin.Maui.Spine.BackgroundTasks the refresh is its task spine.widgets instead)
 		  SpineWidgetsFrequentUpdates default false                     (iOS: NSSupportsLiveActivitiesFrequentUpdates)
 		  SpineWidgetsMinimumOSVersion default 17.0                    (iOS)
 		  SpineWidgetsExtensionName   default SpineWidgets             (iOS)
@@ -52,10 +53,13 @@
 						  Because="The app and the widget extension share data through it." />
 	</ItemGroup>
 
-	<!-- The mode background runs need, written with the other packages' modes in Plugin.Maui.Spine.Common.
-	     Only when there is a widget or a control, which is also when the script writes the task identifier. -->
+	<!-- The mode and the BGTask identifier background runs need, written with the other packages' in
+	     Plugin.Maui.Spine.Common, and only when there is a widget or a control. With Plugin.Maui.Spine.BackgroundTasks in
+	     the build the refresh is its built-in task spine.widgets, which runs under that package's identifier:
+	     iOS allows one pending refresh request per app, so the two cannot both be booked. -->
 	<ItemGroup Condition="'$(_SpineWidgetsApple)' == 'true' And '$(SpineWidgetsEnabled)' == 'true' And '$(SpineWidgetsBackgroundRefresh)' == 'true' And ('@(SpineWidget)' != '' Or ('@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true'))">
 		<SpineBackgroundMode Include="fetch" />
+		<SpineBackgroundTaskIdentifier Include="$(ApplicationId).spine-widgets.refresh" Condition="'$(SpineBackgroundTasksEnabled)' != 'true'" />
 	</ItemGroup>
 
 	<Target Name="_SpineWidgetsPrepare"
@@ -115,7 +119,7 @@
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And '$(_SpineWidgetsApple)' == 'true' And ('@(SpineWidget)' != '' Or ('@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true')) And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))"
 			Inputs="@(_SpineWidgetsInputs)"
 			Outputs="$(_SpineWidgetsStamp)">
-		<Exec Command="bash &quot;$(_SpineWidgetsScript)&quot; --out &quot;$(_SpineWidgetsOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpineWidgetsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpineWidgetsSdk) --arch $(_SpineWidgetsArch) --min-os $(SpineWidgetsMinimumOSVersion) --config $(Configuration) --bundle-id &quot;$(_SpineWidgetsBundleId)&quot; --app-group &quot;$(SpineWidgetsAppGroup)&quot; --name &quot;$(SpineWidgetsExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --url-scheme &quot;$(ApplicationId)&quot; --live-activities $(SpineWidgetsLiveActivities) --background-refresh $(SpineWidgetsBackgroundRefresh) --frequent-updates $(SpineWidgetsFrequentUpdates) --provision &quot;$(SpineWidgetsCodesignProvision)&quot; --require-provision $(_SpineWidgetsRequireProvision) --push $(SpineWidgetsPush) --push-environment $(_SpineWidgetsPushEnvironment) $(_SpineWidgetsArgs)" />
+		<Exec Command="bash &quot;$(_SpineWidgetsScript)&quot; --out &quot;$(_SpineWidgetsOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpineWidgetsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpineWidgetsSdk) --arch $(_SpineWidgetsArch) --min-os $(SpineWidgetsMinimumOSVersion) --config $(Configuration) --bundle-id &quot;$(_SpineWidgetsBundleId)&quot; --app-group &quot;$(SpineWidgetsAppGroup)&quot; --name &quot;$(SpineWidgetsExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --url-scheme &quot;$(ApplicationId)&quot; --live-activities $(SpineWidgetsLiveActivities) --frequent-updates $(SpineWidgetsFrequentUpdates) --provision &quot;$(SpineWidgetsCodesignProvision)&quot; --require-provision $(_SpineWidgetsRequireProvision) --push $(SpineWidgetsPush) --push-environment $(_SpineWidgetsPushEnvironment) $(_SpineWidgetsArgs)" />
 	</Target>
 
 	<!--

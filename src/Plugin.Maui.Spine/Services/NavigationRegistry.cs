@@ -91,6 +91,12 @@ internal sealed class NavigationRegistry
     /// <summary>Returns <see langword="true"/> when <paramref name="type"/> is registered as a navigable page.</summary>
     public bool Contains(Type type) => _registry.ContainsKey(type);
 
+    /// <summary>The registered page with this full type name, or <see langword="null"/>.</summary>
+    public Type? Find(string fullName) => _registry.Keys.FirstOrDefault(t => t.FullName == fullName);
+
+    /// <summary>Every registered page with its <see cref="NavigableAttribute"/> (defaults applied).</summary>
+    public IEnumerable<KeyValuePair<Type, NavigableAttribute>> Pages => _registry;
+
     /// <summary>
     /// Returns the <see cref="NavigableAttribute"/> (with defaults applied) for <paramref name="type"/>.
     /// </summary>

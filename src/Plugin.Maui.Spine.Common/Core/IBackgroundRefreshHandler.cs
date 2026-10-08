@@ -5,6 +5,8 @@ namespace Plugin.Maui.Spine.Common;
 /// <c>BGAppRefreshTask</c>, on Android an alarm — before every widget is rebuilt. Register with
 /// <see cref="SpineWidgetsOptions.UseBackgroundRefresh{THandler}"/> to sync data first; the widgets
 /// are refreshed afterwards whether or not a handler is registered. Resolved through DI on every run.
+/// With <c>Plugin.Maui.Spine.BackgroundTasks</c> in the app, the handler and the rebuild run as that
+/// package's built-in task <c>spine.widgets</c>, scheduled with the app's own tasks.
 /// </summary>
 public interface IBackgroundRefreshHandler
 {

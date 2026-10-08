@@ -122,8 +122,8 @@ route means, the same way `IWidgetLinkHandler` handles a widget's link.
 | `PushKind` | What Spine does before the handler sees it |
 |---|---|
 | `Alert` | Nothing. On Android the notification is drawn after the handler answers |
-| `Silent` | Nothing |
-| `Widget` | `IWidgetService.RefreshAsync(kind)`, when Widgets is installed |
+| `Silent` | Runs the background task named in `spine.task`, if any, when [BackgroundTasks](background-tasks.md#on-request-and-from-a-push) is installed |
+| `Widget` | The `spine.task` task as for `Silent`, then `IWidgetService.RefreshAsync(kind)`, when Widgets is installed |
 | `LiveActivity` | Starts, updates or ends the activity through `ILiveActivityService` |
 
 ---

@@ -1,0 +1,35 @@
+<Project>
+	<!--
+		What iOS needs declared before a background task can run: the background mode and the task
+		identifier, both in Info.plist. Spine uses two fixed identifiers and decides itself which tasks
+		run in each launch, so nothing here depends on the app's [BackgroundTask] classes.
+
+		Consumer knobs:
+		  SpineBackgroundTasksEnabled     default true    (iOS: UIBackgroundModes fetch + <ApplicationId>.spine.refresh)
+		  SpineBackgroundTasksProcessing  default false   (iOS: UIBackgroundModes processing + <ApplicationId>.spine.processing,
+		                                                   for tasks marked Long; without it they run in the refresh)
+
+		Both keys are arrays, which the SDK's partial-plist merge replaces rather than merges, so they are
+		contributed as items and written once, with the app's own entries, by Plugin.Maui.Spine.Common.targets.
+		Plugin.Maui.Spine.Widgets reads SpineBackgroundTasksEnabled: with it on, Widgets leaves its own
+		refresh identifier out and its refresh runs as the built-in task spine.widgets.
+
+		Android needs nothing here: the JobService and RECEIVE_BOOT_COMPLETED come from the package's
+		attributes. Windows and Mac Catalyst have no schedule outside the running app.
+	-->
+	<PropertyGroup>
+		<SpineBackgroundTasksEnabled Condition="'$(SpineBackgroundTasksEnabled)' == ''">true</SpineBackgroundTasksEnabled>
+		<SpineBackgroundTasksProcessing Condition="'$(SpineBackgroundTasksProcessing)' == ''">false</SpineBackgroundTasksProcessing>
+		<_SpineBackgroundTasksIos Condition="'$(SpineBackgroundTasksEnabled)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">true</_SpineBackgroundTasksIos>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(_SpineBackgroundTasksIos)' == 'true'">
+		<SpineBackgroundMode Include="fetch" />
+		<SpineBackgroundTaskIdentifier Include="$(ApplicationId).spine.refresh" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(_SpineBackgroundTasksIos)' == 'true' And '$(SpineBackgroundTasksProcessing)' == 'true'">
+		<SpineBackgroundMode Include="processing" />
+		<SpineBackgroundTaskIdentifier Include="$(ApplicationId).spine.processing" />
+	</ItemGroup>
+</Project>

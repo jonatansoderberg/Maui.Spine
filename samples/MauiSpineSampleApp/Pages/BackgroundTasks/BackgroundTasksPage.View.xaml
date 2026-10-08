@@ -1,0 +1,67 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.BackgroundTasks.BackgroundTasksPage"
+    x:TypeArguments="BackgroundTasksPageViewModel"
+    x:DataType="BackgroundTasksPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.BackgroundTasks, Plugin.Maui.Spine.Widgets">
+
+        <Example Title="A task the system runs"
+                 Summary="A class with [BackgroundTask] is found at startup like a page or a widget. Spine books it with the platform's scheduler: BGTaskScheduler on iOS, JobScheduler on Android. After a run that completed, the widgets it names are built again, so the sample widget's Built time moves even while the app is closed.">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="{Binding SyncRuns, StringFormat='sample-sync has run {0} times on this device.'}" FontSize="15" />
+                <Label Text="{Binding Platform}" FontSize="13" TextColor="Gray" />
+            </VerticalStackLayout>
+            <Example.Code>
+                [BackgroundTask("standings", IntervalMinutes = 30, RequiresNetwork = true, Widgets = ["team"])]
+                public sealed class StandingsTask(IStandingsApi api, StandingsStore store) : IBackgroundTask
+                {
+                    public async Task RunAsync(BackgroundTaskRun run, CancellationToken ct) =&gt;
+                        await store.SaveAsync(await api.FetchAsync(ct), ct);
+                }
+
+                // Optional: an interval from a user setting; TimeSpan.Zero turns it off.
+                builder.UseSpineBackgroundTasks(o =&gt; o.Interval("standings", settings.RefreshEvery));
+            </Example.Code>
+        </Example>
+
+        <Example Title="Every task, and why a widget is old"
+                 Summary="StatusOf says when a task last ran, how it went and when it is next due, across launches. Run now runs it in the app at once. spine.widgets is the widgets' own background refresh, which runs here with the app's tasks; flaky-upload fails every other run to show the error it leaves.">
+            <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Tasks}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="BackgroundTaskRow">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12">
+                            <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="16" />
+                            <Label Grid.Row="1" Text="{Binding Schedule}" FontSize="13" TextColor="Gray" />
+                            <Label Grid.Row="2" Text="{Binding LastRun}" FontSize="13" Text.FontFeatures="TabularFigures" />
+                            <Label Grid.Row="3" Text="{Binding Error}" FontSize="13" TextColor="#D32F2F" IsVisible="{Binding HasError}" />
+                            <Button Grid.Column="1" Grid.RowSpan="4" VerticalOptions="Center" Text="Run now"
+                                    Command="{PageCommand Run}" CommandParameter="{Binding .}" />
+                        </Grid>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+            <Example.Code>
+                await _tasks.RequestAsync("standings");          // runs now, joins a run in progress
+
+                var status = _tasks.StatusOf("standings");
+                // status.LastCompleted, status.LastOutcome, status.LastError, status.NextDue
+            </Example.Code>
+        </Example>
+
+        <Example Title="Honest about the platform"
+                 Summary="iOS decides when a refresh runs, never on a clock, and not at all after the user swipes the app away or turns Background App Refresh off. Android runs a job at most every 15 minutes. Windows and Mac Catalyst run tasks only while the app is open. Every platform catches up on due tasks when the app comes to the front.">
+            <Label Text="To keep something on time, wake the app with a push; a background task keeps it fresh in between." FontSize="15" />
+            <Example.Code>
+                &lt;!-- iOS: one refresh identifier for all tasks is on by default; Long tasks
+                     get BGProcessingTask (idle, charging) with this --&gt;
+                &lt;SpineBackgroundTasksProcessing&gt;true&lt;/SpineBackgroundTasksProcessing&gt;
+
+                if (!_tasks.RunsWhileClosed) ShowHint("Updates while the app is open");
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>
