@@ -67,12 +67,13 @@
                 <Border Material.Preset="BlurThin" StrokeThickness="0" StrokeShape="RoundRectangle 24"
                         HeightRequest="120" Margin="28,0">
                     <Grid>
-                        <Border WidthRequest="280" HeightRequest="280" StrokeThickness="0" InputTransparent="True"
+                        <Border WidthRequest="200" HeightRequest="200" StrokeThickness="0" InputTransparent="True"
                                 HorizontalOptions="Center" VerticalOptions="Center"
                                 Motion.Depth="-70">
                             <Border.Background>
                                 <RadialGradientBrush Center="0.5,0.5" Radius="0.5">
-                                    <GradientStop Color="#73FFFFFF" Offset="0" />
+                                    <GradientStop Color="#E6FFFFFF" Offset="0" />
+                                    <GradientStop Color="#59FFFFFF" Offset="0.45" />
                                     <GradientStop Color="#00FFFFFF" Offset="1" />
                                 </RadialGradientBrush>
                             </Border.Background>
@@ -88,12 +89,13 @@
                 &lt;Border Material.Preset="BlurThin"
                         StrokeShape="RoundRectangle 24"&gt;
                     &lt;Grid&gt;
-                        &lt;Border WidthRequest="280" HeightRequest="280"
+                        &lt;Border WidthRequest="200" HeightRequest="200"
                                 StrokeThickness="0" InputTransparent="True"
                                 Motion.Depth="-70"&gt;
                             &lt;Border.Background&gt;
                                 &lt;RadialGradientBrush&gt;
-                                    &lt;GradientStop Color="#73FFFFFF" Offset="0" /&gt;
+                                    &lt;GradientStop Color="#E6FFFFFF" Offset="0" /&gt;
+                                    &lt;GradientStop Color="#59FFFFFF" Offset="0.45" /&gt;
                                     &lt;GradientStop Color="#00FFFFFF" Offset="1" /&gt;
                                 &lt;/RadialGradientBrush&gt;
                             &lt;/Border.Background&gt;

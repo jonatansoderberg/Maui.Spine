@@ -290,6 +290,7 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
     private UIViewPropertyAnimator? _partial;
     private (UIVisualEffect? From, UIVisualEffect To, double Fraction)? _partialEffect;
     private NSObject? _foreground;
+    private CGSize _laidOutSize;
 
     private void StartPartialEffect(UIVisualEffect? from, UIVisualEffect to, double fraction)
     {
@@ -353,6 +354,16 @@ internal sealed class MaterialSurfaceView(VisualElement owner) : UIVisualEffectV
         base.LayoutSubviews();
 
         var bounds = Bounds;
+
+        // After a rotation UIKit shows a paused effect as its start, not the fraction: the blur turns
+        // clear while the animator still says 0.55. Starting it again once the new size is laid out holds.
+        if (bounds.Size != _laidOutSize)
+        {
+            var resized = _laidOutSize != CGSize.Empty;
+            _laidOutSize = bounds.Size;
+            if (resized && _partialEffect is not null)
+                CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(RestartPartialEffect);
+        }
 
         if (_edgeLine is not null)
         {

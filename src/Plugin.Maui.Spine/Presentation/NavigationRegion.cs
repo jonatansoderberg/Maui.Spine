@@ -971,7 +971,7 @@ public sealed partial class NavigationRegion : ContentView
     private void SetChrome(double opacity)
     {
         _frameActionView.Opacity = opacity;
-        _frameActionView.InputTransparent = opacity <= 0;
+        _frameActionView.IsChromeHidden = opacity <= 0;
         _lightboxToolbar.Opacity = opacity;
         _lightboxToolbar.InputTransparent = opacity <= 0;
         ViewModel.FrontView.TitleBar.Opacity = opacity;
@@ -1368,7 +1368,7 @@ public sealed partial class NavigationRegion : ContentView
                     // The page under it shows its own header, which comes in as the lightbox's went.
                     UpdateLightboxToolbar();
                     ViewModel.FrontView.TitleBar.Opacity = 1;
-                    _frameActionView.InputTransparent = false;
+                    _frameActionView.IsChromeHidden = false;
                     _frameActionView.SpineFadeToAsync(1, LightboxFadeDuration, Easing.CubicOut).SafeFireAndForget();
                 }
                 else

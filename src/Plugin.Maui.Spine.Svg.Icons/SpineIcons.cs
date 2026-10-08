@@ -14,6 +14,8 @@ public static class SpineIcons
     public const string Auto = "Auto.svg";
     /// <summary>The <c>Awning.svg</c> icon.</summary>
     public const string Awning = "Awning.svg";
+    /// <summary>The <c>Axes3D.svg</c> icon.</summary>
+    public const string Axes3D = "Axes3D.svg";
     /// <summary>The <c>Barcode.svg</c> icon.</summary>
     public const string Barcode = "Barcode.svg";
     /// <summary>The <c>Bathroom.svg</c> icon.</summary>
@@ -188,6 +190,8 @@ public static class SpineIcons
     public const string Map = "Map.svg";
     /// <summary>The <c>Menu.svg</c> icon.</summary>
     public const string Menu = "Menu.svg";
+    /// <summary>The <c>MeshBackground.svg</c> icon.</summary>
+    public const string MeshBackground = "MeshBackground.svg";
     /// <summary>The <c>Microowen.svg</c> icon.</summary>
     public const string Microowen = "Microowen.svg";
     /// <summary>The <c>Minus.svg</c> icon.</summary>
@@ -250,6 +254,8 @@ public static class SpineIcons
     public const string Reverse = "Reverse.svg";
     /// <summary>The <c>Search.svg</c> icon.</summary>
     public const string Search = "Search.svg";
+    /// <summary>The <c>SearchItem.svg</c> icon.</summary>
+    public const string SearchItem = "SearchItem.svg";
     /// <summary>The <c>Segmented.svg</c> icon.</summary>
     public const string Segmented = "Segmented.svg";
     /// <summary>The <c>Settings.svg</c> icon.</summary>
@@ -262,6 +268,8 @@ public static class SpineIcons
     public const string Shuffle = "Shuffle.svg";
     /// <summary>The <c>SignOut.svg</c> icon.</summary>
     public const string SignOut = "SignOut.svg";
+    /// <summary>The <c>Skeleton.svg</c> icon.</summary>
+    public const string Skeleton = "Skeleton.svg";
     /// <summary>The <c>SmartClock.svg</c> icon.</summary>
     public const string SmartClock = "SmartClock.svg";
     /// <summary>The <c>SmokeDetector.svg</c> icon.</summary>
@@ -462,6 +470,7 @@ public static class SpineIcons
         Arrow,
         Auto,
         Awning,
+        Axes3D,
         Barcode,
         Bathroom,
         Battery0,
@@ -549,6 +558,7 @@ public static class SpineIcons
         MailboxUnread,
         Map,
         Menu,
+        MeshBackground,
         Microowen,
         Minus,
         More,
@@ -580,12 +590,14 @@ public static class SpineIcons
         Return,
         Reverse,
         Search,
+        SearchItem,
         Segmented,
         Settings,
         Share,
         Sheet,
         Shuffle,
         SignOut,
+        Skeleton,
         SmartClock,
         SmokeDetector,
         Sort,

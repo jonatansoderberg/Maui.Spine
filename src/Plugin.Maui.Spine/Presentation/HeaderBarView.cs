@@ -148,16 +148,13 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         get;
         set
         {
-            // Only on a change: the region sets it with every change of the header's page, and a
-            // lightbox's hidden chrome owns InputTransparent meanwhile.
+            // Only on a change: the region sets it with every change of the header's page.
             if (field == value || Content is null)
                 return;
 
             field = value;
             Content.TranslationY = -HeaderBarConstants.BarHeight * value;
-
-            // The bar's strip lies over the field that has taken its place.
-            InputTransparent = value > 0 || !IsHeaderBarVisible;
+            UpdateInputTransparent();
 
             // A hidden bar's own fade owns the opacity then.
             if (IsHeaderBarVisible)
@@ -203,6 +200,25 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         get => (bool)GetValue(IsHeaderBarVisibleProperty);
         set => SetValue(IsHeaderBarVisibleProperty, value);
     }
+
+    /// <summary>
+    /// Whether a lightbox has faded the bar out. The bar takes touches only while it is neither hidden
+    /// by its page nor faded out, so either one alone keeps it from swallowing touches meant for the page.
+    /// </summary>
+    public bool IsChromeHidden
+    {
+        get => _isChromeHidden;
+        set
+        {
+            _isChromeHidden = value;
+            UpdateInputTransparent();
+        }
+    }
+
+    private bool _isChromeHidden;
+
+    // A bar that has given way to a search lies over the field that took its place.
+    void UpdateInputTransparent() => InputTransparent = _isChromeHidden || !IsHeaderBarVisible || SearchProgress > 0;
 
     public bool IsTitleBarVisible
     {
@@ -293,7 +309,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
         // Hiding fades and collapses the content, but this view keeps its full-width strip and
         // would still swallow touches meant for whatever the page draws underneath (a hero header).
-        InputTransparent = !isVisible || SearchProgress > 0;
+        UpdateInputTransparent();
 
         // The whole bar only fades: shrinking every item at once reads as the bar sinking away.
         _ = AnimateVisibility(Content, isVisible, scales: false);
