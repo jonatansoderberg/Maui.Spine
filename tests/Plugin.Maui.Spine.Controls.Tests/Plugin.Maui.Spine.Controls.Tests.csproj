@@ -8,10 +8,14 @@
 
 	<!--
 		The control packages target only MAUI platforms, which a net10.0 test cannot reference.
-		RollingNumber has no MAUI types, so it is compiled in here directly.
+		RollingNumber and the mesh geometry have no MAUI types, so they are compiled in here directly.
 	-->
 	<ItemGroup>
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.AnimatedLabel\RollingNumber.cs" Link="RollingNumber.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\MeshSurface.cs" Link="MeshSurface.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\MeshPalettes.cs" Link="MeshPalettes.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\MeshPreset.cs" Link="MeshPreset.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\Oklab.cs" Link="Oklab.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

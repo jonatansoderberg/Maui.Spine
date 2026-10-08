@@ -1,6 +1,6 @@
 ---
 name: spine-controls
-description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), ContextMenu.Items (long-press / right-click menus on any view), Reorder.Mode, SegmentedControl and TopTabs (native segmented control, in-page tabs), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
+description: Use Spine's controls and visual extensions in a .NET MAUI app — HeroCollectionView (collapsing hero header), AnimatedLabel (marquee, rolling numbers), Calendar (month calendar with year/decade pickers, week numbers and days marked from an external source), DataGrid (responsive row grid with layouts, sorting, grouping, swipe actions), Shimmer and Skeleton.IsActive (skeleton loading), MeshBackground (mesh gradients that drift slowly behind glass), SpineRow (settings and key/value rows), barcodes (Barcode.Encode and BarcodeView: QR, Data Matrix, fixed sizes) and camera scanning (BarcodeScannerView, a scan sheet, codes on a word clock), Tap.Command (press feedback on any view) and Semantic.Merge (one screen-reader element), ContextMenu.Items (long-press / right-click menus on any view), Reorder.Mode, SegmentedControl and TopTabs (native segmented control, in-page tabs), embedded SVG icons with SvgImageSource and the Plugin.Maui.Spine.Svg.Icons set, Liquid Glass buttons with Glass.Style, material surfaces (glass, blur, tinted) with Material.Kind, and tray/window icons from SVG. Use when laying out a page with these controls or when an SVG does not resolve. Invoke as /spine-controls.
 ---
 
 You are using Spine's controls in an app built on **Plugin.Maui.Spine**. Each control is its own package with one registration call; SVGs resolve by short file name everywhere. Full docs: https://github.com/jonatansoderberg/Maui.Spine/tree/master/docs/wiki.
@@ -146,6 +146,21 @@ Skeleton loading; no registration call. `Shimmer` shows a placeholder layout (em
 
 Put `Skeleton.IsActive` on a layout (it throws on other views). For a list's first page, fill the items source with empty rows while loading, or let a `TaskState` with a `placeholder` do it: `Skeleton.IsActive="{Binding People.IsLoading}"` on a layout bound to `People.Value` (see the spine-page skill, Loading data).
 
+## MeshBackground (`Plugin.Maui.Spine.Controls.MeshBackground`)
+
+A mesh gradient behind content, above all behind `Material.Kind` glass and blur; `UseSpine()` registers it (`UseMeshBackground()` without Spine). It fills the space it is given: first child of a `Grid`, or set `HeightRequest` in a stack. `Preset` (`Accent` default, from `IThemeService.Accent` / `Primary`; `Aurora`; `Sunset`) gives light and dark colours and repaints on theme or accent changes; `Colors` (one per point, row by row, repeated when shorter; XAML `Colors="#0A84FF, #BF5AF2"`) overrides it. `Columns`/`Rows` 2–8 (default 3 × 3). `Drift` `None` (default, drawn once), `Slow`, `Medium`, `Fast`; `FrameRate` caps redraws (default 30). It stops redrawing off screen, on a covered page, in the background, and stays still under Reduce Motion. Not in the accessibility tree, takes no touches.
+
+```xml
+<Grid>
+    <MeshBackground Preset="Aurora" Drift="Slow" />
+    <Border Material.Kind="Glass" StrokeThickness="0" StrokeShape="RoundRectangle 24" Padding="20" VerticalOptions="Center">
+        <Label Text="Good evening" />
+    </Border>
+</Grid>
+```
+
+For a whole page: `[NavigableRegion(HeaderBar = HeaderBarMode.Overlay, HeaderBarBackground = HeaderBarBackground.Transparent, SafeAreaEdges = SafeAreaEdges.None)]` and `Padding="{Binding SafeAreaInsets}"` on the content over the mesh.
+
 ## Rows, Tap.Command and Semantic.Merge (`Plugin.Maui.Spine.Controls.Rows`, `Plugin.Maui.Spine`)
 
 `Tap.Command` / `Tap.CommandParameter` on any view: the whole view is the target, with native press feedback (iOS highlight, Android ripple, Windows hover/pressed), inner controls keep their touches, runs only when enabled and `CanExecute`. Use it instead of a `TapGestureRecognizer` plus `BackgroundColor="Transparent"`. `Semantic.Merge="True"` on a layout: children leave the accessibility tree, their texts (own `SemanticProperties.Description`, else `Label.Text`) join into one description; a `Switch` inside makes it a toggle, `Tap.Command` a button. Both in `Plugin.Maui.Spine.Extensions`; not `Semantics` (clashes with `Microsoft.Maui.Semantics`).
@@ -238,5 +253,6 @@ A control never hard-codes words. It reads `SpineStrings.Current["Spine.Calendar
 - Rows and taps: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/rows.md
 - DataGrid: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/data-grid.md
 - Shimmer and Skeleton: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/shimmer.md
+- MeshBackground: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/mesh-background.md
 - Barcodes and scanning: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/barcodes.md
 - Sample: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples/MauiSpineSampleApp

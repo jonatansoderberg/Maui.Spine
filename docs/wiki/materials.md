@@ -18,6 +18,8 @@
 
 It replaces packages such as Sharpnado.MaterialFrame. The sample's collapsing hero used MaterialFrame for its compact header, and now uses a `Border` with `Material.Kind="Blur"` (see [HeroCollectionView](hero-collection-view.md)).
 
+A material shows what is behind it, so it needs something behind it: a photo, a map, or a [MeshBackground](mesh-background.md), a drifting mesh gradient made for the purpose.
+
 ---
 
 ## Two layers
