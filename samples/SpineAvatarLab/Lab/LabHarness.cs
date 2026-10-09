@@ -104,9 +104,15 @@ internal static class LabHarness
     {
 #if IOS || MACCATALYST
         var view = (UIKit.UIView)platformView;
+        // DrawViewHierarchy does not reliably capture a Metal layer; SceneKit renders its own snapshot.
+        if (Find<SceneKit.SCNView>(view) is { } scene && view.Bounds.Size == scene.Bounds.Size)
+            return scene.Snapshot().AsPNG()!.ToArray();
         var renderer = new UIKit.UIGraphicsImageRenderer(view.Bounds.Size, new UIKit.UIGraphicsImageRendererFormat { Opaque = false });
         var image = renderer.CreateImage(_ => view.DrawViewHierarchy(view.Bounds, afterScreenUpdates: true));
         return image.AsPNG()!.ToArray();
+
+        static T? Find<T>(UIKit.UIView view) where T : UIKit.UIView =>
+            view as T ?? view.Subviews.Select(Find<T>).FirstOrDefault(v => v is not null);
 #elif ANDROID
         var root = platformView as Android.Views.View ?? Platform.CurrentActivity?.Window?.DecorView.RootView ?? throw new InvalidOperationException("No view.");
         var bitmap = Android.Graphics.Bitmap.CreateBitmap(root.Width, root.Height, Android.Graphics.Bitmap.Config.Argb8888!)!;

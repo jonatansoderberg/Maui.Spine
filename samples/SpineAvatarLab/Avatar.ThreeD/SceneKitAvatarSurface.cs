@@ -61,7 +61,8 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         foreach (var root in model.SceneRoots)
             _container.AddChildNode(_nodes[root]);
 
-        var materials = model.Materials.Select(Material).ToArray();
+        var images = model.Images.Select(i => UIImage.LoadFromData(NSData.FromArray(i.Bytes.ToArray()))).ToArray();
+        var materials = model.Materials.Select(m => Material(m, images)).ToArray();
         for (var i = 0; i < model.Nodes.Length; i++)
         {
             var node = model.Nodes[i];
@@ -184,8 +185,10 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
                 NSData.FromArray(ToBytes(primitive.Indices)), SCNGeometryPrimitiveType.Triangles, primitive.Indices.Length / 3, sizeof(int));
             var sources = new List<SCNGeometrySource> { SCNGeometrySource.FromVertices(Vectors(primitive.Positions)) };
             sources.Add(SCNGeometrySource.FromNormals(Vectors(primitive.Normals ?? FlatNormals(primitive))));
+            if (primitive.TexCoords is { } uv)
+                sources.Add(TexCoords(uv));
             var geometry = SCNGeometry.Create([.. sources], [element]);
-            geometry.Materials = [primitive.Material >= 0 ? materials[primitive.Material] : Material(new GltfMaterial("", Vector4.One, 0, 0.6f, Vector3.Zero, false, false))];
+            geometry.Materials = [primitive.Material >= 0 ? materials[primitive.Material] : Material(new GltfMaterial("", Vector4.One, 0, 0.6f, Vector3.Zero, false, false), [])];
 
             var target = SCNNode.FromGeometry(geometry);
             if (primitive.Targets.Length > 0)
@@ -222,6 +225,9 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         }
     }
 
+    private static SCNGeometrySource TexCoords(float[] uv) =>
+        SCNGeometrySource.FromData(NSData.FromArray(ToBytes(uv)), SCNGeometrySourceSemantics.Texcoord, uv.Length / 2, true, 2, sizeof(float), 0, 2 * sizeof(float));
+
     // Matrices go through a node's transform so the SCNMatrix4 layout is SceneKit's own, whatever the binding exposes.
     private static SCNMatrix4 ToSceneKit(Matrix4x4 m)
     {
@@ -233,11 +239,32 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         return node.Transform;
     }
 
-    private static SCNMaterial Material(GltfMaterial m)
+    private static SCNMaterial Material(GltfMaterial m, UIImage?[] images)
     {
         var material = SCNMaterial.Create();
         material.LightingModelName = SCNLightingModel.PhysicallyBased;
-        material.Diffuse.Contents = Srgb(m.BaseColor.X, m.BaseColor.Y, m.BaseColor.Z, m.BaseColor.W);
+        UIImage? Image(int index) => index >= 0 && index < images.Length ? images[index] : null;
+        if (Image(m.BaseColorTexture) is { } color)
+        {
+            material.Diffuse.Contents = color;
+            // glTF multiplies the texture by the factor; SceneKit's multiply slot does the same.
+            if (m.BaseColor != Vector4.One)
+                material.Multiply.Contents = Srgb(m.BaseColor.X, m.BaseColor.Y, m.BaseColor.Z, m.BaseColor.W);
+        }
+        else
+            material.Diffuse.Contents = Srgb(m.BaseColor.X, m.BaseColor.Y, m.BaseColor.Z, m.BaseColor.W);
+        if (Image(m.NormalTexture) is { } normal)
+            material.Normal.Contents = normal;
+        if (Image(m.EmissiveTexture) is { } emissive)
+            material.Emission.Contents = emissive;
+        if (m.Mask)
+        {
+            // SceneKit has no alpha test; a fragment modifier discards what glTF's MASK mode would.
+            var cutoff = m.AlphaCutoff.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            material.ShaderModifiers = new SCNShaderModifiers { EntryPointFragment = $"if (_output.color.a < {cutoff}) discard_fragment();" };
+        }
+        else if (m.Blend)
+            material.BlendMode = SCNBlendMode.Alpha;
         material.Metalness.Contents = NSNumber.FromFloat(m.Metallic);
         material.Roughness.Contents = NSNumber.FromFloat(m.Roughness);
         if (m.Emissive != Vector3.Zero)

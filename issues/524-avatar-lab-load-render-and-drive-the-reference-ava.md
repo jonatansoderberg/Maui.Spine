@@ -45,6 +45,11 @@ Phase A of [docs/plans/spine-avatar.md](../docs/plans/spine-avatar.md), with the
 - Harness `shotview` captures only the avatar view with a transparent background (correct for the 3D web view; a lone SKCanvasView is captured at the wrong scale, so 2D posters come from `AvatarSheet` instead).
 - 83 tests.
 - Fix (found by the owner in the Mac lab): Pip and Aurora were drawn above the view. Their clips store offsets and factors (`root.y` 0 → −4), as FORMAT-1.1 says, while round 1 stored absolute values (215 → 211), so `value − rest` moved Pip up 218 units. spine2d 1.1 clips are now read as offsets (x, y, rotation) and factors (scale, opacity); 1.0 keeps absolute values. The offscreen sheets showed nothing because they play no clips, and I wrongly called the mis-placed view capture an artefact; a test now plays the idle clip of each avatar and checks the root stays near rest. 87 tests.
+- `mpfb.spineavatar`: the TalkingHead sample `mpfb.glb` (CC0, MakeHuman/MPFB), textures downscaled to 1024 px by `Tools/repack_glb.py` (36.8 → 19.9 MB GLB, 13 MB package) and packaged by `Tools/package_mpfb.py` as a character: the 15 Oculus visemes, expressions from its ARKit shapes, blink on `eyeBlinkLeft` + `eyeBlinkRight`, gaze by rotating the head bone. Posters captured from the lab's three.js surface. It renders and speaks on both 3D paths on the Mac.
+- glTF reader: sparse accessors (MPFB stores every morph target sparse), embedded PNG/JPEG images, `TEXCOORD_0`, base colour, normal and emissive textures, `MASK` alpha; files that list `extensionsRequired` are rejected with the reason. Rig: blink may name several targets, gaze may turn a head bone (`headRotation`), skinned meshes count in the rest bounds.
+- SceneKit surface: textured PBR materials (texture × factor through the multiply slot), alpha-test by a fragment modifier that discards below the cutoff, float UV sources.
+- Harness `shotview` uses `SCNView.Snapshot()` for SceneKit: `DrawViewHierarchy` returns a stale or distorted Metal frame, which first looked like morph targets not working natively. The status line now shows the last load error.
+- 102 tests.
 
 ## Decisions
 

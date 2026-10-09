@@ -5,8 +5,9 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core.Gltf;
 
 /// <summary>
 /// The parts of a GLB 2.0 file an avatar needs, decoded once into plain arrays: node hierarchy and
-/// rest transforms, triangle meshes with normals, morph targets and skin weights, PBR factors and
-/// animation clips. No textures and no sparse accessors yet; a file that uses them fails with the reason.
+/// rest transforms, triangle meshes with normals, UVs, morph targets and skin weights, PBR factors with
+/// colour, normal and emissive textures, and animation clips, sparse accessors included. No compressed
+/// geometry or texture extensions; a file that needs them fails with the reason.
 /// Renderer-neutral, so a native engine (SceneKit, Filament) and a software renderer can share it.
 /// </summary>
 public sealed class GltfModel
@@ -20,6 +21,9 @@ public sealed class GltfModel
     public required GltfSkin[] Skins { get; init; }
 
     public required GltfClip[] Clips { get; init; }
+
+    /// <summary>Embedded images (PNG or JPEG bytes), referenced by index from materials.</summary>
+    public required GltfImage[] Images { get; init; }
 
     /// <summary>Root nodes of the default scene.</summary>
     public required int[] SceneRoots { get; init; }
@@ -49,8 +53,8 @@ public sealed class GltfModel
     {
         public GltfModel Read()
         {
-            if (root.TryGetProperty("textures", out var textures) && textures.GetArrayLength() > 0)
-                throw new AvatarFormatException(path, "textures are not supported by this runtime yet");
+            if (root.TryGetProperty("extensionsRequired", out var required) && required.GetArrayLength() > 0)
+                throw new AvatarFormatException(path, $"requires glTF extensions this runtime does not support: {required}");
 
             var nodes = Array(root, "nodes").Select(ReadNode).ToArray();
             var scene = root.TryGetProperty("scene", out var s) ? s.GetInt32() : 0;
@@ -63,6 +67,7 @@ public sealed class GltfModel
                 Materials = Array(root, "materials").Select(ReadMaterial).ToArray(),
                 Skins = Array(root, "skins").Select(ReadSkin).ToArray(),
                 Clips = Array(root, "animations").Select(ReadClip).ToArray(),
+                Images = Array(root, "images").Select(ReadImage).ToArray(),
                 SceneRoots = roots,
             };
         }
@@ -113,6 +118,7 @@ public sealed class GltfModel
                     positions,
                     attributes.TryGetProperty("NORMAL", out var normal) ? Floats(normal.GetInt32(), 3) : null,
                     p.TryGetProperty("indices", out var indices) ? Indices(indices.GetInt32()) : [.. Enumerable.Range(0, vertexCount)],
+                    attributes.TryGetProperty("TEXCOORD_0", out var uv) ? Floats(uv.GetInt32(), 2) : null,
                     attributes.TryGetProperty("JOINTS_0", out var joints) ? Ints(joints.GetInt32(), 4) : null,
                     attributes.TryGetProperty("WEIGHTS_0", out var weights) ? Floats(weights.GetInt32(), 4) : null,
                     p.TryGetProperty("material", out var material) ? material.GetInt32() : -1,
@@ -126,7 +132,28 @@ public sealed class GltfModel
             return new GltfMesh(m.TryGetProperty("name", out var name) ? name.GetString() ?? "" : "", [.. primitives], names, defaults);
         }
 
-        private static GltfMaterial ReadMaterial(JsonElement m)
+        private GltfImage ReadImage(JsonElement image, int index)
+        {
+            if (!image.TryGetProperty("bufferView", out var view))
+                throw new AvatarFormatException(path, $"image {index} is not embedded; a .spineavatar loads nothing from outside its GLB");
+            var mime = image.TryGetProperty("mimeType", out var m) ? m.GetString() ?? "" : "";
+            if (mime is not ("image/png" or "image/jpeg"))
+                throw new AvatarFormatException(path, $"image {index} is {mime}; only PNG and JPEG are supported");
+            var v = root.GetProperty("bufferViews")[view.GetInt32()];
+            var offset = v.TryGetProperty("byteOffset", out var o) ? o.GetInt32() : 0;
+            return new GltfImage(image.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "", mime, bin.Slice(offset, v.GetProperty("byteLength").GetInt32()));
+        }
+
+        // A material's texture slot, resolved to an image index; -1 when the slot is empty.
+        private int Texture(JsonElement holder, string name)
+        {
+            if (holder.ValueKind != JsonValueKind.Object || !holder.TryGetProperty(name, out var info))
+                return -1;
+            var texture = root.GetProperty("textures")[info.GetProperty("index").GetInt32()];
+            return texture.TryGetProperty("source", out var source) ? source.GetInt32() : -1;
+        }
+
+        private GltfMaterial ReadMaterial(JsonElement m)
         {
             var pbr = m.TryGetProperty("pbrMetallicRoughness", out var p) ? p : default;
             var color = pbr.ValueKind == JsonValueKind.Object && pbr.TryGetProperty("baseColorFactor", out var c)
@@ -137,11 +164,19 @@ public sealed class GltfModel
             var strength = m.TryGetProperty("extensions", out var ext) && ext.TryGetProperty("KHR_materials_emissive_strength", out var es)
                 ? es.GetProperty("emissiveStrength").GetSingle()
                 : 1f;
+            var alpha = m.TryGetProperty("alphaMode", out var am) ? am.GetString() : "OPAQUE";
             return new GltfMaterial(
                 m.TryGetProperty("name", out var name) ? name.GetString() ?? "" : "",
                 color, Factor("metallicFactor", 1), Factor("roughnessFactor", 1), emissive * strength,
                 m.TryGetProperty("doubleSided", out var ds) && ds.GetBoolean(),
-                m.TryGetProperty("alphaMode", out var am) && am.GetString() == "BLEND");
+                alpha == "BLEND")
+            {
+                Mask = alpha == "MASK",
+                AlphaCutoff = m.TryGetProperty("alphaCutoff", out var cutoff) ? cutoff.GetSingle() : 0.5f,
+                BaseColorTexture = Texture(pbr, "baseColorTexture"),
+                NormalTexture = Texture(m, "normalTexture"),
+                EmissiveTexture = Texture(m, "emissiveTexture"),
+            };
         }
 
         private GltfSkin ReadSkin(JsonElement s)
@@ -202,45 +237,70 @@ public sealed class GltfModel
             var t => throw new AvatarFormatException(path, $"accessor type {t} is not supported"),
         };
 
-        private (JsonElement Accessor, ReadOnlyMemory<byte> Data, int Stride, int ComponentSize) View(int accessor)
+        private static int ComponentSize(int type, string path) => type switch
         {
-            var a = root.GetProperty("accessors")[accessor];
-            if (a.TryGetProperty("sparse", out _))
-                throw new AvatarFormatException(path, $"accessor {accessor} is sparse; not supported yet");
-            var view = root.GetProperty("bufferViews")[a.GetProperty("bufferView").GetInt32()];
-            var offset = (view.TryGetProperty("byteOffset", out var vo) ? vo.GetInt32() : 0) + (a.TryGetProperty("byteOffset", out var ao) ? ao.GetInt32() : 0);
-            var size = a.GetProperty("componentType").GetInt32() switch { 5120 or 5121 => 1, 5122 or 5123 => 2, 5125 or 5126 => 4, var t => throw new AvatarFormatException(path, $"component type {t}") };
-            var stride = view.TryGetProperty("byteStride", out var bs) ? bs.GetInt32() : 0;
-            return (a, bin[offset..], stride, size);
+            5120 or 5121 => 1, 5122 or 5123 => 2, 5125 or 5126 => 4,
+            _ => throw new AvatarFormatException(path, $"component type {type}"),
+        };
+
+        private ReadOnlyMemory<byte> Slice(JsonElement owner)
+        {
+            var view = root.GetProperty("bufferViews")[owner.GetProperty("bufferView").GetInt32()];
+            var offset = (view.TryGetProperty("byteOffset", out var vo) ? vo.GetInt32() : 0) + (owner.TryGetProperty("byteOffset", out var ao) ? ao.GetInt32() : 0);
+            return bin[offset..];
         }
 
+        // Sparse accessors (morph targets exported by MPFB and others) start from zeros, or from their
+        // bufferView when they have one, and overwrite the listed elements.
         private float[] Floats(int accessor, int width)
         {
-            var (a, data, stride, size) = View(accessor);
+            var a = root.GetProperty("accessors")[accessor];
             var count = a.GetProperty("count").GetInt32();
             var type = a.GetProperty("componentType").GetInt32();
             var normalized = a.TryGetProperty("normalized", out var n) && n.GetBoolean();
-            stride = stride == 0 ? width * size : stride;
+            var size = ComponentSize(type, path);
             var result = new float[count * width];
-            var span = data.Span;
-            for (var i = 0; i < count; i++)
+
+            if (a.TryGetProperty("bufferView", out _))
             {
-                for (var k = 0; k < width; k++)
+                var view = root.GetProperty("bufferViews")[a.GetProperty("bufferView").GetInt32()];
+                var stride = view.TryGetProperty("byteStride", out var bs) ? bs.GetInt32() : 0;
+                stride = stride == 0 ? width * size : stride;
+                var span = Slice(a).Span;
+                for (var i = 0; i < count; i++)
+                    for (var k = 0; k < width; k++)
+                        result[i * width + k] = Component(span[(i * stride + k * size)..], type, normalized);
+            }
+
+            if (a.TryGetProperty("sparse", out var sparse))
+            {
+                var sparseCount = sparse.GetProperty("count").GetInt32();
+                var indices = sparse.GetProperty("indices");
+                var indexType = indices.GetProperty("componentType").GetInt32();
+                var indexSize = ComponentSize(indexType, path);
+                var indexSpan = Slice(indices).Span;
+                var valueSpan = Slice(sparse.GetProperty("values")).Span;
+                for (var i = 0; i < sparseCount; i++)
                 {
-                    var at = i * stride + k * size;
-                    result[i * width + k] = type switch
-                    {
-                        5126 => BitConverter.ToSingle(span[at..]),
-                        5121 => normalized ? span[at] / 255f : span[at],
-                        5123 => normalized ? BitConverter.ToUInt16(span[at..]) / 65535f : BitConverter.ToUInt16(span[at..]),
-                        5120 => normalized ? Math.Max((sbyte)span[at] / 127f, -1) : (sbyte)span[at],
-                        5122 => normalized ? Math.Max(BitConverter.ToInt16(span[at..]) / 32767f, -1) : BitConverter.ToInt16(span[at..]),
-                        _ => BitConverter.ToUInt32(span[at..]),
-                    };
+                    var target = (int)Component(indexSpan[(i * indexSize)..], indexType, false);
+                    if ((uint)target >= (uint)count)
+                        throw new AvatarFormatException(path, $"accessor {accessor} has sparse index {target} outside its {count} elements");
+                    for (var k = 0; k < width; k++)
+                        result[target * width + k] = Component(valueSpan[((i * width + k) * size)..], type, normalized);
                 }
             }
             return result;
         }
+
+        private static float Component(ReadOnlySpan<byte> at, int type, bool normalized) => type switch
+        {
+            5126 => BitConverter.ToSingle(at),
+            5121 => normalized ? at[0] / 255f : at[0],
+            5123 => normalized ? BitConverter.ToUInt16(at) / 65535f : BitConverter.ToUInt16(at),
+            5120 => normalized ? Math.Max((sbyte)at[0] / 127f, -1) : (sbyte)at[0],
+            5122 => normalized ? Math.Max(BitConverter.ToInt16(at) / 32767f, -1) : BitConverter.ToInt16(at),
+            _ => BitConverter.ToUInt32(at),
+        };
 
         private int[] Ints(int accessor, int width) => [.. Floats(accessor, width).Select(f => (int)f)];
 
@@ -259,7 +319,7 @@ public sealed record GltfMesh(string Name, GltfPrimitive[] Primitives, string[] 
 
 /// <param name="Positions">x, y, z per vertex.</param>
 /// <param name="Joints">Four joint indices per vertex (indices into the skin's joint list), or null.</param>
-public sealed record GltfPrimitive(float[] Positions, float[]? Normals, int[] Indices, int[]? Joints, float[]? Weights, int Material, GltfMorphTarget[] Targets)
+public sealed record GltfPrimitive(float[] Positions, float[]? Normals, int[] Indices, float[]? TexCoords, int[]? Joints, float[]? Weights, int Material, GltfMorphTarget[] Targets)
 {
     public int VertexCount => Positions.Length / 3;
 }
@@ -269,7 +329,22 @@ public sealed record GltfMorphTarget(float[] Positions, float[]? Normals);
 
 /// <param name="BaseColor">Linear RGBA.</param>
 /// <param name="Emissive">Linear RGB, already multiplied by KHR_materials_emissive_strength.</param>
-public sealed record GltfMaterial(string Name, Vector4 BaseColor, float Metallic, float Roughness, Vector3 Emissive, bool DoubleSided, bool Blend);
+public sealed record GltfMaterial(string Name, Vector4 BaseColor, float Metallic, float Roughness, Vector3 Emissive, bool DoubleSided, bool Blend)
+{
+    /// <summary>Alpha-tested (hair, lashes): pixels under <see cref="AlphaCutoff"/> are discarded.</summary>
+    public bool Mask { get; init; }
+
+    public float AlphaCutoff { get; init; } = 0.5f;
+
+    /// <summary>Image indices into <see cref="GltfModel.Images"/>, or -1.</summary>
+    public int BaseColorTexture { get; init; } = -1;
+
+    public int NormalTexture { get; init; } = -1;
+
+    public int EmissiveTexture { get; init; } = -1;
+}
+
+public sealed record GltfImage(string Name, string MimeType, ReadOnlyMemory<byte> Bytes);
 
 public sealed record GltfSkin(int[] Joints, Matrix4x4[] InverseBindMatrices, int Skeleton);
 

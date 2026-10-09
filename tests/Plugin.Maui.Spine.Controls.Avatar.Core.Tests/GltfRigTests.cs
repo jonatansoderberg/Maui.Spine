@@ -62,6 +62,21 @@ public class GltfRigTests
     }
 
     [Fact]
+    public void SparseMorphTargetsMoveTheJaw()
+    {
+        var (model, rig) = Load("mpfb");
+        var frame = new AvatarRenderFrame { SpeakingWeight = 1 };
+        frame.AddActivity("speaking", 1);
+        frame.AddSpeech("viseme_aa", 1);
+        rig.Apply(frame);
+
+        var head = Array.FindIndex(model.Meshes, m => m.TargetNames.Contains("viseme_aa"));
+        var target = Array.IndexOf(model.Meshes[head].TargetNames, "viseme_aa");
+        Assert.Equal(1, rig.Weights[head][target], 3);
+        Assert.Contains(model.Meshes[head].Primitives.SelectMany(p => p.Targets[target].Positions), d => MathF.Abs(d) > 1e-3f);
+    }
+
+    [Fact]
     public void ApplyDoesNotAllocate()
     {
         var (_, rig) = Load("pebble-bot");

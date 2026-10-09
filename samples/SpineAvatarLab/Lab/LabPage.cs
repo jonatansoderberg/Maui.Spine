@@ -15,7 +15,7 @@ public sealed class LabPage : ContentPage
 {
     private static readonly (string Id, string Name)[] Bundled =
     [
-        ("pip", "Pip"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
+        ("pip", "Pip"), ("mpfb", "MPFB Human"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
         ("voice-totem", "Voice Totem"), ("aurora", "Aurora"), ("dotling", "Dotling"),
     ];
 
@@ -658,7 +658,8 @@ public sealed class LabPage : ContentPage
 
         _status.Text = package is null
             ? $"{_avatar.LoadState} {_avatar.LoadError?.Message}"
-            : $"{package.Manifest.DisplayName} {package.Manifest.AssetVersion} · {package.Manifest.Profile} · {_avatar.RendererName} · {_avatar.LoadState} · report {package.Report.Summary()}";
+            : $"{package.Manifest.DisplayName} {package.Manifest.AssetVersion} · {package.Manifest.Profile} · {_avatar.RendererName} · {_avatar.LoadState} · report {package.Report.Summary()}"
+                + (_avatar.LoadState == AvatarLoadState.Failed ? $"\nLast load failed: {_avatar.LoadError?.GetType().Name}: {_avatar.LoadError?.Message}" : "");
 
         if (stats is null || scheduler is null || frame is null)
             return;

@@ -30,9 +30,11 @@ public sealed class GltfAvatarRig
     private readonly HashSet<int> _mouthTargets;
     private readonly int _speechMouthMesh, _headNode;
     private readonly bool _override, _blinkByWeight;
-    private readonly (int Mesh, int Target, int[] Suppress)? _blink;
+    private readonly (int Mesh, int Target)[] _blinkTargets = [];
+    private readonly (int Mesh, int[] Targets)[] _blinkSuppress = [];
     private readonly (int Mesh, int Target)? _muteBadge;
     private readonly (int Node, float Range)? _gaze;
+    private readonly (int Node, float Factor)? _gazeHead;
     private readonly float[] _sample = new float[64];
 
     public GltfAvatarRig(GltfModel model, AvatarBindings bindings)
@@ -71,16 +73,25 @@ public sealed class GltfAvatarRig
         _speechMouthMesh = Extra(bindings, "speechMouthMesh")?.GetInt32() ?? -1;
         _headNode = Extra(bindings, "headNode")?.GetInt32() ?? -1;
 
+        // One blink target, or a list (left and right eye, in every mesh that has the lids).
         if (Extra(bindings, "blink") is { } blink)
         {
-            _blink = (blink.GetProperty("mesh").GetInt32(), blink.GetProperty("targetIndex").GetInt32(),
-                blink.TryGetProperty("suppressExpressionTargets", out var s) ? [.. s.EnumerateArray().Select(x => x.GetInt32())] : []);
+            var entries = blink.ValueKind == JsonValueKind.Array ? blink.EnumerateArray().ToArray() : [blink];
+            _blinkTargets = [.. entries.Select(e => (e.GetProperty("mesh").GetInt32(), e.GetProperty("targetIndex").GetInt32()))];
+            _blinkSuppress = [.. entries.Where(e => e.TryGetProperty("suppressExpressionTargets", out _))
+                .Select(e => (e.GetProperty("mesh").GetInt32(), e.GetProperty("suppressExpressionTargets").EnumerateArray().Select(x => x.GetInt32()).ToArray()))];
             _blinkByWeight = true;
         }
         if (Extra(bindings, "muteBadge") is { } mute)
             _muteBadge = (mute.GetProperty("mesh").GetInt32(), mute.GetProperty("targetIndex").GetInt32());
+        // Gaze moves a node (eyes on a face plate) or turns a bone by a share of the gaze angle (a head).
         if (Extra(bindings, "gaze") is { } gaze)
-            _gaze = (gaze.GetProperty("node").GetInt32(), gaze.TryGetProperty("rangeMeters", out var r) ? r.GetSingle() : 0.01f);
+        {
+            if (gaze.TryGetProperty("headRotation", out var factor))
+                _gazeHead = (gaze.GetProperty("node").GetInt32(), factor.GetSingle());
+            else
+                _gaze = (gaze.GetProperty("node").GetInt32(), gaze.TryGetProperty("rangeMeters", out var r) ? r.GetSingle() : 0.01f);
+        }
 
         (BoundsMin, BoundsMax) = RestBounds(model);
     }
@@ -127,12 +138,13 @@ public sealed class GltfAvatarRig
         if (_muteBadge is { } badge)
             SetWeight(badge.Mesh, badge.Target, Math.Max(Weights[badge.Mesh][badge.Target], f.MicMutedWeight));
 
-        if (_blink is { } blink)
+        foreach (var (mesh, targets) in _blinkSuppress)
         {
-            foreach (var t in blink.Suppress)
-                if (t < Weights[blink.Mesh].Length) Weights[blink.Mesh][t] *= 1 - f.Blink;
-            SetWeight(blink.Mesh, blink.Target, f.Blink);
+            foreach (var t in targets)
+                if (mesh < Weights.Length && t < Weights[mesh].Length) Weights[mesh][t] *= 1 - f.Blink;
         }
+        foreach (var (mesh, target) in _blinkTargets)
+            SetWeight(mesh, target, Math.Max(f.Blink, mesh < Weights.Length && target < Weights[mesh].Length ? Weights[mesh][target] : 0));
 
         ApplyParameters(_outputParameters, f.OutputLevel, f.OutputReactiveWeight);
         ApplyParameters(_inputParameters, f.InputLevel, f.InputReactiveWeight);
@@ -142,6 +154,13 @@ public sealed class GltfAvatarRig
             const float full = 12 * MathF.PI / 180;
             Translation[gaze.Node].X += Math.Clamp(f.GazeX / full, -1, 1) * gaze.Range;
             Translation[gaze.Node].Y += Math.Clamp(f.GazeY / full, -1, 1) * gaze.Range;
+        }
+
+        if (_gazeHead is { } head && head.Node < Rotation.Length)
+        {
+            // Bone-local axes (Blender convention): Y turns, X nods.
+            Rotation[head.Node] *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, f.GazeX * head.Factor)
+                * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -f.GazeY * head.Factor);
         }
 
         var height = BoundsMax.Y - BoundsMin.Y;
@@ -326,13 +345,15 @@ public sealed class GltfAvatarRig
         {
             var node = model.Nodes[index];
             var world = Matrix4x4.CreateScale(node.Scale) * Matrix4x4.CreateFromQuaternion(node.Rotation) * Matrix4x4.CreateTranslation(node.Translation) * parent;
-            if (node.Mesh >= 0 && node.Skin < 0)
+            // A skinned mesh is in bind space, which for an exported character is its rest pose in the scene.
+            if (node.Mesh >= 0)
             {
+                var transform = node.Skin < 0 ? world : Matrix4x4.Identity;
                 foreach (var p in model.Meshes[node.Mesh].Primitives)
                 {
                     for (var i = 0; i < p.Positions.Length; i += 3)
                     {
-                        var v = Vector3.Transform(new Vector3(p.Positions[i], p.Positions[i + 1], p.Positions[i + 2]), world);
+                        var v = Vector3.Transform(new Vector3(p.Positions[i], p.Positions[i + 1], p.Positions[i + 2]), transform);
                         min = Vector3.Min(min, v);
                         max = Vector3.Max(max, v);
                     }

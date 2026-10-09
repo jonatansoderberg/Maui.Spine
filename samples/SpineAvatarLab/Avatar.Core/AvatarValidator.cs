@@ -573,7 +573,10 @@ public static partial class AvatarValidator
         foreach (var extra in new[] { "blink", "muteBadge", "gaze" })
         {
             if (bindings.Extra?.TryGetValue(extra, out var element) == true)
-                CheckMorph($"bindings.{extra}", element);
+            {
+                foreach (var entry in element.ValueKind == JsonValueKind.Array ? element.EnumerateArray().ToArray() : [element])
+                    CheckMorph($"bindings.{extra}", entry);
+            }
         }
 
         if (report.Failures.Count() == failures)

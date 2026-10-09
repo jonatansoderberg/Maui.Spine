@@ -300,10 +300,11 @@ function frame(f) {
 
     if (bindings.muteBadge) for (const mesh of meshesFor(bindings.muteBadge)) mesh.morphTargetInfluences[bindings.muteBadge.targetIndex] = Math.max(mesh.morphTargetInfluences[bindings.muteBadge.targetIndex], f.m);
 
-    if (bindings.blink) {
-        for (const mesh of meshesFor(bindings.blink)) {
-            for (const t of bindings.blink.suppressExpressionTargets ?? []) mesh.morphTargetInfluences[t] *= 1 - f.b;
-            mesh.morphTargetInfluences[bindings.blink.targetIndex] = f.b;
+    // One blink target or a list of them (left and right eye, in every mesh with lids).
+    for (const blink of [bindings.blink ?? []].flat()) {
+        for (const mesh of meshesFor(blink)) {
+            for (const t of blink.suppressExpressionTargets ?? []) mesh.morphTargetInfluences[t] *= 1 - f.b;
+            mesh.morphTargetInfluences[blink.targetIndex] = Math.max(f.b, mesh.morphTargetInfluences[blink.targetIndex]);
         }
     }
 
@@ -320,7 +321,11 @@ function frame(f) {
     for (const p of bindings.parameters?.outputLevel ?? []) levelWrite(p, f.ol, f.or);
     for (const p of bindings.parameters?.inputLevel ?? []) levelWrite(p, f.il, f.ir);
 
-    if (bindings.gaze && nodes[bindings.gaze.node]) {
+    if (bindings.gaze?.headRotation !== undefined && nodes[bindings.gaze.node]) {
+        // Bone-local axes (Blender convention): Y turns, X nods.
+        nodes[bindings.gaze.node].rotateY(f.gx * bindings.gaze.headRotation);
+        nodes[bindings.gaze.node].rotateX(-f.gy * bindings.gaze.headRotation);
+    } else if (bindings.gaze && nodes[bindings.gaze.node]) {
         // Gaze arrives in radians; ±12° spans the binding's range in metres.
         const range = bindings.gaze.rangeMeters ?? 0.01, full = THREE.MathUtils.degToRad(12);
         nodes[bindings.gaze.node].position.x += THREE.MathUtils.clamp(f.gx / full, -1, 1) * range;
