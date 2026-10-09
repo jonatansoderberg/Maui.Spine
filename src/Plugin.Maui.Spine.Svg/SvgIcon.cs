@@ -320,15 +320,18 @@ public sealed class SvgIcon
         if (File.Exists(path)) return;
 
         var tmp = $"{path}.{Guid.NewGuid():N}.tmp";
-        File.WriteAllBytes(tmp, data);
-
         try
         {
+            File.WriteAllBytes(tmp, data);
             File.Move(tmp, path);
         }
-        catch (IOException)
+        catch (IOException) when (File.Exists(path))
         {
-            // Another process created the file concurrently — discard our temp copy.
+            // Another process created the file concurrently; ours is discarded below.
+        }
+        finally
+        {
+            // Gone after a successful move; left behind by a failed write or move.
             try { File.Delete(tmp); } catch { /* best effort */ }
         }
     }
