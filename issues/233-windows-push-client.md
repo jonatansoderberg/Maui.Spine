@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/233
 **Branch:** issue/233-windows-push-client
-**Status:** In Progress
+**Status:** Completed (PR #504; Windows verification in #501)
 
 ## Plan
 
