@@ -1,10 +1,11 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Handlers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Plugin.Maui.Spine.Core;
+using Plugin.Maui.Spine.Svg;
 using WButton = Microsoft.UI.Xaml.Controls.Button;
 using MenuFlyout = Microsoft.UI.Xaml.Controls.MenuFlyout;
 using MenuFlyoutItem = Microsoft.UI.Xaml.Controls.MenuFlyoutItem;
@@ -19,7 +20,7 @@ namespace Plugin.Maui.Spine.Extensions;
 public static partial class SpineExtensions
 {
     static readonly ConditionalWeakTable<WButton, MenuObserver> MenuObservers = new();
-    static readonly ConcurrentDictionary<string, string> MenuIconFiles = new();
+    static readonly ConcurrentDictionary<string, SvgIcon?> MenuIcons = new();
 
     static void ConfigureMenus()
     {
@@ -45,15 +46,24 @@ public static partial class SpineExtensions
             return;
         }
 
-        void Build()
+        // Filled when it opens rather than here, where the button may not be in a window yet: the
+        // icons are rendered for the window's raster scale. Refilled after an item change, or when
+        // the window has moved to a display with another scale.
+        var flyout = new MenuFlyout();
+        double? filledAt = null;
+        flyout.Opening += (_, _) =>
         {
-            var flyout = new MenuFlyout();
-            FillFlyout(handler, view, flyout.Items, items, ref flyout, null);
-            button.Flyout = flyout;
-        }
+            var scale = button.XamlRoot?.RasterizationScale;
+            if (filledAt is not null && filledAt == scale)
+                return;
 
-        Build();
-        MenuObservers.Add(button, new MenuObserver(items, Build));
+            filledAt = scale;
+            flyout.Items.Clear();
+            FillFlyout(handler, view, flyout.Items, items, ref flyout, null);
+        };
+
+        button.Flyout = flyout;
+        MenuObservers.Add(button, new MenuObserver(items, () => filledAt = null));
     }
 
     static void FillFlyout(IElementHandler handler, VisualElement owner, IList<MenuFlyoutItemBase> target, IEnumerable<MenuElement> elements, ref MenuFlyout root, object? parameter)
@@ -127,34 +137,43 @@ public static partial class SpineExtensions
     // The template's 16 × 16 Viewbox scales the bitmap, which is rendered for the display's scale.
     internal static IconElement? BuildIcon(IServiceProvider services, string? svg, XamlRoot? root)
     {
-        var scale = root?.RasterizationScale ?? DeviceDisplay.MainDisplayInfo.Density;
-        if (MenuButton.Icon(services, svg, 16 * scale, Colors.Black) is not { } png)
+        if (string.IsNullOrWhiteSpace(svg) || MenuIcon(services, svg) is not { } icon)
             return null;
 
-        return new BitmapIcon { UriSource = new Uri(MenuIconFile(png)), ShowAsMonochrome = true };
+        var size = (int)Math.Round(16 * (root?.RasterizationScale ?? DeviceDisplay.MainDisplayInfo.Density));
+        try
+        {
+            // BitmapIcon loads only from a URI.
+            return new BitmapIcon { UriSource = new Uri(icon.GetPngFilePath(size)), ShowAsMonochrome = true };
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            MenuLogger(services)?.LogError(e, "Menu icon {Svg} at {Size} px could not be written to {Folder}; the item shows without an icon.",
+                svg, size, services.GetService<SvgIconOptions>()?.CacheDirectory);
+            return null;
+        }
     }
 
-    // BitmapIcon loads only from a URI, so each PNG is written once, named after its contents.
-    static string MenuIconFile(byte[] png) =>
-        MenuIconFiles.GetOrAdd(Convert.ToHexString(SHA256.HashData(png))[..32], static (name, png) =>
-        {
-            var folder = Path.Combine(FileSystem.CacheDirectory, "spine-menu-icons");
-            var path = Path.Combine(folder, $"{name}.png");
-            if (File.Exists(path))
-                return path;
+    static SvgIcon? MenuIcon(IServiceProvider services, string svg)
+    {
+        if (services.GetService<ISvgIconService>() is not { } icons)
+            return null;
 
-            Directory.CreateDirectory(folder);
-            var temporary = $"{path}.{Guid.NewGuid():N}.tmp";
-            File.WriteAllBytes(temporary, png);
+        var name = services.GetService<ResourceNameCache>()?.Resolve(svg) ?? svg;
+        return MenuIcons.GetOrAdd(name, static (_, state) =>
+        {
             try
             {
-                File.Move(temporary, path);
+                return state.icons.FromEmbeddedSvg(state.svg);
             }
-            catch (IOException) when (File.Exists(path))
+            catch (FileNotFoundException e)
             {
-                File.Delete(temporary);
+                MenuLogger(state.services)?.LogWarning(e, "Menu icon {Svg} is not embedded; the item shows without an icon.", state.svg);
+                return null;
             }
+        }, (icons, svg, services));
+    }
 
-            return path;
-        }, png);
+    static ILogger? MenuLogger(IServiceProvider services) =>
+        services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Menus");
 }
