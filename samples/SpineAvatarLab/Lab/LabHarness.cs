@@ -95,16 +95,20 @@ internal static class LabHarness
     }
 
     /// <summary>The window as a PNG, drawn the way the screen shows it.</summary>
-    public static byte[] Screenshot(Page page)
+    public static byte[] Screenshot(Page page) => Screenshot((page.Window?.Handler?.PlatformView as object) ?? throw new InvalidOperationException("No window."));
+
+    /// <summary>One view as a PNG with a transparent background, for posters.</summary>
+    public static byte[] Screenshot(VisualElement element) => Screenshot(element.Handler?.PlatformView ?? throw new InvalidOperationException("The view has no handler."));
+
+    private static byte[] Screenshot(object platformView)
     {
 #if IOS || MACCATALYST
-        var view = (page.Window?.Handler?.PlatformView as UIKit.UIWindow) ?? throw new InvalidOperationException("No window.");
-        var renderer = new UIKit.UIGraphicsImageRenderer(view.Bounds.Size);
+        var view = (UIKit.UIView)platformView;
+        var renderer = new UIKit.UIGraphicsImageRenderer(view.Bounds.Size, new UIKit.UIGraphicsImageRendererFormat { Opaque = false });
         var image = renderer.CreateImage(_ => view.DrawViewHierarchy(view.Bounds, afterScreenUpdates: true));
         return image.AsPNG()!.ToArray();
 #elif ANDROID
-        var activity = Platform.CurrentActivity ?? throw new InvalidOperationException("No activity.");
-        var root = activity.Window!.DecorView.RootView!;
+        var root = platformView as Android.Views.View ?? Platform.CurrentActivity?.Window?.DecorView.RootView ?? throw new InvalidOperationException("No view.");
         var bitmap = Android.Graphics.Bitmap.CreateBitmap(root.Width, root.Height, Android.Graphics.Bitmap.Config.Argb8888!)!;
         root.Draw(new Android.Graphics.Canvas(bitmap));
         using var stream = new MemoryStream();

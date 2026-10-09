@@ -138,7 +138,7 @@ public class Spine2dRendererTests
     public static TheoryData<string, AvatarSheetKind> Sheets()
     {
         var data = new TheoryData<string, AvatarSheetKind>();
-        foreach (var avatar in new[] { "dotling", "voice-totem" })
+        foreach (var avatar in new[] { "dotling", "voice-totem", "pip", "aurora" })
             foreach (var kind in Enum.GetValues<AvatarSheetKind>())
                 data.Add(avatar, kind);
         return data;

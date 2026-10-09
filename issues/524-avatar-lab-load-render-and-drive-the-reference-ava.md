@@ -39,6 +39,11 @@ Phase A of [docs/plans/spine-avatar.md](../docs/plans/spine-avatar.md), with the
 - `docs/plans/spine-avatar-model-prompt.md`: a round-2 generation prompt for better avatars (pip, nova, aurora) against the concept sheets, using spine2d 1.1 and a modelled, AO-baked, clearcoat GLB.
 - The harness can stay in a Release build with `-p:LabHarness=true`, for measurements on the iPhone.
 - 70 tests.
+- Round 3: the owner's round-2 generation (`pip`, `aurora`, spine2d 1.1, made with the prompt) is in the lab and the tests. Both load and validate unchanged, and our Skia sheets match their reference compositor closely. The validator now accepts theme bindings that point at gradient stops and strokes (`body.fill.radial.stops[0]`, `stem.stroke`) and warns when the named paint uses another slot.
+- `robot-expressive.spineavatar`: three.js r180 `RobotExpressive.glb` (CC0, Quaternius; morphs by Don McCurdy), unmodified, packaged by `Tools/package_robot.py` as an ambient avatar: Idle, gestures nod (Yes), shake (No), lean (Wave), thumbsUp, jump, dance; expressions on its Angry/Surprised/Sad morphs plus head-bone deltas; AudioReactive mouth through the Surprised morph; no visemes, blink or gaze, because the model has none. Posters captured from the lab's 3D surface.
+- The 3D page: `clipBlend: "override"` for skeletal clips (they replace each other and a gesture fades the idle out over 0.25 s; additive clips on a skinned rig would leave a T-pose), morph targets driven by level parameters, the clip layer sent with each clip.
+- Harness `shotview` captures only the avatar view with a transparent background (correct for the 3D web view; a lone SKCanvasView is captured at the wrong scale, so 2D posters come from `AvatarSheet` instead).
+- 83 tests.
 
 ## Decisions
 
@@ -58,6 +63,9 @@ Phase A of [docs/plans/spine-avatar.md](../docs/plans/spine-avatar.md), with the
 - Voice Totem's ring is an accent disc with a `surface`-filled disc on top, so the avatar is not transparent where the spec asks for it; an even-odd ring path would be.
 - Voice Totem's `think` loop turns a full 2π; the validator first flagged it as a loop jump and now compares rotations modulo a turn.
 - Clip composition (relative vs absolute), the micMuted mask and how a pathPose track crossfades between topologies need to be written into the authoring profile.
+- Skeletal GLB rigs need a declared clip blend (`clipBlend: override`): additive composition, right for node rigs, breaks skinned characters.
+- Manifest `motions.gestures` with names beyond nod/shake/lean/interrupt (thumbsUp, jump, dance) are useful and should be allowed by the schema.
+- Theme bindings for gradient stops and strokes (`<node>.fill.radial.stops[i]`, `<node>.stroke`) belong in the authoring profile; round 2 used them.
 
 ## Measurements (Debug unless noted; none on a physical device yet)
 

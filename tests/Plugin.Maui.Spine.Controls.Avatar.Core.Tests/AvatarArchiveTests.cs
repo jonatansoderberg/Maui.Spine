@@ -7,7 +7,7 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
 public class AvatarArchiveTests
 {
-    public static TheoryData<string> ReferenceAvatars => ["dotling", "voice-totem", "pebble-bot"];
+    public static TheoryData<string> ReferenceAvatars => ["dotling", "voice-totem", "pebble-bot", "pip", "aurora", "robot-expressive"];
 
     internal static byte[] Reference(string name) => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Avatars", name + ".spineavatar"));
 

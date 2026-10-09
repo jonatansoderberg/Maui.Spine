@@ -101,6 +101,7 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
             _json.WriteStringValue(clip.Clip);
             _json.WriteNumberValue(Math.Round(clip.Time, 4));
             _json.WriteNumberValue(MathF.Round(clip.Weight, 4));
+            _json.WriteNumberValue((int)clip.Layer);
             _json.WriteEndArray();
         }
         _json.WriteEndArray();

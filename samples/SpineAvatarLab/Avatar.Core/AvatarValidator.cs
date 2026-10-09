@@ -32,6 +32,9 @@ public static partial class AvatarValidator
     [GeneratedRegex("^[a-z0-9][a-z0-9-]{1,63}$")]
     private static partial Regex IdPattern();
 
+    [GeneratedRegex(@"^(?<node>[^.]+)\.(?<part>fill|stroke)(\.(?<kind>linear|radial)\.stops\[(?<stop>\d+)\])?$")]
+    private static partial Regex ThemeBindingPattern();
+
     [GeneratedRegex("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$")]
     private static partial Regex ColorPattern();
 
@@ -461,15 +464,27 @@ public static partial class AvatarValidator
             }
         }
 
+        // Bindings document where a slot is used; the slot named in the fill, stop or stroke is what draws.
         foreach (var (slotName, slot) in package.Manifest.Themes.Slots)
         {
             foreach (var binding in slot.Bindings)
             {
-                var dot = binding.LastIndexOf('.');
-                if (dot <= 0 || binding[(dot + 1)..] != "fill" || !nodes.TryGetValue(binding[..dot], out var node))
-                    report.Fail(area, "themes", $"slot '{slotName}' binds '{binding}', which is not <node>.fill of a scene node");
-                else if (node.Fill?.Slot != slotName)
-                    report.Warn(area, "themes", $"slot '{slotName}' binds {binding}, but the node fills with '{node.Fill?.Slot ?? node.Fill?.Color}'");
+                var match = ThemeBindingPattern().Match(binding);
+                if (!match.Success || !nodes.TryGetValue(match.Groups["node"].Value, out var node))
+                {
+                    report.Fail(area, "themes", $"slot '{slotName}' binds '{binding}', which is not <node>.fill, <node>.fill.linear|radial.stops[i] or <node>.stroke of a scene node");
+                    continue;
+                }
+
+                var used = match.Groups["part"].Value switch
+                {
+                    "stroke" => node.Stroke?.Slot,
+                    _ when match.Groups["stop"].Success => (match.Groups["kind"].Value == "linear" ? node.Fill?.Linear?.Stops : node.Fill?.Radial?.Stops)
+                        ?.ElementAtOrDefault(int.Parse(match.Groups["stop"].Value, CultureInfo.InvariantCulture))?.Slot,
+                    _ => node.Fill?.Slot,
+                };
+                if (used != slotName)
+                    report.Warn(area, "themes", $"slot '{slotName}' binds {binding}, but that paint uses '{used ?? "no slot"}'");
             }
         }
 

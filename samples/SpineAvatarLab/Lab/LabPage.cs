@@ -13,7 +13,7 @@ namespace SpineAvatarLab.Lab;
 /// </summary>
 public sealed class LabPage : ContentPage
 {
-    private static readonly string[] Bundled = ["dotling", "voice-totem", "pebble-bot"];
+    private static readonly string[] Bundled = ["dotling", "voice-totem", "pebble-bot", "pip", "aurora", "robot-expressive"];
 
     private readonly AvatarView _avatar = new() { HeightRequest = 320, WidthRequest = 320, HorizontalOptions = LayoutOptions.Center };
     private readonly AvatarView _small64 = new() { HeightRequest = 64, WidthRequest = 64 };
@@ -80,7 +80,8 @@ public sealed class LabPage : ContentPage
             Children =
             {
                 Header("Avatar"),
-                Row(Button("Dotling", () => LoadBundled("dotling")), Button("Voice Totem", () => LoadBundled("voice-totem")), Button("Pebble Bot", () => LoadBundled("pebble-bot")), Button("Open file…", OpenFile)),
+                Row(Button("Dotling", () => LoadBundled("dotling")), Button("Voice Totem", () => LoadBundled("voice-totem")), Button("Pebble Bot", () => LoadBundled("pebble-bot"))),
+                Row(Button("Pip", () => LoadBundled("pip")), Button("Aurora", () => LoadBundled("aurora")), Button("Robot Expressive", () => LoadBundled("robot-expressive")), Button("Open file…", OpenFile)),
                 Row(Button("Validation report", ShowReport), Button("Reload", () => _ = _avatar.LoadAsync()), Button("Unload/reload ×100", Stress)),
 
                 Header("State"),
@@ -260,6 +261,9 @@ public sealed class LabPage : ContentPage
             case "shot":
                 await Task.Delay(50);
                 return LabHarness.Screenshot(this);
+            case "shotview":
+                await Task.Delay(50);
+                return LabHarness.Screenshot((VisualElement)_avatar.Content!);
 #endif
             default:
                 throw new ArgumentException($"unknown command '{parts[0]}'");

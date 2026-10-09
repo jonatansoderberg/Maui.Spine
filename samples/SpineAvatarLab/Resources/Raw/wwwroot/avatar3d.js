@@ -128,13 +128,15 @@ async function load(message) {
     composer.addPass(new OutputPass());
     setLook(message.look ?? look);
 
-    // Clips are additive against their first frame, so idle, gestures and poses add up instead of
-    // one overwriting the other: the same composition as the Skia renderer.
+    // Node-rig clips are additive against their first frame, so idle, gestures and poses add up as in
+    // the Skia renderer. Skeletal clips (clipBlend "override") hold a whole body pose, so they replace
+    // each other instead: added to the bind pose they would leave the character in a T-pose.
+    const additive = bindings.clipBlend !== 'override';
     mixer = new THREE.AnimationMixer(root);
     for (const clip of gltf.animations) {
-        AnimationUtils.makeClipAdditive(clip);
+        if (additive) AnimationUtils.makeClipAdditive(clip);
         const action = mixer.clipAction(clip);
-        action.blendMode = AdditiveAnimationBlendMode;
+        if (additive) action.blendMode = AdditiveAnimationBlendMode;
         actions.set(clip.name, action);
     }
 
@@ -267,12 +269,23 @@ function frame(f) {
 
     // Clips first; the blink clip is skipped where the bindings blink by morph weight.
     mixer.stopAllAction();
-    for (const [clip, time, weight] of f.c) {
+    // In override mode a gesture (layer 2) fades the other clips out over 0.25 s at its start and end.
+    let gesture = 0;
+    if (bindings.clipBlend === 'override') {
+        for (const [clip, time, weight, layer] of f.c) {
+            const action = actions.get(clip);
+            if (layer === 2 && action) {
+                const duration = action.getClip().duration;
+                gesture = Math.max(gesture, weight * Math.min(1, time / 0.25, (duration - time) / 0.25));
+            }
+        }
+    }
+    for (const [clip, time, weight, layer] of f.c) {
         if (clip === 'blink' && bindings.blink) continue;
         const action = actions.get(clip);
         if (!action) continue;
         action.play();
-        action.setEffectiveWeight(weight);
+        action.setEffectiveWeight(layer === 2 ? Math.max(gesture, 0.001) : weight * (1 - gesture));
         action.time = time;
     }
     mixer.update(0);
@@ -294,14 +307,18 @@ function frame(f) {
         }
     }
 
-    for (const p of bindings.parameters?.outputLevel ?? []) {
-        const value = p.min.map((min, i) => min + (p.max[i] - min) * f.ol);
-        applyTransform(p.node, p.property, value, f.or);
-    }
-    for (const p of bindings.parameters?.inputLevel ?? []) {
-        const value = p.min.map((min, i) => min + (p.max[i] - min) * f.il);
-        applyTransform(p.node, p.property, value, f.ir);
-    }
+    // A level drives a transform (min/max arrays) or a morph target (min/max numbers).
+    const levelWrite = (p, level, weight) => {
+        if (weight <= 0) return;
+        if (p.targetIndex !== undefined) {
+            const value = (p.min + (p.max - p.min) * level) * weight;
+            for (const mesh of meshesFor(p)) mesh.morphTargetInfluences[p.targetIndex] = Math.max(mesh.morphTargetInfluences[p.targetIndex], value);
+        } else {
+            applyTransform(p.node, p.property, p.min.map((min, i) => min + (p.max[i] - min) * level), weight);
+        }
+    };
+    for (const p of bindings.parameters?.outputLevel ?? []) levelWrite(p, f.ol, f.or);
+    for (const p of bindings.parameters?.inputLevel ?? []) levelWrite(p, f.il, f.ir);
 
     if (bindings.gaze && nodes[bindings.gaze.node]) {
         // Gaze arrives in radians; ±12° spans the binding's range in metres.
