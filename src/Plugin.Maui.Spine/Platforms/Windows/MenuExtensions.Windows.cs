@@ -1,9 +1,9 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices.WindowsRuntime;
+using System.Security.Cryptography;
 using Microsoft.Maui.Handlers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Plugin.Maui.Spine.Core;
 using WButton = Microsoft.UI.Xaml.Controls.Button;
 using MenuFlyout = Microsoft.UI.Xaml.Controls.MenuFlyout;
@@ -11,12 +11,15 @@ using MenuFlyoutItem = Microsoft.UI.Xaml.Controls.MenuFlyoutItem;
 using MenuFlyoutSeparator = Microsoft.UI.Xaml.Controls.MenuFlyoutSeparator;
 using MenuFlyoutSubItem = Microsoft.UI.Xaml.Controls.MenuFlyoutSubItem;
 using SolidColorBrush = Microsoft.UI.Xaml.Media.SolidColorBrush;
+using UIElement = Microsoft.UI.Xaml.UIElement;
+using XamlRoot = Microsoft.UI.Xaml.XamlRoot;
 
 namespace Plugin.Maui.Spine.Extensions;
 
 public static partial class SpineExtensions
 {
     static readonly ConditionalWeakTable<WButton, MenuObserver> MenuObservers = new();
+    static readonly ConcurrentDictionary<string, string> MenuIconFiles = new();
 
     static void ConfigureMenus()
     {
@@ -117,24 +120,41 @@ public static partial class SpineExtensions
     }
 
     static IconElement? BuildIcon(IElementHandler handler, string? svg) =>
-        handler.MauiContext?.Services is { } services ? BuildIcon(services, svg) : null;
+        handler.MauiContext?.Services is { } services ? BuildIcon(services, svg, (handler.PlatformView as UIElement)?.XamlRoot) : null;
 
-    internal static IconElement? BuildIcon(IServiceProvider services, string? svg)
+    // A monochrome BitmapIcon keeps only the alpha and fills it with the item's foreground, so the
+    // icon follows the theme, a destructive item's colour, the disabled state and a theme switch.
+    // The template's 16 × 16 Viewbox scales the bitmap, which is rendered for the display's scale.
+    internal static IconElement? BuildIcon(IServiceProvider services, string? svg, XamlRoot? root)
     {
-        if (MenuButton.Icon(services, svg, 16, Colors.Black) is not { } png)
+        var scale = root?.RasterizationScale ?? DeviceDisplay.MainDisplayInfo.Density;
+        if (MenuButton.Icon(services, svg, 16 * scale, Colors.Black) is not { } png)
             return null;
 
-        var image = new BitmapImage();
-        var icon = new ImageIcon { Source = image };
-
-        _ = SetSourceAsync(image, png);
-
-        return icon;
+        return new BitmapIcon { UriSource = new Uri(MenuIconFile(png)), ShowAsMonochrome = true };
     }
 
-    static async Task SetSourceAsync(BitmapImage image, byte[] png)
-    {
-        using var stream = new MemoryStream(png);
-        await image.SetSourceAsync(stream.AsRandomAccessStream());
-    }
+    // BitmapIcon loads only from a URI, so each PNG is written once, named after its contents.
+    static string MenuIconFile(byte[] png) =>
+        MenuIconFiles.GetOrAdd(Convert.ToHexString(SHA256.HashData(png))[..32], static (name, png) =>
+        {
+            var folder = Path.Combine(FileSystem.CacheDirectory, "spine-menu-icons");
+            var path = Path.Combine(folder, $"{name}.png");
+            if (File.Exists(path))
+                return path;
+
+            Directory.CreateDirectory(folder);
+            var temporary = $"{path}.{Guid.NewGuid():N}.tmp";
+            File.WriteAllBytes(temporary, png);
+            try
+            {
+                File.Move(temporary, path);
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                File.Delete(temporary);
+            }
+
+            return path;
+        }, png);
 }

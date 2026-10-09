@@ -35,7 +35,7 @@ internal static partial class ActionSheetPresenter
             {
                 Text = action.Title,
                 IsEnabled = action.IsEnabled,
-                Icon = SpineExtensions.BuildIcon(services, action.Svg),
+                Icon = SpineExtensions.BuildIcon(services, action.Svg, target.XamlRoot),
             };
 
             if (action.IsDestructive)
