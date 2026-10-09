@@ -15,7 +15,7 @@ public sealed class LabPage : ContentPage
 {
     private static readonly (string Id, string Name)[] Bundled =
     [
-        ("pip", "Pip"), ("mpfb", "MPFB Human"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
+        ("plush-mochi", "Mochi"), ("plush-sprig", "Sprig"), ("plush-bean", "Bean"), ("plush-puff", "Puff"), ("pip", "Pip"), ("mpfb", "MPFB Human"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
         ("voice-totem", "Voice Totem"), ("aurora", "Aurora"), ("dotling", "Dotling"),
     ];
 

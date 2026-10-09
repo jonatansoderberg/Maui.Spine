@@ -247,6 +247,8 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         if (Image(m.BaseColorTexture) is { } color)
         {
             material.Diffuse.Contents = color;
+            // glTF's default sampler repeats; SceneKit clamps unless told.
+            material.Diffuse.WrapS = material.Diffuse.WrapT = SCNWrapMode.Repeat;
             // glTF multiplies the texture by the factor; SceneKit's multiply slot does the same.
             if (m.BaseColor != Vector4.One)
                 material.Multiply.Contents = Srgb(m.BaseColor.X, m.BaseColor.Y, m.BaseColor.Z, m.BaseColor.W);
@@ -254,7 +256,10 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         else
             material.Diffuse.Contents = Srgb(m.BaseColor.X, m.BaseColor.Y, m.BaseColor.Z, m.BaseColor.W);
         if (Image(m.NormalTexture) is { } normal)
+        {
             material.Normal.Contents = normal;
+            material.Normal.WrapS = material.Normal.WrapT = SCNWrapMode.Repeat;
+        }
         if (Image(m.EmissiveTexture) is { } emissive)
             material.Emission.Contents = emissive;
         if (m.Mask)
@@ -294,7 +299,11 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             var hex = name == "accent" && accent is not null ? accent : dark ? slot.Dark : slot.Light;
             var color = Color.FromArgb(hex);
             foreach (var material in _materials[name])
-                material.Diffuse.Contents = UIColor.FromRGBA(color.Red, color.Green, color.Blue, color.Alpha);
+            {
+                // A textured material keeps its texture and takes the colour as its factor.
+                var property = material.Diffuse.Contents is UIImage ? material.Multiply : material.Diffuse;
+                property.Contents = UIColor.FromRGBA(color.Red, color.Green, color.Blue, color.Alpha);
+            }
         }
         _dark = dark;
         _accent = accent;
