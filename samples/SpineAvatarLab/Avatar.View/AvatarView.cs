@@ -165,6 +165,35 @@ public sealed class AvatarView : ContentView
         }
     }
 
+    /// <summary>How much spring motion (squash and stretch, tilt, lift) to add: 0 off, 1 as designed, up to 2.</summary>
+    public float SecondaryMotion
+    {
+        get => _secondaryMotion;
+        set
+        {
+            _secondaryMotion = value;
+            if (Scheduler is not null)
+                Scheduler.SecondaryMotion = value;
+        }
+    }
+
+    /// <summary>For 3D avatars: "studio" lighting (environment, rim, tone mapping, bloom, contact shadow) or "basic".</summary>
+    public string ThreeDLook
+    {
+        get => _threeDLook;
+        set
+        {
+            _threeDLook = value;
+            if (_surface is ThreeDAvatarSurface surface)
+                surface.Look = value;
+            foreach (var mirror in _mirrors)
+                mirror.ThreeDLook = value;
+        }
+    }
+
+    private float _secondaryMotion = 1;
+    private string _threeDLook = "studio";
+
     public AvatarLoadState LoadState { get; private set; }
 
     /// <summary>When the current load began (<see cref="System.Diagnostics.Stopwatch"/> ticks); with <see cref="AvatarFrameStats.FirstFrameTimestamp"/> it gives the time to first frame.</summary>
@@ -269,7 +298,7 @@ public sealed class AvatarView : ContentView
     private void Show(AvatarPackage package, AvatarRepresentation representation, Spine2dModel? model)
     {
         var old = _surface;
-        _surface = model is not null ? new SkiaAvatarSurface(model) : new ThreeDAvatarSurface(package, representation);
+        _surface = model is not null ? new SkiaAvatarSurface(model) : new ThreeDAvatarSurface(package, representation) { Look = MirrorOf?.ThreeDLook ?? _threeDLook };
         Content = _surface.View;
         old?.Dispose();
 
@@ -281,6 +310,7 @@ public sealed class AvatarView : ContentView
             Scheduler.SetState(State);
             Scheduler.SetMicMuted(IsMuted);
             Scheduler.SetAnimationEnabled(IsAnimationEnabled);
+            Scheduler.SecondaryMotion = _secondaryMotion;
             ApplyBaseExpression();
         }
         UpdateDescription();

@@ -1,11 +1,11 @@
-#if DEBUG
+#if DEBUG || LAB_HARNESS
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
 namespace SpineAvatarLab.Lab;
 
 /// <summary>
-/// Drives the lab without taps, for measurements and screenshots from a script. Debug builds only.
+/// Drives the lab without taps, for measurements and screenshots from a script. Debug builds, or Release with <c>-p:LabHarness=true</c>.
 /// Mac Catalyst: run the app binary with <c>AVATARLAB_HARNESS=stdin</c> and write commands to its
 /// standard input; results come back on standard output (the app's container is closed to other
 /// processes). iOS simulator and Android: write commands to <c>harness.txt</c> in the app data

@@ -30,6 +30,10 @@ public sealed class Spine2dRenderer : IDisposable
     private readonly bool[] _all;
     private readonly bool[] _muteMask;
     private readonly SKPaint _paint = new() { IsAntialias = true, Style = SKPaintStyle.Fill };
+    private readonly SKMaskFilter?[] _blurs;
+    private readonly SKShader?[] _shaders;
+    private bool? _shaderDark;
+    private SKColor? _shaderAccent;
 
     public Spine2dRenderer(Spine2dModel model)
     {
@@ -46,6 +50,9 @@ public sealed class Spine2dRenderer : IDisposable
         _alpha = new float[n];
         _all = [.. Enumerable.Repeat(true, n)];
         _muteMask = [.. model.Channels.Select(c => c == "muteIndicator")];
+        // Sigma in scene units: the filter follows the canvas transform, so a blur scales with the avatar.
+        _blurs = [.. model.Blurs.Select(b => b > 0 ? SKMaskFilter.CreateBlur(SKBlurStyle.Normal, b, respectCTM: true) : null)];
+        _shaders = new SKShader?[n];
         Reset();
     }
 
@@ -81,6 +88,7 @@ public sealed class Spine2dRenderer : IDisposable
         foreach (var clip in frame.Clips)
             ApplyClip(clip);
 
+        ApplySecondaryMotion(frame);
         Compose();
     }
 
@@ -94,6 +102,9 @@ public sealed class Spine2dRenderer : IDisposable
             area.MidX - _model.Width * scale / 2,
             area.MidY - _model.Height * scale / 2);
 
+        if (_shaderDark != dark || _shaderAccent != accent)
+            BuildShaders(dark, accent);
+
         var save = canvas.Save();
         for (var i = 0; i < _model.NodeCount; i++)
         {
@@ -101,28 +112,77 @@ public sealed class Spine2dRenderer : IDisposable
             if (kind == NodeKind.Group || _alpha[i] <= 0.001f)
                 continue;
 
-            var color = Fill(i, dark, accent);
-            _paint.Color = color.WithAlpha((byte)Math.Clamp(color.Alpha * _alpha[i], 0, 255));
-
             canvas.Save();
             var matrix = fit.PreConcat(_world[i]);
             canvas.Concat(in matrix);
 
-            switch (kind)
+            _paint.MaskFilter = _blurs[i];
+            _paint.BlendMode = _model.BlendModes[i];
+            if (_model.FillKinds[i] != FillKind.None)
             {
-                case NodeKind.Ellipse:
-                    canvas.DrawOval(_model.Bounds[i], _paint);
-                    break;
-                case NodeKind.RoundedRect:
-                    canvas.DrawRoundRect(_model.Bounds[i], _model.Radii[i], _model.Radii[i], _paint);
-                    break;
-                case NodeKind.Path:
-                    canvas.DrawPath(BuildPath(i), _paint);
-                    break;
+                // A gradient's colours come from its shader; the paint's alpha still fades it.
+                var color = _shaders[i] is null ? Fill(i, dark, accent) : SKColors.White;
+                _paint.Shader = _shaders[i];
+                _paint.Color = color.WithAlpha((byte)Math.Clamp(color.Alpha * _alpha[i], 0, 255));
+                DrawShape(canvas, kind, i);
+            }
+            if (_model.Strokes[i] is { } stroke)
+            {
+                var color = Slot(stroke.Slot, stroke.Color, dark, accent);
+                _paint.Shader = null;
+                _paint.Style = SKPaintStyle.Stroke;
+                _paint.StrokeWidth = stroke.Width;
+                _paint.StrokeCap = stroke.Cap;
+                _paint.Color = color.WithAlpha((byte)Math.Clamp(color.Alpha * _alpha[i], 0, 255));
+                DrawShape(canvas, kind, i);
+                _paint.Style = SKPaintStyle.Fill;
             }
             canvas.Restore();
         }
+        _paint.Shader = null;
+        _paint.MaskFilter = null;
+        _paint.BlendMode = SKBlendMode.SrcOver;
         canvas.RestoreToCount(save);
+    }
+
+    private void DrawShape(SKCanvas canvas, NodeKind kind, int i)
+    {
+        switch (kind)
+        {
+            case NodeKind.Ellipse:
+                canvas.DrawOval(_model.Bounds[i], _paint);
+                break;
+            case NodeKind.RoundedRect:
+                canvas.DrawRoundRect(_model.Bounds[i], _model.Radii[i], _model.Radii[i], _paint);
+                break;
+            case NodeKind.Path:
+                canvas.DrawPath(BuildPath(i), _paint);
+                break;
+        }
+    }
+
+    // Gradients resolve their stop colours through the theme, so they are rebuilt only when the theme or accent changes.
+    private void BuildShaders(bool dark, SKColor? accent)
+    {
+        for (var i = 0; i < _shaders.Length; i++)
+        {
+            _shaders[i]?.Dispose();
+            _shaders[i] = null;
+            if (_model.Gradients[i] is not { } g)
+                continue;
+
+            var colors = new SKColor[g.Offsets.Length];
+            for (var s = 0; s < colors.Length; s++)
+            {
+                var c = Slot(g.Slots[s], g.Colors[s], dark, accent);
+                colors[s] = c.WithAlpha((byte)Math.Clamp(c.Alpha * g.Opacities[s], 0, 255));
+            }
+            _shaders[i] = _model.FillKinds[i] == FillKind.Radial
+                ? SKShader.CreateRadialGradient(g.Start, g.Radius, colors, g.Offsets, SKShaderTileMode.Clamp)
+                : SKShader.CreateLinearGradient(g.Start, g.End, colors, g.Offsets, SKShaderTileMode.Clamp);
+        }
+        _shaderDark = dark;
+        _shaderAccent = accent;
     }
 
     /// <summary>The current value of a node property after <see cref="Evaluate"/>; for tests and the inspector.</summary>
@@ -139,6 +199,10 @@ public sealed class Spine2dRenderer : IDisposable
     public void Dispose()
     {
         _paint.Dispose();
+        foreach (var blur in _blurs)
+            blur?.Dispose();
+        foreach (var shader in _shaders)
+            shader?.Dispose();
         foreach (var path in _paths)
             path?.Dispose();
     }
@@ -292,11 +356,33 @@ public sealed class Spine2dRenderer : IDisposable
             else
             {
                 var k = (t - times[a]) / (times[a + 1] - times[a]);
-                k = track.Easings[a] switch { 1 => k * k * (3 - 2 * k), 2 => 0, _ => k };
+                k = track.Easings[a] switch
+                {
+                    1 => k * k * (3 - 2 * k),
+                    2 => 0,
+                    3 => k * k,
+                    4 => 1 - (1 - k) * (1 - k),
+                    5 => 1 + 2.70158f * (k - 1) * (k - 1) * (k - 1) + 1.70158f * (k - 1) * (k - 1),
+                    _ => k,
+                };
                 value = track.Values[a] + (track.Values[a + 1] - track.Values[a]) * k;
             }
             ApplyRelative(track.Node, track.Property, value, sample.Weight);
         }
+    }
+
+    // The springs act on the first root node: stretch keeps the area roughly constant, lift is in
+    // scene units from the model's height, tilt turns around the root's origin.
+    private void ApplySecondaryMotion(AvatarRenderFrame frame)
+    {
+        var root = Array.IndexOf(_model.Parents, -1);
+        if (root < 0 || (frame.Squash == 0 && frame.Tilt == 0 && frame.Lift == 0))
+            return;
+        var at = root * Stride;
+        _values[at + 3] *= 1 + frame.Squash;
+        _values[at + 2] *= 1 - frame.Squash * 0.6f;
+        _values[at + 4] += frame.Tilt;
+        _values[at + 1] -= frame.Lift * _model.Height;
     }
 
     private void Compose()
@@ -322,11 +408,12 @@ public sealed class Spine2dRenderer : IDisposable
         }
     }
 
-    private SKColor Fill(int node, bool dark, SKColor? accent)
+    private SKColor Fill(int node, bool dark, SKColor? accent) => Slot(_model.FillSlots[node], _model.FillColors[node], dark, accent);
+
+    private SKColor Slot(int slot, SKColor literal, bool dark, SKColor? accent)
     {
-        var slot = _model.FillSlots[node];
         if (slot < 0)
-            return _model.FillColors[node];
+            return literal;
         if (slot == _model.AccentSlot && accent is { } a)
             return a;
         return dark ? _model.SlotDark[slot] : _model.SlotLight[slot];

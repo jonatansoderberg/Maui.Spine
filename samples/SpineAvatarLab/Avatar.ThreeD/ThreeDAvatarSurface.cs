@@ -65,6 +65,20 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
 
     public string? PageError { get; private set; }
 
+    /// <summary>"studio" (environment light, rim light, tone mapping, bloom, contact shadow) or "basic" (round 1).</summary>
+    public string Look
+    {
+        get => _look;
+        set
+        {
+            _look = value;
+            if (_modelLoaded)
+                _web.SendRawMessage("{\"t\":\"look\",\"v\":\"" + value + "\"}");
+        }
+    }
+
+    private string _look = "studio";
+
     public void Render(AvatarRenderFrame frame, bool dark, Color? accent)
     {
         if (!_modelLoaded || _disposed)
@@ -100,6 +114,9 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
         _json.WriteNumber("ol", frame.OutputLevel);
         _json.WriteNumber("ir", frame.InputReactiveWeight);
         _json.WriteNumber("or", frame.OutputReactiveWeight);
+        _json.WriteNumber("sq", frame.Squash);
+        _json.WriteNumber("tl", frame.Tilt);
+        _json.WriteNumber("lf", frame.Lift);
         _json.WriteNumber("d", dark ? 1 : 0);
         if (accent is not null)
             _json.WriteString("ac", accent.ToArgbHex());
@@ -157,6 +174,7 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
         {
             json.WriteStartObject();
             json.WriteString("t", "load");
+            json.WriteString("look", _look);
             json.WriteBase64String("glb", _package.GetFile(_representation.Model).Span);
             json.WritePropertyName("bindings");
             using (var document = JsonDocument.Parse(bindings))

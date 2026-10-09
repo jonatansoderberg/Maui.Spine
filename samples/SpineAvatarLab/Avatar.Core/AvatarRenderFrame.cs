@@ -70,6 +70,15 @@ public sealed class AvatarRenderFrame
 
     public float GazeY { get; set; }
 
+    /// <summary>Spring squash and stretch: positive stretches up, negative squashes; applied around the root.</summary>
+    public float Squash { get; set; }
+
+    /// <summary>Spring tilt of the head or root, radians.</summary>
+    public float Tilt { get; set; }
+
+    /// <summary>Spring lift, as a fraction of the model's height; positive is up.</summary>
+    public float Lift { get; set; }
+
     public bool ReducedMotion { get; set; }
 
     public long Generation { get; set; }
@@ -80,7 +89,7 @@ public sealed class AvatarRenderFrame
     {
         _activityCount = _expressionCount = _speechCount = _clipCount = 0;
         SpeakingWeight = MicMutedWeight = InputReactiveWeight = OutputReactiveWeight = 0;
-        InputLevel = OutputLevel = Blink = GazeX = GazeY = 0;
+        InputLevel = OutputLevel = Blink = GazeX = GazeY = Squash = Tilt = Lift = 0;
         _inputBands.AsSpan().Clear();
         _outputBands.AsSpan().Clear();
     }
@@ -130,6 +139,9 @@ public sealed class AvatarRenderFrame
         target.Blink = Blink;
         target.GazeX = GazeX;
         target.GazeY = GazeY;
+        target.Squash = Squash;
+        target.Tilt = Tilt;
+        target.Lift = Lift;
         target.ReducedMotion = ReducedMotion;
         target.Generation = Generation;
         target.LipSyncQuality = LipSyncQuality;

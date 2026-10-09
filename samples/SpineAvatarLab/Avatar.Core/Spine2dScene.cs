@@ -21,11 +21,24 @@ public sealed record Spine2dNode(
     Spine2dTransform? Transform = null,
     double Opacity = 1,
     Spine2dFill? Fill = null,
-    Spine2dGeometry? Geometry = null);
+    Spine2dGeometry? Geometry = null,
+    double Blur = 0,
+    Spine2dStroke? Stroke = null,
+    string? Blend = null);
 
 public sealed record Spine2dTransform(double X = 0, double Y = 0, double ScaleX = 1, double ScaleY = 1, double Rotation = 0);
 
-public sealed record Spine2dFill(string? Color = null, string? Slot = null);
+/// <summary>A solid colour or theme slot, or (spine2d 1.1, feature <c>gradients</c>) a linear or radial gradient.</summary>
+public sealed record Spine2dFill(string? Color = null, string? Slot = null, Spine2dLinear? Linear = null, Spine2dRadial? Radial = null);
+
+public sealed record Spine2dLinear(double X0, double Y0, double X1, double Y1, IReadOnlyList<Spine2dStop> Stops);
+
+public sealed record Spine2dRadial(double Cx, double Cy, double R, IReadOnlyList<Spine2dStop> Stops);
+
+public sealed record Spine2dStop(double Offset, string? Slot = null, string? Color = null, double Opacity = 1);
+
+/// <summary>spine2d 1.1, feature <c>strokes</c>.</summary>
+public sealed record Spine2dStroke(double Width, string? Slot = null, string? Color = null, string Cap = "round");
 
 public sealed record Spine2dGeometry(double Width = 0, double Height = 0, double Radius = 0, string? Path = null);
 
@@ -46,6 +59,15 @@ public sealed record Spine2dParameter(string Node, string Property, double Min, 
 
 public static class Spine2dVocabulary
 {
+    public static readonly string[] SchemaVersions = ["1.0", "1.1"];
+
+    public static readonly string[] Easings = ["linear", "step", "easeIn", "easeOut", "easeInOut", "backOut"];
+
+    public static readonly string[] BlendModes = ["normal", "screen", "multiply", "plus"];
+
+    /// <summary>The spine2d 1.1 features this runtime draws; a representation must declare the ones it uses.</summary>
+    public static readonly string[] Features = ["gradients", "blur", "strokes", "blendModes"];
+
     public static readonly string[] NodeTypes = ["group", "ellipse", "roundedRect", "path"];
 
     public static readonly string[] Properties = ["x", "y", "scaleX", "scaleY", "rotation", "opacity", "pathPose"];

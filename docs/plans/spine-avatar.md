@@ -105,3 +105,16 @@ Answered by the owner on 2026-10-09: **D1** (a), three.js in `HybridWebView` for
 - **D2, lab shape.** Folders in one app (recommended, §2.1) or real projects from the first commit.
 - **D3, TTS with real visemes.** Platform TTS only gives `EstimatedText`. Real speech with timed visemes needs a cloud voice that emits them (Azure Speech does; the realtime APIs do not), which by #517 means a server in between. Leave for Phase B, or add a small dev server to the lab?
 - **D4, what goes into the repo.** The three `.spineavatar` files (~1.3 MB) and the fixtures, yes. The Python generator, validator and three.js: only if D1 picks (a), and then only the three.js files the lab loads.
+
+## 7. Better assets (2026-10-09)
+
+The round-1 models are procedural (a Python generator: ellipses and scaled spheres, flat colours), and spine2d P0 allowed only solid fills; that, more than the renderers, is why they look like clip-art next to the concept sheets. Round 2 has a generation prompt ([spine-avatar-model-prompt.md](spine-avatar-model-prompt.md)) and spine2d 1.1 (gradients, blur, strokes, blend modes) in the lab.
+
+Ready-made models, researched on 2026-10-09 (licences and availability change; check again before use):
+
+- **three.js `RobotExpressive.glb`** (CC0, Tomás Laulhé / Quaternius, morphs added by Don McCurdy): cute low-poly robot with Idle, Yes (nod), No (shake) and other clips and three face morphs; no visemes or blink, which the runtime could add by code. The best ready-made start. https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive
+- **Microsoft Rocketbox** (MIT, archived 2026-10-02, still downloadable): realistic humans with 15 visemes, FACS and ARKit shapes, FBX only (FBX2glTF to convert). A full lip-sync test subject, not the target style.
+- **TalkingHead sample `mpfb.glb`** (CC0 per its README): semi-realistic human said to carry ARKit 52 and the 15 Oculus visemes (not opened).
+- Not usable: three.js `facecap.glb` (no licence stated), Ready Player Me (shut down 2026-01-31), Avaturn and MetaPerson (paid, realistic), VRoid (anime style, per-model terms).
+- Image-to-3D services (Meshy, Tripo, Hyper3D Rodin) produce textured GLB from a concept image and body rigs, but no facial morph targets; paid tiers give private, commercial output.
+- Without Blender: `gltf-transform` (resize, compress, prune; morph target names through a short script), the three.js editor, FBX2glTF. Adding facial blendshapes automatically: Polywink (paid, status unclear) or Reallusion tools; Faceit and KeenTools need Blender, UniVRM needs Unity.

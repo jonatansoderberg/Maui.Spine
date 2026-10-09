@@ -67,6 +67,7 @@ public sealed class AvatarScheduler
     private readonly double _release;
 
     private Random _random;
+    private readonly AvatarSecondaryMotion _secondary = new();
 
     // Activity crossfade.
     private AvatarState _state = AvatarState.Idle, _previousState = AvatarState.Idle;
@@ -192,6 +193,13 @@ public sealed class AvatarScheduler
 
     public AvatarLipSyncQuality LipSyncQuality { get; set; }
 
+    /// <summary>How much spring motion to add: 0 off, 1 as designed, up to 2. Always off under Reduce Motion.</summary>
+    public float SecondaryMotion
+    {
+        get => _secondary.Amount;
+        set => _secondary.Amount = float.IsFinite(value) ? Math.Clamp(value, 0, 2) : 1;
+    }
+
     public double Now => _time.GetElapsedTime(_start).TotalSeconds;
 
     public void Reseed(int seed)
@@ -211,6 +219,7 @@ public sealed class AvatarScheduler
                 return;
 
             var now = Now;
+            _secondary.OnStateChanged(_state, state);
             // Mid-fade, the new fade starts from whichever of the two shows more.
             if (Progress(now, _stateChangedAt, _stateFade) >= 0.5f)
                 _previousState = _state;
@@ -291,6 +300,7 @@ public sealed class AvatarScheduler
 
             _gestureClip = clip;
             _gestureStartedAt = Now;
+            _secondary.OnGesture();
             return TimeSpan.FromSeconds(_clipDurations[clip]);
         }
     }
@@ -480,6 +490,7 @@ public sealed class AvatarScheduler
 
             UpdateBlink(now, f);
             UpdateGaze(now, dt, f, stateWeights);
+            _secondary.Update(dt, f, stateWeights, off: _reducedMotion || !_animationEnabled);
 
             Diagnostics.QueuedCues = _cues.Count;
             Diagnostics.SpeechPositionSeconds = _position;

@@ -4,6 +4,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './three/GLTFLoader.js';
 import { AdditiveAnimationBlendMode, AnimationUtils } from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 let renderer, scene, camera, root, mixer;
 let bindings, themes;
@@ -15,6 +21,10 @@ let materialsByIndex = new Map();
 let actions = new Map();
 let before = new Map();    // mesh → influences at the start of a layer
 let lastStats = 0, frames = 0, renderMs = 0;
+// "studio": environment light, key and rim lights, tone mapping, bloom on emissive parts, a contact
+// shadow. "basic": the round-1 setup, kept for comparison.
+let look = 'studio', composer, bloomComposer, bloom, environment, basicLights = [], studioLights = [], shadow, bounds;
+const emissiveBase = new Map();
 
 const send = message => window.HybridWebView.SendRawMessage(message);
 const fail = error => {
@@ -27,6 +37,7 @@ window.addEventListener('HybridWebViewMessageReceived', event => {
         const message = JSON.parse(event.detail.message);
         if (message.t === 'f') frame(message);
         else if (message.t === 'load') load(message).catch(fail);
+        else if (message.t === 'look') setLook(message.v);
     } catch (error) {
         fail(error);
     }
@@ -67,10 +78,55 @@ async function load(message) {
 
     scene = new THREE.Scene();
     scene.add(root);
-    scene.add(new THREE.HemisphereLight(0xf2ffff, 0x526475, 2));
+    const hemisphere = new THREE.HemisphereLight(0xf2ffff, 0x526475, 2);
     const light = new THREE.DirectionalLight(0xffffff, 3);
     light.position.set(-2, 3, 4);
-    scene.add(light);
+    basicLights = [hemisphere, light];
+
+    const key = new THREE.DirectionalLight(0xfff4e8, 1.6);
+    key.position.set(-2.5, 3, 4);
+    const rim = new THREE.DirectionalLight(0x9fe8ff, 2.4);
+    rim.position.set(2.5, 2.5, -3.5);
+    const fill = new THREE.HemisphereLight(0xffffff, 0x2a3440, 0.25);
+    studioLights = [key, rim, fill];
+    scene.add(...basicLights, ...studioLights);
+
+    environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+    root.traverse(o => {
+        for (const m of o.isMesh ? (Array.isArray(o.material) ? o.material : [o.material]) : []) {
+            if (m.emissive && m.emissive.getHex() !== 0) emissiveBase.set(m, m.emissiveIntensity ?? 1);
+            // Dark glossy parts (a visor) read as glass only if the bright room reflects faintly in them.
+            if (m.color && m.color.r + m.color.g + m.color.b < 0.3) m.envMapIntensity = 0.25;
+        }
+    });
+
+    bounds = new THREE.Box3().setFromObject(root);
+    shadow = contactShadow(bounds);
+    scene.add(shadow);
+
+    // Bloom renders into its own target and is added on top, keeping the scene's alpha: the stock
+    // bloom pass writes alpha 1 everywhere, which turned the transparent view into an opaque square.
+    bloomComposer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
+    bloomComposer.renderToScreen = false;
+    bloomComposer.addPass(new RenderPass(scene, camera));
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.12, 1.2);
+    bloomComposer.addPass(bloom);
+
+    const mix = new ShaderPass(new THREE.ShaderMaterial({
+        uniforms: { baseTexture: { value: null }, bloomTexture: { value: bloomComposer.renderTarget2.texture } },
+        vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `uniform sampler2D baseTexture; uniform sampler2D bloomTexture; varying vec2 vUv;
+            void main() {
+                vec4 base = texture2D(baseTexture, vUv);
+                vec3 glow = texture2D(bloomTexture, vUv).rgb;
+                gl_FragColor = vec4(base.rgb + glow, clamp(base.a + max(glow.r, max(glow.g, glow.b)), 0.0, 1.0));
+            }`,
+    }), 'baseTexture');
+    composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(mix);
+    composer.addPass(new OutputPass());
+    setLook(message.look ?? look);
 
     // Clips are additive against their first frame, so idle, gestures and poses add up instead of
     // one overwriting the other: the same composition as the Skia renderer.
@@ -100,10 +156,51 @@ function dispose() {
     nodes = []; baseline = []; morphMeshes = []; meshesByPrimitive = new Map(); materialsByIndex = new Map(); actions = new Map();
 }
 
+// A soft dark ellipse on the ground plane: the cheapest contact shadow, no shadow maps.
+function contactShadow(box) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 128;
+    const g = canvas.getContext('2d');
+    const gradient = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(0,0,0,0.35)');
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gradient;
+    g.fillRect(0, 0, 128, 128);
+    const size = box.getSize(new THREE.Vector3());
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(size.x * 1.25, size.z * 1.25 + size.x * 0.25),
+        new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false, toneMapped: false }));
+    plane.rotation.x = -Math.PI / 2;
+    plane.position.set((box.min.x + box.max.x) / 2, box.min.y + 0.002, (box.min.z + box.max.z) / 2);
+    plane.renderOrder = -1;
+    return plane;
+}
+
+function setLook(value) {
+    look = value === 'basic' ? 'basic' : 'studio';
+    const studio = look === 'studio';
+    basicLights.forEach(l => l.visible = !studio);
+    studioLights.forEach(l => l.visible = studio);
+    if (scene) {
+        scene.environment = studio ? environment : null;
+        // The room environment is a bright white box; at full strength it washes out dark glass.
+        scene.environmentIntensity = 0.45;
+    }
+    if (shadow) shadow.visible = studio;
+    renderer.toneMapping = studio ? THREE.NeutralToneMapping : THREE.NoToneMapping;
+    for (const [material, base] of emissiveBase) {
+        material.emissiveIntensity = studio ? base * 3 : base;
+        material.needsUpdate = true;
+    }
+}
+
 function resize() {
     if (!renderer) return;
     const width = Math.max(1, window.innerWidth), height = Math.max(1, window.innerHeight);
     renderer.setSize(width, height, false);
+    for (const c of [composer, bloomComposer]) {
+        c?.setPixelRatio(renderer.getPixelRatio());
+        c?.setSize(width, height);
+    }
     camera.aspect = width / height;
     // Contain: a tall view keeps the model's width by widening the vertical field of view.
     const fov = bindings.framing?.verticalFov ?? 35;
@@ -158,6 +255,8 @@ function frame(f) {
     if (!renderer) return;
     const start = performance.now();
 
+    root.position.set(0, 0, 0);
+    root.scale.set(1, 1, 1);
     nodes.forEach((node, i) => {
         if (!node) return;
         node.position.copy(baseline[i].position);
@@ -211,6 +310,14 @@ function frame(f) {
         nodes[bindings.gaze.node].position.y += THREE.MathUtils.clamp(f.gy / full, -1, 1) * range;
     }
 
+    // Springs from the scheduler: squash and stretch around the feet, lift, and a head tilt.
+    if (f.sq || f.lf) {
+        const height = bounds.max.y - bounds.min.y;
+        root.scale.set(1 - f.sq * 0.6, 1 + f.sq, 1 - f.sq * 0.6);
+        root.position.y = bounds.min.y * -f.sq + f.lf * height;
+    }
+    if (f.tl && bindings.headNode !== undefined && nodes[bindings.headNode]) nodes[bindings.headNode].rotateZ(-f.tl);
+
     const theme = f.d ? 'dark' : 'light';
     for (const [slot, value] of Object.entries(themes ?? {})) {
         const color = slot === 'accent' && f.ac ? f.ac : value[theme];
@@ -221,7 +328,11 @@ function frame(f) {
         }
     }
 
-    renderer.render(scene, camera);
+    if (look === 'studio') {
+        bloomComposer.render();
+        composer.render();
+    }
+    else renderer.render(scene, camera);
     renderMs += performance.now() - start;
     frames++;
     if (start - lastStats > 1000) {

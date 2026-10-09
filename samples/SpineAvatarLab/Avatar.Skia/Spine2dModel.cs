@@ -18,11 +18,33 @@ internal sealed class CompiledTrack(int node, NodeProperty property, float[] tim
     public float[] Values { get; } = values;
     public int[] PathPoses { get; } = pathPoses;
 
-    /// <summary>0 linear, 1 easeInOut, 2 step: the easing out of each keyframe.</summary>
+    /// <summary>0 linear, 1 easeInOut, 2 step, 3 easeIn, 4 easeOut, 5 backOut: the easing out of each keyframe.</summary>
     public byte[] Easings { get; } = easings;
 }
 
 internal readonly record struct CompiledParameter(int Node, NodeProperty Property, float Min, float Max);
+
+internal enum FillKind : byte { None, Solid, Linear, Radial }
+
+/// <summary>A gradient's geometry and stops; stop colours resolve through theme slots when drawn.</summary>
+internal sealed class CompiledGradient(SKPoint start, SKPoint end, float radius, float[] offsets, int[] slots, SKColor[] colors, float[] opacities)
+{
+    public SKPoint Start { get; } = start;
+    public SKPoint End { get; } = end;
+    public float Radius { get; } = radius;
+    public float[] Offsets { get; } = offsets;
+    public int[] Slots { get; } = slots;
+    public SKColor[] Colors { get; } = colors;
+    public float[] Opacities { get; } = opacities;
+}
+
+internal sealed class CompiledStroke(float width, int slot, SKColor color, SKStrokeCap cap)
+{
+    public float Width { get; } = width;
+    public int Slot { get; } = slot;
+    public SKColor Color { get; } = color;
+    public SKStrokeCap Cap { get; } = cap;
+}
 
 /// <summary>
 /// A <c>spine2d</c> scene and its Skia bindings compiled once into flat arrays: node indices instead
@@ -60,6 +82,16 @@ public sealed class Spine2dModel
     internal int[] FillSlots { get; private set; } = [];
 
     internal SKColor[] FillColors { get; private set; } = [];
+
+    internal FillKind[] FillKinds { get; private set; } = [];
+
+    internal CompiledGradient?[] Gradients { get; private set; } = [];
+
+    internal CompiledStroke?[] Strokes { get; private set; } = [];
+
+    internal float[] Blurs { get; private set; } = [];
+
+    internal SKBlendMode[] BlendModes { get; private set; } = [];
 
     internal string[] SlotNames { get; private set; } = [];
 
@@ -122,6 +154,11 @@ public sealed class Spine2dModel
         model.Radii = new float[n];
         model.FillSlots = new int[n];
         model.FillColors = new SKColor[n];
+        model.FillKinds = new FillKind[n];
+        model.Gradients = new CompiledGradient?[n];
+        model.Strokes = new CompiledStroke?[n];
+        model.Blurs = new float[n];
+        model.BlendModes = new SKBlendMode[n];
         model.PathCommands = new AvatarPathCommand[]?[n];
         model.PathOffsets = new int[n];
 
@@ -150,6 +187,32 @@ public sealed class Spine2dModel
 
             model.FillSlots[i] = node.Fill?.Slot is { } slot ? Array.IndexOf(model.SlotNames, slot) : -1;
             model.FillColors[i] = node.Fill?.Color is { } color ? SKColor.Parse(color) : SKColors.Transparent;
+            model.FillKinds[i] = node.Fill switch
+            {
+                { Linear: not null } => FillKind.Linear,
+                { Radial: not null } => FillKind.Radial,
+                not null => FillKind.Solid,
+                _ => FillKind.None,
+            };
+            model.Gradients[i] = node.Fill switch
+            {
+                { Linear: { } l } => Gradient(new SKPoint((float)l.X0, (float)l.Y0), new SKPoint((float)l.X1, (float)l.Y1), 0, l.Stops),
+                { Radial: { } r } => Gradient(new SKPoint((float)r.Cx, (float)r.Cy), default, (float)r.R, r.Stops),
+                _ => null,
+            };
+            model.Strokes[i] = node.Stroke is { } stroke
+                ? new CompiledStroke((float)stroke.Width, stroke.Slot is { } s ? Array.IndexOf(model.SlotNames, s) : -1,
+                    stroke.Color is { } c ? SKColor.Parse(c) : SKColors.Transparent,
+                    stroke.Cap switch { "butt" => SKStrokeCap.Butt, "square" => SKStrokeCap.Square, _ => SKStrokeCap.Round })
+                : null;
+            model.Blurs[i] = (float)node.Blur;
+            model.BlendModes[i] = node.Blend switch
+            {
+                "screen" => SKBlendMode.Screen,
+                "multiply" => SKBlendMode.Multiply,
+                "plus" => SKBlendMode.Plus,
+                _ => SKBlendMode.SrcOver,
+            };
 
             model.PathOffsets[i] = -1;
             if (model.Kinds[i] == NodeKind.Path)
@@ -161,6 +224,13 @@ public sealed class Spine2dModel
             }
         }
         model.BasePathPoints = [.. points];
+
+        CompiledGradient Gradient(SKPoint start, SKPoint end, float radius, IReadOnlyList<Spine2dStop> stops) => new(
+            start, end, radius,
+            [.. stops.Select(t => (float)t.Offset)],
+            [.. stops.Select(t => t.Slot is { } slot ? Array.IndexOf(model.SlotNames, slot) : -1)],
+            [.. stops.Select(t => t.Color is { } color ? SKColor.Parse(color) : SKColors.Transparent)],
+            [.. stops.Select(t => (float)t.Opacity)]);
 
         var poseNames = scene.PathPoses.Keys.ToArray();
         model.PathPoses = [.. scene.PathPoses.Select(p => AvatarPathData.Parse(p.Value.Data, $"{representation.Model}: pathPoses.{p.Key}"))];
@@ -187,7 +257,7 @@ public sealed class Spine2dModel
                 [.. track.Keyframes.Select(k => (float)k.Seconds)],
                 [.. track.Keyframes.Select(k => k.Value.ValueKind == JsonValueKind.Number ? k.Value.GetSingle() : 0)],
                 [.. track.Keyframes.Select(k => k.Value.ValueKind == JsonValueKind.String ? Array.IndexOf(poseNames, k.Value.GetString()) : -1)],
-                [.. track.Keyframes.Select(k => (byte)(k.Easing switch { "easeInOut" => 1, "step" => 2, _ => 0 }))]))];
+                [.. track.Keyframes.Select(k => (byte)(k.Easing switch { "easeInOut" => 1, "step" => 2, "easeIn" => 3, "easeOut" => 4, "backOut" => 5, _ => 0 }))]))];
         }
 
         foreach (var (name, element) in bindings.Parameters ?? new Dictionary<string, JsonElement>())

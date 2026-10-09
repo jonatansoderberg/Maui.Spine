@@ -295,15 +295,72 @@ public class AvatarSchedulerTests
             scheduler.EnqueueViseme(1, TimeSpan.FromSeconds(i * 0.05), TimeSpan.FromSeconds(0.05), i % 15);
         Run(scheduler, TimeSpan.FromSeconds(0.5));
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
+        // Only the scheduler's own calls are measured; the fake time provider allocates when it advances.
+        long allocated = 0;
         for (var i = 0; i < 600; i++)
         {
             _time.Advance(Frame);
             _clock.Position += Frame;
+            var before = GC.GetAllocatedBytesForCurrentThread();
             scheduler.SetOutputLevel(0.5f);
             scheduler.Update();
+            allocated += GC.GetAllocatedBytesForCurrentThread() - before;
         }
-        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact]
+    public void InterruptSquashesThenOvershootsAndSettles()
+    {
+        var scheduler = Create();
+        Run(scheduler, TimeSpan.FromSeconds(1));
+        scheduler.Interrupt();
+
+        var squashes = new List<float>();
+        for (var i = 0; i < 180; i++)
+        {
+            _time.Advance(Frame);
+            squashes.Add(scheduler.Update().Squash);
+        }
+
+        Assert.True(squashes.Min() < -0.02f, $"min {squashes.Min()}");
+        Assert.True(squashes.Max() > 0.002f, "an underdamped spring overshoots past rest");
+        Assert.InRange(squashes[^1], -0.002f, 0.002f);
+    }
+
+    [Fact]
+    public void SecondaryMotionIsOffUnderReducedMotion()
+    {
+        var scheduler = Create();
+        scheduler.SetReducedMotion(true);
+        scheduler.SetState(AvatarState.Speaking);
+        scheduler.SetOutputLevel(0.9f);
+        var frame = Run(scheduler, TimeSpan.FromMilliseconds(300));
+
+        Assert.Equal(0, frame.Squash);
+        Assert.Equal(0, frame.Lift);
+        Assert.Equal(0, frame.Tilt);
+    }
+
+    [Fact]
+    public void SpringsDoNotDependOnTheFrameRate()
+    {
+        var a = Create(seed: 1);
+        a.SetState(AvatarState.Interrupted);
+        var at60 = Run(a, TimeSpan.FromMilliseconds(400)).Squash;
+
+        var time = new FakeTimeProvider();
+        var package = AvatarArchiveTests.Load("dotling");
+        var b = new AvatarScheduler(package, package.Manifest.Representations[0], time, 1);
+        b.Update();
+        b.SetState(AvatarState.Interrupted);
+        AvatarRenderFrame frame = b.Update();
+        for (var t = 0; t < 400; t += 50)
+        {
+            time.Advance(TimeSpan.FromMilliseconds(50));
+            frame = b.Update();
+        }
+        Assert.Equal(at60, frame.Squash, 2);
     }
 
     private sealed class FakeClock : IAvatarPlaybackClock

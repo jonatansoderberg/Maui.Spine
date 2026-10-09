@@ -14,7 +14,7 @@ public static partial class AvatarValidator
     private static readonly string[] KnownProfiles = ["ambient", "character", "humanoidAdvanced"];
     private static readonly string[] SpeechModes = ["none", "audioReactive", "canonicalVisemes"];
     private static readonly string[] Spine2dParameters = ["inputLevel", "outputLevel", "inputLow", "inputMid", "inputHigh", "outputLow", "outputMid", "outputHigh"];
-    private static readonly string[] SupportedRequiredFeatures = [];
+    private static readonly string[] SupportedRequiredFeatures = Spine2dVocabulary.Features;
 
     private static readonly Dictionary<string, string[]> Formats = new()
     {
@@ -231,8 +231,16 @@ public static partial class AvatarValidator
         var failures = report.Failures.Count();
         var path = r.Model;
 
-        if (scene.SchemaVersion != "1.0")
-            report.Fail(area, "scene", $"{path}: schemaVersion '{scene.SchemaVersion}' is not 1.0");
+        if (!Spine2dVocabulary.SchemaVersions.Contains(scene.SchemaVersion))
+            report.Fail(area, "scene", $"{path}: schemaVersion '{scene.SchemaVersion}' is not {string.Join(" or ", Spine2dVocabulary.SchemaVersions)}");
+
+        // A 1.1 feature in the scene must be declared, so an older runtime refuses the file instead of drawing it wrong.
+        var declared11 = r.RequiredFeatures ?? [];
+        void Uses(string feature, string where)
+        {
+            if (!declared11.Contains(feature))
+                report.Fail(area, "requiredFeatures", $"{path}: {where} uses '{feature}', which the representation does not list in requiredFeatures");
+        }
         if (!(scene.Bounds.Width > 0 && scene.Bounds.Height > 0 && double.IsFinite(scene.Bounds.Width) && double.IsFinite(scene.Bounds.Height)))
             report.Fail(area, "scene", $"{path}: bounds must be positive and finite");
         if (scene.Nodes.Count is < 1 or > 128)
@@ -272,12 +280,60 @@ public static partial class AvatarValidator
 
             if (node.Type != "group")
             {
-                if (node.Fill is not { } fill || (fill.Slot is null && fill.Color is null))
-                    report.Fail(area, "scene", $"{path}: node '{node.Id}' has no fill");
-                else if (fill.Slot is { } slot && !package.Manifest.Themes.Slots.ContainsKey(slot))
-                    report.Fail(area, "scene", $"{path}: node '{node.Id}' fills with slot '{slot}', which themes.slots does not define");
-                else if (fill.Color is { } color && !ColorPattern().IsMatch(color))
-                    report.Fail(area, "scene", $"{path}: node '{node.Id}' has fill colour '{color}'");
+                void Paint(string what, string? slot, string? color)
+                {
+                    if (slot is null && color is null)
+                        report.Fail(area, "scene", $"{path}: node '{node.Id}' {what} has neither slot nor color");
+                    else if (slot is not null && !package.Manifest.Themes.Slots.ContainsKey(slot))
+                        report.Fail(area, "scene", $"{path}: node '{node.Id}' {what} uses slot '{slot}', which themes.slots does not define");
+                    else if (color is not null && !ColorPattern().IsMatch(color))
+                        report.Fail(area, "scene", $"{path}: node '{node.Id}' {what} has colour '{color}'");
+                }
+                void Stops(string what, IReadOnlyList<Spine2dStop> stops)
+                {
+                    Uses("gradients", $"node '{node.Id}'");
+                    if (stops.Count is < 2 or > 8)
+                        report.Fail(area, "scene", $"{path}: node '{node.Id}' {what} has {stops.Count} stops, 2–8 allowed");
+                    for (var i = 0; i < stops.Count; i++)
+                    {
+                        if (stops[i].Offset is < 0 or > 1 || (i > 0 && stops[i].Offset < stops[i - 1].Offset) || stops[i].Opacity is < 0 or > 1)
+                            report.Fail(area, "scene", $"{path}: node '{node.Id}' {what} stop {i} is out of order or outside 0–1");
+                        Paint($"{what} stop {i}", stops[i].Slot, stops[i].Color);
+                    }
+                }
+
+                if (node.Fill is { Linear: { } linear })
+                    Stops("linear gradient", linear.Stops);
+                else if (node.Fill is { Radial: { } radial })
+                {
+                    Stops("radial gradient", radial.Stops);
+                    if (!(radial.R > 0))
+                        report.Fail(area, "scene", $"{path}: node '{node.Id}' radial gradient needs a positive r");
+                }
+                else if (node.Fill is { } fill)
+                    Paint("fill", fill.Slot, fill.Color);
+                else if (node.Stroke is null)
+                    report.Fail(area, "scene", $"{path}: node '{node.Id}' has neither fill nor stroke");
+
+                if (node.Stroke is { } stroke)
+                {
+                    Uses("strokes", $"node '{node.Id}'");
+                    if (!(stroke.Width > 0) || stroke.Cap is not ("butt" or "round" or "square"))
+                        report.Fail(area, "scene", $"{path}: node '{node.Id}' stroke needs a positive width and a cap of butt, round or square");
+                    Paint("stroke", stroke.Slot, stroke.Color);
+                }
+                if (node.Blur != 0)
+                {
+                    Uses("blur", $"node '{node.Id}'");
+                    if (node.Blur is < 0 or > 40)
+                        report.Fail(area, "scene", $"{path}: node '{node.Id}' blur {node.Blur} is outside 0–40");
+                }
+                if (node.Blend is { } blend && blend != "normal")
+                {
+                    Uses("blendModes", $"node '{node.Id}'");
+                    if (!Spine2dVocabulary.BlendModes.Contains(blend))
+                        report.Fail(area, "scene", $"{path}: node '{node.Id}' blend '{blend}' is not one of {string.Join(", ", Spine2dVocabulary.BlendModes)}");
+                }
             }
         }
 
@@ -333,7 +389,7 @@ public static partial class AvatarValidator
                     var key = track.Keyframes[i];
                     if (key.Seconds < 0 || key.Seconds > animation.DurationSeconds + 1e-9 || (i > 0 && key.Seconds <= track.Keyframes[i - 1].Seconds))
                         report.Fail(area, "animations", $"{path}: clip '{name}' {track.Node}.{track.Property} keyframe {i} at {key.Seconds}s is out of order or outside 0–{animation.DurationSeconds}s");
-                    if (key.Easing is not ("linear" or "easeInOut" or "step"))
+                    if (!Spine2dVocabulary.Easings.Contains(key.Easing))
                         report.Fail(area, "animations", $"{path}: clip '{name}' keyframe {i} has easing '{key.Easing}'");
                     CheckWrite($"clip {name}", track.Node, track.Property, key.Value);
                 }

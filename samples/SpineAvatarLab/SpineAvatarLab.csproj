@@ -21,6 +21,11 @@
 		<WindowsPackageType>None</WindowsPackageType>
 	</PropertyGroup>
 
+	<!-- -p:LabHarness=true keeps the scripting harness (Lab/LabHarness.cs) in a Release build, for measurements on devices. -->
+	<PropertyGroup Condition="'$(LabHarness)' == 'true'">
+		<DefineConstants>$(DefineConstants);LAB_HARNESS</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#E8F6F7" />
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#E8F6F7" BaseSize="160,160" />

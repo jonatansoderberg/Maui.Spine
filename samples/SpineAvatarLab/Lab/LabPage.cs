@@ -35,6 +35,8 @@ public sealed class LabPage : ContentPage
     private readonly Switch _animation = new() { IsToggled = true };
     private readonly Switch _accent = new();
     private readonly Switch _previews = new() { IsToggled = true };
+    private readonly Switch _studio = new() { IsToggled = true };
+    private readonly Slider _spring = new(0, 2, 1);
     private readonly Picker _motion = new() { ItemsSource = Enum.GetNames<AvatarMotionMode>(), SelectedIndex = 0 };
     private readonly Picker _theme = new() { ItemsSource = new[] { "System", "Light", "Dark" }, SelectedIndex = 0 };
     private readonly Picker _fps = new() { ItemsSource = new[] { "15", "30", "60" }, SelectedIndex = 2 };
@@ -116,6 +118,8 @@ public sealed class LabPage : ContentPage
                 Labeled("Theme", _theme),
                 Labeled("Motion", _motion),
                 Labeled("Ambient animation", _animation),
+                Labeled("Spring motion", _spring),
+                Labeled("Studio 3D light", _studio),
                 Labeled("Accent override", _accent),
                 Labeled("Max fps", _fps),
                 Labeled("Main size (DIP)", _size),
@@ -139,6 +143,8 @@ public sealed class LabPage : ContentPage
 
         _muted.Toggled += (_, e) => _avatar.IsMuted = e.Value;
         _animation.Toggled += (_, e) => _avatar.IsAnimationEnabled = e.Value;
+        _spring.ValueChanged += (_, e) => _avatar.SecondaryMotion = (float)e.NewValue;
+        _studio.Toggled += (_, e) => _avatar.ThreeDLook = e.Value ? "studio" : "basic";
         _accent.Toggled += (_, e) => _avatar.AccentColor = e.Value ? Color.FromArgb("#E8590C") : null;
         _previews.Toggled += (_, e) => _small64.IsVisible = _small128.IsVisible = e.Value;
         _motion.SelectedIndexChanged += (_, _) => _avatar.MotionMode = (AvatarMotionMode)_motion.SelectedIndex;
@@ -149,7 +155,7 @@ public sealed class LabPage : ContentPage
         _holdViseme.Toggled += (_, _) => ApplyViseme();
 
         LoadBundled("dotling");
-#if DEBUG
+#if DEBUG || LAB_HARNESS
         LabHarness.Start(this);
 #endif
     }
@@ -234,6 +240,12 @@ public sealed class LabPage : ContentPage
                 return null;
             case "stress":
                 return await StressAsync();
+            case "look":
+                _studio.IsToggled = arg == "studio";
+                return null;
+            case "spring":
+                _spring.Value = Number(1);
+                return null;
             case "reset-peaks":
                 _avatar.Stats?.ResetPeaks();
                 return null;
@@ -244,7 +256,7 @@ public sealed class LabPage : ContentPage
                 return "\n" + MeasuredResult.Create(_avatar, _sourceName);
             case "report":
                 return "\n" + (_avatar.Package?.Report.ToJson() ?? (_avatar.LoadError as AvatarLoadException)?.Report.ToJson() ?? _avatar.LoadError?.Message);
-#if DEBUG
+#if DEBUG || LAB_HARNESS
             case "shot":
                 await Task.Delay(50);
                 return LabHarness.Screenshot(this);

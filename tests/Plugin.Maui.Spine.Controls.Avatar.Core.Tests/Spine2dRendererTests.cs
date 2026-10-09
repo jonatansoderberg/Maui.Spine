@@ -111,6 +111,30 @@ public class Spine2dRendererTests
         Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
     }
 
+    [Fact]
+    public void Spine2d11SheetRendersWithoutAllocatingPerFrame()
+    {
+        var package = AvatarArchive.Read(AvatarArchiveTests.Upgraded());
+        var directory = Path.Combine(AppContext.BaseDirectory, "sheets");
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "dotling-1.1-expressions-light.png"),
+            AvatarSheet.RenderPng(package, package.Manifest.Representations[0], AvatarSheetKind.Expressions, dark: false));
+
+        using var renderer = new Spine2dRenderer(Spine2dModel.Compile(package, package.Manifest.Representations[0]));
+        using var surface = SKSurface.Create(new SKImageInfo(320, 320));
+        var frame = Speaking("expr_happy", "viseme_aa");
+        renderer.Evaluate(frame);
+        renderer.Draw(surface.Canvas, new SKRect(0, 0, 320, 320), dark: false);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 100; i++)
+        {
+            renderer.Evaluate(frame);
+            renderer.Draw(surface.Canvas, new SKRect(0, 0, 320, 320), dark: false);
+        }
+        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+    }
+
     public static TheoryData<string, AvatarSheetKind> Sheets()
     {
         var data = new TheoryData<string, AvatarSheetKind>();

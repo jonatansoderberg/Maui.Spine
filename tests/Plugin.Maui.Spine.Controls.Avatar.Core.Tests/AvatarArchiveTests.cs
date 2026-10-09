@@ -139,10 +139,68 @@ public class AvatarArchiveTests
     {
         var report = new AvatarValidationReport();
         var package = AvatarArchive.TryRead(RewriteManifest("dotling", json =>
-            json["representations"]![0]!["requiredFeatures"] = new JsonArray("gradients")), report);
+            json["representations"]![0]!["requiredFeatures"] = new JsonArray("meshDeform")), report);
 
         Assert.Null(package);
         Assert.Contains(report.Failures, f => f.Name == "requiredFeatures");
+    }
+
+    [Fact]
+    public void Spine2d11FeaturesMustBeDeclared()
+    {
+        var report = new AvatarValidationReport();
+        var package = AvatarArchive.TryRead(RewriteJson("dotling", "models/dotling.avatar2d.json", Upgrade), report);
+
+        Assert.Null(package);
+        Assert.Contains(report.Failures, f => f.Name == "requiredFeatures" && f.Detail!.Contains("'gradients'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DeclaredSpine2d11FeaturesLoad()
+    {
+        var report = new AvatarValidationReport();
+        var package = AvatarArchive.TryRead(Upgraded(), report);
+
+        Assert.True(package is not null, string.Join("\n", report.Failures.Select(f => f.Detail)));
+    }
+
+    // Dotling with a radial-gradient body, a blurred screen-blended shine and stroked brows.
+    internal static MemoryStream Upgraded()
+    {
+        using var source = new ZipArchive(new MemoryStream(Reference("dotling")), ZipArchiveMode.Read);
+        using var read = source.GetEntry("models/dotling.avatar2d.json")!.Open();
+        var scene = JsonNode.Parse(read)!;
+        Upgrade(scene);
+        var changed = Encoding.UTF8.GetBytes(scene.ToJsonString());
+
+        return RewriteManifest("dotling", manifest =>
+        {
+            manifest["representations"]![0]!["requiredFeatures"] = new JsonArray("gradients", "blur", "strokes", "blendModes");
+            var file = manifest["files"]!.AsArray().First(f => f!["path"]!.GetValue<string>() == "models/dotling.avatar2d.json")!;
+            file["sha256"] = Convert.ToHexStringLower(SHA256.HashData(changed));
+            file["bytes"] = changed.Length;
+        }, ("models/dotling.avatar2d.json", changed));
+    }
+
+    private static void Upgrade(JsonNode scene)
+    {
+        scene["schemaVersion"] = "1.1";
+        foreach (var node in scene["nodes"]!.AsArray())
+        {
+            switch (node!["id"]!.GetValue<string>())
+            {
+                case "body":
+                    node["fill"] = JsonNode.Parse("""{"radial":{"cx":-30,"cy":-50,"r":170,"stops":[{"offset":0,"slot":"shine"},{"offset":0.55,"slot":"body"},{"offset":1,"slot":"halo"}]}}""");
+                    break;
+                case "shine":
+                    node["blur"] = 6;
+                    node["blend"] = "screen";
+                    break;
+                case "browLeft" or "browRight":
+                    node["stroke"] = JsonNode.Parse("""{"width":1.5,"slot":"ink","cap":"round"}""");
+                    break;
+            }
+        }
     }
 
     [Fact]
