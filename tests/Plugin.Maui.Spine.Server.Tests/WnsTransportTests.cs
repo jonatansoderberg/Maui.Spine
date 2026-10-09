@@ -100,6 +100,30 @@ public class WnsTransportTests
     }
 
     [Fact]
+    public async Task A_collapse_id_goes_as_the_wns_tag_and_a_toast_without_one_has_none()
+    {
+        var (transport, handler, _) = NewTransport(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var _t = transport;
+
+        await transport.SendAsync([Installation("pc")], PushPayloads.Wns(new PushNotification { Title = "T", Body = "B", CollapseId = "results" }, Now));
+        await transport.SendAsync([Installation("pc")], Toast);
+
+        var sent = handler.ToWns.Select(r => Header(r.Request, "X-WNS-Tag")).ToList();
+        Assert.Equal([WnsPayload.Tag("results"), null], sent);
+    }
+
+    [Fact]
+    public async Task A_raw_message_never_carries_a_tag()
+    {
+        var (transport, handler, _) = NewTransport(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        using var _t = transport;
+
+        await transport.SendAsync([Installation("pc")], PushPayloads.WnsSilent(new Dictionary<string, string>()) with { WnsTag = "abc" });
+
+        Assert.Null(Header(handler.ToWns.Single().Request, "X-WNS-Tag"));
+    }
+
+    [Fact]
     public async Task A_lifetime_becomes_the_ttl_in_seconds()
     {
         var (transport, handler, _) = NewTransport(_ => new HttpResponseMessage(HttpStatusCode.OK));

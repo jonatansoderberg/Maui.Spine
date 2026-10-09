@@ -5,6 +5,7 @@ using Microsoft.Windows.PushNotifications;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.PushNotifications.Extensions;
 using Plugin.Maui.Spine.PushNotifications.Services;
+using static Plugin.Maui.Spine.PushNotifications.WindowsLog;
 
 namespace Plugin.Maui.Spine.PushNotifications;
 
@@ -18,10 +19,15 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
     /// <summary>A channel is good for 30 days; one closer than this to running out is replaced on the next foreground.</summary>
     private static readonly TimeSpan RenewBefore = TimeSpan.FromDays(1);
 
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    /// <summary>How long a permission request waits for the channel before answering without it; it registers when it comes.</summary>
+    private static readonly TimeSpan ChannelWait = TimeSpan.FromSeconds(10);
+
+    private readonly Lock _gate = new();
+    private Task _channel = Task.CompletedTask;
     private readonly Lazy<string?> _unsupported = new(() => FindUnsupported(options));
     private string? _handle;
     private DateTimeOffset _expiresAt;
+    private volatile bool _registered;
 
     /// <inheritdoc />
     public Common.PushPlatform Platform => Common.PushPlatform.Windows;
@@ -37,6 +43,13 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
 
     /// <summary>Whether a window of the app is active, which a raw push's <see cref="PushContext"/> reports.</summary>
     internal bool IsForeground { get; set; }
+
+    /// <summary>
+    /// Whether <see cref="Register"/> has run. The Windows App SDK wants <c>PushNotificationManager.Register()</c>
+    /// before the first channel request, and MAUI can show a page — and activate its window — before the
+    /// OnLaunched event that registers.
+    /// </summary>
+    internal bool IsRegistered => _registered;
 
     /// <summary>Why this app cannot get push on this machine, or <see langword="null"/> when it can.</summary>
     internal string? Unsupported => _unsupported.Value;
@@ -68,10 +81,23 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
         }
     }
 
-    /// <summary>Windows has no prompt; this gets a channel if there is none and answers with the setting.</summary>
+    /// <summary>
+    /// Windows has no prompt; this answers with the setting. It starts a channel request if there is no
+    /// channel and waits a little for it, so the usual case registers in the same call. WNS can take up to
+    /// 15 minutes when it has to retry; the request carries on and registers through
+    /// <see cref="HandleChanged"/> when it finishes.
+    /// </summary>
     public async Task<PushStatus> RequestPermissionAsync(PushPermission permission, CancellationToken cancellationToken)
     {
-        await ChannelAsync();
+        try
+        {
+            await ChannelAsync().WaitAsync(ChannelWait, cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            Logger?.LogInformation("Spine.PushNotifications: no WNS channel yet after {Seconds} s; the app registers when it arrives.", ChannelWait.TotalSeconds);
+        }
+
         return Status;
     }
 
@@ -105,23 +131,40 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
         {
             Logger?.LogError(e, "Spine.PushNotifications: PushNotificationManager.Register() failed (HRESULT 0x{HResult:X8}); this app gets no raw pushes.", e.HResult);
         }
+        finally
+        {
+            // A failed Register() still lets the channel request run, which logs its own reason.
+            _registered = true;
+        }
     }
 
     /// <summary>
     /// Asks WNS for a channel and makes its URI the handle, unless this process already holds one that is
     /// good for another day. The handle is not kept across launches, so every launch asks afresh — as
-    /// Microsoft recommends, since the URI can change.
+    /// Microsoft recommends, since the URI can change. Nothing before <see cref="Register"/>: the launch
+    /// asks once it has registered. Never throws; failures are logged.
     /// </summary>
-    internal async Task ChannelAsync()
+    /// <remarks>
+    /// One request at a time, and every caller while it runs gets that same request: the platform retries
+    /// on its own for up to 15 minutes, and a caller should not queue behind it for another 15.
+    /// </remarks>
+    internal Task ChannelAsync()
     {
-        if (Unsupported is not null || options.Backend is null || IsCurrent()) return;
+        if (Unsupported is not null || options.Backend is null || !_registered || IsCurrent()) return Task.CompletedTask;
 
-        await _gate.WaitAsync();
+        lock (_gate)
+        {
+            if (!_channel.IsCompleted) return _channel;
+            if (IsCurrent()) return Task.CompletedTask;
+
+            return _channel = RequestChannelAsync();
+        }
+    }
+
+    private async Task RequestChannelAsync()
+    {
         try
         {
-            // Launch and the first window activation both ask; the second finds the first one's channel.
-            if (IsCurrent()) return;
-
             var remoteId = options.Windows.RemoteId!.Value;
             var operation = PushNotificationManager.Default.CreateChannelAsync(remoteId);
 
@@ -157,10 +200,6 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
         catch (Exception e)
         {
             Logger?.LogWarning(e, "Spine.PushNotifications: requesting a WNS channel failed (HRESULT 0x{HResult:X8}).", e.HResult);
-        }
-        finally
-        {
-            _gate.Release();
         }
     }
 
@@ -226,7 +265,4 @@ internal sealed class WindowsPushPlatform(SpinePushNotificationsOptions options)
             return $"PushNotificationManager.IsSupported() threw {e.GetType().Name} (HRESULT 0x{e.HResult:X8}): {e.Message}";
         }
     }
-
-    private static ILogger? Logger =>
-        IPlatformApplication.Current?.Services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.PushNotifications");
 }

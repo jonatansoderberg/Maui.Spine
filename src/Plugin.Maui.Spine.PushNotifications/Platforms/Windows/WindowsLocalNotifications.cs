@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.Common;
 using Windows.UI.Notifications;
+using static Plugin.Maui.Spine.PushNotifications.WindowsLog;
 
 namespace Plugin.Maui.Spine.PushNotifications.Services;
 
@@ -44,7 +45,7 @@ internal sealed class WindowsLocalNotifications(SpinePushNotificationsOptions op
 
                 notifier.AddToSchedule(new ScheduledToastNotification(xml, notification.At)
                 {
-                    Tag = WindowsNotifications.Tag(notification.Id),
+                    Tag = WnsPayload.Tag(notification.Id),
                     Group = Group,
                 });
             }
@@ -112,7 +113,4 @@ internal sealed class WindowsLocalNotifications(SpinePushNotificationsOptions op
             Data = LocalNotificationPayload.App(data),
         };
     }
-
-    private static ILogger? Logger =>
-        IPlatformApplication.Current?.Services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.PushNotifications");
 }

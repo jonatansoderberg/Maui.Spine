@@ -53,6 +53,51 @@ public class WnsPayloadTests
         Assert.Equal("enter=me", data[WnsPayload.Action]);
     }
 
+    [Fact]
+    public void A_toast_whose_data_names_a_button_is_refused()
+    {
+        var refused = Assert.Throws<InvalidOperationException>(() => PushPayloads.Wns(new PushNotification
+        {
+            Title = "T",
+            Body = "B",
+            Data = new Dictionary<string, string> { [WnsPayload.Action] = "delete" },
+        }, Now));
+
+        Assert.Contains(WnsPayload.Action, refused.Message);
+    }
+
+    [Fact]
+    public void A_silent_message_whose_data_names_a_button_is_refused()
+    {
+        var refused = Assert.Throws<InvalidOperationException>(() =>
+            PushPayloads.WnsSilent(new Dictionary<string, string> { [PushKeys.Kind] = PushKeys.Kinds.Alert, [WnsPayload.Action] = "delete" }));
+
+        Assert.Contains(WnsPayload.Action, refused.Message);
+    }
+
+    [Fact]
+    public void The_collapse_id_becomes_the_tag_the_app_gives_its_own_toasts()
+    {
+        var envelope = PushPayloads.Wns(new PushNotification
+        {
+            Title = "T",
+            Body = "B",
+            CollapseId = "results-59691-a-collapse-id-longer-than-sixteen-characters",
+        }, Now);
+
+        Assert.Equal(WnsPayload.Tag("results-59691-a-collapse-id-longer-than-sixteen-characters"), envelope.WnsTag);
+        Assert.Equal(WnsPayload.TagLength, envelope.WnsTag!.Length);
+        Assert.Null(PushPayloads.Wns(new PushNotification { Title = "T", Body = "B" }, Now).WnsTag);
+    }
+
+    [Fact]
+    public void A_tag_is_stable_and_tells_ids_apart()
+    {
+        Assert.Equal(WnsPayload.Tag("a"), WnsPayload.Tag("a"));
+        Assert.NotEqual(WnsPayload.Tag("a"), WnsPayload.Tag("b"));
+        Assert.Equal(WnsPayload.TagLength, WnsPayload.Tag("").Length);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("%")]

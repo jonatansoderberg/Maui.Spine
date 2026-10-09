@@ -364,7 +364,11 @@ Windows.
 On Windows a local toast gets its category's buttons from the app, but a pushed toast is drawn by WNS
 from the server's XML, which knows nothing of the categories. Add the buttons on the server with
 `PushNotification.Windows`, each carrying the toast's `launch` plus `;spine.action=<id>` — a tapped
-button hands the app its own arguments and nothing of the toast's:
+button hands the app its own arguments and nothing of the toast's. Each button is therefore one more
+copy of the toast's data, and every copy counts toward WNS's 5000 bytes: a typical toast's `launch`
+is about 250 bytes, and five buttons take it from about 500 bytes to about 2100. `spine.action` is
+reserved: the server refuses a notification whose `Data` has it, and the app leaves it out of its own
+toasts, since a tap on the toast would otherwise read as a tap on that button.
 
 ```csharp
 new PushNotification
@@ -391,7 +395,7 @@ new PushNotification { …, Image = new Uri("https://example.com/map.png") }    
 |---|---|---|
 | iOS | Shown. Spine hands iOS a **copy**: iOS moves an attachment's file into its own store, so the app's file would otherwise disappear. | Needs the Notification Service Extension — see below. |
 | Android | Shown, as `BigPictureStyle` with a thumbnail when collapsed. | Shown. Spine draws the notification itself and fetches the picture first, within FCM's time for the message. |
-| Windows | Shown as the toast's hero image, from a `file:///` URI. | Shown: the server puts it in the toast XML and Windows fetches it. |
+| Windows | Shown as the toast's hero image, from a `file:///` URI. A relative path is taken from the app's directory (`AppContext.BaseDirectory`), not the working directory. | Shown: the server puts it in the toast XML and Windows fetches it. |
 
 The rule everywhere is that **the notification always arrives**. A picture that cannot be fetched or
 decoded, or that takes too long, leaves the text as it was, and the reason goes to the log — logcat
@@ -522,7 +526,15 @@ reads the activation (a cold start from a toast or from a raw push), and asks WN
 every launch, as Microsoft recommends, since the URI can change. On a foreground it asks again when
 the channel runs out within a day; channels last 30 days. A changed URI is registered with the
 backend like a rotated token. WNS retries a channel request for up to 15 minutes; every retry and a
-failure are logged with the HRESULT.
+failure are logged with the HRESULT. Only one request runs at a time, and launch, foregrounds and
+`RequestPermissionAsync` all wait on that one rather than queueing behind it.
+
+Windows never asks the user, so `RequestPermissionAsync` answers with the Settings switch
+(`Authorized` or `Denied`). It starts a channel request if there is none and waits up to ten seconds
+for it, so the usual case registers in the same call; a request that takes longer carries on and
+registers when the channel arrives. A step of the start-up that fails — registering with the Windows
+App SDK, reading the activation — is logged with its HRESULT and does not stop the rest, so push
+still gets its channel.
 
 #### Unpackaged or packaged
 

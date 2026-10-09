@@ -6,12 +6,14 @@ using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.PushNotifications;
 using Plugin.Maui.Spine.PushNotifications.Services;
 using Windows.ApplicationModel.Activation;
+using static Plugin.Maui.Spine.PushNotifications.WindowsLog;
 
 namespace Plugin.Maui.Spine.PushNotifications.Extensions;
 
 public static partial class SpinePushNotificationsExtensions
 {
-    private static bool _started;
+    private static bool _registered;
+    private static bool _listening;
 
     static partial void ConfigurePlatform(MauiAppBuilder builder, SpinePushNotificationsOptions options)
     {
@@ -26,7 +28,10 @@ public static partial class SpinePushNotificationsExtensions
             windows.OnActivated((_, args) =>
             {
                 platform.IsForeground = args.WindowActivationState != Microsoft.UI.Xaml.WindowActivationState.Deactivated;
-                if (platform.IsForeground) Resume(platform, options).SafeFireAndForget();
+
+                // MAUI activates the first window inside MauiWinUIApplication.OnLaunched, before it raises the
+                // OnLaunched event that registers; Start asks for the channel itself once it has.
+                if (platform.IsForeground && platform.IsRegistered) ResumeAsync(platform, options).SafeFireAndForget();
             });
         }));
     }
@@ -38,31 +43,58 @@ public static partial class SpinePushNotificationsExtensions
     private static void Start(WindowsPushPlatform platform, SpinePushNotificationsOptions options)
     {
         // MAUI raises OnLaunched again for a later launch of a running app; the Windows App SDK wants one registration.
-        if (_started) return;
-        _started = true;
+        // Each Register() logs its own failure, and a second call would only add a second handler.
+        if (!_registered)
+        {
+            _registered = true;
+            RegisterToasts(options);
+            platform.Register();
+        }
 
-        RegisterToasts(options);
-        platform.Register();
-
-        var instance = AppInstance.GetCurrent();
-
-        // A second launch redirected here by Spine's single-instance handling: a toast tapped while the app ran
-        // in another process, or a raw push that started one.
-        instance.Activated += (_, args) => Activated(platform, options, args, isColdStart: false);
-        Activated(platform, options, instance.GetActivatedEventArgs(), isColdStart: true);
-
-        StartAsync(platform, options).SafeFireAndForget();
+        ListenForActivations(platform, options);
+        ResumeAsync(platform, options).SafeFireAndForget();
     }
 
-    private static async Task StartAsync(WindowsPushPlatform platform, SpinePushNotificationsOptions options)
+    /// <summary>
+    /// The activation the process started with, and later ones redirected here by Spine's single-instance
+    /// handling: a toast tapped while the app ran in another process, or a raw push that started one.
+    /// A failure is logged and tried again on the next launch rather than taking the app down with it.
+    /// </summary>
+    private static void ListenForActivations(WindowsPushPlatform platform, SpinePushNotificationsOptions options)
     {
-        if (options.Backend is null || platform.Unsupported is not null) return;
+        if (_listening) return;
 
-        await platform.ChannelAsync();
-        await Services().GetRequiredService<IPushNotificationService>().RefreshAsync();
+        AppInstance instance;
+        try
+        {
+            instance = AppInstance.GetCurrent();
+            instance.Activated += (_, args) => Activated(platform, options, args, isColdStart: false);
+        }
+        catch (Exception e)
+        {
+            Logger?.LogError(e,
+                "Spine.PushNotifications: AppInstance.GetCurrent() failed (HRESULT 0x{HResult:X8}); a toast that starts the app, or is tapped while it runs in another process, does not reach the handler.",
+                e.HResult);
+            return;
+        }
+
+        _listening = true;
+
+        AppActivationArguments arguments;
+        try
+        {
+            arguments = instance.GetActivatedEventArgs();
+        }
+        catch (Exception e)
+        {
+            Logger?.LogError(e, "Spine.PushNotifications: AppInstance.GetActivatedEventArgs() failed (HRESULT 0x{HResult:X8}); the toast or push that started the app is not handled.", e.HResult);
+            return;
+        }
+
+        Activated(platform, options, arguments, isColdStart: true);
     }
 
-    private static async Task Resume(WindowsPushPlatform platform, SpinePushNotificationsOptions options)
+    private static async Task ResumeAsync(WindowsPushPlatform platform, SpinePushNotificationsOptions options)
     {
         if (options.Backend is null || platform.Unsupported is not null) return;
 
@@ -76,13 +108,11 @@ public static partial class SpinePushNotificationsExtensions
     /// </summary>
     private static void RegisterToasts(SpinePushNotificationsOptions options)
     {
-        var logger = Services().GetRequiredService<ILogger<IPushNotificationService>>();
-
         try
         {
             if (!AppNotificationManager.IsSupported())
             {
-                logger.LogWarning("Spine.PushNotifications: AppNotificationManager.IsSupported() is false; tapped notifications will not reach the handler.");
+                Logger?.LogWarning("Spine.PushNotifications: AppNotificationManager.IsSupported() is false; tapped notifications will not reach the handler.");
                 return;
             }
 
@@ -91,7 +121,7 @@ public static partial class SpinePushNotificationsExtensions
         }
         catch (Exception e)
         {
-            logger.LogError(e,
+            Logger?.LogError(e,
                 "Spine.PushNotifications: AppNotificationManager.Register() failed (HRESULT 0x{HResult:X8}); tapped notifications will not reach the handler. " +
                 "A packaged app needs the toast activator in Package.appxmanifest — see the wiki's Windows section.", e.HResult);
         }
@@ -99,20 +129,27 @@ public static partial class SpinePushNotificationsExtensions
 
     private static void Activated(WindowsPushPlatform platform, SpinePushNotificationsOptions options, AppActivationArguments args, bool isColdStart)
     {
-        switch (args.Data)
+        try
         {
-            case AppNotificationActivatedEventArgs tapped:
-                Invoked(options, tapped.Argument, tapped.UserInput);
-                break;
+            switch (args.Data)
+            {
+                case AppNotificationActivatedEventArgs tapped:
+                    Invoked(options, tapped.Argument, tapped.UserInput);
+                    break;
 
-            // A packaged app without the Windows App SDK's toast activator is started the classic way.
-            case IToastNotificationActivatedEventArgs classic:
-                Invoked(options, classic.Argument, classic.UserInput.ToDictionary(p => p.Key, p => p.Value?.ToString() ?? ""));
-                break;
+                // A packaged app without the Windows App SDK's toast activator is started the classic way.
+                case IToastNotificationActivatedEventArgs classic:
+                    Invoked(options, classic.Argument, classic.UserInput.ToDictionary(p => p.Key, p => p.Value?.ToString() ?? ""));
+                    break;
 
-            case PushNotificationReceivedEventArgs push:
-                platform.Receive(push, isColdStart);
-                break;
+                case PushNotificationReceivedEventArgs push:
+                    platform.Receive(push, isColdStart);
+                    break;
+            }
+        }
+        catch (Exception e)
+        {
+            Logger?.LogError(e, "Spine.PushNotifications: handling the {Kind} activation failed (HRESULT 0x{HResult:X8}).", args.Kind, e.HResult);
         }
     }
 

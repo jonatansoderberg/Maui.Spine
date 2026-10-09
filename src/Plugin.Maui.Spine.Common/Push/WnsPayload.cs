@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -11,9 +12,20 @@ internal static class WnsPayload
 {
     /// <summary>
     /// The key a toast button adds to the toast's arguments, naming the button. A button's arguments are
-    /// all the app gets when it is tapped, so they repeat the toast's and add this.
+    /// all the app gets when it is tapped, so they repeat the toast's and add this. Reserved: a data bag
+    /// that carried it would make a tap on the toast itself read as a tap on that button.
     /// </summary>
     internal const string Action = "spine.action";
+
+    /// <summary>The longest tag a toast may have: WNS refuses an <c>X-WNS-Tag</c> over 16 characters.</summary>
+    internal const int TagLength = 16;
+
+    /// <summary>
+    /// The toast tag for a collapse id: the server's <c>X-WNS-Tag</c> and the tag of a toast the app draws
+    /// itself, so either replaces an earlier one with the same id. Hashed, since an id may be longer
+    /// than <see cref="TagLength"/>.
+    /// </summary>
+    internal static string Tag(string id) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(id)))[..TagLength];
 
     /// <summary>
     /// Writes <paramref name="data"/> as a toast argument: <c>key=value;key=value</c>, with <c>%</c>,

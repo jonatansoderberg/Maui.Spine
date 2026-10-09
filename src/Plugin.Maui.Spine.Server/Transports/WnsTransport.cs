@@ -129,6 +129,7 @@ public sealed class WnsTransport : IPushTransport, IDisposable
         request.Content.Headers.ContentType = new MediaTypeHeaderValue(raw ? "application/octet-stream" : "text/xml");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.TryAddWithoutValidation("X-WNS-Type", message.WnsType ?? "wns/toast");
+        if (!raw && message.WnsTag is { Length: > 0 } tag) request.Headers.TryAddWithoutValidation("X-WNS-Tag", tag);
 
         // WNS recommends against it: 100-continue only adds a round trip to every notification.
         request.Headers.ExpectContinue = false;

@@ -1,9 +1,8 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Windows.AppNotifications;
 using Plugin.Maui.Spine.Common;
+using static Plugin.Maui.Spine.PushNotifications.WindowsLog;
 
 namespace Plugin.Maui.Spine.PushNotifications;
 
@@ -20,6 +19,12 @@ internal static class WindowsNotifications
     /// <summary>The toast XML for <paramref name="data"/>, with the buttons of the category it names.</summary>
     internal static string Toast(IReadOnlyDictionary<string, string> data, SpinePushNotificationsOptions options)
     {
+        if (data.ContainsKey(WnsPayload.Action))
+        {
+            Logger?.LogWarning("Spine.PushNotifications: the notification's data has the reserved key '{Key}', which names a tapped button on Windows; it is left out.", WnsPayload.Action);
+            data = data.Where(p => p.Key != WnsPayload.Action).ToDictionary(StringComparer.Ordinal);
+        }
+
         var launch = WnsPayload.WriteArguments(data);
 
         var binding = new XElement("binding", new XAttribute("template", "ToastGeneric"),
@@ -46,7 +51,8 @@ internal static class WindowsNotifications
 
     /// <summary>
     /// The buttons, each carrying the toast's arguments plus its own id: a tapped button hands the app
-    /// its own arguments and nothing of the toast's. Windows shows at most five.
+    /// its own arguments and nothing of the toast's (<c>AppNotificationActivatedEventArgs</c> has no way
+    /// back to the toast). Windows shows at most five.
     /// </summary>
     private static XElement Buttons(PushCategory category, string launch)
     {
@@ -79,14 +85,17 @@ internal static class WindowsNotifications
 
     /// <summary>
     /// A picture as a toast can load it: an https URL as it is, a file on the device as a <c>file:///</c>
-    /// URI. Anything else leaves the text, and says why.
+    /// URI. A relative path is taken from the app's directory, not the working directory, which is
+    /// wherever the app was started from. Anything else leaves the text, and says why.
     /// </summary>
     private static string? Picture(string? image)
     {
         if (image is not { Length: > 0 }) return null;
 
         if (Uri.TryCreate(image, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps) return uri.AbsoluteUri;
-        if (File.Exists(image)) return new Uri(Path.GetFullPath(image)).AbsoluteUri;
+
+        var path = Path.GetFullPath(image, AppContext.BaseDirectory);
+        if (File.Exists(path)) return new Uri(path).AbsoluteUri;
 
         Logger?.LogWarning("Spine.PushNotifications: no picture: '{Image}' is neither an https URL nor a file on the device. The notification is shown without it.", image);
         return null;
@@ -96,15 +105,9 @@ internal static class WindowsNotifications
     internal static void Show(PushMessage message, SpinePushNotificationsOptions options)
     {
         var notification = new AppNotification(Toast(message.Data, options));
-        if (message.CollapseId is { Length: > 0 } collapse) notification.Tag = Tag(collapse);
+        if (message.CollapseId is { Length: > 0 } collapse) notification.Tag = WnsPayload.Tag(collapse);
         AppNotificationManager.Default.Show(notification);
     }
-
-    /// <summary>
-    /// A short, stable tag for an id. A toast's tag is limited in length, and replacing a toast — a
-    /// re-planned local one, a collapsed push — needs the same tag every time.
-    /// </summary>
-    internal static string Tag(string id) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(id)))[..16];
 
     /// <summary>What a tapped toast or button carried: the message, the button's id, and a reply's text.</summary>
     internal static (PushMessage Message, string? Action, string? Text) Read(string? argument, IDictionary<string, string>? userInput)
@@ -115,7 +118,4 @@ internal static class WindowsNotifications
 
         return (PushMessage.From(data), action, text);
     }
-
-    private static ILogger? Logger =>
-        IPlatformApplication.Current?.Services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.PushNotifications");
 }

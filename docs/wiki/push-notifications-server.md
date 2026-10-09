@@ -124,7 +124,7 @@ PushTagExpression.Parse("kind:pm-published && (competition:1 || competition:2) &
 |---|---|
 | `Route` | `spine.route`; the page the app opens when tapped |
 | `Channel` | The Android channel, and the thread id iOS groups by |
-| `CollapseId` | `apns-collapse-id` and `collapse_key` |
+| `CollapseId` | `apns-collapse-id`, `collapse_key`, and WNS's `X-WNS-Tag` (hashed to 16 characters) |
 | `TimeToLive` | `apns-expiration` and FCM's `ttl` |
 | `Priority` | APNs 10 or 5, FCM high or normal |
 | `Interruption` | `interruption-level`: passive, active, time-sensitive |
@@ -222,7 +222,11 @@ and fetches a new one when WNS answers 401.
   travel in the toast's `launch` argument, in the Windows App SDK's `key=value;` form, and reach the
   handler when the toast is opened. Buttons are not drawn from a category; add them with
   `PushNotification.Windows`, which gets the toast element — each button's `arguments` the toast's
-  `launch` plus `;spine.action=<id>`, see [Buttons](push-notifications.md#buttons).
+  `launch` plus `;spine.action=<id>`, see [Buttons](push-notifications.md#buttons). Every button
+  repeats the `launch`, so keep `Data` small on a toast with buttons. `spine.action` is reserved:
+  `PushPayloads` throws when `Data` carries it.
+- **`CollapseId` is the toast's `X-WNS-Tag`**, hashed to the 16 characters WNS allows, the same way
+  the app tags the toasts it draws itself, so either replaces an earlier one with the same id.
 - **Silent pushes are raw** (`wns/raw`): the data as JSON, delivered to a running app.
 - **Live Activities, widget refreshes and broadcasts** skip Windows installations.
 - **The channel URI is the handle, and only `https://*.notify.windows.com` is sent to.** The URI
