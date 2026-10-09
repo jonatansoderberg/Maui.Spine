@@ -86,6 +86,10 @@ public sealed partial class AvatarMicrophoneFeed : IDisposable
             _latestBands.CopyTo(_frameBands, 0);
         }
         _view?.Scheduler?.SetInputLevel(level, _frameBands);
+
+        // With the microphone on, being idle means listening: after a reply ends the avatar listens again.
+        if (_view is { State: AvatarState.Idle } view)
+            view.State = AvatarState.Listening;
     }
 }
 
