@@ -136,9 +136,9 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         UpdateTitleBarSearch();
     }
 
-    // Follows the installed host (a host swap), its root region (a tab switch) and that region's
-    // page (a navigation), re-evaluating the title bar when any of them changes. A sheet opening or
-    // closing comes in through the host's ActiveRegionChanged as well.
+    // Follows the installed host (a host swap, or a new window), its root region (a tab switch)
+    // and that region's page (a navigation), re-evaluating the title bar when any of them changes.
+    // A sheet opening or closing comes in through the host's ActiveRegionChanged as well.
     private void TrackTitleBarPage(ISpineHost? host)
     {
         if (!ReferenceEquals(host, _titleBarHost))
@@ -152,6 +152,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             {
                 host.ActiveRegionChanged += OnTitleBarHostActiveRegionChanged;
                 _titleBar?.SetBinding(TitleBar.TitleProperty, new Binding("AppTitle", source: host));
+                ApplyHostBackgroundForBackdrop(host);
             }
         }
 
@@ -286,7 +287,6 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
         // --- System backdrop ---
         ApplyWindowBackdrop(winuiWindow, windowsOptions.Backdrop);
-        ApplyHostBackgroundForBackdrop(windowsOptions.Backdrop);
 
         var hWnd = winuiWindow.GetWindowHandle();
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
@@ -585,14 +585,14 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         };
     }
 
-    private void ApplyHostBackgroundForBackdrop(WindowBackdrop backdrop)
+    private static void ApplyHostBackgroundForBackdrop(ISpineHost host)
     {
         // When a system backdrop is active the host page's background colour (set by the
         // app's ContentPage style) would paint over the entire window, hiding the effect.
-        // Clearing it to Transparent lets the Mica / Acrylic material show through.
-        _host.HostPage.BackgroundColor = backdrop == WindowBackdrop.None
-            ? null          // restore default so the app style takes effect again
-            : Colors.Transparent;
+        // Clearing it to Transparent lets the Mica / Acrylic material show through. Without a
+        // backdrop the page is left alone: a local null would also override the app's style.
+        if (_services.GetRequiredService<SpineOptions>().Windows.Backdrop is not WindowBackdrop.None)
+            host.HostPage.BackgroundColor = Colors.Transparent;
     }
 
     private void ConfigureWindowsTitleBar(bool isTitleBarVisible)
