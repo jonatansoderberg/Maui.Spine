@@ -60,6 +60,55 @@ A["speak"] = {"durationSeconds": 0.9, "loop": True, "tracks": [
     track("innerGlow", "opacity", [(0, 1, "easeOut"), (0.3, 1.45, "easeInOut"), (0.9, 1, "linear")]),
     spin("swirlA", 0.9, 1)]}
 
+# Moving parts. Every loop carries them, because a state loop replaces the idle one: without them the
+# arcs would stop whenever Aurora listens or speaks. Rotations are whole turns so loops stay seamless.
+A["speak"]["durationSeconds"] = 1.8
+for t in A["speak"]["tracks"]:
+    if t["property"] == "rotation":
+        t["keyframes"][-1]["seconds"] = 1.8
+    else:
+        # Two pulses per loop instead of one.
+        keys = t["keyframes"]
+        t["keyframes"] = [dict(k, seconds=round(k["seconds"], 4)) for k in keys] + [dict(k, seconds=round(k["seconds"] + 0.9, 4)) for k in keys[1:]]
+A["listen"] = {"durationSeconds": 2.0, "loop": True, "tracks": []}
+b["animations"]["listen"] = "listen"
+b["stateAnimations"]["listening"] = "listen"
+
+def orbit_offsets(node, duration, turns, keys=12):
+    # Flies the node around the orb's centre: offsets from its rest position along a circle.
+    rest = next(n for n in nodes if n["id"] == node)["transform"]
+    x, y = rest["x"], rest["y"]
+    xs, ys = [], []
+    for i in range(keys + 1):
+        a = 2 * math.pi * turns * i / keys
+        xs.append((i * duration / keys, round(x * math.cos(a) - y * math.sin(a) - x, 3), "linear"))
+        ys.append((i * duration / keys, round(x * math.sin(a) + y * math.cos(a) - y, 3), "linear"))
+    return [track(node, "x", xs), track(node, "y", ys)]
+
+def wobble(node, duration, radius, phase):
+    # A small elliptical drift, so the arcs float rather than spin on a pin.
+    keys = 8
+    xs = [(i * duration / keys, round(radius * math.cos(2 * math.pi * i / keys + phase), 3), "easeInOut") for i in range(keys + 1)]
+    ys = [(i * duration / keys, round(radius * 0.7 * math.sin(2 * math.pi * i / keys + phase), 3), "easeInOut") for i in range(keys + 1)]
+    xs[-1] = (duration, xs[0][1], "easeInOut"); ys[-1] = (duration, ys[0][1], "easeInOut")
+    return [track(node, "x", xs), track(node, "y", ys)]
+
+def breathe(node, duration, amount):
+    return [track(node, p, [(0, 1, "easeInOut"), (duration / 2, 1 + amount, "easeInOut"), (duration, 1, "easeInOut")]) for p in ("scaleX", "scaleY")]
+
+# turns per loop: (orbitInput, orbitOutput, ribbons, sparks)
+speeds = {"idle_a": (1, -1, 1, 1), "idle_b": (1, -1, 1, 1), "think": (2, -2, 1, 1), "connect": (2, -1, 1, 1),
+          "speak": (1, -2, 1, 1), "listen": (2, -1, 1, 1)}
+for name, (inp, out, ribbon, spark) in speeds.items():
+    dur = A[name]["durationSeconds"]
+    A[name]["tracks"] += [spin("orbitInput", dur, inp), spin("orbitOutput", dur, out),
+                          spin("ribbonCyan", dur, ribbon), spin("ribbonViolet", dur, -ribbon), spin("innerRibbon", dur, 2 * ribbon)]
+    A[name]["tracks"] += wobble("orbitInput", dur, 9, 0) + wobble("orbitOutput", dur, 11, math.pi)
+    A[name]["tracks"] += breathe("orbitOutput", dur, 0.06) + breathe("orbitInput", dur, 0.05)
+    for i in range(4):
+        A[name]["tracks"] += orbit_offsets(f"spark{i}", dur, spark if i % 2 == 0 else -spark)
+A["listen"]["tracks"] += breathe("aura", 2.0, 0.08)
+
 P = b["poses"]
 P["listening"] += [{"node": "tintCyan", "property": "opacity", "value": 0.6}]
 P["thinking"] += [{"node": "tintViolet", "property": "opacity", "value": 0.65},
@@ -73,7 +122,13 @@ P["muted"] += [{"node": "tintGrey", "property": "opacity", "value": 0.8},
                {"node": "swirlA", "property": "opacity", "value": 0.08}, {"node": "swirlB", "property": "opacity", "value": 0.08}]
 b["animations"]["speak"] = "speak"
 b["stateAnimations"]["speaking"] = "speak"
-b["parameters"]["outputLevel"] += [{"node": "swirlA", "property": "opacity", "min": 0.5, "max": 1}]
+b["parameters"]["outputLevel"] += [{"node": "swirlA", "property": "opacity", "min": 0.5, "max": 1},
+                                   {"node": "orbitOutput", "property": "scaleX", "min": 1, "max": 1.25},
+                                   {"node": "orbitOutput", "property": "scaleY", "min": 1, "max": 1.25}]
+b["parameters"]["inputLevel"] += [{"node": "orbitInput", "property": "scaleX", "min": 1, "max": 1.2},
+                                  {"node": "orbitInput", "property": "scaleY", "min": 1, "max": 1.2}]
+for i in range(4):
+    b["parameters"].setdefault("outputHigh", []).append({"node": f"spark{i}", "property": "opacity", "min": 0.4, "max": 1})
 
 json.dump(scene, open(f'{d}/models/aurora.avatar2d.json', 'w'), indent=1)
 json.dump(b, open(f'{d}/bindings/skia.json', 'w'), indent=1)
