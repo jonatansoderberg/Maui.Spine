@@ -8,11 +8,12 @@ public enum SearchPlacement
 {
     /// <summary>
     /// Where the platform puts search: at the trailing end of the header bar on iPad and Mac Catalyst,
-    /// and in a row below the header bar everywhere else and in sheets.
+    /// in the window's title bar on Windows while the page shows it, and in a row below the header
+    /// bar everywhere else and in sheets.
     /// </summary>
     Automatic,
 
-    /// <summary>A row below the header bar, on every platform.</summary>
+    /// <summary>A row below the header bar, on every platform (Windows' title bar included).</summary>
     Top,
 }
 
@@ -47,7 +48,7 @@ public sealed partial class PageSearch : ObservableObject
     /// a search from code. In the row below the header bar (iPhone, Android, sheets) the header bar
     /// gives way to the field meanwhile, and the search outlasts the keyboard: it ends with the cancel
     /// button on iOS, back on Android, or <see langword="false"/> here, which also clears <see cref="Text"/>.
-    /// At the trailing end of the bar (iPad, Mac Catalyst) and on Windows it follows the focus.
+    /// At the trailing end of the bar (iPad, Mac Catalyst) and on Windows, in the title bar or the row, it follows the focus.
     /// </summary>
     [ObservableProperty]
     public partial bool IsActive { get; set; }

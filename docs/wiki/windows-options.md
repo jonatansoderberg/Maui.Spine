@@ -150,6 +150,21 @@ When `IsTitleBarVisible = true` (the default on desktop), Spine renders a custom
 - Displays `SpineOptions.AppTitle` as the window title
 - Shows the current page's `Title` (from the ViewModel) as the subtitle
 - Hosts page-action buttons from the active page's `PageActions` collection
+- Holds the search field of a page with `[PageSearch]` in its centre, `TitleBar.Content` (see [Search](search.md#in-windows-title-bar))
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `SearchInTitleBar` | `bool` | `true` | Put the search field of a page that shows the title bar in `TitleBar.Content`. Whatever the app has put there is kept and comes back when no page searches. `false` leaves `TitleBar.Content` to the app and shows the field in a row below the header bar instead |
+
+```csharp
+options.Windows.SearchInTitleBar = false; // the app owns TitleBar.Content; search goes in the row
+```
+
+> **Behaviour change.** `SearchInTitleBar` defaults to `true`. A page with `[PageSearch]` and the desktop defaults (title bar shown, header bar hidden) showed no search field before; it now shows one in the title bar. A page that shows both bars has its field move from the row below the header bar to the title bar. Set `SearchInTitleBar = false` to keep the earlier layout.
+
+Spine creates the window's `TitleBar` itself. An app that replaces `Window.TitleBar` with its own should set `SearchInTitleBar = false`: otherwise Spine logs an error naming the page and the option (category `Plugin.Maui.Spine.Search`) and shows the field in the row instead.
+
+The title bar follows the page it shows, the current page of the installed host's root region: with tabs the selected tab's, after `SetRootAsync` swaps the host the new host's. Its visibility (`IsTitleBarVisible`), the page actions at either end, the subtitle and the search field all change with a navigation, a tab switch or a host swap.
 
 To globally disable the custom title bar in favor of Spine's in-page header bar:
 

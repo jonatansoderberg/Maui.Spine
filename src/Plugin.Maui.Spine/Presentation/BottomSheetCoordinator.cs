@@ -17,7 +17,21 @@ internal sealed class BottomSheetCoordinator : IDisposable
     private readonly SpineHostProvider _hostProvider;
 
     /// <summary>Whether a bottom sheet is currently presented.</summary>
-    public bool IsSheetActive { get; private set; }
+    public bool IsSheetActive
+    {
+        get;
+        private set
+        {
+            if (field == value)
+                return;
+
+            field = value;
+            IsSheetActiveChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Raised when a sheet opens or closes over this coordinator's host; the host raises its <see cref="ISpineHost.ActiveRegionChanged"/> from it.</summary>
+    public event Action? IsSheetActiveChanged;
 
     private TaskCompletionSource? _closed;
 

@@ -21,6 +21,7 @@
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Services\SearchRecords.cs" Link="SearchRecords.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\PageSearch.cs" Link="PageSearch.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\PageSearchAttribute.cs" Link="PageSearchAttribute.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Presentation\SearchLayout.cs" Link="SearchLayout.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Services\PageSearchDiscovery.cs" Link="PageSearchDiscovery.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Services\ToolkitNames.cs" Link="ToolkitNames.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\TiltTracker.cs" Link="TiltTracker.cs" />
