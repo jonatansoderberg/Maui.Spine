@@ -26,12 +26,12 @@ internal sealed class BottomSheetCoordinator : IDisposable
                 return;
 
             field = value;
-            SheetActiveChanged?.Invoke();
+            IsSheetActiveChanged?.Invoke();
         }
     }
 
-    /// <summary>Raised when a sheet opens or closes over the installed host.</summary>
-    internal static event Action? SheetActiveChanged;
+    /// <summary>Raised when a sheet opens or closes over this coordinator's host; the host raises its <see cref="ISpineHost.ActiveRegionChanged"/> from it.</summary>
+    public event Action? IsSheetActiveChanged;
 
     private TaskCompletionSource? _closed;
 

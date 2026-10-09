@@ -96,8 +96,11 @@ On Windows a region page that shows the window's title bar (`IsTitleBarVisible`,
 
 - **It follows the page.** Spine swaps the field on every navigation and tab switch, and takes it away while a sheet is open (the sheet's own field is in its row) and on a page without search, `Top` or a hidden title bar.
 - **The app's own content comes back.** Whatever the app has put in `TitleBar.Content` is kept while a searching page shows and put back when none does; content the app sets meanwhile is what comes back.
+- **Only the page the title bar shows.** That is the current page of the root region (the selected tab's); a page anywhere else, a sheet or a lightbox, keeps its row.
 - **`options.Windows.SearchInTitleBar = false`** leaves `TitleBar.Content` to the app; the field then goes in the row below the header bar, as in the table's `Top` column. See [Windows options](windows-options.md#title-bar-desktop-header).
-- **A replaced title bar is an error.** An app that sets `Window.TitleBar` to a title bar of its own and leaves `SearchInTitleBar` on gets an `InvalidOperationException` naming the page as soon as a page wants the title bar for its field.
+- **A replaced title bar is logged.** An app that sets `Window.TitleBar` to a title bar of its own and leaves `SearchInTitleBar` on gets its field in the row below the header bar, and an error in the log (category `Plugin.Maui.Spine.Search`) naming the page and the option, once per page.
+
+> **Behaviour change.** `SearchInTitleBar` is on by default. A Windows page with `[PageSearch]` and the desktop defaults (title bar shown, header bar hidden) showed no field before, because the row needs a header bar; it now shows one in the title bar. A page that shows both bars has its field move from the row to the title bar. Set `options.Windows.SearchInTitleBar = false` to keep the earlier layout.
 
 The title bar field has been compiled but not yet run on Windows; [#501](https://github.com/jonatansoderberg/Maui.Spine/issues/501) tracks the check.
 

@@ -23,17 +23,19 @@ internal static class SearchLayoutRules
 {
     /// <summary>
     /// Where <paramref name="placement"/> puts the field. <see cref="SearchPlacement.Automatic"/> on a
-    /// region page goes in the window's title bar when <paramref name="titleBar"/> (Windows, the page
-    /// shows Spine's title bar and Spine may put search in it), else at the trailing end of the
-    /// header bar when <paramref name="trailing"/> (iPad and Mac Catalyst, wide enough). Everything
-    /// else, sheets and <see cref="SearchPlacement.Top"/> included, gets the row below the header
-    /// bar, and no field without a header bar.
+    /// region page goes in the window's title bar when the page shows it (<paramref name="titleBarShown"/>)
+    /// and the title bar hosts the page (<paramref name="titleBarHostsPage"/>: Windows, Spine's own
+    /// title bar, Spine may put search in it, and the page is the root region's), else at the
+    /// trailing end of the header bar when <paramref name="trailing"/> (iPad and Mac Catalyst, wide
+    /// enough). Everything else, sheets and <see cref="SearchPlacement.Top"/> included, gets the row
+    /// below the header bar, and no field without a header bar.
     /// </summary>
-    internal static SearchLayout Resolve(SearchPlacement placement, bool inSheet, bool headerBar, bool titleBar, bool trailing)
+    internal static SearchLayout Resolve(
+        SearchPlacement placement, bool inSheet, bool headerBar, bool titleBarShown, bool titleBarHostsPage, bool trailing)
     {
         var automatic = placement is SearchPlacement.Automatic && !inSheet;
 
-        if (automatic && titleBar)
+        if (automatic && titleBarShown && titleBarHostsPage)
             return SearchLayout.TitleBar;
 
         if (!headerBar)

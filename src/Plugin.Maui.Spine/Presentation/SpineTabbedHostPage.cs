@@ -122,6 +122,7 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
 
         SheetNavigationRegion = bottomSheetFrameView;
         _sheets = new BottomSheetCoordinator(this, bottomSheetFrameView, hostProvider);
+        _sheets.IsSheetActiveChanged += () => ActiveRegionChanged?.Invoke();
 
         foreach (var definition in registry.Tabs)
         {

@@ -43,10 +43,12 @@ public partial class SpineHostPage : ContentPage, ISpineHost, IDisposable
     internal NavigationRegionViewModel ActiveRegionViewModel =>
         (NavigationRegionViewModel)(_sheets.IsSheetActive ? SheetNavigationRegion.BindingContext : RootNavigationRegion.BindingContext);
 
+    /// <inheritdoc cref="ISpineHost.ActiveRegionChanged"/>
+    public event Action? ActiveRegionChanged;
+
     Page ISpineHost.HostPage => this;
     NavigationRegionViewModel ISpineHost.ActiveRegionViewModel => ActiveRegionViewModel;
     Task ISpineHost.WhenSheetClosed => _sheets.WhenClosed;
-    event Action? ISpineHost.ActiveRegionChanged { add { } remove { } }
     bool ISpineHost.CanHandleRootBack => false;
     bool ISpineHost.TryHandleRootBack() => false;
 
@@ -71,6 +73,7 @@ public partial class SpineHostPage : ContentPage, ISpineHost, IDisposable
         this.Content = RootNavigationRegion = rootFrameView;
 
         _sheets = new BottomSheetCoordinator(this, bottomSheetFrameView, hostProvider);
+        _sheets.IsSheetActiveChanged += () => ActiveRegionChanged?.Invoke();
     }
 
     /// <inheritdoc/>

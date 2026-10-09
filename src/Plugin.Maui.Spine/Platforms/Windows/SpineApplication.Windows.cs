@@ -6,6 +6,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.Windows.AppLifecycle;
 using Plugin.Maui.Spine.Presentation;
 using Plugin.Maui.Spine.Svg;
+using System.ComponentModel;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using Windows.Graphics;
@@ -26,6 +27,10 @@ namespace Plugin.Maui.Spine.Core;
 public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 {
     private TitleBar? _titleBar;
+    private Window? _titleBarWindow;
+    private ISpineHost? _titleBarHost;
+    private NavigationRegionViewModel? _titleBarRegion;
+    private ViewModelBase? _titleBarPage;
     private bool _isTitleBarAnimating;
     private PageActionView? _secondaryPageActionView;
     private PageActionView? _primaryPageActionView;
@@ -57,6 +62,10 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
     partial void InitializeWindowsTitleBar(Window window)
     {
+        // CreateWindow runs again when an app that lives in the tray reopens its window: the title
+        // bar of the window before lets go of the host and its pages first.
+        DetachTitleBar();
+
         _primaryPageActionView = new PageActionView
         {
             IconWidth = 46,
@@ -80,40 +89,126 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             LeadingContent = _primaryPageActionView,
             BackgroundColor = Colors.Transparent
         };
-        _titleBar.SetBinding(TitleBar.TitleProperty, new Binding("AppTitle", source: _host));
         _titleBar.SetBinding(TitleBar.SubtitleProperty, "CurrentRegionViewModel.Title");
 
         window.TitleBar = _titleBar;
-        InitializeTitleBarSearch(window);
+        _titleBarWindow = window;
+        window.PropertyChanged += OnTitleBarWindowPropertyChanged;
+
+        InitializeTitleBarSearch();
+        UpdateTitleBar();
+    }
+
+    private void DetachTitleBar()
+    {
+        if (_titleBarWindow is not null)
+            _titleBarWindow.PropertyChanged -= OnTitleBarWindowPropertyChanged;
+
+        DetachTitleBarSearch();
+        TrackTitleBarPage(null);
+        _titleBarWindow = null;
+    }
+
+    private void OnTitleBarWindowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(Window.Page) or nameof(Window.TitleBar))
+            UpdateTitleBar();
+    }
+
+    /// <summary>
+    /// Brings everything in the title bar in line with the page it shows: the current page of the
+    /// installed host's root region (the selected tab's, with tabs). Its visibility, the page
+    /// actions at either end, the subtitle and the search field all follow that one page.
+    /// </summary>
+    private void UpdateTitleBar()
+    {
+        if (_titleBar is null)
+            return;
+
+        TrackTitleBarPage(_services.GetRequiredService<SpineHostProvider>().Current);
+
+        if (_primaryPageActionView is not null)
+            _primaryPageActionView.Action = _titleBarRegion?.PrimaryPageAction;
+        if (_secondaryPageActionView is not null)
+            _secondaryPageActionView.Action = _titleBarRegion?.SecondaryPageAction;
 
         SetTitleBarVisibilityAsync().SafeFireAndForget();
+        UpdateTitleBarSearch();
+    }
 
-        if (_host.RootNavigationRegion.BindingContext is NavigationRegionViewModel hostViewModel)
+    // Follows the installed host (a host swap), its root region (a tab switch) and that region's
+    // page (a navigation), re-evaluating the title bar when any of them changes. A sheet opening or
+    // closing comes in through the host's ActiveRegionChanged as well.
+    private void TrackTitleBarPage(ISpineHost? host)
+    {
+        if (!ReferenceEquals(host, _titleBarHost))
         {
-            hostViewModel.PropertyChanged += OnHostViewModelPropertyChanged;
-            _primaryPageActionView.Action = hostViewModel.PrimaryPageAction;
+            if (_titleBarHost is not null)
+                _titleBarHost.ActiveRegionChanged -= OnTitleBarHostActiveRegionChanged;
+
+            _titleBarHost = host;
+
+            if (host is not null)
+            {
+                host.ActiveRegionChanged += OnTitleBarHostActiveRegionChanged;
+                _titleBar?.SetBinding(TitleBar.TitleProperty, new Binding("AppTitle", source: host));
+            }
+        }
+
+        var region = host?.RootNavigationRegion.BindingContext as NavigationRegionViewModel;
+        if (!ReferenceEquals(region, _titleBarRegion))
+        {
+            if (_titleBarRegion is not null)
+                _titleBarRegion.PropertyChanged -= OnTitleBarRegionPropertyChanged;
+
+            _titleBarRegion = region;
+
+            if (region is not null)
+                region.PropertyChanged += OnTitleBarRegionPropertyChanged;
+
+            if (_titleBar is not null)
+                _titleBar.BindingContext = region;
+        }
+
+        // The page the header bar shows, so the title bar changes with a back transition as the
+        // header bar does, rather than after it.
+        var page = region?.HeaderRegionViewModel;
+        if (!ReferenceEquals(page, _titleBarPage))
+        {
+            if (_titleBarPage is not null)
+                _titleBarPage.PropertyChanged -= OnTitleBarPagePropertyChanged;
+
+            _titleBarPage = page;
+
+            if (page is not null)
+                page.PropertyChanged += OnTitleBarPagePropertyChanged;
         }
     }
 
-    private void OnHostViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnTitleBarHostActiveRegionChanged() => MainThread.BeginInvokeOnMainThread(UpdateTitleBar);
+
+    private void OnTitleBarRegionPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == "CurrentRegionViewModel")
-            SetTitleBarVisibilityAsync().SafeFireAndForget();
-        if (e.PropertyName == nameof(NavigationRegionViewModel.SecondaryPageAction) && _host.RootNavigationRegion.BindingContext is NavigationRegionViewModel hostViewModel)
-            if (_secondaryPageActionView is not null) _secondaryPageActionView.Action = hostViewModel.SecondaryPageAction;
-        if (e.PropertyName == nameof(NavigationRegionViewModel.PrimaryPageAction) && _host.RootNavigationRegion.BindingContext is NavigationRegionViewModel backVm)
-            if (_primaryPageActionView is not null) _primaryPageActionView.Action = backVm.PrimaryPageAction;
+        if (e.PropertyName is nameof(NavigationRegionViewModel.CurrentRegionViewModel)
+            or nameof(NavigationRegionViewModel.HeaderRegionViewModel)
+            or nameof(NavigationRegionViewModel.PrimaryPageAction)
+            or nameof(NavigationRegionViewModel.SecondaryPageAction))
+            UpdateTitleBar();
+    }
+
+    private void OnTitleBarPagePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ViewModelBase.IsTitleBarVisible) or nameof(ViewModelBase.SearchLayout))
+            UpdateTitleBar();
     }
 
     private async Task SetTitleBarVisibilityAsync()
     {
-        if (_isTitleBarAnimating || _titleBar == null || _host == null)
+        if (_isTitleBarAnimating || _titleBar is null || _titleBarHost is not { } host || _titleBarPage is not { } page)
             return;
 
-        if (_host.RootNavigationRegion.BindingContext is not NavigationRegionViewModel regionViewModel || regionViewModel.CurrentRegionViewModel is null)
-            return;
-
-        var isVisible = regionViewModel.CurrentRegionViewModel.IsTitleBarVisible;
+        var isVisible = page.IsTitleBarVisible;
+        var hostPage = host.HostPage;
 
         _isTitleBarAnimating = true;
 
@@ -121,23 +216,23 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         {
             if (isVisible)
             {
-                if (Math.Abs(_host.HostPage.Padding.Top - 0) < 0.1 && _titleBar.Opacity >= 0.99)
+                if (Math.Abs(hostPage.Padding.Top - 0) < 0.1 && _titleBar.Opacity >= 0.99)
                     return;
 
-                _host.HostPage.Padding = new Microsoft.Maui.Thickness(0, -32, 0, 0);
+                hostPage.Padding = new Microsoft.Maui.Thickness(0, -32, 0, 0);
                 _titleBar.Opacity = 0;
 
                 await Task.WhenAll(
-                    AnimatePaddingTopAsync(_host.HostPage, -32, 0, 100, Easing.CubicOut),
+                    AnimatePaddingTopAsync(hostPage, -32, 0, 100, Easing.CubicOut),
                     _titleBar.FadeToAsync(1, 100, Easing.CubicOut));
             }
             else
             {
-                if (Math.Abs(_host.HostPage.Padding.Top - (-32)) < 0.1 && _titleBar.Opacity <= 0.01)
+                if (Math.Abs(hostPage.Padding.Top - (-32)) < 0.1 && _titleBar.Opacity <= 0.01)
                     return;
 
                 await Task.WhenAll(
-                    AnimatePaddingTopAsync(_host.HostPage, 0, -32, 100, Easing.CubicIn),
+                    AnimatePaddingTopAsync(hostPage, 0, -32, 100, Easing.CubicIn),
                     _titleBar.FadeToAsync(0, 100, Easing.CubicIn));
             }
         }
@@ -145,6 +240,10 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         {
             _isTitleBarAnimating = false;
         }
+
+        // A tab switch or host swap during the animation was dropped by the guard above.
+        if (_titleBarPage is { } now && (now.IsTitleBarVisible != isVisible || !ReferenceEquals(_titleBarHost, host)))
+            await SetTitleBarVisibilityAsync();
     }
 
     private Task AnimatePaddingTopAsync(Page host, double from, double to, uint length, Easing easing)

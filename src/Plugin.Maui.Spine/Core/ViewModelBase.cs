@@ -297,16 +297,43 @@ public abstract partial class ViewModelBase : ObservableObject
     }
 
     /// <summary>
-    /// Where Spine shows <see cref="Search"/>: in the window's title bar on Windows while the page
-    /// shows it, otherwise with the header bar, and nowhere without one.
+    /// Whether the window's title bar hosts this page: set on Windows, with
+    /// <see cref="SpineOptions.WindowsPlatformOptions.SearchInTitleBar"/>, for the root region's page
+    /// the title bar shows, and cleared while the window's title bar is not Spine's. Every other page
+    /// keeps its field with the header bar.
     /// </summary>
-    internal Presentation.SearchLayout SearchLayout =>
+    /// <remarks>
+    /// Left set when the page goes under a pushed page or another tab, so its row does not appear
+    /// under the transition; it is set again from scratch whenever the title bar shows the page.
+    /// </remarks>
+    internal bool IsInWindowTitleBar
+    {
+        get;
+        set
+        {
+            if (field == value)
+                return;
+
+            field = value;
+            OnSearchLayoutChanged();
+        }
+    }
+
+    /// <summary>
+    /// Where Spine shows <see cref="Search"/>: in the window's title bar on Windows while the page
+    /// shows it and the title bar hosts the page, otherwise with the header bar, and nowhere without one.
+    /// </summary>
+    internal Presentation.SearchLayout SearchLayout => ResolveSearchLayout(IsInWindowTitleBar);
+
+    /// <summary>Where <see cref="Search"/> would go if the title bar hosted the page (<paramref name="inTitleBar"/>) or not.</summary>
+    internal Presentation.SearchLayout ResolveSearchLayout(bool inTitleBar) =>
         Search is { } search && (search.IsVisible || SearchInPlace)
             ? Presentation.SearchLayoutRules.Resolve(
                 search.Placement,
                 InSheet,
                 headerBar: IsHeaderBarVisible,
-                titleBar: Presentation.SearchField.UsesTitleBar && IsTitleBarVisible && Lightbox is null,
+                titleBarShown: IsTitleBarVisible && Lightbox is null,
+                titleBarHostsPage: inTitleBar,
                 trailing: Presentation.SearchField.FitsTrailing(IsCompactWidth))
             : Presentation.SearchLayout.None;
 

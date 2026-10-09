@@ -81,12 +81,6 @@ internal sealed partial class SearchField : ContentView
     internal static bool FitsTrailing(bool compact) =>
         !compact && (OperatingSystem.IsMacCatalyst() || (OperatingSystem.IsIOS() && DeviceInfo.Current.Idiom == DeviceIdiom.Tablet));
 
-    /// <summary>
-    /// Whether the window's title bar takes the field of a page that shows it: on Windows, with
-    /// <see cref="SpineOptions.WindowsPlatformOptions.SearchInTitleBar"/>. Set once with the window, before the first page.
-    /// </summary>
-    internal static bool UsesTitleBar { get; set; }
-
     /// <summary>The search the field shows, or <see langword="null"/>.</summary>
     public PageSearch? Search
     {

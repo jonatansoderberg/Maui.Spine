@@ -31,7 +31,10 @@ internal interface ISpineHost
     /// <summary>Completes once no sheet is presented over this host.</summary>
     Task WhenSheetClosed { get; }
 
-    /// <summary>Raised when <see cref="RootNavigationRegion"/> changes (tab switch). Never raised by <see cref="SpineHostPage"/>.</summary>
+    /// <summary>
+    /// Raised when <see cref="ActiveRegionViewModel"/> or <see cref="RootNavigationRegion"/> changes:
+    /// a sheet opening or closing over the host (both hosts) and a tab switch (<see cref="SpineTabbedHostPage"/>).
+    /// </summary>
     event Action? ActiveRegionChanged;
 
     /// <summary>

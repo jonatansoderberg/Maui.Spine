@@ -322,12 +322,25 @@ public sealed class SpineOptions
         public WindowBackdrop BottomSheetBackdrop { get; set; } = WindowBackdrop.None;
 
         /// <summary>
-        /// When true (default), the search field of a page that shows the title bar
+        /// When true (default), the search field of the root region's page that shows the title bar
         /// (<see cref="ViewModelBase.IsTitleBarVisible"/>) goes in the title bar's centre,
         /// <c>TitleBar.Content</c>, in place of whatever the app has put there, which comes back once
         /// no page searches. Set to false to leave <c>TitleBar.Content</c> to the app; the field then
         /// goes in a row below the header bar, as on the other platforms.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>Behaviour change:</b> before this option, a <see cref="PageSearchAttribute"/> page with the
+        /// desktop defaults (title bar shown, header bar hidden) showed no field on Windows, since the
+        /// row needs a header bar. With the default <see langword="true"/> such a page now shows a field
+        /// in the title bar, and a page with both bars has its field move from the row to the title bar.
+        /// Set it to false to keep the earlier layout.
+        /// </para>
+        /// <para>
+        /// If the app replaces <c>Window.TitleBar</c> with its own, Spine logs an error naming the page
+        /// and this option and shows the field in the row instead.
+        /// </para>
+        /// </remarks>
         public bool SearchInTitleBar { get; set; } = true;
     }
 

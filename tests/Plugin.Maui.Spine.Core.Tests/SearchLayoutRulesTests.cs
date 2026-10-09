@@ -7,7 +7,7 @@ namespace Plugin.Maui.Spine.Core.Tests;
 public class SearchLayoutRulesTests
 {
     [Fact]
-    public void An_automatic_field_goes_in_the_title_bar_when_the_page_shows_it()
+    public void An_automatic_field_goes_in_the_title_bar_when_the_page_shows_it_and_it_hosts_the_page()
     {
         Assert.Equal(SearchLayout.TitleBar, Resolve(titleBar: true));
     }
@@ -31,6 +31,21 @@ public class SearchLayoutRulesTests
     }
 
     [Fact]
+    public void A_page_the_title_bar_does_not_host_keeps_its_row_though_it_shows_the_title_bar()
+    {
+        // A nested region's page, the option off, or the app's own Window.TitleBar.
+        Assert.Equal(SearchLayout.Row, Resolve(titleBarShown: true, titleBarHostsPage: false));
+        Assert.Equal(SearchLayout.None, Resolve(headerBar: false, titleBarShown: true, titleBarHostsPage: false));
+    }
+
+    [Fact]
+    public void A_hosted_page_that_hides_the_title_bar_keeps_its_row()
+    {
+        Assert.Equal(SearchLayout.Row, Resolve(titleBarShown: false, titleBarHostsPage: true));
+        Assert.Equal(SearchLayout.None, Resolve(headerBar: false, titleBarShown: false, titleBarHostsPage: true));
+    }
+
+    [Fact]
     public void Top_keeps_the_row_even_where_the_title_bar_could_take_the_field()
     {
         Assert.Equal(SearchLayout.Row, Resolve(SearchPlacement.Top, titleBar: true));
@@ -51,11 +66,14 @@ public class SearchLayoutRulesTests
         Assert.Equal(SearchLayout.None, Resolve(headerBar: false, trailing: true));
     }
 
+    // titleBar: the page shows the title bar and the title bar hosts it; the two parts can be set apart.
     private static SearchLayout Resolve(
         SearchPlacement placement = SearchPlacement.Automatic,
         bool inSheet = false,
         bool headerBar = true,
         bool titleBar = false,
+        bool? titleBarShown = null,
+        bool? titleBarHostsPage = null,
         bool trailing = false) =>
-        SearchLayoutRules.Resolve(placement, inSheet, headerBar, titleBar, trailing);
+        SearchLayoutRules.Resolve(placement, inSheet, headerBar, titleBarShown ?? titleBar, titleBarHostsPage ?? titleBar, trailing);
 }
