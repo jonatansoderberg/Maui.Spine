@@ -55,6 +55,12 @@ public sealed record PushEnvelope
     /// <summary>The WNS <c>X-WNS-Type</c>: <c>wns/toast</c>, with XML in <see cref="Json"/>, or <c>wns/raw</c>.</summary>
     public string? WnsType { get; init; }
 
+    /// <summary>
+    /// The WNS <c>X-WNS-Tag</c> of a toast: one with the same tag replaces it in Action Center. Spine
+    /// derives it from <see cref="PushNotification.CollapseId"/> the way the app tags its own toasts.
+    /// </summary>
+    public string? WnsTag { get; init; }
+
     /// <summary>Delivery priority, already translated to the service's numbering.</summary>
     public int Priority { get; init; }
 

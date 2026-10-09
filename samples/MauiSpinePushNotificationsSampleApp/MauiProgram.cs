@@ -39,6 +39,10 @@ public static class MauiProgram
             {
                 options.Backend = new Uri(backend);
 
+                // Windows: the Object ID of the Entra app's service principal. Empty in the repo, which
+                // leaves push Unsupported on Windows and says why in the log.
+                if (Guid.TryParse(settings["WindowsRemoteId"], out var remoteId)) options.Windows.RemoteId = remoteId;
+
                 // WhenAsked so the Home page's button is what triggers the prompt — the sample is
                 // about showing the API, not about getting permission as fast as possible.
                 options.Permission = PushPermission.WhenAsked;

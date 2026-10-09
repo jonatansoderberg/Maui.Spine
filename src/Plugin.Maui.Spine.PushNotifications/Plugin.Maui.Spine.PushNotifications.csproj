@@ -12,9 +12,9 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Push and local notifications for .NET MAUI: permission, APNs and FCM tokens, tags, a handler that sees every message, local scheduling, and a Notification Service Extension for images on iOS.</Description>
+		<Description>Push and local notifications for .NET MAUI: permission, APNs and FCM tokens and WNS channels, tags, a handler that sees every message, local scheduling, and a Notification Service Extension for images on iOS.</Description>
 		<SpineIcon>push-notifications.png</SpineIcon>
-		<PackageTags>$(PackageTags);push;notifications;apns;fcm;firebase</PackageTags>
+		<PackageTags>$(PackageTags);push;notifications;apns;fcm;firebase;wns</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -29,6 +29,11 @@
 		<PackageReference Include="Xamarin.AndroidX.Lifecycle.Process" />
 		<PackageReference Include="Xamarin.AndroidX.Fragment" />
 		<PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" />
+	</ItemGroup>
+
+	<!-- PushNotificationManager and AppNotificationManager; the same version Plugin.Maui.Spine pins. -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+		<PackageReference Include="Microsoft.WindowsAppSDK" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -124,7 +124,7 @@ PushTagExpression.Parse("kind:pm-published && (competition:1 || competition:2) &
 |---|---|
 | `Route` | `spine.route`; the page the app opens when tapped |
 | `Channel` | The Android channel, and the thread id iOS groups by |
-| `CollapseId` | `apns-collapse-id` and `collapse_key` |
+| `CollapseId` | `apns-collapse-id`, `collapse_key`, and WNS's `X-WNS-Tag` (hashed to 16 characters) |
 | `TimeToLive` | `apns-expiration` and FCM's `ttl` |
 | `Priority` | APNs 10 or 5, FCM high or normal |
 | `Interruption` | `interruption-level`: passive, active, time-sensitive |
@@ -212,14 +212,21 @@ and the app registers a new widget token at its next launch.
 ### Windows
 
 WNS is reached with an access token from the app's Entra ID registration — multitenant, as the
-Windows App SDK requires; the steps are in `docs/proposals/spine-push.md` §9.3. The transport keeps
-the token until five minutes before it runs out, and fetches a new one when WNS answers 401.
+Windows App SDK requires; the steps are in [Push (client) → Windows](push-notifications.md#windows).
+The server takes the tenant, the **Application (client) ID** and a client secret; the app takes the
+service principal's Object ID. The transport keeps the token until five minutes before it runs out,
+and fetches a new one when WNS answers 401.
 
 - **Notifications are toasts WNS draws** (`wns/toast`), so they show while the app is not running —
   which for an unpackaged app is the only way. Title, body and image are in the XML; the Spine keys
   travel in the toast's `launch` argument, in the Windows App SDK's `key=value;` form, and reach the
   handler when the toast is opened. Buttons are not drawn from a category; add them with
-  `PushNotification.Windows`, which gets the toast element.
+  `PushNotification.Windows`, which gets the toast element — each button's `arguments` the toast's
+  `launch` plus `;spine.action=<id>`, see [Buttons](push-notifications.md#buttons). Every button
+  repeats the `launch`, so keep `Data` small on a toast with buttons. `spine.action` is reserved:
+  `PushPayloads` throws when `Data` carries it.
+- **`CollapseId` is the toast's `X-WNS-Tag`**, hashed to the 16 characters WNS allows, the same way
+  the app tags the toasts it draws itself, so either replaces an earlier one with the same id.
 - **Silent pushes are raw** (`wns/raw`): the data as JSON, delivered to a running app.
 - **Live Activities, widget refreshes and broadcasts** skip Windows installations.
 - **The channel URI is the handle, and only `https://*.notify.windows.com` is sent to.** The URI
@@ -291,6 +298,6 @@ wrong clock must not look freshly registered, since that is what `PruneAsync` go
 
 | | Where it went |
 |---|---|
-| The Windows app side | #233; the server sends already, see [Windows](#windows) |
+| Windows end to end on a real machine | Client and server are written (#232, #233); verifying them together is #501 |
 | Azure Table Storage register | With Orientera's backend |
 | An Azure Notification Hubs transport | v3, if anyone wants one |

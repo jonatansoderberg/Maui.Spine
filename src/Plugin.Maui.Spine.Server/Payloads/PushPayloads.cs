@@ -305,14 +305,24 @@ public static class PushPayloads
     /// WNS draws the toast itself (§7.3), so it shows while the app is not running — the only way an
     /// unpackaged app, which WNS cannot start, is told anything in the background. The Spine keys travel
     /// in the toast's <c>launch</c> argument in the Windows App SDK's <c>key=value;</c> form, which the
-    /// app reads back from <c>AppNotificationActivatedEventArgs.Arguments</c> when the toast is opened.
+    /// app reads back from <c>AppNotificationActivatedEventArgs.Argument</c> when the toast is opened.
     /// The buttons of <see cref="PushNotification.Category"/> are declared in the app and not drawn
-    /// here; <see cref="PushNotification.Windows"/> can add actions to the XML.
+    /// here; <see cref="PushNotification.Windows"/> can add actions to the XML, with the toast's
+    /// <c>launch</c> plus <c>;spine.action=&lt;id&gt;</c> as each button's <c>arguments</c>. A tapped
+    /// button hands the app only its own <c>arguments</c>, never the toast's, so each button repeats the
+    /// whole <c>launch</c> and every copy counts toward <see cref="WnsPayloadLimit"/>: keep
+    /// <see cref="PushNotification.Data"/> small on a toast with buttons.
+    /// <see cref="PushNotification.CollapseId"/> becomes the <c>X-WNS-Tag</c>, so a toast with the same id
+    /// replaces the earlier one.
     /// </remarks>
-    /// <exception cref="InvalidOperationException">The toast does not fit in <see cref="WnsPayloadLimit"/>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The toast does not fit in <see cref="WnsPayloadLimit"/>, or <see cref="PushNotification.Data"/>
+    /// carries the reserved <c>spine.action</c> key.
+    /// </exception>
     public static PushEnvelope Wns(PushNotification notification, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(notification);
+        RefuseWnsAction(notification.Data, "PushNotification.Data");
 
         var data = new Dictionary<string, string>(StringComparer.Ordinal);
         Fill(data, notification, PushKeys.Kinds.Alert);
@@ -324,13 +334,14 @@ public static class PushPayloads
         if (notification.Image is { } image)
             binding.Add(new XElement("image", new XAttribute("placement", "hero"), new XAttribute("src", image.ToString())));
 
-        var toast = new XElement("toast", new XAttribute("launch", WnsArguments(data)), new XElement("visual", binding));
+        var toast = new XElement("toast", new XAttribute("launch", WnsPayload.WriteArguments(data)), new XElement("visual", binding));
         notification.Windows?.Invoke(toast);
 
         return new PushEnvelope
         {
             Json = GuardWns(toast.ToString(SaveOptions.DisableFormatting)),
             WnsType = "wns/toast",
+            WnsTag = notification.CollapseId is { Length: > 0 } collapse ? WnsPayload.Tag(collapse) : null,
             Priority = notification.Priority == PushPriority.High ? 10 : 5,
             Expiration = notification.TimeToLive is { } ttl ? now + ttl : null,
         };
@@ -343,40 +354,35 @@ public static class PushPayloads
     /// The body is the data as one JSON object with the Spine keys, as on the other platforms. An
     /// unpackaged app gets raw notifications only while it runs (§7.3).
     /// </remarks>
-    /// <exception cref="InvalidOperationException">The body does not fit in <see cref="WnsPayloadLimit"/>.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// The body does not fit in <see cref="WnsPayloadLimit"/>, or <paramref name="data"/> carries the
+    /// reserved <c>spine.action</c> key.
+    /// </exception>
     public static PushEnvelope WnsSilent(IReadOnlyDictionary<string, string> data)
     {
         ArgumentNullException.ThrowIfNull(data);
+        RefuseWnsAction(data, "The silent message's data");
 
         var body = new Dictionary<string, string>(StringComparer.Ordinal) { [PushKeys.Kind] = PushKeys.Kinds.Silent };
         foreach (var (key, value) in data) body[key] = value;
 
-        var buffer = new System.IO.MemoryStream();
-        using (var w = new System.Text.Json.Utf8JsonWriter(buffer))
-        {
-            w.WriteStartObject();
-            foreach (var (key, value) in body) w.WriteString(key, value);
-            w.WriteEndObject();
-        }
-
         return new PushEnvelope
         {
-            Json = GuardWns(System.Text.Encoding.UTF8.GetString(buffer.ToArray())),
+            Json = GuardWns(WnsPayload.WriteRaw(body)),
             WnsType = "wns/raw",
             Priority = 5,
         };
     }
 
     /// <summary>
-    /// Writes <paramref name="data"/> as a toast's launch argument: <c>key=value;key=value</c>, with
-    /// <c>%</c>, <c>;</c> and <c>=</c> percent-encoded as <c>AppNotificationBuilder.AddArgument</c> does,
-    /// so the app can split the string without a value breaking it.
+    /// Refused rather than dropped: the app reads <c>spine.action</c> as the button that was tapped, so a
+    /// toast carrying it in its data would run that button when the toast itself is opened.
     /// </summary>
-    internal static string WnsArguments(IReadOnlyDictionary<string, string> data)
+    private static void RefuseWnsAction(IReadOnlyDictionary<string, string> data, string what)
     {
-        return string.Join(';', data.Select(pair => $"{Escape(pair.Key)}={Escape(pair.Value)}"));
-
-        static string Escape(string value) => value.Replace("%", "%25").Replace(";", "%3B").Replace("=", "%3D");
+        if (data.ContainsKey(WnsPayload.Action))
+            throw new InvalidOperationException(
+                $"{what} contains '{WnsPayload.Action}', which Spine reserves on Windows for the id of the button that was tapped. Use another key.");
     }
 
     private static string GuardWns(string body)

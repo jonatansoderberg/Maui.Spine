@@ -8,7 +8,9 @@ dotnet add package Plugin.Maui.Spine.PushNotifications
 that sees every message. The backend half is [`Plugin.Maui.Spine.Server`](push-notifications-server.md); the two
 share the contracts in `Plugin.Maui.Spine.Common`.
 
-It covers iOS, Android and Mac Catalyst. On Mac Catalyst remote push needs a provisioning profile — see [What each platform needs](#what-each-platform-needs) — and without one the app gets local notifications only. Windows is not covered yet.
+It covers iOS, Android, Mac Catalyst and Windows. On Mac Catalyst remote push needs a provisioning profile, and without one the app gets local notifications only. Windows needs an Entra app registration and the installed Windows App Runtime, and an unpackaged app gets push only while it runs — see [What each platform needs](#what-each-platform-needs).
+
+> **Windows is written but not yet run.** The Windows client was built and compiled from a Mac, without a Windows machine, an Entra registration or WNS credentials. What remains to verify is tracked in #501.
 
 <p align="center">
   <img src="images/push-sample-home.png" width="220" alt="The push sample's home page: status, installation id, token, tags">
@@ -119,6 +121,10 @@ navigating from it is safe. `Route` is delivered as the sender wrote it — Spin
 to a page, because `INavigationService` is generic and has no string lookup. The app decides what a
 route means, the same way `IWidgetLinkHandler` handles a widget's link.
 
+On Windows, WNS draws the server's alerts itself, so `OnReceivedAsync` does not see them and its
+answer cannot hide one; it sees silent (raw) messages, while the app runs. Opening a toast reaches
+`OnOpenedAsync` as on the other platforms.
+
 | `PushKind` | What Spine does before the handler sees it |
 |---|---|
 | `Alert` | Nothing. On Android the notification is drawn after the handler answers |
@@ -142,8 +148,11 @@ quiet authorization, notifications arrive in the Notification Center and the use
 them after seeing one — or `AtLaunch`.
 
 `push.IsSupported` says whether the platform has push at all: `true` on iOS, Mac Catalyst and
-Android, `false` on Windows (where `Status` is `Unsupported`). It is fixed while the app runs; whether
-the user allows notifications is `Status`, which can change. Hide a notification setting where
+Android. On Windows it is `true` only when `Windows.RemoteId` is set and the Windows App SDK supports
+push for the process — see [Windows](#windows); otherwise `Status` is `Unsupported` and the log names
+the reason. It is fixed while the app runs; whether the user allows notifications is `Status`, which
+can change. Windows never asks: `Status` is `Authorized` unless the user turned the app's
+notifications off in Settings, which is `Denied`. Hide a notification setting where
 `IsSupported` is false, and check `ILocalNotificationService.IsSupported` the same way for local ones.
 
 Spine adds `platform:`, `os:` and `app:` tags of its own, so a sender can address a platform or a
@@ -299,9 +308,9 @@ still means neither half.
 | iOS | Fires whether or not the app is running. The foreground presentation goes through `OnReceivedAsync`, exactly as a push does. Apple keeps 64 pending notifications per app; a larger plan is cut to the nearest 64, and Spine logs when it is. |
 | Android | An inexact alarm per notification: it may arrive a few minutes late in doze, which is the price of not needing `SCHEDULE_EXACT_ALARM`. The plan is written down, so an alarm from an earlier run can still be cancelled, and it is booked again after a reboot. `OnReceivedAsync` is asked only in the foreground, so the two platforms behave alike. |
 | Mac Catalyst | Like iOS: the same code. Local notifications work with or without a provisioning profile. |
-| Windows | `IsSupported` is false, as it is for push. |
+| Windows | Scheduled toasts, for a **packaged** (MSIX) app: scheduling needs package identity, and the Windows App SDK can show a toast but not schedule one. An unpackaged app (`WindowsPackageType=None`) has `IsSupported` false, and the first call logs why. `Sound` is ignored; toasts get the system sound. |
 
-An instant that has already passed is dropped rather than fired late, on both platforms.
+An instant that has already passed is dropped rather than fired late, on every platform.
 
 ---
 
@@ -349,7 +358,30 @@ reads them on Android when it draws the notification — and logs when a notific
 that was never declared.
 
 The rest differs in small ways: iOS shows up to four buttons when the notification is expanded,
-Android three. `Destructive` draws red on Apple and like any other button on Android.
+Android three, Windows five. `Destructive` draws red on Apple and like any other button on Android and
+Windows.
+
+On Windows a local toast gets its category's buttons from the app, but a pushed toast is drawn by WNS
+from the server's XML, which knows nothing of the categories. Add the buttons on the server with
+`PushNotification.Windows`, each carrying the toast's `launch` plus `;spine.action=<id>` — a tapped
+button hands the app its own arguments and nothing of the toast's. Each button is therefore one more
+copy of the toast's data, and every copy counts toward WNS's 5000 bytes: a typical toast's `launch`
+is about 250 bytes, and five buttons take it from about 500 bytes to about 2100. `spine.action` is
+reserved: the server refuses a notification whose `Data` has it, and the app leaves it out of its own
+toasts, since a tap on the toast would otherwise read as a tap on that button.
+
+```csharp
+new PushNotification
+{
+    …,
+    Category = "entry",   // so the app finds the declared button and routes it
+    Windows = toast => toast.Add(new XElement("actions",
+        new XElement("action",
+            new XAttribute("content", "Enter me"),
+            new XAttribute("arguments", toast.Attribute("launch")!.Value + ";spine.action=enter"),
+            new XAttribute("activationType", "background")))),
+}
+```
 
 ### Pictures
 
@@ -363,6 +395,7 @@ new PushNotification { …, Image = new Uri("https://example.com/map.png") }    
 |---|---|---|
 | iOS | Shown. Spine hands iOS a **copy**: iOS moves an attachment's file into its own store, so the app's file would otherwise disappear. | Needs the Notification Service Extension — see below. |
 | Android | Shown, as `BigPictureStyle` with a thumbnail when collapsed. | Shown. Spine draws the notification itself and fetches the picture first, within FCM's time for the message. |
+| Windows | Shown as the toast's hero image, from a `file:///` URI. A relative path is taken from the app's directory (`AppContext.BaseDirectory`), not the working directory. | Shown: the server puts it in the toast XML and Windows fetches it. |
 
 The rule everywhere is that **the notification always arrives**. A picture that cannot be fetched or
 decoded, or that takes too long, leaves the text as it was, and the reason goes to the log — logcat
@@ -398,6 +431,8 @@ Here the halves are furthest apart, and Spine does not pretend otherwise.
   channel, so a new sound means a new channel id. `PushNotification.Sound` does not apply here; pick
   the channel instead. A sound that is not in `raw` is logged at startup, since Android would quietly
   fall back to the default and keep that.
+- **Windows — the system sound.** Neither `LocalNotification.Sound` nor `PushNotification.Sound`
+  applies; a server that wants another adds an `audio` element with `PushNotification.Windows`.
 
 ---
 
@@ -445,6 +480,120 @@ Two things Spine's own floor does not cover:
    falls back to the launcher icon, which it may draw as a white square.
 5. **Channels** are created at startup from `AddChannel`. A message names one in `spine.channel`.
 
+### Windows
+
+Push on Windows goes through the Windows App SDK's `PushNotificationManager`: the app asks WNS for a
+channel, and the channel URI is the handle the backend sends to. The server's half is in
+[Push (server) → Windows](push-notifications-server.md#windows).
+
+**Entra ID.** WNS authenticates the sender through an Entra app registration, and the Windows App SDK
+ties the channel to it.
+
+1. [portal.azure.com](https://portal.azure.com) → Microsoft Entra ID → App registrations → New
+   registration. **Accounts in any organizational directory (multitenant)** — the Windows App SDK
+   requires it. Note the **Application (client) ID** and the **Directory (tenant) ID**.
+2. Certificates & secrets → New client secret; copy the value at once. Tenant, client id and secret
+   go to the server — `Push:Wns:*` in the sample server.
+3. On the registration's Essentials, follow **Managed application in local directory** and note
+   that page's **Object ID**. That is the service principal's id and the app's remote id. It is not
+   the Object ID on the registration's own Essentials page, and not the client id.
+
+```csharp
+builder.UseSpinePushNotifications(o =>
+{
+    o.Backend = new Uri("https://api.example.com/push/");
+    o.Windows.RemoteId = Guid.Parse("…");   // the service principal's Object ID
+});
+```
+
+Without `RemoteId` push is `Unsupported` on Windows, and with a backend configured the log says so.
+
+**Not self-contained.** `PushNotificationManager` runs on the Windows App Runtime's shared packages,
+which a self-contained app does not use, so `PushNotificationManager.IsSupported()` is false there —
+and .NET MAUI makes every unpackaged app self-contained unless told otherwise. The build warns about
+it; the fix is one property, after which the machine needs the
+[Windows App Runtime](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads) installed:
+
+```xml
+<WindowsAppSDKSelfContained Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">false</WindowsAppSDKSelfContained>
+```
+
+**Not elevated.** An app run as administrator gets no push; `Status` is `Unsupported` and the log says
+why.
+
+**What the app does.** At launch Spine subscribes to raw pushes, registers with the Windows App SDK,
+reads the activation (a cold start from a toast or from a raw push), and asks WNS for a channel —
+every launch, as Microsoft recommends, since the URI can change. On a foreground it asks again when
+the channel runs out within a day; channels last 30 days. A changed URI is registered with the
+backend like a rotated token. WNS retries a channel request for up to 15 minutes; every retry and a
+failure are logged with the HRESULT. Only one request runs at a time, and launch, foregrounds and
+`RequestPermissionAsync` all wait on that one rather than queueing behind it.
+
+Windows never asks the user, so `RequestPermissionAsync` answers with the Settings switch
+(`Authorized` or `Denied`). It starts a channel request if there is none and waits up to ten seconds
+for it, so the usual case registers in the same call; a request that takes longer carries on and
+registers when the channel arrives. A step of the start-up that fails — registering with the Windows
+App SDK, reading the activation — is logged with its HRESULT and does not stop the rest, so push
+still gets its channel.
+
+#### Unpackaged or packaged
+
+| | Unpackaged (`WindowsPackageType=None`) | Packaged (MSIX, or packaged with external location) |
+|---|---|---|
+| Channel | Yes, without any mapping | Yes, once Microsoft has mapped the package (below) |
+| Toasts from the server | Drawn by WNS | Drawn by WNS |
+| Silent (raw) pushes | Only while the app runs | Also start the app, through the activator in the manifest |
+| Tapped toast | Reaches the handler, also on a cold start | The same, through the activator in the manifest |
+| Local notifications | No — `IsSupported` is false | Scheduled toasts |
+
+**The background path.** Background delivery needs a package, a mapping and two manifest entries:
+
+1. Package the app (`WindowsPackageType=MSIX`, the MAUI default).
+2. Mail `Win_App_SDK_Push@microsoft.com`, subject *Windows App SDK Push Notifications Mapping
+   Request*, with the app's **package family name**, the Entra **Application (client) ID** and the
+   service principal's **Object ID**. Microsoft maps them weekly; until then a packaged app gets no
+   channel, and the log has the HRESULT.
+3. Declare the push activator — whose class id is the **Application (client) ID** — and a toast
+   activator with a GUID of your own, in `Platforms/Windows/Package.appxmanifest`:
+
+```xml
+<Package …
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  IgnorableNamespaces="uap rescap com desktop">
+  …
+  <Application …>
+    <Extensions>
+      <com:Extension Category="windows.comServer">
+        <com:ComServer>
+          <com:ExeServer Executable="$targetnametoken$.exe" DisplayName="Push" Arguments="----WindowsAppRuntimePushServer:">
+            <com:Class Id="APPLICATION-CLIENT-ID" DisplayName="Windows App SDK Push" />
+          </com:ExeServer>
+        </com:ComServer>
+      </com:Extension>
+      <desktop:Extension Category="windows.toastNotificationActivation">
+        <desktop:ToastNotificationActivation ToastActivatorCLSID="YOUR-OWN-GUID" />
+      </desktop:Extension>
+      <com:Extension Category="windows.comServer">
+        <com:ComServer>
+          <com:ExeServer Executable="$targetnametoken$.exe" DisplayName="Toasts" Arguments="----AppNotificationActivated:">
+            <com:Class Id="YOUR-OWN-GUID" />
+          </com:ExeServer>
+        </com:ComServer>
+      </com:Extension>
+    </Extensions>
+  </Application>
+```
+
+Without the toast activator `AppNotificationManager.Register()` fails in a packaged app; Spine logs
+the HRESULT and tapped toasts do not reach the handler. A raw push that starts a packaged app starts
+the whole MAUI app — a MAUI app has no windowless start — and reaches `OnReceivedAsync` with
+`IsColdStart` set.
+
+**Spine's single instance.** A toast tapped while the app runs reaches the running process. One that
+starts a second process is redirected to the first by `SpineOptions.Windows.AllowMultipleInstances =
+false` (the default), and Spine delivers it there.
+
 ---
 
 ## Testing without a backend
@@ -485,11 +634,22 @@ it, so everything up to the actual APNs delivery can be exercised without a phon
 On Android, Firebase Console → Messaging → "Send test message" against a token reaches the service,
 and the data keys go under "Additional options". An emulator with a Google Play image works.
 
+On Windows, `IPushNotificationService.Token` is the channel URI. With an access token for the Entra
+registration (client credentials, scope `https://wns.windows.com/.default`), a toast or a raw push can
+be sent to it by hand:
+
+```bash
+curl -X POST "$CHANNEL_URI" -H "Authorization: Bearer $TOKEN" \
+  -H "X-WNS-Type: wns/raw" -H "Content-Type: application/octet-stream" \
+  --data '{"spine.kind":"silent","spine.task":"refresh"}'
+```
+
 ---
 
 ## Not in v1
 
 | | Where it went |
 |---|---|
-| Windows | #233 for the app; the server sends through WNS already |
+| Windows on a real machine | Written and compiled in #233; verifying it on Windows is #501 |
+| Local notifications in an unpackaged Windows app | Needs package identity today |
 | Devices without Google Play (HMS) | v3 |
