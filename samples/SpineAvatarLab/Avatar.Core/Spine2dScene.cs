@@ -29,7 +29,10 @@ public sealed record Spine2dNode(
 public sealed record Spine2dTransform(double X = 0, double Y = 0, double ScaleX = 1, double ScaleY = 1, double Rotation = 0);
 
 /// <summary>A solid colour or theme slot, or (spine2d 1.1, feature <c>gradients</c>) a linear or radial gradient.</summary>
-public sealed record Spine2dFill(string? Color = null, string? Slot = null, Spine2dLinear? Linear = null, Spine2dRadial? Radial = null);
+public sealed record Spine2dFill(string? Color = null, string? Slot = null, Spine2dLinear? Linear = null, Spine2dRadial? Radial = null, Spine2dSweep? Sweep = null);
+
+/// <summary>An angular gradient around (cx, cy), starting at 3 o'clock and running clockwise; spin the node to swirl it.</summary>
+public sealed record Spine2dSweep(double Cx, double Cy, IReadOnlyList<Spine2dStop> Stops);
 
 public sealed record Spine2dLinear(double X0, double Y0, double X1, double Y1, IReadOnlyList<Spine2dStop> Stops);
 

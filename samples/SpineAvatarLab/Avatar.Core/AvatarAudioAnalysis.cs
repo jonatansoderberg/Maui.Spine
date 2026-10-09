@@ -186,6 +186,36 @@ public static class AvatarTextVisemes
 {
     public readonly record struct Estimate(double Start, double Duration, int Viseme);
 
+    /// <summary>
+    /// A loudness guess for an estimated viseme: open vowels loud, closures and silence quiet. Drives
+    /// level-reactive avatars while a TTS speaks without reporting its audio. Still EstimatedText.
+    /// </summary>
+    public static float Level(int viseme) => viseme switch
+    {
+        10 => 0.9f,
+        13 => 0.8f,
+        11 => 0.72f,
+        12 => 0.62f,
+        14 => 0.56f,
+        0 => 0.04f,
+        1 => 0.1f,
+        2 or 3 or 6 or 7 => 0.38f,
+        _ => 0.48f,
+    };
+
+    /// <summary>Fills 24 bands for an estimated viseme: vowels weigh the low and middle bands, fricatives the high ones.</summary>
+    public static void Bands(int viseme, float level, double time, Span<float> bands)
+    {
+        var fricative = viseme is 2 or 3 or 6 or 7;
+        for (var i = 0; i < bands.Length; i++)
+        {
+            var position = i / (float)(bands.Length - 1);
+            var shape = fricative ? position : 1 - Math.Abs(position - 0.3f) * 1.4f;
+            var flicker = 0.85f + 0.15f * (float)Math.Sin(time * (9 + i * 1.7) + i);
+            bands[i] = Math.Clamp(level * shape * flicker, 0, 1);
+        }
+    }
+
     public static List<Estimate> FromText(string text, double charactersPerSecond = 14)
     {
         var cues = new List<Estimate>();

@@ -24,7 +24,7 @@ internal sealed class CompiledTrack(int node, NodeProperty property, float[] tim
 
 internal readonly record struct CompiledParameter(int Node, NodeProperty Property, float Min, float Max);
 
-internal enum FillKind : byte { None, Solid, Linear, Radial }
+internal enum FillKind : byte { None, Solid, Linear, Radial, Sweep }
 
 /// <summary>A gradient's geometry and stops; stop colours resolve through theme slots when drawn.</summary>
 internal sealed class CompiledGradient(SKPoint start, SKPoint end, float radius, float[] offsets, int[] slots, SKColor[] colors, float[] opacities)
@@ -198,6 +198,7 @@ public sealed class Spine2dModel
             {
                 { Linear: not null } => FillKind.Linear,
                 { Radial: not null } => FillKind.Radial,
+                { Sweep: not null } => FillKind.Sweep,
                 not null => FillKind.Solid,
                 _ => FillKind.None,
             };
@@ -205,6 +206,7 @@ public sealed class Spine2dModel
             {
                 { Linear: { } l } => Gradient(new SKPoint((float)l.X0, (float)l.Y0), new SKPoint((float)l.X1, (float)l.Y1), 0, l.Stops),
                 { Radial: { } r } => Gradient(new SKPoint((float)r.Cx, (float)r.Cy), default, (float)r.R, r.Stops),
+                { Sweep: { } w } => Gradient(new SKPoint((float)w.Cx, (float)w.Cy), default, 0, w.Stops),
                 _ => null,
             };
             model.Strokes[i] = node.Stroke is { } stroke

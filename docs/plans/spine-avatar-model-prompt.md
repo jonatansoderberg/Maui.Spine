@@ -84,3 +84,17 @@ Reject your own result if any of these remain: flat single-colour shapes as fina
 - glTF Validator: 0 errors.
 - Report honestly. If a feature or quality level cannot be reached with the tools in your environment (list the Python packages you actually have), say which, and what an artist would need to do in which tool. Do not rename another file to fake a format. Device performance and lip-sync latency are NotMeasured.
 - At the end, list what changed from round 1 and the remaining weaknesses you would fix next.
+
+---
+
+## Round 3 addendum: make Aurora alive
+
+Paste after the round-2 prompt, with `TARGET = aurora`, the round-2 `aurora.spineavatar` and the lab's `aurora-motion.spineavatar` attached.
+
+Round 2's Aurora is beautiful as a still and static as an avatar. Compared with the Pulse Bloom concept it lacks three things, which the lab's Aurora Motion only sketches:
+
+1. **A look per state.** The concept changes colour, size and shape per state: idle blue-violet; connecting a pink-violet ring with an inner teal ring; listening bright cyan; thinking smaller and violet with an inner swirl; speaking larger, brighter blue, pulsing; interrupted magenta with a pause glyph; muted grey with an ×. The format cannot animate colour, so give each state its own colour layer (a radial-gradient overlay, `screen`) whose opacity the state pose raises, and size the root per state (thinking ≈ 0.86, speaking ≈ 1.08).
+2. **Light that moves inside the orb.** Use the new `sweep` gradient (angular, around `cx, cy`, starting at 3 o'clock; declare it under `gradients`) on two or three discs or rings, with full-turn rotation loops at different speeds and directions (for example 1 turn per 5–7 s and −1 per 6–8 s; thinking 3 turns per loop, connecting a fast ring). Keep sweep stops wide and soft, and avoid a hard stop near offset 0 or 1: a sweep converges at its centre and shows a pie-slice line if stops change quickly. Hide the centre under the core.
+3. **A body that answers the voice.** A `speaking` state clip (0.8–1 s loop) that pulses the core (scale 1 → 1.08 → 0.97) and the inner glow; `outputLow/Mid/High` mapped to different layers so the shape changes with the spectrum, not only with loudness; listening ripples: two or three rings whose looping clips scale 1.25 → 1 and fade in and out, staggered.
+
+Budget: at most four blurred nodes, blur ≤ 8. Aurora Motion uses more and costs 8.5 ms a frame on a Mac; the renderer will get cheaper blur, but the asset should not depend on it. Glyphs (pause bars, mute ×) are simple shapes shown by state poses.

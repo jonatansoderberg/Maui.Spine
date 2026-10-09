@@ -64,7 +64,11 @@ bindings = {
     "animations": animations,
     "parameters": {
         # No mouth to shape: the open-mouthed Surprised morph follows the output level (AudioReactive).
-        "outputLevel": [{"node": HEAD_MESH_NODE, "mesh": HEAD_MESH, "primitives": PRIMS, "targetIndex": SURPRISED, "min": 0, "max": 0.55}],
+        "outputLevel": [
+            {"node": HEAD_MESH_NODE, "mesh": HEAD_MESH, "primitives": PRIMS, "targetIndex": SURPRISED, "min": 0, "max": 0.7},
+            # The head dips with each loud syllable, so speaking reads even without a mouth.
+            {"node": HEAD_BONE, "property": "rotation", "min": head()["value"], "max": head(pitch=0.16, roll=0.04)["value"]},
+        ],
     },
     "channelMasks": {"expression": ["face", "headTransform"], "speech": [], "idle": ["body"], "reflex": ["headTransform"]},
     "framing": {"cameraPosition": [0, 2.9, 10.5], "lookAt": [0, 2.45, 0], "verticalFov": 32, "safeInset": 0.04, "fit": "contain"},

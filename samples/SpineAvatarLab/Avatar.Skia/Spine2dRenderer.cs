@@ -177,9 +177,12 @@ public sealed class Spine2dRenderer : IDisposable
                 var c = Slot(g.Slots[s], g.Colors[s], dark, accent);
                 colors[s] = c.WithAlpha((byte)Math.Clamp(c.Alpha * g.Opacities[s], 0, 255));
             }
-            _shaders[i] = _model.FillKinds[i] == FillKind.Radial
-                ? SKShader.CreateRadialGradient(g.Start, g.Radius, colors, g.Offsets, SKShaderTileMode.Clamp)
-                : SKShader.CreateLinearGradient(g.Start, g.End, colors, g.Offsets, SKShaderTileMode.Clamp);
+            _shaders[i] = _model.FillKinds[i] switch
+            {
+                FillKind.Radial => SKShader.CreateRadialGradient(g.Start, g.Radius, colors, g.Offsets, SKShaderTileMode.Clamp),
+                FillKind.Sweep => SKShader.CreateSweepGradient(g.Start, colors, g.Offsets),
+                _ => SKShader.CreateLinearGradient(g.Start, g.End, colors, g.Offsets, SKShaderTileMode.Clamp),
+            };
         }
         _shaderDark = dark;
         _shaderAccent = accent;

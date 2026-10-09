@@ -32,7 +32,7 @@ public static partial class AvatarValidator
     [GeneratedRegex("^[a-z0-9][a-z0-9-]{1,63}$")]
     private static partial Regex IdPattern();
 
-    [GeneratedRegex(@"^(?<node>[^.]+)\.(?<part>fill|stroke)(\.(?<kind>linear|radial)\.stops\[(?<stop>\d+)\])?$")]
+    [GeneratedRegex(@"^(?<node>[^.]+)\.(?<part>fill|stroke)(\.(?<kind>linear|radial|sweep)\.stops\[(?<stop>\d+)\])?$")]
     private static partial Regex ThemeBindingPattern();
 
     [GeneratedRegex("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$")]
@@ -307,6 +307,8 @@ public static partial class AvatarValidator
 
                 if (node.Fill is { Linear: { } linear })
                     Stops("linear gradient", linear.Stops);
+                else if (node.Fill is { Sweep: { } sweep })
+                    Stops("sweep gradient", sweep.Stops);
                 else if (node.Fill is { Radial: { } radial })
                 {
                     Stops("radial gradient", radial.Stops);
@@ -479,7 +481,7 @@ public static partial class AvatarValidator
                 var used = match.Groups["part"].Value switch
                 {
                     "stroke" => node.Stroke?.Slot,
-                    _ when match.Groups["stop"].Success => (match.Groups["kind"].Value == "linear" ? node.Fill?.Linear?.Stops : node.Fill?.Radial?.Stops)
+                    _ when match.Groups["stop"].Success => (match.Groups["kind"].Value switch { "linear" => node.Fill?.Linear?.Stops, "sweep" => node.Fill?.Sweep?.Stops, _ => node.Fill?.Radial?.Stops })
                         ?.ElementAtOrDefault(int.Parse(match.Groups["stop"].Value, CultureInfo.InvariantCulture))?.Slot,
                     _ => node.Fill?.Slot,
                 };

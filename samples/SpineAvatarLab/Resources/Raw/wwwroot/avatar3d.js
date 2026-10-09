@@ -109,7 +109,7 @@ async function load(message) {
     bloomComposer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
     bloomComposer.renderToScreen = false;
     bloomComposer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.12, 1.2);
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.1, 1.2);
     bloomComposer.addPass(bloom);
 
     const mix = new ShaderPass(new THREE.ShaderMaterial({
@@ -190,7 +190,7 @@ function setLook(value) {
     if (shadow) shadow.visible = studio;
     renderer.toneMapping = studio ? THREE.NeutralToneMapping : THREE.NoToneMapping;
     for (const [material, base] of emissiveBase) {
-        material.emissiveIntensity = studio ? base * 3 : base;
+        material.emissiveIntensity = studio ? base * 1.8 : base;
         material.needsUpdate = true;
     }
 }

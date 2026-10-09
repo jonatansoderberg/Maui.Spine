@@ -159,6 +159,7 @@ public sealed class AvatarTextSpeechFeed
         var locale = await FindLocaleAsync(request.Language);
         _estimates = AvatarTextVisemes.FromText(request.Text, 14 * request.Rate);
         _next = 0;
+        _current = 0;
 
         scheduler.PlaybackClock = _clock;
         scheduler.LipSyncQuality = AvatarLipSyncQuality.EstimatedText;
@@ -202,9 +203,17 @@ public sealed class AvatarTextSpeechFeed
             var e = _estimates[_next++];
             scheduler.EnqueueViseme(_clock.Generation, TimeSpan.FromSeconds(e.Start), TimeSpan.FromSeconds(e.Duration), e.Viseme, 0.8f);
         }
-        // No audio to measure: a gentle level while the estimate says a vowel is open.
-        scheduler.SetOutputLevel(position < (_estimates.Count > 0 ? _estimates[^1].Start + _estimates[^1].Duration : 0) ? 0.45f : 0);
+        // No audio to measure: a level and bands guessed from the estimated viseme under the playhead.
+        while (_current < _estimates.Count - 1 && _estimates[_current].Start + _estimates[_current].Duration < position)
+            _current++;
+        var estimate = _estimates.Count > 0 && position <= _estimates[^1].Start + _estimates[^1].Duration ? _estimates[_current] : default;
+        var level = _estimates.Count > 0 && position <= _estimates[^1].Start + _estimates[^1].Duration ? AvatarTextVisemes.Level(estimate.Viseme) : 0;
+        AvatarTextVisemes.Bands(estimate.Viseme, level, position, _bands);
+        scheduler.SetOutputLevel(level, _bands);
     }
+
+    private readonly float[] _bands = new float[AvatarRenderFrame.BandCount];
+    private int _current;
 
     private sealed class EstimatedClock : IAvatarPlaybackClock
     {
