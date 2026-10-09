@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		The avatar lab of issue #524: the reference avatars loaded, drawn and driven on devices before any
+		package exists. Avatar.* folders are the future packages; Avatar.Core and Avatar.Skia stay free of
+		MAUI, which tests/Plugin.Maui.Spine.Controls.Avatar.Core.Tests enforces by compiling them alone.
+	-->
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<OutputType>Exe</OutputType>
+		<RootNamespace>SpineAvatarLab</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<MauiXamlInflator>SourceGen</MauiXamlInflator>
+		<UseMaterial3>true</UseMaterial3>
+
+		<ApplicationTitle>Avatar Lab</ApplicationTitle>
+		<ApplicationId>se.cosmomedia.spineavatarlab</ApplicationId>
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<ApplicationVersion>1</ApplicationVersion>
+		<WindowsPackageType>None</WindowsPackageType>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#E8F6F7" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#E8F6F7" BaseSize="160,160" />
+		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<PackageReference Include="SkiaSharp.Views.Maui.Controls" />
+	</ItemGroup>
+
+</Project>
