@@ -367,8 +367,20 @@ public sealed class Spine2dRenderer : IDisposable
                 };
                 value = track.Values[a] + (track.Values[a + 1] - track.Values[a]) * k;
             }
-            ApplyRelative(track.Node, track.Property, value, sample.Weight);
+            if (_model.ClipValuesAreOffsets)
+                ApplyOffset(track.Node, track.Property, value, sample.Weight);
+            else
+                ApplyRelative(track.Node, track.Property, value, sample.Weight);
         }
+    }
+
+    private void ApplyOffset(int node, NodeProperty property, float value, float weight)
+    {
+        var at = node * Stride + (int)property;
+        if (property is NodeProperty.X or NodeProperty.Y or NodeProperty.Rotation)
+            _values[at] += weight * value;
+        else if (property is NodeProperty.ScaleX or NodeProperty.ScaleY or NodeProperty.Opacity)
+            _values[at] *= 1 + weight * (value - 1);
     }
 
     // The springs act on the first root node: stretch keeps the area roughly constant, lift is in

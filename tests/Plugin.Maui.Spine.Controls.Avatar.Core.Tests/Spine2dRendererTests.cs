@@ -78,6 +78,26 @@ public class Spine2dRendererTests
         Assert.Equal(0.72f * 0.04f, renderer.Value("eyeLeft", "scaleY"), 3);
     }
 
+    [Theory]
+    [InlineData("pip", 0.0)]
+    [InlineData("pip", 1.3)]
+    [InlineData("aurora", 2.0)]
+    [InlineData("dotling", 1.3)]
+    public void IdleClipKeepsTheRootNearRest(string avatar, double time)
+    {
+        // 1.1 clips are offsets and 1.0 clips absolute values; read the wrong way the root leaves the view.
+        using var renderer = Renderer(avatar);
+        var frame = new AvatarRenderFrame();
+        frame.AddActivity("idle", 1);
+        renderer.Evaluate(frame);
+        var rest = renderer.Value("root", "y");
+
+        frame.AddClip("idle_a", time, 1, AvatarClipLayer.Idle);
+        renderer.Evaluate(frame);
+
+        Assert.InRange(renderer.Value("root", "y") - rest, -6, 6);
+    }
+
     [Fact]
     public void EvaluatingAgainGivesTheSameFrame()
     {

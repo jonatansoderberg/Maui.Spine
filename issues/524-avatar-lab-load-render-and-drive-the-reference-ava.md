@@ -44,6 +44,7 @@ Phase A of [docs/plans/spine-avatar.md](../docs/plans/spine-avatar.md), with the
 - The 3D page: `clipBlend: "override"` for skeletal clips (they replace each other and a gesture fades the idle out over 0.25 s; additive clips on a skinned rig would leave a T-pose), morph targets driven by level parameters, the clip layer sent with each clip.
 - Harness `shotview` captures only the avatar view with a transparent background (correct for the 3D web view; a lone SKCanvasView is captured at the wrong scale, so 2D posters come from `AvatarSheet` instead).
 - 83 tests.
+- Fix (found by the owner in the Mac lab): Pip and Aurora were drawn above the view. Their clips store offsets and factors (`root.y` 0 → −4), as FORMAT-1.1 says, while round 1 stored absolute values (215 → 211), so `value − rest` moved Pip up 218 units. spine2d 1.1 clips are now read as offsets (x, y, rotation) and factors (scale, opacity); 1.0 keeps absolute values. The offscreen sheets showed nothing because they play no clips, and I wrongly called the mis-placed view capture an artefact; a test now plays the idle clip of each avatar and checks the root stays near rest. 87 tests.
 
 ## Decisions
 
@@ -63,6 +64,8 @@ Phase A of [docs/plans/spine-avatar.md](../docs/plans/spine-avatar.md), with the
 - Voice Totem's ring is an accent disc with a `surface`-filled disc on top, so the avatar is not transparent where the spec asks for it; an even-odd ring path would be.
 - Voice Totem's `think` loop turns a full 2π; the validator first flagged it as a loop jump and now compares rotations modulo a turn.
 - Clip composition (relative vs absolute), the micMuted mask and how a pathPose track crossfades between topologies need to be written into the authoring profile.
+- Clip value semantics changed between 1.0 (absolute) and 1.1 (offset/factor); the format must say so explicitly. Level parameters are still read as absolute values (Aurora's opacity ranges only make sense that way) and need the same clarity.
+- Aurora renders in about 5.1 ms per frame on the Mac in Debug (Pip 2.2 ms): six blur mask filters at 2× scale. Over the spec's 4 ms budget for simple 2D before any phone; caching blurred static layers or blurring at a lower resolution is the next step.
 - Skeletal GLB rigs need a declared clip blend (`clipBlend: override`): additive composition, right for node rigs, breaks skinned characters.
 - Manifest `motions.gestures` with names beyond nod/shake/lean/interrupt (thumbsUp, jump, dance) are useful and should be allowed by the schema.
 - Theme bindings for gradient stops and strokes (`<node>.fill.radial.stops[i]`, `<node>.stroke`) belong in the authoring profile; round 2 used them.

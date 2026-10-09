@@ -61,6 +61,12 @@ public sealed class Spine2dModel
 
     public float SafeInset { get; private set; }
 
+    /// <summary>
+    /// spine2d 1.1 clip values are offsets (x, y, rotation) and factors (scale, opacity) from rest; 1.0 clips
+    /// hold absolute values, read relative to the baseline. The round-1 and round-2 assets each follow their version.
+    /// </summary>
+    public bool ClipValuesAreOffsets { get; private set; }
+
     internal int NodeCount { get; private set; }
 
     internal string[] NodeIds { get; private set; } = [];
@@ -132,6 +138,7 @@ public sealed class Spine2dModel
             Width = (float)scene.Bounds.Width,
             Height = (float)scene.Bounds.Height,
             SafeInset = (float)(bindings.Framing?.SafeInset ?? 0),
+            ClipValuesAreOffsets = scene.SchemaVersion != "1.0",
             NodeCount = scene.Nodes.Count,
         };
 
