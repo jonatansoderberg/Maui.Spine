@@ -1,6 +1,7 @@
 namespace MauiSpineSampleApp.Pages.Search;
 
-[NavigableRegion(Title = "Search")]
+// The window's title bar (Windows only), which the field goes in; the other sample pages hide it.
+[NavigableRegion(Title = "Search", IsTitleBarVisible = true)]
 public partial class SearchPage { public SearchPage() => InitializeComponent(); }
 
 [NavigableSheet(

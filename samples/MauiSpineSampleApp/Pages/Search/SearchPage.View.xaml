@@ -8,13 +8,13 @@
     <CollectionView ItemsSource="{Binding Towns}">
         <CollectionView.Header>
             <VerticalStackLayout Padding="{x:Static HeaderBarConstants.PagePadding}" Spacing="12">
-                <SpineSection Footer="[PageSearch] on a string property puts a search field with the header bar; the property follows the field both ways, and the page filters its own list in OnQueryChanged. Automatic is a row below the bar, and the trailing end of the bar on iPad and Mac. While a search goes on in the row, the header bar gives way to the field until the X (back on Android) ends it. With the field hidden, starting a search from code shows it until the search ends, as behind a search button.">
+                <SpineSection Footer="[PageSearch] on a string property puts a search field with the header bar; the property follows the field both ways, and the page filters its own list in OnQueryChanged. Automatic is a row below the bar, the trailing end of the bar on iPad and Mac, and the window's title bar on Windows. While a search goes on in the row, the header bar gives way to the field until the X (back on Android) ends it. With the field hidden, starting a search from code shows it until the search ends, as behind a search button.">
                     <SpineRow Title="Show the search field">
                         <SpineRow.Accessory>
                             <Switch IsToggled="{Binding ShowsSearch}" />
                         </SpineRow.Accessory>
                     </SpineRow>
-                    <SpineRow Title="Always in a row (Top)" Detail="iPad, Mac: a row instead of the header bar">
+                    <SpineRow Title="Always in a row (Top)" Detail="iPad, Mac, Windows: a row instead of the header bar or the title bar">
                         <SpineRow.Accessory>
                             <Switch IsToggled="{Binding AlwaysInRow}" />
                         </SpineRow.Accessory>

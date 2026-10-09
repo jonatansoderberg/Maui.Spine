@@ -150,6 +150,17 @@ When `IsTitleBarVisible = true` (the default on desktop), Spine renders a custom
 - Displays `SpineOptions.AppTitle` as the window title
 - Shows the current page's `Title` (from the ViewModel) as the subtitle
 - Hosts page-action buttons from the active page's `PageActions` collection
+- Holds the search field of a page with `[PageSearch]` in its centre, `TitleBar.Content` (see [Search](search.md#in-windows-title-bar))
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `SearchInTitleBar` | `bool` | `true` | Put the search field of a page that shows the title bar in `TitleBar.Content`. Whatever the app has put there is kept and comes back when no page searches. `false` leaves `TitleBar.Content` to the app and shows the field in a row below the header bar instead |
+
+```csharp
+options.Windows.SearchInTitleBar = false; // the app owns TitleBar.Content; search goes in the row
+```
+
+Spine creates the window's `TitleBar` itself. An app that replaces `Window.TitleBar` with its own should set `SearchInTitleBar = false`: otherwise a page that searches throws an `InvalidOperationException` that says so.
 
 To globally disable the custom title bar in favor of Spine's in-page header bar:
 

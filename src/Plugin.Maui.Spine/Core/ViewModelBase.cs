@@ -217,6 +217,9 @@ public abstract partial class ViewModelBase : ObservableObject
         OnPropertyChanged(nameof(SearchHidesHeaderBar));
     }
 
+    // On Windows the field goes in the title bar while the page shows it, and in the row otherwise.
+    partial void OnIsTitleBarVisibleChanged(bool value) => OnSearchLayoutChanged();
+
     private void OnSearchPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(PageSearch.IsVisible) && sender is PageSearch search)
@@ -293,10 +296,18 @@ public abstract partial class ViewModelBase : ObservableObject
         OnSearchLayoutChanged();
     }
 
-    /// <summary>Where Spine shows <see cref="Search"/>: nowhere without a header bar.</summary>
+    /// <summary>
+    /// Where Spine shows <see cref="Search"/>: in the window's title bar on Windows while the page
+    /// shows it, otherwise with the header bar, and nowhere without one.
+    /// </summary>
     internal Presentation.SearchLayout SearchLayout =>
-        Search is { } search && (search.IsVisible || SearchInPlace) && IsHeaderBarVisible
-            ? Presentation.SearchField.Resolve(search.Placement, InSheet, IsCompactWidth)
+        Search is { } search && (search.IsVisible || SearchInPlace)
+            ? Presentation.SearchLayoutRules.Resolve(
+                search.Placement,
+                InSheet,
+                headerBar: IsHeaderBarVisible,
+                titleBar: Presentation.SearchField.UsesTitleBar && IsTitleBarVisible && Lightbox is null,
+                trailing: Presentation.SearchField.FitsTrailing(IsCompactWidth))
             : Presentation.SearchLayout.None;
 
     /// <summary>

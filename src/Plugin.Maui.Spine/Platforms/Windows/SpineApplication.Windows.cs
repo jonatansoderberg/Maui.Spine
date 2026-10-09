@@ -84,6 +84,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         _titleBar.SetBinding(TitleBar.SubtitleProperty, "CurrentRegionViewModel.Title");
 
         window.TitleBar = _titleBar;
+        InitializeTitleBarSearch(window);
 
         SetTitleBarVisibilityAsync().SafeFireAndForget();
 

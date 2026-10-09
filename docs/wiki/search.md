@@ -81,14 +81,25 @@ Without the attribute, set `Search = new PageSearch { Placeholder = "…", Submi
 | iPhone | A row below the header bar | A row below the header bar |
 | iPad and Mac Catalyst | At the trailing end of the header bar, left of the trailing action; a row below the bar when the window is narrower than 600 points (Split View, a small window) | A row below the header bar |
 | Android | A Material 3 capsule in a row below the header bar | The same |
-| Windows | A row below the header bar | The same |
+| Windows | In the window's title bar, centred, while the page shows it (`IsTitleBarVisible`); a row below the header bar otherwise | A row below the header bar |
 | A sheet, anywhere | A row below the sheet's header bar | The same |
 
 - **The row is part of the header.** It moves with the page in a push or a pop, the way the title does. Under a floating header (`Overlay`, a large title, or a scroll edge background) content scrolls under the row as well as the bar: `SafeAreaInsets.Top` and the scroll inset include it, and the scroll edge effect or solid background reaches below it.
 - **On Apple platforms** the field is the system's own `UISearchBar` in its minimal style, so it looks like the OS version's search field, held to 44 points as a search controller's in a navigation bar (a standalone bar lays it out taller), with 17-point text. UIKit's own cancel button stays off; see [While searching](#while-searching).
 - **On Android** it is MAUI's `SearchView` in Material 3's search bar: a fully rounded 56-point capsule 16 points in from the sides, the magnifier centred 24 points in and the text 68 points in, 16-point text, no underline.
 - **The keyboard** covers only the list, which Spine already keeps above it (see [The on-screen keyboard](regions.md#the-on-screen-keyboard)).
-- **No header bar, no field:** a page with `IsHeaderBarVisible = false` shows no search.
+- **No header bar, no field:** a page with `IsHeaderBarVisible = false` shows no search, except in Windows' title bar, which does not need the header bar.
+
+### In Windows' title bar
+
+On Windows a region page that shows the window's title bar (`IsTitleBarVisible`, the default on the desktop) has its field in the middle of the title bar, `TitleBar.Content`, where File Explorer and Settings put search, and no row below the header bar. It is the same field as the row's, MAUI's `SearchBar` (an `AutoSuggestBox`), up to 360 points wide and as tall as the title bar (32), so text, the search key and `IsActive` behave as everywhere else; the search follows the focus.
+
+- **It follows the page.** Spine swaps the field on every navigation and tab switch, and takes it away while a sheet is open (the sheet's own field is in its row) and on a page without search, `Top` or a hidden title bar.
+- **The app's own content comes back.** Whatever the app has put in `TitleBar.Content` is kept while a searching page shows and put back when none does; content the app sets meanwhile is what comes back.
+- **`options.Windows.SearchInTitleBar = false`** leaves `TitleBar.Content` to the app; the field then goes in the row below the header bar, as in the table's `Top` column. See [Windows options](windows-options.md#title-bar-desktop-header).
+- **A replaced title bar is an error.** An app that sets `Window.TitleBar` to a title bar of its own and leaves `SearchInTitleBar` on gets an `InvalidOperationException` naming the page as soon as a page wants the title bar for its field.
+
+The title bar field has been compiled but not yet run on Windows; [#501](https://github.com/jonatansoderberg/Maui.Spine/issues/501) tracks the check.
 
 <img src="images/search-mac.png" width="482" alt="The search field at the trailing end of the header bar on Mac Catalyst, left of the theme button">
 
@@ -115,7 +126,6 @@ Material 3's own search bar and search view (left) next to Spine's on Android (r
 These come later; see `docs/proposals/spine-header-search.md`:
 
 - On iPhone with iOS 26, search at the bottom of the screen above the home indicator, and a search button in the header bar for pages with a tab bar or a footer.
-- Suggestions under the field, and ⌘F on Mac Catalyst.
-- On Windows, the field in the window's title bar.
+- Suggestions under the field (on Windows in the title bar's `AutoSuggestBox`), and ⌘F on Mac Catalyst.
 - A row that slides away as the list scrolls, and the row below a large title instead of above it.
 - Scopes: a menu button next to the field.

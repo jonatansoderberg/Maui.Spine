@@ -4,19 +4,6 @@ using Plugin.Maui.Spine.Extensions;
 
 namespace Plugin.Maui.Spine.Presentation;
 
-/// <summary>Where Spine shows a page's search field once <see cref="SearchPlacement"/> is resolved.</summary>
-internal enum SearchLayout
-{
-    /// <summary>No field: the page has no search, it is hidden, or the header bar is.</summary>
-    None,
-
-    /// <summary>A row below the header bar, part of the page's title row.</summary>
-    Row,
-
-    /// <summary>At the trailing end of the header bar, left of the trailing action.</summary>
-    Trailing,
-}
-
 /// <summary>
 /// The page's search field: MAUI's <see cref="SearchBar"/>, which brings the platform's search key,
 /// clear button and keyboard, bound to a <see cref="PageSearch"/>. The platform's own field on Apple
@@ -88,17 +75,17 @@ internal sealed partial class SearchField : ContentView
     internal const double TrailingMinRegionWidth = 600;
 
     /// <summary>
-    /// Resolves where <paramref name="placement"/> puts the field: at the trailing end of the bar on
-    /// iPad and Mac Catalyst region pages wide enough for it, otherwise in the row below it.
+    /// Whether the field can go at the trailing end of a region's bar: on iPad and Mac Catalyst,
+    /// unless the region is <paramref name="compact"/> (narrower than <see cref="TrailingMinRegionWidth"/>).
     /// </summary>
-    internal static SearchLayout Resolve(SearchPlacement placement, bool inSheet, bool compact)
-    {
-        if (placement is SearchPlacement.Automatic && !inSheet && !compact
-            && (OperatingSystem.IsMacCatalyst() || (OperatingSystem.IsIOS() && DeviceInfo.Current.Idiom == DeviceIdiom.Tablet)))
-            return SearchLayout.Trailing;
+    internal static bool FitsTrailing(bool compact) =>
+        !compact && (OperatingSystem.IsMacCatalyst() || (OperatingSystem.IsIOS() && DeviceInfo.Current.Idiom == DeviceIdiom.Tablet));
 
-        return SearchLayout.Row;
-    }
+    /// <summary>
+    /// Whether the window's title bar takes the field of a page that shows it: on Windows, with
+    /// <see cref="SpineOptions.WindowsPlatformOptions.SearchInTitleBar"/>. Set once with the window, before the first page.
+    /// </summary>
+    internal static bool UsesTitleBar { get; set; }
 
     /// <summary>The search the field shows, or <see langword="null"/>.</summary>
     public PageSearch? Search

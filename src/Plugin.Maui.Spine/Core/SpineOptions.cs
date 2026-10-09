@@ -320,6 +320,15 @@ public sealed class SpineOptions
         /// <see cref="WindowBackdrop.None"/> (default) uses a solid theme-appropriate background.
         /// </summary>
         public WindowBackdrop BottomSheetBackdrop { get; set; } = WindowBackdrop.None;
+
+        /// <summary>
+        /// When true (default), the search field of a page that shows the title bar
+        /// (<see cref="ViewModelBase.IsTitleBarVisible"/>) goes in the title bar's centre,
+        /// <c>TitleBar.Content</c>, in place of whatever the app has put there, which comes back once
+        /// no page searches. Set to false to leave <c>TitleBar.Content</c> to the app; the field then
+        /// goes in a row below the header bar, as on the other platforms.
+        /// </summary>
+        public bool SearchInTitleBar { get; set; } = true;
     }
 
     /// <summary>Windows-specific window chrome and behaviour settings.</summary>
