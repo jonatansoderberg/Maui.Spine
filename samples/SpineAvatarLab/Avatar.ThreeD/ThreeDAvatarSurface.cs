@@ -65,6 +65,8 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
 
     public string? PageError { get; private set; }
 
+    public string? Detail => $"page apply+render {PageFrameMilliseconds:0.00} ms (JS side; WebKit's compositing and GPU run in other processes)";
+
     /// <summary>"studio" (environment light, rim light, tone mapping, bloom, contact shadow) or "basic" (round 1).</summary>
     public string Look
     {

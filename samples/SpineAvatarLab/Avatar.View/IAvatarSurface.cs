@@ -16,6 +16,9 @@ internal interface IAvatarSurface : IDisposable
     void Render(AvatarRenderFrame frame, bool dark, Color? accent);
 
     AvatarFrameStats Stats { get; }
+
+    /// <summary>What the renderer itself reports: the web page's frame time, SceneKit's render-thread time.</summary>
+    string? Detail => null;
 }
 
 /// <summary>Frame timing a lab reads: how long rendering takes and what it allocates.</summary>

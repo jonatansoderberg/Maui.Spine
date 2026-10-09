@@ -19,6 +19,8 @@
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
 		<WindowsPackageType>None</WindowsPackageType>
+		<!-- LibraryImport for the lab's process CPU and memory sampling (Lab/ProcessStats.cs). -->
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
 	<!-- -p:LabHarness=true keeps the scripting harness (Lab/LabHarness.cs) in a Release build, for measurements on devices. -->

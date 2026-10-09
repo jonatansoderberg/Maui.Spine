@@ -199,6 +199,41 @@ public sealed class LabPage : ContentPage
 #endif
     }
 
+    /// <summary>
+    /// One avatar on one 3D renderer, speaking with generated bands, measured over <paramref name="seconds"/>:
+    /// frame rate, our time and allocation per frame, the renderer's own time, the app process's CPU and footprint.
+    /// </summary>
+    private async Task<string> BenchAsync(string avatar, string renderer, double seconds)
+    {
+        _renderers.Select(renderer);
+        _avatar.ThreeDRenderer = _small64.ThreeDRenderer = _small128.ThreeDRenderer = renderer;
+        _previews.IsToggled = false;
+        LoadBundled(avatar);
+        for (var i = 0; i < 100 && (_avatar.LoadState is AvatarLoadState.Loading || _avatar.Package?.Manifest.Id != avatar); i++)
+            await Task.Delay(50);
+        _bands.IsToggled = true;
+        _output.Value = 0.6;
+        _avatar.State = AvatarState.Speaking;
+        await Task.Delay(2500);
+
+        var stats = _avatar.Stats!;
+        var firstFrame = stats.FirstFrameTimestamp > 0 ? System.Diagnostics.Stopwatch.GetElapsedTime(_avatar.LoadStartedTimestamp, stats.FirstFrameTimestamp).TotalMilliseconds : double.NaN;
+        stats.ResetPeaks();
+        GC.Collect();
+        var cpu = ProcessStats.CpuSeconds();
+        var wall = System.Diagnostics.Stopwatch.GetTimestamp();
+        await Task.Delay(TimeSpan.FromSeconds(seconds));
+        var cpuPercent = (ProcessStats.CpuSeconds() - cpu) / System.Diagnostics.Stopwatch.GetElapsedTime(wall).TotalSeconds * 100;
+        var footprint = ProcessStats.FootprintBytes() / (1024.0 * 1024);
+
+        _bands.IsToggled = false;
+        _output.Value = 0;
+        _avatar.State = AvatarState.Idle;
+        _previews.IsToggled = true;
+        return string.Create(CultureInfo.InvariantCulture,
+            $"{avatar} {_avatar.RendererName}: {stats.FramesPerSecond:0.0} fps, ours p50 {stats.Percentile(0.5):0.00} ms p95 {stats.Percentile(0.95):0.00} ms, alloc peak {stats.MaxAllocatedBytes} B, app CPU {cpuPercent:0} %, footprint {footprint:0} MB, first frame {firstFrame:0} ms | {_avatar.RendererDetail}");
+    }
+
     private void SetTheme(AppTheme theme) => Application.Current!.UserAppTheme = theme;
 
     private void SetRenderer(string renderer)
@@ -329,6 +364,8 @@ public sealed class LabPage : ContentPage
             case "spring":
                 _spring.Value = Number(1);
                 return null;
+            case "bench":
+                return await BenchAsync(arg, parts[2], parts.Length > 3 ? double.Parse(parts[3], CultureInfo.InvariantCulture) : 6);
             case "reset-peaks":
                 _avatar.Stats?.ResetPeaks();
                 return null;

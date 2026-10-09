@@ -229,6 +229,8 @@ public sealed class AvatarView : ContentView
 
     public AvatarFrameStats? Stats => _surface?.Stats;
 
+    public string? RendererDetail => _surface?.Detail;
+
     /// <summary>The last frame shown; for an inspector.</summary>
     public AvatarRenderFrame? LastFrame { get; private set; }
 

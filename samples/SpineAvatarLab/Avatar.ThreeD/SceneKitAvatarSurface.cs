@@ -48,6 +48,7 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             PreferredFramesPerSecond = 60,
         };
         _scene.Background.Contents = UIColor.Clear;
+        _view.WeakSceneRendererDelegate = _timer;
         _scene.RootNode.AddChildNode(_container);
 
         _nodes = [.. model.Nodes.Select(n => SCNNode.Create())];
@@ -100,6 +101,38 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
     public string RendererName => "native3d (SceneKit)";
 
     public AvatarFrameStats Stats { get; } = new();
+
+    public string? Detail => _timer.Describe();
+
+    private readonly RenderTimer _timer = new();
+
+    /// <summary>Times SceneKit's render thread from will-render to did-render: CPU work to encode a frame, not GPU time.</summary>
+    private sealed class RenderTimer : NSObject, ISCNSceneRendererDelegate
+    {
+        private long _start, _frames, _windowStart = Stopwatch.GetTimestamp();
+        private double _total, _fps, _ms;
+
+        [Export("renderer:willRenderScene:atTime:")]
+        public void WillRenderScene(ISCNSceneRenderer renderer, SCNScene scene, double timeInSeconds) => _start = Stopwatch.GetTimestamp();
+
+        [Export("renderer:didRenderScene:atTime:")]
+        public void DidRenderScene(ISCNSceneRenderer renderer, SCNScene scene, double timeInSeconds)
+        {
+            _total += Stopwatch.GetElapsedTime(_start).TotalMilliseconds;
+            _frames++;
+            var window = Stopwatch.GetElapsedTime(_windowStart).TotalSeconds;
+            if (window >= 1)
+            {
+                _fps = _frames / window;
+                _ms = _total / Math.Max(1, _frames);
+                _frames = 0;
+                _total = 0;
+                _windowStart = Stopwatch.GetTimestamp();
+            }
+        }
+
+        public string Describe() => $"SceneKit {_fps:0.0} fps, render thread {_ms:0.00} ms per frame";
+    }
 
     public void Render(AvatarRenderFrame frame, bool dark, Color? accent)
     {
