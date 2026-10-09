@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-09 (owner answered all open questions; proposals in review in PR #523, nothing implemented)
+**Last updated:** 2026-10-09 (proposals and answers merged in PR #523; nothing implemented yet)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -90,13 +90,13 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Status | PR | Notes |
 |---|---|---|---|---|---|
 | 0.1 | Roadmap issue and 17 child issues | #505–#522 | Done | — | Created 2026-10-09 |
-| 0.2 | Five proposals and this plan | #505 | In review | #523 | All 31 open questions answered 2026-10-09. Done when #523 is merged. |
+| 0.2 | Five proposals and this plan | #505 | Done | #523 | All 31 open questions answered 2026-10-09. |
 
 ### Phase 1: guards and biometrics
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 1.1 | Core navigation guard and command guard | #506 | 0.2 | Ready (after #523) | | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links. Guarded tabs on Android and Windows show an unlock cover (Q5). |
+| 1.1 | Core navigation guard and command guard | #506 | 0.2 | Ready | | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links. Guarded tabs on Android and Windows show an unlock cover (Q5). |
 | 1.2 | `IBiometricAuth`, `[RequiresUnlock]` on pages and commands, `Unlock.Command`, `RequireAsync` | #507 | 1.1 | Waiting | | |
 | 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | Waiting | | |
 
@@ -104,24 +104,24 @@ The order follows value against risk. Steps in different phases can run in paral
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | Ready (after #523) | | Signed-in user from #520 when present, otherwise the installation id with tighter limits (Q19). Azure storage inside the package (Q20). |
+| 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | Ready | | Signed-in user from #520 when present, otherwise the installation id with tighter limits (Q19). Azure storage inside the package (Q20). |
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
 | 2.3 | Generated-asset pipeline | #511 | 2.1 | Waiting | | Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
 | 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Waiting | | |
-| 2.5 | `Controls.Markdown`, then `Controls.Chat` | #513 | 0.2 | Ready (after #523) | | Markdown is its own package (Q21). Can start any time. |
+| 2.5 | `Controls.Markdown`, then `Controls.Chat` | #513 | 0.2 | Ready | | Markdown is its own package (Q21). Can start any time. |
 | 2.6 | On-device `IChatClient` spike, Android and Windows | #514 | none | Ready | | Outside this repo. Contribute upstream to dotnet/maui-labs if it works. |
 
 ### Phase 3: highlight
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 3.1 | `Controls.Highlight`: kinds, repeat, keys, tours | #509 | 0.2 | Ready (after #523) | | Can start any time. Voice's screen-edge visual reuses Edge. |
+| 3.1 | `Controls.Highlight`: kinds, repeat, keys, tours | #509 | 0.2 | Ready | | Can start any time. Voice's screen-edge visual reuses Edge. |
 
 ### Phase 4: voice
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 4.1 | Audio engine spike: full duplex, echo cancellation, levels and bands | #515 | 0.2 | Ready (after #523) | | Highest risk. Measure echo on a real iPhone and an Android phone. |
+| 4.1 | Audio engine spike: full duplex, echo cancellation, levels and bands | #515 | 0.2 | Ready | | Highest risk. Measure echo on a real iPhone and an Android phone. |
 | 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Waiting | | |
 | 4.3 | Provider adapters, `IVoiceSession`, `VoiceView` and visual plug-ins | #516 | 4.1, 4.2 | Waiting | | OpenAI and Azure OpenAI only in v1 (Q28). WebSocket and PCM; WebRTC only if measurements call for it (Q31). Background audio is opt-in (Q26). |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
@@ -130,7 +130,7 @@ The order follows value against risk. Steps in different phases can run in paral
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 5.1 | `Server.Authentication`: ID-token validation, own tokens, refresh rotation | #520 | 0.2 | Ready (after #523) | | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). |
+| 5.1 | `Server.Authentication`: ID-token validation, own tokens, refresh rotation | #520 | 0.2 | Ready | | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). |
 | 5.2 | `Authentication` client: Apple, OIDC, email and password, `[RequiresSignIn]`, refreshing handler | #519 | 1.1, 5.1 | Waiting | | Works with and without a Spine server (Q7), registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8). Needs a Windows path that works on .NET 10. |
 | 5.3 | `Authentication.Google` and `.Microsoft` | #521 | 5.2 | Waiting | | |
 | 5.4 | Passkeys | #522 | 5.2 | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
