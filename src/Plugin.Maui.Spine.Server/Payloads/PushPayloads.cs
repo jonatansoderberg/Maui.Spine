@@ -305,9 +305,10 @@ public static class PushPayloads
     /// WNS draws the toast itself (§7.3), so it shows while the app is not running — the only way an
     /// unpackaged app, which WNS cannot start, is told anything in the background. The Spine keys travel
     /// in the toast's <c>launch</c> argument in the Windows App SDK's <c>key=value;</c> form, which the
-    /// app reads back from <c>AppNotificationActivatedEventArgs.Arguments</c> when the toast is opened.
+    /// app reads back from <c>AppNotificationActivatedEventArgs.Argument</c> when the toast is opened.
     /// The buttons of <see cref="PushNotification.Category"/> are declared in the app and not drawn
-    /// here; <see cref="PushNotification.Windows"/> can add actions to the XML.
+    /// here; <see cref="PushNotification.Windows"/> can add actions to the XML, with the toast's
+    /// <c>launch</c> plus <c>;spine.action=&lt;id&gt;</c> as each button's <c>arguments</c>.
     /// </remarks>
     /// <exception cref="InvalidOperationException">The toast does not fit in <see cref="WnsPayloadLimit"/>.</exception>
     public static PushEnvelope Wns(PushNotification notification, DateTimeOffset now)
@@ -324,7 +325,7 @@ public static class PushPayloads
         if (notification.Image is { } image)
             binding.Add(new XElement("image", new XAttribute("placement", "hero"), new XAttribute("src", image.ToString())));
 
-        var toast = new XElement("toast", new XAttribute("launch", WnsArguments(data)), new XElement("visual", binding));
+        var toast = new XElement("toast", new XAttribute("launch", WnsPayload.WriteArguments(data)), new XElement("visual", binding));
         notification.Windows?.Invoke(toast);
 
         return new PushEnvelope
@@ -351,32 +352,12 @@ public static class PushPayloads
         var body = new Dictionary<string, string>(StringComparer.Ordinal) { [PushKeys.Kind] = PushKeys.Kinds.Silent };
         foreach (var (key, value) in data) body[key] = value;
 
-        var buffer = new System.IO.MemoryStream();
-        using (var w = new System.Text.Json.Utf8JsonWriter(buffer))
-        {
-            w.WriteStartObject();
-            foreach (var (key, value) in body) w.WriteString(key, value);
-            w.WriteEndObject();
-        }
-
         return new PushEnvelope
         {
-            Json = GuardWns(System.Text.Encoding.UTF8.GetString(buffer.ToArray())),
+            Json = GuardWns(WnsPayload.WriteRaw(body)),
             WnsType = "wns/raw",
             Priority = 5,
         };
-    }
-
-    /// <summary>
-    /// Writes <paramref name="data"/> as a toast's launch argument: <c>key=value;key=value</c>, with
-    /// <c>%</c>, <c>;</c> and <c>=</c> percent-encoded as <c>AppNotificationBuilder.AddArgument</c> does,
-    /// so the app can split the string without a value breaking it.
-    /// </summary>
-    internal static string WnsArguments(IReadOnlyDictionary<string, string> data)
-    {
-        return string.Join(';', data.Select(pair => $"{Escape(pair.Key)}={Escape(pair.Value)}"));
-
-        static string Escape(string value) => value.Replace("%", "%25").Replace(";", "%3B").Replace("=", "%3D");
     }
 
     private static string GuardWns(string body)

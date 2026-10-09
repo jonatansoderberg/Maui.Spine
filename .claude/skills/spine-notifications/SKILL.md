@@ -27,6 +27,7 @@ builder
             new PushAction("ack", "Acknowledge") { OpensApp = false },
             new PushAction("reply", "Reply") { Reply = "Write something" });
         o.UseHandler<MyPushHandler>();
+        o.Windows.RemoteId = Guid.Parse("…");                 // Windows: the Entra service principal's Object ID
     });
 ```
 
@@ -61,7 +62,7 @@ await push.RequestPermissionAsync();                              // the one per
 await push.SetTagsAsync(["kind:news", "team:red"]);                // replaces; AddTagsAsync / RemoveTagsAsync edit
 await push.RefreshAsync();                                        // re-register (token rotated, tags changed)
 push.IsRegistered;                                                // the backend reaches this device
-push.IsSupported;                                                 // false on Windows; hide notification settings there
+push.IsSupported;                                                 // false on Windows without RemoteId, self-contained or elevated; hide settings then
 ```
 
 Tags are opaque strings the server matches with expressions (`kind:news && !muted`). Put the user in a tag (`user:123`) and let the server's `AllowTags` keep clients from claiming others.
@@ -134,6 +135,7 @@ Works in ASP.NET Core Minimal APIs and in Azure Functions isolated workers (the 
 - Don't leave out `UseSpinePushNotifications` in an app without `UseSpine`: nothing else registers it there.
 - Don't put `google-services.json` with real keys in a public repo; the sample's checked-in one is a placeholder.
 - Don't expect a Mac Catalyst debug build to get remote push without a provisioning profile named in `CodesignProvision`; it gets local notifications only.
+- Don't leave a Windows app self-contained if it needs push: .NET MAUI makes `WindowsPackageType=None` apps self-contained, and the Windows App SDK has no push there. Set `WindowsAppSDKSelfContained=false` (the build warns). Unpackaged apps get raw pushes only while running and no local notifications; background delivery needs MSIX plus Microsoft's PFN mapping (wiki, Windows section). Not yet verified on Windows (#501).
 
 ## Documentation
 

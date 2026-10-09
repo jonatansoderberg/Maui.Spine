@@ -18,6 +18,8 @@
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Widgets" />
 		<!-- The marker that tells Plugin.Maui.Spine.Widgets push is registered. -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.PushNotifications" />
+		<!-- WnsPayload: the WNS wire format, written by the server and read by the Windows app. -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server" />
 		<!-- The built-in tasks other Spine packages contribute (SpineBackgroundTaskRegistration). -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.BackgroundTasks" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.BackgroundTasks.Tests" />

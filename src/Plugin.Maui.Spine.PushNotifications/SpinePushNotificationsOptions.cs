@@ -72,6 +72,19 @@ public enum PushChannelImportance
     High,
 }
 
+/// <summary>The Windows half of <see cref="SpinePushNotificationsOptions"/>. Ignored on other platforms.</summary>
+public sealed class WindowsPushOptions
+{
+    /// <summary>
+    /// What <c>PushNotificationManager.CreateChannelAsync</c> takes: the <b>Object ID of the service
+    /// principal</b> of the app's Entra registration — Entra ID → App registrations → the app →
+    /// Essentials → <i>Managed application in local directory</i> → Object ID. Not the Object ID on the
+    /// registration's own Essentials page, and not the Application (client) ID, which is the server's.
+    /// Without it push is <see cref="PushStatus.Unsupported"/> on Windows, and the log says so.
+    /// </summary>
+    public Guid? RemoteId { get; set; }
+}
+
 /// <summary>How Spine.PushNotifications behaves in this app.</summary>
 public sealed class SpinePushNotificationsOptions
 {
@@ -117,6 +130,9 @@ public sealed class SpinePushNotificationsOptions
     /// </para>
     /// </remarks>
     public TimeSpan Confirm { get; set; } = TimeSpan.FromMinutes(15);
+
+    /// <summary>What Windows needs to reach this app through WNS.</summary>
+    public WindowsPushOptions Windows { get; } = new();
 
     internal Type? HandlerType { get; private set; }
 

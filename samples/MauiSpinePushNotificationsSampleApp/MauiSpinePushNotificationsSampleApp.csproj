@@ -16,6 +16,9 @@
 		<ApplicationVersion>1</ApplicationVersion>
 
 		<WindowsPackageType>None</WindowsPackageType>
+		<!-- WNS push needs the installed Windows App Runtime; .NET MAUI makes an unpackaged app self-contained
+		     by default, and a self-contained one has no push. -->
+		<WindowsAppSDKSelfContained Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">false</WindowsAppSDKSelfContained>
 
 		<!-- Firebase Messaging's dependencies declare minSdk 23; Spine's own floor is 21. -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23</SupportedOSPlatformVersion>

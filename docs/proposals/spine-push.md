@@ -242,7 +242,7 @@ Fjärrkällan (`RemoteSource`) kvarstår som det budgetsnålaste sättet att hå
 
 ### 7.3 Windows
 
-- `PushNotificationManager.Default.CreateChannelAsync(remoteId)` där `remoteId` är objekt-id:t för Entra-appens service principal; kanal-URI:n är handle [18]. `PushReceived` prenumereras före `Register()`.
+- `PushNotificationManager.Default.CreateChannelAsync(remoteId)` där `remoteId` är objekt-id:t för Entra-appens service principal; kanal-URI:n är handle [18]. `PushReceived` prenumereras före `Register()`, och `Register()` anropas före `AppInstance.GetActivatedEventArgs()`. (API-referensen kallar parametern "Azure AppId"; quickstarten använder service principalens ObjectId, och det är den Spine följer.)
 - **Opaketerad app (Orienteras `WindowsPackageType=None`)**: stöds, men bara förgrundsleverans; ingen COM-aktivering, ingen bakgrund. Paketerad (MSIX eller "external location") kräver dessutom PFN→AppId-mappning som begärs via e-post till Microsoft och behandlas veckovis. `IsSupported()` är falskt för self-contained och förhöjda processer. Dokumenteras; `Status = Unsupported` i de lägena.
 - Toast ritas av WNS (`wns/toast` med XML som servern bygger från titel/text/route); tysta som `wns/raw`.
 
@@ -364,8 +364,8 @@ Instruktionerna är skrivna för Orientera men gäller alla Spine-appar. Kursiv 
 
 1. *App registration:* [portal.azure.com → Microsoft Entra ID → App registrations → New](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade). Namn "Orientera push", **Accounts in any organizational directory (multitenant)** — kravet från WinAppSDK [18]. Anteckna **Application (client) ID** och **Directory (tenant) ID**.
 2. *Klienthemlighet:* Certificates & secrets → New client secret → kopiera värdet direkt. Servern: `Push:Wns:TenantId`, `ClientId`, `ClientSecret`.
-3. *Service principal-id:* Enterprise applications → sök appen → **Object ID** (inte client id). Det är `remoteId` som appen skickar till `CreateChannelAsync`; sätts i `UseSpinePush(o => o.Windows.RemoteId = …)`.
-4. **Paketering:** opaketerad (`WindowsPackageType=None`) ger förgrundsleverans, inget mer. För bakgrund: paketera (MSIX) och mejla PFN + Entra AppId till `Win_App_SDK_Push@microsoft.com` för mappning (veckovis handläggning) [18].
+3. *Service principal-id:* app-registreringens Essentials → **Managed application in local directory** → **Object ID** (inte Object ID på registreringens egen Essentials-sida, och inte client id). Det är `remoteId` som appen skickar till `CreateChannelAsync`; sätts i `UseSpinePushNotifications(o => o.Windows.RemoteId = …)`.
+4. **Paketering:** opaketerad (`WindowsPackageType=None`) ger förgrundsleverans, inget mer, och behöver varken mappning eller COM-aktivator. Den får inte vara self-contained — .NET MAUI gör opaketerade appar self-contained som standard, och då är `PushNotificationManager.IsSupported()` falskt; `WindowsAppSDKSelfContained=false` krävs. För bakgrund: paketera (MSIX eller packaged with external location) och mejla `Win_App_SDK_Push@microsoft.com`, ämne *Windows App SDK Push Notifications Mapping Request*, med PFN, Entra AppId (client id) och service principalens ObjectId för mappning (veckovis handläggning) [18]. Manifestet behöver push-aktivatorn (`<com:Class Id="AppId">`, `Arguments="----WindowsAppRuntimePushServer:"`) och toast-aktivatorn — se wikin, *Push (client) → Windows*.
 5. **Test:** `curl` med bearer-token mot kanal-URI:n, `X-WNS-Type: wns/toast`. Kanaler går ut efter 30 dagar och 410 tas bort av transporten.
 
 ### 9.4 Servern (Orientera.Backend, Azure Functions)

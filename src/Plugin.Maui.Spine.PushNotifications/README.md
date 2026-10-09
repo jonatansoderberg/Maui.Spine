@@ -1,6 +1,6 @@
 # Plugin.Maui.Spine.PushNotifications
 
-Push and local notifications for .NET MAUI: permission, APNs and FCM tokens, tags, one handler that sees every message, local scheduling with actions, and an optional Notification Service Extension that shows images in pushed notifications on iOS. The server half is `Plugin.Maui.Spine.Server`.
+Push and local notifications for .NET MAUI: permission, APNs and FCM tokens and WNS channels, tags, one handler that sees every message, local scheduling with actions, and an optional Notification Service Extension that shows images in pushed notifications on iOS. The server half is `Plugin.Maui.Spine.Server`.
 
 ```bash
 dotnet add package Plugin.Maui.Spine.PushNotifications
@@ -51,7 +51,9 @@ Build properties: `SpinePushNotificationsEnabled`, `SpinePushNotificationsRemote
 
 Android needs `google-services.json` from a Firebase project and `SupportedOSPlatformVersion` 23 or later. iOS needs an App ID with Push Notifications and, for device builds, a provisioning profile.
 
-Platforms: Android, iOS, Mac Catalyst (remote push needs a provisioning profile there). Windows gets no-op services.
+Windows needs an Entra app registration (`o.Windows.RemoteId` is its service principal's Object ID) and `WindowsAppSDKSelfContained=false`, since the Windows App SDK has no push for self-contained apps; an unpackaged app gets push only while it runs, and local notifications need an MSIX package.
+
+Platforms: Android, iOS, Mac Catalyst (remote push needs a provisioning profile there), Windows (WNS through the Windows App SDK; not yet verified on a Windows machine).
 
 ## Documentation
 

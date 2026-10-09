@@ -62,17 +62,20 @@ public interface IPushNotificationService
     PushStatus Status { get; }
 
     /// <summary>
-    /// Whether this platform has push at all: <see langword="true"/> on iOS, Mac Catalyst and Android, and
-    /// <see langword="false"/> on Windows, where <see cref="Status"/> is <see cref="PushStatus.Unsupported"/>.
-    /// Whether the user allows notifications is <see cref="Status"/>, which can change.
+    /// Whether this platform has push at all: <see langword="true"/> on iOS, Mac Catalyst and Android. On
+    /// Windows only when <see cref="SpinePushNotificationsOptions.Windows"/> has a remote id and the Windows App
+    /// SDK supports push for the process — not self-contained, not elevated; otherwise <see cref="Status"/>
+    /// is <see cref="PushStatus.Unsupported"/> and the log says why. Whether the user allows notifications
+    /// is <see cref="Status"/>, which can change.
     /// </summary>
     bool IsSupported => Status != PushStatus.Unsupported;
 
     /// <summary>
-    /// The APNs device token or FCM registration token this installation is reached through, and the
-    /// one thing a registration cannot go out without. <see langword="null"/> until the platform has
-    /// issued one — which on Apple is some time after permission is granted, and on Android means
-    /// Firebase has not accepted the app's <c>google-services.json</c>.
+    /// The APNs device token, FCM registration token or WNS channel URI this installation is reached
+    /// through, and the one thing a registration cannot go out without. <see langword="null"/> until the
+    /// platform has issued one — which on Apple is some time after permission is granted, on Android means
+    /// Firebase has not accepted the app's <c>google-services.json</c>, and on Windows means WNS has not
+    /// given a channel (the log has the HRESULT).
     /// </summary>
     string? Token { get; }
 

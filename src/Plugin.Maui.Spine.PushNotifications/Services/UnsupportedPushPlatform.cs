@@ -3,7 +3,8 @@ using Plugin.Maui.Spine.Common;
 namespace Plugin.Maui.Spine.PushNotifications.Services;
 
 /// <summary>
-/// Stands in on a platform Spine.PushNotifications has no implementation for — Windows in v1. Everything answers
+/// Stands in on a platform Spine.PushNotifications has no implementation for — none of today's target
+/// frameworks, but any added before its platform layer exists. Everything answers
 /// that push is unsupported, so an app that multi-targets such a platform degrades instead of
 /// throwing the first time it resolves <see cref="IPushNotificationService"/>.
 /// </summary>

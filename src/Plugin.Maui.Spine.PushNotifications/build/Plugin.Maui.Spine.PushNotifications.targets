@@ -6,7 +6,8 @@
 		  SpinePushNotificationsEnvironment   development | production   (Apple; defaults to development for Debug)
 		  SpinePushNotificationsEnabled       default true
 		  SpinePushNotificationsRemote        default true; false keeps local notifications and drops everything
-		                         remote push needs — Firebase on Android, aps-environment on Apple.
+		                         remote push needs — Firebase on Android, aps-environment on Apple, and the
+		                         self-contained warning on Windows.
 		                         On Mac Catalyst remote push also needs CodesignProvision, see below.
 		  SpinePushNotificationsImages        default false; true adds the Notification Service Extension that shows
 		                         pictures in pushed notifications on iOS. Needs its own App ID and profile
@@ -172,6 +173,19 @@
 			BeforeTargets="BeforeBuild">
 		<Error Condition="'@(GoogleServicesJson)' == ''"
 			   Text="Spine.PushNotifications: Android needs Firebase's google-services.json. Download it from the Firebase console and add &lt;GoogleServicesJson Include=&quot;Platforms\Android\google-services.json&quot; /&gt; to the app project. Set SpinePushNotificationsRemote=false to keep local notifications without it, or SpinePushNotificationsEnabled=false to build without either." />
+	</Target>
+
+	<!--
+		Windows: PushNotificationManager depends on the Windows App Runtime's Singleton package, which a
+		self-contained app does not use, so IsSupported() is false there and push is Unsupported at runtime.
+		.NET MAUI makes every WindowsPackageType=None app self-contained unless told otherwise, so this is
+		the default state of an unpackaged app — said here rather than discovered on the user's machine.
+	-->
+	<Target Name="_SpinePushNotificationsWindowsCheck"
+			Condition="'$(SpinePushNotificationsEnabled)' == 'true' And '$(SpinePushNotificationsRemote)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' And '$(DesignTimeBuild)' != 'true'"
+			BeforeTargets="BeforeBuild">
+		<Warning Condition="'$(WindowsAppSDKSelfContained)' == 'true'"
+				 Text="Spine.PushNotifications: this Windows app is self-contained (WindowsAppSDKSelfContained=true, .NET MAUI's default for WindowsPackageType=None), and the Windows App SDK has no push for self-contained apps: IPushNotificationService.Status will be Unsupported. Add &lt;WindowsAppSDKSelfContained&gt;false&lt;/WindowsAppSDKSelfContained&gt; for the Windows target framework (the machine then needs the Windows App Runtime installed), or set SpinePushNotificationsRemote=false if the app does not use push." />
 	</Target>
 
 	<!--
