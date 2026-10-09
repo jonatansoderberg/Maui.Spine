@@ -178,12 +178,10 @@ public sealed class LabPage : ContentPage
             },
         };
 
-        var scroll = new ScrollView { Content = controls };
-        var grid = new Grid { Padding = new Thickness(16, 12), ColumnSpacing = 20, RowSpacing = 12 };
-        grid.Add(new ScrollView { Content = preview });
-        grid.Add(scroll);
-        grid.SizeChanged += (_, _) => Layout(grid, (View)grid.Children[0], scroll);
-        Content = grid;
+        _preview = preview;
+        _controls = controls;
+        SizeChanged += (_, _) => ArrangeColumns();
+        ArrangeColumns();
 
         _microphone.Toggled += (_, e) => ToggleMicrophone(e.Value);
         _muted.Toggled += (_, e) => _avatar.IsMuted = e.Value;
@@ -369,13 +367,38 @@ public sealed class LabPage : ContentPage
         _diagnosticsTimer?.Stop();
     }
 
-    private static void Layout(Grid grid, View preview, View controls)
+    private View _preview = null!, _controls = null!;
+    private bool? _wide;
+
+    // Wide windows get two columns that scroll on their own; a phone gets one page that scrolls as a
+    // whole, avatar first, with the diagnostics folded away.
+    private void ArrangeColumns()
     {
-        var wide = grid.Width > 800;
-        grid.ColumnDefinitions = wide ? [new(GridLength.Star), new(new GridLength(440))] : [new(GridLength.Star)];
-        grid.RowDefinitions = wide ? [new(GridLength.Star)] : [new(GridLength.Auto), new(GridLength.Star)];
-        Grid.SetColumn(controls, wide ? 1 : 0);
-        Grid.SetRow(controls, wide ? 0 : 1);
+        var wide = Width <= 0 || Width > 800;
+        if (wide == _wide)
+            return;
+        _wide = wide;
+
+        (_preview.Parent as Layout)?.Remove(_preview);
+        (_controls.Parent as Layout)?.Remove(_controls);
+        if (_preview.Parent is ScrollView previewScroll) previewScroll.Content = null;
+        if (_controls.Parent is ScrollView controlsScroll) controlsScroll.Content = null;
+
+        if (wide)
+        {
+            var grid = new Grid { Padding = new Thickness(16, 12), ColumnSpacing = 20, ColumnDefinitions = [new(GridLength.Star), new(new GridLength(440))] };
+            grid.Add(new ScrollView { Content = _preview });
+            grid.Add(new ScrollView { Content = _controls }, 1);
+            Content = grid;
+        }
+        else
+        {
+            _diagnostics.IsVisible = false;
+            Content = new ScrollView
+            {
+                Content = new VerticalStackLayout { Padding = new Thickness(14, 10), Spacing = 14, Children = { _preview, _controls } },
+            };
+        }
     }
 
     private void LoadBundled(string name)
