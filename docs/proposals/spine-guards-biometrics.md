@@ -1,8 +1,20 @@
 # Guards, biometrics, app lock and privacy shield
 
-**Status:** Proposal, 2026-10-09. Not started. Roadmap: [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505). Issues: [#506](https://github.com/jonatansoderberg/Maui.Spine/issues/506) (core guards, §2), [#507](https://github.com/jonatansoderberg/Maui.Spine/issues/507) (`IBiometricAuth` and `[RequiresUnlock]`, §3–§4), [#508](https://github.com/jonatansoderberg/Maui.Spine/issues/508) (app lock and privacy shield, §5). Visual concepts: https://claude.ai/artifact/J5TCSDk8Rk1vZNti9MBM3J. Nothing here has been built or run; Spine facts are read from the source on `origin/master` (1ab4b45), platform facts from documentation and the reference packs.
+**Status:** Proposal, 2026-10-09, with the owner's answers in [Decisions](#decisions-2026-10-09). Not started. Roadmap: [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505). Issues: [#506](https://github.com/jonatansoderberg/Maui.Spine/issues/506) (core guards, §2), [#507](https://github.com/jonatansoderberg/Maui.Spine/issues/507) (`IBiometricAuth` and `[RequiresUnlock]`, §3–§4), [#508](https://github.com/jonatansoderberg/Maui.Spine/issues/508) (app lock and privacy shield, §5). Visual concepts: https://claude.ai/artifact/J5TCSDk8Rk1vZNti9MBM3J. Nothing here has been built or run; Spine facts are read from the source on `origin/master` (1ab4b45), platform facts from documentation and the reference packs.
 **Question:** How can Spine run something before it shows a page or runs a command (an unlock prompt, a sign-in sheet) without the core knowing about biometrics or authentication, and how should a biometrics package use that for pages, commands, an app lock and a privacy shield?
 **Answer:** The core gets one small generic mechanism: an abstract `GuardAttribute` and an `IGuard<TAttribute>` that a package registers. `NavigationService` asks the guards of the target page type before it resolves the page from DI, and Spine's own command sinks (page actions, menus and context menus, action sheets, `Tap.Command`, `{PageCommand}`) ask the guards of the `[RelayCommand]` method they run. A new package `Plugin.Maui.Spine.Biometrics` defines `[RequiresUnlock]` on top of that, plus `IBiometricAuth` (LocalAuthentication, AndroidX Biometric, Windows Hello), `Unlock.Command` and `RequireAsync` for everything Spine does not invoke, a global `AppLock` and a per-page `[PrivacyShield]`. Guards are UI gates, not encryption: a `Command="{Binding DeleteCommand}"` on a plain button bypasses them, and that is stated in the wiki.
+
+
+## Decisions (2026-10-09)
+
+The owner answered the open questions in §9. Where an answer differs from the text below, the answer wins.
+
+1. A plain `{Binding XCommand}` bypassing the command guard is documented. `Unlock.Command` and `RequireAsync` cover those cases, and no source generator is planned.
+2. The default grace period is 1 minute, with `Fresh` for destructive commands.
+3. `WhenUnavailable` defaults to `Allow`.
+4. The build fails with a clear message when `NSFaceIDUsageDescription` is missing. The package writes no default text.
+5. **Changed from the proposal:** a guarded tab on Android and Windows shows the tab under an **unlock cover** until the guard passes, instead of switching back.
+6. The desktop app lock counts minimised time only.
 
 ---
 

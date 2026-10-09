@@ -1,8 +1,20 @@
 # Spine.Controls.Highlight: glow, focus and tours (proposal)
 
-**Status:** Proposal, 2026-10-09. Not started. Issue: [#509](https://github.com/jonatansoderberg/Maui.Spine/issues/509), part of the roadmap [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505). Related: the screen-edge visual in Spine.Voice, [#516](https://github.com/jonatansoderberg/Maui.Spine/issues/516). Live concept: https://claude.ai/artifact/J5TCSDk8Rk1vZNti9MBM3J (private until the owner shares it). Nothing here has been built or run; claims about Spine are read from the source on `origin/master` (1ab4b45), claims about the platforms come from their documentation.
+**Status:** Proposal, 2026-10-09, with the owner's answers in [Decisions](#decisions-2026-10-09). Not started. Issue: [#509](https://github.com/jonatansoderberg/Maui.Spine/issues/509), part of the roadmap [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505). Related: the screen-edge visual in Spine.Voice, [#516](https://github.com/jonatansoderberg/Maui.Spine/issues/516). Live concept: https://claude.ai/artifact/J5TCSDk8Rk1vZNti9MBM3J (private until the owner shares it). Nothing here has been built or run; claims about Spine are read from the source on `origin/master` (1ab4b45), claims about the platforms come from their documentation.
 **Question:** Can one package give any view a glow that says "the model is working on this", and also point a user at a control during onboarding (once, a few times, until tapped, or as a tour of steps)? How is each kind drawn, how does it behave under Reduce Motion and with a screen reader, and how can Spine.Voice drive the same edge glow from audio levels?
 **Answer:** Yes, as `Plugin.Maui.Spine.Controls.Highlight`, built on the attached-property pattern that `Tap`, `Material` and `Motion` already use. Five of the six kinds (Edge, Pulse, Sheen, Trace, Breathe) are native layers on the target's platform view: Core Animation on Apple, a `ViewOverlay` drawable on Android, a Composition child visual on Windows. They animate on the platform's compositor where it has one, cost no layout pass and need no SkiaSharp. Spotlight is different: it is a window-level overlay above the header bar, tab bar and any open sheet, drawn as a MAUI `GraphicsView` with a MAUI tip view, placed by the mechanism `LightboxOverlay` already uses. "Once per install" is a key in `Preferences` under a shared name of its own. Highlight owns the window-level edge glow itself: `IHighlights.AttachEdge(window)` returns an `IEdgeGlow` whose `Intensity` is a `Func<float>` sampled per frame. Spine.Voice does not reference Highlight and Highlight does not reference Voice; the app wires the two in one line. The core needs four small generic hooks (§6.1), none of them about glow or voice.
+
+
+## Decisions (2026-10-09)
+
+The owner answered the open questions in §10, all as recommended:
+
+1. In a tour, a tap anywhere goes to the next step and does not run the target's action.
+2. Android Auto Backup may restore "seen" keys after a reinstall. That is accepted and documented.
+3. Edge defaults to the spectrum, with the app's accent as an option.
+4. Tips outside Spotlight are announced to screen readers only.
+5. `ReducedMotion` and `SpineOverlay` become public in the core.
+6. The window edge's corners on iOS use a table of radii per device class.
 
 ---
 

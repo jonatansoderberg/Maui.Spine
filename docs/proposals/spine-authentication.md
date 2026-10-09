@@ -1,8 +1,20 @@
 # Spine.Authentication — sign-in on every platform against the app's own server (proposal)
 
-**Status:** Proposal, 2026-10-09. Not started. Roadmap: [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505). Issues: [#519](https://github.com/jonatansoderberg/Maui.Spine/issues/519) (client), [#520](https://github.com/jonatansoderberg/Maui.Spine/issues/520) (server), [#521](https://github.com/jonatansoderberg/Maui.Spine/issues/521) (Google and Microsoft), [#522](https://github.com/jonatansoderberg/Maui.Spine/issues/522) (passkeys, "maybe"). Depends on the navigation guard in [#506](https://github.com/jonatansoderberg/Maui.Spine/issues/506). Nothing here has been built or run; it rests on the Spine source in this worktree, package metadata from nuget.org and the documentation in [Sources](#11-sources). Visual concepts: https://claude.ai/artifact/J5TCSDk8Rk1vZNti9MBM3J (private until shared).
+**Status:** Proposal, 2026-10-09, with the owner's answers in [Decisions](#decisions-2026-10-09). Not started. Roadmap: [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505). Issues: [#519](https://github.com/jonatansoderberg/Maui.Spine/issues/519) (client), [#520](https://github.com/jonatansoderberg/Maui.Spine/issues/520) (server), [#521](https://github.com/jonatansoderberg/Maui.Spine/issues/521) (Google and Microsoft), [#522](https://github.com/jonatansoderberg/Maui.Spine/issues/522) (passkeys, "maybe"). Depends on the navigation guard in [#506](https://github.com/jonatansoderberg/Maui.Spine/issues/506). Nothing here has been built or run; it rests on the Spine source in this worktree, package metadata from nuget.org and the documentation in [Sources](#11-sources). Visual concepts: https://claude.ai/artifact/J5TCSDk8Rk1vZNti9MBM3J (private until shared).
 **Question:** Can adding sign-in to a Spine app be a few lines of options, with Sign in with Apple, Google, Microsoft, any OpenID Connect provider and email/password, native where the platform has a native sheet, on iOS, Mac Catalyst, Android and Windows, and with `[RequiresSignIn]` on a page?
 **Answer:** Yes, as four packages. `Plugin.Maui.Spine.Authentication` holds Apple, generic OIDC, email/password, `ISpineAuth`, `[RequiresSignIn]` and a refreshing `HttpClient` handler, with no third-party dependency. `.Authentication.Google` and `.Authentication.Microsoft` carry the heavy native SDKs. `Plugin.Maui.Spine.Server.Authentication` sits next to the push backend, validates provider ID tokens and issues the app's own short-lived access tokens and rotating refresh tokens. The key design choice is that **every browser flow is brokered by the app's server**: the app opens the system browser on `{Server}/auth/{provider}/start`, the server is the confidential OIDC client, and the app gets a one-time code back that it trades for Spine tokens with PKCE. That one path covers Apple on Android and Windows, Google on iOS, any OIDC provider (and a BankID broker that speaks OIDC), and keeps all client secrets off the device. Native sheets (`ASAuthorizationController`, Credential Manager, MSAL's broker) produce an ID token that goes to the same server. Windows works on .NET 10 through a loopback redirect, not `WebAuthenticator`.
+
+
+## Decisions (2026-10-09)
+
+The owner answered the open questions in §10. Where an answer differs from the text below, the answer wins.
+
+1. **Changed from the proposal:** sign-in must work **both with and without a Spine server**. A client-only OIDC mode (for example Duende OidcClient against Auth0 or Entra) is in scope, next to the server-backed flows.
+2. **Changed from the proposal:** registration is `o.AddAuthentication(...)` **inside `UseSpine`**, not `UseSpineAuthentication(...)`.
+3. **Changed from the proposal:** the server's default user store is a **minimal store on Azure Tables**, like the push register. An app plugs in its own store through **`IUserResolver`**. There is no ASP.NET Core Identity default.
+4. The iOS browser session is ephemeral by default.
+5. **Changed from the proposal:** sending the signed-in token to the push backend is **opt-in**.
+6. Passkeys: yes, after v1 of sign-in (#522). The domain the samples associate is still open.
 
 ---
 

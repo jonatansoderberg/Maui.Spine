@@ -1,8 +1,21 @@
 # Spine.Voice: realtime voice sessions, audio visuals and server-made sessions (proposal)
 
-**Status:** Proposal, 2026-10-09. Not started. Roadmap: [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505). Issues: [#515](https://github.com/jonatansoderberg/Maui.Spine/issues/515) (spike: audio engine, §3), [#516](https://github.com/jonatansoderberg/Maui.Spine/issues/516) (provider adapters and `VoiceView`, §4–§5), [#517](https://github.com/jonatansoderberg/Maui.Spine/issues/517) (session endpoints in `Plugin.Maui.Spine.Server.AI`, §6), [#518](https://github.com/jonatansoderberg/Maui.Spine/issues/518) (experiment: Live Activity and ongoing notification, §7). Live visual concepts: https://claude.ai/artifact/J5TCSDk8Rk1vZNti9MBM3J (private until the owner shares it). Nothing here has been built or run; claims about providers come from their documentation, read on 2026-10-09, and are marked where they are not verified.
+**Status:** Proposal, 2026-10-09, with the owner's answers in [Decisions](#decisions-2026-10-09). Not started. Roadmap: [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505). Issues: [#515](https://github.com/jonatansoderberg/Maui.Spine/issues/515) (spike: audio engine, §3), [#516](https://github.com/jonatansoderberg/Maui.Spine/issues/516) (provider adapters and `VoiceView`, §4–§5), [#517](https://github.com/jonatansoderberg/Maui.Spine/issues/517) (session endpoints in `Plugin.Maui.Spine.Server.AI`, §6), [#518](https://github.com/jonatansoderberg/Maui.Spine/issues/518) (experiment: Live Activity and ongoing notification, §7). Live visual concepts: https://claude.ai/artifact/J5TCSDk8Rk1vZNti9MBM3J (private until the owner shares it). Nothing here has been built or run; claims about providers come from their documentation, read on 2026-10-09, and are marked where they are not verified.
 **Question:** The owner (2026-10-09) wants voice that works out of the box against realtime AI, shows input and output audio, takes visual agents and avatars as plug-ins, is worth trying as a Live Activity, has a server part built on current best practice, and comes as modular packages. What should Spine build, and in which order?
 **Answer:** A new package `Plugin.Maui.Spine.Voice` that owns the hard part nobody solves well in MAUI: a full-duplex audio engine with the platform's echo cancellation, a playback queue that can be flushed at barge-in, and metering into a `VoiceFrame` (state, two levels, 24 bands each). On top of it sits `IVoiceSession`, fed by thin provider adapters, because Microsoft.Extensions.AI's `IRealtimeClient` is experimental, has only an OpenAI implementation, and its standard messages carry no speech-started, truncate or cancel. Visuals are plug-ins that see one frame and draw on Skia, or host their own view. The app never holds a provider key: `MapSpineRealtimeSessions()` in `Plugin.Maui.Spine.Server.AI` mints short-lived, server-configured sessions, metered by the budgets in [spine-ai.md](spine-ai.md). WebSocket and PCM first; WebRTC later. The Live Activity is an experiment that rides on Spine.Widgets when both packages are referenced.
+
+
+## Decisions (2026-10-09)
+
+The owner answered the open questions in §10. Where an answer differs from the text below, the answer wins.
+
+1. **Changed from the proposal:** the `audio` background mode is **off by default**. The app opts in with `SpineVoiceBackground=true`.
+2. There is no mode with a provider key in the app.
+3. **Changed from the proposal:** only **OpenAI and Azure OpenAI** adapters are in v1. Gemini and Voice Live come when an app needs them.
+4. The small generic hook in Widgets for Live Activity actions is accepted.
+5. Android uses a plain ongoing notification, not `CallStyle`.
+6. WebRTC comes only if latency measurements call for it.
+7. **Avatars:** AI avatars and other character visuals (3D, Rive, Lottie) become a separate control library that the owner specifies. Spine.Voice keeps the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and the simple built-in visuals only.
 
 ---
 

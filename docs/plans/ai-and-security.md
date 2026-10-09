@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-09 (plan written, proposals in review, nothing implemented)
+**Last updated:** 2026-10-09 (owner answered all open questions; proposals in review in PR #523, nothing implemented)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -34,7 +34,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 - **Heavy native dependencies get their own packages:** MSAL, the Google bindings, ML Kit and a markdown parser.
 - **Server parts are separate packages** next to `Plugin.Maui.Spine.Server`, which stays the push backend.
 - **No model abstractions of our own.** Microsoft.Extensions.AI (`IChatClient`, `IImageGenerator`, `IRealtimeClient`) is the contract. Spine adds what sits around it: configuration, cost control, UI, audio and platform integration.
-- **No provider keys in an app.** Model calls and realtime sessions are set up by the app's server.
+- **No provider keys in an app.** Model calls and realtime sessions are set up by the app's server. Sign-in is the exception: it works both with and without a Spine server (Q7).
 - **Documentation is in English:** wiki, proposals, READMEs, PR bodies and the `issues/` changelogs. Conversation with the owner is in Swedish.
 
 ---
@@ -48,12 +48,14 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509 | [highlight](../proposals/spine-highlight.md) | Proposal |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Proposal |
+| `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Proposal |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #513 | [ai §8](../proposals/spine-ai.md) | Proposal |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication` | New | #519 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Server.Authentication` | New, server | #520 | [authentication](../proposals/spine-authentication.md) | Proposal |
-| Passkeys (client and server) | Feature idea | #522 | [authentication, Passkeys](../proposals/spine-authentication.md) | Waiting (owner decision) |
+| Passkeys (client and server) | After v1 of sign-in | #522 | [authentication, Passkeys](../proposals/spine-authentication.md) | Waiting |
+| AI avatars and character visuals | Separate control library, specified by the owner | — | — | Outside this plan |
 | On-device `IChatClient`, Android and Windows | Spike outside the repo | #514 | [ai §9](../proposals/spine-ai.md) | Proposal |
 
 ```mermaid
@@ -65,6 +67,7 @@ graph LR
   AUTH --> GM[#521 Google and Microsoft]
   SA --> GM
   AUTH --> PK[#522 Passkeys]
+  MD[Controls.Markdown] --> CHAT
   AI[#510 Server.AI] --> ASSET[#511 Generated assets]
   AI --> CL[#512 Spine.AI client]
   AI --> RT[#517 Realtime sessions]
@@ -87,13 +90,13 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Status | PR | Notes |
 |---|---|---|---|---|---|
 | 0.1 | Roadmap issue and 17 child issues | #505–#522 | Done | — | Created 2026-10-09 |
-| 0.2 | Five proposals and this plan | #505 | In review | — | Owner reviews the proposals' open questions. See [Open questions](#open-questions). |
+| 0.2 | Five proposals and this plan | #505 | In review | #523 | All 31 open questions answered 2026-10-09. Done when #523 is merged. |
 
 ### Phase 1: guards and biometrics
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 1.1 | Core navigation guard and command guard | #506 | 0.2 | Waiting | | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links |
+| 1.1 | Core navigation guard and command guard | #506 | 0.2 | Ready (after #523) | | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links. Guarded tabs on Android and Windows show an unlock cover (Q5). |
 | 1.2 | `IBiometricAuth`, `[RequiresUnlock]` on pages and commands, `Unlock.Command`, `RequireAsync` | #507 | 1.1 | Waiting | | |
 | 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | Waiting | | |
 
@@ -101,36 +104,36 @@ The order follows value against risk. Steps in different phases can run in paral
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | Waiting | | User identity from #520 when present, otherwise an anonymous key. See proposal. |
+| 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | Ready (after #523) | | Signed-in user from #520 when present, otherwise the installation id with tighter limits (Q19). Azure storage inside the package (Q20). |
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
 | 2.3 | Generated-asset pipeline | #511 | 2.1 | Waiting | | Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
 | 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Waiting | | |
-| 2.5 | `Controls.Chat` | #513 | 0.2 | Waiting | | Can start any time |
-| 2.6 | On-device `IChatClient` spike, Android and Windows | #514 | none | Waiting | | Outside this repo. Contribute upstream to dotnet/maui-labs if it works. |
+| 2.5 | `Controls.Markdown`, then `Controls.Chat` | #513 | 0.2 | Ready (after #523) | | Markdown is its own package (Q21). Can start any time. |
+| 2.6 | On-device `IChatClient` spike, Android and Windows | #514 | none | Ready | | Outside this repo. Contribute upstream to dotnet/maui-labs if it works. |
 
 ### Phase 3: highlight
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 3.1 | `Controls.Highlight`: kinds, repeat, keys, tours | #509 | 0.2 | Waiting | | Can start any time. Voice's screen-edge visual reuses Edge. |
+| 3.1 | `Controls.Highlight`: kinds, repeat, keys, tours | #509 | 0.2 | Ready (after #523) | | Can start any time. Voice's screen-edge visual reuses Edge. |
 
 ### Phase 4: voice
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 4.1 | Audio engine spike: full duplex, echo cancellation, levels and bands | #515 | 0.2 | Waiting | | Highest risk. Measure echo on a real iPhone and an Android phone. |
+| 4.1 | Audio engine spike: full duplex, echo cancellation, levels and bands | #515 | 0.2 | Ready (after #523) | | Highest risk. Measure echo on a real iPhone and an Android phone. |
 | 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Waiting | | |
-| 4.3 | Provider adapters, `IVoiceSession`, `VoiceView` and visual plug-ins | #516 | 4.1, 4.2 | Waiting | | WebSocket and PCM first, WebRTC later |
+| 4.3 | Provider adapters, `IVoiceSession`, `VoiceView` and visual plug-ins | #516 | 4.1, 4.2 | Waiting | | OpenAI and Azure OpenAI only in v1 (Q28). WebSocket and PCM; WebRTC only if measurements call for it (Q31). Background audio is opt-in (Q26). |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 
 ### Phase 5: sign-in
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 5.1 | `Server.Authentication`: ID-token validation, own tokens, refresh rotation | #520 | 0.2 | Waiting | | |
-| 5.2 | `Authentication` client: Apple, OIDC, email and password, `[RequiresSignIn]`, refreshing handler | #519 | 1.1, 5.1 | Waiting | | Needs a Windows path that works on .NET 10 |
+| 5.1 | `Server.Authentication`: ID-token validation, own tokens, refresh rotation | #520 | 0.2 | Ready (after #523) | | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). |
+| 5.2 | `Authentication` client: Apple, OIDC, email and password, `[RequiresSignIn]`, refreshing handler | #519 | 1.1, 5.1 | Waiting | | Works with and without a Spine server (Q7), registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8). Needs a Windows path that works on .NET 10. |
 | 5.3 | `Authentication.Google` and `.Microsoft` | #521 | 5.2 | Waiting | | |
-| 5.4 | Passkeys | #522 | 5.2, owner decision | Waiting | | |
+| 5.4 | Passkeys | #522 | 5.2 | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
 
 ---
 
@@ -152,48 +155,59 @@ Newest last. Each entry is dated and says who decided.
 - **2026-10-09, owner:** Everything is modular: separate NuGet packages, so an app does not get what it does not use.
 - **2026-10-09, Claude:** Microsoft.Extensions.AI is the model contract, so Spine writes no provider abstraction and no Spine package per provider. **Why:** M.E.AI already has the interfaces, middleware and provider adapters, and Microsoft.Maui.Essentials.AI already covers Apple's on-device model.
 - **2026-10-09, Claude:** Realtime voice uses WebSocket and PCM first. **Why:** there is no maintained libwebrtc binding for MAUI.
+- **2026-10-09, owner:** Answered Q1–Q31; see the answer column in [Open questions](#open-questions). The answers that change a proposal:
+  - Q5: guarded tabs show an unlock cover.
+  - Q7: sign-in works without a Spine server too.
+  - Q8: registration is `o.AddAuthentication(...)` in `UseSpine`.
+  - Q9: a minimal Azure Tables user store and `IUserResolver`, with no Identity default.
+  - Q11: the push link is opt-in.
+  - Q20: Azure storage stays in `Server.AI`.
+  - Q21: Markdown is its own package.
+  - Q26: background audio is opt-in.
+  - Q28: only OpenAI and Azure OpenAI in v1.
+- **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
 
 ## Open questions
 
-Answers go to [Decisions](#decisions), and the step's status moves to Ready.
+New questions go here, with their answers in [Decisions](#decisions).
 
-Collected from each proposal's own "Open questions" section, which has the full wording and the proposal's recommendation. The **Blocks** column says which step cannot start until the question is answered. A question with no step listed can be answered during that step.
+Collected from each proposal's own "Open questions" section, which has the full wording. The owner answered all 31 on 2026-10-09. **Bold** answers differ from the proposal's recommendation, so the proposal's text is overridden by its "Decisions" section.
 
-| ID | Question | Proposal | Blocks |
-|---|---|---|---|
-| Q1 | A plain `{Binding XCommand}` bypasses command guards. Is documenting that enough, or should a source generator come later? | guards-biometrics §9.1 | 1.1 |
-| Q2 | Default unlock grace period: 1 minute with `Fresh` for destructive commands, or ask every time? | guards-biometrics §9.2 | 1.2 |
-| Q3 | When the device has no lock or biometrics: `Allow` or `Deny` by default? | guards-biometrics §9.3 | 1.2 |
-| Q4 | Write a default `NSFaceIDUsageDescription`, or fail the build until the app sets one? | guards-biometrics §9.4 | 1.2 |
-| Q5 | A guarded tab tap on Android and Windows: accept the brief switch-back, or show an unlock cover? | guards-biometrics §9.5 | 1.1 |
-| Q6 | Desktop app lock: minimised time only, or idle time too? | guards-biometrics §9.6 | 1.3 |
-| Q7 | Is the Spine server required for sign-in, or is a client-only OIDC mode wanted later? | authentication §10.1 | 5.1 |
-| Q8 | Registration: `UseSpineAuthentication(...)` like the other packages, or `o.AddAuthentication(...)` inside `UseSpine`? | authentication §10.2 | 5.2 |
-| Q9 | Default user store: ASP.NET Core Identity with EF Core, or a minimal store on Azure Tables? | authentication §10.3 | 5.1 |
-| Q10 | Ephemeral iOS browser session by default? | authentication §10.4 | 5.2 |
-| Q11 | Send the signed-in token to the push backend automatically when both packages are referenced? | authentication §10.5 | 5.2 |
-| Q12 | Passkeys: yes or no, and which domain do the samples use? | authentication §10.6 | 5.4 |
-| Q13 | Tours: advance on a tap anywhere (v1), or pass the tap through to the target? | highlight §10.1 | 3.1 |
-| Q14 | Android Auto Backup can restore "seen" keys after a reinstall. Accept that, or exclude them? | highlight §10.2 | 3.1 |
-| Q15 | Edge's default colours: the spectrum or the app's accent? | highlight §10.3 | 3.1 |
-| Q16 | Tips outside Spotlight: announced only, or also a small bubble? | highlight §10.4 | 3.1 |
-| Q17 | Make `ReducedMotion` and `SpineOverlay` public in the core? | highlight §10.5 | 3.1 |
-| Q18 | The window edge's corners on iOS: a radius table per device class, or square? | highlight §10.6 | 3.1 |
-| Q19 | Exposed AI features: require sign-in, or allow the installation id with tighter limits? Orientera has no sign-in today. | ai §12.1 | 2.1 |
-| Q20 | Azure Tables, Blobs and Queues inside `Server.AI`, or in a separate `Server.AI.Azure`? | ai §12.2 | 2.1 |
-| Q21 | `MarkdownView` inside `Controls.Chat`, or its own `Controls.Markdown` package? | ai §12.3 | 2.5 |
-| Q22 | Currency: one per app, or per price row? | ai §12.4 | 2.1 |
-| Q23 | On-device usage: keep it on the device, or report it to the server? | ai §12.5 | 2.4 |
-| Q24 | Essentials.AI on .NET 10: pin the July preview, or wait for .NET 11? | ai §12.6 | 2.4 |
-| Q25 | Budgets: is "at most one call over" acceptable, or should every call reserve its worst case? | ai §12.7 | 2.1 |
-| Q26 | The `audio` background mode on by default? | voice §10.1 | 4.3 |
-| Q27 | A provider-key-in-app mode for prototyping? The proposal says no. | voice §10.2 | 4.3 |
-| Q28 | Provider order: OpenAI and Azure OpenAI, then Gemini, then Voice Live? | voice §10.3 | 4.3 |
-| Q29 | A small generic hook in Widgets for Live Activity actions from a non-widget kind? | voice §10.4 | 4.4 |
-| Q30 | Android ongoing notification: `CallStyle` or a plain notification? | voice §10.5 | 4.4 |
-| Q31 | WebRTC right after v1, or only if latency measurements call for it? | voice §10.6 | none |
+| ID | Question | Proposal | Step | Answer (2026-10-09) |
+|---|---|---|---|---|
+| Q1 | A plain `{Binding XCommand}` bypasses command guards. Is documenting that enough, or should a source generator come later? | guards-biometrics §9.1 | 1.1 | Document it. `Unlock.Command` and `RequireAsync` cover plain bindings; no generator. |
+| Q2 | Default unlock grace period: 1 minute with `Fresh` for destructive commands, or ask every time? | guards-biometrics §9.2 | 1.2 | 1 minute, with `Fresh` for destructive commands. |
+| Q3 | When the device has no lock or biometrics: `Allow` or `Deny` by default? | guards-biometrics §9.3 | 1.2 | `Allow`. |
+| Q4 | Write a default `NSFaceIDUsageDescription`, or fail the build until the app sets one? | guards-biometrics §9.4 | 1.2 | Fail the build with a clear message; the app writes its own text. |
+| Q5 | A guarded tab tap on Android and Windows: accept the brief switch-back, or show an unlock cover? | guards-biometrics §9.5 | 1.1 | **Unlock cover**: the tab shows under an unlock view until the guard passes (not the switch-back). |
+| Q6 | Desktop app lock: minimised time only, or idle time too? | guards-biometrics §9.6 | 1.3 | Minimised time only. |
+| Q7 | Is the Spine server required for sign-in, or is a client-only OIDC mode wanted later? | authentication §10.1 | 5.1 | **Both**: with the Spine server and without it (a client-only OIDC mode is in scope). |
+| Q8 | Registration: `UseSpineAuthentication(...)` like the other packages, or `o.AddAuthentication(...)` inside `UseSpine`? | authentication §10.2 | 5.2 | **`o.AddAuthentication(...)` inside `UseSpine`.** |
+| Q9 | Default user store: ASP.NET Core Identity with EF Core, or a minimal store on Azure Tables? | authentication §10.3 | 5.1 | **A minimal store on Azure Tables by default, plus `IUserResolver`** for the app's own store. No Identity default. |
+| Q10 | Ephemeral iOS browser session by default? | authentication §10.4 | 5.2 | Ephemeral by default. |
+| Q11 | Send the signed-in token to the push backend automatically when both packages are referenced? | authentication §10.5 | 5.2 | **Opt-in.** |
+| Q12 | Passkeys: yes or no, and which domain do the samples use? | authentication §10.6 | 5.4 | Yes, after v1. The domain is still open. |
+| Q13 | Tours: advance on a tap anywhere (v1), or pass the tap through to the target? | highlight §10.1 | 3.1 | Tap anywhere goes to the next step. |
+| Q14 | Android Auto Backup can restore "seen" keys after a reinstall. Accept that, or exclude them? | highlight §10.2 | 3.1 | Accept and document it. |
+| Q15 | Edge's default colours: the spectrum or the app's accent? | highlight §10.3 | 3.1 | The spectrum; the accent is an option. |
+| Q16 | Tips outside Spotlight: announced only, or also a small bubble? | highlight §10.4 | 3.1 | Screen readers only. |
+| Q17 | Make `ReducedMotion` and `SpineOverlay` public in the core? | highlight §10.5 | 3.1 | Yes, public. |
+| Q18 | The window edge's corners on iOS: a radius table per device class, or square? | highlight §10.6 | 3.1 | A radius table per device class. |
+| Q19 | Exposed AI features: require sign-in, or allow the installation id with tighter limits? Orientera has no sign-in today. | ai §12.1 | 2.1 | The installation id is allowed with tighter limits; signed-in users get higher limits. |
+| Q20 | Azure Tables, Blobs and Queues inside `Server.AI`, or in a separate `Server.AI.Azure`? | ai §12.2 | 2.1 | **Inside `Server.AI`** (no separate `.Azure` package). |
+| Q21 | `MarkdownView` inside `Controls.Chat`, or its own `Controls.Markdown` package? | ai §12.3 | 2.5 | **Its own `Plugin.Maui.Spine.Controls.Markdown`**, referenced by Chat. |
+| Q22 | Currency: one per app, or per price row? | ai §12.4 | 2.1 | One currency per app. |
+| Q23 | On-device usage: keep it on the device, or report it to the server? | ai §12.5 | 2.4 | Stays on the device. |
+| Q24 | Essentials.AI on .NET 10: pin the July preview, or wait for .NET 11? | ai §12.6 | 2.4 | Pin the July preview in the samples. |
+| Q25 | Budgets: is "at most one call over" acceptable, or should every call reserve its worst case? | ai §12.7 | 2.1 | At most one call over is fine. |
+| Q26 | The `audio` background mode on by default? | voice §10.1 | 4.3 | **Off, opt-in** (`SpineVoiceBackground`). |
+| Q27 | A provider-key-in-app mode for prototyping? The proposal says no. | voice §10.2 | 4.3 | No. |
+| Q28 | Provider order: OpenAI and Azure OpenAI, then Gemini, then Voice Live? | voice §10.3 | 4.3 | **Only OpenAI and Azure OpenAI in v1.** Gemini and Voice Live when an app needs them. |
+| Q29 | A small generic hook in Widgets for Live Activity actions from a non-widget kind? | voice §10.4 | 4.4 | Yes. |
+| Q30 | Android ongoing notification: `CallStyle` or a plain notification? | voice §10.5 | 4.4 | A plain ongoing notification. |
+| Q31 | WebRTC right after v1, or only if latency measurements call for it? | voice §10.6 | none | Only if measurements call for it. |
 
 ---
 
