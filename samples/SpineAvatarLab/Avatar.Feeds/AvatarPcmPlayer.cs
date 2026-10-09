@@ -63,8 +63,10 @@ public sealed partial class AvatarPcmPlayer
 
     private void PlatformPlay(AvatarPcm pcm)
     {
+        // Keep the microphone's play-and-record session if it is listening; playback alone would cut its input.
         var session = AVFoundation.AVAudioSession.SharedInstance();
-        session.SetCategory(AVFoundation.AVAudioSessionCategory.Playback);
+        if (session.Category != AVFoundation.AVAudioSession.CategoryPlayAndRecord)
+            session.SetCategory(AVFoundation.AVAudioSessionCategory.Playback);
         session.SetActive(true);
 
         var format = new AVFoundation.AVAudioFormat(AVFoundation.AVAudioCommonFormat.PCMFloat32, pcm.SampleRate, 1, false);

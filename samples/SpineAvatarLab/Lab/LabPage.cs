@@ -13,152 +13,224 @@ namespace SpineAvatarLab.Lab;
 /// </summary>
 public sealed class LabPage : ContentPage
 {
-    private static readonly string[] Bundled = ["dotling", "voice-totem", "pebble-bot", "pip", "aurora", "aurora-motion", "robot-expressive"];
+    private static readonly (string Id, string Name)[] Bundled =
+    [
+        ("pip", "Pip"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
+        ("voice-totem", "Voice Totem"), ("aurora", "Aurora"), ("dotling", "Dotling"),
+    ];
 
     private readonly AvatarView _avatar = new() { HeightRequest = 320, WidthRequest = 320, HorizontalOptions = LayoutOptions.Center };
     private readonly AvatarView _small64 = new() { HeightRequest = 64, WidthRequest = 64 };
     private readonly AvatarView _small128 = new() { HeightRequest = 128, WidthRequest = 128 };
-    private readonly Image _poster = new() { HeightRequest = 128, WidthRequest = 128, Aspect = Aspect.AspectFit };
-    private readonly Label _status = Small();
-    private readonly Label _diagnostics = Small(mono: true);
-    private readonly FlexLayout _states = Wrap();
-    private readonly FlexLayout _gestures = Wrap();
-    private readonly Picker _expression = new() { ItemsSource = AvatarVocabulary.Expressions, SelectedIndex = 1 };
-    private readonly Slider _intensity = new(0, 1, 0.65);
-    private readonly Slider _duration = new(0.25, 12, 2.5);
-    private readonly Slider _input = new(0, 1, 0);
-    private readonly Slider _output = new(0, 1, 0);
-    private readonly Switch _bands = new();
-    private readonly Picker _viseme = new() { ItemsSource = AvatarVocabulary.Visemes.Select((v, i) => $"{i} {v}").ToList(), SelectedIndex = 10 };
-    private readonly Switch _holdViseme = new();
-    private readonly Switch _muted = new();
-    private readonly Switch _animation = new() { IsToggled = true };
-    private readonly Switch _accent = new();
-    private readonly Switch _previews = new() { IsToggled = true };
-    private readonly Switch _studio = new() { IsToggled = true };
-    private readonly Slider _spring = new(0, 2, 1);
-    private readonly Picker _motion = new() { ItemsSource = Enum.GetNames<AvatarMotionMode>(), SelectedIndex = 0 };
-    private readonly Picker _theme = new() { ItemsSource = new[] { "System", "Light", "Dark" }, SelectedIndex = 0 };
-    private readonly Picker _fps = new() { ItemsSource = new[] { "15", "30", "60" }, SelectedIndex = 2 };
-    private readonly Picker _size = new() { ItemsSource = new[] { "64", "128", "320", "512" }, SelectedIndex = 2 };
+    private readonly Image _poster = new() { HeightRequest = 96, WidthRequest = 96, Aspect = Aspect.AspectFit };
+    private readonly Label _status = LabUi.Small(secondary: false);
+    private readonly Label _diagnostics = LabUi.Small(mono: true);
+    private readonly Label _voiceStatus = LabUi.Small();
+    private readonly ChipGroup _avatars = new();
+    private readonly ChipGroup _states = new();
+    private readonly ChipGroup _gestures = new();
+    private readonly ChipGroup _themes = new();
+    private readonly ChipGroup _motions = new();
+    private readonly ChipGroup _frameRates = new();
+    private readonly ChipGroup _sizes = new();
+    private readonly ChipGroup _renderers = new();
+    private readonly Picker _expression = LabUi.Picker(AvatarVocabulary.Expressions, 1);
+    private readonly Slider _intensity = LabUi.Slider(0, 1, 0.65);
+    private readonly Slider _duration = LabUi.Slider(0.25, 12, 2.5);
+    private readonly Slider _input = LabUi.Slider(0, 1, 0);
+    private readonly Slider _output = LabUi.Slider(0, 1, 0);
+    private readonly Switch _bands = LabUi.Switch();
+    private readonly Picker _viseme = LabUi.Picker([.. AvatarVocabulary.Visemes.Select((v, i) => $"{i} {v}")], 10);
+    private readonly Switch _holdViseme = LabUi.Switch();
+    private readonly Switch _microphone = LabUi.Switch();
+    private readonly Switch _muted = LabUi.Switch();
+    private readonly Switch _animation = LabUi.Switch(on: true);
+    private readonly Switch _accent = LabUi.Switch();
+    private readonly Switch _previews = LabUi.Switch(on: true);
+    private readonly Switch _studio = LabUi.Switch(on: true);
+    private readonly Slider _spring = LabUi.Slider(0, 2, 1);
     private readonly Entry _seed = new() { Text = "0", Keyboard = Keyboard.Numeric, WidthRequest = 80 };
-    private readonly Editor _text = new() { Text = "Hej Jonatan. Jag är en referensavatar för din nya Spine-kontroll.", AutoSize = EditorAutoSizeOption.TextChanges };
-    private readonly Label _timeline = Small(mono: true);
+    private readonly Editor _text = new() { Text = "Hej Jonatan. Jag är en referensavatar för din nya Spine-kontroll.", AutoSize = EditorAutoSizeOption.TextChanges, FontSize = 14 };
+    private readonly Label _timeline = LabUi.Small(mono: true);
     private readonly ProgressBar _progress = new();
 
     private AvatarFixtureFeed? _fixture;
     private readonly AvatarTextSpeechFeed _tts = new();
+    private readonly AvatarMicrophoneFeed _mic = new();
     private IDispatcherTimer? _diagnosticsTimer;
-    private string _sourceName = "dotling";
+    private string _sourceName = "pip";
 
     public LabPage()
     {
         Title = "Avatar Lab";
+        LabUi.Page(this);
+        _text.SetAppThemeColor(Editor.TextColorProperty, Color.FromArgb("#16202B"), Color.FromArgb("#E7ECF2"));
+        _progress.SetAppThemeColor(ProgressBar.ProgressColorProperty, LabUi.Accent, LabUi.AccentDark);
 
         _small64.MirrorOf = _avatar;
         _small128.MirrorOf = _avatar;
         _avatar.AvatarLoaded += (_, _) => OnAvatarLoaded();
         _avatar.AvatarFailed += (_, e) => _status.Text = $"Failed: {e.Message}";
         _avatar.FrameRendered += OnFrame;
+        _avatar.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AvatarView.State))
+                _states.Select(AvatarVocabulary.Name(_avatar.State));
+        };
+
+        foreach (var (id, name) in Bundled)
+            _avatars.Add(id, name, () => LoadBundled(id));
+        foreach (var state in Enum.GetValues<AvatarState>())
+            _states.Add(AvatarVocabulary.Name(state), AvatarVocabulary.Name(state), () => _avatar.State = state);
+        _themes.Add("system", "System", () => SetTheme(AppTheme.Unspecified)).Add("light", "Light", () => SetTheme(AppTheme.Light)).Add("dark", "Dark", () => SetTheme(AppTheme.Dark));
+        foreach (var mode in Enum.GetValues<AvatarMotionMode>())
+            _motions.Add(mode.ToString(), mode.ToString(), () => _avatar.MotionMode = mode);
+        foreach (var fps in new[] { 15, 30, 60 })
+            _frameRates.Add(fps.ToString(CultureInfo.InvariantCulture), $"{fps} fps", () => _avatar.MaxFramesPerSecond = fps);
+        foreach (var size in new[] { 64, 128, 320, 512 })
+            _sizes.Add(size.ToString(CultureInfo.InvariantCulture), $"{size}", () => _avatar.WidthRequest = _avatar.HeightRequest = size);
+        _renderers.Add("native", "Native", () => SetRenderer("native")).Add("web", "WebView (three.js)", () => SetRenderer("web"));
+        _themes.Select("system");
+        _motions.Select(nameof(AvatarMotionMode.System));
+        _frameRates.Select("60");
+        _sizes.Select("320");
+        _renderers.Select("native");
+        _states.Select("idle");
+
+        var diagnosticsToggle = LabUi.Chip("Diagnostics", () => _diagnostics.IsVisible = !_diagnostics.IsVisible);
+        var stage = new Border
+        {
+            Padding = new Thickness(12),
+            StrokeThickness = 0,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 18 },
+            Content = new VerticalStackLayout
+            {
+                Spacing = 10,
+                Children =
+                {
+                    _avatar,
+                    new HorizontalStackLayout { Spacing = 14, HorizontalOptions = LayoutOptions.Center, Children = { _small64, _small128, _poster } },
+                },
+            },
+        };
+        stage.SetAppThemeColor(VisualElement.BackgroundColorProperty, Color.FromArgb("#E9EEF3"), Color.FromArgb("#141920"));
 
         var preview = new VerticalStackLayout
         {
-            Spacing = 8,
-            Children =
-            {
-                new Border { Content = _avatar, StrokeThickness = 0, Padding = 0, HorizontalOptions = LayoutOptions.Center },
-                new HorizontalStackLayout { Spacing = 12, HorizontalOptions = LayoutOptions.Center, Children = { _small64, _small128, _poster } },
-                _status,
-                _diagnostics,
-            },
+            Spacing = 10,
+            Children = { stage, _status, LabUi.Row(diagnosticsToggle), _diagnostics },
         };
 
         var controls = new VerticalStackLayout
         {
-            Spacing = 6,
-            Padding = new Thickness(0, 0, 0, 40),
+            Spacing = 12,
+            Padding = new Thickness(0, 0, 4, 40),
             Children =
             {
-                Header("Avatar"),
-                Row(Button("Dotling", () => LoadBundled("dotling")), Button("Voice Totem", () => LoadBundled("voice-totem")), Button("Pebble Bot", () => LoadBundled("pebble-bot"))),
-                Row(Button("Pip", () => LoadBundled("pip")), Button("Aurora", () => LoadBundled("aurora")), Button("Aurora Motion", () => LoadBundled("aurora-motion")), Button("Robot Expressive", () => LoadBundled("robot-expressive")), Button("Open file…", OpenFile)),
-                Row(Button("Validation report", ShowReport), Button("Reload", () => _ = _avatar.LoadAsync()), Button("Unload/reload ×100", Stress)),
+                LabUi.Card("Avatar", _avatars.View,
+                    LabUi.Row(LabUi.Chip("Open file…", OpenFile), LabUi.Chip("Validation report", ShowReport), LabUi.Chip("Reload", () => _ = _avatar.LoadAsync()))),
 
-                Header("State"),
-                _states,
-                Labeled("Microphone off", _muted),
+                LabUi.Card("Voice",
+                    LabUi.Labeled("Listen (mic)", _microphone),
+                    _voiceStatus,
+                    _text,
+                    LabUi.Row(LabUi.Chip("Speak (TTS)", Speak), LabUi.Chip("Cancel", () => _tts.Cancel())),
+                    LabUi.Small().With("Timed fixture: WAV with canonical viseme cues"),
+                    LabUi.Row(LabUi.Chip("Play", PlayFixture), LabUi.Chip("Pause", () => _fixture?.Pause()), LabUi.Chip("Resume", () => _fixture?.Resume()), LabUi.Chip("Interrupt", InterruptFixture)),
+                    _progress,
+                    _timeline),
 
-                Header("Expression"),
-                _expression,
-                Labeled("Intensity", _intensity),
-                Labeled("Duration (s)", _duration),
-                Row(Button("Show for duration", ShowExpression), Button("Set as base", SetBaseExpression)),
+                LabUi.Card("State", _states.View, LabUi.Labeled("Mic-off badge", _muted)),
 
-                Header("Gestures"),
-                _gestures,
+                LabUi.Card("Expression",
+                    _expression,
+                    LabUi.Labeled("Intensity", _intensity),
+                    LabUi.Labeled("Duration (s)", _duration),
+                    LabUi.Row(LabUi.Chip("Show for duration", ShowExpression), LabUi.Chip("Set as base", SetBaseExpression))),
 
-                Header("Levels"),
-                Labeled("Input", _input),
-                Labeled("Output", _output),
-                Labeled("Band generator", _bands),
+                LabUi.Card("Gestures", _gestures.View),
 
-                Header("Visemes"),
-                _viseme,
-                Labeled("Hold viseme", _holdViseme),
+                LabUi.Card("Manual levels and visemes",
+                    LabUi.Labeled("Input", _input),
+                    LabUi.Labeled("Output", _output),
+                    LabUi.Labeled("Band generator", _bands),
+                    _viseme,
+                    LabUi.Labeled("Hold viseme", _holdViseme)),
 
-                Header("Timed fixture (WAV + cues)"),
-                Row(Button("Play", PlayFixture), Button("Pause", () => _fixture?.Pause()), Button("Resume", () => _fixture?.Resume()), Button("Interrupt", InterruptFixture)),
-                _progress,
-                _timeline,
+                LabUi.Card("Appearance",
+                    LabUi.Labeled("Theme", _themes.View),
+                    LabUi.Labeled("Motion", _motions.View),
+                    LabUi.Labeled("Ambient", _animation),
+                    LabUi.Labeled("Spring motion", _spring),
+                    LabUi.Labeled("Accent override", _accent),
+                    LabUi.Labeled("Size (DIP)", _sizes.View),
+                    LabUi.Labeled("Previews", _previews)),
 
-                Header("Platform TTS (EstimatedText)"),
-                _text,
-                Row(Button("Speak", Speak), Button("Cancel", () => _tts.Cancel())),
+                LabUi.Card("3D",
+                    LabUi.Labeled("Renderer", _renderers.View),
+                    LabUi.Labeled("Studio light", _studio),
+                    LabUi.Small().With("Native is SceneKit on iOS and Mac; elsewhere the WebView is used. Studio light applies to the WebView.")),
 
-                Header("Appearance"),
-                Labeled("Theme", _theme),
-                Labeled("Motion", _motion),
-                Labeled("Ambient animation", _animation),
-                Labeled("Spring motion", _spring),
-                Labeled("Studio 3D light", _studio),
-                Labeled("Accent override", _accent),
-                Labeled("Max fps", _fps),
-                Labeled("Main size (DIP)", _size),
-                Labeled("64/128 previews", _previews),
-                Row(new Label { Text = "Seed", VerticalOptions = LayoutOptions.Center }, _seed, Button("Apply", ApplySeed)),
-
-                Header("Export"),
-                Row(Button("Sheets (PNG)", ExportSheets), Button("measured-result.json", ExportMeasurements)),
+                LabUi.Card("Performance and export",
+                    LabUi.Labeled("Max fps", _frameRates.View),
+                    LabUi.Row(LabUi.Text(new Label { Text = "Seed", VerticalOptions = LayoutOptions.Center, Margin = new Thickness(0, 0, 8, 0) }), _seed, LabUi.Chip("Apply", ApplySeed)),
+                    LabUi.Row(LabUi.Chip("Sheets (PNG)", ExportSheets), LabUi.Chip("measured-result.json", ExportMeasurements), LabUi.Chip("Unload/reload ×100", Stress))),
             },
         };
 
         var scroll = new ScrollView { Content = controls };
-        var grid = new Grid { Padding = new Thickness(16, 8), ColumnSpacing = 24, RowSpacing = 8 };
-        grid.Add(preview);
+        var grid = new Grid { Padding = new Thickness(16, 12), ColumnSpacing = 20, RowSpacing = 12 };
+        grid.Add(new ScrollView { Content = preview });
         grid.Add(scroll);
-        grid.SizeChanged += (_, _) => Layout(grid, preview, scroll);
+        grid.SizeChanged += (_, _) => Layout(grid, (View)grid.Children[0], scroll);
         Content = grid;
 
-        foreach (var state in Enum.GetValues<AvatarState>())
-            _states.Children.Add(Button(AvatarVocabulary.Name(state), () => _avatar.State = state));
-
+        _microphone.Toggled += (_, e) => ToggleMicrophone(e.Value);
         _muted.Toggled += (_, e) => _avatar.IsMuted = e.Value;
         _animation.Toggled += (_, e) => _avatar.IsAnimationEnabled = e.Value;
         _spring.ValueChanged += (_, e) => _avatar.SecondaryMotion = (float)e.NewValue;
         _studio.Toggled += (_, e) => _avatar.ThreeDLook = e.Value ? "studio" : "basic";
         _accent.Toggled += (_, e) => _avatar.AccentColor = e.Value ? Color.FromArgb("#E8590C") : null;
-        _previews.Toggled += (_, e) => _small64.IsVisible = _small128.IsVisible = e.Value;
-        _motion.SelectedIndexChanged += (_, _) => _avatar.MotionMode = (AvatarMotionMode)_motion.SelectedIndex;
-        _theme.SelectedIndexChanged += (_, _) => Application.Current!.UserAppTheme = (AppTheme)_theme.SelectedIndex;
-        _fps.SelectedIndexChanged += (_, _) => _avatar.MaxFramesPerSecond = int.Parse((string)_fps.SelectedItem, CultureInfo.InvariantCulture);
-        _size.SelectedIndexChanged += (_, _) => _avatar.WidthRequest = _avatar.HeightRequest = int.Parse((string)_size.SelectedItem, CultureInfo.InvariantCulture);
+        _previews.Toggled += (_, e) => _small64.IsVisible = _small128.IsVisible = _poster.IsVisible = e.Value;
         _viseme.SelectedIndexChanged += (_, _) => ApplyViseme();
         _holdViseme.Toggled += (_, _) => ApplyViseme();
 
-        LoadBundled("dotling");
+        LoadBundled("pip");
 #if DEBUG || LAB_HARNESS
         LabHarness.Start(this);
 #endif
+    }
+
+    private void SetTheme(AppTheme theme) => Application.Current!.UserAppTheme = theme;
+
+    private void SetRenderer(string renderer)
+    {
+        _avatar.ThreeDRenderer = renderer;
+        _small64.ThreeDRenderer = _small128.ThreeDRenderer = renderer;
+        if (_avatar.Representation?.Renderer == "native3d")
+            _ = _avatar.LoadAsync();
+    }
+
+    private async void ToggleMicrophone(bool on) => await SetMicrophoneAsync(on);
+
+    private async Task SetMicrophoneAsync(bool on)
+    {
+        if (!on)
+        {
+            _mic.Stop();
+            _voiceStatus.Text = "";
+            return;
+        }
+        if (_mic.IsRunning)
+            return;
+        _voiceStatus.Text = "Starting the microphone…";
+        if (await _mic.StartAsync(_avatar))
+            _voiceStatus.Text = "Listening: the avatar follows the microphone's level and bands.";
+        else
+        {
+            _voiceStatus.Text = $"Microphone: {_mic.Error}";
+            _microphone.IsToggled = false;
+        }
     }
 
     /// <summary>One harness command (see <see cref="LabHarness"/>); returns PNG bytes for <c>shot</c>, text otherwise.</summary>
@@ -224,17 +296,29 @@ public sealed class LabPage : ContentPage
                 Speak();
                 return null;
             case "theme":
-                _theme.SelectedIndex = arg switch { "light" => 1, "dark" => 2, _ => 0 };
+                _themes.Select(arg);
+                SetTheme(arg switch { "light" => AppTheme.Light, "dark" => AppTheme.Dark, _ => AppTheme.Unspecified });
                 return null;
             case "motion":
-                _motion.SelectedIndex = (int)Enum.Parse<AvatarMotionMode>(arg, ignoreCase: true);
+                var mode = Enum.Parse<AvatarMotionMode>(arg, ignoreCase: true);
+                _motions.Select(mode.ToString());
+                _avatar.MotionMode = mode;
                 return null;
             case "fps":
-                _fps.SelectedItem = arg;
+                _frameRates.Select(arg);
+                _avatar.MaxFramesPerSecond = int.Parse(arg, CultureInfo.InvariantCulture);
                 return null;
             case "size":
-                _size.SelectedItem = arg;
+                _sizes.Select(arg);
+                _avatar.WidthRequest = _avatar.HeightRequest = int.Parse(arg, CultureInfo.InvariantCulture);
                 return null;
+            case "renderer":
+                _renderers.Select(arg);
+                SetRenderer(arg);
+                return null;
+            case "mic":
+                await SetMicrophoneAsync(arg == "on");
+                return $"{_voiceStatus.Text} running={_mic.IsRunning}";
             case "seed":
                 _seed.Text = arg;
                 ApplySeed();
@@ -288,7 +372,7 @@ public sealed class LabPage : ContentPage
     private static void Layout(Grid grid, View preview, View controls)
     {
         var wide = grid.Width > 800;
-        grid.ColumnDefinitions = wide ? [new(GridLength.Star), new(new GridLength(420))] : [new(GridLength.Star)];
+        grid.ColumnDefinitions = wide ? [new(GridLength.Star), new(new GridLength(440))] : [new(GridLength.Star)];
         grid.RowDefinitions = wide ? [new(GridLength.Star)] : [new(GridLength.Auto), new(GridLength.Star)];
         Grid.SetColumn(controls, wide ? 1 : 0);
         Grid.SetRow(controls, wide ? 0 : 1);
@@ -297,6 +381,7 @@ public sealed class LabPage : ContentPage
     private void LoadBundled(string name)
     {
         _fixture?.Interrupt();
+        _avatars.Select(name);
         _sourceName = name;
         _status.Text = $"Loading {name}…";
         _avatar.Source = AvatarSource.FromMauiAsset($"Avatars/{name}.spineavatar");
@@ -330,9 +415,9 @@ public sealed class LabPage : ContentPage
     {
         var package = _avatar.Package!;
         var manifest = package.Manifest;
-        _gestures.Children.Clear();
+        _gestures.Clear();
         foreach (var gesture in _avatar.Scheduler!.Gestures)
-            _gestures.Children.Add(Button(gesture, () => _ = PlayGesture(gesture)));
+            _gestures.Add(gesture, gesture, () => _ = PlayGesture(gesture));
 
         var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
         _poster.Source = package.TryGetFile(dark ? manifest.Posters.Dark : manifest.Posters.Light, out var poster)
@@ -435,7 +520,7 @@ public sealed class LabPage : ContentPage
         for (var i = 0; i < 100; i++)
         {
             _avatar.Source = null;
-            _avatar.Source = AvatarSource.FromMauiAsset($"Avatars/{Bundled[i % Bundled.Length]}.spineavatar");
+            _avatar.Source = AvatarSource.FromMauiAsset($"Avatars/{Bundled[i % Bundled.Length].Id}.spineavatar");
             await Task.Delay(30);
         }
         await _avatar.LoadAsync();
@@ -537,33 +622,13 @@ public sealed class LabPage : ContentPage
             _timeline.Text = $"{snapshot.Position.TotalSeconds:0.000} / {fixture.Duration.TotalSeconds:0.000} s  gen {snapshot.Generation}  playing {snapshot.IsPlaying}  latency {snapshot.EstimatedOutputLatency.TotalMilliseconds:0} ms  presentation {snapshot.PositionIsPresentationTime}";
         }
     }
+}
 
-    private static Button Button(string text, Action action)
+internal static class LabUiExtensions
+{
+    public static Label With(this Label label, string text)
     {
-        var button = new Button { Text = text, Padding = new Thickness(12, 4), Margin = new Thickness(0, 0, 6, 6), FontSize = 13 };
-        button.Clicked += (_, _) => action();
-        return button;
-    }
-
-    private static Label Header(string text) => new() { Text = text, FontAttributes = FontAttributes.Bold, FontSize = 15, Margin = new Thickness(0, 12, 0, 2) };
-
-    private static Label Small(bool mono = false) => new() { FontSize = 12, FontFamily = mono ? "Menlo" : null, LineBreakMode = LineBreakMode.WordWrap };
-
-    private static FlexLayout Wrap() => new() { Wrap = Microsoft.Maui.Layouts.FlexWrap.Wrap };
-
-    private static FlexLayout Row(params View[] views)
-    {
-        var row = Wrap();
-        foreach (var view in views)
-            row.Children.Add(view);
-        return row;
-    }
-
-    private static Grid Labeled(string label, View view)
-    {
-        var grid = new Grid { ColumnDefinitions = [new(new GridLength(130)), new(GridLength.Star)], ColumnSpacing = 8 };
-        grid.Add(new Label { Text = label, VerticalOptions = LayoutOptions.Center, FontSize = 13 });
-        grid.Add(view, 1);
-        return grid;
+        label.Text = text;
+        return label;
     }
 }

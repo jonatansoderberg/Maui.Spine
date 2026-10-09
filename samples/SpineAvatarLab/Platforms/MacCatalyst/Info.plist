@@ -26,6 +26,8 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The lab listens to the microphone to drive the avatar's listening state. Nothing is recorded or sent.</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>

@@ -9,7 +9,13 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseSkiaSharp();
+            .UseSkiaSharp()
+            .ConfigureMauiHandlers(handlers =>
+            {
+#if IOS || MACCATALYST || ANDROID
+                handlers.AddHandler<Plugin.Maui.Spine.Controls.Avatar.NativeViewHost, Plugin.Maui.Spine.Controls.Avatar.NativeViewHostHandler>();
+#endif
+            });
 
 #if DEBUG
         builder.Services.AddHybridWebViewDeveloperTools();

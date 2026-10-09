@@ -86,18 +86,8 @@ public sealed class AvatarAudioAnalysis
         var levels = new float[hops];
         var bands = new float[hops * AvatarRenderFrame.BandCount];
 
-        var window = new float[FftSize];
-        for (var i = 0; i < FftSize; i++)
-            window[i] = 0.5f * (1 - MathF.Cos(MathF.Tau * i / (FftSize - 1)));
-
-        // Band edges as FFT bin indices, log-spaced from 80 Hz to 8 kHz (or Nyquist).
-        var edges = new int[AvatarRenderFrame.BandCount + 1];
-        var top = Math.Min(8000, pcm.SampleRate / 2.0);
-        for (var b = 0; b <= AvatarRenderFrame.BandCount; b++)
-        {
-            var hz = 80 * Math.Pow(top / 80, (double)b / AvatarRenderFrame.BandCount);
-            edges[b] = Math.Clamp((int)Math.Round(hz * FftSize / pcm.SampleRate), 1, FftSize / 2);
-        }
+        var window = AvatarSpectrum.Hann(FftSize);
+        var edges = AvatarSpectrum.BandEdges(pcm.SampleRate, FftSize);
 
         var re = new float[FftSize];
         var im = new float[FftSize];
@@ -120,61 +110,10 @@ public sealed class AvatarAudioAnalysis
                 re[i] = at >= 0 && at < pcm.Samples.Length ? pcm.Samples[at] / 32768f * window[i] : 0;
                 im[i] = 0;
             }
-            Fft(re, im);
-
-            for (var b = 0; b < AvatarRenderFrame.BandCount; b++)
-            {
-                double energy = 0;
-                var from = edges[b];
-                var to = Math.Max(edges[b + 1], from + 1);
-                for (var k = from; k < to; k++)
-                    energy += re[k] * re[k] + im[k] * im[k];
-                var db = 10 * Math.Log10(energy / (to - from) / FftSize + 1e-12);
-                bands[h * AvatarRenderFrame.BandCount + b] = (float)Math.Clamp((db + 70) / 60, 0, 1);
-            }
+            AvatarSpectrum.Fft(re, im);
+            AvatarSpectrum.Bands(re, im, edges, bands.AsSpan(h * AvatarRenderFrame.BandCount, AvatarRenderFrame.BandCount));
         }
         return new AvatarAudioAnalysis(levels, bands);
-    }
-
-    private static void Fft(float[] re, float[] im)
-    {
-        var n = re.Length;
-        for (int i = 1, j = 0; i < n; i++)
-        {
-            var bit = n >> 1;
-            for (; (j & bit) != 0; bit >>= 1)
-                j ^= bit;
-            j ^= bit;
-            if (i < j)
-            {
-                (re[i], re[j]) = (re[j], re[i]);
-                (im[i], im[j]) = (im[j], im[i]);
-            }
-        }
-        for (var length = 2; length <= n; length <<= 1)
-        {
-            var angle = -2 * Math.PI / length;
-            var wr = (float)Math.Cos(angle);
-            var wi = (float)Math.Sin(angle);
-            for (var i = 0; i < n; i += length)
-            {
-                float cr = 1, ci = 0;
-                for (var k = 0; k < length / 2; k++)
-                {
-                    var a = i + k;
-                    var b = a + length / 2;
-                    var tr = re[b] * cr - im[b] * ci;
-                    var ti = re[b] * ci + im[b] * cr;
-                    re[b] = re[a] - tr;
-                    im[b] = im[a] - ti;
-                    re[a] += tr;
-                    im[a] += ti;
-                    var next = cr * wr - ci * wi;
-                    ci = cr * wi + ci * wr;
-                    cr = next;
-                }
-            }
-        }
     }
 }
 

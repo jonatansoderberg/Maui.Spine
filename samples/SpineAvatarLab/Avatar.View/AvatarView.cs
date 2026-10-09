@@ -191,6 +191,21 @@ public sealed class AvatarView : ContentView
         }
     }
 
+    /// <summary>
+    /// For 3D avatars: "native" (SceneKit on iOS and Mac; elsewhere the web surface until a native one exists)
+    /// or "web" (three.js in a HybridWebView). Applies from the next load.
+    /// </summary>
+    public string ThreeDRenderer { get; set; } = "native";
+
+    private IAvatarSurface CreateThreeDSurface(AvatarPackage package, AvatarRepresentation representation)
+    {
+#if IOS || MACCATALYST
+        if ((MirrorOf?.ThreeDRenderer ?? ThreeDRenderer) == "native")
+            return new SceneKitAvatarSurface(package, representation);
+#endif
+        return new ThreeDAvatarSurface(package, representation) { Look = MirrorOf?.ThreeDLook ?? _threeDLook };
+    }
+
     private float _secondaryMotion = 1;
     private string _threeDLook = "studio";
 
@@ -298,7 +313,7 @@ public sealed class AvatarView : ContentView
     private void Show(AvatarPackage package, AvatarRepresentation representation, Spine2dModel? model)
     {
         var old = _surface;
-        _surface = model is not null ? new SkiaAvatarSurface(model) : new ThreeDAvatarSurface(package, representation) { Look = MirrorOf?.ThreeDLook ?? _threeDLook };
+        _surface = model is not null ? new SkiaAvatarSurface(model) : CreateThreeDSurface(package, representation);
         Content = _surface.View;
         old?.Dispose();
 
