@@ -179,7 +179,83 @@ def head_and_hair():
     # Strands fall downward: u runs round the head, v down it.
     uv = np.stack([np.arctan2(p[:, 0], p[:, 2]) / (2 * math.pi) * 6, -p[:, 1] * 2.2], axis=1)
     hair = dict(pos=p, nrm=gradient(hair_volume, p), uv=uv, idx=idx, material=5)
-    return [skin, hair]
+    return [skin, hair, hair_locks()]
+
+def hair_locks(count=85, seed=5):
+    """Tapered locks lying on the hair: each follows the fall of the hair (down, or along the bangs'
+    sweep), hugging the surface, and runs on past the bob's edge into a pointed tip that flicks out.
+    They break the smooth shell into the messy bob of the sheet."""
+    rng = np.random.default_rng(seed)
+    d, _, _ = hairline_grid(cols=96, rows=40)
+    t, _ = outer_surface(hair_volume, HEAD_C, d, far=0.9, steps=300)
+    roots = np.asarray(HEAD_C) + d * t[:, None]
+    # Start where the hair is thick enough and not under the bust or in the face.
+    roots = roots[(hair_thickness(roots) > 0.03) & (roots[:, 1] > -0.3)]
+    roots = roots[rng.choice(len(roots), size=min(count, len(roots)), replace=False)]
+    eps = 1e-3
+    def normal(p):
+        g = np.array([hair_volume(p + e) - hair_volume(p - e) for e in np.eye(3) * eps])
+        return g / max(np.linalg.norm(g), 1e-9)
+    pos, nrm, uv, idx = [], [], [], []
+    for root in roots:
+        x, y, z = root
+        # Bangs comb along their sweep toward the lower right; the rest falls.
+        bang = math.exp(-((x - 0.04) ** 2 + (y - 0.25) ** 2) / 0.04) if z > 0.15 else 0.0
+        fall = np.array([0.0, -1.0, 0.0]) * (1 - bang) + np.array([math.cos(-0.5), math.sin(-0.5), 0.0]) * bang
+        length = rng.uniform(0.16, 0.3) * (0.8 if bang > 0.5 else 1.0)
+        width = rng.uniform(0.045, 0.075)
+        lift = rng.uniform(0.003, 0.008)
+        steps = 10
+        points, normals = [], []
+        p = root.copy()
+        stopped = False
+        for k in range(steps + 1):
+            n = normal(p)
+            d_sdf = hair_volume(p)
+            on_hair = hair_thickness(p) > 0.0 and p[1] > -0.34
+            # A lock that leaves the hair toward the face ends there; only at the bob's lower edge
+            # does it run on into a tip.
+            if stopped or (not on_hair and p[1] > -0.3):
+                stopped = True
+                points.append(points[-1]); normals.append(normals[-1])
+                continue
+            if on_hair:
+                p = p - n * d_sdf                       # back onto the surface
+            points.append(p + n * lift); normals.append(n)
+            tangent = fall - n * np.dot(fall, n)
+            if not on_hair:
+                # Past the edge the tip flicks outward from the head.
+                out = np.array([p[0], 0.0, p[2]]); out /= max(np.linalg.norm(out), 1e-9)
+                tangent = tangent * 0.8 + out * 0.25
+            tangent /= max(np.linalg.norm(tangent), 1e-9)
+            p = p + tangent * (length / steps)
+        points, normals = np.array(points), np.array(normals)
+        tang = np.gradient(points, axis=0)
+        tang /= np.maximum(np.linalg.norm(tang, axis=1, keepdims=True), 1e-9)
+        side = np.cross(normals, tang)
+        side /= np.maximum(np.linalg.norm(side, axis=1, keepdims=True), 1e-9)
+        taper = (1 - np.linspace(0, 1, steps + 1)) ** 0.8 * (0.6 + 0.4 * np.sin(np.linspace(0.3, 2.5, steps + 1)))
+        base = len(pos) * 3 if False else sum(len(a) for a in pos)
+        ring = []
+        for k in range(steps + 1):
+            # A slightly rounded cross-section: three vertices across.
+            for j, sgn in enumerate((-1.0, 0.0, 1.0)):
+                ring.append(points[k] + side[k] * sgn * width * taper[k] + normals[k] * (0.006 * (1 - abs(sgn)) - 0.002 * abs(sgn)))
+        ring = np.array(ring)
+        pos.append(ring)
+        # Normals tilt with the rounded cross-section, so a lock shades softly instead of as a flat strip.
+        rounded = []
+        for k in range(steps + 1):
+            for sgn in (-1.0, 0.0, 1.0):
+                v = normals[k] + side[k] * sgn * 0.45
+                rounded.append(v / np.linalg.norm(v))
+        nrm.append(np.array(rounded))
+        uv.append(np.stack([np.tile([0.0, 0.5, 1.0], steps + 1) * 0.2 + rng.uniform(0, 1), np.repeat(np.linspace(0, 1, steps + 1), 3) * 0.6], axis=1))
+        for k in range(steps):
+            for j in range(2):
+                a = base + k * 3 + j
+                idx += [a, a + 3, a + 1, a + 1, a + 3, a + 4]
+    return dict(pos=np.concatenate(pos), nrm=np.concatenate(nrm), uv=np.concatenate(uv), idx=np.array(idx, np.uint32), material=16)
 
 def bust_mesh():
     d, t, uv, idx, p = sampled(bust, (0, -0.85, -0.03), 48, 80)
@@ -364,7 +440,7 @@ def brows_mesh():
 # Mouth: corners at ±w; c is the corners' lift (a smile), cl/cr per side for a smirk; the opening's
 # top and bottom; the lips' thickness.
 MOUTH = {
-    "rest": dict(w=0.06, c=0.009, top=0.0, bottom=0.0, upper=0.02, lower=0.028),
+    "rest": dict(w=0.062, c=0.008, top=0.0, bottom=0.0, upper=0.024, lower=0.034),
     "smile": dict(w=0.085, c=0.03, top=0.0, bottom=0.0, upper=0.011, lower=0.016),
     "open": dict(w=0.068, c=0.006, top=0.018, bottom=0.05, upper=0.012, lower=0.017),
     "round": dict(w=0.042, c=0.0, top=0.022, bottom=0.03, upper=0.016, lower=0.02),
@@ -385,8 +461,8 @@ def mouth_curves(shape):
     bow = -0.004 * np.exp(-(s / 0.16) ** 2)
     inner_u = lift + shape["top"] * oval
     inner_l = lift - shape["bottom"] * oval
-    outer_u = inner_u + shape["upper"] * oval ** 0.5 + bow * (shape["upper"] > 0.009)
-    outer_l = inner_l - shape["lower"] * oval ** 0.6
+    outer_u = inner_u + shape["upper"] * oval ** 0.7 + bow * (shape["upper"] > 0.009)
+    outer_l = inner_l - shape["lower"] * oval ** 0.8
     x = shape["w"] * s
     return x, inner_u, inner_l, outer_u, outer_l
 
@@ -446,7 +522,8 @@ def hair_textures(size=512, seed=11):
     dy = (np.roll(h, -1, 0) - np.roll(h, 1, 0)) / 2
     n = np.stack([-dx * 0.3, dy * 0.3, np.ones_like(h)], axis=-1)
     n /= np.linalg.norm(n, axis=-1, keepdims=True)
-    grain = np.clip(0.88 + 0.04 * strands + 0.07 * locks, 0, 1)
+    # Lighter and darker locks, as in a painted bob.
+    grain = np.clip(0.86 + 0.05 * strands + 0.11 * locks, 0, 1)
     def png(a):
         out = io.BytesIO(); Image.fromarray(a).save(out, 'PNG', optimize=True); return out.getvalue()
     return png((np.stack([grain] * 3, axis=-1) * 255).astype(np.uint8)), png(((n * 0.5 + 0.5) * 255).astype(np.uint8))
@@ -478,9 +555,9 @@ def build():
         mat("skin", "#F3C3AA", 0.55, sheen="#FFE0D2"),                       # 0
         mat("pupil", "#0E0B18", 0.12),                                       # 1
         mat("shine", "#FFFFFF", 0.3, emissive="#FFFFFF"),                    # 2
-        mat("lips", "#D96F7E", 0.34),                                        # 3
+        mat("lips", "#E38A8E", 0.3),                                         # 3
         mat("inside", "#5C1F2C", 0.6),                                       # 4
-        mat("hair", "#4F51A3", 0.34, textured=True, sheen="#9EA3E8", normal_scale=1.0),  # 5
+        mat("hair", "#5558B4", 0.32, textured=True, sheen="#B1B4FF", normal_scale=1.0),  # 5
         mat("sweater", "#BEBCD4", 0.72),                                     # 6
         mat("white", "#EEF0F6", 0.2),                                        # 7 sclera, teeth
         mat("iris", "#2440A8", 0.16),                                        # 8
@@ -492,6 +569,7 @@ def build():
         # The same skin as the face, so a closed lid does not read as a disc.
         {**mat("lid", "#F3C3AA", 0.55, sheen="#FFE0D2"), "doubleSided": True},  # 14
         {**mat("lash", "#241C46", 0.5), "doubleSided": True},                # 15
+        {**mat("locks", "#6266C6", 0.3, textured=True, sheen="#B9BCFF", normal_scale=1.0), "doubleSided": True},  # 16
     ]
     g.gltf["extensionsUsed"] = ["KHR_materials_sheen"]
 
