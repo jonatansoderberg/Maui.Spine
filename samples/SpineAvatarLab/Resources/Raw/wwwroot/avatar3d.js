@@ -333,12 +333,12 @@ function frame(f) {
     }
 
     // Springs from the scheduler: squash and stretch around the feet, lift, and a head tilt.
-    if (f.sq || f.lf) {
+    if (bindings.springs !== false && (f.sq || f.lf)) {
         const height = bounds.max.y - bounds.min.y;
         root.scale.set(1 - f.sq * 0.6, 1 + f.sq, 1 - f.sq * 0.6);
         root.position.y = bounds.min.y * -f.sq + f.lf * height;
     }
-    if (f.tl && bindings.headNode !== undefined && nodes[bindings.headNode]) nodes[bindings.headNode].rotateZ(-f.tl);
+    if (bindings.springs !== false && f.tl && bindings.headNode !== undefined && nodes[bindings.headNode]) nodes[bindings.headNode].rotateZ(-f.tl);
 
     const theme = f.d ? 'dark' : 'light';
     for (const [slot, value] of Object.entries(themes ?? {})) {

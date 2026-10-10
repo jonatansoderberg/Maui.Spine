@@ -29,7 +29,7 @@ public sealed class GltfAvatarRig
     private readonly Parameter[] _outputParameters, _inputParameters;
     private readonly HashSet<int> _mouthTargets;
     private readonly int _speechMouthMesh, _headNode;
-    private readonly bool _override, _blinkByWeight;
+    private readonly bool _override, _blinkByWeight, _springs;
     private readonly (int Mesh, int Target)[] _blinkTargets = [];
     private readonly (int Mesh, int[] Targets)[] _blinkSuppress = [];
     private readonly (int Mesh, int Target)? _muteBadge;
@@ -55,6 +55,9 @@ public sealed class GltfAvatarRig
             _poses[name] = [.. element.EnumerateArray().Select(ReadWrite)];
 
         _override = Extra(bindings, "clipBlend")?.GetString() == "override";
+        // A realistic figure framed on its face opts out: squash around the feet and lift move the face
+        // through the frame, and the tilt rocks the head.
+        _springs = Extra(bindings, "springs")?.ValueKind != JsonValueKind.False;
         foreach (var clip in model.Clips)
         {
             // The first frame of every channel, for additive composition.
@@ -163,6 +166,8 @@ public sealed class GltfAvatarRig
                 * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -f.GazeY * head.Factor);
         }
 
+        if (!_springs)
+            return;
         var height = BoundsMax.Y - BoundsMin.Y;
         RootScale = new Vector3(1 - f.Squash * 0.6f, 1 + f.Squash, 1 - f.Squash * 0.6f);
         RootOffset = new Vector3(0, BoundsMin.Y * -f.Squash + f.Lift * height, 0);

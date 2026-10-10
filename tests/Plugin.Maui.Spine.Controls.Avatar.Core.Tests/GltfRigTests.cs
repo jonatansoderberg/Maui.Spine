@@ -77,6 +77,25 @@ public class GltfRigTests
     }
 
     [Fact]
+    public void SpringsCanBeTurnedOffSoTheFaceStaysPut()
+    {
+        var (_, plush) = Load("plush-mochi");
+        var (model, human) = Load("mpfb");
+        var head = Array.FindIndex(model.Nodes, n => n.Name == "Head" && n.Mesh < 0);
+        var frame = new AvatarRenderFrame { Squash = 0.15f, Lift = 0.05f, Tilt = 0.1f };
+
+        plush.Apply(frame);
+        human.Apply(frame);
+        var still = human.Rotation[head];
+        human.Apply(new AvatarRenderFrame());
+
+        Assert.NotEqual(Vector3.Zero, plush.RootOffset);
+        Assert.Equal(Vector3.Zero, human.RootOffset);
+        Assert.Equal(Vector3.One, human.RootScale);
+        Assert.Equal(human.Rotation[head], still);
+    }
+
+    [Fact]
     public void ApplyDoesNotAllocate()
     {
         var (_, rig) = Load("pebble-bot");

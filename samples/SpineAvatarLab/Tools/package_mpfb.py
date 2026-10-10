@@ -72,7 +72,9 @@ bindings = {
     "expressionMouthTargets": [names[BASE].index(n) for n in mouth],
     "blink": [e for n in ("eyeBlinkLeft", "eyeBlinkRight") for e in shape(n, 1)],
     # No idle clips in the model: the scheduler's gaze turns the head a little, which keeps it alive.
-    "gaze": {"node": HEAD, "headRotation": 0.6},
+    # Kept small, and no springs, so the face stays put while it talks.
+    "gaze": {"node": HEAD, "headRotation": 0.25},
+    "springs": False,
 }
 
 manifest = {
