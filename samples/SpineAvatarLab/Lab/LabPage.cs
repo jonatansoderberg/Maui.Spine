@@ -15,7 +15,7 @@ public sealed class LabPage : ContentPage
 {
     private static readonly (string Id, string Name)[] Bundled =
     [
-        ("aurora-flow", "Aurora Flow"), ("plush-mochi", "Mochi"), ("plush-sprig", "Sprig"), ("plush-bean", "Bean"), ("plush-puff", "Puff"), ("plush-home", "Home"), ("pip", "Pip"), ("mpfb", "MPFB Human"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
+        ("nova", "Nova"), ("aurora-flow", "Aurora Flow"), ("plush-mochi", "Mochi"), ("plush-sprig", "Sprig"), ("plush-bean", "Bean"), ("plush-puff", "Puff"), ("plush-home", "Home"), ("pip", "Pip"), ("mpfb", "MPFB Human"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
         ("voice-totem", "Voice Totem"), ("aurora", "Aurora"), ("dotling", "Dotling"),
     ];
 
@@ -363,6 +363,9 @@ public sealed class LabPage : ContentPage
                 return null;
             case "stress":
                 return await StressAsync();
+            case "follow":
+                _followPointer = arg == "on";
+                return null;
             case "lookat":
                 Look(arg == "off" ? null : new Point(Number(1), Number(2)), hold: null);
                 return null;
@@ -447,14 +450,15 @@ public sealed class LabPage : ContentPage
     }
 
     private CancellationTokenSource? _lookRelease;
+    private bool _followPointer = true;
 
     // The avatar looks where the mouse is (Mac) or where a finger lands (iPhone), and back at the
     // viewer when the pointer leaves or a moment after the finger lifts.
     private void FollowPointer(View root)
     {
         var pointer = new PointerGestureRecognizer();
-        pointer.PointerMoved += (_, e) => Look(e.GetPosition(_avatar), hold: null);
-        pointer.PointerExited += (_, _) => Look(null, hold: null);
+        pointer.PointerMoved += (_, e) => { if (_followPointer) Look(e.GetPosition(_avatar), hold: null); };
+        pointer.PointerExited += (_, _) => { if (_followPointer) Look(null, hold: null); };
         root.GestureRecognizers.Add(pointer);
 #if IOS
         // MAUI's PointerPressed on a page-wide layout took the touches from the buttons beneath it;
