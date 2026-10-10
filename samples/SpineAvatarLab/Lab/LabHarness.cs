@@ -97,6 +97,28 @@ internal static class LabHarness
     /// <summary>The window as a PNG, drawn the way the screen shows it.</summary>
     public static byte[] Screenshot(Page page) => Screenshot((page.Window?.Handler?.PlatformView as object) ?? throw new InvalidOperationException("No window."));
 
+    /// <summary>
+    /// One view as it appears in the window, cut from a capture of the whole window: unlike a SceneKit
+    /// snapshot it includes the camera's bloom.
+    /// </summary>
+    public static byte[] ScreenshotInWindow(VisualElement element)
+    {
+#if IOS || MACCATALYST
+        var view = (UIKit.UIView)(element.Handler?.PlatformView ?? throw new InvalidOperationException("The view has no handler."));
+        var window = view.Window ?? throw new InvalidOperationException("The view is not in a window.");
+        var rect = view.ConvertRectToView(view.Bounds, window);
+        var renderer = new UIKit.UIGraphicsImageRenderer(rect.Size, new UIKit.UIGraphicsImageRendererFormat { Opaque = true });
+        var image = renderer.CreateImage(context =>
+        {
+            context.CGContext.TranslateCTM(-rect.X, -rect.Y);
+            window.DrawViewHierarchy(window.Bounds, afterScreenUpdates: true);
+        });
+        return image.AsPNG()!.ToArray();
+#else
+        return Screenshot(element);
+#endif
+    }
+
     /// <summary>One view as a PNG with a transparent background, for posters.</summary>
     public static byte[] Screenshot(VisualElement element) => Screenshot(element.Handler?.PlatformView ?? throw new InvalidOperationException("The view has no handler."));
 

@@ -391,6 +391,9 @@ public sealed class LabPage : ContentPage
             case "shot":
                 await Task.Delay(50);
                 return LabHarness.Screenshot(this);
+            case "shotlive":
+                await Task.Delay(50);
+                return LabHarness.ScreenshotInWindow((VisualElement)_avatar.Content!);
             case "shotview":
                 await Task.Delay(50);
                 return LabHarness.Screenshot((VisualElement)_avatar.Content!);

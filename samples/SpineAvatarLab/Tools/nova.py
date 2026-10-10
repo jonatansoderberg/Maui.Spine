@@ -269,14 +269,14 @@ def build():
         mat("shell", "#E4E9F0", 0.24, clearcoat=True),                       # 0
         mat("visor", "#06080F", 0.06, clearcoat=True),                        # 1
         # Deep blue: brighter emission tone-maps toward cyan-white.
-        mat("face", "#2F6BFF", 0.25, emissive="#1F55FF", strength=1.9),      # 2
+        mat("face", "#2F6BFF", 0.25, emissive="#1F55FF", strength=3.0),      # 2
         mat("ring", "#6CC4FF", 0.3, emissive=GLOW, strength=2.6),             # 3
         mat("earcap", "#DDE6F0", 0.22, clearcoat=True),                      # 4
         mat("halo", "#6CC4FF", 0.4, emissive=GLOW, strength=2.0, alpha=0.75), # 5
         mat("alert", "#FF4B3A", 0.4, emissive="#FF4B3A", strength=2.2),       # 6
         mat("badge", "#1E2430", 0.35),                                        # 7
         mat("seam", "#C9D2DE", 0.3),                                          # 8
-        mat("earglow", "#5C9BFF", 0.4, emissive="#2F6BFF", strength=1.6, alpha=0.42),  # 9
+        mat("earglow", "#5C9BFF", 0.4, emissive="#2F6BFF", strength=2.0, alpha=0.62),  # 9
         mat("glow1", "#3F7BFF", 0.4, emissive="#2A5CFF", strength=1.4, alpha=0.2),     # 10
         mat("glow2", "#3F7BFF", 0.4, emissive="#2A5CFF", strength=1.2, alpha=0.12),    # 11
     ]
@@ -448,6 +448,9 @@ def package(glb, ids, posters):
         "channelMasks": {"expression": ["face", "body"], "speech": ["mouthShape"], "idle": ["body"], "reflex": ["face", "body"]},
         # A little from above and to the side, as the concept sheet shows it.
         "framing": {"cameraPosition": [0, 0.45, 3.7], "lookAt": [0, -0.04, 0], "verticalFov": 30, "safeInset": 0.06, "fit": "contain"},
+        # SceneKit's threshold is on luminance: blue light needs a high intensity to pass it, and the
+        # white shell must stay under it.
+        "bloom": {"intensity": 1.0, "threshold": 1.4, "radius": 12},
         "gaze": {"node": ids["eyes"], "morphs": {"mesh": ids["m_eyes"], "primitives": [0], **{k: ids["eye_targets"].index("look_" + k) for k in ("left", "right", "up", "down")}},
                  "turn": {"node": 1, "factor": 0.6}},
         "blink": {"node": ids["eyes"], "mesh": ids["m_eyes"], "targetIndex": ids["eye_targets"].index("blink"),
@@ -480,7 +483,11 @@ def package(glb, ids, posters):
                     "gestures": {"nod": "nod", "shake": "shake", "lean": "lean_in", "hop": "hop", "wiggle": "wiggle", "interrupt": "interrupt"},
                     "seedable": True, "blinkIntervalSeconds": [3.0, 6.5], "breathPeriodSeconds": [3.6, 5.0]},
         # The mic-off badge is dark on light backgrounds and light on dark ones.
-        "themes": {"slots": {"badge": {"light": "#1E2430", "dark": "#E8ECF2", "bindings": ["material:7"]}}},
+        "themes": {"slots": {
+            "badge": {"light": "#1E2430", "dark": "#E8ECF2", "bindings": ["material:7"]},
+            # A touch darker on dark backgrounds, so the white shell does not glare.
+            "shell": {"light": "#E4E9F0", "dark": "#C4CEDC", "bindings": ["material:0"]},
+        }},
         "reducedMotion": {"pose": "reduced_motion", "retainSpeech": True, "transitionMs": 180},
         "posters": {"light": "previews/poster-light.png", "dark": "previews/poster-dark.png"},
         "license": "LICENSE.txt", "provenance": "provenance.json",

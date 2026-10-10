@@ -74,6 +74,9 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         // "portrait" (a face): a soft key from the front left, a fill, no coloured rim and little bloom.
         // The studio rig's cyan rim from behind right read as a side lamp on skin.
         var portrait = bindings.Extra?.TryGetValue("lighting", out var lighting) == true && lighting.GetString() == "portrait";
+        // An avatar whose face is light (Nova's eyes) asks for a softer, wider glow.
+        var bloom = bindings.Extra?.TryGetValue("bloom", out var b) == true ? b : (System.Text.Json.JsonElement?)null;
+        float Bloom(string name, float fallback) => bloom is { } e && e.TryGetProperty(name, out var v) ? v.GetSingle() : fallback;
         var framing = bindings.Framing?.Extra;
         _verticalFov = framing?.TryGetValue("verticalFov", out var fov) == true ? fov.GetSingle() : 35;
         var position = framing?.TryGetValue("cameraPosition", out var cp) == true ? new SCNVector3(cp[0].GetSingle(), cp[1].GetSingle(), cp[2].GetSingle()) : new SCNVector3(0, 0, 3.5f);
@@ -86,9 +89,9 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             ZFar = 100,
             WantsHdr = true,
             WantsExposureAdaptation = false,
-            BloomIntensity = portrait ? 0.08f : 0.45f,
-            BloomThreshold = 0.85f,
-            BloomBlurRadius = 6,
+            BloomIntensity = Bloom("intensity", portrait ? 0.08f : 0.45f),
+            BloomThreshold = Bloom("threshold", 0.85f),
+            BloomBlurRadius = Bloom("radius", 6),
         };
         _cameraNode.Position = position;
         _scene.RootNode.AddChildNode(_cameraNode);
@@ -276,7 +279,13 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         material.Metalness.Contents = NSNumber.FromFloat(m.Metallic);
         material.Roughness.Contents = NSNumber.FromFloat(m.Roughness);
         if (m.Emissive != Vector3.Zero)
-            material.Emission.Contents = Srgb(m.Emissive.X, m.Emissive.Y, m.Emissive.Z, 1);
+        {
+            // A colour cannot exceed 1, so emissive strength above it goes to the property's intensity;
+            // that is what lets lit parts pass the bloom threshold while white plastic does not.
+            var peak = MathF.Max(1, MathF.Max(m.Emissive.X, MathF.Max(m.Emissive.Y, m.Emissive.Z)));
+            material.Emission.Contents = Srgb(m.Emissive.X / peak, m.Emissive.Y / peak, m.Emissive.Z / peak, 1);
+            material.Emission.Intensity = peak;
+        }
         material.DoubleSided = m.DoubleSided;
         material.Name = m.Name;
         return material;

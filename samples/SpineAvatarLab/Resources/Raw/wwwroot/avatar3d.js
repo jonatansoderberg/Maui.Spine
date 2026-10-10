@@ -122,7 +122,10 @@ async function load(message) {
     bloomComposer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
     bloomComposer.renderToScreen = false;
     bloomComposer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), portrait ? 0.06 : 0.3, 0.1, 1.2);
+    // An avatar whose face is light (Nova's eyes) can ask for a softer, wider glow.
+    const glow = bindings.bloom ?? {};
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), glow.intensity !== undefined ? glow.intensity * 0.6 : portrait ? 0.06 : 0.3,
+        glow.radius !== undefined ? Math.min(1, glow.radius / 20) : 0.1, glow.threshold ?? 1.2);
     bloomComposer.addPass(bloom);
 
     const mix = new ShaderPass(new THREE.ShaderMaterial({
