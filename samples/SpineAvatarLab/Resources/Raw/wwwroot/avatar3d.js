@@ -331,6 +331,12 @@ function frame(f) {
         nodes[bindings.gaze.node].position.x += THREE.MathUtils.clamp(f.gx / full, -1, 1) * range;
         nodes[bindings.gaze.node].position.y += THREE.MathUtils.clamp(f.gy / full, -1, 1) * range;
     }
+    // The body (or head) turns part of the way toward where the avatar attends, nodding half as much.
+    const turn = bindings.gaze?.turn;
+    if (turn && nodes[turn.node]) {
+        nodes[turn.node].rotateY(f.lx * turn.factor);
+        nodes[turn.node].rotateX(-f.ly * turn.factor * 0.5);
+    }
 
     // Springs from the scheduler: squash and stretch around the feet, lift, and a head tilt.
     if (bindings.springs !== false && (f.sq || f.lf)) {

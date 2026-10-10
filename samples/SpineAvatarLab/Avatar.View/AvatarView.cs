@@ -177,6 +177,21 @@ public sealed class AvatarView : ContentView
         }
     }
 
+    /// <summary>
+    /// Looks toward a point in this view's coordinates (it may lie outside the view, like a pointer
+    /// elsewhere on the page), or back at the viewer with null. The direction assumes the viewer sits
+    /// about one view-width away, so the edges of the page are 20–30° off.
+    /// </summary>
+    public void LookAt(Point? point)
+    {
+        _lookAt = point is { } p && Width > 0
+            ? ((float)Math.Atan2(p.X - Width / 2, Width), (float)Math.Atan2(Height / 2 - p.Y, Width))
+            : null;
+        Scheduler?.LookAt(_lookAt?.X, _lookAt?.Y);
+    }
+
+    private (float X, float Y)? _lookAt;
+
     /// <summary>For 3D avatars: "studio" lighting (environment, rim, tone mapping, bloom, contact shadow) or "basic".</summary>
     public string ThreeDLook
     {
@@ -328,6 +343,7 @@ public sealed class AvatarView : ContentView
             Scheduler.SetMicMuted(IsMuted);
             Scheduler.SetAnimationEnabled(IsAnimationEnabled);
             Scheduler.SecondaryMotion = _secondaryMotion;
+            Scheduler.LookAt(_lookAt?.X, _lookAt?.Y);
             ApplyBaseExpression();
         }
         UpdateDescription();

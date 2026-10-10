@@ -34,7 +34,7 @@ public sealed class GltfAvatarRig
     private readonly (int Mesh, int[] Targets)[] _blinkSuppress = [];
     private readonly (int Mesh, int Target)? _muteBadge;
     private readonly (int Node, float Range)? _gaze;
-    private readonly (int Node, float Factor)? _gazeHead;
+    private readonly (int Node, float Factor)? _gazeHead, _gazeTurn;
     private readonly float[] _sample = new float[64];
 
     public GltfAvatarRig(GltfModel model, AvatarBindings bindings)
@@ -94,6 +94,8 @@ public sealed class GltfAvatarRig
                 _gazeHead = (gaze.GetProperty("node").GetInt32(), factor.GetSingle());
             else
                 _gaze = (gaze.GetProperty("node").GetInt32(), gaze.TryGetProperty("rangeMeters", out var r) ? r.GetSingle() : 0.01f);
+            if (gaze.TryGetProperty("turn", out var turn))
+                _gazeTurn = (turn.GetProperty("node").GetInt32(), turn.GetProperty("factor").GetSingle());
         }
 
         (BoundsMin, BoundsMax) = RestBounds(model);
@@ -164,6 +166,13 @@ public sealed class GltfAvatarRig
             // Bone-local axes (Blender convention): Y turns, X nods.
             Rotation[head.Node] *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, f.GazeX * head.Factor)
                 * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -f.GazeY * head.Factor);
+        }
+
+        // The body (or head) turns part of the way toward where the avatar attends, nodding half as much.
+        if (_gazeTurn is { } body && body.Node < Rotation.Length)
+        {
+            Rotation[body.Node] *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, f.LookX * body.Factor)
+                * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -f.LookY * body.Factor * 0.5f);
         }
 
         if (!_springs)

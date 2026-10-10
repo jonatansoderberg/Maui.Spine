@@ -113,6 +113,8 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
         _json.WriteNumber("b", frame.Blink);
         _json.WriteNumber("gx", frame.GazeX);
         _json.WriteNumber("gy", frame.GazeY);
+        _json.WriteNumber("lx", frame.LookX);
+        _json.WriteNumber("ly", frame.LookY);
         _json.WriteNumber("il", frame.InputLevel);
         _json.WriteNumber("ol", frame.OutputLevel);
         _json.WriteNumber("ir", frame.InputReactiveWeight);

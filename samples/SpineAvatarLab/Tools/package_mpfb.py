@@ -55,8 +55,13 @@ poses = {
     "expr_apologetic": shapes(browInnerUp=0.6, mouthFrownLeft=0.2, mouthFrownRight=0.2, eyeSquintLeft=0.2, eyeSquintRight=0.2) + head(pitch=0.1),
     "expr_confident": shapes(mouthSmileLeft=0.35, mouthSmileRight=0.35, browDownLeft=0.15, browDownRight=0.15, eyeSquintLeft=0.15, eyeSquintRight=0.15),
 }
+# The model's visemes are sculpted at full articulation (tongue out on aa, bared teeth on SS);
+# speech at that strength looks shouted, so each is played at a conversational share. Closures
+# (PP, FF) keep most of theirs so the lips still meet.
+strength = {"PP": 0.9, "FF": 0.75, "TH": 0.5, "DD": 0.5, "kk": 0.5, "CH": 0.45, "SS": 0.4, "nn": 0.5,
+            "RR": 0.5, "aa": 0.6, "E": 0.5, "I": 0.5, "O": 0.6, "U": 0.6}
 for v in visemes:
-    poses["viseme_" + v] = shape("viseme_" + v, 1.0)
+    poses["viseme_" + v] = shape("viseme_" + v, strength.get(v, 0.0))
 
 mouth = ["mouthSmileLeft", "mouthSmileRight", "mouthFrownLeft", "mouthFrownRight", "mouthPressLeft", "mouthPressRight", "jawOpen"]
 bindings = {
@@ -72,8 +77,9 @@ bindings = {
     "expressionMouthTargets": [names[BASE].index(n) for n in mouth],
     "blink": [e for n in ("eyeBlinkLeft", "eyeBlinkRight") for e in shape(n, 1)],
     # No idle clips in the model: the scheduler's gaze turns the head a little, which keeps it alive.
-    # Kept small, and no springs, so the face stays put while it talks.
-    "gaze": {"node": HEAD, "headRotation": 0.25},
+    # Saccades turn it only a little, and there are no springs, so the face stays put while it talks;
+    # a held look (pointer, tap) turns it smoothly by the turn factor.
+    "gaze": {"node": HEAD, "headRotation": 0.15, "turn": {"node": HEAD, "factor": 0.45}},
     "springs": False,
 }
 
@@ -93,7 +99,7 @@ manifest = {
     "expressions": {e: {"pose": "expr_" + e, "channels": ["face", "headTransform"], "transitionMs": 260}
                     for e in ("neutral", "happy", "curious", "thinking", "concerned", "surprised", "apologetic", "confident")},
     "speech": {"mode": "canonicalVisemes", "canonicalProfile": "oculus15-v1",
-               "mapping": {str(i): "viseme_" + v for i, v in enumerate(visemes)}, "expressionMouthScale": 0.45, "releaseMs": 80},
+               "mapping": {str(i): "viseme_" + v for i, v in enumerate(visemes)}, "expressionMouthScale": 0.45, "releaseMs": 100},
     "motions": {"idleVariants": [], "gestures": {}, "seedable": True, "blinkIntervalSeconds": [2.8, 6.5]},
     "themes": {"slots": {}},
     "reducedMotion": {"pose": "reduced_motion", "retainSpeech": True, "transitionMs": 180},

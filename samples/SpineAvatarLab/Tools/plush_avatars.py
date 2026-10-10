@@ -531,7 +531,7 @@ def package(key, spec, glb, ids, posters):
         },
         "channelMasks": {"expression": ["eyes", "mouthCorners", "body"], "speech": ["mouthShape"], "idle": ["body"], "reflex": ["eyes", "body"]},
         "framing": {"cameraPosition": [0, 0.02, 3.3], "lookAt": [0, -0.02, 0], "verticalFov": 30, "safeInset": 0.06, "fit": "contain"},
-        "gaze": {"node": ids["eyes"], "rangeMeters": 0.02},
+        "gaze": {"node": ids["eyes"], "rangeMeters": 0.02, "turn": {"node": ids["body"], "factor": 0.55}},
         "blink": {"node": ids["eyes"], "mesh": ids["m_eyes"], "targetIndex": ids["eye_targets"].index("blink"),
                   "suppressExpressionTargets": [ids["eye_targets"].index(n) for n in ("happy", "wide", "squint")], "expressionScaleRule": "oneMinusBlink"},
         "stateAnimations": {"connecting": "connect", "thinking": "think"},

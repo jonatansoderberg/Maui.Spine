@@ -90,6 +90,8 @@ public sealed class AvatarScheduler
     private double _nextBlinkAt, _blinkStartedAt = double.NegativeInfinity, _blinkClose = 0.11, _blinkOpen = 0.14;
     private double _nextSaccadeAt;
     private float _gazeTargetX, _gazeTargetY, _gazeX, _gazeY;
+    private (float X, float Y)? _lookAt;
+    private float _turnX, _turnY;
 
     // Toggles with their fades.
     private bool _micMuted, _reducedMotion, _animationEnabled = true;
@@ -201,6 +203,19 @@ public sealed class AvatarScheduler
     }
 
     public double Now => _time.GetElapsedTime(_start).TotalSeconds;
+
+    /// <summary>
+    /// Holds the gaze on a direction (radians; positive x is the viewer's right, positive y up), with
+    /// small saccades around it, until cleared with null. Followed more slowly than a saccade, so a
+    /// head or body turned by the gaze moves smoothly.
+    /// </summary>
+    public void LookAt(float? x, float? y)
+    {
+        lock (_gate)
+            _lookAt = x is { } lx && y is { } ly ? (Math.Clamp(lx, -MaxLook, MaxLook), Math.Clamp(ly, -MaxLook, MaxLook)) : null;
+    }
+
+    private static readonly float MaxLook = (float)(30 * Math.PI / 180);
 
     public void Reseed(int seed)
     {
@@ -705,11 +720,22 @@ public sealed class AvatarScheduler
             _gazeTargetY = (float)(Deg(8) * 0.6 * processing);
         }
 
-        var k = dt == 0 ? 1 : (float)(1 - Math.Exp(-dt / 0.04));
-        _gazeX += (_gazeTargetX * (1 - none) - _gazeX) * k;
-        _gazeY += (_gazeTargetY * (1 - none) - _gazeY) * k;
+        // A held look replaces the engaged direction; saccades stay around it at half size.
+        var (targetX, targetY) = _lookAt is { } look
+            ? (look.X + (_reducedMotion ? 0 : _gazeTargetX * 0.5f), look.Y + (_reducedMotion ? 0 : _gazeTargetY * 0.5f))
+            : (_gazeTargetX, _gazeTargetY);
+        var k = dt == 0 ? 1 : (float)(1 - Math.Exp(-dt / (_lookAt is null ? 0.04 : 0.12)));
+        _gazeX += (targetX * (1 - none) - _gazeX) * k;
+        _gazeY += (targetY * (1 - none) - _gazeY) * k;
         f.GazeX = _gazeX;
         f.GazeY = _gazeY;
+
+        var (lookX, lookY) = _lookAt ?? (0, 0);
+        var turn = dt == 0 ? 1 : (float)(1 - Math.Exp(-dt / 0.35));
+        _turnX += (lookX * (1 - none) - _turnX) * turn;
+        _turnY += (lookY * (1 - none) - _turnY) * turn;
+        f.LookX = _turnX;
+        f.LookY = _turnY;
     }
 
     private void AdvanceIdle(double now)

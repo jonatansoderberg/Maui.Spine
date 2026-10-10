@@ -54,6 +54,8 @@ Phase A of [docs/plans/spine-avatar.md](../docs/plans/spine-avatar.md), with the
 - SceneKit: textures repeat (glTF's default sampler; SceneKit clamps), and a theme colour on a textured material goes to the multiply slot so the texture stays.
 - 106 tests.
 - Fix (found by the owner on the iPhone): MPFB jumped and shook while speaking. The springs squash and lift the whole model around its feet, which on a human framed on the face moves the face through the frame, and the tilt rocks the head. Bindings may now say `"springs": false` (rig and three.js page); MPFB does, and its gaze turns the head by 0.25 of the gaze angle instead of 0.6. 107 tests.
+- Look at the pointer (asked for by the owner): `AvatarView.LookAt(Point?)` turns a point in view coordinates into a gaze direction (viewer about one view-width away, clamped to 30°) and `AvatarScheduler.LookAt` holds the gaze there with half-size saccades around it, eased over 0.12 s. The frame gains `LookX`/`LookY`, the same direction without saccades eased over 0.35 s, and gaze bindings may name a `turn` node that rotates by a share of it (the plush bodies 0.55, MPFB's head 0.45), so the body turns smoothly while the eyes still flick. The lab follows the mouse on the Mac and a touch on the phone (for 2.5 s); harness `lookat x y` / `lookat off`.
+- MPFB's mouth (owner: not natural): its visemes are sculpted at full articulation (tongue out on aa, bared teeth on SS), so they now play at 0.4–0.6, closures at 0.75–0.9, with a 100 ms release.
 
 ## Decisions
 

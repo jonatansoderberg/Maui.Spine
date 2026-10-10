@@ -70,6 +70,11 @@ public sealed class AvatarRenderFrame
 
     public float GazeY { get; set; }
 
+    /// <summary>Where the avatar attends (radians, like gaze) without saccades, eased slowly: for turning a body or head.</summary>
+    public float LookX { get; set; }
+
+    public float LookY { get; set; }
+
     /// <summary>Spring squash and stretch: positive stretches up, negative squashes; applied around the root.</summary>
     public float Squash { get; set; }
 
@@ -89,7 +94,7 @@ public sealed class AvatarRenderFrame
     {
         _activityCount = _expressionCount = _speechCount = _clipCount = 0;
         SpeakingWeight = MicMutedWeight = InputReactiveWeight = OutputReactiveWeight = 0;
-        InputLevel = OutputLevel = Blink = GazeX = GazeY = Squash = Tilt = Lift = 0;
+        InputLevel = OutputLevel = Blink = GazeX = GazeY = LookX = LookY = Squash = Tilt = Lift = 0;
         _inputBands.AsSpan().Clear();
         _outputBands.AsSpan().Clear();
     }
@@ -139,6 +144,8 @@ public sealed class AvatarRenderFrame
         target.Blink = Blink;
         target.GazeX = GazeX;
         target.GazeY = GazeY;
+        target.LookX = LookX;
+        target.LookY = LookY;
         target.Squash = Squash;
         target.Tilt = Tilt;
         target.Lift = Lift;

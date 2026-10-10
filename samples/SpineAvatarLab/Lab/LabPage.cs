@@ -358,6 +358,9 @@ public sealed class LabPage : ContentPage
                 return null;
             case "stress":
                 return await StressAsync();
+            case "lookat":
+                Look(arg == "off" ? null : new Point(Number(1), Number(2)), hold: null);
+                return null;
             case "look":
                 _studio.IsToggled = arg == "studio";
                 return null;
@@ -426,16 +429,43 @@ public sealed class LabPage : ContentPage
             var grid = new Grid { Padding = new Thickness(16, 12), ColumnSpacing = 20, ColumnDefinitions = [new(GridLength.Star), new(new GridLength(440))] };
             grid.Add(new ScrollView { Content = _preview });
             grid.Add(new ScrollView { Content = _controls }, 1);
+            FollowPointer(grid);
             Content = grid;
         }
         else
         {
             _diagnostics.IsVisible = false;
-            Content = new ScrollView
-            {
-                Content = new VerticalStackLayout { Padding = new Thickness(14, 10), Spacing = 14, Children = { _preview, _controls } },
-            };
+            var column = new VerticalStackLayout { Padding = new Thickness(14, 10), Spacing = 14, Children = { _preview, _controls } };
+            FollowPointer(column);
+            Content = new ScrollView { Content = column };
         }
+    }
+
+    private CancellationTokenSource? _lookRelease;
+
+    // The avatar looks where the mouse is (Mac) or where a finger lands (phone), and back at the
+    // viewer a moment after the pointer leaves or the finger lifts.
+    private void FollowPointer(View root)
+    {
+        var pointer = new PointerGestureRecognizer();
+        pointer.PointerMoved += (_, e) => Look(e.GetPosition(_avatar), hold: null);
+        pointer.PointerPressed += (_, e) => Look(e.GetPosition(_avatar), hold: TimeSpan.FromSeconds(2.5));
+        pointer.PointerExited += (_, _) => Look(null, hold: null);
+        root.GestureRecognizers.Add(pointer);
+    }
+
+    private void Look(Point? point, TimeSpan? hold)
+    {
+        _lookRelease?.Cancel();
+        _avatar.LookAt(point);
+        if (point is null || hold is null)
+            return;
+        var release = _lookRelease = new CancellationTokenSource();
+        Dispatcher.DispatchDelayed(hold.Value, () =>
+        {
+            if (!release.IsCancellationRequested)
+                _avatar.LookAt(null);
+        });
     }
 
     private void LoadBundled(string name)
