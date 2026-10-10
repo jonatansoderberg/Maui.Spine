@@ -276,7 +276,7 @@ def build():
         mat("alert", "#FF4B3A", 0.4, emissive="#FF4B3A", strength=2.2),       # 6
         mat("badge", "#1E2430", 0.35),                                        # 7
         mat("seam", "#C9D2DE", 0.3),                                          # 8
-        mat("earglow", "#5C9BFF", 0.4, emissive="#2F6BFF", strength=2.0, alpha=0.62),  # 9
+        mat("earglow", "#5C9BFF", 0.4, emissive="#2F6BFF", strength=3.0, alpha=0.7),   # 9
         mat("glow1", "#3F7BFF", 0.4, emissive="#2A5CFF", strength=1.4, alpha=0.2),     # 10
         mat("glow2", "#3F7BFF", 0.4, emissive="#2A5CFF", strength=1.2, alpha=0.12),    # 11
     ]
@@ -319,13 +319,18 @@ def build():
         i = g.node(f"Ear{'L' if side < 0 else 'R'}", m_ear, t=(side * EAR_X, EAR_Y - FEET, 0))
         g.gltf["nodes"][1]["children"].append(i)
         ears.append(i)
-        # While listening the ear lights up: a soft shell of light around the pod, seen from any side
-        # (a disc on the outer face was edge-on from the front).
-        glow = ellipsoid_mesh((0.1, 0.2, 0.2), 16, 24); glow["material"] = 9
-        gi = g.node(f"EarGlow{'L' if side < 0 else 'R'}", g.mesh(f"EarGlow{'L' if side < 0 else 'R'}", [glow]), t=(side * 0.01, 0, 0))
-        g.gltf["nodes"][gi]["scale"] = [0.01, 0.01, 0.01]
-        g.gltf["nodes"][i]["children"] = [gi]
-        glows.append(gi)
+        # The light between ear and head: a ring of light at the joint, a little wider than the pod
+        # so it shows round it from the front, grown from nothing by a morph target that the
+        # microphone level drives. It stays on the head while the ear slides out.
+        ring_light = turned(torus_mesh(0.19, 0.032, 64, 12), to_side, (0, 0, 0))
+        light_prims = []
+        for m in (ring_light,):
+            light_prims.append(dict(pos=m["pos"] * 0.01, nrm=m["nrm"], idx=m["idx"], targets=[m["pos"] * 0.99], material=9))
+        name = f"EarLight{'L' if side < 0 else 'R'}"
+        # At the joint, where the head's surface meets the pod.
+        li = g.node(name, g.mesh(name, light_prims, ["glow"]), t=(side * (EAR_X + 0.012), EAR_Y - FEET, 0))
+        g.gltf["nodes"][1]["children"].append(li)
+        glows.append((li, g.gltf["nodes"][li]["mesh"]))
 
     # Connecting: rings of light under the body and trails around the head; shown by scaling the node.
     rings = [turned(torus_mesh(0.42, 0.012, 96, 8), rot_x(math.pi / 2), (0, 0, 0)),
@@ -369,7 +374,7 @@ def clips(g, ears, ear_y):
     # Listening: the ears pulse outward in a steady beat (the microphone level adds on top).
     t = np.linspace(0, 0.9, 19)
     beat = np.sin(np.pi * t / 0.9) ** 2
-    g.animation("listen", [(node, "translation", t, [[s * (EAR_X + 0.09 * v), ear_y, 0] for v in beat]) for node, s in zip(ears, (-1, 1))])
+    g.animation("listen", [(node, "translation", t, [[s * (EAR_X + 0.025 * v), ear_y, 0] for v in beat]) for node, s in zip(ears, (-1, 1))])
     t, e = wave(3.6, 2)
     bob = [[0, FEET + 0.025 * v, 0] for v in e]
     g.animation("idle_a", [(1, "translation", t, bob)])
@@ -416,7 +421,7 @@ def package(glb, ids, posters):
         # Standby: relaxed, slightly lowered eyes.
         "idle": [eye("squint", 0.18)],
         "connecting": [show(ids["connect"])],
-        "listening": [eye("wide", 0.35), tilt((1, 0, 0), 0.04)] + [show(gl) for gl in ids["glows"]],
+        "listening": [eye("wide", 0.35), tilt((1, 0, 0), 0.04)],
         "thinking": [eye("think", 1), mouth("side_o", 1), tilt((0, 0, 1), -0.06)],
         "speaking": [eye("happy", 1), mouth("smile", 0.55)],
         "interrupted": [eye("wide", 1), mouth("round", 0.8), show(ids["alert"], 2.2), tilt((1, 0, 0), -0.06)],
@@ -434,15 +439,17 @@ def package(glb, ids, posters):
     for v in VISEMES:
         poses["viseme_" + v] = [mouth(name, w) for name, w in VISEME_MOUTHS[v].items()]
 
-    ear_params = [{"node": node, "property": "translation", "min": [s * EAR_X, EAR_Y - FEET, 0], "max": [s * (EAR_X + 0.085), EAR_Y - FEET, 0]}
+    ear_params = [{"node": node, "property": "translation", "min": [s * EAR_X, EAR_Y - FEET, 0], "max": [s * (EAR_X + 0.035), EAR_Y - FEET, 0]}
                   for node, s in zip(ids["ears"], (-1, 1))]
+    # Faint while listening in silence, bright at full input.
+    ear_lights = [{"node": node, "mesh": mesh, "primitives": [0], "targetIndex": 0, "min": 0.18, "max": 1.0} for node, mesh in ids["glows"]]
     bindings = {
         "schemaVersion": "1.0", "renderer": "native3d",
         "animations": {n: n for n in ("idle_a", "idle_b", "connect", "think", "listen", "listen_enter", "nod", "shake", "lean_in", "hop", "interrupt", "wiggle")},
         "poses": poses,
         "parameters": {
             # The ears slide out with the microphone; speech pulses them a little too.
-            "inputLevel": ear_params,
+            "inputLevel": ear_params + ear_lights,
             "outputLevel": [{**p, "max": [p["min"][0] * 1.06, p["min"][1], 0]} for p in ear_params],
         },
         "channelMasks": {"expression": ["face", "body"], "speech": ["mouthShape"], "idle": ["body"], "reflex": ["face", "body"]},

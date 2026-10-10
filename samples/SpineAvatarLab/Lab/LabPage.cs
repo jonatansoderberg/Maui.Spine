@@ -97,6 +97,9 @@ public sealed class LabPage : ContentPage
         _renderers.Select("native");
         _states.Select("idle");
 
+        _mirrors.Children.Add(_small64);
+        _mirrors.Children.Add(_small128);
+        _mirrors.Children.Add(_poster);
         var diagnosticsToggle = LabUi.Chip("Diagnostics", () => _diagnostics.IsVisible = !_diagnostics.IsVisible);
         var stage = new Border
         {
@@ -109,7 +112,7 @@ public sealed class LabPage : ContentPage
                 Children =
                 {
                     _avatar,
-                    new HorizontalStackLayout { Spacing = 14, HorizontalOptions = LayoutOptions.Center, Children = { _small64, _small128, _poster } },
+                    _mirrors,
                 },
             },
         };
@@ -419,10 +422,11 @@ public sealed class LabPage : ContentPage
     }
 
     private View _preview = null!, _controls = null!;
+    private readonly HorizontalStackLayout _mirrors = new() { Spacing = 14, HorizontalOptions = LayoutOptions.Center };
     private bool? _wide;
 
-    // Wide windows get two columns that scroll on their own; a phone gets one page that scrolls as a
-    // whole, avatar first, with the diagnostics folded away.
+    // Wide windows get two columns that scroll on their own; a phone keeps the avatar fixed at the top
+    // and scrolls only the options below it, with the small mirrors and the diagnostics folded away.
     private void ArrangeColumns()
     {
         var wide = Width <= 0 || Width > 800;
@@ -435,6 +439,7 @@ public sealed class LabPage : ContentPage
         if (_preview.Parent is ScrollView previewScroll) previewScroll.Content = null;
         if (_controls.Parent is ScrollView controlsScroll) controlsScroll.Content = null;
 
+        _mirrors.IsVisible = wide;
         if (wide)
         {
             var grid = new Grid { Padding = new Thickness(16, 12), ColumnSpacing = 20, ColumnDefinitions = [new(GridLength.Star), new(new GridLength(440))] };
@@ -446,9 +451,11 @@ public sealed class LabPage : ContentPage
         else
         {
             _diagnostics.IsVisible = false;
-            var column = new VerticalStackLayout { Padding = new Thickness(14, 10), Spacing = 14, Children = { _preview, _controls } };
-            FollowPointer(column);
-            Content = new ScrollView { Content = column };
+            var grid = new Grid { Padding = new Thickness(14, 10, 14, 0), RowSpacing = 10, RowDefinitions = [new(GridLength.Auto), new(GridLength.Star)] };
+            grid.Add(_preview);
+            grid.Add(new ScrollView { Content = _controls }, 0, 1);
+            FollowPointer(grid);
+            Content = grid;
         }
     }
 
