@@ -212,6 +212,12 @@ public sealed class AvatarView : ContentView
     /// </summary>
     public string ThreeDRenderer { get; set; } = "native";
 
+    /// <summary>
+    /// Whether skia avatars draw on the GPU (Metal on iOS and Mac Catalyst) or on the CPU. Applies from
+    /// the next load; platforms without a GPU view always use the CPU.
+    /// </summary>
+    public bool SkiaOnGpu { get; set; } = true;
+
     private IAvatarSurface CreateThreeDSurface(AvatarPackage package, AvatarRepresentation representation)
     {
 #if IOS || MACCATALYST
@@ -330,7 +336,7 @@ public sealed class AvatarView : ContentView
     private void Show(AvatarPackage package, AvatarRepresentation representation, ISkiaAvatarModel? model)
     {
         var old = _surface;
-        _surface = model is not null ? new SkiaAvatarSurface(model) : CreateThreeDSurface(package, representation);
+        _surface = model is not null ? new SkiaAvatarSurface(model, MirrorOf?.SkiaOnGpu ?? SkiaOnGpu) : CreateThreeDSurface(package, representation);
         Content = _surface.View;
         old?.Dispose();
 

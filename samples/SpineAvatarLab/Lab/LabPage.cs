@@ -345,6 +345,11 @@ public sealed class LabPage : ContentPage
                 _sizes.Select(arg);
                 _avatar.WidthRequest = _avatar.HeightRequest = int.Parse(arg, CultureInfo.InvariantCulture);
                 return null;
+            case "skia":
+                _avatar.SkiaOnGpu = _small64.SkiaOnGpu = _small128.SkiaOnGpu = arg == "gpu";
+                if (_avatar.Representation?.Renderer == "skia")
+                    _ = _avatar.LoadAsync();
+                return null;
             case "renderer":
                 _renderers.Select(arg);
                 SetRenderer(arg);

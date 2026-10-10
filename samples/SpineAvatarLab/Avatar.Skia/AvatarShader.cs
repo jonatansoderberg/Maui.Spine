@@ -53,7 +53,7 @@ public sealed class AvatarShaderModel : ISkiaAvatarModel
 /// <remarks>
 /// The shader runs per pixel, and SKCanvasView rasterises on the CPU: at 320 pt on a 3x phone that
 /// was 8–9 fps (about 0.26 µs per pixel on a Mac). Light avatars are soft, so the shader renders into
-/// a buffer of at most <see cref="MaxPixels"/> on a side and is scaled up.
+/// a buffer of at most <see cref="MaxPixels"/> on a side and is scaled up. On the GPU it draws at full size.
 /// Allocates one <see cref="SKShader"/> and one image wrapper per frame (Skia bakes the uniforms into
 /// the shader); the uniform arrays and the buffer are reused.
 /// </remarks>
@@ -62,7 +62,8 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     // Mouth openness per canonical viseme: sil, PP, FF, TH, DD, kk, CH, SS, nn, RR, aa, E, I, O, U.
     private static readonly float[] Openness = [0, 0, 0.2f, 0.3f, 0.4f, 0.45f, 0.4f, 0.3f, 0.35f, 0.4f, 1, 0.6f, 0.5f, 0.8f, 0.5f];
 
-    public const int MaxPixels = 112;
+    /// <summary>The CPU buffer's longest side; null draws at full size (on the GPU).</summary>
+    public int? MaxPixels { get; set; } = 112;
 
     // Linear: cubic upscaling cost 4.7 ms for 200 → 640 px on a Mac, linear 0.6 ms, and soft light hides the difference.
     private static readonly SKSamplingOptions Upscale = new(SKFilterMode.Linear);
@@ -166,7 +167,12 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     {
         if (bounds.Width <= 0 || bounds.Height <= 0)
             return;
-        var scale = Math.Min(1f, MaxPixels / Math.Max(bounds.Width, bounds.Height));
+        if (MaxPixels is null)
+        {
+            DrawDirect(canvas, bounds, dark, accent);
+            return;
+        }
+        var scale = Math.Min(1f, MaxPixels.Value / Math.Max(bounds.Width, bounds.Height));
         var width = Math.Max(1, (int)MathF.Round(bounds.Width * scale));
         var height = Math.Max(1, (int)MathF.Round(bounds.Height * scale));
         if (_buffer is null || _buffer.Canvas.DeviceClipBounds.Width != width || _buffer.Canvas.DeviceClipBounds.Height != height)
@@ -175,6 +181,20 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
             _buffer = SKSurface.Create(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
         }
         _resolution[0] = width; _resolution[1] = height;
+        SetFrameUniforms(dark, accent);
+
+        using var shader = _model.Effect.ToShader(_uniforms);
+        _paint.Shader = shader;
+        _paint.BlendMode = SKBlendMode.Src;
+        _buffer.Canvas.DrawRect(0, 0, width, height, _paint);
+        _paint.Shader = null;
+        _paint.BlendMode = SKBlendMode.SrcOver;
+        using var image = _buffer.Snapshot();
+        canvas.DrawImage(image, bounds, Upscale, _paint);
+    }
+
+    private void SetFrameUniforms(bool dark, SKColor? accent)
+    {
         Set("iResolution", _resolution);
         Set("dark", dark ? 1 : 0);
         var a = accent ?? SKColors.Transparent;
@@ -191,15 +211,19 @@ public sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
             }
             _themeDark = dark;
         }
+    }
 
+    private void DrawDirect(SKCanvas canvas, SKRect bounds, bool dark, SKColor? accent)
+    {
+        _resolution[0] = bounds.Width; _resolution[1] = bounds.Height;
+        SetFrameUniforms(dark, accent);
         using var shader = _model.Effect.ToShader(_uniforms);
         _paint.Shader = shader;
-        _paint.BlendMode = SKBlendMode.Src;
-        _buffer.Canvas.DrawRect(0, 0, width, height, _paint);
+        canvas.Save();
+        canvas.Translate(bounds.Left, bounds.Top);
+        canvas.DrawRect(0, 0, bounds.Width, bounds.Height, _paint);
+        canvas.Restore();
         _paint.Shader = null;
-        _paint.BlendMode = SKBlendMode.SrcOver;
-        using var image = _buffer.Snapshot();
-        canvas.DrawImage(image, bounds, Upscale, _paint);
     }
 
     private void Set(string name, float value)

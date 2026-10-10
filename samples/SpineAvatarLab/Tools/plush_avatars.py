@@ -76,13 +76,12 @@ CHARACTERS = {
         eye=(0.16, 0.02), mouth=-0.11, blush=(0.31, -0.1), extras=[]),
 }
 
-# A plush cottage: a yellow façade with the face, a red roof, a chimney and a warm attic window.
+# A plush cottage: a yellow façade with the face, a red roof and a chimney.
 CHARACTERS["home"] = dict(
     name="Home", color="#F6C64B", dark="#F7CD5E", sheen="#FFF1C4", accent="#E2483D",
     sdf=lambda p: flat_bottom(round_box(p, (0, -0.17, 0), (0.42, 0.3, 0.36), 0.1), p),
     roof=dict(sdf=lambda p: gable_roof(p, 0.12, 0.6, 0.42, 0.44, 0.05), centre=(0, 0.26, 0)),
     chimney=dict(sdf=lambda p: round_box(p, (0.3, 0.46, -0.08), (0.055, 0.12, 0.055), 0.025), centre=(0.3, 0.46, -0.08)),
-    window=(0.0, 0.29, 0.065),
     eye=(0.15, -0.04), mouth=-0.17, blush=(0.28, -0.15), extras=["roof"],
     # Taller than the blobs: the camera steps back and aims higher so the chimney stays in frame.
     framing={"cameraPosition": [0, 0.12, 3.9], "lookAt": [0, 0.06, 0]})
@@ -479,7 +478,8 @@ def build(key, spec, fur):
         m_roof = g.mesh("Roof", [roof, chimney])
         i = g.node("Roof", m_roof, t=(0, -feet, 0))
         g.gltf["nodes"][1]["children"].append(i)
-        # The attic window: a glowing disc on the gable, its own node so the voice can make it swell.
+    if "window" in spec:
+        # An attic window: a glowing disc on the gable, its own node so the voice can make it swell.
         wx, wy, wr = spec["window"]
         at, n = front_point(spec["roof"]["sdf"], wx, wy)
         a = np.linspace(0, 2 * math.pi, 33)[:-1]
