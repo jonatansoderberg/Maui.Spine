@@ -52,16 +52,16 @@ float ribbon(float2 p, float angle, float amplitude, float freq, float travel, f
     float edge = exp(-d * d / 0.0007) * 0.75 * taper;
 
     // Streaks: one per cell along the ribbon, each at its own height inside the lobe and its own
-    // brightness, travelling with the flow a little slower than the wave.
-    float cells = 11.0;
-    float along = x * cells - travel * 0.55 + phase * 3.1;
+    // brightness, streaming through faster than the wave itself.
+    float cells = 15.0;
+    float along = x * cells - travel * 2.4 + phase * 3.1;
     float id = floor(along);
     float f = fract(along) - 0.5;
     float h1 = fract(sin(id * 127.1 + phase * 13.7) * 43758.5453);
     float h2 = fract(sin(id * 311.7 + phase * 7.3) * 24634.6345);
     float yc = wave * (h1 * 2.0 - 1.0) * 0.85;
     float dy = r.y - yc;
-    float streak = exp(-f * f / 0.022 - dy * dy / 0.00007) * (0.5 + 0.8 * h2) * sparkle * taper;
+    float streak = exp(-f * f / 0.012 - dy * dy / 0.00002) * (0.6 + 0.9 * h2) * sparkle * taper;
     // Lobes too thin to read fade out, so a quiet ribbon is a fine glowing thread.
     return (lobe * smoothstep(0.0, 0.06, w) + edge + streak) * smoothstep(0.0, 0.02, taper);
 }

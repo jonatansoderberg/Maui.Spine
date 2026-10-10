@@ -419,6 +419,45 @@ def wave(duration, peaks, steps=24):
 
 # ---------------------------------------------------------------- one avatar
 
+def add_clips(g, feet, wiggle):
+    """Idle, state and gesture clips on node 1 (the body); accessories in `wiggle` (node, side) sway along."""
+    def rot_clip(name, duration, axis, angle, peaks, extra=()):
+        t, e = wave(duration, peaks)
+        g.animation(name, [(1, "rotation", t, [quat(axis, angle * v) for v in e]), *extra])
+    def accessory(duration, amount, peaks):
+        out = []
+        for node, side in wiggle:
+            rest = g.gltf["nodes"][node].get("rotation", [0, 0, 0, 1])
+            t, e = wave(duration, peaks)
+            rows = []
+            for v in e:
+                q = quat((0, 0, 1), side * amount * v)
+                x, y, z, w = rest; a, b, c, d = q
+                rows.append([d * x + a * w + b * z - c * y, d * y - a * z + b * w + c * x, d * z + a * y - b * x + c * w, d * w - a * x - b * y - c * z])
+            out.append((node, "rotation", t, rows))
+        return out
+
+    t, e = wave(4.0, 2)
+    breath = [[1 - 0.012 * v, 1 + 0.02 * v, 1 - 0.012 * v] for v in np.abs(e)]
+    g.animation("idle_a", [(1, "scale", t, breath), *accessory(4.0, 0.12, 2)])
+    rot_clip("idle_b", 4.8, (0, 0, 1), 0.05, 2, accessory(4.8, 0.18, 4))
+    t, e = wave(1.2, 4)
+    g.animation("connect", [(1, "translation", t, [[0, feet + 0.05 * abs(v), 0] for v in e]), *accessory(1.2, 0.25, 4)])
+    rot_clip("think", 3.0, (0, 0, 1), 0.09, 1, accessory(3.0, 0.1, 2))
+    rot_clip("listen_enter", 0.8, (1, 0, 0), 0.1, 1)
+    rot_clip("nod", 0.9, (1, 0, 0), 0.14, 4)
+    rot_clip("shake", 0.9, (0, 1, 0), 0.22, 4)
+    rot_clip("lean_in", 1.0, (1, 0, 0), 0.12, 1)
+    t = np.linspace(0, 0.8, 33)
+    air = np.where((t > 0.16) & (t < 0.6), np.sin(np.pi * np.clip((t - 0.16) / 0.44, 0, 1)), 0)
+    crouch = np.exp(-((t - 0.1) / 0.05) ** 2) + np.exp(-((t - 0.66) / 0.05) ** 2)
+    hop = [[0, feet + 0.16 * v, 0] for v in air]
+    squash = [[1 + 0.06 * c - 0.03 * a, 1 - 0.09 * c + 0.05 * a, 1 + 0.06 * c - 0.03 * a] for c, a in zip(crouch, air)]
+    g.animation("hop", [(1, "translation", t, hop), (1, "scale", t, squash), *accessory(0.8, 0.4, 2)])
+    t, e = wave(0.45, 1)
+    g.animation("interrupt", [(1, "scale", t, [[1 + 0.05 * v, 1 - 0.07 * v, 1 + 0.05 * v] for v in e])])
+    rot_clip("wiggle", 1.0, (0, 0, 1), 0.12, 4, accessory(1.0, 0.3, 4))
+
 def build(key, spec, fur):
     sdf = spec["sdf"]
     g = Glb()
@@ -499,43 +538,7 @@ def build(key, spec, fur):
         g.gltf["nodes"][1]["children"].append(i)
         wiggle.append((i, 1))
 
-    # Clips: node 1 is the body. They start and end at rest, so they add onto poses.
-    def rot_clip(name, duration, axis, angle, peaks, extra=()):
-        t, e = wave(duration, peaks)
-        g.animation(name, [(1, "rotation", t, [quat(axis, angle * v) for v in e]), *extra])
-    def accessory(duration, amount, peaks):
-        out = []
-        for node, side in wiggle:
-            rest = g.gltf["nodes"][node].get("rotation", [0, 0, 0, 1])
-            t, e = wave(duration, peaks)
-            rows = []
-            for v in e:
-                q = quat((0, 0, 1), side * amount * v)
-                x, y, z, w = rest; a, b, c, d = q
-                rows.append([d * x + a * w + b * z - c * y, d * y - a * z + b * w + c * x, d * z + a * y - b * x + c * w, d * w - a * x - b * y - c * z])
-            out.append((node, "rotation", t, rows))
-        return out
-
-    t, e = wave(4.0, 2)
-    breath = [[1 - 0.012 * v, 1 + 0.02 * v, 1 - 0.012 * v] for v in np.abs(e)]
-    g.animation("idle_a", [(1, "scale", t, breath), *accessory(4.0, 0.12, 2)])
-    rot_clip("idle_b", 4.8, (0, 0, 1), 0.05, 2, accessory(4.8, 0.18, 4))
-    t, e = wave(1.2, 4)
-    g.animation("connect", [(1, "translation", t, [[0, feet + 0.05 * abs(v), 0] for v in e]), *accessory(1.2, 0.25, 4)])
-    rot_clip("think", 3.0, (0, 0, 1), 0.09, 1, accessory(3.0, 0.1, 2))
-    rot_clip("listen_enter", 0.8, (1, 0, 0), 0.1, 1)
-    rot_clip("nod", 0.9, (1, 0, 0), 0.14, 4)
-    rot_clip("shake", 0.9, (0, 1, 0), 0.22, 4)
-    rot_clip("lean_in", 1.0, (1, 0, 0), 0.12, 1)
-    t = np.linspace(0, 0.8, 33)
-    air = np.where((t > 0.16) & (t < 0.6), np.sin(np.pi * np.clip((t - 0.16) / 0.44, 0, 1)), 0)
-    crouch = np.exp(-((t - 0.1) / 0.05) ** 2) + np.exp(-((t - 0.66) / 0.05) ** 2)
-    hop = [[0, feet + 0.16 * v, 0] for v in air]
-    squash = [[1 + 0.06 * c - 0.03 * a, 1 - 0.09 * c + 0.05 * a, 1 + 0.06 * c - 0.03 * a] for c, a in zip(crouch, air)]
-    g.animation("hop", [(1, "translation", t, hop), (1, "scale", t, squash), *accessory(0.8, 0.4, 2)])
-    t, e = wave(0.45, 1)
-    g.animation("interrupt", [(1, "scale", t, [[1 + 0.05 * v, 1 - 0.07 * v, 1 + 0.05 * v] for v in e])])
-    rot_clip("wiggle", 1.0, (0, 0, 1), 0.12, 4, accessory(1.0, 0.3, 4))
+    add_clips(g, feet, wiggle)
 
     return g.bytes(), dict(body=1, eyes=4, mouth=5, cheeks=6, m_eyes=m_eyes, m_mouth=m_mouth, m_cheeks=m_cheeks,
                            eye_targets=eye_targets, mouth_targets=mouth_targets, window=window_node)
@@ -549,8 +552,9 @@ VISEME_MOUTHS = {
     "aa": {"open": 1}, "E": {"wide": 1}, "I": {"wide": 0.8}, "O": {"round": 1}, "U": {"pucker": 1},
 }
 
-def package(key, spec, glb, ids, posters):
-    def eye(name, v): return {"node": ids["eyes"], "mesh": ids["m_eyes"], "primitives": [0, 1], "targetIndex": ids["eye_targets"].index(name), "value": v}
+def package(key, spec, glb, ids, posters, prefix="plush", source=None):
+    eye_prims = list(range(ids.get("eye_prims", 2)))
+    def eye(name, v): return {"node": ids["eyes"], "mesh": ids["m_eyes"], "primitives": eye_prims, "targetIndex": ids["eye_targets"].index(name), "value": v}
     def mouth(name, v): return {"node": ids["mouth"], "mesh": ids["m_mouth"], "primitives": [0], "targetIndex": ids["mouth_targets"].index(name), "value": v}
     def blush(v): return {"node": ids["cheeks"], "mesh": ids["m_cheeks"], "primitives": [0], "targetIndex": 0, "value": v}
     def tilt(axis, angle): return {"node": ids["body"], "property": "rotation", "value": [round(x, 6) for x in quat(axis, angle)]}
@@ -586,7 +590,7 @@ def package(key, spec, glb, ids, posters):
         "framing": {"cameraPosition": [0, 0.02, 3.3], "lookAt": [0, -0.02, 0], "verticalFov": 30, "safeInset": 0.06, "fit": "contain", **spec.get("framing", {})},
         # Gaze moves the eyes along the surface by morph targets, a little (they drifted from the mouth
         # at the extremes); the body turns toward where the avatar looks.
-        "gaze": {"node": ids["eyes"], "morphs": {"mesh": ids["m_eyes"], **{k: ids["eye_targets"].index("look_" + k) for k in ("left", "right", "up", "down")}},
+        "gaze": {"node": ids["eyes"], "morphs": {"mesh": ids["m_eyes"], "primitives": eye_prims, **{k: ids["eye_targets"].index("look_" + k) for k in ("left", "right", "up", "down")}},
                  "turn": {"node": ids["body"], "factor": 0.75}},
         "blink": {"node": ids["eyes"], "mesh": ids["m_eyes"], "targetIndex": ids["eye_targets"].index("blink"),
                   "suppressExpressionTargets": [ids["eye_targets"].index(n) for n in ("happy", "wide", "squint")], "expressionScaleRule": "oneMinusBlink"},
@@ -597,11 +601,11 @@ def package(key, spec, glb, ids, posters):
     }
     channels = ["eyes", "mouthCorners", "body"]
     manifest = {
-        "schemaVersion": "1.0", "id": f"plush-{key}", "displayName": spec["name"], "assetVersion": "1.0.0",
+        "schemaVersion": "1.0", "id": f"{prefix}-{key}", "displayName": spec["name"], "assetVersion": "1.0.0",
         "minRuntimeVersion": "1.0.0", "profile": "character",
         "representations": [{
             "id": "native3d-primary", "renderer": "native3d", "format": "glb",
-            "model": f"models/plush-{key}.glb", "bindings": "bindings/native3d.json",
+            "model": f"models/{prefix}-{key}.glb", "bindings": "bindings/native3d.json",
             "capabilities": ["ambient", "expressions", "audioReactive", "gestures", "reducedMotion", "themeSlots", "speechArticulation", "gaze", "blink"],
             "platforms": ["android", "ios", "maccatalyst", "windows"],
             "idleOwner": "scheduler", "blinkOwner": "scheduler", "gazeOwner": "scheduler",
@@ -624,9 +628,9 @@ def package(key, spec, glb, ids, posters):
         "posters": {"light": "previews/poster-light.png", "dark": "previews/poster-dark.png"},
         "license": "LICENSE.txt", "provenance": "provenance.json",
     }
-    poster = lambda theme: open(f"{posters}/plush-{key}-{theme}.png", 'rb').read() if posters else tiny_png()
+    poster = lambda theme: open(f"{posters}/{prefix}-{key}-{theme}.png", 'rb').read() if posters else tiny_png()
     files = {
-        f"models/plush-{key}.glb": glb,
+        f"models/{prefix}-{key}.glb": glb,
         "bindings/native3d.json": json.dumps(bindings, indent=1).encode(),
         "previews/poster-light.png": poster("light"),
         "previews/poster-dark.png": poster("dark"),
@@ -637,6 +641,8 @@ def package(key, spec, glb, ids, posters):
         }, indent=1).encode(),
         "source/plush_avatars.py": open(__file__, 'rb').read(),
     }
+    if source:
+        files[f"source/{os.path.basename(source)}"] = open(source, 'rb').read()
     manifest["files"] = [{"path": p, "sha256": hashlib.sha256(b).hexdigest(), "bytes": len(b)} for p, b in sorted(files.items())]
     out = io.BytesIO()
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
