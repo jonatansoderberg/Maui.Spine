@@ -334,7 +334,17 @@ function frame(f) {
     for (const p of bindings.parameters?.outputLevel ?? []) levelWrite(p, f.ol, f.or);
     for (const p of bindings.parameters?.inputLevel ?? []) levelWrite(p, f.il, f.ir);
 
-    if (bindings.gaze?.headRotation !== undefined && nodes[bindings.gaze.node]) {
+    if (bindings.gaze?.morphs) {
+        // Morph targets that move the eyes along the face, full at ±12°.
+        const g = bindings.gaze.morphs, full = THREE.MathUtils.degToRad(12);
+        const x = THREE.MathUtils.clamp(f.gx / full, -1, 1), y = THREE.MathUtils.clamp(f.gy / full, -1, 1);
+        for (const mesh of meshesFor({ node: bindings.gaze.node, primitives: g.primitives ?? [0, 1] })) {
+            mesh.morphTargetInfluences[g.right] = Math.max(x, 0);
+            mesh.morphTargetInfluences[g.left] = Math.max(-x, 0);
+            mesh.morphTargetInfluences[g.up] = Math.max(y, 0);
+            mesh.morphTargetInfluences[g.down] = Math.max(-y, 0);
+        }
+    } else if (bindings.gaze?.headRotation !== undefined && nodes[bindings.gaze.node]) {
         // Bone-local axes (Blender convention): Y turns, X nods.
         nodes[bindings.gaze.node].rotateY(f.gx * bindings.gaze.headRotation);
         nodes[bindings.gaze.node].rotateX(-f.gy * bindings.gaze.headRotation);

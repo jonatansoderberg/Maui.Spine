@@ -27,6 +27,8 @@ public static partial class AvatarShaderContract
         ["outLevel"] = "float",
         ["energy"] = "float",
         ["bands"] = $"float[{BandCount}]",
+        // The same spectrum in three ranges (bands 0–2, 3–5, 6–7), so a shader need not average per pixel.
+        ["bandLow"] = "float", ["bandMid"] = "float", ["bandHigh"] = "float",
         // Mouth openness from the visemes, 0 closed to 1 for aa.
         ["mouth"] = "float",
         ["stateIdle"] = "float", ["stateConnecting"] = "float", ["stateListening"] = "float", ["stateThinking"] = "float",

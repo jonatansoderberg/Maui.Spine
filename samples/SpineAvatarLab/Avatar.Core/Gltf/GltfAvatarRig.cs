@@ -35,6 +35,7 @@ public sealed class GltfAvatarRig
     private readonly (int Mesh, int Target)? _muteBadge;
     private readonly (int Node, float Range)? _gaze;
     private readonly (int Node, float Factor)? _gazeHead, _gazeTurn;
+    private readonly (int Mesh, int Left, int Right, int Up, int Down)? _gazeMorphs;
     private readonly float[] _sample = new float[64];
 
     public GltfAvatarRig(GltfModel model, AvatarBindings bindings)
@@ -87,10 +88,14 @@ public sealed class GltfAvatarRig
         }
         if (Extra(bindings, "muteBadge") is { } mute)
             _muteBadge = (mute.GetProperty("mesh").GetInt32(), mute.GetProperty("targetIndex").GetInt32());
-        // Gaze moves a node (eyes on a face plate) or turns a bone by a share of the gaze angle (a head).
+        // Gaze moves eyes by morph targets, moves a node (eyes on a face plate) or turns a bone by a share
+    // of the gaze angle (a head).
         if (Extra(bindings, "gaze") is { } gaze)
         {
-            if (gaze.TryGetProperty("headRotation", out var factor))
+            if (gaze.TryGetProperty("morphs", out var morphs))
+                _gazeMorphs = (morphs.GetProperty("mesh").GetInt32(), morphs.GetProperty("left").GetInt32(), morphs.GetProperty("right").GetInt32(),
+                    morphs.GetProperty("up").GetInt32(), morphs.GetProperty("down").GetInt32());
+            else if (gaze.TryGetProperty("headRotation", out var factor))
                 _gazeHead = (gaze.GetProperty("node").GetInt32(), factor.GetSingle());
             else
                 _gaze = (gaze.GetProperty("node").GetInt32(), gaze.TryGetProperty("rangeMeters", out var r) ? r.GetSingle() : 0.01f);
@@ -159,6 +164,18 @@ public sealed class GltfAvatarRig
             const float full = 12 * MathF.PI / 180;
             Translation[gaze.Node].X += Math.Clamp(f.GazeX / full, -1, 1) * gaze.Range;
             Translation[gaze.Node].Y += Math.Clamp(f.GazeY / full, -1, 1) * gaze.Range;
+        }
+
+        if (_gazeMorphs is { } eyes)
+        {
+            // Morph targets that move the eyes along the face, full at ±12°.
+            const float full = 12 * MathF.PI / 180;
+            var x = Math.Clamp(f.GazeX / full, -1, 1);
+            var y = Math.Clamp(f.GazeY / full, -1, 1);
+            SetWeight(eyes.Mesh, eyes.Right, Math.Max(x, 0));
+            SetWeight(eyes.Mesh, eyes.Left, Math.Max(-x, 0));
+            SetWeight(eyes.Mesh, eyes.Up, Math.Max(y, 0));
+            SetWeight(eyes.Mesh, eyes.Down, Math.Max(-y, 0));
         }
 
         if (_gazeHead is { } head && head.Node < Rotation.Length)

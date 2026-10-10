@@ -27,6 +27,17 @@ def smin(a, b, k):
 def smax(a, b, k):
     return -smin(-a, -b, k)
 
+def round_box(p, c, b, r):
+    q = np.abs(p - np.asarray(c)) - np.asarray(b)
+    return np.linalg.norm(np.maximum(q, 0), axis=-1) + np.minimum(q.max(axis=-1), 0) - r
+
+def gable_roof(p, base, half_width, height, depth, r):
+    """A pitched roof: a triangular prism resting on y = base, softened at its edges."""
+    x, y, z = np.abs(p[..., 0]), p[..., 1] - base, p[..., 2]
+    n = np.array([height, half_width]) / math.hypot(height, half_width)
+    slope = x * n[0] + y * n[1] - half_width * n[0]
+    return smax(smax(slope, -y, 0.04), np.abs(z) - depth, 0.04) - r
+
 def flat_bottom(d, p, y=-0.5):
     return smax(d, -(p[..., 1] - y), 0.08)
 
@@ -64,6 +75,17 @@ CHARACTERS = {
             ellipsoid(p, (0.2, 0.28, 0), (0.3, 0.28, 0.3)), 0.14), p),
         eye=(0.16, 0.02), mouth=-0.11, blush=(0.31, -0.1), extras=[]),
 }
+
+# A plush cottage: a yellow façade with the face, a red roof, a chimney and a warm attic window.
+CHARACTERS["home"] = dict(
+    name="Home", color="#F6C64B", dark="#F7CD5E", sheen="#FFF1C4", accent="#E2483D",
+    sdf=lambda p: flat_bottom(round_box(p, (0, -0.17, 0), (0.42, 0.3, 0.36), 0.1), p),
+    roof=dict(sdf=lambda p: gable_roof(p, 0.12, 0.6, 0.42, 0.44, 0.05), centre=(0, 0.26, 0)),
+    chimney=dict(sdf=lambda p: round_box(p, (0.3, 0.46, -0.08), (0.055, 0.12, 0.055), 0.025), centre=(0.3, 0.46, -0.08)),
+    window=(0.0, 0.29, 0.065),
+    eye=(0.15, -0.04), mouth=-0.17, blush=(0.28, -0.15), extras=["roof"],
+    # Taller than the blobs: the camera steps back and aims higher so the chimney stays in frame.
+    framing={"cameraPosition": [0, 0.12, 3.9], "lookAt": [0, 0.06, 0]})
 
 CENTRE = np.array([0, -0.08, 0])
 
@@ -122,12 +144,13 @@ def tufts(d, seed=3):
         v = np.sin(d @ k.T + phase).sum(axis=1)
     return v / np.abs(v).max()
 
-def body_mesh(sdf):
+def body_mesh(sdf, centre=None, face=True):
+    centre = CENTRE if centre is None else np.asarray(centre)
     d, uv, idx = uv_sphere(72, 112)
-    t = ray_surface(sdf, CENTRE, d)
+    t = ray_surface(sdf, centre, d)
     # Kept off the face, where eyes, mouth and cheeks sit on the smooth surface.
-    t *= 1 + 0.009 * tufts(d) * np.clip((0.6 - d[:, 2]) / 0.3, 0, 1)
-    p = CENTRE + d * t[:, None]
+    t *= 1 + 0.009 * tufts(d) * (np.clip((0.6 - d[:, 2]) / 0.3, 0, 1) if face else 1)
+    p = centre + d * t[:, None]
     # Fur runs downward: more repeats around than top to bottom.
     return dict(pos=p, nrm=gradient(sdf, p), uv=uv * np.array([7.0, 3.5]), idx=idx)
 
@@ -166,9 +189,11 @@ def cylinder_mesh(radius, height, segments=12):
     return dict(pos=np.array(pos, float), nrm=np.array(nrm, float), uv=np.zeros((len(pos), 2)), idx=np.array(idx, np.uint32))
 
 def eyes_mesh(sdf, eye):
-    """Both eyes (glossy black) and their highlights, with blink, happy, wide and squint targets."""
+    """Both eyes (glossy black) and their highlights, with blink, happy, wide and squint targets, and
+    look targets that move each eye to a shifted spot on the body's own surface (so the eyes stay at
+    the same depth whatever the body's shape; rotating them about a centre sank them into a bean)."""
     ex, ey = eye
-    rx, ry, rz = 0.058, 0.076, 0.032
+    rx, ry, rz = 0.058, 0.076, 0.024
     base_eye = ellipsoid_mesh((rx, ry, rz))
     base_shine = ellipsoid_mesh((0.017, 0.019, 0.008), 8, 10, centre=(0.018, 0.027, rz * 0.82))
 
@@ -180,7 +205,8 @@ def eyes_mesh(sdf, eye):
     def wide(p): return p * 1.24
     def squint(p): return p * np.array([1.04, 0.55, 0.8])
     def shine_off(p): return p * 0.05 + np.array([0.018, 0.0, rz * 0.4]) * 0.95
-    targets = ["blink", "happy", "wide", "squint"]
+    targets = ["blink", "happy", "wide", "squint", "look_left", "look_right", "look_up", "look_down"]
+    shifts = {"look_left": (-0.03, 0), "look_right": (0.03, 0), "look_up": (0, 0.025), "look_down": (0, -0.022)}
     eye_f = [blink, happy, wide, squint]
     shine_f = [shine_off, shine_off, wide, squint]
 
@@ -188,14 +214,21 @@ def eyes_mesh(sdf, eye):
     for part, (local, fs) in enumerate(((base_eye, eye_f), (base_shine, shine_f))):
         pos, nrm, idx, deltas = [], [], [], [[] for _ in targets]
         for side in (-1, 1):
-            centre, n = front_point(sdf, side * ex, ey)
-            r = frame(n)
-            at = centre - n * rz * 0.45
-            place = lambda q: q @ r.T + at
+            def placer(dx=0.0, dy=0.0):
+                centre, n = front_point(sdf, side * ex + dx, ey + dy)
+                r = frame(n)
+                # Mostly sunk into the body, like inset eyes on a plush, so they read as part of the face.
+                at = centre - n * rz * 0.7
+                return (lambda q: q @ r.T + at), r
+            place, r = placer()
             offset = sum(len(x) for x in pos)
-            pos.append(place(local['pos'])); nrm.append(local['nrm'] @ r.T); idx.append(local['idx'] + offset)
+            rest = place(local['pos'])
+            pos.append(rest); nrm.append(local['nrm'] @ r.T); idx.append(local['idx'] + offset)
             for k, f in enumerate(fs):
-                deltas[k].append(place(f(local['pos'])) - place(local['pos']))
+                deltas[k].append(place(f(local['pos'])) - rest)
+            for name, (dx, dy) in shifts.items():
+                moved, _ = placer(dx, dy)
+                deltas[targets.index(name)].append(moved(local['pos']) - rest)
         prims.append(dict(pos=np.concatenate(pos), nrm=np.concatenate(nrm), idx=np.concatenate(idx),
                           targets=[np.concatenate(d) for d in deltas], material=1 + part))
     return prims, targets
@@ -406,6 +439,8 @@ def build(key, spec, fur):
         {"name": "mouth", "pbrMetallicRoughness": {"baseColorFactor": srgb_to_linear("#3B1F26") + [1], "metallicFactor": 0, "roughnessFactor": 0.55}, "doubleSided": True},
         {"name": "blush", "pbrMetallicRoughness": {"baseColorFactor": srgb_to_linear("#FF8FA3") + [0.42], "metallicFactor": 0, "roughnessFactor": 0.9}, "alphaMode": "BLEND"},
         fur_material("accent", spec["accent"], "#FFFFFF"),
+        {"name": "window", "pbrMetallicRoughness": {"baseColorFactor": srgb_to_linear("#FFE7A3") + [1], "metallicFactor": 0, "roughnessFactor": 0.35},
+         "emissiveFactor": srgb_to_linear("#FFC85C")},
     ]
     g.gltf["extensionsUsed"] = ["KHR_materials_sheen"]
 
@@ -414,10 +449,6 @@ def build(key, spec, fur):
     mouth, mouth_targets = mouth_mesh(sdf, spec["mouth"])
     cheeks, cheek_targets = cheeks_mesh(sdf, spec["blush"])
     m_body = g.mesh("Body", [body])
-    # The eyes hang from a pivot at the body's centre, so gaze rotates them along the surface; sliding
-    # them sideways in a plane buried the inner eye in the fur and floated the outer one.
-    for prim in eyes:
-        prim["pos"] = prim["pos"] - CENTRE
     m_eyes = g.mesh("Eyes", eyes, eye_targets)
     m_mouth = g.mesh("Mouth", [mouth], mouth_targets)
     m_cheeks = g.mesh("Cheeks", [cheeks], cheek_targets)
@@ -428,7 +459,7 @@ def build(key, spec, fur):
     g.node("Body", t=(0, feet, 0), children=[2, 3])
     g.node("BodyMesh", m_body, t=(0, -feet, 0))
     g.node("Face", t=(0, -feet, 0), children=[4, 5, 6])
-    g.node("Eyes", m_eyes, t=CENTRE)
+    g.node("Eyes", m_eyes)
     g.node("Mouth", m_mouth)
     g.node("Cheeks", m_cheeks)
     wiggle = []
@@ -441,6 +472,23 @@ def build(key, spec, fur):
             g.gltf["nodes"][i]["rotation"] = quat((0, 0, 1), side * -0.75)
             g.gltf["nodes"][1]["children"].append(i)
             wiggle.append((i, side))
+    window_node = None
+    if "roof" in spec["extras"]:
+        roof = body_mesh(spec["roof"]["sdf"], spec["roof"]["centre"], face=False); roof["material"] = 5
+        chimney = body_mesh(spec["chimney"]["sdf"], spec["chimney"]["centre"], face=False); chimney["material"] = 5
+        m_roof = g.mesh("Roof", [roof, chimney])
+        i = g.node("Roof", m_roof, t=(0, -feet, 0))
+        g.gltf["nodes"][1]["children"].append(i)
+        # The attic window: a glowing disc on the gable, its own node so the voice can make it swell.
+        wx, wy, wr = spec["window"]
+        at, n = front_point(spec["roof"]["sdf"], wx, wy)
+        a = np.linspace(0, 2 * math.pi, 33)[:-1]
+        ring = np.stack([np.cos(a) * wr, np.sin(a) * wr, np.zeros_like(a)], axis=1)
+        disc = dict(pos=np.vstack([[0, 0, 0], ring]) + np.array([0, 0, 0.004]), nrm=np.tile([0, 0, 1.0], (33, 1)),
+                    idx=np.array([k for j in range(32) for k in (0, 1 + j, 1 + (j + 1) % 32)], np.uint32), material=6)
+        m_window = g.mesh("Window", [disc])
+        window_node = g.node("Window", m_window, t=at - np.array([0, feet, 0]))
+        g.gltf["nodes"][1]["children"].append(window_node)
     if "antenna" in spec["extras"]:
         tip = CENTRE + np.array([0, 1, 0]) * ray_surface(sdf, CENTRE, np.array([[0, 1.0, 0]]))[0]
         stem = cylinder_mesh(0.012, 0.16); stem["material"] = 5
@@ -490,7 +538,7 @@ def build(key, spec, fur):
     rot_clip("wiggle", 1.0, (0, 0, 1), 0.12, 4, accessory(1.0, 0.3, 4))
 
     return g.bytes(), dict(body=1, eyes=4, mouth=5, cheeks=6, m_eyes=m_eyes, m_mouth=m_mouth, m_cheeks=m_cheeks,
-                           eye_targets=eye_targets, mouth_targets=mouth_targets)
+                           eye_targets=eye_targets, mouth_targets=mouth_targets, window=window_node)
 
 # ---------------------------------------------------------------- package
 
@@ -530,12 +578,16 @@ def package(key, spec, glb, ids, posters):
         "animations": {n: n for n in ("idle_a", "idle_b", "connect", "think", "listen_enter", "nod", "shake", "lean_in", "hop", "interrupt", "wiggle")},
         "poses": poses,
         "parameters": {
-            "outputLevel": [{"node": ids["body"], "property": "scale", "min": [1, 1, 1], "max": [1.025, 1.045, 1.025]}],
+            "outputLevel": [{"node": ids["body"], "property": "scale", "min": [1, 1, 1], "max": [1.025, 1.045, 1.025]}]
+                + ([{"node": ids["window"], "property": "scale", "min": [1, 1, 1], "max": [1.3, 1.3, 1]}] if ids["window"] is not None else []),
             "inputLevel": [{"node": ids["eyes"], "mesh": ids["m_eyes"], "targetIndex": ids["eye_targets"].index("wide"), "min": 0, "max": 0.35}],
         },
         "channelMasks": {"expression": ["eyes", "mouthCorners", "body"], "speech": ["mouthShape"], "idle": ["body"], "reflex": ["eyes", "body"]},
-        "framing": {"cameraPosition": [0, 0.02, 3.3], "lookAt": [0, -0.02, 0], "verticalFov": 30, "safeInset": 0.06, "fit": "contain"},
-        "gaze": {"node": ids["eyes"], "headRotation": 0.3, "turn": {"node": ids["body"], "factor": 0.55}},
+        "framing": {"cameraPosition": [0, 0.02, 3.3], "lookAt": [0, -0.02, 0], "verticalFov": 30, "safeInset": 0.06, "fit": "contain", **spec.get("framing", {})},
+        # Gaze moves the eyes along the surface by morph targets, a little (they drifted from the mouth
+        # at the extremes); the body turns toward where the avatar looks.
+        "gaze": {"node": ids["eyes"], "morphs": {"mesh": ids["m_eyes"], **{k: ids["eye_targets"].index("look_" + k) for k in ("left", "right", "up", "down")}},
+                 "turn": {"node": ids["body"], "factor": 0.75}},
         "blink": {"node": ids["eyes"], "mesh": ids["m_eyes"], "targetIndex": ids["eye_targets"].index("blink"),
                   "suppressExpressionTargets": [ids["eye_targets"].index(n) for n in ("happy", "wide", "squint")], "expressionScaleRule": "oneMinusBlink"},
         "stateAnimations": {"connecting": "connect", "thinking": "think"},

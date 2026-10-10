@@ -19,26 +19,28 @@ public class AvatarShaderTests
         return bitmap;
     }
 
-    [Fact]
-    public void ShaderPaintsAnOrbWithTransparentCorners()
+    private static int Lit(SKBitmap b)
     {
-        using var idle = Render(f => f.AddActivity("idle", 1));
-
-        Assert.Equal(255, idle.GetPixel(100, 100).Alpha);
-        Assert.True(idle.GetPixel(2, 2).Alpha < 20);
+        var count = 0;
+        for (var y = 0; y < b.Height; y++)
+            for (var x = 0; x < b.Width; x++)
+                if (b.GetPixel(x, y).Alpha > 128) count++;
+        return count;
     }
 
     [Fact]
-    public void VoiceWidensTheOrb()
+    public void IdleGlowsInTheMiddleAndFadesBeforeTheEdges()
     {
-        static int Covered(SKBitmap b)
-        {
-            var count = 0;
-            for (var x = 0; x < b.Width; x++)
-                if (b.GetPixel(x, 100).Alpha > 200) count++;
-            return count;
-        }
-        using var idle = Render(f => f.AddActivity("speaking", 1));
+        using var idle = Render(f => f.AddActivity("idle", 1));
+
+        Assert.True(idle.GetPixel(100, 100).Alpha > 80);
+        Assert.All(new[] { (2, 2), (100, 2), (2, 100), (197, 100) }, p => Assert.True(idle.GetPixel(p.Item1, p.Item2).Alpha < 16));
+    }
+
+    [Fact]
+    public void VoiceGrowsTheRibbons()
+    {
+        using var quiet = Render(f => f.AddActivity("speaking", 1));
         using var loud = Render(f =>
         {
             f.AddActivity("speaking", 1);
@@ -47,7 +49,7 @@ public class AvatarShaderTests
             f.OutputBands.Fill(0.8f);
         });
 
-        Assert.True(Covered(loud) > Covered(idle) + 6, $"{Covered(loud)} vs {Covered(idle)}");
+        Assert.True(Lit(loud) > Lit(quiet) * 1.5, $"{Lit(loud)} vs {Lit(quiet)}");
     }
 
     [Fact]
