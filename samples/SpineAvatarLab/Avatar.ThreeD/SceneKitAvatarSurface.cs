@@ -71,6 +71,9 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         }
         BindThemes(materials);
 
+        // "portrait" (a face): a soft key from the front left, a fill, no coloured rim and little bloom.
+        // The studio rig's cyan rim from behind right read as a side lamp on skin.
+        var portrait = bindings.Extra?.TryGetValue("lighting", out var lighting) == true && lighting.GetString() == "portrait";
         var framing = bindings.Framing?.Extra;
         _verticalFov = framing?.TryGetValue("verticalFov", out var fov) == true ? fov.GetSingle() : 35;
         var position = framing?.TryGetValue("cameraPosition", out var cp) == true ? new SCNVector3(cp[0].GetSingle(), cp[1].GetSingle(), cp[2].GetSingle()) : new SCNVector3(0, 0, 3.5f);
@@ -83,7 +86,7 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             ZFar = 100,
             WantsHdr = true,
             WantsExposureAdaptation = false,
-            BloomIntensity = 0.45f,
+            BloomIntensity = portrait ? 0.08f : 0.45f,
             BloomThreshold = 0.85f,
             BloomBlurRadius = 6,
         };
@@ -92,7 +95,7 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         _cameraNode.Look(lookAt);
         _view.PointOfView = _cameraNode;
 
-        AddLights(model);
+        AddLights(model, portrait);
         View = new NativeViewHost(_view);
         _view.LayoutSubviews();
     }
@@ -309,7 +312,7 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         _accent = accent;
     }
 
-    private void AddLights(GltfModel model)
+    private void AddLights(GltfModel model, bool portrait)
     {
         SCNNode Light(NSString type, UIColor color, float intensity, SCNVector3? from)
         {
@@ -324,12 +327,22 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             return node;
         }
 
-        Light(SCNLightType.Directional, UIColor.FromRGB(255, 244, 232), 1300, new SCNVector3(-2.5f, 3, 4));
-        Light(SCNLightType.Directional, UIColor.FromRGB(159, 232, 255), 1500, new SCNVector3(2.5f, 2.5f, -3.5f));
-        Light(SCNLightType.Ambient, UIColor.FromRGB(200, 210, 225), 180, null);
+        if (portrait)
+        {
+            Light(SCNLightType.Directional, UIColor.FromRGB(255, 246, 236), 780, new SCNVector3(-1.2f, 1.6f, 3.5f));
+            Light(SCNLightType.Directional, UIColor.FromRGB(225, 235, 255), 380, new SCNVector3(1.8f, 0.6f, 3));
+            Light(SCNLightType.Directional, UIColor.FromRGB(255, 255, 255), 260, new SCNVector3(0, 2.5f, -3));
+            Light(SCNLightType.Ambient, UIColor.FromRGB(215, 215, 220), 230, null);
+        }
+        else
+        {
+            Light(SCNLightType.Directional, UIColor.FromRGB(255, 244, 232), 1300, new SCNVector3(-2.5f, 3, 4));
+            Light(SCNLightType.Directional, UIColor.FromRGB(159, 232, 255), 1500, new SCNVector3(2.5f, 2.5f, -3.5f));
+            Light(SCNLightType.Ambient, UIColor.FromRGB(200, 210, 225), 180, null);
+        }
 
         _scene.LightingEnvironment.Contents = StudioEnvironment();
-        _scene.LightingEnvironment.Intensity = 0.9f;
+        _scene.LightingEnvironment.Intensity = portrait ? 0.45f : 0.9f;
 
         var size = _rig.BoundsMax - _rig.BoundsMin;
         var plane = SCNPlane.Create(size.X * 1.3f, size.Z * 1.3f + size.X * 0.25f);

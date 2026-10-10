@@ -15,7 +15,7 @@ public sealed class LabPage : ContentPage
 {
     private static readonly (string Id, string Name)[] Bundled =
     [
-        ("plush-mochi", "Mochi"), ("plush-sprig", "Sprig"), ("plush-bean", "Bean"), ("plush-puff", "Puff"), ("pip", "Pip"), ("mpfb", "MPFB Human"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
+        ("aurora-flow", "Aurora Flow"), ("plush-mochi", "Mochi"), ("plush-sprig", "Sprig"), ("plush-bean", "Bean"), ("plush-puff", "Puff"), ("pip", "Pip"), ("mpfb", "MPFB Human"), ("aurora-motion", "Aurora Motion"), ("robot-expressive", "Robot Expressive"), ("pebble-bot", "Pebble Bot"),
         ("voice-totem", "Voice Totem"), ("aurora", "Aurora"), ("dotling", "Dotling"),
     ];
 
@@ -443,15 +443,37 @@ public sealed class LabPage : ContentPage
 
     private CancellationTokenSource? _lookRelease;
 
-    // The avatar looks where the mouse is (Mac) or where a finger lands (phone), and back at the
-    // viewer a moment after the pointer leaves or the finger lifts.
+    // The avatar looks where the mouse is (Mac) or where a finger lands (iPhone), and back at the
+    // viewer when the pointer leaves or a moment after the finger lifts.
     private void FollowPointer(View root)
     {
         var pointer = new PointerGestureRecognizer();
         pointer.PointerMoved += (_, e) => Look(e.GetPosition(_avatar), hold: null);
-        pointer.PointerPressed += (_, e) => Look(e.GetPosition(_avatar), hold: TimeSpan.FromSeconds(2.5));
         pointer.PointerExited += (_, _) => Look(null, hold: null);
         root.GestureRecognizers.Add(pointer);
+#if IOS
+        // MAUI's PointerPressed on a page-wide layout took the touches from the buttons beneath it;
+        // a plain tap recognizer that never cancels touches only watches them.
+        root.HandlerChanged += (_, _) =>
+        {
+            if (root.Handler?.PlatformView is not UIKit.UIView view)
+                return;
+            view.AddGestureRecognizer(new UIKit.UITapGestureRecognizer(tap =>
+            {
+                if (_avatar.Handler?.PlatformView is UIKit.UIView avatar)
+                {
+                    var at = tap.LocationInView(avatar);
+                    Look(new Point(at.X, at.Y), hold: TimeSpan.FromSeconds(2.5));
+                }
+            })
+            {
+                CancelsTouchesInView = false,
+                DelaysTouchesBegan = false,
+                DelaysTouchesEnded = false,
+                ShouldRecognizeSimultaneously = (_, _) => true,
+            });
+        };
+#endif
     }
 
     private void Look(Point? point, TimeSpan? hold)

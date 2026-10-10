@@ -18,7 +18,7 @@ public static partial class AvatarValidator
 
     private static readonly Dictionary<string, string[]> Formats = new()
     {
-        ["skia"] = ["spine2d"],
+        ["skia"] = ["spine2d", "sksl"],
         ["native3d"] = ["glb"],
         ["rive"] = ["riv"],
         ["lottie"] = ["lottie-json", "dotlottie"],
@@ -214,6 +214,9 @@ public static partial class AvatarValidator
                 break;
             case "glb":
                 ValidateGlb(package, r, bindings, report);
+                break;
+            case "sksl":
+                ValidateSksl(package, r, report);
                 break;
             default:
                 report.NotMeasured(area, "model", $"no validator for {r.Format} in this runtime");
@@ -492,6 +495,44 @@ public static partial class AvatarValidator
 
         if (report.Failures.Count() == failures)
             report.Pass(area, "scene", $"{scene.Nodes.Count} nodes, {scene.PathPoses.Count} path poses, {scene.Animations.Count} clips, {bindings.Poses.Count} poses");
+    }
+
+    // The source is compiled by the skia renderer at load (and in the tests); here the uniforms are
+    // checked against the contract and the theme slots against the declarations.
+    private static void ValidateSksl(AvatarPackage package, AvatarRepresentation r, AvatarValidationReport report)
+    {
+        var area = r.Id;
+        var bytes = package.GetFile(r.Model);
+        if (bytes.Length is 0 or > 64 * 1024)
+        {
+            report.Fail(area, "shader", $"{r.Model}: {bytes.Length} bytes, 1 B–64 KB allowed");
+            return;
+        }
+        var source = System.Text.Encoding.UTF8.GetString(bytes.Span);
+        var declared = AvatarShaderContract.Declarations(source).ToList();
+        var themes = package.Manifest.Themes.Slots.Values.SelectMany(s => s.Bindings)
+            .Where(b => b.StartsWith("uniform:", StringComparison.Ordinal)).Select(b => b[8..]).ToHashSet(StringComparer.Ordinal);
+        var failures = report.Failures.Count();
+        foreach (var (name, type) in declared)
+        {
+            var expected = AvatarShaderContract.Uniforms.GetValueOrDefault(name) ?? (themes.Contains(name) ? AvatarShaderContract.ThemeType : null);
+            if (expected is null)
+                report.Fail(area, "shader", $"{r.Model}: uniform '{name}' is neither in the runtime's contract nor bound by a theme slot");
+            else if (expected != type)
+                report.Fail(area, "shader", $"{r.Model}: uniform '{name}' is {type}; the runtime provides {expected}");
+        }
+        foreach (var (slotName, slot) in package.Manifest.Themes.Slots)
+        {
+            foreach (var binding in slot.Bindings)
+            {
+                if (!binding.StartsWith("uniform:", StringComparison.Ordinal) || declared.All(d => d.Name != binding[8..]))
+                    report.Fail(area, "themes", $"slot '{slotName}' binds '{binding}', which is not uniform:<name> of a declared uniform");
+            }
+        }
+        if (!source.Contains("main(", StringComparison.Ordinal))
+            report.Fail(area, "shader", $"{r.Model}: no main function");
+        if (report.Failures.Count() == failures)
+            report.Pass(area, "shader", $"{declared.Count} uniforms in the contract; compiled by the skia renderer at load");
     }
 
     private static void ValidateGlb(AvatarPackage package, AvatarRepresentation r, AvatarBindings bindings, AvatarValidationReport report)

@@ -17,8 +17,7 @@ public static class AvatarSheet
 
     public static byte[] RenderPng(AvatarPackage package, AvatarRepresentation representation, AvatarSheetKind kind, bool dark, int cell = 160)
     {
-        var model = Spine2dModel.Compile(package, representation);
-        using var renderer = new Spine2dRenderer(model);
+        using var renderer = SkiaAvatarModel.Compile(package, representation).CreateRenderer();
         var manifest = package.Manifest;
         var frame = new AvatarRenderFrame();
         var cells = Cells(manifest, kind).ToList();

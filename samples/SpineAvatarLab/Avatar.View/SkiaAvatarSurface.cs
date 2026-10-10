@@ -7,19 +7,19 @@ using SkiaSharp.Views.Maui.Controls;
 
 namespace Plugin.Maui.Spine.Controls.Avatar;
 
-/// <summary>A <c>spine2d</c> avatar on an <see cref="SKCanvasView"/>: the frame is evaluated and drawn in the paint pass.</summary>
+/// <summary>A skia avatar (spine2d scene or shader) on an <see cref="SKCanvasView"/>: the frame is evaluated and drawn in the paint pass.</summary>
 internal sealed class SkiaAvatarSurface : IAvatarSurface
 {
     private readonly SKCanvasView _canvas;
-    private readonly Spine2dRenderer _renderer;
+    private readonly ISkiaAvatarRenderer _renderer;
     private readonly AvatarRenderFrame _frame = new();
     private bool _dark;
     private SKColor? _accent;
     private bool _hasFrame;
 
-    public SkiaAvatarSurface(Spine2dModel model)
+    public SkiaAvatarSurface(ISkiaAvatarModel model)
     {
-        _renderer = new Spine2dRenderer(model);
+        _renderer = model.CreateRenderer();
         _canvas = new SKCanvasView { EnableTouchEvents = false, InputTransparent = true };
         _canvas.PaintSurface += OnPaintSurface;
     }

@@ -289,7 +289,7 @@ public sealed class AvatarView : ContentView
                 var package = AvatarArchive.Read(stream, cancellationToken: cancellation.Token);
                 var representation = package.SelectRepresentation(Renderers)
                     ?? throw new NotSupportedException($"{package.Manifest.DisplayName} has no representation this app can draw: it offers {string.Join(", ", package.Manifest.Representations.Select(r => r.Renderer))}, the app has {string.Join(", ", Renderers)}.");
-                var model = representation.Renderer == "skia" ? Spine2dModel.Compile(package, representation) : null;
+                var model = representation.Renderer == "skia" ? SkiaAvatarModel.Compile(package, representation) : null;
                 return (package, representation, model);
             }, cancellation.Token);
 
@@ -327,7 +327,7 @@ public sealed class AvatarView : ContentView
 
     private static readonly string[] Renderers = ["skia", "native3d"];
 
-    private void Show(AvatarPackage package, AvatarRepresentation representation, Spine2dModel? model)
+    private void Show(AvatarPackage package, AvatarRepresentation representation, ISkiaAvatarModel? model)
     {
         var old = _surface;
         _surface = model is not null ? new SkiaAvatarSurface(model) : CreateThreeDSurface(package, representation);
@@ -396,7 +396,7 @@ public sealed class AvatarView : ContentView
     private void FollowLeader()
     {
         if (MirrorOf is { Package: { } package, Representation: { } representation })
-            Show(package, representation, representation.Renderer == "skia" ? Spine2dModel.Compile(package, representation) : null);
+            Show(package, representation, representation.Renderer == "skia" ? SkiaAvatarModel.Compile(package, representation) : null);
     }
 
     private void UpdateDescription()

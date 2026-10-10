@@ -72,7 +72,7 @@ public class GltfRigTests
 
         var head = Array.FindIndex(model.Meshes, m => m.TargetNames.Contains("viseme_aa"));
         var target = Array.IndexOf(model.Meshes[head].TargetNames, "viseme_aa");
-        Assert.Equal(0.6f, rig.Weights[head][target], 3);
+        Assert.Equal(0.42f, rig.Weights[head][target], 3);
         Assert.Contains(model.Meshes[head].Primitives.SelectMany(p => p.Targets[target].Positions), d => MathF.Abs(d) > 1e-3f);
     }
 

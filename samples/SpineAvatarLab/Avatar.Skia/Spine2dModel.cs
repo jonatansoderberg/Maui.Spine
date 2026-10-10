@@ -51,7 +51,7 @@ internal sealed class CompiledStroke(float width, int slot, SKColor color, SKStr
 /// of ids, path data as floats, poses and clips as lists of writes. Immutable, shared by every view
 /// that shows the same avatar.
 /// </summary>
-public sealed class Spine2dModel
+public sealed class Spine2dModel : ISkiaAvatarModel
 {
     private Spine2dModel() { }
 
@@ -128,6 +128,8 @@ public sealed class Spine2dModel
     internal CompiledWrite[] DefaultPose { get; private set; } = [];
 
     internal int AccentSlot { get; private set; } = -1;
+
+    public ISkiaAvatarRenderer CreateRenderer() => new Spine2dRenderer(this);
 
     public static Spine2dModel Compile(AvatarPackage package, AvatarRepresentation representation)
     {

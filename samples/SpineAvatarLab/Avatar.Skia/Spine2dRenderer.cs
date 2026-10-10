@@ -15,7 +15,7 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Skia;
 /// activity → mic muted → expression → speech → levels → clips, each writing only the nodes its
 /// channel mask allows. Expression writes to speech channels are damped while speaking.
 /// </remarks>
-public sealed class Spine2dRenderer : IDisposable
+public sealed class Spine2dRenderer : ISkiaAvatarRenderer
 {
     private const int Stride = 6;
 

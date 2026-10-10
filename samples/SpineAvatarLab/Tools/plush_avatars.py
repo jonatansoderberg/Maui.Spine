@@ -414,6 +414,10 @@ def build(key, spec, fur):
     mouth, mouth_targets = mouth_mesh(sdf, spec["mouth"])
     cheeks, cheek_targets = cheeks_mesh(sdf, spec["blush"])
     m_body = g.mesh("Body", [body])
+    # The eyes hang from a pivot at the body's centre, so gaze rotates them along the surface; sliding
+    # them sideways in a plane buried the inner eye in the fur and floated the outer one.
+    for prim in eyes:
+        prim["pos"] = prim["pos"] - CENTRE
     m_eyes = g.mesh("Eyes", eyes, eye_targets)
     m_mouth = g.mesh("Mouth", [mouth], mouth_targets)
     m_cheeks = g.mesh("Cheeks", [cheeks], cheek_targets)
@@ -424,7 +428,7 @@ def build(key, spec, fur):
     g.node("Body", t=(0, feet, 0), children=[2, 3])
     g.node("BodyMesh", m_body, t=(0, -feet, 0))
     g.node("Face", t=(0, -feet, 0), children=[4, 5, 6])
-    g.node("Eyes", m_eyes)
+    g.node("Eyes", m_eyes, t=CENTRE)
     g.node("Mouth", m_mouth)
     g.node("Cheeks", m_cheeks)
     wiggle = []
@@ -527,11 +531,11 @@ def package(key, spec, glb, ids, posters):
         "poses": poses,
         "parameters": {
             "outputLevel": [{"node": ids["body"], "property": "scale", "min": [1, 1, 1], "max": [1.025, 1.045, 1.025]}],
-            "inputLevel": [{"node": ids["eyes"], "property": "scale", "min": [1, 1, 1], "max": [1.06, 1.06, 1.06]}],
+            "inputLevel": [{"node": ids["eyes"], "mesh": ids["m_eyes"], "targetIndex": ids["eye_targets"].index("wide"), "min": 0, "max": 0.35}],
         },
         "channelMasks": {"expression": ["eyes", "mouthCorners", "body"], "speech": ["mouthShape"], "idle": ["body"], "reflex": ["eyes", "body"]},
         "framing": {"cameraPosition": [0, 0.02, 3.3], "lookAt": [0, -0.02, 0], "verticalFov": 30, "safeInset": 0.06, "fit": "contain"},
-        "gaze": {"node": ids["eyes"], "rangeMeters": 0.02, "turn": {"node": ids["body"], "factor": 0.55}},
+        "gaze": {"node": ids["eyes"], "headRotation": 0.3, "turn": {"node": ids["body"], "factor": 0.55}},
         "blink": {"node": ids["eyes"], "mesh": ids["m_eyes"], "targetIndex": ids["eye_targets"].index("blink"),
                   "suppressExpressionTargets": [ids["eye_targets"].index(n) for n in ("happy", "wide", "squint")], "expressionScaleRule": "oneMinusBlink"},
         "stateAnimations": {"connecting": "connect", "thinking": "think"},

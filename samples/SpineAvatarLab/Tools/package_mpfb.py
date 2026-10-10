@@ -2,7 +2,7 @@
 
 Usage: python package_mpfb.py <mpfb-small.glb> <out-dir> [poster-light.png poster-dark.png]
 The GLB is TalkingHead's avatars/mpfb.glb with its textures resized to 512–1024 px (repack_glb.py);
-geometry, skin and morph targets are unchanged. It has ARKit blend shapes and the Oculus visemes
+geometry, skin and morph targets are unchanged; skin, brows and lashes are made matte here. It has ARKit blend shapes and the Oculus visemes
 (no viseme_sil, which the format allows to be all zero) and no animation clips.
 """
 import hashlib, io, json, math, struct, sys, zipfile, zlib
@@ -12,6 +12,15 @@ posters = sys.argv[3:5]
 glb = open(glb_path, 'rb').read()
 length = struct.unpack('<I', glb[12:16])[0]
 gltf = json.loads(glb[20:20 + length])
+
+# Skin, brows and lashes at roughness 0.5 look wet under any studio light; matte them.
+for material in gltf['materials']:
+    if material.get('name') in ('Human.body', 'Human.mindfront_eyebrows_02', 'Human.mindfront_eyelashes_02'):
+        material.setdefault('pbrMetallicRoughness', {})['roughnessFactor'] = 0.78
+chunk = json.dumps(gltf, separators=(',', ':')).encode()
+chunk += b' ' * (-len(chunk) % 4)
+rest = glb[20 + length:]
+glb = struct.pack('<III', 0x46546C67, 2, 12 + 8 + len(chunk) + len(rest)) + struct.pack('<II', len(chunk), 0x4E4F534A) + chunk + rest
 
 mesh_node = {n['mesh']: i for i, n in enumerate(gltf['nodes']) if 'mesh' in n}
 names = {m: gltf['meshes'][m].get('extras', {}).get('targetNames', []) for m in range(len(gltf['meshes']))}
@@ -55,13 +64,15 @@ poses = {
     "expr_apologetic": shapes(browInnerUp=0.6, mouthFrownLeft=0.2, mouthFrownRight=0.2, eyeSquintLeft=0.2, eyeSquintRight=0.2) + head(pitch=0.1),
     "expr_confident": shapes(mouthSmileLeft=0.35, mouthSmileRight=0.35, browDownLeft=0.15, browDownRight=0.15, eyeSquintLeft=0.15, eyeSquintRight=0.15),
 }
-# The model's visemes are sculpted at full articulation (tongue out on aa, bared teeth on SS);
-# speech at that strength looks shouted, so each is played at a conversational share. Closures
-# (PP, FF) keep most of theirs so the lips still meet.
-strength = {"PP": 0.9, "FF": 0.75, "TH": 0.5, "DD": 0.5, "kk": 0.5, "CH": 0.45, "SS": 0.4, "nn": 0.5,
-            "RR": 0.5, "aa": 0.6, "E": 0.5, "I": 0.5, "O": 0.6, "U": 0.6}
+# The model's visemes are sculpted at full articulation (tongue out on aa, bared teeth on SS) and
+# open mostly with the lower lip; at that strength speech looks shouted and shows the teeth. Each
+# plays at a conversational share, closures (PP, FF) keep most of theirs so the lips still meet,
+# and the toothy ones roll the lower lip in a little to cover the lower teeth.
+strength = {"PP": 0.85, "FF": 0.6, "TH": 0.35, "DD": 0.35, "kk": 0.35, "CH": 0.3, "SS": 0.25, "nn": 0.35,
+            "RR": 0.35, "aa": 0.42, "E": 0.32, "I": 0.3, "O": 0.42, "U": 0.45}
+roll = {"TH": 0.15, "DD": 0.15, "kk": 0.15, "CH": 0.25, "SS": 0.25, "E": 0.2, "I": 0.2}
 for v in visemes:
-    poses["viseme_" + v] = shape("viseme_" + v, strength.get(v, 0.0))
+    poses["viseme_" + v] = shape("viseme_" + v, strength.get(v, 0.0)) + shape("mouthRollLower", roll.get(v, 0.0))
 
 mouth = ["mouthSmileLeft", "mouthSmileRight", "mouthFrownLeft", "mouthFrownRight", "mouthPressLeft", "mouthPressRight", "jawOpen"]
 bindings = {
@@ -81,6 +92,7 @@ bindings = {
     # a held look (pointer, tap) turns it smoothly by the turn factor.
     "gaze": {"node": HEAD, "headRotation": 0.15, "turn": {"node": HEAD, "factor": 0.45}},
     "springs": False,
+    "lighting": "portrait",
 }
 
 manifest = {

@@ -23,7 +23,7 @@ let before = new Map();    // mesh → influences at the start of a layer
 let lastStats = 0, frames = 0, renderMs = 0;
 // "studio": environment light, key and rim lights, tone mapping, bloom on emissive parts, a contact
 // shadow. "basic": the round-1 setup, kept for comparison.
-let look = 'studio', composer, bloomComposer, bloom, environment, basicLights = [], studioLights = [], shadow, bounds;
+let look = 'studio', portrait = false, composer, bloomComposer, bloom, environment, basicLights = [], studioLights = [], shadow, bounds;
 const emissiveBase = new Map();
 
 const send = message => window.HybridWebView.SendRawMessage(message);
@@ -89,6 +89,19 @@ async function load(message) {
     rim.position.set(2.5, 2.5, -3.5);
     const fill = new THREE.HemisphereLight(0xffffff, 0x2a3440, 0.25);
     studioLights = [key, rim, fill];
+    // "portrait" (a face): a soft key from the front left, a fill, a faint neutral rim and little
+    // bloom; the studio rig's cyan rim from behind right read as a side lamp on skin.
+    portrait = bindings.lighting === 'portrait';
+    if (portrait) {
+        key.position.set(-1.2, 1.6, 3.5);
+        key.intensity = 1.25;
+        rim.color.set(0xffffff);
+        rim.intensity = 0.4;
+        rim.position.set(0, 2.5, -3);
+        const front = new THREE.DirectionalLight(0xe1ebff, 0.5);
+        front.position.set(1.8, 0.6, 3);
+        studioLights.push(front);
+    }
     scene.add(...basicLights, ...studioLights);
 
     environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
@@ -109,7 +122,7 @@ async function load(message) {
     bloomComposer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
     bloomComposer.renderToScreen = false;
     bloomComposer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.3, 0.1, 1.2);
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), portrait ? 0.06 : 0.3, 0.1, 1.2);
     bloomComposer.addPass(bloom);
 
     const mix = new ShaderPass(new THREE.ShaderMaterial({
@@ -185,7 +198,7 @@ function setLook(value) {
     if (scene) {
         scene.environment = studio ? environment : null;
         // The room environment is a bright white box; at full strength it washes out dark glass.
-        scene.environmentIntensity = 0.45;
+        scene.environmentIntensity = portrait ? 0.3 : 0.45;
     }
     if (shadow) shadow.visible = studio;
     renderer.toneMapping = studio ? THREE.NeutralToneMapping : THREE.NoToneMapping;

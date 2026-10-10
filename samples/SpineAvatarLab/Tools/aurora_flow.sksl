@@ -1,0 +1,127 @@
+// Aurora Flow: ribbons of light flowing through a soft orb, for the Spine Avatar Lab (#524).
+// Uniforms follow AvatarShaderContract; the five colours come from the manifest's theme slots.
+uniform float2 iResolution;
+uniform float flow;
+uniform float energy;
+uniform float bands[8];
+uniform float mouth;
+uniform float stateConnecting;
+uniform float stateListening;
+uniform float stateThinking;
+uniform float stateSpeaking;
+uniform float stateInterrupted;
+uniform float stateMuted;
+uniform float exprHappy;
+uniform float exprCurious;
+uniform float exprConcerned;
+uniform float exprSurprised;
+uniform float exprApologetic;
+uniform float exprConfident;
+uniform float micMuted;
+uniform float2 look;
+uniform float3 spring;
+uniform float dark;
+uniform float3 cyan;
+uniform float3 blue;
+uniform float3 violet;
+uniform float3 pink;
+uniform float3 warm;
+
+// The spectrum around the rim: low bands at the sides, high bands at the top and bottom.
+float bandAt(float angle) {
+    float x = abs(sin(angle)) * 7.0;
+    float sum = 0.0;
+    for (int i = 0; i < 8; i++) {
+        sum += bands[i] * max(0.0, 1.0 - abs(x - float(i)));
+    }
+    return sum;
+}
+
+// One ribbon: a band of light along a travelling wave, in a frame turned by `turn`.
+float ribbon(float2 q, float turn, float freq, float speed, float phase, float offset, float width, float lift) {
+    float c = cos(turn);
+    float s = sin(turn);
+    float2 r = float2(c * q.x + s * q.y, -s * q.x + c * q.y);
+    float wave = (0.34 + lift) * sin(r.x * freq + flow * speed + phase)
+               + 0.12 * sin(r.x * freq * 2.3 - flow * speed * 1.7 + phase * 1.9);
+    float d = r.y - wave - offset;
+    return exp(-d * d / (width * width));
+}
+
+half4 main(float2 fragCoord) {
+    float size = min(iResolution.x, iResolution.y);
+    float2 uv = (fragCoord - 0.5 * iResolution) / (0.5 * size);
+    uv.y = -uv.y;
+
+    // Springs and attention: squash around the bottom, lift, and a lean toward where it looks.
+    uv.y -= spring.z * 0.8;
+    uv = float2(uv.x * (1.0 + spring.x * 0.6), (uv.y + 0.7) / (1.0 + spring.x) - 0.7);
+    uv -= look * 0.3;
+
+    float r = length(uv);
+    float a = atan(uv.y, uv.x);
+
+    // The rim breathes, ripples with the spectrum and swells with the voice.
+    float voice = energy * (0.6 + 0.4 * stateSpeaking + 0.4 * stateListening);
+    float radius = 0.5 + 0.02 * sin(flow * 0.8) + voice * 0.08 + mouth * 0.04
+                 - stateInterrupted * 0.07 + exprSurprised * 0.05 - exprApologetic * 0.03;
+    float rim = radius * (1.0
+        + 0.018 * sin(3.0 * a + flow * 1.1)
+        + 0.012 * sin(5.0 * a - flow * 1.6)
+        + 0.02 * sin(2.0 * a + flow * 0.5)
+        + 0.1 * voice * (bandAt(a) - 0.4));
+    float inside = smoothstep(rim + 0.02, rim - 0.02, r);
+
+    // Ribbons swirl harder while thinking and spread wider with the voice.
+    float2 q = uv / max(rim, 0.001);
+    // Warp the space so the ribbons curl like smoke rather than run straight.
+    q += 0.22 * float2(sin(q.y * 2.3 + flow * 0.9), sin(q.x * 2.1 - flow * 0.7));
+    q += 0.1 * float2(sin(q.y * 4.1 - flow * 1.3), sin(q.x * 3.7 + flow * 1.1));
+    float swirl = flow * (0.08 + 0.35 * stateThinking);
+    float width = 0.3 + 0.16 * voice + 0.05 * stateListening;
+    float lift = 0.1 * voice + 0.06 * exprHappy;
+    float r0 = ribbon(q, swirl, 1.6, 1.0, 0.0, -0.3, width, lift);
+    float r1 = ribbon(q, swirl + 1.9, 1.3, 1.3, 2.1, 0.1, width * 0.9, lift);
+    float r2 = ribbon(q, -swirl * 1.3 + 3.6, 1.9, 0.8, 4.2, 0.35, width * 1.1, lift);
+    float r3 = ribbon(q, swirl * 0.7 + 5.0, 1.1, 1.6, 1.0, -0.05, width * 0.8, lift);
+
+    // Mood leans the palette: warm when happy or confident, cool and dim when concerned.
+    float warmth = clamp(0.6 * exprHappy + 0.4 * exprConfident + 0.2 * exprCurious, 0.0, 1.0);
+    float3 c0 = mix(cyan, warm, warmth * 0.5);
+    float3 c1 = mix(blue, pink, warmth * 0.4);
+    float3 c2 = violet;
+    float3 c3 = mix(pink, warm, warmth * 0.7);
+
+    float glowBoost = 0.65 + 0.7 * voice + 0.25 * stateConnecting * (0.5 + 0.5 * sin(flow * 5.0));
+    float3 light = (c0 * r0 + c1 * r1 + c2 * r2 + c3 * r3) * glowBoost;
+
+    // A core that is deep in dark mode and pale in light mode, lit from inside.
+    float3 core = mix(float3(0.93, 0.95, 1.0), float3(0.04, 0.05, 0.12), dark);
+    float3 inner = mix(blue, violet, 0.5 + 0.5 * sin(flow * 0.4)) * (0.25 + 0.2 * dark) * (1.0 - r);
+    // Dark mode adds the light and tone-maps it; light mode lays the ribbons' hue over the pale
+    // core instead, since tone-mapping a pale core turns it grey.
+    float3 onDark = 1.0 - exp(-(core + inner + light) * 1.25);
+    float peak = max(light.r, max(light.g, light.b));
+    float3 hue = light / max(peak, 0.001);
+    float3 onLight = mix(core, hue * 0.92, clamp(peak, 0.0, 1.0) * 0.85) + inner * 0.3;
+    float3 color = mix(onLight, onDark, dark);
+    // Soft highlight, top left, like light on glass.
+    color += float3(1.0) * 0.16 * exp(-length(uv - float2(-0.22, 0.28) * rim) * 6.0);
+    color = min(color, float3(1.0));
+
+    // Outer glow in the ribbons' colours.
+    float outside = max(r - rim, 0.0);
+    float3 haloColor = mix(mix(cyan, violet, 0.5 + 0.5 * sin(a + flow * 0.6)), pink, 0.25 + 0.25 * sin(a * 2.0 - flow));
+    float halo = exp(-outside * (11.0 - 4.0 * voice)) * (0.35 + 0.55 * voice) * (1.0 - inside);
+
+    // Muted: drained and dim. Concerned or apologetic: a little dimmer.
+    float drained = clamp(max(stateMuted, micMuted) * 0.75 + exprConcerned * 0.15, 0.0, 1.0);
+    float grey = dot(color, float3(0.3, 0.5, 0.2));
+    color = mix(color, float3(grey) * 0.85, drained);
+    haloColor = mix(haloColor, float3(dot(haloColor, float3(0.3, 0.5, 0.2))), drained);
+    halo *= 1.0 - 0.6 * drained - 0.2 * exprApologetic;
+
+    float alpha = clamp(inside + halo, 0.0, 1.0);
+    float3 premultiplied = color * inside + haloColor * halo;
+    return half4(half3(premultiplied), half(alpha));
+}
