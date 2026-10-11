@@ -124,6 +124,12 @@ public sealed class GltfAvatarRig
 
     public Vector3 RootOffset { get; private set; }
 
+    /// <summary>Extra head turn in radians about the head node (positive yaw turns left, positive pitch looks up).</summary>
+    public float HeadYaw { get; set; }
+
+    /// <inheritdoc cref="HeadYaw"/>
+    public float HeadPitch { get; set; }
+
     public Vector3 BoundsMin { get; }
 
     public Vector3 BoundsMax { get; }
@@ -204,6 +210,11 @@ public sealed class GltfAvatarRig
             Rotation[body.Node] *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, f.LookX * body.Factor)
                 * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -f.LookY * body.Factor * 0.5f);
         }
+
+        // A manual head turn (a lab control): yaw then pitch, on top of everything else.
+        if ((HeadYaw != 0 || HeadPitch != 0) && _headNode >= 0 && _headNode < Rotation.Length)
+            Rotation[_headNode] *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, HeadYaw)
+                * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -HeadPitch);
 
         if (!_springs)
             return;

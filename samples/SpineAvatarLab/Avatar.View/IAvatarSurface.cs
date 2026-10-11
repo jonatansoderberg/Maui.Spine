@@ -22,6 +22,9 @@ internal interface IAvatarSurface : IDisposable
 
     /// <summary>Turns the whole avatar about its vertical axis, for inspecting a 3D model from any side.</summary>
     void SetViewYaw(float radians) { }
+
+    /// <summary>Turns the avatar's head (its head node) by yaw and pitch in radians, for inspection.</summary>
+    void SetHeadTurn(float yaw, float pitch) { }
 }
 
 /// <summary>Frame timing a lab reads: how long rendering takes and what it allocates.</summary>

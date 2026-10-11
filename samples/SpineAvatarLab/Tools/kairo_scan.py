@@ -339,7 +339,7 @@ def eyeball_texture(src):
 SOCKET_MATERIAL = 11          # index of the "socket" material
 EYEBALL_MATERIAL = 10         # index of the "eyeball" material in build's list
 EYE_RADIUS = 1.35              # eyeball radius over the opening's half-width
-LOOK_DEG = {'look_left': (-12.0, 0.0), 'look_right': (12.0, 0.0), 'look_up': (0.0, 9.0), 'look_down': (0.0, -8.0)}
+LOOK_DEG = {'look_left': (-6.0, 0.0), 'look_right': (6.0, 0.0), 'look_up': (0.0, 4.5), 'look_down': (0.0, -4.0)}   # the ball is large: 12 degrees threw the iris to the corner
 
 def eye_parts(zg, surface_normal):
     """A whole eyeball sphere behind each opening, its front just behind the face's surface there, and an
@@ -738,6 +738,7 @@ def compose(work):
     return P[used], remap[F].astype(np.int32), label, bald_colour, hair_tex, pivot
 
 BALD = os.environ.get('KAIRO_BALD') == '1'   # build the head without the hair layer (layer by layer)
+UNDER_CHIN_PHOTO = 0.0         # under the chin: share of the picture's own shadow (1 showed as a dark patch when the head tilted)
 NECK_TWIST = 0.05              # the neck's shortest twisting length above the collar (model units)
 NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw underside y per sector), set by compose
 NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
@@ -1579,15 +1580,15 @@ def build(work):
         side = np.where(is_skin, 0.15 * col + 0.85 * toned, col)
         w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)))[:, None]
         out = side * (1 - w) + projected(q) * w
-        # Under the chin and jaw: the chin's own colour from just above the jaw line, fading out over
-        # 3 cm, so the chin reads as one piece (toned and shaded on its own, its underside was a
-        # second chin on every nod and turn).
+        # Under the chin and jaw: the picture's own shadow there (what the camera sees below the jaw
+        # line), so the chin's underside matches the neck beneath it and the chin reads as one piece.
         c_, _ = project(q); sx = (c_[:, 0] - OX) / S; sy = (c_[:, 1] - OY) / S
-        jaw_y = CHIN_Y - 0.0042 * (sx - 626.0) ** 2 - 10
-        chin_col = np.stack([ndimage.map_coordinates(picture[..., k], [jaw_y, sx], order=1) for k in range(3)], -1)
+        jaw_y = CHIN_Y - 0.0042 * (sx - 626.0) ** 2
         below = (sy > jaw_y - 4) & (np.abs(sx - 626) < 190)
-        wc = (smooth(0.03, 0.004, chin_tree.query(q)[0]) * below * ((kind == SKIN) | (kind == NECK)))[:, None]
-        return out * (1 - wc) + chin_col * wc
+        pc = projected(q)
+        on_skin = pc[:, 0] > pc[:, 2] + 25          # never the backdrop beside the jaw (a pale patch on a turn)
+        wc = UNDER_CHIN_PHOTO * (smooth(0.04, 0.01, chin_tree.query(q)[0]) * below * on_skin * ((kind == SKIN) | (kind == NECK)))[:, None]
+        return out * (1 - wc) + pc * wc
     # The skin's own layout (paintable), see SKIN_CHARTS.
     centre = np.array([pivot[0], P[grid_start:, 1].mean(), pivot[2]])
     sk = P[F[bare]].reshape(-1, 3)

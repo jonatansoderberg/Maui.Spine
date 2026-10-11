@@ -109,6 +109,12 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
 
     public void SetViewYaw(float radians) => _viewYaw = radians;
 
+    public void SetHeadTurn(float yaw, float pitch)
+    {
+        _rig.HeadYaw = yaw;
+        _rig.HeadPitch = pitch;
+    }
+
     private float _viewYaw;
 
     public AvatarFrameStats Stats { get; } = new();

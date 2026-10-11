@@ -205,6 +205,19 @@ public sealed class AvatarView : ContentView
 
     private double _viewYaw;
 
+    /// <summary>For 3D avatars: turns the head (its head node) sideways and up or down, in degrees (lab controls).</summary>
+    public (double Yaw, double Pitch) HeadTurn
+    {
+        get => _headTurn;
+        set
+        {
+            _headTurn = value;
+            _surface?.SetHeadTurn((float)(value.Yaw * Math.PI / 180), (float)(value.Pitch * Math.PI / 180));
+        }
+    }
+
+    private (double Yaw, double Pitch) _headTurn;
+
     /// <summary>For 3D avatars: "studio" lighting (environment, rim, tone mapping, bloom, contact shadow) or "basic".</summary>
     public string ThreeDLook
     {
@@ -351,6 +364,7 @@ public sealed class AvatarView : ContentView
         var old = _surface;
         _surface = model is not null ? new SkiaAvatarSurface(model, MirrorOf?.SkiaOnGpu ?? SkiaOnGpu) : CreateThreeDSurface(package, representation);
         _surface.SetViewYaw((float)(_viewYaw * Math.PI / 180));
+        _surface.SetHeadTurn((float)(_headTurn.Yaw * Math.PI / 180), (float)(_headTurn.Pitch * Math.PI / 180));
         Content = _surface.View;
         old?.Dispose();
 

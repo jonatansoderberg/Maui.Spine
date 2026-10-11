@@ -39,6 +39,7 @@ window.addEventListener('HybridWebViewMessageReceived', event => {
         else if (message.t === 'load') load(message).catch(fail);
         else if (message.t === 'look') setLook(message.v);
         else if (message.t === 'yaw') viewYaw = message.v;
+        else if (message.t === 'head') headTurn = [message.y, message.p];
     } catch (error) {
         fail(error);
     }
@@ -272,6 +273,8 @@ function applyTransform(index, property, value, weight) {
 
 // The lab's view turn: the whole avatar about its vertical axis.
 let viewYaw = 0;
+// The lab's head turn: yaw and pitch on the head node.
+let headTurn = [0, 0];
 
 function frame(f) {
     if (!renderer) return;
@@ -387,6 +390,10 @@ function frame(f) {
         root.position.y = bounds.min.y * -f.sq + f.lf * height;
     }
     if (bindings.springs !== false && f.tl && bindings.headNode !== undefined && nodes[bindings.headNode]) nodes[bindings.headNode].rotateZ(-f.tl);
+    if ((headTurn[0] || headTurn[1]) && bindings.headNode !== undefined && nodes[bindings.headNode]) {
+        nodes[bindings.headNode].rotateY(headTurn[0]);
+        nodes[bindings.headNode].rotateX(-headTurn[1]);
+    }
 
     const theme = f.d ? 'dark' : 'light';
     for (const [slot, value] of Object.entries(themes ?? {})) {

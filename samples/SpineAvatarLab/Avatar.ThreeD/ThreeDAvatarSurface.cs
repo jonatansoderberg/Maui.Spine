@@ -82,6 +82,15 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
     private string _look = "studio";
     private float _viewYaw;
 
+    public void SetHeadTurn(float yaw, float pitch)
+    {
+        _headTurn = (yaw, pitch);
+        if (_modelLoaded)
+            _web.SendRawMessage("{\"t\":\"head\",\"y\":" + yaw.ToString(CultureInfo.InvariantCulture) + ",\"p\":" + pitch.ToString(CultureInfo.InvariantCulture) + "}");
+    }
+
+    private (float Yaw, float Pitch) _headTurn;
+
     public void SetViewYaw(float radians)
     {
         _viewYaw = radians;
@@ -166,6 +175,8 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
             _modelLoaded = true;
             if (_viewYaw != 0)
                 SetViewYaw(_viewYaw);
+            if (_headTurn != default)
+                SetHeadTurn(_headTurn.Yaw, _headTurn.Pitch);
         }
         else if (message.StartsWith("stats:", StringComparison.Ordinal))
         {
