@@ -66,7 +66,7 @@ EYES = [dict(cx=507.5, cy=522.0, half=72.0, upper=487.0, lower=552.0, crease=468
         dict(cx=747.5, cy=520.0, half=72.0, upper=485.0, lower=551.0, crease=466.0)]
 IRIS_R = 34.0
 IRISES = [(507.5, 520.5), (747.5, 518.5)]   # iris centres (source px), from the unoccluded left, right and lower edges
-LOOK = {'look_left': (-14.0, 0.0), 'look_right': (14.0, 0.0), 'look_up': (0.0, -8.0), 'look_down': (0.0, 7.0)}
+LOOK = {'look_left': (-10.0, 0.0), 'look_right': (10.0, 0.0), 'look_up': (0.0, -6.0), 'look_down': (0.0, 5.0)}   # source px; further, the iris ran under the corners
 # Lid margins measured on the source (x, y): the upper lid's edge where lashes meet the white, and
 # the lower lid. The lash band sits above the upper margin; the lid fold above that.
 LIDS = [dict(ux=[435, 460, 485, 510, 535, 552, 562], uy=[520, 495, 486, 484, 489, 500, 540],
@@ -212,17 +212,18 @@ def eye_openings(shape, inset=0.0):
         m |= (xx > x0) & (xx < x1) & (yy > up + inset) & (yy < lo - inset)
     return m
 
-def eye_holes(shape, inset=0.0):
+def eye_holes(shape, inset=0.0, grow_x=0.0):
     """The face grid's holes at the eyes: the opening and the upper lid above it up to the crease.
     The upper lid is its own surface (lid_overlays), so the whole lid moves when the eye closes."""
     yy, xx = np.mgrid[0:shape[0], 0:shape[1]].astype(float)
-    m = eye_openings(shape, inset)
+    m = np.zeros(shape, bool)
     for lid in LIDS:
-        x0, x1 = lid_span(lid)
-        fold, _ = lid_fold(lid, xx[0])
-        up = np.interp(xx, lid['ux'], lid['uy']) + 2.0
-        top = up - LASH                                          # the lash tips: the lid's visible top
-        m |= (xx > x0) & (xx < x1) & (yy > top + inset) & (yy <= up + 1)
+        x0, x1 = lid_span(lid); x0, x1 = x0 - grow_x, x1 + grow_x
+        top = np.interp(xx, lid['ux'], lid['uy']) + 2.0 - LASH  # the lash tips: the lid's visible top
+        # Down past the lower lid's line: a grid edge on it kept a sliver of the photo's iris, which
+        # stayed behind when the iris moved.
+        bottom = np.interp(xx, lid['lx'], lid['ly']) + 1.5
+        m |= (xx > x0) & (xx < x1) & (yy > top + inset) & (yy < bottom - inset)
     return m
 
 def src_mask_to_crop(mask):
@@ -293,7 +294,9 @@ def eye_parts(zs, surface_normal):
         return unproject(c, ndimage.map_coordinates(zs, [c[:, 1], c[:, 0]], order=1) + dz)
     out = []
     # Eyeball: a grid over each opening, grown well under the lids.
-    ball = eye_holes((int(SRC_W), int(SRC_W)), -22.0)     # wide: a turned head looks past the hole's rim
+    # Wide, sideways too: ending at the hole's sides, it let the room show through as a white line
+    # across the iris when the eyes looked toward a corner.
+    ball = eye_holes((int(SRC_W), int(SRC_W)), -22.0, 22.0)
     ys, xs = np.mgrid[0:int(SRC_W):2, 0:int(SRC_W):2]
     inside = ball[ys, xs]
     vid = np.full(xs.shape, -1); vid[inside] = np.arange(inside.sum())
@@ -447,7 +450,7 @@ def vote(P, F, flag, r=0.008):
     c = P[F].mean(1)
     return np.array([flag[n].mean() for n in cKDTree(c).query_ball_point(c, r)]) > 0.5
 
-SKIN, HAIR, KNIT, GRID, NECK = 0, 1, 2, 3, 4      # NECK: skin that stays with the body
+SKIN, HAIR, KNIT, GRID, NECK, CORE, CORE_BODY = 0, 1, 2, 3, 4, 5, 6   # NECK: skin that stays with the body; CORE: dark inside
 
 def compose(work):
     """The body from the bald reconstruction (skull, ears, neck, turtleneck), the hair from the haired
@@ -494,17 +497,22 @@ def compose(work):
     # opening, and the neck no longer looks cut off and pushed out under the jaw.
     r_neck = np.percentile(np.hypot(ring[:, 0] - axis[0], ring[:, 2] - axis[1]), 80)
     cpx = src_to_crop([(MOUTH['cx'], CHIN_Y)]); chin_y = unproject(cpx, at(cpx))[0, 1]
-    theta = np.abs(np.arctan2(bc[:, 0] - axis[0], bc[:, 2] - axis[1]))
-    neck |= ~knit & (radius < r_neck + 0.008) & (bc[:, 1] < chin_y - 0.005 + 0.08 * np.minimum(theta / (math.pi / 2), 1))
+    # The whole neck stays with the body, from the collar up to where it flares into the jaw and the
+    # skull (the surface leaves the neck's cylinder there): no seam across the middle of the neck.
+    neck |= ~knit & (radius < r_neck + 0.01) & (bc[:, 1] < chin_y + 0.12)
+    top_y = chin_y + 0.03
     print('compose: bald', len(BF), 'knit', knit.sum(), 'hair', hair.sum(), 'collar y', round(float(collar_y), 3))
     SP_, SF = hair_shell(HP, HF[hair])
     # Not over the face: where the photo shows skin near the front, no hair lies.
     sc_ = SP_[SF].mean(1); cp, sz = project(sc_); sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, photo.shape[0] - 1)
     pc = photo[sp[:, 1], sp[:, 0]]
     SF = SF[~((pc[:, 0] > pc[:, 2] + 30) & (sz < at(cp) + 0.04))]
-    P = np.concatenate([BP, HP, SP_])
-    F = np.concatenate([BF, HF[hair] + len(BP), SF + len(BP) + len(HP)])
-    label = np.concatenate([np.where(knit, KNIT, np.where(neck, NECK, SKIN)), np.full(hair.sum() + len(SF), HAIR)])
+    CP, CF = dark_core(BP, BF)
+    cc = CP[CF].mean(1)
+    P = np.concatenate([BP, HP, SP_, CP])
+    F = np.concatenate([BF, HF[hair] + len(BP), SF + len(BP) + len(HP), CF + len(BP) + len(HP) + len(SP_)])
+    label = np.concatenate([np.where(knit, KNIT, np.where(neck, NECK, SKIN)), np.full(hair.sum() + len(SF), HAIR),
+                            np.where(cc[:, 1] < top_y, CORE_BODY, CORE)])
     used = np.unique(F); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
     hair_points, hair_cols = hc[hair], hcol[hair]
     epx = src_to_crop([(626.0, IRISES[0][1])])
@@ -516,7 +524,8 @@ def compose(work):
         # Only the scalp, above the eyes: lower down the hair hangs over the cheeks, which stay skin.
         w = (smooth(0.03, 0.012, d) * smooth(eye_y - 0.01, eye_y + 0.03, points[:, 1]))[:, None]
         return col * (1 - w) + hair_cols[i] * 0.55 * w
-    pivot = np.array([axis[0], collar_y, axis[1]])
+    # The head turns and nods about the neck's own axis at the neck's top, so the neck does not shift.
+    pivot = np.array([axis[0], top_y, axis[1]])
     return P[used], remap[F].astype(np.int32), label, bald_colour, hair_tex, pivot
 
 def hair_shell(P, F, res=0.005):
@@ -536,6 +545,32 @@ def hair_shell(P, F, res=0.005):
     m = ms.current_mesh()
     print('hair shell', m.face_number(), 'faces')
     return m.vertex_matrix(), m.face_matrix().astype(np.int32)
+
+def dark_core(P, F, res=0.005):
+    """A closed surface 1 cm inside the head and body, shown black: wherever the scan's surface has a
+    gap (behind the ears, between strands) the eye meets dark, not the room behind."""
+    import pymeshlab
+    from skimage import measure
+    lo = P.min(0) - 0.02; shape = np.ceil((P.max(0) + 0.02 - lo) / res).astype(int) + 1
+    rng = np.random.default_rng(6)
+    pts = np.concatenate([np.einsum('k,fkd->fd', w, P[F]) for w in rng.dirichlet((1, 1, 1), size=8)] + [P])
+    occ = np.zeros(shape, bool); i = ((pts - lo) / res).astype(int); occ[i[:, 0], i[:, 1], i[:, 2]] = True
+    occ = ndimage.binary_closing(occ, structure=ndimage.generate_binary_structure(3, 1), iterations=1)
+    # Filled slice by slice (horizontal): the body is open at the bottom, so a 3D fill finds no inside.
+    for y in range(shape[1]):
+        occ[:, y, :] = ndimage.binary_fill_holes(occ[:, y, :])
+    occ = ndimage.binary_erosion(occ, iterations=2)
+    V, Fs, _, _ = measure.marching_cubes(ndimage.gaussian_filter(occ.astype(float), 1.0), 0.5)
+    ms = pymeshlab.MeshSet(); ms.add_mesh(pymeshlab.Mesh(V * res + lo, Fs[:, ::-1].astype(np.int32)))
+    ms.meshing_decimation_quadric_edge_collapse(targetfacenum=12000, preservenormal=True)
+    m = ms.current_mesh()
+    V, Fc = m.vertex_matrix(), m.face_matrix().astype(np.int32)
+    # Never near the skin: filled over concave places (the collar's fold, under the jaw, round the
+    # ears) it came through as black bands.
+    near = cKDTree(pts).query(V)[0] < 0.006
+    Fc = Fc[~near[Fc].any(1)]
+    print('dark core', len(Fc), 'faces')
+    return V, Fc
 
 def occlusion(P, F, VN, res=0.004, reach=0.06):
     """Ambient occlusion per vertex from a voxelised surface: the room light reaching a point past
@@ -816,14 +851,16 @@ def lid_overlays(front_depth, surface_normal, closed):
         crease = top - 3.0
         def opened(bottom):
             """Skin squeezed into the crease, the band ending at `bottom`, the hanging lashes folded."""
-            t_ = bottom - (margin + 2.0 - top)
+            t_ = bottom - (margin - 1.5 - top)
             return span(crease, t_, fs), span(t_, bottom, fb), flat(bottom, hang_rows)
         fade_rows = 4; ff = np.linspace(0, 1, fade_rows)
         hidden = flat(crease, fade_rows)                    # the fade above the lid: folded away unless closed
-        rest = opened(margin + 2.0) + (hidden,)
+        # Open, the band ends on the lash line itself: 2 px lower it carried the top of the photo's iris,
+        # which stayed in place when the iris moved up.
+        rest = opened(margin - 1.5) + (hidden,)
         closed_shape = (span(crease, edge - 3, fs), flat(edge - 3, band_rows), span(edge - 3, edge + HANG, fh), span(crease - 10, crease, ff))
-        shapes = {'blink': closed_shape, 'squint': opened(margin + 2.0 + (lower - margin) * 0.38) + (hidden,),
-                  'wide': opened(margin - 5.0) + (hidden,)}
+        shapes = {'blink': closed_shape, 'squint': opened(margin - 1.5 + (lower - margin) * 0.38) + (hidden,),
+                  'wide': opened(margin - 8.5) + (hidden,)}
         grid = lambda ys: np.stack([np.broadcast_to(x, ys.shape), ys], -1).reshape(-1, 2)
         to_closed = lambda px: (px - np.array([x0c, y0c])) / np.array([x1c - x0c, y1c - y0c])
         for k, material in ((0, 3), (1, 0), (2, 3), (3, 3)):
@@ -958,19 +995,27 @@ def build(work):
     # showed as dark specks. Hair is wound either way, so it counts by angle alone.
     fn = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
     toward = (fn * (np.array([0, 0, D]) - P[F].mean(1))).sum(1) / np.linalg.norm(np.array([0, 0, D]) - P[F].mean(1), axis=1)
-    front |= ((label == SKIN) & (toward > 0.3)) | ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
+    front |= ((label == SKIN) & (toward > 0.1)) | ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
     # The head shows the owner's photo; the neck inside the collar and the turtleneck show the bald
     # picture, which is drawn to the same frame and fits the bald body there. Where the two pictures
     # met on the forehead their slightly different light drew a broken line.
-    bald_src = Image.open(f'{work}/bald/kairo-bald-front.png').convert('RGB')
+    front &= label < CORE
+    photo_px = np.asarray(src).astype(float)
+    hair_px = (photo_px[..., 2] > photo_px[..., 0] + 12) | (photo_px.sum(-1) < 150)
+    near_hair = ndimage.distance_transform_edt(~hair_px) < 30
+    # The bald picture, toned to the photo on the face's open skin (it has the same face, lit alike).
+    bald_px = np.asarray(Image.open(f'{work}/bald/kairo-bald-front.png').convert('RGB')).astype(float)
+    open_skin = face_mask_src(src) & ~ndimage.binary_dilation(near_hair, iterations=10)
+    tone = np.median(photo_px[open_skin], 0) / (np.median(bald_px[open_skin], 0) + 1e-6)
+    print('bald picture tone', np.round(tone, 3))
+    bald_src = Image.fromarray(np.clip(bald_px * tone, 0, 255).astype(np.uint8))
     from_photo = label != KNIT
-    # Bald skin where the photo shows hair (the hair hanging over the cheeks, its shadow) keeps its own
-    # skin texture: painted with the photo there, the cheek showed a grey strip once the head turned.
+    # Below the eyes, skin near the photo's hair shows the bald picture: the photo's hair and its
+    # shadow, painted on the cheek, showed as grey strips and spots on the side of the head once the
+    # head turned. (At the hairline the photo's hair blends into the hair layer and stays.)
     cp, _ = project(P[F].mean(1)); sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, src.size[0] - 1)
-    pc = np.asarray(src).astype(float)[sp[:, 1], sp[:, 0]]
-    # Only below the eyes: at the hairline the photo's hair on the head blends into the hair layer.
     ec = src_to_crop([IRISES[0]]); eye_y = unproject(ec, ndimage.map_coordinates(FACE_INFO[0], [ec[:, 1], ec[:, 0]], order=1))[0, 1]
-    front &= ~((label == SKIN) & (P[F].mean(1)[:, 1] < eye_y) & vote(P, F, (pc[:, 2] > pc[:, 0] - 5) | (pc.sum(1) < 200)))
+    from_photo &= ~(((label == SKIN) | (label == GRID)) & (P[F].mean(1)[:, 1] < eye_y) & vote(P, F, near_hair[sp[:, 1], sp[:, 0]]))
     visible[grid_start:] = True
     # The front-most surface depth, holes filled and a little spread so a lid sits over the eyeball.
     zfill = np.where(np.isinf(zbuf), np.nan, zbuf)
@@ -1015,10 +1060,11 @@ def build(work):
     bald_gain = np.ones((5, 3)); bald_gain[SKIN] = bald_gain[NECK] = gain(SKIN, skin_colour, bald_src); bald_gain[KNIT] = gain(KNIT, skin_colour, bald_src)
     hair_gain = gain(HAIR, scan_colour, src)
     ao = occlusion(P, F, VN)
-    shade = 0.5 + 0.5 * ao
+    shade = 0.75 + 0.25 * ao          # stronger, the hanging hair greyed the cheek beneath it
     rest = np.where(~front & (label == HAIR))[0]
     rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q) * hair_gain, 4096, shade)
-    bare = np.where(~front & (label != HAIR))[0]
+    bare = np.where(~front & (label != HAIR) & (label < CORE))[0]
+    dark = np.where(label >= CORE)[0]
     bare_kind = cKDTree(P[F[bare]].mean(1))
     skin_uv, skin_tex = atlas(P, F[bare], lambda q: skin_colour(q, bald_gain[label[bare][bare_kind.query(q)[1]]]), 4096, shade)
     print('front faces', front.sum(), 'hair', len(rest), 'bald', len(bare))
@@ -1059,10 +1105,11 @@ def build(work):
     groups = [(F[photo], fpos, fuv, fnrm, fvis, label[photo], 0, True),
               (F[drawn], fpos, fuv, fnrm, fvis, label[drawn], 4, True),
               (*own(rest, rest_uv), 1, True),
-              (*own(bare, skin_uv), 2, True)]
+              (*own(bare, skin_uv), 2, True),
+              (*own(dark, np.zeros((len(dark), 3, 2))), 6, False)]
     for faces, pos, uv, nrm, vis, kind, material, morph in groups:
         # The turtleneck stays; everything else turns with the head.
-        is_head = (kind != KNIT) & (kind != NECK)
+        is_head = (kind != KNIT) & (kind != NECK) & (kind != CORE_BODY)
         for part, mask in (('head', is_head), ('body', ~is_head)):
             fs = faces[mask]
             if not len(fs): continue
@@ -1090,7 +1137,8 @@ def build(work):
     g = Glb()
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071})
     for name, img in (("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex)), ("skin", Image.fromarray(skin_tex)),
-                      ("lidskin", lid_texture(closed, src)), ("bald", bald_src), ("iris", iris_texture(src))):
+                      ("lidskin", lid_texture(closed, src)), ("bald", bald_src), ("iris", iris_texture(src)),
+                      ("core", Image.new('RGB', (4, 4), (8, 6, 8)))):
         if img.mode == 'RGBA':
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
         else:
@@ -1109,6 +1157,8 @@ def build(work):
             material["emissiveTexture"] = {"index": i}
             material["emissiveFactor"] = [0.9, 0.9, 0.9]
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0       # no highlights on the baked light
+        if name == "core":
+            material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0
         if name in ("lidskin", "iris"):
             material["alphaMode"] = "BLEND"
         g.gltf["materials"].append(material)
