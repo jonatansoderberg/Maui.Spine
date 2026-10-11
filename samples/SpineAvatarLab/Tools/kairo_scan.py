@@ -230,7 +230,9 @@ def eye_holes(shape, inset=0.0, grow_x=0.0):
     yy, xx = np.mgrid[0:shape[0], 0:shape[1]].astype(float)
     m = np.zeros(shape, bool)
     for lid in LIDS:
-        x0, x1 = lid_span(lid); x0, x1 = x0 - grow_x, x1 + grow_x
+        # The opening's own corners: reaching past the outer one (for the old lid surfaces), the hole
+        # put the photo's lash wing on the eyeball behind it, which stuck out past the face on a turn.
+        x0, x1 = lid['ux'][0] - 2 - grow_x, lid['ux'][-1] + 2 + grow_x
         top = np.interp(xx, lid['ux'], lid['uy']) + 0.5           # the lid margin: the lashes stay on the face
         # Down past the lower lid's line: a grid edge on it kept a sliver of the photo's iris, which
         # stayed behind when the iris moved.
@@ -306,9 +308,10 @@ def eye_parts(zs, surface_normal):
         return unproject(c, ndimage.map_coordinates(zs, [c[:, 1], c[:, 0]], order=1) + dz)
     out = []
     # Eyeball: a grid over each opening, grown well under the lids.
-    # Wide, sideways too: ending at the hole's sides, it let the room show through as a white line
-    # across the iris when the eyes looked toward a corner.
-    ball = eye_holes((int(SRC_W), int(SRC_W)), -22.0, 22.0)
+    # A little past the hole's sides (ending at them, the room showed through as a white line across
+    # the iris when the eyes looked toward a corner), but no further: 22 px out it reached the temple
+    # and stuck out past the face, with the photo's lash wing on it, when the head turned.
+    ball = eye_holes((int(SRC_W), int(SRC_W)), -14.0, 6.0)
     # Never past the face's own edge: beyond it the sheet (the photo's forehead and hair) showed
     # between the strands at the temple as beige shards when the head turned.
     ball &= ndimage.binary_erosion(FACE_MASK[0], iterations=3)
@@ -425,7 +428,7 @@ def face_surface(P, F, src, hair=None):
     # Sampled bilinearly: the grid step (1.6 px) against whole-pixel lookups quilted the surface.
     # Toward its edge the grid comes back onto the head's own surface: a step there showed as a thin
     # broken line round the forehead once the lab's camera saw it from a slightly different place.
-    edge = np.clip(ndimage.distance_transform_edt(face) / 14.0, 0, 1)
+    edge = np.clip(ndimage.distance_transform_edt(face) / 45.0, 0, 1)    # 45 crop px: at the temples the fitted surface bulged out past the skull
     head = np.where(finite & (zraw - front_env < 0.02), zraw, zs)
     head = ndimage.gaussian_filter(np.where(np.abs(head - zs) < 0.03, head, zs), 2)
     zg = edge * (zs - 0.004) + (1 - edge) * (head - 0.001)
@@ -559,12 +562,26 @@ def compose(work):
     hi = np.full(36, chin_y + 0.06); np.minimum.at(hi, sector(bc[under]), bc[under, 1])
     hi = ndimage.median_filter(hi, 5, mode='wrap')
     lo = rim + 0.006
-    hi = np.maximum(hi, lo + 0.015)
+    # At least NECK_TWIST high all round, and smooth round the neck: at the sides (the outline from
+    # behind) a 2 cm zone bent the neck sharply on every turn.
+    hi = ndimage.gaussian_filter1d(np.maximum(hi, lo + NECK_TWIST), 2, mode='wrap')
+    # Only the neck's own cylinder twists: the jaw and the chin lie outside it (further from the
+    # axis) and turn rigidly with the head. Twisting them bent the chin out of shape on every turn.
+    r_cyl = np.full(36, r_neck)
+    for k_ in range(36):
+        m = ~knit & (sector(bc) == k_) & (bc[:, 1] > rim[k_] + 0.01) & (bc[:, 1] < rim[k_] + 0.035)
+        if m.sum() > 5:
+            r_cyl[k_] = np.percentile(radius[m], 90)
+    r_cyl = ndimage.gaussian_filter1d(ndimage.median_filter(r_cyl, 5, mode='wrap'), 1.5, mode='wrap')
     def twist(p):
         t = (np.arctan2(p[:, 0] - axis[0], p[:, 2] - axis[1]) + math.pi) / (2 * math.pi) * 36 - 0.5
         i0 = np.floor(t).astype(int); f = t - i0; i0 %= 36; i1 = (i0 + 1) % 36
         l = lo[i0] * (1 - f) + lo[i1] * f; h = hi[i0] * (1 - f) + hi[i1] * f
-        return smooth(l, h, p[:, 1])
+        r = r_cyl[i0] * (1 - f) + r_cyl[i1] * f
+        t = np.clip((p[:, 1] - l) / (h - l), 0, 1)
+        w = 0.5 * (t + t * t * (3 - 2 * t))             # half linear: an even twist with soft ends
+        out = smooth(r + 0.006, r + 0.022, np.hypot(p[:, 0] - axis[0], p[:, 2] - axis[1]))
+        return np.maximum(w, out * (p[:, 1] > l + 0.01))
     wv = twist(BP)
     neck = ~knit & (wv[BF] < 0.999).any(1)
     jaw = hi
@@ -610,6 +627,7 @@ def compose(work):
     return P[used], remap[F].astype(np.int32), label, bald_colour, hair_tex, pivot
 
 BALD = os.environ.get('KAIRO_BALD') == '1'   # build the head without the hair layer (layer by layer)
+NECK_TWIST = 0.05              # the neck's shortest twisting length above the collar (model units)
 NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw underside y per sector), set by compose
 NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
 HAIR_REACH = 0.010             # strands further than this outside the hair's closed volume are dropped
@@ -1174,7 +1192,10 @@ def skin_bake(P, F, chart, px, colour, shade, work):
         better = dep[o] > depth[y[o], x[o]]
         img[y[o][better], x[o][better]] = col[o][better]; depth[y[o][better], x[o][better]] = dep[o][better]
     drawn = np.isfinite(depth)
-    _, (iy, ix) = ndimage.distance_transform_edt(~drawn, return_indices=True)
+    # Blue texels on the skin are hair the generator painted on the bald head (along the nape): they
+    # take the nearest skin instead.
+    stray = drawn & (img[..., 2] > img[..., 0] - 5)
+    _, (iy, ix) = ndimage.distance_transform_edt(~drawn | stray, return_indices=True)
     img = img[iy, ix]
     paint = f'{work}/{SKIN_PAINT}'
     if os.path.exists(paint):
