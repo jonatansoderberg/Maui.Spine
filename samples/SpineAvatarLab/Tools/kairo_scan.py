@@ -1,27 +1,30 @@
-"""Builds Kairo from a Pixal3D scan of the owner's front image, for the Spine Avatar Lab (#524).
+"""Builds Kairo from Pixal3D scans of the owner's pictures, for the Spine Avatar Lab (#524).
 
 Usage: python kairo_scan.py <work-dir> <out-dir> [poster-light.png poster-dark.png]
 
-<work-dir> holds what the generator produced from the front image:
-  kairo-front.png               the source image (1254 px, the owner's front view)
-  kairo-s42.glb                 Pixal3D single-view output (pixal3d.cpp, --webp off)
-  kairo-s42_base.png            its texture atlas
-  kairo-s42.svviews/input.png   the generator's cropped, matted input (camera space)
+<work-dir> holds what the generator produced:
+  kairo-front.png                       the owner's front photo (1254 px)
+  kairo-s42.glb, kairo-s42_base.png     Pixal3D single-view run of the photo (pixal3d.cpp, --webp off)
+  kairo-s42.svviews/input.png           its cropped, matted input (camera space)
+  bald/kairo-bald-front.png             the owner's bald picture, same framing
+  bald/kairo-bald-s42.glb (+ _base.png, .svviews)   Pixal3D run of the bald picture
+  assets-v2/kairo-eyes-closed-front.png the owner's eyes-closed picture, same framing
 Needs numpy, scipy, Pillow, trimesh, pymeshlab and scikit-image.
 
 Pipeline:
- 1. Weld the scan, turn it to face +Z and decimate it, keeping the eyes, brows and mouth at full
-    density (their morph targets move texture, which needs vertices).
- 2. Drop the hidden inner shell the generator leaves (faces never seen from 96 directions) and orient
-    the rest outward.
- 3. Texture: faces seen from the front camera map straight into the source image (the generator is
-    pixel-aligned, so the face is the picture itself); the rest get a per-triangle atlas coloured
-    from the generator's own texture. A closed shell just inside the hair fills the gaps between
-    strands.
+ 1. Weld, turn to face +Z and decimate both scans; keep only their outer surfaces. The bald run is
+    moved into the photo's crop (the cutter centres each subject, so the crops differ by 51 px).
+ 2. Compose: skull, ears, neck and turtleneck from the bald scan; only the hair from the haired one.
+    The neck inside the collar and the turtleneck stay put when the head turns.
+ 3. The face is one smooth height field textured with the photo, up to the hairline, with holes at
+    the eye openings: an eyeball (the photo with the irises painted out) and a round iris disc sit
+    behind them, and gaze moves the disc. Camera-facing head faces show the photo, the collar the bald
+    picture; the rest get per-triangle atlases from the generators' textures, colour-matched and
+    darkened by baked ambient occlusion.
  4. Morph targets as displacement fields drawn in image space and lifted back onto the surface:
-    blink, wide, squint and happy lids, eyes looking around, brows, and mouth shapes for
+    lids (their own surface, textured with the eyes-closed picture), brows and mouth shapes for
     expressions and the 15 visemes. Written as sparse accessors.
- 5. The head and the turtleneck are separate nodes; the head turns about the neck.
+ 5. The head turns about the neck's axis at the collar.
 """
 import hashlib, io, json, math, os, sys, zipfile
 import numpy as np
@@ -37,6 +40,12 @@ from plush_avatars import quat, wave, tiny_png, srgb_to_linear
 
 D, T, N = 2.83564091, math.tan(0.34906584 / 2), 1020   # pixal3d.cpp single-view camera, crop size
 S, OX, OY = 0.751, 45.0, 31.0                           # source px -> crop px (fitted, mean error 1.5)
+BALD_OY = -20.0     # the bald run's crop: the cutter centres the subject, and without hair it sits higher
+
+def reframe(p, dy):
+    """Points moved down the crop by dy px at their own depth: from one run's crop into another's."""
+    px, zc = project(p); px[:, 1] += dy
+    return unproject(px, zc)
 
 def project(p):
     """3D (facing +Z, camera at +D) -> crop px, and distance along the view axis."""
@@ -56,6 +65,8 @@ def src_to_crop(xy):
 EYES = [dict(cx=507.5, cy=522.0, half=72.0, upper=487.0, lower=552.0, crease=468.0),
         dict(cx=747.5, cy=520.0, half=72.0, upper=485.0, lower=551.0, crease=466.0)]
 IRIS_R = 34.0
+IRISES = [(507.5, 520.5), (747.5, 518.5)]   # iris centres (source px), from the unoccluded left, right and lower edges
+LOOK = {'look_left': (-14.0, 0.0), 'look_right': (14.0, 0.0), 'look_up': (0.0, -8.0), 'look_down': (0.0, 7.0)}
 # Lid margins measured on the source (x, y): the upper lid's edge where lashes meet the white, and
 # the lower lid. The lash band sits above the upper margin; the lid fold above that.
 LIDS = [dict(ux=[435, 460, 485, 510, 535, 552, 562], uy=[520, 495, 486, 484, 489, 500, 540],
@@ -72,9 +83,9 @@ FEATURES = [(507.5, 510.0, 105.0, 80.0), (747.5, 508.0, 105.0, 80.0), (626.0, 74
 
 # ---------------------------------------------------------------- stage 1: weld, turn, decimate
 
-def load_scan(work):
+def load_scan(path, faces=110000):
     import trimesh, pymeshlab
-    g = list(trimesh.load(f'{work}/kairo-s42.glb').geometry.values())[0]
+    g = list(trimesh.load(path).geometry.values())[0]
     v = np.asarray(g.vertices, float); f = np.asarray(g.faces, np.int32); uv = np.asarray(g.visual.uv, float)
     turn = np.array([-1.0, 1.0, -1.0])                  # the generator writes -Z forward; a rotation, not a mirror
     orig = (v * turn, uv)
@@ -92,11 +103,15 @@ def load_scan(work):
     ms.add_mesh(pymeshlab.Mesh(vertex_matrix=P, face_matrix=F, f_scalar_array=(~keep).astype(float)))
     ms.meshing_remove_duplicate_faces(); ms.meshing_remove_unreferenced_vertices()
     ms.compute_selection_by_condition_per_face(condselect='fq > 0.5')
-    ms.meshing_decimation_quadric_edge_collapse(targetfacenum=110000, qualitythr=0.4, preservenormal=True,
+    ms.meshing_decimation_quadric_edge_collapse(targetfacenum=faces, qualitythr=0.4, preservenormal=True,
                                                 optimalplacement=True, planarquadric=True, selected=True)
     m = ms.current_mesh()
     print('decimated', m.face_number(), 'faces; features kept', keep.sum())
     return m.vertex_matrix(), m.face_matrix(), orig
+
+def compact(P, F):
+    used = np.unique(F); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
+    return P[used], remap[F].astype(np.int32)
 
 def front_zbuffer(P, F, cell=4):
     """The nearest depth per image cell. Point samples leave most full-resolution pixels empty, and
@@ -113,7 +128,9 @@ def front_zbuffer(P, F, cell=4):
 
 # ---------------------------------------------------------------- stage 2: outer surface only
 
-def outer_surface(P, F, R=640, n=96):
+def seen_from_outside(P, F, R=640, n=96, share=0.5):
+    """How many of n directions round the model see each face (orthographic, a z-buffer per direction),
+    and the sum of those directions."""
     rng = np.random.default_rng(1)
     bary = np.concatenate([np.eye(3), rng.dirichlet((1, 1, 1), size=9), [[1 / 3, 1 / 3, 1 / 3]]])
     pts = np.einsum('bk,fkd->fbd', bary, P[F]); nf, nb = pts.shape[:2]; flat = pts.reshape(-1, 3)
@@ -128,14 +145,21 @@ def outer_surface(P, F, R=640, n=96):
         u = ((flat @ x / ext * 0.5 + 0.5) * (R - 1)).astype(int); v = ((flat @ y / ext * 0.5 + 0.5) * (R - 1)).astype(int)
         depth = -(flat @ d)
         zb = np.full((R, R), np.inf); np.minimum.at(zb, (v, u), depth)
-        vis = (depth <= zb[v, u] + 0.004).reshape(nf, nb).mean(1) > 0.5
+        vis = (depth <= zb[v, u] + 0.004).reshape(nf, nb).mean(1) > share
         seen += vis; dir_sum[vis] += d
+    return seen, dir_sum
+
+def face_toward(P, F, dir_sum):
     fn = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]])
     flip = (fn * dir_sum).sum(1) < 0
-    F2 = F.copy(); F2[flip] = F2[flip][:, ::-1]; F2 = F2[seen > 0]
-    used = np.unique(F2); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
-    print('outer faces', len(F2), 'of', nf)
-    return P[used], remap[F2]
+    F = F.copy(); F[flip] = F[flip][:, ::-1]
+    return F
+
+def outer_surface(P, F):
+    seen, dir_sum = seen_from_outside(P, F)
+    F2 = face_toward(P, F, dir_sum)[seen > 0]
+    print('outer faces', len(F2), 'of', len(F))
+    return compact(P, F2)
 
 def eye_mask(scale=1.0):
     """Crop-space mask over both eyes and their sockets."""
@@ -155,9 +179,12 @@ def face_mask_src(src):
     yy, xx = np.mgrid[0:h, 0:w]
     # Down to the jaw line only: below it the scan's own neck carries on into the collar.
     jaw = CHIN_Y - 0.0042 * (xx - 626.0) ** 2
-    oval = (((xx - 626) / 205) ** 2 + ((yy - 640) / 268) ** 2 < 1) & (yy < jaw)
+    # Up to the hairline: ending on the bare forehead, the grid's edge showed as a broken arc there.
+    up = yy < 640
+    oval = (((xx - 626) / np.where(up, 235, 205)) ** 2 + ((yy - 640) / np.where(up, 390, 268)) ** 2 < 1) & (yy < jaw)
     hair = (a[..., 2] > a[..., 0] + 12) | (a.sum(-1) < 150)
-    hair = ndimage.binary_dilation(ndimage.binary_opening(hair, iterations=2), iterations=4)
+    # Strands thinner than ~10 px stay on the face: cut out, they left a crack across the forehead.
+    hair = ndimage.binary_dilation(ndimage.binary_opening(hair, iterations=5), iterations=4)
     m = oval & ~hair
     # Keep the eyes, brows and mouth whole even where they read as dark or blue.
     for x, y, rx, ry in FEATURES:
@@ -169,16 +196,130 @@ def face_mask_src(src):
         sizes = ndimage.sum(m, labels, range(1, n + 1)); m = labels == (1 + int(np.argmax(sizes)))
     return m
 
+def face_mask_crop(src):
+    yy, xx = np.mgrid[0:N, 0:N]
+    mask = face_mask_src(src)
+    return mask[((yy - OY) / S).astype(int).clip(0, mask.shape[0] - 1), ((xx - OX) / S).astype(int).clip(0, mask.shape[1] - 1)]
+
+def eye_openings(shape, inset=0.0):
+    """The eye openings in source px: between the upper lid's margin and the lower lid, `inset` px
+    in from both (negative grows them)."""
+    yy, xx = np.mgrid[0:shape[0], 0:shape[1]].astype(float)
+    m = np.zeros(shape, bool)
+    for lid in LIDS:
+        x0, x1 = min(lid['ux'][0], lid['lx'][0]) + inset, max(lid['ux'][-1], lid['lx'][-1]) - inset
+        up = np.interp(xx, lid['ux'], lid['uy']); lo = np.interp(xx, lid['lx'], lid['ly'])
+        m |= (xx > x0) & (xx < x1) & (yy > up + inset) & (yy < lo - inset)
+    return m
+
+def src_mask_to_crop(mask):
+    yy, xx = np.mgrid[0:N, 0:N]
+    return mask[((yy - OY) / S).astype(int).clip(0, mask.shape[0] - 1), ((xx - OX) / S).astype(int).clip(0, mask.shape[1] - 1)]
+
+def sclera_photo(src):
+    """The photo with the irises painted out of the openings, row by row from the white beside them:
+    the eyeball behind the lids shows this, and a round iris moves over it."""
+    a = np.asarray(src).astype(float).copy()
+    opening = eye_openings(a.shape[:2], -3.0)
+    for cx, cy in IRISES:
+        reach = IRIS_R + 5
+        for y in range(int(cy - reach), int(cy + reach) + 1):
+            half = math.sqrt(max(reach ** 2 - (y - cy) ** 2, 0.0))
+            xl, xr = int(cx - half) - 2, int(cx + half) + 2
+            row = opening[y, xl:xr + 1]
+            if not row.any():
+                continue
+            left = np.median(a[y - 1:y + 2, xl - 3:xl], axis=(0, 1)); right = np.median(a[y - 1:y + 2, xr + 1:xr + 4], axis=(0, 1))
+            t = np.linspace(0, 1, xr - xl + 1)[:, None]
+            fill = left * (1 - t) + right * t
+            a[y, xl:xr + 1] = np.where(row[:, None], fill, a[y, xl:xr + 1])
+    # Smoothed by diffusion inside the painted area: the row-by-row fill alone streaked.
+    painted = opening & (a != np.asarray(src)).any(-1)
+    painted = ndimage.binary_dilation(painted, iterations=2) & opening
+    for _ in range(400):
+        avg = (np.roll(a, 1, 0) + np.roll(a, -1, 0) + np.roll(a, 1, 1) + np.roll(a, -1, 1)) / 4
+        a[painted] = avg[painted]
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+
+IRIS_TILE, IRIS_SPAN = 128, 38.0            # one eye per tile; the tile covers +-IRIS_SPAN source px
+
+def iris_texture(src):
+    """Both irises, completed: the photo's upper lid hides the top of each, which is filled from the
+    mirror image below (an iris is near enough symmetric). The rim fades into the white."""
+    a = np.asarray(src).astype(float)
+    tex = np.zeros((IRIS_TILE, IRIS_TILE * 2, 4))
+    t = (np.arange(IRIS_TILE) + 0.5 - IRIS_TILE / 2) * IRIS_SPAN / (IRIS_TILE / 2)
+    dx, dy = np.meshgrid(t, t)
+    for i, ((cx, cy), lid) in enumerate(zip(IRISES, LIDS)):
+        x, y = cx + dx, cy + dy
+        hidden = y < np.interp(x, lid['ux'], lid['uy']) + 3.0
+        sy = np.where(hidden, cy - dy, y)
+        # The filled top sits in the lid's shadow: mirrored as it is, it showed as a pale cap.
+        shade = 0.55 + 0.45 * smooth(-IRIS_R, -IRIS_R * 0.35, dy)
+        for ch in range(3):
+            tex[:, i * IRIS_TILE:(i + 1) * IRIS_TILE, ch] = ndimage.map_coordinates(a[..., ch], [sy, x], order=1) * shade
+        r = np.hypot(dx, dy)
+        tex[:, i * IRIS_TILE:(i + 1) * IRIS_TILE, 3] = 255 * (1 - smooth(IRIS_R - 1.5, IRIS_R + 1.5, r))
+    return Image.fromarray(np.clip(tex, 0, 255).astype(np.uint8), 'RGBA')
+
+def eye_parts(zs, surface_normal):
+    """An eyeball behind each opening (the sclera photo at the face's depth, 5 mm behind the face
+    grid) and a round iris disc just in front of it. Gaze moves the disc: the lids cover it as real
+    lids do, so the iris stays round (moving the photo's own iris under the lids squeezed it)."""
+    def at_depth(src_px, dz):
+        c = src_to_crop(src_px)
+        return unproject(c, ndimage.map_coordinates(zs, [c[:, 1], c[:, 0]], order=1) + dz)
+    out = []
+    # Eyeball: a grid over each opening, grown well under the lids.
+    ball = eye_openings((int(SRC_W), int(SRC_W)), -10.0)
+    ys, xs = np.mgrid[0:int(SRC_W):2, 0:int(SRC_W):2]
+    inside = ball[ys, xs]
+    vid = np.full(xs.shape, -1); vid[inside] = np.arange(inside.sum())
+    a, b, c, d = vid[:-1, :-1], vid[:-1, 1:], vid[1:, :-1], vid[1:, 1:]
+    ok = (a >= 0) & (b >= 0) & (c >= 0) & (d >= 0)
+    faces = np.concatenate([np.stack([a[ok], c[ok], b[ok]], 1), np.stack([b[ok], c[ok], d[ok]], 1)]).reshape(-1)
+    spx = np.stack([xs[inside], ys[inside]], 1).astype(float)
+    pos = at_depth(spx, 0.003)          # 3 mm behind the iris: closer, it covered the iris on a turn
+    out.append(dict(pos=pos, nrm=surface_normal(pos), uv=spx / SRC_W, idx=faces.astype(np.uint32), material=0,
+                    targets=[np.zeros_like(pos) for _ in TARGETS]))
+    # Iris discs.
+    rings, segs = 10, 64
+    pts, uv, idx, base = [], [], [], 0
+    for i, (cx, cy) in enumerate(IRISES):
+        r = np.linspace(0, IRIS_R + 2, rings + 1)[1:]; th = np.linspace(0, 2 * math.pi, segs, endpoint=False)
+        ring = np.stack([cx + np.outer(r, np.cos(th)).ravel(), cy + np.outer(r, np.sin(th)).ravel()], 1)
+        p = np.concatenate([[[cx, cy]], ring])
+        pts.append(p)
+        uv.append(np.stack([(i * IRIS_TILE + IRIS_TILE / 2 + (p[:, 0] - cx) * (IRIS_TILE / 2) / IRIS_SPAN) / (2 * IRIS_TILE),
+                            (IRIS_TILE / 2 + (p[:, 1] - cy) * (IRIS_TILE / 2) / IRIS_SPAN) / IRIS_TILE], 1))
+        for s_ in range(segs):
+            idx += [base, base + 1 + (s_ + 1) % segs, base + 1 + s_]
+        for k in range(rings - 1):
+            for s_ in range(segs):
+                a0 = base + 1 + k * segs + s_; a1 = base + 1 + k * segs + (s_ + 1) % segs
+                idx += [a0, a1 + segs, a0 + segs, a0, a1, a1 + segs]
+        base += len(p)
+    spx = np.concatenate(pts); pos = at_depth(spx, 0.0)
+    _, zc = project(pos)
+    targets = []
+    for name in TARGETS:
+        if name in LOOK:
+            targets.append(unproject(src_to_crop(spx + np.array(LOOK[name])), zc) - pos)
+        else:
+            targets.append(np.zeros_like(pos))
+    out.append(dict(pos=pos, nrm=surface_normal(pos), uv=np.concatenate(uv), idx=np.array(idx, np.uint32), material=5, targets=targets))
+    return out
+
 SURFACE_SMOOTHING = 2.0
+DROP_BEHIND = 0.025         # scan faces this far behind the face grid go; deeper ones (under the jaw) stay
 GRID_NORMALS = []
 FACE_INFO = []
 
-def face_surface(P, F, src):
+def face_surface(P, F, src, hair=None):
     """Replace the scan's face with one dense, smooth height field over the face, at the scan's own
     depth (smoothed, with the eye sockets filled). The generator's eyes are hollows and its face is
     crumpled; the picture is the face, so a smooth surface under it reads true, lids slide cleanly
     over it, and no seams are left round the eyes. Hair and the sides keep the scan."""
-    mask_src = face_mask_src(src)
     inp, zc = project(P)
     # The front-most depth of the scan, densely sampled over its triangles.
     rng = np.random.default_rng(4)
@@ -189,9 +330,7 @@ def face_surface(P, F, src):
         sp, sz = project(pts); ix = np.clip(sp.astype(int), 0, N - 1)
         np.minimum.at(zraw, (ix[:, 1], ix[:, 0]), sz)
     yy, xx = np.mgrid[0:N, 0:N]
-    # Crop-space mask of the face.
-    srcx = ((xx - OX) / S).astype(int).clip(0, mask_src.shape[1] - 1); srcy = ((yy - OY) / S).astype(int).clip(0, mask_src.shape[0] - 1)
-    face = mask_src[srcy, srcx]
+    face = face_mask_crop(src)
     # Trusted depth: on the face, outside the eye sockets, and not an outlier against its neighbourhood
     # (hair strands in front, holes behind). Everything else is filled smoothly from it, so nothing
     # outside the face (bangs, the back of the head) pulls on the surface.
@@ -222,18 +361,32 @@ def face_surface(P, F, src):
     vp, vz = project(P); vi2 = np.clip(vp.astype(int), 0, N - 1)
     # Only well inside the grid's edge, so the scan overlaps the edge instead of leaving a gap.
     inner = ndimage.binary_erosion(face, iterations=4)
-    near_face = inner[vi2[:, 1], vi2[:, 0]] & (vz < zs[vi2[:, 1], vi2[:, 0]] + 0.12)
-    over = near_face[F].any(1)
+    near_face = inner[vi2[:, 1], vi2[:, 0]] & (vz < zs[vi2[:, 1], vi2[:, 0]] + DROP_BEHIND)
+    # All corners inside: dropping a face with one corner inside left a hole past the grid's edge
+    # (the bald scan's faces are larger than the margin), and the hair behind showed through as specks.
+    over = near_face[F].all(1)
+    if hair is not None:
+        # Hair over the face is the picture's own (thin strands stay in it): scan strands left at the
+        # grid's edge poked through it as dark specks.
+        wide = ndimage.binary_dilation(face, iterations=3)
+        over |= hair & wide[vi2[:, 1], vi2[:, 0]][F].any(1) & (vz < zs[vi2[:, 1], vi2[:, 0]] + 0.01)[F].any(1)
     F = F[~over]
     # The grid, a hair in front of where the scan was.
     step = 1.6
     gx = np.arange(0, N, step); gy = np.arange(0, N, step)
     GX, GY = np.meshgrid(gx, gy)
-    ins = face[GY.astype(int), GX.astype(int)]
+    # The eye openings are holes: an eyeball and a round iris sit behind them (eye_parts).
+    ins = face[GY.astype(int), GX.astype(int)] & ~src_mask_to_crop(eye_openings((int(SRC_W), int(SRC_W)), 1.0))[GY.astype(int), GX.astype(int)]
     vid = np.full(GX.shape, -1); vid[ins] = np.arange(ins.sum()) + len(P)
     px = np.stack([GX[ins], GY[ins]], 1)
     # Sampled bilinearly: the grid step (1.6 px) against whole-pixel lookups quilted the surface.
-    gp = unproject(px, ndimage.map_coordinates(zs, [px[:, 1], px[:, 0]], order=1) - 0.004)
+    # Toward its edge the grid comes back onto the head's own surface: a step there showed as a thin
+    # broken line round the forehead once the lab's camera saw it from a slightly different place.
+    edge = np.clip(ndimage.distance_transform_edt(face) / 14.0, 0, 1)
+    head = np.where(finite & (zraw - front_env < 0.02), zraw, zs)
+    head = ndimage.gaussian_filter(np.where(np.abs(head - zs) < 0.03, head, zs), 2)
+    zg = edge * (zs - 0.004) + (1 - edge) * (head - 0.001)
+    gp = unproject(px, ndimage.map_coordinates(zg, [px[:, 1], px[:, 0]], order=1))
     a, b, c, d = vid[:-1, :-1], vid[:-1, 1:], vid[1:, :-1], vid[1:, 1:]
     ok = (a >= 0) & (b >= 0) & (c >= 0) & (d >= 0)
     gf = np.concatenate([np.stack([a[ok], c[ok], b[ok]], 1), np.stack([b[ok], c[ok], d[ok]], 1)])
@@ -249,7 +402,7 @@ def face_surface(P, F, src):
     GRID_NORMALS[:] = [gn]
     FACE_INFO[:] = [zs, ndimage.binary_dilation(face, iterations=3)]
     print('face grid', ins.sum(), 'vertices,', len(gf), 'faces; scan faces dropped', over.sum())
-    return np.concatenate([P, gp]), np.concatenate([F, gf]).astype(np.int32), len(P)
+    return np.concatenate([P, gp]), np.concatenate([F, gf]).astype(np.int32), len(P), ~over
 
 def vertex_normals(P, F):
     fn = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]])
@@ -257,34 +410,108 @@ def vertex_normals(P, F):
     for k in range(3): np.add.at(vn, F[:, k], fn)
     return vn / (np.linalg.norm(vn, axis=1, keepdims=True) + 1e-12)
 
-def underlay(P, F):
-    import pymeshlab
-    from skimage import measure
-    lo, hi = P.min(0) - 0.03, P.max(0) + 0.03; res = 0.006
-    shape = np.ceil((hi - lo) / res).astype(int) + 1
-    rng = np.random.default_rng(0)
-    pts = np.concatenate([np.einsum('k,fkd->fd', w, P[F]) for w in rng.dirichlet((1, 1, 1), size=24)] + [P])
-    idx = np.clip(((pts - lo) / res).astype(int), 0, shape - 1)
-    occ = np.zeros(shape, bool); occ[idx[:, 0], idx[:, 1], idx[:, 2]] = True
-    occ = ndimage.binary_closing(occ, structure=ndimage.generate_binary_structure(3, 1), iterations=4)
-    occ = ndimage.binary_erosion(ndimage.binary_fill_holes(occ), iterations=2)
-    V, Fu, _, _ = measure.marching_cubes(ndimage.gaussian_filter(occ.astype(float), 1.2), 0.5)
-    ms = pymeshlab.MeshSet(); ms.add_mesh(pymeshlab.Mesh(V * res + lo, Fu[:, ::-1].astype(np.int32)))
-    ms.meshing_decimation_quadric_edge_collapse(targetfacenum=30000, preservenormal=True)
-    m = ms.current_mesh(); UP, UF = m.vertex_matrix(), m.face_matrix()
-    # Only the hair needs it: across the face it came up to the filled eye sockets and showed through.
-    fc, _ = project(UP[UF].mean(1))
-    face = src_to_crop((626, 640)); r = np.array([175, 250]) * S
-    in_face = (((fc - face) / r) ** 2).sum(1) < 1
-    UF = UF[~(in_face & (UP[UF].mean(1)[:, 2] > 0))]
-    un = np.cross(UP[UF[:, 1]] - UP[UF[:, 0]], UP[UF[:, 2]] - UP[UF[:, 0]])
-    if (un * (UP[UF].mean(1) - UP.mean(0))).sum(1).mean() < 0:
-        UF = UF[:, ::-1]
-    return UP, UF
+def texture_sampler(orig, path):
+    """Colours of a generator texture at points near its own surface."""
+    op, ouv = orig
+    tex = np.asarray(Image.open(path).convert('RGB')); tree = cKDTree(op)
+    def sample(points):
+        _, i = tree.query(points, k=1); u = ouv[i]
+        return tex[np.clip(((1 - u[:, 1]) * tex.shape[0]).astype(int), 0, tex.shape[0] - 1),
+                   np.clip((u[:, 0] * tex.shape[1]).astype(int), 0, tex.shape[1] - 1)].astype(float)
+    return sample
+
+def vote(P, F, flag, r=0.008):
+    """A per-face flag, settled by the faces around it: single faces of the wrong colour flecked it."""
+    c = P[F].mean(1)
+    return np.array([flag[n].mean() for n in cKDTree(c).query_ball_point(c, r)]) > 0.5
+
+SKIN, HAIR, KNIT, GRID, NECK = 0, 1, 2, 3, 4      # NECK: skin that stays with the body
+
+def compose(work):
+    """The body from the bald reconstruction (skull, ears, neck, turtleneck), the hair from the haired
+    one. The haired scan alone fused hair and head into one shell with holes; under a separate hair
+    layer the bald head stays whole, and a gap between strands shows scalp, not the room. Mixing the
+    two turtlenecks failed: they disagree by 1-2 cm round the neck."""
+    HP, HF, horig = load_scan(f'{work}/kairo-s42.glb'); HP, HF = outer_surface(HP, HF)
+    BP, BF, borig = load_scan(f'{work}/bald/kairo-bald-s42.glb', 90000); BP, BF = outer_surface(BP, BF)
+    # Each run is pixel-aligned to its own crop and the two source images to each other, so the bald
+    # mesh moves by the difference of the crops (51 px, about 4.5 cm at the head).
+    BP = reframe(BP, OY - BALD_OY); borig = (reframe(borig[0], OY - BALD_OY), borig[1])
+    hair_tex = texture_sampler(horig, f'{work}/kairo-s42_base.png')
+    bald_tex = texture_sampler(borig, f'{work}/bald/kairo-bald-s42_base.png')
+    hc, bc = HP[HF].mean(1), BP[BF].mean(1)
+    hcol, bcol = hair_tex(hc), bald_tex(bc)
+    # Both runs share the generator's camera and crop (the images are framed alike), so the two
+    # meshes line up as they are. Hair: dark blue; knit: light, grey-lavender; skin: warm.
+    lum = hcol.mean(1)
+    hair = vote(HP, HF, ((hcol[:, 2] > hcol[:, 0] + 10) & (lum < 115)) | (lum < 40))
+    at, _ = front_zbuffer(BP, BF)
+    cpx = src_to_crop([(MOUTH['cx'], COLLAR_Y)])
+    collar_y = unproject(cpx, at(cpx))[0, 1]
+    hair &= hc[:, 1] > collar_y - 0.02
+    # Where the photo shows skin, no strand lies on it: scan strands there poked through the forehead.
+    photo = np.asarray(Image.open(f'{work}/kairo-front.png').convert('RGB')).astype(float)
+    cp, hz = project(hc); sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, photo.shape[0] - 1)
+    pc = photo[sp[:, 1], sp[:, 0]]
+    hair &= ~((pc[:, 0] > pc[:, 2] + 30) & (hz < at(cp) + 0.015))
+    # The turtleneck stays put while the head turns: the bald run's knit, below the chin.
+    knit = vote(BP, BF, ~(bcol[:, 0] > bcol[:, 2] + 15)) & (bc[:, 1] < collar_y + 0.08)
+    # The neck inside the collar stays with the body: turning with the head it swept out through the
+    # collar's side. The split follows the collar's rim, which rises toward the back.
+    ring = bc[~knit & (np.abs(bc[:, 1] - collar_y) < 0.015)]
+    axis = np.array([ring[:, 0].mean(), ring[:, 2].mean()])
+    def sector(c): return ((np.arctan2(c[:, 0] - axis[0], c[:, 2] - axis[1]) + math.pi) / (2 * math.pi) * 36).astype(int) % 36
+    radius = np.hypot(bc[:, 0] - axis[0], bc[:, 2] - axis[1])
+    collar = knit & (radius < 0.12)
+    rim = np.full(36, collar_y); np.maximum.at(rim, sector(bc[collar]), bc[collar, 1])
+    # Everything below the rim stays, whatever its colour: warm specks in the knit's texture went with
+    # the head and swept over the collar.
+    neck = ~knit & (bc[:, 1] < rim[sector(bc)] + 0.002)
+    print('compose: bald', len(BF), 'knit', knit.sum(), 'hair', hair.sum(), 'collar y', round(float(collar_y), 3))
+    P = np.concatenate([BP, HP])
+    F = np.concatenate([BF, HF[hair] + len(BP)])
+    label = np.concatenate([np.where(knit, KNIT, np.where(neck, NECK, SKIN)), np.full(hair.sum(), HAIR)])
+    used = np.unique(F); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
+    hair_points, hair_cols = hc[hair], hcol[hair]
+    epx = src_to_crop([(626.0, IRISES[0][1])])
+    eye_y = unproject(epx, at(epx))[0, 1]
+    def bald_colour(points, gain=1.0):
+        """The bald texture, turned to the hair's own dark under the hair: the scalp between strands."""
+        col = bald_tex(points) * gain
+        d, i = cKDTree(hair_points).query(points)
+        # Only the scalp, above the eyes: lower down the hair hangs over the cheeks, which stay skin.
+        w = (smooth(0.03, 0.012, d) * smooth(eye_y - 0.01, eye_y + 0.03, points[:, 1]))[:, None]
+        return col * (1 - w) + hair_cols[i] * 0.55 * w
+    pivot = np.array([axis[0], collar_y, axis[1]])
+    return P[used], remap[F].astype(np.int32), label, bald_colour, hair_tex, pivot
+
+def occlusion(P, F, VN, res=0.004, reach=0.06):
+    """Ambient occlusion per vertex from a voxelised surface: the room light reaching a point past
+    the shapes round it. The generator's textures carry almost none, so ears, the neck under the
+    jaw and the collar read flat once the head turns."""
+    lo = P.min(0) - reach; shape = np.ceil((P.max(0) + reach - lo) / res).astype(int) + 1
+    rng = np.random.default_rng(3)
+    pts = np.concatenate([np.einsum('k,fkd->fd', w, P[F]) for w in rng.dirichlet((1, 1, 1), size=6)] + [P])
+    occ = np.zeros(shape, bool); i = ((pts - lo) / res).astype(int); occ[i[:, 0], i[:, 1], i[:, 2]] = True
+    k = np.arange(40) + 0.5
+    phi = np.arccos(1 - 2 * k / 40); th = math.pi * (1 + 5 ** 0.5) * k
+    dirs = np.stack([np.sin(phi) * np.cos(th), np.cos(phi), np.sin(phi) * np.sin(th)], 1)
+    steps = np.arange(0.012, reach, res)
+    ao = np.ones(len(P))
+    for chunk in np.array_split(np.arange(len(P)), max(1, len(P) // 8000)):
+        n = VN[chunk]; w = np.clip(n @ dirs.T, 0, None)                       # cosine weight per direction
+        o = P[chunk] + n * 0.006
+        hit = np.zeros(w.shape, bool)
+        for d in steps:
+            q = ((o[:, None, :] + dirs[None] * d - lo) / res).astype(int)
+            q = np.clip(q, 0, shape - 1)
+            hit |= occ[q[..., 0], q[..., 1], q[..., 2]]
+        ao[chunk] = 1 - (w * hit).sum(1) / (w.sum(1) + 1e-9)
+    return ao
 
 # ---------------------------------------------------------------- stage 3: textures
 
-def atlas(P, F, sample, size, darken=1.0):
+def atlas(P, F, sample, size, shade=None):
     """Every triangle its own half-cell in an atlas, coloured by `sample` at points on it."""
     cells = int(np.ceil(np.sqrt(len(F) / 2))); cs = size // cells
     lo, hi = 1.0 / cs, 1 - 1.0 / cs
@@ -305,7 +532,10 @@ def atlas(P, F, sample, size, darken=1.0):
         ck = ks // 2
         px = (ck % cells)[:, None] * cs + np.where(m)[1][None, :]
         py = (ck // cells)[:, None] * cs + np.where(m)[0][None, :]
-        tex[py.reshape(-1), px.reshape(-1)] = (sample(pts.reshape(-1, 3)) * darken).astype(np.uint8)
+        col = sample(pts.reshape(-1, 3)).reshape(len(ks), -1, 3)
+        if shade is not None:
+            col = col * (shade[F[ks, 0]][:, None] * w0 + shade[F[ks, 1]][:, None] * w1 + shade[F[ks, 2]][:, None] * w2)[..., None]
+        tex[py.reshape(-1), px.reshape(-1)] = np.clip(col, 0, 255).reshape(-1, 3).astype(np.uint8)
     return uv, tex
 
 def front_faces(P, F, work):
@@ -314,6 +544,8 @@ def front_faces(P, F, work):
     vi = np.clip(inp.astype(int), 0, N - 1)
     visible = zc <= zb_at(inp) + 0.02
     alpha = np.asarray(Image.open(f'{work}/kairo-s42.svviews/input.png').convert('RGBA'))[..., 3]
+    bald = np.roll(np.asarray(Image.open(f'{work}/bald/kairo-bald-s42.svviews/input.png').convert('RGBA'))[..., 3], int(OY - BALD_OY), 0)
+    alpha = np.maximum(alpha, bald)
     solid = alpha[vi[:, 1], vi[:, 0]] > 235
     fn = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
     view = np.array([0, 0, D]) - P[F].mean(1); view /= np.linalg.norm(view, axis=1, keepdims=True)
@@ -376,12 +608,7 @@ def eye_field(xy, kind):
             mid = (y > yu) & (y < yl)
             ny = np.where(mid, target_u + (y - yu) * (target_l - target_u) / np.maximum(yl - yu, 1e-3), ny)
             d[:, 1] += np.where(inside_x, (ny - y) * across, 0)
-        elif kind.startswith('look_'):
-            # The iris slides inside the opening; the white compresses on the side it moves to.
-            r = np.sqrt(((x - e['cx']) / e['half']) ** 2 + ((y - (yu + yl) / 2) / np.maximum((yl - yu) / 2, 1e-3)) ** 2)
-            w = 1 - smooth(0.55, 0.98, r)
-            amount = {'look_left': (-11, 0), 'look_right': (11, 0), 'look_up': (0, -6), 'look_down': (0, 5)}[kind]
-            d += np.stack([w * amount[0], w * amount[1]], 1) * ((y > yu - 2) & (y < yl + 2))[:, None]
+        # look_*: the iris disc moves (eye_parts); the face stays.
     return d
 
 def brow_field(xy, kind):
@@ -451,65 +678,72 @@ def field(xy, name):
     if name.startswith('brow_'): return brow_field(xy, name[5:])
     return mouth_field(xy, name)
 
-def lid_skin_texture(src):
-    """A small texture of clean lid skin for the closing lids: the skin under each eye (no lashes,
-    no brow hairs), a touch darker toward the crease and the corners."""
-    a = np.asarray(src).astype(float)
-    tiles = []
-    for lid in LIDS:
-        cx = (lid['ux'][0] + lid['ux'][-1]) / 2
-        y = max(lid['ly']) + 26
-        patch = a[int(y) - 6:int(y) + 6, int(cx) - 30:int(cx) + 30].reshape(-1, 3)
-        tiles.append(np.median(patch, axis=0))
-    tex = np.zeros((32, 64, 4))
-    for i, c in enumerate(tiles):
-        v = np.linspace(0, 1, 32)[:, None]                 # 0 at the crease, 1 at the lash line
-        u = np.abs(np.linspace(-1, 1, 32))[None, :]
-        # A soft shadow in the crease and toward the lashes, as a closed lid has.
-        shade = (0.9 + 0.06 * np.sin(np.pi * v) ** 0.5 - 0.05 * v ** 4) * (1 - 0.04 * u ** 2)
-        tex[:, i * 32:(i + 1) * 32, :3] = c[None, None, :] * shade[..., None]
-        # Faded in from the crease, so the lid has no edge against the face above it.
-        tex[:, i * 32:(i + 1) * 32, 3] = 255 * np.clip(v / 0.35, 0, 1) ** 1.5 * np.ones_like(u)
-    return Image.fromarray(np.clip(tex, 0, 255).astype(np.uint8), 'RGBA')
+LID_CROP = (400, 420, 860, 630)        # source px of the eyes-closed picture kept for the lids
+LID_SCALE = 2                          # texture px per source px
+HANG = 16.0                            # how far the closed lashes hang below the lid's edge (source px)
 
-def lid_overlays(front_depth, surface_normal):
-    """Upper lids as their own surface: at rest folded flat into the lid crease, so the picture's own
-    eyes and lashes show untouched; closing unfolds it down over the eye as clean lid skin (taken from
-    just above the crease) with a copy of the lash line along its edge. Stretching the picture's own
-    lid instead streaked the long lashes and eyeliner across the skin."""
-    cols, skin_rows, lash_rows = 48, 10, 4
-    LASH_LINE = 11.0                     # the dense root of the lashes and the liner above the margin
-    pos, uv, idx_skin, idx_lash, targets = [], [], [], [], {n: [] for n in TARGETS}
+def closed_lash_line(closed, lid, x):
+    """Where the closed lid's lash line runs in the eyes-closed picture: the darkest row near the
+    lower lid, smoothed along the lid."""
+    lum = np.asarray(closed).astype(float).mean(-1)
+    lum = ndimage.gaussian_filter(lum, 1.5)
+    lower = np.interp(x, lid['lx'], lid['ly'])
+    ys = np.array([lo - 12 + np.argmin(lum[int(lo - 12):int(lo + 14), int(round(xi))]) for xi, lo in zip(x, lower)], float)
+    return ndimage.gaussian_filter1d(ndimage.median_filter(ys, 5, mode='nearest'), 2, mode='nearest')
+
+def lid_texture(closed):
+    """The eyes-closed picture round both eyes, for the closing lids: real lid skin, crease and
+    lashes (a flat synthetic skin looked like plastic). Alpha fades in below the crease and, under the
+    lash line, keeps only the dark lashes, so they hang free over the eye while the lid moves."""
+    x0, y0, x1, y1 = LID_CROP
+    a = np.asarray(closed).astype(float)
+    yy, xx = np.mgrid[y0:y1:1 / LID_SCALE, x0:x1:1 / LID_SCALE]
+    rgb = np.stack([ndimage.map_coordinates(a[..., c], [yy, xx], order=1) for c in range(3)], -1)
+    alpha = np.zeros(yy.shape)
+    lum = rgb.mean(-1)
     for lid in LIDS:
-        # A little past both corners, so the closed lid has no edge at the corners.
+        xs = np.linspace(lid['ux'][0] - 10, lid['ux'][-1] + 10, 64)
+        edge = closed_lash_line(closed, lid, xs)
+        t = (xs - xs.mean()) / (xs[-1] - xs[0]) * 2
+        margin = np.interp(xs, lid['ux'], lid['uy']) + 2.0
+        fold = margin - FOLD * (1 - 0.35 * t * t)
+        e, f = np.interp(xx, xs, edge), np.interp(xx, xs, fold)
+        inx = (xx >= xs[0]) & (xx <= xs[-1])
+        skin = np.clip((yy - f) / 14.0, 0, 1) ** 1.5 * (yy <= e)
+        skin_lum = np.interp(xx, xs, [np.median(lum[(np.abs(yy - (ei + HANG + 6)) < 3) & (np.abs(xx - xi) < 4)]) for xi, ei in zip(xs, edge)])
+        lashes = np.clip((skin_lum - lum) / 45.0, 0, 1) * (yy > e) * (1 - smooth(e + HANG - 4, e + HANG, yy))
+        alpha = np.where(inx, np.maximum(alpha, np.maximum(skin, lashes)), alpha)
+    return Image.fromarray(np.clip(np.dstack([rgb, alpha * 255]), 0, 255).astype(np.uint8), 'RGBA')
+
+def lid_overlays(front_depth, surface_normal, closed):
+    """Upper lids as their own surface: at rest folded flat into the crease (and just behind the
+    face, so nothing shows); closing unfolds them down over the eye until they are the eyes-closed
+    picture itself, lashes included."""
+    cols, skin_rows, hang_rows = 48, 12, 4
+    x0, y0, x1, y1 = LID_CROP
+    pos, uv, idx, targets = [], [], [], {n: [] for n in TARGETS}
+    for lid in LIDS:
         x = np.linspace(lid['ux'][0] - 6, lid['ux'][-1] + 6, cols)
         margin = np.interp(x, lid['ux'], lid['uy']) + 2.0
         lower = np.interp(x, lid['lx'], lid['ly'])
-        # The crease follows the margin but flattens toward the corners, as a lid fold does.
         t = (x - x.mean()) / (x[-1] - x[0]) * 2
         fold = margin - FOLD * (1 - 0.35 * t * t)
-        rows = skin_rows + lash_rows + 1
-        # Texture: skin rows from a clean band above the crease, lash rows from the lash line.
-        fs = np.linspace(0, 1, skin_rows)
-        fl = np.linspace(0, 1, lash_rows + 1)
-        eye = LIDS.index(lid)
-        su = (eye + 0.06 + 0.88 * (x - x[0]) / (x[-1] - x[0])) / 2           # into the lid-skin texture
-        skin_uv = np.stack([np.broadcast_to(su, (skin_rows, cols)), np.broadcast_to(0.04 + 0.92 * fs[:, None], (skin_rows, cols))], -1).reshape(-1, 2)
-        lash_y = (margin - LASH_LINE - 1)[None, :] + LASH_LINE * fl[:, None]
-        lash_uv = np.stack([np.broadcast_to(x, lash_y.shape), lash_y], -1).reshape(-1, 2) / np.array([SRC_W, SRC_W])
-        tex = np.concatenate([skin_uv, lash_uv])
-        def shape(edge):
-            """The lid down to `edge`: skin from the crease to the lash line, then the lash rows."""
-            top = fold
-            lash_top = edge - LASH_LINE
-            ys = np.concatenate([top[None, :] + (lash_top - top)[None, :] * fs[:, None], lash_top[None, :] + (LASH_LINE + 1) * fl[:, None]])
+        edge = closed_lash_line(closed, lid, x)
+        rows = skin_rows + hang_rows
+        fs = np.linspace(0, 1, skin_rows); fh = np.linspace(0, 1, hang_rows + 1)[1:]
+        def shape(edge_y):
+            """The lid down to `edge_y`, then the hanging lashes below it."""
+            ys = np.concatenate([fold[None, :] + (edge_y - fold)[None, :] * fs[:, None], edge_y[None, :] + HANG * fh[:, None]])
             return np.stack([np.broadcast_to(x, ys.shape), ys], -1).reshape(-1, 2)
-        # Rest: every row on the crease, a line with no area.
+        closed_shape = shape(edge)
+        tex = (closed_shape - np.array([x0, y0])) / np.array([x1 - x0, y1 - y0])
         rest = np.stack([np.broadcast_to(x, (rows, cols)), np.broadcast_to(fold, (rows, cols))], -1).reshape(-1, 2)
-        shapes = {'blink': shape(lower + 3.5), 'squint': shape(margin + (lower - margin) * 0.38)}
-        base = sum(len(p) for p in pos)
+        shapes = {'blink': closed_shape, 'squint': shape(margin + (lower - margin) * 0.38)}
+        base = sum(len(p_) for p_ in pos)
         crop = src_to_crop(rest)
-        p0 = unproject(crop, front_depth(crop) - 0.003)
+        # Folded just behind the face, so the zero-area rows cannot show as a line over the lid;
+        # closing brings the lid in front within the first third of the blink.
+        p0 = unproject(crop, front_depth(crop) + 0.002)
         pos.append(p0); uv.append(tex)
         for name in TARGETS:
             if name in shapes:
@@ -517,26 +751,14 @@ def lid_overlays(front_depth, surface_normal):
                 targets[name].append(unproject(c2, front_depth(c2) - 0.004) - p0)
             else:
                 targets[name].append(np.zeros((len(rest), 3)))
-        # Skin rows and lash rows are separate grids (their textures differ); the skin's last row and
-        # the lash grid's first row lie on the same line.
-        for r in range(skin_rows - 1):
+        for r in range(rows - 1):
             for c in range(cols - 1):
-                a = base + r * cols + c
-                idx_skin.append([a, a + cols, a + 1, a + 1, a + cols, a + cols + 1])
-        for r in range(lash_rows):
-            for c in range(cols - 1):
-                a = base + (skin_rows + r) * cols + c
-                idx_lash.append([a, a + cols, a + 1, a + 1, a + cols, a + cols + 1])
+                a_ = base + r * cols + c
+                idx.append([a_, a_ + cols, a_ + 1, a_ + 1, a_ + cols, a_ + cols + 1])
     P = np.concatenate(pos); UV = np.concatenate(uv)
     T = [np.concatenate(targets[n]) for n in TARGETS]
-    blink = T[TARGETS.index('blink')]
-    NRM = surface_normal(P + blink)
-    out = []
-    for faces, material in ((np.array(idx_skin).reshape(-1), 3), (np.array(idx_lash).reshape(-1), 0)):
-        used = np.unique(faces); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
-        out.append(dict(pos=P[used], nrm=NRM[used], uv=UV[used], idx=remap[faces].astype(np.uint32), material=material,
-                        targets=[t[used] for t in T]))
-    return out
+    NRM = surface_normal(P + T[TARGETS.index('blink')])
+    return [dict(pos=P, nrm=NRM, uv=UV, idx=np.array(idx, np.uint32).reshape(-1), material=3, targets=T)]
 
 # ---------------------------------------------------------------- GLB writer with sparse targets
 
@@ -623,33 +845,36 @@ def jpeg(img, quality=90):
 # ---------------------------------------------------------------- build
 
 def build(work):
-    P, F, (op, ouv) = load_scan(work)
-    P, F = outer_surface(P, F)
-    P, F, grid_start = face_surface(P, F, Image.open(f'{work}/kairo-front.png').convert('RGB'))
-    UP, UF = underlay(P, F)
-    # Nothing of the underlayer just behind the face: it rose to the face's surface in patches.
-    uc, uz = project(UP[UF].mean(1)); ui = np.clip(uc.astype(int), 0, N - 1)
-    face_depth, face_area = FACE_INFO
-    over_face = face_area[ui[:, 1], ui[:, 0]] & (uz < face_depth[ui[:, 1], ui[:, 0]] + 0.05)
-    UF = UF[~over_face]
-    base = np.asarray(Image.open(f'{work}/kairo-s42_base.png').convert('RGB'))
+    P, F, label, skin_colour, scan_colour, pivot = compose(work)
     src = Image.open(f'{work}/kairo-front.png').convert('RGB')
-    tree = cKDTree(op)
-    def sample(points):
-        _, i = tree.query(points, k=1); u = ouv[i]
-        return base[np.clip(((1 - u[:, 1]) * base.shape[0]).astype(int), 0, base.shape[0] - 1),
-                    np.clip((u[:, 0] * base.shape[1]).astype(int), 0, base.shape[1] - 1)]
+    P, F, grid_start, kept = face_surface(P, F, src, label == HAIR)
+    label = np.concatenate([label[kept], np.full(len(F) - kept.sum(), GRID)])
 
     front, visible, zbuf = front_faces(P, F, work)
     # The face grid is the picture by construction: the visibility test missed scattered grid faces,
     # which then took the generator's colours as spots.
     on_grid = (F >= grid_start).all(1)
     front |= on_grid
+    # Head faces turned to the camera take the photo even where the visibility test missed them: as
+    # atlas faces (darkened by occlusion) their slivers at the grid's edge and along the hairline
+    # showed as dark specks. Hair is wound either way, so it counts by angle alone.
+    fn = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
+    toward = (fn * (np.array([0, 0, D]) - P[F].mean(1))).sum(1) / np.linalg.norm(np.array([0, 0, D]) - P[F].mean(1), axis=1)
+    front |= ((label == SKIN) & (toward > 0.3)) | ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
+    # The head shows the owner's photo; the neck inside the collar and the turtleneck show the bald
+    # picture, which is drawn to the same frame and fits the bald body there. Where the two pictures
+    # met on the forehead their slightly different light drew a broken line.
+    bald_src = Image.open(f'{work}/bald/kairo-bald-front.png').convert('RGB')
+    from_photo = (label != KNIT) & (label != NECK)
     visible[grid_start:] = True
     # The front-most surface depth, holes filled and a little spread so a lid sits over the eyeball.
     zfill = np.where(np.isinf(zbuf), np.nan, zbuf)
     idxn = ndimage.distance_transform_edt(np.isnan(zfill), return_distances=False, return_indices=True)
-    zfill = ndimage.minimum_filter(zfill[idxn[0], idxn[1]], size=5)
+    zfill = zfill[idxn[0], idxn[1]]
+    # Over the openings (holes in the grid) the lids close at the face's level, not onto what is behind.
+    hole = src_mask_to_crop(eye_openings((int(SRC_W), int(SRC_W)), -2.0))
+    zfill[hole] = FACE_INFO[0][hole] - 0.004
+    zfill = ndimage.minimum_filter(zfill, size=5)
     def front_depth(px):
         i = np.clip(px.astype(int), 0, N - 1)
         return zfill[i[:, 1], i[:, 0]]
@@ -669,11 +894,29 @@ def build(work):
         n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
     VN[fv] = n
     uv_front = ((inp - np.array([OX, OY])) / S) / np.array(src.size)
-    rest = np.where(~front)[0]
-    rest_uv, rest_tex = atlas(P, F[rest], sample, 4096)
-    UVN = vertex_normals(UP, UF)
-    under_uv, under_tex = atlas(UP, UF, sample, 2048, darken=0.72)
-    print('front faces', front.sum(), 'rest', len(rest), 'under', len(UF))
+    # The generator's colours, matched to the picture where both show: off the picture's edge they
+    # were paler and redder, and turning the head drew a line down the cheek.
+    def gain(kind, colour, image):
+        picture = np.asarray(image).astype(float)
+        fs = np.where(front & (label == kind) & ~on_grid)[0]
+        c = P[F[fs]].mean(1); cp, _ = project(c)
+        sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, src.size[0] - 1)
+        pic, own = picture[sp[:, 1], sp[:, 0]], colour(c)
+        # Only where both show the same thing: skin against skin, hair against hair.
+        alike = (pic[:, 0] > pic[:, 2] + 30) == (own[:, 0] > own[:, 2] + 30)
+        g = np.median(pic[alike], 0) / (np.median(own[alike], 0) + 1e-6)
+        print('colour gain', kind, np.round(g, 2))
+        return np.clip(g, 0.6, 1.6)
+    bald_gain = np.ones((5, 3)); bald_gain[SKIN] = bald_gain[NECK] = gain(SKIN, skin_colour, bald_src); bald_gain[KNIT] = gain(KNIT, skin_colour, bald_src)
+    hair_gain = gain(HAIR, scan_colour, src)
+    ao = occlusion(P, F, VN)
+    shade = 0.5 + 0.5 * ao
+    rest = np.where(~front & (label == HAIR))[0]
+    rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q) * hair_gain, 4096, shade)
+    bare = np.where(~front & (label != HAIR))[0]
+    bare_kind = cKDTree(P[F[bare]].mean(1))
+    skin_uv, skin_tex = atlas(P, F[bare], lambda q: skin_colour(q, bald_gain[label[bare][bare_kind.query(q)[1]]]), 4096, shade)
+    print('front faces', front.sum(), 'hair', len(rest), 'bald', len(bare))
 
     # The surface seen from the camera, as depth over image position: targets slide points along it.
     vis_px, vis_z = inp[visible], zc[visible]
@@ -699,23 +942,22 @@ def build(work):
             out.append(delta)
         return out
 
-    # Head and turtleneck: faces above the collar line go with the head.
-    collar_px = src_to_crop((MOUTH['cx'], COLLAR_Y))
-    near = np.argsort(((inp - collar_px) ** 2).sum(1) + (~visible) * 1e9)[:20]
-    collar_y = P[near, 1].mean()
-    neck = P[(np.abs(P[:, 1] - collar_y) < 0.02) & (np.abs(P[:, 0]) < 0.12)]
-    pivot = np.array([0.0, collar_y, neck[:, 2].mean() if len(neck) else 0.0])
-    print('collar y', round(collar_y, 3), 'pivot', np.round(pivot, 3))
+    # The head turns about the neck's own axis at the collar: off the axis, the neck swung out sideways.
+    print('pivot', np.round(pivot, 3))
 
     prims = {'head': [], 'body': []}
     fpos, fuv, fnrm, fvis = P, uv_front, VN, visible.astype(float)
-    groups = [(F[front], fpos, fuv, fnrm, fvis, 0, True),
-              (np.arange(len(rest) * 3).reshape(-1, 3), P[F[rest]].reshape(-1, 3), rest_uv.reshape(-1, 2), VN[F[rest]].reshape(-1, 3),
-               visible[F[rest]].reshape(-1).astype(float), 1, True),
-              (np.arange(len(UF) * 3).reshape(-1, 3), UP[UF].reshape(-1, 3), under_uv.reshape(-1, 2), UVN[UF].reshape(-1, 3),
-               np.zeros(len(UF) * 3), 2, False)]
-    for faces, pos, uv, nrm, vis, material, morph in groups:
-        is_head = pos[faces].mean(1)[:, 1] > collar_y
+    def own(sel, uv):
+        return (np.arange(len(sel) * 3).reshape(-1, 3), P[F[sel]].reshape(-1, 3), uv.reshape(-1, 2), VN[F[sel]].reshape(-1, 3),
+                visible[F[sel]].reshape(-1).astype(float), label[sel])
+    photo, drawn = front & from_photo, front & ~from_photo
+    groups = [(F[photo], fpos, fuv, fnrm, fvis, label[photo], 0, True),
+              (F[drawn], fpos, fuv, fnrm, fvis, label[drawn], 4, True),
+              (*own(rest, rest_uv), 1, True),
+              (*own(bare, skin_uv), 2, True)]
+    for faces, pos, uv, nrm, vis, kind, material, morph in groups:
+        # The turtleneck stays; everything else turns with the head.
+        is_head = (kind != KNIT) & (kind != NECK)
         for part, mask in (('head', is_head), ('body', ~is_head)):
             fs = faces[mask]
             if not len(fs): continue
@@ -732,21 +974,29 @@ def build(work):
         _, i = ntree.query(points, k=6)
         n = VN[front_vertices][i].mean(1)
         return n / (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
-    for lid in lid_overlays(front_depth, surface_normal):
+    for part in eye_parts(FACE_INFO[0], surface_normal):
+        part['pos'] = part['pos'] - pivot
+        prims['head'].append(part)
+    closed = Image.open(f'{work}/assets-v2/kairo-eyes-closed-front.png').convert('RGB')
+    for lid in lid_overlays(front_depth, surface_normal, closed):
         lid['pos'] = lid['pos'] - pivot
         prims['head'].append(lid)
 
     g = Glb()
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071})
-    for name, img in (("front", src), ("rest", Image.fromarray(rest_tex)), ("under", Image.fromarray(under_tex)), ("lidskin", lid_skin_texture(src))):
+    for name, img in (("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex)), ("skin", Image.fromarray(skin_tex)),
+                      ("lidskin", lid_texture(closed)), ("bald", bald_src), ("iris", iris_texture(src))):
         if img.mode == 'RGBA':
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
         else:
-            i = g.image(jpeg(img, 92 if name == "front" else 88), "image/jpeg", name)
+            i = g.image(jpeg(img, 92 if name in ("front", "bald") else 88), "image/jpeg", name)
         g.gltf["textures"].append({"sampler": 0, "source": i})
         material = {"name": name, "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1], "baseColorTexture": {"index": i},
                                                            "metallicFactor": 0, "roughnessFactor": 0.62}}
-        if name in ("front", "lidskin"):
+        # The scan's winding is unreliable (thin hair sheets, the collar seen from inside): culled back
+        # faces were the holes in the neck, the collar and the turtleneck's spots.
+        material["doubleSided"] = True
+        if name in ("front", "lidskin", "bald", "iris"):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
@@ -754,7 +1004,7 @@ def build(work):
             material["emissiveTexture"] = {"index": i}
             material["emissiveFactor"] = [0.9, 0.9, 0.9]
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0       # no highlights on the baked light
-        if name == "lidskin":
+        if name in ("lidskin", "iris"):
             material["alphaMode"] = "BLEND"
         g.gltf["materials"].append(material)
     # 0 Root, 1 Body (turtleneck), 2 HeadPivot (at the neck), 3 Head.
