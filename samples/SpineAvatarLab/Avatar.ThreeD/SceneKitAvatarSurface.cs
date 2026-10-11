@@ -107,6 +107,10 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
 
     public string RendererName => "native3d (SceneKit)";
 
+    public void SetViewYaw(float radians) => _viewYaw = radians;
+
+    private float _viewYaw;
+
     public AvatarFrameStats Stats { get; } = new();
 
     public string? Detail => _timer.Describe();
@@ -164,6 +168,7 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
         }
         var rootScale = _rig.RootScale;
         _container.Scale = new SCNVector3(rootScale.X, rootScale.Y, rootScale.Z);
+        _container.Orientation = new SCNQuaternion(0, MathF.Sin(_viewYaw / 2), 0, MathF.Cos(_viewYaw / 2));
         _container.Position = new SCNVector3(_rig.RootOffset.X, _rig.RootOffset.Y, _rig.RootOffset.Z);
 
         var accentHex = accent?.ToArgbHex();

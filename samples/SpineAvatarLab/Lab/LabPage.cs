@@ -49,6 +49,7 @@ public sealed class LabPage : ContentPage
     private readonly Switch _previews = LabUi.Switch(on: true);
     private readonly Switch _studio = LabUi.Switch(on: true);
     private readonly Slider _spring = LabUi.Slider(0, 2, 1);
+    private readonly Slider _yaw = LabUi.Slider(-180, 180, 0);
     private readonly Entry _seed = new() { Text = "0", Keyboard = Keyboard.Numeric, WidthRequest = 80 };
     private readonly Editor _text = new() { Text = "Hej Jonatan. Jag är en referensavatar för din nya Spine-kontroll.", AutoSize = EditorAutoSizeOption.TextChanges, FontSize = 14 };
     private readonly Label _timeline = LabUi.Small(mono: true);
@@ -171,6 +172,7 @@ public sealed class LabPage : ContentPage
 
                 LabUi.Card("3D",
                     LabUi.Labeled("Renderer", _renderers.View),
+                    LabUi.Labeled("Turn (°)", _yaw),
                     LabUi.Labeled("Studio light", _studio),
                     LabUi.Small().With("Native is SceneKit on iOS and Mac; elsewhere the WebView is used. Studio light applies to the WebView.")),
 
@@ -190,6 +192,7 @@ public sealed class LabPage : ContentPage
         _muted.Toggled += (_, e) => _avatar.IsMuted = e.Value;
         _animation.Toggled += (_, e) => _avatar.IsAnimationEnabled = e.Value;
         _spring.ValueChanged += (_, e) => _avatar.SecondaryMotion = (float)e.NewValue;
+        _yaw.ValueChanged += (_, e) => _avatar.ViewYaw = e.NewValue;
         _studio.Toggled += (_, e) => _avatar.ThreeDLook = e.Value ? "studio" : "basic";
         _accent.Toggled += (_, e) => _avatar.AccentColor = e.Value ? Color.FromArgb("#E8590C") : null;
         _previews.Toggled += (_, e) => _small64.IsVisible = _small128.IsVisible = _poster.IsVisible = e.Value;
@@ -380,6 +383,9 @@ public sealed class LabPage : ContentPage
                 return null;
             case "spring":
                 _spring.Value = Number(1);
+                return null;
+            case "yaw":
+                _yaw.Value = Number(1);
                 return null;
             case "bench":
                 return await BenchAsync(arg, parts[2], parts.Length > 3 ? double.Parse(parts[3], CultureInfo.InvariantCulture) : 6);

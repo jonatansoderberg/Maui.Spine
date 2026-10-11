@@ -19,6 +19,9 @@ internal interface IAvatarSurface : IDisposable
 
     /// <summary>What the renderer itself reports: the web page's frame time, SceneKit's render-thread time.</summary>
     string? Detail => null;
+
+    /// <summary>Turns the whole avatar about its vertical axis, for inspecting a 3D model from any side.</summary>
+    void SetViewYaw(float radians) { }
 }
 
 /// <summary>Frame timing a lab reads: how long rendering takes and what it allocates.</summary>

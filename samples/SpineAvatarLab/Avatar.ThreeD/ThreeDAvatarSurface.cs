@@ -80,6 +80,14 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
     }
 
     private string _look = "studio";
+    private float _viewYaw;
+
+    public void SetViewYaw(float radians)
+    {
+        _viewYaw = radians;
+        if (_modelLoaded)
+            _web.SendRawMessage("{\"t\":\"yaw\",\"v\":" + radians.ToString(System.Globalization.CultureInfo.InvariantCulture) + "}");
+    }
 
     public void Render(AvatarRenderFrame frame, bool dark, Color? accent)
     {
@@ -154,7 +162,11 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
             SendModel();
         }
         else if (message == "loaded")
+        {
             _modelLoaded = true;
+            if (_viewYaw != 0)
+                SetViewYaw(_viewYaw);
+        }
         else if (message.StartsWith("stats:", StringComparison.Ordinal))
         {
             var parts = message.Split(':');

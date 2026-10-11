@@ -191,6 +191,9 @@ def face_mask_src(src):
         m |= ((xx - x) / rx) ** 2 + ((yy - y) / ry) ** 2 < 1
     m &= oval
     m = ndimage.binary_opening(ndimage.binary_fill_holes(m), iterations=3)
+    # Corners rounded: where the oval met the jaw line, the grid's sharp corner left a notch at the
+    # cheek that showed as a hole once the head turned.
+    m = ndimage.gaussian_filter(m.astype(float), 10) > 0.5
     labels, n = ndimage.label(m)
     if n > 1:
         sizes = ndimage.sum(m, labels, range(1, n + 1)); m = labels == (1 + int(np.argmax(sizes)))
@@ -297,6 +300,9 @@ def eye_parts(zs, surface_normal):
     # Wide, sideways too: ending at the hole's sides, it let the room show through as a white line
     # across the iris when the eyes looked toward a corner.
     ball = eye_holes((int(SRC_W), int(SRC_W)), -22.0, 22.0)
+    # Never past the face's own edge: beyond it the sheet (the photo's forehead and hair) showed
+    # between the strands at the temple as beige shards when the head turned.
+    ball &= ndimage.binary_erosion(FACE_MASK[0], iterations=3)
     ys, xs = np.mgrid[0:int(SRC_W):2, 0:int(SRC_W):2]
     inside = ball[ys, xs]
     vid = np.full(xs.shape, -1); vid[inside] = np.arange(inside.sum())
@@ -340,6 +346,8 @@ DROP_BEHIND = 0.025         # scan faces this far behind the face grid go; deepe
 GRID_NORMALS = []
 FACE_INFO = []
 
+FACE_MASK = []                # the face's skin (source px), set by face_surface
+
 def face_surface(P, F, src, hair=None):
     """Replace the scan's face with one dense, smooth height field over the face, at the scan's own
     depth (smoothed, with the eye sockets filled). The generator's eyes are hollows and its face is
@@ -356,6 +364,7 @@ def face_surface(P, F, src, hair=None):
         np.minimum.at(zraw, (ix[:, 1], ix[:, 0]), sz)
     yy, xx = np.mgrid[0:N, 0:N]
     face = face_mask_crop(src)
+    FACE_MASK[:] = [face_mask_src(src)]
     # Trusted depth: on the face, outside the eye sockets, and not an outlier against its neighbourhood
     # (hair strands in front, holes behind). Everything else is filled smoothly from it, so nothing
     # outside the face (bangs, the back of the head) pulls on the surface.
@@ -479,6 +488,11 @@ def compose(work):
     cp, hz = project(hc); sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, photo.shape[0] - 1)
     pc = photo[sp[:, 1], sp[:, 0]]
     hair &= ~((pc[:, 0] > pc[:, 2] + 30) & (hz < at(cp) + 0.015))
+    # Nor in front of it, at any depth: strands hanging in front of the temple that the photo shows
+    # as skin took skin colour and broke up into beige shards once the head turned.
+    skin_px = (photo[..., 0] > photo[..., 2] + 30) & (photo.sum(-1) > 200)
+    skin_px = ndimage.binary_erosion(skin_px, iterations=3)
+    hair &= ~(skin_px[sp[:, 1], sp[:, 0]] & (hz < at(cp) + 0.06))
     # The turtleneck stays put while the head turns: the bald run's knit, below the chin.
     knit = vote(BP, BF, ~(bcol[:, 0] > bcol[:, 2] + 15)) & (bc[:, 1] < collar_y + 0.08)
     # The neck inside the collar stays with the body: turning with the head it swept out through the
@@ -497,20 +511,39 @@ def compose(work):
     # opening, and the neck no longer looks cut off and pushed out under the jaw.
     r_neck = np.percentile(np.hypot(ring[:, 0] - axis[0], ring[:, 2] - axis[1]), 80)
     cpx = src_to_crop([(MOUTH['cx'], CHIN_Y)]); chin_y = unproject(cpx, at(cpx))[0, 1]
-    # The whole neck stays with the body, up to where the jaw's underside begins: per sector, the
-    # lowest face inside the neck's reach that faces down. Taking a fixed height instead put the
-    # jaw's underside on the body, where it stuck out as a flap when the head turned.
+    # The neck twists from the collar's rim up to where the head's underside begins, per direction
+    # round the neck: the jaw in front, the skull's base behind (the lowest faces turned down). The
+    # weight is continuous per vertex and every face below weight 1 belongs to the skinned neck, so
+    # nothing tears where the neck meets the head. One rigid joint at the jaw left a step in the
+    # neck's outline on every turn.
     bn = np.cross(BP[BF[:, 1]] - BP[BF[:, 0]], BP[BF[:, 2]] - BP[BF[:, 0]]); bn /= np.linalg.norm(bn, axis=1, keepdims=True) + 1e-12
-    bn *= np.sign((bn * (bc - np.array([axis[0], bc[:, 1].mean(), axis[1]]) * [1, 0, 1])).sum(1, keepdims=True) + 1e-9)
-    bn = np.cross(BP[BF[:, 1]] - BP[BF[:, 0]], BP[BF[:, 2]] - BP[BF[:, 0]]); bn /= np.linalg.norm(bn, axis=1, keepdims=True) + 1e-12
-    under_jaw = ~knit & (bn[:, 1] < -0.5) & (bc[:, 1] > collar_y + 0.03) & (radius < r_neck + 0.05)
-    jaw = np.full(36, chin_y + 0.12); np.minimum.at(jaw, sector(bc[under_jaw]), bc[under_jaw, 1])
-    jaw = ndimage.median_filter(jaw, 5, mode='wrap')
-    neck |= ~knit & (radius < r_neck + 0.01) & (bc[:, 1] < jaw[sector(bc)] - 0.004)
-    print('neck top per sector (cm above the collar)', np.round((jaw - collar_y) * 100).astype(int))
-    top_y = np.median(jaw)
+    under = ~knit & (bn[:, 1] < -0.5) & (bc[:, 1] > collar_y + 0.02) & (radius < r_neck + 0.06)
+    hi = np.full(36, chin_y + 0.06); np.minimum.at(hi, sector(bc[under]), bc[under, 1])
+    hi = ndimage.median_filter(hi, 5, mode='wrap')
+    lo = rim + 0.006
+    hi = np.maximum(hi, lo + 0.015)
+    def twist(p):
+        t = (np.arctan2(p[:, 0] - axis[0], p[:, 2] - axis[1]) + math.pi) / (2 * math.pi) * 36 - 0.5
+        i0 = np.floor(t).astype(int); f = t - i0; i0 %= 36; i1 = (i0 + 1) % 36
+        l = lo[i0] * (1 - f) + lo[i1] * f; h = hi[i0] * (1 - f) + hi[i1] * f
+        return smooth(l, h, p[:, 1])
+    wv = twist(BP)
+    neck = ~knit & (wv[BF] < 0.999).any(1)
+    jaw = hi
+    print('neck top per sector (cm above the collar)', np.round((hi - rim) * 100).astype(int))
+    top_y = np.median(hi)
+    NECK_SPAN[:] = [twist, collar_y]
     print('compose: bald', len(BF), 'knit', knit.sum(), 'hair', hair.sum(), 'collar y', round(float(collar_y), 3))
-    SP_, SF = hair_shell(HP, HF[hair])
+    if BALD:
+        hair[:] = False
+    SP_, SF = hair_shell(HP, HF[hair]) if hair.any() else (np.zeros((0, 3)), np.zeros((0, 3), np.int32))
+    # Strands far outside the hair's closed volume are the scan's loose shards: jagged tips round the
+    # top and the temples, with the background showing between them.
+    if hair.any():
+        d_out = cKDTree(SP_).query(hc)[0]
+        print('hair distance to its shell (mm) p50/p90/p99', np.round(np.percentile(d_out[hair], [50, 90, 99]) * 1000, 1))
+        hair &= d_out < HAIR_REACH
+        hair = vote(HP, HF, hair, r=0.006) & hair
     # Not over the face: where the photo shows skin near the front, no hair lies.
     sc_ = SP_[SF].mean(1); cp, sz = project(sc_); sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, photo.shape[0] - 1)
     pc = photo[sp[:, 1], sp[:, 0]]
@@ -528,13 +561,21 @@ def compose(work):
     def bald_colour(points, gain=1.0):
         """The bald texture, turned to the hair's own dark under the hair: the scalp between strands."""
         col = bald_tex(points) * gain
+        if not len(hair_points):
+            return col
         d, i = cKDTree(hair_points).query(points)
-        # Only the scalp, above the eyes: lower down the hair hangs over the cheeks, which stay skin.
-        w = (smooth(0.03, 0.012, d) * smooth(eye_y + 0.05, eye_y + 0.09, points[:, 1]))[:, None]
+        # Only the scalp, from eye level up: lower down the hair hangs over the cheeks, which stay skin.
+        w = (smooth(0.025, 0.01, d) * smooth(eye_y - 0.02, eye_y + 0.01, points[:, 1]))[:, None]
         return col * (1 - w) + hair_cols[i] * 0.55 * w
     # The head turns and nods about the neck's own axis at the neck's top, so the neck does not shift.
     pivot = np.array([axis[0], top_y, axis[1]])
     return P[used], remap[F].astype(np.int32), label, bald_colour, hair_tex, pivot
+
+BALD = os.environ.get('KAIRO_BALD') == '1'   # build the head without the hair layer (layer by layer)
+NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw underside y per sector), set by compose
+NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
+HAIR_REACH = 0.010             # strands further than this outside the hair's closed volume are dropped
+HAIR_GAPS = 16                 # source px: gaps between the photo's strands narrower than twice this take hair colour
 
 def hair_shell(P, F, res=0.005):
     """A closed surface just inside the hair (voxelised strands, closed and eroded): the gaps between
@@ -608,6 +649,8 @@ def occlusion(P, F, VN, res=0.004, reach=0.06):
 
 def atlas(P, F, sample, size, shade=None):
     """Every triangle its own half-cell in an atlas, coloured by `sample` at points on it."""
+    if not len(F):
+        return np.zeros((0, 3, 2)), np.zeros((4, 4, 3), np.uint8)
     cells = int(np.ceil(np.sqrt(len(F) / 2))); cs = size // cells
     lo, hi = 1.0 / cs, 1 - 1.0 / cs
     tri = np.array([[[lo, lo], [hi, lo], [lo, hi]], [[hi, hi], [lo, hi], [hi, lo]]])
@@ -922,7 +965,7 @@ class Glb:
         return len(self.gltf["bufferViews"]) - 1
 
     def accessor(self, a, kind, target=None, minmax=False):
-        a = np.ascontiguousarray(a); ct = 5125 if a.dtype == np.uint32 else 5126
+        a = np.ascontiguousarray(a); ct = {np.dtype(np.uint32): 5125, np.dtype(np.uint16): 5123}.get(a.dtype, 5126)
         if ct == 5126: a = a.astype(np.float32)
         count = a.size if kind == "SCALAR" else a.shape[0]
         acc = {"bufferView": self.view(a.tobytes(), target), "componentType": ct, "count": count, "type": kind}
@@ -952,6 +995,9 @@ class Glb:
             prim = {"attributes": {"POSITION": self.accessor(p['pos'], "VEC3", 34962, True), "NORMAL": self.accessor(p['nrm'], "VEC3", 34962),
                                    "TEXCOORD_0": self.accessor(p['uv'], "VEC2", 34962)},
                     "indices": self.accessor(p['idx'].astype(np.uint32), "SCALAR", 34963), "material": p['material']}
+            if p.get('joints') is not None:
+                prim["attributes"]["JOINTS_0"] = self.accessor(p['joints'].astype(np.uint16), "VEC4", 34962)
+                prim["attributes"]["WEIGHTS_0"] = self.accessor(p['weights'].astype(np.float32), "VEC4", 34962)
             if p.get('targets') is not None:
                 prim["targets"] = [{"POSITION": self.sparse_vec3(t)} for t in p['targets']]
             out.append(prim)
@@ -1015,6 +1061,18 @@ def eye_frame(work, name, front_depth, surface_normal):
     uv = (spx - np.array([x0, y0])) / np.array([x1 - x0, y1 - y0])
     return dict(pos=pos, nrm=surface_normal(pos), uv=uv, idx=idx.astype(np.uint32)), tex
 
+def hair_photo(src):
+    """The photo for the hair layer: every pixel that is not hair takes the colour of the nearest hair
+    pixel. Strands in front of the photo's skin (gaps between strands, the temple) took skin colour
+    and broke up into beige shards once the head turned."""
+    a = np.asarray(src).astype(float)
+    hair = (a[..., 2] > a[..., 0] + 12) | (a.sum(-1) < 150)
+    hair = ndimage.binary_opening(hair, iterations=1)
+    _, (iy, ix) = ndimage.distance_transform_edt(~hair, return_indices=True)
+    filled = a[iy, ix]
+    filled = np.where(hair[..., None], a, ndimage.gaussian_filter(filled, (2, 2, 0)))
+    return Image.fromarray(np.clip(filled, 0, 255).astype(np.uint8))
+
 def jpeg(img, quality=90):
     out = io.BytesIO(); img.save(out, 'JPEG', quality=quality); return out.getvalue()
 
@@ -1022,7 +1080,8 @@ def jpeg(img, quality=90):
 
 def build(work):
     P, F, label, skin_colour, scan_colour, pivot = compose(work)
-    src = Image.open(f'{work}/kairo-front.png').convert('RGB')
+    # Bald, the face shows the bald picture (same face, same framing, no hair painted on it).
+    src = Image.open(f'{work}/{"bald/kairo-bald-front.png" if BALD else "kairo-front.png"}').convert('RGB')
     P, F, grid_start, kept = face_surface(P, F, src, label == HAIR)
     label = np.concatenate([label[kept], np.full(len(F) - kept.sum(), GRID)])
 
@@ -1040,7 +1099,12 @@ def build(work):
     # silhouette took the picture's background there, a grey strip between cheek and ear on a turn.
     fc_px, fc_z = project(P[F].mean(1)); fi = np.clip(fc_px.astype(int), 0, N - 1)
     seen = fc_z <= zbuf[fi[:, 1], fi[:, 0]] + 0.02
-    front |= ((label == SKIN) & (toward > 0.45) & seen) | ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
+    # Skin off the face grid is always atlas-textured, its colour blended from the picture by how
+    # squarely the camera saw it (see bare_colour): switching from the picture to the generator's
+    # colour at one angle left a visible edge down the side of the head.
+    project_weight = smooth(0.05, 0.4, toward) * seen
+    front &= ~(((label == SKIN) | (label == NECK)) & ~on_grid)
+    front |= ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
     # The head shows the owner's photo; the neck inside the collar and the turtleneck show the bald
     # picture, which is drawn to the same frame and fits the bald body there. Where the two pictures
     # met on the forehead their slightly different light drew a broken line.
@@ -1062,7 +1126,14 @@ def build(work):
     w = (1 - smooth(4.0, 34.0, hair_d)) * smooth(490.0, 560.0, yy)
     w = np.maximum(w, smooth(CHIN_Y - 40, CHIN_Y + 5, yy))
     w = ndimage.gaussian_filter(w, 4)[..., None]
-    bald_src = Image.fromarray(np.clip(photo_px * (1 - w) + bald_px * tone * w, 0, 255).astype(np.uint8))
+    blend = photo_px * (1 - w) + bald_px * tone * w
+    # Under the photo's hair, gaps between strands included, the skin shows the hair's own colour: as
+    # skin colour, the gaps at the temple came through the hair layer as beige shards.
+    envelope = ndimage.binary_closing(hair_px, iterations=HAIR_GAPS)
+    envelope &= ~ndimage.binary_erosion(face_mask_src(src), iterations=6)    # never into the open face
+    soft = ndimage.gaussian_filter(envelope.astype(float), 1.5)[..., None]
+    blend = blend * (1 - soft) + np.asarray(hair_photo(src)).astype(float) * soft
+    bald_src = Image.fromarray(np.clip(blend, 0, 255).astype(np.uint8))
     # The photo itself only on the hair; all skin and the knit show the blend.
     from_photo = label == HAIR
     visible[grid_start:] = True
@@ -1097,7 +1168,8 @@ def build(work):
     # were paler and redder, and turning the head drew a line down the cheek.
     def gain(kind, colour, image):
         picture = np.asarray(image).astype(float)
-        fs = np.where(front & (label == kind) & ~on_grid)[0]
+        # Matched where the camera saw the faces squarely (skin off the grid is never `front` now).
+        fs = np.where((front | (project_weight > 0.8)) & (label == kind) & ~on_grid)[0]
         c = P[F[fs]].mean(1); cp, _ = project(c)
         sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, src.size[0] - 1)
         pic, own = picture[sp[:, 1], sp[:, 0]], colour(c)
@@ -1113,21 +1185,35 @@ def build(work):
     rest = np.where(~front & (label == HAIR))[0]
     rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q) * hair_gain, 4096, shade)
     bare = np.where(~front & (label != HAIR) & (label < CORE))[0]
-    dark = np.where(label >= CORE)[0]
+    # The body's core is dark only inside the turtleneck; above the collar a crack between the
+    # twisting neck and the head showed it as a black sliver under the jaw.
+    low = P[F].mean(1)[:, 1] < NECK_SPAN[1]
+    dark = np.where((label == CORE_BODY) & low)[0]
+    inner = np.where((label == CORE) | ((label == CORE_BODY) & ~low))[0]
     bare_kind = cKDTree(P[F[bare]].mean(1))
     # Skin seen only from the side keeps the generator's light and shade but takes the photo's skin
     # tone: its own colour drifted grey-beige there, a strip between cheek and ear on a turn.
     cheek = np.asarray(bald_src).astype(float)[open_skin]
     skin_ref = np.median(cheek, 0); skin_lum = skin_ref.mean()
+    picture = np.asarray(bald_src).astype(float)
+    def projected(q):
+        c, _ = project(q); sp = (c - np.array([OX, OY])) / S
+        return np.stack([ndimage.map_coordinates(picture[..., k], [sp[:, 1], sp[:, 0]], order=1) for k in range(3)], -1)
     def bare_colour(q):
-        kind = label[bare][bare_kind.query(q)[1]]
+        near = bare_kind.query(q)[1]
+        kind = label[bare][near]
         col = skin_colour(q, bald_gain[kind])
         lum = col.mean(1, keepdims=True)
         # A narrow brightness range: the generator's side light and the occlusion under the hanging
         # hair made the side of the face a darker patchwork against the photo's evenly lit cheek.
         toned = skin_ref[None] * np.clip(lum / skin_lum, 0.8, 1.1)
-        is_skin = ((kind == SKIN) | (kind == NECK))[:, None]
-        return np.where(is_skin, 0.15 * col + 0.85 * toned, col)
+        # Not the scalp under the hair (already turned to the hair's colour): toned to skin, it showed
+        # through the bangs at the temple as beige shards.
+        is_skin = (((kind == SKIN) | (kind == NECK)) & (col[:, 0] > col[:, 2] + 10))[:, None]
+        side = np.where(is_skin, 0.15 * col + 0.85 * toned, col)
+        w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)))[:, None]
+        out = side * (1 - w) + projected(q) * w
+        return out
     skin_uv, skin_tex = atlas(P, F[bare], bare_colour, 4096, 0.6 + 0.4 * shade)
     print('front faces', front.sum(), 'hair', len(rest), 'bald', len(bare))
 
@@ -1162,22 +1248,36 @@ def build(work):
     fpos, fuv, fnrm, fvis = P, uv_front, VN, visible.astype(float)
     def own(sel, uv):
         return (np.arange(len(sel) * 3).reshape(-1, 3), P[F[sel]].reshape(-1, 3), uv.reshape(-1, 2), VN[F[sel]].reshape(-1, 3),
-                visible[F[sel]].reshape(-1).astype(float), label[sel])
+                visible[F[sel]].reshape(-1).astype(float), label[sel], overlap[sel])
+    # The neck's top NECK_OVERLAP is in both the body and the head: turning, the head's copy slides over the
+    # neck and covers the gap that opened at the jaw's angle (the dark core showed there as a wedge).
+    centres = P[F].mean(1)
+    head_skin = cKDTree(centres[label == SKIN])
+    overlap = (label == NECK) & (head_skin.query(centres)[0] < NECK_OVERLAP)
     photo, drawn = front & from_photo, front & ~from_photo
-    groups = [(F[photo], fpos, fuv, fnrm, fvis, label[photo], 0, True),
-              (F[drawn], fpos, fuv, fnrm, fvis, label[drawn], 4, True),
+    groups = [(F[photo], fpos, fuv, fnrm, fvis, label[photo], overlap[photo], 7, True),
+              (F[drawn], fpos, fuv, fnrm, fvis, label[drawn], overlap[drawn], 4, True),
               (*own(rest, rest_uv), 1, True),
               (*own(bare, skin_uv), 2, True),
-              (*own(dark, np.zeros((len(dark), 3, 2))), 6, False)]
-    for faces, pos, uv, nrm, vis, kind, material, morph in groups:
-        # The turtleneck stays; everything else turns with the head.
-        is_head = (kind != KNIT) & (kind != NECK) & (kind != CORE_BODY)
-        for part, mask in (('head', is_head), ('body', ~is_head)):
+              (*own(dark, np.zeros((len(dark), 3, 2))), 6, False),
+              (*own(inner, np.zeros((len(inner), 3, 2))), 8, False)]
+    # The neck twists: skinned to the body and the head, its weight rising from the collar to the jaw.
+    # Rigid with the body, the head slid over it on every turn and nod, and the seam showed.
+    twist, collar_y = NECK_SPAN
+    prims['neck'] = []
+    for faces, pos, uv, nrm, vis, kind, both, material, morph in groups:
+        body = (kind == KNIT) | (kind == CORE_BODY)
+        neck = kind == NECK
+        for part, mask in (('head', ~body & ~neck), ('body', body), ('neck', neck)):
             fs = faces[mask]
             if not len(fs): continue
             used = np.unique(fs); remap = np.full(len(pos), -1); remap[used] = np.arange(len(used))
             p = pos[used] - pivot if part == 'head' else pos[used]
             prim = dict(pos=p, nrm=nrm[used], uv=uv[used], idx=remap[fs].reshape(-1), material=material)
+            if part == 'neck':
+                w = twist(p)
+                prim['joints'] = np.tile([0, 1, 0, 0], (len(p), 1))
+                prim['weights'] = np.stack([1 - w, w, np.zeros_like(w), np.zeros_like(w)], 1)
             if part == 'head':
                 prim['targets'] = lift(pos[used], vis[used]) if morph else [np.zeros_like(p) for _ in TARGETS]
             prims[part].append(prim)
@@ -1199,7 +1299,10 @@ def build(work):
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071})
     for name, img in (("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex)), ("skin", Image.fromarray(skin_tex)),
                       ("lidskin", lid_texture(closed, src)), ("bald", bald_src), ("iris", iris_texture(src)),
-                      ("core", Image.new('RGB', (4, 4), (8, 6, 8)))):
+                      ("core", Image.new('RGB', (4, 4), (8, 6, 8))), ("hairphoto", hair_photo(src)),
+                      # Inside the head the core is shadowed skin: through the scan's gaps (round the eye
+                      # sockets, behind the face's edge) black read as holes in the cheek.
+                      ("coreskin", Image.new('RGB', (4, 4), tuple(int(c * 0.8) for c in skin_ref)))):
         if img.mode == 'RGBA':
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
         else:
@@ -1210,7 +1313,9 @@ def build(work):
         # The scan's winding is unreliable (thin hair sheets, the collar seen from inside): culled back
         # faces were the holes in the neck, the collar and the turtleneck's spots.
         material["doubleSided"] = True
-        if name in ("front", "lidskin", "bald", "iris"):
+        # The skin atlas too: lit by the scene while the face beside it showed the picture's own light,
+        # the skull and the sides came out a different tone, an edge round the face.
+        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin"):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
@@ -1218,13 +1323,14 @@ def build(work):
             material["emissiveTexture"] = {"index": i}
             material["emissiveFactor"] = [0.9, 0.9, 0.9]
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0       # no highlights on the baked light
-        if name == "core":
+        if name in ("core", "coreskin"):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0
         if name in ("lidskin", "iris"):
             material["alphaMode"] = "BLEND"
         g.gltf["materials"].append(material)
     # 0 Root, 1 Body (turtleneck), 2 HeadPivot (at the neck), 3 Head.
-    g.node("Root", children=[1, 2])
+    neck_node = 4 + len(BLINK_FRAMES)
+    g.node("Root", children=[1, 2, neck_node])
     g.node("Body", g.mesh("Body", prims['body']))
     frames = [eye_frame(work, n, front_depth, surface_normal) for n, _, _ in BLINK_FRAMES]
     frame_materials = []
@@ -1241,6 +1347,12 @@ def build(work):
     g.node("Head", m_head)
     for k, (prim, _) in enumerate(frames):
         g.node(f"BlinkFrame{k}", g.mesh(f"BlinkFrame{k}", [prim]))
+    inverse_bind = np.stack([np.eye(4), np.eye(4)]); inverse_bind[1, :3, 3] = -pivot
+    skin_ibm = g.accessor(inverse_bind.transpose(0, 2, 1).reshape(-1, 16).astype(np.float32), "MAT4")
+    g.gltf["skins"] = [{"joints": [1, 2], "inverseBindMatrices": skin_ibm}]
+    n = g.node("Neck", g.mesh("Neck", prims['neck']))
+    assert n == neck_node
+    g.gltf["nodes"][n]["skin"] = 0
     clips(g)
     return g.bytes(), dict(m_head=m_head, head_prims=len(prims['head']))
 

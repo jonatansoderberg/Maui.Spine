@@ -38,6 +38,7 @@ window.addEventListener('HybridWebViewMessageReceived', event => {
         if (message.t === 'f') frame(message);
         else if (message.t === 'load') load(message).catch(fail);
         else if (message.t === 'look') setLook(message.v);
+        else if (message.t === 'yaw') viewYaw = message.v;
     } catch (error) {
         fail(error);
     }
@@ -269,12 +270,16 @@ function applyTransform(index, property, value, weight) {
     }
 }
 
+// The lab's view turn: the whole avatar about its vertical axis.
+let viewYaw = 0;
+
 function frame(f) {
     if (!renderer) return;
     const start = performance.now();
 
     root.position.set(0, 0, 0);
     root.scale.set(1, 1, 1);
+    root.rotation.set(0, viewYaw, 0);
     nodes.forEach((node, i) => {
         if (!node) return;
         node.position.copy(baseline[i].position);

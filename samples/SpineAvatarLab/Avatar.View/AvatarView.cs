@@ -192,6 +192,19 @@ public sealed class AvatarView : ContentView
 
     private (float X, float Y)? _lookAt;
 
+    /// <summary>For 3D avatars: turns the whole avatar about its vertical axis, in degrees (a lab view control).</summary>
+    public double ViewYaw
+    {
+        get => _viewYaw;
+        set
+        {
+            _viewYaw = value;
+            _surface?.SetViewYaw((float)(value * Math.PI / 180));
+        }
+    }
+
+    private double _viewYaw;
+
     /// <summary>For 3D avatars: "studio" lighting (environment, rim, tone mapping, bloom, contact shadow) or "basic".</summary>
     public string ThreeDLook
     {
@@ -337,6 +350,7 @@ public sealed class AvatarView : ContentView
     {
         var old = _surface;
         _surface = model is not null ? new SkiaAvatarSurface(model, MirrorOf?.SkiaOnGpu ?? SkiaOnGpu) : CreateThreeDSurface(package, representation);
+        _surface.SetViewYaw((float)(_viewYaw * Math.PI / 180));
         Content = _surface.View;
         old?.Dispose();
 
