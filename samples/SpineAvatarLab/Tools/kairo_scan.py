@@ -328,16 +328,17 @@ def eyeball_texture(src):
     a = np.asarray(sclera_photo(src)).astype(float)
     # Only the clear white: nearer the lids the opening holds lid skin and lashes, which spread pink
     # over the ball.
-    white = ndimage.binary_erosion(eye_openings(a.shape[:2], 0.0), iterations=4) & (a.mean(-1) > 175)
+    # (with the photo's own shading: the lid's shadow over the top of the white)
+    white = ndimage.binary_erosion(eye_openings(a.shape[:2], 0.0), iterations=2) & (a.mean(-1) > 120) & (a[..., 0] + 10 > a[..., 2])
     _, (iy, ix) = ndimage.distance_transform_edt(~white, return_indices=True)
     out = a[iy, ix]
-    far = ndimage.distance_transform_edt(~white) > 6
-    out[far] = np.median(a[white], 0)
+    far = ndimage.distance_transform_edt(~white) > 10
+    out[far] = np.percentile(a[white], 30, axis=0)
     return Image.fromarray(ndimage.gaussian_filter(out, (2, 2, 0)).astype(np.uint8))
 
 SOCKET_MATERIAL = 11          # index of the "socket" material
 EYEBALL_MATERIAL = 10         # index of the "eyeball" material in build's list
-EYE_RADIUS = 1.2               # eyeball radius over the opening's half-width
+EYE_RADIUS = 1.35              # eyeball radius over the opening's half-width
 LOOK_DEG = {'look_left': (-12.0, 0.0), 'look_right': (12.0, 0.0), 'look_up': (0.0, 9.0), 'look_down': (0.0, -8.0)}
 
 def eye_parts(zg, surface_normal):
@@ -352,12 +353,15 @@ def eye_parts(zg, surface_normal):
     EYE_BALLS.clear()
     for i, ((cx, cy), lid) in enumerate(zip(IRISES, LIDS)):
         c0, z0 = depth_at(np.array([[cx, cy]]))
-        front = unproject(c0, z0 + 0.0005)[0]      # just behind the face's plane: the lids lie over the ball
+        front = unproject(c0, z0)[0]
         half = (lid['ux'][-1] - lid['ux'][0]) / 2
         ends = unproject(src_to_crop(np.array([[cx - half, cy], [cx + half, cy]])), np.repeat(z0, 2))
         R = np.linalg.norm(ends[1] - ends[0]) / 2 * EYE_RADIUS
         toward = (cam - front) / np.linalg.norm(cam - front)
-        centre = front - toward * R
+        # The ball's front 1 mm behind the face at the iris, as in the picture (fitted to the opening's
+        # edge it stood a centimetre in front of the face, the eyes bulging and the iris off its place
+        # whenever the camera moved).
+        centre = (front + toward * -0.001) - toward * R
         EYE_BALLS.append((centre, R))
         # The ball: a cap of the sphere facing the camera, out to 95 degrees.
         up = np.array([0.0, 1.0, 0.0]); right = np.cross(up, toward); right /= np.linalg.norm(right); up = np.cross(toward, right)
@@ -520,6 +524,21 @@ def face_surface(P, F, src, hair=None):
     vi0 = np.clip(px.astype(int), 0, N - 1)
     near_v = eye_near[vi0[:, 1], vi0[:, 0]]
     b0 = b0[near_v[b0[:, 0]] & near_v[b0[:, 1]]]
+    # The hole's edge on the lid curves exactly: on the grid's steps it was a jagged lid line.
+    rim_v = np.unique(b0)
+    sxy = (px[rim_v] - np.array([OX, OY])) / S
+    for k, ((icx, icy), lid) in enumerate(zip(IRISES, LIDS)):
+        mine = np.abs(sxy[:, 0] - icx) < 110
+        if not mine.any():
+            continue
+        x = sxy[mine, 0]
+        up = np.interp(x, lid['ux'], lid['uy']) + 0.5; lo = np.interp(x, lid['lx'], lid['ly']) + 1.5
+        y = np.where(sxy[mine, 1] < (up + lo) / 2, up, lo)
+        inside_x = (x > lid['ux'][0] - 1) & (x < lid['ux'][-1] + 1)
+        sxy[np.where(mine)[0][inside_x], 1] = y[inside_x]
+    new_px = src_to_crop(sxy)
+    px[rim_v] = new_px
+    gp[rim_v] = unproject(new_px, ndimage.map_coordinates(zg, [new_px[:, 1], new_px[:, 0]], order=1))
     EYE_RIM[:] = [gp[b0[:, 0]], gp[b0[:, 1]], px[b0[:, 0]], px[b0[:, 1]]]
     # A skirt round the grid's sides, folding 1.5 cm back into the head: seen from the side, the slit
     # between the grid's edge and the scan behind it showed through the cheek. Not along the jaw
@@ -1533,6 +1552,7 @@ def build(work):
     dark = np.where((label == CORE_BODY) & low)[0]
     inner = np.where((label == CORE) | ((label == CORE_BODY) & ~low))[0]
     bare_kind = cKDTree(P[F[bare]].mean(1))
+    chin_tree = cKDTree(P[grid_start:])
     # Skin seen only from the side keeps the generator's light and shade but takes the photo's skin
     # tone: its own colour drifted grey-beige there, a strip between cheek and ear on a turn.
     cheek = np.asarray(bald_src).astype(float)[open_skin]
@@ -1551,16 +1571,23 @@ def build(work):
         lum = col.mean(1, keepdims=True)
         # A narrow brightness range: the generator's side light and the occlusion under the hanging
         # hair made the side of the face a darker patchwork against the photo's evenly lit cheek.
-        # Faces turned down (under the chin and jaw) lie in shadow, as in the picture's own light: lit
-        # like the cheek, the chin's underside read as a pale second chin when the head tilted.
-        toned = skin_ref[None] * np.clip(lum / skin_lum, 0.8, 1.1) * (1 - 0.35 * bare_down[near])[:, None]
+        # Faces turned down lie in a little shadow (more, and the chin's underside read as a dark band).
+        toned = skin_ref[None] * np.clip(lum / skin_lum, 0.8, 1.1) * (1 - 0.1 * bare_down[near])[:, None]
         # Not the scalp under the hair (already turned to the hair's colour): toned to skin, it showed
         # through the bangs at the temple as beige shards.
         is_skin = (((kind == SKIN) | (kind == NECK)) & (col[:, 0] > col[:, 2] + 10))[:, None]
         side = np.where(is_skin, 0.15 * col + 0.85 * toned, col)
         w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)))[:, None]
         out = side * (1 - w) + projected(q) * w
-        return out
+        # Under the chin and jaw: the chin's own colour from just above the jaw line, fading out over
+        # 3 cm, so the chin reads as one piece (toned and shaded on its own, its underside was a
+        # second chin on every nod and turn).
+        c_, _ = project(q); sx = (c_[:, 0] - OX) / S; sy = (c_[:, 1] - OY) / S
+        jaw_y = CHIN_Y - 0.0042 * (sx - 626.0) ** 2 - 10
+        chin_col = np.stack([ndimage.map_coordinates(picture[..., k], [jaw_y, sx], order=1) for k in range(3)], -1)
+        below = (sy > jaw_y - 4) & (np.abs(sx - 626) < 190)
+        wc = (smooth(0.03, 0.004, chin_tree.query(q)[0]) * below * ((kind == SKIN) | (kind == NECK)))[:, None]
+        return out * (1 - wc) + chin_col * wc
     # The skin's own layout (paintable), see SKIN_CHARTS.
     centre = np.array([pivot[0], P[grid_start:, 1].mean(), pivot[2]])
     sk = P[F[bare]].reshape(-1, 3)
@@ -1611,7 +1638,6 @@ def build(work):
             out.append(delta)
         return out
 
-    # The head turns about the neck's own axis at the collar: off the axis, the neck swung out sideways.
     print('pivot', np.round(pivot, 3))
 
     prims = {'head': [], 'body': []}
@@ -1668,8 +1694,6 @@ def build(work):
         part['pos'] = part['pos'] - pivot
         prims['head'].append(part)
     closed = Image.open(f'{work}/assets-v2/kairo-eyes-closed-front.png').convert('RGB')
-    # No lid surfaces: the open lid and its lashes are the photo on the face, and the blink shows the
-    # owner's painted frames over it. Transparent lid sheets drew over those frames as a dotted line.
 
     g = Glb()
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071})
@@ -1680,7 +1704,7 @@ def build(work):
                       # sockets, behind the face's edge) black read as holes in the cheek.
                       ("coreskin", Image.new('RGB', (4, 4), tuple(int(c * 0.8) for c in skin_ref))), ("knit", Image.fromarray(knit_tex)),
                       ("eyeball", eyeball_texture(src)),
-                      ("socket", Image.fromarray(np.tile((skin_ref[None, :] * np.linspace(0.8, 0.4, 64)[:, None])[:, None, :], (1, 4, 1)).astype(np.uint8))),
+                      ("socket", Image.fromarray(np.tile((skin_ref[None, :] * np.array([1.0, 0.86, 0.86]) * np.linspace(0.95, 0.75, 64)[:, None])[:, None, :], (1, 4, 1)).astype(np.uint8))),
                       ("lid", lid_tex)):
         if img.mode == 'RGBA':
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
