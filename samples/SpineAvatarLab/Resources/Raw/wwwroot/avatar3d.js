@@ -394,6 +394,18 @@ function frame(f) {
         nodes[bindings.headNode].rotateY(headTurn[0]);
         nodes[bindings.headNode].rotateX(-headTurn[1]);
     }
+    // The head's turn spread down the neck (each joint its share, the head the rest).
+    if (bindings.neckChain && bindings.headNode !== undefined && nodes[bindings.headNode]) {
+        const head = nodes[bindings.headNode];
+        const turn = baseline[bindings.headNode].quaternion.clone().invert().multiply(head.quaternion);
+        let rest = 1;
+        for (const { node, share } of bindings.neckChain) {
+            if (!nodes[node]) continue;
+            nodes[node].quaternion.copy(baseline[node].quaternion).multiply(new THREE.Quaternion().slerp(turn, share));
+            rest -= share;
+        }
+        head.quaternion.copy(baseline[bindings.headNode].quaternion).multiply(new THREE.Quaternion().slerp(turn, rest));
+    }
 
     const theme = f.d ? 'dark' : 'light';
     for (const [slot, value] of Object.entries(themes ?? {})) {

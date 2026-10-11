@@ -33,6 +33,7 @@ public sealed class GltfAvatarRig
     private readonly (int Mesh, int Target)[] _blinkTargets = [];
     private readonly (int Mesh, int[] Targets)[] _blinkSuppress = [];
     private readonly (int Node, float From, float To)[] _blinkFrames = [];
+    private readonly (int Node, float Share)[] _neckChain = [];
     private readonly (int Mesh, int Target)? _muteBadge;
     private readonly (int Node, float Range)? _gaze;
     private readonly (int Node, float Factor)? _gazeHead, _gazeTurn;
@@ -87,6 +88,9 @@ public sealed class GltfAvatarRig
                 .Select(e => (e.GetProperty("mesh").GetInt32(), e.GetProperty("suppressExpressionTargets").EnumerateArray().Select(x => x.GetInt32()).ToArray()))];
             _blinkByWeight = true;
         }
+        // Neck joints that take a share of the head's turn, as the cervical vertebrae do.
+        if (Extra(bindings, "neckChain") is { } chain)
+            _neckChain = [.. chain.EnumerateArray().Select(e => (e.GetProperty("node").GetInt32(), e.GetProperty("share").GetSingle()))];
         // Nodes shown only while the blink is in a range: painted half-closed and closed eyes, as frames.
         if (Extra(bindings, "blinkFrames") is { } frames)
             _blinkFrames = [.. frames.EnumerateArray().Select(e => (e.GetProperty("node").GetInt32(), e.GetProperty("from").GetSingle(), e.GetProperty("to").GetSingle()))];
@@ -215,6 +219,20 @@ public sealed class GltfAvatarRig
         if ((HeadYaw != 0 || HeadPitch != 0) && _headNode >= 0 && _headNode < Rotation.Length)
             Rotation[_headNode] *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, HeadYaw)
                 * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -HeadPitch);
+
+        if (_neckChain.Length > 0 && _headNode >= 0)
+        {
+            // The head's turn, spread down the neck: each joint takes its share, the head the rest.
+            var turn = Quaternion.Inverse(_baseR[_headNode]) * Rotation[_headNode];
+            var rest = 1f;
+            foreach (var (node, share) in _neckChain)
+            {
+                if (node >= Rotation.Length) continue;
+                Rotation[node] = _baseR[node] * Quaternion.Slerp(Quaternion.Identity, turn, share);
+                rest -= share;
+            }
+            Rotation[_headNode] = _baseR[_headNode] * Quaternion.Slerp(Quaternion.Identity, turn, rest);
+        }
 
         if (!_springs)
             return;

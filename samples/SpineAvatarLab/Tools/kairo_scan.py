@@ -683,7 +683,10 @@ def compose(work):
         t = np.clip((p[:, 1] - l) / (h - l), 0, 1)
         w = 0.5 * (t + t * t * (3 - 2 * t))             # half linear: an even twist with soft ends
         out = smooth(r + 0.006, r + 0.022, np.hypot(p[:, 0] - axis[0], p[:, 2] - axis[1]))
-        return np.maximum(w, out * (p[:, 1] > l + 0.01))
+        # The throat follows the jaw more than the nape follows the skull: looking down, a throat
+        # weighted like the nape stayed put and came through the chin.
+        throat = smooth(0.0, 0.06, p[:, 2] - axis[1]) * np.sqrt(t)
+        return np.maximum(np.maximum(w, 0.85 * throat), out * (p[:, 1] > l + 0.01))
     wv = twist(BP)
     neck = ~knit & (wv[BF] < 0.999).any(1)
     jaw = hi
@@ -1677,8 +1680,10 @@ def build(work):
                 # Next to the face grid (the chin) fully with the head: weighted, the scan under the
                 # chin slid against the grid's rigid edge, a second chin and a gap on every nod.
                 w = np.maximum(twist(p), smooth(0.025, 0.006, grid_tree.query(p)[0]))
-                prim['joints'] = np.tile([0, 1, 0, 0], (len(p), 1))
-                prim['weights'] = np.stack([1 - w, w, np.zeros_like(w), np.zeros_like(w)], 1)
+                # Along the chain body - N1 - N2 - head: each vertex between the two joints at its height.
+                s_ = np.clip(w * 3, 0, 3 - 1e-6); k0 = np.floor(s_).astype(int); f_ = s_ - k0
+                prim['joints'] = np.stack([k0, k0 + 1, np.zeros_like(k0), np.zeros_like(k0)], 1)
+                prim['weights'] = np.stack([1 - f_, f_, np.zeros_like(f_), np.zeros_like(f_)], 1)
             if part == 'head':
                 prim['targets'] = lift(pos[used], vis[used]) if morph else [np.zeros_like(p) for _ in TARGETS]
             prims[part].append(prim)
@@ -1734,7 +1739,14 @@ def build(work):
         g.gltf["materials"].append(material)
     # 0 Root, 1 Body (turtleneck), 2 HeadPivot (at the neck), 3 Head.
     neck_node = 4 + len(BLINK_FRAMES)
-    g.node("Root", children=[1, 2, neck_node])
+    # The neck's joints on the spine, at a third and two thirds of the way from the collar up to the
+    # head's pivot (the spine runs up the back of the neck): turning, they share the head's rotation
+    # as the cervical vertebrae do, so the neck bends along its length, not at one joint.
+    collar_y = NECK_SPAN[1]
+    j1 = np.array([pivot[0], collar_y + (pivot[1] - collar_y) / 3, pivot[2]])
+    j2 = np.array([pivot[0], collar_y + (pivot[1] - collar_y) * 2 / 3, pivot[2]])
+    n1_node, n2_node = neck_node + 1, neck_node + 2
+    g.node("Root", children=[1, n1_node, neck_node])
     g.node("Body", g.mesh("Body", prims['body']))
     frames = [eye_frame(work, n, front_depth, surface_normal) for n, _, _ in BLINK_FRAMES]
     frame_materials = []
@@ -1746,19 +1758,23 @@ def build(work):
         prim['material'] = len(g.gltf["materials"]) - 1
         prim['pos'] = prim['pos'] - pivot
     # 0 Root, 1 Body, 2 HeadPivot, 3 Head, 4.. the blink frames (shown by blinkFrames).
-    g.node("HeadPivot", t=pivot, children=[3] + [4 + k for k in range(len(frames))])
+    g.node("HeadPivot", t=pivot - j2, children=[3] + [4 + k for k in range(len(frames))])
     m_head = g.mesh("Head", prims['head'], TARGETS)
     g.node("Head", m_head)
     for k, (prim, _) in enumerate(frames):
         g.node(f"BlinkFrame{k}", g.mesh(f"BlinkFrame{k}", [prim]))
-    inverse_bind = np.stack([np.eye(4), np.eye(4)]); inverse_bind[1, :3, 3] = -pivot
+    inverse_bind = np.stack([np.eye(4)] * 4)
+    for k_, at in ((1, j1), (2, j2), (3, pivot)):
+        inverse_bind[k_, :3, 3] = -at
     skin_ibm = g.accessor(inverse_bind.transpose(0, 2, 1).reshape(-1, 16).astype(np.float32), "MAT4")
-    g.gltf["skins"] = [{"joints": [1, 2], "inverseBindMatrices": skin_ibm}]
+    g.gltf["skins"] = [{"joints": [1, n1_node, n2_node, 2], "inverseBindMatrices": skin_ibm}]
     n = g.node("Neck", g.mesh("Neck", prims['neck']))
     assert n == neck_node
     g.gltf["nodes"][n]["skin"] = 0
+    assert g.node("NeckLower", t=j1, children=[n2_node]) == n1_node
+    assert g.node("NeckUpper", t=j2 - j1, children=[2]) == n2_node
     clips(g)
-    return g.bytes(), dict(m_head=m_head, head_prims=len(prims['head']))
+    return g.bytes(), dict(m_head=m_head, head_prims=len(prims['head']), neck_chain=(n1_node, n2_node))
 
 def clips(g):
     pivot = 2
@@ -1825,6 +1841,7 @@ def package(glb, ids, posters):
         "blink": [{"node": 3, "mesh": ids['m_head'], "primitives": prims, "targetIndex": TARGETS.index("blink"),
                    "suppressExpressionTargets": [TARGETS.index(n) for n in ("wide", "squint", "happy")]}],
         "stateAnimations": {"thinking": "think"},
+        "neckChain": [{"node": ids['neck_chain'][0], "share": 0.25}, {"node": ids['neck_chain'][1], "share": 0.3}],
         "blinkFrames": [{"node": 4 + k, "from": a, "to": b} for k, (_, a, b) in enumerate(BLINK_FRAMES)],
         "headNode": 2,
         "speechMouthMesh": ids['m_head'],
