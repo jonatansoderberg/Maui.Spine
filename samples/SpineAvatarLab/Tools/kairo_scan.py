@@ -219,7 +219,7 @@ def eye_holes(shape, inset=0.0, grow_x=0.0):
     m = np.zeros(shape, bool)
     for lid in LIDS:
         x0, x1 = lid_span(lid); x0, x1 = x0 - grow_x, x1 + grow_x
-        top = np.interp(xx, lid['ux'], lid['uy']) + 2.0 - LASH  # the lash tips: the lid's visible top
+        top = np.interp(xx, lid['ux'], lid['uy']) + 0.5           # the lid margin: the lashes stay on the face
         # Down past the lower lid's line: a grid edge on it kept a sliver of the photo's iris, which
         # stayed behind when the iris moved.
         bottom = np.interp(xx, lid['lx'], lid['ly']) + 1.5
@@ -867,7 +867,9 @@ def lid_overlays(front_depth, surface_normal, closed):
         # which stayed in place when the iris moved up.
         rest = opened(margin - 1.5) + (hidden,)
         closed_shape = (span(crease, edge - 3, fs), flat(edge - 3, band_rows), span(edge - 3, edge + HANG, fh), span(crease - 10, crease, ff))
-        shapes = {'blink': closed_shape, 'squint': opened(margin - 1.5 + (lower - margin) * 0.38) + (hidden,),
+        # The blink shows the owner's painted half-closed and closed eyes as frames (eye_frames); the
+        # lid surface only squints.
+        shapes = {'squint': opened(margin - 1.5 + (lower - margin) * 0.38) + (hidden,),
                   'wide': opened(margin - 8.5) + (hidden,)}
         grid = lambda ys: np.stack([np.broadcast_to(x, ys.shape), ys], -1).reshape(-1, 2)
         to_closed = lambda px: (px - np.array([x0c, y0c])) / np.array([x1c - x0c, y1c - y0c])
@@ -981,6 +983,37 @@ class Glb:
         import struct
         return (struct.pack('<III', 0x46546C67, 2, 12 + 8 + len(js) + 8 + len(binary)) + struct.pack('<II', len(js), 0x4E4F534A) + js
                 + struct.pack('<II', len(binary), 0x004E4942) + binary)
+
+EYE_FRAMES = 'eye-layers-2'      # the owner's layers: kairo-lid-half.png, kairo-lid-closed.png (full canvas, same framing)
+BLINK_FRAMES = [('kairo-lid-half.png', 0.3, 0.8), ('kairo-lid-closed.png', 0.8, 2.0)]
+
+def eye_frame(work, name, front_depth, surface_normal):
+    """One painted eye state as a flat sheet over both eyes, 1 mm in front of the face, with its
+    alpha softened at the edge (it comes from a different render than the photo)."""
+    a = np.asarray(Image.open(f'{work}/{EYE_FRAMES}/{name}').convert('RGBA')).astype(float)
+    # No hair strands (they belong to the hair layer, and stood still in the sheet when the head
+    # turned); the colour under the transparent part spread from the solid one, since its black
+    # bled into the edge as a dotted dark line when the texture was filtered.
+    hair = ((a[..., 2] > a[..., 0] + 12) | (a[..., :3].sum(-1) < 150)) & (a[..., 3] > 10)
+    hair = ndimage.binary_opening(hair, iterations=1)
+    a[..., 3] = np.where(hair & (np.arange(a.shape[0])[:, None] < 470), 0, a[..., 3])
+    solid = a[..., 3] > 10
+    _, (iy, ix) = ndimage.distance_transform_edt(~(a[..., 3] > 200), return_indices=True)
+    a[..., :3] = a[iy, ix, :3]
+    ys, xs = np.where(solid)
+    x0, y0, x1, y1 = xs.min() - 2, ys.min() - 2, xs.max() + 3, ys.max() + 3
+    alpha = np.minimum(a[..., 3], 255 * np.clip(ndimage.distance_transform_edt(solid) / 8.0, 0, 1))
+    tex = Image.fromarray(np.dstack([a[y0:y1, x0:x1, :3], alpha[y0:y1, x0:x1]]).astype(np.uint8), 'RGBA')
+    gy, gx = np.mgrid[y0:y1:2, x0:x1:2]
+    inside = ndimage.binary_dilation(solid, iterations=3)[np.clip(gy, 0, solid.shape[0] - 1), np.clip(gx, 0, solid.shape[1] - 1)]
+    vid = np.full(gx.shape, -1); vid[inside] = np.arange(inside.sum())
+    q = [vid[:-1, :-1], vid[:-1, 1:], vid[1:, :-1], vid[1:, 1:]]
+    ok = np.all([v >= 0 for v in q], 0)
+    idx = np.concatenate([np.stack([q[0][ok], q[2][ok], q[1][ok]], 1), np.stack([q[1][ok], q[2][ok], q[3][ok]], 1)]).reshape(-1)
+    spx = np.stack([gx[inside], gy[inside]], 1).astype(float)
+    c = src_to_crop(spx); pos = unproject(c, front_depth(c) - 0.001)
+    uv = (spx - np.array([x0, y0])) / np.array([x1 - x0, y1 - y0])
+    return dict(pos=pos, nrm=surface_normal(pos), uv=uv, idx=idx.astype(np.uint32)), tex
 
 def jpeg(img, quality=90):
     out = io.BytesIO(); img.save(out, 'JPEG', quality=quality); return out.getvalue()
@@ -1159,9 +1192,8 @@ def build(work):
         part['pos'] = part['pos'] - pivot
         prims['head'].append(part)
     closed = Image.open(f'{work}/assets-v2/kairo-eyes-closed-front.png').convert('RGB')
-    for lid in lid_overlays(front_depth, surface_normal, closed):
-        lid['pos'] = lid['pos'] - pivot
-        prims['head'].append(lid)
+    # No lid surfaces: the open lid and its lashes are the photo on the face, and the blink shows the
+    # owner's painted frames over it. Transparent lid sheets drew over those frames as a dotted line.
 
     g = Glb()
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071})
@@ -1194,9 +1226,21 @@ def build(work):
     # 0 Root, 1 Body (turtleneck), 2 HeadPivot (at the neck), 3 Head.
     g.node("Root", children=[1, 2])
     g.node("Body", g.mesh("Body", prims['body']))
-    g.node("HeadPivot", t=pivot, children=[3])
+    frames = [eye_frame(work, n, front_depth, surface_normal) for n, _, _ in BLINK_FRAMES]
+    frame_materials = []
+    for (prim, tex), (n, _, _) in zip(frames, BLINK_FRAMES):
+        data = io.BytesIO(); tex.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", n)
+        g.gltf["textures"].append({"sampler": 0, "source": i})
+        g.gltf["materials"].append({"name": n, "doubleSided": True, "alphaMode": "BLEND", "emissiveTexture": {"index": i}, "emissiveFactor": [0.9, 0.9, 0.9],
+                                    "pbrMetallicRoughness": {"baseColorFactor": [0.1, 0.1, 0.1, 1], "baseColorTexture": {"index": i}, "metallicFactor": 0, "roughnessFactor": 1.0}})
+        prim['material'] = len(g.gltf["materials"]) - 1
+        prim['pos'] = prim['pos'] - pivot
+    # 0 Root, 1 Body, 2 HeadPivot, 3 Head, 4.. the blink frames (shown by blinkFrames).
+    g.node("HeadPivot", t=pivot, children=[3] + [4 + k for k in range(len(frames))])
     m_head = g.mesh("Head", prims['head'], TARGETS)
     g.node("Head", m_head)
+    for k, (prim, _) in enumerate(frames):
+        g.node(f"BlinkFrame{k}", g.mesh(f"BlinkFrame{k}", [prim]))
     clips(g)
     return g.bytes(), dict(m_head=m_head, head_prims=len(prims['head']))
 
@@ -1265,6 +1309,7 @@ def package(glb, ids, posters):
         "blink": [{"node": 3, "mesh": ids['m_head'], "primitives": prims, "targetIndex": TARGETS.index("blink"),
                    "suppressExpressionTargets": [TARGETS.index(n) for n in ("wide", "squint", "happy")]}],
         "stateAnimations": {"thinking": "think"},
+        "blinkFrames": [{"node": 4 + k, "from": a, "to": b} for k, (_, a, b) in enumerate(BLINK_FRAMES)],
         "headNode": 2,
         "speechMouthMesh": ids['m_head'],
         "expressionMouthTargets": [TARGETS.index(n) for n in ("smile", "smirk", "frown", "small_o")],

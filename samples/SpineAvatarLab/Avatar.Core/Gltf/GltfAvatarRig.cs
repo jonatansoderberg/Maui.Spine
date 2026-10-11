@@ -32,6 +32,7 @@ public sealed class GltfAvatarRig
     private readonly bool _override, _blinkByWeight, _springs;
     private readonly (int Mesh, int Target)[] _blinkTargets = [];
     private readonly (int Mesh, int[] Targets)[] _blinkSuppress = [];
+    private readonly (int Node, float From, float To)[] _blinkFrames = [];
     private readonly (int Mesh, int Target)? _muteBadge;
     private readonly (int Node, float Range)? _gaze;
     private readonly (int Node, float Factor)? _gazeHead, _gazeTurn;
@@ -86,6 +87,9 @@ public sealed class GltfAvatarRig
                 .Select(e => (e.GetProperty("mesh").GetInt32(), e.GetProperty("suppressExpressionTargets").EnumerateArray().Select(x => x.GetInt32()).ToArray()))];
             _blinkByWeight = true;
         }
+        // Nodes shown only while the blink is in a range: painted half-closed and closed eyes, as frames.
+        if (Extra(bindings, "blinkFrames") is { } frames)
+            _blinkFrames = [.. frames.EnumerateArray().Select(e => (e.GetProperty("node").GetInt32(), e.GetProperty("from").GetSingle(), e.GetProperty("to").GetSingle()))];
         if (Extra(bindings, "muteBadge") is { } mute)
             _muteBadge = (mute.GetProperty("mesh").GetInt32(), mute.GetProperty("targetIndex").GetInt32());
         // Gaze moves eyes by morph targets, moves a node (eyes on a face plate) or turns a bone by a share
@@ -155,6 +159,15 @@ public sealed class GltfAvatarRig
         }
         foreach (var (mesh, target) in _blinkTargets)
             SetWeight(mesh, target, Math.Max(f.Blink, mesh < Weights.Length && target < Weights[mesh].Length ? Weights[mesh][target] : 0));
+        if (_blinkFrames.Length > 0 && _blinkTargets.Length > 0)
+        {
+            // The blink as poses and the scheduler leave it in the first blink target.
+            var (mesh, target) = _blinkTargets[0];
+            var closure = mesh < Weights.Length && target < Weights[mesh].Length ? Weights[mesh][target] : f.Blink;
+            foreach (var (node, from, to) in _blinkFrames)
+                if (node < Scale.Length && (closure < from || closure >= to))
+                    Scale[node] = Vector3.Zero;
+        }
 
         ApplyParameters(_outputParameters, f.OutputLevel, f.OutputReactiveWeight);
         ApplyParameters(_inputParameters, f.InputLevel, f.InputReactiveWeight);

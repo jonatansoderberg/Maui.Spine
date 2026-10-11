@@ -324,6 +324,17 @@ function frame(f) {
         }
     }
 
+    // Nodes shown only while the blink is in a range (painted half-closed and closed eyes).
+    if (bindings.blinkFrames && bindings.blink) {
+        const first = [bindings.blink].flat()[0];
+        const mesh = meshesFor(first)[0];
+        const closure = mesh ? mesh.morphTargetInfluences[first.targetIndex] : f.b;
+        for (const frame of bindings.blinkFrames) {
+            const node = nodes[frame.node];
+            if (node) node.visible = closure >= frame.from && closure < frame.to;
+        }
+    }
+
     // A level drives a transform (min/max arrays) or a morph target (min/max numbers).
     const levelWrite = (p, level, weight) => {
         if (weight <= 0) return;
