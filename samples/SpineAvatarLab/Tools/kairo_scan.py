@@ -564,7 +564,11 @@ def compose(work):
     lo = rim + 0.006
     # At least NECK_TWIST high all round, and smooth round the neck: at the sides (the outline from
     # behind) a 2 cm zone bent the neck sharply on every turn.
+    jaw_under = hi.copy()
     hi = ndimage.gaussian_filter1d(np.maximum(hi, lo + NECK_TWIST), 2, mode='wrap')
+    # ...but never above the jaw's underside: in front that is the chin, which must turn rigidly with
+    # the head (twisting partly, it went out of step on every turn).
+    hi = np.maximum(np.minimum(hi, jaw_under - 0.006), lo + 0.012)
     # Only the neck's own cylinder twists: the jaw and the chin lie outside it (further from the
     # axis) and turn rigidly with the head. Twisting them bent the chin out of shape on every turn.
     r_cyl = np.full(36, r_neck)
@@ -1096,9 +1100,18 @@ def eye_frame(work, name, front_depth, surface_normal):
     # No hair strands (they belong to the hair layer, and stood still in the sheet when the head
     # turned); the colour under the transparent part spread from the solid one, since its black
     # bled into the edge as a dotted dark line when the texture was filtered.
-    hair = ((a[..., 2] > a[..., 0] + 12) | (a[..., :3].sum(-1) < 150)) & (a[..., 3] > 10)
-    hair = ndimage.binary_opening(hair, iterations=1)
-    a[..., 3] = np.where(hair & (np.arange(a.shape[0])[:, None] < 470), 0, a[..., 3])
+    # Starting under the photo's brows and fading in below them: the layers reach up into the brow
+    # with strokes of their own, a misplaced line over the closed lid.
+    photo = np.asarray(Image.open(f'{work}/bald/kairo-bald-front.png').convert('RGB')).astype(float)
+    brow = (photo[..., 2] > photo[..., 0] + 12) & (np.arange(photo.shape[0])[:, None] > 380) & (np.arange(photo.shape[0])[:, None] < 475)
+    brow = ndimage.binary_opening(brow, iterations=1)
+    rows = np.arange(photo.shape[0])[:, None]
+    bottom = np.where(brow.any(0), np.where(brow, rows, 0).max(0), 440)
+    bottom = ndimage.maximum_filter1d(ndimage.median_filter(bottom, 9), 15)
+    a[..., 3] *= smooth(bottom + 3.0, bottom + 15.0, rows.astype(float))
+    # And none of the layer's own brow strokes, wherever they lie (past the brow's ends too).
+    stroke = (a[..., 2] > a[..., 0] + 12) & (rows < 480)
+    a[..., 3] *= 1 - ndimage.gaussian_filter(ndimage.binary_dilation(stroke, iterations=3).astype(float), 1.5)
     solid = a[..., 3] > 10
     _, (iy, ix) = ndimage.distance_transform_edt(~(a[..., 3] > 200), return_indices=True)
     a[..., :3] = a[iy, ix, :3]
@@ -1199,9 +1212,23 @@ def skin_bake(P, F, chart, px, colour, shade, work):
     img = img[iy, ix]
     paint = f'{work}/{SKIN_PAINT}'
     if os.path.exists(paint):
-        p_ = np.asarray(Image.open(paint).convert('RGBA').resize((W, H))).astype(float)
-        a = p_[..., 3:] / 255
-        img = img * (1 - a) + p_[..., :3] * a
+        p_ = np.asarray(Image.open(paint).convert('RGBA').resize((W, H), Image.LANCZOS)).astype(float)
+        cover = p_[..., 3] > 128
+        # Feathered, so a painted area has no edge against the bake.
+        a = ndimage.gaussian_filter(ndimage.binary_erosion(cover, iterations=6).astype(float), 4)[..., None]
+        # Each chart was painted in its own tone, and a face takes one chart: as painted, the seams
+        # between charts showed as a patchwork. Elsewhere only the painting's detail (pores, creases)
+        # goes onto the bake; on the ears the painting itself, toned to the bake.
+        filled = np.where(cover[..., None], p_[..., :3], 0)
+        weight = ndimage.gaussian_filter(cover.astype(float), 24)[..., None]
+        low = ndimage.gaussian_filter(filled, (24, 24, 0)) / np.maximum(weight, 1e-3)
+        detail = p_[..., :3] - low
+        out = img + detail
+        ear = np.zeros((H, W, 1), bool); ear[SKIN_TILE:, 2 * SKIN_TILE:] = True
+        bake_mean = np.median(img[SKIN_TILE:, 2 * SKIN_TILE:][drawn[SKIN_TILE:, 2 * SKIN_TILE:]], 0)
+        paint_mean = np.median(p_[SKIN_TILE:, 2 * SKIN_TILE:, :3][cover[SKIN_TILE:, 2 * SKIN_TILE:]], 0)
+        out = np.where(ear, p_[..., :3] * bake_mean / np.maximum(paint_mean, 1), out)
+        img = img * (1 - a) + out * a
         print('skin painting applied from', paint)
     return np.clip(img, 0, 255).astype(np.uint8), drawn
 
