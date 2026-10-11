@@ -6,6 +6,9 @@
     <Deploy />
   </Project>
   <Project Path="samples/MauiSpinePushNotificationsSampleApp.Server/MauiSpinePushNotificationsSampleApp.Server.csproj" />
+  <Project Path="samples/SpineAvatarLab/SpineAvatarLab.csproj">
+    <Deploy />
+  </Project>
   <Project Path="src/Plugin.Maui.Spine.Controls.AnimatedLabel/Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" Id="39cb0bc0-a3d4-45a1-ba1c-fd0cbdbddc8a" />
   <Project Path="src/Plugin.Maui.Spine.Common/Plugin.Maui.Spine.Common.csproj" />
   <Project Path="src/Plugin.Maui.Spine/Plugin.Maui.Spine.csproj" />
@@ -29,6 +32,7 @@
   <Project Path="tests/Plugin.Maui.Spine.Svg.Tests/Plugin.Maui.Spine.Svg.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Barcodes.Tests/Plugin.Maui.Spine.Barcodes.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Controls.Tests/Plugin.Maui.Spine.Controls.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.Controls.Avatar.Core.Tests/Plugin.Maui.Spine.Controls.Avatar.Core.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Images.Tests/Plugin.Maui.Spine.Images.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.BackgroundTasks.Tests/Plugin.Maui.Spine.BackgroundTasks.Tests.csproj" />
 </Solution>

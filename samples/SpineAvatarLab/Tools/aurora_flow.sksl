@@ -1,0 +1,126 @@
+// Aurora Flow: three ribbons of light, for the Spine Avatar Lab (#524).
+// After Siri's waveform: mirrored, translucent lobes along a travelling wave that taper to nothing at
+// both ends, added over each other in three colours, over a soft glow. Nothing is clipped. Idle is a
+// slow, low swell; the voice sends waves through the ribbons that grow with its loudness, each ribbon
+// following its own part of the spectrum. Uniforms follow AvatarShaderContract; colours come from the
+// manifest's theme slots.
+uniform float2 iResolution;
+uniform float flow;
+uniform float energy;
+uniform float bandLow;
+uniform float bandMid;
+uniform float bandHigh;
+uniform float mouth;
+uniform float stateConnecting;
+uniform float stateListening;
+uniform float stateThinking;
+uniform float stateInterrupted;
+uniform float stateMuted;
+uniform float exprHappy;
+uniform float exprCurious;
+uniform float exprConcerned;
+uniform float exprSurprised;
+uniform float exprApologetic;
+uniform float exprConfident;
+uniform float micMuted;
+uniform float2 look;
+uniform float3 spring;
+uniform float dark;
+uniform float3 cyan;
+uniform float3 blue;
+uniform float3 violet;
+uniform float3 pink;
+uniform float3 warm;
+
+// One ribbon: lobes mirrored about its axis (|y| < |wave(x)|) with a bright edge, and small streaks
+// of light drifting along inside it; the light it adds at p.
+float ribbon(float2 p, float angle, float amplitude, float freq, float travel, float phase, float span, float sparkle) {
+    float c = cos(angle);
+    float s = sin(angle);
+    float2 r = float2(c * p.x + s * p.y, -s * p.x + c * p.y);
+    float x = r.x / span;
+    // Tapers to zero at both ends, so a ribbon is never cut off.
+    float taper = max(1.0 - x * x, 0.0);
+    taper *= taper;
+    float wave = amplitude * taper * (sin(x * freq - travel + phase) + 0.35 * sin(x * freq * 1.9 - travel * 1.4 + phase * 2.3));
+    float w = abs(wave);
+    float y = abs(r.y);
+    // A veil inside the lobe that brightens toward its edge, and a bright edge line: light, not a solid.
+    float ratio = clamp(y / max(w, 0.001), 0.0, 1.0);
+    float lobe = smoothstep(w + 0.015, w - 0.015, y) * (0.06 + 0.34 * ratio * ratio);
+    float d = y - w;
+    float edge = exp(-d * d / 0.0007) * 0.75 * taper;
+
+    // Streaks: one per cell along the ribbon, each at its own height inside the lobe and its own
+    // brightness, streaming through faster than the wave itself.
+    float cells = 15.0;
+    float along = x * cells - travel * 2.4 + phase * 3.1;
+    float id = floor(along);
+    float f = fract(along) - 0.5;
+    float h1 = fract(sin(id * 127.1 + phase * 13.7) * 43758.5453);
+    float h2 = fract(sin(id * 311.7 + phase * 7.3) * 24634.6345);
+    float yc = wave * (h1 * 2.0 - 1.0) * 0.85;
+    float dy = r.y - yc;
+    float streak = exp(-f * f / 0.012 - dy * dy / 0.00002) * (0.6 + 0.9 * h2) * sparkle * taper;
+    // Lobes too thin to read fade out, so a quiet ribbon is a fine glowing thread.
+    return (lobe * smoothstep(0.0, 0.06, w) + edge + streak) * smoothstep(0.0, 0.02, taper);
+}
+
+half4 main(float2 fragCoord) {
+    float size = min(iResolution.x, iResolution.y);
+    float2 p = (fragCoord - 0.5 * iResolution) / (0.5 * size);
+    p.y = -p.y;
+    p.y -= spring.z * 0.8;
+    p = float2(p.x * (1.0 + spring.x * 0.6), p.y / (1.0 + spring.x));
+    p -= look * 0.25;
+
+    float voice = clamp(energy, 0.0, 1.0);
+    float quiet = clamp(max(stateMuted, micMuted), 0.0, 1.0);
+
+    // Idle: a low swell. Voice: each ribbon follows its part of the spectrum and grows with it.
+    float think = stateThinking * (0.04 + 0.03 * sin(flow * 1.7));
+    float idle = (0.05 + 0.025 * sin(flow * 0.7)) * (1.0 - quiet * 0.8) + think;
+    float a0 = idle + voice * (0.18 + 0.35 * bandLow) + mouth * 0.08;
+    float a1 = idle * 0.8 + voice * (0.14 + 0.35 * bandMid) + mouth * 0.05;
+    float a2 = idle * 0.6 + voice * (0.1 + 0.3 * bandHigh);
+
+    // Waves travel through faster with the voice. The ribbons never turn while there is voice; idle
+    // sways them a little. Thinking shimmers: the waves run faster and swell in a slow pulse.
+    float travel = flow * (1.2 + 2.5 * voice + 1.5 * stateThinking);
+    float sway = 0.1 * sin(flow * 0.23) * (1.0 - voice);
+    float span = 0.82 + 0.06 * voice - 0.08 * stateInterrupted + 0.05 * exprSurprised;
+
+    // Each ribbon fades in and out on its own slow cycle while idle, and stays up while there is voice.
+    float f0 = mix(0.65 + 0.35 * sin(flow * 0.31), 1.0, voice);
+    float f1 = mix(0.55 + 0.45 * sin(flow * 0.27 + 2.1), 1.0, voice);
+    float f2 = mix(0.5 + 0.5 * sin(flow * 0.35 + 4.2), 1.0, voice);
+
+    // Streaks are faint at rest and brighten with the voice.
+    float sparkle = 0.5 + 1.3 * voice + 0.4 * stateThinking;
+    float r0 = ribbon(p, sway, a0, 5.0, travel, 0.0, span, sparkle) * f0;
+    float r1 = ribbon(p, -sway * 0.7, a1, 6.5, travel * 1.15, 2.0, span * 0.95, sparkle) * f1;
+    float r2 = ribbon(p, sway * 0.4, a2, 8.0, travel * 1.3, 4.0, span * 0.9, sparkle) * f2;
+
+    // Palette: pink, cyan and violet; warmer when happy or confident, cooler while listening.
+    float listening = stateListening;
+    float warmth = clamp(0.6 * exprHappy + 0.4 * exprConfident + 0.2 * exprCurious, 0.0, 1.0);
+    float3 c0 = mix(mix(pink, warm, warmth * 0.6), cyan, listening * 0.5);
+    float3 c1 = mix(cyan, blue, listening * 0.4);
+    float3 c2 = mix(violet, pink, warmth * 0.4);
+    float3 light = c0 * r0 + c1 * r1 + c2 * r2;
+
+    // A soft glow behind the ribbons, brighter with the voice; it pulses while connecting.
+    float pulse = 0.5 + 0.5 * sin(flow * 4.0);
+    float glow = exp(-dot(p, p) * (4.5 - 1.5 * voice)) * (0.22 + 0.4 * voice + 0.18 * stateConnecting * pulse)
+               * smoothstep(1.0, 0.6, length(p));
+    light += mix(mix(blue, violet, 0.5 + 0.5 * sin(flow * 0.4)), cyan, listening * 0.4) * glow;
+
+    // Muted: drained to a quiet grey. Concerned or apologetic: dimmer.
+    float drained = clamp(quiet * 0.8 + exprConcerned * 0.15, 0.0, 1.0);
+    light = mix(light, float3(dot(light, float3(0.3, 0.5, 0.2))), drained) * (1.0 - 0.25 * exprApologetic);
+
+    // Additive light becomes colour with coverage, so it reads on light and dark backgrounds alike.
+    float3 color = 1.0 - exp(-light * 1.6);
+    float alpha = clamp(max(color.r, max(color.g, color.b)) * (1.15 + 0.25 * (1.0 - dark)), 0.0, 1.0);
+    return half4(half3(min(color, float3(alpha))), half(alpha));
+}
