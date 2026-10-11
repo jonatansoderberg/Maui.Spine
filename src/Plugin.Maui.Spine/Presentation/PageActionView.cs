@@ -1,5 +1,6 @@
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Extensions;
+using Plugin.Maui.Spine.Services;
 using Plugin.Maui.Spine.Svg;
 
 namespace Plugin.Maui.Spine.Presentation;
@@ -502,7 +503,7 @@ internal sealed class PageActionView : ContentView
                 _textButton.Text = action.Text ?? string.Empty;
             }
 
-            _textButton.Command = action.Command;
+            _textButton.Command = CommandGuards.Wrap(action.Command);
             _textButton.CommandParameter = action.CommandParameter;
         }
 
@@ -834,7 +835,7 @@ internal sealed class PageActionView : ContentView
                     _currentSvg = action.Svg;
                 }
 
-                _imageButton.Command = action.Command;
+                _imageButton.Command = CommandGuards.Wrap(action.Command);
                 _imageButton.CommandParameter = action.CommandParameter;
             }
             else
@@ -846,7 +847,7 @@ internal sealed class PageActionView : ContentView
                 }
 
                 _textButton.Text = action.Text ?? string.Empty;
-                _textButton.Command = action.Command;
+                _textButton.Command = CommandGuards.Wrap(action.Command);
                 _textButton.CommandParameter = action.CommandParameter;
             }
         }

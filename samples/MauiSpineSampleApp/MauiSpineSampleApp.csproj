@@ -389,6 +389,24 @@
       <DependentUpon>ActionSheetsPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Guards\GuardsPage.View.xaml">
+      <DependentUpon>GuardsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Guards\GuardsPage.ViewModel.cs">
+      <DependentUpon>GuardsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Guards\VaultPage.View.xaml">
+      <DependentUpon>VaultPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Guards\VaultPage.ViewModel.cs">
+      <DependentUpon>VaultPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
       <DependentUpon>ScrollInsetPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

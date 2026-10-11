@@ -52,6 +52,9 @@ public static partial class SpineExtensions
         services.AddSingleton<NavigationRegistry>();
         services.AddSingleton<ISpineTransitions, DefaultSpineTransitions>();
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<SpineReadiness>();
+        services.AddSingleton<GuardRunner>();
+        CommandGuards.Runner = static () => IPlatformApplication.Current?.Services.GetService<GuardRunner>();
         services.AddSingleton<ISystemInsetsProvider, SystemInsetsProvider>();
         services.AddSingleton<SpineHostProvider>();
         services.AddSingleton<TabBadgeService>();
@@ -107,6 +110,7 @@ public static partial class SpineExtensions
                 sp.GetRequiredService<TabBadgeService>(),
                 sp.GetRequiredService<IThemeService>(),
                 sp.GetRequiredService<Plugin.Maui.Spine.Svg.ResourceNameCache>(),
+                sp.GetRequiredService<GuardRunner>(),
                 sp)
             {
                 AppTitle = options.AppTitle,

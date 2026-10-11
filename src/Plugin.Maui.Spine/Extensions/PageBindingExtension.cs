@@ -1,4 +1,5 @@
 using Plugin.Maui.Spine.Core;
+using Plugin.Maui.Spine.Services;
 
 namespace Plugin.Maui.Spine.Extensions;
 
@@ -50,7 +51,8 @@ public class PageBindingExtension : IMarkupExtension<BindingBase>
 /// Binds a command on the owning Spine page's view model, from anywhere inside the page:
 /// <c>{PageCommand OpenLive}</c> binds <c>OpenLiveCommand</c> on the page's view model.
 /// The <c>Command</c> suffix is added when missing, so both <c>OpenLive</c> and
-/// <c>OpenLiveCommand</c> work.
+/// <c>OpenLiveCommand</c> work. A guard on the command (a <see cref="GuardAttribute"/>) asks before it
+/// runs, which a plain <c>{Binding OpenLiveCommand}</c> does not.
 /// </summary>
 [ContentProperty(nameof(Name))]
 [AcceptEmptyServiceProvider]
@@ -67,7 +69,20 @@ public class PageCommandExtension : IMarkupExtension<BindingBase>
         return new Binding(
             path: $"BindingContext.{name}",
             mode: BindingMode.OneWay,
+            converter: GuardedCommandConverter.Instance,
             source: new RelativeBindingSource(RelativeBindingSourceMode.FindAncestor, typeof(INavigable)));
+    }
+
+    /// <summary>Hands the control a command that asks the command's guards first.</summary>
+    private sealed class GuardedCommandConverter : IValueConverter
+    {
+        public static readonly GuardedCommandConverter Instance = new();
+
+        public object? Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) =>
+            value is System.Windows.Input.ICommand command ? CommandGuards.Wrap(command) : value;
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) =>
+            throw new NotSupportedException();
     }
 
     object IMarkupExtension.ProvideValue(IServiceProvider serviceProvider) => ProvideValue(serviceProvider);

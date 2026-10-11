@@ -1,0 +1,50 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Guards.GuardsPage"
+    x:TypeArguments="GuardsPageViewModel"
+    x:DataType="GuardsPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine">
+
+        <Example Title="A guarded page"
+                 Summary="An attribute on the page asks before it opens: the page and its view model are not created until the guard says yes. Here the guard is a confirmation; Plugin.Maui.Spine.Biometrics brings Face ID and fingerprint.">
+            <Button Text="Open the vault" Command="{Binding OpenVaultCommand}" />
+            <Example.Code>
+                [NavigableRegion(Title = "Vault"), Confirm("Open the vault?")]
+                public partial class VaultPage { … }
+
+                // MauiProgram
+                builder.Services.AddSpineGuard&lt;ConfirmAttribute, ConfirmGuard&gt;();
+            </Example.Code>
+        </Example>
+
+        <Example Title="A guarded command"
+                 Summary="The same attribute on a command asks before it runs, wherever Spine runs it: a header-bar button, a row with Tap.Command, a row in an action sheet or a menu.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding Log}" FontSize="15" />
+                <Border Padding="16,12" StrokeShape="RoundRectangle 12" Tap.Command="{Binding DeleteCommand}" Semantic.Merge="True">
+                    <Label Text="Delete (a row with Tap.Command)" />
+                </Border>
+                <Button Text="Delete from an action sheet" Command="{Binding ShowActionsCommand}" />
+                <Button Text="Delete from a menu" MenuButton.Items="{Binding DraftMenu}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                [Confirm("Delete the draft?")]
+                [RelayCommand]
+                private void Delete() { … }
+
+                // Asks too
+                [PageAction(Svg = "trashcan.svg"), Confirm("Delete the draft?")]
+                new MenuAction("Delete", "trashcan.svg", DeleteCommand)
+                &lt;Border Tap.Command="{Binding DeleteCommand}"&gt; … &lt;/Border&gt;
+                &lt;Button Command="{PageCommand Delete}" /&gt;
+
+                // Does not ask: the button runs the command itself
+                &lt;Button Command="{Binding DeleteCommand}" /&gt;
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>
