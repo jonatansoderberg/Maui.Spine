@@ -299,20 +299,49 @@ def iris_texture(src):
         tex[:, i * IRIS_TILE:(i + 1) * IRIS_TILE, 3] = 255 * (1 - smooth(IRIS_R - 1.5, IRIS_R + 1.5, r))
     return Image.fromarray(np.clip(tex, 0, 255).astype(np.uint8), 'RGBA')
 
+def eye_sockets():
+    """A wall from the face's edge round each eye hole in to the eyeball, coloured by the photo at the
+    edge (liner and lashes above, skin below): the lid's own thickness. Without it the gap between
+    the hole's edge and the ball let the eye see into the head (or out through the nose's root)."""
+    a, b, pa, pb = EYE_RIM
+    centres = np.array([c for c, _ in EYE_BALLS]); radii = np.array([r for _, r in EYE_BALLS])
+    k = np.argmin(((a[:, None, :] - centres[None]) ** 2).sum(-1), 1)
+    def onto(p):
+        d = p - centres[k]; d /= np.linalg.norm(d, axis=1, keepdims=True)
+        return centres[k] + d * (radii[k] * 0.97)[:, None]
+    ta, tb = onto(a), onto(b)
+    n = len(a)
+    pos = np.concatenate([a, b, ta, tb])
+    # Shaded skin, lighter at the face's edge and darker in toward the ball (the photo's edge pixels,
+    # stretched inward, streaked the inner corners).
+    uv = np.concatenate([np.tile([0.5, 0.05], (2 * n, 1)), np.tile([0.5, 0.95], (2 * n, 1))])
+    i = np.arange(n)
+    idx = np.stack([i, i + n, i + 2 * n, i + n, i + 3 * n, i + 2 * n], 1).reshape(-1)
+    nrm = np.concatenate([centres[k] - a, centres[k] - b, centres[k] - ta, centres[k] - tb])
+    nrm = -nrm / (np.linalg.norm(nrm, axis=1, keepdims=True) + 1e-12)
+    print('eye sockets', n, 'edges')
+    return dict(pos=pos, nrm=nrm, uv=uv, idx=idx.astype(np.uint32), material=SOCKET_MATERIAL, targets=[np.zeros_like(pos) for _ in TARGETS])
+
 def eyeball_texture(src):
     """The whites for the eyeballs: the photo's sclera (irises painted out) inside the openings,
     spread outward so the parts of the ball seen past the openings on a turn are white, not lid."""
     a = np.asarray(sclera_photo(src)).astype(float)
-    white = ndimage.binary_erosion(eye_openings(a.shape[:2], 0.0), iterations=2)
+    # Only the clear white: nearer the lids the opening holds lid skin and lashes, which spread pink
+    # over the ball.
+    white = ndimage.binary_erosion(eye_openings(a.shape[:2], 0.0), iterations=4) & (a.mean(-1) > 175)
     _, (iy, ix) = ndimage.distance_transform_edt(~white, return_indices=True)
-    return Image.fromarray(a[iy, ix].astype(np.uint8))
+    out = a[iy, ix]
+    far = ndimage.distance_transform_edt(~white) > 6
+    out[far] = np.median(a[white], 0)
+    return Image.fromarray(ndimage.gaussian_filter(out, (2, 2, 0)).astype(np.uint8))
 
+SOCKET_MATERIAL = 11          # index of the "socket" material
 EYEBALL_MATERIAL = 10         # index of the "eyeball" material in build's list
 EYE_RADIUS = 1.2               # eyeball radius over the opening's half-width
 LOOK_DEG = {'look_left': (-12.0, 0.0), 'look_right': (12.0, 0.0), 'look_up': (0.0, 9.0), 'look_down': (0.0, -8.0)}
 
 def eye_parts(zg, surface_normal):
-    """An eyeball sphere behind each opening, its front just behind the face's surface there, and an
+    """A whole eyeball sphere behind each opening, its front just behind the face's surface there, and an
     iris lying on it. Gaze turns the iris about the ball's centre, as a real eye turns. (A flat
     sheet behind the opening read as a hollow from the side.)"""
     cam = np.array([0.0, 0.0, D])
@@ -320,17 +349,19 @@ def eye_parts(zg, surface_normal):
         c = src_to_crop(src_px)
         return c, ndimage.map_coordinates(zg, [c[:, 1], c[:, 0]], order=1)
     out_ball, out_iris = [], []
+    EYE_BALLS.clear()
     for i, ((cx, cy), lid) in enumerate(zip(IRISES, LIDS)):
         c0, z0 = depth_at(np.array([[cx, cy]]))
-        front = unproject(c0, z0 + 0.0025)[0]      # 2.5 mm in: nearer, the iris came through the closed lid on a turn
+        front = unproject(c0, z0 + 0.0005)[0]      # just behind the face's plane: the lids lie over the ball
         half = (lid['ux'][-1] - lid['ux'][0]) / 2
         ends = unproject(src_to_crop(np.array([[cx - half, cy], [cx + half, cy]])), np.repeat(z0, 2))
         R = np.linalg.norm(ends[1] - ends[0]) / 2 * EYE_RADIUS
         toward = (cam - front) / np.linalg.norm(cam - front)
         centre = front - toward * R
+        EYE_BALLS.append((centre, R))
         # The ball: a cap of the sphere facing the camera, out to 95 degrees.
         up = np.array([0.0, 1.0, 0.0]); right = np.cross(up, toward); right /= np.linalg.norm(right); up = np.cross(toward, right)
-        th = np.linspace(0, np.radians(95), 40); ph = np.linspace(0, 2 * math.pi, 96, endpoint=False)
+        th = np.linspace(0, np.radians(178), 60); ph = np.linspace(0, 2 * math.pi, 96, endpoint=False)
         T_, P_ = np.meshgrid(th, ph, indexing='ij')
         d = (np.cos(T_)[..., None] * toward + np.sin(T_)[..., None] * (np.cos(P_)[..., None] * right + np.sin(P_)[..., None] * up)).reshape(-1, 3)
         v = centre + R * d
@@ -391,6 +422,8 @@ DROP_BEHIND = 0.025         # scan faces this far behind the face grid go; deepe
 GRID_NORMALS = []
 FACE_INFO = []
 
+EYE_RIM = []                  # the face grid's edges round the eye holes (positions and crop px of both ends)
+EYE_BALLS = []                # (centre, radius) per eye, set by eye_parts
 FACE_MASK = []                # the face's skin (source px), set by face_surface
 
 def face_surface(P, F, src, hair=None):
@@ -478,6 +511,16 @@ def face_surface(P, F, src, hair=None):
     ey = surf(px[:, 0], px[:, 1] + 1) - surf(px[:, 0], px[:, 1] - 1)
     gn = np.cross(ey, ex); gn /= np.linalg.norm(gn, axis=1, keepdims=True) + 1e-12
     gn = np.where((gn[:, 2] < 0)[:, None], -gn, gn)
+    # The grid's edge round the eye holes, for the sockets (eye_sockets).
+    local0 = gf - len(P)
+    e0 = np.concatenate([local0[:, [0, 1]], local0[:, [1, 2]], local0[:, [2, 0]]])
+    _, inv0, cnt0 = np.unique(np.sort(e0, 1), axis=0, return_inverse=True, return_counts=True)
+    b0 = e0[cnt0[inv0.reshape(-1)] == 1]
+    eye_near = src_mask_to_crop(ndimage.binary_dilation(eye_holes((int(SRC_W), int(SRC_W)), 0.0, 0.0), iterations=10))
+    vi0 = np.clip(px.astype(int), 0, N - 1)
+    near_v = eye_near[vi0[:, 1], vi0[:, 0]]
+    b0 = b0[near_v[b0[:, 0]] & near_v[b0[:, 1]]]
+    EYE_RIM[:] = [gp[b0[:, 0]], gp[b0[:, 1]], px[b0[:, 0]], px[b0[:, 1]]]
     # A skirt round the grid's sides, folding 1.5 cm back into the head: seen from the side, the slit
     # between the grid's edge and the scan behind it showed through the cheek. Not along the jaw
     # (there it read as a pale band under the chin) nor round the eyes (the eyeballs fill those).
@@ -572,6 +615,9 @@ def compose(work):
     if mid.sum() > 4 and side.sum() > 4:
         axis = np.array([(np.percentile(bc[side, 0], 2) + np.percentile(bc[side, 0], 98)) / 2,
                          (bc[mid, 2].min() + bc[mid, 2].max()) / 2])
+        nape_z, throat_z = bc[mid, 2].min(), bc[mid, 2].max()
+    else:
+        nape_z, throat_z = axis[1] - 0.06, axis[1] + 0.06
     print('neck axis', np.round(axis, 3))
     def sector(c): return ((np.arctan2(c[:, 0] - axis[0], c[:, 2] - axis[1]) + math.pi) / (2 * math.pi) * 36).astype(int) % 36
     radius = np.hypot(bc[:, 0] - axis[0], bc[:, 2] - axis[1])
@@ -659,8 +705,17 @@ def compose(work):
         # Only the scalp, from eye level up: lower down the hair hangs over the cheeks, which stay skin.
         w = (smooth(0.025, 0.01, d) * smooth(eye_y - 0.02, eye_y + 0.01, points[:, 1]))[:, None]
         return col * (1 - w) + hair_cols[i] * 0.55 * w
-    # The head turns and nods about the neck's own axis at the neck's top, so the neck does not shift.
-    pivot = np.array([axis[0], top_y, axis[1]])
+    # The head turns and nods where a real one does: at the top of the spine (the atlas and axis
+    # vertebrae), level with the ear canals and well behind the neck's middle, since the spine runs
+    # along the back of the neck. The neck below twists over its length (the skinned neck), the chin
+    # turns rigidly with the skull. Turning about the collar swung the whole head sideways and sheared
+    # the chin against the neck.
+    head = ~knit & (bc[:, 1] > collar_y + 0.12)
+    reach = np.abs(bc[:, 0] - axis[0])
+    ears_ = head & (reach > np.percentile(reach[head], 99))
+    ear_y = bc[ears_, 1].mean() if ears_.any() else top_y + 0.06
+    pivot = np.array([axis[0], ear_y - 0.01, nape_z + 0.35 * (throat_z - nape_z)])
+    print('head pivot at ear level', np.round(pivot, 3))
     return P[used], remap[F].astype(np.int32), label, bald_colour, hair_tex, pivot
 
 BALD = os.environ.get('KAIRO_BALD') == '1'   # build the head without the hair layer (layer by layer)
@@ -1124,11 +1179,60 @@ class Glb:
                 + struct.pack('<II', len(binary), 0x004E4942) + binary)
 
 EYE_FRAMES = 'eye-layers-2'      # the owner's layers: kairo-lid-half.png, kairo-lid-closed.png (full canvas, same framing)
-BLINK_FRAMES = [('kairo-lid-half.png', 0.3, 0.8), ('kairo-lid-closed.png', 0.8, 2.0)]
+BLINK_FRAMES = []               # (layer, from, to): painted states shown as frames; the lids below replaced them
+LID_MATERIAL = 12              # index of the "lid" material
+LID_LAYER = 'kairo-lid-closed.png'
 
-def eye_frame(work, name, front_depth, surface_normal):
-    """One painted eye state as a flat sheet over both eyes, 1 mm in front of the face, with its
-    alpha softened at the edge (it comes from a different render than the photo)."""
+def lid_sheets(work, zg):
+    """The upper lids: the owner's painted closed eye on a sheet per eye that lies over the eyeball
+    (1.5 mm out from it) and over the face round it. Open, the sheet is folded up at its top edge;
+    blinking unrolls it down over the eye, lashes at its edge, so the lid covers the eye as it
+    closes and follows the ball's curve on a turn (flat frames floated in front of the face)."""
+    a, solid, alpha, (x0, y0, x1, y1) = frame_layer(work, LID_LAYER)
+    tex = Image.fromarray(np.dstack([a[y0:y1, x0:x1, :3], alpha[y0:y1, x0:x1]]).astype(np.uint8), 'RGBA')
+    cam = np.array([0.0, 0.0, D])
+    cols, rows = 72, 28
+    pos, uvs, tg_blink, tg_squint, idx, base = [], [], [], [], [], 0
+    for k, (centre, R) in enumerate(EYE_BALLS):
+        side = (np.arange(solid.shape[1]) < SRC_W / 2) if k == 0 else (np.arange(solid.shape[1]) >= SRC_W / 2)
+        m = solid & side[None]
+        ys, xs = np.where(m)
+        x = np.linspace(xs.min(), xs.max(), cols)
+        xi = np.clip(np.round(x).astype(int), 0, solid.shape[1] - 1)
+        top = np.array([np.where(m[:, i])[0].min() if m[:, i].any() else np.nan for i in xi])
+        bot = np.array([np.where(m[:, i])[0].max() if m[:, i].any() else np.nan for i in xi])
+        ok = ~np.isnan(top)
+        top = np.interp(x, x[ok], top[ok]) - 1; bot = np.interp(x, x[ok], bot[ok]) + 1
+        f = np.linspace(0, 1, rows)[:, None]
+        full = np.stack([np.broadcast_to(x, (rows, cols)), top[None] + (bot - top)[None] * f], -1).reshape(-1, 2)
+        rest = np.stack([np.broadcast_to(x, (rows, cols)), np.broadcast_to(top, (rows, cols))], -1).reshape(-1, 2)
+        def place(src_px):
+            c = src_to_crop(src_px)
+            zface = ndimage.map_coordinates(zg, [c[:, 1], c[:, 0]], order=1) - 0.0015
+            ray = unproject(c, np.ones(len(c))) - cam; ray /= np.linalg.norm(ray, axis=1, keepdims=True)
+            oc = cam - centre; bq = (ray * oc).sum(1); cq = (oc * oc).sum() - (R + 0.0015) ** 2
+            disc = bq * bq - cq
+            t = -bq - np.sqrt(np.maximum(disc, 0))
+            zball = D - (cam + ray * t[:, None])[:, 2]
+            zc = np.where(disc > 0, np.minimum(zface, zball), zface)
+            return unproject(c, zc)
+        p_full, p_rest = place(full), place(rest)
+        squint = rest + (full - rest) * 0.38
+        pos.append(p_rest); uvs.append((full - np.array([x0, y0])) / np.array([x1 - x0, y1 - y0]))
+        tg_blink.append(p_full - p_rest); tg_squint.append(place(squint) - p_rest)
+        for r in range(rows - 1):
+            for c_ in range(cols - 1):
+                a0 = base + r * cols + c_
+                idx += [a0, a0 + cols, a0 + 1, a0 + 1, a0 + cols, a0 + cols + 1]
+        base += rows * cols
+    P = np.concatenate(pos)
+    targets = [np.concatenate(tg_blink) if n == 'blink' else np.concatenate(tg_squint) if n == 'squint' else np.zeros_like(P) for n in TARGETS]
+    nrm = np.tile([0.0, 0.0, 1.0], (len(P), 1))
+    return dict(pos=P, nrm=nrm, uv=np.concatenate(uvs), idx=np.array(idx, np.uint32), material=LID_MATERIAL, targets=targets), tex
+
+def frame_layer(work, name):
+    """One of the owner's painted eye layers, cleaned: starting under the photo's brows, no strokes of
+    its own, colour spread under its transparent edge; with its bounding box and softened alpha."""
     a = np.asarray(Image.open(f'{work}/{EYE_FRAMES}/{name}').convert('RGBA')).astype(float)
     # No hair strands (they belong to the hair layer, and stood still in the sheet when the head
     # turned); the colour under the transparent part spread from the solid one, since its black
@@ -1151,6 +1255,11 @@ def eye_frame(work, name, front_depth, surface_normal):
     ys, xs = np.where(solid)
     x0, y0, x1, y1 = xs.min() - 2, ys.min() - 2, xs.max() + 3, ys.max() + 3
     alpha = np.minimum(a[..., 3], 255 * np.clip(ndimage.distance_transform_edt(solid) / 8.0, 0, 1))
+    return a, solid, alpha, (x0, y0, x1, y1)
+
+def eye_frame(work, name, front_depth, surface_normal):
+    """One painted eye state as a flat sheet over both eyes, just in front of the face."""
+    a, solid, alpha, (x0, y0, x1, y1) = frame_layer(work, name)
     tex = Image.fromarray(np.dstack([a[y0:y1, x0:x1, :3], alpha[y0:y1, x0:x1]]).astype(np.uint8), 'RGBA')
     gy, gx = np.mgrid[y0:y1:2, x0:x1:2]
     inside = ndimage.binary_dilation(solid, iterations=3)[np.clip(gy, 0, solid.shape[0] - 1), np.clip(gx, 0, solid.shape[1] - 1)]
@@ -1189,6 +1298,7 @@ SKIN_TILE = 1024
 SKIN_CHARTS = [("right", 0, 0, 0, 1, 0.72), ("left", 1, 0, 0, -1, 0.72), ("back", 2, 0, 2, -1, 0.72), ("top", 3, 0, 1, 1, 0.6),
                ("under", 0, 1, 1, -1, 0.72), ("front", 1, 1, 2, 1, 0.72), ("ear right", 2, 1, 0, 1, 0.14), ("ear left", 3, 1, 0, -1, 0.14)]
 SKIN_PAINT = 'paint/kairo-skin.png'      # the owner's painting over the layout (RGBA: alpha 0 keeps the bake)
+PAINT_REPLACES = False         # True: the painting as it is; False: only its detail over the bake (as is, its tones met the photo in patches)
 
 def skin_layout(P, F, centre, ears):
     """Chart per face and the layout position (px) of every face corner."""
@@ -1225,11 +1335,11 @@ def layout_px(q, chart, centre, ears):
         uv[m, 1] = row * SKIN_TILE + SKIN_TILE / 2 - (v - v_off) * scale
     return uv
 
-def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None):
+def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, photo_weight=None):
     """The skin's colours drawn into the layout: dense points on every face, the outermost along its
     chart's axis winning, the gaps filled from the nearest drawn texel."""
     W, H = SKIN_TILE * 4, SKIN_TILE * 2
-    img = np.zeros((H, W, 3)); depth = np.full((H, W), -np.inf)
+    img = np.zeros((H, W, 3)); depth = np.full((H, W), -np.inf); wimg = np.zeros((H, W))
     rng = np.random.default_rng(7)
     bary = np.concatenate([np.eye(3), rng.dirichlet((1, 1, 1), size=160)])
     for part in np.array_split(np.arange(len(F)), 80):
@@ -1248,6 +1358,8 @@ def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None):
         o = np.argsort(dep)
         better = dep[o] > depth[y[o], x[o]]
         img[y[o][better], x[o][better]] = col[o][better]; depth[y[o][better], x[o][better]] = dep[o][better]
+        if photo_weight is not None:
+            wimg[y[o][better], x[o][better]] = np.repeat(photo_weight[part], len(bary))[o][better]
     drawn = np.isfinite(depth)
     # Blue texels on the skin are hair the generator painted on the bald head (along the nape): they
     # take the nearest skin instead.
@@ -1268,8 +1380,13 @@ def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None):
         low = ndimage.gaussian_filter(filled, (24, 24, 0)) / np.maximum(weight, 1e-3)
         detail = p_[..., :3] - low
         out = img + detail
-        # Not on the ears: the painted ear did not line up with the scan's ear and came out in patches.
-        a[SKIN_TILE:, 2 * SKIN_TILE:] = 0
+        if not PAINT_REPLACES:
+            a[SKIN_TILE:, 2 * SKIN_TILE:] = 0     # detail only, and not on the ears (no fit with the scan's ear)
+        if PAINT_REPLACES:
+            out = p_[..., :3]          # painted over this bake, so its tones already agree across charts
+            # ...but not where the skin blends into the photo (beside the face): there the painting's
+            # tone met the photo's in a seam down the temple.
+            a = a * (1 - ndimage.gaussian_filter(wimg, 6))[..., None]
         img = img * (1 - a) + out * a
         print('skin painting applied from', paint)
     return np.clip(img, 0, 255).astype(np.uint8), drawn
@@ -1465,7 +1582,7 @@ def build(work):
     # texture was blotchy and the painting did not fit the scan's ear).
     ear_tint = skin_ref * np.array([1.03, 0.96, 0.94])
     skin_tex, drawn = skin_bake(P, F[bare], chart, corner_px, bare_colour, np.where(np.isin(np.arange(len(P)), F[bare][chart >= 6]), 0.45 + 0.55 * ao, 0.6 + 0.4 * shade), work,
-                                ear_colour=lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy())
+                                ear_colour=lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), photo_weight=project_weight[bare])
     skin_template(skin_tex, drawn, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'obj', 'kairo-skin-template.png'), corner_px)
     skin_uv = corner_px / np.array([SKIN_TILE * 4, SKIN_TILE * 2])
     print('front faces', front.sum(), 'hair', len(rest), 'bald', len(bare))
@@ -1519,6 +1636,7 @@ def build(work):
     # Rigid with the body, the head slid over it on every turn and nod, and the seam showed.
     twist, collar_y = NECK_SPAN
     prims['neck'] = []
+    grid_tree = cKDTree(P[grid_start:])
     for faces, pos, uv, nrm, vis, kind, both, material, morph in groups:
         body = (kind == KNIT) | (kind == CORE_BODY)
         neck = kind == NECK
@@ -1529,7 +1647,9 @@ def build(work):
             p = pos[used] - pivot if part == 'head' else pos[used]
             prim = dict(pos=p, nrm=nrm[used], uv=uv[used], idx=remap[fs].reshape(-1), material=material)
             if part == 'neck':
-                w = twist(p)
+                # Next to the face grid (the chin) fully with the head: weighted, the scan under the
+                # chin slid against the grid's rigid edge, a second chin and a gap on every nod.
+                w = np.maximum(twist(p), smooth(0.025, 0.006, grid_tree.query(p)[0]))
                 prim['joints'] = np.tile([0, 1, 0, 0], (len(p), 1))
                 prim['weights'] = np.stack([1 - w, w, np.zeros_like(w), np.zeros_like(w)], 1)
             if part == 'head':
@@ -1542,7 +1662,9 @@ def build(work):
         _, i = ntree.query(points, k=6)
         n = VN[front_vertices][i].mean(1)
         return n / (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
-    for part in eye_parts(FACE_INFO[2], surface_normal):
+    eyes = eye_parts(FACE_INFO[2], surface_normal) + [eye_sockets()]
+    lid, lid_tex = lid_sheets(work, FACE_INFO[2])
+    for part in eyes + [lid]:
         part['pos'] = part['pos'] - pivot
         prims['head'].append(part)
     closed = Image.open(f'{work}/assets-v2/kairo-eyes-closed-front.png').convert('RGB')
@@ -1557,7 +1679,9 @@ def build(work):
                       # Inside the head the core is shadowed skin: through the scan's gaps (round the eye
                       # sockets, behind the face's edge) black read as holes in the cheek.
                       ("coreskin", Image.new('RGB', (4, 4), tuple(int(c * 0.8) for c in skin_ref))), ("knit", Image.fromarray(knit_tex)),
-                      ("eyeball", eyeball_texture(src))):
+                      ("eyeball", eyeball_texture(src)),
+                      ("socket", Image.fromarray(np.tile((skin_ref[None, :] * np.linspace(0.8, 0.4, 64)[:, None])[:, None, :], (1, 4, 1)).astype(np.uint8))),
+                      ("lid", lid_tex)):
         if img.mode == 'RGBA':
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
         else:
@@ -1570,7 +1694,7 @@ def build(work):
         material["doubleSided"] = True
         # The skin atlas too: lit by the scene while the face beside it showed the picture's own light,
         # the skull and the sides came out a different tone, an edge round the face.
-        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball"):
+        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid"):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
@@ -1580,7 +1704,7 @@ def build(work):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0       # no highlights on the baked light
         if name in ("core", "coreskin"):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0
-        if name in ("lidskin", "iris"):
+        if name in ("lidskin", "iris", "lid"):
             material["alphaMode"] = "BLEND"
         g.gltf["materials"].append(material)
     # 0 Root, 1 Body (turtleneck), 2 HeadPivot (at the neck), 3 Head.
