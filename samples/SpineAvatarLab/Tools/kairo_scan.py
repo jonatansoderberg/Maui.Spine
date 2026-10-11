@@ -497,10 +497,18 @@ def compose(work):
     # opening, and the neck no longer looks cut off and pushed out under the jaw.
     r_neck = np.percentile(np.hypot(ring[:, 0] - axis[0], ring[:, 2] - axis[1]), 80)
     cpx = src_to_crop([(MOUTH['cx'], CHIN_Y)]); chin_y = unproject(cpx, at(cpx))[0, 1]
-    # The whole neck stays with the body, from the collar up to where it flares into the jaw and the
-    # skull (the surface leaves the neck's cylinder there): no seam across the middle of the neck.
-    neck |= ~knit & (radius < r_neck + 0.01) & (bc[:, 1] < chin_y + 0.12)
-    top_y = chin_y + 0.03
+    # The whole neck stays with the body, up to where the jaw's underside begins: per sector, the
+    # lowest face inside the neck's reach that faces down. Taking a fixed height instead put the
+    # jaw's underside on the body, where it stuck out as a flap when the head turned.
+    bn = np.cross(BP[BF[:, 1]] - BP[BF[:, 0]], BP[BF[:, 2]] - BP[BF[:, 0]]); bn /= np.linalg.norm(bn, axis=1, keepdims=True) + 1e-12
+    bn *= np.sign((bn * (bc - np.array([axis[0], bc[:, 1].mean(), axis[1]]) * [1, 0, 1])).sum(1, keepdims=True) + 1e-9)
+    bn = np.cross(BP[BF[:, 1]] - BP[BF[:, 0]], BP[BF[:, 2]] - BP[BF[:, 0]]); bn /= np.linalg.norm(bn, axis=1, keepdims=True) + 1e-12
+    under_jaw = ~knit & (bn[:, 1] < -0.5) & (bc[:, 1] > collar_y + 0.03) & (radius < r_neck + 0.05)
+    jaw = np.full(36, chin_y + 0.12); np.minimum.at(jaw, sector(bc[under_jaw]), bc[under_jaw, 1])
+    jaw = ndimage.median_filter(jaw, 5, mode='wrap')
+    neck |= ~knit & (radius < r_neck + 0.01) & (bc[:, 1] < jaw[sector(bc)] - 0.004)
+    print('neck top per sector (cm above the collar)', np.round((jaw - collar_y) * 100).astype(int))
+    top_y = np.median(jaw)
     print('compose: bald', len(BF), 'knit', knit.sum(), 'hair', hair.sum(), 'collar y', round(float(collar_y), 3))
     SP_, SF = hair_shell(HP, HF[hair])
     # Not over the face: where the photo shows skin near the front, no hair lies.
@@ -522,7 +530,7 @@ def compose(work):
         col = bald_tex(points) * gain
         d, i = cKDTree(hair_points).query(points)
         # Only the scalp, above the eyes: lower down the hair hangs over the cheeks, which stay skin.
-        w = (smooth(0.03, 0.012, d) * smooth(eye_y - 0.01, eye_y + 0.03, points[:, 1]))[:, None]
+        w = (smooth(0.03, 0.012, d) * smooth(eye_y + 0.05, eye_y + 0.09, points[:, 1]))[:, None]
         return col * (1 - w) + hair_cols[i] * 0.55 * w
     # The head turns and nods about the neck's own axis at the neck's top, so the neck does not shift.
     pivot = np.array([axis[0], top_y, axis[1]])
@@ -995,7 +1003,11 @@ def build(work):
     # showed as dark specks. Hair is wound either way, so it counts by angle alone.
     fn = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
     toward = (fn * (np.array([0, 0, D]) - P[F].mean(1))).sum(1) / np.linalg.norm(np.array([0, 0, D]) - P[F].mean(1), axis=1)
-    front |= ((label == SKIN) & (toward > 0.1)) | ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
+    # Only where the camera actually saw the face (near the front depth): faces behind the jaw's
+    # silhouette took the picture's background there, a grey strip between cheek and ear on a turn.
+    fc_px, fc_z = project(P[F].mean(1)); fi = np.clip(fc_px.astype(int), 0, N - 1)
+    seen = fc_z <= zbuf[fi[:, 1], fi[:, 0]] + 0.02
+    front |= ((label == SKIN) & (toward > 0.45) & seen) | ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
     # The head shows the owner's photo; the neck inside the collar and the turtleneck show the bald
     # picture, which is drawn to the same frame and fits the bald body there. Where the two pictures
     # met on the forehead their slightly different light drew a broken line.
@@ -1008,14 +1020,18 @@ def build(work):
     open_skin = face_mask_src(src) & ~ndimage.binary_dilation(near_hair, iterations=10)
     tone = np.median(photo_px[open_skin], 0) / (np.median(bald_px[open_skin], 0) + 1e-6)
     print('bald picture tone', np.round(tone, 3))
-    bald_src = Image.fromarray(np.clip(bald_px * tone, 0, 255).astype(np.uint8))
-    from_photo = label != KNIT
-    # Below the eyes, skin near the photo's hair shows the bald picture: the photo's hair and its
-    # shadow, painted on the cheek, showed as grey strips and spots on the side of the head once the
-    # head turned. (At the hairline the photo's hair blends into the hair layer and stays.)
-    cp, _ = project(P[F].mean(1)); sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, src.size[0] - 1)
-    ec = src_to_crop([IRISES[0]]); eye_y = unproject(ec, ndimage.map_coordinates(FACE_INFO[0], [ec[:, 1], ec[:, 0]], order=1))[0, 1]
-    from_photo &= ~(((label == SKIN) | (label == GRID)) & (P[F].mean(1)[:, 1] < eye_y) & vote(P, F, near_hair[sp[:, 1], sp[:, 0]]))
+    # One texture for all skin: the photo, crossfaded into the toned bald picture (same face, same
+    # frame, no hair) below the eyes near the photo's hair and its shadow, and on the neck, whose
+    # geometry is the bald scan's. Switching texture per face drew grey strips and patch edges on the
+    # side of the head and a light line along the jaw once the head turned.
+    yy = np.arange(photo_px.shape[0])[:, None].astype(float)
+    hair_d = ndimage.distance_transform_edt(~hair_px)
+    w = (1 - smooth(4.0, 34.0, hair_d)) * smooth(490.0, 560.0, yy)
+    w = np.maximum(w, smooth(CHIN_Y - 40, CHIN_Y + 5, yy))
+    w = ndimage.gaussian_filter(w, 4)[..., None]
+    bald_src = Image.fromarray(np.clip(photo_px * (1 - w) + bald_px * tone * w, 0, 255).astype(np.uint8))
+    # The photo itself only on the hair; all skin and the knit show the blend.
+    from_photo = label == HAIR
     visible[grid_start:] = True
     # The front-most surface depth, holes filled and a little spread so a lid sits over the eyeball.
     zfill = np.where(np.isinf(zbuf), np.nan, zbuf)
@@ -1066,7 +1082,20 @@ def build(work):
     bare = np.where(~front & (label != HAIR) & (label < CORE))[0]
     dark = np.where(label >= CORE)[0]
     bare_kind = cKDTree(P[F[bare]].mean(1))
-    skin_uv, skin_tex = atlas(P, F[bare], lambda q: skin_colour(q, bald_gain[label[bare][bare_kind.query(q)[1]]]), 4096, shade)
+    # Skin seen only from the side keeps the generator's light and shade but takes the photo's skin
+    # tone: its own colour drifted grey-beige there, a strip between cheek and ear on a turn.
+    cheek = np.asarray(bald_src).astype(float)[open_skin]
+    skin_ref = np.median(cheek, 0); skin_lum = skin_ref.mean()
+    def bare_colour(q):
+        kind = label[bare][bare_kind.query(q)[1]]
+        col = skin_colour(q, bald_gain[kind])
+        lum = col.mean(1, keepdims=True)
+        # A narrow brightness range: the generator's side light and the occlusion under the hanging
+        # hair made the side of the face a darker patchwork against the photo's evenly lit cheek.
+        toned = skin_ref[None] * np.clip(lum / skin_lum, 0.8, 1.1)
+        is_skin = ((kind == SKIN) | (kind == NECK))[:, None]
+        return np.where(is_skin, 0.15 * col + 0.85 * toned, col)
+    skin_uv, skin_tex = atlas(P, F[bare], bare_colour, 4096, 0.6 + 0.4 * shade)
     print('front faces', front.sum(), 'hair', len(rest), 'bald', len(bare))
 
     # The surface seen from the camera, as depth over image position: targets slide points along it.
