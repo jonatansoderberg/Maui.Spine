@@ -5,7 +5,7 @@
 LAB_DIR=${LAB_DIR:-/tmp/spine-avatar-lab}
 APP="$(cd "$(dirname "$0")/../.." && pwd)/bin/Debug/net10.0-maccatalyst/maccatalyst-arm64/Avatar Lab.app/Contents/MacOS/SpineAvatarLab"
 mkdir -p $LAB_DIR
-pkill -f "MacOS/SpineAvatarLab"; pkill -f "tail -f $LAB_DIR/cmds"; sleep 0.5
+pkill -f "$APP"; pkill -f "tail -f $LAB_DIR/cmds"; sleep 0.5      # only the build's own copy: a copy the owner runs stays
 : > $LAB_DIR/cmds; : > $LAB_DIR/out
 (tail -f $LAB_DIR/cmds | AVATARLAB_HARNESS=stdin "$APP" > $LAB_DIR/out 2>$LAB_DIR/err &)
 for i in {1..40}; do grep -q "harness ready" $LAB_DIR/out && break; sleep 0.5; done

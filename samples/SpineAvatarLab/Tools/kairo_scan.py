@@ -500,7 +500,10 @@ def face_surface(P, F, src, hair=None):
     # broken line round the forehead once the lab's camera saw it from a slightly different place.
     edge = np.clip(ndimage.distance_transform_edt(face) / 45.0, 0, 1)    # 45 crop px: at the temples the fitted surface bulged out past the skull
     head = np.where(finite & (zraw - front_env < 0.02), zraw, zs)
-    head = ndimage.gaussian_filter(np.where(np.abs(head - zs) < 0.03, head, zs), 2)
+    # Only onto the head's surface where it is the same surface: below the chin's silhouette the scan's
+    # front is the neck, 3 cm back, and feathering onto it bent the grid's lower rows back into a flat
+    # shelf under the chin (a flap on every turn and tilt).
+    head = ndimage.gaussian_filter(np.where(np.abs(head - zs) < 0.008, head, zs), 2)
     zg = edge * (zs - 0.004) + (1 - edge) * (head - 0.001)
     gp = unproject(px, ndimage.map_coordinates(zg, [px[:, 1], px[:, 0]], order=1))
     a, b, c, d = vid[:-1, :-1], vid[:-1, 1:], vid[1:, :-1], vid[1:, 1:]
@@ -597,6 +600,7 @@ def compose(work):
     # Each run is pixel-aligned to its own crop and the two source images to each other, so the bald
     # mesh moves by the difference of the crops (51 px, about 4.5 cm at the head).
     BP = reframe(BP, OY - BALD_OY); borig = (reframe(borig[0], OY - BALD_OY), borig[1])
+    BP, BF = subdivide_neck(BP, BF)
     hair_tex = texture_sampler(horig, f'{work}/kairo-s42_base.png')
     bald_tex = texture_sampler(borig, f'{work}/bald/kairo-bald-s42_base.png')
     hc, bc = HP[HF].mean(1), BP[BF].mean(1)
@@ -620,7 +624,9 @@ def compose(work):
     skin_px = ndimage.binary_erosion(skin_px, iterations=3)
     hair &= ~(skin_px[sp[:, 1], sp[:, 0]] & (hz < at(cp) + 0.06))
     # The turtleneck stays put while the head turns: the bald run's knit, below the chin.
-    knit = vote(BP, BF, ~(bcol[:, 0] > bcol[:, 2] + 15)) & (bc[:, 1] < collar_y + 0.08)
+    # (Up to 2.5 cm above the collar line only: higher, the shadowed skin under the chin read as knit,
+    # held the chin's underside to the body and tore it into a flap on every turn.)
+    knit = vote(BP, BF, ~(bcol[:, 0] > bcol[:, 2] + 15)) & (bc[:, 1] < collar_y + 0.025)
     # The neck inside the collar stays with the body: turning with the head it swept out through the
     # collar's side. The split follows the collar's rim, which rises toward the back.
     ring = bc[~knit & (np.abs(bc[:, 1] - collar_y) < 0.015)]
@@ -655,42 +661,91 @@ def compose(work):
     # weight is continuous per vertex and every face below weight 1 belongs to the skinned neck, so
     # nothing tears where the neck meets the head. One rigid joint at the jaw left a step in the
     # neck's outline on every turn.
-    bn = np.cross(BP[BF[:, 1]] - BP[BF[:, 0]], BP[BF[:, 2]] - BP[BF[:, 0]]); bn /= np.linalg.norm(bn, axis=1, keepdims=True) + 1e-12
-    under = ~knit & (bn[:, 1] < -0.5) & (bc[:, 1] > collar_y + 0.02) & (radius < r_neck + 0.06)
-    hi = np.full(36, chin_y + 0.06); np.minimum.at(hi, sector(bc[under]), bc[under, 1])
-    hi = ndimage.median_filter(hi, 5, mode='wrap')
     lo = rim + 0.006
-    # At least NECK_TWIST high all round, and smooth round the neck: at the sides (the outline from
-    # behind) a 2 cm zone bent the neck sharply on every turn.
-    jaw_under = hi.copy()
-    hi = ndimage.gaussian_filter1d(np.maximum(hi, lo + NECK_TWIST), 2, mode='wrap')
-    # ...but never above the jaw's underside: in front that is the chin, which must turn rigidly with
-    # the head (twisting partly, it went out of step on every turn).
-    hi = np.maximum(np.minimum(hi, jaw_under - 0.006), lo + 0.012)
-    # Only the neck's own cylinder twists: the jaw and the chin lie outside it (further from the
-    # axis) and turn rigidly with the head. Twisting them bent the chin out of shape on every turn.
+    # The neck's own cylinder, measured just above the collar, and per direction the height where the
+    # surface leaves it (the jaw in front, its angle at the sides, the skull's base behind): that is
+    # where the head begins. (The lowest down-facing face, used before, was the collar's own fold, so
+    # the neck twisted over 2 cm only.)
     r_cyl = np.full(36, r_neck)
+    sec_f = sector(bc)
     for k_ in range(36):
-        m = ~knit & (sector(bc) == k_) & (bc[:, 1] > rim[k_] + 0.01) & (bc[:, 1] < rim[k_] + 0.035)
+        m = ~knit & (sec_f == k_) & (bc[:, 1] > rim[k_] + 0.01) & (bc[:, 1] < rim[k_] + 0.035)
         if m.sum() > 5:
             r_cyl[k_] = np.percentile(radius[m], 90)
     r_cyl = ndimage.gaussian_filter1d(ndimage.median_filter(r_cyl, 5, mode='wrap'), 1.5, mode='wrap')
-    def twist(p):
-        t = (np.arctan2(p[:, 0] - axis[0], p[:, 2] - axis[1]) + math.pi) / (2 * math.pi) * 36 - 0.5
-        i0 = np.floor(t).astype(int); f = t - i0; i0 %= 36; i1 = (i0 + 1) % 36
-        l = lo[i0] * (1 - f) + lo[i1] * f; h = hi[i0] * (1 - f) + hi[i1] * f
-        r = r_cyl[i0] * (1 - f) + r_cyl[i1] * f
-        t = np.clip((p[:, 1] - l) / (h - l), 0, 1)
-        w = 0.5 * (t + t * t * (3 - 2 * t))             # half linear: an even twist with soft ends
-        out = smooth(r + 0.006, r + 0.022, np.hypot(p[:, 0] - axis[0], p[:, 2] - axis[1]))
-        # The throat follows the jaw more than the nape follows the skull: looking down, a throat
-        # weighted like the nape stayed put and came through the chin.
-        throat = smooth(0.0, 0.06, p[:, 2] - axis[1]) * np.sqrt(t)
-        return np.maximum(np.maximum(w, 0.85 * throat), out * (p[:, 1] > l + 0.01))
-    wv = twist(BP)
-    neck = ~knit & (wv[BF] < 0.999).any(1)
-    jaw = hi
+    # The chin's underside, shadowed and as low as the collar in front, is not knit: well outside the
+    # neck and above the collar line it is the head.
+    knit &= ~((radius > r_cyl[sec_f] + 0.03) & (bc[:, 1] > collar_y - 0.01))
+    hi = lo + 0.08
+    for k_ in range(36):
+        m = ~knit & (sec_f == k_) & (bc[:, 1] > rim[k_] + 0.01) & (bc[:, 1] < rim[k_] + 0.16)
+        if m.sum() < 10:
+            continue
+        ys = ((bc[m, 1] - rim[k_]) / 0.005).astype(int)
+        prof = np.full(33, np.nan); np.fmax.at(prof, ys, radius[m])
+        out = np.where(prof[4:] > r_cyl[k_] + 0.015)[0]
+        if len(out):
+            hi[k_] = rim[k_] + (out[0] + 4) * 0.005
+    hi = ndimage.gaussian_filter1d(ndimage.median_filter(np.maximum(hi, lo + 0.04), 5, mode='wrap'), 1.5, mode='wrap')
     print('neck top per sector (cm above the collar)', np.round((hi - rim) * 100).astype(int))
+    # The weights: 0 on the collar, 1 on the head (above the neck's top, or outside its cylinder:
+    # the jaw, the chin and its underside), and in between the smoothest field over the surface (a
+    # harmonic one), so the neck twists evenly along its length and no band of faces shears. Rules
+    # by height and distance alone left the under-chin half-weighted, a flap on every turn.
+    from scipy.sparse import coo_matrix, diags
+    from scipy.sparse.linalg import spsolve
+    vs = ((np.arctan2(BP[:, 0] - axis[0], BP[:, 2] - axis[1]) + math.pi) / (2 * math.pi) * 36).astype(int) % 36
+    vr = np.hypot(BP[:, 0] - axis[0], BP[:, 2] - axis[1])
+    knit_v = np.zeros(len(BP), bool); knit_v[BF[knit].reshape(-1)] = True
+    used_v = np.zeros(len(BP), bool); used_v[BF.reshape(-1)] = True
+    # (Low but outside the neck's cylinder is the chin's underside, which comes down to the collar's
+    # height in front: that belongs to the head.)
+    zero = knit_v | ((BP[:, 1] < lo[vs]) & ((vr < r_cyl[vs] + 0.012) | (BP[:, 1] < collar_y - 0.01)))
+    one = ~zero & ((BP[:, 1] > hi[vs]) | (vr > r_cyl[vs] + 0.012))
+    # The face (and the chin with it) is rigid: everything the photo's face covers, near the front.
+    fm = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/kairo-front.png').convert('RGB')), iterations=12)
+    vp, vz = project(BP); vsrc = np.clip(((vp - np.array([OX, OY])) / S).astype(int), 0, fm.shape[0] - 1)
+    zfront, _ = front_zbuffer(BP, BF)
+    one |= ~zero & fm[vsrc[:, 1], vsrc[:, 0]] & (vz < zfront(vp) + 0.03)
+    # And the jaw's underside, all of it (faces turned down, above the collar): weighted between the
+    # chin and the throat it stretched into a flap under the chin on every turn. The neck's twist
+    # stays on the neck's own, upright surface.
+    bvn = vertex_normals(BP, BF)
+    bvn *= np.sign(((BP - np.array([axis[0], 0.0, axis[1]])) * bvn).sum(1, keepdims=True) + 1e-9)     # outward
+    one |= ~zero & (bvn[:, 1] < -0.55) & (BP[:, 1] > collar_y + 0.004)
+    free = used_v & ~zero & ~one
+    e = np.concatenate([BF[:, [0, 1]], BF[:, [1, 2]], BF[:, [2, 0]]]); e = np.concatenate([e, e[:, ::-1]])
+    A = coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(len(BP), len(BP))).tocsr(); A.data[:] = 1
+    L = diags(np.asarray(A.sum(1)).ravel()) - A
+    fi = np.where(free)[0]; on = np.where(one)[0]
+    wv = np.where(one, 1.0, 0.0)
+    if len(fi):
+        rhs = -(L[fi][:, on] @ np.ones(len(on)))
+        # A little regularisation: islands touching neither boundary made the system singular (NaN
+        # weights, a neck that vanished).
+        from scipy.sparse import identity
+        sol = spsolve((L[fi][:, fi] + identity(len(fi)) * 1e-6).tocsc(), rhs)
+        wv[fi] = np.clip(np.nan_to_num(sol, nan=1.0), 0, 1)
+        print('neck weight NaNs before fix', int(np.isnan(sol).sum()))
+    print('neck weights: free', len(fi), 'head', len(on), 'collar', int(zero.sum()))
+    vtree = cKDTree(BP)
+    def twist(p):
+        return wv[vtree.query(p)[1]]
+    neck = ~knit & (wv[BF] < 0.999).any(1)
+    # The scan's web between the chin and the collar: level faces outside the neck, down at the
+    # collar's height. Hidden at rest, it hung out under the chin as a flap whenever the head moved.
+    fnorm = np.cross(BP[BF[:, 1]] - BP[BF[:, 0]], BP[BF[:, 2]] - BP[BF[:, 0]]); fnorm /= np.linalg.norm(fnorm, axis=1, keepdims=True) + 1e-12
+    web = ~knit & (np.abs(fnorm[:, 1]) > 0.5) & (bc[:, 1] > collar_y - 0.02) & (bc[:, 1] < collar_y + 0.02) & (bc[:, 2] > axis[1] + 0.06)
+    # ...and whatever is left of it as loose bits (no longer joined to the head or the body).
+    from scipy.sparse.csgraph import connected_components
+    keepf = ~web
+    e_ = np.concatenate([BF[keepf][:, [0, 1]], BF[keepf][:, [1, 2]]])
+    ncomp, lab_v = connected_components(coo_matrix((np.ones(len(e_)), (e_[:, 0], e_[:, 1])), shape=(len(BP), len(BP))), directed=False)
+    comp_f = lab_v[BF[:, 0]]
+    sizes = np.bincount(comp_f[keepf], minlength=ncomp)
+    web |= keepf & (sizes[comp_f] < 200)
+    print('web under the chin removed:', int(web.sum()), 'faces')
+    WEB[:] = [web]
     top_y = np.median(hi)
     NECK_SPAN[:] = [twist, collar_y]
     print('compose: bald', len(BF), 'knit', knit.sum(), 'hair', hair.sum(), 'collar y', round(float(collar_y), 3))
@@ -710,10 +765,16 @@ def compose(work):
     SF = SF[~((pc[:, 0] > pc[:, 2] + 30) & (sz < at(cp) + 0.04))]
     CP, CF = dark_core(BP, BF)
     cc = CP[CF].mean(1)
+    # None across the neck: the body's part stayed put while the head turned and came out under the
+    # chin as a flap; the head's part would come out through the twisting neck.
+    cv = ((np.arctan2(cc[:, 0] - axis[0], cc[:, 2] - axis[1]) + math.pi) / (2 * math.pi) * 36).astype(int) % 36
+    keep_c = (cc[:, 1] < collar_y + 0.01) | (cc[:, 1] > hi[cv] + 0.02)
+    CF = CF[keep_c]; cc = cc[keep_c]
     P = np.concatenate([BP, HP, SP_, CP])
-    F = np.concatenate([BF, HF[hair] + len(BP), SF + len(BP) + len(HP), CF + len(BP) + len(HP) + len(SP_)])
-    label = np.concatenate([np.where(knit, KNIT, np.where(neck, NECK, SKIN)), np.full(hair.sum() + len(SF), HAIR),
-                            np.where(cc[:, 1] < top_y, CORE_BODY, CORE)])
+    keep_b = ~WEB[0]
+    F = np.concatenate([BF[keep_b], HF[hair] + len(BP), SF + len(BP) + len(HP), CF + len(BP) + len(HP) + len(SP_)])
+    label = np.concatenate([np.where(knit, KNIT, np.where(neck, NECK, SKIN))[keep_b], np.full(hair.sum() + len(SF), HAIR),
+                            np.where(cc[:, 1] < collar_y + 0.01, CORE_BODY, CORE)])
     used = np.unique(F); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
     hair_points, hair_cols = hc[hair], hcol[hair]
     epx = src_to_crop([(626.0, IRISES[0][1])])
@@ -736,17 +797,37 @@ def compose(work):
     reach = np.abs(bc[:, 0] - axis[0])
     ears_ = head & (reach > np.percentile(reach[head], 99))
     ear_y = bc[ears_, 1].mean() if ears_.any() else top_y + 0.06
-    pivot = np.array([axis[0], ear_y - 0.01, nape_z + 0.35 * (throat_z - nape_z)])
+    # On the neck's own axis (its middle): behind it, the skinned neck's vertices in front swung far
+    # between the joints and folded out as flaps under the jaw on a turn.
+    pivot = np.array([axis[0], ear_y - 0.01, axis[1]])
     print('head pivot at ear level', np.round(pivot, 3))
     return P[used], remap[F].astype(np.int32), label, bald_colour, hair_tex, pivot
 
 BALD = os.environ.get('KAIRO_BALD') == '1'   # build the head without the hair layer (layer by layer)
 UNDER_CHIN_PHOTO = 0.0         # under the chin: share of the picture's own shadow (1 showed as a dark patch when the head tilted)
 NECK_TWIST = 0.05              # the neck's shortest twisting length above the collar (model units)
+WEB = []                       # bald-scan faces to drop (the web under the chin), set by compose
 NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw underside y per sector), set by compose
 NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
 HAIR_REACH = 0.010             # strands further than this outside the hair's closed volume are dropped
 HAIR_GAPS = 16                 # source px: gaps between the photo's strands narrower than twice this take hair colour
+
+def subdivide_neck(P, F, edge=0.005):
+    """The scan's faces from the collar to the chin split until no edge is longer than `edge`: the
+    neck is skinned with weights that vary along it, and a decimated face spanning the chin's
+    underside (weight 1) to the throat (near 0) stretched into a flap whenever the head turned."""
+    import pymeshlab
+    c = P[F].mean(1)
+    cpx = src_to_crop([(MOUTH['cx'], COLLAR_Y)])
+    zone = (c[:, 1] > -0.2) & (c[:, 1] < -0.06)
+    ms = pymeshlab.MeshSet(); ms.add_mesh(pymeshlab.Mesh(vertex_matrix=P, face_matrix=F, f_scalar_array=zone.astype(float)))
+    ms.meshing_repair_non_manifold_edges(method=0)
+    ms.meshing_repair_non_manifold_vertices()
+    ms.compute_selection_by_condition_per_face(condselect='fq > 0.5')
+    ms.meshing_surface_subdivision_midpoint(iterations=4, threshold=pymeshlab.PureValue(edge), selected=True)
+    m = ms.current_mesh()
+    print('neck subdivided:', len(F), '->', m.face_number(), 'faces')
+    return m.vertex_matrix(), m.face_matrix().astype(np.int32)
 
 def hair_shell(P, F, res=0.005):
     """A closed surface just inside the hair (voxelised strands, closed and eroded): the gaps between
@@ -1679,7 +1760,7 @@ def build(work):
             if part == 'neck':
                 # Next to the face grid (the chin) fully with the head: weighted, the scan under the
                 # chin slid against the grid's rigid edge, a second chin and a gap on every nod.
-                w = np.maximum(twist(p), smooth(0.025, 0.006, grid_tree.query(p)[0]))
+                w = twist(p)
                 # Along the chain body - N1 - N2 - head: each vertex between the two joints at its height.
                 s_ = np.clip(w * 3, 0, 3 - 1e-6); k0 = np.floor(s_).astype(int); f_ = s_ - k0
                 prim['joints'] = np.stack([k0, k0 + 1, np.zeros_like(k0), np.zeros_like(k0)], 1)
@@ -1841,7 +1922,7 @@ def package(glb, ids, posters):
         "blink": [{"node": 3, "mesh": ids['m_head'], "primitives": prims, "targetIndex": TARGETS.index("blink"),
                    "suppressExpressionTargets": [TARGETS.index(n) for n in ("wide", "squint", "happy")]}],
         "stateAnimations": {"thinking": "think"},
-        "neckChain": [{"node": ids['neck_chain'][0], "share": 0.25}, {"node": ids['neck_chain'][1], "share": 0.3}],
+        "neckChain": [{"node": ids['neck_chain'][0], "share": 0.3}, {"node": ids['neck_chain'][1], "share": 0.35}],
         "blinkFrames": [{"node": 4 + k, "from": a, "to": b} for k, (_, a, b) in enumerate(BLINK_FRAMES)],
         "headNode": 2,
         "speechMouthMesh": ids['m_head'],
