@@ -255,8 +255,11 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             material.Diffuse.Contents = color;
             // glTF's default sampler repeats; SceneKit clamps unless told.
             material.Diffuse.WrapS = material.Diffuse.WrapT = SCNWrapMode.Repeat;
-            // glTF multiplies the texture by the factor; SceneKit's multiply slot does the same.
-            if (m.BaseColor != Vector4.One)
+            // glTF multiplies the texture by the factor. A grey factor scales the diffuse light only: the
+            // multiply slot would also darken the emission (it multiplies the final colour).
+            if (m.BaseColor.X == m.BaseColor.Y && m.BaseColor.Y == m.BaseColor.Z && m.BaseColor.W == 1)
+                material.Diffuse.Intensity = m.BaseColor.X;
+            else if (m.BaseColor != Vector4.One)
                 material.Multiply.Contents = Srgb(m.BaseColor.X, m.BaseColor.Y, m.BaseColor.Z, m.BaseColor.W);
         }
         else
@@ -266,8 +269,9 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             material.Normal.Contents = normal;
             material.Normal.WrapS = material.Normal.WrapT = SCNWrapMode.Repeat;
         }
-        if (Image(m.EmissiveTexture) is { } emissive)
-            material.Emission.Contents = emissive;
+        var emissiveImage = Image(m.EmissiveTexture);
+        if (emissiveImage is not null)
+            material.Emission.Contents = emissiveImage;
         if (m.Mask)
         {
             // SceneKit has no alpha test; a fragment modifier discards what glTF's MASK mode would.
@@ -278,7 +282,12 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             material.BlendMode = SCNBlendMode.Alpha;
         material.Metalness.Contents = NSNumber.FromFloat(m.Metallic);
         material.Roughness.Contents = NSNumber.FromFloat(m.Roughness);
-        if (m.Emissive != Vector3.Zero)
+        if (emissiveImage is not null)
+        {
+            // glTF multiplies the emissive texture by the factor; SceneKit scales it by the intensity.
+            material.Emission.Intensity = MathF.Max(m.Emissive.X, MathF.Max(m.Emissive.Y, m.Emissive.Z));
+        }
+        else if (m.Emissive != Vector3.Zero)
         {
             // A colour cannot exceed 1, so emissive strength above it goes to the property's intensity;
             // that is what lets lit parts pass the bloom threshold while white plastic does not.

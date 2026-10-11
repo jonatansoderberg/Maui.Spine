@@ -56,9 +56,18 @@ def src_to_crop(xy):
 EYES = [dict(cx=507.5, cy=522.0, half=72.0, upper=487.0, lower=552.0, crease=468.0),
         dict(cx=747.5, cy=520.0, half=72.0, upper=485.0, lower=551.0, crease=466.0)]
 IRIS_R = 34.0
+# Lid margins measured on the source (x, y): the upper lid's edge where lashes meet the white, and
+# the lower lid. The lash band sits above the upper margin; the lid fold above that.
+LIDS = [dict(ux=[435, 460, 485, 510, 535, 552, 562], uy=[520, 495, 486, 484, 489, 500, 540],
+             lx=[435, 460, 490, 520, 550, 562], ly=[522, 540, 550, 553, 550, 542]),
+        dict(ux=[698, 715, 740, 765, 790, 815, 828], uy=[542, 505, 489, 484, 486, 497, 515],
+             lx=[698, 720, 750, 780, 810, 828], ly=[546, 552, 554, 550, 538, 518])]
+LASH, FOLD = 25.0, 48.0
+SRC_W = 1254.0
 BROWS = [dict(x0=470.0, x1=600.0, y=425.0, inner=600.0), dict(x0=655.0, x1=830.0, y=423.0, inner=655.0)]
 MOUTH = dict(cx=626.0, y=743.0, left=550.0, right=702.0, top=712.0, bottom=782.0)
-COLLAR_Y = 868.0            # source y where the neck enters the turtleneck, at the centre
+COLLAR_Y = 868.0
+CHIN_Y = 864.0              # source y of the chin's lower edge; the jaw line rises from it            # source y where the neck enters the turtleneck, at the centre
 FEATURES = [(507.5, 510.0, 105.0, 80.0), (747.5, 508.0, 105.0, 80.0), (626.0, 748.0, 120.0, 75.0)]
 
 # ---------------------------------------------------------------- stage 1: weld, turn, decimate
@@ -89,6 +98,19 @@ def load_scan(work):
     print('decimated', m.face_number(), 'faces; features kept', keep.sum())
     return m.vertex_matrix(), m.face_matrix(), orig
 
+def front_zbuffer(P, F, cell=4):
+    """The nearest depth per image cell. Point samples leave most full-resolution pixels empty, and
+    an empty pixel let the back of the head count as visible; a coarser buffer has no holes."""
+    rng = np.random.default_rng(2)
+    pts = np.concatenate([np.einsum('k,fkd->fd', b, P[F]) for b in rng.dirichlet((1, 1, 1), size=6)] + [P])
+    sp, sz = project(pts); ix = np.clip((sp / cell).astype(int), 0, N // cell - 1)
+    zb = np.full((N // cell, N // cell), np.inf); np.minimum.at(zb, (ix[:, 1], ix[:, 0]), sz)
+    def at(px):
+        i = np.clip((px / cell).astype(int), 0, N // cell - 1)
+        return zb[i[:, 1], i[:, 0]]
+    full = np.repeat(np.repeat(zb, cell, 0), cell, 1)
+    return at, full
+
 # ---------------------------------------------------------------- stage 2: outer surface only
 
 def outer_surface(P, F, R=640, n=96):
@@ -115,6 +137,120 @@ def outer_surface(P, F, R=640, n=96):
     print('outer faces', len(F2), 'of', nf)
     return P[used], remap[F2]
 
+def eye_mask(scale=1.0):
+    """Crop-space mask over both eyes and their sockets."""
+    yy, xx = np.mgrid[0:N, 0:N]
+    m = np.zeros((N, N), bool)
+    for lid in LIDS:
+        cx = (lid['ux'][0] + lid['ux'][-1]) / 2; cy = (min(lid['uy']) + max(lid['ly'])) / 2
+        c = src_to_crop((cx, cy)); rx = (lid['ux'][-1] - lid['ux'][0]) / 2 * S * 1.25 * scale; ry = 62 * S * scale
+        m |= ((xx - c[0]) / rx) ** 2 + ((yy - c[1]) / ry) ** 2 < 1
+    return m
+
+def face_mask_src(src):
+    """The skin of the face in source px: an oval from brow to chin and cheek to cheek, minus hair
+    (blue) and anything outside the cutout."""
+    a = np.asarray(src).astype(float)
+    h, w = a.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w]
+    # Down to the jaw line only: below it the scan's own neck carries on into the collar.
+    jaw = CHIN_Y - 0.0042 * (xx - 626.0) ** 2
+    oval = (((xx - 626) / 205) ** 2 + ((yy - 640) / 268) ** 2 < 1) & (yy < jaw)
+    hair = (a[..., 2] > a[..., 0] + 12) | (a.sum(-1) < 150)
+    hair = ndimage.binary_dilation(ndimage.binary_opening(hair, iterations=2), iterations=4)
+    m = oval & ~hair
+    # Keep the eyes, brows and mouth whole even where they read as dark or blue.
+    for x, y, rx, ry in FEATURES:
+        m |= ((xx - x) / rx) ** 2 + ((yy - y) / ry) ** 2 < 1
+    m &= oval
+    m = ndimage.binary_opening(ndimage.binary_fill_holes(m), iterations=3)
+    labels, n = ndimage.label(m)
+    if n > 1:
+        sizes = ndimage.sum(m, labels, range(1, n + 1)); m = labels == (1 + int(np.argmax(sizes)))
+    return m
+
+SURFACE_SMOOTHING = 2.0
+GRID_NORMALS = []
+FACE_INFO = []
+
+def face_surface(P, F, src):
+    """Replace the scan's face with one dense, smooth height field over the face, at the scan's own
+    depth (smoothed, with the eye sockets filled). The generator's eyes are hollows and its face is
+    crumpled; the picture is the face, so a smooth surface under it reads true, lids slide cleanly
+    over it, and no seams are left round the eyes. Hair and the sides keep the scan."""
+    mask_src = face_mask_src(src)
+    inp, zc = project(P)
+    # The front-most depth of the scan, densely sampled over its triangles.
+    rng = np.random.default_rng(4)
+    bary = rng.dirichlet((1, 1, 1), size=24)
+    zraw = np.full((N, N), np.inf)
+    for chunk in np.array_split(np.arange(len(F)), 8):
+        pts = np.einsum('bk,fkd->fbd', bary, P[F[chunk]]).reshape(-1, 3)
+        sp, sz = project(pts); ix = np.clip(sp.astype(int), 0, N - 1)
+        np.minimum.at(zraw, (ix[:, 1], ix[:, 0]), sz)
+    yy, xx = np.mgrid[0:N, 0:N]
+    # Crop-space mask of the face.
+    srcx = ((xx - OX) / S).astype(int).clip(0, mask_src.shape[1] - 1); srcy = ((yy - OY) / S).astype(int).clip(0, mask_src.shape[0] - 1)
+    face = mask_src[srcy, srcx]
+    # Trusted depth: on the face, outside the eye sockets, and not an outlier against its neighbourhood
+    # (hair strands in front, holes behind). Everything else is filled smoothly from it, so nothing
+    # outside the face (bangs, the back of the head) pulls on the surface.
+    finite = np.isfinite(zraw)
+    # Where the scan's front has holes, the nearest surface is the back of the head, 20-30 cm behind:
+    # only depths near the front-most one in the neighbourhood count.
+    front_env = ndimage.minimum_filter(np.where(finite, zraw, 9.0), size=21)
+    med = ndimage.median_filter(np.where(finite, zraw, 9.0), size=15)
+    trusted = face & finite & ~eye_mask(1.05) & (zraw - front_env < 0.02) & (np.abs(zraw - med) < 0.006)
+    trusted &= zraw < np.median(zraw[trusted]) + 0.08
+    # One smooth surface through the trusted depth (a smoothing thin-plate spline): stitching measured
+    # and filled regions together left creases where they met.
+    from scipy.interpolate import RBFInterpolator
+    ty, tx = np.where(trusted[::6, ::6]); ty, tx = ty * 6, tx * 6
+    rbf = RBFInterpolator(np.stack([tx, ty], 1).astype(float), zraw[ty, tx], kernel='thin_plate_spline', smoothing=SURFACE_SMOOTHING)
+    region = ndimage.binary_dilation(face, iterations=12)
+    ry, rx = np.where(region)
+    zs = np.full((N, N), np.median(zraw[trusted]))
+    zs[ry, rx] = rbf(np.stack([rx, ry], 1).astype(float))
+    print('face surface residual (mm)', round(float(np.std(zs[ty, tx] - zraw[ty, tx]) * 1000), 2))
+    for lid in LIDS:
+        cx = (lid['ux'][0] + lid['ux'][-1]) / 2; cy = (min(lid['uy']) + max(lid['ly'])) / 2
+        c = src_to_crop((cx, cy)); rx = (lid['ux'][-1] - lid['ux'][0]) / 2 * S; ry = 34 * S
+        zs -= 0.006 * np.clip(1 - ((xx - c[0]) / (rx * 1.3)) ** 2 - ((yy - c[1]) / (ry * 1.5)) ** 2, 0, None) ** 2
+    # Drop the scan's front faces over the face (not the back of the head, which projects there too).
+    # Any face with a corner over the face region and near its depth goes: scan faces left behind the
+    # grid poked through it (the scan is noisier than the smoothed surface) as brown patches.
+    vp, vz = project(P); vi2 = np.clip(vp.astype(int), 0, N - 1)
+    # Only well inside the grid's edge, so the scan overlaps the edge instead of leaving a gap.
+    inner = ndimage.binary_erosion(face, iterations=4)
+    near_face = inner[vi2[:, 1], vi2[:, 0]] & (vz < zs[vi2[:, 1], vi2[:, 0]] + 0.12)
+    over = near_face[F].any(1)
+    F = F[~over]
+    # The grid, a hair in front of where the scan was.
+    step = 1.6
+    gx = np.arange(0, N, step); gy = np.arange(0, N, step)
+    GX, GY = np.meshgrid(gx, gy)
+    ins = face[GY.astype(int), GX.astype(int)]
+    vid = np.full(GX.shape, -1); vid[ins] = np.arange(ins.sum()) + len(P)
+    px = np.stack([GX[ins], GY[ins]], 1)
+    # Sampled bilinearly: the grid step (1.6 px) against whole-pixel lookups quilted the surface.
+    gp = unproject(px, ndimage.map_coordinates(zs, [px[:, 1], px[:, 0]], order=1) - 0.004)
+    a, b, c, d = vid[:-1, :-1], vid[:-1, 1:], vid[1:, :-1], vid[1:, 1:]
+    ok = (a >= 0) & (b >= 0) & (c >= 0) & (d >= 0)
+    gf = np.concatenate([np.stack([a[ok], c[ok], b[ok]], 1), np.stack([b[ok], c[ok], d[ok]], 1)])
+    # Shading normals from a softer copy of the surface: the measured depth keeps a millimetre of
+    # noise that the picture does not have, and lit at full detail it showed as blotches.
+    zn = ndimage.gaussian_filter(zs, 7)
+    def surf(x, y):
+        return unproject(np.stack([x, y], 1), ndimage.map_coordinates(zn, [y, x], order=1))
+    ex = surf(px[:, 0] + 1, px[:, 1]) - surf(px[:, 0] - 1, px[:, 1])
+    ey = surf(px[:, 0], px[:, 1] + 1) - surf(px[:, 0], px[:, 1] - 1)
+    gn = np.cross(ey, ex); gn /= np.linalg.norm(gn, axis=1, keepdims=True) + 1e-12
+    gn = np.where((gn[:, 2] < 0)[:, None], -gn, gn)
+    GRID_NORMALS[:] = [gn]
+    FACE_INFO[:] = [zs, ndimage.binary_dilation(face, iterations=3)]
+    print('face grid', ins.sum(), 'vertices,', len(gf), 'faces; scan faces dropped', over.sum())
+    return np.concatenate([P, gp]), np.concatenate([F, gf]).astype(np.int32), len(P)
+
 def vertex_normals(P, F):
     fn = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]])
     vn = np.zeros_like(P)
@@ -136,6 +272,11 @@ def underlay(P, F):
     ms = pymeshlab.MeshSet(); ms.add_mesh(pymeshlab.Mesh(V * res + lo, Fu[:, ::-1].astype(np.int32)))
     ms.meshing_decimation_quadric_edge_collapse(targetfacenum=30000, preservenormal=True)
     m = ms.current_mesh(); UP, UF = m.vertex_matrix(), m.face_matrix()
+    # Only the hair needs it: across the face it came up to the filled eye sockets and showed through.
+    fc, _ = project(UP[UF].mean(1))
+    face = src_to_crop((626, 640)); r = np.array([175, 250]) * S
+    in_face = (((fc - face) / r) ** 2).sum(1) < 1
+    UF = UF[~(in_face & (UP[UF].mean(1)[:, 2] > 0))]
     un = np.cross(UP[UF[:, 1]] - UP[UF[:, 0]], UP[UF[:, 2]] - UP[UF[:, 0]])
     if (un * (UP[UF].mean(1) - UP.mean(0))).sum(1).mean() < 0:
         UF = UF[:, ::-1]
@@ -169,13 +310,9 @@ def atlas(P, F, sample, size, darken=1.0):
 
 def front_faces(P, F, work):
     inp, zc = project(P)
-    rng = np.random.default_rng(0)
-    samples = np.concatenate([np.einsum('k,fkd->fd', b, P[F]) for b in rng.dirichlet((1, 1, 1), size=6)] + [P])
-    sp, sz = project(samples)
-    zbuf = np.full((N, N), np.inf)
-    ix = np.clip(sp.astype(int), 0, N - 1); np.minimum.at(zbuf, (ix[:, 1], ix[:, 0]), sz)
+    zb_at, zbuf = front_zbuffer(P, F)
     vi = np.clip(inp.astype(int), 0, N - 1)
-    visible = zc <= zbuf[vi[:, 1], vi[:, 0]] + 0.02
+    visible = zc <= zb_at(inp) + 0.02
     alpha = np.asarray(Image.open(f'{work}/kairo-s42.svviews/input.png').convert('RGBA'))[..., 3]
     solid = alpha[vi[:, 1], vi[:, 0]] > 235
     fn = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
@@ -183,7 +320,7 @@ def front_faces(P, F, work):
     # No facing test: the dense, crumpled eye geometry has visible faces turned edge-on or away, and
     # giving those the generator's texture speckled the eyes.
     front = (visible[F].sum(1) >= 2) & solid[F].all(1) & ((fn * view).sum(1) > -0.7)
-    return front, visible
+    return front, visible, zbuf
 
 # ---------------------------------------------------------------- stage 4: morph fields (source px)
 
@@ -206,7 +343,9 @@ def eye_field(xy, kind):
         inside_x = np.abs(x - e['cx']) < e['half'] * 1.08
         top = e['crease'] - 16
         across = 1 - smooth(0.9, 1.08, np.abs(x - e['cx']) / e['half'])
-        if kind == 'blink':
+        if kind in ('blink', 'squint'):
+            continue                                # the lid overlay does these
+        if kind == 'blink-scan':
             # The upper lid (crease to lid edge, with its lashes) slides down to the lower lid; the eye
             # between them folds into a sliver under it.
             # A little past the lower lid line, so no white shows under the lashes.
@@ -312,6 +451,93 @@ def field(xy, name):
     if name.startswith('brow_'): return brow_field(xy, name[5:])
     return mouth_field(xy, name)
 
+def lid_skin_texture(src):
+    """A small texture of clean lid skin for the closing lids: the skin under each eye (no lashes,
+    no brow hairs), a touch darker toward the crease and the corners."""
+    a = np.asarray(src).astype(float)
+    tiles = []
+    for lid in LIDS:
+        cx = (lid['ux'][0] + lid['ux'][-1]) / 2
+        y = max(lid['ly']) + 26
+        patch = a[int(y) - 6:int(y) + 6, int(cx) - 30:int(cx) + 30].reshape(-1, 3)
+        tiles.append(np.median(patch, axis=0))
+    tex = np.zeros((32, 64, 4))
+    for i, c in enumerate(tiles):
+        v = np.linspace(0, 1, 32)[:, None]                 # 0 at the crease, 1 at the lash line
+        u = np.abs(np.linspace(-1, 1, 32))[None, :]
+        # A soft shadow in the crease and toward the lashes, as a closed lid has.
+        shade = (0.9 + 0.06 * np.sin(np.pi * v) ** 0.5 - 0.05 * v ** 4) * (1 - 0.04 * u ** 2)
+        tex[:, i * 32:(i + 1) * 32, :3] = c[None, None, :] * shade[..., None]
+        # Faded in from the crease, so the lid has no edge against the face above it.
+        tex[:, i * 32:(i + 1) * 32, 3] = 255 * np.clip(v / 0.35, 0, 1) ** 1.5 * np.ones_like(u)
+    return Image.fromarray(np.clip(tex, 0, 255).astype(np.uint8), 'RGBA')
+
+def lid_overlays(front_depth, surface_normal):
+    """Upper lids as their own surface: at rest folded flat into the lid crease, so the picture's own
+    eyes and lashes show untouched; closing unfolds it down over the eye as clean lid skin (taken from
+    just above the crease) with a copy of the lash line along its edge. Stretching the picture's own
+    lid instead streaked the long lashes and eyeliner across the skin."""
+    cols, skin_rows, lash_rows = 48, 10, 4
+    LASH_LINE = 11.0                     # the dense root of the lashes and the liner above the margin
+    pos, uv, idx_skin, idx_lash, targets = [], [], [], [], {n: [] for n in TARGETS}
+    for lid in LIDS:
+        # A little past both corners, so the closed lid has no edge at the corners.
+        x = np.linspace(lid['ux'][0] - 6, lid['ux'][-1] + 6, cols)
+        margin = np.interp(x, lid['ux'], lid['uy']) + 2.0
+        lower = np.interp(x, lid['lx'], lid['ly'])
+        # The crease follows the margin but flattens toward the corners, as a lid fold does.
+        t = (x - x.mean()) / (x[-1] - x[0]) * 2
+        fold = margin - FOLD * (1 - 0.35 * t * t)
+        rows = skin_rows + lash_rows + 1
+        # Texture: skin rows from a clean band above the crease, lash rows from the lash line.
+        fs = np.linspace(0, 1, skin_rows)
+        fl = np.linspace(0, 1, lash_rows + 1)
+        eye = LIDS.index(lid)
+        su = (eye + 0.06 + 0.88 * (x - x[0]) / (x[-1] - x[0])) / 2           # into the lid-skin texture
+        skin_uv = np.stack([np.broadcast_to(su, (skin_rows, cols)), np.broadcast_to(0.04 + 0.92 * fs[:, None], (skin_rows, cols))], -1).reshape(-1, 2)
+        lash_y = (margin - LASH_LINE - 1)[None, :] + LASH_LINE * fl[:, None]
+        lash_uv = np.stack([np.broadcast_to(x, lash_y.shape), lash_y], -1).reshape(-1, 2) / np.array([SRC_W, SRC_W])
+        tex = np.concatenate([skin_uv, lash_uv])
+        def shape(edge):
+            """The lid down to `edge`: skin from the crease to the lash line, then the lash rows."""
+            top = fold
+            lash_top = edge - LASH_LINE
+            ys = np.concatenate([top[None, :] + (lash_top - top)[None, :] * fs[:, None], lash_top[None, :] + (LASH_LINE + 1) * fl[:, None]])
+            return np.stack([np.broadcast_to(x, ys.shape), ys], -1).reshape(-1, 2)
+        # Rest: every row on the crease, a line with no area.
+        rest = np.stack([np.broadcast_to(x, (rows, cols)), np.broadcast_to(fold, (rows, cols))], -1).reshape(-1, 2)
+        shapes = {'blink': shape(lower + 3.5), 'squint': shape(margin + (lower - margin) * 0.38)}
+        base = sum(len(p) for p in pos)
+        crop = src_to_crop(rest)
+        p0 = unproject(crop, front_depth(crop) - 0.003)
+        pos.append(p0); uv.append(tex)
+        for name in TARGETS:
+            if name in shapes:
+                c2 = src_to_crop(shapes[name])
+                targets[name].append(unproject(c2, front_depth(c2) - 0.004) - p0)
+            else:
+                targets[name].append(np.zeros((len(rest), 3)))
+        # Skin rows and lash rows are separate grids (their textures differ); the skin's last row and
+        # the lash grid's first row lie on the same line.
+        for r in range(skin_rows - 1):
+            for c in range(cols - 1):
+                a = base + r * cols + c
+                idx_skin.append([a, a + cols, a + 1, a + 1, a + cols, a + cols + 1])
+        for r in range(lash_rows):
+            for c in range(cols - 1):
+                a = base + (skin_rows + r) * cols + c
+                idx_lash.append([a, a + cols, a + 1, a + 1, a + cols, a + cols + 1])
+    P = np.concatenate(pos); UV = np.concatenate(uv)
+    T = [np.concatenate(targets[n]) for n in TARGETS]
+    blink = T[TARGETS.index('blink')]
+    NRM = surface_normal(P + blink)
+    out = []
+    for faces, material in ((np.array(idx_skin).reshape(-1), 3), (np.array(idx_lash).reshape(-1), 0)):
+        used = np.unique(faces); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
+        out.append(dict(pos=P[used], nrm=NRM[used], uv=UV[used], idx=remap[faces].astype(np.uint32), material=material,
+                        targets=[t[used] for t in T]))
+    return out
+
 # ---------------------------------------------------------------- GLB writer with sparse targets
 
 class Glb:
@@ -399,7 +625,13 @@ def jpeg(img, quality=90):
 def build(work):
     P, F, (op, ouv) = load_scan(work)
     P, F = outer_surface(P, F)
+    P, F, grid_start = face_surface(P, F, Image.open(f'{work}/kairo-front.png').convert('RGB'))
     UP, UF = underlay(P, F)
+    # Nothing of the underlayer just behind the face: it rose to the face's surface in patches.
+    uc, uz = project(UP[UF].mean(1)); ui = np.clip(uc.astype(int), 0, N - 1)
+    face_depth, face_area = FACE_INFO
+    over_face = face_area[ui[:, 1], ui[:, 0]] & (uz < face_depth[ui[:, 1], ui[:, 0]] + 0.05)
+    UF = UF[~over_face]
     base = np.asarray(Image.open(f'{work}/kairo-s42_base.png').convert('RGB'))
     src = Image.open(f'{work}/kairo-front.png').convert('RGB')
     tree = cKDTree(op)
@@ -408,9 +640,34 @@ def build(work):
         return base[np.clip(((1 - u[:, 1]) * base.shape[0]).astype(int), 0, base.shape[0] - 1),
                     np.clip((u[:, 0] * base.shape[1]).astype(int), 0, base.shape[1] - 1)]
 
-    front, visible = front_faces(P, F, work)
+    front, visible, zbuf = front_faces(P, F, work)
+    # The face grid is the picture by construction: the visibility test missed scattered grid faces,
+    # which then took the generator's colours as spots.
+    on_grid = (F >= grid_start).all(1)
+    front |= on_grid
+    visible[grid_start:] = True
+    # The front-most surface depth, holes filled and a little spread so a lid sits over the eyeball.
+    zfill = np.where(np.isinf(zbuf), np.nan, zbuf)
+    idxn = ndimage.distance_transform_edt(np.isnan(zfill), return_distances=False, return_indices=True)
+    zfill = ndimage.minimum_filter(zfill[idxn[0], idxn[1]], size=5)
+    def front_depth(px):
+        i = np.clip(px.astype(int), 0, N - 1)
+        return zfill[i[:, 1], i[:, 0]]
     VN = vertex_normals(P, F)
     inp, zc = project(P)
+    # Shade the front with smoothed normals: the picture already carries the face's light, and the
+    # scan's crumpled surface (and the seam round the eye patches) shaded in ragged patches.
+    # The face grid's normals come from its own smoothed surface: smoothing them together with the
+    # layers behind (hair, the scan's eyes) turned whole regions away.
+    VN[grid_start:] = GRID_NORMALS[0]
+    fv = np.unique(F[front]); fv = fv[fv < grid_start]
+    ftree = cKDTree(P[fv])
+    n = VN[fv].copy()
+    for _ in range(3):
+        nb = ftree.query_ball_point(P[fv], r=0.03)
+        n = np.array([n[i].mean(0) for i in nb])
+        n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
+    VN[fv] = n
     uv_front = ((inp - np.array([OX, OY])) / S) / np.array(src.size)
     rest = np.where(~front)[0]
     rest_uv, rest_tex = atlas(P, F[rest], sample, 4096)
@@ -469,13 +726,37 @@ def build(work):
                 prim['targets'] = lift(pos[used], vis[used]) if morph else [np.zeros_like(p) for _ in TARGETS]
             prims[part].append(prim)
 
+    front_vertices = np.unique(F[front])
+    ntree = cKDTree(P[front_vertices])
+    def surface_normal(points):
+        _, i = ntree.query(points, k=6)
+        n = VN[front_vertices][i].mean(1)
+        return n / (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
+    for lid in lid_overlays(front_depth, surface_normal):
+        lid['pos'] = lid['pos'] - pivot
+        prims['head'].append(lid)
+
     g = Glb()
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071})
-    for name, img in (("front", src), ("rest", Image.fromarray(rest_tex)), ("under", Image.fromarray(under_tex))):
-        i = g.image(jpeg(img, 92 if name == "front" else 88), "image/jpeg", name)
+    for name, img in (("front", src), ("rest", Image.fromarray(rest_tex)), ("under", Image.fromarray(under_tex)), ("lidskin", lid_skin_texture(src))):
+        if img.mode == 'RGBA':
+            data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
+        else:
+            i = g.image(jpeg(img, 92 if name == "front" else 88), "image/jpeg", name)
         g.gltf["textures"].append({"sampler": 0, "source": i})
-        g.gltf["materials"].append({"name": name, "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1], "baseColorTexture": {"index": i},
-                                                                          "metallicFactor": 0, "roughnessFactor": 0.62}})
+        material = {"name": name, "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1], "baseColorTexture": {"index": i},
+                                                           "metallicFactor": 0, "roughnessFactor": 0.62}}
+        if name in ("front", "lidskin"):
+            # The picture already carries its light: shown mostly as it is (emissive), with a little
+            # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
+            # mottled the face and the turtleneck.
+            material["pbrMetallicRoughness"]["baseColorFactor"] = [0.1, 0.1, 0.1, 1]
+            material["emissiveTexture"] = {"index": i}
+            material["emissiveFactor"] = [0.9, 0.9, 0.9]
+            material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0       # no highlights on the baked light
+        if name == "lidskin":
+            material["alphaMode"] = "BLEND"
+        g.gltf["materials"].append(material)
     # 0 Root, 1 Body (turtleneck), 2 HeadPivot (at the neck), 3 Head.
     g.node("Root", children=[1, 2])
     g.node("Body", g.mesh("Body", prims['body']))

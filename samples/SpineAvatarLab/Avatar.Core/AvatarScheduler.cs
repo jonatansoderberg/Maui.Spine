@@ -356,6 +356,15 @@ public sealed class AvatarScheduler
     }
 
     /// <summary>Holds one canonical viseme with no clock, for an inspector. Null releases it.</summary>
+    /// <summary>Holds the lids at a closure (0–1) for inspection, or returns them to the scheduler with null.</summary>
+    public void SetManualBlink(float? closure)
+    {
+        lock (_gate)
+            _manualBlink = closure is { } c ? Math.Clamp(c, 0, 1) : null;
+    }
+
+    private float? _manualBlink;
+
     public void SetManualViseme(int? canonicalId)
     {
         if (canonicalId is < 0 or > 14)
@@ -664,6 +673,11 @@ public sealed class AvatarScheduler
 
     private void UpdateBlink(double now, AvatarRenderFrame f)
     {
+        if (_manualBlink is { } held)
+        {
+            f.Blink = held;
+            return;
+        }
         if (!_schedulerBlinks || !_animationEnabled)
             return;
 

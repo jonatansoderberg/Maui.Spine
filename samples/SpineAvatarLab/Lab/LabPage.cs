@@ -344,6 +344,9 @@ public sealed class LabPage : ContentPage
                 _frameRates.Select(arg);
                 _avatar.MaxFramesPerSecond = int.Parse(arg, CultureInfo.InvariantCulture);
                 return null;
+            case "blink":
+                _avatar.Scheduler?.SetManualBlink(arg == "off" ? null : Number(1));
+                return null;
             case "size":
                 _sizes.Select(arg);
                 _avatar.WidthRequest = _avatar.HeightRequest = int.Parse(arg, CultureInfo.InvariantCulture);
