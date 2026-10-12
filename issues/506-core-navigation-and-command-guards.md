@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/506
 **Branch:** issue/506-core-navigation-and-command-guards
-**Status:** In Progress
+**Status:** Completed
 
 Part of the roadmap [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505), step 1.1 in `docs/plans/ai-and-security.md`. The design is in `docs/proposals/spine-guards-biometrics.md` §2, together with the owner's decisions of 2026-10-09 at the top of that file.
 
@@ -127,14 +127,26 @@ None. The owner answered the proposal's questions on 2026-10-09. The tab cover i
 
 ## Verified
 
-- The core builds for iOS, Android, Mac Catalyst and Windows (Windows compiled on the Mac, not run).
-- On the iPhone 17 simulator:
-  - The guarded page asks first, and Cancel leaves the user on the Guards page with nothing created.
-  - The `Tap.Command` row asks before deleting.
+- **Builds:** the core builds for iOS, Android, Mac Catalyst and Windows. Windows was compiled on the Mac, not run.
+- **Spine Showcase, iPhone 17 simulator (iOS 26.4):**
+  - The guarded page asks first.
+    - Cancel stays on the Guards page.
+    - Continue opens the Vault page.
+  - The guarded command asks, and runs only after Continue, from all three places:
+    - the `Tap.Command` row
+    - the action sheet row
+    - the menu row (Cancel left the count unchanged)
+- **Guarded tabs**, tested in a scratch app with two `[NavigableTab]` pages, one of them guarded with a cover (the Showcase has no tabs):
+  - **iOS simulator:** the tap is refused and the prompt shows over Home.
+    - Cancel stays on Home.
+    - Continue switches to the guarded tab.
+  - **Android (Pixel 10 Pro emulator):** the tab switches at once and shows the guard's cover under the prompt.
+    - Cancel leaves the cover with its Unlock button.
+    - Unlock and then Continue replace the cover with the tab's page.
 - **Not verified:**
-  - Continue on the page and the command, plus the action-sheet and menu rows. The disk filled up mid-test and the app was stopped.
-  - Guarded tabs on any platform: Spine Showcase has no tabs.
-  - Android and Windows at run time.
+  - Windows at run time.
+  - The fallback to switching back when a guard has no cover.
+  - A cold start through a shortcut to a guarded page.
 
 ## Decisions
 
