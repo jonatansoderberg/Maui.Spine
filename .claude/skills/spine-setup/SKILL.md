@@ -22,6 +22,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 | Background work while the app is closed (`[BackgroundTask]`), widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` | the core and `Plugin.Maui.Spine.Common` |
 | Face ID, Touch ID, fingerprint or Windows Hello before a page or a command (`[RequiresUnlock]`, `IUnlock`), an app lock, or a page kept out of screenshots (`[PrivacyShield]`) | `Plugin.Maui.Spine.Biometrics` | the core and `Plugin.Maui.Spine.Common` |
 | The push backend, in an ASP.NET Core or Azure Functions project | `Plugin.Maui.Spine.Server` | `Plugin.Maui.Spine.Common` |
+| An AI feature in the app: one `IChatClient` per named feature, on the device first (Apple Intelligence) and then the app's server, no keys in the app (`UseSpineAI`, `[FromKeyedServices("Name")] IChatClient`, `IAIUsage`) | `Plugin.Maui.Spine.AI`, plus `Microsoft.Maui.Essentials.AI` for an on-device model | `Plugin.Maui.Spine.Common` (not the core) |
 | Language or image models from the server: named features in configuration, metering, prices, budgets, per-user limits (`AddSpineAI`, `IAIFeatures`, `MapSpineAI`) | `Plugin.Maui.Spine.Server.AI`, plus the vendor's Microsoft.Extensions.AI adapter (`Anthropic`, `Microsoft.Extensions.AI.OpenAI`) | — |
 | `HeroCollectionView` (collapsing hero header) | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `Plugin.Maui.Spine.Svg` |
 | `AnimatedLabel` (marquee) | `Plugin.Maui.Spine.Controls.AnimatedLabel` | — |
@@ -43,11 +44,12 @@ dotnet add package Plugin.Maui.Spine.Widgets            # if widgets
 dotnet add package Plugin.Maui.Spine.PushNotifications  # if notifications
 dotnet add package Plugin.Maui.Spine.BackgroundTasks    # if background tasks
 dotnet add package Plugin.Maui.Spine.Biometrics         # if unlock with Face ID, fingerprint or Windows Hello
+dotnet add package Plugin.Maui.Spine.AI                 # if AI features through the app's Spine.Server.AI backend
 ```
 
 With central package management, add matching `<PackageVersion>` lines to `Directory.Packages.props` instead of versions in the csproj.
 
-The MAUI packages target `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst` and `net10.0-windows10.0.19041.0`; `Common`, `Server`, `Server.AI` and `Svg.Icons` target `net10.0`; `Barcodes` targets `net10.0` as well as the MAUI frameworks. The app needs .NET 10 and the `maui` workload.
+The MAUI packages target `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst` and `net10.0-windows10.0.19041.0`; `Common`, `Server`, `Server.AI` and `Svg.Icons` target `net10.0`; `Barcodes`, `Images` and `AI` target `net10.0` as well as the MAUI frameworks. The app needs .NET 10 and the `maui` workload.
 
 ## 2. Register in `MauiProgram.cs`
 
@@ -263,6 +265,7 @@ Ask before showing UI for a feature the device may lack. One rule across Spine: 
 - `NU1608` warnings about AndroidX `LiveData.Core` / `Fragment` are the normal state of a MAUI app with Firebase in it.
 - Strings: embed `Resources/Strings/strings.xml` and `strings.<culture>.xml` (`<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />`; without `WithCulture="false"` MSBuild moves `strings.sv.xml` into a satellite assembly), read them with `{String Key}` in XAML or `ISpineStrings` in C#, switch with `ISpineStrings.Culture` (stored). Override a Spine key such as `Spine.Header.Back` by defining it in the app's document. See docs/wiki/strings.md.
 - Theme: set `IThemeService.Current` (stored, applied at the next launch), never `Application.UserAppTheme`; no `RequestedThemeChanged` handler for the Android page background, Spine paints the window. Views that colour themselves in code call `SpineTheme.Track(this, Repaint)`. Accent: `IThemeService.Accent = new SpineAccent(light, dark)` (stored; null = the app's `Primary`/`PrimaryDark`) writes `Primary`, `PrimaryDark`, `Accent` and `OnAccent` and repaints like a theme switch; style with `{DynamicResource Accent}` / `{DynamicResource OnAccent}`, not `AppThemeBinding` over `StaticResource Primary`; code reads `SpineTheme.GetAccent(theme)`. See docs/wiki/theming.md.
+- Spine.AI: set `Backend` to the prefix given to `MapSpineAI` (a wrong one is an `HttpRequestException` naming the URL, not "off"); the server feature needs `"Expose": true`. A feature that is off throws `AIFeatureOffException` (in `Plugin.Maui.Spine.Common`, namespace `Plugin.Maui.Spine.AI`), which `TaskState` shows as empty. `AppleIntelligenceChatClient` needs `<NoWarn>$(NoWarn);MAUIAI0001</NoWarn>` and iOS/macOS 26; it throws at once where the model is unavailable (the simulator), and the chain falls back. Android talks to a server on the Mac through `adb reverse tcp:5100 tcp:5100` and `localhost`. See docs/wiki/ai-client.md.
 - Server.AI: a feature is off (and logged at startup) when its provider's `ApiKey` entry is empty, its provider is not registered with `ai.Chat(...)`/`ai.Image(...)`, or it has no `Model`. `AddSpineAI` needs a usage store (`UseInMemoryUsageStore()` resets budgets on restart). Prices are `Ai:Prices:<provider>:<model>`. See docs/wiki/ai-server.md.
 - Windows builds only on Windows; iOS and Mac Catalyst class libraries build on Windows, but an iOS *app* (and the widget extension) needs a Mac.
 
@@ -272,6 +275,7 @@ Ask before showing UI for a feature the device may lack. One rule across Spine: 
 - Packages and dependencies: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/packages.md
 - Widgets setup: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/widgets.md#setup
 - Push setup and platform requirements: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/push-notifications.md
+- AI in the app (features, fallback, on-device usage): https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/ai-client.md
 - AI on the server (features, providers, budgets): https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/ai-server.md
 - Scanner setup: https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/barcodes.md#setup
 - Sample apps: https://github.com/jonatansoderberg/Maui.Spine/tree/master/samples

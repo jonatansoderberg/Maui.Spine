@@ -25,6 +25,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+	<!-- The exceptions and AIOffReason live in .Common, shared with the app's Plugin.Maui.Spine.AI. -->
+	<ItemGroup>
+		<Using Include="Plugin.Maui.Spine.AI" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Azure.Data.Tables" />
 		<PackageReference Include="Microsoft.Extensions.AI" />
 	</ItemGroup>

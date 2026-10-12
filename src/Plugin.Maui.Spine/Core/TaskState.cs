@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Plugin.Maui.Spine.AI;
 
 namespace Plugin.Maui.Spine.Core;
 
@@ -18,7 +19,10 @@ public enum TaskStateStatus
     /// <summary>The last load gave a result.</summary>
     Success,
 
-    /// <summary>The last load gave a result the state's <c>isEmpty</c> calls empty.</summary>
+    /// <summary>
+    /// The last load gave a result the state's <c>isEmpty</c> calls empty, or failed with an exception that means
+    /// there is nothing to show (<see cref="Plugin.Maui.Spine.AI.IEmptyResultException"/>, such as an AI feature that is off).
+    /// </summary>
     Empty,
 
     /// <summary>The load failed and there is no earlier result to show; see <see cref="TaskState.Error"/>.</summary>
@@ -214,7 +218,10 @@ public sealed class TaskState<T>(
 
             System.Diagnostics.Debug.WriteLine($"[Spine] TaskState<{typeof(T).Name}> load failed: {e}");
             Error = e;
-            Settle(HasResult ? _settled : TaskStateStatus.Error);
+
+            // A failure that means "nothing to show", such as an AI feature that is off, is the empty state,
+            // not an error with a retry. A result already on screen stays, as with any failure.
+            Settle(HasResult ? _settled : e is IEmptyResultException ? TaskStateStatus.Empty : TaskStateStatus.Error);
         }
         finally
         {

@@ -6,7 +6,7 @@ dotnet add package Plugin.Maui.Spine.Server.AI
 
 `Plugin.Maui.Spine.Server.AI` lets a Spine app's backend use language and image models with the provider as configuration. Every token and image is counted and priced. Budgets and per-user limits stop runaway cost. It is a plain `net10.0` library with a framework reference to ASP.NET Core, so a Minimal API and an Azure Functions isolated worker can both host it. It does not reference `Plugin.Maui.Spine.Server`, so an app with AI and no push pulls in no Firebase.
 
-There is no model abstraction of Spine's own. [Microsoft.Extensions.AI](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai) is the contract: a feature is an `IChatClient` or an `IImageGenerator`, and a provider is the vendor's own adapter. Spine adds what sits around them: named features, metering, prices, budgets, limits and endpoints. The design is in [the proposal](../proposals/spine-ai.md), §3–§5.
+There is no model abstraction of Spine's own. [Microsoft.Extensions.AI](https://learn.microsoft.com/dotnet/ai/microsoft-extensions-ai) is the contract: a feature is an `IChatClient` or an `IImageGenerator`, and a provider is the vendor's own adapter. Spine adds what sits around them: named features, metering, prices, budgets, limits and endpoints. The design is in [the proposal](../proposals/spine-ai.md), §3–§5. The app half is [`Plugin.Maui.Spine.AI`](ai-client.md), which calls exposed features and falls back between the device and the server.
 
 ---
 
@@ -102,6 +102,7 @@ app.MapPost("/races/{id}/story", async (string id, HttpRequest request, IAIFeatu
 
 - **`Chat` and `Image` return `null`** while the feature is off: not configured, disabled, or over the app's or the feature's hard budget. `StateOf(feature)` says which.
 - **A call can still be refused.** The budget can run out between the lookup and the call, and the caller can be over its own allowance or rate. The call then throws an `AIFeatureException`, and `ToResult()` is the answer to return.
+- **The exceptions are shared with the app.** `AIFeatureException`, `AIFeatureOffException`, `AIRateLimitedException`, `AIRequestTooLargeException` and `AIOffReason` live in `Plugin.Maui.Spine.Common`, in the namespace `Plugin.Maui.Spine.AI`. The app's [Spine.AI client](ai-client.md) throws the same types for the same answers. Server code needs `using Plugin.Maui.Spine.AI;` next to `using Plugin.Maui.Spine.Server.AI;`, which holds the `ToResult()` extension.
 - **Server-side work with no user behind it** can inject the feature directly: `[FromKeyedServices("RaceStory")] IChatClient story`. It calls as `AICaller.System`, sees configuration changes, and throws `AIFeatureOffException` while the feature is off. It is a singleton, so it can go into singletons. Features added to configuration after startup are reached through `IAIFeatures`.
 - **Disposing a client** that `Chat` returned does nothing to the feature, so `using` is harmless.
 

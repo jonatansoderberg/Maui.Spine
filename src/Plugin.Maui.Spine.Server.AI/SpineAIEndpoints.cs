@@ -77,10 +77,10 @@ public static class SpineAIEndpoints
         var messages = ExposedMessages(found.Options, sent);
 
         if (found.Options.MaxTurns is { } maxTurns && messages.Count(m => m.Role == ChatRole.User) > maxTurns)
-            return Results.Json(new { tooLarge = "turns", max = maxTurns }, statusCode: StatusCodes.Status413PayloadTooLarge);
+            return new AIRequestTooLargeException(found.Name, "turns", maxTurns).ToResult();
 
         if (found.Options.MaxInputTokens is { } maxTokens && AIUsageMeter.Estimate(messages) > maxTokens)
-            return Results.Json(new { tooLarge = "tokens", max = maxTokens }, statusCode: StatusCodes.Status413PayloadTooLarge);
+            return new AIRequestTooLargeException(found.Name, "tokens", maxTokens).ToResult();
 
         var options = new ChatOptions { ConversationId = body.ConversationId };
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Plugin.Maui.Spine.Server.AI");

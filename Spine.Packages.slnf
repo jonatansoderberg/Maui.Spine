@@ -2,6 +2,7 @@
   "solution": {
     "path": "Spine.slnx",
     "projects": [
+      "src\\Plugin.Maui.Spine.AI\\Plugin.Maui.Spine.AI.csproj",
       "src\\Plugin.Maui.Spine.BackgroundTasks\\Plugin.Maui.Spine.BackgroundTasks.csproj",
       "src\\Plugin.Maui.Spine.Biometrics\\Plugin.Maui.Spine.Biometrics.csproj",
       "src\\Plugin.Maui.Spine.Barcodes\\Plugin.Maui.Spine.Barcodes.csproj",
@@ -23,6 +24,7 @@
       "src\\Plugin.Maui.Spine.Svg.Icons\\Plugin.Maui.Spine.Svg.Icons.csproj",
       "src\\Plugin.Maui.Spine.Widgets\\Plugin.Maui.Spine.Widgets.csproj",
       "src\\Plugin.Maui.Spine\\Plugin.Maui.Spine.csproj",
+      "tests\\Plugin.Maui.Spine.AI.Tests\\Plugin.Maui.Spine.AI.Tests.csproj",
       "tests\\Plugin.Maui.Spine.BackgroundTasks.Tests\\Plugin.Maui.Spine.BackgroundTasks.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Biometrics.Tests\\Plugin.Maui.Spine.Biometrics.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Barcodes.Tests\\Plugin.Maui.Spine.Barcodes.Tests.csproj",

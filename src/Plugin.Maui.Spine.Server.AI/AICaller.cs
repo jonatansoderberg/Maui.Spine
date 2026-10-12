@@ -25,7 +25,7 @@ public enum AICallerKind
 public sealed record AICaller(string Id, AICallerKind Kind)
 {
     /// <summary>The header an app sends its installation id in.</summary>
-    public const string InstallationHeader = "Spine-Installation";
+    public const string InstallationHeader = Plugin.Maui.Spine.Common.SpineInstallation.Header;
 
     /// <summary>The server's own work.</summary>
     public static AICaller System { get; } = new("system", AICallerKind.System);

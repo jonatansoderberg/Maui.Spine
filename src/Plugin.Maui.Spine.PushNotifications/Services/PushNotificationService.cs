@@ -64,7 +64,7 @@ internal sealed class PushNotificationService : IPushNotificationService
             widgets.PushTokenChanged += () => RefreshAsync().SafeFireAndForget();
     }
 
-    private const string InstallationIdKey = "spine.push.installation-id";
+    private const string InstallationIdKey = SpineInstallation.IdKey;
     private const string TagsKey = "spine.push.tags";
     private const string FingerprintKey = "spine.push.fingerprint";
     private const string SentAtKey = "spine.push.sent-at";

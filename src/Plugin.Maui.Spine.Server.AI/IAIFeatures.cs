@@ -44,7 +44,7 @@ public interface IAIFeatures
     /// <param name="caller">Who the call is for; <see cref="AICaller.System"/> for the server's own work.</param>
     /// <remarks>
     /// A budget can still run out between this and the call, or the caller can be over a limit. The call then throws
-    /// an <see cref="AIFeatureException"/>, whose <see cref="AIFeatureException.ToResult"/> is the answer to return.
+    /// an <see cref="AIFeatureException"/>, and <see cref="AIFeatureResults.ToResult"/> is the answer to return.
     /// </remarks>
     IChatClient? Chat(string feature, AICaller caller);
 
