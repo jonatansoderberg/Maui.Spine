@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/513
 **Branch:** issue/513-spinecontrolsmarkdown-markdownview-on-native-views
-**Status:** In review
+**Status:** In review (PR #538)
 
 This is step 2.5 of the roadmap [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505), tracked in `docs/plans/ai-and-security.md`. The design is in `docs/proposals/spine-ai.md` §8, together with Q21: Markdown is its own package. On 2026-10-12 the owner split the step in two. This issue is the Markdown package. The chat view is [#537](https://github.com/jonatansoderberg/Maui.Spine/issues/537), which builds on it.
 
