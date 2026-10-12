@@ -1438,7 +1438,7 @@ HANG = 16.0                            # how far the closed lashes hang below th
 def lid_span(lid):
     """The lid surface's x range: well past the outer corner, so the photo's lash wing goes with the
     lid, and just past the inner one (wider there, it carried skin specks)."""
-    outer_left = LIDS.index(lid) == 0
+    outer_left = lid['outer_left'] if 'outer_left' in lid else LIDS.index(lid) == 0
     return lid['ux'][0] - (16 if outer_left else 6), lid['ux'][-1] + (6 if outer_left else 16)
 
 def lid_fold(lid, x):
@@ -1670,6 +1670,16 @@ BLINK_FRAMES = []               # (layer, from, to): painted states shown as fra
 LID_MATERIAL = 12              # index of the "lid" material
 LID_LAYER = 'kairo-lid-closed.png'
 LID_RETOUCH = 'hairfree-package/kairo-lid-texture-hairfree.png'   # the owner's retouch of the lid texture crop (RGB; the alpha is ours)
+LID_MIRROR = True               # her right lid (image left) is her left one mirrored about the face's midline (owner: the painted right lid kept a dark defect in the blink)
+MIDLINE = (IRISES[0][0] + IRISES[1][0]) / 2
+
+def mirror_x(x):
+    return 2 * MIDLINE - np.asarray(x, float)
+
+def mirrored_lid(lid):
+    """The other eye's lid landmarks mirrored about the midline, x increasing again."""
+    return dict(ux=list(mirror_x(lid['ux'])[::-1]), uy=list(lid['uy'][::-1]), lx=list(mirror_x(lid['lx'])[::-1]), ly=list(lid['ly'][::-1]),
+                outer_left=True)
 
 LID_TARGETS = ['blink_%d' % k for k in range(1, 10)] + ['blink', 'squint']   # the lids' own mesh: closures 0.1..0.9, closed, squint
 LID_ROWS = (6, 18, 5)           # grid rows above the crease, crease to lash line, hanging lashes
@@ -1689,21 +1699,49 @@ def lid_shape(top, fold, open_margin, margin, v, w):
     L = margin - open_margin
     above = v <= fold
     lid = (v > fold) & (v <= margin)
-    y = np.where(above, fold - (fold - v) * w, 0.0)
+    # The rows above the crease never move: they are the face's own pixels with the lash tips filled
+    # in, hidden behind the face while the eye is open and out from the first keyframe (lid_sheets), so
+    # the photo's lashes go in the blink's first frame. Stretched up from the crease instead they
+    # squeezed lighter skin from above into a pale plate, and a pale wedge at the corner.
+    y = np.where(above, v, 0.0)
     y = np.where(lid, fold + np.maximum(0.0, (v - fold) - (1 - w) * L), y)
     return np.where(~above & ~lid, open_margin + w * L + (v - margin) * w, y)
 
-LID_HIDDEN = 0.001              # how far behind the face the open lid's lowest rows wait (m): out by closure 0.04
+LID_HIDDEN = 0.0003             # how far behind the face the open lid's lowest rows wait (m): out by closure 0.017 (at 1 mm, out at 0.04, the painting's fold shadow showed as a dark line on the crease for the last frames of every reopening)
 
-def lid_sheets(work, zg, src):
+def lid_sheets(work, zg, src, surface_normal):
     """The upper lids: the owner's painted closed eye on a sheet per eye that lies over the eyeball
     (1.5 mm out from it) and over the face round it. Open, the sheet is gathered on the crease; closing
     rolls it down over the eye at the painting's scale (lid_shape), lashes at its edge, following the
     ball's curve on a turn. The sheet below the hanging lashes is cut (faded) so the photo's lower lid
     stays; above the brows and over the brow strokes frame_layer has already cleared it."""
     a, solid, alpha, (x0, y0, x1, y1) = frame_layer(work, LID_LAYER)
+    lids = list(LIDS)
+    if LID_MIRROR:
+        xi = np.clip(np.round(mirror_x(np.arange(a.shape[1]))).astype(int), 0, a.shape[1] - 1)
+        left = np.arange(a.shape[1]) < MIDLINE
+        a[:, left] = a[:, xi][:, left]; solid[:, left] = solid[:, xi][:, left]; alpha[:, left] = alpha[:, xi][:, left]
+        lids[0] = mirrored_lid(LIDS[1])
+        ys, xs = np.where(solid); x0, y0, x1, y1 = xs.min() - 2, ys.min() - 2, xs.max() + 3, ys.max() + 3
+    # A box of the sheet's own past each outer corner (34 px out, 50 px up, down past the hanging
+    # lashes), whatever the painting covers there: the photo's outermost lash tip lay beyond the
+    # painting's edge and stayed on the face through the blink.
+    for k_, lid_ in enumerate(lids):
+        cx_, cy_ = (lid_['ux'][0], lid_['uy'][0]) if k_ == 0 else (lid_['ux'][-1], lid_['uy'][-1])
+        xa, xb = (cx_ - 34, cx_ + 4) if k_ == 0 else (cx_ - 4, cx_ + 34)
+        box = np.zeros(solid.shape, bool); box[int(cy_ - 52):int(cy_ + HANG + 8), int(xa):int(xb)] = True
+        alpha = np.maximum(alpha, 255 * np.clip(ndimage.gaussian_filter(box.astype(float), 6) * 1.25, 0, 1)); solid |= box
+    ys, xs = np.where(solid); x0, y0, x1, y1 = xs.min() - 2, ys.min() - 2, xs.max() + 3, ys.max() + 3
     layer = Image.fromarray(a[..., :3].astype(np.uint8))
     lum = a[..., :3].mean(-1)
+    photo_rgb = np.asarray(src.convert('RGB')).astype(float)
+    face_inside = FACE_INFO[1].astype(bool)
+    face_nearest = ndimage.distance_transform_edt(~face_inside, return_indices=True)[1]
+    # The brows stay brows: the lash fill below only takes dark pixels under the photo's brow line.
+    brow_px = (photo_rgb[..., 2] > photo_rgb[..., 0] + 12) & (np.arange(photo_rgb.shape[0])[:, None] > 380) & (np.arange(photo_rgb.shape[0])[:, None] < 475)
+    brow_px = ndimage.binary_opening(brow_px, iterations=1)
+    brow_bottom = np.where(brow_px.any(0), np.where(brow_px, np.arange(photo_rgb.shape[0])[:, None], 0).max(0), 440)
+    brow_bottom = ndimage.maximum_filter1d(ndimage.median_filter(brow_bottom, 9), 15)
     cam = np.array([0.0, 0.0, D])
     cols = 72
     nA, nB, nC = LID_ROWS
@@ -1712,7 +1750,7 @@ def lid_sheets(work, zg, src):
     shapes = {n: [] for n in LID_TARGETS}
     cut = np.ones(solid.shape)
     yy = np.arange(solid.shape[0])[:, None].astype(float)
-    for k, ((centre, R), lid) in enumerate(zip(EYE_BALLS, LIDS)):
+    for k, ((centre, R), lid) in enumerate(zip(EYE_BALLS, lids)):
         side = (np.arange(solid.shape[1]) < SRC_W / 2) if k == 0 else (np.arange(solid.shape[1]) >= SRC_W / 2)
         m = solid & side[None]
         ys, xs = np.where(m)
@@ -1731,6 +1769,11 @@ def lid_sheets(work, zg, src):
         inside = (x >= sx0) & (x <= sx1)
         open_margin = np.where(inside, np.minimum(open_margin, margin), margin)   # outside the lid's span the lid has no length
         fold = np.where(inside, np.minimum(fold, open_margin), open_margin)
+        # The sheet starts at most 30 px above the crease: past the corner the painting reaches the brow,
+        # and 80 px of brow skin squeezed into a few made a pale wedge at the corner early in the blink.
+        # Past the corner 50: the photo's outermost lashes curl up to 45 px above the corner (owner:
+        # "a small lash is still left"); the layer's own alpha keeps the brow out.
+        top = np.maximum(top, fold - np.where(inside, 30, 50))
         bottom = margin + HANG + 6
         # The painting below the hanging lashes fades out: the photo's lower lid shows there.
         cols_all = np.arange(solid.shape[1])
@@ -1738,21 +1781,63 @@ def lid_sheets(work, zg, src):
         cut[:, side] = np.minimum(cut[:, side], 1 - smooth(mcol[side] + HANG - 2, mcol[side] + HANG + 6, yy))
         # A wide fade: the painting's lighter skin at the corner, stretched up from the margin, was a pale streak.
         cut[:, side] *= (1 - smooth(inner_end - 14, inner_end, cols_all[side].astype(float))) if k == 0 else smooth(inner_end, inner_end + 14, cols_all[side].astype(float))
-        # Past the outer corner only the lash wing stays: the painting's skin there is the temple of the
-        # eyes-closed picture, in the hair's shadow, and against the bald face it was a dark patch at the
-        # lid's outer edge whenever it closed. Dark pixels (the lashes) keep their alpha, skin fades out
-        # over 8 px beyond the corner.
-        outer_fade = smooth(sx0 - 8, sx0, cols_all.astype(float)) if k == 0 else 1 - smooth(sx1, sx1 + 8, cols_all.astype(float))
+        # The painting's skin brought to the face's tone round this eye (owner: "a pink patch"): one
+        # gain per channel from the painting's lid just under the crease to the photo's skin above the
+        # crease and below the lower lid, lashes spared. Her left lid is lighter and pinker than the skin
+        # round her right eye once mirrored there. (Spatial ratio fields failed: see the changelog.)
+        lower = np.interp(x, lid['lx'], lid['ly'])
+        src_px, dst_px = [], []
+        for xi_, f_, lo_ in zip(np.round(x).astype(int), fold, lower):
+            if not (sx0 + 10 <= xi_ <= sx1 - 10): continue
+            src_px.append(a[int(f_ + 4):int(f_ + 22), xi_, :3])
+            dst_px.append(np.concatenate([photo_rgb[int(f_ - 25):int(f_ - 8), xi_], photo_rgb[int(lo_ + 6):int(lo_ + 22), xi_]]))
+        src_px = np.concatenate(src_px); dst_px = np.concatenate(dst_px)
+        src_px = src_px[src_px.mean(-1) > 110]; dst_px = dst_px[(dst_px.mean(-1) > 110) & (dst_px[:, 2] < dst_px[:, 0])]
+        gain = np.clip(np.median(dst_px, 0) / np.maximum(np.median(src_px, 0), 1), 0.7, 1.3)
+        print(f'lid {k}: painting {np.round(np.median(src_px, 0))} -> skin {np.round(np.median(dst_px, 0))}, gain {np.round(gain, 3)}')
+        spare = smooth(60, 120, lum[:, side])[..., None]
+        a[:, side, :3] = np.clip(a[:, side, :3] * (1 + (gain - 1) * spare), 0, 255)
+        lum[:, side] = a[:, side, :3].mean(-1)
+        # Past the outer corner the sheet keeps its skin, so that unrolling it covers the photo's own
+        # up-curled wing lashes (owner: "the lashes stay after the lid starts to go down"), but that
+        # skin is the face's own picture, pixel for pixel, with the painting's lashes on top: the
+        # painting's skin there is the eyes-closed picture's temple, in the hair's shadow, a dark patch
+        # (or, mirrored, a pale tab) against the face whenever the lid closed.
+        corner = lid['ux'][0] if k == 0 else lid['ux'][-1]
+        beyond = smooth(corner - 10, corner - 2, cols_all.astype(float)) if k == 0 else 1 - smooth(corner + 2, corner + 10, cols_all.astype(float))
+        beyond = 1 - beyond
         skin_lum = np.median(lum[solid & side[None] & (yy < margin.mean())])
         lashness = np.clip((skin_lum - lum) / 45.0, 0, 1)
-        cut[:, side] *= np.maximum(outer_fade[None, side], lashness[:, side])
+        mix = (beyond[None, :] * (1 - lashness))[:, side][..., None]
+        a[:, side, :3] = a[:, side, :3] * (1 - mix) + photo_rgb[:, side] * mix
+        # Above the crease (and past the corner, above the margin): the face's own pixels with the
+        # photo's lashes filled from the skin round them, fading out over the top 10 px. These rows
+        # never move (lid_shape), so they are the face itself until the blink's first frame, when they
+        # come forward and the lashes are gone.
+        fcol = np.interp(cols_all, x, fold)
+        above = (yy < fcol[None, :] - 1) | (beyond[None, :] > 0.5) & (yy < mcol[None, :])
+        photo_lum = photo_rgb.mean(-1)
+        photo_skin = np.median(photo_lum[(yy < fcol[None, :] - 1) & solid & side[None] & (yy > fcol[None, :] - 30)])
+        photo_lash = ndimage.maximum_filter(np.clip((photo_skin - photo_lum) / 40.0, 0, 1), 3) * (yy > brow_bottom[None, :] + 2)
+        keep = (1 - photo_lash)
+        fill = np.stack([ndimage.gaussian_filter(photo_rgb[..., c] * keep, 6) / np.maximum(ndimage.gaussian_filter(keep, 6), 1e-3) for c in range(3)], -1)
+        wing_tex = photo_rgb * (1 - photo_lash)[..., None] + fill * photo_lash[..., None]
+        a[:, side, :3] = np.where(above[:, side, None], wing_tex[:, side], a[:, side, :3])
+        tcol = np.interp(cols_all, x, top)
+        cut[:, side] *= smooth(tcol[None, :], tcol[None, :] + 10, yy)[:, side]
         v = np.concatenate([top[None] + (fold - top)[None] * np.linspace(0, 1, nA + 1)[:-1, None],
                             fold[None] + (margin - fold)[None] * np.linspace(0, 1, nB + 1)[:-1, None],
                             margin[None] + (bottom - margin)[None] * np.linspace(0, 1, nC + 1)[:, None]])
         assert v.shape == (rows, cols)
         def place(src_px, behind=None):
             c = src_to_crop(src_px)
-            zface = ndimage.map_coordinates(zg, [c[:, 1], c[:, 0]], order=1) - 0.0015
+            # Depth only from inside the face grid: outside it the height field is the spline's
+            # extrapolation, and the corner box past the outer corners reached there — the lid stood out
+            # from the temples as spikes in a three-quarter view.
+            ci = np.clip(np.round(c).astype(int), 0, N - 1)
+            cy_, cx_ = face_nearest[0][ci[:, 1], ci[:, 0]], face_nearest[1][ci[:, 1], ci[:, 0]]
+            cc = np.where(face_inside[ci[:, 1], ci[:, 0]][:, None], c, np.stack([cx_, cy_], 1).astype(float))
+            zface = ndimage.map_coordinates(zg, [cc[:, 1], cc[:, 0]], order=1) - 0.0015
             ray = unproject(c, np.ones(len(c))) - cam; ray /= np.linalg.norm(ray, axis=1, keepdims=True)
             oc = cam - centre; bq = (ray * oc).sum(1); cq = (oc * oc).sum() - (R + 0.0015) ** 2
             disc = bq * bq - cq
@@ -1764,7 +1849,7 @@ def lid_sheets(work, zg, src):
             return unproject(c, zc)
         grid = lambda ys: np.stack([np.broadcast_to(x, ys.shape), ys], -1).reshape(-1, 2)
         y_rest = lid_shape(top, fold, open_margin, margin, v, 0.0)
-        p_rest = place(grid(y_rest), behind=(y_rest > fold[None] + 0.01).reshape(-1))
+        p_rest = place(grid(y_rest), behind=((y_rest > fold[None] + 0.01) | (v < fold[None] - 0.5)).reshape(-1))
         pos.append(p_rest); uvs.append((grid(v) - np.array([x0, y0])) / np.array([x1 - x0, y1 - y0]))
         for n in LID_TARGETS:
             # squint is a closure through the chain (the binding's `closures`), not a shape of its own: a
@@ -1780,7 +1865,7 @@ def lid_sheets(work, zg, src):
     # The owner's retouch of this crop (hair residue inpainted from the skin round it), pixel for pixel
     # if it is the same crop; a changed crop box would misplace it, so the sizes must match.
     retouch = f'{work}/{LID_RETOUCH}'
-    if os.path.exists(retouch):
+    if os.path.exists(retouch) and not LID_MIRROR:          # the retouch fixed the right lid's strand; mirrored, that lid is gone
         r = Image.open(retouch).convert('RGBA')
         if r.size == (x1 - x0, y1 - y0):
             rgb = np.asarray(r).astype(float)[..., :3]
@@ -1788,7 +1873,9 @@ def lid_sheets(work, zg, src):
             print(f'lid retouch {LID_RETOUCH} is {r.size}, the crop is {(x1 - x0, y1 - y0)}: not used')
     tex = Image.fromarray(np.dstack([rgb, (alpha * cut)[y0:y1, x0:x1]]).astype(np.uint8), 'RGBA')
     P = np.concatenate(pos)
-    nrm = np.tile([0.0, 0.0, 1.0], (len(P), 1))
+    # The face's own normals: with a flat normal the sheet's lit tenth shaded a little differently from
+    # the face under it, and the rows that copy the face's pixels showed as a faintly lighter patch.
+    nrm = surface_normal(P)
     return dict(pos=P, nrm=nrm, uv=np.concatenate(uvs), idx=np.array(idx, np.uint32), material=LID_MATERIAL,
                 targets=[np.concatenate(shapes[n]) for n in LID_TARGETS]), tex
 
@@ -2282,7 +2369,7 @@ def build(work):
         n = VN[front_vertices][i].mean(1)
         return n / (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
     eyes = eye_parts(FACE_INFO[2], surface_normal) + [eye_sockets()]
-    lid, lid_tex = lid_sheets(work, FACE_INFO[2], src)
+    lid, lid_tex = lid_sheets(work, FACE_INFO[2], src, surface_normal)
     mouth = mouth_inside(FACE_INFO[2])
     mouth_tex, lipwall_tex, oshade_tex = mouth_textures(work)
     for part in eyes + mouth:
@@ -2352,6 +2439,9 @@ def build(work):
     # hundred thousand vertices).
     lids_node = neck_node + 3
     g.node("HeadPivot", t=pivot - j2, children=[3, lids_node] + [4 + k for k in range(len(frames))])
+    # Floating scraps of the scan go: a sliver a few millimetres off the temple past her left eye's outer
+    # corner showed as a speck beside the eye from the front and outside the head from behind.
+    prims['head'] = [drop_floating(p_) if p_['material'] == 2 else p_ for p_ in prims['head']]
     m_head = g.mesh("Head", prims['head'], TARGETS)
     g.node("Head", m_head)
     for k, (prim, _) in enumerate(frames):
@@ -2370,6 +2460,28 @@ def build(work):
     assert g.node("Lids", m_lids) == lids_node
     clips(g)
     return g.bytes(), dict(m_head=m_head, head_prims=len(prims['head']), neck_chain=(n1_node, n2_node), m_lids=m_lids, lids_node=lids_node)
+
+def drop_floating(prim, min_verts=60, gap=0.004):
+    """The primitive without its small connected pieces that sit more than `gap` from its main surface
+    (connectivity by position, the faces have their own vertices before welding)."""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    from scipy.spatial import cKDTree
+    P = np.asarray(prim['pos']); F = np.asarray(prim['idx']).reshape(-1, 3)
+    _, uid = np.unique(np.round(P, 6), axis=0, return_inverse=True); uid = uid.reshape(-1)
+    e = uid[np.concatenate([F[:, [0, 1]], F[:, [1, 2]], F[:, [2, 0]]])]
+    nc, lab = connected_components(coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(uid.max() + 1,) * 2), directed=False)
+    lab = lab[uid]; sizes = np.bincount(lab)
+    main = cKDTree(P[lab == sizes.argmax()])
+    drop = np.zeros(nc, bool)
+    for c in np.where(sizes < min_verts)[0]:
+        if main.query(P[lab == c])[0].min() > gap:
+            drop[c] = True
+    keep_face = ~drop[lab[F[:, 0]]]
+    if drop.any():
+        print(f"dropped {drop.sum()} floating scraps ({(~keep_face).sum()} faces) from material {prim['material']}")
+    q = dict(prim); q['idx'] = F[keep_face].reshape(-1).astype(np.uint32)
+    return q
 
 def clips(g):
     pivot = 2
