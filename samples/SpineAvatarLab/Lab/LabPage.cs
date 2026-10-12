@@ -340,6 +340,8 @@ public sealed class LabPage : ContentPage
                 _text.Text = line[6..];
                 Speak();
                 return null;
+            case "voice":
+                return _tts.VoiceName ?? "default";
             case "theme":
                 _themes.Select(arg);
                 SetTheme(arg switch { "light" => AppTheme.Light, "dark" => AppTheme.Dark, _ => AppTheme.Unspecified });
@@ -652,7 +654,10 @@ public sealed class LabPage : ContentPage
     {
         try
         {
-            await _tts.SpeakAsync(_avatar, new AvatarTextRequest(_text.Text ?? ""));
+            var speaking = _tts.SpeakAsync(_avatar, new AvatarTextRequest(_text.Text ?? ""));
+            await Task.Delay(50);
+            _status.Text = $"Voice: {_tts.VoiceName ?? "default"}";
+            await speaking;
         }
         catch (Exception e)
         {

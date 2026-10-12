@@ -156,8 +156,15 @@ public sealed class AvatarTextSpeechFeed
         _cancellation = cancellation;
         _view = view;
 
+#if IOS || MACCATALYST
+        var voice = AppleSpeech.BestVoice(request.Language);
+        VoiceName = voice is null ? null : $"{voice.Name} ({voice.Quality})";
+        _estimates = [];
+#else
         var locale = await FindLocaleAsync(request.Language);
+        VoiceName = locale?.Name;
         _estimates = AvatarTextVisemes.FromText(request.Text, 14 * request.Rate);
+#endif
         _next = 0;
         _current = 0;
 
@@ -170,6 +177,27 @@ public sealed class AvatarTextSpeechFeed
 
         try
         {
+#if IOS || MACCATALYST
+            // The clock starts with the audio, and each word's visemes are laid down as the voice
+            // reaches it, so pauses and the voice's own pace keep the mouth in step.
+            _apple ??= new AppleSpeech();
+            await _apple.SpeakAsync(request.Text, voice, request.Rate, request.Pitch,
+                started: () =>
+                {
+                    _clock.Start();
+                    view.State = AvatarState.Speaking;
+                },
+                word: (offset, length) =>
+                {
+                    if (offset < 0 || offset + length > request.Text.Length || !_clock.IsRunning)
+                        return;
+                    var at = _clock.GetSnapshot().Position.TotalSeconds;
+                    foreach (var e in AvatarTextVisemes.FromText(request.Text.Substring(offset, length), 15 * request.Rate))
+                        _estimates.Add(e with { Start = at + e.Start });
+                },
+                cancellation.Token);
+            view.State = AvatarState.Idle;
+#else
             // Platform voices start a little after the call; the estimate starts with them.
             var speaking = TextToSpeech.Default.SpeakAsync(request.Text, new SpeechOptions { Locale = locale, Pitch = request.Pitch }, cancellation.Token);
             await Task.Delay(150, cancellation.Token);
@@ -177,6 +205,7 @@ public sealed class AvatarTextSpeechFeed
             view.State = AvatarState.Speaking;
             await speaking;
             view.State = AvatarState.Idle;
+#endif
         }
         catch (OperationCanceledException)
         {
@@ -192,6 +221,13 @@ public sealed class AvatarTextSpeechFeed
     }
 
     public void Cancel() => _cancellation?.Cancel();
+
+    /// <summary>The voice used for the last request (name and quality where the platform reports it).</summary>
+    public string? VoiceName { get; private set; }
+
+#if IOS || MACCATALYST
+    private AppleSpeech? _apple;
+#endif
 
     private void OnFrame(object? sender, AvatarRenderFrame frame)
     {
