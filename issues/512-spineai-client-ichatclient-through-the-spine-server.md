@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/512
 **Branch:** issue/512-spineai-client-ichatclient-through-the-spine-server
-**Status:** In review
+**Status:** In review (PR #536)
 
 This is step 2.4 of the roadmap [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505), tracked in `docs/plans/ai-and-security.md`. The design is in `docs/proposals/spine-ai.md` §7 and §10.2, together with Q23 (on-device usage stays on the device) and Q24 (the samples pin the .NET 10 preview of Microsoft.Maui.Essentials.AI). It builds on #510 (PR #535), whose wire format it consumes.
 
