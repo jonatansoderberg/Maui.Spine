@@ -1694,7 +1694,7 @@ def lid_shape(top, fold, open_margin, margin, v, w):
 
 LID_HIDDEN = 0.001              # how far behind the face the open lid's lowest rows wait (m): out by closure 0.04
 
-def lid_sheets(work, zg):
+def lid_sheets(work, zg, src):
     """The upper lids: the owner's painted closed eye on a sheet per eye that lies over the eyeball
     (1.5 mm out from it) and over the face round it. Open, the sheet is gathered on the crease; closing
     rolls it down over the eye at the painting's scale (lid_shape), lashes at its edge, following the
@@ -1702,6 +1702,7 @@ def lid_sheets(work, zg):
     stays; above the brows and over the brow strokes frame_layer has already cleared it."""
     a, solid, alpha, (x0, y0, x1, y1) = frame_layer(work, LID_LAYER)
     layer = Image.fromarray(a[..., :3].astype(np.uint8))
+    lum = a[..., :3].mean(-1)
     cam = np.array([0.0, 0.0, D])
     cols = 72
     nA, nB, nC = LID_ROWS
@@ -1736,6 +1737,14 @@ def lid_sheets(work, zg):
         cut[:, side] = np.minimum(cut[:, side], 1 - smooth(mcol[side] + HANG - 2, mcol[side] + HANG + 6, yy))
         # A wide fade: the painting's lighter skin at the corner, stretched up from the margin, was a pale streak.
         cut[:, side] *= (1 - smooth(inner_end - 14, inner_end, cols_all[side].astype(float))) if k == 0 else smooth(inner_end, inner_end + 14, cols_all[side].astype(float))
+        # Past the outer corner only the lash wing stays: the painting's skin there is the temple of the
+        # eyes-closed picture, in the hair's shadow, and against the bald face it was a dark patch at the
+        # lid's outer edge whenever it closed. Dark pixels (the lashes) keep their alpha, skin fades out
+        # over 8 px beyond the corner.
+        outer_fade = smooth(sx0 - 8, sx0, cols_all.astype(float)) if k == 0 else 1 - smooth(sx1, sx1 + 8, cols_all.astype(float))
+        skin_lum = np.median(lum[solid & side[None] & (yy < margin.mean())])
+        lashness = np.clip((skin_lum - lum) / 45.0, 0, 1)
+        cut[:, side] *= np.maximum(outer_fade[None, side], lashness[:, side])
         v = np.concatenate([top[None] + (fold - top)[None] * np.linspace(0, 1, nA + 1)[:-1, None],
                             fold[None] + (margin - fold)[None] * np.linspace(0, 1, nB + 1)[:-1, None],
                             margin[None] + (bottom - margin)[None] * np.linspace(0, 1, nC + 1)[:, None]])
@@ -1788,11 +1797,18 @@ def frame_layer(work, name):
     bottom = np.where(brow.any(0), np.where(brow, rows, 0).max(0), 440)
     bottom = ndimage.maximum_filter1d(ndimage.median_filter(bottom, 9), 15)
     a[..., 3] *= smooth(bottom + 3.0, bottom + 15.0, rows.astype(float))
-    # And none of the layer's own brow strokes, wherever they lie (past the brow's ends too).
-    stroke = (a[..., 2] > a[..., 0] + 12) & (rows < 480)
+    # And none of the layer's own brow strokes and hair strands, wherever they lie (past the brow's
+    # ends too). Their colour goes as well: the fringe of a strand kept its dark blue under the cut's
+    # alpha ramp, a dark streak at the outer corner of the lid whenever it closed.
+    # A strand over skin is a muted purple, bluer and darker than the skin round it rather than blue
+    # in itself: found against a local median of the layer.
+    rb = a[..., 0] - a[..., 2]; lum = a[..., :3].mean(-1)
+    tint = (ndimage.median_filter(rb, 21) - rb > 12) | (ndimage.median_filter(lum, 21) - lum > 40)
+    stroke = ((a[..., 2] > a[..., 0] + 12) | (a[..., :3].sum(-1) < 150) | tint) & (rows < 500)
     a[..., 3] *= 1 - ndimage.gaussian_filter(ndimage.binary_dilation(stroke, iterations=3).astype(float), 1.5)
     solid = a[..., 3] > 10
-    _, (iy, ix) = ndimage.distance_transform_edt(~(a[..., 3] > 200), return_indices=True)
+    source = (a[..., 3] > 200) & ~ndimage.binary_dilation(stroke, iterations=5)
+    _, (iy, ix) = ndimage.distance_transform_edt(~source, return_indices=True)
     a[..., :3] = a[iy, ix, :3]
     ys, xs = np.where(solid)
     x0, y0, x1, y1 = xs.min() - 2, ys.min() - 2, xs.max() + 3, ys.max() + 3
@@ -2255,7 +2271,7 @@ def build(work):
         n = VN[front_vertices][i].mean(1)
         return n / (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
     eyes = eye_parts(FACE_INFO[2], surface_normal) + [eye_sockets()]
-    lid, lid_tex = lid_sheets(work, FACE_INFO[2])
+    lid, lid_tex = lid_sheets(work, FACE_INFO[2], src)
     mouth = mouth_inside(FACE_INFO[2])
     mouth_tex, lipwall_tex, oshade_tex = mouth_textures(work)
     for part in eyes + mouth:
