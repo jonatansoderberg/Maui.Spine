@@ -75,7 +75,7 @@ A `TaskState<T>` made with `new` has no page. Call `LoadAsync(ct)` with your own
 | `Loading` | The first load is running | the loading state, or the content under a skeleton when there is a placeholder |
 | `Refreshing` | A load is running while the last result stays | the content |
 | `Success` | The last load gave a result | the content |
-| `Empty` | The result is empty by `isEmpty` | the empty state |
+| `Empty` | The result is empty by `isEmpty`, or the load failed with an `IEmptyResultException` and there is no earlier result | the empty state |
 | `Error` | The load failed and there is no earlier result | the error state |
 
 Rules:
@@ -83,6 +83,7 @@ Rules:
 - **The last load wins.** Starting a load cancels the one that is running, and a load that was replaced changes nothing.
 - **A refresh keeps the result.** With a result on screen, a new load is `Refreshing`. If it fails, `Error` is set but the status stays `Success` or `Empty`, so the list does not disappear. Show `HasError` / `ErrorMessage` somewhere if the user should know.
 - **A cancellation is not an error.** It puts the status back where it was.
+- **"Nothing to show" is not an error either.** An exception that implements `IEmptyResultException` (in `Plugin.Maui.Spine.Common`) gives `Empty`, not `Error`. `Error` still holds it, so the empty state can show the reason: `EmptyText="{Binding Story.ErrorMessage}"`. Spine.AI's `AIFeatureOffException` is one; a feature that is off or out of budget shows as empty, not with a retry.
 - **When what is loaded changes** (a filter, a search term), call `Reset()` and then `LoadAsync()`. The old result is dropped and the page shows the loading state instead of refreshing stale content.
 - The load runs on the thread that started it. From the page lifecycle and from commands that is the UI thread, so the properties are set there.
 

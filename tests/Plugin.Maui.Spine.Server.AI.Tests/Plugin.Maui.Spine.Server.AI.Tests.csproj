@@ -8,6 +8,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Using Include="Plugin.Maui.Spine.AI" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.AI\Plugin.Maui.Spine.Server.AI.csproj" />
 	</ItemGroup>
 

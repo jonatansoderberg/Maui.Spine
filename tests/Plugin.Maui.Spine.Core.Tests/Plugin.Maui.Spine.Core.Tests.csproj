@@ -35,6 +35,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!-- TaskState reads IEmptyResultException from .Common. -->
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Mvvm" />
 		<PackageReference Include="Microsoft.NET.Test.Sdk" />
 		<PackageReference Include="xunit" />

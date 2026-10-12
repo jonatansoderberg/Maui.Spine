@@ -264,6 +264,15 @@
       <DependentUpon>HeaderBarPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\AIClient\AIClientPage.View.xaml">
+      <DependentUpon>AIClientPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\AIClient\AIClientPage.ViewModel.cs">
+      <DependentUpon>AIClientPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\State\StatePage.View.xaml">
       <DependentUpon>StatePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -709,6 +718,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Biometrics\Plugin.Maui.Spine.Biometrics.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI\Plugin.Maui.Spine.AI.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg.Icons\Plugin.Maui.Spine.Svg.Icons.csproj" />
 	</ItemGroup>
@@ -729,6 +739,14 @@
 		<SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Description="Hear about every goal in the live score, or not." Icon="bell" />
 		<SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Description="A goal for the Owls in the running game, without opening the app." Icon="hockey.puck" />
 	</ItemGroup>
+	<!-- The AI client page's on-device model: Apple Intelligence, from the .NET 10 preview of Essentials.AI (Q24). -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+		<PackageReference Include="Microsoft.Maui.Essentials.AI" />
+	</ItemGroup>
+	<PropertyGroup>
+		<!-- Essentials.AI marks its types as an evaluation preview. -->
+		<NoWarn>$(NoWarn);MAUIAI0001</NoWarn>
+	</PropertyGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Biometrics\build\Plugin.Maui.Spine.Biometrics.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />

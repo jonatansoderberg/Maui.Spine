@@ -31,6 +31,35 @@ public class TaskStateTests
     }
 
     [Fact]
+    public async Task A_failure_that_means_nothing_to_show_is_empty()
+    {
+        var state = new TaskState<string>(_ => throw new Plugin.Maui.Spine.AI.AIFeatureOffException("Story", Plugin.Maui.Spine.AI.AIOffReason.Budget));
+
+        await state.LoadAsync();
+
+        Assert.Equal(TaskStateStatus.Empty, state.Status);
+        Assert.IsType<Plugin.Maui.Spine.AI.AIFeatureOffException>(state.Error);
+        Assert.False(state.HasResult);
+    }
+
+    [Fact]
+    public async Task A_failure_that_means_nothing_to_show_keeps_a_result_on_screen()
+    {
+        var fail = false;
+        var state = new TaskState<string>(_ => fail
+            ? throw new Plugin.Maui.Spine.AI.AIFeatureOffException("Story", Plugin.Maui.Spine.AI.AIOffReason.Budget)
+            : Task.FromResult("story"));
+
+        await state.LoadAsync();
+        fail = true;
+        await state.LoadAsync();
+
+        Assert.Equal(TaskStateStatus.Success, state.Status);
+        Assert.Equal("story", state.Result);
+        Assert.True(state.HasError);
+    }
+
+    [Fact]
     public async Task Success_sets_the_result()
     {
         var state = new TaskState<string>(_ => Task.FromResult("done"));

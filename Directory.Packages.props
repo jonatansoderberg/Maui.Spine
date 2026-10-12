@@ -43,6 +43,11 @@
 		<PackageVersion Include="Microsoft.Extensions.AI" Version="10.10.0" />
 	</ItemGroup>
 
+	<!-- Plugin.Maui.Spine.AI: the client takes only the abstractions; the app brings any on-device client. -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.10.1" />
+	</ItemGroup>
+
 	<!-- Plugin.Maui.Spine.Push, Android only -->
 	<ItemGroup>
 		<PackageVersion Include="Xamarin.Firebase.Messaging" Version="125.1.1.1" />
@@ -84,6 +89,8 @@
 		<!-- The push sample server's AI providers: one line each in Program.cs. -->
 		<PackageVersion Include="Anthropic" Version="12.55.0" />
 		<PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
+		<!-- The Showcase's on-device model (AppleIntelligenceChatClient): the last build for .NET 10 (Q24). -->
+		<PackageVersion Include="Microsoft.Maui.Essentials.AI" Version="10.0.80-preview.1.26319.4" />
 	</ItemGroup>
 
 	<!-- Tests -->

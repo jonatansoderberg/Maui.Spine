@@ -188,6 +188,10 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
+    "MauiSpineSampleApp.Pages.AIClient")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.DataGrid")]
 
 [assembly: XmlnsDefinition(

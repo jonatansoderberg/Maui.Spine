@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (phase 3 done: #531 merged as #534; step 2.1 `Server.AI` in review as #535; see Verification backlog)
+**Last updated:** 2026-10-12 (step 2.1 `Server.AI` merged as #535; step 2.4 the `Spine.AI` client in review as #PRNUM; 2.3 and 4.2 Ready; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -47,8 +47,8 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
-| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 in review (#535); #511 and #517 waiting |
-| `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Proposal |
+| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #511 and #517 Ready |
+| `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | #512 in review (#PRNUM) |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Proposal |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #513 | [ai §8](../proposals/spine-ai.md) | Proposal |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
@@ -107,10 +107,10 @@ The order follows value against risk. Steps in different phases can run in paral
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | In review | #535 | Signed-in user from #520 when present, otherwise the installation id with tighter limits (Q19). Azure storage inside the package (Q20). |
+| 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | Done | #535 | Signed-in user from #520 when present, otherwise the installation id with tighter limits (Q19). Azure storage inside the package (Q20). |
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
-| 2.3 | Generated-asset pipeline | #511 | 2.1 | Waiting | | Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
-| 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Waiting | | |
+| 2.3 | Generated-asset pipeline | #511 | 2.1 | Ready | | Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
+| 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | In review | #PRNUM | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
 | 2.5 | `Controls.Markdown`, then `Controls.Chat` | #513 | 0.2 | Ready | | Markdown is its own package (Q21). Can start any time. |
 | 2.6 | On-device `IChatClient` spike, Android and Windows | #514 | none | Ready | | Outside this repo. Contribute upstream to dotnet/maui-labs if it works. |
 
@@ -127,7 +127,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
 | 4.1 | Audio engine spike: full duplex, echo cancellation, levels and bands | #515 | 0.2 | Ready | | Highest risk. Measure echo on a real iPhone and an Android phone. |
-| 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Waiting | | |
+| 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Ready | | |
 | 4.3 | Provider adapters, `IVoiceSession`, `VoiceView` and visual plug-ins | #516 | 4.1, 4.2 | Waiting | | OpenAI and Azure OpenAI only in v1 (Q28). WebSocket and PCM; WebRTC only if measurements call for it (Q31). Background audio is opt-in (Q26). |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 
@@ -175,6 +175,9 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.1 (#510) | The Anthropic adapter: what it fills in `UsageDetails` (cached input, and cache writes in `AdditionalCounts`), streaming usage, and `Reasoning` mapped to its thinking mode. Orientera's `Story__ApiKey` answered 401 on 2026-10-12, so only OpenAI was called | A valid Anthropic key in the push sample server's user secrets (`Ai:Providers:anthropic:ApiKey`) | The sample server's `send.http`, `/sample/summary` with `"feature": "Story"`, then `GET /ai/usage` |
 | 2.1 (#510) | Azure Functions on Azure, not only under the local Functions host: SSE through the Azure front end without buffering, `AzureWebJobsStorage` as the usage store, the report | A deployed Functions app (Orientera, step 2.2) | Stream an exposed feature with `curl -N` and check the events arrive one at a time |
 | 2.1 (#510) | `AzureTableAIUsageStore` against a real storage account (checked against Azurite only), and response caching over Redis | Orientera's storage account after step 2.2 | Two calls, the report, and a cached repeat |
+| 2.4 (#512) | Apple Intelligence answering on a device: the on-device path, `AnsweredBy` Device and the on-device usage. In the iPhone 17 simulator, `AppleIntelligenceChatClient` threw an `NSErrorException` (FoundationModels `GenerationError`, `ModelManagerError 1026`) at once, and the chain fell back to the server as designed | The owner's iPhone with Apple Intelligence on (iOS 26 or later), or a Mac with Apple Intelligence on Mac Catalyst | Showcase AI client page, Try the device first on, against the push sample server reachable from the phone |
+| 2.4 (#512) | Windows at run time (only compiled), and Mac Catalyst at run time (only built) | A Windows machine; the Mac app | Showcase AI client page against the push sample server |
+| 2.4 (#512) | A release build on a phone over the network: cleartext is off there, and the client was checked only against `http://localhost` in Debug | A phone and an HTTPS backend (Orientera after step 2.2) | Any feature through `https` |
 
 **Test recipes that worked**
 - **Face ID in the iOS simulator.**
@@ -206,6 +209,11 @@ These are behaviours that are merged but have not been seen working. Take one wh
   - `func` from `~/.npm-global/bin` has to be on `PATH`
   - the Functions host listens on the port that `lsof` shows for `func`
   - stopping: `kill` the AppHost process. A Functions worker that `func` restarted may survive it, so check with `pgrep -fl Fx.dll`
+- **The Spine.AI client in the Showcase.**
+  - **Start the push sample server** (`dotnet run` in `samples/MauiSpinePushNotificationsSampleApp.Server`). The AI client page uses `http://localhost:5100/ai`, and Android reaches it after `adb reverse tcp:5100 tcp:5100`. 10.0.2.2 does not reach the host from the emulator's app traffic.
+  - **A harness that loads before the page exists misses its first `nav` on Android** after a cold start. Tap the row, or wait for the main page.
+  - **To check streaming,** record `simctl io recordVideo`, extract frames at 4 fps with ffmpeg, and count the dark pixels of the answer's card per frame. The count grows frame by frame while the text streams.
+  - **Clean up afterwards.** The client writes the installation id to `SecureStorage` (`spine.push.installation-id`), which the Showcase never sets otherwise. Remove it with a harness command (`SecureStorage.Default.Remove`) on both platforms, then install a clean build.
 - **`Server.AI` tests against Azurite.** Run `~/.npm-global/bin/azurite-table --inMemoryPersistence --tablePort 10002`, then `dotnet test tests/Plugin.Maui.Spine.Server.AI.Tests`. The Azurite facts skip when nothing listens on 10002.
 - **Provider keys for live calls without printing them.** Read OpenAI's key from `~/.config/openai.env` into an environment variable inside the command that needs it, for example `Ai__Providers__openai__ApiKey`. List the names of keys in a settings file, never their values (see the memory "Secret names only").
 
@@ -274,6 +282,12 @@ Newest last. Each entry is dated and says who decided.
 - **2026-10-12, Claude (#510):** `[FromKeyedServices("Name")] IChatClient` is a singleton that looks the feature up at every call, as `AICaller.System`. **Why:** a keyed client must be injectable into singletons and must see configuration changes and spent budgets.
 - **2026-10-12, Claude (#510):** A provider failure answers 502 "The model call failed.", and the provider's message goes to the log only. **Why:** vendor errors can name keys, quotas and internals.
 - **2026-10-12, Claude (#510):** An exposed feature keeps only the text of user and assistant messages. **Why:** a client-sent function call or result could otherwise steer the server's prompt. Pictures in exposed chat can come later, metered like the rest.
+- **2026-10-12, owner (#512):** "Feature off" shows as `TaskState`'s empty state through a marker interface in `.Common`, `IEmptyResultException`, which the core honours. The core knows nothing of AI.
+- **2026-10-12, owner (#512):** `AIOffReason` and the exceptions move to `.Common` (namespace `Plugin.Maui.Spine.AI`) and are shared by app and server. `Server.AI`'s `ToResult()` becomes an extension method.
+- **2026-10-12, Claude (#512):** A misconfigured backend is never "off". A 404 without an `off` body is an `HttpRequestException` with the status and the full URL. **Why:** a wrong prefix or a server without `MapSpineAI` would otherwise look like a switched-off feature and hide the mistake.
+- **2026-10-12, Claude (#512):** A call cancelled through its token always ends in `OperationCanceledException`, whatever the HTTP handler throws. **Why:** on iOS, `NSUrlSessionHandler` ends a cancelled read with `TimeoutException`, and the Showcase's Stop button showed "The request timed out" (found with real taps in the simulator).
+- **2026-10-12, Claude (#512):** The fallback chain moves on for any failure before the first update, except the caller's cancellation, the server's refusals included. **Why:** with the server first and then the device, a spent budget or a rate limit should send the call to the device; with the device first, the server's answer is the one the caller sees.
+- **2026-10-12, Claude (#512):** The client shares push's installation id through one `SecureStorage` key, `SpineInstallation.IdKey` in `.Common`, rather than a reference to Spine.PushNotifications. **Why:** the server sees one id per installation, and an app with AI and no push pulls in no Firebase.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---

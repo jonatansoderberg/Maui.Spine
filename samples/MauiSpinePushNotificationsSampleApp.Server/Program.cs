@@ -2,6 +2,7 @@ using Anthropic;
 using MauiSpinePushNotificationsSampleApp.Server;
 using Microsoft.Extensions.AI;
 using OpenAI;
+using Plugin.Maui.Spine.AI;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Server;
 using Plugin.Maui.Spine.Server.AI;

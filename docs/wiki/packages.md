@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as twenty-one NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as twenty-two NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -24,7 +24,8 @@ Spine ships as twenty-one NuGet packages built from this repository, one per pro
 | Controls | `Plugin.Maui.Spine.Images` | Every `UriImageSource` through a memory and disk cache, decoded at the view's size; `IImageCache`; BlurHash placeholders. Its `net10.0` build holds only the disk cache | `.Common` |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and `BlurHash`; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
-| Server | `Plugin.Maui.Spine.Server.AI` | [AI on the server](ai-server.md): named features, metering, prices, budgets and limits on Microsoft.Extensions.AI | — |
+| AI | `Plugin.Maui.Spine.AI` | [AI in the app](ai-client.md): one `IChatClient` per named feature, on the device or the server, with fallback and on-device usage | `.Common` |
+| Server | `Plugin.Maui.Spine.Server.AI` | [AI on the server](ai-server.md): named features, metering, prices, budgets and limits on Microsoft.Extensions.AI | `.Common` |
 
 ```
 Common ◄──────────────┬──────────── Server
@@ -37,8 +38,7 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
   │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Highlight, Scanner ──► Barcodes
 PushNotifications                                    AnimatedLabel
   Images ──► Common
-
-Server.AI (on its own: Microsoft.Extensions.AI and Azure.Data.Tables, no Spine package)
+  AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
 ```
 
 ## Which packages for which app
@@ -56,6 +56,7 @@ Server.AI (on its own: Microsoft.Extensions.AI and Azure.Data.Tables, no Spine p
 | Lists of remote photos, prefetching, BlurHash placeholders | `Plugin.Maui.Spine.Images` (brings `.Common`; the core is not required) |
 | A server that computes BlurHashes on upload | `Plugin.Maui.Spine.Common` (`BlurHash.Encode`) |
 | The push backend | `Plugin.Maui.Spine.Server` in the server project (brings `.Common`) |
+| Language models in the app, on the device or through the app's server | `Plugin.Maui.Spine.AI` (brings `.Common`; the core is not required), plus the app's own on-device client such as Microsoft.Maui.Essentials.AI |
 | Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
 | A domain or test project that builds widget trees without MAUI | `Plugin.Maui.Spine.Common` |
 | A server or test project that encodes barcodes or reads a light grid | `Plugin.Maui.Spine.Barcodes` (its `net10.0` build has no MAUI) |
@@ -117,6 +118,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 | `ReducedMotion.IsOn`, `ReducedMotion.Changed` | Reduce Motion, Remove animations or Animation effects off, and a weak event when it changes on iOS, Mac Catalyst and Android (Android's comes half a second late, once the app's own animator scale has followed) |
 | `SpineTargets.TryGetFrame(target, out frame)` | The frame of a view, a `PageAction`'s button or a tab's item in window coordinates, the ones an overlay lays out in |
 | `Tap.Executed` | Raised after a tap ran a view's `Tap.Command`: a way to react to taps without adding a second tap handler, which would take the tap from Tap on Android |
+| `IEmptyResultException` (in `.Common`) | A failure that means "nothing to show": `TaskState` gives `Empty` instead of `Error`. Spine.AI's `AIFeatureOffException` is one, so a feature that is off shows as empty |
 | `ElementVisuals.Add(element, visual, order)` (Windows) | Composition visuals above an element's content, shared: an element takes one child visual, so Tap and other packages add theirs to one container in a fixed order |
 
 ## Target frameworks
@@ -126,6 +128,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 | MAUI packages (core, Svg, Widgets, PushNotifications, BackgroundTasks, Biometrics, the controls, Scanner) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
 | `Plugin.Maui.Spine.Barcodes` | `net10.0` (encoding, `LightGridReader`) and the four MAUI frameworks (adding `BarcodeView`) |
 | `Plugin.Maui.Spine.Images` | `net10.0` (the disk cache only, for tests) and the four MAUI frameworks |
+| `Plugin.Maui.Spine.AI` | `net10.0` (the server client, the fallback chain and the meter, for tests and non-MAUI clients) and the four MAUI frameworks (adding `UseSpineAI`) |
 | `Plugin.Maui.Spine.Svg.Icons`, `Plugin.Maui.Spine.Common`, `Plugin.Maui.Spine.Server`, `Plugin.Maui.Spine.Server.AI` | `net10.0` |
 
 Platform minimums: Android API 21 (API 23 with `Plugin.Maui.Spine.PushNotifications`, which Firebase requires, and with `Plugin.Maui.Spine.Scanner`, which CameraX requires), iOS 15, Mac Catalyst 15, Windows 10 17763.
@@ -158,7 +161,7 @@ These packages carry MSBuild files that run in the consuming app's build, import
 | Package | What its build files do |
 |---|---|
 | `Plugin.Maui.Spine` | Writes `SpineModules.g.cs` into the app: a `[ModuleInitializer]` that hands each referenced package's registration to `UseSpine()` (from the `SpineModule` items below). Only in an app project; `SpineGenerateModuleRegistrations=false` turns it off |
-| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Scanner`, `.Images` | Declare their `SpineModule` in `<PackageId>.props` |
+| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Scanner`, `.Images`, `.AI` | Declare their `SpineModule` in `<PackageId>.props` |
 | `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other packages contribute, and one partial `Info.plist` with `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers` from the `SpineBackgroundMode` and `SpineBackgroundTaskIdentifier` items, merged with the app's own |
 | `Plugin.Maui.Spine.Widgets` | Compiles the WidgetKit extension and the bridge framework with `swiftc` on iOS; generates the manifest overlay and provider metadata on Android |
 | `Plugin.Maui.Spine.PushNotifications` | Contributes the `aps-environment` entitlement; compiles the Notification Service Extension on iOS when `SpinePushNotificationsImages` is on |
