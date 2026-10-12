@@ -671,13 +671,24 @@ def compose(work):
     # The neck's own axis, midway between throat and nape and between its sides, just above the
     # collar: the ring's centroid sat near the throat (the collar hides the nape at that height), and
     # turning about it swung the back of the neck sideways, as if it were broken.
+    # The throat only from upright faces: this chin's underside comes down to the collar and lay in
+    # the middle column at that height, so the "throat" was the chin's edge and the axis sat at the
+    # throat's surface. Then the back of the head swung sideways on every turn.
+    bfn0 = np.cross(BP[BF[:, 1]] - BP[BF[:, 0]], BP[BF[:, 2]] - BP[BF[:, 0]])
+    upright = np.abs(bfn0[:, 1]) < 0.6 * (np.linalg.norm(bfn0, axis=1) + 1e-12)
     level = ~knit & (np.abs(bc[:, 1] - (collar_y + 0.02)) < 0.005)
+    band = ~knit & upright & (bc[:, 1] > collar_y - 0.01) & (bc[:, 1] < collar_y + 0.025)
     mid = level & (np.abs(bc[:, 0] - axis[0]) < 0.015)
-    side = level & (np.abs(bc[:, 2] - axis[1]) < 0.03)
-    if mid.sum() > 4 and side.sum() > 4:
-        axis = np.array([(np.percentile(bc[side, 0], 2) + np.percentile(bc[side, 0], 98)) / 2,
-                         (bc[mid, 2].min() + bc[mid, 2].max()) / 2])
-        nape_z, throat_z = bc[mid, 2].min(), bc[mid, 2].max()
+    mid_band = band & (np.abs(bc[:, 0] - axis[0]) < 0.015)
+    if mid.sum() > 4 and mid_band.sum() > 4:
+        nape_z = bc[mid, 2].min()
+        throat_z = np.percentile(bc[mid_band & (bc[:, 2] < nape_z + 0.3), 2], 98)
+        # The head turns about the top of the spine, which runs along the back of the neck: the axis
+        # sits two fifths of the way from the nape to the throat, where the ear canals are.
+        axis_z = nape_z + 0.4 * (throat_z - nape_z)
+        side = level & (np.abs(bc[:, 2] - axis_z) < 0.03)
+        axis = np.array([(np.percentile(bc[side, 0], 2) + np.percentile(bc[side, 0], 98)) / 2 if side.sum() > 4 else axis[0], axis_z])
+        print('neck nape/throat z', round(float(nape_z), 3), round(float(throat_z), 3))
     else:
         nape_z, throat_z = axis[1] - 0.06, axis[1] + 0.06
     print('neck axis', np.round(axis, 3))
@@ -739,17 +750,19 @@ def compose(work):
     # height in front: that belongs to the head.)
     zero = knit_v | ((BP[:, 1] < lo[vs]) & ((vr < r_cyl[vs] + 0.012) | (BP[:, 1] < collar_y - 0.01)))
     one = ~zero & ((BP[:, 1] > hi[vs]) | (vr > r_cyl[vs] + 0.012))
+    # The jaw's underside shares the twist: it is the skin between the chin and the throat, and this
+    # chin comes down to the collar, so with the underside rigid the whole turn happened in a 2 cm
+    # band of upright skin under the jaw's angle and the neck creased like a rope. (The flap it once
+    # made came from the axis at the throat: the chin swung far while the throat stood still.)
+    bvn = vertex_normals(BP, BF)
+    bvn *= np.sign(((BP - np.array([axis[0], 0.0, axis[1]])) * bvn).sum(1, keepdims=True) + 1e-9)     # outward
+    underside = (bvn[:, 1] < -0.35) & (BP[:, 2] > axis[1]) & (np.abs(BP[:, 0] - axis[0]) < 0.17) & (BP[:, 1] < collar_y + 0.14)
+    one &= ~underside
     # The face (and the chin with it) is rigid: everything the photo's face covers, near the front.
     fm = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/kairo-front.png').convert('RGB')), iterations=12)
     vp, vz = project(BP); vsrc = np.clip(((vp - np.array([OX, OY])) / S).astype(int), 0, fm.shape[0] - 1)
     zfront, _ = front_zbuffer(BP, BF)
     one |= ~zero & fm[vsrc[:, 1], vsrc[:, 0]] & (vz < zfront(vp) + 0.03)
-    # And the jaw's underside, all of it (faces turned down, above the collar): weighted between the
-    # chin and the throat it stretched into a flap under the chin on every turn. The neck's twist
-    # stays on the neck's own, upright surface.
-    bvn = vertex_normals(BP, BF)
-    bvn *= np.sign(((BP - np.array([axis[0], 0.0, axis[1]])) * bvn).sum(1, keepdims=True) + 1e-9)     # outward
-    one |= ~zero & (bvn[:, 1] < -0.55) & (BP[:, 1] > collar_y + 0.004)
     # The chin's underside: this chin comes down to the collar's height, so the rules above (the
     # neck's cylinder is measured where the chin already is) held it to the body while the chin turned.
     # It is free instead: its weight runs smoothly from the chin (1) back to the throat (0).
@@ -1975,7 +1988,11 @@ def skin_layout(P, F, centre, ears):
     n = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
     n *= np.sign((n * (c - centre)).sum(1, keepdims=True) + 1e-12)
     chart = np.zeros(len(F), int)
-    best = np.abs(n).argmax(1)
+    # Behind the centre, faces turned down go to the under chart only when they face nearly straight
+    # down: the fold at the skull's base (down and back at 45 degrees) baked into the under chart as a
+    # ring of grazing slivers a shade darker than the back chart, a jagged crease across the nape.
+    w = np.where((n[:, 1] < 0) & (c[:, 2] < centre[2]), 0.6, 1.0)
+    best = (np.abs(n) * np.stack([np.ones(len(F)), w, np.ones(len(F))], 1)).argmax(1)
     for k, (_, _, _, axis, sign, _) in enumerate(SKIN_CHARTS[:6]):
         chart[(best == axis) & (np.sign(n[np.arange(len(F)), axis]) == sign)] = k
     return chart, layout_px(P[F].reshape(-1, 3), np.repeat(chart, 3), centre, ears).reshape(-1, 3, 2)
@@ -2236,12 +2253,11 @@ def build(work):
     # Skin seen only from the side keeps the generator's light and shade but takes the photo's skin
     # tone: its own colour drifted grey-beige there, a strip between cheek and ear on a turn.
     cheek = np.asarray(bald_src).astype(float)[open_skin]
-    skin_ref = np.median(cheek, 0); skin_lum = skin_ref.mean()
+    skin_ref = np.median(cheek, 0)
     picture = np.asarray(bald_src).astype(float)
     def projected(q):
         c, _ = project(q); sp = (c - np.array([OX, OY])) / S
         return np.stack([ndimage.map_coordinates(picture[..., k], [sp[:, 1], sp[:, 0]], order=1) for k in range(3)], -1)
-    neck_ref = np.median(picture[878:892, 590:660].reshape(-1, 3), 0)    # the photo's neck just under the chin's edge
     c_sx = lambda q: (project(q)[0][:, 0] - OX) / S
     c_sy = lambda q: (project(q)[0][:, 1] - OY) / S
     bare_down = -np.cross(P[F[bare, 1]] - P[F[bare, 0]], P[F[bare, 2]] - P[F[bare, 0]])
@@ -2253,32 +2269,28 @@ def build(work):
         near = bare_kind.query(q)[1] if faces is None else faces
         kind = label[bare][near]
         col = skin_colour(q, bald_gain[kind])
-        lum = col.mean(1, keepdims=True)
-        # A narrow brightness range round nine tenths of the cheek (which faces the light): the
-        # generator's side light and the occlusion under the hanging hair made the side of the face a
-        # darker patchwork against the photo's evenly lit cheek, and at 0.8-1.1 the back of the skull
-        # (lit darker by the generator) still met the neck in a step across the nape. Form comes from
-        # the baked occlusion and the scene's light instead.
-        # Faces turned down in front lie in a little shadow (more, and the chin's underside read as a
-        # dark band; at the nape, the skull's base faces down too and the band showed from behind).
-        in_front = smooth(-0.02, 0.0, q[:, 2] - pivot[2])
-        toned = skin_ref[None] * np.clip(lum / skin_lum, 0.86, 0.94) * (1 - 0.1 * bare_down[near] * in_front)[:, None]
-        # The chin's underside takes the tone of the photo's neck just under the chin, a little shaded,
-        # and not the generator's light: in the cheek's tone and darkened by its own shading it read as
-        # a darker patch, edged against the neck, whenever the head tilted up.
-        # Only under the jaw itself, in front of the neck's axis: the curve rises to ear height at the
-        # sides, and the skull's base at the nape faces down too, so the neck's shadowed tone drew a
-        # jagged dark band across the back of the neck in every view from behind.
-        under = smooth(0.5, 0.85, bare_down[near]) * (c_sy(q) > CHIN_Y - 0.0042 * (c_sx(q) - 626.0) ** 2 - 20) * smooth(215.0, 175.0, np.abs(c_sx(q) - 626.0)) * in_front
-        under_tone = neck_ref[None] * np.clip(lum / skin_lum, 0.94, 1.04) * 0.97
-        toned = toned * (1 - under[:, None]) + under_tone * under[:, None]
+        # One tone everywhere off the photo, nine tenths of the cheek (which faces the light): form
+        # comes from the baked occlusion and the scene's light. The generator's own light (a clip
+        # round that tone; its side light and the occlusion under the hanging hair made the side of
+        # the face a patchwork, the back of the skull met the neck in a step), a shadow on down-facing
+        # skin in front and the photo's neck tone under the chin each drew a band with an edge: dark
+        # under the jaw against the neck's side when the head tilts up, a step at the skull's base.
+        toned = np.broadcast_to(skin_ref[None] * 0.90, col.shape).copy()
         # Not the scalp under the hair (already turned to the hair's colour): toned to skin, it showed
         # through the bangs at the temple as beige shards. Bald, all of it is skin: the generator's
         # texture is greyish behind the ears and down the nape, and kept as it was it drew a dark
         # streak behind each ear.
         is_skin = (((kind == SKIN) | (kind == NECK)) & (BALD | (col[:, 0] > col[:, 2] + 10)))[:, None]
-        side = np.where(is_skin, 0.15 * col + 0.85 * toned, col)
-        w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)))[:, None]
+        # None of the generator's own colour on the skin: its 15 % share put grey-pink specks and a
+        # darker band across the nape at the skull's base, where its bald texture has hair.
+        side = np.where(is_skin, toned, col)
+        # The photo only down to the jaw line: below it the photo shows the neck in the chin's shadow,
+        # a dark stripe down the middle of the throat between the toned sides.
+        jaw_y = CHIN_Y - 0.0042 * (c_sx(q) - 626.0) ** 2
+        # Nor on skin turned down (the chin's underside within the camera's depth tolerance took the
+        # lit chin's edge: a light bib under the chin whenever the head tilted up).
+        w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)) * smooth(jaw_y + 30, jaw_y + 6, c_sy(q))
+             * smooth(0.6, 0.3, bare_down[near]))[:, None]
         pc = projected(q)
         out = side * (1 - w) + pc * w
         if UNDER_CHIN_PHOTO == 0:
@@ -2370,7 +2382,10 @@ def build(work):
     ear_uv, ear_tex = atlas(P, F[ear_bare], lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), 1024, 0.5 + 0.5 * ao_ear)
     # The skull's skin round the ear keeps the skin's mild shading: with the auricle's stronger
     # occlusion it showed dark facets behind the ear (the scan is coarse and noisy there).
-    skin_tex, drawn = skin_bake(P, F[bare], chart, corner_px, bare_colour, 0.6 + 0.4 * shade, work,
+    # The occlusion carries the skin's form now that its tone is flat (ears as before, their tone
+    # was set with the lighter shade): the hollow under the jaw, the nape under the skull.
+    skin_shade = (0.6 + 0.4 * shade) * ear_w + (0.4 + 0.6 * shade) * (1 - ear_w)
+    skin_tex, drawn = skin_bake(P, F[bare], chart, corner_px, bare_colour, skin_shade, work,
                                 ear_colour=lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), ear_weight=ear_w, photo_weight=project_weight[bare])
     skin_template(skin_tex, drawn, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'obj', 'kairo-skin-template.png'), corner_px)
     skin_uv = corner_px / np.array([SKIN_TILE * 4, SKIN_TILE * 2])
