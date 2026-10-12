@@ -1737,6 +1737,14 @@ def lid_sheets(work, zg, src, surface_normal):
     photo_rgb = np.asarray(src.convert('RGB')).astype(float)
     face_inside = FACE_INFO[1].astype(bool)
     face_nearest = ndimage.distance_transform_edt(~face_inside, return_indices=True)[1]
+    # Nothing of the sheet outside the face grid: past its edge the temple falls away behind the
+    # borrowed depth, and the corner box stood out from the head's silhouette as a flap in a
+    # three-quarter view. Source-pixel mask of the grid, eroded 6 px and feathered.
+    sy_, sx_ = np.mgrid[0:solid.shape[0], 0:solid.shape[1]]
+    cgrid = src_to_crop(np.stack([sx_.ravel(), sy_.ravel()], 1).astype(float))
+    in_src = ndimage.map_coordinates(face_inside.astype(float), [cgrid[:, 1], cgrid[:, 0]], order=1, mode='constant') > 0.5
+    in_src = in_src.reshape(solid.shape)
+    grid_cut = np.clip((ndimage.distance_transform_edt(in_src) - 6) / 6.0, 0, 1)
     # The brows stay brows: the lash fill below only takes dark pixels under the photo's brow line.
     brow_px = (photo_rgb[..., 2] > photo_rgb[..., 0] + 12) & (np.arange(photo_rgb.shape[0])[:, None] > 380) & (np.arange(photo_rgb.shape[0])[:, None] < 475)
     brow_px = ndimage.binary_opening(brow_px, iterations=1)
@@ -1871,6 +1879,7 @@ def lid_sheets(work, zg, src, surface_normal):
             rgb = np.asarray(r).astype(float)[..., :3]
         else:
             print(f'lid retouch {LID_RETOUCH} is {r.size}, the crop is {(x1 - x0, y1 - y0)}: not used')
+    cut *= grid_cut
     tex = Image.fromarray(np.dstack([rgb, (alpha * cut)[y0:y1, x0:x1]]).astype(np.uint8), 'RGBA')
     P = np.concatenate(pos)
     # The face's own normals: with a flat normal the sheet's lit tenth shaded a little differently from
