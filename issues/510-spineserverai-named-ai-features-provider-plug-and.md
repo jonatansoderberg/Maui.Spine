@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/510
 **Branch:** issue/510-spineserverai-named-ai-features-provider-plug-and
-**Status:** In review
+**Status:** In review (PR #535)
 
 This is step 2.1 of the roadmap [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505), tracked in `docs/plans/ai-and-security.md`. The design is in `docs/proposals/spine-ai.md` §3–§5 and §10.1, together with the owner's answers Q19, Q20, Q22 and Q25. The owner chose to keep the step in one issue and one PR rather than split it (2026-10-12).
 
