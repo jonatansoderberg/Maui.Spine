@@ -45,7 +45,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | Package | Kind | Issues | Proposal | Status |
 |---|---|---|---|---|
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
-| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | #507 done (#527), #508 in review |
+| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | #507 done (#527), #508 in review (#529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509 | [highlight](../proposals/spine-highlight.md) | Proposal |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Proposal |
@@ -99,7 +99,7 @@ The order follows value against risk. Steps in different phases can run in paral
 |---|---|---|---|---|---|---|
 | 1.1 | Core navigation guard and command guard | #506 | 0.2 | Done | #526 | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links. Guarded tabs on Android and Windows show an unlock cover (Q5). |
 | 1.2 | `IBiometricAuth`, `[RequiresUnlock]` on pages and commands, `Unlock.Command`, `RequireAsync` | #507 | 1.1 | Done | #527 | |
-| 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | In review | | The core gets `SpineOverlay` and `SpineScreen`. |
+| 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | In review | #529 | The core gets `SpineOverlay` and `SpineScreen`. |
 
 ### Phase 2: AI on the server and in the app
 
@@ -318,7 +318,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
-- **2026-10-12:** #508 (app lock and privacy shield) in review, the last step of phase 1. The core gets `SpineOverlay` and `SpineScreen`.
+- **2026-10-12:** #508 (app lock and privacy shield) in review as PR #529, the last step of phase 1. The core gets `SpineOverlay` and `SpineScreen`.
 - **2026-10-12:** #506 (core guards, PR #526) and #507 (Biometrics, PR #527) merged. Verification backlog added.
 - **2026-10-09:**
   - Plan written.
