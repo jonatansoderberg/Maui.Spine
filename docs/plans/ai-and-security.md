@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (#506 merged; #507 Biometrics in review)
+**Last updated:** 2026-10-12 (#506 and #507 merged; next is #508; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -22,6 +22,7 @@ This is the living plan for the work that came out of the AI and security brains
    - add any decision you made or got to [Decisions](#decisions)
    - update **Last updated** at the top
 7. Before a merge, check the files that every feature branch touches. See [Files every package PR touches](#files-every-package-pr-touches).
+8. Add whatever you could not verify to the [Verification backlog](#verification-backlog), and remove the entries you did verify.
 
 Status values: **Proposal** (written, not reviewed), **Waiting** (on another step or on an answer), **Ready**, **In progress**, **In review** (PR open), **Done**, **Parked**, **Dropped**.
 
@@ -44,7 +45,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | Package | Kind | Issues | Proposal | Status |
 |---|---|---|---|---|
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
-| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | In review (#507) |
+| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | #507 done (#527), #508 next |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509 | [highlight](../proposals/spine-highlight.md) | Proposal |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Proposal |
@@ -97,8 +98,8 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
 | 1.1 | Core navigation guard and command guard | #506 | 0.2 | Done | #526 | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links. Guarded tabs on Android and Windows show an unlock cover (Q5). |
-| 1.2 | `IBiometricAuth`, `[RequiresUnlock]` on pages and commands, `Unlock.Command`, `RequireAsync` | #507 | 1.1 | In review | #527 | |
-| 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | Waiting | | |
+| 1.2 | `IBiometricAuth`, `[RequiresUnlock]` on pages and commands, `Unlock.Command`, `RequireAsync` | #507 | 1.1 | Done | #527 | |
+| 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | Ready | | |
 
 ### Phase 2: AI on the server and in the app
 
@@ -136,6 +137,40 @@ The order follows value against risk. Steps in different phases can run in paral
 | 5.4 | Passkeys | #522 | 5.2 | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
 
 ---
+
+## Verification backlog
+
+These are behaviours that are merged but have not been seen working. Take one when the hardware or setup is at hand (a Windows machine, a Mac with Touch ID, a phone), then remove the entry and say in the PR or commit what was seen.
+
+| Step | What has not been verified | What it takes | How |
+|---|---|---|---|
+| 1.1 (#506) | Guards on Windows at run time: a guarded page, command and tab. The tab should show the guard's cover. | A Windows machine | A scratch app with two `[NavigableTab]` pages, one guarded (see below), plus the Showcase Guards page |
+| 1.1 (#506) | Android and Windows tabs fall back to switching back when the guard has **no** `IGuardCover` | Emulator | A guard that implements only `IGuard<T>` on a tab; tap the tab, refuse; the previous tab should come back and the guarded tab's page should never show |
+| 1.1 (#506) | A cold start through a shortcut or a search result to a guarded page. The guard should wait for activation and the root page, then ask over the root. | Simulator or phone | Showcase: put a guard on the page a shortcut opens, kill the app, open it from the shortcut |
+| 1.2 (#507) | Windows Hello at run time: `UserConsentVerifierInterop` with the window handle, the result mapping, the availability | A Windows machine with Hello (a PIN is enough) | Showcase Biometrics page |
+| 1.2 (#507) | Touch ID on a Mac (Mac Catalyst) | A Mac with Touch ID | Showcase Biometrics page on Mac Catalyst |
+| 1.2 (#507) | Fingerprint on Android: `BIOMETRIC_WEAK` with an enrolled finger | An emulator with a fingerprint enrolled in Settings (needs a screen lock), then `adb emu finger touch 1` | Scratch tabbed app or Showcase |
+| 1.2 (#507) | The lock-out message after too many failed attempts | Simulator: several `notifyutil -p com.apple.BiometricKit_Sim.pearl.nomatch`; Android: repeated wrong fingerprints | Showcase Biometrics page, Unlock button |
+| 1.2 (#507) | A guarded root page (`CanCancel = false`): the "Locked" alert keeps asking until unlocked | Simulator | A scratch app whose first page has `[RequiresUnlock]` |
+| 1.2 (#507) | `WhenUnavailable = Deny` shows its message on a device without a screen lock | Android emulator without a lock | Scratch app with `UseSpineBiometrics(o => o.WhenUnavailable = UnavailablePolicy.Deny)` |
+
+**Test recipes that worked**
+- **Face ID in the iOS simulator.**
+  - Enrol with `xcrun simctl spawn <udid> notifyutil -s com.apple.BiometricKit.enrollmentChanged 1`, then `notifyutil -p com.apple.BiometricKit.enrollmentChanged`.
+  - Answer a prompt with `notifyutil -p com.apple.BiometricKit_Sim.pearl.match` or `…pearl.nomatch`.
+- **Android prompt without enrolling a finger.**
+  - `adb shell locksettings set-pin 1234` gives a device credential.
+  - Type it in the prompt with `adb shell input text 1234` and `input keyevent 66`.
+  - Clear it afterwards with `locksettings clear --old 1234`.
+  - The prompt's window blocks screenshots. Check `dumpsys window | grep mCurrentFocus` (it reads `BiometricPrompt`) and `uiautomator dump` instead.
+- **Tabs.** The Showcase has no tabs. Use a scratch MAUI app outside the repo with these settings:
+  - the repo's `global.json` copied next to it
+  - `Microsoft.Maui.Controls` pinned to the repo's version (10.0.50)
+  - a `ProjectReference` to the worktree's `src/Plugin.Maui.Spine` (and `.Biometrics`)
+  - two `[NavigableTab(Title = …, Order = 0/1)]` `SpinePage` classes built in code (a distinct `Order` is required)
+  - `App : SpineApplication<FirstTab>`
+
+  On Android, build with `-p:EmbedAssembliesIntoApk=true -t:SignAndroidPackage` and install with adb.
 
 ## Decisions
 
@@ -266,6 +301,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-12:** #506 (core guards, PR #526) and #507 (Biometrics, PR #527) merged. Verification backlog added.
 - **2026-10-09:**
   - Plan written.
   - Issues #505–#522 created.
