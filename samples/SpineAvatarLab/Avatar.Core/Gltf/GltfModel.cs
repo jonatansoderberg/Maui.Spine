@@ -153,6 +153,18 @@ public sealed class GltfModel
             return texture.TryGetProperty("source", out var source) ? source.GetInt32() : -1;
         }
 
+        // Whether a texture slot's sampler minifies through mipmaps (glTF's default); NEAREST and LINEAR alone do not.
+        private bool Mipmaps(JsonElement holder, string name)
+        {
+            if (holder.ValueKind != JsonValueKind.Object || !holder.TryGetProperty(name, out var info))
+                return true;
+            var texture = root.GetProperty("textures")[info.GetProperty("index").GetInt32()];
+            if (!texture.TryGetProperty("sampler", out var s) || !root.TryGetProperty("samplers", out var samplers))
+                return true;
+            var sampler = samplers[s.GetInt32()];
+            return !sampler.TryGetProperty("minFilter", out var min) || min.GetInt32() is not (9728 or 9729);
+        }
+
         private GltfMaterial ReadMaterial(JsonElement m)
         {
             var pbr = m.TryGetProperty("pbrMetallicRoughness", out var p) ? p : default;
@@ -176,6 +188,7 @@ public sealed class GltfModel
                 BaseColorTexture = Texture(pbr, "baseColorTexture"),
                 NormalTexture = Texture(m, "normalTexture"),
                 EmissiveTexture = Texture(m, "emissiveTexture"),
+                Mipmaps = Mipmaps(pbr, "baseColorTexture") && Mipmaps(m, "emissiveTexture"),
             };
         }
 
@@ -342,6 +355,9 @@ public sealed record GltfMaterial(string Name, Vector4 BaseColor, float Metallic
     public int NormalTexture { get; init; } = -1;
 
     public int EmissiveTexture { get; init; } = -1;
+
+    /// <summary>False when the material's textures sample without mipmaps (a per-triangle atlas, whose levels would blend unrelated triangles).</summary>
+    public bool Mipmaps { get; init; } = true;
 }
 
 public sealed record GltfImage(string Name, string MimeType, ReadOnlyMemory<byte> Bytes);

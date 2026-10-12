@@ -308,6 +308,8 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             material.Emission.Contents = Srgb(m.Emissive.X / peak, m.Emissive.Y / peak, m.Emissive.Z / peak, 1);
             material.Emission.Intensity = peak;
         }
+        if (!m.Mipmaps)
+            material.Diffuse.MipFilter = material.Emission.MipFilter = SCNFilterMode.None;
         material.DoubleSided = m.DoubleSided;
         material.Name = m.Name;
         return material;

@@ -1668,6 +1668,7 @@ class Glb:
 EYE_FRAMES = 'eye-layers-2'      # the owner's layers: kairo-lid-half.png, kairo-lid-closed.png (full canvas, same framing)
 BLINK_FRAMES = []               # (layer, from, to): painted states shown as frames; the lids below replaced them
 LID_MATERIAL = 12              # index of the "lid" material
+EAR_MATERIAL = 16              # index of the "ear" material (the auricles' per-triangle atlas)
 LID_LAYER = 'kairo-lid-closed.png'
 LID_RETOUCH = 'hairfree-package/kairo-lid-texture-hairfree.png'   # the owner's retouch of the lid texture crop (RGB; the alpha is ours)
 LID_MIRROR = True               # her right lid (image left) is her left one mirrored about the face's midline (owner: the painted right lid kept a dark defect in the blink)
@@ -1959,9 +1960,12 @@ def hair_photo(src):
 # A paintable layout for the skin the photo does not cover: orthographic views in fixed windows of
 # model space (so a painting stays put when the mesh changes), one 1024 px tile each.
 # (name, tile column, tile row, outward axis, sign, window size in model units)
+# The ear tiles are unused since the auricles got a per-triangle atlas of their own (`ear` material:
+# in a side projection the concha's floor shared texels with the helix overhanging it); they stay so
+# the other charts keep their place for paintings.
 SKIN_TILE = 1024
 SKIN_CHARTS = [("right", 0, 0, 0, 1, 0.72), ("left", 1, 0, 0, -1, 0.72), ("back", 2, 0, 2, -1, 0.72), ("top", 3, 0, 1, 1, 0.6),
-               ("under", 0, 1, 1, -1, 0.72), ("front", 1, 1, 2, 1, 0.72), ("ear right", 2, 1, 0, 1, 0.14), ("ear left", 3, 1, 0, -1, 0.14)]
+               ("under", 0, 1, 1, -1, 0.72), ("front", 1, 1, 2, 1, 0.72), ("ear right", 2, 1, 0, 1, 0.20), ("ear left", 3, 1, 0, -1, 0.20)]
 SKIN_PAINT = 'paint/kairo-skin.png'      # the owner's painting over the layout (RGBA: alpha 0 keeps the bake)
 PAINT_REPLACES = False         # True: the painting as it is; False: only its detail over the bake (as is, its tones met the photo in patches)
 
@@ -1974,9 +1978,6 @@ def skin_layout(P, F, centre, ears):
     best = np.abs(n).argmax(1)
     for k, (_, _, _, axis, sign, _) in enumerate(SKIN_CHARTS[:6]):
         chart[(best == axis) & (np.sign(n[np.arange(len(F)), axis]) == sign)] = k
-    for k, (ec, side) in enumerate(ears):
-        near = (np.linalg.norm((c - ec)[:, 1:], axis=1) < 0.045) & ((c[:, 0] - centre[0]) * side > (ec[0] - centre[0]) * side - 0.035)
-        chart[near] = 6 + k
     return chart, layout_px(P[F].reshape(-1, 3), np.repeat(chart, 3), centre, ears).reshape(-1, 3, 2)
 
 def layout_px(q, chart, centre, ears):
@@ -2000,37 +2001,56 @@ def layout_px(q, chart, centre, ears):
         uv[m, 1] = row * SKIN_TILE + SKIN_TILE / 2 - (v - v_off) * scale
     return uv
 
-def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, photo_weight=None):
+def lattice(n):
+    """Barycentric coordinates of a regular lattice with n steps along each edge."""
+    i, j = np.meshgrid(np.arange(n + 1), np.arange(n + 1)); m = i + j <= n
+    a, b = i[m] / n, j[m] / n
+    return np.stack([1 - a - b, a, b], 1)
+
+def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, ear_weight=None, photo_weight=None):
     """The skin's colours drawn into the layout: dense points on every face, the outermost along its
-    chart's axis winning, the gaps filled from the nearest drawn texel."""
+    chart's axis winning, the gaps filled from the nearest drawn texel. `ear_weight` (per vertex, 0..1)
+    blends `colour` into `ear_colour`."""
     W, H = SKIN_TILE * 4, SKIN_TILE * 2
     img = np.zeros((H, W, 3)); depth = np.full((H, W), -np.inf); wimg = np.zeros((H, W))
-    rng = np.random.default_rng(7)
-    bary = np.concatenate([np.eye(3), rng.dirichlet((1, 1, 1), size=160)])
-    for part in np.array_split(np.arange(len(F)), 80):
-        pts = np.einsum('bk,fkd->fbd', bary, P[F[part]]).reshape(-1, 3)
-        uv = np.einsum('bk,fkd->fbd', bary, px[part]).reshape(-1, 2)
-        sh = np.einsum('bk,fk->fb', bary, shade[F[part]]).reshape(-1)
-        ch = np.repeat(chart[part], len(bary))
-        axis = np.array([c[3] for c in SKIN_CHARTS])[ch]; sign = np.array([c[4] for c in SKIN_CHARTS])[ch]
-        dep = pts[np.arange(len(pts)), axis] * sign
-        col = colour(pts, np.repeat(part, len(bary)))
-        if ear_colour is not None:
-            ear = ch >= 6
-            col[ear] = ear_colour(pts[ear])
-        col = col * sh[:, None]
-        x = np.clip(uv[:, 0].astype(int), 0, W - 1); y = np.clip(uv[:, 1].astype(int), 0, H - 1)
-        o = np.argsort(dep)
-        better = dep[o] > depth[y[o], x[o]]
-        img[y[o][better], x[o][better]] = col[o][better]; depth[y[o][better], x[o][better]] = dep[o][better]
-        if photo_weight is not None:
-            wimg[y[o][better], x[o][better]] = np.repeat(photo_weight[part], len(bary))[o][better]
+    # Samples per face by its area in texels: the ear tiles are five times as fine as the side tiles,
+    # and the same 163 random points on every face left texels there for the surface behind (the back
+    # of the helix, the skull) to win, a salt-and-pepper speckle along the helix and the lobe.
+    area = 0.5 * np.abs(np.cross(px[:, 1] - px[:, 0], px[:, 2] - px[:, 0]))
+    bucket = np.digitize(area, [60, 250, 1000])
+    for k, n in enumerate((16, 32, 64, 128)):
+        bary = lattice(n)
+        faces = np.where(bucket == k)[0]
+        if not len(faces):
+            continue
+        for part in np.array_split(faces, max(1, len(faces) * len(bary) // 1500000)):
+            pts = np.einsum('bk,fkd->fbd', bary, P[F[part]]).reshape(-1, 3)
+            uv = np.einsum('bk,fkd->fbd', bary, px[part]).reshape(-1, 2)
+            sh = np.einsum('bk,fk->fb', bary, shade[F[part]]).reshape(-1)
+            ch = np.repeat(chart[part], len(bary))
+            axis = np.array([c[3] for c in SKIN_CHARTS])[ch]; sign = np.array([c[4] for c in SKIN_CHARTS])[ch]
+            dep = pts[np.arange(len(pts)), axis] * sign
+            col = colour(pts, np.repeat(part, len(bary)))
+            if ear_colour is not None:
+                e = np.einsum('bk,fk->fb', bary, ear_weight[F[part]]).reshape(-1)[:, None]
+                col = col * (1 - e) + ear_colour(pts) * e
+            col = col * sh[:, None]
+            x = np.clip(uv[:, 0].astype(int), 0, W - 1); y = np.clip(uv[:, 1].astype(int), 0, H - 1)
+            o = np.argsort(dep)
+            better = dep[o] > depth[y[o], x[o]]
+            img[y[o][better], x[o][better]] = col[o][better]; depth[y[o][better], x[o][better]] = dep[o][better]
+            if photo_weight is not None:
+                wimg[y[o][better], x[o][better]] = np.repeat(photo_weight[part], len(bary))[o][better]
     drawn = np.isfinite(depth)
     # Blue texels on the skin are hair the generator painted on the bald head (along the nape): they
     # take the nearest skin instead.
     stray = drawn & (img[..., 2] > img[..., 0] - 5)
-    _, (iy, ix) = ndimage.distance_transform_edt(~drawn | stray, return_indices=True)
-    img = img[iy, ix]
+    dist, (iy, ix) = ndimage.distance_transform_edt(~drawn | stray, return_indices=True)
+    # Near a chart its edge colours spread out (bilinear sampling at the triangles' edges); the rest
+    # of the layout takes the skin's median. Filled from the nearest edge throughout, the texture's
+    # coarse mip levels averaged every chart's border, and the pixels on a chart seam (where the
+    # sampler jumps between tiles and picks the coarsest level) drew a light line across the nape.
+    img = np.where((dist <= 8)[..., None], img[iy, ix], np.median(img[drawn & ~stray], 0))
     paint = f'{work}/{SKIN_PAINT}'
     if os.path.exists(paint):
         p_ = np.asarray(Image.open(paint).convert('RGBA').resize((W, H), Image.LANCZOS)).astype(float)
@@ -2189,8 +2209,11 @@ def build(work):
     hair_gain = gain(HAIR, scan_colour, src)
     ao = occlusion(P, F, VN)
     # Smoothed over 5 mm: the scan's ears are noisy, and at full detail their occlusion speckled.
+    # (Averaging only among vertices facing the same way, to keep the auricle's two sides apart,
+    # left the concha in dark and light facets: the scan's ear is too crumpled for that.)
     near_v = cKDTree(P).query_ball_point(P, r=0.005)
     ao = np.array([ao[n_].mean() for n_ in near_v])
+    ao_ear = np.array([ao[n_].mean() for n_ in near_v])        # once more for the auricles' atlas, whose triangles show every step
     shade = 0.75 + 0.25 * ao          # stronger, the hanging hair greyed the cheek beneath it
     rest = np.where(~front & (label == HAIR))[0]
     rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q) * hair_gain, 4096, shade)
@@ -2231,19 +2254,29 @@ def build(work):
         kind = label[bare][near]
         col = skin_colour(q, bald_gain[kind])
         lum = col.mean(1, keepdims=True)
-        # A narrow brightness range: the generator's side light and the occlusion under the hanging
-        # hair made the side of the face a darker patchwork against the photo's evenly lit cheek.
-        # Faces turned down lie in a little shadow (more, and the chin's underside read as a dark band).
-        toned = skin_ref[None] * np.clip(lum / skin_lum, 0.8, 1.1) * (1 - 0.1 * bare_down[near])[:, None]
+        # A narrow brightness range round nine tenths of the cheek (which faces the light): the
+        # generator's side light and the occlusion under the hanging hair made the side of the face a
+        # darker patchwork against the photo's evenly lit cheek, and at 0.8-1.1 the back of the skull
+        # (lit darker by the generator) still met the neck in a step across the nape. Form comes from
+        # the baked occlusion and the scene's light instead.
+        # Faces turned down in front lie in a little shadow (more, and the chin's underside read as a
+        # dark band; at the nape, the skull's base faces down too and the band showed from behind).
+        in_front = smooth(-0.02, 0.0, q[:, 2] - pivot[2])
+        toned = skin_ref[None] * np.clip(lum / skin_lum, 0.86, 0.94) * (1 - 0.1 * bare_down[near] * in_front)[:, None]
         # The chin's underside takes the tone of the photo's neck just under the chin, a little shaded,
         # and not the generator's light: in the cheek's tone and darkened by its own shading it read as
         # a darker patch, edged against the neck, whenever the head tilted up.
-        under = smooth(0.5, 0.85, bare_down[near]) * (c_sy(q) > CHIN_Y - 0.0042 * (c_sx(q) - 626.0) ** 2 - 20)
+        # Only under the jaw itself, in front of the neck's axis: the curve rises to ear height at the
+        # sides, and the skull's base at the nape faces down too, so the neck's shadowed tone drew a
+        # jagged dark band across the back of the neck in every view from behind.
+        under = smooth(0.5, 0.85, bare_down[near]) * (c_sy(q) > CHIN_Y - 0.0042 * (c_sx(q) - 626.0) ** 2 - 20) * smooth(215.0, 175.0, np.abs(c_sx(q) - 626.0)) * in_front
         under_tone = neck_ref[None] * np.clip(lum / skin_lum, 0.94, 1.04) * 0.97
         toned = toned * (1 - under[:, None]) + under_tone * under[:, None]
         # Not the scalp under the hair (already turned to the hair's colour): toned to skin, it showed
-        # through the bangs at the temple as beige shards.
-        is_skin = (((kind == SKIN) | (kind == NECK)) & (col[:, 0] > col[:, 2] + 10))[:, None]
+        # through the bangs at the temple as beige shards. Bald, all of it is skin: the generator's
+        # texture is greyish behind the ears and down the nape, and kept as it was it drew a dark
+        # streak behind each ear.
+        is_skin = (((kind == SKIN) | (kind == NECK)) & (BALD | (col[:, 0] > col[:, 2] + 10)))[:, None]
         side = np.where(is_skin, 0.15 * col + 0.85 * toned, col)
         w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)))[:, None]
         pc = projected(q)
@@ -2262,24 +2295,83 @@ def build(work):
     centre = np.array([pivot[0], P[grid_start:, 1].mean(), pivot[2]])
     sk = P[F[bare]].reshape(-1, 3)
     ears = []
+    ear_w = np.zeros(len(P))
+    auricle = np.zeros(len(bare), bool)
+    bc_ = P[F[bare]].mean(1)
     for side in (1, -1):
         band = sk[(np.abs(sk[:, 1] - centre[1]) < 0.08)]
         rim = band[np.argmax((band[:, 0] - centre[0]) * side)]
-        ears.append((rim - np.array([side * 0.02, 0, 0]), side))
+        # The whole ear, lobe included: what stands out sideways from the skull, per height, inside
+        # the ear's window. The skull's side is measured behind the ear (toward the nape) and in front
+        # of it (the jaw) and interpolated between. A disc round the helix's outermost point caught the
+        # upper ear only; the lobe and the lower concha went to the side and under charts, toned like
+        # the jaw and the photo, and the ear showed in two colours. The ear's colour rule covers the
+        # whole window, skull skin included (the concha's floor and the tragus lie at the skull's
+        # surface and showed the generator's grey there): its tone is that skin's own. The auricle
+        # gets a per-triangle atlas of its own: every face of the window that overlaps another in the
+        # side projection (the helix over the concha, the auricle over the skull behind it, the two
+        # sides of its shell) or stands well out from the skull. Standing out alone, with the skull
+        # measured behind and in front of the ear, took the parietal bulge above the ear as well.
+        dy, dz = bc_[:, 1] - rim[1], bc_[:, 2] - rim[2]
+        xo = (bc_[:, 0] - centre[0]) * side
+        bands = np.arange(-0.13, 0.10, 0.01) + 0.005
+        def profile(zlo, zhi):
+            prof = np.full(len(bands), np.nan)
+            for k_, y0 in enumerate(bands):
+                m = (np.abs(dy - y0) < 0.01) & (dz > zlo) & (dz < zhi)
+                if m.sum() > 3:
+                    prof[k_] = np.percentile(xo[m], 95)
+            good = ~np.isnan(prof)
+            prof = np.interp(bands, bands[good], prof[good])
+            return ndimage.gaussian_filter1d(prof, 1.0)
+        behind, front_ = profile(-0.06, -0.03), profile(0.06, 0.09)
+        t = np.clip((dz + 0.045) / 0.12, 0, 1)
+        skull = np.interp(dy, bands, behind) * (1 - t) + np.interp(dy, bands, front_) * t
+        window = smooth(-0.13, -0.11, dy) * smooth(0.085, 0.065, dy) * smooth(-0.035, -0.02, dz) * smooth(0.08, 0.065, dz) * smooth(0.12, 0.14, xo)
+        np.maximum.at(ear_w, F[bare].reshape(-1), np.repeat(window, 3))
+        wf = np.where(window > 0.3)[0]
+        pts = np.einsum('bk,fkd->fbd', lattice(6), P[F[bare[wf]]])
+        yz = pts[..., 1:].reshape(-1, 2); xs = (pts[..., 0].reshape(-1) - centre[0]) * side
+        cell = np.floor((yz - yz.min(0)) / 0.0015).astype(int); key = cell[:, 0] * 100000 + cell[:, 1]
+        fid = np.repeat(wf, pts.shape[1])
+        o_ = np.argsort(key, kind='stable'); key, xs, fid = key[o_], xs[o_], fid[o_]
+        starts = np.r_[0, np.where(np.diff(key))[0] + 1]
+        span = np.maximum.reduceat(xs, starts) - np.minimum.reduceat(xs, starts)
+        cid = np.repeat(np.arange(len(starts)), np.diff(np.r_[starts, len(key)]))
+        overlapped = np.zeros(len(bare), bool); overlapped[fid[span[cid] > 0.003]] = True
+        stands = overlapped | (xo - skull > 0.008)
+        stands = (window > 0.5) & (stands | vote(P, F[bare], stands, r=0.006))   # closed: the helix's top overlaps nothing of its own
+        auricle |= stands
+        lo_, hi_ = bc_[stands].min(0), bc_[stands].max(0)
+        ears.append((np.array([rim[0] - side * 0.02, (lo_[1] + hi_[1]) / 2, (lo_[2] + hi_[2]) / 2]), side))
+        print(f'ear {"+x" if side > 0 else "-x"}: {int(stands.sum())} auricle faces, y {lo_[1] - rim[1]:+.3f}..{hi_[1] - rim[1]:+.3f}, z {lo_[2] - rim[2]:+.3f}..{hi_[2] - rim[2]:+.3f} about the rim; skull side behind/front at the rim {np.interp(0, bands, behind):.3f}/{np.interp(0, bands, front_):.3f}, rim {xo.max():.3f}')
+    ear_bare = bare[auricle]
+    bare, bc_, bare_down = bare[~auricle], bc_[~auricle], bare_down[~auricle]
+    bare_kind = cKDTree(P[F[bare]].mean(1))
     chart, corner_px = skin_layout(P, F[bare], centre, ears)
     # Faces that fall outside their chart's window (the neck deep inside the collar, never seen) go
     # with the turtleneck's atlas instead of spilling into the next chart.
     tile = np.array([[c[1], c[2]] for c in SKIN_CHARTS])[chart] * SKIN_TILE
     inside = ((corner_px >= tile[:, None, :] + 2) & (corner_px < tile[:, None, :] + SKIN_TILE - 2)).all((1, 2))
     knit_bare = np.concatenate([knit_bare, bare[~inside]]); bare, chart, corner_px = bare[inside], chart[inside], corner_px[inside]
+    bc_ = bc_[inside]
     bare_kind = cKDTree(P[F[bare]].mean(1))
     bare_down = bare_down[inside]
     knit_uv, knit_tex = atlas(P, F[knit_bare], lambda q: skin_colour(q, bald_gain[KNIT]), 2048, 0.6 + 0.4 * shade)
-    # Ears: clean skin a touch pinker, their form from the baked occlusion alone (the generator's ear
-    # texture was blotchy and the painting did not fit the scan's ear).
-    ear_tint = skin_ref * np.array([1.03, 0.96, 0.94])
-    skin_tex, drawn = skin_bake(P, F[bare], chart, corner_px, bare_colour, np.where(np.isin(np.arange(len(P)), F[bare][chart >= 6]), 0.45 + 0.55 * ao, 0.6 + 0.4 * shade), work,
-                                ear_colour=lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), photo_weight=project_weight[bare])
+    # Ears: the tone of the skin round them, flat, their form from the baked occlusion alone (the
+    # generator's ear texture was blotchy and the painting did not fit the scan's ear; a pinker tint,
+    # and the jaw's toning and the photo on the lobe, made the ear two-coloured against the temple).
+    ring = np.zeros(len(bare), bool)
+    for ec, side in ears:
+        d_ = bc_ - ec
+        ring |= (chart < 6) & (ear_w[F[bare]].max(1) < 0.01) & (np.abs(d_[:, 1]) < 0.12) & (np.abs(d_[:, 2]) < 0.10) & ((d_[:, 0] * side) > -0.06)
+    ear_tint = np.median(bare_colour(bc_[ring], np.where(ring)[0]), 0)
+    print('ear tone from', int(ring.sum()), 'faces round the ears:', np.round(ear_tint), 'cheek', np.round(skin_ref))
+    ear_uv, ear_tex = atlas(P, F[ear_bare], lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), 1024, 0.5 + 0.5 * ao_ear)
+    # The skull's skin round the ear keeps the skin's mild shading: with the auricle's stronger
+    # occlusion it showed dark facets behind the ear (the scan is coarse and noisy there).
+    skin_tex, drawn = skin_bake(P, F[bare], chart, corner_px, bare_colour, 0.6 + 0.4 * shade, work,
+                                ear_colour=lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), ear_weight=ear_w, photo_weight=project_weight[bare])
     skin_template(skin_tex, drawn, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'obj', 'kairo-skin-template.png'), corner_px)
     skin_uv = corner_px / np.array([SKIN_TILE * 4, SKIN_TILE * 2])
     print('front faces', front.sum(), 'hair', len(rest), 'bald', len(bare))
@@ -2342,6 +2434,7 @@ def build(work):
               (F[drawn], fpos, fuv, fnrm, fvis, label[drawn], overlap[drawn], 4, True),
               (*own(rest, rest_uv), 1, True),
               (*own(bare, skin_uv), 2, True),
+              (*own(ear_bare, ear_uv), EAR_MATERIAL, True),
               (*own(knit_bare, knit_uv), 9, True),
               (*own(dark, np.zeros((len(dark), 3, 2))), 6, False),
               (*own(inner, np.zeros((len(inner), 3, 2))), 8, False)]
@@ -2389,6 +2482,9 @@ def build(work):
 
     g = Glb()
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9987, "wrapS": 33071, "wrapT": 33071})
+    # No mipmaps for the ears' per-triangle atlas: minified, its levels average unrelated triangles
+    # into grain. Linear sampling reads each pixel's own triangle instead.
+    g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9729, "wrapS": 33071, "wrapT": 33071})
     for name, img in (("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex)), ("skin", Image.fromarray(skin_tex)),
                       ("lidskin", lid_texture(closed, src)), ("bald", bald_src), ("iris", iris_texture(src)),
                       ("core", Image.new('RGB', (4, 4), (8, 6, 8))), ("hairphoto", hair_photo(src)),
@@ -2397,12 +2493,12 @@ def build(work):
                       ("coreskin", Image.new('RGB', (4, 4), tuple(int(c * 0.8) for c in skin_ref))), ("knit", Image.fromarray(knit_tex)),
                       ("eyeball", eyeball_texture(src)),
                       ("socket", Image.fromarray(np.tile((skin_ref[None, :] * np.array([1.0, 0.86, 0.86]) * np.linspace(0.95, 0.75, 64)[:, None])[:, None, :], (1, 4, 1)).astype(np.uint8))),
-                      ("lid", lid_tex), ("mouth", mouth_tex), ("lipwall", lipwall_tex), ("oshade", oshade_tex)):
-        if img.mode == 'RGBA':
+                      ("lid", lid_tex), ("mouth", mouth_tex), ("lipwall", lipwall_tex), ("oshade", oshade_tex), ("ear", Image.fromarray(ear_tex))):
+        if img.mode == 'RGBA' or name == "ear":        # the ear atlas lossless: JPEG rings at its cells' hard edges
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
         else:
             i = g.image(jpeg(img, 92 if name in ("front", "bald") else 88), "image/jpeg", name)
-        g.gltf["textures"].append({"sampler": 0, "source": i})
+        g.gltf["textures"].append({"sampler": 1 if name == "ear" else 0, "source": i})
         material = {"name": name, "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1], "baseColorTexture": {"index": i},
                                                            "metallicFactor": 0, "roughnessFactor": 0.62}}
         # The scan's winding is unreliable (thin hair sheets, the collar seen from inside): culled back
@@ -2410,7 +2506,7 @@ def build(work):
         material["doubleSided"] = True
         # The skin atlas too: lit by the scene while the face beside it showed the picture's own light,
         # the skull and the sides came out a different tone, an edge round the face.
-        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade"):
+        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear"):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
@@ -2450,7 +2546,7 @@ def build(work):
     g.node("HeadPivot", t=pivot - j2, children=[3, lids_node] + [4 + k for k in range(len(frames))])
     # Floating scraps of the scan go: a sliver a few millimetres off the temple past her left eye's outer
     # corner showed as a speck beside the eye from the front and outside the head from behind.
-    prims['head'] = [drop_floating(p_) if p_['material'] == 2 else p_ for p_ in prims['head']]
+    prims['head'] = [drop_floating(p_) if p_['material'] in (2, EAR_MATERIAL) else p_ for p_ in prims['head']]
     m_head = g.mesh("Head", prims['head'], TARGETS)
     g.node("Head", m_head)
     for k, (prim, _) in enumerate(frames):
