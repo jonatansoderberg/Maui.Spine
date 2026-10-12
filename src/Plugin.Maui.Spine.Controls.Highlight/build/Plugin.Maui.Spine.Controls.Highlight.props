@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseHighlights() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Controls.Highlight" Register="Plugin.Maui.Spine.Controls.HighlightExtensions.UseHighlights" />
+	</ItemGroup>
+</Project>

@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (#508 in review, the last step of phase 1; see Verification backlog)
+**Last updated:** 2026-10-12 (phase 1 done; #509 Highlight in review as #532, split into #509, #530 and #531; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -45,8 +45,8 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | Package | Kind | Issues | Proposal | Status |
 |---|---|---|---|---|
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
-| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | #507 done (#527), #508 in review (#529) |
-| `Plugin.Maui.Spine.Controls.Highlight` | New | #509 | [highlight](../proposals/spine-highlight.md) | Proposal |
+| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
+| `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | #509 in review (#532); #530 and #531 waiting |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Proposal |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Proposal |
@@ -75,7 +75,9 @@ graph LR
   VE[#515 Audio engine spike] --> VO[#516 Voice adapters and VoiceView]
   RT --> VO
   VE --> LA[#518 Live Activity experiment]
-  HL[#509 Highlight] -.optional.-> VO
+  HL[#509 Highlight] --> SPOT[#530 Spotlight and tours]
+  HL --> EDGE[#531 Window edge glow]
+  EDGE -.optional.-> VO
   CHAT[#513 Chat control] -.optional.-> VO
   SA -.user identity.-> AI
 ```
@@ -93,13 +95,13 @@ The order follows value against risk. Steps in different phases can run in paral
 | 0.1 | Roadmap issue and 17 child issues | #505–#522 | Done | — | Created 2026-10-09 |
 | 0.2 | Five proposals and this plan | #505 | Done | #523 | All 31 open questions answered 2026-10-09. |
 
-### Phase 1: guards and biometrics
+### Phase 1: guards and biometrics (done 2026-10-12)
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
 | 1.1 | Core navigation guard and command guard | #506 | 0.2 | Done | #526 | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links. Guarded tabs on Android and Windows show an unlock cover (Q5). |
 | 1.2 | `IBiometricAuth`, `[RequiresUnlock]` on pages and commands, `Unlock.Command`, `RequireAsync` | #507 | 1.1 | Done | #527 | |
-| 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | In review | #529 | The core gets `SpineOverlay` and `SpineScreen`. |
+| 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | Done | #529 | The core gets `SpineOverlay` and `SpineScreen`. |
 
 ### Phase 2: AI on the server and in the app
 
@@ -116,7 +118,9 @@ The order follows value against risk. Steps in different phases can run in paral
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 3.1 | `Controls.Highlight`: kinds, repeat, keys, tours | #509 | 0.2 | Ready | | Can start any time. Voice's screen-edge visual reuses Edge. |
+| 3.1 | `Controls.Highlight`: the package and the per-view kinds Edge, Pulse, Sheen, Trace and Breathe; repeat, keys, `IHighlights` | #509 | 0.2 | In review | #532 | The core gets a public `ReducedMotion` with `Changed`, `Tap.Executed` and `ElementVisuals` (Windows). Shimmer and MeshBackground use the core's `ReducedMotion`. |
+| 3.2 | Spotlight and tours: `TourAsync`, `SpineTargets.TryGetFrame` | #530 | 3.1 | Waiting | | On `SpineOverlay` as it is. |
+| 3.3 | The window edge glow: `AttachEdge`, `IEdgeGlow`, `SpineOverlay.Show(…, passTouches)`, iOS corner radii | #531 | 3.1 | Waiting | | Voice's screen-edge visual uses it. A pass-through overlay is shown again above a later sheet instead of holding the sheet under it (Decisions). |
 
 ### Phase 4: voice
 
@@ -157,6 +161,11 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 1.3 (#508) | `PrivacyShield(CoverWhileCaptured = true)` on iOS 17 and later: the cover while the screen is recorded or mirrored. `simctl io recordVideo` does not set the scene's capture state | An iPhone | The Statement page, then screen recording from Control Center |
 | 1.3 (#508) | Android before API 30: the device credential is an activity of its own, so the app stops during the prompt. The app lock should not lock again after the PIN | An API 28 or 29 emulator with a PIN | Showcase, app lock on, return from the background and unlock with the PIN |
 | 1.3 (#508) | A `Relock` page in a sheet: Back on the lock screen closes the sheet (`CanGoBack` is true for a sheet's page) | Simulator | A scratch sheet page with `[RequiresUnlock(…, Relock = true)]` |
+| 3.1 (#509) | Windows at run time: every kind on Composition (Edge's turning linear gradient, the drop-shadow glow and halo), `ElementVisuals` with Tap and Highlight on one element, Tap's press fill and Narrator after the move to the shared container, `IsInWindow` while scrolling | A Windows machine | Showcase Highlight page and Rows page |
+| 3.1 (#509) | Screen readers: the tip announced when a highlight starts, and the semantic hint while Edge, Trace or Breathe runs | VoiceOver on a phone or the simulator's Accessibility Inspector; TalkBack on the emulator | Showcase Highlight page, Summarise |
+| 3.1 (#509) | Android before API 31 and before API 28: the glow and halo through `BlurMaskFilter`, and the ring fallback without blur | An API 28–30 and an API 26 emulator | Showcase Highlight page, Every kind |
+| 3.1 (#509) | Mac Catalyst at run time, and the other kinds on an iPhone. Edge over Liquid Glass was seen on the owner's iPhone on 2026-10-12 | The owner's Mac and iPhone | Showcase Highlight page |
+| 3.1 (#509) | Android: a look change mid-run without a blink. The recording held only 23 frames (the emulator records on change) | A phone, or `screenrecord` with the emulator idle | Change Intensity on the Every kind page while recording |
 
 **Test recipes that worked**
 - **Face ID in the iOS simulator.**
@@ -218,6 +227,15 @@ Newest last. Each entry is dated and says who decided.
 - **2026-10-12, Claude (#508):** On Mac Catalyst MAUI follows the application's lifecycle and raises no `Window.Stopped` when the window is minimised: the scene goes to the background while the application stays active. The package watches the window's scene itself, and on Windows the `AppWindow`'s minimised and hidden state. **Why:** the owner's Q6 counts minimised time, and without it neither the app lock nor #507's forgetting worked on a Mac.
 - **2026-10-12, Claude (#508):** On Android a sheet that opens while a `SpineOverlay` shows is held invisible under it until the overlay goes. **Why:** showing the overlay's dialog again to get back on top left two frames of the app's page in a recording.
 - **2026-10-12, Claude (#508):** `SpineOverlay` on Apple is a view on the window. It is raised again in the sheet's `ViewWillAppear` and when the window first becomes visible. **Why:** a recording showed a sheet sliding over the lock screen for half a second when it was raised straight after `PresentViewController`, and on a cold start the root view went in above it at `MakeKeyAndVisible`.
+- **2026-10-12, owner (#509):**
+  - Highlight is split into three issues and PRs: #509 (the core hooks, the package and the five per-view kinds), #530 (Spotlight and tours) and #531 (the window edge glow with `passTouches`).
+  - Shimmer and MeshBackground move onto the core's public `ReducedMotion` in #509.
+- **2026-10-12, Claude (#509):** `Tap.Executed`, the proposal's fallback hook, is in the core. **Why:** on Android a MAUI `TapGestureRecognizer` on a view with `Tap.Command` took the tap: the highlight ended but the row's command did not run (seen on the emulator). Highlight listens to `Tap.Executed` on such views.
+- **2026-10-12, Claude (#509):** On Android the drawable goes in the parent's overlay at the view's place, not the view's own. **Why:** a `Border` clips to its shape, and its own overlay showed no glow or rings outside it.
+- **2026-10-12, Claude (#509):** A run's time counts only while the view can be seen: loaded, visible, in the window (followed through its `ScrollView`s and lists), on a page in `SpineScreen.ShownPages`, and the app in front. **Why:** in the first run, hints below the fold played out, and a key would count as seen with nobody looking.
+- **2026-10-12, Claude (#509):** A new look while a highlight runs (size, colour, intensity, theme) redraws it without a fade and keeps its phase on Apple and Android. **Why:** a card that grows while Edge runs would otherwise blink; checked frame by frame in recordings.
+- **2026-10-12, Claude (#509):** Trace's head is the kind's colour, not white as on the concept page. **Why:** a white head read as a gap on a light card.
+- **2026-10-12, Claude (#531, decided early):** A `passTouches` overlay on Android does not hold a later sheet under it (`HoldUnder`); it is shown again above the sheet. **Why:** a glow that takes no touches must not hide a sheet, and a frame without the glow does no harm. `HoldUnder` stays for overlays that take touches.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
@@ -318,6 +336,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-12:** #508 merged (PR #529); phase 1 done. #509 (Highlight) split into #509, #530 and #531; #509 in review as PR #532.
 - **2026-10-12:** #508 (app lock and privacy shield) in review as PR #529, the last step of phase 1. The core gets `SpineOverlay` and `SpineScreen`.
 - **2026-10-12:** #506 (core guards, PR #526) and #507 (Biometrics, PR #527) merged. Verification backlog added.
 - **2026-10-09:**

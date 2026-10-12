@@ -2,6 +2,7 @@ using System.Numerics;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
+using Plugin.Maui.Spine.Core;
 using FrameworkElement = Microsoft.UI.Xaml.FrameworkElement;
 using WColor = Windows.UI.Color;
 using WControl = Microsoft.UI.Xaml.Controls.Control;
@@ -50,7 +51,7 @@ internal sealed partial class TapState
 
         if (_overlay is not null)
         {
-            ElementCompositionPreview.SetElementChildVisual(host, null);
+            ElementVisuals.Remove(host, _overlay);
             _overlay.Dispose();
         }
 
@@ -143,8 +144,8 @@ internal sealed partial class TapState
                 _overlay.Clip = compositor.CreateGeometricClip(_clip);
             }
 
-            // The child visual draws above the element's own content.
-            ElementCompositionPreview.SetElementChildVisual(host, _overlay);
+            // Above the element's own content, and above other packages' visuals on it.
+            ElementVisuals.Add(host, _overlay, ElementVisuals.TapOrder);
         }
 
         var dark = Application.Current?.RequestedTheme == AppTheme.Dark;

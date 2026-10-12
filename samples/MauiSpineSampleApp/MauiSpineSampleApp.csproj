@@ -549,6 +549,13 @@
     <Compile Include="Pages\Barcodes\BarcodesPage.ViewModel.cs">
       <DependentUpon>BarcodesPage.cs</DependentUpon>
     </Compile>
+    <MauiXaml Update="Pages\Highlight\HighlightPage.View.xaml">
+      <DependentUpon>HighlightPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+    <Compile Include="Pages\Highlight\HighlightPage.ViewModel.cs">
+      <DependentUpon>HighlightPage.cs</DependentUpon>
+    </Compile>
     <MauiXaml Update="Pages\Shimmer\ShimmerPage.View.xaml">
       <DependentUpon>ShimmerPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -696,6 +703,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Rows\Plugin.Maui.Spine.Controls.Rows.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\Plugin.Maui.Spine.Controls.Highlight.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\Plugin.Maui.Spine.Controls.MeshBackground.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />

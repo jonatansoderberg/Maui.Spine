@@ -144,6 +144,7 @@ The highlight follows a `Border`'s `RoundRectangle` corners. `Tap.HighlightColor
 - Controls inside the view keep their own touches: tapping a switch in a tappable row flips the switch and does not run the row's command. An inner tap target wins over an outer one.
 - A drag that starts on the view scrolls the surrounding `ScrollView` or `CollectionView` as usual.
 - The replacement for a `TapGestureRecognizer` on a layout plus `BackgroundColor="Transparent"` to make it hit-testable: the whole bounds are the target.
+- `Tap.Executed` is raised, with the view as the sender, after a tap ran the command. Code that has to notice taps on a view with `Tap.Command`, such as a [highlight](highlight.md) that ends when its view is tapped, listens to it instead of adding a gesture recognizer: on Android a second tap handler takes the tap from Tap.
 
 ## Semantic.Merge
 

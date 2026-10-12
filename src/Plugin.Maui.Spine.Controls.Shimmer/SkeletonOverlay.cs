@@ -66,7 +66,7 @@ internal sealed class SkeletonOverlay : GraphicsView
         UpdateSemantics();
 
         SpineTheme.Track(this, Repaint);
-        ReduceMotion.Listen(this);
+        ReducedMotion.Changed += OnReduceMotionChanged;
 
         Loaded += OnLoaded;
 
@@ -156,7 +156,7 @@ internal sealed class SkeletonOverlay : GraphicsView
             OnLoaded(this, EventArgs.Empty);
     }
 
-    public void OnReduceMotionChanged()
+    private void OnReduceMotionChanged(object? sender, EventArgs e)
     {
         // Restarted rather than left alone: with animations off, MAUI's Android ticker stops ticking
         // the committed animation, and it does not come back by itself when they are on again.
@@ -350,7 +350,7 @@ internal sealed class SkeletonOverlay : GraphicsView
 
     private void UpdateAnimationState()
     {
-        if (_isLoading && _isAttached && _host.IsVisible && Width > 0 && !ReduceMotion.IsEnabled)
+        if (_isLoading && _isAttached && _host.IsVisible && Width > 0 && !ReducedMotion.IsOn)
         {
             if (!_waveRunning)
                 StartWave();

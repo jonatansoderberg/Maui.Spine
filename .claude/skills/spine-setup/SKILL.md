@@ -29,6 +29,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 | `SpineRow` / `SpineSection` (settings and key/value rows) | `Plugin.Maui.Spine.Controls.Rows` | the core and `Plugin.Maui.Spine.Controls.AnimatedLabel` |
 | `Shimmer` and `Skeleton.IsActive` (skeleton loading) | `Plugin.Maui.Spine.Controls.Shimmer` | the core |
 | `MeshBackground` (mesh gradients behind glass) | `Plugin.Maui.Spine.Controls.MeshBackground` | the core |
+| `Highlight.Kind` (a glow while a model works, onboarding hints once per install) | `Plugin.Maui.Spine.Controls.Highlight` | the core |
 | QR codes and other barcodes on screen (`BarcodeView`, `Barcode.Encode`, SVG) | `Plugin.Maui.Spine.Barcodes` | — |
 | Scanning codes with the camera (`BarcodeScannerView`, the scan sheet) | `Plugin.Maui.Spine.Scanner` | the core and `Plugin.Maui.Spine.Barcodes` |
 | Remote images in lists: memory and disk cache, decoding at the view's size, prefetching, BlurHash placeholders | `Plugin.Maui.Spine.Images` | `Plugin.Maui.Spine.Common` (not the core) |

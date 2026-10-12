@@ -1,3 +1,5 @@
+using Plugin.Maui.Spine.Core;
+
 namespace Plugin.Maui.Spine.Controls;
 
 /// <summary>
@@ -146,7 +148,7 @@ public static class Skeleton
         // The views come back at once, in the places they held; the blocks fade over them.
         overlay.Release();
 
-        if (ReduceMotion.IsEnabled || overlay.Handler is null)
+        if (ReducedMotion.IsOn || overlay.Handler is null)
         {
             layout.Children.Remove(overlay);
             return;

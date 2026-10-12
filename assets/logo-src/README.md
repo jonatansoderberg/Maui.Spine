@@ -24,6 +24,7 @@ The full-size originals behind `assets/icons/` (256×256 package icons) and `ass
 | `images.png` | `Plugin.Maui.Spine.Images` (the Scanner original with its corner turned magenta and a picture glyph instead of the scan frame) |
 | `background-tasks.png` | `Plugin.Maui.Spine.BackgroundTasks` (the Scanner icon's corner in teal, with a clock glyph) |
 | `biometrics.png` | `Plugin.Maui.Spine.Biometrics` (the BackgroundTasks original with its corner turned violet and a padlock glyph instead of the clock; generated with PIL, a faint trace of the clock's disc remains at full size) |
+| `highlight.png` | `Plugin.Maui.Spine.Controls.Highlight` (the Biometrics original with its corner in an indigo-to-violet gradient and two four-point sparkles instead of the padlock; generated with PIL) |
 
 Package icons are 1254×1254; nuget.org wants at most 1 MB per icon, so the packed copies are resized to 256×256:
 
