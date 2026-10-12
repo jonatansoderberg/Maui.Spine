@@ -38,6 +38,11 @@
 		<PackageVersion Include="FirebaseAdmin" Version="3.6.0" />
 	</ItemGroup>
 
+	<!-- Plugin.Maui.Spine.Server.AI. IImageGenerator is experimental (MEAI001), suppressed inside the package. -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.Extensions.AI" Version="10.10.0" />
+	</ItemGroup>
+
 	<!-- Plugin.Maui.Spine.Push, Android only -->
 	<ItemGroup>
 		<PackageVersion Include="Xamarin.Firebase.Messaging" Version="125.1.1.1" />
@@ -76,10 +81,14 @@
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
 		<PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.5" />
+		<!-- The push sample server's AI providers: one line each in Program.cs. -->
+		<PackageVersion Include="Anthropic" Version="12.55.0" />
+		<PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
 	</ItemGroup>
 
 	<!-- Tests -->
 	<ItemGroup>
+		<PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.8" />
 		<PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.10.0" />
 		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
 		<PackageVersion Include="xunit" Version="2.9.3" />

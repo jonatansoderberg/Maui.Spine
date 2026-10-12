@@ -1,5 +1,10 @@
+using Anthropic;
+using MauiSpinePushNotificationsSampleApp.Server;
+using Microsoft.Extensions.AI;
+using OpenAI;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Server;
+using Plugin.Maui.Spine.Server.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,10 +44,78 @@ builder.Services.AddSpinePushNotifications(o =>
     o.Authenticate = _ => ValueTask.FromResult(true);
 });
 
+// AI features: the providers are one line each, everything else (features, models, prices, budgets) is the "Ai"
+// section of appsettings.Development.json. Usage is kept in memory, so budgets reset with the server.
+builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
+{
+    ai.Chat("demo", (_, _) => new DemoChatClient());
+    ai.Chat("anthropic", (p, model) => new AnthropicClient { ApiKey = p["ApiKey"] }.AsIChatClient(model));
+    ai.Chat("openai", (p, model) => new OpenAIClient(p["ApiKey"]).GetChatClient(model).AsIChatClient());
+    ai.Image("openai", (p, model) => new OpenAIClient(p["ApiKey"]).GetImageClient(model).AsIImageGenerator());
+    ai.UseInMemoryUsageStore();
+
+    // The report shows every caller's spending. A sample on a laptop shows it to the laptop only.
+    ai.AuthorizeReport = request => ValueTask.FromResult(request.HttpContext.Connection.RemoteIpAddress is { } ip && System.Net.IPAddress.IsLoopback(ip));
+
+    // A real server would push this to the owner with IPushSender; the sample logs it.
+    ai.OnBudgetThreshold = (alert, services, _) =>
+    {
+        services.GetRequiredService<ILogger<Program>>().LogWarning("AI budget: {Alert}", alert);
+        return Task.CompletedTask;
+    };
+});
+
 var app = builder.Build();
 
 // PUT and DELETE /push/installations/{id} — what the app registers through.
 app.MapSpinePushNotifications("/push");
+
+// POST /ai/features/{name} for exposed features (Assistant), and GET /ai/usage for the report.
+app.MapSpineAI("/ai");
+
+/// A feature the server owns: the app sends facts, the server writes the prompt. The caller is whoever the request
+/// is for, so the per-installation limits apply here as they do on the exposed route.
+app.MapPost("/sample/summary", async (SummaryRequest request, HttpRequest http, IAIFeatures ai, CancellationToken cancellationToken) =>
+{
+    var caller = await ai.IdentifyAsync(http);
+    if (ai.Chat(request.Feature ?? "Summary", caller) is not { } summary)
+        return Results.NotFound();
+
+    try
+    {
+        var answer = await summary.GetResponseAsync(
+            [
+                new ChatMessage(ChatRole.System, "Sammanfatta punkterna i en mening på svenska. Lägg inte till något."),
+                new ChatMessage(ChatRole.User, string.Join('\n', request.Facts.Select(f => $"- {f}"))),
+            ],
+            cancellationToken: cancellationToken);
+
+        return Results.Ok(new { answer.Text, answer.Usage });
+    }
+    catch (AIFeatureException e)
+    {
+        return e.ToResult();
+    }
+});
+
+/// One picture from the Picture feature, as PNG.
+app.MapPost("/sample/picture", async (PictureRequest request, HttpRequest http, IAIFeatures ai, CancellationToken cancellationToken) =>
+{
+    if (ai.Image("Picture", await ai.IdentifyAsync(http)) is not { } painter)
+        return Results.NotFound();
+
+    try
+    {
+        var result = await painter.GenerateImagesAsync(request.Prompt, cancellationToken: cancellationToken);
+        return result.Contents.OfType<DataContent>().FirstOrDefault() is { } image
+            ? Results.File(image.Data.ToArray(), image.MediaType)
+            : Results.Problem("The provider answered without a picture.");
+    }
+    catch (AIFeatureException e)
+    {
+        return e.ToResult();
+    }
+});
 
 /// Sends one message and answers with what happened per installation.
 app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushNotificationsOptions options, CancellationToken cancellationToken) =>
@@ -234,6 +307,13 @@ static LiveActivityLayout Layout(SendRequest request) => new()
     CompactTrailing = W.Text($"{DateTimeOffset.Now:HH:mm}").Caption(),
     Minimal = W.Icon("bell"),
 };
+
+/// <param name="Facts">The points to summarise.</param>
+/// <param name="Feature">Summary (demo) by default; Story (Anthropic) or Quick (OpenAI) once their keys are set.</param>
+internal sealed record SummaryRequest(string[] Facts, string? Feature);
+
+/// <param name="Prompt">What to paint.</param>
+internal sealed record PictureRequest(string Prompt);
 
 /// <param name="Kind">alert, silent, liveactivity or widget.</param>
 /// <param name="TargetKind">tags (the default) or installation.</param>

@@ -18,6 +18,7 @@
       "src\\Plugin.Maui.Spine.PushNotifications\\Plugin.Maui.Spine.PushNotifications.csproj",
       "src\\Plugin.Maui.Spine.Scanner\\Plugin.Maui.Spine.Scanner.csproj",
       "src\\Plugin.Maui.Spine.Server\\Plugin.Maui.Spine.Server.csproj",
+      "src\\Plugin.Maui.Spine.Server.AI\\Plugin.Maui.Spine.Server.AI.csproj",
       "src\\Plugin.Maui.Spine.Svg\\Plugin.Maui.Spine.Svg.csproj",
       "src\\Plugin.Maui.Spine.Svg.Icons\\Plugin.Maui.Spine.Svg.Icons.csproj",
       "src\\Plugin.Maui.Spine.Widgets\\Plugin.Maui.Spine.Widgets.csproj",
@@ -29,6 +30,7 @@
       "tests\\Plugin.Maui.Spine.Core.Tests\\Plugin.Maui.Spine.Core.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Images.Tests\\Plugin.Maui.Spine.Images.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Server.Tests\\Plugin.Maui.Spine.Server.Tests.csproj",
+      "tests\\Plugin.Maui.Spine.Server.AI.Tests\\Plugin.Maui.Spine.Server.AI.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Svg.Tests\\Plugin.Maui.Spine.Svg.Tests.csproj"
     ]
   }

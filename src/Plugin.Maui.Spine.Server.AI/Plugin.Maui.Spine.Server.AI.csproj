@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>Plugin.Maui.Spine.Server.AI</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Server.AI</RootNamespace>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<!-- IImageGenerator is experimental in Microsoft.Extensions.AI. Apps that touch the type see the warning themselves. -->
+		<NoWarn>$(NoWarn);MEAI001</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>AI on the server for Spine apps: named features with the provider in configuration, every token and image metered and priced, budgets and per-user limits, and endpoints for ASP.NET Core and Azure Functions. Built on Microsoft.Extensions.AI.</Description>
+		<SpineIcon>server-ai.png</SpineIcon>
+		<PackageTags>$(PackageTags);ai;llm;microsoft-extensions-ai;budgets;metering;aspnetcore;azure-functions</PackageTags>
+	</PropertyGroup>
+
+	<!-- The same single framework reference as Plugin.Maui.Spine.Server: it serves ASP.NET Core and the Functions isolated worker. -->
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.AI.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Azure.Data.Tables" />
+		<PackageReference Include="Microsoft.Extensions.AI" />
+	</ItemGroup>
+
+</Project>
