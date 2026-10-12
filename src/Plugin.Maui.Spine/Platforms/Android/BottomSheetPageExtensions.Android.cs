@@ -24,6 +24,9 @@ internal static class BottomSheetPageExtensions
 
     internal static event Action? ActiveBottomSheetChanged;
 
+    /// <summary>The open sheet's window, which <see cref="SpineScreen.ExcludeFromCapture"/> marks secure too.</summary>
+    internal static Android.Views.Window? ActiveSheetWindow { get; private set; }
+
     internal static Task<bool> DismissActiveBottomSheet() => ActiveBottomSheetDismiss?.Invoke() ?? Task.FromResult(false);
 
     internal static async Task<bool> DisplayBottomSheet(
@@ -275,9 +278,14 @@ internal static class BottomSheetPageExtensions
             {
                 region?.SetSheetOverhang(0);
                 blurOverlay?.Remove();
+                ActiveSheetWindow = null;
             };
 
+            ActiveSheetWindow = dialog.Window;
+            SpineScreen.Secure(dialog.Window);
+
             dialog.Show();
+            SpineOverlay.HoldUnder(dialog.Window);
 
             // ── Material container shape ─────────────────────────────────────────
             // Apply rounded top corners directly to the design_bottom_sheet container

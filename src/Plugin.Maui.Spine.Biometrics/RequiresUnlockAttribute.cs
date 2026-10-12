@@ -35,4 +35,11 @@ public sealed class RequiresUnlockAttribute : GuardAttribute
 
     /// <summary>Asks every time, even right after an unlock. For something that cannot be undone.</summary>
     public bool Fresh { get; init; }
+
+    /// <summary>
+    /// On a page: covers it with the unlock screen when the app comes back after
+    /// <see cref="AppLockOptions.LockAfter"/> in the background while the page is on screen. The page stays
+    /// where it is, so its state is kept, and the screen has a Back button that leaves it instead.
+    /// </summary>
+    public bool Relock { get; init; }
 }

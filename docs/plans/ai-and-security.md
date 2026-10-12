@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (#506 and #507 merged; next is #508; see Verification backlog)
+**Last updated:** 2026-10-12 (#508 in review, the last step of phase 1; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -45,7 +45,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | Package | Kind | Issues | Proposal | Status |
 |---|---|---|---|---|
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
-| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | #507 done (#527), #508 next |
+| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | #507 done (#527), #508 in review (#529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509 | [highlight](../proposals/spine-highlight.md) | Proposal |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Proposal |
@@ -99,7 +99,7 @@ The order follows value against risk. Steps in different phases can run in paral
 |---|---|---|---|---|---|---|
 | 1.1 | Core navigation guard and command guard | #506 | 0.2 | Done | #526 | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links. Guarded tabs on Android and Windows show an unlock cover (Q5). |
 | 1.2 | `IBiometricAuth`, `[RequiresUnlock]` on pages and commands, `Unlock.Command`, `RequireAsync` | #507 | 1.1 | Done | #527 | |
-| 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | Ready | | |
+| 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | In review | #529 | The core gets `SpineOverlay` and `SpineScreen`. |
 
 ### Phase 2: AI on the server and in the app
 
@@ -151,8 +151,12 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 1.2 (#507) | Touch ID on a Mac (Mac Catalyst) | A Mac with Touch ID | Showcase Biometrics page on Mac Catalyst |
 | 1.2 (#507) | Fingerprint on Android: `BIOMETRIC_WEAK` with an enrolled finger | An emulator with a fingerprint enrolled in Settings (needs a screen lock), then `adb emu finger touch 1` | Scratch tabbed app or Showcase |
 | 1.2 (#507) | The lock-out message after too many failed attempts | Simulator: several `notifyutil -p com.apple.BiometricKit_Sim.pearl.nomatch`; Android: repeated wrong fingerprints | Showcase Biometrics page, Unlock button |
-| 1.2 (#507) | A guarded root page (`CanCancel = false`): the "Locked" alert keeps asking until unlocked | Simulator | A scratch app whose first page has `[RequiresUnlock]` |
 | 1.2 (#507) | `WhenUnavailable = Deny` shows its message on a device without a screen lock | Android emulator without a lock | Scratch app with `UseSpineBiometrics(o => o.WhenUnavailable = UnavailablePolicy.Deny)` |
+| 1.3 (#508) | Windows at run time: `WDA_EXCLUDEFROMCAPTURE` on a `[PrivacyShield]` page, the app lock after a minimise and after hiding to the tray (the `AppWindow.Changed` watcher), the lock screen's popup over a sheet's popup and its size when the window is resized | A Windows machine with Hello | Showcase Biometrics page: turn on the app lock, open the Statement page, try the Snipping Tool, minimise and restore |
+| 1.3 (#508) | Mac Catalyst: the lock screen and Touch ID after a minimise. The minimise itself was seen to count (the clock's stop time set and cleared), but the cover and the prompt were not run, so as not to put a Touch ID prompt on the owner's screen | The owner at a Mac with Touch ID | Showcase on Mac Catalyst, app lock on, minimise and restore |
+| 1.3 (#508) | `PrivacyShield(CoverWhileCaptured = true)` on iOS 17 and later: the cover while the screen is recorded or mirrored. `simctl io recordVideo` does not set the scene's capture state | An iPhone | The Statement page, then screen recording from Control Center |
+| 1.3 (#508) | Android before API 30: the device credential is an activity of its own, so the app stops during the prompt. The app lock should not lock again after the PIN | An API 28 or 29 emulator with a PIN | Showcase, app lock on, return from the background and unlock with the PIN |
+| 1.3 (#508) | A `Relock` page in a sheet: Back on the lock screen closes the sheet (`CanGoBack` is true for a sheet's page) | Simulator | A scratch sheet page with `[RequiresUnlock(…, Relock = true)]` |
 
 **Test recipes that worked**
 - **Face ID in the iOS simulator.**
@@ -163,6 +167,12 @@ These are behaviours that are merged but have not been seen working. Take one wh
   - Type it in the prompt with `adb shell input text 1234` and `input keyevent 66`.
   - Clear it afterwards with `locksettings clear --old 1234`.
   - The prompt's window blocks screenshots. Check `dumpsys window | grep mCurrentFocus` (it reads `BiometricPrompt`) and `uiautomator dump` instead.
+- **The app switcher in the iOS simulator.** Press Home (the simulator tool's `button HOME`), then a `touch_path` from (201, 872) up to about y = 600 with two 400 ms holds at the end opens the app switcher on an iPhone 17. Tap the card to return.
+- **Android capture.**
+  - `adb exec-out screencap -p` comes out black for secure windows.
+  - `dumpsys window windows` lists `SECURE` in each window's `fl=`, sheet dialogs included, and the windows top first.
+  - The overview's card is live when opened straight from the app. Go home first, then press `KEYCODE_APP_SWITCH` (187) to see the stored thumbnail.
+- **Mac Catalyst lifecycle.** The Showcase harness reads commands from stdin when the app is started with `open -W --stdin <fifo> --stdout <file>` (LaunchServices). Started from the binary directly, no scene events came at all. `NSApplication.sharedApplication.windows` holds status-bar windows too, so pick the `UINSWindow` before `miniaturize:`. Log `UIApplication.ConnectedScenes[].ActivationState` to see what UIKit reports.
 - **Tabs.** The Showcase has no tabs. Use a scratch MAUI app outside the repo with these settings:
   - the repo's `global.json` copied next to it
   - `Microsoft.Maui.Controls` pinned to the repo's version (10.0.50)
@@ -201,6 +211,13 @@ Newest last. Each entry is dated and says who decided.
   - Q26: background audio is opt-in.
   - Q28: only OpenAI and Azure OpenAI in v1.
 - **2026-10-12, Claude (#507):** `Xamarin.AndroidX.Biometric` is pinned at 1.1.0.30, the last build on MAUI 10.0.50's AndroidX releases. Lift it together with MAUI. **Why:** later builds raise Activity, Fragment and Lifecycle above MAUI's pins (NU1608, binding drift as in #451).
+- **2026-10-12, owner (#508):**
+  - The core gets small public hooks (`SpineOverlay`, `SpineScreen`), not `InternalsVisibleTo` for the package.
+  - A `Relock` cover has a Back button that leaves the page without unlocking.
+  - `LockAfter` defaults to zero.
+- **2026-10-12, Claude (#508):** On Mac Catalyst MAUI follows the application's lifecycle and raises no `Window.Stopped` when the window is minimised: the scene goes to the background while the application stays active. The package watches the window's scene itself, and on Windows the `AppWindow`'s minimised and hidden state. **Why:** the owner's Q6 counts minimised time, and without it neither the app lock nor #507's forgetting worked on a Mac.
+- **2026-10-12, Claude (#508):** On Android a sheet that opens while a `SpineOverlay` shows is held invisible under it until the overlay goes. **Why:** showing the overlay's dialog again to get back on top left two frames of the app's page in a recording.
+- **2026-10-12, Claude (#508):** `SpineOverlay` on Apple is a view on the window. It is raised again in the sheet's `ViewWillAppear` and when the window first becomes visible. **Why:** a recording showed a sheet sliding over the lock screen for half a second when it was raised straight after `PresentViewController`, and on a cold start the root view went in above it at `MakeKeyAndVisible`.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
@@ -301,6 +318,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-12:** #508 (app lock and privacy shield) in review as PR #529, the last step of phase 1. The core gets `SpineOverlay` and `SpineScreen`.
 - **2026-10-12:** #506 (core guards, PR #526) and #507 (Biometrics, PR #527) merged. Verification backlog added.
 - **2026-10-09:**
   - Plan written.

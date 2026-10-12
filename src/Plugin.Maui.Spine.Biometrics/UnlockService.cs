@@ -17,9 +17,12 @@ internal sealed class UnlockService(IBiometricAuth auth, SpineBiometricsOptions 
 
     public bool IsUnlocked => _unlockedAt is { } at && time.GetUtcNow() - at < options.UnlockValidFor;
 
+    /// <summary>Whether Spine's own prompt is showing; the app goes inactive, or on Android may stop, for it.</summary>
+    public bool IsPrompting => _pending is { IsCompleted: false };
+
     public event EventHandler? LockChanged;
 
-    /// <summary>Raised after a successful unlock, so the app can forget it when the window stops.</summary>
+    /// <summary>Raised after a successful unlock; the app lock's clock hears of it.</summary>
     public event EventHandler? Unlocked;
 
     public Task<bool> RequireAsync(string reason, bool fresh = false, CancellationToken cancellationToken = default)

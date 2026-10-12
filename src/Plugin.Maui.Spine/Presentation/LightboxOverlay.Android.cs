@@ -3,6 +3,7 @@ using Android.App;
 using Android.Views;
 using AndroidX.Core.View;
 using Microsoft.Maui.Platform;
+using Plugin.Maui.Spine.Core;
 
 namespace Plugin.Maui.Spine.Presentation;
 
@@ -48,6 +49,7 @@ internal sealed partial class LightboxOverlay
                 WindowCompat.GetInsetsController(window, decor)?.AppearanceLightStatusBars = false;
         }
 
+        SpineScreen.Secure(dialog.Window);
         dialog.Show();
         _dialog = dialog;
     }

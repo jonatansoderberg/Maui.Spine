@@ -1,6 +1,7 @@
 ﻿﻿using MauiBottomSheetPoc;
 using MauiSpineSampleApp.Resources.Styles;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Biometrics;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Svg;
 
@@ -66,6 +67,9 @@ public static class MauiProgram
                 fonts.AddFont("JosefinSans-Bold.ttf", "JosefinSansBold");
             });
 
+
+        // The Biometrics page's app lock, behind the page's own switch.
+        builder.UseSpineBiometrics(o => o.AppLock(a => a.IsEnabled = () => Preferences.Get(MauiSpineSampleApp.Pages.Biometrics.BiometricsPageViewModel.AppLockKey, false)));
 
         // The Guards page's own guard: a confirmation before a page opens or a command runs.
         builder.Services.AddSpineGuard<MauiSpineSampleApp.Pages.Guards.ConfirmAttribute, MauiSpineSampleApp.Pages.Guards.ConfirmGuard>();

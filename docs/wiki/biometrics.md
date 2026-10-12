@@ -10,6 +10,8 @@
 
 Each falls back to the device's passcode, PIN or password.
 
+The package also has an [app lock](#the-app-lock) for the whole app and a [privacy shield](#a-page-out-of-screenshots) for single pages.
+
 An unlock protects the user interface, not data at rest. Secrets bound to biometrics (Keychain access control, an Android Keystore `CryptoObject`) are not part of this package.
 
 ```bash
@@ -23,6 +25,7 @@ builder.UseSpineBiometrics(o =>
 {
     o.UnlockValidFor = TimeSpan.FromMinutes(5);      // default: one minute
     o.WhenUnavailable = UnavailablePolicy.Deny;      // default: Allow
+    o.AppLock();                                     // default: off
 });
 ```
 
@@ -104,7 +107,56 @@ One unlock counts for the whole app, for `UnlockValidFor` (one minute by default
 | The user cancels | The page does not open and the command does not run. No message. |
 | Too many failed attempts | The guard refuses, with a message to unlock the device with its passcode. |
 | No passcode and no biometric | With `WhenUnavailable = Allow` (the default) the guard lets it through: there is no lock to ask for. With `Deny` it refuses, with a message asking the user to set up a screen lock. |
-| A guarded root page | There is nothing to fall back to, so the app keeps asking behind a "Locked" alert until the user unlocks. |
+| A guarded root page | There is nothing to fall back to, so the [unlock screen](#the-app-lock) covers the app until the user unlocks. |
+
+## The app lock
+
+```csharp
+builder.UseSpineBiometrics(o => o.AppLock(a =>
+{
+    a.LockAfter = TimeSpan.FromMinutes(5);                  // default: zero, every return
+    a.LockOnLaunch = true;                                  // default
+    a.Reason = "Unlock Orientera";                          // default: "Unlock to continue"
+    a.IsEnabled = () => Preferences.Get("AppLock", false);  // the app's own setting; default: always on
+}));
+```
+
+The whole app sits behind an unlock screen when it starts and when it comes back after `LockAfter` in the background. The screen shows the app's name, the reason and an Unlock button, and asks at once. Cancel leaves the screen with its button. On Android, Back on the screen sends the app to the background.
+
+- **What counts as away.** The time starts when the window stops, not when it goes inactive. The Face ID prompt and Control Center make an iOS app inactive, and they do not lock it. On the desktop only time minimised counts. On Windows a window hidden to the tray also counts.
+- **One prompt.** The app lock goes through `IUnlock`, so its unlock counts for `[RequiresUnlock]` for `UnlockValidFor`. A guard that asks while the screen is up shares its prompt.
+- **Above everything.** The screen covers the header bar, the tab bar and an open sheet. A sheet that opens while it shows, for example from a notification, goes under it. The page underneath keeps its state.
+- **The app switcher.** While the app lock is on:
+  - iOS covers the app-switcher snapshot with a blurred cover and the app icon.
+  - Android 13 and later keeps the app's thumbnail out of the app switcher. Screenshots still work.
+- **No screen lock.** `WhenUnavailable` decides. With `Allow` the screen goes away without asking. With `Deny` it stays, with its message.
+
+### A page that locks again
+
+```csharp
+[NavigableRegion(Title = "Statement"), RequiresUnlock("Show the statement", Relock = true)]
+public partial class StatementPage { … }
+```
+
+With `Relock = true`, the unlock screen covers the page when the app comes back after `LockAfter` while the page is on screen. This works without the app lock too; `LockAfter` is then zero unless `AppLock` sets it. The page is not popped. The screen has a Back button that leaves the page without unlocking, except on a root page.
+
+## A page out of screenshots
+
+```csharp
+[NavigableRegion(Title = "Statement"), PrivacyShield]
+public partial class StatementPage { … }
+```
+
+While a `[PrivacyShield]` page is on screen, whether in the root region, in a sheet or under one, the app does what the platform allows:
+
+| | Screenshots and recordings | App switcher |
+|---|---|---|
+| iOS | **Cannot be blocked.** `PrivacyShield(CoverWhileCaptured = true)` covers the app while the screen is recorded, mirrored or shared (iOS 17 and later). | A blurred cover with the app icon goes over the window when the app goes inactive |
+| Android | Blocked: `FLAG_SECURE` on the activity, an open sheet and Spine's overlays | Blank thumbnail, from `FLAG_SECURE` |
+| Windows | Excluded from capture (`WDA_EXCLUDEFROMCAPTURE`, Windows 10 2004 and later) | Not applicable |
+| Mac Catalyst | Not blocked | No snapshot to hide |
+
+The shield only goes up while the page is on screen. Spine clears `FLAG_SECURE` and the capture exclusion only where it set them itself, so an app that sets them itself keeps its setting.
 
 ## Platforms
 
@@ -127,6 +179,10 @@ Without the key, iOS ends an app that asks for Face ID. If the check is skipped 
 In the iOS Simulator, turn on **Features › Face ID › Enrolled**. Then use **Matching Face** or **Non-matching Face** when the prompt shows.
 
 On the Android emulator, set a screen lock or enrol a fingerprint in Settings. `adb emu finger touch 1` then touches the sensor.
+
+To see the app lock and the shield:
+- **iOS Simulator.** Go home, then swipe up from the bottom edge and hold to open the app switcher. The card shows the cover.
+- **Android emulator.** On a `[PrivacyShield]` page, `adb exec-out screencap -p` comes out black. `adb shell dumpsys window windows` lists `SECURE` among the flags of the app's windows. To check the app-switcher thumbnail, go home first and then open the overview. Opened straight from the app, the card shows the app live.
 
 ## See also
 

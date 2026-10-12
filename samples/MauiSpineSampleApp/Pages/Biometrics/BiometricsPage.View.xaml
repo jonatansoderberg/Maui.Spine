@@ -48,6 +48,34 @@
             </Example.Code>
         </Example>
 
+        <Example Title="App lock"
+                 Summary="The whole app behind an unlock screen: at launch and on every return from the background, here behind the app's own switch. Unlocking it counts for [RequiresUnlock] too. On iOS the app switcher shows a blurred cover.">
+            <SpineSection>
+                <SpineRow Title="Lock the app">
+                    <SpineRow.Accessory>
+                        <Switch IsToggled="{Binding AppLock}" />
+                    </SpineRow.Accessory>
+                </SpineRow>
+            </SpineSection>
+            <Example.Code>
+                builder.UseSpineBiometrics(o =&gt; o.AppLock(a =&gt;
+                {
+                    a.LockAfter = TimeSpan.FromMinutes(5);
+                    a.IsEnabled = () =&gt; Preferences.Get("AppLock", false);
+                }));
+            </Example.Code>
+        </Example>
+
+        <Example Title="Privacy shield"
+                 Summary="[PrivacyShield] keeps the page out of screenshots and recordings on Android and Windows, and out of the app switcher everywhere. iOS cannot block a screenshot. Relock covers the page again after the app has been in the background.">
+            <Button Text="Open the statement" Command="{Binding OpenStatementCommand}" />
+            <Example.Code>
+                [NavigableRegion(Title = "Statement"), PrivacyShield,
+                 RequiresUnlock("Show the statement", Relock = true)]
+                public partial class StatementPage { … }
+            </Example.Code>
+        </Example>
+
     </SampleLayout>
 
 </SpinePage>

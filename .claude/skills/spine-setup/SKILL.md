@@ -20,7 +20,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 | Home-screen widgets, Live Activities, Control Center controls and Quick Settings tiles from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
 | Push and local notifications | `Plugin.Maui.Spine.PushNotifications` | `Plugin.Maui.Spine.Common` (not the core) |
 | Background work while the app is closed (`[BackgroundTask]`), widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` | the core and `Plugin.Maui.Spine.Common` |
-| Face ID, Touch ID, fingerprint or Windows Hello before a page or a command (`[RequiresUnlock]`, `IUnlock`) | `Plugin.Maui.Spine.Biometrics` | the core and `Plugin.Maui.Spine.Common` |
+| Face ID, Touch ID, fingerprint or Windows Hello before a page or a command (`[RequiresUnlock]`, `IUnlock`), an app lock, or a page kept out of screenshots (`[PrivacyShield]`) | `Plugin.Maui.Spine.Biometrics` | the core and `Plugin.Maui.Spine.Common` |
 | The push backend, in an ASP.NET Core or Azure Functions project | `Plugin.Maui.Spine.Server` | `Plugin.Maui.Spine.Common` |
 | `HeroCollectionView` (collapsing hero header) | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `Plugin.Maui.Spine.Svg` |
 | `AnimatedLabel` (marquee) | `Plugin.Maui.Spine.Controls.AnimatedLabel` | — |
@@ -205,7 +205,7 @@ An iOS app needs `NSFaceIDUsageDescription` in `Platforms/iOS/Info.plist`; the b
 <string>Unlocks your private pages with Face ID.</string>
 ```
 
-Android needs nothing (the AndroidX Biometric library brings `USE_BIOMETRIC`); Windows uses Windows Hello. Register nothing: `UseSpine` registers the package; `builder.UseSpineBiometrics(o => o.UnlockValidFor = TimeSpan.FromMinutes(5))` only to change the options. See https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/biometrics.md.
+Android needs nothing (the AndroidX Biometric library brings `USE_BIOMETRIC`); Windows uses Windows Hello. Register nothing: `UseSpine` registers the package; `builder.UseSpineBiometrics(o => o.UnlockValidFor = TimeSpan.FromMinutes(5))` only to change the options, and `o.AppLock(a => a.LockAfter = …)` to lock the whole app at launch and on return. See https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/biometrics.md.
 
 ### Background tasks
 
