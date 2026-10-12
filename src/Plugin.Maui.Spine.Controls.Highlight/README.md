@@ -1,6 +1,6 @@
 # Plugin.Maui.Spine.Controls.Highlight
 
-Highlights for any .NET MAUI view: a rim of moving colour while a model works on a card (`Edge`), rings that say "tap here" (`Pulse`), a sweep of light (`Sheen`), a point of light along the border (`Trace`) and a breathing halo (`Breathe`). Each is drawn by the platform's compositor above the view's content: Core Animation on Apple, an overlay drawable on Android, Composition on Windows. Under Reduce Motion each kind is still.
+Highlights for any .NET MAUI view, and spotlight tours: a rim of moving colour while a model works on a card (`Edge`), rings that say "tap here" (`Pulse`), a sweep of light (`Sheen`), a point of light along the border (`Trace`) and a breathing halo (`Breathe`). Each is drawn by the platform's compositor above the view's content: Core Animation on Apple, an overlay drawable on Android, Composition on Windows. Under Reduce Motion each kind is still.
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Controls.Highlight
@@ -18,6 +18,12 @@ The attached properties need no registration. `UseSpine()` registers `IHighlight
 
 ```csharp
 await highlights.PlayAsync(saveButton, HighlightKind.Sheen, HighlightRepeat.Times(2));
+
+// a tour: a view, a header bar action, a tab
+await highlights.TourAsync("onboarding",
+    (addButton, "Add an event"),
+    new TourStep(viewModel.FilterAction, "Filter by calendar"),
+    new TourStep(typeof(SettingsPage), "Your calendars live here"));
 highlights.Reset(); // "Show tips again"
 ```
 

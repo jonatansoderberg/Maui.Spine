@@ -134,6 +134,43 @@
             </CollectionView>
         </Example>
 
+        <Example Title="A tour"
+                 Summary="IHighlights.TourAsync dims everything but one target at a time and shows its tip. A tap anywhere goes on; Skip, or Back on Android, ends it. A target can be a view (scrolled into view first), a header bar action or a tab, and a step that cannot be shown is left out and reported.">
+            <VerticalStackLayout x:Name="TourDemo" Spacing="12">
+                <Button x:Name="TourAddButton" Text="Add" HorizontalOptions="Start" />
+                <Label x:Name="TourHidden" Text="Hidden" IsVisible="False" />
+                <Button Text="Take the tour" Command="{Binding TakeTourCommand}" CommandParameter="{x:Reference TourDemo}"
+                        HorizontalOptions="Start" />
+                <Label Text="{Binding TourLog}" FontSize="13" TextColor="{DynamicResource SecondaryText}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                var result = await highlights.TourAsync("onboarding",
+                    (addButton, "Add an event"),
+                    new TourStep(viewModel.FilterAction, "Filter by calendar"),
+                    new TourStep(typeof(SettingsPage), "Your calendars live here"));
+            </Example.Code>
+        </Example>
+
+        <Example Title="One spotlight in XAML"
+                 Summary="Highlight.Kind=&quot;Spotlight&quot; is a one-step tour of the view with its tip. It waits for a tap, and with a key it is shown once per install.">
+            <VerticalStackLayout Spacing="12">
+                <Border Padding="14,12" StrokeShape="RoundRectangle 12" StrokeThickness="1" HorizontalOptions="Start"
+                        Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
+                        Highlight.Kind="Spotlight" Highlight.IsActive="{Binding IsSpotlightOn}"
+                        Highlight.Key="showcase.highlight.spotlight" Highlight.Tip="Your streak lives here: seven days in a row.">
+                    <Label Text="🔥 7 days" TextColor="{DynamicResource CardText}" />
+                </Border>
+                <Button Text="Show the spotlight" Command="{Binding ShowSpotlightCommand}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;Border Highlight.Kind="Spotlight"
+                        Highlight.Tip="Your streak lives here"
+                        Highlight.Key="onboarding.streak"&gt;
+                    …
+                &lt;/Border&gt;
+            </Example.Code>
+        </Example>
+
         <Example Title="From code"
                  Summary="IHighlights.PlayAsync plays a highlight on any view and completes when it ends, for a hint that does not belong in the markup.">
             <VerticalStackLayout Spacing="12">

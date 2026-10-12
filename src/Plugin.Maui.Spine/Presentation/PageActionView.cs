@@ -114,6 +114,9 @@ internal sealed class PageActionView : ContentView
         set => SetValue(IconWidthProperty, value);
     }
 
+    // Held weakly: every view that can show an action, so SpineTargets can find the one that shows it.
+    static readonly List<WeakReference<PageActionView>> Live = [];
+
     readonly bool _glass;
     readonly bool _morph;
     Face _front;
@@ -128,11 +131,27 @@ internal sealed class PageActionView : ContentView
         _back = new Face(this) { Opacity = 0, IsVisible = false, InputTransparent = true };
 
         Content = new Grid { Children = { _back, _front } };
+        Live.Add(new WeakReference<PageActionView>(this));
 
         // Keep the colours in sync when the user switches the theme or the accent at runtime.
         SpineTheme.Track(this, () => ForEachFace(f => f.ApplyForeground()));
 
         _front.Apply(null);
+    }
+
+    /// <summary>The view on screen that shows <paramref name="action"/>, if any.</summary>
+    internal static PageActionView? Showing(PageAction action)
+    {
+        PageActionView? showing = null;
+        for (var i = Live.Count - 1; i >= 0; i--)
+        {
+            if (!Live[i].TryGetTarget(out var view))
+                Live.RemoveAt(i);
+            else if (ReferenceEquals(view.Action, action) && action.IsVisible && view.IsVisible && view.Opacity > 0 && view.IsLoaded)
+                showing ??= view;
+        }
+
+        return showing;
     }
 
     // The option is read here rather than passed down: HeaderBarView and PageActionView are built by

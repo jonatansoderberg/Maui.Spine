@@ -61,6 +61,10 @@ public static partial class SpineOverlay
                 platformWindow.SetBackgroundDrawable(new Android.Graphics.Drawables.ColorDrawable(Android.Graphics.Color.Transparent));
                 platformWindow.SetLayout(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent);
                 platformWindow.ClearFlags(WindowManagerFlags.DimBehind);
+
+                // Without it the system paints black bars behind the status and navigation bars, over the
+                // app, instead of letting the overlay draw there.
+                platformWindow.AddFlags(WindowManagerFlags.DrawsSystemBarBackgrounds);
                 WindowCompat.SetDecorFitsSystemWindows(platformWindow, false);
                 if (!OperatingSystem.IsAndroidVersionAtLeast(35))
                 {
