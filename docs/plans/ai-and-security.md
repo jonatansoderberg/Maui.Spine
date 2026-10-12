@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (step 2.1 `Server.AI` merged as #535; step 2.4 the `Spine.AI` client in review as #536; 2.3 and 4.2 Ready; see Verification backlog)
+**Last updated:** 2026-10-12 (step 2.4 the `Spine.AI` client merged as #536; step 2.5 split, and 2.5a `Controls.Markdown` in review as #538; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -48,9 +48,9 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #511 and #517 Ready |
-| `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | #512 in review (#536) |
-| `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Proposal |
-| `Plugin.Maui.Spine.Controls.Chat` | New | #513 | [ai §8](../proposals/spine-ai.md) | Proposal |
+| `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Done (#536) |
+| `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | #513 in review (#538) |
+| `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Waiting (on #513) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication` | New | #519 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
@@ -68,7 +68,7 @@ graph LR
   AUTH --> GM[#521 Google and Microsoft]
   SA --> GM
   AUTH --> PK[#522 Passkeys]
-  MD[Controls.Markdown] --> CHAT
+  MD[#513 Controls.Markdown] --> CHAT
   AI[#510 Server.AI] --> ASSET[#511 Generated assets]
   AI --> CL[#512 Spine.AI client]
   AI --> RT[#517 Realtime sessions]
@@ -78,7 +78,7 @@ graph LR
   HL[#509 Highlight] --> SPOT[#530 Spotlight and tours]
   HL --> EDGE[#531 Window edge glow]
   EDGE -.optional.-> VO
-  CHAT[#513 Chat control] -.optional.-> VO
+  CHAT[#537 Chat control] -.optional.-> VO
   SA -.user identity.-> AI
 ```
 
@@ -86,7 +86,7 @@ graph LR
 
 ## Steps
 
-The order follows value against risk. Steps in different phases can run in parallel when their dependencies allow it. Highlight (#509) and the chat control (#513) have no hard dependencies.
+The order follows value against risk. Steps in different phases can run in parallel when their dependencies allow it. Highlight (#509) and the Markdown view (#513) have no hard dependencies; the chat control (#537) follows #513.
 
 ### Phase 0: proposals and issues
 
@@ -110,8 +110,9 @@ The order follows value against risk. Steps in different phases can run in paral
 | 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | Done | #535 | Signed-in user from #520 when present, otherwise the installation id with tighter limits (Q19). Azure storage inside the package (Q20). |
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
 | 2.3 | Generated-asset pipeline | #511 | 2.1 | Ready | | Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
-| 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | In review | #536 | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
-| 2.5 | `Controls.Markdown`, then `Controls.Chat` | #513 | 0.2 | Ready | | Markdown is its own package (Q21). Can start any time. |
+| 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Done | #536 | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
+| 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | In review | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
+| 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | Waiting | | Renders answers with `MarkdownView`, and uses its `Rendered` event to keep the last row in view. |
 | 2.6 | On-device `IChatClient` spike, Android and Windows | #514 | none | Ready | | Outside this repo. Contribute upstream to dotnet/maui-labs if it works. |
 
 ### Phase 3: highlight (done 2026-10-12)
@@ -175,6 +176,8 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.1 (#510) | The Anthropic adapter: what it fills in `UsageDetails` (cached input, and cache writes in `AdditionalCounts`), streaming usage, and `Reasoning` mapped to its thinking mode. Orientera's `Story__ApiKey` answered 401 on 2026-10-12, so only OpenAI was called | A valid Anthropic key in the push sample server's user secrets (`Ai:Providers:anthropic:ApiKey`) | The sample server's `send.http`, `/sample/summary` with `"feature": "Story"`, then `GET /ai/usage` |
 | 2.1 (#510) | Azure Functions on Azure, not only under the local Functions host: SSE through the Azure front end without buffering, `AzureWebJobsStorage` as the usage store, the report | A deployed Functions app (Orientera, step 2.2) | Stream an exposed feature with `curl -N` and check the events arrive one at a time |
 | 2.1 (#510) | `AzureTableAIUsageStore` against a real storage account (checked against Azurite only), and response caching over Redis | Orientera's storage account after step 2.2 | Two calls, the report, and a cached repeat |
+| 2.5a (#513) | Screen readers cannot open a link inside text: the paragraph's hint lists the links, and the tap is on a span (the owner's v1 choice). Also not heard yet: VoiceOver and TalkBack on headings, task markers and the Copy button | VoiceOver on a phone, TalkBack on the emulator | Showcase Markdown page |
+| 2.5a (#513) | Windows and Mac Catalyst at run time (only compiled and built): spans with a background and gestures, the code block's horizontal scroll, the table grid | A Windows machine; the Mac app | Showcase Markdown page |
 | 2.4 (#512) | Windows at run time (only compiled), and Mac Catalyst at run time (only built) | A Windows machine; the Mac app | Showcase AI client page against the push sample server |
 | 2.4 (#512) | A release build on a phone over the network: cleartext is off there, and the client was checked only against `http://localhost` in Debug | A phone and an HTTPS backend (Orientera after step 2.2) | Any feature through `https` |
 
@@ -288,6 +291,12 @@ Newest last. Each entry is dated and says who decided.
 - **2026-10-12, Claude (#512):** A call cancelled through its token always ends in `OperationCanceledException`, whatever the HTTP handler throws. **Why:** on iOS, `NSUrlSessionHandler` ends a cancelled read with `TimeoutException`, and the Showcase's Stop button showed "The request timed out" (found with real taps in the simulator).
 - **2026-10-12, Claude (#512):** The fallback chain moves on for any failure before the first update, except the caller's cancellation, the server's refusals included. **Why:** with the server first and then the device, a spent budget or a rate limit should send the call to the device; with the device first, the server's answer is the one the caller sees.
 - **2026-10-12, Claude (#512):** The client shares push's installation id through one `SecureStorage` key, `SpineInstallation.IdKey` in `.Common`, rather than a reference to Spine.PushNotifications. **Why:** the server sees one id per installation, and an app with AI and no push pulls in no Firebase.
+- **2026-10-12, owner (#513):** Step 2.5 is split into #513 (`Controls.Markdown`) and #537 (`Controls.Chat`), Markdown first.
+- **2026-10-12, owner (#513):** In v1, links in text get only a hint for screen readers, and images in markdown are shown with their alt text as the description.
+- **2026-10-12, Claude (#513):** `KeepLineBreaks` is on by default. **Why:** chat answers and poems use single newlines as line breaks, and Apple Intelligence's haiku would otherwise have run together on one line. Text wrapped by hand turns it off.
+- **2026-10-12, Claude (#513):** A block's source, which the re-render compares, runs to the start of the next block, and for the last block to the end of the text. **Why:** Markdig's span stops one character short at the end of the text (an open fence's info string), so a growing code block would have kept a stale view. A test grows a whole document one character at a time and checks every kept block.
+- **2026-10-12, Claude (#513):** Every span carries its label's weight, family and size. **Why:** on iOS a span does not take its label's `FontAttributes`, and headings and table headers rendered in the regular weight.
+- **2026-10-12, Claude (#513):** Code blocks use word wrap inside a horizontal scroll, not `NoWrap`. **Why:** `NoWrap` gives a single line on iOS. Measured without a width limit, word wrap keeps every line whole.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---

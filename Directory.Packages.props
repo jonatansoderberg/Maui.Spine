@@ -18,6 +18,11 @@
 		<PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
 	</ItemGroup>
 
+	<!-- Plugin.Maui.Spine.Controls.Markdown: the parser, the package's own dependency (Q21). -->
+	<ItemGroup>
+		<PackageVersion Include="Markdig" Version="1.4.0" />
+	</ItemGroup>
+
 	<!-- Plugin.Maui.Spine.Barcodes -->
 	<ItemGroup>
 		<PackageVersion Include="ZXing.Net" Version="0.16.11" />

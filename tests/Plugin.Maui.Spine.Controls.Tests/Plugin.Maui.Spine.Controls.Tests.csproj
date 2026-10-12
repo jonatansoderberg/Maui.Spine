@@ -8,7 +8,7 @@
 
 	<!--
 		The control packages target only MAUI platforms, which a net10.0 test cannot reference.
-		RollingNumber, the mesh geometry and the highlight timing have no MAUI types, so they are compiled
+		RollingNumber, the mesh geometry, the highlight timing and the markdown model have no MAUI types, so they are compiled
 		in here directly.
 	-->
 	<ItemGroup>
@@ -22,9 +22,11 @@
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\HighlightCycles.cs" Link="HighlightCycles.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\SpotlightLayout.cs" Link="SpotlightLayout.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\DisplayCorners.cs" Link="DisplayCorners.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Markdown\MarkdownModel.cs" Link="MarkdownModel.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Markdig" />
 		<PackageReference Include="Microsoft.NET.Test.Sdk" />
 		<PackageReference Include="SkiaSharp" />
 		<PackageReference Include="xunit" />

@@ -264,6 +264,15 @@
       <DependentUpon>HeaderBarPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Markdown\MarkdownPage.View.xaml">
+      <DependentUpon>MarkdownPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Markdown\MarkdownPage.ViewModel.cs">
+      <DependentUpon>MarkdownPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\AIClient\AIClientPage.View.xaml">
       <DependentUpon>AIClientPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -714,6 +723,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\Plugin.Maui.Spine.Controls.Highlight.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\Plugin.Maui.Spine.Controls.MeshBackground.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Markdown\Plugin.Maui.Spine.Controls.Markdown.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />

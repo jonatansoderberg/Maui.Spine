@@ -83,6 +83,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
     private static IEnumerable<Item> SampleIndex =>
     [
         new("Bottom sheets", "Native sheets: heights, dim or blur, a guard against closing, a checkmark and an X in the header, a footer action", "sheet.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Sheets.SheetsPage>()),
+        new("Markdown", "Markdown drawn with native views: headings, lists, code with Copy, quotes, tables and images, themed by style options; a streamed answer rebuilds only its last block", "text.svg", "Plugin.Maui.Spine.Controls.Markdown", n => n.NavigateToAsync<Markdown.MarkdownPage>()),
         new("Parameters and results", "Hand a page typed data, and await what it returns", "return.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Results.ResultsPage>()),
         new("Page binding", "{PageCommand} and {PageBinding}: reach the page's view model from inside a row template", "link.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<PageBinding.PageBindingPage>()),
         new("Header bar", "Layout, large title, background, foreground and status bar: try any combination and see the code for it", "headerbar.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<HeaderBar.HeaderBarPage>()),

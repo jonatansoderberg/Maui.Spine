@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+
+		<AssemblyName>Plugin.Maui.Spine.Controls.Markdown</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Controls</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>MarkdownView for .NET MAUI: markdown drawn with native labels, lists, code blocks, quotes, tables and images, themed through style options, and re-rendered block by block so a streamed chat answer only rebuilds its last block. Parsed with Markdig.</Description>
+		<SpineIcon>markdown.png</SpineIcon>
+		<PackageTags>$(PackageTags);markdown;markdig;commonmark;text;controls</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<PackageReference Include="Markdig" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+	</ItemGroup>
+
+</Project>
