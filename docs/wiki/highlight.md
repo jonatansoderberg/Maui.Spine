@@ -47,6 +47,8 @@ Each kind is drawn by the platform, above the view's content and without a layou
 
 One cycle is 2.4 s for Edge, 1.6 s for Pulse, 1.5 s for Sheen (a 1.3 s sweep after a short pause), 1.8 s for Trace and 2.2 s for Breathe. Edge uses a spectrum by default; the other kinds use the app's accent (`SpineTheme.GetAccent`), and Sheen white.
 
+`Sheen` is not [Shimmer](shimmer.md): Shimmer sweeps over grey placeholders while data loads, with the content not there yet; Sheen sweeps once over a real, finished control to mark it as new.
+
 On Windows, Composition has no conic gradient, so Edge's rim is a turning linear gradient, and Edge's glow and Breathe's halo are a one-colour shadow.
 
 ## Properties
