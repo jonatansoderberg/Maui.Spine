@@ -1669,6 +1669,7 @@ EYE_FRAMES = 'eye-layers-2'      # the owner's layers: kairo-lid-half.png, kairo
 BLINK_FRAMES = []               # (layer, from, to): painted states shown as frames; the lids below replaced them
 LID_MATERIAL = 12              # index of the "lid" material
 LID_LAYER = 'kairo-lid-closed.png'
+LID_RETOUCH = 'hairfree-package/kairo-lid-texture-hairfree.png'   # the owner's retouch of the lid texture crop (RGB; the alpha is ours)
 
 LID_TARGETS = ['blink_%d' % k for k in range(1, 10)] + ['blink', 'squint']   # the lids' own mesh: closures 0.1..0.9, closed, squint
 LID_ROWS = (6, 18, 5)           # grid rows above the crease, crease to lash line, hanging lashes
@@ -1775,7 +1776,17 @@ def lid_sheets(work, zg, src):
                 a0 = base + r * cols + c_
                 idx += [a0, a0 + cols, a0 + 1, a0 + 1, a0 + cols, a0 + cols + 1]
         base += rows * cols
-    tex = Image.fromarray(np.dstack([a[y0:y1, x0:x1, :3], (alpha * cut)[y0:y1, x0:x1]]).astype(np.uint8), 'RGBA')
+    rgb = a[y0:y1, x0:x1, :3]
+    # The owner's retouch of this crop (hair residue inpainted from the skin round it), pixel for pixel
+    # if it is the same crop; a changed crop box would misplace it, so the sizes must match.
+    retouch = f'{work}/{LID_RETOUCH}'
+    if os.path.exists(retouch):
+        r = Image.open(retouch).convert('RGBA')
+        if r.size == (x1 - x0, y1 - y0):
+            rgb = np.asarray(r).astype(float)[..., :3]
+        else:
+            print(f'lid retouch {LID_RETOUCH} is {r.size}, the crop is {(x1 - x0, y1 - y0)}: not used')
+    tex = Image.fromarray(np.dstack([rgb, (alpha * cut)[y0:y1, x0:x1]]).astype(np.uint8), 'RGBA')
     P = np.concatenate(pos)
     nrm = np.tile([0.0, 0.0, 1.0], (len(P), 1))
     return dict(pos=P, nrm=nrm, uv=np.concatenate(uvs), idx=np.array(idx, np.uint32), material=LID_MATERIAL,
