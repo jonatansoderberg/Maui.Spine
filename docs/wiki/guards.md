@@ -2,7 +2,7 @@
 
 A **guard** asks something before Spine shows a page or runs a command: an unlock, a sign-in, a confirmation. You put an attribute on the page or the command, and a guard that you register answers for it. The page and its view model are not created until every guard has said yes, so a refused page costs nothing.
 
-The core has the mechanism and no guard of its own. Packages bring their guards: `Plugin.Maui.Spine.Biometrics` brings `[RequiresUnlock]` (#507), and `Plugin.Maui.Spine.Authentication` brings `[RequiresSignIn]` (#519). You can also write your own.
+The core has the mechanism and no guard of its own. Packages bring their guards: `Plugin.Maui.Spine.Biometrics` brings `[RequiresUnlock]` ([Biometrics](biometrics.md)), and `Plugin.Maui.Spine.Authentication` brings `[RequiresSignIn]` (#519). You can also write your own.
 
 ---
 

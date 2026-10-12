@@ -20,6 +20,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 | Home-screen widgets, Live Activities, Control Center controls and Quick Settings tiles from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
 | Push and local notifications | `Plugin.Maui.Spine.PushNotifications` | `Plugin.Maui.Spine.Common` (not the core) |
 | Background work while the app is closed (`[BackgroundTask]`), widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` | the core and `Plugin.Maui.Spine.Common` |
+| Face ID, Touch ID, fingerprint or Windows Hello before a page or a command (`[RequiresUnlock]`, `IUnlock`) | `Plugin.Maui.Spine.Biometrics` | the core and `Plugin.Maui.Spine.Common` |
 | The push backend, in an ASP.NET Core or Azure Functions project | `Plugin.Maui.Spine.Server` | `Plugin.Maui.Spine.Common` |
 | `HeroCollectionView` (collapsing hero header) | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `Plugin.Maui.Spine.Svg` |
 | `AnimatedLabel` (marquee) | `Plugin.Maui.Spine.Controls.AnimatedLabel` | — |
@@ -39,6 +40,7 @@ dotnet add package Plugin.Maui.Spine
 dotnet add package Plugin.Maui.Spine.Widgets            # if widgets
 dotnet add package Plugin.Maui.Spine.PushNotifications  # if notifications
 dotnet add package Plugin.Maui.Spine.BackgroundTasks    # if background tasks
+dotnet add package Plugin.Maui.Spine.Biometrics         # if unlock with Face ID, fingerprint or Windows Hello
 ```
 
 With central package management, add matching `<PackageVersion>` lines to `Directory.Packages.props` instead of versions in the csproj.
@@ -193,6 +195,17 @@ The extension's bundle id is `$(ApplicationId).SpineWidgets` (override with `Spi
 <key>NSCameraUsageDescription</key>
 <string>Scans codes with the camera.</string>
 ```
+
+### Biometrics
+
+An iOS app needs `NSFaceIDUsageDescription` in `Platforms/iOS/Info.plist`; the build stops with a message until it is there (`<SpineBiometricsCheckFaceIdUsage>false</SpineBiometricsCheckFaceIdUsage>` skips the check). The text is the app's own:
+
+```xml
+<key>NSFaceIDUsageDescription</key>
+<string>Unlocks your private pages with Face ID.</string>
+```
+
+Android needs nothing (the AndroidX Biometric library brings `USE_BIOMETRIC`); Windows uses Windows Hello. Register nothing: `UseSpine` registers the package; `builder.UseSpineBiometrics(o => o.UnlockValidFor = TimeSpan.FromMinutes(5))` only to change the options. See https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/biometrics.md.
 
 ### Background tasks
 
