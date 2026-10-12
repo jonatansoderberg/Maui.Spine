@@ -170,11 +170,12 @@ None. The owner answered both on 2026-10-12; see Decisions.
   - Streaming: the first word arrived after 400 ms.
   - Stop with real taps shows "Stopped.".
   - Story is `Empty`.
+- **The owner's iPhone 16 Pro (2026-10-12):** a Debug build signed with `Spine Showcase Development`. With the device first, Apple Intelligence answered on the phone ("locally works").
 - **Builds:** Mac Catalyst built. Windows compiled for the package with the flags from the instructions.
 - **Cleanup:** the installation id the client wrote was removed from `SecureStorage` on both, no usage was written, clean builds without the harness are installed, `adb reverse` is removed, and the emulator is shut down.
 
 ### Not verified (in the plan's Verification backlog)
-- **Apple Intelligence answering on a device.**
+- **Whether Apple Intelligence reports usage,** or the on-device counts are estimates.
 - **Windows and Mac Catalyst at run time.**
 - **A release build over HTTPS on a phone.**
 
