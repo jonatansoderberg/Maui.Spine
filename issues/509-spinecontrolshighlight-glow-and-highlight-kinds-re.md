@@ -150,6 +150,7 @@ None. The owner answered both on 2026-10-12; see Decisions.
   - `UntilTapped` on a Border (MAUI recogniser) and on a Button with a key
   - Remove animations on and off while running: still forms and back; Shimmer stops and restarts its wave through the core's `ReducedMotion`
   - background and back: animating
+- **The owner's iPhone 16 Pro:** Edge over Liquid Glass looks right (2026-10-12).
 - **Not verified:** see the plan's Verification backlog (Windows at run time, screen readers, Android before API 31, Mac Catalyst and an iPhone, a longer Android recording).
 
 ## Decisions
