@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as twenty NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as twenty-one NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -24,6 +24,7 @@ Spine ships as twenty NuGet packages built from this repository, one per project
 | Controls | `Plugin.Maui.Spine.Images` | Every `UriImageSource` through a memory and disk cache, decoded at the view's size; `IImageCache`; BlurHash placeholders. Its `net10.0` build holds only the disk cache | `.Common` |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and `BlurHash`; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
+| Server | `Plugin.Maui.Spine.Server.AI` | [AI on the server](ai-server.md): named features, metering, prices, budgets and limits on Microsoft.Extensions.AI | — |
 
 ```
 Common ◄──────────────┬──────────── Server
@@ -36,6 +37,8 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
   │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Highlight, Scanner ──► Barcodes
 PushNotifications                                    AnimatedLabel
   Images ──► Common
+
+Server.AI (on its own: Microsoft.Extensions.AI and Azure.Data.Tables, no Spine package)
 ```
 
 ## Which packages for which app
@@ -53,6 +56,7 @@ PushNotifications                                    AnimatedLabel
 | Lists of remote photos, prefetching, BlurHash placeholders | `Plugin.Maui.Spine.Images` (brings `.Common`; the core is not required) |
 | A server that computes BlurHashes on upload | `Plugin.Maui.Spine.Common` (`BlurHash.Encode`) |
 | The push backend | `Plugin.Maui.Spine.Server` in the server project (brings `.Common`) |
+| Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
 | A domain or test project that builds widget trees without MAUI | `Plugin.Maui.Spine.Common` |
 | A server or test project that encodes barcodes or reads a light grid | `Plugin.Maui.Spine.Barcodes` (its `net10.0` build has no MAUI) |
 
@@ -122,7 +126,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 | MAUI packages (core, Svg, Widgets, PushNotifications, BackgroundTasks, Biometrics, the controls, Scanner) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
 | `Plugin.Maui.Spine.Barcodes` | `net10.0` (encoding, `LightGridReader`) and the four MAUI frameworks (adding `BarcodeView`) |
 | `Plugin.Maui.Spine.Images` | `net10.0` (the disk cache only, for tests) and the four MAUI frameworks |
-| `Plugin.Maui.Spine.Svg.Icons`, `Plugin.Maui.Spine.Common`, `Plugin.Maui.Spine.Server` | `net10.0` |
+| `Plugin.Maui.Spine.Svg.Icons`, `Plugin.Maui.Spine.Common`, `Plugin.Maui.Spine.Server`, `Plugin.Maui.Spine.Server.AI` | `net10.0` |
 
 Platform minimums: Android API 21 (API 23 with `Plugin.Maui.Spine.PushNotifications`, which Firebase requires, and with `Plugin.Maui.Spine.Scanner`, which CameraX requires), iOS 15, Mac Catalyst 15, Windows 10 17763.
 

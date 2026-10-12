@@ -61,7 +61,7 @@
 
 ## Packages
 
-One version, twenty packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, twenty-one packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -85,6 +85,7 @@ One version, twenty packages, all on [nuget.org](https://www.nuget.org/packages?
 | Controls | `Plugin.Maui.Spine.Images` | Remote images that keep a list light: memory and disk cache, decoding at the view's size off the main thread, prefetching, BlurHash placeholders |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and the string store; no MAUI |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions |
+| Server | `Plugin.Maui.Spine.Server.AI` | AI on the server: named features with the provider in configuration, every token priced, budgets and per-user limits, endpoints for ASP.NET Core and Azure Functions |
 
 ---
 
@@ -222,6 +223,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Background tasks](docs/wiki/background-tasks.md) | `[BackgroundTask]` on BGTaskScheduler and JobScheduler: what runs when on each platform, status, requests, `spine.task` from a push, and the widgets' refresh as a task |
 | [Push (client)](docs/wiki/push-notifications.md) | Permission, tokens, tags, and the handler that sees every message |
 | [Push (server)](docs/wiki/push-notifications-server.md) | The backend half: register, tag expressions, APNs and FCM |
+| [AI on the server](docs/wiki/ai-server.md) | `AddSpineAI`: named features on Microsoft.Extensions.AI, providers in one line, metering and prices, budgets, rate limits, exposed features streamed as server-sent events, the usage report |
 | [HeroCollectionView](docs/wiki/hero-collection-view.md) | Collapsing sticky header, adaptive overlay |
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
 | [Calendar](docs/wiki/calendar.md) | Month calendar: swipe between months, year and decade pickers, ISO week numbers, marked days, theme and culture aware |
@@ -242,7 +244,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The twenty packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The twenty-one packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 

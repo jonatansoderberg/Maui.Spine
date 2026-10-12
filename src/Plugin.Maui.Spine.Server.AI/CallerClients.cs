@@ -131,18 +131,24 @@ internal sealed class CallerImageGenerator(IImageGenerator inner, AIFeature feat
 /// Microsoft.Extensions.AI's response cache with the feature's <c>Cache:Ttl</c>; its own keeps entries until the
 /// cache evicts them. Written in the format the base class reads.
 /// </summary>
-internal sealed class ExpiringCachingChatClient(IChatClient inner, IDistributedCache cache, TimeSpan ttl)
-    : DistributedCachingChatClient(inner, cache)
+internal sealed class ExpiringCachingChatClient : DistributedCachingChatClient
 {
-    private readonly DistributedCacheEntryOptions _entry = new() { AbsoluteExpirationRelativeToNow = ttl };
+    private readonly IDistributedCache _cache;
+    private readonly DistributedCacheEntryOptions _entry;
+
+    public ExpiringCachingChatClient(IChatClient inner, IDistributedCache cache, TimeSpan ttl) : base(inner, cache)
+    {
+        _cache = cache;
+        _entry = new() { AbsoluteExpirationRelativeToNow = ttl };
+    }
 
     protected override void Dispose(bool disposing) { }
 
     protected override Task WriteCacheAsync(string key, ChatResponse value, CancellationToken cancellationToken) =>
-        cache.SetAsync(key, JsonSerializer.SerializeToUtf8Bytes(value, JsonSerializerOptions.GetTypeInfo(typeof(ChatResponse))), _entry, cancellationToken);
+        _cache.SetAsync(key, JsonSerializer.SerializeToUtf8Bytes(value, JsonSerializerOptions.GetTypeInfo(typeof(ChatResponse))), _entry, cancellationToken);
 
     protected override Task WriteCacheStreamingAsync(string key, IReadOnlyList<ChatResponseUpdate> value, CancellationToken cancellationToken) =>
-        cache.SetAsync(key, JsonSerializer.SerializeToUtf8Bytes(value, JsonSerializerOptions.GetTypeInfo(typeof(IReadOnlyList<ChatResponseUpdate>))), _entry, cancellationToken);
+        _cache.SetAsync(key, JsonSerializer.SerializeToUtf8Bytes(value, JsonSerializerOptions.GetTypeInfo(typeof(IReadOnlyList<ChatResponseUpdate>))), _entry, cancellationToken);
 }
 
 /// <summary>

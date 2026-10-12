@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/510
 **Branch:** issue/510-spineserverai-named-ai-features-provider-plug-and
-**Status:** In Progress
+**Status:** In review
 
 This is step 2.1 of the roadmap [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505), tracked in `docs/plans/ai-and-security.md`. The design is in `docs/proposals/spine-ai.md` §3–§5 and §10.1, together with the owner's answers Q19, Q20, Q22 and Q25. The owner chose to keep the step in one issue and one PR rather than split it (2026-10-12).
 
@@ -169,13 +169,28 @@ None. The owner answered all three on 2026-10-12; see Decisions.
   - `gpt-image-1-mini`, one 1024×1024 picture. The adapter reports tokens (21 in, 4160 out).
   - A stream that curl cut short was recorded as incomplete and failed.
 
-### Left to do
-- **Functions through Aspire:** a scratch AppHost and Functions app in the shape of Orientera's (Aspire 13.4.6, Functions Worker 2.52.0, `Http.AspNetCore` 2.1.1, `global.json` 10.0.201).
-- **Anthropic:** the `Story__ApiKey` in Orientera's `local.settings.json` answers 401 "invalid x-api-key". A valid key is needed to test the adapter.
-- **The package icon:** `assets/logo-src/server-ai.png` and `assets/icons/server-ai.png` are missing, and a pack fails without them.
-- **Documentation:** the package README, `docs/wiki/ai-server.md`, `docs/wiki/packages.md`, the root `README.md`, the `spine-setup` skill and the proposal's status line.
-- **The plan:** step 3.3 Done, phase 3 done and the Highlight row Done, plus step 2.1, Decisions, the Verification backlog and Last updated.
-- **The PR.**
+- **Azure Functions under Aspire:** a scratch AppHost and Functions app outside the repo, in the shape of Orientera's, with Azurite as an Aspire container.
+  - SSE streams through the Functions host one update at a time (300 ms apart, as the source sent them, `Transfer-Encoding: chunked`).
+  - A real OpenAI stream ran end to end.
+  - The sixth call in a minute got 429 with `Retry-After: 60`.
+  - The report read from `AzureTableAIUsageStore` in the Aspire emulator.
+  - Everything was stopped and the container removed afterwards.
+- **The package icon:** `assets/logo-src/server-ai.png`, and `assets/icons/server-ai.png` at 256 px.
+- **Documentation:**
+  - the package `README.md` and `docs/wiki/ai-server.md`
+  - the rows in `docs/wiki/packages.md` and the root `README.md` (twenty-one packages)
+  - the `spine-setup` skill
+  - the proposal's status line
+- **The plan:**
+  - phase 3 is done (step 3.3 Done, #534; the Highlight row Done)
+  - step 2.1 is In review
+  - the Decisions, three Verification backlog rows and two test recipes
+
+### Not verified
+These are in the plan's Verification backlog:
+- **The Anthropic adapter:** the key in Orientera answered 401.
+- **Functions on Azure itself.**
+- **A real storage account and Redis.**
 
 ## Decisions
 
