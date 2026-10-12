@@ -30,11 +30,18 @@ public partial class SpineTabbedHostPage
             // which is where re-selection of the active tab is observable.
             controller.ShouldSelectViewController = (tabBarController, viewController) =>
             {
-                if (ReferenceEquals(tabBarController.SelectedViewController, viewController)
-                    && tabBarController.ViewControllers is { } vcs)
-                    OnTabReselected(Array.IndexOf(vcs, viewController));
+                if (tabBarController.ViewControllers is not { } vcs)
+                    return true;
 
-                return true;
+                var index = Array.IndexOf(vcs, viewController);
+
+                if (ReferenceEquals(tabBarController.SelectedViewController, viewController))
+                {
+                    OnTabReselected(index);
+                    return true;
+                }
+
+                return AllowTabTap(index);
             };
 
 #if IOS

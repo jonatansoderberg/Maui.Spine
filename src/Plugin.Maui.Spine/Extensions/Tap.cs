@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using Plugin.Maui.Spine.Services;
 
 namespace Plugin.Maui.Spine.Extensions;
 
@@ -160,7 +161,7 @@ internal sealed partial class TapState : IDisposable
             return;
 
         Haptics.Play(Haptics.GetOnTap(_view));
-        _command!.Execute(Tap.GetCommandParameter(_view));
+        CommandGuards.Execute(_command!, Tap.GetCommandParameter(_view));
     }
 
     public void Refresh()

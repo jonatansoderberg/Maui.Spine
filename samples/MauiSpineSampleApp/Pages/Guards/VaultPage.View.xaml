@@ -1,0 +1,21 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Guards.VaultPage"
+    x:TypeArguments="VaultPageViewModel"
+    x:DataType="VaultPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine">
+
+        <Example Title="Behind the guard"
+                 Summary="This page and its view model were created only after the guard said yes. Had it said no, nothing would have been built.">
+            <Label Text="The vault is open." FontSize="15" />
+            <Example.Code>
+                [NavigableRegion(Title = "Vault"), Confirm("Open the vault?")]
+                public partial class VaultPage { … }
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

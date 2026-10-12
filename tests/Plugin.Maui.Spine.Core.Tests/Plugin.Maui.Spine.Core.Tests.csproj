@@ -8,8 +8,8 @@
 
 	<!--
 		Plugin.Maui.Spine targets only MAUI platforms, which a net10.0 test cannot reference.
-		TaskState, the shortcut icon names, the menu model with ActionSheet, the tilt tracker, the search declaration
-		and the search records have no MAUI types, so they are compiled in here directly.
+		TaskState, the shortcut icon names, the menu model with ActionSheet, the tilt tracker, the search declaration,
+		the search records and the guards have no MAUI types, so they are compiled in here directly.
 	-->
 	<ItemGroup>
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\TaskState.cs" Link="TaskState.cs" />
@@ -27,6 +27,11 @@
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\TiltTracker.cs" Link="TiltTracker.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\Menu\MenuElements.cs" Link="Menu\MenuElements.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\Menu\ActionSheet.cs" Link="Menu\ActionSheet.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\Guards\GuardAttribute.cs" Link="Guards\GuardAttribute.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Core\Guards\IGuard.cs" Link="Guards\IGuard.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Services\GuardRunner.cs" Link="Guards\GuardRunner.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Services\CommandGuards.cs" Link="Guards\CommandGuards.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine\Services\SpineReadiness.cs" Link="Guards\SpineReadiness.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

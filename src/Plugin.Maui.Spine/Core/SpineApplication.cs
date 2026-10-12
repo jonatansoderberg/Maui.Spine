@@ -80,11 +80,13 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
 
     /// <summary>
     /// Raises <see cref="ViewModelBase.OnResumedAsync"/> on the shown pages when the window is
-    /// activated after a deactivation — so not on the first activation at launch.
+    /// activated after a deactivation — so not on the first activation at launch. The first
+    /// activation tells guards that the app can show a prompt.
     /// </summary>
     private static void HookResumed(Window window)
     {
         var deactivated = false;
+        var readiness = _services.GetRequiredService<SpineReadiness>();
 
         window.Deactivated += (_, _) =>
         {
@@ -95,6 +97,8 @@ public partial class SpineApplication<TNavigable> : Application where TNavigable
         };
         window.Activated += (_, _) =>
         {
+            readiness.MarkActivated();
+
             if (!deactivated)
                 return;
 

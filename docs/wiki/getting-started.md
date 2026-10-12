@@ -168,6 +168,7 @@ Spine auto-discovers pages via assembly scanning — no manual DI registration n
 | Passing parameters between pages | [Navigation Parameters](navigation-parameters.md) |
 | Returning results from pages | [Navigation Results](navigation-results.md) |
 | Header bar & page actions | [Page Actions](page-actions.md) |
+| Asking before a page or a command (unlock, sign-in) | [Guards](guards.md) |
 | App shortcuts & tray icon | [Shortcuts](shortcuts.md) |
 | Spotlight and searchable items | [Searchable items](searchable-items.md) |
 | Windows desktop options | [Windows Platform Options](windows-options.md) |

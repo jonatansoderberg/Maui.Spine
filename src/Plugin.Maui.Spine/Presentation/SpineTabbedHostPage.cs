@@ -49,6 +49,7 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
     private readonly BottomSheetCoordinator _sheets;
     private readonly TabBadgeService _badges;
     private readonly IThemeService _theme;
+    private readonly GuardRunner _guards;
     private TabSlot _activeSlot;
 
     /// <inheritdoc cref="ISpineHost.ActiveRegionChanged"/>
@@ -104,9 +105,11 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
         TabBadgeService badges,
         IThemeService theme,
         ResourceNameCache svgResources,
+        GuardRunner guards,
         IServiceProvider services)
     {
         _services = services;
+        _guards = guards;
         _options = options;
         _badges = badges;
         _theme = theme;
@@ -177,17 +180,7 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
         return MainThread.InvokeOnMainThreadAsync(() =>
         {
             if (!ReferenceEquals(CurrentPage, slot.Page))
-            {
-                _switchingInCode = true;
-                try
-                {
-                    CurrentPage = slot.Page;
-                }
-                finally
-                {
-                    _switchingInCode = false;
-                }
-            }
+                SwitchInCode(slot);
             else
                 return EnsureRealizedAsync(slot);
 
@@ -240,6 +233,23 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
             return;
 
         var previous = _activeSlot;
+
+        // A user's tap on a guarded tab. iOS refuses it before it happens (AllowTabTap); Android and Windows
+        // have already switched, so the tab is shown under the guard's cover until the guard passes, or the
+        // user is sent back when the guard has no cover.
+        var covered = false;
+        if (!_switchingInCode && GuardRunner.HasGuards(slot.Definition.PageType))
+        {
+            if (!TryCover(slot))
+            {
+                Dispatcher.Dispatch(() => SwitchInCode(previous));
+                AskThenSwitchAsync(slot).SafeFireAndForget();
+                return;
+            }
+
+            covered = true;
+        }
+
         _activeSlot = slot;
 
         if (!_switchingInCode)
@@ -248,8 +258,80 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
         if (previous.Realized)
             previous.RegionViewModel.InvokeOnDisappearing();
 
-        ActivateSlotAsync(slot).SafeFireAndForget();
+        if (covered)
+            UncoverWhenPassedAsync(slot).SafeFireAndForget();
+        else
+            ActivateSlotAsync(slot).SafeFireAndForget();
+
         ActiveRegionChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Whether a tap on the tab at <paramref name="index"/> may switch to it. A guarded tab is refused, and
+    /// switched to in code once its guards have passed. Used where the platform asks before switching (iOS).
+    /// </summary>
+    internal bool AllowTabTap(int index)
+    {
+        if (index < 0 || index >= _slots.Count)
+            return true;
+
+        var slot = _slots[index];
+        if (ReferenceEquals(slot, _activeSlot) || !GuardRunner.HasGuards(slot.Definition.PageType))
+            return true;
+
+        AskThenSwitchAsync(slot).SafeFireAndForget();
+        return false;
+    }
+
+    private async Task AskThenSwitchAsync(TabSlot slot)
+    {
+        if (await _guards.PassPageAsync(slot.Definition.PageType, GuardTrigger.Tab))
+            await SwitchToAsync(slot.Definition.PageType);
+    }
+
+    private void SwitchInCode(TabSlot slot)
+    {
+        _switchingInCode = true;
+        try
+        {
+            CurrentPage = slot.Page;
+        }
+        finally
+        {
+            _switchingInCode = false;
+        }
+    }
+
+    /// <summary>
+    /// Shows the cover of the tab's first guard that has one in place of the tab's page. The page is not
+    /// realized, or shown again, until the guards pass.
+    /// </summary>
+    private bool TryCover(TabSlot slot)
+    {
+        var context = new GuardContext(GuardTrigger.Tab, slot.Definition.PageType, null, CanCancel: true);
+
+        foreach (var (attribute, guard) in _guards.GuardsOf(slot.Definition.PageType))
+        {
+            if (guard is IGuardCover cover
+                && cover.CreateCover(attribute, context, () => UncoverWhenPassedAsync(slot)) is { } view)
+            {
+                slot.Page.Content = view;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private async Task UncoverWhenPassedAsync(TabSlot slot)
+    {
+        if (!await _guards.PassPageAsync(slot.Definition.PageType, GuardTrigger.Tab))
+            return;
+
+        slot.Page.Content = slot.Page.Region;
+
+        if (ReferenceEquals(slot, _activeSlot))
+            await ActivateSlotAsync(slot);
     }
 
     private async Task ActivateSlotAsync(TabSlot slot)

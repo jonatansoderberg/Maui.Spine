@@ -67,6 +67,9 @@ public static class MauiProgram
             });
 
 
+        // The Guards page's own guard: a confirmation before a page opens or a command runs.
+        builder.Services.AddSpineGuard<MauiSpineSampleApp.Pages.Guards.ConfirmAttribute, MauiSpineSampleApp.Pages.Guards.ConfirmGuard>();
+
         // The live-score demo's one game, shared by the Widgets and Live Activities pages and the widget.
         builder.Services.AddSingleton<MauiSpineSampleApp.Widgets.Hockey.LiveScore>();
 
