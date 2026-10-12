@@ -40,6 +40,21 @@ internal sealed record HighlightLook(
     public double Radius(double platformRadius) =>
         Math.Clamp(CornerRadius ?? platformRadius, 0, Math.Min(Size.Width, Size.Height) / 2);
 
+    /// <summary>
+    /// How much bolder Edge is drawn for a larger <see cref="Outset"/>: 1 up to the default 12, then in
+    /// proportion. The window's edge, whose outer half is off screen, needs the room.
+    /// </summary>
+    public double EdgeScale => Math.Max(1, Outset / 12);
+
+    /// <summary>Edge's rim width for an intensity or a level, 0 to 1.</summary>
+    public double EdgeRim(double strength) => Math.Max(1, 2.5 * strength) * Math.Sqrt(EdgeScale);
+
+    /// <summary>Edge's rim width for a caller's level, 0 to 1, read each frame.</summary>
+    public double EdgeRimForLevel(double level) => (1.5 + 4 * level) * Math.Sqrt(EdgeScale);
+
+    /// <summary>Edge's glow width before blurring.</summary>
+    public double EdgeGlowWidth => (2 + 5 * Intensity) * EdgeScale;
+
     /// <summary>The first colour: the one colour of every kind but Edge. Sheen's is white unless set.</summary>
     public Color Primary => Colors[0];
 

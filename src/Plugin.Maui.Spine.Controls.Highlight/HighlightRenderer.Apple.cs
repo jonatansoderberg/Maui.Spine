@@ -17,6 +17,8 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
 {
     // Tap's press overlay sits at 10 000, so a press still shows on a pulsing button.
     const float ZPosition = 9_000;
+    const string GlowName = "spine.edge.glow";
+    const string RimName = "spine.edge.rim";
     const double FadeSeconds = 0.25;
 
     readonly UIView? _host = platformView as UIView;
@@ -29,9 +31,10 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
         if (_host is null || (_root is not null && look.SameAs(_look)))
             return;
 
-        // A new size or colour while it shows: the new layers take over the running ones' phase, with no
-        // fade, so the change does not blink.
+        // A new size or colour while it shows: the new layers take over the running ones' phase, and their
+        // fade where it had got to, so the change does not blink.
         var replacing = _root is not null;
+        var shown = _root?.PresentationLayer?.Opacity ?? _root?.Opacity ?? 0;
         if (!replacing)
             _epoch = CAAnimation.CurrentMediaTime();
 
@@ -58,6 +61,8 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
         Anchor(root, _epoch);
         if (!replacing)
             root.AddAnimation(Fade(0, 1), "spine.highlight.fade");
+        else if (shown < 0.99f)
+            root.AddAnimation(Fade(shown, 1, FadeSeconds * (1 - shown)), "spine.highlight.fade");
         _host.Layer.AddSublayer(root);
         _root = root;
     }
@@ -85,6 +90,35 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
 
     public void Dispose() => Remove();
 
+    /// <summary>
+    /// Edge only: a level from 0 to 1 read on every frame. The glow's strength, the rim's opacity and its width
+    /// follow it, set without rebuilding or animating the layers.
+    /// </summary>
+    public void SetLevel(double level)
+    {
+        if (_root is not { } root || _look?.Kind != HighlightKind.Edge)
+            return;
+
+        CATransaction.Begin();
+        CATransaction.DisableActions = true;
+        root.RemoveAnimation("spine.highlight.still");
+        foreach (var layer in root.Sublayers ?? [])
+        {
+            if (layer.Name == GlowName)
+            {
+                layer.Opacity = (float)(0.15 + 0.85 * level);
+            }
+            else if (layer.Name == RimName)
+            {
+                layer.Opacity = (float)(0.4 + 0.6 * level);
+                if (layer.Mask is CAShapeLayer mask)
+                    mask.LineWidth = (nfloat)_look!.EdgeRimForLevel(level);
+            }
+        }
+
+        CATransaction.Commit();
+    }
+
     /// <summary>Whether any of the view is inside its window, not scrolled or moved out of it.</summary>
     public bool IsInWindow() =>
         _host?.Window is { } window
@@ -102,15 +136,15 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
     static void BuildEdge(CALayer root, HighlightLook look, double radius)
     {
         var size = look.Size;
-        var rim = Math.Max(1, 2.5 * look.Intensity);
+        var rim = look.EdgeRim(look.Intensity);
         var outset = look.Outset;
 
         // The glow: the same turning colours, seen through a blurred ring made once for this size.
         if (outset > 0 && look.Intensity > 0)
         {
             var glowFrame = new CGRect(-outset, -outset, size.Width + 2 * outset, size.Height + 2 * outset);
-            var glow = new CALayer { Frame = glowFrame, Opacity = (float)(0.85 * look.Intensity) };
-            if (BlurredRing(glowFrame.Size, outset, radius, 2 + 5 * look.Intensity) is { } ring)
+            var glow = new CALayer { Frame = glowFrame, Opacity = (float)(0.85 * look.Intensity), Name = GlowName };
+            if (BlurredRing(glowFrame.Size, outset, radius, look.EdgeGlowWidth) is { } ring)
             {
                 glow.Mask = new CALayer
                 {
@@ -124,7 +158,7 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
         }
 
         // The rim: inside the view's edge, as a border would be.
-        var rimLayer = new CALayer { Frame = root.Bounds };
+        var rimLayer = new CALayer { Frame = root.Bounds, Name = RimName };
         rimLayer.Mask = new CAShapeLayer
         {
             Frame = root.Bounds,
@@ -449,12 +483,12 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
     static CGPath RoundedRect(CGRect rect, double radius) =>
         UIBezierPath.FromRoundedRect(rect, (nfloat)Math.Clamp(radius, 0, Math.Min(rect.Width, rect.Height) / 2)).CGPath!;
 
-    static CABasicAnimation Fade(float from, float to) => new()
+    static CABasicAnimation Fade(float from, float to, double seconds = FadeSeconds) => new()
     {
         KeyPath = "opacity",
         From = NSNumber.FromFloat(from),
         To = NSNumber.FromFloat(to),
-        Duration = FadeSeconds,
+        Duration = seconds,
     };
 
     /// <summary>A value that swings between two ends and back once per cycle, for the still forms.</summary>

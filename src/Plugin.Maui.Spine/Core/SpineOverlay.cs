@@ -21,7 +21,11 @@ public static partial class SpineOverlay
     /// </summary>
     /// <param name="content">The view, laid out to fill the window. Give it a background to hide what is under it.</param>
     /// <param name="back">What Android's back button or gesture does while the view shows; <see langword="null"/> ignores it.</param>
-    public static IDisposable Show(View content, Action? back = null)
+    /// <param name="passTouches">
+    /// The view is decoration, such as a glow round the screen: touches and focus go to the app under it, screen
+    /// readers skip it, and a sheet that opens later is shown under it rather than held back.
+    /// </param>
+    public static IDisposable Show(View content, Action? back = null, bool passTouches = false)
     {
         var window = Application.Current?.Windows.FirstOrDefault();
         var context = window?.Handler?.MauiContext
@@ -29,17 +33,19 @@ public static partial class SpineOverlay
 
         window.Page?.AddLogicalChild(content);
 
-        var handle = new Handle(window, content, back);
+        var handle = new Handle(window, content, back, passTouches);
         handle.Attach(context);
         _shown.Add(handle);
         return handle;
     }
 
-    private sealed partial class Handle(Window window, View content, Action? back) : IDisposable
+    private sealed partial class Handle(Window window, View content, Action? back, bool passTouches) : IDisposable
     {
         private readonly Window _window = window;
         private readonly View _content = content;
         private readonly Action? _back = back;
+
+        public bool PassTouches { get; } = passTouches;
 
         public void Dispose()
         {

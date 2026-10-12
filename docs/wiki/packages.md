@@ -108,7 +108,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 
 | Hook | What it gives a package |
 |---|---|
-| `SpineOverlay.Show(view, back)` | A view over the whole window, sheets included (see [Guards](guards.md#the-whole-screen)) |
+| `SpineOverlay.Show(view, back, passTouches)` | A view over the whole window, sheets included (see [Guards](guards.md#the-whole-screen)); with `passTouches`, decoration that takes no touches, such as a glow |
 | `SpineScreen` | The pages on screen and a change event, when the app can first show something, keeping the window out of captures (see [Guards](guards.md#the-whole-screen)) |
 | `ReducedMotion.IsOn`, `ReducedMotion.Changed` | Reduce Motion, Remove animations or Animation effects off, and a weak event when it changes on iOS, Mac Catalyst and Android (Android's comes half a second late, once the app's own animator scale has followed) |
 | `SpineTargets.TryGetFrame(target, out frame)` | The frame of a view, a `PageAction`'s button or a tab's item in window coordinates, the ones an overlay lays out in |

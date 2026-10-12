@@ -45,6 +45,12 @@ internal sealed class Highlights : IHighlights
         }
     }
 
+    public IEdgeGlow AttachEdge(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        return new EdgeGlow(window);
+    }
+
     public bool HasSeen(string key) => HighlightKeys.HasSeen(key);
 
     public void MarkSeen(string key) => HighlightKeys.MarkSeen(key);

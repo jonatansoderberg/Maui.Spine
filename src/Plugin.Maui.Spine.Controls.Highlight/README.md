@@ -24,6 +24,10 @@ await highlights.TourAsync("onboarding",
     (addButton, "Add an event"),
     new TourStep(viewModel.FilterAction, "Filter by calendar"),
     new TourStep(typeof(SettingsPage), "Your calendars live here"));
+
+// a glow round the whole window, following a level such as a voice session's output
+using var edge = highlights.AttachEdge(window);
+edge.Intensity = () => voice.Frame.OutputLevel;
 highlights.Reset(); // "Show tips again"
 ```
 

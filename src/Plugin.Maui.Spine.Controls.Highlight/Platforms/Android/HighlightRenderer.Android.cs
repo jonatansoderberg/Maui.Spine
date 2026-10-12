@@ -36,9 +36,10 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
         if (_host is null || (_drawable is not null && look.SameAs(_look)))
             return;
 
-        // A new size or colour while it shows: the new drawable takes over the running one's phase, with no
-        // fade, so the change does not blink.
+        // A new size or colour while it shows: the new drawable takes over the running one's phase, and its
+        // fade where it had got to, so the change does not blink.
         var replacing = _drawable is not null;
+        var shown = _drawable?.Alpha ?? 0;
         if (!replacing)
             _epoch = Android.OS.SystemClock.UptimeMillis();
 
@@ -50,7 +51,7 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
         var height = _host.Height > 0 ? _host.Height : (int)(look.Size.Height * density);
         var drawable = new HighlightDrawable(look, width, height, density)
         {
-            Alpha = replacing ? 255 : 0,
+            Alpha = shown,
             Elapsed = TimeSpan.FromMilliseconds(Android.OS.SystemClock.UptimeMillis() - _epoch),
         };
 
@@ -71,7 +72,7 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
             _ticker.Start();
         }
 
-        if (!replacing)
+        if (shown < 255)
             _fade = Fade(drawable, 255, onEnd: null);
     }
 
@@ -93,6 +94,16 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
         }
 
         _fade = Fade(drawable, 0, onEnd: () => Remove(drawable, ticker));
+    }
+
+    /// <summary>Edge only: a level from 0 to 1 read on every frame, which the rim and the glow follow.</summary>
+    public void SetLevel(double level)
+    {
+        if (_drawable is not { } drawable || _look?.Kind != HighlightKind.Edge)
+            return;
+
+        drawable.EdgeLevel = level;
+        drawable.InvalidateSelf();
     }
 
     public void Dispose()
@@ -207,6 +218,9 @@ internal sealed class HighlightDrawable : Drawable
 
     public TimeSpan Elapsed { get; set; }
 
+    /// <summary>Edge's level from a caller, 0 to 1, or <see langword="null"/> for its own look.</summary>
+    public double? EdgeLevel { get; set; }
+
     /// <summary>The view whose overlay holds the drawable.</summary>
     public AView? Holder { get; set; }
 
@@ -271,7 +285,7 @@ internal sealed class HighlightDrawable : Drawable
 
     void DrawEdge(Canvas canvas)
     {
-        var rim = Dp(Math.Max(1, 2.5 * _look.Intensity));
+        var rim = EdgeLevel is { } level ? Dp(_look.EdgeRimForLevel(level)) : Dp(_look.EdgeRim(_look.Intensity));
         var colors = _look.Colors.Append(_look.Colors[0]).Select(color => (int)color.ToPlatform().ToArgb()).ToArray();
         var shader = new SweepGradient(_width / 2, _height / 2, colors, null);
         _matrix.Reset();
@@ -282,10 +296,10 @@ internal sealed class HighlightDrawable : Drawable
         {
             RoundRect(_edge, 0, _radius);
             _glow.SetStyle(Paint.Style.Stroke);
-            _glow.StrokeWidth = Dp(2 + 5 * _look.Intensity);
+            _glow.StrokeWidth = Dp(_look.EdgeGlowWidth);
             _glow.SetShader(shader);
             _glow.SetMaskFilter(new BlurMaskFilter(Math.Max(1, Dp(_look.Outset * 0.45)), BlurMaskFilter.Blur.Normal!));
-            _glow.Alpha = Alpha255(0.85 * _look.Intensity);
+            _glow.Alpha = Alpha255(EdgeLevel is { } glowLevel ? 0.15 + 0.85 * glowLevel : 0.85 * _look.Intensity);
             canvas.DrawPath(_edge, _glow);
         }
 
@@ -293,7 +307,7 @@ internal sealed class HighlightDrawable : Drawable
         _paint.SetStyle(Paint.Style.Stroke);
         _paint.StrokeWidth = rim;
         _paint.SetShader(shader);
-        _paint.Alpha = Alpha255(1);
+        _paint.Alpha = Alpha255(EdgeLevel is { } rimLevel ? 0.4 + 0.6 * rimLevel : 1);
         canvas.DrawPath(_edge, _paint);
         shader.Dispose();
     }
