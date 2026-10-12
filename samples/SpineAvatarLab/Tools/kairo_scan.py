@@ -1585,7 +1585,7 @@ class Glb:
         self.gltf["accessors"].append(acc); return len(self.gltf["accessors"]) - 1
 
     def sparse_vec3(self, delta):
-        nz = np.where(np.abs(delta).max(1) > 1e-7)[0].astype(np.uint32)
+        nz = np.where(np.abs(delta).max(1) > 5e-5)[0].astype(np.uint32)       # 0.05 crop px: the harmonic fields' tails, invisible
         acc = {"componentType": 5126, "count": len(delta), "type": "VEC3",
                "min": [float(x) for x in np.minimum(delta.min(0), 0)], "max": [float(x) for x in np.maximum(delta.max(0), 0)]}
         if len(nz):
@@ -1600,9 +1600,29 @@ class Glb:
         self.gltf["images"].append({"name": name, "mimeType": mime, "bufferView": self.view(data)})
         return len(self.gltf["images"]) - 1
 
+    @staticmethod
+    def weld(p):
+        """One vertex where faces share every attribute (position, normal, uv, skin, every morph): the
+        atlas-textured parts had three vertices per face, and the haired model went over the
+        container's 32 MiB."""
+        cols = [p['pos'], p['nrm'], p['uv']] + [p[k] for k in ('joints', 'weights') if p.get(k) is not None] + list(p.get('targets') or [])
+        key = np.ascontiguousarray(np.concatenate([np.asarray(c, np.float32).reshape(len(p['pos']), -1) for c in cols], 1))
+        _, first, inv = np.unique(key.view(np.dtype((np.void, key.dtype.itemsize * key.shape[1]))).ravel(), return_index=True, return_inverse=True)
+        if len(first) == len(key):
+            return p
+        q = dict(p)
+        for k in ('pos', 'nrm', 'uv', 'joints', 'weights'):
+            if p.get(k) is not None:
+                q[k] = np.asarray(p[k])[first]
+        if p.get('targets') is not None:
+            q['targets'] = [np.asarray(t)[first] for t in p['targets']]
+        q['idx'] = inv.reshape(-1)[np.asarray(p['idx']).astype(np.int64)].astype(np.uint32)
+        return q
+
     def mesh(self, name, prims, target_names=()):
         out = []
         for p in prims:
+            p = self.weld(p)
             prim = {"attributes": {"POSITION": self.accessor(p['pos'], "VEC3", 34962, True), "NORMAL": self.accessor(p['nrm'], "VEC3", 34962),
                                    "TEXCOORD_0": self.accessor(p['uv'], "VEC2", 34962)},
                     "indices": self.accessor(p['idx'].astype(np.uint32), "SCALAR", 34963), "material": p['material']}
