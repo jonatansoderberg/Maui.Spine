@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Highlight.Next">Next</s>
+  <s key="Spine.Highlight.Skip">Skip</s>
+  <s key="Spine.Highlight.Done">Done</s>
+  <s key="Spine.Highlight.Step">Step {0} of {1}</s>
+</strings>

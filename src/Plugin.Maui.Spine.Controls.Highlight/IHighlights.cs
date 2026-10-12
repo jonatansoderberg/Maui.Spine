@@ -6,12 +6,22 @@ namespace Plugin.Maui.Spine.Controls;
 /// </summary>
 /// <example>
 /// <code>
+/// await highlights.TourAsync("onboarding", (addButton, "Add an event"), new TourStep(FilterAction, "Filter by calendar"));
 /// await highlights.PlayAsync(saveButton, HighlightKind.Pulse, HighlightRepeat.Times(2));
 /// highlights.Reset(); // "Show tips again"
 /// </code>
 /// </example>
 public interface IHighlights
 {
+    /// <summary>
+    /// Spotlights each step in turn over the whole window: the rest is dimmed and a card shows the tip with
+    /// Skip and Next. A tap anywhere goes to the next step. A step whose target cannot be shown is left out
+    /// and reported in <see cref="TourResult.Missing"/>. Completing or skipping the tour marks
+    /// <paramref name="key"/> seen; it returns <see cref="TourOutcome.AlreadySeen"/> at once after that.
+    /// One tour runs at a time; a second waits for the first.
+    /// </summary>
+    Task<TourResult> TourAsync(string key, params IEnumerable<TourStep> steps);
+
     /// <summary>
     /// Plays a highlight on <paramref name="view"/> and completes when it ends by itself or by a tap. A
     /// <see cref="HighlightRepeat.Forever"/> run ends only when <paramref name="cancellationToken"/> is

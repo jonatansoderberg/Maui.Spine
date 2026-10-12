@@ -20,6 +20,7 @@
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\HighlightKind.cs" Link="HighlightKind.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\HighlightRepeat.cs" Link="HighlightRepeat.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\HighlightCycles.cs" Link="HighlightCycles.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\SpotlightLayout.cs" Link="SpotlightLayout.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -2,11 +2,17 @@ namespace Plugin.Maui.Spine.Controls;
 
 internal sealed class Highlights : IHighlights
 {
+    public Task<TourResult> TourAsync(string key, params IEnumerable<TourStep> steps)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        return Tours.RunAsync(key, [.. steps]);
+    }
+
     public async Task PlayAsync(View view, HighlightKind kind, HighlightRepeat repeat = default, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(view);
 
-        if (kind is HighlightKind.None or HighlightKind.Spotlight
+        if (kind is HighlightKind.None
             || (Highlight.GetKey(view) is { } key && HighlightKeys.HasSeen(key)))
         {
             return;

@@ -111,6 +111,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 | `SpineOverlay.Show(view, back)` | A view over the whole window, sheets included (see [Guards](guards.md#the-whole-screen)) |
 | `SpineScreen` | The pages on screen and a change event, when the app can first show something, keeping the window out of captures (see [Guards](guards.md#the-whole-screen)) |
 | `ReducedMotion.IsOn`, `ReducedMotion.Changed` | Reduce Motion, Remove animations or Animation effects off, and a weak event when it changes on iOS, Mac Catalyst and Android (Android's comes half a second late, once the app's own animator scale has followed) |
+| `SpineTargets.TryGetFrame(target, out frame)` | The frame of a view, a `PageAction`'s button or a tab's item in window coordinates, the ones an overlay lays out in |
 | `Tap.Executed` | Raised after a tap ran a view's `Tap.Command`: a way to react to taps without adding a second tap handler, which would take the tap from Tap on Android |
 | `ElementVisuals.Add(element, visual, order)` (Windows) | Composition visuals above an element's content, shared: an element takes one child visual, so Tap and other packages add theirs to one container in a fixed order |
 

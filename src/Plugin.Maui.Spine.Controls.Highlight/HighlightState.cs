@@ -1,3 +1,4 @@
+using AsyncAwaitBestPractices;
 using System.ComponentModel;
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Extensions;
@@ -10,13 +11,12 @@ namespace Plugin.Maui.Spine.Controls;
 /// </summary>
 internal sealed partial class HighlightState : IDisposable
 {
-    static bool _spotlightNoted;
-
     readonly View _view;
     HighlightRenderer? _renderer;
     HighlightClock? _clock;
     IDispatcherTimer? _timer;
     IDispatcherTimer? _lookAgain;
+    CancellationTokenSource? _spotlight;
     Window? _window;
     readonly List<VisualElement> _scrollers = [];
     bool _inWindow;
@@ -102,7 +102,7 @@ internal sealed partial class HighlightState : IDisposable
 
     bool Wanted =>
         !_disposed
-        && Kind is not (HighlightKind.None or HighlightKind.Spotlight)
+        && Kind is not HighlightKind.None
         && Highlight.GetIsActive(_view)
         && !_ended
         && !(Highlight.GetKey(_view) is { } key && HighlightKeys.HasSeen(key));
@@ -141,16 +141,16 @@ internal sealed partial class HighlightState : IDisposable
     /// <summary>The one place that decides what shows: start, resume, pause or stop the run.</summary>
     void Update()
     {
-        if (Kind == HighlightKind.Spotlight && !_spotlightNoted)
-        {
-            _spotlightNoted = true;
-            System.Diagnostics.Debug.WriteLine("[Spine] Highlight.Kind=\"Spotlight\" plays nothing yet: it comes with tours (#530).");
-        }
-
         if (!Wanted)
         {
             if (_clock is not null)
                 StopRun(animated: true);
+            return;
+        }
+
+        if (Kind == HighlightKind.Spotlight)
+        {
+            Spotlight();
             return;
         }
 
@@ -185,6 +185,40 @@ internal sealed partial class HighlightState : IDisposable
         _renderer!.Show(HighlightLook.For(_view, Kind));
         _clock.Resume(Now);
         ScheduleEnd();
+    }
+
+    /// <summary>
+    /// A spotlight is a one-step tour of the view. It waits for a tap whatever the repeat says: it covers the
+    /// window, so it must not go by itself or come back. A tour cut short by navigation plays again later.
+    /// </summary>
+    void Spotlight()
+    {
+        if (_spotlight is not null || !Showable || _renderer?.IsInWindow() != true)
+            return;
+
+        _spotlight = new CancellationTokenSource();
+        var token = _spotlight.Token;
+        RunSpotlightAsync(token).SafeFireAndForget();
+    }
+
+    async Task RunSpotlightAsync(CancellationToken token)
+    {
+        try
+        {
+            var result = await Tours.RunAsync(null, [new TourStep(_view, Highlight.GetTip(_view) ?? "")], token);
+            if (!token.IsCancellationRequested && result.Outcome is TourOutcome.Completed or TourOutcome.Skipped)
+            {
+                _spotlight = null;
+                _clock = new HighlightClock(null);
+                End(byTap: true);
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        _spotlight = null;
     }
 
     void ScheduleEnd()
@@ -236,6 +270,8 @@ internal sealed partial class HighlightState : IDisposable
 
     void StopRun(bool animated)
     {
+        _spotlight?.Cancel();
+        _spotlight = null;
         _timer?.Stop();
         _lookAgain?.Stop();
         _outSince = null;

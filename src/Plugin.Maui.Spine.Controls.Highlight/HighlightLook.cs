@@ -68,7 +68,7 @@ internal sealed record HighlightLook(
             ?? (theme == AppTheme.Dark ? Color.FromArgb("#7D9BFF") : Color.FromArgb("#2F5BEA"));
     }
 
-    static double? CornerRadiusOf(View view) => view switch
+    internal static double? CornerRadiusOf(View view) => view switch
     {
         Border { StrokeShape: Microsoft.Maui.Controls.Shapes.RoundRectangle shape } => shape.CornerRadius.TopLeft,
         Border { StrokeShape: Microsoft.Maui.Controls.Shapes.Ellipse } => double.MaxValue,

@@ -15,6 +15,9 @@ public partial class HighlightPageViewModel(IHighlights _highlights) : SampleVie
     /// <summary>The key of the one-off hint; "Show tips again" forgets it.</summary>
     public const string HintKey = "showcase.highlight.add";
 
+    const string TourKey = "showcase.highlight.tour";
+    const string SpotlightKey = "showcase.highlight.spotlight";
+
     [ObservableProperty]
     public partial bool IsSummarising { get; set; }
 
@@ -44,6 +47,12 @@ public partial class HighlightPageViewModel(IHighlights _highlights) : SampleVie
 
     [ObservableProperty]
     public partial string Log { get; set; } = "Nothing yet";
+
+    [ObservableProperty]
+    public partial string TourLog { get; set; } = "";
+
+    [ObservableProperty]
+    public partial bool IsSpotlightOn { get; set; }
 
     public IReadOnlyList<SyncRow> Rows { get; } = [.. Enumerable.Range(1, 30).Select(i => new SyncRow($"Album {i}") { IsSyncing = i % 4 == 1 })];
 
@@ -96,6 +105,35 @@ public partial class HighlightPageViewModel(IHighlights _highlights) : SampleVie
         Log = "PlayAsync completed";
     }
 
+    /// <summary>A tour across the page: a card far up, a button, the header's palette and a hidden view.</summary>
+    [RelayCommand]
+    private async Task TakeTour(View demo)
+    {
+        // The page's named views, found from the example that runs the tour.
+        View[] views = [demo.FindByName<View>("SummaryCard"), demo.FindByName<View>("TourAddButton"), demo.FindByName<View>("TourHidden")];
+
+        TourLog = "";
+        _highlights.Reset(TourKey);
+        var palette = PageActions.First(a => a.Svg == "palette.svg");
+
+        var result = await _highlights.TourAsync(TourKey,
+            new TourStep(views[0], "A card that a model works on. The tour scrolled it into view.") { Title = "Summaries" },
+            (views[1], "Add an event from here."),
+            new TourStep(palette, "Theme and accent live up here.") { Title = "Your look" },
+            (views[2], "This view is hidden, so the tour leaves it out."));
+
+        TourLog = result.Missing.Count == 0
+            ? $"{result.Outcome}"
+            : $"{result.Outcome}; left out: {string.Join(", ", result.Missing.Select(m => $"step {m.Step + 1} ({m.Reason})"))}";
+    }
+
+    [RelayCommand]
+    private void ShowSpotlight()
+    {
+        _highlights.Reset(SpotlightKey);
+        IsSpotlightOn = true;
+    }
+
     [RelayCommand]
     private void ToggleSync(SyncRow row) => row.IsSyncing = !row.IsSyncing;
 
@@ -115,6 +153,9 @@ public partial class HighlightPageViewModel(IHighlights _highlights) : SampleVie
 
     void OnEnded(object? sender, HighlightEndedEventArgs e)
     {
+        if (e.Kind == HighlightKind.Spotlight)
+            IsSpotlightOn = false;
+
         Log = $"{e.Kind} ended{(e.ByTap ? " by a tap" : "")}";
         UpdateHintState();
     }

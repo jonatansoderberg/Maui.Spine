@@ -398,4 +398,14 @@ public partial class SpineTabbedHostPage : TabbedPage, ISpineHost, IDisposable
         _badges.BadgeChanged -= OnBadgeChanged;
         _sheets.Dispose();
     }
+
+    /// <summary>The frame of the tab bar's item for <paramref name="pageType"/>, in the window.</summary>
+    internal bool TryGetTabFrame(Type pageType, out Rect frame)
+    {
+        frame = default;
+        var index = _slots.FindIndex(s => s.Definition.PageType == pageType);
+        return index >= 0 && TryGetTabItemFrame(index, out frame);
+    }
+
+    private partial bool TryGetTabItemFrame(int index, out Rect frame);
 }
