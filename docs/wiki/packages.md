@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as nineteen NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as twenty NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -17,6 +17,7 @@ Spine ships as nineteen NuGet packages built from this repository, one per proje
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid on `CollectionView` with layouts, sorting, grouping and swipe actions | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: `Shimmer` over placeholders, `Skeleton.IsActive` on real layouts | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients from the accent, a preset or your own colours, drifting slowly | `Plugin.Maui.Spine` |
+| Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view (Edge, Pulse, Sheen, Trace, Breathe), `Highlight.Repeat` and `.Key`, `IHighlights` | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron | `Plugin.Maui.Spine`, `.AnimatedLabel` |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes; `LightGridReader` for a code shown by lamps | — |
 | Controls | `Plugin.Maui.Spine.Scanner` | Camera scanning: `BarcodeScannerView` and the `BarcodeScannerPage` sheet; Vision on Apple, ML Kit on Android | `Plugin.Maui.Spine`, `.Barcodes` |
@@ -32,7 +33,7 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
   ▲           ▲  ▲
   │           │  ├── BackgroundTasks (and Common; runs Widgets' refresh through Common)
   │           │  └── Biometrics (and Common)
-  │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Scanner ──► Barcodes
+  │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Highlight, Scanner ──► Barcodes
 PushNotifications                                    AnimatedLabel
   Images ──► Common
 ```
@@ -101,6 +102,18 @@ A package that has to touch the `MauiAppBuilder` (handlers, SkiaSharp, lifecycle
 
 The samples reference the projects, not the packages; `samples/Directory.Build.targets` imports every `src/*/build/*.props` and the core's generator, so a new module is picked up there without further changes.
 
+### Hooks in the core for packages
+
+A package gets nothing internal from the core. It uses these small public hooks instead:
+
+| Hook | What it gives a package |
+|---|---|
+| `SpineOverlay.Show(view, back)` | A view over the whole window, sheets included (see [Guards](guards.md#the-whole-screen)) |
+| `SpineScreen` | The pages on screen and a change event, when the app can first show something, keeping the window out of captures (see [Guards](guards.md#the-whole-screen)) |
+| `ReducedMotion.IsOn`, `ReducedMotion.Changed` | Reduce Motion, Remove animations or Animation effects off, and a weak event when it changes on iOS, Mac Catalyst and Android (Android's comes half a second late, once the app's own animator scale has followed) |
+| `Tap.Executed` | Raised after a tap ran a view's `Tap.Command`: a way to react to taps without adding a second tap handler, which would take the tap from Tap on Android |
+| `ElementVisuals.Add(element, visual, order)` (Windows) | Composition visuals above an element's content, shared: an element takes one child visual, so Tap and other packages add theirs to one container in a fixed order |
+
 ## Target frameworks
 
 | Package | Frameworks |
@@ -140,7 +153,7 @@ These packages carry MSBuild files that run in the consuming app's build, import
 | Package | What its build files do |
 |---|---|
 | `Plugin.Maui.Spine` | Writes `SpineModules.g.cs` into the app: a `[ModuleInitializer]` that hands each referenced package's registration to `UseSpine()` (from the `SpineModule` items below). Only in an app project; `SpineGenerateModuleRegistrations=false` turns it off |
-| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Scanner`, `.Images` | Declare their `SpineModule` in `<PackageId>.props` |
+| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Scanner`, `.Images` | Declare their `SpineModule` in `<PackageId>.props` |
 | `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other packages contribute, and one partial `Info.plist` with `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers` from the `SpineBackgroundMode` and `SpineBackgroundTaskIdentifier` items, merged with the app's own |
 | `Plugin.Maui.Spine.Widgets` | Compiles the WidgetKit extension and the bridge framework with `swiftc` on iOS; generates the manifest overlay and provider metadata on Android |
 | `Plugin.Maui.Spine.PushNotifications` | Contributes the `aps-environment` entitlement; compiles the Notification Service Extension on iOS when `SpinePushNotificationsImages` is on |

@@ -8,7 +8,8 @@
 
 	<!--
 		The control packages target only MAUI platforms, which a net10.0 test cannot reference.
-		RollingNumber and the mesh geometry have no MAUI types, so they are compiled in here directly.
+		RollingNumber, the mesh geometry and the highlight timing have no MAUI types, so they are compiled
+		in here directly.
 	-->
 	<ItemGroup>
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.AnimatedLabel\RollingNumber.cs" Link="RollingNumber.cs" />
@@ -16,6 +17,9 @@
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\MeshPalettes.cs" Link="MeshPalettes.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\MeshPreset.cs" Link="MeshPreset.cs" />
 		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\Oklab.cs" Link="Oklab.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\HighlightKind.cs" Link="HighlightKind.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\HighlightRepeat.cs" Link="HighlightRepeat.cs" />
+		<Compile Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\HighlightCycles.cs" Link="HighlightCycles.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

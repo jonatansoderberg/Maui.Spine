@@ -1,0 +1,150 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Highlight.HighlightPage"
+    x:TypeArguments="HighlightPageViewModel"
+    x:DataType="HighlightPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Highlight">
+
+        <Example Title="A model is working on this card"
+                 Summary="Edge runs while the card's IsActive binding is true and fades when it turns false. The colours turn on the compositor, so a long wait costs nothing per frame; screen readers hear the tip.">
+            <Border x:Name="SummaryCard" Padding="16" StrokeShape="RoundRectangle 16" StrokeThickness="1"
+                    BackgroundColor="{DynamicResource CardBackground}" Stroke="{DynamicResource CardOutline}"
+                    Highlight.Kind="Edge" Highlight.IsActive="{Binding IsSummarising}" Highlight.Tip="Summarising">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="This week" FontSize="17" FontAttributes="Bold" TextColor="{DynamicResource CardText}" />
+                    <Label Text="{Binding Summary}" FontSize="15" TextColor="{DynamicResource CardText}" />
+                    <Button Text="Summarise" Command="{Binding SummariseCommand}" HorizontalOptions="Start" />
+                </VerticalStackLayout>
+            </Border>
+            <Example.Code>
+                &lt;Border Highlight.Kind="Edge"
+                        Highlight.IsActive="{Binding IsSummarising}"
+                        Highlight.Tip="Summarising"&gt;
+                    …
+                &lt;/Border&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Every kind"
+                 Summary="Pulse and Sheen are hints and play once; Edge, Trace and Breathe show a state and run until turned off. Try a repeat, the intensity and the room halos may take outside the view. With Reduce Motion on, each is still."
+                 OptionsCommand="{Binding ShowKindOptionsCommand}">
+            <VerticalStackLayout Spacing="16">
+                <Grid ColumnDefinitions="*,*" RowDefinitions="96,96,96" ColumnSpacing="24" RowSpacing="24" Padding="4">
+                    <Border StrokeShape="RoundRectangle 16" StrokeThickness="1" Stroke="{DynamicResource CardOutline}"
+                            BackgroundColor="{DynamicResource CardBackground}"
+                            Highlight.Kind="Edge" Highlight.IsActive="{Binding IsPlaying}" Highlight.Repeat="{Binding Repeat}"
+                            Highlight.Intensity="{Binding Intensity}" Highlight.Outset="{Binding Outset}" Highlight.Colors="{Binding EdgeColors}">
+                        <Label Text="Edge" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{DynamicResource CardText}" />
+                    </Border>
+                    <Border Grid.Column="1" StrokeShape="RoundRectangle 48" StrokeThickness="0" WidthRequest="96"
+                            BackgroundColor="{DynamicResource Primary}"
+                            Highlight.Kind="Pulse" Highlight.IsActive="{Binding IsPlaying}" Highlight.Repeat="{Binding Repeat}"
+                            Highlight.Intensity="{Binding Intensity}" Highlight.Outset="{Binding Outset}">
+                        <Label Text="Pulse" HorizontalOptions="Center" VerticalOptions="Center" TextColor="White" FontAttributes="Bold" />
+                    </Border>
+                    <Border Grid.Row="1" StrokeShape="RoundRectangle 16" StrokeThickness="0"
+                            BackgroundColor="{DynamicResource Primary}"
+                            Highlight.Kind="Sheen" Highlight.IsActive="{Binding IsPlaying}" Highlight.Repeat="{Binding Repeat}"
+                            Highlight.Intensity="{Binding Intensity}" Highlight.Outset="{Binding Outset}">
+                        <Label Text="Sheen" HorizontalOptions="Center" VerticalOptions="Center" TextColor="White" FontAttributes="Bold" />
+                    </Border>
+                    <Border Grid.Row="1" Grid.Column="1" StrokeShape="RoundRectangle 16" StrokeThickness="1" Stroke="{DynamicResource CardOutline}"
+                            BackgroundColor="{DynamicResource CardBackground}"
+                            Highlight.Kind="Trace" Highlight.IsActive="{Binding IsPlaying}" Highlight.Repeat="{Binding Repeat}"
+                            Highlight.Intensity="{Binding Intensity}" Highlight.Outset="{Binding Outset}">
+                        <Label Text="Trace" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{DynamicResource CardText}" />
+                    </Border>
+                    <Border Grid.Row="2" StrokeShape="RoundRectangle 48" StrokeThickness="0"
+                            BackgroundColor="#EF7A3A"
+                            Highlight.Kind="Breathe" Highlight.Colors="#EF7A3A" Highlight.IsActive="{Binding IsPlaying}" Highlight.Repeat="{Binding Repeat}"
+                            Highlight.Intensity="{Binding Intensity}" Highlight.Outset="{Binding Outset}">
+                        <Label Text="● Recording" HorizontalOptions="Center" VerticalOptions="Center" TextColor="White" FontAttributes="Bold" />
+                    </Border>
+                    <Button Grid.Row="2" Grid.Column="1" Text="Pulse on a Button" VerticalOptions="Center"
+                            Highlight.Kind="Pulse" Highlight.IsActive="{Binding IsPlaying}" Highlight.Repeat="{Binding Repeat}"
+                            Highlight.Intensity="{Binding Intensity}" Highlight.Outset="{Binding Outset}" />
+                </Grid>
+                <Button Text="Play again" Command="{Binding PlayAgainCommand}" HorizontalOptions="Start" />
+                <Label Text="{Binding Log}" FontSize="13" TextColor="{DynamicResource SecondaryText}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;Button Highlight.Kind="Pulse"
+                        Highlight.Repeat="3" /&gt;
+
+                &lt;Border Highlight.Kind="Breathe"
+                        Highlight.Colors="#EF7A3A"
+                        Highlight.Outset="16" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="A hint that shows once"
+                 Summary="With a key, the hint plays until it has been seen once on this install, here until the button is tapped. IHighlights.Reset forgets the keys, for a &quot;Show tips again&quot; setting.">
+            <VerticalStackLayout Spacing="12">
+                <Button Text="Add an event" HorizontalOptions="Start"
+                        Highlight.Kind="Pulse" Highlight.Repeat="UntilTapped" Highlight.Key="showcase.highlight.add"
+                        Highlight.Tip="Add an event from here" />
+                <Label Text="{Binding HintState}" FontSize="13" TextColor="{DynamicResource SecondaryText}" />
+                <Button Text="Show tips again" Command="{Binding ShowTipsAgainCommand}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;Button Text="Add an event"
+                        Highlight.Kind="Pulse"
+                        Highlight.Repeat="UntilTapped"
+                        Highlight.Key="onboarding.add" /&gt;
+
+                // A "Show tips again" setting
+                highlights.Reset();
+            </Example.Code>
+        </Example>
+
+        <Example Title="Over glass and a mesh"
+                 Summary="The layers sit on the view's own layer, above its glass or blur, and the glow falls on the mesh behind.">
+            <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" HeightRequest="240">
+                <Grid>
+                    <MeshBackground Preset="Aurora" Drift="Slow" />
+                    <Border Material.Kind="Glass" StrokeThickness="0" StrokeShape="RoundRectangle 24" Padding="20" Margin="28"
+                            VerticalOptions="Center" Highlight.Kind="Edge">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Writing a reply" FontSize="20" FontAttributes="Bold" />
+                            <Label Text="Edge over Liquid Glass" FontSize="15" />
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+            </Border>
+        </Example>
+
+        <Example Title="In a list"
+                 Summary="Bound per row, the highlight follows the rows as the list recycles them. Tap a row to start or stop its sync.">
+            <CollectionView ItemsSource="{Binding Rows}" HeightRequest="320">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="SyncRow">
+                        <Grid Padding="4,6">
+                            <Border Padding="14,12" StrokeShape="RoundRectangle 12" StrokeThickness="1"
+                                    Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
+                                    Highlight.Kind="Trace" Highlight.IsActive="{Binding IsSyncing}"
+                                    Tap.Command="{PageCommand ToggleSync}"
+                                    Tap.CommandParameter="{Binding .}">
+                                <Label Text="{Binding Name}" TextColor="{DynamicResource CardText}" />
+                            </Border>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Example>
+
+        <Example Title="From code"
+                 Summary="IHighlights.PlayAsync plays a highlight on any view and completes when it ends, for a hint that does not belong in the markup.">
+            <VerticalStackLayout Spacing="12">
+                <Button x:Name="CodeButton" Text="Play Sheen twice on me" HorizontalOptions="Start"
+                        Command="{Binding PlayFromCodeCommand}" CommandParameter="{x:Reference CodeButton}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                await highlights.PlayAsync(button,
+                    HighlightKind.Sheen, HighlightRepeat.Times(2));
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>

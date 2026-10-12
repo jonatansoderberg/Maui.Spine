@@ -255,7 +255,7 @@ public sealed class MeshBackground : ContentView
 
     private void UpdateAnimation()
     {
-        var reduceMotion = ReduceMotion.IsEnabled;
+        var reduceMotion = ReducedMotion.IsOn;
         if (reduceMotion != _reduceMotion)
         {
             _reduceMotion = reduceMotion;

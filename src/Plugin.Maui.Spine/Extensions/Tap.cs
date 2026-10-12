@@ -57,6 +57,13 @@ public static class Tap
     static readonly BindableProperty StateProperty =
         BindableProperty.CreateAttached("State", typeof(TapState), typeof(Tap), null);
 
+    /// <summary>
+    /// Raised after a tap ran a view's <see cref="CommandProperty"/>; the sender is the view. For code that
+    /// reacts to taps on a view without taking them from it, such as a highlight that ends when its view is
+    /// tapped: a second tap handler on the same view would take the tap from <see cref="Tap"/> on Android.
+    /// </summary>
+    public static event EventHandler? Executed;
+
     /// <summary>Gets the command a tap on <paramref name="view"/> runs.</summary>
     public static ICommand? GetCommand(BindableObject view) => (ICommand?)view.GetValue(CommandProperty);
 
@@ -76,6 +83,8 @@ public static class Tap
     public static void SetHighlightColor(BindableObject view, Color? value) => view.SetValue(HighlightColorProperty, value);
 
     internal static TapState? GetState(BindableObject view) => (TapState?)view.GetValue(StateProperty);
+
+    internal static void RaiseExecuted(View view) => Executed?.Invoke(view, EventArgs.Empty);
 
     static void OnCommandChanged(BindableObject bindable, object? oldValue, object? newValue)
     {
@@ -162,6 +171,7 @@ internal sealed partial class TapState : IDisposable
 
         Haptics.Play(Haptics.GetOnTap(_view));
         CommandGuards.Execute(_command!, Tap.GetCommandParameter(_view));
+        Tap.RaiseExecuted(_view);
     }
 
     public void Refresh()
