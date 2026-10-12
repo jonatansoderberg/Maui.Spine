@@ -61,7 +61,7 @@
 
 ## Packages
 
-One version, eighteen packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, nineteen packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -71,6 +71,7 @@ One version, eighteen packages, all on [nuget.org](https://www.nuget.org/package
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes run by BGTaskScheduler and JobScheduler while the app is closed |
+| Security | `Plugin.Maui.Spine.Biometrics` | Face ID, Touch ID, fingerprint and Windows Hello; `[RequiresUnlock]` on a page or a command |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source |
@@ -239,7 +240,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The eighteen packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The nineteen packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 
@@ -263,6 +264,8 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | Home-screen and Lock Screen widgets with buttons (iOS, Android) | `Widgets/Hockey/ScoreWidget.cs`, `Widgets/SampleWidget.cs`, `WidgetsPage` |
 | Live Activity updated from the app, with a lock-screen button (iOS, Android 16) | `Widgets/Hockey/ScoreActivity.cs`, `LiveActivitiesPage` |
 | Background tasks: a scheduled task that rebuilds a widget, one that fails, status and Run now | `BackgroundTasks/SampleSyncTask.cs`, `BackgroundTasksPage` |
+| An unlock before a page or a command: `[RequiresUnlock]`, `Fresh`, `Unlock.Command`, `IUnlock` | `BiometricsPage`, `PinPage` |
+| A guard of the app's own on a page and on commands | `Guards/ConfirmGuard.cs`, `GuardsPage` |
 | Liquid Glass buttons (iOS 26) | `MainPage` → `GlassPage` (second item in the list) |
 
 ### Push sample

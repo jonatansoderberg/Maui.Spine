@@ -56,6 +56,10 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
+    "Plugin.Maui.Spine.Biometrics", AssemblyName = "Plugin.Maui.Spine.Biometrics")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages")]
 
 [assembly: XmlnsDefinition(
@@ -169,6 +173,10 @@
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.Guards")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
+    "MauiSpineSampleApp.Pages.Biometrics")]
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Biometrics.Cancel">Cancel</s>
+  <s key="Spine.Biometrics.Ok">OK</s>
+  <s key="Spine.Biometrics.Unlock">Unlock</s>
+  <s key="Spine.Biometrics.Locked">Locked</s>
+  <s key="Spine.Biometrics.LockedOut.Title">Too many attempts</s>
+  <s key="Spine.Biometrics.LockedOut.Message">Unlock your device with its passcode, then try again.</s>
+  <s key="Spine.Biometrics.Unavailable.Title">No screen lock</s>
+  <s key="Spine.Biometrics.Unavailable.Message">Set up a passcode, Face ID, Touch ID or fingerprint on this device to open this.</s>
+</strings>

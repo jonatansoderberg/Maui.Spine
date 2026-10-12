@@ -1,0 +1,21 @@
+<Project>
+	<!--
+		Face ID needs NSFaceIDUsageDescription in the app's Info.plist; without it iOS ends the app the
+		moment it asks. The text is the app's own, in its own language, so this package writes none: an
+		iOS app build stops here with the reason instead. Set SpineBiometricsCheckFaceIdUsage to false to
+		skip the check, for example when the key comes from a step this target cannot see.
+	-->
+	<Target Name="_SpineCheckFaceIdUsage"
+			AfterTargets="_DetectAppManifest"
+			Condition="'$(SpineBiometricsCheckFaceIdUsage)' != 'false' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '$(OutputType)' == 'Exe' And '$(DesignTimeBuild)' != 'true'">
+
+		<PropertyGroup>
+			<_SpineFaceIdManifest>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(AppBundleManifest)'))</_SpineFaceIdManifest>
+			<_SpineFaceIdDeclared Condition="'$(AppBundleManifest)' != '' And Exists('$(_SpineFaceIdManifest)') And $([System.IO.File]::ReadAllText('$(_SpineFaceIdManifest)').Contains('NSFaceIDUsageDescription'))">true</_SpineFaceIdDeclared>
+			<_SpineFaceIdDeclared Condition="'%(PartialAppManifest.Identity)' != '' And Exists('%(PartialAppManifest.FullPath)') And $([System.IO.File]::ReadAllText('%(PartialAppManifest.FullPath)').Contains('NSFaceIDUsageDescription'))">true</_SpineFaceIdDeclared>
+		</PropertyGroup>
+
+		<Error Condition="'$(_SpineFaceIdDeclared)' != 'true'"
+			   Text="Spine: Plugin.Maui.Spine.Biometrics needs NSFaceIDUsageDescription in the app's Info.plist ($(AppBundleManifest)): iOS ends an app that asks for Face ID without it. Add &lt;key&gt;NSFaceIDUsageDescription&lt;/key&gt;&lt;string&gt;…why the app asks…&lt;/string&gt;, or set SpineBiometricsCheckFaceIdUsage to false." />
+	</Target>
+</Project>

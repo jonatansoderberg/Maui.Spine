@@ -1,0 +1,21 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Biometrics.PinPage"
+    x:TypeArguments="PinPageViewModel"
+    x:DataType="PinPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Biometrics">
+
+        <Example Title="1 2 3 4"
+                 Summary="This page and its view model were created after the unlock.">
+            <Label Text="The PIN is 1234." FontSize="15" />
+            <Example.Code>
+                [NavigableRegion(Title = "PIN"), RequiresUnlock("Show the PIN")]
+                public partial class PinPage { … }
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

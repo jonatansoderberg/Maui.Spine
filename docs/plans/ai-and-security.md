@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (#506 core guards in progress)
+**Last updated:** 2026-10-12 (#506 merged; #507 Biometrics in review)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -43,8 +43,8 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 
 | Package | Kind | Issues | Proposal | Status |
 |---|---|---|---|---|
-| `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Proposal |
-| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Proposal |
+| `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
+| `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | In review (#507) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509 | [highlight](../proposals/spine-highlight.md) | Proposal |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Proposal |
@@ -96,8 +96,8 @@ The order follows value against risk. Steps in different phases can run in paral
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 1.1 | Core navigation guard and command guard | #506 | 0.2 | In review | #526 | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links. Guarded tabs on Android and Windows show an unlock cover (Q5). |
-| 1.2 | `IBiometricAuth`, `[RequiresUnlock]` on pages and commands, `Unlock.Command`, `RequireAsync` | #507 | 1.1 | Waiting | | |
+| 1.1 | Core navigation guard and command guard | #506 | 0.2 | Done | #526 | Must cover regions, sheets, tabs, `ShowAsync`, shortcuts and deep links. Guarded tabs on Android and Windows show an unlock cover (Q5). |
+| 1.2 | `IBiometricAuth`, `[RequiresUnlock]` on pages and commands, `Unlock.Command`, `RequireAsync` | #507 | 1.1 | In review | (PR) | |
 | 1.3 | App lock (global) and `[PrivacyShield]` (per page) | #508 | 1.2 | Waiting | | |
 
 ### Phase 2: AI on the server and in the app
@@ -165,6 +165,7 @@ Newest last. Each entry is dated and says who decided.
   - Q21: Markdown is its own package.
   - Q26: background audio is opt-in.
   - Q28: only OpenAI and Azure OpenAI in v1.
+- **2026-10-12, Claude (#507):** `Xamarin.AndroidX.Biometric` is pinned at 1.1.0.30, the last build on MAUI 10.0.50's AndroidX releases. Lift it together with MAUI. **Why:** later builds raise Activity, Fragment and Lifecycle above MAUI's pins (NU1608, binding drift as in #451).
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---

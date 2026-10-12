@@ -4,6 +4,8 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>The Barcodes page scans codes with the camera.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>The Biometrics page unlocks pages and commands with Face ID.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIDeviceFamily</key>

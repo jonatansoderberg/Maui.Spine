@@ -407,6 +407,24 @@
       <DependentUpon>VaultPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Biometrics\BiometricsPage.View.xaml">
+      <DependentUpon>BiometricsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Biometrics\BiometricsPage.ViewModel.cs">
+      <DependentUpon>BiometricsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Biometrics\PinPage.View.xaml">
+      <DependentUpon>PinPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Biometrics\PinPage.ViewModel.cs">
+      <DependentUpon>PinPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
       <DependentUpon>ScrollInsetPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -673,6 +691,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Biometrics\Plugin.Maui.Spine.Biometrics.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg.Icons\Plugin.Maui.Spine.Svg.Icons.csproj" />
 	</ItemGroup>
@@ -694,6 +713,7 @@
 		<SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Description="A goal for the Owls in the running game, without opening the app." Icon="hockey.puck" />
 	</ItemGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.Biometrics\build\Plugin.Maui.Spine.Biometrics.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.BackgroundTasks\build\Plugin.Maui.Spine.BackgroundTasks.targets" />
 
