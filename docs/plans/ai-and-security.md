@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (step 2.5a `Controls.Markdown` merged as #538; 2.5b `Controls.Chat` in review as #PR_TBD; see Verification backlog)
+**Last updated:** 2026-10-12 (step 2.5a `Controls.Markdown` merged as #538; 2.5b `Controls.Chat` in review as #539; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -50,7 +50,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #511 and #517 Ready |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Done (#536) |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
-| `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | #537 in review (#PR_TBD) |
+| `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | #537 in review (#539) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication` | New | #519 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
@@ -112,7 +112,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 2.3 | Generated-asset pipeline | #511 | 2.1 | Ready | | Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
 | 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Done | #536 | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
 | 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | Done | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
-| 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | In review | #PR_TBD | `ChatView` and a separate `ChatComposer` in the page footer (Decisions). Renders answers with `MarkdownView`. |
+| 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | In review | #539 | `ChatView` and a separate `ChatComposer` in the page footer (Decisions). Renders answers with `MarkdownView`. |
 | 2.6 | On-device `IChatClient` spike, Android and Windows | #514 | none | Ready | | Outside this repo. Contribute upstream to dotnet/maui-labs if it works. |
 
 ### Phase 3: highlight (done 2026-10-12)
