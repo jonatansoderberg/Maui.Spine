@@ -692,10 +692,12 @@ public sealed class AvatarScheduler
 
         var t = now - _blinkStartedAt;
         const double hold = 0.03;
+        // Closing speeds up and slows down (a bell-shaped velocity, as measured blinks have); reopening
+        // starts fast out of the closed hold and settles slowly. A straight ramp read as mechanical.
         var closure = t < 0 ? 0
-            : t < _blinkClose ? t / _blinkClose
+            : t < _blinkClose ? SmoothStep(t / _blinkClose)
             : t < _blinkClose + hold ? 1
-            : t < _blinkClose + hold + _blinkOpen ? 1 - (t - _blinkClose - hold) / _blinkOpen
+            : t < _blinkClose + hold + _blinkOpen ? Square(1 - (t - _blinkClose - hold) / _blinkOpen)
             : 0;
         f.Blink = (float)closure;
 
@@ -779,6 +781,10 @@ public sealed class AvatarScheduler
     }
 
     private double NextBlinkInterval() => _blinkMin + _random.NextDouble() * (_blinkMax - _blinkMin);
+
+    private static double SmoothStep(double u) => u * u * (3 - 2 * u);
+
+    private static double Square(double u) => u * u;
 
     private float FadeLeft(double now) => (float)Math.Clamp(1 - (now - _fadeStartedAt) / InterruptFade, 0, 1);
 

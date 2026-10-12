@@ -31,6 +31,11 @@ public sealed class GltfAvatarRig
     private readonly int _speechMouthMesh, _headNode;
     private readonly bool _override, _blinkByWeight, _springs;
     private readonly (int Mesh, int Target)[] _blinkTargets = [];
+    private readonly (int Mesh, int[] Steps, int Target, (int Target, float Closure)[] Closures)[] _blinkChains = [];
+
+    /// <summary>Meshes a renderer draws after the other transparent ones: lids that roll over a transparent iris.</summary>
+    public IReadOnlyList<int> OverlayMeshes => _overlayMeshes;
+    private readonly int[] _overlayMeshes = [];
     private readonly (int Mesh, int[] Targets)[] _blinkSuppress = [];
     private readonly (int Node, float From, float To)[] _blinkFrames = [];
     private readonly (int Node, float Share)[] _neckChain = [];
@@ -84,6 +89,15 @@ public sealed class GltfAvatarRig
         {
             var entries = blink.ValueKind == JsonValueKind.Array ? blink.EnumerateArray().ToArray() : [blink];
             _blinkTargets = [.. entries.Select(e => (e.GetProperty("mesh").GetInt32(), e.GetProperty("targetIndex").GetInt32()))];
+            // A chain: in-between targets at even closures (steps), the final one at 1 — a lid that rolls
+            // instead of stretching along a straight line. `closures` names targets (a squint) whose
+            // weight means a fraction of the closure through the chain rather than a shape of their own.
+            _blinkChains = [.. entries.Where(e => e.TryGetProperty("steps", out _))
+                .Select(e => (e.GetProperty("mesh").GetInt32(), e.GetProperty("steps").EnumerateArray().Select(x => x.GetInt32()).ToArray(), e.GetProperty("targetIndex").GetInt32(),
+                    e.TryGetProperty("closures", out var closures)
+                        ? closures.EnumerateArray().Select(c => (c.GetProperty("targetIndex").GetInt32(), c.GetProperty("closure").GetSingle())).ToArray()
+                        : []))];
+            _overlayMeshes = [.. _blinkChains.Select(c => c.Mesh).Distinct()];
             _blinkSuppress = [.. entries.Where(e => e.TryGetProperty("suppressExpressionTargets", out _))
                 .Select(e => (e.GetProperty("mesh").GetInt32(), e.GetProperty("suppressExpressionTargets").EnumerateArray().Select(x => x.GetInt32()).ToArray()))];
             _blinkByWeight = true;
@@ -169,6 +183,22 @@ public sealed class GltfAvatarRig
         }
         foreach (var (mesh, target) in _blinkTargets)
             SetWeight(mesh, target, Math.Max(f.Blink, mesh < Weights.Length && target < Weights[mesh].Length ? Weights[mesh][target] : 0));
+        foreach (var (mesh, steps, target, closures) in _blinkChains)
+        {
+            // The closure (the scheduler's or a pose's) spread over the chain: at closure k/n only step k.
+            var closure = mesh < Weights.Length && target < Weights[mesh].Length ? Weights[mesh][target] : f.Blink;
+            foreach (var (t, fraction) in closures)
+            {
+                if (mesh >= Weights.Length || t >= Weights[mesh].Length)
+                    continue;
+                closure = Math.Max(closure, Weights[mesh][t] * fraction);
+                Weights[mesh][t] = 0;
+            }
+            var position = closure * (steps.Length + 1);
+            for (var k = 0; k < steps.Length; k++)
+                SetWeight(mesh, steps[k], Math.Max(0, 1 - Math.Abs(position - (k + 1))));
+            SetWeight(mesh, target, Math.Max(0, 1 - Math.Abs(position - (steps.Length + 1))));
+        }
         if (_blinkFrames.Length > 0 && _blinkTargets.Length > 0)
         {
             // The blink as poses and the scheduler leave it in the first blink target.

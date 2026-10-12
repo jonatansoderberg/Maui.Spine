@@ -581,6 +581,21 @@ public static partial class AvatarValidator
                     var targets = primitives[primitive].TryGetProperty("targets", out var ts) ? ts.GetArrayLength() : 0;
                     if (target < 0 || target >= targets)
                         report.Fail(area, "writes", $"{owner}: morph target {target} is outside mesh {mesh} primitive {primitive}'s {targets} targets");
+                    if (write.TryGetProperty("steps", out var steps))
+                    {
+                        foreach (var step in steps.EnumerateArray())
+                            if (step.GetInt32() < 0 || step.GetInt32() >= targets)
+                                report.Fail(area, "writes", $"{owner}: step target {step.GetInt32()} is outside mesh {mesh} primitive {primitive}'s {targets} targets");
+                    }
+                    if (write.TryGetProperty("closures", out var closures))
+                    {
+                        foreach (var closure in closures.EnumerateArray())
+                        {
+                            var t2 = closure.GetProperty("targetIndex").GetInt32();
+                            if (t2 < 0 || t2 >= targets)
+                                report.Fail(area, "writes", $"{owner}: closure target {t2} is outside mesh {mesh} primitive {primitive}'s {targets} targets");
+                        }
+                    }
                 }
 
                 if (write.TryGetProperty("expectedName", out var expected)

@@ -77,6 +77,37 @@ public class GltfRigTests
     }
 
     [Fact]
+    public void BlinkChainSpreadsTheClosureOverItsSteps()
+    {
+        var (model, rig) = Load("kairo");
+        var lids = Array.FindIndex(model.Meshes, m => m.Name == "Lids");
+        var names = model.Meshes[lids].TargetNames;
+        var frame = new AvatarRenderFrame { Blink = 0.25f };
+        frame.AddActivity("idle", 1);
+
+        rig.Apply(frame);
+
+        // Closure 0.25 lies between the steps at 0.2 and 0.3: half of each, nothing else.
+        Assert.Equal(0.5f, rig.Weights[lids][Array.IndexOf(names, "blink_2")], 3);
+        Assert.Equal(0.5f, rig.Weights[lids][Array.IndexOf(names, "blink_3")], 3);
+        Assert.Equal(0, rig.Weights[lids][Array.IndexOf(names, "blink_1")], 3);
+        Assert.Equal(0, rig.Weights[lids][Array.IndexOf(names, "blink")], 3);
+
+        frame.Blink = 1;
+        rig.Apply(frame);
+        Assert.Equal(1, rig.Weights[lids][Array.IndexOf(names, "blink")], 3);
+        Assert.Equal(0, rig.Weights[lids][Array.IndexOf(names, "blink_9")], 3);
+
+        // A squint is a closure through the chain (apologetic squints 0.3 of 0.38 = 0.114), not a shape of its own.
+        frame.Blink = 0;
+        frame.AddExpression("expr_apologetic", 1);
+        rig.Apply(frame);
+        Assert.Equal(0, rig.Weights[lids][Array.IndexOf(names, "squint")], 3);
+        Assert.Equal(0.86f, rig.Weights[lids][Array.IndexOf(names, "blink_1")], 2);
+        Assert.Equal(0.14f, rig.Weights[lids][Array.IndexOf(names, "blink_2")], 2);
+    }
+
+    [Fact]
     public void SpringsCanBeTurnedOffSoTheFaceStaysPut()
     {
         var (_, plush) = Load("plush-mochi");

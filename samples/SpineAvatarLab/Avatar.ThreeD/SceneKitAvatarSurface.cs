@@ -208,6 +208,8 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
             geometry.Materials = [primitive.Material >= 0 ? materials[primitive.Material] : Material(new GltfMaterial("", Vector4.One, 0, 0.6f, Vector3.Zero, false, false), [])];
 
             var target = SCNNode.FromGeometry(geometry);
+            if (_rig.OverlayMeshes.Contains(node.Mesh))
+                target.RenderingOrder = 1;          // lids over a transparent iris: drawn after it whatever the sorting says
             if (primitive.Targets.Length > 0)
             {
                 var morpher = new SCNMorpher

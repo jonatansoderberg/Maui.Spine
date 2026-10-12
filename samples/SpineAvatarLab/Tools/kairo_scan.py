@@ -1026,11 +1026,15 @@ def eye_field(xy, kind):
             ny = np.where(mid, target + (y - yu) * (floor - target) / np.maximum(floor - yu, 1e-3), ny)
             d[:, 1] += np.where(inside_x, (ny - y) * across, 0)
         elif kind == 'happy':
-            # The lower lid rises: the eye becomes a smiling arch.
+            # The lower lid rises: the eye becomes a smiling arch. The skin under the lid stretches up
+            # with it, fading out 60 px down (moved as one band to 24 px below the lid, with the rows
+            # under that still, it tore: a stretched rectangle under the eye).
             lift = (yl - yu) * 0.55
-            bot = yl + 24
-            band = (y >= yu) & (y <= bot)
-            ny = np.where(band, yu + (y - yu) * (bot - lift - yu) / np.maximum(bot - yu, 1e-3), y)
+            bot = yl + 60
+            eye = (y >= yu) & (y <= yl)
+            below = (y > yl) & (y <= bot)
+            ny = np.where(eye, yu + (y - yu) * (yl - lift - yu) / np.maximum(yl - yu, 1e-3), y)
+            ny = np.where(below, (yl - lift) + (y - yl) * (bot - yl + lift) / (bot - yl), ny)
             d[:, 1] += np.where(inside_x, (ny - y) * across, 0)
         elif kind == 'wide':
             band = (y >= top - 22) & (y <= yl)
@@ -1666,30 +1670,77 @@ BLINK_FRAMES = []               # (layer, from, to): painted states shown as fra
 LID_MATERIAL = 12              # index of the "lid" material
 LID_LAYER = 'kairo-lid-closed.png'
 
+LID_TARGETS = ['blink_%d' % k for k in range(1, 10)] + ['blink', 'squint']   # the lids' own mesh: closures 0.1..0.9, closed, squint
+LID_ROWS = (6, 18, 5)           # grid rows above the crease, crease to lash line, hanging lashes
+SQUINT_CLOSURE = 0.38
+
+def lid_shape(top, fold, open_margin, margin, v, w):
+    """Image y of the lid's texture rows at closure w, per column: above the crease the painting's skin
+    stretches up from the crease; from the crease to the lash line the lid slides down at the painting's
+    own scale by the lash line's travel (open margin to closed), rows not yet out of the fold collapsed
+    on it (a sheet squeezed between the crease and the lash line showed the whole closed lid, lashes and
+    all, as a thin band under the brow); below the lash line the lashes unfold to their painted length.
+    Open (w = 0) the painting's rows above its lash line lie over the photo's own lid band, crease to
+    margin, and lid_sheets puts them behind the face there: sliding out of the crease instead, they
+    unrolled above the photo's lashes, two lash lines for a quarter of the blink. Linear in w between
+    keyframes, so the chain of targets at 0.1 steps keeps the rows on the eyeball and the squeeze to
+    the row just leaving the fold."""
+    L = margin - open_margin
+    above = v <= fold
+    lid = (v > fold) & (v <= margin)
+    y = np.where(above, fold - (fold - v) * w, 0.0)
+    y = np.where(lid, fold + np.maximum(0.0, (v - fold) - (1 - w) * L), y)
+    return np.where(~above & ~lid, open_margin + w * L + (v - margin) * w, y)
+
+LID_HIDDEN = 0.001              # how far behind the face the open lid's lowest rows wait (m): out by closure 0.04
+
 def lid_sheets(work, zg):
     """The upper lids: the owner's painted closed eye on a sheet per eye that lies over the eyeball
-    (1.5 mm out from it) and over the face round it. Open, the sheet is folded up at its top edge;
-    blinking unrolls it down over the eye, lashes at its edge, so the lid covers the eye as it
-    closes and follows the ball's curve on a turn (flat frames floated in front of the face)."""
+    (1.5 mm out from it) and over the face round it. Open, the sheet is gathered on the crease; closing
+    rolls it down over the eye at the painting's scale (lid_shape), lashes at its edge, following the
+    ball's curve on a turn. The sheet below the hanging lashes is cut (faded) so the photo's lower lid
+    stays; above the brows and over the brow strokes frame_layer has already cleared it."""
     a, solid, alpha, (x0, y0, x1, y1) = frame_layer(work, LID_LAYER)
-    tex = Image.fromarray(np.dstack([a[y0:y1, x0:x1, :3], alpha[y0:y1, x0:x1]]).astype(np.uint8), 'RGBA')
+    layer = Image.fromarray(a[..., :3].astype(np.uint8))
     cam = np.array([0.0, 0.0, D])
-    cols, rows = 72, 28
-    pos, uvs, tg_blink, tg_squint, idx, base = [], [], [], [], [], 0
-    for k, (centre, R) in enumerate(EYE_BALLS):
+    cols = 72
+    nA, nB, nC = LID_ROWS
+    rows = nA + nB + nC + 1
+    pos, uvs, idx, base = [], [], [], 0
+    shapes = {n: [] for n in LID_TARGETS}
+    cut = np.ones(solid.shape)
+    yy = np.arange(solid.shape[0])[:, None].astype(float)
+    for k, ((centre, R), lid) in enumerate(zip(EYE_BALLS, LIDS)):
         side = (np.arange(solid.shape[1]) < SRC_W / 2) if k == 0 else (np.arange(solid.shape[1]) >= SRC_W / 2)
         m = solid & side[None]
         ys, xs = np.where(m)
-        x = np.linspace(xs.min(), xs.max(), cols)
+        sx0, sx1 = lid_span(lid)
+        # The sheet ends just past the inner corner (the painting goes on to the nose, and that skin
+        # showed as a pale tab there); past the outer corner it keeps the lash wing.
+        inner_end = sx1 + 4 if k == 0 else sx0 - 4
+        x = np.linspace(xs.min(), min(xs.max(), inner_end), cols) if k == 0 else np.linspace(max(xs.min(), inner_end), xs.max(), cols)
         xi = np.clip(np.round(x).astype(int), 0, solid.shape[1] - 1)
         top = np.array([np.where(m[:, i])[0].min() if m[:, i].any() else np.nan for i in xi])
-        bot = np.array([np.where(m[:, i])[0].max() if m[:, i].any() else np.nan for i in xi])
         ok = ~np.isnan(top)
-        top = np.interp(x, x[ok], top[ok]) - 1; bot = np.interp(x, x[ok], bot[ok]) + 1
-        f = np.linspace(0, 1, rows)[:, None]
-        full = np.stack([np.broadcast_to(x, (rows, cols)), top[None] + (bot - top)[None] * f], -1).reshape(-1, 2)
-        rest = np.stack([np.broadcast_to(x, (rows, cols)), np.broadcast_to(top, (rows, cols))], -1).reshape(-1, 2)
-        def place(src_px):
+        top = np.interp(x, x[ok], top[ok]) - 1
+        margin = closed_lash_line(layer, lid, x)
+        open_margin = np.interp(x, lid['ux'], lid['uy']) + 2.0
+        fold, _ = lid_fold(lid, x)
+        inside = (x >= sx0) & (x <= sx1)
+        open_margin = np.where(inside, np.minimum(open_margin, margin), margin)   # outside the lid's span the lid has no length
+        fold = np.where(inside, np.minimum(fold, open_margin), open_margin)
+        bottom = margin + HANG + 6
+        # The painting below the hanging lashes fades out: the photo's lower lid shows there.
+        cols_all = np.arange(solid.shape[1])
+        mcol = np.interp(cols_all, x, margin)
+        cut[:, side] = np.minimum(cut[:, side], 1 - smooth(mcol[side] + HANG - 2, mcol[side] + HANG + 6, yy))
+        # A wide fade: the painting's lighter skin at the corner, stretched up from the margin, was a pale streak.
+        cut[:, side] *= (1 - smooth(inner_end - 14, inner_end, cols_all[side].astype(float))) if k == 0 else smooth(inner_end, inner_end + 14, cols_all[side].astype(float))
+        v = np.concatenate([top[None] + (fold - top)[None] * np.linspace(0, 1, nA + 1)[:-1, None],
+                            fold[None] + (margin - fold)[None] * np.linspace(0, 1, nB + 1)[:-1, None],
+                            margin[None] + (bottom - margin)[None] * np.linspace(0, 1, nC + 1)[:, None]])
+        assert v.shape == (rows, cols)
+        def place(src_px, behind=None):
             c = src_to_crop(src_px)
             zface = ndimage.map_coordinates(zg, [c[:, 1], c[:, 0]], order=1) - 0.0015
             ray = unproject(c, np.ones(len(c))) - cam; ray /= np.linalg.norm(ray, axis=1, keepdims=True)
@@ -1698,20 +1749,28 @@ def lid_sheets(work, zg):
             t = -bq - np.sqrt(np.maximum(disc, 0))
             zball = D - (cam + ray * t[:, None])[:, 2]
             zc = np.where(disc > 0, np.minimum(zface, zball), zface)
+            if behind is not None:
+                zc = np.where(behind, zface + 0.0015 + LID_HIDDEN, zc)
             return unproject(c, zc)
-        p_full, p_rest = place(full), place(rest)
-        squint = rest + (full - rest) * 0.38
-        pos.append(p_rest); uvs.append((full - np.array([x0, y0])) / np.array([x1 - x0, y1 - y0]))
-        tg_blink.append(p_full - p_rest); tg_squint.append(place(squint) - p_rest)
+        grid = lambda ys: np.stack([np.broadcast_to(x, ys.shape), ys], -1).reshape(-1, 2)
+        y_rest = lid_shape(top, fold, open_margin, margin, v, 0.0)
+        p_rest = place(grid(y_rest), behind=(y_rest > fold[None] + 0.01).reshape(-1))
+        pos.append(p_rest); uvs.append((grid(v) - np.array([x0, y0])) / np.array([x1 - x0, y1 - y0]))
+        for n in LID_TARGETS:
+            # squint is a closure through the chain (the binding's `closures`), not a shape of its own: a
+            # straight path to a 38 % shape squeezed the sheet like the old single target did.
+            w = 0.0 if n == 'squint' else 1.0 if n == 'blink' else int(n[6:]) / 10
+            shapes[n].append(place(grid(lid_shape(top, fold, open_margin, margin, v, w))) - p_rest)
         for r in range(rows - 1):
             for c_ in range(cols - 1):
                 a0 = base + r * cols + c_
                 idx += [a0, a0 + cols, a0 + 1, a0 + 1, a0 + cols, a0 + cols + 1]
         base += rows * cols
+    tex = Image.fromarray(np.dstack([a[y0:y1, x0:x1, :3], (alpha * cut)[y0:y1, x0:x1]]).astype(np.uint8), 'RGBA')
     P = np.concatenate(pos)
-    targets = [np.concatenate(tg_blink) if n == 'blink' else np.concatenate(tg_squint) if n == 'squint' else np.zeros_like(P) for n in TARGETS]
     nrm = np.tile([0.0, 0.0, 1.0], (len(P), 1))
-    return dict(pos=P, nrm=nrm, uv=np.concatenate(uvs), idx=np.array(idx, np.uint32), material=LID_MATERIAL, targets=targets), tex
+    return dict(pos=P, nrm=nrm, uv=np.concatenate(uvs), idx=np.array(idx, np.uint32), material=LID_MATERIAL,
+                targets=[np.concatenate(shapes[n]) for n in LID_TARGETS]), tex
 
 def frame_layer(work, name):
     """One of the owner's painted eye layers, cleaned: starting under the photo's brows, no strokes of
@@ -2199,9 +2258,10 @@ def build(work):
     lid, lid_tex = lid_sheets(work, FACE_INFO[2])
     mouth = mouth_inside(FACE_INFO[2])
     mouth_tex, lipwall_tex, oshade_tex = mouth_textures(work)
-    for part in eyes + [lid] + mouth:
+    for part in eyes + mouth:
         part['pos'] = part['pos'] - pivot
         prims['head'].append(part)
+    lid['pos'] = lid['pos'] - pivot
     closed = Image.open(f'{work}/assets-v2/kairo-eyes-closed-front.png').convert('RGB')
 
     g = Glb()
@@ -2260,8 +2320,11 @@ def build(work):
                                     "pbrMetallicRoughness": {"baseColorFactor": [0.1, 0.1, 0.1, 1], "baseColorTexture": {"index": i}, "metallicFactor": 0, "roughnessFactor": 1.0}})
         prim['material'] = len(g.gltf["materials"]) - 1
         prim['pos'] = prim['pos'] - pivot
-    # 0 Root, 1 Body, 2 HeadPivot, 3 Head, 4.. the blink frames (shown by blinkFrames).
-    g.node("HeadPivot", t=pivot - j2, children=[3] + [4 + k for k in range(len(frames))])
+    # 0 Root, 1 Body, 2 HeadPivot, 3 Head, 4.. the blink frames (shown by blinkFrames), then the neck
+    # and its joints, then the lids (their own mesh: the blink's chain of targets stays off the head's
+    # hundred thousand vertices).
+    lids_node = neck_node + 3
+    g.node("HeadPivot", t=pivot - j2, children=[3, lids_node] + [4 + k for k in range(len(frames))])
     m_head = g.mesh("Head", prims['head'], TARGETS)
     g.node("Head", m_head)
     for k, (prim, _) in enumerate(frames):
@@ -2276,8 +2339,10 @@ def build(work):
     g.gltf["nodes"][n]["skin"] = 0
     assert g.node("NeckLower", t=j1, children=[n2_node]) == n1_node
     assert g.node("NeckUpper", t=j2 - j1, children=[2]) == n2_node
+    m_lids = g.mesh("Lids", [lid], LID_TARGETS)
+    assert g.node("Lids", m_lids) == lids_node
     clips(g)
-    return g.bytes(), dict(m_head=m_head, head_prims=len(prims['head']), neck_chain=(n1_node, n2_node))
+    return g.bytes(), dict(m_head=m_head, head_prims=len(prims['head']), neck_chain=(n1_node, n2_node), m_lids=m_lids, lids_node=lids_node)
 
 def clips(g):
     pivot = 2
@@ -2306,7 +2371,13 @@ VISEME_MOUTHS = {
 
 def package(glb, ids, posters):
     prims = list(range(ids['head_prims']))
-    def w(name, v): return {"node": 3, "mesh": ids['m_head'], "primitives": prims, "targetIndex": TARGETS.index(name), "value": v}
+    def lids(name): return {"node": ids['lids_node'], "mesh": ids['m_lids'], "primitives": [0], "targetIndex": LID_TARGETS.index(name)}
+    def w(name, v):
+        # The lids' closures live on their own mesh; the head keeps a zero target of the same name for
+        # the expression suppression and the poses that name it.
+        head = {"node": 3, "mesh": ids['m_head'], "primitives": prims, "targetIndex": TARGETS.index(name), "value": v}
+        return [head, {**lids(name), "value": v}] if name in LID_TARGETS else head
+    def flat(writes): return [x for ws in writes for x in (ws if isinstance(ws, list) else [ws])]
     def turn(yaw=0.0, pitch=0.0, roll=0.0):
         q = np.array(quat((0, 1, 0), yaw))
         for axis, a in (((1, 0, 0), pitch), ((0, 0, 1), roll)):
@@ -2333,6 +2404,7 @@ def package(glb, ids, posters):
     }
     for v in VISEMES:
         poses["viseme_" + v] = [w(name, x) for name, x in VISEME_MOUTHS[v].items()]
+    poses = {k: flat(v) for k, v in poses.items()}
     bindings = {
         "schemaVersion": "1.0", "renderer": "native3d",
         "animations": {n: n for n in ("idle_a", "idle_b", "nod", "shake", "lean_in", "interrupt", "think")},
@@ -2343,7 +2415,11 @@ def package(glb, ids, posters):
         "gaze": {"node": 3, "morphs": {"mesh": ids['m_head'], "primitives": prims, **{k: TARGETS.index("look_" + k) for k in ("left", "right", "up", "down")}},
                  "turn": {"node": 2, "factor": 0.45}},
         "blink": [{"node": 3, "mesh": ids['m_head'], "primitives": prims, "targetIndex": TARGETS.index("blink"),
-                   "suppressExpressionTargets": [TARGETS.index(n) for n in ("wide", "squint", "happy")]}],
+                   "suppressExpressionTargets": [TARGETS.index(n) for n in ("wide", "squint", "happy")]},
+                  # The lids roll down through a chain of targets at closures 0.1 .. 0.9 (steps), then closed.
+                  {**lids("blink"), "steps": [LID_TARGETS.index(n) for n in LID_TARGETS if n.startswith('blink_')],
+                   "closures": [{"targetIndex": LID_TARGETS.index("squint"), "closure": SQUINT_CLOSURE}],
+                   "suppressExpressionTargets": [LID_TARGETS.index("squint")]}],
         "stateAnimations": {"thinking": "think"},
         "neckChain": [{"node": ids['neck_chain'][0], "share": 0.3}, {"node": ids['neck_chain'][1], "share": 0.35}],
         "blinkFrames": [{"node": 4 + k, "from": a, "to": b} for k, (_, a, b) in enumerate(BLINK_FRAMES)],

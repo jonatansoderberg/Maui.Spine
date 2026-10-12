@@ -66,6 +66,11 @@ async function load(message) {
         meshes.forEach((mesh, primitive) => meshesByPrimitive.set(`${index}:${primitive}`, mesh));
     });
     root.traverse(o => { if (o.isMesh && o.morphTargetInfluences) morphMeshes.push(o); });
+    // Lids that roll over the eye (a blink chain) draw after the other transparent meshes: GLTFLoader
+    // gives blended materials no depth write, so a transparent iris sorted later drew over the closed lid.
+    for (const blink of [bindings.blink ?? []].flat()) {
+        if (blink.steps) for (const mesh of meshesFor(blink)) mesh.renderOrder = 1;
+    }
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -329,6 +334,18 @@ function frame(f) {
         for (const mesh of meshesFor(blink)) {
             for (const t of blink.suppressExpressionTargets ?? []) mesh.morphTargetInfluences[t] *= 1 - f.b;
             mesh.morphTargetInfluences[blink.targetIndex] = Math.max(f.b, mesh.morphTargetInfluences[blink.targetIndex]);
+            if (blink.steps) {
+                // A chain: in-between targets at even closures, the final one at 1 (a rolling lid). A
+                // `closures` target's weight (a squint) is a fraction of the closure, not a shape of its own.
+                let closure = mesh.morphTargetInfluences[blink.targetIndex];
+                for (const c of blink.closures ?? []) {
+                    closure = Math.max(closure, mesh.morphTargetInfluences[c.targetIndex] * c.closure);
+                    mesh.morphTargetInfluences[c.targetIndex] = 0;
+                }
+                const position = closure * (blink.steps.length + 1);
+                blink.steps.forEach((t, k) => { mesh.morphTargetInfluences[t] = Math.max(0, 1 - Math.abs(position - (k + 1))); });
+                mesh.morphTargetInfluences[blink.targetIndex] = Math.max(0, 1 - Math.abs(position - (blink.steps.length + 1)));
+            }
         }
     }
 
