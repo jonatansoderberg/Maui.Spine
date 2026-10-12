@@ -64,6 +64,25 @@ def unproject(px, zc):
 def src_to_crop(xy):
     return np.asarray(xy, float) * S + np.array([OX, OY])
 
+# The owner's generated views of the bald avatar (assets-v3: front and back three-quarters, profiles,
+# back; rendered from this avatar's own front/side/back renders, so lit like it), fitted to the bald
+# scan by silhouette above the collar (tools/sidefit.py, IoU 0.94-0.99): the model turned about y by
+# the angle faces the camera, and picture px = crop px * scale + offset. Only their fine detail
+# (pores, grain, small creases, under DETAIL_SCALE px) goes onto the skin's one tone below the eyes;
+# their light does not: projected as they were, each view met the next and the photo's cheek in
+# seams and patches (owner: "ser inte alls bra ut"). The hair covers the rest.
+SIDE_VIEWS = [('gen-1.png', -135.0, 1.3954, -74.1, -87.2), ('gen-2.png', 135.0, 1.3972, -85.2, -89.6),
+              ('gen-3.png', -45.0, 1.3120, -34.7, -71.1), ('gen-4.png', 45.0, 1.2632, -39.6, -59.8),
+              ('gen-5.png', 180.0, 1.3797, -77.1, -79.1), ('gen-6.png', -90.0, 1.3830, -70.4, -80.4),
+              ('gen-7.png', 90.0, 1.3642, -75.4, -80.5)]
+
+DETAIL_SCALE = 12.0     # px in the views: variation finer than this is skin detail, coarser is their light
+DETAIL_GAIN = 3.0       # the grain's amplification on the skin
+
+def rot_y(a):
+    c, s_ = math.cos(math.radians(a)), math.sin(math.radians(a))
+    return np.array([[c, 0, s_], [0, 1, 0], [-s_, 0, c]])
+
 # ---------------------------------------------------------------- landmarks (source image px)
 
 EYES = [dict(cx=507.5, cy=522.0, half=72.0, upper=487.0, lower=552.0, crease=468.0),
@@ -2254,6 +2273,56 @@ def build(work):
     # tone: its own colour drifted grey-beige there, a strip between cheek and ear on a turn.
     cheek = np.asarray(bald_src).astype(float)[open_skin]
     skin_ref = np.median(cheek, 0)
+    # The side views on the skin below the eyes: per view the faces turned to its camera and seen from
+    # it (a coarse z-buffer in that view, softened over the neighbouring faces as the front's is),
+    # sampled where the picture shows skin.
+    fvn = VN[F].mean(1); fvn /= np.linalg.norm(fvn, axis=1, keepdims=True) + 1e-12
+    fc = P[F].mean(1)
+    fvn *= np.sign(((fc - np.array([pivot[0], fc[:, 1].mean(), pivot[2]])) * fvn).sum(1, keepdims=True) + 1e-12)
+    v_count = np.maximum(np.bincount(F.reshape(-1), minlength=len(P)), 1)
+    side_views = []
+    for name, ang, sc, sox, soy in SIDE_VIEWS:
+        R = rot_y(ang)
+        pic = np.asarray(Image.open(f'{work}/assets-v3/{name}').convert('RGB')).astype(float)
+        corner = np.median(np.concatenate([pic[:20, :20].reshape(-1, 3), pic[:20, -20:].reshape(-1, 3)]), 0)
+        fg = ndimage.binary_closing(np.abs(pic - corner).max(-1) > 14, iterations=3)
+        lab_, _ = ndimage.label(fg); sizes = np.bincount(lab_.ravel()); sizes[0] = 0
+        fg = lab_ == sizes.argmax()
+        # Skin only: the eye's white and iris and the brow printed on the temple beside the eye, and
+        # the turtleneck's grey-blue on the neck above the scan's collar.
+        skin_px = (pic[..., 0] > pic[..., 2] + 25) & (pic[..., 0] > pic[..., 1] + 8) & (pic.sum(-1) > 240) & (pic.sum(-1) < 740)
+        fg &= ndimage.binary_erosion(skin_px, iterations=6)
+        fg = ndimage.binary_erosion(fg, iterations=8).astype(float)
+        # The view's detail as a ratio to its own local mean (1 = no detail), clamped: it multiplies
+        # the skin's tone, so the views' light, their differences and the edge of each view vanish.
+        blur = np.stack([ndimage.gaussian_filter(pic[..., k] * fg, DETAIL_SCALE) for k in range(3)], -1) / np.maximum(ndimage.gaussian_filter(fg, DETAIL_SCALE), 1e-3)[..., None]
+        ratio = pic / np.maximum(blur, 1.0)
+        # Only the grain: where the view has an edge (the ear's rim, a brow's end, the chin's
+        # highlight) the ratio swings far from 1 and printed that edge on the skin; such places take
+        # no detail. The grain itself is faint in these smooth renders (a few levels), so it is
+        # amplified DETAIL_GAIN times.
+        edge = ndimage.gaussian_filter(np.abs(ratio - 1).max(-1), 6) > 0.03
+        edge = ndimage.binary_dilation(edge, iterations=6)
+        pic = np.where(edge[..., None], 1.0, np.clip(1 + DETAIL_GAIN * (ratio - 1), 0.9, 1.1))
+        Pr = P @ R.T
+        at_, _ = front_zbuffer(Pr, F)
+        cpx, cz = project(fc @ R.T)
+        seen_ = (cz <= at_(cpx) + 0.02).astype(float)
+        for _ in range(6):
+            seen_ = (np.bincount(F.reshape(-1), np.repeat(seen_, 3), len(P)) / v_count)[F].mean(1)
+        cam = R.T @ np.array([0.0, 0.0, D])
+        tow = (fvn * (cam - fc)).sum(1) / np.linalg.norm(cam - fc, axis=1)
+        side_views.append(dict(name=name, R=R, scale=sc, off=np.array([sox, soy]), pic=pic, fg=fg, weight=smooth(0.1, 0.45, tow) * seen_))
+    def side_sample(view, q):
+        px = project(q @ view['R'].T)[0] * view['scale'] + view['off']
+        col = np.stack([ndimage.map_coordinates(view['pic'][..., k], [px[:, 1], px[:, 0]], order=1, mode='nearest', cval=1.0) for k in range(3)], -1)
+        return col, ndimage.map_coordinates(view['fg'], [px[:, 1], px[:, 0]], order=1, mode='constant')
+    epx = src_to_crop([(626.0, IRISES[0][1])]); ei = epx.astype(int)
+    eye_y = unproject(epx, zbuf[ei[:, 1], ei[:, 0]])[0, 1]
+    def side_weight(view, q, near):
+        # Below the eyes, and not on or round the ears (their own atlas; a picture's ear a few px off
+        # the scan's would print the concha on the skull behind).
+        return (view['weight'][bare][near] * smooth(eye_y + 0.04, eye_y, q[:, 1]) * (1 - ear_w[F[bare][near]].max(1)))
     picture = np.asarray(bald_src).astype(float)
     def projected(q):
         c, _ = project(q); sp = (c - np.array([OX, OY])) / S
@@ -2293,7 +2362,15 @@ def build(work):
         w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)) * smooth(jaw_y + 6, jaw_y - 8, c_sy(q))
              * smooth(0.6, 0.3, bare_down[near]))[:, None]
         pc = projected(q)
-        out = side * (1 - w) + pc * w
+        # The views' detail, averaged by their weights, on the skin's tone (1 where no view sees).
+        total, detail = np.zeros((len(q), 1)), np.zeros((len(q), 3))
+        on_skin = ((kind == SKIN) | (kind == NECK))
+        for view in side_views:
+            sc_, fg_ = side_sample(view, q)
+            wi = (side_weight(view, q, near) * fg_ * on_skin)[:, None]
+            total = total + wi; detail = detail + wi * sc_
+        detail = (detail + np.maximum(1 - total, 0)) / np.maximum(total, 1.0)
+        out = side * detail * (1 - w) + pc * w
         if UNDER_CHIN_PHOTO == 0:
             return out
         # Under the chin and jaw: the picture's own shadow there (what the camera sees below the jaw
