@@ -111,7 +111,7 @@ using var overlay = SpineOverlay.Show(new LockView(), back: () => { /* Android's
 | `SpineScreen.ShownPagesChanged` | Raised on the main thread when that list changes. |
 | `SpineScreen.WhenReady` | Completes once the window has been active and the first root page is in place: the earliest an app can show a prompt on a cold start. |
 | `SpineScreen.ExcludeFromCapture` | Keeps the app's windows out of screenshots and recordings: on Android the activity, an open sheet and Spine's overlays, on Windows the window. iOS and Mac Catalyst cannot block capture, so it does nothing there. |
-| `SpineOverlay.Show(view, back)` | Shows the view over the whole window: a view on the window on Apple, a dialog of its own on Android, a popup on Windows. A sheet that opens later goes under it. The view gets the app's styles. |
+| `SpineOverlay.Show(view, back, passTouches)` | Shows the view over the whole window: a view on the window on Apple, a dialog of its own on Android, a popup on Windows. A sheet that opens later goes under it. The view gets the app's styles. With `passTouches: true` the view is decoration (a glow round the screen): touches and focus go to the app under it, screen readers skip it, and on Android a later sheet is not held back; the overlay is shown again above it instead, which leaves it out for about a quarter of a second. |
 
 ## See also
 

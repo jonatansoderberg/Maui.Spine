@@ -68,6 +68,9 @@ internal sealed partial class HighlightState : IDisposable
         Update();
     }
 
+    /// <summary>Edge's level for this frame, 0 to 1, from <see cref="EdgeGlow"/>.</summary>
+    public void SetLevel(double level) => _renderer?.SetLevel(level);
+
     /// <summary>Draws again with the current look: colours, intensity, size, theme or Reduce Motion changed.</summary>
     public void Refresh()
     {
@@ -118,7 +121,8 @@ internal sealed partial class HighlightState : IDisposable
 
     /// <summary>
     /// Whether the view is on a page Spine shows: the top of the current region, tab or sheet. A page under
-    /// another one stays loaded but cannot be seen. Without Spine's navigation every page counts.
+    /// another one stays loaded but cannot be seen. Without Spine's navigation, or outside any page (a view
+    /// on <see cref="SpineOverlay"/>), it counts as shown.
     /// </summary>
     bool OnShownPage()
     {
@@ -128,14 +132,19 @@ internal sealed partial class HighlightState : IDisposable
 
         for (Element? element = _view; element is not null; element = element.Parent)
         {
+            if (element is not INavigable)
+                continue;
+
             foreach (var page in shown)
             {
                 if (ReferenceEquals(page.Page, element))
                     return true;
             }
+
+            return false;
         }
 
-        return false;
+        return true;
     }
 
     /// <summary>The one place that decides what shows: start, resume, pause or stop the run.</summary>

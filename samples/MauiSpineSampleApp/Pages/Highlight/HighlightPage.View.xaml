@@ -171,6 +171,24 @@
             </Example.Code>
         </Example>
 
+        <Example Title="The window's edge"
+                 Summary="IHighlights.AttachEdge puts Edge round the whole window, above the header bar and sheets, following the screen's rounded corners, and takes no touches. Give it an intensity, such as a voice session's output level, and the rim and glow follow it on every frame.">
+            <VerticalStackLayout Spacing="12">
+                <HorizontalStackLayout Spacing="10">
+                    <Button Text="Model working" Command="{Binding ModelWorkingCommand}" />
+                    <Button Text="Speaking" Command="{Binding SpeakingCommand}" />
+                    <Button Text="Stop" Command="{Binding StopEdgeCommand}" />
+                </HorizontalStackLayout>
+                <Button Text="Open a sheet" Command="{Binding OpenSheetCommand}" HorizontalOptions="Start" />
+                <Label Text="{Binding EdgeState}" FontSize="13" TextColor="{DynamicResource SecondaryText}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                using var edge = highlights.AttachEdge(window);
+                // nothing more: a model is working
+                edge.Intensity = () =&gt; voice.Frame.OutputLevel;
+            </Example.Code>
+        </Example>
+
         <Example Title="From code"
                  Summary="IHighlights.PlayAsync plays a highlight on any view and completes when it ends, for a hint that does not belong in the markup.">
             <VerticalStackLayout Spacing="12">

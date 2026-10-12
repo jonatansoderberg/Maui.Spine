@@ -28,7 +28,9 @@ public static partial class SpineOverlay
             view.RemoveFromSuperview();
             view.Frame = platformWindow.Bounds;
             view.AutoresizingMask = UIViewAutoresizing.FlexibleDimensions;
-            view.AccessibilityViewIsModal = true;
+            view.UserInteractionEnabled = !PassTouches;
+            view.AccessibilityViewIsModal = !PassTouches;
+            view.AccessibilityElementsHidden = PassTouches;
             platformWindow.AddSubview(view);
             _view = view;
 
@@ -43,7 +45,8 @@ public static partial class SpineOverlay
                 });
             }
 
-            UIAccessibility.PostNotification(UIAccessibilityPostNotification.ScreenChanged, view);
+            if (!PassTouches)
+                UIAccessibility.PostNotification(UIAccessibilityPostNotification.ScreenChanged, view);
         }
 
         public void Raise()
@@ -57,7 +60,8 @@ public static partial class SpineOverlay
             _view?.RemoveFromSuperview();
             _view = null;
 
-            UIAccessibility.PostNotification(UIAccessibilityPostNotification.ScreenChanged, null);
+            if (!PassTouches)
+                UIAccessibility.PostNotification(UIAccessibilityPostNotification.ScreenChanged, null);
         }
     }
 }

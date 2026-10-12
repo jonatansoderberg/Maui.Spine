@@ -14,17 +14,25 @@ public static partial class SpineOverlay
         _shown.Select(handle => handle.PlatformWindow).OfType<Android.Views.Window>();
 
     /// <summary>
-    /// Keeps <paramref name="window"/>, a sheet that opened while an overlay shows, out of sight until the
-    /// overlays have gone. A later window goes on top, and showing the overlay again to get back above it
-    /// would leave a frame or two with neither.
+    /// A sheet, <paramref name="window"/>, opened while overlays show; a later window goes on top. While an
+    /// overlay that takes touches shows, the sheet is kept out of sight until the overlays have gone: showing
+    /// the overlay again to get back above it would leave a frame or two with neither. Overlays that pass
+    /// touches through (a glow) are shown again above the sheet instead; a frame without them does no harm.
     /// </summary>
-    internal static void HoldUnder(Android.Views.Window? window)
+    internal static void OnSheetShown(Android.Views.Window? window)
     {
-        if (_shown.Count == 0 || window?.DecorView is not { } decor)
+        if (window?.DecorView is not { } decor)
             return;
 
-        decor.Visibility = ViewStates.Invisible;
-        _heldUnder.Add(window);
+        if (_shown.Any(handle => !handle.PassTouches))
+        {
+            decor.Visibility = ViewStates.Invisible;
+            _heldUnder.Add(window);
+            return;
+        }
+
+        foreach (var handle in _shown)
+            handle.Raise();
     }
 
     private static void ReleaseHeld()
@@ -50,7 +58,27 @@ public static partial class SpineOverlay
             if (Platform.CurrentActivity is not { } activity)
                 return;
 
-            var view = _content.ToPlatform(context);
+            _dialog = Open(activity, _content.ToPlatform(context));
+        }
+
+        /// <summary>
+        /// Puts the overlay back on top of a later window: a window shown again keeps its place, so a new dialog
+        /// takes the view, then the old one closes.
+        /// </summary>
+        public void Raise()
+        {
+            if (_dialog is not { IsShowing: true } old || Platform.CurrentActivity is not { } activity
+                || _content.Handler?.PlatformView is not Android.Views.View view)
+            {
+                return;
+            }
+
+            _dialog = Open(activity, view);
+            old.Dismiss();
+        }
+
+        OverlayDialog Open(Activity activity, Android.Views.View view)
+        {
             (view.Parent as ViewGroup)?.RemoveView(view);
 
             var dialog = new OverlayDialog(activity, _back);
@@ -58,6 +86,9 @@ public static partial class SpineOverlay
 
             if (dialog.Window is { } platformWindow)
             {
+                if (PassTouches)
+                    platformWindow.AddFlags(WindowManagerFlags.NotTouchable | WindowManagerFlags.NotFocusable);
+
                 platformWindow.SetBackgroundDrawable(new Android.Graphics.Drawables.ColorDrawable(Android.Graphics.Color.Transparent));
                 platformWindow.SetLayout(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent);
                 platformWindow.ClearFlags(WindowManagerFlags.DimBehind);
@@ -82,7 +113,7 @@ public static partial class SpineOverlay
             }
 
             dialog.Show();
-            _dialog = dialog;
+            return dialog;
         }
 
         private partial void Detach()

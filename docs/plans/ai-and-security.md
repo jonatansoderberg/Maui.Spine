@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (#509 Highlight merged as #532; #530 Spotlight and tours in review as #533; see Verification backlog)
+**Last updated:** 2026-10-12 (#530 merged as #533; #531 window edge glow in review as #534, the last Highlight step; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -46,7 +46,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 |---|---|---|---|---|
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
-| `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | #509 done (#532), #530 in review (#533), #531 ready |
+| `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | #509 done (#532), #530 done (#533), #531 in review (#534) |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Proposal |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Proposal |
@@ -119,8 +119,8 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
 | 3.1 | `Controls.Highlight`: the package and the per-view kinds Edge, Pulse, Sheen, Trace and Breathe; repeat, keys, `IHighlights` | #509 | 0.2 | Done | #532 | The core gets a public `ReducedMotion` with `Changed`, `Tap.Executed` and `ElementVisuals` (Windows). Shimmer and MeshBackground use the core's `ReducedMotion`. |
-| 3.2 | Spotlight and tours: `TourAsync`, `SpineTargets.TryGetFrame` | #530 | 3.1 | In review | #533 | On `SpineOverlay`; `Highlight.Kind="Spotlight"` is a one-step tour. The core gets `SpineTargets`, and `SpineOverlay` on Android draws behind the system bars. |
-| 3.3 | The window edge glow: `AttachEdge`, `IEdgeGlow`, `SpineOverlay.Show(…, passTouches)`, iOS corner radii | #531 | 3.1 | Ready | | Voice's screen-edge visual uses it. A pass-through overlay is shown again above a later sheet instead of holding the sheet under it (Decisions). |
+| 3.2 | Spotlight and tours: `TourAsync`, `SpineTargets.TryGetFrame` | #530 | 3.1 | Done | #533 | On `SpineOverlay`; `Highlight.Kind="Spotlight"` is a one-step tour. The core gets `SpineTargets`, and `SpineOverlay` on Android draws behind the system bars. |
+| 3.3 | The window edge glow: `AttachEdge`, `IEdgeGlow`, `SpineOverlay.Show(…, passTouches)`, iOS corner radii | #531 | 3.1 | In review | #534 | Voice's screen-edge visual uses it. `SpineOverlay.Show(…, passTouches)` in the core; on Android a pass-through overlay is shown again above a later sheet (Decisions). |
 
 ### Phase 4: voice
 
@@ -169,6 +169,9 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 3.2 (#530) | Windows at run time: a tour over the popup, Escape, the title bar's `PageAction` and the `NavigationView` tab item as targets | A Windows machine | Showcase Highlight page, and the scratch tabbed app from the test recipes |
 | 3.2 (#530) | Screen readers during a tour: the card's focus and "Step 2 of 3" announced, and the dim out of the accessible tree | VoiceOver or TalkBack | Showcase Highlight page, Take the tour |
 | 3.2 (#530) | A tour while a sheet is open, and one cut short by a sheet opening (`Cancelled`) | Simulator and emulator | A scratch sheet page that runs a tour |
+| 3.3 (#531) | The window edge's corners on other iPhones and on iPads: the table holds published radii, checked only on the iPhone 17 simulator (against `simctl io screenshot --mask=black`) | Other simulators or devices | Showcase Highlight page, The window's edge, a masked screenshot |
+| 3.3 (#531) | Windows at run time: the edge over the window, `passTouches` on the popup, `CompositionTarget.Rendering` driving the level | A Windows machine | Showcase Highlight page |
+| 3.3 (#531) | Once on iOS, after toggling Reduce Motion while the window edge ran, the XAML spotlight of the Highlight page showed though its `IsActive` binding was false. Not reproduced in three tries | Simulator | Highlight page: Model working, Stop, Reduce Motion on, Speaking |
 
 **Test recipes that worked**
 - **Face ID in the iOS simulator.**
@@ -245,6 +248,10 @@ Newest last. Each entry is dated and says who decided.
 - **2026-10-12, Claude (#530):** `SpineOverlay`'s dialog on Android draws the system bar backgrounds (`DRAWS_SYSTEM_BAR_BACKGROUNDS`). **Why:** without it the system painted black bars over the app behind the status and navigation bars, so the dim stopped short of them.
 - **2026-10-12, Claude (#530):** iOS 26's floating tab bar draws each tab button twice (once more for the selected tab's lens), so `SpineTargets` takes one control per place in the bar. If the count still does not match the tabs, the item gets an equal share of the bar.
 - **2026-10-12, Claude (#530):** Escape skips a tour on Windows only. Mac Catalyst would need a key command on a responder in the overlay's window, which `SpineOverlay` does not have; Skip and a tap work there.
+- **2026-10-12, Claude (#531):** The window edge's level is read by a frame clock of the platform's own (`CADisplayLink`, `Choreographer`, `CompositionTarget.Rendering`), not MAUI's ticker. **Why:** MAUI's Android ticker stops when animations are removed, and under Reduce Motion the level must still show.
+- **2026-10-12, Claude (#531):** The window edge is the per-view Edge on a view the window's size, with `Outset` 36. Edge's glow and rim scale with `Outset` above the default 12. **Why:** the outer half of the glow is off screen. At the per-view strength, the owner found the window's edge too subtle ("lätt att missa"); a view with the default outset looks as before.
+- **2026-10-12, Claude (#531):** On Android the pass-through overlay is raised above a later sheet by opening a new dialog with its view and closing the old one. That view leaves and joins a window, so the glow is out for about 0.27 s and fades back in, as measured in a recording. **Why:** `Hide` then `Show` keeps a window's place, and holding the sheet back is worse for a glow.
+- **2026-10-12, Claude (#531):** A rebuild of a highlight's layers mid fade-in continues the fade from where it was. **Why:** a recording showed the window edge jump in at full strength when its view was laid out again just after it appeared.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
@@ -345,6 +352,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-12:** #530 merged (PR #533). #531 (the window edge glow) in review as PR #534: Highlight's last step.
 - **2026-10-12:** #509 merged (PR #532). #530 (Spotlight and tours) in review as PR #533.
 - **2026-10-12:** #508 merged (PR #529); phase 1 done. #509 (Highlight) split into #509, #530 and #531; #509 in review as PR #532.
 - **2026-10-12:** #508 (app lock and privacy shield) in review as PR #529, the last step of phase 1. The core gets `SpineOverlay` and `SpineScreen`.

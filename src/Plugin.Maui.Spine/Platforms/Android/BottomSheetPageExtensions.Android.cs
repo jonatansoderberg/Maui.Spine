@@ -285,7 +285,7 @@ internal static class BottomSheetPageExtensions
             SpineScreen.Secure(dialog.Window);
 
             dialog.Show();
-            SpineOverlay.HoldUnder(dialog.Window);
+            SpineOverlay.OnSheetShown(dialog.Window);
 
             // ── Material container shape ─────────────────────────────────────────
             // Apply rounded top corners directly to the design_bottom_sheet container

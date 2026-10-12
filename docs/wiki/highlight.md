@@ -113,6 +113,21 @@ var result = await highlights.TourAsync("onboarding",
 
 The text of the card's buttons and counter comes from the strings `Spine.Highlight.Next`, `.Skip`, `.Done` and `.Step` ("Step {0} of {1}"), in English and Swedish; override them in the app's strings (see [Strings](strings.md)).
 
+## The window's edge
+
+`IHighlights.AttachEdge(window)` puts Edge round the whole window, above the header bar, the tab bar and sheets. It follows the display's rounded corners: a table by screen size on iPhone and iPad (iOS has no API for it), the system's rounded-corner insets on Android 12 and later, square elsewhere. It takes no touches: the page and an open sheet work as usual under it.
+
+```csharp
+using var edge = highlights.AttachEdge(window);   // "a model is working": Highlight's own Edge
+edge.Intensity = () => voice.Frame.OutputLevel;   // or follow a level from 0 to 1, read every frame
+```
+
+- With no `Intensity` it runs Edge's own turning colours. With a function, the rim's width and the glow's strength follow the level on every frame, eased so a level read at 20 to 60 Hz does not flicker. The function runs on the main thread: keep it cheap. If it throws, the glow stops and the exception is written to the debug log.
+- Spine.Voice does not reference Highlight, nor the other way round: the app connects them with the line above.
+- Under Reduce Motion the colours stand still and the level drives only the strength.
+- Disposing it fades it out.
+- On Android a sheet that opens while the edge glows is drawn under it; the glow is shown again above the sheet, which leaves it out for about a quarter of a second.
+
 ## Keys
 
 A key is stored in `Preferences` under the shared name `spine.highlight`, so forgetting them clears nothing else. It counts as seen when the highlight ends by itself or by a tap, not when the page goes away while it plays.
@@ -145,4 +160,4 @@ await highlights.PlayAsync(saveButton, HighlightKind.Pulse, HighlightRepeat.Time
 
 ## Sample
 
-The Spine Showcase has a Highlight page: a card that summarises, every kind with the repeat, intensity and outset to try, a hint with a key and "Show tips again", Edge over glass and a mesh, a list of rows, a tour across the page (a card it scrolls to, a button, the header's palette and a hidden view it leaves out), a spotlight in XAML, and `PlayAsync`.
+The Spine Showcase has a Highlight page: a card that summarises, every kind with the repeat, intensity and outset to try, a hint with a key and "Show tips again", Edge over glass and a mesh, a list of rows, a tour across the page (a card it scrolls to, a button, the header's palette and a hidden view it leaves out), a spotlight in XAML, the window's edge (a model working, or a simulated voice level, with a sheet to open under it), and `PlayAsync`.

@@ -29,6 +29,14 @@ public interface IHighlights
     /// </summary>
     Task PlayAsync(View view, HighlightKind kind, HighlightRepeat repeat = default, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Puts an Edge glow round the whole window, above the header bar, the tab bar and sheets, taking no
+    /// touches, until the returned glow is disposed. Set its <see cref="IEdgeGlow.Intensity"/> to drive it from
+    /// a level, such as a voice session's output. The rim follows the display's rounded corners. Call it on the
+    /// main thread once the window exists.
+    /// </summary>
+    IEdgeGlow AttachEdge(Window window);
+
     /// <summary>Whether a highlight with <see cref="Highlight.KeyProperty"/> <paramref name="key"/> has been seen.</summary>
     bool HasSeen(string key);
 

@@ -26,7 +26,7 @@ public static partial class SpineOverlay
             if (_window.Handler?.PlatformView is not Microsoft.UI.Xaml.Window { Content.XamlRoot: { } root })
                 return;
 
-            _host = new Grid { Width = root.Size.Width, Height = root.Size.Height };
+            _host = new Grid { Width = root.Size.Width, Height = root.Size.Height, IsHitTestVisible = !PassTouches };
             _host.Children.Add(_content.ToPlatform(context));
 
             _root = root;

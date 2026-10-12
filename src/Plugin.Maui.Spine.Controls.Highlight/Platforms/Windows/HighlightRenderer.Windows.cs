@@ -20,6 +20,7 @@ namespace Plugin.Maui.Spine.Controls;
 internal sealed class HighlightRenderer(object platformView) : IDisposable
 {
     const int Order = ElementVisuals.TapOrder - 1_000;
+    const string EdgeName = "spine.edge";
     static readonly TimeSpan FadeDuration = TimeSpan.FromMilliseconds(250);
 
     readonly FrameworkElement? _host = platformView as FrameworkElement;
@@ -79,6 +80,26 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
 
     public void Dispose() => Remove();
 
+    /// <summary>Edge only: a level from 0 to 1 read on every frame, which the rim and the glow follow.</summary>
+    public void SetLevel(double level)
+    {
+        if (_root is not { } root || _look?.Kind != HighlightKind.Edge)
+            return;
+
+        foreach (var child in root.Children)
+        {
+            if (child is not LayerVisual { Comment: EdgeName } layer)
+                continue;
+
+            layer.StopAnimation("Opacity");
+            layer.Opacity = (float)(0.4 + 0.6 * level);
+            if (layer.Shadow is DropShadow shadow)
+                shadow.Opacity = (float)(0.15 + 0.85 * level);
+            if (layer.Children.FirstOrDefault() is ShapeVisual { Shapes.Count: > 0 } shape && shape.Shapes[0] is CompositionSpriteShape stroke)
+                stroke.StrokeThickness = (float)_look!.EdgeRimForLevel(level);
+        }
+    }
+
     /// <summary>Whether any of the element is inside its window, not scrolled out of it.</summary>
     public bool IsInWindow()
     {
@@ -109,7 +130,7 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
     static void BuildEdge(Compositor compositor, ContainerVisual root, HighlightLook look, float radius)
     {
         var size = root.Size;
-        var rim = (float)Math.Max(1, 2.5 * look.Intensity);
+        var rim = (float)look.EdgeRim(look.Intensity);
         var brush = TurningGradient(compositor, look, size);
 
         var shape = compositor.CreateShapeVisual();
@@ -119,6 +140,7 @@ internal sealed class HighlightRenderer(object platformView) : IDisposable
         // The glow: a one-colour shadow of the rim, since Composition cannot blur a gradient without Win2D.
         var layer = compositor.CreateLayerVisual();
         layer.Size = size;
+        layer.Comment = EdgeName;
         layer.Children.InsertAtTop(shape);
         if (look.Outset > 0 && look.Intensity > 0)
         {

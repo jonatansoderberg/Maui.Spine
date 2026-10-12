@@ -10,7 +10,7 @@ public sealed partial class SyncRow(string name) : ObservableObject
     public partial bool IsSyncing { get; set; }
 }
 
-public partial class HighlightPageViewModel(IHighlights _highlights) : SampleViewModel
+public partial class HighlightPageViewModel(IHighlights _highlights, INavigationService _navigation) : SampleViewModel
 {
     /// <summary>The key of the one-off hint; "Show tips again" forgets it.</summary>
     public const string HintKey = "showcase.highlight.add";
@@ -54,6 +54,11 @@ public partial class HighlightPageViewModel(IHighlights _highlights) : SampleVie
     [ObservableProperty]
     public partial bool IsSpotlightOn { get; set; }
 
+    [ObservableProperty]
+    public partial string EdgeState { get; set; } = "Off";
+
+    IEdgeGlow? _edge;
+
     public IReadOnlyList<SyncRow> Rows { get; } = [.. Enumerable.Range(1, 30).Select(i => new SyncRow($"Album {i}") { IsSyncing = i % 4 == 1 })];
 
     public override Task OnAppearingAsync(NavigationDirection navigationDirection)
@@ -67,7 +72,48 @@ public partial class HighlightPageViewModel(IHighlights _highlights) : SampleVie
     public override Task OnDisappearingAsync(NavigationDirection navigationDirection)
     {
         Plugin.Maui.Spine.Controls.Highlight.Ended -= OnEnded;
+        if (navigationDirection == NavigationDirection.Back)
+            StopEdge();
         return Task.CompletedTask;
+    }
+
+    /// <summary>The glow round the window with Highlight's own Edge animation: a model is working.</summary>
+    [RelayCommand]
+    private void ModelWorking()
+    {
+        Edge().Intensity = null;
+        EdgeState = "A model is working";
+    }
+
+    /// <summary>The glow driven by a level, as a voice session's output level would drive it.</summary>
+    [RelayCommand]
+    private void Speaking()
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        Edge().Intensity = () => SimulatedSpeech(clock.Elapsed.TotalSeconds);
+        EdgeState = "Speaking (a simulated voice level)";
+    }
+
+    [RelayCommand]
+    private void StopEdge()
+    {
+        _edge?.Dispose();
+        _edge = null;
+        EdgeState = "Off";
+    }
+
+    [RelayCommand]
+    private Task OpenSheet() => _navigation.NavigateToAsync<SimpleBottomSheetPage>();
+
+    IEdgeGlow Edge() => _edge ??= _highlights.AttachEdge(Application.Current!.Windows[0]);
+
+    /// <summary>Phrases of syllables with pauses between them, as on the concept page.</summary>
+    static float SimulatedSpeech(double t)
+    {
+        static double Noise(double x) => 0.5 + 0.25 * Math.Sin(x * 2.1) + 0.25 * Math.Sin(x * 5.3 + 1.7);
+        var phrase = Noise(t * 0.55) > 0.32 ? 1 : 0.05;
+        var syllable = Math.Pow(Math.Max(0, Math.Sin(t * 2 * Math.PI * (3.6 + Noise(t) * 1.6))), 0.7);
+        return (float)Math.Min(1, phrase * (0.25 + 0.75 * syllable) * (0.55 + 0.6 * Noise(t * 3)));
     }
 
     partial void OnUseAccentChanged(bool value) =>
