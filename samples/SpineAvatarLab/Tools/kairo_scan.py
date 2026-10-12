@@ -1235,6 +1235,27 @@ def mouth_setup(work):
         MOUTH_FIELDS[name] = d
     print('mouth fields', n, 'free px')
 
+LIP_ROUND = 0.008                   # how far (model units) the lips' inner edges go back once the mouth is open
+
+def slit_depth(xy, name, side):
+    """How far points on the lips go back (model units) as the lips part: the inner edges round into
+    the mouth, more the wider the opening at that column. Kept at their own depth, the parted edges
+    were the lips' front-most points and stood out in profile as thin spikes."""
+    c, t = MOUTH_SHAPES['closed'], MOUTH_SHAPES[name]
+    x, y = xy[:, 0], xy[:, 1]
+    u = 2 * (x - c['x0']) / (c['x1'] - c['x0']) - 1
+    at = lambda arr: np.interp(u, MU, arr)
+    U0, M0, L0 = at(c['U']), at(c['A']), at(c['L'])
+    upper = np.where(side != 0, side > 0, y < M0)
+    inside = (np.abs(u) <= 1) & np.where(upper, y >= U0 - 0.5, y <= L0 + 0.5)
+    edge = np.where(upper, np.clip((y - U0) / np.maximum(M0 - U0, 1e-3), 0, 1), 1 - np.clip((y - M0) / np.maximum(L0 - M0, 1e-3), 0, 1))
+    opening = np.clip((at(t['B']) - at(t['A'])) / 15.0, 0, 1)
+    # Less where the lip is thin and none at the corners: there the lip edge going back pulled the
+    # faces across the corner into a skin-coloured strip over the open mouth.
+    thick = np.clip(np.where(upper, M0 - U0, L0 - M0) / 25.0, 0, 1)
+    taper = 1 - smooth(0.7, 0.98, np.abs(u))
+    return LIP_ROUND * opening * thick * taper * smooth(0.2, 1.0, edge) ** 1.2 * inside
+
 def slit_field(xy, name, side):
     """Displacement (source px) for a mouth shape that parts the lips: exact on the lips (by side), the
     harmonic field round them."""
@@ -1371,15 +1392,21 @@ def mouth_inside(zg):
     zbb = np.where(sd > 0, np.interp(sb[:, 0], xs, z_up), np.interp(sb[:, 0], xs, z_lo)) + 0.0005
     # Back and away from the opening, as lips curl in (the lower lip's inside down, the upper's up):
     # straight back, the lower lip's inside faced the lab's camera, a dotted line along the lip's edge.
-    curl = np.stack([np.zeros_like(sd), -sd * LIP_CURL], 1)
-    ba, bb = sa + curl, sb + curl
+    # Not at the corners: there the upper and lower sides, turning apart, opened a gap the cheek's
+    # inside showed through, a light line across the corner when the head turned.
+    def curl(s_):
+        u_ = 2 * (s_[:, 0] - MOUTH_SHAPES['closed']['x0']) / (MOUTH_SHAPES['closed']['x1'] - MOUTH_SHAPES['closed']['x0']) - 1
+        return np.stack([np.zeros_like(sd), -sd * LIP_CURL * (1 - smooth(0.6, 0.95, np.abs(u_)))], 1)
+    ba, bb = sa + curl(sa), sb + curl(sb)
     wall_pos = np.concatenate([pa, pb, unproject(src_to_crop(ba), zba), unproject(src_to_crop(bb), zbb)])
     wall_src = np.concatenate([sa, sb, ba, bb]); wall_z = np.concatenate([za, zb, zba, zbb]); wall_side = np.tile(sd, 4)
     targets = []
     for n in TARGETS:
         if n in MOUTH_TARGETS:
             d = field(wall_src, n, wall_side)
-            targets.append(unproject(src_to_crop(wall_src + d), wall_z) - wall_pos)
+            front = np.arange(len(wall_src)) < 2 * n_e
+            dz = slit_depth(wall_src, n, wall_side) * front if n in SLIT_TARGETS else 0.0
+            targets.append(unproject(src_to_crop(wall_src + d), wall_z + dz) - wall_pos)
         else:
             targets.append(np.zeros_like(wall_pos))
     i = np.arange(n_e)
@@ -2058,6 +2085,10 @@ def build(work):
     # The surface seen from the camera, as depth over image position: targets slide points along it.
     vis_px, vis_z = inp[visible], zc[visible]
     depth = LinearNDInterpolator(vis_px, vis_z)
+    # Where the head meets the skinned neck (which has no morphs) the mouth's shapes fade out: the
+    # jaw's hinge reaches far back under the chin, and the head's side of that seam moving alone left
+    # small flaps at the throat.
+    neck_seam = cKDTree(P[np.unique(F[label == NECK])])
     def lift(points, vis, side=None):
         """Morph deltas for points: each field's image-space shift, back onto the surface. Every point
         near the visible surface moves, seen or not: moving only the visible ones tore the eyes where
@@ -2074,18 +2105,21 @@ def build(work):
         # chin left a kink where the underside stopped following.
         jaw_fade = 1 - smooth(0.012, 0.035, behind)
         jaw_fade = jaw_fade * (1 - hinge) + (1 - smooth(0.02, 0.10, behind)) * hinge
+        jaw_fade = jaw_fade * smooth(0.0, 0.02, neck_seam.query(points)[0])
         out = []
         for name in TARGETS:
             dxy = field(sxy, name, side) * near[:, None]
             if name in MOUTH_TARGETS:
                 dxy = dxy * jaw_fade[:, None]
-            moved = np.where(np.abs(dxy).sum(1) > 1e-4)[0]
+            dz = slit_depth(sxy, name, np.zeros(len(sxy)) if side is None else side) * near if name in SLIT_TARGETS else np.zeros(len(sxy))
+            moved = np.where((np.abs(dxy).sum(1) > 1e-4) | (dz > 1e-7))[0]
             delta = np.zeros_like(points)
             if len(moved):
                 npx = (sxy[moved] + dxy[moved]) * S + np.array([OX, OY])
                 # Each point keeps its own depth and slides in the image plane: re-sampling the depth
                 # at the new position threw vertices across the jump between lashes and eyeball.
-                delta[moved] = unproject(npx, z0[moved]) - points[moved]
+                # (The lips' inner edges alone go back as they part, see slit_depth.)
+                delta[moved] = unproject(npx, z0[moved] + dz[moved]) - points[moved]
             out.append(delta)
         return out
 
