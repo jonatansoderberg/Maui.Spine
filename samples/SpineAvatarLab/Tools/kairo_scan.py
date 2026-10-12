@@ -9,6 +9,7 @@ Usage: python kairo_scan.py <work-dir> <out-dir> [poster-light.png poster-dark.p
   bald/kairo-bald-front.png             the owner's bald picture, same framing
   bald/kairo-bald-s42.glb (+ _base.png, .svviews)   Pixal3D run of the bald picture
   assets-v2/kairo-eyes-closed-front.png the owner's eyes-closed picture, same framing
+  assets-v2/kairo-mouth-open-front.png, kairo-mouth-o-front.png   the owner's open ("aa") and o mouths, same framing
 Needs numpy, scipy, Pillow, trimesh, pymeshlab and scikit-image.
 
 Pipeline:
@@ -23,10 +24,12 @@ Pipeline:
     darkened by baked ambient occlusion.
  4. Morph targets as displacement fields drawn in image space and lifted back onto the surface:
     lids (their own surface, textured with the eyes-closed picture), brows and mouth shapes for
-    expressions and the 15 visemes. Written as sparse accessors.
+    expressions and the 15 visemes. Written as sparse accessors. The face is cut along the lips: the
+    open and o shapes carry them exactly onto the owner's mouth pictures, and behind them sheets from
+    the open picture (teeth, tongue) and the o picture's dark make the inside of the mouth.
  5. The head turns about the neck's axis at the collar.
 """
-import hashlib, io, json, math, os, sys, zipfile
+import faulthandler, hashlib, io, json, math, os, signal, sys, zipfile
 import numpy as np
 from PIL import Image
 from scipy import ndimage
@@ -34,6 +37,7 @@ from scipy.interpolate import LinearNDInterpolator
 from scipy.spatial import cKDTree
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+faulthandler.register(signal.SIGUSR1)       # kill -USR1 <pid> prints where a long build is
 from plush_avatars import quat, wave, tiny_png, srgb_to_linear
 
 # ---------------------------------------------------------------- the camera
@@ -481,6 +485,11 @@ def face_surface(P, F, src, hair=None):
     # All corners inside: dropping a face with one corner inside left a hole past the grid's edge
     # (the bald scan's faces are larger than the margin), and the hair behind showed through as specks.
     over = near_face[F].all(1)
+    # Not the chin's underside: seen from the front it lies behind the grid's lowest rows, and dropping
+    # its front part left a notch under the chin in profile.
+    fc_px, _ = project(P[F].mean(1)); fc_s = (fc_px - np.array([OX, OY])) / S
+    fn_ = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); fn_ /= np.linalg.norm(fn_, axis=1, keepdims=True) + 1e-12
+    over &= ~((np.abs(fn_[:, 1]) > 0.6) & (fc_s[:, 1] > CHIN_Y - 0.0042 * (fc_s[:, 0] - 626.0) ** 2 - 25))
     if hair is not None:
         # Hair over the face is the picture's own (thin strands stay in it): scan strands left at the
         # grid's edge poked through it as dark specks.
@@ -518,6 +527,32 @@ def face_surface(P, F, src, hair=None):
     ey = surf(px[:, 0], px[:, 1] + 1) - surf(px[:, 0], px[:, 1] - 1)
     gn = np.cross(ey, ex); gn /= np.linalg.norm(gn, axis=1, keepdims=True) + 1e-12
     gn = np.where((gn[:, 2] < 0)[:, None], -gn, gn)
+    # The mouth: the grid is cut along the closed lips' meeting line so the lips can part. Faces with
+    # corners on both sides of it go, and those corners move onto the line from their own side, so at
+    # rest the cut is closed and the picture unchanged; each corner remembers its side for the morphs.
+    side = np.zeros(len(px))
+    c_ = MOUTH_SHAPES['closed']
+    sxy_m = (px - np.array([OX, OY])) / S
+    u_m = 2 * (sxy_m[:, 0] - c_['x0']) / (c_['x1'] - c_['x0']) - 1
+    line = np.interp(u_m, MU, c_['A'])
+    upper = sxy_m[:, 1] < line
+    local_m = gf - len(P)
+    near_line = (np.abs(u_m) < 1.05) & (np.abs(sxy_m[:, 1] - line) < 6)
+    cut = near_line[local_m].all(1) & upper[local_m].any(1) & ~upper[local_m].all(1)
+    lip_edge = np.unique(local_m[cut])
+    side[lip_edge] = np.where(upper[lip_edge], 1, -1)
+    on_line = sxy_m[lip_edge].copy(); on_line[:, 1] = line[lip_edge]
+    px[lip_edge] = src_to_crop(on_line)
+    gp[lip_edge] = unproject(px[lip_edge], ndimage.map_coordinates(zg, [px[lip_edge, 1], px[lip_edge, 0]], order=1))
+    gf = gf[~cut]
+    lm = gf - len(P)
+    e_m = np.concatenate([lm[:, [0, 1]], lm[:, [1, 2]], lm[:, [2, 0]]])
+    _, inv_m, cnt_m = np.unique(np.sort(e_m, 1), axis=0, return_inverse=True, return_counts=True)
+    b_m = e_m[cnt_m[inv_m.reshape(-1)] == 1]
+    b_m = b_m[(side[b_m[:, 0]] != 0) & (side[b_m[:, 0]] == side[b_m[:, 1]])]
+    b_m = b_m[np.linalg.norm(px[b_m[:, 0]] - px[b_m[:, 1]], axis=1) > 1e-6]
+    SLIT_RIM[:] = [gp[b_m[:, 0]], gp[b_m[:, 1]], px[b_m[:, 0]], px[b_m[:, 1]], side[b_m[:, 0]]]
+    print('mouth cut', cut.sum(), 'faces;', (side > 0).sum(), 'upper and', (side < 0).sum(), 'lower edge corners;', len(b_m), 'rim edges')
     # The grid's edge round the eye holes, for the sockets (eye_sockets).
     local0 = gf - len(P)
     e0 = np.concatenate([local0[:, [0, 1]], local0[:, [1, 2]], local0[:, [2, 0]]])
@@ -553,6 +588,7 @@ def face_surface(P, F, src, hair=None):
     sxy = (px - np.array([OX, OY])) / S
     jaw_line = CHIN_Y - 0.0042 * (sxy[:, 0] - 626.0) ** 2
     keep_v = (sxy[:, 1] < jaw_line - 50) & ~src_mask_to_crop(eye_holes((int(SRC_W), int(SRC_W)), -8.0, 8.0))[np.clip(px[:, 1].astype(int), 0, N - 1), np.clip(px[:, 0].astype(int), 0, N - 1)]
+    keep_v &= side == 0                     # the lips' cut has walls of its own (mouth_inside)
     border = border[keep_v[border[:, 0]] & keep_v[border[:, 1]]]
     rim = np.unique(border)
     back = np.full(len(gp), -1); back[rim] = len(gp) + np.arange(len(rim))
@@ -563,6 +599,7 @@ def face_surface(P, F, src, hair=None):
     gf = np.concatenate([gf, np.concatenate([np.stack([b0, a0, back[a0]], 1), np.stack([b0, back[a0], back[b0]], 1)]) + len(P)])
     print('face grid skirt', len(border), 'edges')
     GRID_NORMALS[:] = [gn]
+    SIDE[:] = [np.concatenate([np.zeros(len(P)), side, np.zeros(len(gp) - len(side))])]
     FACE_INFO[:] = [zs, ndimage.binary_dilation(face, iterations=3), zg]
     print('face grid', ins.sum(), 'vertices,', len(gf), 'faces; scan faces dropped', over.sum())
     return np.concatenate([P, gp]), np.concatenate([F, gf]).astype(np.int32), len(P), ~over
@@ -713,6 +750,15 @@ def compose(work):
     bvn = vertex_normals(BP, BF)
     bvn *= np.sign(((BP - np.array([axis[0], 0.0, axis[1]])) * bvn).sum(1, keepdims=True) + 1e-9)     # outward
     one |= ~zero & (bvn[:, 1] < -0.55) & (BP[:, 1] > collar_y + 0.004)
+    # The chin's underside: this chin comes down to the collar's height, so the rules above (the
+    # neck's cylinder is measured where the chin already is) held it to the body while the chin turned.
+    # It is free instead: its weight runs smoothly from the chin (1) back to the throat (0).
+    bfn = np.cross(BP[BF[:, 1]] - BP[BF[:, 0]], BP[BF[:, 2]] - BP[BF[:, 0]])
+    level = ~knit & (np.abs(bfn[:, 1]) > 0.5 * np.linalg.norm(bfn, axis=1)) & (np.abs(bc[:, 1] - collar_y) < 0.02) & (bc[:, 2] > axis[1] + 0.06)
+    under = np.zeros(len(BP), bool); under[BF[level].reshape(-1)] = True
+    under &= ~knit_v
+    print('chin underside:', int(under.sum()), 'vertices freed from the body')
+    zero &= ~under
     free = used_v & ~zero & ~one
     e = np.concatenate([BF[:, [0, 1]], BF[:, [1, 2]], BF[:, [2, 0]]]); e = np.concatenate([e, e[:, ::-1]])
     A = coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(len(BP), len(BP))).tocsr(); A.data[:] = 1
@@ -732,11 +778,12 @@ def compose(work):
     def twist(p):
         return wv[vtree.query(p)[1]]
     neck = ~knit & (wv[BF] < 0.999).any(1)
-    # The scan's web between the chin and the collar: level faces outside the neck, down at the
-    # collar's height. Hidden at rest, it hung out under the chin as a flap whenever the head moved.
-    fnorm = np.cross(BP[BF[:, 1]] - BP[BF[:, 0]], BP[BF[:, 2]] - BP[BF[:, 0]]); fnorm /= np.linalg.norm(fnorm, axis=1, keepdims=True) + 1e-12
-    web = ~knit & (np.abs(fnorm[:, 1]) > 0.5) & (bc[:, 1] > collar_y - 0.02) & (bc[:, 1] < collar_y + 0.02) & (bc[:, 2] > axis[1] + 0.06)
-    # ...and whatever is left of it as loose bits (no longer joined to the head or the body).
+    # Loose bits of the scan (joined to neither the head nor the body) go. Level faces at the collar's
+    # height in front of the neck went too once, as a "web" that flapped on turns; they are the chin's
+    # own underside (this chin comes down to the collar's height), and without them the profile had a
+    # notch under the chin and, looking up, the inside of the head showed as a dark patch. Outside the
+    # neck's cylinder they now turn rigidly with the head.
+    web = np.zeros(len(BF), bool)
     from scipy.sparse.csgraph import connected_components
     keepf = ~web
     e_ = np.concatenate([BF[keepf][:, [0, 1]], BF[keepf][:, [1, 2]]])
@@ -744,7 +791,7 @@ def compose(work):
     comp_f = lab_v[BF[:, 0]]
     sizes = np.bincount(comp_f[keepf], minlength=ncomp)
     web |= keepf & (sizes[comp_f] < 200)
-    print('web under the chin removed:', int(web.sum()), 'faces')
+    print('loose scan bits removed:', int(web.sum()), 'faces')
     WEB[:] = [web]
     top_y = np.median(hi)
     NECK_SPAN[:] = [twist, collar_y]
@@ -806,7 +853,7 @@ def compose(work):
 BALD = os.environ.get('KAIRO_BALD') == '1'   # build the head without the hair layer (layer by layer)
 UNDER_CHIN_PHOTO = 0.0         # under the chin: share of the picture's own shadow (1 showed as a dark patch when the head tilted)
 NECK_TWIST = 0.05              # the neck's shortest twisting length above the collar (model units)
-WEB = []                       # bald-scan faces to drop (the web under the chin), set by compose
+WEB = []                       # bald-scan faces to drop (loose bits), set by compose
 NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw underside y per sector), set by compose
 NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
 HAIR_REACH = 0.010             # strands further than this outside the hair's closed volume are dropped
@@ -1020,31 +1067,19 @@ def brow_field(xy, kind):
     return d
 
 def mouth_field(xy, kind):
+    """The expressions' mouth corners (smile, smirk, frown); the shapes that part the lips are
+    slit_field's."""
     m = MOUTH
     x, y = xy[:, 0], xy[:, 1]
     d = np.zeros_like(xy)
     half = (m['right'] - m['left']) / 2
-    u = (x - m['cx']) / half                     # -1 at the left corner, +1 at the right
-    across = 1 - smooth(1.0, 1.7, np.abs(u))
-    below = smooth(m['y'] - 2, m['y'] + 4, y) * (1 - smooth(m['bottom'] + 40, m['bottom'] + 110, y))
-    above = (1 - smooth(m['y'] - 4, m['y'] + 2, y)) * smooth(m['top'] - 30, m['top'] + 5, y)
-    lips = np.exp(-((y - m['y']) / 34) ** 2)
     def corners(amount_x, amount_y, which=(-1, 1)):
         for s in which:
             cx = m['cx'] + s * half
             w = np.exp(-(((x - cx) / 36) ** 2 + ((y - m['y']) / 30) ** 2))
             d[:, 0] += s * amount_x * w
             d[:, 1] += amount_y * w
-    if kind == 'open':
-        d[:, 1] += 24 * below * across * (1 - 0.5 * np.abs(u).clip(0, 1) ** 2)
-        d[:, 1] += -3 * above * across * (1 - np.abs(u).clip(0, 1) ** 2)
-    elif kind == 'wide':
-        corners(13, -2); d[:, 1] += 8 * below * across
-    elif kind == 'round':
-        corners(-20, 0); d[:, 1] += 15 * below * across * (1 - np.abs(u).clip(0, 1) ** 2)
-    elif kind == 'small_o':
-        corners(-14, 0); d[:, 1] += 8 * below * across * (1 - np.abs(u).clip(0, 1) ** 2)
-    elif kind == 'smile':
+    if kind == 'smile':
         corners(9, -11)
         cheeks = np.exp(-(((np.abs(x - m['cx']) - 120) / 50) ** 2 + ((y - 680) / 40) ** 2))
         d[:, 1] += -5 * cheeks
@@ -1052,20 +1087,317 @@ def mouth_field(xy, kind):
         corners(7, -10, which=(1,))
     elif kind == 'frown':
         corners(-3, 8)
-    elif kind == 'press':
-        d[:, 1] += -3 * below * across * lips
-    elif kind == 'teeth':
-        d[:, 1] += 7 * below * across * (1 - np.abs(u).clip(0, 1) ** 2)
     return d
 
-EYE_TARGETS = ['blink', 'wide', 'squint', 'happy', 'look_left', 'look_right', 'look_up', 'look_down']
+# ---------------------------------------------------------------- the mouth, from the owner's pictures
+
+# The closed photo and the owner's open ("aa", teeth) and o-mouth pictures, all pixel-aligned.
+MOUTH_PICTURES = {'closed': 'bald/kairo-bald-front.png', 'open': 'assets-v2/kairo-mouth-open-front.png', 'round': 'assets-v2/kairo-mouth-o-front.png'}
+# The mouth's corners (source px), measured by hand: the closed lips' line, the open mouth's opening and
+# the o-mouth's lip line end there. The outlines between are measured from the pictures.
+MOUTH_CORNERS = {'closed': ((550.0, 744.0), (702.0, 744.0)), 'open': ((554.0, 752.0), (700.0, 749.0)), 'round': ((568.0, 752.0), (682.0, 752.0))}
+OPENING_DARK = {'closed': 0.0, 'open': 100.0, 'round': 60.0}   # the o-mouth's closed lip line is dark too (lum 65-90)
+MU = np.linspace(-1.0, 1.0, 121)            # across the mouth, -1 at the left corner, +1 at the right
+MOUTH_SHAPES = {}                           # per shape: corners x0, x1 and over MU the upper lip's top U, the opening's top A and bottom B, the lower lip's bottom L; the chin's edge
+SLIT_TARGETS = ['open', 'mouth_wide', 'round', 'small_o', 'press', 'teeth']
+MOUTH_GRID = (430, 640)                     # the harmonic fields' origin (source px)
+MOUTH_FIELDS = {}                           # per slit target: (dx, dy) over the grid
+SIDE = []                                   # per vertex: +1 upper lip's edge, -1 lower lip's edge, 0 elsewhere (set by face_surface)
+SLIT_RIM = []                               # the cut's edges: positions and crop px of both ends, and their side
+
+def lip_outline(work, name):
+    """The lips in one picture, per position across the mouth: the upper lip's top U, the opening's top A
+    and bottom B (the meeting line where the lips touch), the lower lip's bottom L; the teeth's edges
+    in the opening; the chin's lower edge. Lips are the saturated red, the opening is dark or teeth."""
+    a = ndimage.gaussian_filter(np.asarray(Image.open(f'{work}/{MOUTH_PICTURES[name]}').convert('RGB')).astype(float), (1, 1, 0))
+    R, G, B = a[..., 0], a[..., 1], a[..., 2]; lum = a.mean(-1)
+    # Redder and less yellow than skin; on the shadowed left side the lips are only R-G 60-75 against
+    # the skin's 46-52, so the yellow (G-B: lips under 14, skin over 16) carries the difference.
+    lip = ndimage.binary_opening((R - G - 2.5 * (G - B) > 28) & (R > 125), iterations=1)
+    teeth = (R - G < 50) & (G - B < 15) & (R > 120) & (name == 'open')
+    hole = ~lip & ((lum < OPENING_DARK[name]) | teeth)
+    (xl, yl), (xr, yr) = MOUTH_CORNERS[name]
+    x = xl + (MU + 1) / 2 * (xr - xl); corner = yl + (MU + 1) / 2 * (yr - yl)
+    xi = np.round(x).astype(int)
+    # The lips' meeting line: the darkest row near the straight line between the corners (a free search
+    # found the shadow under the lower lip at the corners).
+    line = np.array([y0 - 8 + np.argmin(lum[int(y0) - 8:int(y0) + 9, i]) for i, y0 in zip(xi, np.round(corner))], float)
+    U, L = np.full(len(MU), np.nan), np.full(len(MU), np.nan)
+    A, Bm, Tu, Tl = line.copy(), line.copy(), line.copy(), line.copy()
+    for k, i in enumerate(xi):
+        ys = np.where(lip[690:850, i])[0] + 690
+        if len(ys) < 3:
+            continue
+        U[k], L[k] = ys.min(), ys.max()
+        hy = np.where(hole[ys.min():ys.max() + 1, i])[0] + ys.min()
+        if len(hy) >= 2:
+            A[k], Bm[k] = hy.min(), hy.max() + 1
+            ty = np.where(teeth[int(A[k]):int(Bm[k]), i])[0] + A[k]; mid = (A[k] + Bm[k]) / 2
+            Tu[k] = ty[ty < mid].max() + 1 if (ty < mid).any() else A[k]
+            Tl[k] = ty[ty >= mid].min() if (ty >= mid).any() else Bm[k]
+    def clean(v):
+        ok = ~np.isnan(v); ok[[0, -1]] = False
+        v = np.interp(MU, np.concatenate([[-1.0], MU[ok], [1.0]]), np.concatenate([[corner[0]], v[ok], [corner[-1]]]))
+        v = ndimage.gaussian_filter1d(ndimage.median_filter(v, 5, mode='nearest'), 1.5, mode='nearest')
+        v[[0, -1]] = corner[[0, -1]]
+        return v
+    U, A, Bm, L = clean(U), clean(A), clean(Bm), clean(L)
+    A = np.maximum(A, U); Bm = np.maximum(Bm, A); L = np.maximum(L, Bm)
+    g = np.diff(ndimage.gaussian_filter(lum, 1.5), axis=0)
+    chin_x = np.arange(552.0, 704.0, 4.0)
+    chin = ndimage.median_filter(np.array([828 + np.argmin(g[828:905, int(c)]) for c in chin_x], float), 5, mode='nearest')
+    return dict(x0=xl, x1=xr, U=U, A=A, B=Bm, L=L, Tu=clean(Tu), Tl=clean(Tl), chin_x=chin_x, chin=chin)
+
+def mouth_band(xy, name, side):
+    """Points on the closed lips moved to where shape `name` has them (source px): per position across
+    the mouth the upper lip [U, M] onto [U', A'] and the lower lip [M, L] onto [B', L'], the corners onto
+    the shape's corners. Returns the moved points and which points lie on the lips. side: +1 the upper
+    lip's edge, -1 the lower's, 0 by height (the cut's two edges lie on the same line at rest)."""
+    c, t = MOUTH_SHAPES['closed'], MOUTH_SHAPES[name]
+    x, y = xy[:, 0], xy[:, 1]
+    u = 2 * (x - c['x0']) / (c['x1'] - c['x0']) - 1
+    at = lambda arr: np.interp(u, MU, arr)
+    U0, M0, L0 = at(c['U']), at(c['A']), at(c['L'])
+    upper = np.where(side != 0, side > 0, y < M0)
+    inside = (np.abs(u) <= 1) & np.where(upper, y >= U0 - 0.5, y <= L0 + 0.5)
+    tx = t['x0'] + (u + 1) / 2 * (t['x1'] - t['x0'])
+    f_up = np.clip((y - U0) / np.maximum(M0 - U0, 1e-3), 0, 1)
+    f_lo = np.clip((y - M0) / np.maximum(L0 - M0, 1e-3), 0, 1)
+    ty = np.where(upper, at(t['U']) + f_up * (at(t['A']) - at(t['U'])), at(t['B']) + f_lo * (at(t['L']) - at(t['B'])))
+    moved = np.stack([tx, ty], 1)
+    # The cut runs a little past the corners, both edges moving with the corner: ending inside, the
+    # face's last triangle across it stretched into a skin-coloured strip over the open mouth's corner.
+    past = (side != 0) & (np.abs(u) > 1)
+    right = u > 0
+    shift = np.stack([np.where(right, t['x1'] - c['x1'], t['x0'] - c['x0']), np.where(right, t['A'][-1] - c['A'][-1], t['A'][0] - c['A'][0])], 1)
+    return np.where(past[:, None], xy + shift, moved), inside | past
+
+def mouth_setup(work):
+    """The lip outlines of every mouth shape and, round the lips, the smoothest displacement that carries
+    them there (harmonic: zero at the cheeks and under the nose, the chin's edge where the picture has
+    it). Shapes not pictured are drawn from the closed outline."""
+    c, o, r = (lip_outline(work, n) for n in ('closed', 'open', 'round'))
+    c['A'] = c['B'] = (c['A'] + c['B']) / 2
+    taper = np.clip(1 - MU ** 2, 0, None) ** 0.6
+    M = c['A']
+    def like(base, **k):
+        s = dict(base); s.update(k); return s
+    MOUTH_SHAPES.clear()
+    MOUTH_SHAPES.update(closed=c, open=o, round=r)
+    MOUTH_SHAPES['teeth'] = like(c, U=c['U'] - taper, A=M - 6 * taper, B=M + 8 * taper, L=c['L'] + 3 * taper)
+    MOUTH_SHAPES['mouth_wide'] = like(c, x0=c['x0'] - 13, x1=c['x1'] + 13, U=c['U'] + 2 * taper - 2 * MU ** 2, A=M - 1.5 * taper - 2 * MU ** 2,
+                                B=M + 4 * taper - 2 * MU ** 2, L=c['L'] - 3 * taper - 2 * MU ** 2)
+    MOUTH_SHAPES['press'] = like(c, U=c['U'] + 4 * taper, L=c['L'] - 6 * taper)
+    mid = (r['A'] + r['B']) / 2
+    MOUTH_SHAPES['small_o'] = like(r, x0=r['x0'] + 6, x1=r['x1'] - 6, A=mid - 0.45 * (mid - r['A']), B=mid + 0.45 * (r['B'] - mid),
+                                   chin=c['chin'] + 0.5 * (r['chin'] - c['chin']))
+    for n, s in MOUTH_SHAPES.items():
+        k = len(MU) // 2
+        print(f'mouth {n}: corners {s["x0"]:.0f}-{s["x1"]:.0f}, centre U {s["U"][k]:.0f} A {s["A"][k]:.0f} B {s["B"][k]:.0f} L {s["L"][k]:.0f}, chin {s["chin"][len(s["chin"]) // 2]:.0f}')
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.linalg import splu
+    gx0, gy0 = MOUTH_GRID
+    yy, xx = np.mgrid[gy0:910, gx0:822].astype(float)
+    pts = np.stack([xx.ravel(), yy.ravel()], 1)
+    dom = ((xx - 626) / 190) ** 2 + ((yy - 778) / 128) ** 2 < 1
+    nose = (yy < 684) & (np.abs(xx - 626) < 60)
+    lips = mouth_band(pts, 'closed', np.zeros(len(pts)))[1].reshape(xx.shape)
+    chin_y = np.interp(xx, c['chin_x'], c['chin'])
+    # The chin's lower part moves as one, down to below its edge: everything the front camera sees
+    # there, the chin's front and its underside behind it, takes the same drop. A thin band moved the
+    # chin's lowest rows further than the underside just above them in the image, a kink under the chin.
+    chin = (np.abs(xx - 626) < 66) & (yy > chin_y - 22) & (yy <= chin_y + 30)
+    # The jaw's outline away from the chin stays: moving, it pulled the jaw's silhouette off the neck
+    # (which has no morphs) and the inside of the head showed at the jaw's angles.
+    jaw_side = (yy > CHIN_Y - 0.0042 * (xx - 626.0) ** 2 + 3) & (np.abs(xx - 626) > 120)
+    free = dom & ~nose & ~lips & ~chin & ~jaw_side
+    idx = np.full(xx.shape, -1); idx[free] = np.arange(free.sum())
+    rows, cols = [], []
+    fy, fx = np.where(free)
+    for dy_, dx_ in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+        nb = idx[fy + dy_, fx + dx_]; ok = nb >= 0
+        rows.append(idx[fy, fx][ok]); cols.append(nb[ok])
+    rows, cols = np.concatenate(rows), np.concatenate(cols)
+    n = free.sum()
+    Lap = (coo_matrix((np.full(n, 4.0), (np.arange(n), np.arange(n))), shape=(n, n)) - coo_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n))).tocsc()
+    lu = splu(Lap)
+    for name in SLIT_TARGETS:
+        t = MOUTH_SHAPES[name]
+        moved, _ = mouth_band(pts, name, np.zeros(len(pts)))
+        d = np.where(lips[..., None], (moved - pts).reshape(*xx.shape, 2), 0.0)
+        d[..., 1] = np.where(chin, np.interp(xx, t['chin_x'], t['chin']) - chin_y, d[..., 1])
+        for k in (0, 1):
+            fixed = np.where(free, 0.0, d[..., k])
+            rhs = np.zeros(n)
+            for dy_, dx_ in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                rhs += fixed[fy + dy_, fx + dx_]
+            d[..., k][free] = lu.solve(rhs)
+        MOUTH_FIELDS[name] = d
+    print('mouth fields', n, 'free px')
+
+def slit_field(xy, name, side):
+    """Displacement (source px) for a mouth shape that parts the lips: exact on the lips (by side), the
+    harmonic field round them."""
+    moved, inside = mouth_band(xy, name, side)
+    d = MOUTH_FIELDS[name]
+    gy, gx = xy[:, 1] - MOUTH_GRID[1], xy[:, 0] - MOUTH_GRID[0]
+    h = np.stack([ndimage.map_coordinates(d[..., k], [gy, gx], order=1, mode='constant', cval=0.0) for k in (0, 1)], 1)
+    return np.where(inside[:, None], moved - xy, h)
+
+MOUTH_MATERIAL, LIPWALL_MATERIAL, OSHADE_MATERIAL = 13, 14, 15
+O_TEX = (580, 734, 672, 770)         # source px of the o-mouth picture kept for its dark opening
+LIP_CURL = 3.0                       # source px the lips' inner sides turn away from the opening, back to the mouth's inside
+MOUTH_TEX = (500, 690, 756, 850)     # source px of the open picture kept for the inside of the mouth
+
+def mouth_textures(work):
+    """The inside of the mouth from the owner's open picture: teeth, tongue and the dark behind them,
+    spread on under the lips (the upper teeth up into gum, the lower down, dark past the corners) so a
+    turned head sees into the mouth past the opening's edge, not lip. And the lips' inner side: the
+    picture's wet inner lip, darkening into the mouth."""
+    o = MOUTH_SHAPES['open']
+    a = np.asarray(Image.open(f'{work}/{MOUTH_PICTURES["open"]}').convert('RGB')).astype(float)
+    x0, y0, x1, y1 = MOUTH_TEX
+    yy, xx = np.mgrid[y0:y1:0.5, x0:x1:0.5]
+    rgb = np.stack([ndimage.map_coordinates(a[..., k], [yy, xx], order=1) for k in range(3)], -1)
+    u = 2 * (xx - o['x0']) / (o['x1'] - o['x0']) - 1
+    top, bot = np.interp(u, MU, o['A']), np.interp(u, MU, o['B'])
+    inside = (np.abs(u) < 0.98) & (yy > top + 2) & (yy < bot - 2)
+    dist, (iy, ix) = ndimage.distance_transform_edt(~inside, return_indices=True)
+    fill = rgb[iy, ix]
+    gum, dark = np.array([150.0, 72.0, 70.0]), np.array([45.0, 18.0, 18.0])
+    towards = gum * (1 - smooth(0.85, 1.05, np.abs(u)))[..., None] + dark * smooth(0.85, 1.05, np.abs(u))[..., None]
+    g = smooth(2.0, 20.0, dist)[..., None]
+    out = np.where(inside[..., None], rgb, fill * (1 - g) + towards * g)
+    lip = (a[..., 0] - a[..., 1] > 76) & (a[..., 1] - a[..., 2] < 16)
+    hole = np.zeros(a.shape[:2], bool)
+    hy, hx = np.mgrid[700:800, 540:715]
+    hu = 2 * (hx - o['x0']) / (o['x1'] - o['x0']) - 1
+    hole[700:800, 540:715] = (np.abs(hu) < 1) & (hy > np.interp(hu, MU, o['A'])) & (hy < np.interp(hu, MU, o['B']))
+    wet = lip & ndimage.binary_dilation(hole, iterations=5) & ~hole
+    inner = np.median(a[wet], 0)
+    ramp = np.linspace(0, 1, 64)[:, None]
+    wall = inner[None] * (1 - ramp) + dark[None] * ramp
+    print('inner lip colour', np.round(inner).astype(int))
+    # The o-mouth's opening: the picture's dark, spread past its edge.
+    r = MOUTH_SHAPES['round']
+    b = np.asarray(Image.open(f'{work}/{MOUTH_PICTURES["round"]}').convert('RGB')).astype(float)
+    x0, y0, x1, y1 = O_TEX
+    yy, xx = np.mgrid[y0:y1:0.5, x0:x1:0.5]
+    rgb = np.stack([ndimage.map_coordinates(b[..., k], [yy, xx], order=1) for k in range(3)], -1)
+    ur = 2 * (xx - r['x0']) / (r['x1'] - r['x0']) - 1
+    opening = (yy > np.interp(ur, MU, r['A']) + 1.5) & (yy < np.interp(ur, MU, r['B']) - 1.5)
+    _, (iy, ix) = ndimage.distance_transform_edt(~opening, return_indices=True)
+    o_tex = np.where(opening[..., None], rgb, ndimage.gaussian_filter(rgb[iy, ix], (3, 3, 0)))
+    return (Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)), Image.fromarray(np.tile(wall[:, None, :], (1, 4, 1)).astype(np.uint8)),
+            Image.fromarray(np.clip(o_tex, 0, 255).astype(np.uint8)))
+
+def mouth_inside(zg):
+    """The inside of the mouth: two curved sheets behind the lips, textured with the open picture. The
+    upper one (upper teeth and the dark under them) stays with the skull; the lower one (lower teeth and
+    tongue) goes down with the lower lip's edge. At full 'open' both are where the picture has them.
+    Plus the lips' inner sides: a wall from each cut edge back into the mouth, so the parted lips have
+    thickness when the head turns. Depth: behind the deepest face point the sheets can lie under, at
+    rest or open, and further back toward the corners (a dental arch)."""
+    o, c = MOUTH_SHAPES['open'], MOUTH_SHAPES['closed']
+    x0, y0, x1, y1 = MOUTH_TEX
+    xs = np.arange(x0 + 18, x1 - 18 + 1, 2.0)
+    X, Y = np.meshgrid(xs, np.arange(700.0, 832.0, 2.0))
+    cp = src_to_crop(np.stack([X.ravel(), Y.ravel()], 1))
+    zref = ndimage.gaussian_filter1d(ndimage.map_coordinates(zg, [cp[:, 1], cp[:, 0]], order=1).reshape(X.shape).max(0), 3, mode='nearest')
+    u = 2 * (xs - o['x0']) / (o['x1'] - o['x0']) - 1
+    z_up = zref + 0.002 + 0.005 * np.minimum(u * u, 1.44)
+    z_lo = z_up + 0.0015
+    print('mouth inside depth behind the face (mm) centre/corner', round(float((z_up - zref)[len(xs) // 2]) * 1000, 1), round(float((z_up - zref)[0]) * 1000, 1))
+    Tu, Tl = np.interp(u, MU, o['Tu']), np.interp(u, MU, o['Tl'])
+    def along(name, arr):
+        t = MOUTH_SHAPES[name]
+        return np.interp(xs, t['x0'] + (MU + 1) / 2 * (t['x1'] - t['x0']), arr)
+    jaw = {n: along(n, MOUTH_SHAPES[n]['B'] - c['A']) for n in SLIT_TARGETS}
+    lift_up = {}
+    for n in ('round', 'small_o'):
+        t = MOUTH_SHAPES[n]
+        bt, at_ = along(n, t['B']), along(n, t['A'])
+        opening = bt - at_ > 1.5
+        if opening.any():
+            # The o-mouth shows only dark: the lower teeth stay under the lower lip, the upper above the
+            # upper lip's edge (the picture has no teeth in it).
+            jaw[n] = np.maximum(jaw[n], (bt + 2 - Tl + jaw['open'])[opening].max())
+            lift_up[n] = min(0.0, (at_ - 2 - Tu)[opening].min())
+    print('mouth inside: lower teeth drop (px) open/round/small_o', round(float(jaw['open'].max()), 1), round(float(jaw['round'].max()), 1),
+          round(float(jaw['small_o'].max()), 1), 'upper teeth lift', {k: round(v, 1) for k, v in lift_up.items()})
+    rows = 26; f = np.linspace(0, 1, rows)[:, None]
+    def place(x, y, z):
+        return unproject(src_to_crop(np.stack([x.ravel(), y.ravel()], 1)), np.broadcast_to(z, x.shape).ravel())
+    def sheet(ys, z, moves, rest_dy):
+        xg = np.broadcast_to(xs, ys.shape)
+        p0 = place(xg, ys + rest_dy, z)
+        uv = np.stack([(xg.ravel() - x0) / (x1 - x0), (ys.ravel() - y0) / (y1 - y0)], 1)
+        targets = [place(xg, ys + rest_dy + moves[n], z) - p0 if n in moves else np.zeros_like(p0) for n in TARGETS]
+        idx = []
+        for r in range(rows - 1):
+            for k in range(len(xs) - 1):
+                a0 = r * len(xs) + k
+                idx += [a0, a0 + len(xs), a0 + 1, a0 + 1, a0 + len(xs), a0 + len(xs) + 1]
+        return dict(pos=p0, nrm=np.tile([0.0, 0.0, 1.0], (len(p0), 1)), uv=uv, idx=np.array(idx, np.uint32), material=MOUTH_MATERIAL, targets=targets)
+    upper = sheet(700 + (Tu + 3 - 700)[None] * f, z_up, {n: np.full(len(xs), v) for n, v in lift_up.items()}, 0.0)
+    # Down to well under the lower lip's edge, but never below the jaw's outline in any shape: there the
+    # sheet stood out in front of the neck.
+    B1 = np.interp(u, MU, o['B'])
+    reach = np.max([jaw[n] for n in SLIT_TARGETS], 0) - jaw['open']
+    bottom = np.minimum(B1 + 30, CHIN_Y - 0.0042 * (xs - 626.0) ** 2 - 14 - np.maximum(reach, 0))
+    lower = sheet((Tu - 3)[None] + (bottom - (Tu - 3))[None] * f, z_lo, {n: jaw[n] for n in SLIT_TARGETS}, -jaw['open'])
+    # The o-mouth's dark, a sheet of its own: behind both sheets until the lips are fully rounded, then
+    # in front of them (the picture shows no teeth or tongue in the o). It crosses the sheets late, so
+    # half-rounded lips still show the teeth.
+    ox = np.arange(O_TEX[0], O_TEX[2] + 1, 2.0); oy = np.arange(O_TEX[1], O_TEX[3] + 1, 2.0)
+    OX_, OY_ = np.meshgrid(ox, oy)
+    z_o = np.interp(OX_, xs, z_up)
+    po = place(OX_, OY_, z_o + 0.0045)
+    forward = place(OX_, OY_, z_o - 0.0007) - po
+    o_idx = []
+    for r_ in range(len(oy) - 1):
+        for k in range(len(ox) - 1):
+            a0 = r_ * len(ox) + k
+            o_idx += [a0, a0 + len(ox), a0 + 1, a0 + 1, a0 + len(ox), a0 + len(ox) + 1]
+    oshade = dict(pos=po, nrm=np.tile([0.0, 0.0, 1.0], (len(po), 1)), idx=np.array(o_idx, np.uint32), material=OSHADE_MATERIAL,
+                  uv=np.stack([(OX_.ravel() - O_TEX[0]) / (O_TEX[2] - O_TEX[0]), (OY_.ravel() - O_TEX[1]) / (O_TEX[3] - O_TEX[1])], 1),
+                  targets=[forward if n in ('round', 'small_o') else np.zeros_like(po) for n in TARGETS])
+    # The lips' inner sides, from the cut's edges back to the sheet behind them.
+    pa, pb, ca, cb, sd = SLIT_RIM
+    n_e = len(pa)
+    za, zb = project(pa)[1], project(pb)[1]
+    sa, sb = (ca - np.array([OX, OY])) / S, (cb - np.array([OX, OY])) / S
+    zba = np.where(sd > 0, np.interp(sa[:, 0], xs, z_up), np.interp(sa[:, 0], xs, z_lo)) + 0.0005
+    zbb = np.where(sd > 0, np.interp(sb[:, 0], xs, z_up), np.interp(sb[:, 0], xs, z_lo)) + 0.0005
+    # Back and away from the opening, as lips curl in (the lower lip's inside down, the upper's up):
+    # straight back, the lower lip's inside faced the lab's camera, a dotted line along the lip's edge.
+    curl = np.stack([np.zeros_like(sd), -sd * LIP_CURL], 1)
+    ba, bb = sa + curl, sb + curl
+    wall_pos = np.concatenate([pa, pb, unproject(src_to_crop(ba), zba), unproject(src_to_crop(bb), zbb)])
+    wall_src = np.concatenate([sa, sb, ba, bb]); wall_z = np.concatenate([za, zb, zba, zbb]); wall_side = np.tile(sd, 4)
+    targets = []
+    for n in TARGETS:
+        if n in MOUTH_TARGETS:
+            d = field(wall_src, n, wall_side)
+            targets.append(unproject(src_to_crop(wall_src + d), wall_z) - wall_pos)
+        else:
+            targets.append(np.zeros_like(wall_pos))
+    i = np.arange(n_e)
+    wall_idx = np.stack([i, i + n_e, i + 2 * n_e, i + n_e, i + 3 * n_e, i + 2 * n_e], 1).reshape(-1)
+    wall_uv = np.concatenate([np.tile([0.5, 0.02], (2 * n_e, 1)), np.tile([0.5, 0.98], (2 * n_e, 1))])
+    walls = dict(pos=wall_pos, nrm=np.tile([0.0, 0.0, 1.0], (len(wall_pos), 1)), uv=wall_uv, idx=wall_idx.astype(np.uint32),
+                 material=LIPWALL_MATERIAL, targets=targets)
+    return [upper, lower, oshade, walls]
+
+EYE_TARGETS =['blink', 'wide', 'squint', 'happy', 'look_left', 'look_right', 'look_up', 'look_down']
 BROW_TARGETS = ['raise', 'inner_up', 'frown', 'one_up']
-MOUTH_TARGETS = ['open', 'wide', 'round', 'small_o', 'smile', 'smirk', 'frown', 'press', 'teeth']
+MOUTH_TARGETS = ['open', 'mouth_wide', 'round', 'small_o', 'smile', 'smirk', 'frown', 'press', 'teeth']
 TARGETS = EYE_TARGETS + ['brow_' + b for b in BROW_TARGETS] + MOUTH_TARGETS
 
-def field(xy, name):
+def field(xy, name, side=None):
     if name in EYE_TARGETS: return eye_field(xy, name)
     if name.startswith('brow_'): return brow_field(xy, name[5:])
+    if name in SLIT_TARGETS: return slit_field(xy, name, np.zeros(len(xy)) if side is None else side)
     return mouth_field(xy, name)
 
 LID_CROP = (400, 420, 860, 630)        # source px of the eyes-closed picture kept for the lids
@@ -1453,7 +1785,7 @@ def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, photo_weigh
         ch = np.repeat(chart[part], len(bary))
         axis = np.array([c[3] for c in SKIN_CHARTS])[ch]; sign = np.array([c[4] for c in SKIN_CHARTS])[ch]
         dep = pts[np.arange(len(pts)), axis] * sign
-        col = colour(pts)
+        col = colour(pts, np.repeat(part, len(bary)))
         if ear_colour is not None:
             ear = ch >= 6
             col[ear] = ear_colour(pts[ear])
@@ -1519,6 +1851,7 @@ def jpeg(img, quality=90):
 # ---------------------------------------------------------------- build
 
 def build(work):
+    mouth_setup(work)
     P, F, label, skin_colour, scan_colour, pivot = compose(work)
     # Bald, the face shows the bald picture (same face, same framing, no hair painted on it).
     src = Image.open(f'{work}/{"bald/kairo-bald-front.png" if BALD else "kairo-front.png"}').convert('RGB')
@@ -1538,7 +1871,12 @@ def build(work):
     # Only where the camera actually saw the face (near the front depth): faces behind the jaw's
     # silhouette took the picture's background there, a grey strip between cheek and ear on a turn.
     fc_px, fc_z = project(P[F].mean(1)); fi = np.clip(fc_px.astype(int), 0, N - 1)
-    seen = fc_z <= zbuf[fi[:, 1], fi[:, 0]] + 0.02
+    seen = (fc_z <= zbuf[fi[:, 1], fi[:, 0]] + 0.02).astype(float)
+    # Softened over the neighbouring faces (about 2 cm): face by face, the line between the photo and
+    # the toned skin was ragged, a torn edge under the chin when the head tilted up.
+    v_count = np.maximum(np.bincount(F.reshape(-1), minlength=len(P)), 1)
+    for _ in range(6):
+        seen = (np.bincount(F.reshape(-1), np.repeat(seen, 3), len(P)) / v_count)[F].mean(1)
     # Skin off the face grid is always atlas-textured, its colour blended from the picture by how
     # squarely the camera saw it (see bare_colour): switching from the picture to the generator's
     # colour at one angle left a visible edge down the side of the head.
@@ -1636,6 +1974,11 @@ def build(work):
     low = P[F].mean(1)[:, 1] < NECK_SPAN[1]
     dark = np.where((label == CORE_BODY) & low)[0]
     inner = np.where((label == CORE) | ((label == CORE_BODY) & ~low))[0]
+    # Not behind the mouth: the inside of the mouth closes the view there, and the core, 1 cm in,
+    # came through the parted lips at the corners.
+    ic_px, ic_z = project(P[F[inner]].mean(1)); ic_s = (ic_px - np.array([OX, OY])) / S
+    behind_mouth = (ic_s[:, 0] > MOUTH_TEX[0]) & (ic_s[:, 0] < MOUTH_TEX[2]) & (ic_s[:, 1] > MOUTH_TEX[1]) & (ic_s[:, 1] < MOUTH_TEX[3]) & (P[F[inner]].mean(1)[:, 2] > pivot[2])
+    inner = inner[~behind_mouth]
     bare_kind = cKDTree(P[F[bare]].mean(1))
     chin_tree = cKDTree(P[grid_start:])
     # Skin seen only from the side keeps the generator's light and shade but takes the photo's skin
@@ -1646,11 +1989,16 @@ def build(work):
     def projected(q):
         c, _ = project(q); sp = (c - np.array([OX, OY])) / S
         return np.stack([ndimage.map_coordinates(picture[..., k], [sp[:, 1], sp[:, 0]], order=1) for k in range(3)], -1)
+    neck_ref = np.median(picture[878:892, 590:660].reshape(-1, 3), 0)    # the photo's neck just under the chin's edge
+    c_sx = lambda q: (project(q)[0][:, 0] - OX) / S
+    c_sy = lambda q: (project(q)[0][:, 1] - OY) / S
     bare_down = -np.cross(P[F[bare, 1]] - P[F[bare, 0]], P[F[bare, 2]] - P[F[bare, 0]])
     bare_down = bare_down[:, 1] / (np.linalg.norm(bare_down, axis=1) + 1e-12)
     bare_down = np.abs(bare_down) * (VN[F[bare]].mean(1)[:, 1] < 0)     # winding is mixed: the smoothed normals give the sign
-    def bare_colour(q):
-        near = bare_kind.query(q)[1]
+    def bare_colour(q, faces=None):
+        # `faces`: each point's face among `bare` when the caller knows it (the bake does; looking it
+        # up for 15 million points took most of the build).
+        near = bare_kind.query(q)[1] if faces is None else faces
         kind = label[bare][near]
         col = skin_colour(q, bald_gain[kind])
         lum = col.mean(1, keepdims=True)
@@ -1658,18 +2006,26 @@ def build(work):
         # hair made the side of the face a darker patchwork against the photo's evenly lit cheek.
         # Faces turned down lie in a little shadow (more, and the chin's underside read as a dark band).
         toned = skin_ref[None] * np.clip(lum / skin_lum, 0.8, 1.1) * (1 - 0.1 * bare_down[near])[:, None]
+        # The chin's underside takes the tone of the photo's neck just under the chin, a little shaded,
+        # and not the generator's light: in the cheek's tone and darkened by its own shading it read as
+        # a darker patch, edged against the neck, whenever the head tilted up.
+        under = smooth(0.5, 0.85, bare_down[near]) * (c_sy(q) > CHIN_Y - 0.0042 * (c_sx(q) - 626.0) ** 2 - 20)
+        under_tone = neck_ref[None] * np.clip(lum / skin_lum, 0.94, 1.04) * 0.97
+        toned = toned * (1 - under[:, None]) + under_tone * under[:, None]
         # Not the scalp under the hair (already turned to the hair's colour): toned to skin, it showed
         # through the bangs at the temple as beige shards.
         is_skin = (((kind == SKIN) | (kind == NECK)) & (col[:, 0] > col[:, 2] + 10))[:, None]
         side = np.where(is_skin, 0.15 * col + 0.85 * toned, col)
         w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)))[:, None]
-        out = side * (1 - w) + projected(q) * w
+        pc = projected(q)
+        out = side * (1 - w) + pc * w
+        if UNDER_CHIN_PHOTO == 0:
+            return out
         # Under the chin and jaw: the picture's own shadow there (what the camera sees below the jaw
         # line), so the chin's underside matches the neck beneath it and the chin reads as one piece.
         c_, _ = project(q); sx = (c_[:, 0] - OX) / S; sy = (c_[:, 1] - OY) / S
         jaw_y = CHIN_Y - 0.0042 * (sx - 626.0) ** 2
         below = (sy > jaw_y - 4) & (np.abs(sx - 626) < 190)
-        pc = projected(q)
         on_skin = pc[:, 0] > pc[:, 2] + 25          # never the backdrop beside the jaw (a pale patch on a turn)
         wc = UNDER_CHIN_PHOTO * (smooth(0.04, 0.01, chin_tree.query(q)[0]) * below * on_skin * ((kind == SKIN) | (kind == NECK)))[:, None]
         return out * (1 - wc) + pc * wc
@@ -1702,17 +2058,27 @@ def build(work):
     # The surface seen from the camera, as depth over image position: targets slide points along it.
     vis_px, vis_z = inp[visible], zc[visible]
     depth = LinearNDInterpolator(vis_px, vis_z)
-    def lift(points, vis):
+    def lift(points, vis, side=None):
         """Morph deltas for points: each field's image-space shift, back onto the surface. Every point
         near the visible surface moves, seen or not: moving only the visible ones tore the eyes where
-        a lid edge hides the vertices just under it."""
+        a lid edge hides the vertices just under it. `side` tells the lips' cut edges apart."""
         px, z0 = project(points)
         sxy = (px - np.array([OX, OY])) / S
         surface = depth(px)
-        near = (~np.isnan(surface)) & (z0 - np.nan_to_num(surface, nan=0) < 0.035)
+        behind = z0 - np.nan_to_num(surface, nan=0)
+        hinge = smooth(790.0, 830.0, sxy[:, 1])          # under the chin (see jaw_fade)
+        near = (~np.isnan(surface)) & (behind < 0.035 + 0.065 * hinge)
+        # The mouth's shapes fade with depth behind the face: the jaw's underside moves with the chin
+        # at the front and not at all where it meets the neck (whose part has no morphs). Under the
+        # chin over the underside's whole length, as a jaw hinges: fading within 3.5 cm, the dropped
+        # chin left a kink where the underside stopped following.
+        jaw_fade = 1 - smooth(0.012, 0.035, behind)
+        jaw_fade = jaw_fade * (1 - hinge) + (1 - smooth(0.02, 0.10, behind)) * hinge
         out = []
         for name in TARGETS:
-            dxy = field(sxy, name) * near[:, None]
+            dxy = field(sxy, name, side) * near[:, None]
+            if name in MOUTH_TARGETS:
+                dxy = dxy * jaw_fade[:, None]
             moved = np.where(np.abs(dxy).sum(1) > 1e-4)[0]
             delta = np.zeros_like(points)
             if len(moved):
@@ -1766,7 +2132,7 @@ def build(work):
                 prim['joints'] = np.stack([k0, k0 + 1, np.zeros_like(k0), np.zeros_like(k0)], 1)
                 prim['weights'] = np.stack([1 - f_, f_, np.zeros_like(f_), np.zeros_like(f_)], 1)
             if part == 'head':
-                prim['targets'] = lift(pos[used], vis[used]) if morph else [np.zeros_like(p) for _ in TARGETS]
+                prim['targets'] = lift(pos[used], vis[used], SIDE[0][used] if pos is fpos else None) if morph else [np.zeros_like(p) for _ in TARGETS]
             prims[part].append(prim)
 
     front_vertices = np.unique(F[front])
@@ -1777,7 +2143,9 @@ def build(work):
         return n / (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
     eyes = eye_parts(FACE_INFO[2], surface_normal) + [eye_sockets()]
     lid, lid_tex = lid_sheets(work, FACE_INFO[2])
-    for part in eyes + [lid]:
+    mouth = mouth_inside(FACE_INFO[2])
+    mouth_tex, lipwall_tex, oshade_tex = mouth_textures(work)
+    for part in eyes + [lid] + mouth:
         part['pos'] = part['pos'] - pivot
         prims['head'].append(part)
     closed = Image.open(f'{work}/assets-v2/kairo-eyes-closed-front.png').convert('RGB')
@@ -1792,7 +2160,7 @@ def build(work):
                       ("coreskin", Image.new('RGB', (4, 4), tuple(int(c * 0.8) for c in skin_ref))), ("knit", Image.fromarray(knit_tex)),
                       ("eyeball", eyeball_texture(src)),
                       ("socket", Image.fromarray(np.tile((skin_ref[None, :] * np.array([1.0, 0.86, 0.86]) * np.linspace(0.95, 0.75, 64)[:, None])[:, None, :], (1, 4, 1)).astype(np.uint8))),
-                      ("lid", lid_tex)):
+                      ("lid", lid_tex), ("mouth", mouth_tex), ("lipwall", lipwall_tex), ("oshade", oshade_tex)):
         if img.mode == 'RGBA':
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
         else:
@@ -1805,7 +2173,7 @@ def build(work):
         material["doubleSided"] = True
         # The skin atlas too: lit by the scene while the face beside it showed the picture's own light,
         # the skull and the sides came out a different tone, an edge round the face.
-        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid"):
+        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade"):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
@@ -1876,9 +2244,10 @@ def clips(g):
 
 VISEMES = ["sil", "PP", "FF", "TH", "DD", "kk", "CH", "SS", "nn", "RR", "aa", "E", "I", "O", "U"]
 VISEME_MOUTHS = {
-    "sil": {}, "PP": {"press": 1}, "FF": {"teeth": 0.7}, "TH": {"teeth": 0.5, "open": 0.15}, "DD": {"open": 0.35},
-    "kk": {"open": 0.3}, "CH": {"wide": 0.5, "small_o": 0.3}, "SS": {"wide": 0.6, "teeth": 0.3}, "nn": {"open": 0.22},
-    "RR": {"round": 0.45}, "aa": {"open": 0.85}, "E": {"wide": 0.8, "open": 0.2}, "I": {"wide": 0.65}, "O": {"round": 0.85}, "U": {"small_o": 0.9},
+    # aa and O are the owner's open and o-mouth pictures at full weight.
+    "sil": {}, "PP": {"press": 1}, "FF": {"teeth": 0.6}, "TH": {"teeth": 0.5, "open": 0.15}, "DD": {"open": 0.35},
+    "kk": {"open": 0.3}, "CH": {"mouth_wide": 0.4, "small_o": 0.3, "teeth": 0.3}, "SS": {"mouth_wide": 0.5, "teeth": 0.5}, "nn": {"open": 0.2},
+    "RR": {"round": 0.45}, "aa": {"open": 1.0}, "E": {"mouth_wide": 0.8, "open": 0.25}, "I": {"mouth_wide": 0.65, "teeth": 0.3}, "O": {"round": 1.0}, "U": {"small_o": 1.0},
 }
 
 def package(glb, ids, posters):
