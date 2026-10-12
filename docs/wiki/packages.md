@@ -9,7 +9,7 @@ Spine ships as nineteen NuGet packages built from this repository, one per proje
 | Core | `Plugin.Maui.Spine.Svg.Icons` | 228 ready-made SVG icons, resolved by file name once referenced | — (found by `.Svg` at startup) |
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# | `Plugin.Maui.Spine`, `.Common` |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications | `.Common` |
-| Security | `Plugin.Maui.Spine.Biometrics` | `IBiometricAuth` (Face ID, Touch ID, fingerprint, Windows Hello), `IUnlock`, `[RequiresUnlock]` and `Unlock.Command`. Brings `Xamarin.AndroidX.Biometric` on Android | `Plugin.Maui.Spine`, `.Common` |
+| Security | `Plugin.Maui.Spine.Biometrics` | `IBiometricAuth` (Face ID, Touch ID, fingerprint, Windows Hello), `IUnlock`, `[RequiresUnlock]`, `Unlock.Command`, the app lock and `[PrivacyShield]`. Brings `Xamarin.AndroidX.Biometric` on Android | `Plugin.Maui.Spine`, `.Common` |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes on BGTaskScheduler (iOS) and JobScheduler (Android), a timer while the app runs elsewhere | `Plugin.Maui.Spine`, `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp | — |
@@ -66,7 +66,7 @@ PushNotifications                                    AnimatedLabel
 | `Plugin.Maui.Spine.Widgets` | Registered; call `UseSpineWidgets(o => …)` only to configure | Needs the core, so always with `UseSpine` |
 | `Plugin.Maui.Spine.PushNotifications` | Registered; call `UseSpinePushNotifications(o => …)` to set the backend, channels, handler | `UseSpinePushNotifications(o => …)` |
 | `Plugin.Maui.Spine.BackgroundTasks` | Registered; call `UseSpineBackgroundTasks(o => …)` only to change intervals or the catch-up run | Needs the core, so always with `UseSpine` |
-| `Plugin.Maui.Spine.Biometrics` | Registered; call `UseSpineBiometrics(o => …)` only to change how long an unlock counts or what happens without a screen lock | Needs the core, so always with `UseSpine` |
+| `Plugin.Maui.Spine.Biometrics` | Registered; call `UseSpineBiometrics(o => …)` only to change how long an unlock counts, what happens without a screen lock, or to turn on the app lock | Needs the core, so always with `UseSpine` |
 | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Registered | `UseAnimatedLabel()` |
 | `Plugin.Maui.Spine.Controls.HeroCollectionView` | Nothing | Nothing (`UseHeroCollectionView()` still compiles, and does nothing) |
 | `Plugin.Maui.Spine.Controls.Calendar` | Nothing: strings register from the control's static constructor | Nothing |

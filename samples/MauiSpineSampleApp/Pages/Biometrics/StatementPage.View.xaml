@@ -1,0 +1,26 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Biometrics.StatementPage"
+    x:TypeArguments="StatementPageViewModel"
+    x:DataType="StatementPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Biometrics">
+
+        <Example Title="Balance 12 345,67 kr"
+                 Summary="Try a screenshot: Android and Windows block it. Leave the app and come back: the page is covered until you unlock, or go back.">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Account 1234 56 78901" FontSize="15" />
+                <Label Text="Salary +32 000,00" FontSize="15" />
+                <Label Text="Rent −9 850,00" FontSize="15" />
+            </VerticalStackLayout>
+            <Example.Code>
+                [NavigableRegion(Title = "Statement"), PrivacyShield(CoverWhileCaptured = true),
+                 RequiresUnlock("Show the statement", Relock = true)]
+                public partial class StatementPage { … }
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

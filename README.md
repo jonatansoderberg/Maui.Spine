@@ -71,7 +71,7 @@ One version, nineteen packages, all on [nuget.org](https://www.nuget.org/package
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes run by BGTaskScheduler and JobScheduler while the app is closed |
-| Security | `Plugin.Maui.Spine.Biometrics` | Face ID, Touch ID, fingerprint and Windows Hello; `[RequiresUnlock]` on a page or a command |
+| Security | `Plugin.Maui.Spine.Biometrics` | Face ID, Touch ID, fingerprint and Windows Hello; `[RequiresUnlock]` on a page or a command, an app lock and `[PrivacyShield]` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source |
@@ -265,6 +265,7 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | Live Activity updated from the app, with a lock-screen button (iOS, Android 16) | `Widgets/Hockey/ScoreActivity.cs`, `LiveActivitiesPage` |
 | Background tasks: a scheduled task that rebuilds a widget, one that fails, status and Run now | `BackgroundTasks/SampleSyncTask.cs`, `BackgroundTasksPage` |
 | An unlock before a page or a command: `[RequiresUnlock]`, `Fresh`, `Unlock.Command`, `IUnlock` | `BiometricsPage`, `PinPage` |
+| The app lock, `[PrivacyShield]` and a page that locks again (`Relock`) | `BiometricsPage`, `StatementPage` |
 | A guard of the app's own on a page and on commands | `Guards/ConfirmGuard.cs`, `GuardsPage` |
 | Liquid Glass buttons (iOS 26) | `MainPage` → `GlassPage` (second item in the list) |
 

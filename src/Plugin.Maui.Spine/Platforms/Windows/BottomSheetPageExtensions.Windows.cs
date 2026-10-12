@@ -217,6 +217,7 @@ internal static class BottomSheetPageExtensions
             sheet.Height = targetHeight;
             translate.Y = targetHeight;
             popup.IsOpen = true;
+            SpineOverlay.Raise();
 
             if (nativeHost.Children.Count == 0)
             {

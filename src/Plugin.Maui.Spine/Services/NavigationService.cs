@@ -408,6 +408,7 @@ internal sealed class NavigationService : INavigationService
 
         _guards.CancelPending();
         _hostProvider.SetCurrent(next);
+        SpineScreen.Update();
 
         if (window is not null)
             window.Page = next.HostPage;

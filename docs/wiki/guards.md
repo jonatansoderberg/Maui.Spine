@@ -86,6 +86,33 @@ builder.Services.AddSpineGuard<ConfirmAttribute, ConfirmGuard>();
 
 **A cover for tabs.** A guard can also implement `IGuardCover` and return a view to show in place of a guarded tab while it asks on Android and Windows. The view's button calls the `retry` it is given.
 
+## The whole screen
+
+A package that acts on the whole screen, such as the [app lock](biometrics.md#the-app-lock), has two helpers in the core:
+
+```csharp
+// Which pages are on screen, and when that changes.
+SpineScreen.ShownPagesChanged += (_, _) =>
+{
+    foreach (var shown in SpineScreen.ShownPages)
+        Debug.WriteLine($"{shown.Page.GetType().Name} in sheet: {shown.InSheet}, can go back: {shown.CanGoBack}");
+};
+
+await SpineScreen.WhenReady;                 // the window has been active and the first page is in
+SpineScreen.ExcludeFromCapture = true;       // FLAG_SECURE on Android, capture exclusion on Windows
+
+// A view over everything, the open sheet included, until it is disposed.
+using var overlay = SpineOverlay.Show(new LockView(), back: () => { /* Android's back */ });
+```
+
+| Member | What it does |
+|---|---|
+| `SpineScreen.ShownPages` | The current page of the root region (the selected tab's), then the open sheet's. During a push or a pop, and under a lightbox, the page behind is listed too. |
+| `SpineScreen.ShownPagesChanged` | Raised on the main thread when that list changes. |
+| `SpineScreen.WhenReady` | Completes once the window has been active and the first root page is in place: the earliest an app can show a prompt on a cold start. |
+| `SpineScreen.ExcludeFromCapture` | Keeps the app's windows out of screenshots and recordings: on Android the activity, an open sheet and Spine's overlays, on Windows the window. iOS and Mac Catalyst cannot block capture, so it does nothing there. |
+| `SpineOverlay.Show(view, back)` | Shows the view over the whole window: a view on the window on Apple, a dialog of its own on Android, a popup on Windows. A sheet that opens later goes under it. The view gets the app's styles. |
+
 ## See also
 
 - [Page actions](page-actions.md)

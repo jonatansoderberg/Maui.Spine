@@ -365,6 +365,9 @@ internal static class BottomSheetPageExtensions
             // on the VC alone doesn't reach it — we must set it on the container too.
             if (PresentationController?.ContainerView is { } container)
                 container.OverrideUserInterfaceStyle = OverrideUserInterfaceStyle;
+
+            // The container is in the window now, above an overlay (an app lock, say) that must stay on top.
+            SpineOverlay.Raise();
         }
 
         public override void ViewDidDisappear(bool animated)

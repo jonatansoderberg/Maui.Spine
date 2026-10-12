@@ -3,7 +3,7 @@ using Plugin.Maui.Spine.Core;
 namespace Plugin.Maui.Spine.Biometrics;
 
 /// <summary>Answers <see cref="RequiresUnlockAttribute"/> with <see cref="IUnlock"/>, and covers a guarded tab while it asks.</summary>
-internal sealed class UnlockGuard(IUnlock unlock) : IGuard<RequiresUnlockAttribute>, IGuardCover
+internal sealed class UnlockGuard(IUnlock unlock, AppLockService appLock) : IGuard<RequiresUnlockAttribute>, IGuardCover
 {
     public async ValueTask<bool> CheckAsync(RequiresUnlockAttribute attribute, GuardContext context, CancellationToken cancellationToken)
     {
@@ -12,20 +12,8 @@ internal sealed class UnlockGuard(IUnlock unlock) : IGuard<RequiresUnlockAttribu
         if (await unlock.RequireAsync(reason, attribute.Fresh, cancellationToken))
             return true;
 
-        if (context.CanCancel)
-            return false;
-
-        // The root page has nothing to fall back to, so the app stays locked until the user unlocks.
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            if (UnlockMessages.Page() is { } page)
-                await page.DisplayAlertAsync(BiometricsStrings.Get("Spine.Biometrics.Locked"), reason, BiometricsStrings.Get("Spine.Biometrics.Unlock"));
-
-            if (await unlock.RequireAsync(reason, fresh: true, cancellationToken))
-                return true;
-        }
-
-        return false;
+        // The root page has nothing to fall back to, so the app stays behind the unlock screen until the user unlocks.
+        return !context.CanCancel && await appLock.HoldAsync(reason, cancellationToken);
     }
 
     public View? CreateCover(GuardAttribute attribute, GuardContext context, Func<Task> retry)

@@ -4,6 +4,19 @@ namespace MauiSpineSampleApp.Pages.Biometrics;
 
 public partial class BiometricsPageViewModel(INavigationService _navigation, IBiometricAuth _auth, IUnlock _unlock) : SampleViewModel
 {
+    /// <summary>The preference the app lock's <c>IsEnabled</c> reads in <c>MauiProgram</c>.</summary>
+    public const string AppLockKey = "Showcase.AppLock";
+
+    public bool AppLock
+    {
+        get => Preferences.Get(AppLockKey, false);
+        set
+        {
+            Preferences.Set(AppLockKey, value);
+            OnPropertyChanged();
+        }
+    }
+
     [ObservableProperty]
     public partial string Availability { get; set; } = "";
 
@@ -32,6 +45,9 @@ public partial class BiometricsPageViewModel(INavigationService _navigation, IBi
 
     [RelayCommand]
     private Task OpenPin() => _navigation.NavigateToAsync<PinPage>();
+
+    [RelayCommand]
+    private Task OpenStatement() => _navigation.NavigateToAsync<StatementPage>();
 
     [RequiresUnlock("Delete the account", Fresh = true)]
     [RelayCommand]

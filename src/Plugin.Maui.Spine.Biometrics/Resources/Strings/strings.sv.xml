@@ -8,4 +8,6 @@
   <s key="Spine.Biometrics.LockedOut.Message">Lås upp enheten med dess lösenkod och försök igen.</s>
   <s key="Spine.Biometrics.Unavailable.Title">Inget skärmlås</s>
   <s key="Spine.Biometrics.Unavailable.Message">Ställ in en lösenkod, Face ID, Touch ID eller fingeravtryck på enheten för att öppna det här.</s>
+  <s key="Spine.Biometrics.Back">Tillbaka</s>
+  <s key="Spine.Biometrics.AppLock.Reason">Lås upp för att fortsätta</s>
 </strings>

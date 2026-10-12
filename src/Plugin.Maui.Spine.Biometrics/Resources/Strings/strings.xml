@@ -8,4 +8,6 @@
   <s key="Spine.Biometrics.LockedOut.Message">Unlock your device with its passcode, then try again.</s>
   <s key="Spine.Biometrics.Unavailable.Title">No screen lock</s>
   <s key="Spine.Biometrics.Unavailable.Message">Set up a passcode, Face ID, Touch ID or fingerprint on this device to open this.</s>
+  <s key="Spine.Biometrics.Back">Back</s>
+  <s key="Spine.Biometrics.AppLock.Reason">Unlock to continue</s>
 </strings>
