@@ -98,7 +98,7 @@ var today = usage.Today("Assistant");      // IAIUsage, injected
 Status = $"{today.Calls} calls, {today.InputTokens} tokens in, {today.OutputTokens} out";
 ```
 
-`ForDay(feature, day)` and `ForRange(feature, from, to)` read other days. When a model reports no usage, tokens are estimated at four characters a token.
+`ForDay(feature, day)` and `ForRange(feature, from, to)` read other days. When a model reports no usage, tokens are estimated at four characters a token. Apple Intelligence (`AppleIntelligenceChatClient` in Essentials.AI 10.0.80-preview) reports none, so its counts are always the estimate: good for comparing use over time, not exact.
 
 ## Options
 
