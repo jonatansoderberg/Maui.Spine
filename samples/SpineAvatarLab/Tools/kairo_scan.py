@@ -2284,12 +2284,13 @@ def build(work):
         # None of the generator's own colour on the skin: its 15 % share put grey-pink specks and a
         # darker band across the nape at the skull's base, where its bald texture has hair.
         side = np.where(is_skin, toned, col)
-        # The photo only down to the jaw line: below it the photo shows the neck in the chin's shadow,
-        # a dark stripe down the middle of the throat between the toned sides.
+        # The photo only down to the jaw line, and nothing of the chin's shadow below it: the photo's
+        # shadowed throat drew a dark stripe down the middle of the neck, and a 6-30 px fade below the
+        # line kept the shadow's edge as a brown hook on the side of the throat.
         jaw_y = CHIN_Y - 0.0042 * (c_sx(q) - 626.0) ** 2
         # Nor on skin turned down (the chin's underside within the camera's depth tolerance took the
         # lit chin's edge: a light bib under the chin whenever the head tilted up).
-        w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)) * smooth(jaw_y + 30, jaw_y + 6, c_sy(q))
+        w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)) * smooth(jaw_y + 6, jaw_y - 8, c_sy(q))
              * smooth(0.6, 0.3, bare_down[near]))[:, None]
         pc = projected(q)
         out = side * (1 - w) + pc * w
