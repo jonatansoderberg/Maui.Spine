@@ -4,7 +4,7 @@
 dotnet add package Plugin.Maui.Spine.Controls.Markdown
 ```
 
-`MarkdownView` draws markdown with native MAUI views: help texts, release notes, terms, and chat answers as they stream in. The markdown is parsed with [Markdig](https://github.com/xoofx/markdig), the package's own dependency, so the core does not carry it. The chat view ([#537](https://github.com/jonatansoderberg/Maui.Spine/issues/537)) renders its answers with it.
+`MarkdownView` draws markdown with native MAUI views: help texts, release notes, terms, and chat answers as they stream in. The markdown is parsed with [Markdig](https://github.com/xoofx/markdig), the package's own dependency, so the core does not carry it. [Chat](chat.md) renders its answers with it.
 
 ```xml
 <MarkdownView Text="{Binding ReleaseNotes}" LinkTapped="OnLinkTapped" />

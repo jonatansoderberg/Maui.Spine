@@ -28,6 +28,7 @@ The full-size originals behind `assets/icons/` (256×256 package icons) and `ass
 | `server-ai.png` | `Plugin.Maui.Spine.Server.AI` (the Server original with two four-point sparkles above the server glyph in its teal corner; generated with PIL) |
 | `ai.png` | `Plugin.Maui.Spine.AI` (the Images original with its corner in a blue-to-violet gradient and a speech bubble holding a four-point sparkle instead of the picture glyph; generated with PIL) |
 | `markdown.png` | `Plugin.Maui.Spine.Controls.Markdown` (the DataGrid original with the table glyph painted over by the markdown mark, M and a down arrow in a rounded frame; generated with PIL) |
+| `chat.png` | `Plugin.Maui.Spine.Controls.Chat` (the Images original with its corner in a green gradient and two speech bubbles instead of the picture glyph; generated with PIL) |
 
 Package icons are 1254×1254; nuget.org wants at most 1 MB per icon, so the packed copies are resized to 256×256:
 

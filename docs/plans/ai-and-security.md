@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (step 2.4 the `Spine.AI` client merged as #536; step 2.5 split, and 2.5a `Controls.Markdown` in review as #538; see Verification backlog)
+**Last updated:** 2026-10-12 (step 2.5a `Controls.Markdown` merged as #538; 2.5b `Controls.Chat` in review as #PR_TBD; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -49,8 +49,8 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #511 and #517 Ready |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Done (#536) |
-| `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | #513 in review (#538) |
-| `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Waiting (on #513) |
+| `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
+| `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | #537 in review (#PR_TBD) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication` | New | #519 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
@@ -111,8 +111,8 @@ The order follows value against risk. Steps in different phases can run in paral
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
 | 2.3 | Generated-asset pipeline | #511 | 2.1 | Ready | | Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
 | 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Done | #536 | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
-| 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | In review | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
-| 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | Waiting | | Renders answers with `MarkdownView`, and uses its `Rendered` event to keep the last row in view. |
+| 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | Done | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
+| 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | In review | #PR_TBD | `ChatView` and a separate `ChatComposer` in the page footer (Decisions). Renders answers with `MarkdownView`. |
 | 2.6 | On-device `IChatClient` spike, Android and Windows | #514 | none | Ready | | Outside this repo. Contribute upstream to dotnet/maui-labs if it works. |
 
 ### Phase 3: highlight (done 2026-10-12)
@@ -178,6 +178,11 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.1 (#510) | `AzureTableAIUsageStore` against a real storage account (checked against Azurite only), and response caching over Redis | Orientera's storage account after step 2.2 | Two calls, the report, and a cached repeat |
 | 2.5a (#513) | Screen readers cannot open a link inside text: the paragraph's hint lists the links, and the tap is on a span (the owner's v1 choice). Also not heard yet: VoiceOver and TalkBack on headings, task markers and the Copy button | VoiceOver on a phone, TalkBack on the emulator | Showcase Markdown page |
 | 2.5a (#513) | Windows and Mac Catalyst at run time (only compiled and built): spans with a background and gestures, the code block's horizontal scroll, the table grid | A Windows machine; the Mac app | Showcase Markdown page |
+| 2.5b (#537) | Windows and Mac Catalyst at run time (only compiled and built): the composer's height and centring, the context menu's Copy, the follow and the jump button | A Windows machine; the Mac app | Showcase Chat page |
+| 2.5b (#537) | Enter to send on a Mac and Windows: Enter makes a new line in v1, and MAUI's `Editor` does not tell Enter from Shift+Enter | Platform key handling on the editor | Showcase Chat page with a hardware keyboard |
+| 2.5b (#537) | Screen readers: "You: …" and "Assistant: …", the one announcement per answer, the thinking state, Send, Stop and the jump button | VoiceOver on a phone, TalkBack on the emulator | Showcase Chat page |
+| 2.5b (#537) | `ToolCallTemplate` and `ThinkingTemplate` are not exercised by the Showcase; only the built-in card and shimmer were seen | A sample or app that sets them | A page with a Highlight `Edge` card as thinking |
+| 2.5b (#537) | Long histories: the list is not virtualised (the owner's v1 choice). Not measured above a few dozen messages | A conversation of several hundred messages | A scratch page that fills `Messages` |
 | 2.4 (#512) | Windows at run time (only compiled), and Mac Catalyst at run time (only built) | A Windows machine; the Mac app | Showcase AI client page against the push sample server |
 | 2.4 (#512) | A release build on a phone over the network: cleartext is off there, and the client was checked only against `http://localhost` in Debug | A phone and an HTTPS backend (Orientera after step 2.2) | Any feature through `https` |
 
@@ -297,6 +302,13 @@ Newest last. Each entry is dated and says who decided.
 - **2026-10-12, Claude (#513):** A block's source, which the re-render compares, runs to the start of the next block, and for the last block to the end of the text. **Why:** Markdig's span stops one character short at the end of the text (an open fence's info string), so a growing code block would have kept a stale view. A test grows a whole document one character at a time and checks every kept block.
 - **2026-10-12, Claude (#513):** Every span carries its label's weight, family and size. **Why:** on iOS a span does not take its label's `FontAttributes`, and headings and table headers rendered in the regular weight.
 - **2026-10-12, Claude (#513):** Code blocks use word wrap inside a horizontal scroll, not `NoWrap`. **Why:** `NoWrap` gives a single line on iOS. Measured without a width limit, word wrap keeps every line whole.
+- **2026-10-12, owner (#537):** The list is a `ScrollView` over a `VerticalStackLayout`, with no virtualisation. The composer is its own control, `ChatComposer`, in the page footer, linked by `Chat="{x:Reference chat}"`.
+- **2026-10-12, owner (#537):** The composer takes focus and shows the soft keyboard when the page appears (`AutoFocus`, on by default), and the field and send button are the platform's standard control height, centred and aligned. Verification types with the simulator's soft keyboard, not hardware key events.
+- **2026-10-12, Claude (#537):** `ChatStyleOptions.ControlHeight` is 44 on Apple, 48 on Android and 40 on Windows, for both the field on one line and the round button. On iOS the text view's container inset is worked out from the font's line height, so one line sits in the middle; on Android the `EditText`'s underline goes and its padding is 8 dp. **Why:** the owner saw the text sit high and the button at a size of its own.
+- **2026-10-12, Claude (#537):** MAUI's Done bar above the iOS keyboard is removed from the composer. **Why:** the send button is right there, and the bar took room from the conversation.
+- **2026-10-12, Claude (#537):** Only an upward scroll by the user stops the follow, and reaching the bottom starts it again; the follow scrolls after a dispatch, against the content's size. **Why:** a growing answer moves the bottom between the measure and the scroll, and treating any scroll short of the end as the user's left the list stuck a line above the end.
+- **2026-10-12, Claude (#537):** Copy copies the text of the answer shown in the row. **Why:** the row first read a `ChatAnswer` that the view had replaced, and Copy put an empty string on the clipboard (found with real taps).
+- **2026-10-12, Claude (#537):** Send and Stop are `Path` shapes, not embedded SVGs. **Why:** the package needs no SVG registration and no builder call.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---

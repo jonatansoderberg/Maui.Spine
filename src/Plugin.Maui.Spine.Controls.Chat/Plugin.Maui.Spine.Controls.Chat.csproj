@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+
+		<AssemblyName>Plugin.Maui.Spine.Controls.Chat</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Controls</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>ChatView and ChatComposer for .NET MAUI: a conversation with any Microsoft.Extensions.AI IChatClient, answers streamed in as markdown that follows the end, a composer in the page footer with Stop and suggestions, tool-call cards, a thinking state, and one announcement per answer for screen readers.</Description>
+		<SpineIcon>chat.png</SpineIcon>
+		<PackageTags>$(PackageTags);chat;ai;llm;microsoft-extensions-ai;streaming;markdown;controls</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Markdown\Plugin.Maui.Spine.Controls.Markdown.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
+	</ItemGroup>
+
+</Project>

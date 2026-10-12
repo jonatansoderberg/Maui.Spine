@@ -6,7 +6,7 @@ dotnet add package Plugin.Maui.Spine.AI
 
 `Plugin.Maui.Spine.AI` gives the app one `IChatClient` per named feature. A feature runs on the app's [Spine.Server.AI](ai-server.md) backend, on a model on the device such as Apple Intelligence, or on the device first and then the server. App code sees the same Microsoft.Extensions.AI `IChatClient` wherever the model runs. There are no provider keys in the app: server features run with the server's keys and under its budgets.
 
-The design is in [the proposal](../proposals/spine-ai.md), §7.
+The design is in [the proposal](../proposals/spine-ai.md), §7. To put a feature on screen as a conversation, see [Chat](chat.md).
 
 ---
 

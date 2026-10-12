@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Chat.Placeholder">Meddelande</s>
+  <s key="Spine.Chat.Send">Skicka</s>
+  <s key="Spine.Chat.Stop">Stoppa</s>
+  <s key="Spine.Chat.You">Du: {0}</s>
+  <s key="Spine.Chat.Assistant">Assistenten: {0}</s>
+  <s key="Spine.Chat.Thinking">Tänker</s>
+  <s key="Spine.Chat.Stopped">Stoppad</s>
+  <s key="Spine.Chat.TryAgain">Försök igen</s>
+  <s key="Spine.Chat.Off">Den här funktionen är inte tillgänglig just nu.</s>
+  <s key="Spine.Chat.RateLimited">För många frågor. Försök igen om {0} s.</s>
+  <s key="Spine.Chat.Failed">Svaret kunde inte hämtas.</s>
+  <s key="Spine.Chat.Copy">Kopiera</s>
+  <s key="Spine.Chat.JumpToLatest">Hoppa till senaste meddelandet</s>
+  <s key="Spine.Chat.ToolRunning">Kör…</s>
+  <s key="Spine.Chat.ToolDone">Klar</s>
+</strings>

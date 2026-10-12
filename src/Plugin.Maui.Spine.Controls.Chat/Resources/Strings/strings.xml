@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Chat.Placeholder">Message</s>
+  <s key="Spine.Chat.Send">Send</s>
+  <s key="Spine.Chat.Stop">Stop</s>
+  <s key="Spine.Chat.You">You: {0}</s>
+  <s key="Spine.Chat.Assistant">Assistant: {0}</s>
+  <s key="Spine.Chat.Thinking">Thinking</s>
+  <s key="Spine.Chat.Stopped">Stopped</s>
+  <s key="Spine.Chat.TryAgain">Try again</s>
+  <s key="Spine.Chat.Off">This feature is not available right now.</s>
+  <s key="Spine.Chat.RateLimited">Too many questions. Try again in {0} s.</s>
+  <s key="Spine.Chat.Failed">The answer could not be fetched.</s>
+  <s key="Spine.Chat.Copy">Copy</s>
+  <s key="Spine.Chat.JumpToLatest">Jump to the latest message</s>
+  <s key="Spine.Chat.ToolRunning">Running…</s>
+  <s key="Spine.Chat.ToolDone">Done</s>
+</strings>

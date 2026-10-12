@@ -19,6 +19,7 @@
   <Project Path="src/Plugin.Maui.Spine.Controls.MeshBackground/Plugin.Maui.Spine.Controls.MeshBackground.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Highlight/Plugin.Maui.Spine.Controls.Highlight.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Markdown/Plugin.Maui.Spine.Controls.Markdown.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.Chat/Plugin.Maui.Spine.Controls.Chat.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Widgets/Plugin.Maui.Spine.Widgets.csproj" />
   <Project Path="src/Plugin.Maui.Spine.BackgroundTasks/Plugin.Maui.Spine.BackgroundTasks.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Biometrics/Plugin.Maui.Spine.Biometrics.csproj" />
