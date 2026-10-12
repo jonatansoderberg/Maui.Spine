@@ -1,0 +1,61 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Markdown.MarkdownPage"
+    x:TypeArguments="MarkdownPageViewModel"
+    x:DataType="MarkdownPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Markdown">
+
+        <Example Title="Every block"
+                 Summary="Headings, styled text, links, a table, lists with a task list, a quote, code with a Copy button, a rule and an image, drawn with native labels and layouts. Headings are headings for screen readers.">
+            <VerticalStackLayout Spacing="10">
+                <MarkdownView Text="{Binding Document}" LinkTapped="OnLinkTapped" />
+                <Label Text="{Binding LastLink}" FontSize="13" Opacity="0.7" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;MarkdownView Text="{Binding Report}"
+                              LinkTapped="OnLinkTapped" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Streamed in"
+                 Summary="The same text arriving a few characters at a time, as a chat answer does. A render keeps the views of the blocks that did not change, so only the last block is rebuilt.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Stream it" Command="{Binding StreamCommand}" HorizontalOptions="Start" />
+                <Label Text="{Binding Rebuilt}" FontSize="13" Opacity="0.7" />
+                <Border StrokeShape="RoundRectangle 12" StrokeThickness="1" Padding="14" MinimumHeightRequest="80"
+                        BackgroundColor="{DynamicResource CardBackground}" Stroke="{DynamicResource CardOutline}">
+                    <MarkdownView Text="{Binding Streamed}" Rendered="OnStreamRendered" />
+                </Border>
+            </VerticalStackLayout>
+            <Example.Code>
+                // Set Text as it grows; renders are at most 50 ms apart
+                await foreach (var update in chat.GetStreamingResponseAsync(prompt))
+                    Answer += update.Text;
+
+                &lt;MarkdownView Text="{Binding Answer}" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Styled release notes"
+                 Summary="Fonts and colours come from MarkdownStyleOptions, set on one view or app-wide as DefaultMarkdownStyleOptions. Colours left unset follow the theme; links follow the accent.">
+            <MarkdownView Text="{Binding Notes}">
+                <MarkdownView.StyleOptions>
+                    <MarkdownStyleOptions HeadingFontFamily="BrandonGrotesqueBlack" FontSize="15" BlockSpacing="8"
+                                          LinkColor="#E0457B" />
+                </MarkdownView.StyleOptions>
+            </MarkdownView>
+            <Example.Code>
+                &lt;MarkdownView Text="{Binding Notes}"&gt;
+                    &lt;MarkdownView.StyleOptions&gt;
+                        &lt;MarkdownStyleOptions
+                            HeadingFontFamily="BrandonGrotesqueBlack"
+                            FontSize="15" LinkColor="#E0457B" /&gt;
+                    &lt;/MarkdownView.StyleOptions&gt;
+                &lt;/MarkdownView&gt;
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Markdown.Copy">Copy</s>
+  <s key="Spine.Markdown.Copied">Copied</s>
+  <s key="Spine.Markdown.CopyCode">Copy the code</s>
+  <s key="Spine.Markdown.Links">Links: {0}</s>
+  <s key="Spine.Markdown.Checked">Done</s>
+  <s key="Spine.Markdown.Unchecked">Not done</s>
+</strings>

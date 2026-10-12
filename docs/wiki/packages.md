@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as twenty-two NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as twenty-three NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -17,6 +17,7 @@ Spine ships as twenty-two NuGet packages built from this repository, one per pro
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid on `CollectionView` with layouts, sorting, grouping and swipe actions | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: `Shimmer` over placeholders, `Skeleton.IsActive` on real layouts | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients from the accent, a preset or your own colours, drifting slowly | `Plugin.Maui.Spine` |
+| Controls | `Plugin.Maui.Spine.Controls.Markdown` | [`MarkdownView`](markdown.md): markdown on native views, rebuilt block by block while it streams | `Plugin.Maui.Spine`, Markdig |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view (Edge, Pulse, Sheen, Trace, Breathe), `Highlight.Repeat` and `.Key`, `IHighlights` | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron | `Plugin.Maui.Spine`, `.AnimatedLabel` |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes; `LightGridReader` for a code shown by lamps | — |
@@ -35,7 +36,7 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
   ▲           ▲  ▲
   │           │  ├── BackgroundTasks (and Common; runs Widgets' refresh through Common)
   │           │  └── Biometrics (and Common)
-  │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Highlight, Scanner ──► Barcodes
+  │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Highlight, Markdown, Scanner ──► Barcodes
 PushNotifications                                    AnimatedLabel
   Images ──► Common
   AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
@@ -56,6 +57,7 @@ PushNotifications                                    AnimatedLabel
 | Lists of remote photos, prefetching, BlurHash placeholders | `Plugin.Maui.Spine.Images` (brings `.Common`; the core is not required) |
 | A server that computes BlurHashes on upload | `Plugin.Maui.Spine.Common` (`BlurHash.Encode`) |
 | The push backend | `Plugin.Maui.Spine.Server` in the server project (brings `.Common`) |
+| Markdown text: help, release notes, chat answers | `Plugin.Maui.Spine.Controls.Markdown` (brings the core and Markdig) |
 | Language models in the app, on the device or through the app's server | `Plugin.Maui.Spine.AI` (brings `.Common`; the core is not required), plus the app's own on-device client such as Microsoft.Maui.Essentials.AI |
 | Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
 | A domain or test project that builds widget trees without MAUI | `Plugin.Maui.Spine.Common` |

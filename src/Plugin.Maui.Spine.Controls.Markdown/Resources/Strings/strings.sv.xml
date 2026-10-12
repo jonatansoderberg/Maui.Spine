@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Markdown.Copy">Kopiera</s>
+  <s key="Spine.Markdown.Copied">Kopierat</s>
+  <s key="Spine.Markdown.CopyCode">Kopiera koden</s>
+  <s key="Spine.Markdown.Links">Länkar: {0}</s>
+  <s key="Spine.Markdown.Checked">Klart</s>
+  <s key="Spine.Markdown.Unchecked">Inte klart</s>
+</strings>
