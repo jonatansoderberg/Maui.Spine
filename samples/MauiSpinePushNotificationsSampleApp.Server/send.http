@@ -68,3 +68,46 @@ Content-Type: application/json
   "title": "Uppdaterad fran servern",
   "body": "Innehallet kommer utifran"
 }
+
+### AI: the exposed Assistant feature (demo provider), one answer
+POST {{host}}/ai/features/Assistant
+Content-Type: application/json
+Spine-Installation: sample-phone
+
+{
+  "messages": [
+    { "role": "system", "contents": [{ "$type": "text", "text": "Dropped: the server owns the prompt." }] },
+    { "role": "user", "contents": [{ "$type": "text", "text": "Vad kan du göra?" }] }
+  ]
+}
+
+### AI: the same, streamed as server-sent events
+POST {{host}}/ai/features/Assistant
+Content-Type: application/json
+Accept: text/event-stream
+Spine-Installation: sample-phone
+
+{
+  "messages": [
+    { "role": "user", "contents": [{ "$type": "text", "text": "Vad kan du göra?" }] }
+  ]
+}
+
+### AI: a feature the server owns. Summary is the demo; Story (Anthropic) and Quick (OpenAI) need keys
+POST {{host}}/sample/summary
+Content-Type: application/json
+Spine-Installation: sample-phone
+
+{
+  "facts": ["Startade 10:02", "Missade kontroll 4 med två minuter", "Femma i klassen"],
+  "feature": "Summary"
+}
+
+### AI: one picture from the Picture feature (OpenAI)
+POST {{host}}/sample/picture
+Content-Type: application/json
+
+{ "prompt": "En orienteringskontroll i en granskog, akvarell" }
+
+### AI: what was spent, by day, feature and model (localhost only)
+GET {{host}}/ai/usage
