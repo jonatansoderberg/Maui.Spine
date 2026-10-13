@@ -906,7 +906,7 @@ def compose(work):
     SHELL[:] = [np.concatenate([np.zeros(keep_b.sum() + hair.sum(), bool), np.ones(len(SF), bool), np.zeros(len(CF), bool)])]
     used = np.unique(F); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
     styled = hair_style(horig, work, Image.open(f'{work}/kairo-front.png').convert('RGB'), axis)
-    hair_look = hair_projector(work, HP, HF[hair], axis, fallback_style=styled) if PROJ_HAIR else styled
+    hair_look = hair_projector(work, HP, HF[hair], axis, fallback_style=styled, head_pts=BP[np.unique(BF[~knit])]) if PROJ_HAIR else styled
     photo_hair = ((photo[..., 2] > photo[..., 0] + 12) | (photo.sum(-1) < 150)) & ~skin_px
     face_px = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/kairo-front.png').convert('RGB')), iterations=10)
     bald_face = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/bald/kairo-bald-front.png').convert('RGB')), iterations=6)
@@ -2295,7 +2295,7 @@ HAIR_ON_STRAND = 0.0025        # a sample point nearer the scan's surface than t
 HAIR_FORM = (0.62, 0.42)         # the hair atlas's baked light: ambient, and the lit side's gain (times the smoothed normal's lambert term)
 HAIR_STRANDS = ((18, 25.0, 14.0), (36, 40.0, 10.0), (90, 60.0, 14.0), (180, 90.0, 10.0), (360, 140.0, 7.0))   # (waves round the axis, drift with height, amplitude in luminance): locks, then strands
 
-def hair_projector(work, P, F, axis, fallback_style=None):
+def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
     """The hair's colour from the owner's generated views: each point of the hair's envelope takes the
     views that see it (Pixal3D's cameras, which the views were reconstructed with, so every view's
     silhouette is the envelope's), weighted by how squarely they see it; the front view is the photo.
@@ -2392,6 +2392,7 @@ def hair_projector(work, P, F, axis, fallback_style=None):
         out = np.where((tot > 1e-6)[:, None], acc / np.maximum(tot, 1e-6)[:, None], fb)
         return out * gain
     front_view = views[0]; z_front = np.percentile(P[:, 2], 99.5)
+    head_tree = cKDTree(head_pts) if head_pts is not None else None
     def alpha(points):
         """0 where the hair layer must not show: a point that a view sees squarely and unoccluded
         where that view shows skin. From the front that makes the hairline the photo's own hair mask,
@@ -2410,6 +2411,13 @@ def hair_projector(work, P, F, axis, fallback_style=None):
             dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
             squarely = (n * dcam).sum(1) > HAIR_MASK_COS
             depth_ok = (points[:, 2] > z_front - HAIR_MASK_DEPTH) if k_ == 0 else np.ones(len(points), bool)
+            if k_ == 0 and head_tree is not None:
+                # Hair lying on the skin (within HAIR_HUG of the head) is cut by the front view whatever
+                # way it faces where the photo shows skin. (For the side views too, at 2 cm, it changed
+                # nothing measurable: the flakes over the cheek at three quarters are the bob's own side
+                # in front of the ear, 1-11 cm off the skin, which the side views cut ragged.)
+                hug = head_tree.query(points)[0] < HAIR_HUG
+                squarely = squarely | hug; depth_ok = depth_ok | hug
             cut |= inside & vis & squarely & v['nothair'][yi, xi] & depth_ok
         return np.where(cut, 0.0, 1.0)
     sample.alpha = alpha
@@ -2426,6 +2434,7 @@ def hair_projector(work, P, F, axis, fallback_style=None):
     sample.hairline = hairline
     return sample
 
+HAIR_HUG = 0.008                # m from the head's skin within which hair is cut by the front view regardless of facing
 HAIR_MASK_COS = 0.4             # a view cuts the hair layer where it shows skin only for points it sees this squarely (cosine)
 HAIR_BAND_PX = 30               # px of the front view round the photo's skin that count as the hairline band
 HAIR_MASK_DEPTH = 0.10          # m behind the front within which the photo's skin cuts the hair layer (alpha 0)
