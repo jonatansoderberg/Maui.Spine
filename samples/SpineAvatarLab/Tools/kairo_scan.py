@@ -453,7 +453,7 @@ EYE_RIM = []                  # the face grid's edges round the eye holes (posit
 EYE_BALLS = []                # (centre, radius) per eye, set by eye_parts
 FACE_MASK = []                # the face's skin (source px), set by face_surface
 
-def face_surface(P, F, src, hair=None):
+def face_surface(P, F, src, hair=None, hair_src=None):
     """Replace the scan's face with one dense, smooth height field over the face, at the scan's own
     depth (smoothed, with the eye sockets filled). The generator's eyes are hollows and its face is
     crumpled; the picture is the face, so a smooth surface under it reads true, lids slide cleanly
@@ -515,8 +515,10 @@ def face_surface(P, F, src, hair=None):
     over &= ~((np.abs(fn_[:, 1]) > 0.6) & (fc_s[:, 1] > CHIN_Y - 0.0042 * (fc_s[:, 0] - 626.0) ** 2 - 25))
     if hair is not None:
         # Hair over the face is the picture's own (thin strands stay in it): scan strands left at the
-        # grid's edge poked through it as dark specks.
-        wide = ndimage.binary_dilation(face, iterations=3)
+        # grid's edge poked through it as dark specks. The face here is the haired photo's (skin the
+        # photo shows): the bald picture's oval covers the temples under the photo's hair, and with it
+        # every hair face over the temples went and the grid's bald skin lay over the hair.
+        wide = ndimage.binary_dilation(face_mask_crop(hair_src) if hair_src is not None else face, iterations=3)
         over |= hair & wide[vi2[:, 1], vi2[:, 0]][F].any(1) & (vz < zs[vi2[:, 1], vi2[:, 0]] + 0.01)[F].any(1)
     F = F[~over]
     # The grid, a hair in front of where the scan was.
@@ -1088,7 +1090,7 @@ def atlas(P, F, sample, size, shade=None):
     tri = np.array([[[lo, lo], [hi, lo], [lo, hi]], [[hi, hi], [lo, hi], [hi, lo]]])
     gx, gy = np.meshgrid((np.arange(cs) + 0.5) / cs, (np.arange(cs) + 0.5) / cs)
     lower = (gx + gy) <= 1.0
-    tex = np.zeros((size, size, 3), np.uint8)
+    tex = np.zeros((size, size, 3), np.uint8); drawn = np.zeros((size, size), bool)
     k = np.arange(len(F)); cell, half = k // 2, k % 2
     uv = (tri[half] + np.stack([cell % cells, cell // cells], 1)[:, None, :]) * cs / size
     for h in (0, 1):
@@ -1106,6 +1108,12 @@ def atlas(P, F, sample, size, shade=None):
         if shade is not None:
             col = col * (shade[F[ks, 0]][:, None] * w0 + shade[F[ks, 1]][:, None] * w1 + shade[F[ks, 2]][:, None] * w2)[..., None]
         tex[py.reshape(-1), px.reshape(-1)] = np.clip(col, 0, 255).reshape(-1, 3).astype(np.uint8)
+        drawn[py.reshape(-1), px.reshape(-1)] = True
+    # The gutters between the cells take the nearest cell's colour: black, they bled into every
+    # triangle's edge through the sampler's filtering and the JPEG's ringing, and a high-contrast
+    # atlas (the hair's projected strands) read as cut glass.
+    _, (iy, ix) = ndimage.distance_transform_edt(~drawn, return_indices=True)
+    tex = tex[iy, ix]
     return uv, tex
 
 def front_faces(P, F, work):
@@ -2174,6 +2182,11 @@ def hair_projector(work, P, F, axis):
     ctr = np.array([axis[0], np.median(fc[:, 1]), axis[1]])
     fn *= np.sign(((fc - ctr) * fn).sum(1, keepdims=True) + 1e-9)       # outward
     ftree = cKDTree(fc)
+    # Normals smoothed over 2 cm: per face, the views' weights jumped between neighbouring triangles and
+    # the hair read as cut glass (every triangle its own mix of views).
+    for _ in range(2):
+        nb = ftree.query_ball_point(fc, r=HAIR_PROJ_SMOOTH)
+        fn = np.array([fn[i].mean(0) for i in nb]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
     rng = np.random.default_rng(9); bary = rng.dirichlet((1, 1, 1), size=48)
     samples = np.einsum('bk,fkd->fbd', bary, P[F]).reshape(-1, 3)
     Ws = to_world(samples)
@@ -2182,6 +2195,8 @@ def hair_projector(work, P, F, axis):
     for fr in meta['frames']:
         im = Image.open(f"{D}/{fr['file_path']}").convert('RGBA'); S_ = im.size[0]
         a = np.asarray(im).astype(float); rgb, alpha = a[..., :3], a[..., 3] / 255.0
+        # Softened a little: single-pixel noise in the generated views became grain on the hair.
+        rgb = ndimage.gaussian_filter(rgb, (HAIR_PROJ_BLUR, HAIR_PROJ_BLUR, 0))
         # Hair by hue and saturation: the strands' light highlights pass (a luminance cap dropped them, and
         # the fallback dark showed as confetti); the knit (lavender, low saturation) and the skin do not.
         sat = (rgb.max(-1) - rgb.min(-1)) / (rgb.max(-1) + 1e-6)
@@ -2230,7 +2245,9 @@ def hair_projector(work, P, F, axis):
     return sample
 
 HAIR_PROJ_TOL = 0.015            # world units (the head is ~1): a point this far behind the envelope's depth in a view still counts as seen
-HAIR_PROJ_POWER = 6.0            # the views' weight by how squarely they see a point: high, so one view dominates and strands stay crisp
+HAIR_PROJ_BLUR = 1.2           # px of blur on the 1024 px views before sampling
+HAIR_PROJ_SMOOTH = 0.02        # radius (m) the envelope's normals are averaged over for the views' weights
+HAIR_PROJ_POWER = 4.0            # the views' weight by how squarely they see a point: high, so one view dominates and strands stay crisp
 
 # A paintable layout for the skin the photo does not cover: orthographic views in fixed windows of
 # model space (so a painting stays put when the mesh changes), one 1024 px tile each.
@@ -2378,8 +2395,8 @@ def skin_template(tex, drawn, path, corners=None):
             d.polygon([tuple(x) for x in t], outline=(40, 40, 40))
         wire.save(path.replace('.png', '-wire.png'))
 
-def jpeg(img, quality=90):
-    out = io.BytesIO(); img.save(out, 'JPEG', quality=quality); return out.getvalue()
+def jpeg(img, quality=90, subsampling=None):
+    out = io.BytesIO(); img.save(out, 'JPEG', quality=quality, **({} if subsampling is None else {'subsampling': subsampling})); return out.getvalue()
 
 # ---------------------------------------------------------------- build
 
@@ -2393,7 +2410,7 @@ def build(work):
     # the hair layer alone.
     src = Image.open(f'{work}/bald/kairo-bald-front.png').convert('RGB')
     hsrc = Image.open(f'{work}/kairo-front.png').convert('RGB')
-    P, F, grid_start, kept = face_surface(P, F, src, label == HAIR)
+    P, F, grid_start, kept = face_surface(P, F, src, label == HAIR, hsrc)
     label = np.concatenate([label[kept], np.full(len(F) - kept.sum(), GRID)])
     shell_f = np.concatenate([SHELL[0][kept], np.zeros(len(F) - kept.sum(), bool)])
     hair_f = np.where((label == HAIR) & ~shell_f)[0]
@@ -2870,7 +2887,10 @@ def build(work):
         if img.mode == 'RGBA' or name == "ear":        # the ear atlas lossless: JPEG rings at its cells' hard edges
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
         else:
-            i = g.image(jpeg(img, 92 if name in ("front", "bald") else 88), "image/jpeg", name)
+            i = g.image(jpeg(img, 92 if name in ("front", "bald", "rest") else 88, 0 if name == "rest" else None), "image/jpeg", name)
+        # No mipmaps for the ear's per-triangle atlas (minified, its levels averaged the black between
+        # cells into every triangle's edge). The hair atlas has its gutters filled and keeps mipmaps:
+        # without them the minified strands aliased into triangle-sized grain.
         g.gltf["textures"].append({"sampler": 1 if name == "ear" else 0, "source": i})
         material = {"name": name, "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1], "baseColorTexture": {"index": i},
                                                            "metallicFactor": 0, "roughnessFactor": 0.62}}
@@ -2879,7 +2899,9 @@ def build(work):
         material["doubleSided"] = True
         # The skin atlas too: lit by the scene while the face beside it showed the picture's own light,
         # the skull and the sides came out a different tone, an edge round the face.
-        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear"):
+        # The projected hair carries the views' own light, like the front: emissive too. (Lit, with its
+        # roughness 0.62, the envelope's grooves caught the scene's speculars as glitter: "cut glass".)
+        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear") or (name == "rest" and PROJ_HAIR):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
