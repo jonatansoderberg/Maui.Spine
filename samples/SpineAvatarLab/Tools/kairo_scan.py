@@ -518,11 +518,14 @@ def face_surface(P, F, src, hair=None, hair_src=None):
     fc_px, _ = project(P[F].mean(1)); fc_s = (fc_px - np.array([OX, OY])) / S
     fn_ = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); fn_ /= np.linalg.norm(fn_, axis=1, keepdims=True) + 1e-12
     over &= ~((np.abs(fn_[:, 1]) > 0.6) & (fc_s[:, 1] > CHIN_Y - 0.0042 * (fc_s[:, 0] - 626.0) ** 2 - 25))
-    if hair is not None:
+    if hair is not None and not PROJ_HAIR:
         # Hair over the face is the picture's own (thin strands stay in it): scan strands left at the
         # grid's edge poked through it as dark specks. The face here is the haired photo's (skin the
         # photo shows): the bald picture's oval covers the temples under the photo's hair, and with it
         # every hair face over the temples went and the grid's bald skin lay over the hair.
+        # (Not with the projector: its alpha cuts the layer where the photo shows skin, strand by
+        # strand, and this rule chopped the bangs' lock where it thins out over the forehead, since
+        # strands under 10 px stay inside the face mask.)
         wide = ndimage.binary_dilation(face_mask_crop(hair_src) if hair_src is not None else face, iterations=3)
         over |= hair & wide[vi2[:, 1], vi2[:, 0]][F].any(1) & (vz < zs[vi2[:, 1], vi2[:, 0]] + 0.01)[F].any(1)
     F = F[~over]
@@ -2359,16 +2362,24 @@ def hair_projector(work, P, F, axis, fallback_style=None):
         return out * gain
     front_view = views[0]; z_front = np.percentile(P[:, 2], 99.5)
     def alpha(points):
-        """0 where the hair layer must not show: a point near the front whose pixel in the front view
-        (the photo) is skin. The hairline against the forehead is then the photo's own hair mask,
-        strand by strand, instead of the envelope's voxel edge."""
-        W = to_world(points); v = front_view
-        x, y, d = v['proj'](W); S_ = v['S']
-        inside = (x >= 0) & (x < S_ - 1) & (y >= 0) & (y < S_ - 1) & (d > 0)
-        xi = np.clip(x.astype(int), 0, S_ - 1); yi = np.clip(y.astype(int), 0, S_ - 1)
-        cx = np.clip((x / v['cell']).astype(int), 0, v['zb'].shape[1] - 1); cy = np.clip((y / v['cell']).astype(int), 0, v['zb'].shape[0] - 1)
-        vis = d <= v['zb'][cy, cx] + HAIR_PROJ_TOL
-        cut = inside & vis & v['skinpx'][yi, xi] & (points[:, 2] > z_front - HAIR_MASK_DEPTH)
+        """0 where the hair layer must not show: a point that a view sees squarely and unoccluded
+        where that view shows skin. From the front that makes the hairline the photo's own hair mask,
+        strand by strand, instead of the envelope's voxel edge; from the sides it takes the envelope's
+        flaps in front of and under the ear, which lie over the cheek in the owner's views and, with
+        no view giving them hair, came out as dark shards (owner: "ser inte ut som hår alls")."""
+        W = to_world(points)
+        n = dir_world(fn[ftree.query(points)[1]])
+        cut = np.zeros(len(points), bool)
+        for k_, v in enumerate(views):
+            x, y, d = v['proj'](W); S_ = v['S']
+            inside = (x >= 0) & (x < S_ - 1) & (y >= 0) & (y < S_ - 1) & (d > 0)
+            xi = np.clip(x.astype(int), 0, S_ - 1); yi = np.clip(y.astype(int), 0, S_ - 1)
+            cx = np.clip((x / v['cell']).astype(int), 0, v['zb'].shape[1] - 1); cy = np.clip((y / v['cell']).astype(int), 0, v['zb'].shape[0] - 1)
+            vis = d <= v['zb'][cy, cx] + HAIR_PROJ_TOL
+            dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
+            squarely = (n * dcam).sum(1) > HAIR_MASK_COS
+            depth_ok = (points[:, 2] > z_front - HAIR_MASK_DEPTH) if k_ == 0 else np.ones(len(points), bool)
+            cut |= inside & vis & squarely & v['skinpx'][yi, xi] & depth_ok
         return np.where(cut, 0.0, 1.0)
     sample.alpha = alpha
     band_px = ndimage.binary_dilation(front_view['skinpx'], iterations=HAIR_BAND_PX)
@@ -2384,6 +2395,7 @@ def hair_projector(work, P, F, axis, fallback_style=None):
     sample.hairline = hairline
     return sample
 
+HAIR_MASK_COS = 0.4             # a view cuts the hair layer where it shows skin only for points it sees this squarely (cosine)
 HAIR_BAND_PX = 30               # px of the front view round the photo's skin that count as the hairline band
 HAIR_MASK_DEPTH = 0.10          # m behind the front within which the photo's skin cuts the hair layer (alpha 0)
 HAIR_PROJ_FALLBACK_BASE = 52.0  # luminance of the strand-textured fallback where no view sees
