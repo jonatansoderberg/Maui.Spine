@@ -518,7 +518,7 @@ def face_surface(P, F, src, hair=None, hair_src=None):
     fc_px, _ = project(P[F].mean(1)); fc_s = (fc_px - np.array([OX, OY])) / S
     fn_ = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); fn_ /= np.linalg.norm(fn_, axis=1, keepdims=True) + 1e-12
     over &= ~((np.abs(fn_[:, 1]) > 0.6) & (fc_s[:, 1] > CHIN_Y - 0.0042 * (fc_s[:, 0] - 626.0) ** 2 - 25))
-    if hair is not None and not PROJ_HAIR:
+    if hair is not None:
         # Hair over the face is the picture's own (thin strands stay in it): scan strands left at the
         # grid's edge poked through it as dark specks. The face here is the haired photo's (skin the
         # photo shows): the bald picture's oval covers the temples under the photo's hair, and with it
@@ -869,6 +869,24 @@ def compose(work):
         SP_, SF, hair_occ = hair_shell(HP, HF[hair])      # the envelope without those shards' bumps
         if not HAIR_SHELL_FACES:
             SF = SF[:0]
+    if PROJ_HAIR and hair.any():
+        # Nothing of the hair layer inside the head: the envelope is a closed shell, and its inner and
+        # far surfaces lie inside the skull, behind the face grid. Hidden there except through the eye
+        # openings, where they showed as fragments over the irises once the face-mask drop rule was off
+        # (owner: "massa saker i ögonen"). The head's volume is voxelised and filled as dark_core does.
+        res_h = 0.004
+        lo_h = BP.min(0) - 0.02; shape_h = np.ceil((BP.max(0) + 0.02 - lo_h) / res_h).astype(int) + 1
+        rng_h = np.random.default_rng(7)
+        pts_h = np.concatenate([np.einsum('k,fkd->fd', w, BP[BF]) for w in rng_h.dirichlet((1, 1, 1), size=8)] + [BP])
+        occ_h = np.zeros(shape_h, bool); ih = ((pts_h - lo_h) / res_h).astype(int); occ_h[ih[:, 0], ih[:, 1], ih[:, 2]] = True
+        occ_h = ndimage.binary_closing(occ_h, structure=ndimage.generate_binary_structure(3, 1), iterations=1)
+        for y_ in range(shape_h[1]):
+            occ_h[:, y_, :] = ndimage.binary_fill_holes(occ_h[:, y_, :])
+        hv_ = ((hc - lo_h) / res_h).astype(int); okh = (hv_ >= 0).all(1) & (hv_ < np.array(shape_h)).all(1)
+        in_head = np.zeros(len(hc), bool); in_head[okh] = occ_h[hv_[okh, 0], hv_[okh, 1], hv_[okh, 2]]
+        in_head &= cKDTree(pts_h).query(hc)[0] > HAIR_IN_HEAD
+        print('hair faces inside the head dropped:', int((hair & in_head).sum()), 'of', int(hair.sum()))
+        hair &= ~in_head
     # Not over the face: where the photo shows skin near the front, no hair lies.
     sc_ = SP_[SF].mean(1); cp, sz = project(sc_); sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, photo.shape[0] - 1)
     pc = photo[sp[:, 1], sp[:, 0]]
@@ -985,6 +1003,9 @@ HAIR_SHELL_CLOSE = 1 if MV_HAIR else 5           # voxels (5 mm) of closing on t
 HAIR_SHELL_OPEN = 0 if MV_HAIR else 1            # voxels of opening on the hair's volume before the shell: spikes thinner than two voxels go
 HAIR_SHELL_ERODE = 0           # voxels (5 mm) the shell sits inside the strands: 0 puts it at their envelope, filling the gaps between them at their own level
 SHELL = []                     # per composed face: part of the hair's shell (set by compose)
+HAIR_BEHIND_GRID_MAX = 0.06    # m behind the face grid beyond which a hair face is the back of the head, not something behind the eyes
+HAIR_BEHIND_GRID = 0.002       # m behind the face grid's depth, within the face, beyond which a hair face is dropped (projected hair)
+HAIR_IN_HEAD = 0.002           # m inside the head's surface beyond which a hair face is dropped (projected hair)
 HAIR_FACE_DEPTH = 0.006 if MV_HAIR else 0.02         # strands and shell over the photo's skin go only this close behind the front (m)
 HAIR_SHELL_FACES = not MV_HAIR    # the shell's faces fill the scan's gaps; the multiview hair is a closed volume already, and the shell hid its locks
 HAIR_LOOSE = 0.0015            # a piece of hair mesh further than this from both the hair's main surface and the scalp is loose and goes
@@ -2329,7 +2350,17 @@ def hair_projector(work, P, F, axis, fallback_style=None):
         lum = rgb @ lum_w
         pl = np.percentile(lum[hairpx], [10, 90]) if hairpx.sum() > 100 else np.array([40.0, 120.0])
         skinpx = ndimage.binary_erosion((rgb[..., 0] > rgb[..., 2] + 30) & (rgb.sum(-1) > 200) & (alpha > 0.5), iterations=1)
-        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, skinpx=skinpx, proj=proj, zb=zb, cell=cell, S=S_, cam=c2w[:3, 3], pl=pl, name=fr['file_path']))
+        # Where the view shows the subject and not hair (skin, eyes, brows, lashes, the knit): the hair
+        # layer is cut there. By skin alone the eyes and the brows kept hair over them once the
+        # face-mask drop rule was off.
+        nothair = (alpha > 0.5) & ~ndimage.binary_dilation(hairpx, iterations=2)
+        if not views:
+            # The front view is the photo: its face (eyes, brows and mouth included, which are blue or
+            # dark and pass the hair rule) is never hair. Only strands wider than 10 px are hair inside
+            # the face's oval; the mask's own edge follows them.
+            fm_ = face_mask_src(Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)))
+            nothair |= fm_ & (alpha > 0.5)
+        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, skinpx=skinpx, nothair=nothair, proj=proj, zb=zb, cell=cell, S=S_, cam=c2w[:3, 3], pl=pl, name=fr['file_path']))
         if ref is None:
             ref = pl
     for v in views:
@@ -2379,10 +2410,10 @@ def hair_projector(work, P, F, axis, fallback_style=None):
             dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
             squarely = (n * dcam).sum(1) > HAIR_MASK_COS
             depth_ok = (points[:, 2] > z_front - HAIR_MASK_DEPTH) if k_ == 0 else np.ones(len(points), bool)
-            cut |= inside & vis & squarely & v['skinpx'][yi, xi] & depth_ok
+            cut |= inside & vis & squarely & v['nothair'][yi, xi] & depth_ok
         return np.where(cut, 0.0, 1.0)
     sample.alpha = alpha
-    band_px = ndimage.binary_dilation(front_view['skinpx'], iterations=HAIR_BAND_PX)
+    band_px = ndimage.binary_dilation(front_view['nothair'], iterations=HAIR_BAND_PX)
     def hairline(points):
         """True for points near the front whose pixel in the front view lies on or within HAIR_BAND_PX of
         the photo's skin: the hairline band, baked in a chart of its own (a front projection) so that
@@ -2575,6 +2606,19 @@ def build(work):
         keep_h = loose_pieces(P, F[hair_f], P[np.unique(F[(label == SKIN) | (label == NECK) | shell_f])])
         drop_h = np.zeros(len(F), bool); drop_h[hair_f[~keep_h]] = True
         F, label, shell_f = F[~drop_h], label[~drop_h], shell_f[~drop_h]
+    if PROJ_HAIR:
+        # No hair behind the face grid within the face: the envelope's inner surface and its far side
+        # lie there, hidden by the grid except through the eye openings, where they showed as
+        # fragments over the irises (the head's voxel fill misses them: the bald scan's eyes are
+        # hollows, so they are outside the "head"). The lock in front of the grid stays.
+        hc_ = P[F].mean(1); hpx, hzc = project(hc_); hi_ = np.clip(hpx.astype(int), 0, N - 1)
+        in_face = FACE_INFO[1][hi_[:, 1], hi_[:, 0]]
+        # Within 6 cm only: the back of the head projects onto the face's pixels too, and the rule took
+        # the hair there (a bald patch behind the ear on every turn).
+        gz_ = FACE_INFO[0][hi_[:, 1], hi_[:, 0]]
+        behind_grid = (label == HAIR) & in_face & (hzc > gz_ + HAIR_BEHIND_GRID) & (hzc < gz_ + HAIR_BEHIND_GRID_MAX)
+        print('hair faces behind the face grid dropped:', int(behind_grid.sum()), 'of', int((label == HAIR).sum()))
+        F, label, shell_f = F[~behind_grid], label[~behind_grid], shell_f[~behind_grid]
 
     front, visible, zbuf = front_faces(P, F, work)
     # The face grid is the picture by construction: the visibility test missed scattered grid faces,
