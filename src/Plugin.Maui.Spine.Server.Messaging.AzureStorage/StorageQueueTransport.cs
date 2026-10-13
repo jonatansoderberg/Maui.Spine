@@ -68,7 +68,7 @@ public sealed class StorageQueueTransport : IMessageTransport
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<ITransportDelivery>> ReceiveAsync(MessageLane lane, int maxMessages, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<ITransportDelivery>> ReceiveAsync(MessageLane lane, int maxMessages, bool wait, CancellationToken cancellationToken) =>
         ReceiveFromAsync(StorageQueueNames.For(_options.QueuePrefix, lane), maxMessages, cancellationToken);
 
     /// <inheritdoc />

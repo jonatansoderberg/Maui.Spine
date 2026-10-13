@@ -78,7 +78,7 @@ public sealed class InMemoryTransport : IMessageTransport
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<ITransportDelivery>> ReceiveAsync(MessageLane lane, int maxMessages, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<ITransportDelivery>> ReceiveAsync(MessageLane lane, int maxMessages, bool wait, CancellationToken cancellationToken) =>
         Task.FromResult(Take(_lanes, lane.Name, maxMessages, deadLetter: true));
 
     /// <inheritdoc />

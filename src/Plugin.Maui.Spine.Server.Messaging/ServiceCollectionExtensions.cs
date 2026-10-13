@@ -78,18 +78,7 @@ public static class ServiceCollectionExtensions
 
     private sealed class MessagingStartup(MessagingRuntime runtime) : IHostedService
     {
-        public async Task StartAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                await runtime.EnsureReadyAsync(cancellationToken);
-            }
-            catch (Exception) when (!cancellationToken.IsCancellationRequested)
-            {
-                // Logged by the runtime, and tried again on first use: a storage account that is still starting (Azurite
-                // under Aspire) should not stop the host.
-            }
-        }
+        public Task StartAsync(CancellationToken cancellationToken) => runtime.EnsureReadyAsync(cancellationToken);
 
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }

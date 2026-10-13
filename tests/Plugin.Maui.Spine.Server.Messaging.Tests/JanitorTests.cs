@@ -43,10 +43,10 @@ public sealed class JanitorTests
         // A handler that dies mid-message: the lock runs out ten times and the transport dead-letters it.
         for (var i = 0; i < 10; i++)
         {
-            Assert.Single(await bus.Transport.ReceiveAsync(lane, 1, default));
+            Assert.Single(await bus.Transport.ReceiveAsync(lane, 1, wait: false, default));
             bus.Time!.Advance(TimeSpan.FromMinutes(6));
         }
-        Assert.Empty(await bus.Transport.ReceiveAsync(lane, 1, default));
+        Assert.Empty(await bus.Transport.ReceiveAsync(lane, 1, wait: false, default));
         Assert.Single(bus.Transport.PeekDeadLetters("billing"));
 
         var report = await bus.Janitor.RunAsync();

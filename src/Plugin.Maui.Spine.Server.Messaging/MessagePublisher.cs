@@ -12,8 +12,19 @@ internal sealed class MessagePublisher(MessagingRuntime runtime, EnvelopeCodec c
         options ??= PublishOptions.Default;
 
         var (result, outgoing) = await PrepareAsync(message, options, cancellationToken);
-        if (outgoing is not null)
+        if (outgoing is null)
+            return result;
+
+        try
+        {
             await runtime.Transport.SendAsync([outgoing], cancellationToken);
+        }
+        catch when (options.DeduplicationId is { } deduplicationId)
+        {
+            // Not sent, so not a duplicate when the caller tries again.
+            await ReleaseAsync(deduplicationId);
+            throw;
+        }
         return result;
     }
 
@@ -47,11 +58,24 @@ internal sealed class MessagePublisher(MessagingRuntime runtime, EnvelopeCodec c
         runtime.Logger.LogInformation("Scheduled message {MessageId} due {DeliverAt:O} cancelled.", messageId, deliverAt);
     }
 
+    private async Task ReleaseAsync(string deduplicationId)
+    {
+        try
+        {
+            await runtime.Store.ReleaseReservationAsync(deduplicationId, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            runtime.Logger.LogWarning(exception, "Deduplication id {DeduplicationId} of a failed publish could not be released; a retry is dropped as a duplicate until its window ends.", deduplicationId);
+        }
+    }
+
     private async Task<(PublishResult, OutgoingMessage?)> PrepareAsync<T>(T message, PublishOptions options, CancellationToken cancellationToken) where T : notnull
     {
         ArgumentNullException.ThrowIfNull(message);
         foreach (var key in options.Metadata.Keys)
             MetadataRules.ValidateKey(key);
+        MetadataRules.ValidateSize(options.Metadata);
 
         await runtime.EnsureReadyAsync(cancellationToken);
 
@@ -81,19 +105,28 @@ internal sealed class MessagePublisher(MessagingRuntime runtime, EnvelopeCodec c
             return (new PublishResult(id, due, [], true), null);
         }
 
-        var envelope = await codec.PackAsync(new MessageEnvelope
+        MessageEnvelope envelope;
+        try
         {
-            Id = id,
-            Type = type.Name,
-            Metadata = metadata,
-            Priority = options.Priority,
-            EnqueuedAt = now,
-            DeliverAt = due,
-            ExpiresAt = (due ?? now) + (options.TimeToLive ?? runtime.Settings.Retention),
-            CorrelationId = options.CorrelationId,
-            TraceParent = Activity.Current?.Id,
-            Recipients = lanes.Count,
-        }, type.Serialize(message), cancellationToken);
+            envelope = await codec.PackAsync(new MessageEnvelope
+            {
+                Id = id,
+                Type = type.Name,
+                Metadata = metadata,
+                Priority = options.Priority,
+                EnqueuedAt = now,
+                DeliverAt = due,
+                ExpiresAt = (due ?? now) + (options.TimeToLive ?? runtime.Settings.Retention),
+                CorrelationId = options.CorrelationId,
+                TraceParent = Activity.Current?.Id,
+                Recipients = lanes.Count,
+            }, type.Serialize(message), cancellationToken);
+        }
+        catch when (options.DeduplicationId is { } reserved)
+        {
+            await ReleaseAsync(reserved);
+            throw;
+        }
 
         MessagingTelemetry.Published.Add(lanes.Count, MessagingTelemetry.Tags(envelope));
         return (new PublishResult(id, due, [.. lanes.Select(l => l.Subscriber)], false), new OutgoingMessage(envelope, lanes, IsDirect: false));

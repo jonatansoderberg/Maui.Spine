@@ -6,14 +6,17 @@ namespace Plugin.Maui.Spine.Server.Messaging.ServiceBus;
 
 /// <summary>
 /// The envelope as a Service Bus message: the payload is the body, the type is the subject, and the rest are application
-/// properties. Metadata travels under its own keys, so correlation filters can match it; Spine's own start with
-/// <c>spine-</c>.
+/// properties. Metadata travels under its own keys, so correlation filters can match it, and <c>spine-meta</c> lists
+/// them, so that properties others add (the SDK's <c>Diagnostic-Id</c>) are not read back as metadata. Spine's own keys
+/// start with <c>spine-</c>.
 /// </summary>
 internal static class ServiceBusEnvelopeMapper
 {
     public const string To = "spine-to";
     public const string Broadcast = "*";
     public const string Priority = "spine-priority";
+    private const string Id = "spine-id";
+    private const string MetadataKeys = "spine-meta";
     private const string Attempt = "spine-attempt";
     private const string Enqueued = "spine-enqueued";
     private const string Due = "spine-due";
@@ -36,7 +39,9 @@ internal static class ServiceBusEnvelopeMapper
         var envelope = outgoing.Envelope;
         var message = new ServiceBusMessage(envelope.Body)
         {
-            MessageId = envelope.Id,
+            // A copy (retry, replay) gets an id of its own: on an entity with duplicate detection, the message's own id
+            // would have Service Bus drop it. The message's id travels in spine-id.
+            MessageId = outgoing.IsDirect ? Guid.NewGuid().ToString("N") : envelope.Id,
             Subject = envelope.Type,
             CorrelationId = envelope.CorrelationId,
             ContentType = "application/json",
@@ -45,6 +50,9 @@ internal static class ServiceBusEnvelopeMapper
         var properties = message.ApplicationProperties;
         foreach (var (key, value) in envelope.Metadata)
             properties[key] = value;
+        if (envelope.Metadata.Count > 0)
+            properties[MetadataKeys] = string.Join(',', envelope.Metadata.Keys);
+        properties[Id] = envelope.Id;
 
         properties[To] = outgoing.IsDirect ? outgoing.Lanes[0].Subscriber : Broadcast;
         properties[Priority] = PriorityValue(envelope.Priority);
@@ -81,15 +89,18 @@ internal static class ServiceBusEnvelopeMapper
         {
             var properties = message.ApplicationProperties;
             var metadata = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var (key, value) in properties)
+            if (properties.TryGetValue(MetadataKeys, out var keys) && keys is string names)
             {
-                if (!key.StartsWith(MetadataRulesPrefix, StringComparison.OrdinalIgnoreCase) && value is not null)
-                    metadata[key] = Convert.ToString(value, CultureInfo.InvariantCulture)!;
+                foreach (var key in names.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (properties.TryGetValue(key, out var value) && value is not null)
+                        metadata[key] = Convert.ToString(value, CultureInfo.InvariantCulture)!;
+                }
             }
 
             return new MessageEnvelope
             {
-                Id = message.MessageId,
+                Id = properties.TryGetValue(Id, out var id) && id is string logical ? logical : message.MessageId,
                 Type = message.Subject ?? throw new FormatException("The message has no subject (type)."),
                 Metadata = metadata,
                 Priority = properties.TryGetValue(Priority, out var priority) ? ParsePriority(priority as string) : MessagePriority.Normal,
@@ -112,8 +123,6 @@ internal static class ServiceBusEnvelopeMapper
             return new MessageEnvelope { Id = message.MessageId, Type = MessageEnvelope.UnreadableType, Body = message.Body.ToMemory() };
         }
     }
-
-    private const string MetadataRulesPrefix = "spine-";
 
     private static MessagePriority ParsePriority(string? value) => value switch
     {

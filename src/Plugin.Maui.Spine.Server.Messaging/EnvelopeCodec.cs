@@ -31,7 +31,7 @@ internal sealed class EnvelopeCodec(MessagingRuntime runtime)
         var limits = runtime.Transport.Limits;
         var length = envelope.Body.Length;
         var onWire = envelope.ContentEncoding is not null && limits.Base64Body ? (length + 2) / 3 * 4 : length;
-        if (onWire <= limits.MaxBodyBytes)
+        if (onWire <= limits.MaxBodyBytes - MetadataRules.SizeOf(envelope.Metadata))
             return envelope;
 
         var expiresAt = envelope.ExpiresAt ?? (envelope.DeliverAt ?? runtime.Time.GetUtcNow()) + runtime.Settings.Retention;

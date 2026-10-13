@@ -103,13 +103,13 @@ public sealed class ArenaController(IMessagePublisher publisher)
 |---|---|
 | `Priority` | `Low`, `Normal` (default) or `High` |
 | `DeliverAt`, `Delay` | When it is due; it stays dormant until then |
-| `Metadata` | Strings that travel with it, for filters and handlers. Keys may not start with `spine-` |
+| `Metadata` | Strings that travel with it, for filters and handlers. Keys may not start with `spine-`, and all of it is at most 4 KB, since it counts against what travels inline |
 | `MessageId` | Unset, a new time-ordered id |
 | `CorrelationId` | Ties messages of one flow together |
 | `DeduplicationId`, `DeduplicationWindow` | A repeat within the window (one hour by default) is dropped |
 | `TimeToLive` | How long it may wait from when it is due; then it is dropped. Unset, `Retention` |
 
-`PublishResult` says the message id, when it is due, which subscribers it went to, and whether it was a duplicate. A message that no subscriber takes is not sent, and is logged as a warning.
+`PublishResult` says the message id, when it is due, which subscribers it went to, and whether it was a duplicate. A publish that fails gives its `DeduplicationId` back, so trying again is not taken for a duplicate. A message that no subscriber takes is not sent, and is logged as a warning.
 
 `PublishBatchAsync` sends many with the same options in as few calls as the transport allows: Service Bus batches, and Storage sends 16 at a time.
 
@@ -318,7 +318,9 @@ At startup the host creates:
 
 **The rules** are a correlation filter per message type the subscriber takes, on the subject and the metadata in `Where`, plus one for messages addressed to the subscriber alone (retries and replays). Rules it did not make, such as `$Default`, are removed. A changed filter is replaced at the next start.
 
-**Without the Manage right:** set `Provision = false` where the identity lacks it, and create the entities with infrastructure as code from the same names. A provisioning failure says so in the log, with what to change.
+**Without the Manage right:** set `Provision = false` where the identity lacks it, and create the entities with infrastructure as code from the same names. A provisioning failure does not stop messaging: it is logged with what to change, publishing and handling carry on on the entities that exist, and provisioning is tried again after half a minute.
+
+**Existing subscriptions:** their lock duration and maximum delivery count are set to the options'. The pump renews a lock at half the time the message's lock actually has.
 
 ## Choosing a transport
 

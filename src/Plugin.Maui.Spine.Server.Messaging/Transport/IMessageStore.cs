@@ -25,6 +25,9 @@ public interface IMessageStore
     /// </summary>
     Task<bool> TryReserveAsync(string deduplicationId, DateTimeOffset expiresAt, CancellationToken cancellationToken);
 
+    /// <summary>Gives a deduplication id back, after a publish that reserved it failed. A missing one is not an error.</summary>
+    Task ReleaseReservationAsync(string deduplicationId, CancellationToken cancellationToken);
+
     /// <summary>Marks a scheduled message as cancelled.</summary>
     Task CancelAsync(string messageId, DateTimeOffset deliverAt, CancellationToken cancellationToken);
 

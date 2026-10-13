@@ -101,6 +101,10 @@ public sealed class BlobMessageStore : IMessageStore
     }
 
     /// <inheritdoc />
+    public Task ReleaseReservationAsync(string deduplicationId, CancellationToken cancellationToken) =>
+        _container.GetBlobClient($"dedup/{Hash(deduplicationId)}").DeleteIfExistsAsync(cancellationToken: cancellationToken);
+
+    /// <inheritdoc />
     public Task CancelAsync(string messageId, DateTimeOffset deliverAt, CancellationToken cancellationToken) =>
         _container.GetBlobClient($"cancelled/{Day(deliverAt)}/{messageId}").UploadAsync(BinaryData.Empty, overwrite: true, cancellationToken);
 

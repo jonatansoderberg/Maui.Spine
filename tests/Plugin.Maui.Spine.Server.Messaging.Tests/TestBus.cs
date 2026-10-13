@@ -111,7 +111,7 @@ public sealed class TestBus : IAsyncDisposable
             ITransportDelivery? delivery = null;
             foreach (var lane in lanes)
             {
-                if ((await Transport.ReceiveAsync(lane, 1, default)).FirstOrDefault() is { } taken)
+                if ((await Transport.ReceiveAsync(lane, 1, wait: false, default)).FirstOrDefault() is { } taken)
                 {
                     delivery = taken;
                     break;

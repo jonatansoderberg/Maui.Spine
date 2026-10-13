@@ -302,7 +302,7 @@ None. The owner answered all four on 2026-10-13; see Decisions.
   - `ServiceBusEnvelopeMapper`.
   - `UseServiceBus`, with `EmulatorManagementEndpoint` for the emulator's port 5300.
   - `DispatchAsync(ServiceBusReceivedMessage)` for Functions.
-- **Tests:** `tests/Plugin.Maui.Spine.Server.Messaging.Tests`, 50 tests.
+- **Tests:** `tests/Plugin.Maui.Spine.Server.Messaging.Tests`, 57 tests (50 at first, 7 more from the review).
   - **Unit tests on the in-memory transport and a fake clock (38):** routing, priority (with the real pump), scheduling and hops, retries, claim check, deduplication, failed messages, janitor.
   - **Integration tests:**
     - against Azurite (6)
@@ -367,4 +367,17 @@ None. The owner answered all four on 2026-10-13; see Decisions.
     - `AddSpineMessagingJanitor`
     - `ServiceBusMessagingOptions.EmulatorManagementEndpoint` and `.Container`
   - **Added internal types:** `MessagingRuntime` (shared state and one-time provisioning), `StorageQueueWire` and `AzureStorageConnections`.
+- **2026-10-13, review of PR #541:** Ten findings, all fixed:
+  1. **Deduplication:** a publish that fails after reserving its deduplication id now releases it (`IMessageStore.ReleaseReservationAsync`). Before, a retry was dropped as a duplicate for the whole window.
+  2. **Provisioning:** a failure no longer stops messaging. It is logged with the fix, publishing and handling carry on on the entities that exist, and provisioning is tried again after 30 s. **Why:** an identity with only Send and Listen, against entities made by infrastructure as code, would otherwise have taken messaging down.
+  3. **Waiting on empty lanes:** `IMessageTransport.ReceiveAsync` takes `wait`, and the pump lets only a subscriber's last lane wait. Service Bus probes the others for 50 ms rather than the 200 ms receive wait, which capped a prioritised subscriber's lower lanes.
+  4. **Metadata on Service Bus** is listed in `spine-meta` and read back from that list. Properties others add, such as the SDK's `Diagnostic-Id`, are no longer taken for metadata.
+  5. **Lock renewal:** a renewal is not cancelled once it has started. A Storage update cut off mid-call could leave a stale pop receipt, and the completion then failed and the message ran twice.
+  6. **Metadata size** counts against what travels inline, and is capped at 4 KB. Before, a body near the limit plus metadata could exceed the queue's 64 KB and fail.
+  7. **Copy ids:** a retry or replay on Service Bus has a message id of its own, and the message's id travels in `spine-id`. Duplicate detection on an entity would otherwise drop the copy.
+  8. **Lock length:** the pump renews from the lock the message actually has (`LockedUntil`), and provisioning brings an existing subscription's lock duration and maximum delivery count in line with the options.
+  9. **Pump shutdown:** the pump's semaphore is no longer disposed while a handler that outlived shutdown may still release it.
+  10. **Duplicate filters:** `Where` on the same key twice is refused. Storage would never match it, and Service Bus would keep the last value.
+
+  Tests: `FailureHandlingTests` (5) and `ServiceBusMapperTests` (2). All 57 pass, with the emulators.
 - **2026-10-13, Claude:** Failed messages live in the blob store for every transport, and the native poison and dead-letter queues are only a backstop for crashes. **Why:** one place to list, replay and clean up, the same on Storage and Service Bus.

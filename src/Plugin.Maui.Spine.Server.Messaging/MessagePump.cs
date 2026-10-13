@@ -16,14 +16,15 @@ internal sealed class MessagePump(string subscriberName, MessagingRuntime runtim
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var subscriber = runtime.Topology.GetSubscriber(subscriberName);
-        await WaitUntilReadyAsync(stoppingToken);
+        await runtime.EnsureReadyAsync(stoppingToken);
 
         // Receives again once at least half the handlers are free, so a busy pump fetches in batches rather than one
         // message per finished handler.
         var capacity = subscriber.MaxConcurrency;
         var threshold = Math.Max(1, capacity / 2);
         var inFlight = 0;
-        using var finished = new SemaphoreSlim(0);
+        // Not disposed: a handler that outlives the shutdown deadline still releases it.
+        var finished = new SemaphoreSlim(0);
         var idle = FirstIdleWait;
         runtime.Logger.LogInformation("Message pump for {Subscriber} started: {Lanes}, {Concurrency} at a time.",
             subscriber.Name, string.Join(", ", subscriber.Lanes.Select(l => l.Name)), capacity);
@@ -40,9 +41,10 @@ internal sealed class MessagePump(string subscriberName, MessagingRuntime runtim
                 {
                     // Strict priority: a lower lane is read only when every higher one is empty.
                     var free = Math.Min(MaxBatch, capacity - Volatile.Read(ref inFlight));
-                    foreach (var lane in subscriber.Lanes)
+                    // Only the last lane may wait for messages, so an empty higher lane does not slow the ones below it.
+                    for (var i = 0; i < subscriber.Lanes.Count; i++)
                     {
-                        batch = await runtime.Transport.ReceiveAsync(lane, free, stoppingToken);
+                        batch = await runtime.Transport.ReceiveAsync(subscriber.Lanes[i], free, wait: i == subscriber.Lanes.Count - 1, stoppingToken);
                         if (batch.Count > 0)
                             break;
                     }
@@ -83,22 +85,6 @@ internal sealed class MessagePump(string subscriberName, MessagingRuntime runtim
             await finished.WaitAsync(TimeSpan.FromMilliseconds(100), CancellationToken.None);
     }
 
-    private async Task WaitUntilReadyAsync(CancellationToken stoppingToken)
-    {
-        while (true)
-        {
-            try
-            {
-                await runtime.EnsureReadyAsync(stoppingToken);
-                return;
-            }
-            catch (Exception) when (!stoppingToken.IsCancellationRequested)
-            {
-                await Task.Delay(runtime.Settings.MaxPollInterval, runtime.Time, stoppingToken);
-            }
-        }
-    }
-
     private async Task HandleAsync(Subscriber subscriber, ITransportDelivery delivery, CancellationToken stoppingToken)
     {
         using var renewing = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
@@ -128,7 +114,10 @@ internal sealed class MessagePump(string subscriberName, MessagingRuntime runtim
             while (true)
             {
                 await Task.Delay(delivery.RenewEvery, runtime.Time, cancellationToken);
-                await delivery.ExtendAsync(cancellationToken);
+
+                // Not cancelled once started: a renewal cut off mid-call may have changed the lock (a new pop receipt on
+                // Storage) without the delivery learning it, and completing would then fail.
+                await delivery.ExtendAsync(CancellationToken.None);
             }
         }
         catch (OperationCanceledException)

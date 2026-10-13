@@ -86,7 +86,7 @@ public sealed class ServiceBusIntegrationTests : IAsyncLifetime
         var count = 0;
         foreach (var lane in Topology.GetSubscriber(subscriber).Lanes)
         {
-            while (await Transport.ReceiveAsync(lane, 32, default) is { Count: > 0 } batch)
+            while (await Transport.ReceiveAsync(lane, 32, wait: true, default) is { Count: > 0 } batch)
             {
                 foreach (var delivery in batch)
                 {

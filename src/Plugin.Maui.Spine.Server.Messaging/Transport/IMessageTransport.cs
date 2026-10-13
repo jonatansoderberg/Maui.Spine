@@ -18,8 +18,15 @@ public interface IMessageTransport
     /// </summary>
     Task SendAsync(IReadOnlyList<OutgoingMessage> messages, CancellationToken cancellationToken);
 
-    /// <summary>Takes up to <paramref name="maxMessages"/> messages from a lane, or none if it is empty, without waiting long.</summary>
-    Task<IReadOnlyList<ITransportDelivery>> ReceiveAsync(MessageLane lane, int maxMessages, CancellationToken cancellationToken);
+    /// <summary>Takes up to <paramref name="maxMessages"/> messages from a lane, or none if it is empty.</summary>
+    /// <param name="lane">The lane.</param>
+    /// <param name="maxMessages">At most this many.</param>
+    /// <param name="wait">
+    /// Whether a transport that can wait for messages (Service Bus) may wait a while on an empty lane. The pump passes
+    /// <see langword="false"/> for every lane but a subscriber's last, so that an empty higher lane answers at once.
+    /// </param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    Task<IReadOnlyList<ITransportDelivery>> ReceiveAsync(MessageLane lane, int maxMessages, bool wait, CancellationToken cancellationToken);
 
     /// <summary>Takes messages the platform gave up on (its poison or dead-letter queue), for the janitor to keep as failed.</summary>
     Task<IReadOnlyList<ITransportDelivery>> ReceiveDeadLettersAsync(MessageLane lane, int maxMessages, CancellationToken cancellationToken);

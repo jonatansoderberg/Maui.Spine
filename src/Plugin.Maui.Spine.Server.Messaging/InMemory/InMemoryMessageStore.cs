@@ -55,6 +55,13 @@ public sealed class InMemoryMessageStore(TimeProvider? time = null) : IMessageSt
     }
 
     /// <inheritdoc />
+    public Task ReleaseReservationAsync(string deduplicationId, CancellationToken cancellationToken)
+    {
+        _reservations.TryRemove(deduplicationId, out _);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
     public Task CancelAsync(string messageId, DateTimeOffset deliverAt, CancellationToken cancellationToken)
     {
         _cancelled[(messageId, deliverAt)] = 0;

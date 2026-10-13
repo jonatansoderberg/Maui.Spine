@@ -12,6 +12,10 @@ namespace Plugin.Maui.Spine.Server.Messaging.ServiceBus;
 /// </summary>
 public sealed class ServiceBusTransport : IMessageTransport, IAsyncDisposable
 {
+    // Long enough for a message already in the subscription to come back in one round trip, short enough that an empty
+    // higher lane does not hold up the lanes below it.
+    private static readonly TimeSpan ProbeWait = TimeSpan.FromMilliseconds(50);
+
     private readonly ServiceBusClient _client;
     private readonly ServiceBusAdministrationClient? _admin;
     private readonly ServiceBusMessagingOptions _options;
@@ -100,20 +104,20 @@ public sealed class ServiceBusTransport : IMessageTransport, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<ITransportDelivery>> ReceiveAsync(MessageLane lane, int maxMessages, CancellationToken cancellationToken) =>
-        ReceiveFromAsync(lane, deadLetter: false, maxMessages, cancellationToken);
+    public Task<IReadOnlyList<ITransportDelivery>> ReceiveAsync(MessageLane lane, int maxMessages, bool wait, CancellationToken cancellationToken) =>
+        ReceiveFromAsync(lane, deadLetter: false, maxMessages, wait ? _options.ReceiveWait : ProbeWait, cancellationToken);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<ITransportDelivery>> ReceiveDeadLettersAsync(MessageLane lane, int maxMessages, CancellationToken cancellationToken) =>
-        ReceiveFromAsync(lane, deadLetter: true, maxMessages, cancellationToken);
+        ReceiveFromAsync(lane, deadLetter: true, maxMessages, ProbeWait, cancellationToken);
 
-    private async Task<IReadOnlyList<ITransportDelivery>> ReceiveFromAsync(MessageLane lane, bool deadLetter, int maxMessages, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<ITransportDelivery>> ReceiveFromAsync(MessageLane lane, bool deadLetter, int maxMessages, TimeSpan wait, CancellationToken cancellationToken)
     {
         var receiver = _receivers.GetOrAdd((lane.Name, deadLetter), key => _client.CreateReceiver(_options.TopicName, key.Lane,
             new ServiceBusReceiverOptions { SubQueue = key.DeadLetter ? SubQueue.DeadLetter : SubQueue.None }));
 
-        var messages = await receiver.ReceiveMessagesAsync(Math.Max(1, maxMessages), _options.ReceiveWait, cancellationToken);
-        return [.. messages.Select(message => new ServiceBusDelivery(receiver, message, _options.LockDuration))];
+        var messages = await receiver.ReceiveMessagesAsync(Math.Max(1, maxMessages), wait, cancellationToken);
+        return [.. messages.Select(message => new ServiceBusDelivery(receiver, message, _time))];
     }
 
     /// <inheritdoc />
@@ -125,11 +129,14 @@ public sealed class ServiceBusTransport : IMessageTransport, IAsyncDisposable
     }
 }
 
-internal sealed class ServiceBusDelivery(ServiceBusReceiver receiver, ServiceBusReceivedMessage message, TimeSpan lockDuration) : ITransportDelivery
+internal sealed class ServiceBusDelivery(ServiceBusReceiver receiver, ServiceBusReceivedMessage message, TimeProvider time) : ITransportDelivery
 {
+    // From the lock the message actually has, not from the options: a subscription made elsewhere may have a shorter one.
+    private readonly TimeSpan _lock = message.LockedUntil - time.GetUtcNow() is var left && left > TimeSpan.FromSeconds(2) ? left : TimeSpan.FromSeconds(2);
+
     public MessageEnvelope Envelope { get; } = ServiceBusEnvelopeMapper.ToEnvelope(message);
     public int DeliveryCount => message.DeliveryCount;
-    public TimeSpan RenewEvery => lockDuration / 2;
+    public TimeSpan RenewEvery => _lock / 2;
 
     public Task CompleteAsync(CancellationToken cancellationToken) => receiver.CompleteMessageAsync(message, cancellationToken);
 

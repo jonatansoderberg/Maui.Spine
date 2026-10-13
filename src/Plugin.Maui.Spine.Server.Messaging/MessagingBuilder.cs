@@ -156,6 +156,8 @@ public sealed class SubscriberBuilder
     {
         MetadataRules.ValidateKey(key);
         ArgumentNullException.ThrowIfNull(value);
+        if (_filters.Any(f => f.Key == key))
+            throw new ArgumentException($"Subscriber '{_name}' filters on '{key}' twice. A message carries one value per key, so both could never match.", nameof(key));
         _filters.Add(new SubscriberFilter(key, value));
         return this;
     }
@@ -209,6 +211,20 @@ internal sealed record MessagingSettings(
 internal static partial class MetadataRules
 {
     public const string ReservedPrefix = "spine-";
+
+    /// <summary>Metadata travels in every copy and counts against the transport's inline size, so it is kept small.</summary>
+    public const int MaxBytes = 4 * 1024;
+
+    /// <summary>Roughly what metadata adds to a message: its keys and values, and a little per entry.</summary>
+    public static int SizeOf(IEnumerable<KeyValuePair<string, string>> metadata) =>
+        metadata.Sum(m => System.Text.Encoding.UTF8.GetByteCount(m.Key) + System.Text.Encoding.UTF8.GetByteCount(m.Value) + 8);
+
+    public static void ValidateSize(IEnumerable<KeyValuePair<string, string>> metadata)
+    {
+        var size = SizeOf(metadata);
+        if (size > MaxBytes)
+            throw new ArgumentException($"The metadata is {size} bytes; at most {MaxBytes} are allowed. Put larger values in the message itself.", nameof(metadata));
+    }
 
     public static void ValidateKey(string key)
     {

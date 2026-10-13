@@ -147,7 +147,7 @@ public sealed class RoutingTests
         var transport = provider.GetRequiredService<InMemoryTransport>();
 
         await provider.GetRequiredService<IMessagePublisher>().PublishAsync(new Order("o1"));
-        var delivery = Assert.Single(await transport.ReceiveAsync(new MessageLane("billing", MessagePriority.Normal, "billing"), 1, default));
+        var delivery = Assert.Single(await transport.ReceiveAsync(new MessageLane("billing", MessagePriority.Normal, "billing"), 1, wait: false, default));
         await provider.GetRequiredService<MessageDispatcher>().DispatchAsync("billing", delivery.Envelope, 1, default);
 
         var failed = new List<FailedMessage>();

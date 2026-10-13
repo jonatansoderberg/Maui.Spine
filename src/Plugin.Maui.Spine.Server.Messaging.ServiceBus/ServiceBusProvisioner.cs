@@ -46,6 +46,18 @@ internal sealed class ServiceBusProvisioner(ServiceBusAdministrationClient admin
                 cancellationToken));
             logger.LogInformation("Created Service Bus subscription {Subscription} on {Topic}.", lane.Name, options.TopicName);
         }
+        else
+        {
+            var subscription = (await admin.GetSubscriptionAsync(options.TopicName, lane.Name, cancellationToken)).Value;
+            if (subscription.LockDuration != options.LockDuration || subscription.MaxDeliveryCount != options.MaxDeliveryCount)
+            {
+                logger.LogInformation("Service Bus subscription {Subscription} had a lock of {Lock} and {Deliveries} deliveries; set to {WantedLock} and {WantedDeliveries}.",
+                    lane.Name, subscription.LockDuration, subscription.MaxDeliveryCount, options.LockDuration, options.MaxDeliveryCount);
+                subscription.LockDuration = options.LockDuration;
+                subscription.MaxDeliveryCount = options.MaxDeliveryCount;
+                await admin.UpdateSubscriptionAsync(subscription, cancellationToken);
+            }
+        }
 
         var existing = new Dictionary<string, RuleProperties>(StringComparer.Ordinal);
         await foreach (var rule in admin.GetRulesAsync(options.TopicName, lane.Name, cancellationToken))
