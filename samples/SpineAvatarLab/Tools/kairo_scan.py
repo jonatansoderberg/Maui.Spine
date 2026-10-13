@@ -2070,7 +2070,7 @@ def hair_photo(src):
     and broke up into beige shards once the head turned."""
     a = np.asarray(src).astype(float)
     hair = (a[..., 2] > a[..., 0] + 12) | (a.sum(-1) < 150)
-    hair = ndimage.binary_opening(hair, iterations=1)
+    hair = ndimage.binary_opening(hair, iterations=1) & ~face_mask_src(src)     # not the brows, lashes and irises, dark too
     _, (iy, ix) = ndimage.distance_transform_edt(~hair, return_indices=True)
     filled = a[iy, ix]
     filled = np.where(hair[..., None], a, ndimage.gaussian_filter(filled, (2, 2, 0)))
@@ -2130,6 +2130,7 @@ def hair_style(horig, work, src, axis):
             # an octave fades out where its period round the axis falls under 2 mm (the crown), or it aliases
             streak += amp * smooth(0.002, 0.004, 2 * np.pi * r / k) * np.sin(k * th + d * s + ph_)
         return ramp[np.clip(l + streak, 0, 255).astype(int)]
+    sample.palette = lambda l: ramp[int(np.clip(l, 0, 255))]
     return sample
 
 SCALP_STRANDS = 0.6           # the strands' amplitude on the scalp (at 1 the scalp read as a striped cap along the hairline)
@@ -2293,7 +2294,12 @@ def build(work):
     mouth_setup(work)
     P, F, label, skin_colour, scan_colour, pivot, hair_weight = compose(work)
     # Bald, the face shows the bald picture (same face, same framing, no hair painted on it).
-    src = Image.open(f'{work}/{"bald/kairo-bald-front.png" if BALD else "kairo-front.png"}').convert('RGB')
+    # The head is the bald head whether or not the hair is on: the face shows the owner's bald picture
+    # (same face, same framing, no hair painted on it) and nothing on it is filled, toned or cut for
+    # the hair (owner: "huvudet ska inte ändras av att man lägger på hår"). The haired photo goes to
+    # the hair layer alone.
+    src = Image.open(f'{work}/bald/kairo-bald-front.png').convert('RGB')
+    hsrc = Image.open(f'{work}/kairo-front.png').convert('RGB')
     P, F, grid_start, kept = face_surface(P, F, src, label == HAIR)
     label = np.concatenate([label[kept], np.full(len(F) - kept.sum(), GRID)])
     shell_f = np.concatenate([SHELL[0][kept], np.zeros(len(F) - kept.sum(), bool)])
@@ -2352,10 +2358,13 @@ def build(work):
     blend = photo_px * (1 - w) + bald_px * tone * w
     # Under the photo's hair, gaps between strands included, the skin shows the hair's own colour: as
     # skin colour, the gaps at the temple came through the hair layer as beige shards.
-    envelope = ndimage.binary_closing(hair_px, iterations=HAIR_GAPS)
-    envelope &= ~ndimage.binary_erosion(face_mask_src(src), iterations=6)    # never into the open face
-    soft = ndimage.gaussian_filter(envelope.astype(float), 1.5)[..., None]
-    blend = blend * (1 - soft) + np.asarray(hair_photo(src)).astype(float) * soft
+    # Hair outside the face only: the hair rule (blue, or dark) also takes the brows, lashes and irises,
+    # and the closing bridged the brow to the bangs above it, so the forehead between them was
+    # "under hair" and the nearest-hair-pixel fill drew the brow's own pixels up into the hairline
+    # (owner: "ögonbrynet sugs ut i håret"). The fill is the palette's dark, flat: the hair layer in
+    # front carries the photo's strands, and a nearest-pixel fill streaks whatever it starts from.
+    # (No hair colour on the face under the photo's hair any more: that fill is what drew the brow up
+    # into the hairline. Gaps in the hair layer are the hair's to close.)
     bald_src = Image.fromarray(np.clip(blend, 0, 255).astype(np.uint8))
     # The photo itself only on the hair; all skin and the knit show the blend.
     from_photo = label == HAIR
@@ -2402,7 +2411,7 @@ def build(work):
         print('colour gain', kind, np.round(g, 2))
         return np.clip(g, 0.6, 1.6)
     bald_gain = np.ones((5, 3)); bald_gain[SKIN] = bald_gain[NECK] = gain(SKIN, skin_colour, bald_src); bald_gain[KNIT] = gain(KNIT, skin_colour, bald_src)
-    hair_gain = gain(HAIR, scan_colour, src)
+    hair_gain = gain(HAIR, scan_colour, hsrc)
     ao = occlusion(P, F, VN)
     # Smoothed over 5 mm: the scan's ears are noisy, and at full detail their occlusion speckled.
     # (Averaging only among vertices facing the same way, to keep the auricle's two sides apart,
@@ -2758,7 +2767,7 @@ def build(work):
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9729, "wrapS": 33071, "wrapT": 33071})
     for name, img in (("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex)), ("skin", Image.fromarray(skin_tex)),
                       ("lidskin", lid_texture(closed, src)), ("bald", bald_src), ("iris", iris_texture(src)),
-                      ("core", Image.new('RGB', (4, 4), (8, 6, 8))), ("hairphoto", hair_photo(src)),
+                      ("core", Image.new('RGB', (4, 4), (8, 6, 8))), ("hairphoto", hair_photo(hsrc)),
                       # Inside the head the core is shadowed skin: through the scan's gaps (round the eye
                       # sockets, behind the face's edge) black read as holes in the cheek.
                       ("coreskin", Image.new('RGB', (4, 4), tuple(int(c * 0.8) for c in skin_ref))), ("knit", Image.fromarray(knit_tex)),
