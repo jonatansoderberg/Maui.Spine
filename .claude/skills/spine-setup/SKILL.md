@@ -33,6 +33,7 @@ All Spine packages share one version. Reference every Spine package the app uses
 | `MeshBackground` (mesh gradients behind glass) | `Plugin.Maui.Spine.Controls.MeshBackground` | the core |
 | `Highlight.Kind` (a glow while a model works, onboarding hints once per install) | `Plugin.Maui.Spine.Controls.Highlight` | the core |
 | `MarkdownView` (markdown on native views: help, release notes, chat answers) | `Plugin.Maui.Spine.Controls.Markdown` | the core and Markdig |
+| `ChatView` and `ChatComposer` (a conversation with any `IChatClient`) | `Plugin.Maui.Spine.Controls.Chat` | the core, `.Controls.Markdown`, `.Controls.Shimmer`, Microsoft.Extensions.AI.Abstractions |
 | QR codes and other barcodes on screen (`BarcodeView`, `Barcode.Encode`, SVG) | `Plugin.Maui.Spine.Barcodes` | — |
 | Scanning codes with the camera (`BarcodeScannerView`, the scan sheet) | `Plugin.Maui.Spine.Scanner` | the core and `Plugin.Maui.Spine.Barcodes` |
 | Remote images in lists: memory and disk cache, decoding at the view's size, prefetching, BlurHash placeholders | `Plugin.Maui.Spine.Images` | `Plugin.Maui.Spine.Common` (not the core) |

@@ -1,0 +1,22 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Chat.ChatPage"
+    x:TypeArguments="ChatPageViewModel"
+    x:DataType="ChatPageViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <Grid ColumnDefinitions="*,Auto" Padding="16,8">
+            <Label Text="Spine.AI Assistant instead of the demo (needs the push sample server)" FontSize="13" Opacity="0.7"
+                   VerticalOptions="Center" />
+            <Switch Grid.Column="1" IsToggled="{Binding UseAssistant}" />
+        </Grid>
+
+        <ChatView x:Name="chat" Grid.Row="1" Client="{Binding Client}" Messages="{Binding Messages}" />
+    </Grid>
+
+    <SpinePage.Footer>
+        <ChatComposer Chat="{x:Reference chat}" Suggestions="{Binding Suggestions}" Placeholder="Ask about the race" />
+    </SpinePage.Footer>
+
+</SpinePage>

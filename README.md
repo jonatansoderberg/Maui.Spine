@@ -61,7 +61,7 @@
 
 ## Packages
 
-One version, twenty-three packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, twenty-four packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -80,6 +80,7 @@ One version, twenty-three packages, all on [nuget.org](https://www.nuget.org/pac
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: a shimmer over placeholders, `Skeleton.IsActive` on real layouts |
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients (accent, Aurora, Sunset or your own colours) that drift slowly behind glass |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view: a moving rim while a model works, rings that say tap here, a sweep, a running light or a breathing halo; once per install with a key |
+| Controls | `Plugin.Maui.Spine.Controls.Chat` | `ChatView` and `ChatComposer`: a conversation with any `IChatClient`, answers streamed as markdown that follow the end, Stop, suggestions, tool cards |
 | Controls | `Plugin.Maui.Spine.Controls.Markdown` | `MarkdownView`: markdown on native views (lists, code with Copy, quotes, tables, images), themed; a streamed answer rebuilds only its last block |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes such as 12 × 12 |
@@ -234,6 +235,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Loading states](docs/wiki/loading-states.md) | `TaskState` and `StateView`: loading, error with retry, empty and content from one load that lives with the page |
 | [Shimmer and Skeleton](docs/wiki/shimmer.md) | Skeleton loading that follows the theme and Reduce Motion; `Skeleton.IsActive` turns a real layout into its own skeleton |
 | [Highlight](docs/wiki/highlight.md) | Edge, Pulse, Sheen, Trace and Breathe on any view, drawn by the platform's compositor: once, a number of times, forever or until tapped, once per install with a key, still under Reduce Motion |
+| [Chat](docs/wiki/chat.md) | `ChatView` and `ChatComposer`: the conversation the app owns, streaming and following the end, Stop and Try again, the composer in the footer, styling |
 | [Markdown](docs/wiki/markdown.md) | `MarkdownView`: what each block becomes, line breaks, streaming that rebuilds only the last block, links, style options |
 | [MeshBackground](docs/wiki/mesh-background.md) | Mesh gradients on SkiaSharp: points from the accent, a preset or your own list, a slow drift at a capped frame rate, still under Reduce Motion; a background for materials |
 | [Rows and taps](docs/wiki/rows.md) | `SpineRow` settings and key/value rows; `Tap.Command` with native press feedback on any view; `Semantic.Merge` for one screen-reader element |
@@ -248,7 +250,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The twenty-three packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The twenty-four packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 
