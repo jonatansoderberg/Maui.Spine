@@ -684,7 +684,8 @@ def compose(work):
     photo = np.asarray(Image.open(f'{work}/kairo-front.png').convert('RGB')).astype(float)
     cp, hz = project(hc); sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, photo.shape[0] - 1)
     pc = photo[sp[:, 1], sp[:, 0]]
-    hair &= ~((pc[:, 0] > pc[:, 2] + 30) & (hz < at(cp) + 0.015))
+    if not PROJ_HAIR:      # with the projector the alpha mask cuts the layer at the photo's skin; these rules took the skirt the mask is for
+        hair &= ~((pc[:, 0] > pc[:, 2] + 30) & (hz < at(cp) + 0.015))
     # Nor in front of it, at any depth: strands hanging in front of the temple that the photo shows
     # as skin took skin colour and broke up into beige shards once the head turned.
     skin_px = (photo[..., 0] > photo[..., 2] + 30) & (photo.sum(-1) > 200)
@@ -692,7 +693,8 @@ def compose(work):
     # (Within 2 cm of the front only: at 6 cm the rule took the temple's side back to the ear with it,
     # and the scalp showed there from the side. Those strands no longer take skin colour: the hair's
     # texture is the photo's hair palette whatever the generator painted.)
-    hair &= ~(skin_px[sp[:, 1], sp[:, 0]] & (hz < at(cp) + HAIR_FACE_DEPTH))
+    if not PROJ_HAIR:
+        hair &= ~(skin_px[sp[:, 1], sp[:, 0]] & (hz < at(cp) + HAIR_FACE_DEPTH))
     # The turtleneck stays put while the head turns: the bald run's knit, below the chin.
     # (Up to 2.5 cm above the collar line only: higher, the shadowed skin under the chin read as knit,
     # held the chin's underside to the body and tore it into a flap on every turn.)
@@ -886,6 +888,7 @@ def compose(work):
     hair_look = hair_projector(work, HP, HF[hair], axis, fallback_style=styled) if PROJ_HAIR else styled
     photo_hair = ((photo[..., 2] > photo[..., 0] + 12) | (photo.sum(-1) < 150)) & ~skin_px
     face_px = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/kairo-front.png').convert('RGB')), iterations=10)
+    bald_face = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/bald/kairo-bald-front.png').convert('RGB')), iterations=6)
     face_d = ndimage.distance_transform_edt(~face_px)
     photo_env = ndimage.binary_closing(photo_hair, iterations=HAIR_GAPS) & ~ndimage.binary_erosion(face_px, iterations=16)
     hair_points = hc[hair]; hair_cols = hair_look(hair_points) if hair.any() else hcol[hair]
@@ -931,7 +934,12 @@ def compose(work):
         # between the locks behind the ear from the side).
         behind_ear = smooth(axis[1] + 0.01, axis[1] - 0.02, points[:, 2]) * smooth(collar_y + 0.02, collar_y + 0.05, points[:, 1])
         w = np.maximum(np.maximum(hair_over(points), under_photo), smooth(0.025, 0.01, d)) * smooth(eye_y - 0.02, eye_y + 0.01, points[:, 1])
-        return np.maximum(w, behind_face * np.maximum(above_brow, behind_ear))
+        w = np.maximum(w, behind_face * np.maximum(above_brow, behind_ear))
+        # Not the skull's front under the face grid: in the grid's edge zone the grid sits a millimetre
+        # in front of the skull's depth map and the skull's triangles poke through in blocks; skin on
+        # skin that is invisible, dark on skin it drew a staircase along the hairline.
+        under_grid = bald_face[sp_[:, 1], sp_[:, 0]] & (z_ > at(cp_) - 0.008)
+        return w * (1 - under_grid)
     def bald_colour(points, gain=1.0):
         """The bald texture, turned to the hair's own dark under the hair: the scalp between strands."""
         col = bald_tex(points) * gain
@@ -1126,15 +1134,16 @@ def atlas(P, F, sample, size, shade=None):
     tex = tex[iy, ix]
     return uv, tex
 
+HAIR_SKIRT_DIST = 0.012        # m from the face grid within which a near-front hair face is skirt (its own chart)
 HAIR_CHART_SMOOTH = 0.03       # radius (m) the normals are averaged over for the chart choice
 HAIR_CHART_TILE = 1152          # px per chart tile of the projected hair's texture (six box charts, 3 x 2 tiles)
 
-def hair_charts(P, F, sample, shade, VN, alpha_fn=None):
+def hair_charts(P, F, sample, shade, VN, alpha_fn=None, skirt=None):
     """The projected hair's texture as six box charts (right, left, top, under, front, back: each face in
     the chart its normal faces most), baked by dense sampling with the outermost sample winning, the
     gaps filled from the nearest texel. A per-triangle atlas put every triangle's edge at a jump in
     the texture: the sampler took the coarsest mip level there and drew the mesh as grain."""
-    T = HAIR_CHART_TILE; W, H = 3 * T, 2 * T
+    T = HAIR_CHART_TILE; W, H = 4 * T, 2 * T
     fn = VN[F].mean(1); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
     # The chart from normals averaged over 3 cm: by each face's own normal the three-quarter regions
     # alternated between the side and the front chart triangle by triangle, and each chart's bake
@@ -1143,8 +1152,8 @@ def hair_charts(P, F, sample, shade, VN, alpha_fn=None):
     for _ in range(2):
         nb = tree_.query_ball_point(fc_, r=HAIR_CHART_SMOOTH)
         fn = np.array([fn[i].mean(0) for i in nb]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
-    tile = np.array([(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1)])
-    inplane = {0: (2, 1), 1: (2, 1), 2: (0, 2), 3: (0, 2), 4: (0, 1), 5: (0, 1)}
+    tile = np.array([(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1), (3, 0)])
+    inplane = {0: (2, 1), 1: (2, 1), 2: (0, 2), 3: (0, 2), 4: (0, 1), 5: (0, 1), 6: (0, 1)}
     lo = P[F].reshape(-1, 3).min(0) - 0.01; hi = P[F].reshape(-1, 3).max(0) + 0.01; span = (hi - lo).max()
     # Each face takes the chart it faces most among those in which it is not hidden: in a chart's
     # projection the outermost surface wins the texels, and a face under an overhang (the locks over the
@@ -1167,16 +1176,27 @@ def hair_charts(P, F, sample, shade, VN, alpha_fn=None):
         hidden[:, ch] = fc_[:, ax] * sg < dmap[ci, cj] - 0.008
     score_ok = np.where(hidden, -np.inf, score)
     chart = np.where(np.isfinite(score_ok.max(1)), score_ok.argmax(1), score.argmax(1))
-    axis = chart // 2; sign = np.where(chart % 2 == 0, 1.0, -1.0)
+    # The front band (the hairline, the skirt over the forehead) goes to the front chart whenever it is
+    # not hidden there: by the averaged normals the curved forehead's faces leaned into the side and
+    # top charts, where they are not the outermost and took those charts' texels, so the alpha cut
+    # at the hairline came out as a patchwork of charts.
+    near_front = fc_[:, 2] > np.percentile(fc_[:, 2], 99.5) - HAIR_MASK_DEPTH
+    chart = np.where(near_front & ~hidden[:, 4] & (score[:, 4] > 0.0), 4, chart)
+    # The skirt (the hair layer lying on the face near the hairline) has its own chart, a front
+    # projection in which only skirt faces are baked: under the bangs it is the outermost surface in
+    # none of the six box charts and took their texels, a patchwork at the hairline.
+    if skirt is not None:
+        chart = np.where(skirt, 6, chart)
+    axis = np.where(chart == 6, 2, chart // 2); sign = np.where(chart == 6, 1.0, np.where(chart % 2 == 0, 1.0, -1.0))
     print('hair charts: faces hidden in their best chart', int(hidden[np.arange(len(F)), score.argmax(1)].sum()), 'of', len(F))
     def px_of(pts, ch):
         a, b = inplane[ch]
         u = (pts[:, a] - lo[a]) / span; v = (pts[:, b] - lo[b]) / span
-        if ch in (0, 4): u = 1 - u                          # seen from +x / +z the horizontal axis runs the other way
+        if ch in (0, 4, 6): u = 1 - u                       # seen from +x / +z the horizontal axis runs the other way
         if ch in (2,): v = 1 - v
         return np.stack([tile[ch, 0] * T + 1 + u * (T - 2), tile[ch, 1] * T + 1 + (1 - v) * (T - 2)], 1)
     uv = np.zeros((len(F), 3, 2))
-    for ch in range(6):
+    for ch in range(7):
         m = chart == ch
         if m.any():
             uv[m] = px_of(P[F[m]].reshape(-1, 3), ch).reshape(-1, 3, 2)
@@ -1201,7 +1221,7 @@ def hair_charts(P, F, sample, shade, VN, alpha_fn=None):
                 aimg[y[o][better], x[o][better]] = alpha_fn(pts)[o][better]
     _, (iy, ix) = ndimage.distance_transform_edt(~drawn, return_indices=True)
     img = img[iy, ix]; aimg = aimg[iy, ix]
-    print('hair charts: faces per chart', np.bincount(chart, minlength=6), 'drawn texels', int(drawn.sum()), 'cut texels', int((aimg < 0.5).sum()))
+    print('hair charts: faces per chart', np.bincount(chart, minlength=7), 'drawn texels', int(drawn.sum()), 'cut texels', int((aimg < 0.5).sum()))
     if alpha_fn is None:
         return uv / np.array([W, H]), np.clip(img, 0, 255).astype(np.uint8)
     return uv / np.array([W, H]), np.dstack([np.clip(img, 0, 255), aimg * 255]).astype(np.uint8)
@@ -2351,8 +2371,20 @@ def hair_projector(work, P, F, axis, fallback_style=None):
         cut = inside & vis & v['skinpx'][yi, xi] & (points[:, 2] > z_front - HAIR_MASK_DEPTH)
         return np.where(cut, 0.0, 1.0)
     sample.alpha = alpha
+    band_px = ndimage.binary_dilation(front_view['skinpx'], iterations=HAIR_BAND_PX)
+    def hairline(points):
+        """True for points near the front whose pixel in the front view lies on or within HAIR_BAND_PX of
+        the photo's skin: the hairline band, baked in a chart of its own (a front projection) so that
+        no face there is foreshortened in a side chart or overwritten by the side's hair."""
+        W = to_world(points); v = front_view
+        x, y, d = v['proj'](W); S_ = v['S']
+        inside = (x >= 0) & (x < S_ - 1) & (y >= 0) & (y < S_ - 1) & (d > 0)
+        xi = np.clip(x.astype(int), 0, S_ - 1); yi = np.clip(y.astype(int), 0, S_ - 1)
+        return inside & band_px[yi, xi] & (points[:, 2] > z_front - HAIR_MASK_DEPTH)
+    sample.hairline = hairline
     return sample
 
+HAIR_BAND_PX = 30               # px of the front view round the photo's skin that count as the hairline band
 HAIR_MASK_DEPTH = 0.10          # m behind the front within which the photo's skin cuts the hair layer (alpha 0)
 HAIR_PROJ_FALLBACK_BASE = 52.0  # luminance of the strand-textured fallback where no view sees
 # (the tolerance spans the shell's thickness on purpose: a point on the inner surface, seen only through a gap, then
@@ -2664,7 +2696,10 @@ def build(work):
     hair_shade = shade.copy(); hair_shade[hv] = 1.0 if PROJ_HAIR else (0.6 + 0.4 * ao[hv]) * (HAIR_FORM[0] + HAIR_FORM[1] * lam)     # the views carry their light; the occlusion term darkened the front against the photo
     hair_lift = float(hair_gain @ np.array([0.299, 0.587, 0.114]))        # the palette keeps the hue; only the tone lifts to the photo's
     if PROJ_HAIR:
-        rest_uv, rest_tex = hair_charts(P, F[rest], lambda q: scan_colour(q, hair_lift), hair_shade, VN, alpha_fn=getattr(scan_colour, 'alpha', None))
+        rc_ = P[F[rest]].mean(1)
+        skirt = scan_colour.hairline(rc_) if hasattr(scan_colour, 'hairline') else np.zeros(len(rc_), bool)
+        print('hair skirt faces', int(skirt.sum()))
+        rest_uv, rest_tex = hair_charts(P, F[rest], lambda q: scan_colour(q, hair_lift), hair_shade, VN, alpha_fn=getattr(scan_colour, 'alpha', None), skirt=skirt)
     else:
         rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q, hair_lift), 4096, hair_shade)
     bare = np.where(~front & (label != HAIR) & (label < CORE))[0]
