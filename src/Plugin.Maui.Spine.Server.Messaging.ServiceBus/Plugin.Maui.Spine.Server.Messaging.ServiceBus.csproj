@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>Plugin.Maui.Spine.Server.Messaging.ServiceBus</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Server.Messaging.ServiceBus</RootNamespace>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Azure Service Bus for Spine messaging: one topic with a subscription per lane and correlation filters doing the routing, native scheduling with no limit, and payloads up to 192 KB inline. Large payloads and failed messages go to blob storage. Runs under Aspire on the Service Bus emulator.</Description>
+		<SpineIcon>server-messaging.png</SpineIcon>
+		<PackageTags>$(PackageTags);messaging;service-bus;azure-service-bus;topics;azure-functions</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Messaging.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Server.Messaging\Plugin.Maui.Spine.Server.Messaging.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Server.Messaging.AzureStorage\Plugin.Maui.Spine.Server.Messaging.AzureStorage.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Azure.Messaging.ServiceBus" />
+	</ItemGroup>
+
+</Project>

@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-12 (step 2.5a `Controls.Markdown` merged as #538; 2.5b `Controls.Chat` in review as #539; see Verification backlog)
+**Last updated:** 2026-10-13 (step 2.5b `Controls.Chat` merged as #539; step 2.3a `Server.Messaging` (#540) in review as #PR_TBD, ahead of the asset pipeline, now 2.3b; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -47,10 +47,11 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
-| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #511 and #517 Ready |
+| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 Ready; #511 waits on #540 |
+| `Plugin.Maui.Spine.Server.Messaging` (+ `.AzureStorage`, `.ServiceBus`) | New, server | #540 | — (design in `issues/540-*.md`, docs in `docs/wiki/messaging.md`) | #540 in review (#PR_TBD) |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Done (#536) |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
-| `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | #537 in review (#539) |
+| `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication` | New | #519 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
@@ -70,6 +71,7 @@ graph LR
   AUTH --> PK[#522 Passkeys]
   MD[#513 Controls.Markdown] --> CHAT
   AI[#510 Server.AI] --> ASSET[#511 Generated assets]
+  MSG[#540 Server.Messaging] --> ASSET
   AI --> CL[#512 Spine.AI client]
   AI --> RT[#517 Realtime sessions]
   VE[#515 Audio engine spike] --> VO[#516 Voice adapters and VoiceView]
@@ -109,10 +111,11 @@ The order follows value against risk. Steps in different phases can run in paral
 |---|---|---|---|---|---|---|
 | 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | Done | #535 | Signed-in user from #520 when present, otherwise the installation id with tighter limits (Q19). Azure storage inside the package (Q20). |
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
-| 2.3 | Generated-asset pipeline | #511 | 2.1 | Ready | | Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
+| 2.3a | `Server.Messaging`: a general queue layer with Storage Queues and Service Bus transports, large payloads in blob storage, routing, priority, scheduling and cleanup | #540 | none | In review | #PR_TBD | Moved out of #511 by the owner on 2026-10-13, and taken first. |
+| 2.3b | Generated-asset pipeline | #511 | 2.1, 2.3a | Waiting | | Orders and generates through `Server.Messaging`. Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
 | 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Done | #536 | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
 | 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | Done | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
-| 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | In review | #539 | `ChatView` and a separate `ChatComposer` in the page footer (Decisions). Renders answers with `MarkdownView`. |
+| 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | Done | #539 | `ChatView` and a separate `ChatComposer` in the page footer (Decisions). Renders answers with `MarkdownView`. |
 | 2.6 | On-device `IChatClient` spike, Android and Windows | #514 | none | Ready | | Outside this repo. Contribute upstream to dotnet/maui-labs if it works. |
 
 ### Phase 3: highlight (done 2026-10-12)
@@ -183,6 +186,10 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.5b (#537) | Screen readers: "You: …" and "Assistant: …", the one announcement per answer, the thinking state, Send, Stop and the jump button | VoiceOver on a phone, TalkBack on the emulator | Showcase Chat page |
 | 2.5b (#537) | `ToolCallTemplate` and `ThinkingTemplate` are not exercised by the Showcase; only the built-in card and shimmer were seen | A sample or app that sets them | A page with a Highlight `Edge` card as thinking |
 | 2.5b (#537) | Long histories: the list is not virtualised (the owner's v1 choice). Not measured above a few dozen messages | A conversation of several hundred messages | A scratch page that fills `Messages` |
+| 2.3a (#540) | Real Azure: a Storage account and a Service Bus namespace, with managed identity (`Credential`) rather than connection strings. Only Azurite and the emulator were used | An Azure subscription (Orientera's, step 2.2) | The sample with `ConnectionStrings` pointing at Azure, `send.http` |
+| 2.3a (#540) | Functions on Azure: scale-out per lane, a high lane overtaking a normal backlog under load, `maxAutoLockRenewalDuration` for long handlers, and the Storage trigger's `-poison` queue rescued by the janitor (only Service Bus's dead-letter queue was rescued end to end) | A deployed Functions app | A flood of normal pictures, then a few high ones; a handler that kills the process |
+| 2.3a (#540) | Throughput on the cloud services. Locally the emulators set the pace (Azurite about 75 handled/s at 10,000 queued, the Service Bus emulator about 70/s; the pump alone 16,000/s in memory) | Azure | `ThroughputTests` with `SPINE_MESSAGING_THROUGHPUT=1` against Azure connection strings |
+| 2.3a (#540) | Queue encoding `none` with Functions (host.json `"messageEncoding": "none"`), Service Bus Premium with a larger `MaxBodyBytes`, and the janitor's lease renewal past 60 s on a large purge | Azure; a store with many days of data | — |
 | 2.4 (#512) | Windows at run time (only compiled), and Mac Catalyst at run time (only built) | A Windows machine; the Mac app | Showcase AI client page against the push sample server |
 | 2.4 (#512) | A release build on a phone over the network: cleartext is off there, and the client was checked only against `http://localhost` in Debug | A phone and an HTTPS backend (Orientera after step 2.2) | Any feature through `https` |
 
@@ -309,6 +316,13 @@ Newest last. Each entry is dated and says who decided.
 - **2026-10-12, Claude (#537):** Only an upward scroll by the user stops the follow, and reaching the bottom starts it again; the follow scrolls after a dispatch, against the content's size. **Why:** a growing answer moves the bottom between the measure and the scroll, and treating any scroll short of the end as the user's left the list stuck a line above the end.
 - **2026-10-12, Claude (#537):** Copy copies the text of the answer shown in the row. **Why:** the row first read a `ChatAnswer` that the view had replaced, and Copy put an empty string on the clipboard (found with real taps).
 - **2026-10-12, Claude (#537):** Send and Stop are `Path` shapes, not embedded SVGs. **Why:** the package needs no SVG registration and no builder call.
+- **2026-10-13, owner (#540):** The queue behind the asset pipeline becomes a general messaging layer of its own, step 2.3a, taken before #511. Each transport is its own library: Azure Storage Queues (cheap) and Service Bus (richer). It must offload large payloads to blob storage, clean up old data, support priority, typed messages with metadata, routing to subscribers and scheduling, scale, and run under Aspire. The design is in `issues/540-*.md`.
+- **2026-10-13, owner (#540):** All of messaging is one PR with both transports. Priority has three levels (`Low`, `Normal`, `High`), blob storage is required for every transport, and a runnable Aspire sample lives in `samples/`.
+- **2026-10-13, Claude (#540):**
+  - Retries are scheduled copies sent to the failing subscriber alone.
+  - Failed messages are kept in blob storage for every transport, and the janitor moves dead letters there.
+  - The Service Bus emulator is provisioned on its management port (5300; Aspire's `emulatorhealth` endpoint).
+  - The details and the reasons are in `issues/540-*.md`.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
