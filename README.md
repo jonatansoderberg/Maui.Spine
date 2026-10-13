@@ -61,7 +61,7 @@
 
 ## Packages
 
-One version, twenty-four packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, twenty-seven packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -89,6 +89,9 @@ One version, twenty-four packages, all on [nuget.org](https://www.nuget.org/pack
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and the string store; no MAUI |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions |
 | Server | `Plugin.Maui.Spine.Server.AI` | AI on the server: named features with the provider in configuration, every token priced, budgets and per-user limits, endpoints for ASP.NET Core and Azure Functions |
+| Server | `Plugin.Maui.Spine.Server.Messaging` | Queues on the server: typed messages with routing, priority, scheduling, retries and failed messages, large payloads through blob storage, cleanup; handled in Azure Functions or a hosted pump |
+| Server | `Plugin.Maui.Spine.Server.Messaging.AzureStorage` | Storage Queues as the transport, and blob storage for every transport's payloads and failed messages |
+| Server | `Plugin.Maui.Spine.Server.Messaging.ServiceBus` | Azure Service Bus as the transport: one topic, correlation filters, native scheduling |
 
 ---
 
@@ -228,6 +231,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Push (server)](docs/wiki/push-notifications-server.md) | The backend half: register, tag expressions, APNs and FCM |
 | [AI in the app](docs/wiki/ai-client.md) | `UseSpineAI`: features as keyed `IChatClient`s, the fallback between device and server, the answers in one shape, on-device usage |
 | [AI on the server](docs/wiki/ai-server.md) | `AddSpineAI`: named features on Microsoft.Extensions.AI, providers in one line, metering and prices, budgets, rate limits, exposed features streamed as server-sent events, the usage report |
+| [Messaging](docs/wiki/messaging.md) | `AddSpineMessaging`: typed queues on Storage Queues or Service Bus, Azure Functions triggers and hosted pumps, routing, priority lanes, scheduling and cancelling, large payloads through blob storage, retries and failed messages, cleanup, Aspire |
 | [HeroCollectionView](docs/wiki/hero-collection-view.md) | Collapsing sticky header, adaptive overlay |
 | [AnimatedLabel](docs/wiki/animated-label.md) | SkiaSharp marquee label with scroll and fade |
 | [Calendar](docs/wiki/calendar.md) | Month calendar: swipe between months, year and decade pickers, ISO week numbers, marked days, theme and culture aware |
@@ -250,7 +254,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The twenty-four packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The twenty-seven packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 

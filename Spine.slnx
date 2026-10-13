@@ -6,6 +6,10 @@
     <Deploy />
   </Project>
   <Project Path="samples/MauiSpinePushNotificationsSampleApp.Server/MauiSpinePushNotificationsSampleApp.Server.csproj" />
+  <Project Path="samples/SpineMessagingSample.Api/SpineMessagingSample.Api.csproj" />
+  <Project Path="samples/SpineMessagingSample.AppHost/SpineMessagingSample.AppHost.csproj" />
+  <Project Path="samples/SpineMessagingSample.Functions/SpineMessagingSample.Functions.csproj" />
+  <Project Path="samples/SpineMessagingSample.Shared/SpineMessagingSample.Shared.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.AnimatedLabel/Plugin.Maui.Spine.Controls.AnimatedLabel.csproj" Id="39cb0bc0-a3d4-45a1-ba1c-fd0cbdbddc8a" />
   <Project Path="src/Plugin.Maui.Spine.Common/Plugin.Maui.Spine.Common.csproj" />
   <Project Path="src/Plugin.Maui.Spine/Plugin.Maui.Spine.csproj" />
@@ -25,6 +29,9 @@
   <Project Path="src/Plugin.Maui.Spine.Biometrics/Plugin.Maui.Spine.Biometrics.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server/Plugin.Maui.Spine.Server.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server.AI/Plugin.Maui.Spine.Server.AI.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Server.Messaging/Plugin.Maui.Spine.Server.Messaging.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Server.Messaging.AzureStorage/Plugin.Maui.Spine.Server.Messaging.AzureStorage.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Server.Messaging.ServiceBus/Plugin.Maui.Spine.Server.Messaging.ServiceBus.csproj" />
   <Project Path="src/Plugin.Maui.Spine.AI/Plugin.Maui.Spine.AI.csproj" />
   <Project Path="src/Plugin.Maui.Spine.PushNotifications/Plugin.Maui.Spine.PushNotifications.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Barcodes/Plugin.Maui.Spine.Barcodes.csproj" />
@@ -33,6 +40,7 @@
   <Project Path="tests/Plugin.Maui.Spine.Core.Tests/Plugin.Maui.Spine.Core.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Server.Tests/Plugin.Maui.Spine.Server.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Server.AI.Tests/Plugin.Maui.Spine.Server.AI.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.Server.Messaging.Tests/Plugin.Maui.Spine.Server.Messaging.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.AI.Tests/Plugin.Maui.Spine.AI.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Svg.Tests/Plugin.Maui.Spine.Svg.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Barcodes.Tests/Plugin.Maui.Spine.Barcodes.Tests.csproj" />

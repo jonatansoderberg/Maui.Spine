@@ -1,0 +1,13 @@
+{
+  "version": "2.0",
+  "extensions": {
+    "queues": {
+      "batchSize": 4,
+      "maxDequeueCount": 5
+    },
+    "serviceBus": {
+      "maxConcurrentCalls": 4,
+      "maxAutoLockRenewalDuration": "00:10:00"
+    }
+  }
+}

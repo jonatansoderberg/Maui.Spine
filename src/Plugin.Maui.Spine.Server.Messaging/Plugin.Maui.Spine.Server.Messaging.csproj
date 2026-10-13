@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>Plugin.Maui.Spine.Server.Messaging</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Server.Messaging</RootNamespace>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Queues for Spine's server: publish typed messages with metadata, priority and a due time, route them to subscribers, and handle them in Azure Functions or a hosted pump. Large payloads go to blob storage, failures are retried and kept, and old data is cleaned up. Transports: Azure Storage Queues, Azure Service Bus, in memory.</Description>
+		<SpineIcon>server-messaging.png</SpineIcon>
+		<PackageTags>$(PackageTags);messaging;queues;azure-functions;aspnetcore;claim-check</PackageTags>
+	</PropertyGroup>
+
+	<!-- The same single framework reference as the other server packages: it serves ASP.NET Core and the Functions isolated worker. -->
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Messaging.Tests" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Messaging.AzureStorage" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Messaging.ServiceBus" />
+	</ItemGroup>
+
+</Project>
