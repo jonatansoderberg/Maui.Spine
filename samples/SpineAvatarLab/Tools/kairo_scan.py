@@ -2556,7 +2556,12 @@ def build(work):
     # colour at one angle left a visible edge down the side of the head.
     project_weight = smooth(0.05, 0.4, toward) * seen
     front &= ~(((label == SKIN) | (label == NECK)) & ~on_grid)
-    if not PROJ_HAIR:
+    if PROJ_HAIR:
+        # Every hair face goes through the projector's charts (the front view is the photo at its own
+        # resolution): as `front` faces they took the hairphoto material, which has no alpha, so the
+        # mask never cut the hairline and the skirt over the forehead showed its voxel edge.
+        front &= ~(label == HAIR)
+    else:
         front |= ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
     # The head shows the owner's photo; the neck inside the collar and the turtleneck show the bald
     # picture, which is drawn to the same frame and fits the bald body there. Where the two pictures
