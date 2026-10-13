@@ -1123,9 +1123,9 @@ def atlas(P, F, sample, size, shade=None):
     return uv, tex
 
 HAIR_CHART_SMOOTH = 0.03       # radius (m) the normals are averaged over for the chart choice
-HAIR_CHART_TILE = 1536          # px per chart tile of the projected hair's texture (six box charts, 3 x 2 tiles)
+HAIR_CHART_TILE = 1152          # px per chart tile of the projected hair's texture (six box charts, 3 x 2 tiles)
 
-def hair_charts(P, F, sample, shade, VN):
+def hair_charts(P, F, sample, shade, VN, alpha_fn=None):
     """The projected hair's texture as six box charts (right, left, top, under, front, back: each face in
     the chart its normal faces most), baked by dense sampling with the outermost sample winning, the
     gaps filled from the nearest texel. A per-triangle atlas put every triangle's edge at a jump in
@@ -1174,7 +1174,7 @@ def hair_charts(P, F, sample, shade, VN):
         m = chart == ch
         if m.any():
             uv[m] = px_of(P[F[m]].reshape(-1, 3), ch).reshape(-1, 3, 2)
-    img = np.zeros((H, W, 3)); depth = np.full((H, W), -np.inf); drawn = np.zeros((H, W), bool)
+    img = np.zeros((H, W, 3)); depth = np.full((H, W), -np.inf); drawn = np.zeros((H, W), bool); aimg = np.ones((H, W))
     area = 0.5 * np.abs(np.cross(uv[:, 1] - uv[:, 0], uv[:, 2] - uv[:, 0]))
     bucket = np.digitize(area, [60, 250, 1000])
     for k, n in enumerate((16, 32, 64, 128)):
@@ -1191,10 +1191,14 @@ def hair_charts(P, F, sample, shade, VN):
             x = np.clip(puv[:, 0].astype(int), 0, W - 1); y = np.clip(puv[:, 1].astype(int), 0, H - 1)
             o = np.argsort(dep); better = dep[o] > depth[y[o], x[o]]
             img[y[o][better], x[o][better]] = col[o][better]; depth[y[o][better], x[o][better]] = dep[o][better]; drawn[y[o][better], x[o][better]] = True
+            if alpha_fn is not None:
+                aimg[y[o][better], x[o][better]] = alpha_fn(pts)[o][better]
     _, (iy, ix) = ndimage.distance_transform_edt(~drawn, return_indices=True)
-    img = img[iy, ix]
-    print('hair charts: faces per chart', np.bincount(chart, minlength=6), 'drawn texels', int(drawn.sum()))
-    return uv / np.array([W, H]), np.clip(img, 0, 255).astype(np.uint8)
+    img = img[iy, ix]; aimg = aimg[iy, ix]
+    print('hair charts: faces per chart', np.bincount(chart, minlength=6), 'drawn texels', int(drawn.sum()), 'cut texels', int((aimg < 0.5).sum()))
+    if alpha_fn is None:
+        return uv / np.array([W, H]), np.clip(img, 0, 255).astype(np.uint8)
+    return uv / np.array([W, H]), np.dstack([np.clip(img, 0, 255), aimg * 255]).astype(np.uint8)
 
 def front_faces(P, F, work):
     inp, zc = project(P)
@@ -2295,7 +2299,8 @@ def hair_projector(work, P, F, axis, fallback_style=None):
         zb = np.full((B, B), np.inf); np.minimum.at(zb, (iy, ix), d); zb = ndimage.minimum_filter(zb, size=3)
         lum = rgb @ lum_w
         pl = np.percentile(lum[hairpx], [10, 90]) if hairpx.sum() > 100 else np.array([40.0, 120.0])
-        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, proj=proj, zb=zb, cell=cell, S=S_, cam=c2w[:3, 3], pl=pl, name=fr['file_path']))
+        skinpx = ndimage.binary_erosion((rgb[..., 0] > rgb[..., 2] + 30) & (rgb.sum(-1) > 200) & (alpha > 0.5), iterations=1)
+        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, skinpx=skinpx, proj=proj, zb=zb, cell=cell, S=S_, cam=c2w[:3, 3], pl=pl, name=fr['file_path']))
         if ref is None:
             ref = pl
     for v in views:
@@ -2326,11 +2331,28 @@ def hair_projector(work, P, F, axis, fallback_style=None):
         fb = fallback_style(points, base=HAIR_PROJ_FALLBACK_BASE) if fallback_style is not None else np.broadcast_to(fallback, (len(points), 3))
         out = np.where((tot > 1e-6)[:, None], acc / np.maximum(tot, 1e-6)[:, None], fb)
         return out * gain
+    front_view = views[0]; z_front = np.percentile(P[:, 2], 99.5)
+    def alpha(points):
+        """0 where the hair layer must not show: a point near the front whose pixel in the front view
+        (the photo) is skin. The hairline against the forehead is then the photo's own hair mask,
+        strand by strand, instead of the envelope's voxel edge."""
+        W = to_world(points); v = front_view
+        x, y, d = v['proj'](W); S_ = v['S']
+        inside = (x >= 0) & (x < S_ - 1) & (y >= 0) & (y < S_ - 1) & (d > 0)
+        xi = np.clip(x.astype(int), 0, S_ - 1); yi = np.clip(y.astype(int), 0, S_ - 1)
+        cx = np.clip((x / v['cell']).astype(int), 0, v['zb'].shape[1] - 1); cy = np.clip((y / v['cell']).astype(int), 0, v['zb'].shape[0] - 1)
+        vis = d <= v['zb'][cy, cx] + HAIR_PROJ_TOL
+        cut = inside & vis & v['skinpx'][yi, xi] & (points[:, 2] > z_front - HAIR_MASK_DEPTH)
+        return np.where(cut, 0.0, 1.0)
+    sample.alpha = alpha
     return sample
 
+HAIR_MASK_DEPTH = 0.10          # m behind the front within which the photo's skin cuts the hair layer (alpha 0)
 HAIR_PROJ_FALLBACK_BASE = 52.0  # luminance of the strand-textured fallback where no view sees
-HAIR_PROJ_TOL = 0.03            # world units (the head is ~1): a point this far behind the envelope's depth in a view still counts as seen
-HAIR_PROJ_BLUR = 1.2           # px of blur on the 1024 px views before sampling
+# (the tolerance spans the shell's thickness on purpose: a point on the inner surface, seen only through a gap, then
+#  takes the outer surface's strands from the view instead of the fallback; the far side of the head stays out at 15 cm+)
+HAIR_PROJ_TOL = 0.08            # world units (the head is ~1): a point this far behind the envelope's depth in a view still counts as seen
+HAIR_PROJ_BLUR = 0.6           # px of blur on the 1024 px views before sampling
 HAIR_PROJ_SMOOTH = 0.02        # radius (m) the envelope's normals are averaged over for the views' weights
 HAIR_PROJ_POWER = 4.0            # the views' weight by how squarely they see a point: high, so one view dominates and strands stay crisp
 
@@ -2628,10 +2650,10 @@ def build(work):
         hn = np.array([hn[i].mean(0) for i in nb]); hn /= np.linalg.norm(hn, axis=1, keepdims=True) + 1e-12
     hair_light = np.array([0.2, 0.75, 0.6]); hair_light /= np.linalg.norm(hair_light)
     lam = (np.abs(hn @ hair_light) + 0.5) / 1.5   # wrapped: the scan is wound either way, and the sides went dark with a plain lambert term
-    hair_shade = shade.copy(); hair_shade[hv] = (0.85 + 0.15 * ao[hv]) if PROJ_HAIR else (0.6 + 0.4 * ao[hv]) * (HAIR_FORM[0] + HAIR_FORM[1] * lam)
+    hair_shade = shade.copy(); hair_shade[hv] = 1.0 if PROJ_HAIR else (0.6 + 0.4 * ao[hv]) * (HAIR_FORM[0] + HAIR_FORM[1] * lam)     # the views carry their light; the occlusion term darkened the front against the photo
     hair_lift = float(hair_gain @ np.array([0.299, 0.587, 0.114]))        # the palette keeps the hue; only the tone lifts to the photo's
     if PROJ_HAIR:
-        rest_uv, rest_tex = hair_charts(P, F[rest], lambda q: scan_colour(q, hair_lift), hair_shade, VN)
+        rest_uv, rest_tex = hair_charts(P, F[rest], lambda q: scan_colour(q, hair_lift), hair_shade, VN, alpha_fn=getattr(scan_colour, 'alpha', None))
     else:
         rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q, hair_lift), 4096, hair_shade)
     bare = np.where(~front & (label != HAIR) & (label < CORE))[0]
@@ -2964,7 +2986,7 @@ def build(work):
     # No mipmaps for the ears' per-triangle atlas: minified, its levels average unrelated triangles
     # into grain. Linear sampling reads each pixel's own triangle instead.
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9729, "wrapS": 33071, "wrapT": 33071})
-    for name, img in (("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex)), ("skin", Image.fromarray(skin_tex)),
+    for name, img in (("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex, 'RGBA' if rest_tex.shape[-1] == 4 else 'RGB')), ("skin", Image.fromarray(skin_tex)),
                       ("lidskin", lid_texture(closed, src)), ("bald", bald_src), ("iris", iris_texture(src)),
                       ("core", Image.new('RGB', (4, 4), (8, 6, 8))), ("hairphoto", hair_photo(hsrc)),
                       # Inside the head the core is shadowed skin: through the scan's gaps (round the eye
@@ -3002,6 +3024,8 @@ def build(work):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0
         if name in ("lidskin", "iris", "lid"):
             material["alphaMode"] = "BLEND"
+        if name == "rest" and img.mode == 'RGBA':
+            material["alphaMode"] = "MASK"; material["alphaCutoff"] = 0.5
         g.gltf["materials"].append(material)
     # 0 Root, 1 Body (turtleneck), 2 HeadPivot (at the neck), 3 Head.
     neck_node = 4 + len(BLINK_FRAMES)
