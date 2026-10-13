@@ -943,7 +943,9 @@ NECK_TWIST = 0.05              # the neck's shortest twisting length above the c
 WEB = []                       # bald-scan faces to drop (loose bits), set by compose
 NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw underside y per sector), set by compose
 NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
-HAIR_REACH = 0.006             # strands further than this outside the hair's closed volume are dropped
+HAIR_REACH = 0.0               # strands outside the hair's closed volume are dropped (at 6 mm the sheets outside the shell read as flaps and shards off the hair)
+EAR_POCKET = 0.010             # the shell keeps this far (m) from the auricle, so the ear sits in a pocket of hair instead of under a lid of it
+HAIR_SHELL_CLOSE = 5           # voxels (5 mm) of closing on the hair's volume: gaps between strand sheets up to twice this are hair (at 3 the fringe of sheets along the back and the crown's shards stood apart with the room between)
 HAIR_SHELL_OPEN = 1            # voxels of opening on the hair's volume before the shell: spikes thinner than two voxels go
 HAIR_SHELL_ERODE = 0           # voxels (5 mm) the shell sits inside the strands: 0 puts it at their envelope, filling the gaps between them at their own level
 SHELL = []                     # per composed face: part of the hair's shell (set by compose)
@@ -998,7 +1000,7 @@ def hair_shell(P, F, res=0.005, erode=HAIR_SHELL_ERODE):
     rng = np.random.default_rng(5)
     pts = np.concatenate([np.einsum('k,fkd->fd', w, P[F]) for w in rng.dirichlet((1, 1, 1), size=16)])
     occ = np.zeros(shape, bool); i = ((pts - lo) / res).astype(int); occ[i[:, 0], i[:, 1], i[:, 2]] = True
-    occ = ndimage.binary_closing(occ, structure=ndimage.generate_binary_structure(3, 1), iterations=3)
+    occ = ndimage.binary_closing(occ, structure=ndimage.generate_binary_structure(3, 1), iterations=HAIR_SHELL_CLOSE)
     if HAIR_SHELL_OPEN:
         # Opened by a voxel: a lone shard's voxels made spikes on the envelope, at the crown and the tips.
         occ = ndimage.binary_opening(occ, iterations=HAIR_SHELL_OPEN)
@@ -2693,6 +2695,11 @@ def build(work):
     centres = P[F].mean(1)
     head_skin = cKDTree(centres[label == SKIN])
     overlap = (label == NECK) & (head_skin.query(centres)[0] < NECK_OVERLAP)
+    # The ear's pocket: shell faces over the auricle go (the shell's wider closing wrapped the ear).
+    pocket = shell_f & (cKDTree(P[np.unique(F[ear_bare])]).query(P[F].mean(1))[0] < EAR_POCKET) if len(ear_bare) else np.zeros(len(F), bool)
+    print('ear pocket: shell faces dropped', int(pocket.sum()))
+    keep_rest = ~pocket[rest]; rest, rest_uv = rest[keep_rest], rest_uv[keep_rest]
+    front = front & ~pocket
     photo, drawn = front & from_photo, front & ~from_photo
     groups = [(F[photo], fpos, fuv, fnrm, fvis, label[photo], overlap[photo], 7, True),
               (F[drawn], fpos, fuv, fnrm, fvis, label[drawn], overlap[drawn], 4, True),
