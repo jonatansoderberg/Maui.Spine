@@ -1116,6 +1116,53 @@ def atlas(P, F, sample, size, shade=None):
     tex = tex[iy, ix]
     return uv, tex
 
+HAIR_CHART_TILE = 1536          # px per chart tile of the projected hair's texture (six box charts, 3 x 2 tiles)
+
+def hair_charts(P, F, sample, shade, VN):
+    """The projected hair's texture as six box charts (right, left, top, under, front, back: each face in
+    the chart its normal faces most), baked by dense sampling with the outermost sample winning, the
+    gaps filled from the nearest texel. A per-triangle atlas put every triangle's edge at a jump in
+    the texture: the sampler took the coarsest mip level there and drew the mesh as grain."""
+    T = HAIR_CHART_TILE; W, H = 3 * T, 2 * T
+    fn = VN[F].mean(1); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
+    axis = np.abs(fn).argmax(1); sign = np.sign(fn[np.arange(len(F)), axis] + 1e-9)
+    chart = axis * 2 + (sign < 0)                          # 0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z
+    tile = np.array([(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1)])
+    inplane = {0: (2, 1), 1: (2, 1), 2: (0, 2), 3: (0, 2), 4: (0, 1), 5: (0, 1)}
+    lo = P[F].reshape(-1, 3).min(0) - 0.01; hi = P[F].reshape(-1, 3).max(0) + 0.01; span = (hi - lo).max()
+    def px_of(pts, ch):
+        a, b = inplane[ch]
+        u = (pts[:, a] - lo[a]) / span; v = (pts[:, b] - lo[b]) / span
+        if ch in (0, 4): u = 1 - u                          # seen from +x / +z the horizontal axis runs the other way
+        if ch in (2,): v = 1 - v
+        return np.stack([tile[ch, 0] * T + 1 + u * (T - 2), tile[ch, 1] * T + 1 + (1 - v) * (T - 2)], 1)
+    uv = np.zeros((len(F), 3, 2))
+    for ch in range(6):
+        m = chart == ch
+        if m.any():
+            uv[m] = px_of(P[F[m]].reshape(-1, 3), ch).reshape(-1, 3, 2)
+    img = np.zeros((H, W, 3)); depth = np.full((H, W), -np.inf); drawn = np.zeros((H, W), bool)
+    area = 0.5 * np.abs(np.cross(uv[:, 1] - uv[:, 0], uv[:, 2] - uv[:, 0]))
+    bucket = np.digitize(area, [60, 250, 1000])
+    for k, n in enumerate((16, 32, 64, 128)):
+        bary = lattice(n); faces = np.where(bucket == k)[0]
+        if not len(faces):
+            continue
+        for part in np.array_split(faces, max(1, len(faces) * len(bary) // 1500000)):
+            pts = np.einsum('bk,fkd->fbd', bary, P[F[part]]).reshape(-1, 3)
+            puv = np.einsum('bk,fkd->fbd', bary, uv[part]).reshape(-1, 2)
+            sh = np.einsum('bk,fk->fb', bary, shade[F[part]]).reshape(-1)
+            ch = np.repeat(chart[part], len(bary)); ax = np.repeat(axis[part], len(bary)); sg = np.repeat(sign[part], len(bary))
+            dep = pts[np.arange(len(pts)), ax] * sg
+            col = sample(pts) * sh[:, None]
+            x = np.clip(puv[:, 0].astype(int), 0, W - 1); y = np.clip(puv[:, 1].astype(int), 0, H - 1)
+            o = np.argsort(dep); better = dep[o] > depth[y[o], x[o]]
+            img[y[o][better], x[o][better]] = col[o][better]; depth[y[o][better], x[o][better]] = dep[o][better]; drawn[y[o][better], x[o][better]] = True
+    _, (iy, ix) = ndimage.distance_transform_edt(~drawn, return_indices=True)
+    img = img[iy, ix]
+    print('hair charts: faces per chart', np.bincount(chart, minlength=6), 'drawn texels', int(drawn.sum()))
+    return uv / np.array([W, H]), np.clip(img, 0, 255).astype(np.uint8)
+
 def front_faces(P, F, work):
     inp, zc = project(P)
     zb_at, zbuf = front_zbuffer(P, F)
@@ -2544,7 +2591,10 @@ def build(work):
     lam = (np.abs(hn @ hair_light) + 0.5) / 1.5   # wrapped: the scan is wound either way, and the sides went dark with a plain lambert term
     hair_shade = shade.copy(); hair_shade[hv] = (0.85 + 0.15 * ao[hv]) if PROJ_HAIR else (0.6 + 0.4 * ao[hv]) * (HAIR_FORM[0] + HAIR_FORM[1] * lam)
     hair_lift = float(hair_gain @ np.array([0.299, 0.587, 0.114]))        # the palette keeps the hue; only the tone lifts to the photo's
-    rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q, hair_lift), 4096, hair_shade)
+    if PROJ_HAIR:
+        rest_uv, rest_tex = hair_charts(P, F[rest], lambda q: scan_colour(q, hair_lift), hair_shade, VN)
+    else:
+        rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q, hair_lift), 4096, hair_shade)
     bare = np.where(~front & (label != HAIR) & (label < CORE))[0]
     # The turtleneck keeps a per-triangle atlas; only skin goes into the paintable layout (seen from
     # below, the shoulders covered the chin's underside there).
