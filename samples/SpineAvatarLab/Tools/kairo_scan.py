@@ -508,6 +508,11 @@ def face_surface(P, F, src, hair=None, hair_src=None):
     # All corners inside: dropping a face with one corner inside left a hole past the grid's edge
     # (the bald scan's faces are larger than the margin), and the hair behind showed through as specks.
     over = near_face[F].all(1)
+    # Not the hair: this is the bald picture's oval, which covers the temples under the photo's hair, and
+    # the hair over them went with the skin (the grid's bald skin lay over the hair since the face took
+    # the bald picture). Hair over the face has its own rule below, with the haired photo's mask.
+    if hair is not None:
+        over &= ~hair
     # Not the chin's underside: seen from the front it lies behind the grid's lowest rows, and dropping
     # its front part left a notch under the chin in profile.
     fc_px, _ = project(P[F].mean(1)); fc_s = (fc_px - np.array([OX, OY])) / S
@@ -877,7 +882,8 @@ def compose(work):
                             np.where(cc[:, 1] < collar_y + 0.01, CORE_BODY, CORE)])
     SHELL[:] = [np.concatenate([np.zeros(keep_b.sum() + hair.sum(), bool), np.ones(len(SF), bool), np.zeros(len(CF), bool)])]
     used = np.unique(F); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
-    hair_look = hair_projector(work, HP, HF[hair], axis) if PROJ_HAIR else hair_style(horig, work, Image.open(f'{work}/kairo-front.png').convert('RGB'), axis)
+    styled = hair_style(horig, work, Image.open(f'{work}/kairo-front.png').convert('RGB'), axis)
+    hair_look = hair_projector(work, HP, HF[hair], axis, fallback_style=styled) if PROJ_HAIR else styled
     photo_hair = ((photo[..., 2] > photo[..., 0] + 12) | (photo.sum(-1) < 150)) & ~skin_px
     face_px = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/kairo-front.png').convert('RGB')), iterations=10)
     face_d = ndimage.distance_transform_edt(~face_px)
@@ -1116,6 +1122,7 @@ def atlas(P, F, sample, size, shade=None):
     tex = tex[iy, ix]
     return uv, tex
 
+HAIR_CHART_SMOOTH = 0.03       # radius (m) the normals are averaged over for the chart choice
 HAIR_CHART_TILE = 1536          # px per chart tile of the projected hair's texture (six box charts, 3 x 2 tiles)
 
 def hair_charts(P, F, sample, shade, VN):
@@ -1125,11 +1132,37 @@ def hair_charts(P, F, sample, shade, VN):
     the texture: the sampler took the coarsest mip level there and drew the mesh as grain."""
     T = HAIR_CHART_TILE; W, H = 3 * T, 2 * T
     fn = VN[F].mean(1); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
-    axis = np.abs(fn).argmax(1); sign = np.sign(fn[np.arange(len(F)), axis] + 1e-9)
-    chart = axis * 2 + (sign < 0)                          # 0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z
+    # The chart from normals averaged over 3 cm: by each face's own normal the three-quarter regions
+    # alternated between the side and the front chart triangle by triangle, and each chart's bake
+    # (its own outermost-wins direction) gave them slightly different texels, a glitter of seams.
+    fc_ = P[F].mean(1); tree_ = cKDTree(fc_)
+    for _ in range(2):
+        nb = tree_.query_ball_point(fc_, r=HAIR_CHART_SMOOTH)
+        fn = np.array([fn[i].mean(0) for i in nb]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
     tile = np.array([(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1)])
     inplane = {0: (2, 1), 1: (2, 1), 2: (0, 2), 3: (0, 2), 4: (0, 1), 5: (0, 1)}
     lo = P[F].reshape(-1, 3).min(0) - 0.01; hi = P[F].reshape(-1, 3).max(0) + 0.01; span = (hi - lo).max()
+    # Each face takes the chart it faces most among those in which it is not hidden: in a chart's
+    # projection the outermost surface wins the texels, and a face under an overhang (the locks over the
+    # ear, the hair's thickest side) showed the overhang's strands as slivers. Hidden is measured
+    # against a coarse depth map per chart (1 cm cells, 8 mm tolerance).
+    dirs = np.array([(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)], float)
+    score = fn @ dirs.T                                     # how squarely each chart sees the face
+    cs_ = 0.01; G_ = int(np.ceil(span / cs_)) + 2
+    hidden = np.zeros((len(F), 6), bool)
+    rng_ = np.random.default_rng(2); b6 = rng_.dirichlet((1, 1, 1), size=6)
+    spts = np.einsum('bk,fkd->fbd', b6, P[F]).reshape(-1, 3)
+    for ch in range(6):
+        a, b = inplane[ch]; ax = ch // 2; sg = 1.0 if ch % 2 == 0 else -1.0
+        gi = np.clip(((spts[:, a] - lo[a]) / cs_).astype(int), 0, G_ - 1); gj = np.clip(((spts[:, b] - lo[b]) / cs_).astype(int), 0, G_ - 1)
+        dmap = np.full((G_, G_), -np.inf); np.maximum.at(dmap, (gi, gj), spts[:, ax] * sg)
+        dmap = ndimage.maximum_filter(dmap, size=3)
+        ci = np.clip(((fc_[:, a] - lo[a]) / cs_).astype(int), 0, G_ - 1); cj = np.clip(((fc_[:, b] - lo[b]) / cs_).astype(int), 0, G_ - 1)
+        hidden[:, ch] = fc_[:, ax] * sg < dmap[ci, cj] - 0.008
+    score_ok = np.where(hidden, -np.inf, score)
+    chart = np.where(np.isfinite(score_ok.max(1)), score_ok.argmax(1), score.argmax(1))
+    axis = chart // 2; sign = np.where(chart % 2 == 0, 1.0, -1.0)
+    print('hair charts: faces hidden in their best chart', int(hidden[np.arange(len(F)), score.argmax(1)].sum()), 'of', len(F))
     def px_of(pts, ch):
         a, b = inplane[ch]
         u = (pts[:, a] - lo[a]) / span; v = (pts[:, b] - lo[b]) / span
@@ -2208,7 +2241,7 @@ HAIR_ON_STRAND = 0.0025        # a sample point nearer the scan's surface than t
 HAIR_FORM = (0.62, 0.42)         # the hair atlas's baked light: ambient, and the lit side's gain (times the smoothed normal's lambert term)
 HAIR_STRANDS = ((18, 25.0, 14.0), (36, 40.0, 10.0), (90, 60.0, 14.0), (180, 90.0, 10.0), (360, 140.0, 7.0))   # (waves round the axis, drift with height, amplitude in luminance): locks, then strands
 
-def hair_projector(work, P, F, axis):
+def hair_projector(work, P, F, axis, fallback_style=None):
     """The hair's colour from the owner's generated views: each point of the hair's envelope takes the
     views that see it (Pixal3D's cameras, which the views were reconstructed with, so every view's
     silhouette is the envelope's), weighted by how squarely they see it; the front view is the photo.
@@ -2217,7 +2250,8 @@ def hair_projector(work, P, F, axis):
     import json
     D = f'{work}/mv-hair'
     fit = json.load(open(f'{D}/fit.json')); s_, t_ = fit['scale'], np.array(fit['translation'])
-    meta = json.load(open(f'{D}/transforms.json')); fov = meta['camera_angle_x']
+    VD = f'{D}/views1452' if os.path.isdir(f'{D}/views1452') else D       # the views at the photo's own resolution, if staged
+    meta = json.load(open(f'{VD}/transforms.json')); fov = meta['camera_angle_x']
     lum_w = np.array([0.299, 0.587, 0.114])
     def to_world(q):
         m = (q - t_) / s_
@@ -2240,7 +2274,7 @@ def hair_projector(work, P, F, axis):
     views = []
     ref = None
     for fr in meta['frames']:
-        im = Image.open(f"{D}/{fr['file_path']}").convert('RGBA'); S_ = im.size[0]
+        im = Image.open(f"{VD}/{fr['file_path']}").convert('RGBA'); S_ = im.size[0]
         a = np.asarray(im).astype(float); rgb, alpha = a[..., :3], a[..., 3] / 255.0
         # Softened a little: single-pixel noise in the generated views became grain on the hair.
         rgb = ndimage.gaussian_filter(rgb, (HAIR_PROJ_BLUR, HAIR_PROJ_BLUR, 0))
@@ -2287,11 +2321,15 @@ def hair_projector(work, P, F, axis):
             cosang = np.clip((n * dcam).sum(1), 0, 1)
             w = inside * vis * v['hairpx'][yi, xi] * v['alpha'][yi, xi] * cosang ** HAIR_PROJ_POWER
             acc += w[:, None] * v['rgb'][yi, xi]; tot += w
-        out = np.where((tot > 1e-6)[:, None], acc / np.maximum(tot, 1e-6)[:, None], fallback[None, :])
+        # Where no view sees (undersides, the inside of the shell seen through a gap): the palette's dark
+        # with the strands, not a flat colour (flat patches read as holes).
+        fb = fallback_style(points, base=HAIR_PROJ_FALLBACK_BASE) if fallback_style is not None else np.broadcast_to(fallback, (len(points), 3))
+        out = np.where((tot > 1e-6)[:, None], acc / np.maximum(tot, 1e-6)[:, None], fb)
         return out * gain
     return sample
 
-HAIR_PROJ_TOL = 0.015            # world units (the head is ~1): a point this far behind the envelope's depth in a view still counts as seen
+HAIR_PROJ_FALLBACK_BASE = 52.0  # luminance of the strand-textured fallback where no view sees
+HAIR_PROJ_TOL = 0.03            # world units (the head is ~1): a point this far behind the envelope's depth in a view still counts as seen
 HAIR_PROJ_BLUR = 1.2           # px of blur on the 1024 px views before sampling
 HAIR_PROJ_SMOOTH = 0.02        # radius (m) the envelope's normals are averaged over for the views' weights
 HAIR_PROJ_POWER = 4.0            # the views' weight by how squarely they see a point: high, so one view dominates and strands stay crisp
@@ -2490,7 +2528,8 @@ def build(work):
     # colour at one angle left a visible edge down the side of the head.
     project_weight = smooth(0.05, 0.4, toward) * seen
     front &= ~(((label == SKIN) | (label == NECK)) & ~on_grid)
-    front |= ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
+    if not PROJ_HAIR:
+        front |= ((label == HAIR) & (np.abs(toward) > 0.5) & (P[F].mean(1)[:, 2] > 0))
     # The head shows the owner's photo; the neck inside the collar and the turtleneck show the bald
     # picture, which is drawn to the same frame and fits the bald body there. Where the two pictures
     # met on the forehead their slightly different light drew a broken line.
