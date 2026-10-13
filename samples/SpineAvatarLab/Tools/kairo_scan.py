@@ -655,13 +655,13 @@ def compose(work):
     one. The haired scan alone fused hair and head into one shell with holes; under a separate hair
     layer the bald head stays whole, and a gap between strands shows scalp, not the room. Mixing the
     two turtlenecks failed: they disagree by 1-2 cm round the neck."""
-    HP, HF, horig = load_scan(f'{work}/kairo-s42.glb'); HP, HF = outer_surface(HP, HF)
+    HP, HF, horig = load_scan(f'{work}/{HAIR_GLB}'); HP, HF = outer_surface(HP, HF)
     BP, BF, borig = load_scan(f'{work}/bald/kairo-bald-s42.glb', 90000); BP, BF = outer_surface(BP, BF)
     # Each run is pixel-aligned to its own crop and the two source images to each other, so the bald
     # mesh moves by the difference of the crops (51 px, about 4.5 cm at the head).
     BP = reframe(BP, OY - BALD_OY); borig = (reframe(borig[0], OY - BALD_OY), borig[1])
     BP, BF = subdivide_neck(BP, BF)
-    hair_tex = texture_sampler(horig, f'{work}/kairo-s42_base.png')
+    hair_tex = texture_sampler(horig, f'{work}/{HAIR_TEX}')
     bald_tex = texture_sampler(borig, f'{work}/bald/kairo-bald-s42_base.png')
     hc, bc = HP[HF].mean(1), BP[BF].mean(1)
     hcol, bcol = hair_tex(hc), bald_tex(bc)
@@ -855,6 +855,8 @@ def compose(work):
         keep_ = loose_pieces(HP, HF[hair], BP[np.unique(BF[~knit])])
         hair[np.where(hair)[0][~keep_]] = False
         SP_, SF, hair_occ = hair_shell(HP, HF[hair])      # the envelope without those shards' bumps
+        if not HAIR_SHELL_FACES:
+            SF = SF[:0]
     # Not over the face: where the photo shows skin near the front, no hair lies.
     sc_ = SP_[SF].mean(1); cp, sz = project(sc_); sp = np.clip(((cp - np.array([OX, OY])) / S).astype(int), 0, photo.shape[0] - 1)
     pc = photo[sp[:, 1], sp[:, 0]]
@@ -873,7 +875,7 @@ def compose(work):
                             np.where(cc[:, 1] < collar_y + 0.01, CORE_BODY, CORE)])
     SHELL[:] = [np.concatenate([np.zeros(keep_b.sum() + hair.sum(), bool), np.ones(len(SF), bool), np.zeros(len(CF), bool)])]
     used = np.unique(F); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
-    hair_look = hair_style(horig, work, Image.open(f'{work}/kairo-front.png').convert('RGB'), axis)
+    hair_look = hair_projector(work, HP, HF[hair], axis) if PROJ_HAIR else hair_style(horig, work, Image.open(f'{work}/kairo-front.png').convert('RGB'), axis)
     photo_hair = ((photo[..., 2] > photo[..., 0] + 12) | (photo.sum(-1) < 150)) & ~skin_px
     face_px = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/kairo-front.png').convert('RGB')), iterations=10)
     face_d = ndimage.distance_transform_edt(~face_px)
@@ -942,6 +944,13 @@ def compose(work):
     return P[used], remap[F].astype(np.int32), label, bald_colour, hair_look, pivot, hair_weight
 
 BALD = os.environ.get('KAIRO_BALD') == '1'   # build the head without the hair layer (layer by layer)
+# The hair's source scan: the single-view run of the photo, or (KAIRO_HAIR=mv) the Pixal3D multiview run
+# of the photo plus the owner's generated profiles and back, fitted into the single-view frame by tools/mvfit.py.
+# KAIRO_HAIR=proj: the hair is the multiview volume's smooth envelope (tools/hairenv.py), painted per
+# texel from the owner's generated views through Pixal3D's cameras (hair_projector).
+PROJ_HAIR = os.environ.get('KAIRO_HAIR') == 'proj'
+MV_HAIR = os.environ.get('KAIRO_HAIR') in ('mv', 'proj')
+HAIR_GLB, HAIR_TEX = (('mv-hair/kairo-env.glb', 'mv-hair/kairo-env.png') if PROJ_HAIR else ('mv-hair/kairo-mv-fit.glb', 'mv-hair/kairo-mv_base.png')) if MV_HAIR else ('kairo-s42.glb', 'kairo-s42_base.png')
 UNDER_CHIN_PHOTO = 0.0         # under the chin: share of the picture's own shadow (1 showed as a dark patch when the head tilted)
 NECK_TWIST = 0.05              # the neck's shortest twisting length above the collar (model units)
 WEB = []                       # bald-scan faces to drop (loose bits), set by compose
@@ -949,11 +958,12 @@ NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw und
 NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
 HAIR_REACH = 0.0               # strands outside the hair's closed volume are dropped (at 6 mm the sheets outside the shell read as flaps and shards off the hair)
 EAR_POCKET = 0.010             # the shell keeps this far (m) from the auricle, so the ear sits in a pocket of hair instead of under a lid of it
-HAIR_SHELL_CLOSE = 5           # voxels (5 mm) of closing on the hair's volume: gaps between strand sheets up to twice this are hair (at 3 the fringe of sheets along the back and the crown's shards stood apart with the room between)
-HAIR_SHELL_OPEN = 1            # voxels of opening on the hair's volume before the shell: spikes thinner than two voxels go
+HAIR_SHELL_CLOSE = 1 if MV_HAIR else 5           # voxels (5 mm) of closing on the hair's volume: gaps between strand sheets up to twice this are hair (at 3 the fringe of sheets along the back and the crown's shards stood apart with the room between)
+HAIR_SHELL_OPEN = 0 if MV_HAIR else 1            # voxels of opening on the hair's volume before the shell: spikes thinner than two voxels go
 HAIR_SHELL_ERODE = 0           # voxels (5 mm) the shell sits inside the strands: 0 puts it at their envelope, filling the gaps between them at their own level
 SHELL = []                     # per composed face: part of the hair's shell (set by compose)
-HAIR_FACE_DEPTH = 0.02         # strands and shell over the photo's skin go only this close behind the front (m)
+HAIR_FACE_DEPTH = 0.006 if MV_HAIR else 0.02         # strands and shell over the photo's skin go only this close behind the front (m)
+HAIR_SHELL_FACES = not MV_HAIR    # the shell's faces fill the scan's gaps; the multiview hair is a closed volume already, and the shell hid its locks
 HAIR_LOOSE = 0.0015            # a piece of hair mesh further than this from both the hair's main surface and the scalp is loose and goes
 HAIR_GAPS = 16                 # source px: gaps between the photo's strands narrower than twice this take hair colour
 
@@ -2087,7 +2097,7 @@ def hair_style(horig, work, src, axis):
     pink, lilac and beige the photo's indigo has not), with fine strands along the hair's flow. The
     flow runs down the sides and the nape and out from the crown, and lines of constant angle about
     the neck's axis are both, so the strands are waves in that angle, drifting a little with height."""
-    a = np.asarray(Image.open(f'{work}/kairo-s42_base.png').convert('RGB')).astype(float)
+    a = np.asarray(Image.open(f'{work}/{HAIR_TEX}').convert('RGB')).astype(float)
     hair = (a[..., 2] > a[..., 0] + 12) | (a.sum(-1) < 150)
     _, (iy, ix) = ndimage.distance_transform_edt(~hair, return_indices=True)
     filled = np.where(hair[..., None], a, ndimage.gaussian_filter(a[iy, ix], (2, 2, 0)))
@@ -2142,6 +2152,85 @@ SCALP_BASE = 48.0              # luminance of the scalp under the hair before th
 HAIR_ON_STRAND = 0.0025        # a sample point nearer the scan's surface than this (m) lies on a strand
 HAIR_FORM = (0.62, 0.42)         # the hair atlas's baked light: ambient, and the lit side's gain (times the smoothed normal's lambert term)
 HAIR_STRANDS = ((18, 25.0, 14.0), (36, 40.0, 10.0), (90, 60.0, 14.0), (180, 90.0, 10.0), (360, 140.0, 7.0))   # (waves round the axis, drift with height, amplitude in luminance): locks, then strands
+
+def hair_projector(work, P, F, axis):
+    """The hair's colour from the owner's generated views: each point of the hair's envelope takes the
+    views that see it (Pixal3D's cameras, which the views were reconstructed with, so every view's
+    silhouette is the envelope's), weighted by how squarely they see it; the front view is the photo.
+    Per view the hair's luminance is matched to the photo's (two points, p10 and p90), so the views'
+    differing light cannot meet in seams; the strands themselves are each view's own."""
+    import json
+    D = f'{work}/mv-hair'
+    fit = json.load(open(f'{D}/fit.json')); s_, t_ = fit['scale'], np.array(fit['translation'])
+    meta = json.load(open(f'{D}/transforms.json')); fov = meta['camera_angle_x']
+    lum_w = np.array([0.299, 0.587, 0.114])
+    def to_world(q):
+        m = (q - t_) / s_
+        return np.stack([m[:, 0], -m[:, 2], m[:, 1]], 1)      # the turned frame -> Pixal3D's world (perm (0, 2, 1), sign (-1, 1, 1) on the raw axes)
+    def dir_world(n):
+        return np.stack([n[:, 0], -n[:, 2], n[:, 1]], 1)
+    fn = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
+    fc = P[F].mean(1)
+    ctr = np.array([axis[0], np.median(fc[:, 1]), axis[1]])
+    fn *= np.sign(((fc - ctr) * fn).sum(1, keepdims=True) + 1e-9)       # outward
+    ftree = cKDTree(fc)
+    rng = np.random.default_rng(9); bary = rng.dirichlet((1, 1, 1), size=48)
+    samples = np.einsum('bk,fkd->fbd', bary, P[F]).reshape(-1, 3)
+    Ws = to_world(samples)
+    views = []
+    ref = None
+    for fr in meta['frames']:
+        im = Image.open(f"{D}/{fr['file_path']}").convert('RGBA'); S_ = im.size[0]
+        a = np.asarray(im).astype(float); rgb, alpha = a[..., :3], a[..., 3] / 255.0
+        # Hair by hue and saturation: the strands' light highlights pass (a luminance cap dropped them, and
+        # the fallback dark showed as confetti); the knit (lavender, low saturation) and the skin do not.
+        sat = (rgb.max(-1) - rgb.min(-1)) / (rgb.max(-1) + 1e-6)
+        hairpx = (rgb[..., 2] > rgb[..., 0] + 10) & ((sat > 0.25) | ((rgb @ lum_w) < 135)) & (alpha > 0.5)
+        hairpx = ndimage.binary_opening(hairpx, iterations=1)
+        c2w = np.array(fr['transform_matrix'], float); w2c = np.linalg.inv(c2w)
+        focal = (S_ / 2.0) / np.tan(fov / 2.0)
+        def proj(W, w2c=w2c, focal=focal, S_=S_):
+            pc = W @ w2c[:3, :3].T + w2c[:3, 3]
+            dist = -pc[:, 2]
+            return focal * pc[:, 0] / (dist + 1e-8) + S_ / 2.0, -focal * pc[:, 1] / (dist + 1e-8) + S_ / 2.0, dist
+        # the view's depth buffer from the envelope (4 px cells, the nearest sample per cell, spread by one cell)
+        x, y, d = proj(Ws); cell = 4; B = S_ // cell
+        ix = np.clip((x / cell).astype(int), 0, B - 1); iy = np.clip((y / cell).astype(int), 0, B - 1)
+        zb = np.full((B, B), np.inf); np.minimum.at(zb, (iy, ix), d); zb = ndimage.minimum_filter(zb, size=3)
+        lum = rgb @ lum_w
+        pl = np.percentile(lum[hairpx], [10, 90]) if hairpx.sum() > 100 else np.array([40.0, 120.0])
+        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, proj=proj, zb=zb, cell=cell, S=S_, cam=c2w[:3, 3], pl=pl, name=fr['file_path']))
+        if ref is None:
+            ref = pl
+    for v in views:
+        # luminance matched to the front's by two points
+        g_ = (ref[1] - ref[0]) / max(v['pl'][1] - v['pl'][0], 1.0); o_ = ref[0] - g_ * v['pl'][0]
+        lum = v['rgb'] @ lum_w
+        v['rgb'] = v['rgb'] * ((g_ * lum + o_) / np.maximum(lum, 1.0))[..., None]
+        print('hair view', v['name'], 'hair px', int(v['hairpx'].sum()), 'lum p10/p90', np.round(v['pl'], 0), '-> gain', round(float(g_), 3))
+    fallback = np.array([44.0, 41.0, 86.0])
+    def sample(points, gain=1.0, base=None):
+        if base is not None:
+            return np.broadcast_to(fallback * (base / 48.0), (len(points), 3)).copy()
+        W = to_world(points)
+        n = dir_world(fn[ftree.query(points)[1]])
+        acc = np.zeros((len(points), 3)); tot = np.zeros(len(points))
+        for v in views:
+            x, y, d = v['proj'](W); S_ = v['S']
+            inside = (x >= 0) & (x < S_ - 1) & (y >= 0) & (y < S_ - 1) & (d > 0)
+            xi = np.clip(x.astype(int), 0, S_ - 1); yi = np.clip(y.astype(int), 0, S_ - 1)
+            cx = np.clip((x / v['cell']).astype(int), 0, v['zb'].shape[1] - 1); cy = np.clip((y / v['cell']).astype(int), 0, v['zb'].shape[0] - 1)
+            vis = d <= v['zb'][cy, cx] + HAIR_PROJ_TOL
+            dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
+            cosang = np.clip((n * dcam).sum(1), 0, 1)
+            w = inside * vis * v['hairpx'][yi, xi] * v['alpha'][yi, xi] * cosang ** HAIR_PROJ_POWER
+            acc += w[:, None] * v['rgb'][yi, xi]; tot += w
+        out = np.where((tot > 1e-6)[:, None], acc / np.maximum(tot, 1e-6)[:, None], fallback[None, :])
+        return out * gain
+    return sample
+
+HAIR_PROJ_TOL = 0.015            # world units (the head is ~1): a point this far behind the envelope's depth in a view still counts as seen
+HAIR_PROJ_POWER = 6.0            # the views' weight by how squarely they see a point: high, so one view dominates and strands stay crisp
 
 # A paintable layout for the skin the photo does not cover: orthographic views in fixed windows of
 # model space (so a painting stays put when the mesh changes), one 1024 px tile each.
@@ -2436,7 +2525,7 @@ def build(work):
         hn = np.array([hn[i].mean(0) for i in nb]); hn /= np.linalg.norm(hn, axis=1, keepdims=True) + 1e-12
     hair_light = np.array([0.2, 0.75, 0.6]); hair_light /= np.linalg.norm(hair_light)
     lam = (np.abs(hn @ hair_light) + 0.5) / 1.5   # wrapped: the scan is wound either way, and the sides went dark with a plain lambert term
-    hair_shade = shade.copy(); hair_shade[hv] = (0.6 + 0.4 * ao[hv]) * (HAIR_FORM[0] + HAIR_FORM[1] * lam)
+    hair_shade = shade.copy(); hair_shade[hv] = (0.85 + 0.15 * ao[hv]) if PROJ_HAIR else (0.6 + 0.4 * ao[hv]) * (HAIR_FORM[0] + HAIR_FORM[1] * lam)
     hair_lift = float(hair_gain @ np.array([0.299, 0.587, 0.114]))        # the palette keeps the hue; only the tone lifts to the photo's
     rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q, hair_lift), 4096, hair_shade)
     bare = np.where(~front & (label != HAIR) & (label < CORE))[0]
