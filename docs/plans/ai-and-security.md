@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-13 (step 2.5b `Controls.Chat` merged as #539; step 2.3a `Server.Messaging` (#540) in review as #PR_TBD, ahead of the asset pipeline, now 2.3b; see Verification backlog)
+**Last updated:** 2026-10-13 (step 2.5b `Controls.Chat` merged as #539; step 2.3a `Server.Messaging` (#540) in review as #541, ahead of the asset pipeline, now 2.3b; see Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -48,7 +48,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 Ready; #511 waits on #540 |
-| `Plugin.Maui.Spine.Server.Messaging` (+ `.AzureStorage`, `.ServiceBus`) | New, server | #540 | — (design in `issues/540-*.md`, docs in `docs/wiki/messaging.md`) | #540 in review (#PR_TBD) |
+| `Plugin.Maui.Spine.Server.Messaging` (+ `.AzureStorage`, `.ServiceBus`) | New, server | #540 | — (design in `issues/540-*.md`, docs in `docs/wiki/messaging.md`) | #540 in review (#541) |
 | `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Done (#536) |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
@@ -111,7 +111,7 @@ The order follows value against risk. Steps in different phases can run in paral
 |---|---|---|---|---|---|---|
 | 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | Done | #535 | Signed-in user from #520 when present, otherwise the installation id with tighter limits (Q19). Azure storage inside the package (Q20). |
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
-| 2.3a | `Server.Messaging`: a general queue layer with Storage Queues and Service Bus transports, large payloads in blob storage, routing, priority, scheduling and cleanup | #540 | none | In review | #PR_TBD | Moved out of #511 by the owner on 2026-10-13, and taken first. |
+| 2.3a | `Server.Messaging`: a general queue layer with Storage Queues and Service Bus transports, large payloads in blob storage, routing, priority, scheduling and cleanup | #540 | none | In review | #541 | Moved out of #511 by the owner on 2026-10-13, and taken first. |
 | 2.3b | Generated-asset pipeline | #511 | 2.1, 2.3a | Waiting | | Orders and generates through `Server.Messaging`. Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
 | 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Done | #536 | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
 | 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | Done | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
