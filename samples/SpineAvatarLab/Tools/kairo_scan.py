@@ -926,8 +926,12 @@ def compose(work):
         # cut it drew a hard line down the temple.)
         behind_face = np.maximum(smooth(0.0, 25.0, face_d[sp_[:, 1], sp_[:, 0]]), smooth(0.015, 0.05, at(cp_) - z_))
         above_brow = smooth(eye_y + 0.005, eye_y + 0.045, points[:, 1])
+        # Behind the ear canals the hair hangs to the nape (the owner's back and side views): the skull
+        # there is scalp down to 2 cm above the collar, not only above the brows (skin showed pink
+        # between the locks behind the ear from the side).
+        behind_ear = smooth(axis[1] + 0.01, axis[1] - 0.02, points[:, 2]) * smooth(collar_y + 0.02, collar_y + 0.05, points[:, 1])
         w = np.maximum(np.maximum(hair_over(points), under_photo), smooth(0.025, 0.01, d)) * smooth(eye_y - 0.02, eye_y + 0.01, points[:, 1])
-        return np.maximum(w, behind_face * above_brow)
+        return np.maximum(w, behind_face * np.maximum(above_brow, behind_ear))
     def bald_colour(points, gain=1.0):
         """The bald texture, turned to the hair's own dark under the hair: the scalp between strands."""
         col = bald_tex(points) * gain
@@ -1156,7 +1160,9 @@ def hair_charts(P, F, sample, shade, VN, alpha_fn=None):
         a, b = inplane[ch]; ax = ch // 2; sg = 1.0 if ch % 2 == 0 else -1.0
         gi = np.clip(((spts[:, a] - lo[a]) / cs_).astype(int), 0, G_ - 1); gj = np.clip(((spts[:, b] - lo[b]) / cs_).astype(int), 0, G_ - 1)
         dmap = np.full((G_, G_), -np.inf); np.maximum.at(dmap, (gi, gj), spts[:, ax] * sg)
-        dmap = ndimage.maximum_filter(dmap, size=3)
+        # (Empty cells take the nearest filled one; a maximum filter over 3 x 3 cells made 84 % of the
+        # faces "hidden" by their own curved neighbourhood.)
+        empty = ~np.isfinite(dmap); _, (qi, qj) = ndimage.distance_transform_edt(empty, return_indices=True); dmap = dmap[qi, qj]
         ci = np.clip(((fc_[:, a] - lo[a]) / cs_).astype(int), 0, G_ - 1); cj = np.clip(((fc_[:, b] - lo[b]) / cs_).astype(int), 0, G_ - 1)
         hidden[:, ch] = fc_[:, ax] * sg < dmap[ci, cj] - 0.008
     score_ok = np.where(hidden, -np.inf, score)
