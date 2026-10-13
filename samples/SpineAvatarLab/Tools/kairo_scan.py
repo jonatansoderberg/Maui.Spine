@@ -463,8 +463,12 @@ def face_surface(P, F, src, hair=None):
     rng = np.random.default_rng(4)
     bary = rng.dirichlet((1, 1, 1), size=24)
     zraw = np.full((N, N), np.inf)
-    for chunk in np.array_split(np.arange(len(F)), 8):
-        pts = np.einsum('bk,fkd->fbd', bary, P[F[chunk]]).reshape(-1, 3)
+    # The head's own faces only: with the hair in the model the front-most depth over the forehead was
+    # the bangs' surface, and the grid, fitted to it, drew the forehead out to the hair as a plate
+    # (owner: "ingen jättebula i pannan, någonsin"). The head's shape never depends on the hair.
+    Fh = F if hair is None else F[~hair]
+    for chunk in np.array_split(np.arange(len(Fh)), 8):
+        pts = np.einsum('bk,fkd->fbd', bary, P[Fh[chunk]]).reshape(-1, 3)
         sp, sz = project(pts); ix = np.clip(sp.astype(int), 0, N - 1)
         np.minimum.at(zraw, (ix[:, 1], ix[:, 0]), sz)
     yy, xx = np.mgrid[0:N, 0:N]
