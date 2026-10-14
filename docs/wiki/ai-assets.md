@@ -156,4 +156,4 @@ app.MapGet("/competitions/{id}/arena", async (string id, IGeneratedAssets assets
 
 The messaging sample (`samples/SpineMessagingSample.*`) makes postcards. Its API registers the feature `Postcard` on `gpt-image-1-mini`, with `PostcardPrompt` (four Swedish cities) and `PostcardCheck`, and runs the `spine-ai-assets` pump. Start the AppHost with the secret parameter `openaikey` set (`Parameters__openaikey` in its environment or user secrets), then `GET /ai/assets/Postcard/visby` from `send.http`. Without a key the feature is off and the lookup answers 404 `{ "off": "notConfigured" }`.
 
-A lookup from the app with polling and a placeholder comes in [#543](https://github.com/jonatansoderberg/Maui.Spine/issues/543).
+In the app, `Plugin.Maui.Spine.AI` looks the images up and shows them on any `Image` with `GeneratedImage`; see [AI in the app](ai-client.md#generated-images). The Showcase's **Generated images** page shows the sample's postcards.

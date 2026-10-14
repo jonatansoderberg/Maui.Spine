@@ -36,6 +36,13 @@ public partial class AssistantViewModel([FromKeyedServices("Assistant")] IChatCl
 
 A feature that is off throws `AIFeatureOffException`, which `TaskState` shows as its empty state.
 
+Images a model makes once on the server (`Plugin.Maui.Spine.Server.AI.Assets`) show on any `Image`: a placeholder while the server makes them, the image when it is ready.
+
+```xml
+<Image GeneratedImage.Feature="Postcard" GeneratedImage.Key="{Binding City}"
+       GeneratedImage.Placeholder="postcard_blank.png" GeneratedImage.FailedSource="postcard_missing.png" />
+```
+
 ## Documentation
 
 - [AI in the app](https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/ai-client.md)

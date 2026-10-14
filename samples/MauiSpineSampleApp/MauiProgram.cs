@@ -79,6 +79,8 @@ public static class MauiProgram
         builder.UseSpineAI(o =>
         {
             o.Backend = new Uri("http://localhost:5100/ai");
+            // The Generated images page reads postcards from the messaging sample's API, another service than the features.
+            o.AssetsBackend = new Uri("http://localhost:5240/ai");
             o.Feature("Assistant", f => f
 #if IOS || MACCATALYST
                 // IsIOSVersionAtLeast is true on Mac Catalyst on macOS 26 as well.

@@ -100,11 +100,53 @@ Status = $"{today.Calls} calls, {today.InputTokens} tokens in, {today.OutputToke
 
 `ForDay(feature, day)` and `ForRange(feature, from, to)` read other days. When a model reports no usage, tokens are estimated at four characters a token. Apple Intelligence (`AppleIntelligenceChatClient` in Essentials.AI 10.0.80-preview) reports none, so its counts are always the estimate: good for comparing use over time, not exact.
 
+## Generated images
+
+Images a model makes once on the server ([Generated assets](ai-assets.md)) are looked up by feature and key. The server answers at once: ready with a URL, pending while it makes the image, or failed.
+
+On any `Image`:
+
+```xml
+<ActivityIndicator x:Name="making" IsRunning="True" IsVisible="False" />
+<Label x:Name="failed" Text="This postcard could not be made." IsVisible="False" />
+<Image GeneratedImage.Feature="Postcard"
+       GeneratedImage.Key="{Binding City}"
+       GeneratedImage.Placeholder="postcard_blank.png"
+       GeneratedImage.FailedSource="postcard_missing.png"
+       GeneratedImage.PendingView="{x:Reference making}"
+       GeneratedImage.FailedView="{x:Reference failed}" />
+```
+
+- **While pending,** the placeholder shows, and the server is asked again after its `Retry-After` (between 2 seconds and a minute), for at most 10 minutes. The image shows as soon as it is ready. With `Plugin.Maui.Spine.Images` its URL goes through the image cache, and the URL changes when the server makes the image again.
+- **Off screen and in the background nothing is asked.** An image starts when it is loaded, stops when it is unloaded, and waits while the app's window is stopped. On Mac Catalyst a minimised window raises no `Stopped`, so it keeps asking there.
+- **Failed** covers an image the server could not make, an unknown key, a feature that is off and a backend that cannot be reached. `FailedSource` shows, or the placeholder when it is unset. The watch ends there and does not wait out the server's cool-down: the next time the image is shown, it asks again.
+- **`PendingView` and `FailedView`** are other views, given with `{x:Reference}`, that the image shows and hides itself. They are declared before the image in the markup. MAUI bindings cannot follow an attached property, so `{Binding Path=(GeneratedImage.Status)}` does not work. The read-only `GeneratedImage.Status` and `GeneratedImage.Asset` are for the image's own triggers and for code.
+
+In code, `IAIAssets` gives the same answers:
+
+```csharp
+public partial class PostcardViewModel(IAIAssets assets) : ViewModelBase
+{
+    async Task LoadAsync(string city, CancellationToken ct)
+    {
+        await foreach (var asset in assets.WatchAsync("Postcard", city, cancellationToken: ct))
+            Picture = asset.Status == AIAssetStatus.Ready ? ImageSource.FromUri(asset.Url!) : null;
+    }
+}
+```
+
+- `LookUpAsync` asks once.
+- `WatchAsync` asks again while the image is pending or rate limited, yields each change, and ends at ready, failed, not found or off. `AIAssetWatch` sets the intervals.
+- A route that does not exist (a wrong backend, or a server without `MapSpineAIAssets`) throws `HttpRequestException` with the URL, as the features do.
+
+The lookups go to `AssetsBackend` when it is set, for images served by another service such as a Functions app of their own, and otherwise to `Backend`. They carry the same `Authorization` and installation headers as the features, so the server's per-installation order limit applies.
+
 ## Options
 
 | Option | |
 |---|---|
 | `Backend` | The server's AI prefix |
+| `AssetsBackend` | The prefix given to `MapSpineAIAssets`, when generated images come from another service; unset, `Backend` |
 | `AuthorizationHeader` | The `Authorization` value, read on every call |
 | `HttpHandler` | The handler under the client's `HttpClient`, for tests, certificate pinning or logging. The client waits up to 5 minutes for an answer |
 | `Feature(name, chain)` | A feature and its sources: `OnDevice(factory, isAvailable)`, `Server(name?)` and `ThenServer(name?)` |
@@ -115,5 +157,7 @@ The Showcase's **AI client** page runs against the push sample server from [AI o
 
 1. Start it: `dotnet run` in `samples/MauiSpinePushNotificationsSampleApp.Server`.
 2. On Android, run `adb reverse tcp:5100 tcp:5100`. The page uses `http://localhost:5100/ai` everywhere.
+
+The **Generated images** page shows postcards from the messaging sample's API (`samples/SpineMessagingSample.*`) at `http://localhost:5240/ai`. Start it with an OpenAI key (see [Generated assets](ai-assets.md#sample)), and on Android run `adb reverse tcp:5240 tcp:5240`.
 
 **Assistant** tries Apple Intelligence first and then the server's `demo` provider, streamed. **Story** runs on a server feature with no key, which shows a feature that is off as `TaskState`'s empty state.

@@ -71,7 +71,7 @@ One version, twenty-eight packages, all on [nuget.org](https://www.nuget.org/pac
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes run by BGTaskScheduler and JobScheduler while the app is closed |
-| AI | `Plugin.Maui.Spine.AI` | One `IChatClient` per named feature: on the device first (Apple Intelligence), then the app's server, streamed; no keys in the app; off, budget and rate limits in one shape |
+| AI | `Plugin.Maui.Spine.AI` | One `IChatClient` per named feature: on the device first (Apple Intelligence), then the app's server, streamed; no keys in the app; off, budget and rate limits in one shape; generated images from the server on any `Image` |
 | Security | `Plugin.Maui.Spine.Biometrics` | Face ID, Touch ID, fingerprint and Windows Hello; `[RequiresUnlock]` on a page or a command, an app lock and `[PrivacyShield]` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |

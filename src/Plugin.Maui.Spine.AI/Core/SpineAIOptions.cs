@@ -24,6 +24,12 @@ public sealed class SpineAIOptions
     public Uri? Backend { get; set; }
 
     /// <summary>
+    /// The prefix given to <c>MapSpineAIAssets</c>, when generated images come from another service than the features,
+    /// such as a Functions app of their own. Unset, <see cref="Backend"/>.
+    /// </summary>
+    public Uri? AssetsBackend { get; set; }
+
+    /// <summary>
     /// The value sent as the <c>Authorization</c> header. Read on every call, so a token that rotates can be
     /// returned from here. Unset, the server knows the app by its installation id only.
     /// </summary>

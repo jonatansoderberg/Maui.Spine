@@ -1,0 +1,60 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.GeneratedImages.GeneratedImagesPage"
+    x:TypeArguments="GeneratedImagesPageViewModel"
+    x:DataType="GeneratedImagesPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.AI, Plugin.Maui.Spine.Server.AI.Assets">
+
+        <Example Title="Made once on the server"
+                 Summary="Postcards from the messaging sample's API (samples/SpineMessagingSample.*, on localhost:5240 with an OpenAI key). The first look orders an image and a spinner shows while the server makes it; GeneratedImage asks again after the server's Retry-After and shows the image when it is ready. An unknown city fails at once. A made image is never made again: the next look is instant.">
+            <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Cities}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Border Padding="0" StrokeShape="RoundRectangle 12" StrokeThickness="1"
+                                BackgroundColor="{DynamicResource CardBackground}" Stroke="{DynamicResource CardOutline}">
+                            <Grid RowDefinitions="200,Auto">
+                                <!-- Declared before the image, which shows and hides them by x:Reference. -->
+                                <ActivityIndicator x:Name="making" IsRunning="True" IsVisible="False" HorizontalOptions="Center" VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Row="1" Padding="14,10" Spacing="2">
+                                    <Label Text="{Binding .}" FontSize="17" FontAttributes="Bold" />
+                                    <Label x:Name="failed" IsVisible="False" FontSize="14" Opacity="0.7"
+                                           Text="This postcard could not be made." />
+                                </VerticalStackLayout>
+                                <Image Aspect="AspectFill"
+                                       GeneratedImage.Feature="Postcard"
+                                       GeneratedImage.Key="{Binding .}"
+                                       
+                                       GeneratedImage.PendingView="{x:Reference making}"
+                                       GeneratedImage.FailedView="{x:Reference failed}"
+                                       SemanticProperties.Description="{Binding ., StringFormat='A postcard of {0}'}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;Image GeneratedImage.Feature="Postcard"
+                       GeneratedImage.Key="{Binding City}"
+                       GeneratedImage.Placeholder="postcard_blank.png"
+                       GeneratedImage.FailedSource="postcard_missing.png" /&gt;
+
+                &lt;!-- Views the image shows and hides itself --&gt;
+                &lt;ActivityIndicator x:Name="making" IsRunning="True" /&gt;
+                &lt;Image GeneratedImage.Feature="Postcard"
+                       GeneratedImage.Key="{Binding City}"
+                       
+                       GeneratedImage.FailedView="{x:Reference failed}" /&gt;
+
+                // Or in code, from IAIAssets:
+                await foreach (var asset in assets.WatchAsync(
+                    "Postcard", city, cancellationToken: ct))
+                    Status = asset.Status;
+            </Example.Code>
+        </Example>
+
+        <Button Text="Look up again" Command="{Binding LookUpAgainCommand}" HorizontalOptions="Start" />
+
+    </SampleLayout>
+</SpinePage>

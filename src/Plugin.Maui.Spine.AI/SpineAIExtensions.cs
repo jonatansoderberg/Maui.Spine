@@ -11,8 +11,9 @@ public static class SpineAIExtensions
     static readonly SpineAIOptions Options = new();
 
     /// <summary>
-    /// Registers the app's AI features: each one is injected as <c>[FromKeyedServices("Name")] IChatClient</c>, and
-    /// <see cref="IAIUsage"/> reads what they used on the device. <c>UseSpine()</c> calls it for an app that references
+    /// Registers the app's AI features: each one is injected as <c>[FromKeyedServices("Name")] IChatClient</c>,
+    /// <see cref="IAIUsage"/> reads what they used on the device, and <see cref="IAIAssets"/> (with
+    /// <see cref="GeneratedImage"/>) looks up the backend's generated images. <c>UseSpine()</c> calls it for an app that references
     /// this package; call it yourself with the backend and the features, before or after <c>UseSpine()</c>. A second
     /// call applies its options and registers the features it adds.
     /// </summary>
@@ -37,8 +38,10 @@ public static class SpineAIExtensions
                 InstallationIdAsync,
                 new PreferencesAIDeviceUsageStore(),
                 services.GetService<ILoggerFactory>(),
-                services.GetService<TimeProvider>()));
+                services.GetService<TimeProvider>(),
+                AppForeground.WhenActiveAsync));
             builder.Services.AddSingleton<IAIUsage>(static services => new AIUsage(services.GetRequiredService<SpineAIRuntime>()));
+            builder.Services.AddSingleton<IAIAssets>(static services => new AIAssets(services.GetRequiredService<SpineAIRuntime>()));
         }
 
         foreach (var feature in Options.Features.Keys)
