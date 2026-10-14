@@ -291,6 +291,15 @@
       <DependentUpon>AIClientPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\GeneratedImages\GeneratedImagesPage.View.xaml">
+      <DependentUpon>GeneratedImagesPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\GeneratedImages\GeneratedImagesPage.ViewModel.cs">
+      <DependentUpon>GeneratedImagesPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\State\StatePage.View.xaml">
       <DependentUpon>StatePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

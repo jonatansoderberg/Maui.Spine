@@ -26,7 +26,7 @@ Spine ships as twenty-eight NuGet packages built from this repository, one per p
 | Controls | `Plugin.Maui.Spine.Images` | Every `UriImageSource` through a memory and disk cache, decoded at the view's size; `IImageCache`; BlurHash placeholders. Its `net10.0` build holds only the disk cache | `.Common` |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and `BlurHash`; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
-| AI | `Plugin.Maui.Spine.AI` | [AI in the app](ai-client.md): one `IChatClient` per named feature, on the device or the server, with fallback and on-device usage | `.Common` |
+| AI | `Plugin.Maui.Spine.AI` | [AI in the app](ai-client.md): one `IChatClient` per named feature, on the device or the server, with fallback and on-device usage; generated images from the server on any `Image` | `.Common` |
 | Server | `Plugin.Maui.Spine.Server.AI` | [AI on the server](ai-server.md): named features, metering, prices, budgets and limits on Microsoft.Extensions.AI | `.Common` |
 | Server | `Plugin.Maui.Spine.Server.AI.Assets` | [Generated assets](ai-assets.md): images from a Server.AI feature made once through messaging, archived in blob storage | `.Server.AI`, `.Server.Messaging`, Azure.Storage.Blobs |
 | Server | `Plugin.Maui.Spine.Server.Messaging` | [Messaging](messaging.md): typed queues with routing, priority, scheduling, retries, large payloads and cleanup; in-memory transport | — |
