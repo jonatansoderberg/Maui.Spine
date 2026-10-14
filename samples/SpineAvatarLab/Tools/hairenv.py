@@ -17,6 +17,8 @@ HULL = [v for v in opts.get('hull', 'right,back,left').split(',') if v]   # view
 HULL_PX = int(opts.get('hull_px', 8))       # px of the views (1452 px, 3.6 px per voxel) the side and back hair masks are grown by before carving: the alpha trims the rest
 FRONT_PX = int(opts.get('front_px', 4))      # source px of the photo its hair mask is grown by before the front carve (below); 0 = no front carve
 HULL_FILL_PX = int(opts.get('hull_fill_px', 600))   # px: a smaller hole in a side or back view's hair is a gap between strands and is filled before carving
+HULL_CLOSE = int(opts.get('hull_close', 8))         # px the views' hair masks are closed by before carving (gaps between strands)
+HULL_SMOOTH = float(opts.get('hull_smooth', 4))     # px of blur on the closed masks before carving (the strand tips' saw-tooth rounded)
 RES = float(opts.get('res', 0.003)); CLOSE = int(opts.get('close', 2)); FACES = int(opts.get('faces', 40000)); SMOOTH = int(opts.get('smooth', 3))
 COLLAR_Y = float(opts.get('collar', -0.156))
 turn = np.array([-1.0, 1.0, -1.0])
@@ -110,7 +112,8 @@ if HULL:
         # The silhouette, not the strands: gaps between the view's strands (a closing, then enclosed holes under
         # HULL_FILL_PX) are filled so the carve trims the outline and never bores a pinhole through the volume;
         # the ear, a larger hole in the side views' hair, still carves its pocket.
-        sil = ndimage.binary_closing(hairpx, iterations=3)
+        sil = ndimage.binary_closing(hairpx, iterations=HULL_CLOSE)
+        sil = ndimage.gaussian_filter(sil.astype(float), HULL_SMOOTH) > 0.5     # the strand tips' saw-tooth rounded
         holes_, _ = ndimage.label(~sil); hsz_ = np.bincount(holes_.ravel()); small_ = hsz_ < HULL_FILL_PX; small_[0] = False
         sil = sil | small_[holes_]
         keep = ndimage.distance_transform_edt(~sil) <= HULL_PX
