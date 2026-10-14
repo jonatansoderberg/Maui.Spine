@@ -9,7 +9,8 @@ namespace Plugin.Maui.Spine.Services;
 /// <summary>
 /// Turns <see cref="PageActionAttribute"/> declarations on a view model into
 /// <see cref="PageAction"/> instances, and its <see cref="PageSearchAttribute"/> into
-/// <see cref="ViewModelBase.Search"/>, once per view model instance.
+/// <see cref="ViewModelBase.Search"/>, once per view model instance. Guarded commands are recorded
+/// at the same time (<see cref="CommandGuards"/>).
 /// </summary>
 internal static class PageActionDiscovery
 {
@@ -30,6 +31,7 @@ internal static class PageActionDiscovery
 
         viewModel.DeclaredActionsAdded = true;
         viewModel.Search ??= PageSearchDiscovery.Create(viewModel);
+        CommandGuards.Discover(viewModel);
 
         foreach (var template in _templates.GetOrAdd(viewModel.GetType(), Scan))
         {

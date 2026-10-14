@@ -30,11 +30,18 @@ public partial class SpineTabbedHostPage
             // which is where re-selection of the active tab is observable.
             controller.ShouldSelectViewController = (tabBarController, viewController) =>
             {
-                if (ReferenceEquals(tabBarController.SelectedViewController, viewController)
-                    && tabBarController.ViewControllers is { } vcs)
-                    OnTabReselected(Array.IndexOf(vcs, viewController));
+                if (tabBarController.ViewControllers is not { } vcs)
+                    return true;
 
-                return true;
+                var index = Array.IndexOf(vcs, viewController);
+
+                if (ReferenceEquals(tabBarController.SelectedViewController, viewController))
+                {
+                    OnTabReselected(index);
+                    return true;
+                }
+
+                return AllowTabTap(index);
             };
 
 #if IOS
@@ -200,5 +207,51 @@ public partial class SpineTabbedHostPage
     }
 #endif
 
+
+    /// <remarks>
+    /// The bar's item views are private classes. They are the bar's visible controls, one per tab and place,
+    /// in order from the left; if the bar is built some other way, the item gets an equal share of the bar.
+    /// </remarks>
+    private partial bool TryGetTabItemFrame(int index, out Rect frame)
+    {
+        frame = default;
+        if (Controller?.TabBar is not { Window: { } } bar || bar.Hidden)
+            return false;
+
+        var items = new List<UIView>();
+        CollectTabItems(bar, items);
+
+        // iOS 26's floating bar draws each button twice, once more for the selected tab's lens; one per place.
+        var places = items
+            .Select(view => view.ConvertRectToView(view.Bounds, null))
+            .DistinctBy(rect => Math.Round(rect.X))
+            .OrderBy(rect => rect.X)
+            .ToList();
+        if (places.Count == _slots.Count)
+        {
+            var rect = places[index];
+            frame = new Rect(rect.X, rect.Y, rect.Width, rect.Height);
+            return true;
+        }
+
+        var whole = bar.ConvertRectToView(bar.Bounds, null);
+        var width = whole.Width / _slots.Count;
+        frame = new Rect(whole.X + index * width, whole.Y, width, whole.Height);
+        return true;
+    }
+
+    private static void CollectTabItems(UIView view, List<UIView> items)
+    {
+        foreach (var child in view.Subviews)
+        {
+            if (child.Hidden || child.Alpha <= 0 || child.Bounds.Width <= 0)
+                continue;
+
+            if (child is UIControl)
+                items.Add(child);
+            else
+                CollectTabItems(child, items);
+        }
+    }
 }
 #endif

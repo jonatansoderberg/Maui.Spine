@@ -1,6 +1,9 @@
 ﻿﻿using MauiBottomSheetPoc;
 using MauiSpineSampleApp.Resources.Styles;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.AI;
+using Plugin.Maui.Spine.Biometrics;
+using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Svg;
 
@@ -66,6 +69,30 @@ public static class MauiProgram
                 fonts.AddFont("JosefinSans-Bold.ttf", "JosefinSansBold");
             });
 
+
+        // The Biometrics page's app lock, behind the page's own switch.
+        builder.UseHighlights();
+        builder.UseSpineBiometrics(o => o.AppLock(a => a.IsEnabled = () => Preferences.Get(MauiSpineSampleApp.Pages.Biometrics.BiometricsPageViewModel.AppLockKey, false)));
+
+        // The AI client page: the push sample server with its demo provider (samples/MauiSpinePushNotificationsSampleApp.Server).
+        // Android reaches it on localhost through adb reverse tcp:5100 tcp:5100.
+        builder.UseSpineAI(o =>
+        {
+            o.Backend = new Uri("http://localhost:5100/ai");
+            o.Feature("Assistant", f => f
+#if IOS || MACCATALYST
+                // IsIOSVersionAtLeast is true on Mac Catalyst on macOS 26 as well.
+                .OnDevice(_ => OperatingSystem.IsIOSVersionAtLeast(26)
+                    ? new Microsoft.Maui.Essentials.AI.AppleIntelligenceChatClient()
+                    : throw new PlatformNotSupportedException("Apple Intelligence needs iOS or macOS 26."))
+#endif
+                .ThenServer());
+            o.Feature("ServerAssistant", f => f.Server("Assistant"));
+            o.Feature("Story", f => f.Server());
+        });
+
+        // The Guards page's own guard: a confirmation before a page opens or a command runs.
+        builder.Services.AddSpineGuard<MauiSpineSampleApp.Pages.Guards.ConfirmAttribute, MauiSpineSampleApp.Pages.Guards.ConfirmGuard>();
 
         // The live-score demo's one game, shared by the Widgets and Live Activities pages and the widget.
         builder.Services.AddSingleton<MauiSpineSampleApp.Widgets.Hockey.LiveScore>();

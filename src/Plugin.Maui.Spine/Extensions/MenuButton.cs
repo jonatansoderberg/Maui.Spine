@@ -1,4 +1,5 @@
 using Plugin.Maui.Spine.Core;
+using Plugin.Maui.Spine.Services;
 
 namespace Plugin.Maui.Spine.Extensions;
 
@@ -64,17 +65,16 @@ public static class MenuButton
         {
             picker.Selected = action;
             var pickerParameter = action.CommandParameter ?? action;
-            if (picker.Command?.CanExecute(pickerParameter) == true)
-                picker.Command.Execute(pickerParameter);
+            if (picker.Command is not null)
+                CommandGuards.Execute(picker.Command, pickerParameter);
         }
         else if (action.KeepsMenuOpen)
         {
             action.IsChecked = !action.IsChecked;
         }
 
-        var actionParameter = action.CommandParameter ?? parameter;
-        if (action.Command?.CanExecute(actionParameter) == true)
-            action.Command.Execute(actionParameter);
+        if (action.Command is not null)
+            CommandGuards.Execute(action.Command, action.CommandParameter ?? parameter);
 
         if (GetShowsSelection(owner) && owner is Button button)
             button.Text = action.Title;

@@ -1,0 +1,74 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.AIClient.AIClientPage"
+    x:TypeArguments="AIClientPageViewModel"
+    x:DataType="AIClientPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.AI">
+
+        <Example Title="One client, on the device or on the server"
+                 Summary="A named feature is an IChatClient. Assistant tries Apple Intelligence on the device first and falls back to the app's server before the first word; the server's answer streams in as it is written. No key is in the app. Start the push sample server first (dotnet run in samples/MauiSpinePushNotificationsSampleApp.Server); on Android, run adb reverse tcp:5100 tcp:5100.">
+            <VerticalStackLayout Spacing="12">
+                <Editor Text="{Binding Prompt}" AutoSize="TextChanges" Placeholder="Ask something" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Try the device first" VerticalOptions="Center" />
+                    <Switch Grid.Column="1" IsToggled="{Binding DeviceFirst}" />
+                </Grid>
+                <HorizontalStackLayout Spacing="12">
+                    <Button Text="Send" Command="{Binding SendCommand}" />
+                    <Button Text="Stop" Command="{Binding StopCommand}" />
+                    <ActivityIndicator IsRunning="{Binding IsRunning}" IsVisible="{Binding IsRunning}"
+                                       VerticalOptions="Center" HeightRequest="24" WidthRequest="24" />
+                </HorizontalStackLayout>
+                <Border StrokeShape="RoundRectangle 12" StrokeThickness="1" Padding="14" MinimumHeightRequest="120"
+                        BackgroundColor="{DynamicResource CardBackground}" Stroke="{DynamicResource CardOutline}">
+                    <Label Text="{Binding Answer}" FontSize="16" TextColor="{DynamicResource CardText}" />
+                </Border>
+                <Label Text="{Binding AnsweredBy}" FontSize="13" Opacity="0.7" />
+                <Label Text="{Binding Problem}" IsVisible="{Binding HasProblem}"
+                       TextColor="{AppThemeBinding Light=#C62828, Dark=#FF6B6B}" FontSize="14" />
+                <Label Text="{Binding DeviceUsage}" FontSize="13" Opacity="0.7" />
+            </VerticalStackLayout>
+            <Example.Code>
+                builder.UseSpineAI(o =&gt;
+                {
+                    o.Backend = new Uri("https://api.example.com/ai");
+                    o.Feature("Assistant", f =&gt; f
+                        .OnDevice(_ =&gt; new AppleIntelligenceChatClient())
+                        .ThenServer());
+                });
+
+                public AssistantViewModel(
+                    [FromKeyedServices("Assistant")] IChatClient chat)
+
+                await foreach (var update in
+                    chat.GetStreamingResponseAsync(prompt, cancellationToken: ct))
+                {
+                    Answer += update.Text;
+                }
+            </Example.Code>
+        </Example>
+
+        <Example Title="A feature that is off is empty, not an error"
+                 Summary="Story runs on Anthropic on the sample server, which turns it off until it has a key. The server answers 404 off, the client throws AIFeatureOffException, and TaskState shows its empty state with the reason instead of an error with a retry.">
+            <VerticalStackLayout Spacing="12">
+                <Button Text="Write the story" Command="{Binding Story.LoadCommand}" HorizontalOptions="Start" />
+                <Border StrokeShape="RoundRectangle 12" StrokeThickness="1" MinimumHeightRequest="100"
+                        BackgroundColor="{DynamicResource CardBackground}" Stroke="{DynamicResource CardOutline}">
+                    <StateView State="{Binding Story}" EmptyText="{Binding Story.ErrorMessage}">
+                        <Label Padding="14" Text="{Binding Story.Value}" FontSize="16" TextColor="{DynamicResource CardText}" />
+                    </StateView>
+                </Border>
+                <Label FontSize="13" Opacity="0.7" Text="{Binding Story.Status, StringFormat='Status: {0}'}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                Story = Load(ct =&gt; story.GetResponseAsync(prompt, cancellationToken: ct));
+
+                &lt;StateView State="{Binding Story}"
+                           EmptyText="{Binding Story.ErrorMessage}"&gt;
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>

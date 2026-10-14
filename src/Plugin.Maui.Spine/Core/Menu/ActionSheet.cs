@@ -1,3 +1,5 @@
+using Plugin.Maui.Spine.Services;
+
 namespace Plugin.Maui.Spine.Core;
 
 /// <summary>
@@ -66,8 +68,7 @@ public sealed class ActionSheet
     /// <summary>What every platform does with a pick: runs the row's command with its parameter, or the sheet's.</summary>
     internal void Pick(MenuAction action)
     {
-        var parameter = action.CommandParameter ?? CommandParameter;
-        if (action.Command?.CanExecute(parameter) == true)
-            action.Command.Execute(parameter);
+        if (action.Command is not null)
+            CommandGuards.Execute(action.Command, action.CommandParameter ?? CommandParameter);
     }
 }

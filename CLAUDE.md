@@ -17,6 +17,10 @@
   - **`CollectionView`** (list or grid): `SafeArea.PageMargin="True"` lays its rows, header and footer out inside the page margin while the list reaches the sides. Items then have no side margin of their own; the gap between a grid's columns is `GridItemsLayout.HorizontalItemSpacing`.
   - **`ScrollView`:** `Padding="{x:Static HeaderBarConstants.PagePadding}"` on its content.
 
+## Active Plans
+Multi-issue efforts have a living plan under `docs/plans/`. When an issue belongs to one, read the plan first and update its step status, decisions and "Last updated" line in the same PR.
+- `docs/plans/ai-and-security.md` — AI, voice, sign-in, biometrics and highlight (roadmap #505, issues #506–#522).
+
 ## GitHub Issue Workflow
 
 ### Starting an issue

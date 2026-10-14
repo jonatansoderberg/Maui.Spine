@@ -1,5 +1,6 @@
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Extensions;
+using Plugin.Maui.Spine.Services;
 using Plugin.Maui.Spine.Svg;
 
 namespace Plugin.Maui.Spine.Presentation;
@@ -113,6 +114,9 @@ internal sealed class PageActionView : ContentView
         set => SetValue(IconWidthProperty, value);
     }
 
+    // Held weakly: every view that can show an action, so SpineTargets can find the one that shows it.
+    static readonly List<WeakReference<PageActionView>> Live = [];
+
     readonly bool _glass;
     readonly bool _morph;
     Face _front;
@@ -127,11 +131,27 @@ internal sealed class PageActionView : ContentView
         _back = new Face(this) { Opacity = 0, IsVisible = false, InputTransparent = true };
 
         Content = new Grid { Children = { _back, _front } };
+        Live.Add(new WeakReference<PageActionView>(this));
 
         // Keep the colours in sync when the user switches the theme or the accent at runtime.
         SpineTheme.Track(this, () => ForEachFace(f => f.ApplyForeground()));
 
         _front.Apply(null);
+    }
+
+    /// <summary>The view on screen that shows <paramref name="action"/>, if any.</summary>
+    internal static PageActionView? Showing(PageAction action)
+    {
+        PageActionView? showing = null;
+        for (var i = Live.Count - 1; i >= 0; i--)
+        {
+            if (!Live[i].TryGetTarget(out var view))
+                Live.RemoveAt(i);
+            else if (ReferenceEquals(view.Action, action) && action.IsVisible && view.IsVisible && view.Opacity > 0 && view.IsLoaded)
+                showing ??= view;
+        }
+
+        return showing;
     }
 
     // The option is read here rather than passed down: HeaderBarView and PageActionView are built by
@@ -502,7 +522,7 @@ internal sealed class PageActionView : ContentView
                 _textButton.Text = action.Text ?? string.Empty;
             }
 
-            _textButton.Command = action.Command;
+            _textButton.Command = CommandGuards.Wrap(action.Command);
             _textButton.CommandParameter = action.CommandParameter;
         }
 
@@ -834,7 +854,7 @@ internal sealed class PageActionView : ContentView
                     _currentSvg = action.Svg;
                 }
 
-                _imageButton.Command = action.Command;
+                _imageButton.Command = CommandGuards.Wrap(action.Command);
                 _imageButton.CommandParameter = action.CommandParameter;
             }
             else
@@ -846,7 +866,7 @@ internal sealed class PageActionView : ContentView
                 }
 
                 _textButton.Text = action.Text ?? string.Empty;
-                _textButton.Command = action.Command;
+                _textButton.Command = CommandGuards.Wrap(action.Command);
                 _textButton.CommandParameter = action.CommandParameter;
             }
         }

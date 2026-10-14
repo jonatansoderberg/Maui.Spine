@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings culture="sv">
+  <s key="Spine.Biometrics.Cancel">Avbryt</s>
+  <s key="Spine.Biometrics.Ok">OK</s>
+  <s key="Spine.Biometrics.Unlock">Lås upp</s>
+  <s key="Spine.Biometrics.Locked">Låst</s>
+  <s key="Spine.Biometrics.LockedOut.Title">För många försök</s>
+  <s key="Spine.Biometrics.LockedOut.Message">Lås upp enheten med dess lösenkod och försök igen.</s>
+  <s key="Spine.Biometrics.Unavailable.Title">Inget skärmlås</s>
+  <s key="Spine.Biometrics.Unavailable.Message">Ställ in en lösenkod, Face ID, Touch ID eller fingeravtryck på enheten för att öppna det här.</s>
+  <s key="Spine.Biometrics.Back">Tillbaka</s>
+  <s key="Spine.Biometrics.AppLock.Reason">Lås upp för att fortsätta</s>
+</strings>

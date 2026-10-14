@@ -347,4 +347,17 @@ public partial class SpineTabbedHostPage
 
         return null;
     }
+
+    private partial bool TryGetTabItemFrame(int index, out Rect frame)
+    {
+        frame = default;
+        if (_bottomNav is not { IsAttachedToWindow: true } bar || bar.Menu is not { } menu || index >= menu.Size()
+            || menu.GetItem(index) is not { } menuItem || bar.FindViewById(menuItem.ItemId) is not { Width: > 0 } item)
+        {
+            return false;
+        }
+
+        frame = SpineTargets.ToWindow(item, 0, 0, item.Width, item.Height);
+        return true;
+    }
 }

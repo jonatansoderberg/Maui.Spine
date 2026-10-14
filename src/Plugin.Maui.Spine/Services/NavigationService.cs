@@ -16,6 +16,8 @@ internal sealed class NavigationService : INavigationService
     private readonly NavigationRegistry _registry;
     private readonly SpineHostProvider _hostProvider;
     private readonly ISystemInsetsProvider _insetsProvider;
+    private readonly GuardRunner _guards;
+    private readonly SpineReadiness _readiness;
 
     private ISpineHost _host => _hostProvider.Current
         ?? throw new InvalidOperationException("No Spine host is active yet.");
@@ -24,22 +26,40 @@ internal sealed class NavigationService : INavigationService
     private NavigationRegionViewModel Active => LightboxOverlay.Current?.ViewModel ?? _host.ActiveRegionViewModel;
 
     /// <summary>
-    /// Initializes the service with the DI container, page registry, host provider, and insets provider.
+    /// Initializes the service with the DI container, page registry, host provider, insets provider and guards.
     /// </summary>
     public NavigationService(
         IServiceProvider services,
         NavigationRegistry registry,
         SpineHostProvider hostProvider,
-        ISystemInsetsProvider insetsProvider)
+        ISystemInsetsProvider insetsProvider,
+        GuardRunner guards,
+        SpineReadiness readiness)
     {
         _services = services;
         _registry = registry;
         _hostProvider = hostProvider;
         _insetsProvider = insetsProvider;
+        _guards = guards;
+        _readiness = readiness;
     }
+
+    /// <summary>
+    /// Runs the guards of <paramref name="pageType"/> before anything about the page is created.
+    /// </summary>
+    private ValueTask<bool> PassGuardsAsync(Type pageType, GuardTrigger? trigger = null) =>
+        _guards.PassPageAsync(pageType, trigger ?? (_registry.IsTab(pageType)
+            ? GuardTrigger.Tab
+            : _registry.Get(pageType).Presentation is NavigationPresentation.Sheet ? GuardTrigger.Sheet : GuardTrigger.Push));
 
     /// <inheritdoc/>
     public async Task NavigateToAsync<TNode>() where TNode : INavigable
+    {
+        if (await PassGuardsAsync(typeof(TNode)))
+            await NavigateToUnguardedAsync<TNode>();
+    }
+
+    private async Task NavigateToUnguardedAsync<TNode>() where TNode : INavigable
     {
         // A [NavigableTab] page is never pushed — navigating to it switches to its tab.
         if (_registry.IsTab(typeof(TNode)))
@@ -61,13 +81,14 @@ internal sealed class NavigationService : INavigationService
     }
 
     /// <inheritdoc/>
-    public Task SwitchToTabAsync<TPage>() where TPage : INavigable
+    public async Task SwitchToTabAsync<TPage>() where TPage : INavigable
     {
         if (!_registry.IsTab(typeof(TPage)))
             throw new InvalidOperationException(
                 $"'{typeof(TPage).Name}' is not a [NavigableTab] page — SwitchToTabAsync only targets tab roots.");
 
-        return SwitchToTabCoreAsync(typeof(TPage));
+        if (await PassGuardsAsync(typeof(TPage), GuardTrigger.Tab))
+            await SwitchToTabCoreAsync(typeof(TPage));
     }
 
     private Task SwitchToTabCoreAsync(Type pageType)
@@ -81,6 +102,13 @@ internal sealed class NavigationService : INavigationService
 
     /// <inheritdoc/>
     public async Task NavigateToAsync<TNode, TParam>(TParam param)
+        where TNode : INavigable, INavigableWithParameter<TParam>
+    {
+        if (await PassGuardsAsync(typeof(TNode)))
+            await NavigateToUnguardedAsync<TNode, TParam>(param);
+    }
+
+    private async Task NavigateToUnguardedAsync<TNode, TParam>(TParam param)
         where TNode : INavigable, INavigableWithParameter<TParam>
     {
         // Switching to a tab with a parameter delivers it to the tab root's ViewModel.
@@ -112,14 +140,14 @@ internal sealed class NavigationService : INavigationService
 
     /// <inheritdoc/>
     public Task ShowAsync<TPage>() where TPage : INavigable =>
-        ShowCoreAsync(typeof(TPage), deliverParameter: null, NavigateToAsync<TPage>);
+        ShowCoreAsync(typeof(TPage), deliverParameter: null, NavigateToUnguardedAsync<TPage>);
 
     /// <inheritdoc/>
     public Task ShowAsync<TPage, TParam>(TParam param)
         where TPage : INavigable, INavigableWithParameter<TParam> =>
         ShowCoreAsync(typeof(TPage),
             viewModel => viewModel is IReceivesNavigationParameter<TParam> receiver ? receiver.OnNavigationParameterAsync(param) : Task.CompletedTask,
-            () => NavigateToAsync<TPage, TParam>(param));
+            () => NavigateToUnguardedAsync<TPage, TParam>(param));
 
     /// <summary>
     /// Finds the page where it would be pushed and goes back to it, or navigates when it is not there.
@@ -127,6 +155,10 @@ internal sealed class NavigationService : INavigationService
     /// </summary>
     private async Task ShowCoreAsync(Type pageType, Func<object?, Task>? deliverParameter, Func<Task> navigate)
     {
+        // Before the sheet below is closed: a refused page leaves the user where they were.
+        if (!await PassGuardsAsync(pageType, GuardTrigger.Show))
+            return;
+
         if (_registry.IsTab(pageType))
         {
             await navigate();
@@ -191,6 +223,9 @@ internal sealed class NavigationService : INavigationService
         if (_registry.IsTab(typeof(TPage)))
             throw new InvalidOperationException(
                 $"'{typeof(TPage).Name}' is a [NavigableTab] page — a tab switch cannot produce a result.");
+
+        if (!await PassGuardsAsync(typeof(TPage)))
+            return NavigationResult<TResult>.Canceled();
 
         var view = _services.GetRequiredService(typeof(TPage)) as View;
 
@@ -313,13 +348,11 @@ internal sealed class NavigationService : INavigationService
     /// <inheritdoc/>
     public Task BackAsync() => Active.BackAsync();
 
-    private readonly TaskCompletionSource _rootSet = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
     /// <summary>
     /// Completes when the first root page is in place. A way into the app from outside that arrives on
     /// a cold start (a search result) waits for it, or the root page would replace what it showed.
     /// </summary>
-    internal Task WhenRootSet => _rootSet.Task;
+    internal Task WhenRootSet => _readiness.WhenRootSet;
 
     /// <inheritdoc/>
     public async Task SetRootAsync<TNode>() where TNode : INavigable
@@ -330,12 +363,17 @@ internal sealed class NavigationService : INavigationService
         }
         finally
         {
-            _rootSet.TrySetResult();
+            _readiness.MarkRootSet();
         }
     }
 
     private async Task SetRootCoreAsync<TNode>() where TNode : INavigable
     {
+        // There is no page to stay on when the root is refused, so the guard is told it cannot cancel and
+        // keeps asking; a refusal all the same keeps the root the app has, empty on a cold start.
+        if (!await _guards.PassPageAsync(typeof(TNode), GuardTrigger.Root, canCancel: false))
+            return;
+
         if (_registry.IsTab(typeof(TNode)))
         {
             // Swap back to the tab host when a plain host took over (e.g. login → main app).
@@ -368,7 +406,9 @@ internal sealed class NavigationService : INavigationService
         var window = _hostProvider.Current?.HostPage.Window
             ?? Application.Current?.Windows.FirstOrDefault();
 
+        _guards.CancelPending();
         _hostProvider.SetCurrent(next);
+        SpineScreen.Update();
 
         if (window is not null)
             window.Page = next.HostPage;

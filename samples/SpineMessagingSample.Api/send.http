@@ -1,0 +1,35 @@
+# Run the AppHost (samples/SpineMessagingSample.AppHost), then send these. The API's port is in the Aspire dashboard.
+@api = http://localhost:5240
+
+### The topology: subscribers, lanes and types
+GET {{api}}/
+
+### Ten pictures of 100 KB at normal priority, then two at high priority: the high ones go first
+POST {{api}}/images?count=10&kilobytes=100
+
+###
+POST {{api}}/images?count=2&kilobytes=20&priority=High
+
+### Low priority: waits until the work lanes above it are empty
+POST {{api}}/index?reason=after-import
+
+### A receipt due in 30 seconds. A repeat for the same order within the hour is a duplicate.
+POST {{api}}/receipts?order=order-42&delaySeconds=30
+
+### Cancel it with the id and due time from the answer above
+DELETE {{api}}/receipts/MESSAGE_ID?due=DUE_TIME
+
+### Fails twice and then succeeds (3 attempts are allowed)
+POST {{api}}/flaky?failTimes=2
+
+### Fails every attempt and ends among the failed messages
+POST {{api}}/flaky?failTimes=5
+
+### The failed messages
+GET {{api}}/failed
+
+### Replay one
+POST {{api}}/failed/flaky/MESSAGE_ID/replay
+
+### Clean up now rather than on the hour
+POST {{api}}/janitor

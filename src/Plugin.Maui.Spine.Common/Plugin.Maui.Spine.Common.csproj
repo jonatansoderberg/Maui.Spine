@@ -8,7 +8,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Contracts shared between Spine apps and servers: the widget and Live Activity tree model, push installations, tags and keys, background tasks. No MAUI dependency.</Description>
+		<Description>Contracts shared between Spine apps and servers: the widget and Live Activity tree model, push installations, tags and keys, background tasks, and the AI features' answers. No MAUI dependency.</Description>
 		<SpineIcon>common.png</SpineIcon>
 		<PackageTags>$(PackageTags);widgets;push;contracts</PackageTags>
 	</PropertyGroup>
@@ -24,6 +24,11 @@
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.BackgroundTasks" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.BackgroundTasks.Tests" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Tests" />
+		<!-- The AI wire words (AIOffReasons) and the shared installation id (SpineInstallation). -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.AI" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.AI.Tests" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.AI" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.AI.Tests" />
 	</ItemGroup>
 
 	<!-- The entitlements step Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.PushNotifications share. -->

@@ -5,10 +5,19 @@
 		<RootNamespace>MauiSpinePushNotificationsSampleApp.Server</RootNamespace>
 		<IsPackable>false</IsPackable>
 		<UserSecretsId>maui-spine-push-sample-server</UserSecretsId>
+		<!-- IImageGenerator is experimental in Microsoft.Extensions.AI. -->
+		<NoWarn>$(NoWarn);MEAI001</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server\Plugin.Maui.Spine.Server.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.AI\Plugin.Maui.Spine.Server.AI.csproj" />
+	</ItemGroup>
+
+	<!-- The AI providers, one line each in Program.cs. Spine.Server.AI itself references no vendor. -->
+	<ItemGroup>
+		<PackageReference Include="Anthropic" />
+		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
 	</ItemGroup>
 
 </Project>

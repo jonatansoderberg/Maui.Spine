@@ -1,0 +1,81 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Biometrics.BiometricsPage"
+    x:TypeArguments="BiometricsPageViewModel"
+    x:DataType="BiometricsPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Biometrics">
+
+        <Example Title="Unlock"
+                 Summary="Face ID, Touch ID, fingerprint or Windows Hello, with the passcode to fall back on. An unlock counts for a minute, for every guard and call.">
+            <VerticalStackLayout Spacing="10">
+                <Label Text="{Binding Availability}" FontSize="15" />
+                <Label Text="{Binding Log}" FontSize="15" />
+                <Button Text="Unlock" Command="{Binding UnlockNowCommand}" />
+                <Button Text="Lock" Command="{Binding LockNowCommand}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                if (await _unlock.RequireAsync("Show the PIN"))
+                    Pin = await _cards.GetPinAsync();
+
+                _unlock.Lock();   // on sign-out
+            </Example.Code>
+        </Example>
+
+        <Example Title="A page behind an unlock"
+                 Summary="[RequiresUnlock] on the page: it is not created until the user has unlocked.">
+            <Button Text="Open the PIN" Command="{Binding OpenPinCommand}" />
+            <Example.Code>
+                [NavigableRegion(Title = "PIN"), RequiresUnlock("Show the PIN")]
+                public partial class PinPage { … }
+            </Example.Code>
+        </Example>
+
+        <Example Title="A command behind an unlock"
+                 Summary="[RequiresUnlock] on a command asks wherever Spine runs it, here a menu row. Fresh asks every time, right after an unlock too. On a plain button, Unlock.Command asks first.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Account" MenuButton.Items="{Binding AccountMenu}" />
+                <Button Text="Show the code" Unlock.Command="{Binding RevealCodeCommand}" Unlock.Reason="Show the code" />
+            </VerticalStackLayout>
+            <Example.Code>
+                [RequiresUnlock("Delete the account", Fresh = true)]
+                [RelayCommand]
+                private void DeleteAccount() { … }
+
+                &lt;Button Unlock.Command="{Binding RevealCodeCommand}"
+                        Unlock.Reason="Show the code" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="App lock"
+                 Summary="The whole app behind an unlock screen: at launch and on every return from the background, here behind the app's own switch. Unlocking it counts for [RequiresUnlock] too. On iOS the app switcher shows a blurred cover.">
+            <SpineSection>
+                <SpineRow Title="Lock the app">
+                    <SpineRow.Accessory>
+                        <Switch IsToggled="{Binding AppLock}" />
+                    </SpineRow.Accessory>
+                </SpineRow>
+            </SpineSection>
+            <Example.Code>
+                builder.UseSpineBiometrics(o =&gt; o.AppLock(a =&gt;
+                {
+                    a.LockAfter = TimeSpan.FromMinutes(5);
+                    a.IsEnabled = () =&gt; Preferences.Get("AppLock", false);
+                }));
+            </Example.Code>
+        </Example>
+
+        <Example Title="Privacy shield"
+                 Summary="[PrivacyShield] keeps the page out of screenshots and recordings on Android and Windows, and out of the app switcher everywhere. iOS cannot block a screenshot. Relock covers the page again after the app has been in the background.">
+            <Button Text="Open the statement" Command="{Binding OpenStatementCommand}" />
+            <Example.Code>
+                [NavigableRegion(Title = "Statement"), PrivacyShield,
+                 RequiresUnlock("Show the statement", Relock = true)]
+                public partial class StatementPage { … }
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

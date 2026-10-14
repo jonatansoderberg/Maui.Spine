@@ -264,6 +264,33 @@
       <DependentUpon>HeaderBarPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Chat\ChatPage.View.xaml">
+      <DependentUpon>ChatPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Chat\ChatPage.ViewModel.cs">
+      <DependentUpon>ChatPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Markdown\MarkdownPage.View.xaml">
+      <DependentUpon>MarkdownPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Markdown\MarkdownPage.ViewModel.cs">
+      <DependentUpon>MarkdownPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\AIClient\AIClientPage.View.xaml">
+      <DependentUpon>AIClientPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\AIClient\AIClientPage.ViewModel.cs">
+      <DependentUpon>AIClientPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\State\StatePage.View.xaml">
       <DependentUpon>StatePage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -389,6 +416,51 @@
       <DependentUpon>ActionSheetsPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\Guards\GuardsPage.View.xaml">
+      <DependentUpon>GuardsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Guards\GuardsPage.ViewModel.cs">
+      <DependentUpon>GuardsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Guards\VaultPage.View.xaml">
+      <DependentUpon>VaultPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Guards\VaultPage.ViewModel.cs">
+      <DependentUpon>VaultPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Biometrics\BiometricsPage.View.xaml">
+      <DependentUpon>BiometricsPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Biometrics\BiometricsPage.ViewModel.cs">
+      <DependentUpon>BiometricsPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Biometrics\PinPage.View.xaml">
+      <DependentUpon>PinPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Biometrics\PinPage.ViewModel.cs">
+      <DependentUpon>PinPage.cs</DependentUpon>
+    </Compile>
+
+    <MauiXaml Update="Pages\Biometrics\StatementPage.View.xaml">
+      <DependentUpon>StatementPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\Biometrics\StatementPage.ViewModel.cs">
+      <DependentUpon>StatementPage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\ScrollInset\ScrollInsetPage.View.xaml">
       <DependentUpon>ScrollInsetPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
@@ -503,6 +575,13 @@
     </MauiXaml>
     <Compile Include="Pages\Barcodes\BarcodesPage.ViewModel.cs">
       <DependentUpon>BarcodesPage.cs</DependentUpon>
+    </Compile>
+    <MauiXaml Update="Pages\Highlight\HighlightPage.View.xaml">
+      <DependentUpon>HighlightPage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+    <Compile Include="Pages\Highlight\HighlightPage.ViewModel.cs">
+      <DependentUpon>HighlightPage.cs</DependentUpon>
     </Compile>
     <MauiXaml Update="Pages\Shimmer\ShimmerPage.View.xaml">
       <DependentUpon>ShimmerPage.cs</DependentUpon>
@@ -651,10 +730,15 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Rows\Plugin.Maui.Spine.Controls.Rows.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.HeroCollectionView\Plugin.Maui.Spine.Controls.HeroCollectionView.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Highlight\Plugin.Maui.Spine.Controls.Highlight.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.MeshBackground\Plugin.Maui.Spine.Controls.MeshBackground.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Markdown\Plugin.Maui.Spine.Controls.Markdown.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Chat\Plugin.Maui.Spine.Controls.Chat.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Widgets\Plugin.Maui.Spine.Widgets.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Biometrics\Plugin.Maui.Spine.Biometrics.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI\Plugin.Maui.Spine.AI.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg.Icons\Plugin.Maui.Spine.Svg.Icons.csproj" />
 	</ItemGroup>
@@ -675,7 +759,16 @@
 		<SpineControl Include="goal-alerts" Type="Toggle" DisplayName="Goal alerts" Description="Hear about every goal in the live score, or not." Icon="bell" />
 		<SpineControl Include="goal" Type="Button" DisplayName="Score a goal" Description="A goal for the Owls in the running game, without opening the app." Icon="hockey.puck" />
 	</ItemGroup>
+	<!-- The AI client page's on-device model: Apple Intelligence, from the .NET 10 preview of Essentials.AI (Q24). -->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+		<PackageReference Include="Microsoft.Maui.Essentials.AI" />
+	</ItemGroup>
+	<PropertyGroup>
+		<!-- Essentials.AI marks its types as an evaluation preview. -->
+		<NoWarn>$(NoWarn);MAUIAI0001</NoWarn>
+	</PropertyGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Common\build\Plugin.Maui.Spine.Common.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.Biometrics\build\Plugin.Maui.Spine.Biometrics.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.BackgroundTasks\build\Plugin.Maui.Spine.BackgroundTasks.targets" />
 

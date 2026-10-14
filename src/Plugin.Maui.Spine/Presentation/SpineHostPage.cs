@@ -74,6 +74,7 @@ public partial class SpineHostPage : ContentPage, ISpineHost, IDisposable
 
         _sheets = new BottomSheetCoordinator(this, bottomSheetFrameView, hostProvider);
         _sheets.IsSheetActiveChanged += () => ActiveRegionChanged?.Invoke();
+        ActiveRegionChanged += SpineScreen.Update;
     }
 
     /// <inheritdoc/>

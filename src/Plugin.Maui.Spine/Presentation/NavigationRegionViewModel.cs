@@ -99,6 +99,9 @@ internal partial class NavigationRegionViewModel : ObservableObject
         // subscription follows the page.
         if (e.PropertyName is nameof(CurrentRegionViewModel) or nameof(PrimaryPageAction))
             WatchPageActions(CurrentRegionViewModel);
+
+        if (e.PropertyName is nameof(CurrentRegionViewModel) or nameof(BackView))
+            SpineScreen.Update();
     }
 
     void WatchPageActions(ViewModelBase? viewModel)

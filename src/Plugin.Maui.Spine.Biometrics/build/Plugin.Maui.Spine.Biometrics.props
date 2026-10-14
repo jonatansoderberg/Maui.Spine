@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseSpineBiometrics() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Biometrics" Register="Plugin.Maui.Spine.Biometrics.SpineBiometricsExtensions.UseSpineBiometrics" />
+	</ItemGroup>
+</Project>

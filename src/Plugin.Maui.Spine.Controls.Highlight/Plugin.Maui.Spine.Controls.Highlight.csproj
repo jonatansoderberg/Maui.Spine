@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+
+		<AssemblyName>Plugin.Maui.Spine.Controls.Highlight</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Controls</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Highlights for any .NET MAUI view: a moving rainbow rim while a model works (Edge), rings that say "tap here" (Pulse), a light sweep (Sheen), a point of light along the border (Trace) and a breathing halo (Breathe), spotlight tours over views, header actions and tabs, and a glow round the whole window that can follow a level. Native layers on each platform, once, a number of times, forever or until tapped, once per install with a key, still under Reduce Motion.</Description>
+		<SpineIcon>highlight.png</SpineIcon>
+		<PackageTags>$(PackageTags);highlight;glow;onboarding;coachmark;pulse;controls</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AsyncAwaitBestPractices" />
+		<PackageReference Include="Microsoft.Maui.Controls" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
+	</ItemGroup>
+
+	<!-- Declares the package to UseSpine(); see Plugin.Maui.Spine's build\Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
+</Project>
