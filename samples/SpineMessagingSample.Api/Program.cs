@@ -1,16 +1,32 @@
 using System.Security.Cryptography;
+using Microsoft.Extensions.AI;
+using OpenAI;
 using OpenTelemetry.Trace;
+using Plugin.Maui.Spine.Server.AI;
+using Plugin.Maui.Spine.Server.AI.Assets;
 using Plugin.Maui.Spine.Server.Messaging;
 using SpineMessagingSample;
+using SpineMessagingSample.Api;
 
 // Publishes every kind of message, and handles the "receipts" and "flaky" subscribers with pumps of its own. The
-// Functions app handles "work". Try it from send.http, and watch the Aspire dashboard's traces and logs.
+// Functions app handles "work". It also serves generated postcards (GET /ai/assets/Postcard/{city}), made by its own
+// "spine-ai-assets" pump once an OpenAI key is set. Try it from send.http, and watch the Aspire dashboard's traces and logs.
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddSampleTelemetry();
 builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing.AddAspNetCoreInstrumentation());
 builder.Services.AddSampleMessaging(builder.Configuration);
-builder.Services.AddSpineMessagePump("receipts", "flaky");
+builder.Services.AddSpineMessagePump("receipts", "flaky", GeneratedAssetMessagingExtensions.DefaultSubscriber);
+
+// Without Ai:Providers:openai:ApiKey the feature is off: lookups answer 404 { "off": "notConfigured" } and order nothing.
+builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai => ai
+    .Image("openai", (p, model) => new OpenAIClient(p["ApiKey"]).GetImageClient(model).AsIImageGenerator())
+    .UseInMemoryUsageStore());
+builder.Services.AddSpineAIAssets(builder.Configuration.GetSection("Ai"), assets =>
+{
+    assets.Asset<string, PostcardPrompt>("Postcard").Check<PostcardCheck>();
+    assets.UseAzureBlobStore();
+});
 
 var app = builder.Build();
 
@@ -20,6 +36,8 @@ app.MapGet("/", (MessageTopology topology) => new
 });
 
 app.MapGet("/health", () => "ok");
+
+app.MapSpineAIAssets();
 
 // A picture of the given size, at normal or high priority. Above about 46 KB on Storage (192 KB on Service Bus) it
 // goes through blob storage.

@@ -237,3 +237,5 @@ Server-sent events stream through the Functions host one update at a time. This 
 ## Sample
 
 The push sample server (`samples/MauiSpinePushNotificationsSampleApp.Server`) registers a `demo` provider that needs no key, plus Anthropic and OpenAI. Its `send.http` has requests for an exposed feature (JSON and streamed), a feature the server owns, a picture, and the report.
+
+Images that should be made once and kept, rather than per call, go through [Generated assets](ai-assets.md).
