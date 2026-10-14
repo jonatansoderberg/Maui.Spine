@@ -91,6 +91,14 @@ None. The owner answered both on 2026-10-14; see Decisions.
   - `docs/wiki/ai-client.md`: a Generated images section, `AssetsBackend`, and the sample.
   - `docs/wiki/ai-assets.md`, the package README, README, `packages.md` and the `spine-setup` skill.
   - The plan: 2.3b Done, 2.3c In review, Decisions, the backlog, two test recipes.
+- PR #545. `/code-review` found 6 things; fixed 5:
+  - a recycled cell rebound while detached no longer keeps the last key's Ready image (it starts over from None);
+  - a watch that gives up while pending shows failed instead of a spinner that never ends;
+  - a pending answer without `Retry-After` waits `AIAssetWatch.Interval` (15 s), not the 2 s minimum;
+  - a key with an empty segment is not found without a request, instead of looking like a missing route;
+  - the longest-wait test steps the fake clock only after each lookup, instead of after fixed real delays.
+  - Skipped: retrying after a network blip inside `GeneratedImage`. Failed is documented to cover an unreachable backend, and the next load asks again.
+  - 40 tests pass, three runs in a row.
 
 ## Decisions
 
@@ -100,3 +108,4 @@ None. The owner answered both on 2026-10-14; see Decisions.
 - **2026-10-14, Claude:** `SpineAIOptions.AssetsBackend`, defaulting to `Backend`. **Why:** the Showcase's features run on the push sample server (5100) and its images on the messaging sample (5240), and a real app can serve images from a Functions app of its own.
 - **2026-10-14, Claude:** The Showcase uses an `ActivityIndicator` as the pending view, not a `Shimmer`. **Why:** a `Shimmer` around an empty `Border` in the card's grid, inside a `BindableLayout` template, drew nothing, even always loading and with an explicit height. That is a Shimmer question for another issue.
 - **2026-10-14, Claude:** A watch's waits run on the runtime's `TimeProvider`, so the tests move a fake clock instead of sleeping.
+- **2026-10-14, Claude (review):** A `GeneratedImage` whose watch ends while still pending (after `MaxWait`) shows failed. **Why:** the issue asks for the failed state rather than an endless spinner; the next load asks again.

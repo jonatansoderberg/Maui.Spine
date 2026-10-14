@@ -221,22 +221,40 @@ public sealed class AssetClientTests : IAsyncLifetime
     [Fact]
     public async Task A_watch_ends_pending_after_its_longest_wait()
     {
-        var answers = new List<AIAsset>();
-        var watching = Task.Run(async () =>
-        {
-            await foreach (var asset in _assets.WatchAsync("Postcard", "visby", new AIAssetWatch { MaxWait = TimeSpan.FromSeconds(40) }))
-                answers.Add(asset);
-        });
+        await using var watch = _assets.WatchAsync("Postcard", "visby", new AIAssetWatch { MaxWait = TimeSpan.FromSeconds(40) }).GetAsyncEnumerator();
 
-        for (var i = 0; i < 10 && !watching.IsCompleted; i++)
+        Assert.True(await watch.MoveNextAsync());
+        var first = watch.Current;
+        var next = watch.MoveNextAsync().AsTask();
+
+        // Each step waits for the lookup the last one caused, so the fake clock never moves under a watch that is not waiting yet.
+        for (var asked = 2; asked <= 3; asked++)
         {
-            await Task.Delay(50);
+            await WhenAskedAsync(asked - 1);
             _time.Advance(TimeSpan.FromSeconds(15));
         }
-        await watching.WaitAsync(TimeSpan.FromSeconds(5));
+        await WhenAskedAsync(3);
 
-        Assert.Equal(AIAssetStatus.Pending, Assert.Single(answers).Status);
+        // Nothing changed after the first answer, so the watch ends without yielding again.
+        Assert.False(await next.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(AIAssetStatus.Pending, first.Status);
         Assert.Equal(3, _seen.Count);
+    }
+
+    [Fact]
+    public async Task An_empty_segment_is_not_found_without_asking()
+    {
+        Assert.Equal(AIAssetStatus.NotFound, (await _assets.LookUpAsync("Postcard", "/visby")).Status);
+        Assert.Empty(_seen);
+    }
+
+    private async Task WhenAskedAsync(int count)
+    {
+        for (var i = 0; i < 200 && _seen.Count < count; i++)
+            await Task.Delay(10);
+        Assert.True(_seen.Count >= count, $"Expected {count} lookups, saw {_seen.Count}.");
+        // The watch registers its delay right after the answer; give it the turn.
+        await Task.Delay(20);
     }
 
     [Fact]

@@ -42,6 +42,9 @@ public sealed class AIAssetWatch
     /// <summary>The shortest wait between two questions, whatever the server says. Two seconds by default.</summary>
     public TimeSpan MinInterval { get; init; } = TimeSpan.FromSeconds(2);
 
+    /// <summary>The wait when the server gives no <c>Retry-After</c>. 15 seconds by default.</summary>
+    public TimeSpan Interval { get; init; } = TimeSpan.FromSeconds(15);
+
     /// <summary>The longest wait between two questions. One minute by default.</summary>
     public TimeSpan MaxInterval { get; init; } = TimeSpan.FromMinutes(1);
 
@@ -71,7 +74,8 @@ public interface IAIAssets
     /// <summary>
     /// Asks, and asks again while the image is pending or rate limited, after the server's <c>Retry-After</c>. Yields the
     /// first answer and each change of status. Ends at ready, failed, not found or off, or after
-    /// <see cref="AIAssetWatch.MaxWait"/>. In the app, it waits while the app is in the background.
+    /// <see cref="AIAssetWatch.MaxWait"/> with its last answer still pending. In the app, it waits while the app is in
+    /// the background.
     /// </summary>
     /// <param name="feature">The asset feature's name on the server.</param>
     /// <param name="key">The image's key.</param>
@@ -91,8 +95,13 @@ internal sealed class AIAssets(SpineAIRuntime runtime) : IAIAssets
             ?? throw new InvalidOperationException(
                 $"Generated images come from the server, but neither SpineAIOptions.AssetsBackend nor Backend is set. Set one in UseSpineAI to the prefix given to MapSpineAIAssets.");
 
+        // An empty segment would miss the server's route and look like a wrong backend; no server key has one.
+        var segments = key.Split('/');
+        if (segments.Any(s => s.Length == 0))
+            return new AIAsset(AIAssetStatus.NotFound);
+
         // Each segment is escaped, and the '/' between them is kept: the server's route takes the rest of the path as the key.
-        var path = string.Join('/', key.Split('/').Select(Uri.EscapeDataString));
+        var path = string.Join('/', segments.Select(Uri.EscapeDataString));
         var url = new Uri($"{backend.ToString().TrimEnd('/')}/assets/{Uri.EscapeDataString(feature)}/{path}");
 
         try
@@ -157,7 +166,7 @@ internal sealed class AIAssets(SpineAIRuntime runtime) : IAIAssets
                 yield break;
 
             var now = time.GetUtcNow();
-            var wait = asset.RetryAfter is { } at ? at - now : watch.MinInterval;
+            var wait = asset.RetryAfter is { } at ? at - now : watch.Interval;
             wait = TimeSpan.FromTicks(Math.Clamp(wait.Ticks, watch.MinInterval.Ticks, Math.Max(watch.MinInterval.Ticks, watch.MaxInterval.Ticks)));
             if (now + wait > until)
                 yield break;

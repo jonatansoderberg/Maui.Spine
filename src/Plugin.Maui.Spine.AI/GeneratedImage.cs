@@ -137,9 +137,13 @@ public static class GeneratedImage
             return;
         }
 
-        // Started from Loaded: a view in a list that is built but never shown asks nothing.
+        // Started from Loaded: a view in a list that is built but never shown asks nothing. A recycled cell rebound
+        // while detached must not keep the last key's image, so it starts over from nothing.
         if (!image.IsLoaded)
+        {
+            Show(image, GeneratedImageStatus.None, null, null);
             return;
+        }
 
         var services = image.Handler?.MauiContext?.Services ?? Application.Current?.Handler?.MauiContext?.Services;
         if (services?.GetService<IAIAssets>() is not { } assets)
@@ -160,8 +164,10 @@ public static class GeneratedImage
     {
         try
         {
+            AIAsset? last = null;
             await foreach (var asset in assets.WatchAsync(feature, key, cancellationToken: cancellationToken))
             {
+                last = asset;
                 image.Dispatcher.Dispatch(() =>
                 {
                     if (cancellationToken.IsCancellationRequested)
@@ -174,6 +180,17 @@ public static class GeneratedImage
                         _ => GeneratedImageStatus.Failed,
                     };
                     Show(image, status, asset, asset.Url);
+                });
+            }
+
+            // The watch gave up while the image was still being made: failed rather than a spinner that never ends.
+            // The next time the image is loaded, it asks again.
+            if (last?.Status is AIAssetStatus.Pending or AIAssetStatus.RateLimited)
+            {
+                image.Dispatcher.Dispatch(() =>
+                {
+                    if (!cancellationToken.IsCancellationRequested)
+                        Show(image, GeneratedImageStatus.Failed, last, null);
                 });
             }
         }

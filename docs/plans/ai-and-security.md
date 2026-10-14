@@ -115,7 +115,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
 | 2.3a | `Server.Messaging`: a general queue layer with Storage Queues and Service Bus transports, large payloads in blob storage, routing, priority, scheduling and cleanup | #540 | none | Done | #541 | Moved out of #511 by the owner on 2026-10-13, and taken first. |
 | 2.3b | Generated-asset pipeline: `Server.AI.Assets` | #511 | 2.1, 2.3a | Done | #544 | Its own package on `Server.AI` and `Server.Messaging` (Decisions). Lookup 200/202/502, the app's prompt and check, versioned blob paths with `?v=`, failure records with a cool-down, per-caller order limits. Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
-| 2.3c | Asset lookup in the app: polling on 202, a placeholder, the failed state | #543 | 2.3b | In review | | Split from #511 by the owner on 2026-10-14. `IAIAssets` (`LookUpAsync`, `WatchAsync`) and `GeneratedImage` attached properties on `Image` in `Plugin.Maui.Spine.AI`; the Showcase's Generated images page (Decisions). |
+| 2.3c | Asset lookup in the app: polling on 202, a placeholder, the failed state | #543 | 2.3b | In review | #545 | Split from #511 by the owner on 2026-10-14. `IAIAssets` (`LookUpAsync`, `WatchAsync`) and `GeneratedImage` attached properties on `Image` in `Plugin.Maui.Spine.AI`; the Showcase's Generated images page (Decisions). |
 | 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Done | #536 | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
 | 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | Done | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
 | 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | Done | #539 | `ChatView` and a separate `ChatComposer` in the page footer (Decisions). Renders answers with `MarkdownView`. |
@@ -450,7 +450,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
-- **2026-10-14:** #511 merged (PR #544). #543 (the asset lookup in the app) in review.
+- **2026-10-14:** #511 merged (PR #544). #543 (the asset lookup in the app) in review as PR #545.
 - **2026-10-14:** #540 merged (PR #541). #511 (generated assets) in review as PR #544, its own package; its app side split out as #543.
 - **2026-10-12:** #530 merged (PR #533). #531 (the window edge glow) in review as PR #534: Highlight's last step.
 - **2026-10-12:** #509 merged (PR #532). #530 (Spotlight and tours) in review as PR #533.

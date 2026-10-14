@@ -117,9 +117,9 @@ On any `Image`:
        GeneratedImage.FailedView="{x:Reference failed}" />
 ```
 
-- **While pending,** the placeholder shows, and the server is asked again after its `Retry-After` (between 2 seconds and a minute), for at most 10 minutes. The image shows as soon as it is ready. With `Plugin.Maui.Spine.Images` its URL goes through the image cache, and the URL changes when the server makes the image again.
+- **While pending,** the placeholder shows, and the server is asked again after its `Retry-After` (between 2 seconds and a minute; 15 seconds when the server gives none), for at most 10 minutes. After that the image shows as failed instead of a spinner that never ends, and the next time it is shown it asks again. The image shows as soon as it is ready. With `Plugin.Maui.Spine.Images` its URL goes through the image cache, and the URL changes when the server makes the image again.
 - **Off screen and in the background nothing is asked.** An image starts when it is loaded, stops when it is unloaded, and waits while the app's window is stopped. On Mac Catalyst a minimised window raises no `Stopped`, so it keeps asking there.
-- **Failed** covers an image the server could not make, an unknown key, a feature that is off and a backend that cannot be reached. `FailedSource` shows, or the placeholder when it is unset. The watch ends there and does not wait out the server's cool-down: the next time the image is shown, it asks again.
+- **Failed** covers an image the server could not make, an unknown key, a feature that is off, a backend that cannot be reached, and an image not made within the watch. `FailedSource` shows, or the placeholder when it is unset. The watch ends there and does not wait out the server's cool-down: the next time the image is shown, it asks again.
 - **`PendingView` and `FailedView`** are other views, given with `{x:Reference}`, that the image shows and hides itself. They are declared before the image in the markup. MAUI bindings cannot follow an attached property, so `{Binding Path=(GeneratedImage.Status)}` does not work. The read-only `GeneratedImage.Status` and `GeneratedImage.Asset` are for the image's own triggers and for code.
 
 In code, `IAIAssets` gives the same answers:
@@ -136,7 +136,7 @@ public partial class PostcardViewModel(IAIAssets assets) : ViewModelBase
 ```
 
 - `LookUpAsync` asks once.
-- `WatchAsync` asks again while the image is pending or rate limited, yields each change, and ends at ready, failed, not found or off. `AIAssetWatch` sets the intervals.
+- `WatchAsync` asks again while the image is pending or rate limited, yields each change, and ends at ready, failed, not found or off. `AIAssetWatch` sets the intervals. A key with an empty segment is not found without asking.
 - A route that does not exist (a wrong backend, or a server without `MapSpineAIAssets`) throws `HttpRequestException` with the URL, as the features do.
 
 The lookups go to `AssetsBackend` when it is set, for images served by another service such as a Functions app of their own, and otherwise to `Backend`. They carry the same `Authorization` and installation headers as the features, so the server's per-installation order limit applies.
