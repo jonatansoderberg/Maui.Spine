@@ -54,7 +54,7 @@ Plain MAUI drawing (`GraphicsView`, the Animation API); no native views, no Skia
 | `StyleOptions` | A `ShimmerStyleOptions` for this shimmer |
 | `RefreshPlaceholders()` | Scans the placeholders again, after changing a block's colour or shape from code |
 
-**The blocks** are every `BoxView`, every `Border` without content and every childless element with a visible background. A block with no colour of its own (a `Border` without `BackgroundColor`, as above) is filled with the theme's placeholder colour; one with a colour keeps it. Corner radii come from a `RoundRectangle` or `Ellipse` stroke shape and `BoxView.CornerRadius`, and a `ScrollView`'s offset is taken into account. A skeleton with no blocks at all gets the band over its whole area.
+**The blocks** are every `BoxView`, every `Border` without content and every childless element with a visible background. The placeholder layout itself counts too, so a `Shimmer` around a single empty `Border` is one block. A block with no colour of its own (a `Border` without `BackgroundColor`, as above) is filled with the theme's placeholder colour; one with a colour keeps it. Corner radii come from a `RoundRectangle` or `Ellipse` stroke shape and `BoxView.CornerRadius`, each corner on its own (`RoundRectangle 12,12,0,0` keeps a square bottom), and a `ScrollView`'s offset is taken into account. A skeleton with no blocks at all gets the band over its whole area.
 
 Size changes anywhere in the skeleton and views added or removed are noticed on their own; the scan runs after the layout pass has finished, so a block sized by its parent is measured at its final size.
 

@@ -207,7 +207,7 @@ internal sealed class SkeletonOverlay : GraphicsView
         if (_skeletonRoot is null)
             CollectLeaves(_host, 0, 0);
         else if (_skeletonRoot() is { } skeleton)
-            CollectPlaceholders(skeleton, skeleton.Frame.X, skeleton.Frame.Y);
+            CollectPlaceholder(skeleton, skeleton.Frame.X, skeleton.Frame.Y);
 
         _drawable.InvalidatePlaceholders();
         Invalidate();
@@ -403,28 +403,33 @@ internal sealed class SkeletonOverlay : GraphicsView
         ((IVisualTreeElement)element).GetVisualChildren().OfType<VisualElement>().Where(c => c is not Shape and not SkeletonOverlay);
 
     // Shimmer: BoxViews, empty Borders and childless elements with a background are the blocks.
+    // The placeholder layout itself is one too when it is a single block.
+    private void CollectPlaceholder(VisualElement element, double x, double y)
+    {
+        // Every element on the way down is watched: a block sized by its parent is re-arranged
+        // after the root's own SizeChanged, and only its own event says the bounds went stale.
+        Track(element);
+
+        if (element.Frame.Width <= 0 || element.Frame.Height <= 0)
+            return;
+
+        if (IsPlaceholder(element))
+        {
+            var rect = new RectF((float)x, (float)y, (float)element.Frame.Width, (float)element.Frame.Height);
+            _drawable.Placeholders.Add(new Placeholder(rect, OwnCornerRadius(element, rect), !HasOwnPaint(element)));
+        }
+        else
+        {
+            CollectPlaceholders(element, x, y);
+        }
+    }
+
     private void CollectPlaceholders(VisualElement element, double x, double y)
     {
         foreach (var child in WalkableChildren(element))
         {
-            // Every element on the way down is watched: a block sized by its parent is re-arranged
-            // after the root's own SizeChanged, and only its own event says the bounds went stale.
-            Track(child);
-
-            if (child.Frame.Width <= 0 || child.Frame.Height <= 0)
-                continue;
-
             var (cx, cy) = Offset(element, child, x, y);
-
-            if (IsPlaceholder(child))
-            {
-                var rect = new RectF((float)cx, (float)cy, (float)child.Frame.Width, (float)child.Frame.Height);
-                _drawable.Placeholders.Add(new Placeholder(rect, OwnCornerRadius(child, rect), !HasOwnPaint(child)));
-            }
-            else
-            {
-                CollectPlaceholders(child, cx, cy);
-            }
+            CollectPlaceholder(child, cx, cy);
         }
     }
 
@@ -441,12 +446,12 @@ internal sealed class SkeletonOverlay : GraphicsView
         _ => element.BackgroundColor is { Alpha: > 0 } || !Brush.IsNullOrEmpty(element.Background),
     };
 
-    private static float OwnCornerRadius(VisualElement element, RectF rect) => element switch
+    private static CornerRadius OwnCornerRadius(VisualElement element, RectF rect) => element switch
     {
-        Border { StrokeShape: RoundRectangle round } => (float)round.CornerRadius.TopLeft,
+        Border { StrokeShape: RoundRectangle round } => round.CornerRadius,
         Border { StrokeShape: Ellipse } => Math.Min(rect.Width, rect.Height) / 2,
-        BoxView box => (float)box.CornerRadius.TopLeft,
-        _ => 0f,
+        BoxView box => box.CornerRadius,
+        _ => default,
     };
 
     // Skeleton layout: containers keep drawing, every other view is hidden and becomes a block.
@@ -592,8 +597,8 @@ internal sealed class SkeletonOverlay : GraphicsView
         var block = new RectF((float)x, (float)y, (float)blockWidth, (float)frame.Height);
 
         // A view that is a Border's only content (an avatar in a circle) takes the border's shape.
-        var shaped = view.Parent is Border border && border.Content == view ? OwnCornerRadius(border, block) : 0f;
-        _drawable.Placeholders.Add(new Placeholder(block, shaped > 0 ? shaped : Math.Min(radius, Math.Min(block.Width, block.Height) / 2), true));
+        var shaped = view.Parent is Border border && border.Content == view ? OwnCornerRadius(border, block) : default;
+        _drawable.Placeholders.Add(new Placeholder(block, shaped != default ? shaped : Math.Min(radius, Math.Min(block.Width, block.Height) / 2), true));
     }
 
     /// <summary>
