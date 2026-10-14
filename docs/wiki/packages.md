@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as twenty-seven NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as twenty-eight NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -28,6 +28,7 @@ Spine ships as twenty-seven NuGet packages built from this repository, one per p
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
 | AI | `Plugin.Maui.Spine.AI` | [AI in the app](ai-client.md): one `IChatClient` per named feature, on the device or the server, with fallback and on-device usage | `.Common` |
 | Server | `Plugin.Maui.Spine.Server.AI` | [AI on the server](ai-server.md): named features, metering, prices, budgets and limits on Microsoft.Extensions.AI | `.Common` |
+| Server | `Plugin.Maui.Spine.Server.AI.Assets` | [Generated assets](ai-assets.md): images from a Server.AI feature made once through messaging, archived in blob storage | `.Server.AI`, `.Server.Messaging`, Azure.Storage.Blobs |
 | Server | `Plugin.Maui.Spine.Server.Messaging` | [Messaging](messaging.md): typed queues with routing, priority, scheduling, retries, large payloads and cleanup; in-memory transport | — |
 | Server | `Plugin.Maui.Spine.Server.Messaging.AzureStorage` | Storage Queues as the transport, and blob storage for payloads and failed messages | `.Server.Messaging`, Azure.Storage.Queues, Azure.Storage.Blobs |
 | Server | `Plugin.Maui.Spine.Server.Messaging.ServiceBus` | Azure Service Bus as the transport | `.Server.Messaging`, `.Server.Messaging.AzureStorage`, Azure.Messaging.ServiceBus |
@@ -46,6 +47,7 @@ PushNotifications                                    AnimatedLabel
   Images ──► Common
   AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
   Server.Messaging ◄── Server.Messaging.AzureStorage ◄── Server.Messaging.ServiceBus
+  Server.AI, Server.Messaging ◄── Server.AI.Assets (and Azure.Storage.Blobs)
 ```
 
 ## Which packages for which app
@@ -67,6 +69,7 @@ PushNotifications                                    AnimatedLabel
 | Markdown text: help, release notes, chat answers | `Plugin.Maui.Spine.Controls.Markdown` (brings the core and Markdig) |
 | Language models in the app, on the device or through the app's server | `Plugin.Maui.Spine.AI` (brings `.Common`; the core is not required), plus the app's own on-device client such as Microsoft.Maui.Essentials.AI |
 | Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
+| Generated images made once and served from storage, ordered when missing | `Plugin.Maui.Spine.Server.AI.Assets` beside `.Server.AI` and a messaging transport |
 | Queues on the server: work handled by Azure Functions or a hosted pump | `Plugin.Maui.Spine.Server.Messaging.AzureStorage` (or `.ServiceBus`) in each server project that publishes or handles |
 | A domain or test project that builds widget trees without MAUI | `Plugin.Maui.Spine.Common` |
 | A server or test project that encodes barcodes or reads a light grid | `Plugin.Maui.Spine.Barcodes` (its `net10.0` build has no MAUI) |
@@ -139,7 +142,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 | `Plugin.Maui.Spine.Barcodes` | `net10.0` (encoding, `LightGridReader`) and the four MAUI frameworks (adding `BarcodeView`) |
 | `Plugin.Maui.Spine.Images` | `net10.0` (the disk cache only, for tests) and the four MAUI frameworks |
 | `Plugin.Maui.Spine.AI` | `net10.0` (the server client, the fallback chain and the meter, for tests and non-MAUI clients) and the four MAUI frameworks (adding `UseSpineAI`) |
-| `Plugin.Maui.Spine.Svg.Icons`, `Plugin.Maui.Spine.Common`, `Plugin.Maui.Spine.Server`, `Plugin.Maui.Spine.Server.AI`, `Plugin.Maui.Spine.Server.Messaging` and its two transports | `net10.0` |
+| `Plugin.Maui.Spine.Svg.Icons`, `Plugin.Maui.Spine.Common`, `Plugin.Maui.Spine.Server`, `Plugin.Maui.Spine.Server.AI`, `Plugin.Maui.Spine.Server.AI.Assets`, `Plugin.Maui.Spine.Server.Messaging` and its two transports | `net10.0` |
 
 Platform minimums: Android API 21 (API 23 with `Plugin.Maui.Spine.PushNotifications`, which Firebase requires, and with `Plugin.Maui.Spine.Scanner`, which CameraX requires), iOS 15, Mac Catalyst 15, Windows 10 17763.
 

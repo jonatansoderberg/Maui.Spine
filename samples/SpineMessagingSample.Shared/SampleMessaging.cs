@@ -6,6 +6,7 @@ using OpenTelemetry;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Plugin.Maui.Spine.Server.AI.Assets;
 using Plugin.Maui.Spine.Server.Messaging;
 using Plugin.Maui.Spine.Server.Messaging.AzureStorage;
 using Plugin.Maui.Spine.Server.Messaging.ServiceBus;
@@ -36,6 +37,9 @@ public static class SampleMessaging
             // Handled by pumps in the API.
             m.Subscriber("receipts", s => s.Handles<SendReceipt>());
             m.Subscriber("flaky", s => s.Handles<FlakyJob>().Retry(3, first: TimeSpan.FromSeconds(2)));
+
+            // Generated postcards: ordered and made by the API (Plugin.Maui.Spine.Server.AI.Assets).
+            m.AddGeneratedAssets();
         });
 
         services.AddMessageHandler<ResizeImage, ResizeImageHandler>();

@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-13 (step 2.5b `Controls.Chat` merged as #539; step 2.3a `Server.Messaging` (#540) in review as #541, ahead of the asset pipeline, now 2.3b; see Verification backlog)
+**Last updated:** 2026-10-14 (step 2.3a `Server.Messaging` merged as #541; step 2.3b generated assets (#511) in review as its own package `Server.AI.Assets`; the app side split out as 2.3c, #543; see Decisions and Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -47,9 +47,10 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
-| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #511, #517 | [ai §3–§6](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 Ready; #511 waits on #540 |
-| `Plugin.Maui.Spine.Server.Messaging` (+ `.AzureStorage`, `.ServiceBus`) | New, server | #540 | — (design in `issues/540-*.md`, docs in `docs/wiki/messaging.md`) | #540 in review (#541) |
-| `Plugin.Maui.Spine.AI` | New | #512 | [ai §7](../proposals/spine-ai.md) | Done (#536) |
+| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #517 | [ai §3–§5](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 Ready |
+| `Plugin.Maui.Spine.Server.AI.Assets` | New, server | #511 | [ai §6](../proposals/spine-ai.md) | #511 in review |
+| `Plugin.Maui.Spine.Server.Messaging` (+ `.AzureStorage`, `.ServiceBus`) | New, server | #540 | — (design in `issues/540-*.md`, docs in `docs/wiki/messaging.md`) | Done (#541) |
+| `Plugin.Maui.Spine.AI` | New | #512, #543 | [ai §7](../proposals/spine-ai.md) | #512 done (#536); #543 waits on #511 |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
@@ -72,6 +73,7 @@ graph LR
   MD[#513 Controls.Markdown] --> CHAT
   AI[#510 Server.AI] --> ASSET[#511 Generated assets]
   MSG[#540 Server.Messaging] --> ASSET
+  ASSET --> ASSETC[#543 Asset lookup in the app]
   AI --> CL[#512 Spine.AI client]
   AI --> RT[#517 Realtime sessions]
   VE[#515 Audio engine spike] --> VO[#516 Voice adapters and VoiceView]
@@ -111,8 +113,9 @@ The order follows value against risk. Steps in different phases can run in paral
 |---|---|---|---|---|---|---|
 | 2.1 | `Server.AI`: named features, provider plug-and-play, metering, cost, budgets, cache, rate limits | #510 | 0.2 | Done | #535 | Signed-in user from #520 when present, otherwise the installation id with tighter limits (Q19). Azure storage inside the package (Q20). |
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
-| 2.3a | `Server.Messaging`: a general queue layer with Storage Queues and Service Bus transports, large payloads in blob storage, routing, priority, scheduling and cleanup | #540 | none | In review | #541 | Moved out of #511 by the owner on 2026-10-13, and taken first. |
-| 2.3b | Generated-asset pipeline | #511 | 2.1, 2.3a | Waiting | | Orders and generates through `Server.Messaging`. Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
+| 2.3a | `Server.Messaging`: a general queue layer with Storage Queues and Service Bus transports, large payloads in blob storage, routing, priority, scheduling and cleanup | #540 | none | Done | #541 | Moved out of #511 by the owner on 2026-10-13, and taken first. |
+| 2.3b | Generated-asset pipeline: `Server.AI.Assets` | #511 | 2.1, 2.3a | In review | | Its own package on `Server.AI` and `Server.Messaging` (Decisions). Lookup 200/202/502, the app's prompt and check, versioned blob paths with `?v=`, failure records with a cool-down, per-caller order limits. Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
+| 2.3c | Asset lookup in the app: polling on 202, a placeholder, the failed state | #543 | 2.3b | Waiting | | Split from #511 by the owner on 2026-10-14. In `Plugin.Maui.Spine.AI`, with a pattern for `Plugin.Maui.Spine.Images`. |
 | 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Done | #536 | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
 | 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | Done | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
 | 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | Done | #539 | `ChatView` and a separate `ChatComposer` in the page footer (Decisions). Renders answers with `MarkdownView`. |
@@ -190,6 +193,10 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.3a (#540) | Functions on Azure: scale-out per lane, a high lane overtaking a normal backlog under load, `maxAutoLockRenewalDuration` for long handlers, and the Storage trigger's `-poison` queue rescued by the janitor (only Service Bus's dead-letter queue was rescued end to end) | A deployed Functions app | A flood of normal pictures, then a few high ones; a handler that kills the process |
 | 2.3a (#540) | Throughput on the cloud services. Locally the emulators set the pace (Azurite about 75 handled/s at 10,000 queued, the Service Bus emulator about 70/s; the pump alone 16,000/s in memory) | Azure | `ThroughputTests` with `SPINE_MESSAGING_THROUGHPUT=1` against Azure connection strings |
 | 2.3a (#540) | Queue encoding `none` with Functions (host.json `"messageEncoding": "none"`), Service Bus Premium with a larger `MaxBodyBytes`, and the janitor's lease renewal past 60 s on a large purge | Azure; a store with many days of data | — |
+| 2.3b (#511) | Real Azure: a storage account that allows blob public access, the container created public, and one that forbids it stopping the host with its message; a CDN in `PublicBaseUrl`. Only Azurite was used | An Azure subscription (Orientera's) | The messaging sample's API with `ConnectionStrings:blobs` pointing at Azure |
+| 2.3b (#511) | The assets subscriber in Azure Functions (a Storage-queue trigger calling `DispatchAsync("spine-ai-assets", …)`) and `SpineAIAssetEndpoints.GetAsync` from an HTTP function. Only the ASP.NET Core pump and `MapSpineAIAssets` ran | A Functions app, locally under Aspire or on Azure | Add the two functions to `SpineMessagingSample.Functions` and order a postcard |
+| 2.3b (#511) | The messaging sample's AppHost with the key passed through `Ai__Providers__openai__ApiKey`. The real postcard was made with the API run on its own against Azurite in Docker | Docker | `Ai__Providers__openai__ApiKey=… dotnet run --project samples/SpineMessagingSample.AppHost`, then `send.http` |
+| 2.3b (#511) | A model that answers with a URL (`UriContent`) rather than bytes: the handler downloads it. OpenAI's gpt-image models answer with bytes | Such a provider | — |
 | 2.4 (#512) | Windows at run time (only compiled), and Mac Catalyst at run time (only built) | A Windows machine; the Mac app | Showcase AI client page against the push sample server |
 | 2.4 (#512) | A release build on a phone over the network: cleartext is off there, and the client was checked only against `http://localhost` in Debug | A phone and an HTTPS backend (Orientera after step 2.2) | Any feature through `https` |
 
@@ -229,6 +236,7 @@ These are behaviours that are merged but have not been seen working. Take one wh
   - **To check streaming,** record `simctl io recordVideo`, extract frames at 4 fps with ffmpeg, and count the dark pixels of the answer's card per frame. The count grows frame by frame while the text streams.
   - **Clean up afterwards.** The client writes the installation id to `SecureStorage` (`spine.push.installation-id`), which the Showcase never sets otherwise. Remove it with a harness command (`SecureStorage.Default.Remove`) on both platforms, then install a clean build.
 - **`Server.AI` tests against Azurite.** Run `~/.npm-global/bin/azurite-table --inMemoryPersistence --tablePort 10002`, then `dotnet test tests/Plugin.Maui.Spine.Server.AI.Tests`. The Azurite facts skip when nothing listens on 10002.
+- **Generated assets end to end.** Run Azurite in Docker (`docker run -d --name … -p 10000-10002:10000-10002 mcr.microsoft.com/azure-storage/azurite azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --skipApiVersionCheck`), then the messaging sample's API alone with `ConnectionStrings__blobs` and `ConnectionStrings__queues` set to `UseDevelopmentStorage=true` and the OpenAI key in `Ai__Providers__openai__ApiKey`. Poll `GET /ai/assets/Postcard/visby` until 200, then fetch the URL without credentials. One `gpt-image-1-mini` postcard at 1024x1024 was a 2.5 MB PNG. `dotnet test tests/Plugin.Maui.Spine.Server.AI.Assets.Tests` runs its Azurite facts against the same container. Remove the container afterwards.
 - **Provider keys for live calls without printing them.** Read OpenAI's key from `~/.config/openai.env` into an environment variable inside the command that needs it, for example `Ai__Providers__openai__ApiKey`. List the names of keys in a settings file, never their values (see the memory "Secret names only").
 
 ## Decisions
@@ -323,6 +331,16 @@ Newest last. Each entry is dated and says who decided.
   - Failed messages are kept in blob storage for every transport, and the janitor moves dead letters there.
   - The Service Bus emulator is provisioned on its management port (5300; Aspire's `emulatorhealth` endpoint).
   - The details and the reasons are in `issues/540-*.md`.
+- **2026-10-14, owner (#511):**
+  - Generated assets are their own package, `Plugin.Maui.Spine.Server.AI.Assets`, not part of `Server.AI`, so an app with only chat does not pull in Messaging and Blobs.
+  - A failed image answers 502 with `{ status: "failed", reason, retryAfter }` and `Retry-After`; ready is 200 and pending 202.
+  - Images are served from a public-read container, with an optional `PublicBaseUrl` for a CDN, not SAS URLs, which change on every lookup and break the app's URL cache.
+  - #511 is the server only; the app's lookup is #543 (step 2.3c).
+- **2026-10-14, Claude (#511):**
+  - The app's prompt also says which keys exist (`AcceptsAsync`), asked only before an order, and orders count against `Asset:OrdersPerMinute` per caller. **Why:** the lookup can be anonymous, and without both anyone could spend the image budget on made-up keys.
+  - Failure records live in a private container beside the images, and the order after a cool-down gets a deduplication id of its own (`feature|version|key|{failedAt ticks}`). **Why:** the first order's id is still held for its window, so a re-order with the same id would be a silent duplicate.
+  - An archived image is served even while its feature is off or over budget. **Why:** it costs nothing to serve.
+  - The details are in `issues/511-*.md`.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
@@ -423,6 +441,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-14:** #540 merged (PR #541). #511 (generated assets) in review as its own package; its app side split out as #543.
 - **2026-10-12:** #530 merged (PR #533). #531 (the window edge glow) in review as PR #534: Highlight's last step.
 - **2026-10-12:** #509 merged (PR #532). #530 (Spotlight and tours) in review as PR #533.
 - **2026-10-12:** #508 merged (PR #529); phase 1 done. #509 (Highlight) split into #509, #530 and #531; #509 in review as PR #532.

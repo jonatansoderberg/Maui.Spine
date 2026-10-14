@@ -22,6 +22,7 @@
       "src\\Plugin.Maui.Spine.Scanner\\Plugin.Maui.Spine.Scanner.csproj",
       "src\\Plugin.Maui.Spine.Server\\Plugin.Maui.Spine.Server.csproj",
       "src\\Plugin.Maui.Spine.Server.AI\\Plugin.Maui.Spine.Server.AI.csproj",
+      "src\\Plugin.Maui.Spine.Server.AI.Assets\\Plugin.Maui.Spine.Server.AI.Assets.csproj",
       "src\\Plugin.Maui.Spine.Server.Messaging\\Plugin.Maui.Spine.Server.Messaging.csproj",
       "src\\Plugin.Maui.Spine.Server.Messaging.AzureStorage\\Plugin.Maui.Spine.Server.Messaging.AzureStorage.csproj",
       "src\\Plugin.Maui.Spine.Server.Messaging.ServiceBus\\Plugin.Maui.Spine.Server.Messaging.ServiceBus.csproj",
@@ -38,6 +39,7 @@
       "tests\\Plugin.Maui.Spine.Images.Tests\\Plugin.Maui.Spine.Images.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Server.Tests\\Plugin.Maui.Spine.Server.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Server.AI.Tests\\Plugin.Maui.Spine.Server.AI.Tests.csproj",
+      "tests\\Plugin.Maui.Spine.Server.AI.Assets.Tests\\Plugin.Maui.Spine.Server.AI.Assets.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Server.Messaging.Tests\\Plugin.Maui.Spine.Server.Messaging.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Svg.Tests\\Plugin.Maui.Spine.Svg.Tests.csproj"
     ]

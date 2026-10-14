@@ -17,6 +17,10 @@ var api = builder.AddProject<Projects.SpineMessagingSample_Api>("api")
     .WaitFor(blobs)
     .WithHttpHealthCheck("/health");
 
+// The API makes postcards once it has an OpenAI key: start the AppHost with Ai__Providers__openai__ApiKey set.
+if (builder.Configuration["Ai:Providers:openai:ApiKey"] is { Length: > 0 } openAIKey)
+    api.WithEnvironment("Ai__Providers__openai__ApiKey", openAIKey);
+
 var functions = builder.AddAzureFunctionsProject<Projects.SpineMessagingSample_Functions>("functions")
     .WithHostStorage(storage)
     .WithEnvironment("Messaging__Transport", transport)
