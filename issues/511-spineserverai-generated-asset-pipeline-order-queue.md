@@ -92,6 +92,15 @@ None. The owner answered the four questions on 2026-10-14; see Decisions.
 - Verified live: one `gpt-image-1-mini` postcard through the API against Azurite in Docker (202 → handled on attempt 1 → 200 with `?v=`; the URL fetched anonymously as `image/png`).
 - Docs: `docs/wiki/ai-assets.md`, the package README, README and `docs/wiki/packages.md` (28 packages), `spine-setup` skill, `ai-server.md` link, the proposal's status line, the plan (2.3a Done, 2.3b In review, 2.3c #543 added, Decisions, Verification backlog, a test recipe).
 - Follow-up issue #543 for the app side.
+- PR #544. `/code-review` found 9 things; fixed 7:
+  - the container access-level probe only logs a refusal (401/403), so a managed identity without ACL rights no longer stops the host;
+  - rate limiters are created under a lock, and one replaced after a reload is disposed with the service, not while a lookup may hold it;
+  - a key that parses but whose `ToString()` does not read back is logged once per feature, instead of every lookup being a silent "not found";
+  - `OrderWindow` defaults to 15 minutes (was 1 hour), and the host warns at startup when it is shorter than the retries can take, so a lost order answers "pending" for 15 minutes at most and a short window cannot make an image twice unnoticed;
+  - `InMemoryGeneratedAssetStore` keeps a base URL's path without a trailing slash;
+  - the sample AppHost passes the OpenAI key as a secret parameter (`openaikey`), masked in the dashboard.
+  - Skipped: reusing Messaging.AzureStorage's internal connection lookup (it would add Storage Queues as a dependency for a dozen lines), and skipping the failure-record read on pending polls (it is how a failure on another server becomes visible).
+  - 32 tests pass.
 
 ## Decisions
 
@@ -106,3 +115,4 @@ None. The owner answered the four questions on 2026-10-14; see Decisions.
 - **2026-10-14, Claude:** A spent budget or a feature that is off fails the order at once (reason `budget` or `off`), without retries. **Why:** retrying cannot help before the period ends, and every retry would ask the gate again.
 - **2026-10-14, Claude:** The `?v=` URL is written by hand, not with `UriBuilder`. **Why:** `UriBuilder.Uri` keeps `:443` in `OriginalString`, which is what JSON writes (a test caught it).
 - **2026-10-14, Claude:** The lookup's caches (ready answers, its own orders) are small dictionaries on the injected `TimeProvider`, not `MemoryCache`. **Why:** tests move the clock.
+- **2026-10-14, Claude (review):** `OrderWindow` is 15 minutes by default, with a startup warning when it is shorter than the retries can take (3 minutes per attempt plus the waits with jitter; about 11 minutes for the default 3 attempts). **Why:** an order lost without reaching the handler's last attempt leaves no failure record, so the window is how long the app sees "pending" before the next lookup orders again.

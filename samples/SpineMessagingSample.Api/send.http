@@ -35,7 +35,7 @@ POST {{api}}/failed/flaky/MESSAGE_ID/replay
 POST {{api}}/janitor
 
 ### A generated postcard: 202 while it is made (ask again after Retry-After), then 200 with the image's URL.
-### Needs an OpenAI key; without one the answer is 404 { "off": "notConfigured" }.
+### Needs an OpenAI key (the AppHost's secret parameter openaikey); without one the answer is 404 { "off": "notConfigured" }.
 GET {{api}}/ai/assets/Postcard/visby
 Spine-Installation: sample-phone
 

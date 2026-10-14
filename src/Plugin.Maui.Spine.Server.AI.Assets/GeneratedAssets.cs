@@ -37,7 +37,16 @@ public interface IGeneratedAssets
 internal sealed record GenerateAsset(string Feature, int Version, string Key);
 
 /// <summary>The subscriber that handles <see cref="GenerateAsset"/>, as declared on the messaging builder.</summary>
-internal sealed record GeneratedAssetQueue(string Subscriber, int Attempts);
+internal sealed record GeneratedAssetQueue(string Subscriber, int Attempts, TimeSpan FirstDelay, TimeSpan MaxDelay)
+{
+    /// <summary>A model call's allowance when judging whether an order outlasts its retries.</summary>
+    public static readonly TimeSpan GenerationAllowance = TimeSpan.FromMinutes(3);
+
+    /// <summary>How long an order can take at most: every attempt, and the longest waits between them with their jitter.</summary>
+    public TimeSpan LongestRun =>
+        Enumerable.Range(0, Attempts - 1).Aggregate(Attempts * GenerationAllowance, (sum, i) =>
+            sum + TimeSpan.FromTicks((long)(Math.Min(FirstDelay.Ticks * Math.Pow(2, i), MaxDelay.Ticks) * 1.2)));
+}
 
 internal sealed class GeneratedAssets(
     SpineAIAssetsOptions options,
@@ -51,7 +60,10 @@ internal sealed class GeneratedAssets(
 {
     private readonly ExpiringCache<GeneratedAsset> _ready = new(time);
     private readonly ExpiringCache<bool> _ordered = new(time);
-    private readonly ConcurrentDictionary<string, (int? SignedIn, int? Installation, PartitionedRateLimiter<AICaller> Limiter)> _limiters = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (int? SignedIn, int? Installation, PartitionedRateLimiter<AICaller> Limiter)> _limiters = new(StringComparer.OrdinalIgnoreCase);
+    // A limiter replaced after a reload may still be in use by a lookup, so it is disposed with the service, not at once.
+    private readonly List<PartitionedRateLimiter<AICaller>> _replaced = [];
+    private readonly ConcurrentDictionary<string, bool> _warnedKeys = new(StringComparer.OrdinalIgnoreCase);
 
     public TimeProvider Time => time;
 
@@ -71,8 +83,16 @@ internal sealed class GeneratedAssets(
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(caller);
 
-        if (!options.Assets.TryGetValue(feature, out var asset) || asset.Canonical(key) is not { } canonical)
+        if (!options.Assets.TryGetValue(feature, out var asset))
             return new GeneratedAsset(GeneratedAssetStatus.NotFound);
+
+        if (asset.Canonical(key, out var parsed) is not { } canonical)
+        {
+            // A key type whose ToString() does not read back would make every lookup "not found" without a word.
+            if (parsed && _warnedKeys.TryAdd(asset.Feature, true))
+                logger.LogError("Generated assets: '{Key}' parses as a {KeyType}, but its ToString() does not parse back to it or is not a safe path. Override ToString() so that it writes the text Parse reads (letters, digits, '.', '_', '-', '/' between segments).", key, asset.KeyType.Name);
+            return new GeneratedAsset(GeneratedAssetStatus.NotFound);
+        }
 
         var config = settings.For(asset.Feature);
         var path = AssetPaths.Of(asset.Feature, config.Version, canonical);
@@ -147,30 +167,37 @@ internal sealed class GeneratedAssets(
         if (rates is null || (rates.SignedIn is null && rates.Installation is null))
             return null;
 
-        var current = _limiters.GetValueOrDefault(feature);
-        if (current.Limiter is not null && current.SignedIn == rates.SignedIn && current.Installation == rates.Installation)
-            return current.Limiter;
+        lock (_limiters)
+        {
+            var current = _limiters.GetValueOrDefault(feature);
+            if (current.Limiter is not null && current.SignedIn == rates.SignedIn && current.Installation == rates.Installation)
+                return current.Limiter;
 
-        var limiter = PartitionedRateLimiter.Create<AICaller, string>(caller =>
-            (caller.Kind == AICallerKind.SignedIn ? rates.SignedIn : rates.Installation ?? rates.SignedIn) is { } perMinute
-                ? RateLimitPartition.GetSlidingWindowLimiter(caller.Key, _ => new SlidingWindowRateLimiterOptions
-                {
-                    PermitLimit = perMinute,
-                    Window = TimeSpan.FromMinutes(1),
-                    SegmentsPerWindow = 6,
-                    QueueLimit = 0,
-                })
-                : RateLimitPartition.GetNoLimiter(caller.Key));
+            var limiter = PartitionedRateLimiter.Create<AICaller, string>(caller =>
+                (caller.Kind == AICallerKind.SignedIn ? rates.SignedIn : rates.Installation ?? rates.SignedIn) is { } perMinute
+                    ? RateLimitPartition.GetSlidingWindowLimiter(caller.Key, _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = perMinute,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6,
+                        QueueLimit = 0,
+                    })
+                    : RateLimitPartition.GetNoLimiter(caller.Key));
 
-        _limiters[feature] = (rates.SignedIn, rates.Installation, limiter);
-        current.Limiter?.Dispose();
-        return limiter;
+            _limiters[feature] = (rates.SignedIn, rates.Installation, limiter);
+            if (current.Limiter is not null)
+                _replaced.Add(current.Limiter);
+            return limiter;
+        }
     }
 
     public void Dispose()
     {
-        foreach (var (_, _, limiter) in _limiters.Values)
-            limiter.Dispose();
+        lock (_limiters)
+        {
+            foreach (var limiter in _limiters.Values.Select(l => l.Limiter).Concat(_replaced))
+                limiter.Dispose();
+        }
     }
 }
 

@@ -52,8 +52,13 @@ public static class ServiceCollectionExtensions
         {
             if (services.GetService<IAIFeatures>() is null)
                 throw new InvalidOperationException("AddSpineAIAssets needs AddSpineAI: the images are made by its features.");
-            if (services.GetService<GeneratedAssetQueue>() is null || services.GetService<IMessagePublisher>() is null)
+            if (services.GetService<GeneratedAssetQueue>() is not { } queue || services.GetService<IMessagePublisher>() is null)
                 throw new InvalidOperationException("AddSpineAIAssets needs Spine messaging with the assets' subscriber: call AddGeneratedAssets() in AddSpineMessaging.");
+
+            // A window shorter than the retries lets a lookup order again while the first order is still being made.
+            if (options.OrderWindow < queue.LongestRun)
+                logger.LogWarning("Generated assets: OrderWindow ({Window}) is shorter than an order can take with {Attempts} attempts (about {Run}), so an image may be made twice. Raise OrderWindow or lower the attempts.",
+                    options.OrderWindow, queue.Attempts, queue.LongestRun);
 
             foreach (var asset in options.Assets.Values)
             {
@@ -90,12 +95,13 @@ public static class GeneratedAssetMessagingExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        var queue = new GeneratedAssetQueue(subscriber, attempts, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(5));
         builder.Message<GenerateAsset>("spine.ai.asset");
         builder.Subscriber(subscriber, s => s
             .Handles<GenerateAsset>()
-            .Retry(attempts, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(5))
+            .Retry(attempts, queue.FirstDelay, queue.MaxDelay)
             .MaxConcurrency(maxConcurrency));
-        builder.Services.AddSingleton(new GeneratedAssetQueue(subscriber, attempts));
+        builder.Services.AddSingleton(queue);
         builder.Services.AddMessageHandler<GenerateAsset, GenerateAssetHandler>();
         return builder;
     }

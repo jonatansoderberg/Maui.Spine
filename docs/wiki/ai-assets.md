@@ -114,7 +114,7 @@ The settings live beside the feature's own, under `Asset`:
 | `OrdersPerMinute` | none | Orders per caller and minute, by the caller [Server.AI identifies](ai-server.md#who-the-caller-is). Lookups of ready and pending images do not count. |
 | `MediaType` | `image/png` | Asked of the model and used for the file extension. Unset, the model's default format is kept. |
 
-In code, `SpineAIAssetsOptions` has `ReadyCacheTime` (5 minutes: how long a ready answer is kept in memory), `PendingRetryAfter` (15 seconds) and `OrderWindow` (1 hour: how long an order holds, which must outlast the generation and its retries). `AddGeneratedAssets(attempts: 3, maxConcurrency: 2)` sets the retries (30 seconds, then doubling up to 5 minutes) and how many images one pump makes at a time.
+In code, `SpineAIAssetsOptions` has `ReadyCacheTime` (5 minutes: how long a ready answer is kept in memory), `PendingRetryAfter` (15 seconds) and `OrderWindow` (15 minutes: how long an order holds, which must outlast the generation and its retries; the host warns at startup when it may not). `AddGeneratedAssets(attempts: 3, maxConcurrency: 2)` sets the retries (30 seconds, then doubling up to 5 minutes) and how many images one pump makes at a time.
 
 ## Cost and abuse
 
@@ -125,6 +125,8 @@ In code, `SpineAIAssetsOptions` has `ReadyCacheTime` (5 minutes: how long a read
 ## Failures
 
 The handler knows its attempts. After the last one, or at once for a spent budget, a feature that is off, or an `UnrecoverableMessageException`, it writes a failure record to a private container beside the images. The message ends among messaging's failed messages too.
+
+An order that never reaches the handler's last attempt, such as one whose worker is killed on every delivery, leaves no record: Messaging keeps it among its failed messages, and the image answers "pending" until `OrderWindow` has passed and the next lookup orders it again.
 
 The app sees `failed` with one of these reasons: `model`, `check`, `prompt`, `budget`, `off` or `storage`. The provider's own message goes to the log only, because it can name keys and quotas. After `FailureCoolDown` the next lookup orders the image again, and a success removes the record.
 
@@ -152,6 +154,6 @@ app.MapGet("/competitions/{id}/arena", async (string id, IGeneratedAssets assets
 
 ## Sample
 
-The messaging sample (`samples/SpineMessagingSample.*`) makes postcards. Its API registers the feature `Postcard` on `gpt-image-1-mini`, with `PostcardPrompt` (four Swedish cities) and `PostcardCheck`, and runs the `spine-ai-assets` pump. Start the AppHost with `Ai__Providers__openai__ApiKey` set, then `GET /ai/assets/Postcard/visby` from `send.http`. Without a key the feature is off and the lookup answers 404 `{ "off": "notConfigured" }`.
+The messaging sample (`samples/SpineMessagingSample.*`) makes postcards. Its API registers the feature `Postcard` on `gpt-image-1-mini`, with `PostcardPrompt` (four Swedish cities) and `PostcardCheck`, and runs the `spine-ai-assets` pump. Start the AppHost with the secret parameter `openaikey` set (`Parameters__openaikey` in its environment or user secrets), then `GET /ai/assets/Postcard/visby` from `send.http`. Without a key the feature is off and the lookup answers 404 `{ "off": "notConfigured" }`.
 
 A lookup from the app with polling and a placeholder comes in [#543](https://github.com/jonatansoderberg/Maui.Spine/issues/543).

@@ -164,4 +164,34 @@ public sealed class LookupTests
         var e = await Assert.ThrowsAsync<InvalidOperationException>(host.StartAsync);
         Assert.Contains("image/tiff", e.Message);
     }
+
+    [Fact]
+    public async Task New_order_limits_take_effect_after_a_reload()
+    {
+        await using var host = new AssetHost(("Ai:Features:Arena:Asset:OrdersPerMinute:Installation", "1"));
+        await host.LookUpAsync("e1/summer");
+        Assert.Equal(GeneratedAssetStatus.RateLimited, (await host.LookUpAsync("e2/summer")).Status);
+
+        host.Set("Ai:Features:Arena:Asset:OrdersPerMinute:Installation", "5");
+
+        Assert.Equal(GeneratedAssetStatus.Pending, (await host.LookUpAsync("e2/summer")).Status);
+    }
+
+    [Fact]
+    public async Task The_in_memory_store_keeps_the_base_urls_path()
+    {
+        var store = new InMemoryGeneratedAssetStore(new Uri("https://localhost:5001/assets"));
+
+        var put = await store.PutAsync("arena/v1/e1/summer.png", new byte[] { 1 }, "image/png", default);
+
+        Assert.Equal("https://localhost:5001/assets/arena/v1/e1/summer.png", put.Url.ToString());
+    }
+
+    [Fact]
+    public void An_order_outlasts_the_default_retries()
+    {
+        var queue = new GeneratedAssetQueue("spine-ai-assets", 3, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(5));
+
+        Assert.True(new SpineAIAssetsOptions().OrderWindow > queue.LongestRun);
+    }
 }

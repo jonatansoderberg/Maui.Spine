@@ -20,9 +20,11 @@ public sealed partial class SpineAIAssetsOptions
 
     /// <summary>
     /// How long an order holds: within it, lookups of the same image order nothing more. It must outlast the
-    /// generation and its retries. One hour by default.
+    /// generation and its retries; the host logs a warning at startup when it may not. An order lost without reaching
+    /// the handler (a worker killed on every delivery) answers "pending" this long before it is placed again.
+    /// 15 minutes by default.
     /// </summary>
-    public TimeSpan OrderWindow { get; set; } = TimeSpan.FromHours(1);
+    public TimeSpan OrderWindow { get; set; } = TimeSpan.FromMinutes(15);
 
     /// <summary>Makes images for the image feature <paramref name="feature"/>, with <typeparamref name="TPrompt"/> building the requests.</summary>
     /// <param name="feature">The feature's name under <c>Ai:Features</c>; its <c>Kind</c> must be <c>Image</c>.</param>
@@ -114,8 +116,11 @@ internal abstract partial class AssetRegistration(string feature, Type promptTyp
     public Type? CheckType { get; set; }
     public abstract Type KeyType { get; }
 
-    /// <summary>The canonical text of <paramref name="text"/>'s key, or <see langword="null"/> when it does not parse or is not a safe path.</summary>
-    public abstract string? Canonical(string text);
+    /// <summary>
+    /// The canonical text of <paramref name="text"/>'s key, or <see langword="null"/> when it does not parse or is not a safe
+    /// path. <paramref name="parsed"/> tells the two apart.
+    /// </summary>
+    public abstract string? Canonical(string text, out bool parsed);
 
     public abstract ValueTask<bool> AcceptsAsync(IServiceProvider services, string canonical, CancellationToken cancellationToken);
 
@@ -138,9 +143,10 @@ internal sealed class AssetRegistration<TKey>(string feature, Type promptType) :
 {
     public override Type KeyType => typeof(TKey);
 
-    public override string? Canonical(string text)
+    public override string? Canonical(string text, out bool parsed)
     {
-        if (!TKey.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, out var key) || key.ToString() is not { } canonical)
+        parsed = TKey.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, out var key);
+        if (!parsed || key!.ToString() is not { } canonical)
             return null;
 
         // The handler parses the canonical text again, so it has to come back as the same key.

@@ -87,9 +87,17 @@ public sealed class AzureBlobGeneratedAssetStore : IGeneratedAssetStore
         if (_options.PublicAccess && _options.PublicBaseUrl is null)
         {
             // An existing private container answers every fetch with 403, and the app shows a placeholder forever.
-            var policy = await _images.GetAccessPolicyAsync(cancellationToken: cancellationToken);
-            if (policy.Value.BlobPublicAccess == PublicAccessType.None)
-                _logger.LogError("Generated assets: the container '{Container}' is private, so the app cannot fetch its images. Set its access level to Blob, or put a CDN in PublicBaseUrl.", _images.Name);
+            // Reading the access level needs more rights than the store does, so a refusal is only logged.
+            try
+            {
+                var policy = await _images.GetAccessPolicyAsync(cancellationToken: cancellationToken);
+                if (policy.Value.BlobPublicAccess == PublicAccessType.None)
+                    _logger.LogError("Generated assets: the container '{Container}' is private, so the app cannot fetch its images. Set its access level to Blob, or put a CDN in PublicBaseUrl.", _images.Name);
+            }
+            catch (RequestFailedException e) when (e.Status is 401 or 403)
+            {
+                _logger.LogWarning("Generated assets: could not read the access level of the container '{Container}' ({Status} {Code}); make sure it allows public read access for blobs.", _images.Name, e.Status, e.ErrorCode);
+            }
         }
     }
 

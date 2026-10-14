@@ -44,7 +44,7 @@ public interface IGeneratedAssetStore
 /// <param name="time">The clock for <see cref="StoredAsset.LastModified"/>.</param>
 public sealed class InMemoryGeneratedAssetStore(Uri? baseUrl = null, TimeProvider? time = null) : IGeneratedAssetStore
 {
-    private readonly Uri _base = baseUrl ?? new Uri("https://assets.invalid/");
+    private readonly Uri _base = new((baseUrl?.ToString() ?? "https://assets.invalid/").TrimEnd('/') + "/");
     private readonly ConcurrentDictionary<string, (byte[] Content, string ContentType, StoredAsset Asset)> _images = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, AssetFailureRecord> _failures = new(StringComparer.Ordinal);
 
