@@ -6,6 +6,9 @@
     <Deploy />
   </Project>
   <Project Path="samples/MauiSpinePushNotificationsSampleApp.Server/MauiSpinePushNotificationsSampleApp.Server.csproj" />
+  <Project Path="samples/SpineAvatarLab/SpineAvatarLab.csproj">
+    <Deploy />
+  </Project>
   <Project Path="samples/SpineMessagingSample.Api/SpineMessagingSample.Api.csproj" />
   <Project Path="samples/SpineMessagingSample.AppHost/SpineMessagingSample.AppHost.csproj" />
   <Project Path="samples/SpineMessagingSample.Functions/SpineMessagingSample.Functions.csproj" />
@@ -45,6 +48,7 @@
   <Project Path="tests/Plugin.Maui.Spine.Svg.Tests/Plugin.Maui.Spine.Svg.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Barcodes.Tests/Plugin.Maui.Spine.Barcodes.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Controls.Tests/Plugin.Maui.Spine.Controls.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.Controls.Avatar.Core.Tests/Plugin.Maui.Spine.Controls.Avatar.Core.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Images.Tests/Plugin.Maui.Spine.Images.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.BackgroundTasks.Tests/Plugin.Maui.Spine.BackgroundTasks.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Biometrics.Tests/Plugin.Maui.Spine.Biometrics.Tests.csproj" />

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<IsPackable>false</IsPackable>
+		<RootNamespace>Plugin.Maui.Spine.Controls.Avatar.Core.Tests</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Using Include="Xunit" />
+	</ItemGroup>
+
+	<PropertyGroup>
+	</PropertyGroup>
+
+	<!--
+		The avatar code lives in the lab app until it becomes packages (issue #524, Phase A). Core and the
+		Skia renderer must stay free of MAUI, so they are compiled in here: a MAUI type in either fails this build.
+	-->
+	<ItemGroup>
+		<Compile Include="..\..\samples\SpineAvatarLab\Avatar.Core\**\*.cs" LinkBase="Avatar.Core" />
+		<Compile Include="..\..\samples\SpineAvatarLab\Avatar.Skia\**\*.cs" LinkBase="Avatar.Skia" />
+		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Avatars\*.spineavatar" LinkBase="Avatars" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Fixtures\*" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" />
+		<PackageReference Include="SkiaSharp" />
+		<PackageReference Include="xunit" />
+		<PackageReference Include="xunit.runner.visualstudio" />
+	</ItemGroup>
+
+</Project>

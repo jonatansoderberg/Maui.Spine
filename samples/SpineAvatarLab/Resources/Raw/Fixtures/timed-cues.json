@@ -1,0 +1,74 @@
+{
+  "description": "Synthetic tones and deliberately authored canonical cues; not human speech or phonetic recognition",
+  "audioFile": "synthetic-test.wav",
+  "sampleRate": 24000,
+  "format": "PCM16LE",
+  "channels": 1,
+  "durationSeconds": 4,
+  "cues": [
+    {
+      "segment": "fixture-1",
+      "generation": 1,
+      "offsetSeconds": 0.0,
+      "durationSeconds": 0.5,
+      "canonicalViseme": 0,
+      "strength": 1
+    },
+    {
+      "segment": "fixture-1",
+      "generation": 1,
+      "offsetSeconds": 0.5,
+      "durationSeconds": 0.5,
+      "canonicalViseme": 1,
+      "strength": 1
+    },
+    {
+      "segment": "fixture-1",
+      "generation": 1,
+      "offsetSeconds": 1.0,
+      "durationSeconds": 0.5,
+      "canonicalViseme": 10,
+      "strength": 1
+    },
+    {
+      "segment": "fixture-1",
+      "generation": 1,
+      "offsetSeconds": 1.5,
+      "durationSeconds": 0.5,
+      "canonicalViseme": 13,
+      "strength": 1
+    },
+    {
+      "segment": "fixture-1",
+      "generation": 1,
+      "offsetSeconds": 2.0,
+      "durationSeconds": 0.5,
+      "canonicalViseme": 2,
+      "strength": 1
+    },
+    {
+      "segment": "fixture-1",
+      "generation": 1,
+      "offsetSeconds": 2.5,
+      "durationSeconds": 0.5,
+      "canonicalViseme": 12,
+      "strength": 1
+    },
+    {
+      "segment": "fixture-1",
+      "generation": 1,
+      "offsetSeconds": 3.0,
+      "durationSeconds": 0.5,
+      "canonicalViseme": 14,
+      "strength": 1
+    },
+    {
+      "segment": "fixture-1",
+      "generation": 1,
+      "offsetSeconds": 3.5,
+      "durationSeconds": 0.5,
+      "canonicalViseme": 0,
+      "strength": 1
+    }
+  ]
+}
