@@ -1059,7 +1059,7 @@ NECK_OVERLAP = 0.012           # the neck's top this far is in both body and hea
 HAIR_REACH = 0.0               # strands outside the hair's closed volume are dropped (at 6 mm the sheets outside the shell read as flaps and shards off the hair)
 EAR_POCKET = 0.010             # the hair keeps this far from the auricle (below EAR_TOP_SHARE of the ear), so the ear sits in a pocket of hair instead of under bits of it
 EAR_TOP_SHARE = 0.35           # the ear's top this share of its height may carry hair (the views show the hair's edge over the upper helix)
-EAR_FRONT_MARGIN = 0.0015      # over the ear's top, hair stays only this far outside the auricle's outer surface (never through it)
+EAR_FRONT_MARGIN = 0.008       # over the ear's top, hair stays only this far outside the auricle's outer surface: in front of the ear, never on its rim (owner: in front, behind, or cut)
 HAIR_SCRAP_FACES = 40          # a piece of the hair layer smaller than this, left by the ear pockets, is a scrap and goes
 HAIR_SHELL_CLOSE = 1 if MV_HAIR else 5           # voxels (5 mm) of closing on the hair's volume: gaps between strand sheets up to twice this are hair (at 3 the fringe of sheets along the back and the crown's shards stood apart with the room between)
 HAIR_SHELL_OPEN = 0 if MV_HAIR else 1            # voxels of opening on the hair's volume before the shell: spikes thinner than two voxels go
@@ -1223,8 +1223,13 @@ def atlas(P, F, sample, size, shade=None):
 
 HAIR_SKIRT_DIST = 0.012        # m from the face grid within which a near-front hair face is skirt (its own chart)
 HAIR_CHART_SMOOTH = 0.03       # radius (m) the normals are averaged over for the chart choice
+HAIR_CHART_ISLAND = 0.012      # radius (m): a face takes the chart most of its neighbourhood uses (no single-face islands)
+HAIR_CHART_MIN_OWN = 0.3       # a face whose own normal leans less than this (cosine) to its chart's axis is baked in the chart it faces most instead
+HAIR_CHART_FORESHORTEN = 0.75  # a face may use a chart that foreshortens it at most this much relative to its best chart (own normal)
+HAIR_CHART_VISIBLE = 0.6       # share of a face's samples that must be outermost in a chart for the face to count as visible there
+HAIR_FRONT_CHART_COS = 0.7     # faces in the front band go to the front chart only when they face it this squarely (at 0.5 the sheet in front of the ear, facing mostly sideways, was stretched twice over in it)
 HAIR_CHART_TILE = 1152          # px per chart tile of the projected hair's texture (six box charts, the hairline chart, the side charts' second layer: 4 x 2 tiles)
-HAIR_CHART_SECOND_COS = 0.5     # a side-facing face hidden in its side chart goes to the second-layer chart unless another chart sees it this squarely
+HAIR_CHART_SECOND_OWN = 0.6     # a side-facing face hidden in its side chart goes to the second-layer chart unless its chart sees its own normal this squarely
 HAIR_ALPHA_SPECK = (1000, 300)  # texels: smaller islands in the baked alpha (hair in a cut region; a cut inside the hair) take their surroundings
 HAIR_CUT_SPECK_FACES = 3        # a connected group of this many cut faces or fewer, with uncut faces all round, is drawn uncut (a triangle of skin through the hair)
 HAIR_ALPHA_OPEN = 3             # texels (at the hair's tile size) the baked alpha is opened and closed by: strand tips and notches under 2.4 mm go
@@ -1254,39 +1259,77 @@ def hair_charts(P, F, sample, shade, VN, alpha_fn=None, skirt=None, tile=None):
     # against a coarse depth map per chart (1 cm cells, 8 mm tolerance).
     dirs = np.array([(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)], float)
     score = fn @ dirs.T                                     # how squarely each chart sees the face
-    cs_ = 0.01; G_ = int(np.ceil(span / cs_)) + 2
+    # Hidden is measured as the bake measures it: every face's samples into each chart's depth map at the
+    # chart's own resolution, the outermost sample per texel winning; a face is hidden in a chart where under
+    # HAIR_CHART_VISIBLE of its own samples win. (A coarse 1 cm map with an 8 mm tolerance missed the locks
+    # overhanging the side of the head by a few millimetres, and the faces under them, baked in the top
+    # chart, took the overhang's texels as flat facets.)
     hidden = np.zeros((len(F), 6), bool)
-    rng_ = np.random.default_rng(2); b6 = rng_.dirichlet((1, 1, 1), size=6)
-    spts = np.einsum('bk,fkd->fbd', b6, P[F]).reshape(-1, 3)
+    rng_ = np.random.default_rng(2); b16 = rng_.dirichlet((1, 1, 1), size=16)
+    spts = np.einsum('bk,fkd->fbd', b16, P[F]).reshape(-1, 3); sfid = np.repeat(np.arange(len(F)), len(b16))
     for ch in range(6):
         a, b = inplane[ch]; ax = ch // 2; sg = 1.0 if ch % 2 == 0 else -1.0
-        gi = np.clip(((spts[:, a] - lo[a]) / cs_).astype(int), 0, G_ - 1); gj = np.clip(((spts[:, b] - lo[b]) / cs_).astype(int), 0, G_ - 1)
-        dmap = np.full((G_, G_), -np.inf); np.maximum.at(dmap, (gi, gj), spts[:, ax] * sg)
-        # (Empty cells take the nearest filled one; a maximum filter over 3 x 3 cells made 84 % of the
-        # faces "hidden" by their own curved neighbourhood.)
-        empty = ~np.isfinite(dmap); _, (qi, qj) = ndimage.distance_transform_edt(empty, return_indices=True); dmap = dmap[qi, qj]
-        ci = np.clip(((fc_[:, a] - lo[a]) / cs_).astype(int), 0, G_ - 1); cj = np.clip(((fc_[:, b] - lo[b]) / cs_).astype(int), 0, G_ - 1)
-        hidden[:, ch] = fc_[:, ax] * sg < dmap[ci, cj] - 0.008
-    score_ok = np.where(hidden, -np.inf, score)
+        u = (spts[:, a] - lo[a]) / span; v = (spts[:, b] - lo[b]) / span
+        gi = np.clip((u * (T - 1)).astype(int), 0, T - 1); gj = np.clip((v * (T - 1)).astype(int), 0, T - 1)
+        dep = spts[:, ax] * sg
+        dmap = np.full((T, T), -np.inf); np.maximum.at(dmap, (gi, gj), dep)
+        wins = dep >= dmap[gi, gj] - 0.002
+        share = np.bincount(sfid, wins, minlength=len(F)) / len(b16)
+        hidden[:, ch] = share < HAIR_CHART_VISIBLE
+    own = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); own /= np.linalg.norm(own, axis=1, keepdims=True) + 1e-12
+    own_score = np.abs(own @ dirs.T)                        # how little each chart foreshortens the face (its own normal)
+    def signed(axis_):
+        return axis_ * 2 + (fn[np.arange(len(F)), axis_] < 0).astype(int)
+    # The chart: among those where the face is visible, foreshortened at most HAIR_CHART_FORESHORTEN of its best and
+    # faced by its smoothed normal, the one the smoothed normal faces most (coherent regions, no flicker along the
+    # ridges); with no such chart, the visible one its own normal faces most; with none visible, the one it faces
+    # most. (By the smoothed normals alone the steep sides of every lock went to the top or front chart as slivers
+    # of texels stretched over each face: flat facets and comb teeth in a field of strands.)
+    ok = ~hidden & (own_score >= HAIR_CHART_FORESHORTEN * own_score.max(1, keepdims=True)) & (score > 0)
+    cand = np.where(ok, score, -np.inf); vis_own = np.where(hidden, -np.inf, own_score)
+    chart = np.where(np.isfinite(cand.max(1)), cand.argmax(1), np.where(np.isfinite(vis_own.max(1)), signed(vis_own.argmax(1) // 2), signed(own_score.argmax(1) // 2)))
     best = score.argmax(1)
-    chart = np.where(np.isfinite(score_ok.max(1)), score_ok.argmax(1), best)
     # The side charts' second layer: a side-facing face hidden in its side chart (the walls of the pocket between
     # the bob's side and the temple, behind the side itself) took the front or top chart, where it is a sliver of
     # texels stretched over the whole face: vertical stripes from three quarters. Such faces share one more
     # tile, a side projection of their own (both sides, half a tile each) in which they are the outermost.
-    second = (best < 2) & hidden[np.arange(len(F)), best] & (score[np.arange(len(F)), chart] < HAIR_CHART_SECOND_COS)
+    # (By the face's own normal: in a groove under an overhanging lock the 3 cm smoothed normal is the lock's,
+    #  and the groove's faces, hidden in their side chart, were baked foreshortened in the top chart as facets.)
+    own_axis = own_score.argmax(1)
+    side_chart = (fn[:, 0] < 0).astype(int)
+    ax_now = np.where(chart == 6, 2, np.where(chart == 7, 0, chart // 2))
+    second = (own_axis == 0) & hidden[np.arange(len(F)), side_chart] & ((ax_now == 0) | (own_score[np.arange(len(F)), ax_now] < HAIR_CHART_SECOND_OWN))
     chart = np.where(second, 7, chart)
     # The front band (the hairline, the skirt over the forehead) goes to the front chart whenever it is
     # not hidden there: by the averaged normals the curved forehead's faces leaned into the side and
     # top charts, where they are not the outermost and took those charts' texels, so the alpha cut
     # at the hairline came out as a patchwork of charts.
+    # (Only faces that face the front at least HAIR_FRONT_CHART_COS: at any facing, the bob's side in front of
+    #  the ear, sideways-facing and within the band, went to the front chart, where it is a sliver of texels
+    #  stretched across each face: comb teeth along its edge from every angle since P25.)
     near_front = fc_[:, 2] > np.percentile(fc_[:, 2], 99.5) - HAIR_MASK_DEPTH
-    chart = np.where(near_front & ~hidden[:, 4] & (score[:, 4] > 0.0), 4, chart)
+    chart = np.where(near_front & ~hidden[:, 4] & (score[:, 4] > HAIR_FRONT_CHART_COS), 4, chart)
     # The skirt (the hair layer lying on the face near the hairline) has its own chart, a front
     # projection in which only skirt faces are baked: under the bangs it is the outermost surface in
     # none of the six box charts and took their texels, a patchwork at the hairline.
     if skirt is not None:
         chart = np.where(skirt, 6, chart)
+    # Islands: a face whose chart differs from most of its neighbourhood (HAIR_CHART_ISLAND radius) takes the
+    # neighbourhood's chart when that chart is one it may use (visible, not foreshortened, faced): single
+    # faces baked in another projection were flat-coloured facets in a field of strands. The skirt keeps its chart.
+    keep_ = skirt if skirt is not None else np.zeros(len(F), bool)
+    for _ in range(2):
+        nb = tree_.query_ball_point(fc_, r=HAIR_CHART_ISLAND)
+        mode = np.array([np.bincount(chart[i], minlength=8).argmax() for i in nb])
+        allowed = (mode < 6) & ok[np.arange(len(F)), np.clip(mode, 0, 5)]
+        chart = np.where(~keep_ & allowed, mode, chart)
+    # Slivers: a face whose own normal leans under HAIR_CHART_MIN_OWN to its chart's axis is a sliver of texels
+    # there and takes the chart its own normal faces most among those where it is not hidden.
+    ax_of = np.where(chart == 6, 2, np.where(chart == 7, 0, chart // 2))
+    own_now = np.abs(own[np.arange(len(F)), ax_of])
+    sliver = (own_now < HAIR_CHART_MIN_OWN) & np.isfinite(vis_own.max(1)) & (vis_own.max(1) > HAIR_CHART_MIN_OWN + 0.2) & (chart != 6)
+    chart = np.where(sliver, signed(vis_own.argmax(1) // 2), chart)
+    print('hair charts: slivers moved to the chart their own normal faces', int(sliver.sum()))
     axis = np.where(chart == 6, 2, np.where(chart == 7, 0, chart // 2))
     sign = np.where(chart == 6, 1.0, np.where(chart == 7, np.where(fn[:, 0] >= 0, 1.0, -1.0), np.where(chart % 2 == 0, 1.0, -1.0)))
     print('hair charts: faces hidden in their best chart', int(hidden[np.arange(len(F)), score.argmax(1)].sum()), 'of', len(F))
@@ -2476,6 +2519,13 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
     Ws = to_world(samples)
     views = []
     ref = None
+    def inpaint_edge(rgb, hairpx, px=2):
+        """The view's pixels within `px` of the hair's edge replaced by the nearest pixel further in: the edge
+        pixels are hair and skin (or backdrop) mixed, light, and projected onto the layer's edge they drew a
+        bright dotted outline along every cut (the comb teeth on the sheet in front of the ear)."""
+        core = ndimage.binary_erosion(hairpx, iterations=px)
+        _, (iy, ix) = ndimage.distance_transform_edt(~core, return_indices=True)
+        return np.where((hairpx & ~core)[..., None], rgb[iy, ix], rgb)
     for fr in meta['frames']:
         im = Image.open(f"{VD}/{fr['file_path']}").convert('RGBA'); S_ = im.size[0]
         a = np.asarray(im).astype(float); rgb, alpha = a[..., :3], a[..., 3] / 255.0
@@ -2486,6 +2536,7 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         sat = (rgb.max(-1) - rgb.min(-1)) / (rgb.max(-1) + 1e-6)
         hairpx = (rgb[..., 2] > rgb[..., 0] + 10) & ((sat > 0.25) | ((rgb @ lum_w) < 135)) & (alpha > 0.5)
         hairpx = ndimage.binary_opening(hairpx, iterations=1)
+        rgb = inpaint_edge(rgb, hairpx)
         c2w = np.array(fr['transform_matrix'], float); w2c = np.linalg.inv(c2w)
         focal = (S_ / 2.0) / np.tan(fov / 2.0)
         def proj(W, w2c=w2c, focal=focal, S_=S_):
@@ -2577,6 +2628,7 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         sat = (rgb.max(-1) - rgb.min(-1)) / (rgb.max(-1) + 1e-6)
         hairpx = (rgb[..., 2] > rgb[..., 0] + 10) & ((sat > 0.25) | ((rgb @ lum_w) < 135)) & (alpha > 0.5)
         hairpx = ndimage.binary_opening(hairpx, iterations=1)
+        rgb = inpaint_edge(rgb, hairpx)
         x, y, d = proj_c(Ws); cell = 4; B = S_ // cell
         ix = np.clip((x / cell).astype(int), 0, B - 1); iy = np.clip((y / cell).astype(int), 0, B - 1)
         zb = np.full((B, B), np.inf); np.minimum.at(zb, (iy, ix), d)
@@ -2595,6 +2647,8 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, skinpx=skinpx, nothair=nothair, proj=proj_c, zb=zb, cell=cell, S=S_, cam=cam_w, pl=pl, name='crown'))
         print('hair view crown: pitch', round(cf['pitch'], 1), 'deg, fit IoU', round(cf['iou'], 3))
     for v in views:
+        v['edge_d'] = ndimage.distance_transform_edt(v['nothair'])      # px into the view's skin from the hair's edge
+        v['hair_d'] = ndimage.distance_transform_edt(~v['nothair'])     # px into the view's hair from the skin's edge
         # luminance matched to the front's by two points
         g_ = (ref[1] - ref[0]) / max(v['pl'][1] - v['pl'][0], 1.0); o_ = ref[0] - g_ * v['pl'][0]
         lum = v['rgb'] @ lum_w
@@ -2614,7 +2668,9 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
             cx = np.clip((x / v['cell']).astype(int), 0, v['zb'].shape[1] - 1); cy = np.clip((y / v['cell']).astype(int), 0, v['zb'].shape[0] - 1)
             vis = d <= v['zb'][cy, cx] + HAIR_PROJ_TOL
             dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
-            cosang = np.clip((n * dcam).sum(1), 0, 1)
+            # Unsigned: the layer is a sheet shown from both sides, and a groove's far wall between two locks,
+            # facing away from every camera, took the fallback and showed as black facets beside the lock.
+            cosang = np.abs((n * dcam).sum(1))
             if v is views[0]:
                 # Along the hairline the front view counts at least as a grazing view (cosine HAIR_FRONT_MIN_COS):
                 # the slab's edge walls under the strand tips, seen squarely by no view, took the dark fallback
@@ -2653,7 +2709,11 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
                 # The front view cuts whatever it sees over skin within its band, whichever way it faces: the
                 # slab's side walls and back round a thin lock, 2-5 cm off the skin and facing sideways, showed
                 # through the cut front face as a dark striped box (a hug rule within 2 cm of the skin missed them).
-                squarely = np.ones(len(points), bool)
+                # A point it sees edge-on, though, only where the skin reaches HAIR_EDGE_ON_PX past the hair's
+                # edge: on the bob's side in front of the ear, parallel to the view, the mask's edge projected as
+                # comb teeth along the sheet's lower edge (a pixel of the mask is centimetres along the sheet).
+                deep = v['edge_d'][yi, xi] >= HAIR_EDGE_ON_PX
+                squarely = squarely | deep
             cut |= inside & vis & squarely & v['nothair'][yi, xi] & depth_ok
         ear_cut_ = getattr(sample, 'ear_cut', None)
         if ear_cut_ is not None:
@@ -2679,8 +2739,6 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
             seen |= inside & vis & ((n * dcam).sum(1) > HAIR_MASK_COS) & v['nothair'][yi, xi]
         return seen
     sample.side_skin = side_skin
-    for v in views:
-        v['edge_d'] = ndimage.distance_transform_edt(~v['nothair'])
     def edge_fade(points):
         """0..1: how far inside the hair's edge a point lies, by the views that see it (the front within its
         depth band): the distance in a view's pixels from the point's pixel to that view's skin, from
@@ -2699,7 +2757,7 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
             else:
                 dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
                 sees = (dir_world(fn[ftree.query(points)[1]]) * dcam).sum(1) > HAIR_MASK_COS
-            f = smooth(ROOT_EDGE_PX * 0.5, ROOT_EDGE_PX * 1.5, v['edge_d'][yi, xi])
+            f = smooth(ROOT_EDGE_PX * 0.5, ROOT_EDGE_PX * 1.5, v['hair_d'][yi, xi])
             fade = np.where(inside & vis & sees, np.minimum(fade, f), fade)
         return fade
     sample.edge_fade = edge_fade
@@ -2723,6 +2781,7 @@ HAIR_VIEW_CLOSE = 8             # px a side or back view's hair mask is closed b
 HAIR_VIEW_SMOOTH = 3.0          # px of blur on a view's closed hair mask before it cuts (a strand-level outline cut the surface in a saw-tooth)
 HAIR_FRONT_CLOSE = 4            # px the front view's hair mask is closed by outside the face mask (the fringe's strand tips)
 HAIR_FRONT_MIN_COS = 0.35       # along the hairline band the front view counts at least this squarely (its walls took the dark fallback otherwise)
+HAIR_EDGE_ON_PX = 40            # px of the front view: a point it sees edge-on is cut only this far inside the photo's skin
 HAIR_MASK_DEPTH = 0.10          # m behind the front within which the photo's skin cuts the hair layer (alpha 0)
 HAIR_PROJ_FALLBACK_BASE = 52.0  # luminance of the strand-textured fallback where no view sees
 CROWN_VIEW = 'assets-hair/crown.png'   # the owner's crown view, painted as a fifth view when mv-hair/crown-fit.json exists (tools/crownfit.py)
