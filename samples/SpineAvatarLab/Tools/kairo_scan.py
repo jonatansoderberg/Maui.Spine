@@ -2802,6 +2802,7 @@ HAIR_PROJ_MIN_W = 0.3 ** 4       # a point's best view must see it at least this
 # The ear tiles are unused since the auricles got a per-triangle atlas of their own (`ear` material:
 # in a side projection the concha's floor shared texels with the helix overhanging it); they stay so
 # the other charts keep their place for paintings.
+UNDER_GRID_DEPTH = 0.012       # m behind the front-most surface within which skull skin under the bald picture's oval takes the picture's pixels
 SKIN_TILE = 1024
 SKIN_CHARTS = [("right", 0, 0, 0, 1, 0.72), ("left", 1, 0, 0, -1, 0.72), ("back", 2, 0, 2, -1, 0.72), ("top", 3, 0, 1, 1, 0.6),
                ("under", 0, 1, 1, -1, 0.72), ("front", 1, 1, 2, 1, 0.72), ("ear right", 2, 1, 0, 1, 0.20), ("ear left", 3, 1, 0, -1, 0.20)]
@@ -3178,6 +3179,14 @@ def build(work):
     # tone: its own colour drifted grey-beige there, a strip between cheek and ear on a turn.
     cheek = np.asarray(bald_src).astype(float)[open_skin]
     skin_ref = np.median(cheek, 0)
+    # The skull under the face grid's edge zone (the bald picture's oval, within UNDER_GRID_DEPTH of the front):
+    # it takes the picture's pixels whatever way its noisy faces turn. By facing alone the forehead's top under
+    # the fringe was a patchwork of the picture and the one tone, and with the head pitched up that strip
+    # showed between the grid's edge and the hair as a pink band (owner: "det rosa strecket över ögonbrynen").
+    bald_oval = ndimage.binary_dilation(face_mask_src(src), iterations=6)
+    def under_grid_px(q):
+        cpx_, cz_ = project(q); spi_ = np.clip(((cpx_ - np.array([OX, OY])) / S).astype(int), 0, bald_oval.shape[0] - 1)
+        return bald_oval[spi_[:, 1], spi_[:, 0]] & (cz_ < front_depth(cpx_) + UNDER_GRID_DEPTH)
     # The side views on the skin below the eyes: per view the faces turned to its camera and seen from
     # it (a coarse z-buffer in that view, softened over the neighbouring faces as the front's is),
     # sampled where the picture shows skin.
@@ -3266,6 +3275,7 @@ def build(work):
         # lit chin's edge: a light bib under the chin whenever the head tilted up).
         w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)) * smooth(jaw_y + 6, jaw_y - 8, c_sy(q))
              * smooth(0.6, 0.3, bare_down[near]))[:, None]
+        w = np.maximum(w, (under_grid_px(q) & (kind == SKIN) & (c_sy(q) < jaw_y - 8))[:, None].astype(float))
         pc = projected(q)
         # The views' detail, averaged by their weights, on the skin's tone (1 where no view sees).
         total, detail = np.zeros((len(q), 1)), np.zeros((len(q), 3))
