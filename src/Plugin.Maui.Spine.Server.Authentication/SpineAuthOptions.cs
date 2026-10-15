@@ -54,6 +54,28 @@ public sealed partial class SpineAuthOptions
     public TimeSpan NonceLifetime { get; set; } = TimeSpan.FromMinutes(10);
 
     /// <summary>
+    /// Where a browser reaches the sign-in endpoints, such as <c>https://api.example.com/auth</c>: the prefix given to
+    /// <c>MapSpineAuthentication</c> on the server's public address. A browser sign-in returns to
+    /// <c>{PublicUrl}/{provider}/callback</c>, which is registered with each provider. Required when a provider has a
+    /// <see cref="SpineIdTokenProviderOptions.WebClientId"/>; the request's own host is not trusted for it.
+    /// </summary>
+    public string? PublicUrl { get; set; }
+
+    /// <summary>
+    /// The custom URL schemes a browser sign-in may return to, such as <c>se.example.app</c> for
+    /// <c>se.example.app:/signed-in</c>. With <see cref="AllowLoopbackRedirects"/>, <c>http</c> loopback addresses too;
+    /// nothing else is allowed.
+    /// </summary>
+    public IList<string> RedirectSchemes { get; } = [];
+
+    /// <summary>
+    /// Lets a browser sign-in return to an <c>http</c> loopback address (<c>127.0.0.1</c> or <c>[::1]</c>, any port), as a
+    /// Windows app does (RFC 8252 §7.3). Off by default: any program on the device can listen on loopback and finish a
+    /// sign-in it started itself, so turn it on only for a server that has Windows clients.
+    /// </summary>
+    public bool AllowLoopbackRedirects { get; set; }
+
+    /// <summary>
     /// Signs a user in to an existing account with the same email when a provider vouches for the email
     /// (<c>email_verified</c>). Off by default: whoever controls the provider account then controls the app account.
     /// </summary>
@@ -200,8 +222,21 @@ public sealed partial class SpineAuthOptions
             throw new InvalidOperationException("AddSpineAuthentication: configure at least one way to sign in: Apple(...), Google(...), Microsoft(...), OpenIdConnect(...) or EmailPassword().");
 
         foreach (var (name, provider) in Providers)
+        {
             provider.Validate(name);
+
+            if (provider.WebClientId is not null && string.IsNullOrWhiteSpace(PublicUrl))
+                throw new InvalidOperationException($"AddSpineAuthentication: provider '{name}' signs in through the browser; set PublicUrl to where a browser reaches the endpoints.");
+        }
+
+        foreach (var scheme in RedirectSchemes)
+        {
+            if (!Uri.CheckSchemeName(scheme) || scheme.ToLowerInvariant() is "http" or "https" or "javascript" or "data" or "file")
+                throw new InvalidOperationException($"AddSpineAuthentication: '{scheme}' is not a custom URL scheme an app can own.");
+        }
     }
+
+    internal Uri CallbackUrl(string provider) => new($"{PublicUrl!.TrimEnd('/')}/{provider}/callback");
 
     [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,31}$")]
     private static partial Regex ProviderName();
@@ -237,28 +272,75 @@ public class SpineIdTokenProviderOptions
     /// </summary>
     public bool TrustEmail { get; set; }
 
+    /// <summary>
+    /// The client id of the provider's web application, which turns on the browser sign-in at
+    /// <c>/auth/{provider}/start</c>; the server is then the confidential client. Its tokens are accepted from the
+    /// server's own exchange only, not at <c>/auth/{provider}/token</c>; a native SDK that issues tokens for it (Google's
+    /// <c>serverClientId</c> on Android) needs it in <see cref="ClientIds"/> as well.
+    /// </summary>
+    public string? WebClientId { get; set; }
+
+    /// <summary>The web application's client secret. Keep it in user secrets or Key Vault.</summary>
+    public string? WebClientSecret { get; set; }
+
+    /// <summary>The scopes a browser sign-in asks for. <c>openid email profile</c> by default.</summary>
+    public string Scopes { get; set; } = "openid email profile";
+
+    /// <summary>The provider posts its answer to the callback (<c>response_mode=form_post</c>) instead of a redirect with a query.</summary>
+    public bool FormPost { get; set; }
+
+    /// <summary>The server sends the provider a PKCE challenge of its own. On by default.</summary>
+    public bool UsePkce { get; set; } = true;
+
     internal IConfigurationManager<OpenIdConnectConfiguration>? Configuration { get; set; }
+
+    internal IEnumerable<string> Audiences => WebClientId is { } web ? ClientIds.Append(web) : ClientIds;
 
     internal virtual void Validate(string name)
     {
         if (string.IsNullOrWhiteSpace(Authority) && Configuration is null)
             throw new InvalidOperationException($"AddSpineAuthentication: provider '{name}' has no Authority.");
 
-        if (ClientIds.Count == 0)
+        if (ClientIds.Count == 0 && WebClientId is null)
             throw new InvalidOperationException($"AddSpineAuthentication: provider '{name}' has no ClientIds; a token for any app would be accepted.");
+
+        if (WebClientId is not null && string.IsNullOrWhiteSpace(WebClientSecret))
+            throw new InvalidOperationException($"AddSpineAuthentication: provider '{name}' has a WebClientId but no WebClientSecret for the browser sign-in.");
     }
 }
 
 /// <summary>Sign in with Apple.</summary>
 public sealed class SpineAppleOptions : SpineIdTokenProviderOptions
 {
-    /// <summary>Apple's issuer.</summary>
+    /// <summary>Apple's issuer, and Apple's browser sign-in: <c>name email</c> posted back as a form, no PKCE.</summary>
     public SpineAppleOptions()
     {
         Authority = "https://appleid.apple.com";
         ValidIssuers.Add("https://appleid.apple.com");
         HashNonce = true;
         TrustEmail = true;
+        Scopes = "name email";
+        FormPost = true;
+        UsePkce = false;
+    }
+
+    /// <summary>
+    /// The Services ID of the browser sign-in (Android, Windows); the same as <see cref="SpineIdTokenProviderOptions.WebClientId"/>.
+    /// Its client secret is made from <see cref="TeamId"/>, <see cref="KeyId"/> and <see cref="PrivateKey"/>.
+    /// </summary>
+    public string? ServicesId
+    {
+        get => WebClientId;
+        set => WebClientId = value;
+    }
+
+    internal override void Validate(string name)
+    {
+        if (ClientIds.Count == 0 && WebClientId is null)
+            throw new InvalidOperationException("AddSpineAuthentication: Apple has neither BundleIds nor a ServicesId.");
+
+        if (WebClientId is not null && !CanRevoke)
+            throw new InvalidOperationException("AddSpineAuthentication: Apple's browser sign-in (ServicesId) needs TeamId, KeyId and PrivateKey for its client secret.");
     }
 
     /// <summary>The app bundle ids; the same list as <see cref="SpineIdTokenProviderOptions.ClientIds"/>.</summary>

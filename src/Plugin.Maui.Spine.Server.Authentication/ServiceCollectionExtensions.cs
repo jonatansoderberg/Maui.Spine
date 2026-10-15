@@ -31,13 +31,21 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(sp => options.StoreFactory!(sp));
         services.AddSingleton(sp => options.UsersFactory!(sp));
 
+        if (options.Providers.TryGetValue("apple", out var appleProvider) && appleProvider is SpineAppleOptions { CanRevoke: true } apple)
+            services.AddSingleton(sp => new AppleTokenClient(apple, sp.GetRequiredService<IHttpClientFactory>(), TimeOf(sp), LoggerOf(sp)));
+
         services.AddSingleton(sp => new SpineTokenService(
             options, sp.GetRequiredService<ISpineAuthStore>(), sp.GetRequiredService<IUserResolver>(), TimeOf(sp), LoggerOf(sp)));
         services.AddSingleton(sp => new IdTokenValidator(
             sp.GetRequiredService<ISpineAuthStore>(), sp.GetRequiredService<IHttpClientFactory>(), TimeOf(sp), options));
         services.AddSingleton(sp => new SpineAccounts(
             options, sp.GetRequiredService<IUserResolver>(), sp.GetRequiredService<ISpineAuthStore>(), sp.GetRequiredService<SpineTokenService>(),
-            sp.GetRequiredService<IdTokenValidator>(), AppleOf(sp), sp.GetService<ISpineAuthEmailSender>(), TimeOf(sp), LoggerOf(sp)));
+            sp.GetRequiredService<IdTokenValidator>(), sp.GetService<AppleTokenClient>(), sp.GetService<ISpineAuthEmailSender>(), TimeOf(sp), LoggerOf(sp)));
+
+        services.AddSingleton(sp => new SpineBroker(
+            options, sp.GetRequiredService<ISpineAuthStore>(), sp.GetRequiredService<IUserResolver>(), sp.GetRequiredService<IdTokenValidator>(),
+            sp.GetRequiredService<SpineAccounts>(), sp.GetRequiredService<SpineTokenService>(), sp.GetService<AppleTokenClient>(),
+            sp.GetRequiredService<IHttpClientFactory>(), TimeOf(sp), LoggerOf(sp)));
 
         services.AddAuthentication(SpineAuthDefaults.AuthenticationScheme).AddJwtBearer(SpineAuthDefaults.AuthenticationScheme);
         services.AddOptions<JwtBearerOptions>(SpineAuthDefaults.AuthenticationScheme).Configure<SpineTokenService>((bearer, tokens) =>
@@ -48,11 +56,6 @@ public static class ServiceCollectionExtensions
 
         services.AddHostedService(sp => new StartupCheck(sp, options));
         return services;
-
-        AppleTokenClient? AppleOf(IServiceProvider sp) =>
-            options.Providers.TryGetValue("apple", out var provider) && provider is SpineAppleOptions { CanRevoke: true } apple
-                ? new AppleTokenClient(apple, sp.GetRequiredService<IHttpClientFactory>(), TimeOf(sp), LoggerOf(sp))
-                : null;
     }
 
     private static ILogger LoggerOf(IServiceProvider services) =>

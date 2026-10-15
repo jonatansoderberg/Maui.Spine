@@ -27,7 +27,12 @@ internal sealed class FakeIssuer(string issuer)
     {
         get
         {
-            var configuration = new OpenIdConnectConfiguration { Issuer = Issuer };
+            var configuration = new OpenIdConnectConfiguration
+            {
+                Issuer = Issuer,
+                AuthorizationEndpoint = $"{Issuer}/authorize",
+                TokenEndpoint = $"{Issuer}/token",
+            };
             configuration.SigningKeys.Add(_key);
             return new StaticConfigurationManager<OpenIdConnectConfiguration>(configuration);
         }
@@ -77,12 +82,17 @@ internal sealed class FakeAppleEndpoints : HttpMessageHandler
 {
     public List<(string Path, Dictionary<string, string> Form)> Calls { get; } = [];
 
+    /// <summary>Answers a provider's token endpoint (any path ending in <c>/token</c> but Apple's revocation code exchange stays as it is).</summary>
+    public Func<Dictionary<string, string>, HttpResponseMessage>? TokenEndpoint { get; set; }
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var form = (await request.Content!.ReadAsStringAsync(cancellationToken)).Split('&')
             .Select(pair => pair.Split('=', 2))
             .ToDictionary(p => WebUtility.UrlDecode(p[0]), p => WebUtility.UrlDecode(p[1]));
         Calls.Add((request.RequestUri!.AbsolutePath, form));
+
+        if (TokenEndpoint is { } answer && request.RequestUri.AbsolutePath.EndsWith("/token")) return answer(form);
 
         return request.RequestUri.AbsolutePath == "/auth/token"
             ? new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { refresh_token = "apple-refresh-1", id_token = "x" }) }
@@ -95,6 +105,8 @@ internal sealed class AuthHost : IAsyncDisposable
 {
     public const string Bundle = "se.example.app";
     public const string GoogleClient = "google-android";
+    public const string GoogleWeb = "google-web";
+    public const string ServicesId = "se.example.web";
     public const string MicrosoftClient = "msal-client";
     public const string Tenant = "11111111-2222-3333-4444-555555555555";
 
@@ -139,10 +151,14 @@ internal sealed class AuthHost : IAsyncDisposable
         builder.Services.AddSpineAuthentication(a =>
         {
             a.Issuer = "https://api.test";
+            a.PublicUrl = "https://api.test/auth";
+            a.RedirectSchemes.Add("se.example.app");
+            a.AllowLoopbackRedirects = true;
             a.SigningKey = ECDsa.Create(ECCurve.NamedCurves.nistP256).ExportPkcs8PrivateKeyPem();
             a.Apple(o =>
             {
                 o.BundleIds.Add(Bundle);
+                o.ServicesId = ServicesId;
                 o.TeamId = "TEAM123456";
                 o.KeyId = "KEY1234567";
                 o.PrivateKey = ECDsa.Create(ECCurve.NamedCurves.nistP256).ExportPkcs8PrivateKeyPem();
@@ -151,6 +167,8 @@ internal sealed class AuthHost : IAsyncDisposable
             a.Google(o =>
             {
                 o.ClientIds.Add(GoogleClient);
+                o.WebClientId = GoogleWeb;
+                o.WebClientSecret = "google-secret";
                 o.Configuration = issuers.Google.Configuration;
             });
             a.Microsoft(o =>

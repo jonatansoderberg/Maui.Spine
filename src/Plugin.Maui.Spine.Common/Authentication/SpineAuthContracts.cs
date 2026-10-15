@@ -36,6 +36,12 @@ public sealed record SpineIdTokenRequest(string IdToken, string? Nonce = null, s
 /// <param name="RefreshToken">The refresh token to trade or revoke.</param>
 public sealed record SpineRefreshRequest(string RefreshToken);
 
+/// <summary>The body of <c>POST /auth/token</c> after a browser sign-in: the one-time code the server redirected back with.</summary>
+/// <param name="Code">The <c>code</c> from the redirect.</param>
+/// <param name="CodeVerifier">The PKCE verifier whose SHA-256 was sent as <c>code_challenge</c> to <c>/auth/{provider}/start</c>.</param>
+/// <param name="RedirectUri">The same <c>redirect_uri</c> that was sent to <c>/auth/{provider}/start</c>.</param>
+public sealed record SpineCodeExchange(string Code, string CodeVerifier, string RedirectUri);
+
 /// <summary>The body of <c>POST /auth/password/signin</c>.</summary>
 /// <param name="Email">The email.</param>
 /// <param name="Password">The password.</param>
@@ -79,7 +85,7 @@ public static class SpineAuthErrors
     /// <summary>The ID token failed validation: signature, issuer, audience, expiry or nonce.</summary>
     public const string InvalidToken = "invalid_token";
 
-    /// <summary>The refresh token is unknown, expired, revoked or reused.</summary>
+    /// <summary>The refresh token is unknown, expired, revoked or reused; or a browser sign-in's code is unknown, used, expired or does not match its verifier and redirect.</summary>
     public const string InvalidGrant = "invalid_grant";
 
     /// <summary>The email or the password is wrong, or the account is locked after too many wrong passwords. Which one is not said.</summary>
@@ -97,6 +103,9 @@ public static class SpineAuthErrors
     /// <summary>The emailed code is wrong or has expired.</summary>
     public const string InvalidCode = "invalid_code";
 
+    /// <summary>The provider's discovery document or token endpoint could not be reached.</summary>
+    public const string ProviderUnavailable = "provider_unavailable";
+
     /// <summary>Sign-up is turned off on the server.</summary>
     public const string SignUpClosed = "signup_closed";
 }
@@ -107,6 +116,7 @@ public static class SpineAuthErrors
 [JsonSerializable(typeof(SpineNonce))]
 [JsonSerializable(typeof(SpineIdTokenRequest))]
 [JsonSerializable(typeof(SpineRefreshRequest))]
+[JsonSerializable(typeof(SpineCodeExchange))]
 [JsonSerializable(typeof(SpinePasswordSignIn))]
 [JsonSerializable(typeof(SpinePasswordSignUp))]
 [JsonSerializable(typeof(SpineEmailRequest))]

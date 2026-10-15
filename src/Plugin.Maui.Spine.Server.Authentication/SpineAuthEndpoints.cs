@@ -41,19 +41,94 @@ public static class SpineAuthEndpoints
         return Answer(request, await Service<SpineAccounts>(request).SignInWithIdTokenAsync(provider.ToLowerInvariant(), body, cancellationToken));
     }
 
-    /// <summary><c>POST /auth/token</c>: a refresh token traded for a new pair. A refresh token presented twice revokes its sign-in everywhere.</summary>
-    /// <param name="request">The incoming request; its body is a <see cref="SpineRefreshRequest"/>.</param>
+    /// <summary>
+    /// <c>POST /auth/token</c>: a refresh token traded for a new pair (<see cref="SpineRefreshRequest"/>), or a browser
+    /// sign-in's one-time code traded with its PKCE verifier (<see cref="SpineCodeExchange"/>). A refresh token presented
+    /// twice revokes its sign-in everywhere.
+    /// </summary>
+    /// <param name="request">The incoming request.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns><see cref="SpineTokens"/>, or 401 <c>invalid_grant</c>.</returns>
     public static async Task<IResult> RefreshAsync(HttpRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (await BodyAsync(request, SpineAuthJsonTypes.Refresh, cancellationToken) is not { RefreshToken.Length: > 0 } body) return BadBody();
+        JsonElement json;
+        try
+        {
+            using var document = await JsonDocument.ParseAsync(request.Body, cancellationToken: cancellationToken);
+            json = document.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            return BadBody();
+        }
+
+        if (json.ValueKind != JsonValueKind.Object) return BadBody();
+
+        if (json.TryGetProperty("code", out _))
+        {
+            SpineCodeExchange? exchange;
+            try
+            {
+                exchange = json.Deserialize(SpineAuthJsonTypes.CodeExchange);
+            }
+            catch (JsonException)
+            {
+                return BadBody();
+            }
+
+            return exchange is { Code: not null, CodeVerifier: not null, RedirectUri: not null }
+                ? Answer(request, await Service<SpineBroker>(request).RedeemAsync(exchange, cancellationToken))
+                : BadBody();
+        }
+
+        SpineRefreshRequest? body;
+        try
+        {
+            body = json.Deserialize(SpineAuthJsonTypes.Refresh);
+        }
+        catch (JsonException)
+        {
+            return BadBody();
+        }
+
+        if (body is not { RefreshToken.Length: > 0 }) return BadBody();
 
         return await Service<SpineTokenService>(request).RefreshAsync(body.RefreshToken, cancellationToken) is { } tokens
             ? Answer(request, SignInOutcome.Ok(tokens))
             : Answer(request, SignInOutcome.Refused(401, SpineAuthErrors.InvalidGrant));
+    }
+
+    /// <summary>
+    /// <c>GET /auth/{provider}/start</c>: opens a browser sign-in. The query carries <c>redirect_uri</c> (a custom scheme from
+    /// <see cref="SpineAuthOptions.RedirectSchemes"/> or an http loopback address), <c>code_challenge</c> with
+    /// <c>code_challenge_method=S256</c>, and the app's <c>state</c>. Answers with a redirect to the provider.
+    /// </summary>
+    /// <param name="request">The incoming request.</param>
+    /// <param name="provider">The provider's name, from the route.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>A redirect to the provider, or a <see cref="SpineAuthProblem"/>: 404 for a provider without a browser sign-in, 400 for a bad query.</returns>
+    public static Task<IResult> StartAsync(HttpRequest request, string provider, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(provider);
+        return Service<SpineBroker>(request).StartAsync(provider.ToLowerInvariant(), request.Query, cancellationToken);
+    }
+
+    /// <summary>
+    /// <c>GET</c> or <c>POST /auth/{provider}/callback</c>: where the provider returns. Answers with a redirect to the
+    /// app's <c>redirect_uri</c> carrying a one-time <c>code</c> (or an <c>error</c>) and the app's <c>state</c>.
+    /// </summary>
+    /// <param name="request">The incoming request: a query, or a form for providers that post (Apple).</param>
+    /// <param name="provider">The provider's name, from the route.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>A redirect to the app, or a plain 400 page when the sign-in expired or was already used.</returns>
+    public static Task<IResult> CallbackAsync(HttpRequest request, string provider, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(provider);
+        return Service<SpineBroker>(request).CallbackAsync(provider.ToLowerInvariant(), request, cancellationToken);
     }
 
     /// <summary><c>POST /auth/revoke</c>: signs out by revoking the refresh token's sign-in. Answers 204 whether or not the token was known.</summary>
@@ -195,6 +270,7 @@ public static class SpineAuthEndpointRouteBuilderExtensions
 {
     /// <summary>
     /// Maps every sign-in endpoint under <paramref name="prefix"/>: <c>GET nonce</c>, <c>POST {provider}/token</c>,
+    /// <c>GET {provider}/start</c>, <c>GET</c>/<c>POST {provider}/callback</c>,
     /// <c>POST token</c>, <c>POST revoke</c>, <c>DELETE account</c>, <c>POST password/{action}</c> and
     /// <c>GET .well-known/jwks.json</c>.
     /// </summary>
@@ -212,6 +288,8 @@ public static class SpineAuthEndpointRouteBuilderExtensions
         group.MapPost("/revoke", (HttpRequest request, CancellationToken ct) => SpineAuthEndpoints.RevokeAsync(request, ct));
         group.MapDelete("/account", (HttpRequest request, CancellationToken ct) => SpineAuthEndpoints.DeleteAccountAsync(request, ct));
         group.MapPost("/password/{action}", (HttpRequest request, string action, CancellationToken ct) => SpineAuthEndpoints.PasswordAsync(request, action, ct));
+        group.MapGet("/{provider}/start", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.StartAsync(request, provider, ct));
+        group.MapMethods("/{provider}/callback", ["GET", "POST"], (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.CallbackAsync(request, provider, ct));
         group.MapPost("/{provider}/token", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.IdTokenAsync(request, provider, ct));
         group.MapGet("/.well-known/jwks.json", (HttpRequest request) => SpineAuthEndpoints.Jwks(request));
 
@@ -224,6 +302,7 @@ internal static class SpineAuthJsonTypes
 {
     public static JsonTypeInfo<SpineIdTokenRequest> IdToken => Info<SpineIdTokenRequest>();
     public static JsonTypeInfo<SpineRefreshRequest> Refresh => Info<SpineRefreshRequest>();
+    public static JsonTypeInfo<SpineCodeExchange> CodeExchange => Info<SpineCodeExchange>();
     public static JsonTypeInfo<SpinePasswordSignUp> SignUp => Info<SpinePasswordSignUp>();
     public static JsonTypeInfo<SpinePasswordSignIn> SignIn => Info<SpinePasswordSignIn>();
     public static JsonTypeInfo<SpineEmailCode> Code => Info<SpineEmailCode>();

@@ -60,7 +60,33 @@ builder.Services.AddSpineAuthentication(a =>
 {
     a.Issuer = builder.Configuration["Auth:Issuer"] ?? "http://localhost:5100";
     a.SigningKey = builder.Configuration["Auth:SigningKey"] ?? ECDsa.Create(ECCurve.NamedCurves.nistP256).ExportPkcs8PrivateKeyPem();
-    a.Apple(o => o.BundleIds.Add("se.cosmomedia.spineshowcase"));
+    a.PublicUrl = builder.Configuration["Auth:PublicUrl"] ?? "http://localhost:5100/auth";
+    a.RedirectSchemes.Add("se.cosmomedia.spineshowcase");
+    a.AllowLoopbackRedirects = true;   // the Showcase runs on Windows, which returns to a loopback address
+    a.Apple(o =>
+    {
+        o.BundleIds.Add("se.cosmomedia.spineshowcase");
+
+        // The browser sign-in (Android, Windows) and revocation on deletion need a Services ID and a Sign in with Apple key.
+        if (builder.Configuration["Auth:Apple:ServicesId"] is { Length: > 0 } servicesId)
+        {
+            o.ServicesId = servicesId;
+            o.TeamId = builder.Configuration["Auth:Apple:TeamId"];
+            o.KeyId = builder.Configuration["Auth:Apple:KeyId"];
+            o.PrivateKey = builder.Configuration["Auth:Apple:PrivateKey"];
+        }
+    });
+
+    // Google through the browser: a web client from the Google Cloud console, with {PublicUrl}/google/callback as its redirect.
+    if (builder.Configuration["Auth:Google:WebClientId"] is { Length: > 0 } googleWeb)
+    {
+        a.Google(o =>
+        {
+            o.WebClientId = googleWeb;
+            o.WebClientSecret = builder.Configuration["Auth:Google:WebClientSecret"];
+        });
+    }
+
     a.EmailPassword();
     a.UseInMemoryStore();
 });
