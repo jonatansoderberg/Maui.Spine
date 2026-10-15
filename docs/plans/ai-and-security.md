@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-15 (step 5.2b #557 in review: browser sign-in and the mode without a Spine server)
+**Last updated:** 2026-10-15 (step 5.2b #557 in review as PR #561: browser sign-in and the mode without a Spine server)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -145,7 +145,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 5.1a | `Server.Authentication`: ID-token validation, own tokens, refresh rotation, email and password, account deletion, the push `UserId` | #520 | 0.2 | Done | #553 | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). Split on 2026-10-15; email and password included by the owner (Decisions). |
 | 5.1b | `Server.Authentication`: the browser broker (`/start`, `/callback`, PKCE, the one-time code; Apple web, Google web, OIDC) | #552 | 5.1a | Done | #554 | Split from #520 by the owner on 2026-10-15. `PublicUrl`, `RedirectSchemes` (custom schemes and http loopback), `WebClientId`/`WebClientSecret` per provider, Apple's `ServicesId`; the code is traded at `POST /auth/token` (Decisions). |
 | 5.2a | `Authentication` client: `ISpineAuth`, tokens in secure storage, the `HttpClient` handler, `[RequiresSignIn]`, the sign-in sheet, email and password, Sign in with Apple's sheet, the push link | #519 | 1.1, 5.1a | Done | #558 | Split on 2026-10-15. Registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8, kept by the owner) through a new core hook (Decisions). |
-| 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | In review | | Split from #519 by the owner on 2026-10-15. `AddOpenIdConnect(name, displayName)` for brokered providers, `CallbackScheme` + `SpineAuthenticationCallbackScheme`, `UseIdentityProvider(...)` as an in-package OIDC public client (Decisions). |
+| 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | In review | #561 | Split from #519 by the owner on 2026-10-15. `AddOpenIdConnect(name, displayName)` for brokered providers, `CallbackScheme` + `SpineAuthenticationCallbackScheme`, `UseIdentityProvider(...)` as an in-package OIDC public client (Decisions). |
 | 5.3 | `Authentication.Google` and `.Microsoft` | #521 | 5.2a, 5.2b | Waiting | | |
 | 5.4 | Passkeys | #522 | 5.2a | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
 
@@ -525,7 +525,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
-- **2026-10-15:** #557 (browser sign-in and the mode without a Spine server, step 5.2b) in review.
+- **2026-10-15:** #557 (browser sign-in and the mode without a Spine server, step 5.2b) in review as PR #561.
 - **2026-10-15:** #519 merged (PR #558). #559 fixes `SpinePage` content built in code, found by it. 5.2b (#557) is Ready.
 - **2026-10-15:** #552 merged (PR #554). #519 (the Authentication client, step 5.2a) in review as PR #558; browser sign-in and the mode without a server split out as #557 (5.2b).
 - **2026-10-15:** #520 merged (PR #553). #552 (the browser broker, step 5.1b) in review as PR #554.
