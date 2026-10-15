@@ -803,6 +803,15 @@
 	<PropertyGroup Condition="'$(SpineSignInWithApple)' == 'true'">
 		<DefineConstants>$(DefineConstants);SPINE_SIGN_IN_WITH_APPLE</DefineConstants>
 	</PropertyGroup>
+	<!-- A browser sign-in (Google through the server's broker, Apple on Android and Windows) returns to the app's scheme;
+	     the Android callback activity's intent filter comes from this. Google needs the server's web client, so it is on only
+	     in a build with -p:SpineSignInWithGoogle=true. -->
+	<PropertyGroup>
+		<SpineAuthenticationCallbackScheme>se.cosmomedia.spineshowcase</SpineAuthenticationCallbackScheme>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(SpineSignInWithGoogle)' == 'true'">
+		<DefineConstants>$(DefineConstants);SPINE_SIGN_IN_WITH_GOOGLE</DefineConstants>
+	</PropertyGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.BackgroundTasks\build\Plugin.Maui.Spine.BackgroundTasks.targets" />
 

@@ -20,6 +20,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Authentication.Tests" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Authentication.Tests" />
 	</ItemGroup>
 
 	<ItemGroup>

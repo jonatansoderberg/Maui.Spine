@@ -5,6 +5,7 @@
   <s key="Spine.Authentication.Title.Code">Kolla din e-post</s>
   <s key="Spine.Authentication.Title.Forgot">Återställ lösenord</s>
   <s key="Spine.Authentication.Apple">Logga in med Apple</s>
+  <s key="Spine.Authentication.ContinueWith">Fortsätt med {0}</s>
   <s key="Spine.Authentication.Or">eller</s>
   <s key="Spine.Authentication.Email">E-post</s>
   <s key="Spine.Authentication.Password">Lösenord</s>

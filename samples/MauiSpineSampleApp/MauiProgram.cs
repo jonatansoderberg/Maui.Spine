@@ -41,8 +41,12 @@ public static class MauiProgram
                 {
                     a.Server = new Uri("http://localhost:5100/auth");
                     a.AddEmailPassword();
+                    a.CallbackScheme = "se.cosmomedia.spineshowcase";
 #if SPINE_SIGN_IN_WITH_APPLE
                     a.AddApple();
+#endif
+#if SPINE_SIGN_IN_WITH_GOOGLE
+                    a.AddOpenIdConnect("google", "Google");
 #endif
                     a.LinkPushNotifications = true;
                 });

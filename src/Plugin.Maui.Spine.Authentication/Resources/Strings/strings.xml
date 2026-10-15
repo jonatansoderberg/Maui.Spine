@@ -5,6 +5,7 @@
   <s key="Spine.Authentication.Title.Code">Check your email</s>
   <s key="Spine.Authentication.Title.Forgot">Reset password</s>
   <s key="Spine.Authentication.Apple">Sign in with Apple</s>
+  <s key="Spine.Authentication.ContinueWith">Continue with {0}</s>
   <s key="Spine.Authentication.Or">or</s>
   <s key="Spine.Authentication.Email">Email</s>
   <s key="Spine.Authentication.Password">Password</s>
