@@ -160,6 +160,7 @@ None. The owner answered on 2026-10-15: three issues, built in the repo with a S
   - the echo test reports no latency when the correlation peaks at the edge of its window
   - a stopped engine's frame shows silence, and the lab's meter view stops redrawing it
   - 30 tests pass
+  - Rerun on the iPhone after the fixes (18:30): no crash, loudspeaker echo −23.5 dBFS without and −80.8 dBFS (median) with echo cancellation, 57 dB removed.
 
 ## Decisions
 
