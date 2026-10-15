@@ -46,7 +46,11 @@ public static class MauiProgram
                     a.AddApple();
 #endif
 #if SPINE_SIGN_IN_WITH_GOOGLE
-                    a.AddOpenIdConnect("google", "Google");
+                    a.AddGoogle(g => g.ServerClientId = typeof(MauiProgram).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+                        .Cast<System.Reflection.AssemblyMetadataAttribute>().First(m => m.Key == "SpineGoogleServerClientId").Value);
+#if !SPINE_SIGN_IN_WITH_APPLE
+                    a.AppleNotRequired = true;   // the Showcase's App ID has no Sign in with Apple yet; an App Store app adds AddApple()
+#endif
 #endif
                     a.LinkPushNotifications = true;
                 });

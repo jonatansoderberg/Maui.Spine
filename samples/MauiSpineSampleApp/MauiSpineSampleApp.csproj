@@ -767,6 +767,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Biometrics\Plugin.Maui.Spine.Biometrics.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI\Plugin.Maui.Spine.AI.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Authentication\Plugin.Maui.Spine.Authentication.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Authentication.Google\Plugin.Maui.Spine.Authentication.Google.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg.Icons\Plugin.Maui.Spine.Svg.Icons.csproj" />
 	</ItemGroup>
@@ -803,15 +804,19 @@
 	<PropertyGroup Condition="'$(SpineSignInWithApple)' == 'true'">
 		<DefineConstants>$(DefineConstants);SPINE_SIGN_IN_WITH_APPLE</DefineConstants>
 	</PropertyGroup>
-	<!-- A browser sign-in (Google through the server's broker, Apple on Android and Windows) returns to the app's scheme;
-	     the Android callback activity's intent filter comes from this. Google needs the server's web client, so it is on only
-	     in a build with -p:SpineSignInWithGoogle=true. -->
+	<!-- A browser sign-in (Google through the server's broker off Android, Apple on Android and Windows) returns to the
+	     app's scheme; the Android callback activity's intent filter comes from this. Google needs a Google Cloud project,
+	     so it is on only in a build with -p:SpineGoogleServerClientId=<the Web client's id>, the id the push sample
+	     server has as Auth:Google:WebClientId. -->
 	<PropertyGroup>
 		<SpineAuthenticationCallbackScheme>se.cosmomedia.spineshowcase</SpineAuthenticationCallbackScheme>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(SpineSignInWithGoogle)' == 'true'">
+	<PropertyGroup Condition="'$(SpineGoogleServerClientId)' != ''">
 		<DefineConstants>$(DefineConstants);SPINE_SIGN_IN_WITH_GOOGLE</DefineConstants>
 	</PropertyGroup>
+	<ItemGroup Condition="'$(SpineGoogleServerClientId)' != ''">
+		<AssemblyMetadata Include="SpineGoogleServerClientId" Value="$(SpineGoogleServerClientId)" />
+	</ItemGroup>
 	<Import Project="..\..\src\Plugin.Maui.Spine.Widgets\build\Plugin.Maui.Spine.Widgets.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.BackgroundTasks\build\Plugin.Maui.Spine.BackgroundTasks.targets" />
 
