@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-14 (step 2.3b generated assets merged as #544; step 2.3c, the asset lookup in the app (#543), in review; see Decisions and Verification backlog)
+**Last updated:** 2026-10-15 (step 2.3c, the asset lookup in the app, merged as #545; the Showcase's Generated images page shows a Shimmer while pending (#549) now that #547 is fixed)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -50,7 +50,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Server.AI` | New, server | #510, #517 | [ai §3–§5](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 Ready |
 | `Plugin.Maui.Spine.Server.AI.Assets` | New, server | #511 | [ai §6](../proposals/spine-ai.md) | Done (#544) |
 | `Plugin.Maui.Spine.Server.Messaging` (+ `.AzureStorage`, `.ServiceBus`) | New, server | #540 | — (design in `issues/540-*.md`, docs in `docs/wiki/messaging.md`) | Done (#541) |
-| `Plugin.Maui.Spine.AI` | New | #512, #543 | [ai §7](../proposals/spine-ai.md) | #512 done (#536); #543 in review |
+| `Plugin.Maui.Spine.AI` | New | #512, #543 | [ai §7](../proposals/spine-ai.md) | #512 done (#536); #543 done (#545) |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
@@ -115,7 +115,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 2.2 | Orientera adopts `Server.AI` for the race story | (Orientera repo) | 2.1 + a Spine release | Waiting | | First real consumer. Done in the Orientera repo after `SpineVersion` is bumped. |
 | 2.3a | `Server.Messaging`: a general queue layer with Storage Queues and Service Bus transports, large payloads in blob storage, routing, priority, scheduling and cleanup | #540 | none | Done | #541 | Moved out of #511 by the owner on 2026-10-13, and taken first. |
 | 2.3b | Generated-asset pipeline: `Server.AI.Assets` | #511 | 2.1, 2.3a | Done | #544 | Its own package on `Server.AI` and `Server.Messaging` (Decisions). Lookup 200/202/502, the app's prompt and check, versioned blob paths with `?v=`, failure records with a cool-down, per-caller order limits. Orientera's arena images are the model, and Almanacka's pictures are a candidate. |
-| 2.3c | Asset lookup in the app: polling on 202, a placeholder, the failed state | #543 | 2.3b | In review | #545 | Split from #511 by the owner on 2026-10-14. `IAIAssets` (`LookUpAsync`, `WatchAsync`) and `GeneratedImage` attached properties on `Image` in `Plugin.Maui.Spine.AI`; the Showcase's Generated images page (Decisions). |
+| 2.3c | Asset lookup in the app: polling on 202, a placeholder, the failed state | #543 | 2.3b | Done | #545 | Split from #511 by the owner on 2026-10-14. `IAIAssets` (`LookUpAsync`, `WatchAsync`) and `GeneratedImage` attached properties on `Image` in `Plugin.Maui.Spine.AI`; the Showcase's Generated images page (Decisions), whose pending view is a `Shimmer` since #549. |
 | 2.4 | `Spine.AI` client with on-device fallback | #512 | 2.1 | Done | #536 | The exceptions and `AIOffReason` moved to `.Common`, shared with `Server.AI`; `TaskState` shows "off" as empty through `IEmptyResultException` (Decisions). |
 | 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | Done | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
 | 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | Done | #539 | `ChatView` and a separate `ChatComposer` in the page footer (Decisions). Renders answers with `MarkdownView`. |
@@ -197,7 +197,7 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.3b (#511) | The assets subscriber in Azure Functions (a Storage-queue trigger calling `DispatchAsync("spine-ai-assets", …)`) and `SpineAIAssetEndpoints.GetAsync` from an HTTP function. Only the ASP.NET Core pump and `MapSpineAIAssets` ran | A Functions app, locally under Aspire or on Azure | Add the two functions to `SpineMessagingSample.Functions` and order a postcard |
 | 2.3b (#511) | The messaging sample's AppHost with the key passed as the secret parameter `openaikey`. The real postcard was made with the API run on its own against Azurite in Docker | Docker | `Parameters__openaikey=… dotnet run --project samples/SpineMessagingSample.AppHost`, then `send.http` |
 | 2.3b (#511) | A model that answers with a URL (`UriContent`) rather than bytes: the handler downloads it. OpenAI's gpt-image models answer with bytes | Such a provider | — |
-| 2.3c (#543) | `GeneratedImage` on Android, Windows and Mac Catalyst at run time (only compiled), and on a phone. Seen on the iPhone 17 Pro simulator: pending with the spinner, ready from blob storage, failed, polling stopped in the background and resumed at once | An emulator, a Windows machine, the Mac app | The Showcase's Generated images page against the messaging sample's API; `adb reverse tcp:5240 tcp:5240` on Android |
+| 2.3c (#543) | `GeneratedImage` on Android, Windows and Mac Catalyst at run time (only compiled), and on a phone. Seen on the iPhone 17 Pro simulator: pending (a spinner in #543, a `Shimmer` since #549, light theme only), ready from blob storage, failed, polling stopped in the background and resumed at once | An emulator, a Windows machine, the Mac app | The Showcase's Generated images page against the messaging sample's API; `adb reverse tcp:5240 tcp:5240` on Android |
 | 2.3c (#543) | `GeneratedImage` in a recycled `CollectionView` cell whose key changes while an image is pending. Only a `BindableLayout` was used | Simulator | A scratch page with a long list of keys |
 | 2.4 (#512) | Windows at run time (only compiled), and Mac Catalyst at run time (only built) | A Windows machine; the Mac app | Showcase AI client page against the push sample server |
 | 2.4 (#512) | A release build on a phone over the network: cleartext is off there, and the client was checked only against `http://localhost` in Debug | A phone and an HTTPS backend (Orientera after step 2.2) | Any feature through `https` |
@@ -350,6 +350,7 @@ Newest last. Each entry is dated and says who decided.
   - `GeneratedImage.PendingView` and `.FailedView` take other views by `{x:Reference}`, and the image shows and hides them. **Why:** MAUI bindings cannot follow an attached property (`Path=(GeneratedImage.Status)` stayed empty in the simulator, compiled or not), so a sibling's spinner or label could not be bound to the status.
   - `SpineAIOptions.AssetsBackend` points at `MapSpineAIAssets` when images come from another service than the features. **Why:** the Showcase's features run on the push sample server and its images on the messaging sample, and an app can serve images from a Functions app of its own.
   - Polling waits while every window is stopped (`Window.Stopped`/`Resumed`), and an image off screen asks nothing (`Loaded`/`Unloaded`).
+- **2026-10-15, owner (#549):** The Showcase's pending view is a `Shimmer` around an empty `Border` shaped like the card's top (`RoundRectangle 12,12,0,0`), not a spinner. The spinner was a stopgap while #547 kept a lone empty block from drawing.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
@@ -450,6 +451,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-15:** #543 merged (PR #545). #547 (Shimmer over a single empty block) merged as PR #548, unreleased; the Generated images page uses a `Shimmer` as its pending view again (#549).
 - **2026-10-14:** #511 merged (PR #544). #543 (the asset lookup in the app) in review as PR #545.
 - **2026-10-14:** #540 merged (PR #541). #511 (generated assets) in review as PR #544, its own package; its app side split out as #543.
 - **2026-10-12:** #530 merged (PR #533). #531 (the window edge glow) in review as PR #534: Highlight's last step.

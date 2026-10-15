@@ -5,10 +5,10 @@
     x:TypeArguments="GeneratedImagesPageViewModel"
     x:DataType="GeneratedImagesPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.AI, Plugin.Maui.Spine.Server.AI.Assets">
+    <SampleLayout Packages="Plugin.Maui.Spine.AI, Plugin.Maui.Spine.Server.AI.Assets, Plugin.Maui.Spine.Controls.Shimmer">
 
         <Example Title="Made once on the server"
-                 Summary="Postcards from the messaging sample's API (samples/SpineMessagingSample.*, on localhost:5240 with an OpenAI key). The first look orders an image and a spinner shows while the server makes it; GeneratedImage asks again after the server's Retry-After and shows the image when it is ready. An unknown city fails at once. A made image is never made again: the next look is instant.">
+                 Summary="Postcards from the messaging sample's API (samples/SpineMessagingSample.*, on localhost:5240 with an OpenAI key). The first look orders an image and a shimmering placeholder shows while the server makes it; GeneratedImage asks again after the server's Retry-After and shows the image when it is ready. An unknown city fails at once. A made image is never made again: the next look is instant.">
             <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Cities}">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
@@ -16,7 +16,9 @@
                                 BackgroundColor="{DynamicResource CardBackground}" Stroke="{DynamicResource CardOutline}">
                             <Grid RowDefinitions="200,Auto">
                                 <!-- Declared before the image, which shows and hides them by x:Reference. -->
-                                <ActivityIndicator x:Name="making" IsRunning="True" IsVisible="False" HorizontalOptions="Center" VerticalOptions="Center" />
+                                <Shimmer x:Name="making" IsLoading="True" IsVisible="False">
+                                    <Border StrokeThickness="0" HeightRequest="200" StrokeShape="RoundRectangle 12,12,0,0" />
+                                </Shimmer>
                                 <VerticalStackLayout Grid.Row="1" Padding="14,10" Spacing="2">
                                     <Label Text="{Binding .}" FontSize="17" FontAttributes="Bold" />
                                     <Label x:Name="failed" IsVisible="False" FontSize="14" Opacity="0.7"
@@ -25,7 +27,6 @@
                                 <Image Aspect="AspectFill"
                                        GeneratedImage.Feature="Postcard"
                                        GeneratedImage.Key="{Binding .}"
-                                       
                                        GeneratedImage.PendingView="{x:Reference making}"
                                        GeneratedImage.FailedView="{x:Reference failed}"
                                        SemanticProperties.Description="{Binding ., StringFormat='A postcard of {0}'}" />
@@ -41,10 +42,13 @@
                        GeneratedImage.FailedSource="postcard_missing.png" /&gt;
 
                 &lt;!-- Views the image shows and hides itself --&gt;
-                &lt;ActivityIndicator x:Name="making" IsRunning="True" /&gt;
+                &lt;Shimmer x:Name="making" IsLoading="True"&gt;
+                    &lt;Border HeightRequest="200"
+                            StrokeShape="RoundRectangle 12,12,0,0" /&gt;
+                &lt;/Shimmer&gt;
                 &lt;Image GeneratedImage.Feature="Postcard"
                        GeneratedImage.Key="{Binding City}"
-                       
+                       GeneratedImage.PendingView="{x:Reference making}"
                        GeneratedImage.FailedView="{x:Reference failed}" /&gt;
 
                 // Or in code, from IAIAssets:
