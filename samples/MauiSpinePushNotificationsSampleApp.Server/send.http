@@ -109,5 +109,9 @@ Content-Type: application/json
 
 { "prompt": "En orienteringskontroll i en granskog, akvarell" }
 
+### AI: a token for a realtime voice session (Voice, OpenAI). The app opens "url" with "Authorization: Bearer {token}"
+POST {{host}}/ai/realtime/Voice
+Spine-Installation: sample-phone
+
 ### AI: what was spent, by day, feature and model (localhost only)
 GET {{host}}/ai/usage

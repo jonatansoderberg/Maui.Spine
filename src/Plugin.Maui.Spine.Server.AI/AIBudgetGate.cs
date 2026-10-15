@@ -91,7 +91,7 @@ internal sealed class AIBudgetGate
     /// <exception cref="AIFeatureOffException">The caller must sign in, or a hard budget is spent.</exception>
     public async Task CheckAsync(AIFeature feature, AICaller caller, CancellationToken cancellationToken)
     {
-        if (feature.Options.Callers == AICallers.SignedIn && caller.Kind is AICallerKind.Installation or AICallerKind.Anonymous)
+        if (feature.Options.EffectiveCallers == AICallers.SignedIn && caller.Kind is AICallerKind.Installation or AICallerKind.Anonymous)
             throw new AIFeatureOffException(feature.Name, AIOffReason.SignInRequired);
 
         var snapshot = _registry.Current;
