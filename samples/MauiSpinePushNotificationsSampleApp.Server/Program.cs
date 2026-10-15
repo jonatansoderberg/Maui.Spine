@@ -82,6 +82,7 @@ builder.Services.AddSpineAuthentication(a =>
     {
         a.Google(o =>
         {
+            o.ClientIds.Add(googleWeb);   // Credential Manager on Android issues its tokens for the web client
             o.WebClientId = googleWeb;
             o.WebClientSecret = builder.Configuration["Auth:Google:WebClientSecret"];
         });

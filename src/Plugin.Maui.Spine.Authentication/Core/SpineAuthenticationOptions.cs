@@ -85,6 +85,29 @@ public sealed partial class SpineAuthenticationOptions
         return this;
     }
 
+    /// <summary>
+    /// The app is not on the App Store, so it need not offer Sign in with Apple beside Google or Microsoft (App Store
+    /// Review Guideline 4.8). Off by default: on iOS and Mac Catalyst, <c>UseSpine</c> throws when a provider package
+    /// is added without <see cref="AddApple"/>.
+    /// </summary>
+    public bool AppleNotRequired { get; set; }
+
+    internal List<NativeProvider> NativeProviders { get; } = [];
+
+    /// <summary>
+    /// A provider package's own sheet, such as Credential Manager for Google on Android. The provider is also added as
+    /// a browser provider, which the platforms without the sheet use through the server's broker.
+    /// </summary>
+    internal SpineAuthenticationOptions AddNative(NativeProvider provider, string displayName)
+    {
+        NativeProviders.RemoveAll(p => p.Name == provider.Name);
+        NativeProviders.Add(provider);
+        return AddOpenIdConnect(provider.Name, displayName);
+    }
+
+    /// <summary>Whether signing in with <paramref name="provider"/> goes through the browser on this platform.</summary>
+    internal bool IsBrowser(SignInProvider provider) => !NativeProviders.Any(n => n.Name == provider.Name && n.IsSupported);
+
     /// <summary>Email and password, in the package's sign-in sheet or through <see cref="ISpineAuth"/>'s methods.</summary>
     /// <param name="configure">Changes what the sheet offers.</param>
     /// <returns>The same options, for chaining.</returns>
@@ -107,8 +130,14 @@ public sealed partial class SpineAuthenticationOptions
     }
 
     /// <param name="returnsToScheme">Whether a configured way to sign in goes through the browser and back to <see cref="CallbackScheme"/> on this platform.</param>
-    internal void Validate(bool returnsToScheme)
+    /// <param name="appStore">Whether the app runs on iOS or Mac Catalyst, where Guideline 4.8 applies.</param>
+    internal void Validate(bool returnsToScheme, bool appStore = false)
     {
+        if (appStore && NativeProviders.Count > 0 && !Apple && !AppleNotRequired)
+            throw new InvalidOperationException(
+                $"Spine sign-in: an app on the App Store that offers {string.Join(" and ", NativeProviders.Select(p => DisplayNames[p.Name]))} must also offer Sign in with Apple " +
+                "(App Store Review Guideline 4.8). Add a.AddApple(), or set a.AppleNotRequired = true for an app outside the App Store.");
+
         if (returnsToScheme && string.IsNullOrWhiteSpace(CallbackScheme))
             throw new InvalidOperationException(
                 "Spine sign-in: a browser sign-in needs a.CallbackScheme, the app's URL scheme, and the same value in the project as <SpineAuthenticationCallbackScheme> for Android.");
@@ -121,7 +150,7 @@ public sealed partial class SpineAuthenticationOptions
         {
             if (Server is not null || Apple || EmailPassword is not null || BrowserProviders.Count > 0)
                 throw new InvalidOperationException(
-                    "Spine sign-in: UseIdentityProvider(...) signs in without a Spine server; Server, AddApple, AddEmailPassword and AddOpenIdConnect need one.");
+                    "Spine sign-in: UseIdentityProvider(...) signs in without a Spine server; Server, AddApple, AddEmailPassword, AddOpenIdConnect and the provider packages (AddGoogle) need one.");
 
             if (provider.Authority is not { IsAbsoluteUri: true } || string.IsNullOrWhiteSpace(provider.ClientId))
                 throw new InvalidOperationException("Spine sign-in: UseIdentityProvider(...) needs an Authority and a ClientId.");

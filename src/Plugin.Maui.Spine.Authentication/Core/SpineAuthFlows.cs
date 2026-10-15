@@ -24,6 +24,17 @@ internal sealed class SpineAuthFlows(SpineAuthClient client, SpineAuthSession se
     public async Task<SignInResult> IdTokenAsync(string provider, SpineIdTokenRequest request, CancellationToken cancellationToken) =>
         await ResultOfAsync(await client.IdTokenAsync(provider, request, cancellationToken));
 
+    /// <summary>A provider's own sheet: the server's nonce in, the provider's ID token out to <c>/{provider}/token</c>.</summary>
+    public async Task<SignInResult> NativeAsync(string provider, INativeSignIn native, CancellationToken cancellationToken)
+    {
+        if (await client.NonceAsync(cancellationToken) is not { } nonce)
+            return SignInResult.Failure($"GET {new Uri(client.Root, "nonce")} did not answer with a nonce.");
+
+        if (await native.SignInAsync(nonce.Nonce, cancellationToken) is not { } credential) return SignInResult.Canceled;
+
+        return await IdTokenAsync(provider, new SpineIdTokenRequest(credential.IdToken, nonce.Nonce, DisplayName: credential.DisplayName), cancellationToken);
+    }
+
     /// <summary>
     /// A browser sign-in through the server's broker: <c>/{provider}/start</c> with a PKCE challenge, then the code it
     /// returns with traded at <c>/token</c> with the verifier.

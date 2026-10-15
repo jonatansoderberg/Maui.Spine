@@ -6,7 +6,8 @@ dotnet add package Plugin.Maui.Spine.Authentication
 
 `Plugin.Maui.Spine.Authentication` signs the user in against the app's own server, which runs [`Plugin.Maui.Spine.Server.Authentication`](authentication-server.md), or directly at an OpenID Connect provider ([without a Spine server](#without-a-spine-server)):
 - Sign in with Apple's own sheet on iOS and Mac Catalyst, and email and password in a ready-made sheet.
-- Sign-in in the system browser: Google or any provider the server brokers, and Apple on Android and Windows.
+- Sign-in in the system browser: any provider the server brokers, and Apple on Android and Windows.
+- [Sign in with Google](#sign-in-with-google) with `Plugin.Maui.Spine.Authentication.Google`: Credential Manager's sheet on Android, the browser elsewhere.
 - `[RequiresSignIn]` on a page or a command.
 - The refresh token in secure storage.
 - An `HttpClient` handler that adds the access token and refreshes it.
@@ -45,7 +46,7 @@ o.AddAuthentication(a =>
 {
     a.Server = new Uri("https://api.example.com/auth");
     a.CallbackScheme = "se.example.app";        // the app's URL scheme: {scheme}://callback
-    a.AddOpenIdConnect("google", "Google");     // a provider the server brokers: "Continue with Google"
+    a.AddOpenIdConnect("corp", "Contoso");      // a provider the server brokers as OpenIdConnect("corp", …): "Continue with Contoso"
     a.AddApple();                               // Apple's sheet on iOS and Mac Catalyst, the browser elsewhere
 });
 ```
@@ -63,6 +64,36 @@ o.AddAuthentication(a =>
 - **Closing the browser** is `Canceled`, and so is cancelling at the provider (`access_denied`). Another state in the answer is `Failed`.
 
 `SignInAsync()` opens the browser directly when a browser provider is the only way to sign in. Otherwise the sheet shows "Continue with …" per provider, and `SignInAsync("google")` opens one directly.
+
+## Sign in with Google
+
+```bash
+dotnet add package Plugin.Maui.Spine.Authentication.Google
+```
+
+```csharp
+o.AddAuthentication(a =>
+{
+    a.Server = new Uri("https://api.example.com/auth");
+    a.CallbackScheme = "se.example.app";
+    a.AddApple();
+    a.AddGoogle(g => g.ServerClientId = "….apps.googleusercontent.com");   // the OAuth Web client's id
+});
+```
+
+- **Android** shows Credential Manager's own sheet. It tries first the Google accounts that signed in to the app before, picked without a tap when there is one, then every account on the device. The ID token carries the server's nonce (`GET /auth/nonce`) and goes to `POST {Server}/google/token`.
+- **iOS, Mac Catalyst and Windows** go through the server's broker in the browser, as [above](#browser-sign-in). The GoogleSignIn iOS binding is no longer published, so there is no native sheet there.
+- **Without Credential Manager** (Android before 6.0, or Android 13 and older without Google Play services), Google goes through the broker in the browser. So an app with Google sets `CallbackScheme` on Android too, and `UseSpine` throws there without it.
+- **Sign-out** clears Credential Manager's state too, so the next sign-in does not pick the same account by itself.
+- **Errors.**
+  - A closed sheet is `Canceled`.
+  - No Google account on the device is `Failed` with a message that says so.
+  - Any other Credential Manager error is `Failed` with its type.
+- **The server** lists the Web client's id in `Google(o => o.ClientIds)`, and as `WebClientId` with its secret for the broker.
+- **App Store Review Guideline 4.8.** An app on iOS or Mac Catalyst that offers Google must also offer Sign in with Apple, so `UseSpine` throws there without `AddApple()`. `a.AppleNotRequired = true` is for an app outside the App Store.
+- **Only with a Spine server**, not with `UseIdentityProvider`.
+
+The Google Cloud steps (a Web client, and an Android client with the package name and the signing key's SHA-1) are in [the package's README](../../src/Plugin.Maui.Spine.Authentication.Google/README.md).
 
 ## Without a Spine server
 
@@ -169,11 +200,12 @@ The Showcase's Sign-in page runs against the push sample server's `/auth` on `ht
 - a `[RequiresSignIn]` command that calls `/sample/me` through a client with `AddSpineAuthentication()`;
 - deleting the account.
 
-Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true`, because the Showcase's App ID does not have the capability yet. Google through the browser is offered only in a build with `-p:SpineSignInWithGoogle=true`, because the server needs a web client from the Google Cloud console (`Auth:Google:WebClientId` and `Auth:Google:WebClientSecret`). The Showcase's callback scheme is `se.cosmomedia.spineshowcase`.
+Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true`, because the Showcase's App ID does not have the capability yet. Google is offered only in a build with `-p:SpineGoogleServerClientId=<the Web client's id>`, because it needs a Google Cloud project: the push sample server reads `Auth:Google:WebClientId` and `Auth:Google:WebClientSecret`, and the Android client needs the debug key's SHA-1. Without Sign in with Apple, that build sets `AppleNotRequired`. The Showcase's callback scheme is `se.cosmomedia.spineshowcase`.
 
 ## Not verified yet
 
 - Sign in with Apple's sheet on a device, which needs the capability on the App ID.
 - Android, Windows and Mac Catalyst at run time: they are only compiled. The iOS simulator ran sign-up, the code, `[RequiresSignIn]` on a page and on a command, a call through the handler, sign-out, and a restart that kept the session.
 - The browser sign-in ran in the iOS simulator against a local OpenID Connect stub, without a Spine server: cancel, sign-in, a restart that kept the session, a refresh and a revocation at sign-out. The brokered flow ran only in tests, against a real `Server.Authentication` broker with the browser stubbed. Not run yet: a real provider (Google, Apple through the broker, Auth0 or Entra), Custom Tabs and the callback activity on Android (the merged manifest was checked), and the Windows loopback.
+- Sign in with Google at run time: Credential Manager on Android and the broker against Google, both waiting for a Google Cloud project. Seen in the iOS simulator: the sheet's "Continue with Google" opens the broker's start URL.
 - The push link with a real push token.

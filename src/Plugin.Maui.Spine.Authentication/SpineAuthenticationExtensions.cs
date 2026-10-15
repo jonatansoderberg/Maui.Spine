@@ -82,8 +82,10 @@ public static class SpineAuthenticationExtensions
         if (spine?.ApplyConfiguration(options) == true)
         {
             // Windows returns to a loopback address and needs no scheme.
-            var browser = options.IdentityProvider is not null || options.BrowserProviders.Count > 0 || options.Apple && !AppleSignIn.IsSupported;
-            options.Validate(returnsToScheme: browser && !OperatingSystem.IsWindows());
+            // On Android a native sheet can still fall back to the browser: an old Android, or no Google Play services.
+            var browser = options.IdentityProvider is not null || options.Apple && !AppleSignIn.IsSupported
+                || options.BrowserProviders.Any(p => OperatingSystem.IsAndroid() || options.IsBrowser(p));
+            options.Validate(returnsToScheme: browser && !OperatingSystem.IsWindows(), appStore: OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst());
         }
 
         // PushNotifications resolves it when it is referenced; there only when the app asks for the link (Q11).

@@ -14,6 +14,7 @@ internal sealed class SpineAuth : ISpineAuth
     private readonly IServiceProvider _services;
     private readonly ILogger _logger;
     private readonly Lock _gate = new();
+    private readonly Dictionary<string, Lazy<INativeSignIn>> _natives;
     private Task<SignInResult>? _signingIn;
 
     public SpineAuth(
@@ -26,15 +27,22 @@ internal sealed class SpineAuth : ISpineAuth
         _logger = logger;
 
         session.SignedIn += (_, user) => SignedIn?.Invoke(this, user);
-        session.SignedOut += (_, e) => SignedOut?.Invoke(this, e);
+        session.SignedOut += (_, e) =>
+        {
+            SignedOut?.Invoke(this, e);
+            _ = ForgetNativeAccountsAsync();
+        };
         session.Changed += (_, e) => UserChanged?.Invoke(this, e);
 
         var providers = new List<SignInProvider>();
         if (options.IdentityProvider is { } identityProvider) providers.Add(new SignInProvider(identityProvider.Name, false));
         if (options.Apple) providers.Add(new SignInProvider("apple", AppleSignIn.IsSupported));
         if (options.EmailPassword is not null) providers.Add(new SignInProvider("password", false));
-        providers.AddRange(options.BrowserProviders);
+        providers.AddRange(options.BrowserProviders.Select(p => p with { IsNative = !options.IsBrowser(p) }));
         Providers = providers;
+
+        _natives = options.NativeProviders.Where(p => p.IsSupported)
+            .ToDictionary(p => p.Name, p => new Lazy<INativeSignIn>(() => p.Create(services)));
     }
 
     // Only in the mode with a Spine server: resolved when used, so the mode without one never builds a client for it.
@@ -92,6 +100,7 @@ internal sealed class SpineAuth : ISpineAuth
         {
             "apple" when _options.Apple => AppleSignIn.IsSupported ? AppleAsync(cancellationToken) : BrowserAsync("apple", cancellationToken),
             "password" when _options.EmailPassword is not null => OpenSheetAsync(),
+            _ when _natives.TryGetValue(name, out var native) => NativeAsync(name, native.Value, cancellationToken),
             _ when _options.BrowserProviders.Any(p => p.Name == name) => BrowserAsync(name, cancellationToken),
             _ => Task.FromResult(SignInResult.Failure($"'{provider}' is not a way this app signs in; add it in o.AddAuthentication(...).")),
         };
@@ -132,7 +141,7 @@ internal sealed class SpineAuth : ISpineAuth
         // One way to sign in, with a sheet of its own (Apple's) or the browser: no Spine sheet in front of it.
         var ways = (_options.Apple ? 1 : 0) + (_options.EmailPassword is null ? 0 : 1) + _options.BrowserProviders.Count;
         if (ways == 1 && _options.Apple) return AppleSignIn.IsSupported ? AppleAsync(cancellationToken) : BrowserAsync("apple", cancellationToken);
-        if (ways == 1 && _options.BrowserProviders.Count == 1) return BrowserAsync(_options.BrowserProviders[0].Name, cancellationToken);
+        if (ways == 1 && _options.BrowserProviders.Count == 1) return SignInAsync(_options.BrowserProviders[0].Name, cancellationToken);
         return OpenSheetAsync();
     }
 
@@ -148,6 +157,43 @@ internal sealed class SpineAuth : ISpineAuth
         {
             _logger.LogWarning(e, "Spine sign-in: the browser sign-in with {Provider} could not start.", provider);
             return SignInResult.Failure(e.Message);
+        }
+    }
+
+    private async Task<SignInResult> NativeAsync(string provider, INativeSignIn native, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await Flows.NativeAsync(provider, native, cancellationToken);
+            if (result.Status == SignInStatus.Failed) _logger.LogWarning("Spine sign-in: the sign-in with {Provider} failed: {Error}", provider, result.Error);
+            return result;
+        }
+        catch (PlatformNotSupportedException e)
+        {
+            _logger.LogInformation("Spine sign-in: {Provider}'s own sheet is not available here ({Reason}); signing in through the browser.", provider, e.Message);
+            return await BrowserAsync(provider, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            _logger.LogWarning(e, "Spine sign-in: the sign-in with {Provider} failed.", provider);
+            return SignInResult.Failure(e.Message);
+        }
+    }
+
+    // A provider that remembers who signed in (Credential Manager's auto-select) would sign the same account straight
+    // back in; a sign-out here is a sign-out there.
+    private async Task ForgetNativeAccountsAsync()
+    {
+        foreach (var (name, native) in _natives)
+        {
+            try
+            {
+                await native.Value.SignedOutAsync();
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "Spine sign-in: {Provider} could not forget the signed-out account.", name);
+            }
         }
     }
 
