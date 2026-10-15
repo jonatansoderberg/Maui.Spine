@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as thirty-one NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as thirty-two NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -28,6 +28,7 @@ Spine ships as thirty-one NuGet packages built from this repository, one per pro
 | Controls | `Plugin.Maui.Spine.Images` | Every `UriImageSource` through a memory and disk cache, decoded at the view's size; `IImageCache`; BlurHash placeholders. Its `net10.0` build holds only the disk cache | `.Common` |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and `BlurHash`; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
+| AI | `Plugin.Maui.Spine.Voice` | [Voice](voice.md): the full-duplex audio engine with the platform's echo cancellation, the playback queue and `VoiceFrame` | `.Common` |
 | AI | `Plugin.Maui.Spine.AI` | [AI in the app](ai-client.md): one `IChatClient` per named feature, on the device or the server, with fallback and on-device usage; generated images from the server on any `Image` | `.Common` |
 | Server | `Plugin.Maui.Spine.Server.AI` | [AI on the server](ai-server.md): named features, metering, prices, budgets and limits on Microsoft.Extensions.AI | `.Common` |
 | Server | `Plugin.Maui.Spine.Server.Authentication` | [Sign-in on the server](authentication-server.md): ID tokens checked, own access and refresh tokens, email and password, account deletion | `.Common`, Microsoft.AspNetCore.Authentication.JwtBearer, Azure.Data.Tables |
@@ -49,6 +50,7 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
   │   Chat ──► Markdown, Shimmer
 PushNotifications                                    AnimatedLabel
   Images ──► Common
+  Voice ──► Common
   AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
   Common ◄── Server.Authentication (and JwtBearer, Azure.Data.Tables)
   Server.Messaging ◄── Server.Messaging.AzureStorage ◄── Server.Messaging.ServiceBus
@@ -73,6 +75,7 @@ PushNotifications                                    AnimatedLabel
 | The push backend | `Plugin.Maui.Spine.Server` in the server project (brings `.Common`) |
 | A chat with a model, on any `IChatClient` | `Plugin.Maui.Spine.Controls.Chat` (brings the core, Markdown and Shimmer); with `Plugin.Maui.Spine.AI` for features on the app's server |
 | Markdown text: help, release notes, chat answers | `Plugin.Maui.Spine.Controls.Markdown` (brings the core and Markdig) |
+| Microphone and speaker at once for realtime voice, with echo cancellation | `Plugin.Maui.Spine.Voice` (brings `.Common`), plus `NSMicrophoneUsageDescription` |
 | Language models in the app, on the device or through the app's server | `Plugin.Maui.Spine.AI` (brings `.Common`; the core is not required), plus the app's own on-device client such as Microsoft.Maui.Essentials.AI |
 | Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
 | Sign-in against the app's own server: Apple, Google, Microsoft, OpenID Connect, email and password | `Plugin.Maui.Spine.Server.Authentication` in the server project |
@@ -150,6 +153,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 | MAUI packages (core, Svg, Widgets, PushNotifications, BackgroundTasks, Biometrics, Authentication.Google, the controls, Scanner) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
 | `Plugin.Maui.Spine.Barcodes` | `net10.0` (encoding, `LightGridReader`) and the four MAUI frameworks (adding `BarcodeView`) |
 | `Plugin.Maui.Spine.Images` | `net10.0` (the disk cache only, for tests) and the four MAUI frameworks |
+| `Plugin.Maui.Spine.Voice` | `net10.0` (the meter, the queue, the resampler and the shared engine, for tests) and the four MAUI frameworks (adding the platform engines and `UseSpineVoice`) |
 | `Plugin.Maui.Spine.AI` | `net10.0` (the server client, the fallback chain and the meter, for tests and non-MAUI clients) and the four MAUI frameworks (adding `UseSpineAI`) |
 | `Plugin.Maui.Spine.Authentication` | `net10.0` (the server client, the session and the `HttpClient` handler, for tests) and the four MAUI frameworks (adding `o.AddAuthentication`, the sheet, `[RequiresSignIn]` and Apple) |
 | `Plugin.Maui.Spine.Svg.Icons`, `Plugin.Maui.Spine.Common`, `Plugin.Maui.Spine.Server`, `Plugin.Maui.Spine.Server.AI`, `Plugin.Maui.Spine.Server.AI.Assets`, `Plugin.Maui.Spine.Server.Authentication`, `Plugin.Maui.Spine.Server.Messaging` and its two transports | `net10.0` |
@@ -184,7 +188,7 @@ These packages carry MSBuild files that run in the consuming app's build, import
 | Package | What its build files do |
 |---|---|
 | `Plugin.Maui.Spine` | Writes `SpineModules.g.cs` into the app: a `[ModuleInitializer]` that hands each referenced package's registration to `UseSpine()` (from the `SpineModule` items below). Only in an app project; `SpineGenerateModuleRegistrations=false` turns it off |
-| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Scanner`, `.Images`, `.AI`, `.Authentication` | Declare their `SpineModule` in `<PackageId>.props` |
+| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Scanner`, `.Images`, `.AI`, `.Voice`, `.Authentication` | Declare their `SpineModule` in `<PackageId>.props` |
 | `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other packages contribute, and one partial `Info.plist` with `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers` from the `SpineBackgroundMode` and `SpineBackgroundTaskIdentifier` items, merged with the app's own |
 | `Plugin.Maui.Spine.Widgets` | Compiles the WidgetKit extension and the bridge framework with `swiftc` on iOS; generates the manifest overlay and provider metadata on Android |
 | `Plugin.Maui.Spine.PushNotifications` | Contributes the `aps-environment` entitlement; compiles the Notification Service Extension on iOS when `SpinePushNotificationsImages` is on |

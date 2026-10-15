@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/515
 **Branch:** issue/515-spike-spinevoice-audio-engine-full-duplex-echo-can
-**Status:** In Progress
+**Status:** In Review
 
 Step 4.1a of `docs/plans/ai-and-security.md`. Proposal: `docs/proposals/spine-voice.md` §3. The owner split the step on 2026-10-15:
 - #515: the shared core and the Apple engine (iOS, Mac Catalyst).
@@ -117,9 +117,49 @@ None. The owner answered on 2026-10-15: three issues, built in the repo with a S
 
 ## Changes
 
-<!-- Updated as work progresses -->
+- `src/Plugin.Maui.Spine.Voice` (in `Spine.slnx` and `Spine.Packages.slnf`, icon `ai.png` for now):
+  - `Core/` (also `net10.0`):
+    - `IVoiceAudio`, `VoiceAudioOptions`, `VoiceAudioException`, `VoiceDuplex` and `VoiceFrame`
+    - `VoiceMeter`, with its own radix-2 FFT
+    - `PcmResampler`, a streaming windowed sinc with a tabled kernel
+    - `PlaybackQueue`: per item, a prebuffer, `Complete`, `Flush` with the played position
+    - `VoiceAudioEngine`, the shared engine the platforms subclass
+  - `Apple/AppleVoiceAudio.cs`, with these parts:
+    - one `AVAudioEngine`, voice processing on the input (and output) node, and an `AVAudioSourceNode` for the answer
+    - interruptions, route changes, configuration changes and resets
+    - guarded callbacks
+    - the `NSMicrophoneUsageDescription` check and the permission
+    - a fallback without voice processing that says so
+  - `SpineVoiceExtensions.UseSpineVoice` registers a transient `IVoiceAudio`. Android and Windows get an engine that answers `Unavailable` until #562 and #563.
+  - `build/`: a `SpineModule`, the Mac Catalyst audio-input entitlement, and the opt-in `audio` background mode (`SpineVoiceBackground`).
+- `tests/Plugin.Maui.Spine.Voice.Tests`: 25 tests, covering:
+  - the FFT, the meter's scale, bands, attack and release
+  - the queue's prebuffer, order, completion and flush
+  - the resampler's length, tone and anti-aliasing
+  - the shared engine with a fake platform: PCM16 at the provider's rate, the states, mute and interruption, half duplex, playback at the device's rate, flush, and stop
+- Showcase:
+  - **The Voice lab page:** a `VoiceMeterView` with levels and bands, Start, Stop, Play the reference, and switches for echo cancellation, loudspeaker and mute.
+  - **The echo test:** two takes saved as WAV, results in `voice-lab.json`.
+  - **The reference:** 14 s of Swedish speech made with `say -v Alva`.
+  - **Setup:** `NSMicrophoneUsageDescription` in both Info.plists, and the Mac entitlement.
+- Docs:
+  - `docs/wiki/voice.md` and the package README
+  - README and `packages.md` (32 packages), the `spine-setup` skill
+  - the proposal's status line
+  - the plan: 4.1 split, Decisions, the backlog, a test recipe
+- Measured on the owner's iPhone and on this Mac (see `docs/wiki/voice.md` § Measured).
+- Follow-up issues: #562 (Android) and #563 (Windows).
 
 ## Decisions
 
 - **2026-10-15, owner:** #515 is the shared core and the Apple engine. Android is #562 and Windows is #563, each with its own PR.
 - **2026-10-15, owner:** The engine goes straight into `Plugin.Maui.Spine.Voice` in the repo, with a Showcase Voice lab page that measures it, rather than a scratch app outside the repo.
+- **2026-10-15, Claude:** The answer is rendered by an `AVAudioSourceNode` that pulls from the queue, not an `AVAudioPlayerNode` with scheduled buffers. **Why:** played is then what was rendered, `Flush()` is immediate, and the echo canceller sees the output of the same engine.
+- **2026-10-15, Claude:** The package's own windowed-sinc resampler on every platform instead of `AVAudioConverter`. **Why:** one tested path, shared with Android. Its kernel is tabled at 256 phases; computing a sine and a cosine per tap cost 60 % of a core in a Debug build.
+- **2026-10-15, Claude:** Voice-chat mode only with voice processing. **Why:** the first iPhone run measured −51 dBFS of echo "without" echo cancellation; with the default mode it was −20 dBFS. Voice-chat mode suppresses echo by itself, which hid it.
+- **2026-10-15, Claude:** No exception leaves a native callback, and notifications run on the main thread. **Why:** a `NullReferenceException` in a notification handler ended the app on the iPhone the moment voice processing came on.
+- **2026-10-15, Claude:** A configuration change restarts the engine; a rebuild only after a media-services reset or a failed restart. **Why:** turning voice processing on posts a configuration change at once, and rebuilding then raced the start.
+- **2026-10-15, Claude:** On macOS the mixer and output are connected before voice processing comes on, and a refused voice-processing unit falls back to running without it, visible as `IsVoiceProcessingOn = false` and a warning. **Why:** the Mac's second take failed with `kAudioUnitErr_FailedInitialization` (−10875) until the output side was connected first.
+- **2026-10-15, Claude:** No `DefaultToSpeaker` in the session; `UseSpeaker` is an override. **Why:** with it the receiver could never be chosen (the first receiver run still went to the loudspeaker).
+- **2026-10-15, Claude:** The echo test reports the median of 100 ms windows and the loudest window, not the mean. **Why:** the owner talked during one take, which pulled the mean up while the phone's own voice had been removed.
+- **2026-10-15, owner:** No Release build for now (the disk ran out during one); CPU in Release is in the Verification backlog.
