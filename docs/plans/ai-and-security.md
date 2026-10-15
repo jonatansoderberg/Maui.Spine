@@ -54,7 +54,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
-| `Plugin.Maui.Spine.Authentication` | New | #519, #557 | [authentication](../proposals/spine-authentication.md) | #519 in review (#PR); #557 waiting |
+| `Plugin.Maui.Spine.Authentication` | New | #519, #557 | [authentication](../proposals/spine-authentication.md) | #519 in review (#558); #557 waiting |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 done (#553); #552 done (#554) |
 | Passkeys (client and server) | After v1 of sign-in | #522 | [authentication, Passkeys](../proposals/spine-authentication.md) | Waiting |
@@ -144,7 +144,7 @@ The order follows value against risk. Steps in different phases can run in paral
 |---|---|---|---|---|---|---|
 | 5.1a | `Server.Authentication`: ID-token validation, own tokens, refresh rotation, email and password, account deletion, the push `UserId` | #520 | 0.2 | Done | #553 | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). Split on 2026-10-15; email and password included by the owner (Decisions). |
 | 5.1b | `Server.Authentication`: the browser broker (`/start`, `/callback`, PKCE, the one-time code; Apple web, Google web, OIDC) | #552 | 5.1a | Done | #554 | Split from #520 by the owner on 2026-10-15. `PublicUrl`, `RedirectSchemes` (custom schemes and http loopback), `WebClientId`/`WebClientSecret` per provider, Apple's `ServicesId`; the code is traded at `POST /auth/token` (Decisions). |
-| 5.2a | `Authentication` client: `ISpineAuth`, tokens in secure storage, the `HttpClient` handler, `[RequiresSignIn]`, the sign-in sheet, email and password, Sign in with Apple's sheet, the push link | #519 | 1.1, 5.1a | In review | #PR | Split on 2026-10-15. Registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8, kept by the owner) through a new core hook (Decisions). |
+| 5.2a | `Authentication` client: `ISpineAuth`, tokens in secure storage, the `HttpClient` handler, `[RequiresSignIn]`, the sign-in sheet, email and password, Sign in with Apple's sheet, the push link | #519 | 1.1, 5.1a | In review | #558 | Split on 2026-10-15. Registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8, kept by the owner) through a new core hook (Decisions). |
 | 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | Waiting | | Split from #519 by the owner on 2026-10-15. |
 | 5.3 | `Authentication.Google` and `.Microsoft` | #521 | 5.2a, 5.2b | Waiting | | |
 | 5.4 | Passkeys | #522 | 5.2a | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
@@ -516,7 +516,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
-- **2026-10-15:** #552 merged (PR #554). #519 (the Authentication client, step 5.2a) in review as PR #PR; browser sign-in and the mode without a server split out as #557 (5.2b).
+- **2026-10-15:** #552 merged (PR #554). #519 (the Authentication client, step 5.2a) in review as PR #558; browser sign-in and the mode without a server split out as #557 (5.2b).
 - **2026-10-15:** #520 merged (PR #553). #552 (the browser broker, step 5.1b) in review as PR #554.
 - **2026-10-15:** #517 merged (PR #551). #520 (Server.Authentication, step 5.1a) in review as PR #553; the browser broker split out as #552 (5.1b).
 - **2026-10-15:** #517 (realtime session tokens, step 4.2) in review as PR #551. 4.3 now waits only on the audio engine spike (4.1).
