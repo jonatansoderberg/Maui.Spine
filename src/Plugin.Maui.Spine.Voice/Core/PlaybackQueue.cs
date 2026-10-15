@@ -30,6 +30,18 @@ internal sealed class PlaybackQueue(int sampleRate, TimeSpan? prebuffer = null)
         }
     }
 
+    /// <summary>The item playing now and how much of it has played, or <see langword="null"/> while nothing plays.</summary>
+    public PlaybackPosition? Current
+    {
+        get
+        {
+            lock (_gate)
+                return _current is { Started: true } playing
+                    ? new PlaybackPosition(playing.Id, TimeSpan.FromSeconds(_played.GetValueOrDefault(playing.Id) / (double)sampleRate))
+                    : null;
+        }
+    }
+
     /// <summary>Queues PCM16 samples for <paramref name="itemId"/>, after what is already queued for it.</summary>
     public void Enqueue(string itemId, ReadOnlySpan<short> samples)
     {

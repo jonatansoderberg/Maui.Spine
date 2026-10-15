@@ -25,4 +25,10 @@ public sealed class SpineVoiceOptions
     /// connects; tools that touch user data belong on the server.
     /// </summary>
     public IList<AIFunction> ClientTools { get; } = [];
+
+    /// <summary>
+    /// Mouth shapes for an avatar, lined up with the answer as it plays. Unset, <see cref="VoiceFrame.Viseme"/> stays -1 and
+    /// avatars follow the output level; the realtime providers give no visemes themselves.
+    /// </summary>
+    public IVisemeSource? VisemeSource { get; set; }
 }

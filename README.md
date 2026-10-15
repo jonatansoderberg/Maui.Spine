@@ -61,7 +61,7 @@
 
 ## Packages
 
-One version, thirty-two packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, thirty-three packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -84,6 +84,7 @@ One version, thirty-two packages, all on [nuget.org](https://www.nuget.org/packa
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients (accent, Aurora, Sunset or your own colours) that drift slowly behind glass |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view: a moving rim while a model works, rings that say tap here, a sweep, a running light or a breathing halo; once per install with a key |
 | Controls | `Plugin.Maui.Spine.Controls.Chat` | `ChatView` and `ChatComposer`: a conversation with any `IChatClient`, answers streamed as markdown that follow the end, Stop, suggestions, tool cards |
+| Controls | `Plugin.Maui.Spine.Controls.Voice` | `VoiceView`: a voice conversation drawn as it happens, as a breathing orb, duplex bars, a ring or a face whose mouth follows the answer; visuals of your own, quiet under Reduce Motion |
 | Controls | `Plugin.Maui.Spine.Controls.Markdown` | `MarkdownView`: markdown on native views (lists, code with Copy, quotes, tables, images), themed; a streamed answer rebuilds only its last block |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes such as 12 × 12 |
@@ -263,7 +264,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The thirty-two packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The thirty-three packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 

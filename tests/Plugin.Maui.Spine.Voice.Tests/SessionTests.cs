@@ -217,6 +217,38 @@ public sealed class SessionTests : IAsyncLifetime
         Assert.Equal([VoiceState.Thinking, VoiceState.Speaking, VoiceState.Listening], states);
     }
 
+    private sealed class VisemeScript : IVisemeSource
+    {
+        public List<PlaybackPosition> Asked { get; } = [];
+
+        public int VisemeAt(PlaybackPosition playing)
+        {
+            Asked.Add(playing);
+            return playing.Played < TimeSpan.FromMilliseconds(30) ? Visemes.P : Visemes.Aa;
+        }
+    }
+
+    [Fact]
+    public async Task The_frame_carries_the_viseme_the_source_gives_for_what_is_playing()
+    {
+        var visemes = new VisemeScript();
+        _options.VisemeSource = visemes;
+        await ConnectAsync();
+        Assert.Equal(Visemes.None, _session.UpdateFrame().Viseme);    // nothing playing: the source is not asked
+
+        _socket.Push(new { type = "response.created", response = new { id = "r1" } });
+        _socket.Push(new { type = "response.output_audio.delta", item_id = "a1", delta = Audio(2400) });
+        await Until(() => _audio.IsPlaying, "the answer queued");
+        _audio.Render(960, 48_000);                   // 20 ms
+        Assert.Equal(Visemes.P, _session.UpdateFrame().Viseme);
+        _audio.Render(1920, 48_000);                  // 60 ms
+        Assert.Equal(Visemes.Aa, _session.UpdateFrame().Viseme);
+
+        Assert.Equal("a1", visemes.Asked[^1].ItemId);
+        Assert.Equal(60, visemes.Asked[^1].Played.TotalMilliseconds, 0.5);    // the resampler's filter lags a sample
+        Assert.Equal(2, visemes.Asked.Count);
+    }
+
     [Fact]
     public async Task Talking_over_the_answer_cuts_it_off_and_tells_the_model_how_much_was_heard()
     {

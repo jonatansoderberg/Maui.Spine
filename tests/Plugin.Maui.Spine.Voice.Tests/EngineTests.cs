@@ -144,6 +144,21 @@ public sealed class EngineTests
     }
 
     [Fact]
+    public async Task The_frame_says_speaking_while_an_answer_plays_but_the_state_stays_listening()
+    {
+        await using var engine = new FakePlatform(_time);
+        await engine.StartAsync(new VoiceAudioOptions { Convergence = TimeSpan.Zero, Prebuffer = TimeSpan.Zero });
+        engine.Enqueue("answer", Signals.Bytes(Signals.Pcm(Signals.Sine(440, 24_000, 2400, 0.5f))));
+        engine.Complete("answer");
+
+        Assert.Equal(VoiceState.Speaking, engine.UpdateFrame().State);
+        Assert.Equal(VoiceState.Listening, engine.State);
+
+        engine.Render(4800, 48_000);                          // all of it
+        Assert.Equal(VoiceState.Listening, engine.UpdateFrame().State);
+    }
+
+    [Fact]
     public async Task Flush_stops_the_answer_at_the_next_buffer()
     {
         await using var engine = new FakePlatform(_time);

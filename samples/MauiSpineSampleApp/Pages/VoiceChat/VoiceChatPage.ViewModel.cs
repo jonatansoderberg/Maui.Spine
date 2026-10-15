@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Plugin.Maui.Spine.AI;
+using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Voice;
 
 namespace MauiSpineSampleApp.Pages.VoiceChat;
@@ -8,12 +9,15 @@ namespace MauiSpineSampleApp.Pages.VoiceChat;
 public partial class VoiceChatPageViewModel : SampleViewModel
 {
     private readonly SpineVoiceOptions _options;
+    private readonly IHighlights _highlights;
     private IDispatcherTimer? _clock;
+    private IEdgeGlow? _edge;
 
     public VoiceChatPageViewModel()
     {
         var services = IPlatformApplication.Current!.Services;
         _options = services.GetRequiredService<SpineVoiceOptions>();
+        _highlights = services.GetRequiredService<IHighlights>();
         Server = _options.SessionEndpoint?.ToString() ?? "http://localhost:5100/ai";
 
         // A new session for this page: the transcript, the state and the audio are its own.
@@ -39,6 +43,15 @@ public partial class VoiceChatPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial bool Muted { get; set; }
 
+    /// <summary>The built-in visuals, for the picker.</summary>
+    public IReadOnlyList<string> Kinds { get; } = ["orb", "bars", "ring", "avatar"];
+
+    [ObservableProperty]
+    public partial string Kind { get; set; } = "orb";
+
+    [ObservableProperty]
+    public partial bool Edge { get; set; }
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand), nameof(EndCommand), nameof(StopCommand))]
     public partial bool IsConnected { get; set; }
@@ -52,10 +65,22 @@ public partial class VoiceChatPageViewModel : SampleViewModel
     public override async Task OnDisappearingAsync(NavigationDirection navigationDirection)
     {
         _clock?.Stop();
+        Edge = false;
         await Session.EndAsync();
     }
 
     partial void OnMutedChanged(bool value) => Session.IsMuted = value;
+
+    partial void OnEdgeChanged(bool value)
+    {
+        _edge?.Dispose();
+        _edge = null;
+        if (value && Application.Current?.Windows.FirstOrDefault() is { } window)
+        {
+            _edge = _highlights.AttachEdge(window);
+            _edge.Intensity = () => Session.UpdateFrame().OutputLevel;
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(CanConnect))]
     private async Task Connect()

@@ -56,6 +56,7 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
     public string? Route => _route;
     public VoiceFrame Frame => _frame;
     public bool IsPlaying => _queue?.IsPlaying == true;
+    public PlaybackPosition? Playing => _queue?.Current;
 
     public bool IsMuted
     {
@@ -203,7 +204,7 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
         Refresh();
         lock (_stateGate)
         {
-            _frame.State = _state;
+            _frame.State = _state == VoiceState.Listening && IsPlaying ? VoiceState.Speaking : _state;
             _frame.TimeInState = Time.GetElapsedTime(_stateSince, now);
         }
         return _frame;
