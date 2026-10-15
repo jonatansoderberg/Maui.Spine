@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		net10.0 carries only the platform-neutral core (the server client, the session with its refresh, the HTTP
+		handler), so it can be tested against a real Spine.Server.Authentication host without a device; the MAUI TFMs
+		add o.AddAuthentication, SecureStorage, the sign-in sheet, [RequiresSignIn] and Sign in with Apple.
+	-->
+	<PropertyGroup>
+		<TargetFrameworks>net10.0;$(SpineMauiTargetFrameworks)</TargetFrameworks>
+
+		<AssemblyName>Plugin.Maui.Spine.Authentication</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Authentication</RootNamespace>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' != 'net10.0'">
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Sign-in for a Spine app against its own server: Sign in with Apple's native sheet, email and password with a ready-made sheet, [RequiresSignIn] on a page or command, refresh tokens in secure storage, and an HttpClient handler that adds and refreshes the access token.</Description>
+		<SpineIcon>authentication.png</SpineIcon>
+		<PackageTags>$(PackageTags);authentication;sign-in;sign-in-with-apple;login;jwt;refresh-tokens</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Http" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+		<Compile Remove="**\*.cs" />
+		<Compile Include="Core\**\*.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Authentication.Tests" />
+	</ItemGroup>
+
+	<!-- The module declaration and the Sign in with Apple entitlement; a ProjectReference consumer imports
+	     build\Plugin.Maui.Spine.Authentication.targets explicitly. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
+</Project>

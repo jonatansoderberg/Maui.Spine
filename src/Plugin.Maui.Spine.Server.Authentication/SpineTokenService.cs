@@ -76,12 +76,22 @@ internal sealed class SpineTokenService
 
         if (stored.UsedAt is not null || !await _store.TryUseRefreshAsync(hash, now, cancellationToken))
         {
-            // Rotation means a token is presented once. A second presentation is either a stolen copy or a stolen
-            // original, and there is no telling which, so every device of that sign-in starts over.
-            await _store.RevokeFamilyAsync(stored.UserId, stored.FamilyId, cancellationToken);
-            _logger.LogWarning("Spine sign-in: a used refresh token was presented again; family {Family} of user {User} is revoked.",
-                stored.FamilyId, stored.UserId);
-            return null;
+            // A client whose answer was lost presents the same token again within moments; that is not reuse.
+            var usedAt = stored.UsedAt ?? (await _store.FindRefreshAsync(hash, cancellationToken))?.UsedAt;
+            if (usedAt is { } used && now - used <= _options.RefreshReuseGrace)
+            {
+                _logger.LogInformation("Spine sign-in: a refresh token was presented again {Seconds:0.#} s after its use; within the grace, a new pair is issued.",
+                    (now - used).TotalSeconds);
+            }
+            else
+            {
+                // Rotation means a token is presented once. A second presentation is either a stolen copy or a stolen
+                // original, and there is no telling which, so every device of that sign-in starts over.
+                await _store.RevokeFamilyAsync(stored.UserId, stored.FamilyId, cancellationToken);
+                _logger.LogWarning("Spine sign-in: a used refresh token was presented again; family {Family} of user {User} is revoked.",
+                    stored.FamilyId, stored.UserId);
+                return null;
+            }
         }
 
         if (stored.ExpiresAt <= now) return null;

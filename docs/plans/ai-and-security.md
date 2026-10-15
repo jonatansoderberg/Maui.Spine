@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-15 (step 5.1a merged as #553; step 5.1b, the browser broker (#552), in review; see Decisions and Verification backlog)
+**Last updated:** 2026-10-15 (step 5.2a, the Authentication client (#519), in review; browser sign-in and the mode without a server split out as #557 (5.2b); 5.1b merged as #554; see Decisions and Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -54,9 +54,9 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
-| `Plugin.Maui.Spine.Authentication` | New | #519 | [authentication](../proposals/spine-authentication.md) | Proposal |
+| `Plugin.Maui.Spine.Authentication` | New | #519, #557 | [authentication](../proposals/spine-authentication.md) | #519 in review (#558); #557 waiting |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
-| `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 done (#553); #552 in review (#554) |
+| `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 done (#553); #552 done (#554) |
 | Passkeys (client and server) | After v1 of sign-in | #522 | [authentication, Passkeys](../proposals/spine-authentication.md) | Waiting |
 | AI avatars and character visuals | Separate control library, specified by the owner | — | — | Outside this plan |
 | On-device `IChatClient`, Android and Windows | Spike outside the repo | #514 | [ai §9](../proposals/spine-ai.md) | Proposal |
@@ -143,10 +143,11 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
 | 5.1a | `Server.Authentication`: ID-token validation, own tokens, refresh rotation, email and password, account deletion, the push `UserId` | #520 | 0.2 | Done | #553 | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). Split on 2026-10-15; email and password included by the owner (Decisions). |
-| 5.1b | `Server.Authentication`: the browser broker (`/start`, `/callback`, PKCE, the one-time code; Apple web, Google web, OIDC) | #552 | 5.1a | In review | #554 | Split from #520 by the owner on 2026-10-15. `PublicUrl`, `RedirectSchemes` (custom schemes and http loopback), `WebClientId`/`WebClientSecret` per provider, Apple's `ServicesId`; the code is traded at `POST /auth/token` (Decisions). |
-| 5.2 | `Authentication` client: Apple, OIDC, email and password, `[RequiresSignIn]`, refreshing handler | #519 | 1.1, 5.1a (5.1b for browser flows) | Waiting | | Works with and without a Spine server (Q7), registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8). Needs a Windows path that works on .NET 10. |
-| 5.3 | `Authentication.Google` and `.Microsoft` | #521 | 5.2 | Waiting | | |
-| 5.4 | Passkeys | #522 | 5.2 | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
+| 5.1b | `Server.Authentication`: the browser broker (`/start`, `/callback`, PKCE, the one-time code; Apple web, Google web, OIDC) | #552 | 5.1a | Done | #554 | Split from #520 by the owner on 2026-10-15. `PublicUrl`, `RedirectSchemes` (custom schemes and http loopback), `WebClientId`/`WebClientSecret` per provider, Apple's `ServicesId`; the code is traded at `POST /auth/token` (Decisions). |
+| 5.2a | `Authentication` client: `ISpineAuth`, tokens in secure storage, the `HttpClient` handler, `[RequiresSignIn]`, the sign-in sheet, email and password, Sign in with Apple's sheet, the push link | #519 | 1.1, 5.1a | In review | #558 | Split on 2026-10-15. Registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8, kept by the owner) through a new core hook (Decisions). |
+| 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | Waiting | | Split from #519 by the owner on 2026-10-15. |
+| 5.3 | `Authentication.Google` and `.Microsoft` | #521 | 5.2a, 5.2b | Waiting | | |
+| 5.4 | Passkeys | #522 | 5.2a | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
 
 ---
 
@@ -201,6 +202,7 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.3c (#543) | `GeneratedImage` on Android, Windows and Mac Catalyst at run time (only compiled), and on a phone. Seen on the iPhone 17 Pro simulator: pending (a spinner in #543, a `Shimmer` since #549, light theme only), ready from blob storage, failed, polling stopped in the background and resumed at once | An emulator, a Windows machine, the Mac app | The Showcase's Generated images page against the messaging sample's API; `adb reverse tcp:5240 tcp:5240` on Android |
 | 4.2 (#517) | Azure OpenAI's `client_secrets` and its WebSocket with an `ek_` token as bearer; only built from Microsoft's docs and tested against a stub | An Azure OpenAI resource with a realtime deployment | `ai.Realtime("azure", AIRealtimeProviders.AzureOpenAI)`, then the check below against its `url` |
 | 5.1a (#520) | A real Sign in with Apple ID token from the native sheet, Apple's code exchange and revocation, and real Google and Microsoft tokens. Only stub issuers and a stub of Apple's endpoints were used | The iPhone with the app half (#519), an Apple key, Google and Entra client ids | The push sample server's `/auth/apple/token` with `Auth:Apple:*` in user secrets |
+| 5.2a (#519) | Sign in with Apple's sheet on a device; the client on Android, Windows and Mac Catalyst at run time (only compiled); the push link with a real push token. Seen on the iPhone 17 Pro simulator: sign-up, the code, `[RequiresSignIn]` on a page and on a command, cancel, a call through the handler, sign-out, a restart that kept the session | The Showcase's App ID with the Sign in with Apple capability and a new profile, then `-p:SpineSignInWithApple=true` on the iPhone; an emulator; a Windows machine | The Showcase's Sign-in page against the push sample server on 5100 (`adb reverse tcp:5100 tcp:5100` on Android); codes are in the server's log. The MCP `text` tool types `@` as `2`, so paste emails with `xcrun simctl pbcopy` |
 | 5.1b (#552) | The browser sign-in against real Apple, Google and OIDC web clients: the callback, the code exchange, Apple's form_post and its `user` JSON. `/start` reached the real authorize pages through real discovery with placeholder client ids; everything after ran only against stubs | A Services ID with a return URL, a Google web client | The push sample server with `Auth:Apple:*` or `Auth:Google:*` in user secrets, a public URL (a tunnel) for Apple, which refuses `http://localhost` return URLs |
 | 5.1a (#520) | `SpineAuthEndpoints` under Azure Functions (only compiled) | The scratch Functions AppHost | The Functions recipe below |
 | 4.2 (#517) | `SpineAIEndpoints.RealtimeSessionAsync` under Azure Functions (only compiled) | The scratch Functions AppHost | The Functions recipe below |
@@ -357,6 +359,14 @@ Newest last. Each entry is dated and says who decided.
   - `GeneratedImage.PendingView` and `.FailedView` take other views by `{x:Reference}`, and the image shows and hides them. **Why:** MAUI bindings cannot follow an attached property (`Path=(GeneratedImage.Status)` stayed empty in the simulator, compiled or not), so a sibling's spinner or label could not be bound to the status.
   - `SpineAIOptions.AssetsBackend` points at `MapSpineAIAssets` when images come from another service than the features. **Why:** the Showcase's features run on the push sample server and its images on the messaging sample, and an app can serve images from a Functions app of its own.
   - Polling waits while every window is stopped (`Window.Stopped`/`Resumed`), and an image off screen asks nothing (`Loaded`/`Unloaded`).
+- **2026-10-15, owner (#519):** #519 is split. 5.2a is the client's core, email and password, Apple's sheet and the push link. 5.2b (#557) is the browser sign-in and the mode without a Spine server. Registration stays `o.AddAuthentication(...)` inside `UseSpine` (Q8), even though other packages use `UseSpineX(...)`.
+- **2026-10-15, Claude (#519):**
+  - The core gets a general hook: `SpineOptions.Configure<TOptions>(…)` keeps a package's settings, and `ApplyConfiguration<TOptions>(…)` hands them to the package once when its module registers. `UseSpine` runs `configure` before `SpineModules.Run`. **Why:** Q8 asked for configuration inside `UseSpine`, and `SpineOptions` had no place for a package's settings.
+  - The client's `net10.0` core (`SpineAuthClient`, `SpineAuthSession`, `SpineAuthFlows`, the handler) is tested against a real `Server.Authentication` host in a TestServer, 16 facts.
+  - **A grace window on the server.** `RefreshReuseGrace`, 30 seconds by default, lets a retired refresh token give a new pair once more shortly after its use. **Why:** the review found that a refresh whose answer is lost (a timeout, a suspended app) left the client holding only the used token, and the next refresh revoked the whole sign-in. Auth0's "reuse interval" works the same way.
+  - The client saves new tokens before using them. It refreshes with its own 30-second timeout rather than the caller's token. A Keychain read error at startup keeps the stored session instead of clearing it.
+  - Code-built content in a `SpinePage` does not get the page's view model as its `BindingContext`, while XAML content does once shown. `SignInSheet` sets it itself. A possible core issue, not fixed here.
+  - A `[RequiresSignIn]` command asks only where Spine runs the command; the Showcase uses `{PageCommand CallServer}`.
 - **2026-10-15, Claude (#552):**
   - The browser broker lives in the same package and reuses the native user step (`SignInUserAsync`), so a browser and a native sign-in of one account are one user. The web client's tokens are accepted beside `ClientIds`.
   - The server's nonce goes through the same one-time store as `/auth/nonce`, and providers that hash it (Apple) get the hash, so the ID token is checked exactly as a native one.
@@ -506,6 +516,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-15:** #552 merged (PR #554). #519 (the Authentication client, step 5.2a) in review as PR #558; browser sign-in and the mode without a server split out as #557 (5.2b).
 - **2026-10-15:** #520 merged (PR #553). #552 (the browser broker, step 5.1b) in review as PR #554.
 - **2026-10-15:** #517 merged (PR #551). #520 (Server.Authentication, step 5.1a) in review as PR #553; the browser broker split out as #552 (5.1b).
 - **2026-10-15:** #517 (realtime session tokens, step 4.2) in review as PR #551. 4.3 now waits only on the audio engine spike (4.1).
