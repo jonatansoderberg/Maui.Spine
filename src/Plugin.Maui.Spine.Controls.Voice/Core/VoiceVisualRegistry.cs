@@ -1,7 +1,7 @@
 namespace Plugin.Maui.Spine.Controls;
 
-/// <summary>The visuals <c>VoiceView</c> knows by name: the built-ins and those the app adds.</summary>
-public sealed class VoiceVisualRegistry
+/// <summary>The visuals <c>VoiceView</c> knows by name: the built-ins and those the app adds through <c>UseSpineVoiceView</c>.</summary>
+internal sealed class VoiceVisualRegistry
 {
     /// <summary>The visual a <c>VoiceView</c> draws when it names none, or one that is not registered.</summary>
     public const string Default = "orb";
@@ -14,11 +14,8 @@ public sealed class VoiceVisualRegistry
         ["avatar"] = static () => new AvatarVisual(),
     };
 
-    /// <summary>The registered names.</summary>
-    public IEnumerable<string> Names => _factories.Keys;
-
     /// <summary>Adds or replaces a canvas visual.</summary>
-    public void Add(string name, Func<VoiceVisual> factory) => Set(name, factory);
+    internal void Add(string name, Func<VoiceVisual> factory) => Set(name, factory);
 
     internal void Set(string name, Func<object> factory)
     {

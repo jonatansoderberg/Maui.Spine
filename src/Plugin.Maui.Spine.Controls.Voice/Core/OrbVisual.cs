@@ -63,17 +63,16 @@ public sealed class OrbVisual : VoiceVisual
         path.Close();
 
         // A glow behind, stronger with the level, then the body with a lighter centre.
-        using (var glow = new SKPaint { IsAntialias = true, Color = color.WithAlpha((byte)(60 + 120 * _level)) })
-        {
-            glow.ImageFilter = SKImageFilter.CreateBlur(radius * 0.35f, radius * 0.35f);
+        // A paint does not dispose its filter or shader: they are disposed here, or each frame leaks native memory.
+        using (var blur = SKImageFilter.CreateBlur(radius * 0.35f, radius * 0.35f))
+        using (var glow = new SKPaint { IsAntialias = true, Color = color.WithAlpha((byte)(60 + 120 * _level)), ImageFilter = blur })
             canvas.DrawPath(path, glow);
-        }
 
-        using var body = new SKPaint { IsAntialias = true };
-        body.Shader = SKShader.CreateRadialGradient(
+        using var shader = SKShader.CreateRadialGradient(
             new SKPoint(center.X - radius * 0.25f, center.Y - radius * 0.3f), radius * 1.4f,
             [Mix(color, SKColors.White, 0.45f), color, Mix(color, SKColors.Black, 0.25f)],
             [0f, 0.55f, 1f], SKShaderTileMode.Clamp);
+        using var body = new SKPaint { IsAntialias = true, Shader = shader };
         canvas.DrawPath(path, body);
     }
 }

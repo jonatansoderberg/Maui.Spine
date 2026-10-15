@@ -95,7 +95,7 @@ None. The owner decided on 2026-10-15: a new package `Controls.Voice`, and `IVis
 - New package `Plugin.Maui.Spine.Controls.Voice` (net10.0 + MAUI TFMs, SpineModule `UseSpineVoiceView`):
   - `VoiceVisual` and `VoiceVisualContext` (colours, pixel scale, delta, Reduce Motion), and the built-in `OrbVisual`, `BarsVisual`, `RingVisual` and `AvatarVisual`, each with a quieter Reduce Motion form.
   - `VoiceVisualRegistry`: the four by name, `AddVisual<T>` / `AddVisualView<T>`, a new instance per view, and the orb for an unknown name.
-  - `VoiceView`: `Session` or `Audio`, `Kind`, `FrameRate`, `InputColor`, `OutputColor`; its own timer that stops while detached, hidden, scrolled away or in the background, 4 fps under Reduce Motion; the state as its accessible description, announced on change; `VoiceVisualView` for views of an app's own.
+  - `VoiceView`: `Session` or `Audio`, `Kind`, `FrameRate`, `InputColor`, `OutputColor`; its own timer that stops while detached, hidden, scrolled away or in the background, 4 fps under Reduce Motion; the state as its accessible description, with Muted, Interrupted and the end announced; `VoiceVisualView` for views of an app's own.
 - Spine.Voice: `IVisemeSource` and `Visemes` (Azure's 22, `Shape`), `SpineVoiceOptions.VisemeSource`, `IVoiceAudio.Playing` (`PlaybackQueue.Current`); the session puts the source's answer in `frame.Viseme`.
 - Spine.Voice: the engine's frame says `Speaking` while an answer plays (its `State` stays `Listening`).
 - Tests: `tests/Plugin.Maui.Spine.Controls.Voice.Tests` (14: each visual drawn into a bitmap, Reduce Motion, the avatar's mouth and blinking, the registry); a viseme test in the session tests and a frame-state test in the engine tests.
@@ -111,3 +111,11 @@ None. The owner decided on 2026-10-15: a new package `Controls.Voice`, and `IVis
 - The engine's frame says `Speaking` while it plays. The Voice visuals page drew the answer in the user's colour with a closed mouth, because a bare engine only knew `Listening`; the engine's `State` keeps its documented four values, and the session overwrites the frame's state anyway.
 - The Voice visuals page repeats the reference from a one-second timer, not from `StateChanged`: the engine's state does not change when playback ends.
 - The edge in Voice chat calls `Session.UpdateFrame()` itself. `IVoiceSession` has no `Frame`; the meters' `Read` gives the latest values without consuming them, so two callers per tick are harmless.
+- Review (/code-review on PR #569):
+  - The orb disposes its blur filter and gradient shader every frame. A paint does not dispose them, so each frame leaked native memory.
+  - The unknown-`Kind` warning waits for the handler, because XAML sets `Kind` before the logger can be reached.
+  - Only Muted, Interrupted and the end are announced, so VoiceOver does not talk over the answer at every turn.
+  - The input colour is `SpineTheme.GetAccent`, cached and cleared through `SpineTheme.Track`. It used to be a `Primary` lookup on every tick.
+  - `VoiceVisualRegistry` is internal: no app could reach the instance the view uses.
+  - The engine's `TimeInState` counts from the frame's own state change, so the synthetic `Speaking` starts at zero.
+  - Kept as they are: the static options, which are the pattern of Spine.Voice and Spine.Images, and the edge's own `UpdateFrame()` call in the sample.

@@ -15,6 +15,8 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
     private static readonly TimeSpan HalfDuplexTail = TimeSpan.FromMilliseconds(300);
 
     private readonly object _stateGate = new();
+    private VoiceState _frameState = (VoiceState)(-1);    // none yet, so the first frame takes the state's own start
+    private long _frameSince;
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
     private ITimer? _convergence;
     private long _lastAudible;
@@ -200,12 +202,20 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
             _frame.WritableOutputBands.Clear();
         }
         var now = Time.GetTimestamp();
+        var playing = IsPlaying;
         _frame.Time = IsRunning ? Time.GetElapsedTime(_startedAt, now) : TimeSpan.Zero;
         Refresh();
         lock (_stateGate)
         {
-            _frame.State = _state == VoiceState.Listening && IsPlaying ? VoiceState.Speaking : _state;
-            _frame.TimeInState = Time.GetElapsedTime(_stateSince, now);
+            var state = _state == VoiceState.Listening && playing ? VoiceState.Speaking : _state;
+            if (state != _frameState)
+            {
+                // A change of the engine's own state counts from when it changed; Speaking from this tick.
+                _frameSince = state == _state && _stateSince > _frameSince ? _stateSince : now;
+                _frameState = state;
+            }
+            _frame.State = state;
+            _frame.TimeInState = Time.GetElapsedTime(_frameSince, now);
         }
         return _frame;
     }

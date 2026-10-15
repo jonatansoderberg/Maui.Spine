@@ -18,7 +18,7 @@ namespace Plugin.Maui.Spine.Controls;
 /// <para>It redraws at most <see cref="FrameRate"/> times a second, and not at all while it is detached, hidden (itself
 /// or an ancestor), scrolled out of sight or the app is in the background. Under Reduce Motion it draws four times a second
 /// and the visuals show the state and a slow level instead of the spectrum. Screen readers hear one element whose
-/// description is the state, and each change of state is announced.</para>
+/// description is the state; muting, an interruption and the end are announced, not each turn.</para>
 /// </remarks>
 /// <example>
 /// <code language="xml"><![CDATA[
@@ -63,6 +63,8 @@ public sealed class VoiceView : ContentView
     private VoiceVisualView? _hosted;
     private VoiceFrame? _frame;
     private VoiceState _announced = VoiceState.Idle;
+    private bool _unknownKind;
+    private Color? _accent;
     private IDispatcherTimer? _timer;
     private Window? _window;
     private bool _windowStopped;
@@ -79,6 +81,8 @@ public sealed class VoiceView : ContentView
         SemanticProperties.SetDescription(this, Describe(VoiceState.Idle));
         OnVisualChanged();
 
+        SpineTheme.Track(this, () => _accent = null);
+        HandlerChanged += (_, _) => WarnUnknownKind();
         Loaded += (_, _) => Attach();
         Unloaded += (_, _) => Detach();
         PropertyChanged += (_, e) =>
@@ -116,7 +120,7 @@ public sealed class VoiceView : ContentView
         set => SetValue(FrameRateProperty, value);
     }
 
-    /// <summary>The user's colour. Unset, the app's accent (<c>Primary</c>).</summary>
+    /// <summary>The user's colour. Unset, the app's accent (<see cref="SpineTheme.GetAccent"/>), following its changes.</summary>
     public Color? InputColor
     {
         get => (Color?)GetValue(InputColorProperty);
@@ -133,15 +137,24 @@ public sealed class VoiceView : ContentView
     private void OnVisualChanged()
     {
         var created = SpineVoiceViewExtensions.Options.Registry.Create(Kind, out var known);
-        if (!known)
-            Handler?.MauiContext?.Services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Controls.Voice")
-                .LogWarning("VoiceView: no visual is named '{Visual}'; drawing '{Default}'. Register it with UseSpineVoiceView(o => o.AddVisual<T>(name)).",
-                    Kind, VoiceVisualRegistry.Default);
+        _unknownKind = !known;
+        WarnUnknownKind();
 
         _visual = created as VoiceVisual;
         _hosted = created as VoiceVisualView;
         Content = _hosted is not null ? _hosted : _canvas;
         _canvas.InvalidateSurface();
+    }
+
+    // XAML sets Kind before the handler exists, so the warning waits for it.
+    private void WarnUnknownKind()
+    {
+        if (!_unknownKind || Handler?.MauiContext?.Services.GetService<ILoggerFactory>() is not { } loggers)
+            return;
+        _unknownKind = false;
+        loggers.CreateLogger("Plugin.Maui.Spine.Controls.Voice").LogWarning(
+            "VoiceView: no visual is named '{Visual}'; drawing '{Default}'. Register it with UseSpineVoiceView(o => o.AddVisual<T>(name)).",
+            Kind, VoiceVisualRegistry.Default);
     }
 
     private void Attach()
@@ -233,7 +246,8 @@ public sealed class VoiceView : ContentView
             _announced = _frame.State;
             var description = Describe(_announced);
             SemanticProperties.SetDescription(this, description);
-            if (_announced is not VoiceState.Connecting)
+            // Not each turn: "Speaking" and "Listening" read out at every turn would talk over the answer.
+            if (_announced is VoiceState.Muted or VoiceState.Interrupted or VoiceState.Idle)
                 SemanticScreenReader.Announce(description);
         }
 
@@ -263,7 +277,7 @@ public sealed class VoiceView : ContentView
         if (delta > TimeSpan.FromMilliseconds(250))
             delta = TimeSpan.FromMilliseconds(250);
 
-        var input = InputColor ?? (Application.Current?.Resources.TryGetValue("Primary", out var primary) == true && primary is Color c ? c : Colors.DodgerBlue);
+        var input = InputColor ?? (_accent ??= SpineTheme.GetAccent(Application.Current?.RequestedTheme ?? AppTheme.Light) ?? Colors.DodgerBlue);
         var output = OutputColor ?? WarmDefault;
         return new VoiceVisualContext(input.ToSKColor(), output.ToSKColor(), scale, delta, ReducedMotion.IsOn);
     }

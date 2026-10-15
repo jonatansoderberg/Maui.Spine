@@ -11,6 +11,7 @@ namespace Plugin.Maui.Spine.Controls;
 public sealed class AvatarVisual : VoiceVisual
 {
     private static readonly TimeSpan BlinkLength = TimeSpan.FromMilliseconds(130);
+    private static readonly int[] Sides = [-1, 1];
 
     private readonly Random _random = new(5);
     private float _open;
@@ -65,7 +66,7 @@ public sealed class AvatarVisual : VoiceVisual
         var eyeY = center.Y - head * 0.15f;
         var eyeDx = head * 0.36f;
         var eyeR = head * 0.12f;
-        foreach (var side in new[] { -1, 1 })
+        foreach (var side in Sides)
         {
             var ex = center.X + side * eyeDx + _lookX * eyeR * 0.6f;
             var ey = eyeY + _lookY * eyeR * 0.6f;

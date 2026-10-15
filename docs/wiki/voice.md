@@ -157,7 +157,7 @@ The frame is one object, overwritten on every tick without allocating. Read it d
 
 - **Colours:** `InputColor` is the user's (unset, the app's `Primary`), `OutputColor` the model's (unset, a warm orange).
 - **Frame rate:** `FrameRate`, 1 to 60, 30 by default. It does not draw while it is detached, hidden (itself or an ancestor, such as an unselected tab), scrolled out of sight or the app is in the background. Under Reduce Motion it draws four times a second.
-- **Screen readers** hear one element whose description is the state ("Listening", "Speaking"), and each change of state is announced.
+- **Screen readers** hear one element whose description is the state ("Listening", "Speaking"). Muting, an interruption and the end are announced; the turns are not, so the announcements do not talk over the answer.
 - An unknown `Kind` draws the orb and logs a warning.
 
 ### Visuals of your own
