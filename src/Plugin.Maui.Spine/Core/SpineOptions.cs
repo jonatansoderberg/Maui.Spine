@@ -112,6 +112,44 @@ public sealed class SpineOptions
         return this;
     }
 
+    private readonly Dictionary<Type, List<Delegate>> _packageSettings = [];
+
+    /// <summary>
+    /// Keeps settings for a Spine package that <c>UseSpine</c> registers, so the package is configured inside
+    /// <c>UseSpine(o => …)</c>. A package wraps this in an extension of its own, such as <c>o.AddAuthentication(…)</c>,
+    /// and reads the settings back with <see cref="ApplyConfiguration{TOptions}"/> when it registers.
+    /// </summary>
+    /// <typeparam name="TOptions">The package's options type.</typeparam>
+    /// <param name="configure">Changes the package's options.</param>
+    /// <returns>The same options, for chaining.</returns>
+    public SpineOptions Configure<TOptions>(Action<TOptions> configure) where TOptions : class
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        if (!_packageSettings.TryGetValue(typeof(TOptions), out var list))
+            _packageSettings[typeof(TOptions)] = list = [];
+
+        list.Add(configure);
+        return this;
+    }
+
+    /// <summary>
+    /// Runs every <see cref="Configure{TOptions}"/> given for <typeparamref name="TOptions"/> on <paramref name="options"/>,
+    /// in order, and forgets them, so a package that registers twice applies them once.
+    /// </summary>
+    /// <typeparam name="TOptions">The package's options type.</typeparam>
+    /// <param name="options">The package's options instance.</param>
+    /// <returns>Whether any settings were given.</returns>
+    public bool ApplyConfiguration<TOptions>(TOptions options) where TOptions : class
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (!_packageSettings.Remove(typeof(TOptions), out var list)) return false;
+
+        foreach (var configure in list) ((Action<TOptions>)configure)(options);
+        return true;
+    }
+
     /// <summary>
     /// Default values applied to region pages decorated with <see cref="NavigableRegionAttribute"/>
     /// when individual attribute properties are not explicitly set.

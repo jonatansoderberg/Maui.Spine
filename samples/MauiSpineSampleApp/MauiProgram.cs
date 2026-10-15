@@ -2,6 +2,7 @@
 using MauiSpineSampleApp.Resources.Styles;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.AI;
+using Plugin.Maui.Spine.Authentication;
 using Plugin.Maui.Spine.Biometrics;
 using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
@@ -34,6 +35,17 @@ public static class MauiProgram
                 options.Haptics.TabSwitch = Haptic.Selection;
                 options.Haptics.SheetDetent = Haptic.Selection;
                 options.Haptics.DismissBlocked = Haptic.Warning;
+                // The Sign-in page: the push sample server's /auth. Apple needs the capability, so it is on only in a build
+                // with SpineSignInWithApple=true; the device registers for push as the signed-in user.
+                options.AddAuthentication(a =>
+                {
+                    a.Server = new Uri("http://localhost:5100/auth");
+                    a.AddEmailPassword();
+#if SPINE_SIGN_IN_WITH_APPLE
+                    a.AddApple();
+#endif
+                    a.LinkPushNotifications = true;
+                });
                 // Pages run to the bottom of the screen; their scroll view keeps the last row clear of the home indicator.
                 options.RegionDefaults.SafeAreaEdges = Plugin.Maui.Spine.Core.SafeAreaEdges.Top | Plugin.Maui.Spine.Core.SafeAreaEdges.Left | Plugin.Maui.Spine.Core.SafeAreaEdges.Right;
                 options.RegionDefaults.ScrollInset = Plugin.Maui.Spine.Core.SafeAreaEdges.Bottom;
@@ -73,6 +85,9 @@ public static class MauiProgram
         // The Biometrics page's app lock, behind the page's own switch.
         builder.UseHighlights();
         builder.UseSpineBiometrics(o => o.AppLock(a => a.IsEnabled = () => Preferences.Get(MauiSpineSampleApp.Pages.Biometrics.BiometricsPageViewModel.AppLockKey, false)));
+
+        // The Sign-in page's calls to the sample server, with the access token.
+        builder.Services.AddHttpClient("SampleApi", c => c.BaseAddress = new Uri("http://localhost:5100/")).AddSpineAuthentication();
 
         // The AI client page: the push sample server with its demo provider (samples/MauiSpinePushNotificationsSampleApp.Server).
         // Android reaches it on localhost through adb reverse tcp:5100 tcp:5100.

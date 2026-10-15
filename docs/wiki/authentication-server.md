@@ -117,7 +117,8 @@ a.OpenIdConnect("corp", o => { o.Authority = "https://login.example.com"; o.WebC
 
 - **The access token** is a JWT signed with ES256 and the key's id in `kid`. It carries `sub`, `iss`, `aud` (`Audience`, by default the issuer), `exp`, `jti`, `provider`, and `email` and `name` when known. It lasts `AccessTokenLifetime`, 15 minutes by default.
 - **The refresh token** is 32 random bytes, and only its SHA-256 is stored. Each use returns a new pair and retires the old token. Unused, it expires after `RefreshTokenLifetime`, 60 days by default; each refresh starts that period again.
-- **Reuse revokes the sign-in.** Every token rotated from one sign-in belongs to a family. Presenting a retired token again revokes the whole family, the newest token included, and logs a warning. Other sign-ins of the same user, on other devices, are not affected. The app therefore refreshes one request at a time.
+- **Reuse revokes the sign-in.** Every token rotated from one sign-in belongs to a family. Presenting a retired token again revokes the whole family, the newest token included, and logs a warning.
+- **The grace window.** Within `RefreshReuseGrace` (30 seconds) of its use, a retired token still gives a new pair. That covers a client whose answer was lost to a timeout or a suspended app. `TimeSpan.Zero` turns the grace off. Other sign-ins of the same user, on other devices, are not affected. The app therefore refreshes one request at a time.
 - **Password reset and account deletion** revoke every family the user has.
 
 ## Email and password

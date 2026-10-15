@@ -50,6 +50,13 @@ public sealed partial class SpineAuthOptions
     /// <summary>How long a refresh token works unused. Each refresh starts it again. 60 days by default.</summary>
     public TimeSpan RefreshTokenLifetime { get; set; } = TimeSpan.FromDays(60);
 
+    /// <summary>
+    /// How long a refresh token that was just traded in may be presented once more and still give a new pair, for a
+    /// client whose answer was lost (a timeout, the app suspended mid-call). After it, a second presentation revokes the
+    /// whole sign-in as reuse. 30 seconds by default; <see cref="TimeSpan.Zero"/> revokes at once.
+    /// </summary>
+    public TimeSpan RefreshReuseGrace { get; set; } = TimeSpan.FromSeconds(30);
+
     /// <summary>How long a nonce from <c>GET /auth/nonce</c> can be used. 10 minutes by default.</summary>
     public TimeSpan NonceLifetime { get; set; } = TimeSpan.FromMinutes(10);
 

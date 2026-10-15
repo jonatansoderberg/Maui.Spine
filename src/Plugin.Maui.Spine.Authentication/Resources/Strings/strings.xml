@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <s key="Spine.Authentication.Title.SignIn">Sign in</s>
+  <s key="Spine.Authentication.Title.SignUp">Create account</s>
+  <s key="Spine.Authentication.Title.Code">Check your email</s>
+  <s key="Spine.Authentication.Title.Forgot">Reset password</s>
+  <s key="Spine.Authentication.Apple">Sign in with Apple</s>
+  <s key="Spine.Authentication.Or">or</s>
+  <s key="Spine.Authentication.Email">Email</s>
+  <s key="Spine.Authentication.Password">Password</s>
+  <s key="Spine.Authentication.NewPassword">New password</s>
+  <s key="Spine.Authentication.Name">Name (optional)</s>
+  <s key="Spine.Authentication.Code">Code</s>
+  <s key="Spine.Authentication.Continue">Continue</s>
+  <s key="Spine.Authentication.CreateAccount">Create account</s>
+  <s key="Spine.Authentication.Forgot">Forgot password?</s>
+  <s key="Spine.Authentication.BackToSignIn">Back to sign in</s>
+  <s key="Spine.Authentication.Resend">Send a new code</s>
+  <s key="Spine.Authentication.CodeSent">If {0} has an account, a code is on its way. Enter it below.</s>
+  <s key="Spine.Authentication.ResetSent">If {0} has an account, a code is on its way. Enter it with a new password.</s>
+  <s key="Spine.Authentication.Required">Sign in to see this.</s>
+  <s key="Spine.Authentication.SignInButton">Sign in</s>
+  <s key="Spine.Authentication.Error.invalid_credentials">Wrong email or password.</s>
+  <s key="Spine.Authentication.Error.weak_password">The password is too short.</s>
+  <s key="Spine.Authentication.Error.invalid_code">The code is wrong or has expired. Ask for a new one.</s>
+  <s key="Spine.Authentication.Error.email_taken">An account with that email already exists.</s>
+  <s key="Spine.Authentication.Error.signup_closed">New accounts can't be made right now.</s>
+  <s key="Spine.Authentication.Error.invalid_request">Check the email address.</s>
+  <s key="Spine.Authentication.Error.invalid_token">The sign-in was refused. Try again.</s>
+  <s key="Spine.Authentication.Error.provider_unavailable">The sign-in service can't be reached right now.</s>
+  <s key="Spine.Authentication.Error.Other">Something went wrong. Try again.</s>
+</strings>

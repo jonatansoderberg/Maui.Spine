@@ -43,6 +43,7 @@ public sealed class RefreshTests : IAsyncLifetime
         var first = await _host.SignInWithAppleAsync();
         var second = await TokensAsync(await RefreshAsync(first.RefreshToken));
 
+        _host.Time.Advance(TimeSpan.FromSeconds(31));
         var replay = await RefreshAsync(first.RefreshToken);
         Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
         Assert.Equal(SpineAuthErrors.InvalidGrant, (await AuthHost.ProblemAsync(replay))!.Error);
@@ -58,9 +59,24 @@ public sealed class RefreshTests : IAsyncLifetime
         var tablet = await _host.SignInWithAppleAsync();
 
         await RefreshAsync(phone.RefreshToken);
+        _host.Time.Advance(TimeSpan.FromSeconds(31));
         await RefreshAsync(phone.RefreshToken);
 
         Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(tablet.RefreshToken)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_client_whose_answer_was_lost_may_present_the_token_again_for_a_moment()
+    {
+        var first = await _host.SignInWithAppleAsync();
+        var lost = await TokensAsync(await RefreshAsync(first.RefreshToken));
+
+        _host.Time.Advance(TimeSpan.FromSeconds(10));
+        var retried = await TokensAsync(await RefreshAsync(first.RefreshToken));
+
+        // Both successors work: the one whose answer was lost and the one the client got.
+        Assert.NotEqual(lost.RefreshToken, retried.RefreshToken);
+        Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(retried.RefreshToken)).StatusCode);
     }
 
     [Fact]

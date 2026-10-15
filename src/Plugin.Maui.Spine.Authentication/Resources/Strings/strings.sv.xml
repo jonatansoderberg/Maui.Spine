@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings culture="sv">
+  <s key="Spine.Authentication.Title.SignIn">Logga in</s>
+  <s key="Spine.Authentication.Title.SignUp">Skapa konto</s>
+  <s key="Spine.Authentication.Title.Code">Kolla din e-post</s>
+  <s key="Spine.Authentication.Title.Forgot">Återställ lösenord</s>
+  <s key="Spine.Authentication.Apple">Logga in med Apple</s>
+  <s key="Spine.Authentication.Or">eller</s>
+  <s key="Spine.Authentication.Email">E-post</s>
+  <s key="Spine.Authentication.Password">Lösenord</s>
+  <s key="Spine.Authentication.NewPassword">Nytt lösenord</s>
+  <s key="Spine.Authentication.Name">Namn (valfritt)</s>
+  <s key="Spine.Authentication.Code">Kod</s>
+  <s key="Spine.Authentication.Continue">Fortsätt</s>
+  <s key="Spine.Authentication.CreateAccount">Skapa konto</s>
+  <s key="Spine.Authentication.Forgot">Glömt lösenordet?</s>
+  <s key="Spine.Authentication.BackToSignIn">Tillbaka till inloggningen</s>
+  <s key="Spine.Authentication.Resend">Skicka en ny kod</s>
+  <s key="Spine.Authentication.CodeSent">Om {0} har ett konto är en kod på väg. Skriv in den nedan.</s>
+  <s key="Spine.Authentication.ResetSent">Om {0} har ett konto är en kod på väg. Skriv in den med ett nytt lösenord.</s>
+  <s key="Spine.Authentication.Required">Logga in för att se det här.</s>
+  <s key="Spine.Authentication.SignInButton">Logga in</s>
+  <s key="Spine.Authentication.Error.invalid_credentials">Fel e-post eller lösenord.</s>
+  <s key="Spine.Authentication.Error.weak_password">Lösenordet är för kort.</s>
+  <s key="Spine.Authentication.Error.invalid_code">Koden är fel eller för gammal. Be om en ny.</s>
+  <s key="Spine.Authentication.Error.email_taken">Det finns redan ett konto med den e-postadressen.</s>
+  <s key="Spine.Authentication.Error.signup_closed">Det går inte att skapa konton just nu.</s>
+  <s key="Spine.Authentication.Error.invalid_request">Kontrollera e-postadressen.</s>
+  <s key="Spine.Authentication.Error.invalid_token">Inloggningen nekades. Försök igen.</s>
+  <s key="Spine.Authentication.Error.provider_unavailable">Inloggningstjänsten går inte att nå just nu.</s>
+  <s key="Spine.Authentication.Error.Other">Något gick fel. Försök igen.</s>
+</strings>

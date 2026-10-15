@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!-- The client's net10.0 core against a real Spine.Server.Authentication host in a TestServer. -->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<IsPackable>false</IsPackable>
+		<RootNamespace>Plugin.Maui.Spine.Authentication.Tests</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Authentication\Plugin.Maui.Spine.Authentication.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.Authentication\Plugin.Maui.Spine.Server.Authentication.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.TestHost" />
+		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" />
+		<PackageReference Include="xunit" />
+		<PackageReference Include="xunit.runner.visualstudio" />
+	</ItemGroup>
+
+</Project>

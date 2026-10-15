@@ -1,0 +1,15 @@
+<Project>
+	<!--
+		Sign in with Apple needs the com.apple.developer.applesignin entitlement, and the App ID needs the capability
+		in the developer portal: an entitlement the provisioning profile does not grant stops the app from installing.
+		So it is added only when the app says so:
+
+		  <SpineSignInWithApple>true</SpineSignInWithApple>
+
+		Written with the other packages' entitlements by Plugin.Maui.Spine.Common.
+	-->
+	<ItemGroup Condition="'$(SpineSignInWithApple)' == 'true' And ($([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst')">
+		<SpineEntitlement Include="com.apple.developer.applesignin" Kind="array" Value="Default"
+						  Because="Sign in with Apple's native sheet (ASAuthorizationAppleIDProvider)." />
+	</ItemGroup>
+</Project>

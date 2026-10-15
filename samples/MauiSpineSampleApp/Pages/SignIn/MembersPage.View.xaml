@@ -1,0 +1,21 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.SignIn.MembersPage"
+    x:TypeArguments="MembersPageViewModel"
+    x:DataType="MembersPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Authentication">
+
+        <Example Title="Members only"
+                 Summary="This page and its view model were created after the sign-in.">
+            <Label Text="{Binding Greeting}" FontSize="15" />
+            <Example.Code>
+                [NavigableRegion(Title = "Members"), RequiresSignIn]
+                public partial class MembersPage { … }
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

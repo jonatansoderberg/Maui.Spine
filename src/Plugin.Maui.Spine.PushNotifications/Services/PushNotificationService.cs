@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Authentication;
 using Plugin.Maui.Spine.Common;
 
 namespace Plugin.Maui.Spine.PushNotifications.Services;
@@ -62,6 +63,11 @@ internal sealed class PushNotificationService : IPushNotificationService
         // backend holding an old one sends widget pushes that APNs accepts and nothing reloads.
         if (services.GetService(typeof(IWidgetService)) is IWidgetService widgets)
             widgets.PushTokenChanged += () => RefreshAsync().SafeFireAndForget();
+
+        // Signed in or out: the backend takes the user from the token (SpinePushNotificationsOptions.UserId on the
+        // server), so the device registers again even though nothing in the installation itself changed.
+        if (options.AuthorizationHeader is null && services.GetService(typeof(ISignedInSession)) is ISignedInSession session)
+            session.Changed += (_, _) => RefreshAsync(force: true).SafeFireAndForget();
     }
 
     private const string InstallationIdKey = SpineInstallation.IdKey;
@@ -146,7 +152,10 @@ internal sealed class PushNotificationService : IPushNotificationService
         try
         {
             var installation = await BuildAsync(cancellationToken);
-            var fingerprint = Fingerprint(installation);
+            // The signed-in user is part of what the backend holds (it tags the device from the token), so a sign-out
+            // that failed to reach it is tried again on the next refresh instead of looking unchanged.
+            var fingerprint = Fingerprint(installation)
+                + (services.GetService(typeof(ISignedInSession)) is ISignedInSession { UserId: { } user } ? $"|{user}" : "");
             var now = _time.GetUtcNow();
 
             if (!force && fingerprint == Preferences.Default.Get(FingerprintKey, "") && !NeedsConfirming(now))
