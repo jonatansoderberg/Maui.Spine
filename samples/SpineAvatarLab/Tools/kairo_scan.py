@@ -2131,6 +2131,7 @@ LID_MATERIAL = 12              # index of the "lid" material
 EAR_MATERIAL = 16              # index of the "ear" material (the auricles' per-triangle atlas)
 ROOT_MATERIAL = 17             # index of the "roots" material (the root cap under the hair)
 ROOT_CAP = os.environ.get('KAIRO_ROOTS', '1') == '1'   # the root cap under the hair layer (KAIRO_ROOTS=0 builds without it)
+HAIR_CARDS = os.environ.get('KAIRO_CARDS', '1') == '1' # hair cards for the lock ends (Tools/haircards.py; KAIRO_CARDS=0 builds without them)
 ROOT_COVER = 0.5               # hair weight (compose's coverage field) above which a skull face is capped
 ROOT_LIFT = (0.0005, 0.002)    # how far the cap stands off the skin at its edge and in its middle (no z-fighting, no step at the edge; the hairline skirt is pulled to 4 mm in front of the head)
 ROOT_BASE = 40.0               # luminance of the roots: the palette's dark end, under the scalp's own 48, so the cap reads as shadowed roots
@@ -2536,7 +2537,11 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         sat = (rgb.max(-1) - rgb.min(-1)) / (rgb.max(-1) + 1e-6)
         hairpx = (rgb[..., 2] > rgb[..., 0] + 10) & ((sat > 0.25) | ((rgb @ lum_w) < 135)) & (alpha > 0.5)
         hairpx = ndimage.binary_opening(hairpx, iterations=1)
+        raw_ = hairpx.copy()
         rgb = inpaint_edge(rgb, hairpx)
+        # every non-hair pixel as the nearest hair pixel: the cards sample along their strips' edges
+        _, (fy_, fx_) = ndimage.distance_transform_edt(~ndimage.binary_erosion(hairpx, iterations=2), return_indices=True)
+        filled_ = rgb[fy_, fx_]
         c2w = np.array(fr['transform_matrix'], float); w2c = np.linalg.inv(c2w)
         focal = (S_ / 2.0) / np.tan(fov / 2.0)
         def proj(W, w2c=w2c, focal=focal, S_=S_):
@@ -2547,13 +2552,14 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         x, y, d = proj(Ws); cell = 4; B = S_ // cell
         ix = np.clip((x / cell).astype(int), 0, B - 1); iy = np.clip((y / cell).astype(int), 0, B - 1)
         zb = np.full((B, B), np.inf); np.minimum.at(zb, (iy, ix), d)
+        zb_env = zb.copy(); zb_head = np.full((B, B), np.inf)      # the envelope's and the head's own depths (unspread): the hair cards' silhouette and occlusion
         if head_pts is not None:
             # ...and from the head: a view cuts and colours only what it sees, and the bob's side in front of the
             # ear lies behind the cheek from the front (the photo shows cheek there because the cheek is in front).
             xh, yh, dh = proj(to_world(head_pts))
             ixh = np.clip((xh / cell).astype(int), 0, B - 1); iyh = np.clip((yh / cell).astype(int), 0, B - 1)
             okh = (xh >= 0) & (xh < S_) & (yh >= 0) & (yh < S_) & (dh > 0)
-            np.minimum.at(zb, (iyh[okh], ixh[okh]), dh[okh])
+            np.minimum.at(zb, (iyh[okh], ixh[okh]), dh[okh]); np.minimum.at(zb_head, (iyh[okh], ixh[okh]), dh[okh])
         zb = ndimage.minimum_filter(zb, size=3)
         lum = rgb @ lum_w
         pl = np.percentile(lum[hairpx], [10, 90]) if hairpx.sum() > 100 else np.array([40.0, 120.0])
@@ -2603,9 +2609,10 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
             hairpx = ndimage.binary_closing(hairpx, iterations=HAIR_FRONT_CLOSE)
             hairpx = ndimage.gaussian_filter(hairpx.astype(float), HAIR_VIEW_SMOOTH) > 0.5
             hairpx = hairpx | lock_
+            raw_ = (raw_ | lock_) & ~(fm_ & ~lock_)        # the cards' hair: the irises and the brows pass the hue rule
             nothair = (alpha > 0.5) & ~ndimage.binary_dilation(hairpx, iterations=2)
             nothair |= fm_ & ~lock_ & (alpha > 0.5)
-        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, skinpx=skinpx, nothair=nothair, proj=proj, zb=zb, cell=cell, S=S_, cam=c2w[:3, 3], pl=pl, name=fr['file_path']))
+        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, raw=raw_, filled=filled_, skinpx=skinpx, nothair=nothair, proj=proj, zb=zb, zb_env=zb_env, zb_head=zb_head, cell=cell, S=S_, cam=c2w[:3, 3], c2w=c2w, focal=focal, pl=pl, name=fr['file_path']))
         if ref is None:
             ref = pl
     crown_fit = f'{D}/crown-fit.json'
@@ -2653,6 +2660,9 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         g_ = (ref[1] - ref[0]) / max(v['pl'][1] - v['pl'][0], 1.0); o_ = ref[0] - g_ * v['pl'][0]
         lum = v['rgb'] @ lum_w
         v['rgb'] = v['rgb'] * ((g_ * lum + o_) / np.maximum(lum, 1.0))[..., None]
+        if 'filled' in v:
+            lf_ = v['filled'] @ lum_w
+            v['filled'] = v['filled'] * ((g_ * lf_ + o_) / np.maximum(lf_, 1.0))[..., None]
         print('hair view', v['name'], 'hair px', int(v['hairpx'].sum()), 'lum p10/p90', np.round(v['pl'], 0), '-> gain', round(float(g_), 3))
     fallback = np.array([44.0, 41.0, 86.0])
     def sample(points, gain=1.0, base=None):
@@ -2772,6 +2782,12 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         xi = np.clip(x.astype(int), 0, S_ - 1); yi = np.clip(y.astype(int), 0, S_ - 1)
         return inside & band_px[yi, xi] & (points[:, 2] > z_front - HAIR_MASK_DEPTH)
     sample.hairline = hairline
+    sample.views = views
+    sample.to_world = to_world
+    def from_world(Wq):
+        return np.stack([Wq[:, 0], Wq[:, 2], -Wq[:, 1]], 1) * s_ + t_
+    sample.from_world = from_world
+    sample.normals = (to_world(fc), dir_world(fn))     # the envelope's face centres and smoothed outward normals, in the views' world: the hair cards' facing
     return sample
 
 HAIR_MASK_COS = 0.4             # a side or back view cuts the hair layer where it shows skin only for points it sees this squarely (cosine); the front view at any facing
@@ -3334,6 +3350,12 @@ def build(work):
     print('front faces', front.sum(), 'hair', len(rest), 'bald', len(bare))
     cap = root_cap(P, F, bare[label[bare] == SKIN], hair_weight, VN, shade, scan_colour, ear_w, pivot) if ROOT_CAP and len(rest) else None
     skirt = hairline_skirt(P, F, is_skirt, VN, scan_colour, projected) if PROJ_HAIR and is_skirt.any() else None
+    cards = None
+    if PROJ_HAIR and HAIR_CARDS and hasattr(scan_colour, 'views'):
+        import haircards
+        cards = haircards.build_cards(scan_colour.views, scan_colour.from_world, getattr(scan_colour, 'ear_cut', None), scan_colour.normals)
+        if cards is not None:
+            cards['material'] = 0; cards['material_name'] = 'cards'
 
     # The surface seen from the camera, as depth over image position: targets slide points along it.
     vis_px, vis_z = inp[visible], zc[visible]
@@ -3445,13 +3467,14 @@ def build(work):
                 prim['targets'] = lift(pos[used], vis[used], SIDE[0][used] if pos is fpos else None) if morph else [np.zeros_like(p) for _ in TARGETS]
             prims[part].append(prim)
 
-    for extra in (cap, skirt):
+    for extra in (cap, skirt, cards):
         if extra is not None:
             extra['targets'] = lift(extra['pos'], None)
             extra['pos'] = extra['pos'] - pivot
             prims['head'].append(extra)
     cap_tex = cap.pop('tex') if cap is not None else None
     skirt_tex = skirt.pop('tex') if skirt is not None else None
+    cards_tex = cards.pop('tex') if cards is not None else None
     front_vertices = np.unique(F[front])
     ntree = cKDTree(P[front_vertices])
     def surface_normal(points):
@@ -3483,7 +3506,8 @@ def build(work):
                       ("socket", Image.fromarray(np.tile((skin_ref[None, :] * np.array([1.0, 0.86, 0.86]) * np.linspace(0.95, 0.75, 64)[:, None])[:, None, :], (1, 4, 1)).astype(np.uint8))),
                       ("lid", lid_tex), ("mouth", mouth_tex), ("lipwall", lipwall_tex), ("oshade", oshade_tex), ("ear", Image.fromarray(ear_tex)))
                      + ((("roots", Image.fromarray(cap_tex, 'RGBA')),) if cap is not None else ())
-                     + ((("hairline", Image.fromarray(skirt_tex, 'RGBA')),) if skirt is not None else ())):
+                     + ((("hairline", Image.fromarray(skirt_tex, 'RGBA')),) if skirt is not None else ())
+                     + ((("cards", Image.fromarray(cards_tex, 'RGBA')),) if cards is not None else ())):
         if img.mode == 'RGBA' or name == "ear":        # the ear atlas lossless: JPEG rings at its cells' hard edges
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
         else:
@@ -3501,7 +3525,7 @@ def build(work):
         # the skull and the sides came out a different tone, an edge round the face.
         # The projected hair carries the views' own light, like the front: emissive too. (Lit, with its
         # roughness 0.62, the envelope's grooves caught the scene's speculars as glitter: "cut glass".)
-        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear", "roots", "hairline") or (name == "rest" and PROJ_HAIR):
+        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear", "roots", "hairline", "cards") or (name == "rest" and PROJ_HAIR):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
@@ -3513,7 +3537,7 @@ def build(work):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0
         if name in ("lidskin", "iris", "lid"):
             material["alphaMode"] = "BLEND"
-        if name in ("rest", "roots", "hairline") and img.mode == 'RGBA':
+        if name in ("rest", "roots", "hairline", "cards") and img.mode == 'RGBA':
             material["alphaMode"] = "MASK"; material["alphaCutoff"] = 0.5
         g.gltf["materials"].append(material)
     names_ = [m_['name'] for m_ in g.gltf['materials']]

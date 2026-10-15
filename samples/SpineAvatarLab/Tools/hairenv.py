@@ -4,6 +4,8 @@
 # so compose() classes every face as hair. The generator's projector (KAIRO_HAIR=proj) paints it from
 # the owner's generated views.
 #   hairenv.py MVDIR [res=0.003] [close=2] [faces=40000] [smooth=3] [hull=right,back,left] [hull_px=8] [front_px=8] [out=MVDIR/kairo-env.glb]
+#   (hull_px / front_px < 0: the envelope ends that many px inside the views' hair silhouettes everywhere; inset= / inset_front= : only
+#    where the silhouette is ragged (strand tips, gaps), blending from hull_px / front_px where it is smooth. The hair cards draw the outline there.)
 #   reads MVDIR/kairo-mv-fit.glb (mvfit.py), writes MVDIR/kairo-env.glb + kairo-env.png (hull= empty: no carving, P35's envelope)
 import sys, os, numpy as np, trimesh
 from PIL import Image
@@ -16,12 +18,31 @@ OUT = opts.get('out', f'{D}/kairo-env.glb')
 HULL = [v for v in opts.get('hull', 'right,back,left').split(',') if v]   # views whose hair silhouettes carve the closed volume
 HULL_PX = int(opts.get('hull_px', 8))       # px of the views (1452 px, 3.6 px per voxel) the side and back hair masks are grown by before carving: the alpha trims the rest
 FRONT_PX = int(opts.get('front_px', 4))      # source px of the photo its hair mask is grown by before the front carve (below); 0 = no front carve
+INSET = int(opts.get('inset', 0))             # px the envelope ends inside the side and back views' silhouettes where they are ragged (0: hull_px everywhere)
+INSET_FRONT = int(opts.get('inset_front', 0)) # the same for the photo's silhouette in the front carve
+RAGGED = (float(opts.get('ragged_lo', 0.06)), float(opts.get('ragged_hi', 0.14)))   # the ragged measure's range that blends hull_px into the inset
+SECTOR = (0.5, 0.85)   # cosine between a voxel's horizontal direction from the volume's centre and the view's axis over which the view's inset comes in (a corner between two views was inset by both and the hair cards had a 5 mm solid band to draw there)
 HULL_FILL_PX = int(opts.get('hull_fill_px', 600))   # px: a smaller hole in a side or back view's hair is a gap between strands and is filled before carving
 HULL_CLOSE = int(opts.get('hull_close', 8))         # px the views' hair masks are closed by before carving (gaps between strands)
 HULL_SMOOTH = float(opts.get('hull_smooth', 4))     # px of blur on the closed masks before carving (the strand tips' saw-tooth rounded)
 RES = float(opts.get('res', 0.003)); CLOSE = int(opts.get('close', 2)); FACES = int(opts.get('faces', 40000)); SMOOTH = int(opts.get('smooth', 3))
 COLLAR_Y = float(opts.get('collar', -0.156))
 turn = np.array([-1.0, 1.0, -1.0])
+def ragged_weight(sil, hairpx):
+    """0..1 per px: how ragged the hair's outline is there, as the share of the smoothed silhouette that differs
+    from the view's own hair within 30 px of the silhouette's edge, blurred over 12 px (strand tips and the gaps
+    between them score high, the crown's smooth outline near 0)."""
+    edge = ndimage.binary_dilation(sil, iterations=30) & ~ndimage.binary_erosion(sil, iterations=30)
+    r = ndimage.gaussian_filter(((sil ^ hairpx) & edge).astype(float), 12)
+    return np.clip((r - RAGGED[0]) / (RAGGED[1] - RAGGED[0]), 0, 1)
+def offset_fields(sil, hairpx):
+    """Per px: the signed distance outside the silhouette and the ragged weight."""
+    return ndimage.distance_transform_edt(~sil) - ndimage.distance_transform_edt(sil), ragged_weight(sil, hairpx)
+def outside(signed_px, w_px, sector, grow, inset):
+    """True for voxels outside a silhouette grown by `grow` px where its outline is smooth and eroded by `inset` px
+    where it is ragged, the inset weighted by the voxel's `sector` (0..1: how squarely the view faces it)."""
+    ws = w_px * sector
+    return signed_px > grow * (1 - ws) - inset * ws
 g = list(trimesh.load(f'{D}/kairo-mv-fit.glb', force='scene').geometry.values())[0]
 V = np.asarray(g.vertices, float) * turn; F = np.asarray(g.faces, int)
 tex = np.asarray(g.visual.material.baseColorTexture.convert('RGB')).astype(float); uv = np.asarray(g.visual.uv, float)
@@ -116,13 +137,20 @@ if HULL:
         sil = ndimage.gaussian_filter(sil.astype(float), HULL_SMOOTH) > 0.5     # the strand tips' saw-tooth rounded
         holes_, _ = ndimage.label(~sil); hsz_ = np.bincount(holes_.ravel()); small_ = hsz_ < HULL_FILL_PX; small_[0] = False
         sil = sil | small_[holes_]
-        keep = ndimage.distance_transform_edt(~sil) <= HULL_PX
         c2w = np.array(fr['transform_matrix'], float); w2c = np.linalg.inv(c2w); focal = (S_ / 2.0) / np.tan(fov / 2.0)
         pc = W @ w2c[:3, :3].T + w2c[:3, 3]; dist = -pc[:, 2]
         x = focal * pc[:, 0] / (dist + 1e-8) + S_ / 2.0; y = -focal * pc[:, 1] / (dist + 1e-8) + S_ / 2.0
         inside = (x >= 0) & (x < S_) & (y >= 0) & (y < S_) & (dist > 0)
-        cam = c2w[:3, 3]; near = ((W - ctr) @ (cam / np.linalg.norm(cam))) > 0
-        out = inside & ~keep[np.clip(y.astype(int), 0, S_ - 1), np.clip(x.astype(int), 0, S_ - 1)]
+        cam = c2w[:3, 3]; axis_ = cam / np.linalg.norm(cam); rel = W - ctr; near = (rel @ axis_) > 0
+        yi_, xi_ = np.clip(y.astype(int), 0, S_ - 1), np.clip(x.astype(int), 0, S_ - 1)
+        if INSET > 0:
+            signed_, w_ = offset_fields(sil, hairpx)
+            relh = rel.copy(); relh[:, 2] = 0; axh = axis_.copy(); axh[2] = 0      # horizontal: the turntable's cameras ring the vertical axis (W[:, 2] is up)
+            sec_ = np.clip(((relh / (np.linalg.norm(relh, axis=1, keepdims=True) + 1e-9)) @ (axh / (np.linalg.norm(axh) + 1e-9)) - SECTOR[0]) / (SECTOR[1] - SECTOR[0]), 0, 1)
+            out = inside & outside(signed_[yi_, xi_], w_[yi_, xi_], sec_, HULL_PX, INSET)
+        else:
+            keep = ndimage.distance_transform_edt(~sil) <= HULL_PX if HULL_PX >= 0 else ndimage.distance_transform_edt(sil) > -HULL_PX
+            out = inside & ~keep[yi_, xi_]
         print('hull view', name[0], 'carves', int((near & out).sum()), 'voxels')
         carve |= near & out
     occ[idx[carve, 0], idx[carve, 1], idx[carve, 2]] = False
@@ -136,7 +164,16 @@ if FRONT_PX:
     idx = np.argwhere(occ); cen = idx * RES + lo
     pxv, zcv = K.project(cen); spv = ((pxv - np.array([K.OX, K.OY])) / K.S).astype(int)
     inside = (spv >= 0).all(1) & (spv < photo.shape[0]).all(1)
-    keep_px = ndimage.distance_transform_edt(~ph) <= FRONT_PX
+    if INSET_FRONT > 0:
+        sil_f = ndimage.gaussian_filter(ndimage.binary_closing(ph, iterations=HULL_CLOSE).astype(float), HULL_SMOOTH) > 0.5
+        signed_f, w_f = offset_fields(sil_f, ph)
+        keep_px = None
+    elif FRONT_PX >= 0:
+        keep_px = ndimage.distance_transform_edt(~ph) <= FRONT_PX
+    else:
+        # inset: the photo's hair closed and smoothed as the hull views' silhouettes are, then eroded
+        sil_f = ndimage.gaussian_filter(ndimage.binary_closing(ph, iterations=HULL_CLOSE).astype(float), HULL_SMOOTH) > 0.5
+        keep_px = ndimage.distance_transform_edt(sil_f) > -FRONT_PX
     oval = ndimage.binary_dilation(fm, iterations=10)
     rb_ = np.random.default_rng(3).dirichlet((1, 1, 1), size=12)
     gb_ = list(trimesh.load(f'{WORK}/bald/kairo-bald-s42.glb', force='scene').geometry.values())[0]
@@ -147,7 +184,13 @@ if FRONT_PX:
     iv_ = np.clip((pxv / CELL_).astype(int), 0, G_ - 1)
     front_of_head = zcv < zh_[iv_[:, 1], iv_[:, 0]] + 0.01
     sp_ = np.clip(spv, 0, photo.shape[0] - 1)
-    carve_f = inside & ~keep_px[sp_[:, 1], sp_[:, 0]] & ~oval[sp_[:, 1], sp_[:, 0]] & front_of_head
+    if keep_px is None:
+        rel_f = cen - cen.mean(0); rel_f[:, 1] = 0                      # horizontal (y up in the scan's frame)
+        sec_f = np.clip(rel_f[:, 2] / (np.linalg.norm(rel_f, axis=1) + 1e-9) - SECTOR[0], 0, SECTOR[1] - SECTOR[0]) / (SECTOR[1] - SECTOR[0])
+        out_f = outside(signed_f[sp_[:, 1], sp_[:, 0]], w_f[sp_[:, 1], sp_[:, 0]], sec_f, max(FRONT_PX, 0), INSET_FRONT)
+    else:
+        out_f = ~keep_px[sp_[:, 1], sp_[:, 0]]
+    carve_f = inside & out_f & ~oval[sp_[:, 1], sp_[:, 0]] & front_of_head
     occ[idx[carve_f, 0], idx[carve_f, 1], idx[carve_f, 2]] = False
     print('front carve: voxels carved', int(carve_f.sum()), '-> occupied', int(occ.sum()))
 Vs, Fs, _, _ = measure.marching_cubes(ndimage.gaussian_filter(occ.astype(float), float(opts.get('sigma', 1.2))), 0.5)
