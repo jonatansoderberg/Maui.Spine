@@ -17,10 +17,12 @@ public sealed record VoiceSessionToken(string Feature, string Protocol, Uri Url,
 /// <summary>Asks the backend for a session's token, with the app's sign-in and installation id.</summary>
 internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<CancellationToken, Task<string?>> installationId)
 {
-    private readonly Lazy<HttpClient> _http = new(() => new HttpClient(options.HttpHandler ?? new HttpClientHandler(), disposeHandler: options.HttpHandler is null)
-    {
-        Timeout = TimeSpan.FromSeconds(30),
-    });
+    // One client for every session; a handler of the app's own (tests, pinning) gets a client of its own.
+    private static readonly Lazy<HttpClient> Shared = new(() => new HttpClient { Timeout = TimeSpan.FromSeconds(30) });
+
+    private readonly Lazy<HttpClient> _http = options.HttpHandler is { } handler
+        ? new(() => new HttpClient(handler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(30) })
+        : Shared;
 
     public async Task<VoiceSessionToken> RequestAsync(string feature, CancellationToken cancellationToken)
     {

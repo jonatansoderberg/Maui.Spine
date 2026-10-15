@@ -146,6 +146,15 @@ None. The owner decided on 2026-10-15: our own WebSocket adapter, SkiaSharp for 
   - README, `packages.md` and the `spine-setup` skill.
   - The proposal's status line.
   - The plan: 4.1a Done, 4.3 split, Decisions, the backlog.
+- PR #568. `/code-review` found 7 things; fixed 6:
+  - client tools run off the receive loop, so a slow tool no longer holds up the answer's audio or an interruption
+  - the session is marked connected before its loops start, so a provider that hangs up at once ends it with `Ended` instead of leaving a dead "connected" one
+  - an event the session cannot read is logged and skipped instead of ending the conversation
+  - `ConnectAsync` starts with an empty transcript and forgets the old items
+  - the model's transcript deltas are collected and shown on the 100 ms tick, not as a new row object per word
+  - the token request shares one `HttpClient` unless the app gives a handler
+  - Skipped: one shared installation-id helper for voice, AI and push. It belongs in Common, which has no `SecureStorage`; it is a step of its own.
+  - 52 tests pass, three runs in a row.
 
 ## Decisions
 

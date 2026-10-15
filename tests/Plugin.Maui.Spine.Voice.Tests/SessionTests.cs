@@ -380,4 +380,57 @@ public sealed class SessionTests : IAsyncLifetime
         Assert.True(_socket.Closed);
         Assert.False(_audio.IsRunning);
     }
+
+    [Fact]
+    public async Task A_slow_tool_does_not_hold_up_the_answer_or_an_interruption()
+    {
+        var release = new TaskCompletionSource<string>();
+        _options.ClientTools.Add(AIFunctionFactory.Create(() => release.Task, "slow", "Takes its time."));
+        await ConnectAsync();
+
+        _socket.Push(new { type = "response.function_call_arguments.done", call_id = "c1", name = "slow", arguments = "{}" });
+        _socket.Push(new { type = "response.created", response = new { id = "r2" } });
+        _socket.Push(new { type = "response.output_audio.delta", item_id = "a2", delta = Audio(2400) });
+
+        await Until(() => _audio.IsPlaying, "the answer queued while the tool runs");
+        release.SetResult("done");
+        await Until(() => _socket.OfType("conversation.item.create").Any(), "the tool's answer");
+    }
+
+    [Fact]
+    public async Task A_provider_that_hangs_up_at_once_ends_a_connected_session()
+    {
+        _socket.Hangup();
+
+        await _session.ConnectAsync("Voice");
+
+        await Until(() => _ended.Count == 1, "ended");
+        Assert.Equal(VoiceSessionEnd.Provider, _ended[0].Reason);
+        Assert.False(_session.IsConnected);
+        Assert.False(_audio.IsRunning);
+    }
+
+    [Fact]
+    public async Task An_event_the_session_cannot_read_is_skipped()
+    {
+        await ConnectAsync();
+
+        _socket.Push(new { type = "response.output_audio.delta", item_id = "a1", delta = "not base64!" });
+        _socket.Push(new { type = "response.created", response = new { id = "r1" } });
+
+        await Until(() => _session.State == VoiceState.Thinking, "the next event still handled");
+        Assert.Empty(_ended);
+    }
+
+    [Fact]
+    public async Task A_new_conversation_starts_with_an_empty_transcript()
+    {
+        await ConnectAsync();
+        await _session.SendTextAsync("Hej!");
+        await _session.EndAsync();
+
+        await ConnectAsync();
+
+        Assert.Empty(_session.Transcript);
+    }
 }

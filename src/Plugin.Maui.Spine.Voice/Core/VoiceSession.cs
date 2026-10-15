@@ -36,6 +36,8 @@ internal sealed class VoiceSession : IVoiceSession
     private readonly object _micGate = new();
     private readonly MemoryStream _mic = new();
     private readonly object _gate = new();
+    private readonly object _pendingGate = new();
+    private readonly Dictionary<string, string> _pendingText = new(StringComparer.Ordinal);
 
     private IVoiceSocket? _socket;
     private Channel<object>? _outbox;
@@ -108,6 +110,14 @@ internal sealed class VoiceSession : IVoiceSession
 
         _connecting = true;
         _ended = 0;
+        // A new conversation starts with an empty transcript.
+        _dispatch(() =>
+        {
+            _transcript.Clear();
+            _byItem.Clear();
+        });
+        lock (_pendingGate)
+            _pendingText.Clear();
         Evaluate();
         try
         {
@@ -127,18 +137,19 @@ internal sealed class VoiceSession : IVoiceSession
             if (_options.ClientTools.Count > 0)
                 Send(ToolsUpdate(_options.ClientTools));
 
-            _ = SendLoopAsync(socket, _outbox.Reader, _run.Token);
-            _ = ReceiveLoopAsync(socket, _run.Token);
-
             if (token.MaxMinutes is { } minutes and > 0)
             {
                 var limit = TimeSpan.FromMinutes(minutes);
                 Interlocked.Exchange(ref _endsAt, (_time.GetUtcNow() + limit).UtcTicks);
                 _limit = _time.CreateTimer(_ => _ = EndCoreAsync(VoiceSessionEnd.TimeLimit, null), null, limit, Timeout.InfiniteTimeSpan);
             }
-            _ticker = _time.CreateTimer(_ => Evaluate(), null, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
+            _ticker = _time.CreateTimer(_ => Tick(), null, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
 
+            // Connected before the loops start: a provider that hangs up at once then ends a connected session, with
+            // Ended raised, rather than leaving one that looks connected and hears nothing.
             _connected = true;
+            _ = SendLoopAsync(socket, _outbox.Reader, _run.Token);
+            _ = ReceiveLoopAsync(socket, _run.Token);
             _logger.LogInformation("Spine.Voice: connected to '{Feature}' over {Protocol}.", token.Feature, token.Protocol);
         }
         catch
@@ -281,8 +292,16 @@ internal sealed class VoiceSession : IVoiceSession
         {
             while (await socket.ReceiveAsync(cancellationToken) is { } message)
             {
-                using var json = JsonDocument.Parse(message);
-                await HandleAsync(json.RootElement, cancellationToken);
+                try
+                {
+                    using var json = JsonDocument.Parse(message);
+                    HandleEvent(json.RootElement, cancellationToken);
+                }
+                catch (Exception e) when (e is JsonException or FormatException or KeyNotFoundException or InvalidOperationException)
+                {
+                    // One event the session cannot read is skipped, not the whole conversation.
+                    _logger.LogWarning(e, "Spine.Voice: skipped an event it could not read.");
+                }
             }
 
             _logger.LogInformation("Spine.Voice: the provider closed the connection ({Reason}).", socket.CloseReason ?? "no reason");
@@ -297,7 +316,7 @@ internal sealed class VoiceSession : IVoiceSession
         }
     }
 
-    private async Task HandleAsync(JsonElement e, CancellationToken cancellationToken)
+    private void HandleEvent(JsonElement e, CancellationToken cancellationToken)
     {
         var type = Text(e, "type");
         switch (type)
@@ -344,16 +363,22 @@ internal sealed class VoiceSession : IVoiceSession
 
             case "response.output_audio_transcript.delta" or "response.audio_transcript.delta"
                 when Text(e, "item_id") is { } textItem && Text(e, "delta") is { } words:
-                _dispatch(() => ReplaceText(textItem, ChatRole.Assistant, words, append: true));
+                // Collected and shown on the next tick: a bound list redraws a row ten times a second, not per word.
+                lock (_pendingGate)
+                    _pendingText[textItem] = _pendingText.GetValueOrDefault(textItem) + words;
                 break;
 
             case "response.output_audio_transcript.done" or "response.audio_transcript.done"
                 when Text(e, "item_id") is { } spokenItem && Text(e, "transcript") is { } spoken:
+                lock (_pendingGate)
+                    _pendingText.Remove(spokenItem);
                 _dispatch(() => ReplaceText(spokenItem, ChatRole.Assistant, spoken, append: false));
                 break;
 
             case "response.function_call_arguments.done":
-                await CallToolAsync(Text(e, "call_id"), Text(e, "name"), Text(e, "arguments"), cancellationToken);
+                // Off the receive loop: a slow tool must not hold up the answer's audio or the user's interruption.
+                var (callId, name, arguments) = (Text(e, "call_id"), Text(e, "name"), Text(e, "arguments"));
+                _ = Task.Run(() => CallToolAsync(callId, name, arguments, cancellationToken), cancellationToken);
                 break;
 
             case "response.done":
@@ -373,6 +398,7 @@ internal sealed class VoiceSession : IVoiceSession
     /// <summary>Cuts the answer off: the engine flushes, the model hears how much was played, and a running response stops.</summary>
     private void BargeIn()
     {
+        Tick();
         var position = _audio.Flush();
         if (position is { } played)
         {
@@ -475,6 +501,25 @@ internal sealed class VoiceSession : IVoiceSession
             ["type"] = "session.update",
             ["session"] = new JsonObject { ["type"] = "realtime", ["tools"] = list, ["tool_choice"] = "auto" },
         };
+    }
+
+    private void Tick()
+    {
+        KeyValuePair<string, string>[] pending;
+        lock (_pendingGate)
+        {
+            pending = [.. _pendingText];
+            _pendingText.Clear();
+        }
+        if (pending.Length > 0)
+        {
+            _dispatch(() =>
+            {
+                foreach (var (item, words) in pending)
+                    ReplaceText(item, ChatRole.Assistant, words, append: true);
+            });
+        }
+        Evaluate();
     }
 
     private void Evaluate()

@@ -46,7 +46,10 @@ public interface IVoiceSession : IAsyncDisposable
     VoiceDuplex Duplex { get; set; }
 
     /// <summary>What has been said, as it is said: the user's turns and the model's answers, and tool calls. Changed on the main thread.</summary>
-    /// <remarks>An answer cut off by the user has <c>spine.interrupted</c> set in its <see cref="ChatMessage.AdditionalProperties"/>.</remarks>
+    /// <remarks>
+    /// <see cref="ConnectAsync"/> starts it empty. The model's words are shown about ten times a second as they come. An
+    /// answer cut off by the user has <c>spine.interrupted</c> set in its <see cref="ChatMessage.AdditionalProperties"/>.
+    /// </remarks>
     IList<ChatMessage> Transcript { get; }
 
     /// <summary>The time left of the server's <c>maxMinutes</c>, or <see langword="null"/> when there is no limit or no conversation.</summary>
