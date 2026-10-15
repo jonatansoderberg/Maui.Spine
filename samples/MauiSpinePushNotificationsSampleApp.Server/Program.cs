@@ -53,6 +53,7 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
     ai.Chat("anthropic", (p, model) => new AnthropicClient { ApiKey = p["ApiKey"] }.AsIChatClient(model));
     ai.Chat("openai", (p, model) => new OpenAIClient(p["ApiKey"]).GetChatClient(model).AsIChatClient());
     ai.Image("openai", (p, model) => new OpenAIClient(p["ApiKey"]).GetImageClient(model).AsIImageGenerator());
+    ai.Realtime("openai", AIRealtimeProviders.OpenAI);
     ai.UseInMemoryUsageStore();
 
     // The report shows every caller's spending. A sample on a laptop shows it to the laptop only.
@@ -73,6 +74,9 @@ app.MapSpinePushNotifications("/push");
 
 // POST /ai/features/{name} for exposed features (Assistant), and GET /ai/usage for the report.
 app.MapSpineAI("/ai");
+
+// POST /ai/realtime/{name}: a short-lived token for a realtime voice session (Voice). The OpenAI key stays here.
+app.MapSpineRealtimeSessions("/ai");
 
 /// A feature the server owns: the app sends facts, the server writes the prompt. The caller is whoever the request
 /// is for, so the per-installation limits apply here as they do on the exposed route.

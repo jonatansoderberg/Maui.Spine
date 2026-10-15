@@ -14,6 +14,7 @@ internal sealed record AIFeature(
     string? OffDetail,
     IChatClient? Chat,
     IImageGenerator? Image,
+    IAIRealtimeProvider? Realtime,
     AIPrice? Price)
 {
     public string Provider => Options.Provider ?? "";
@@ -113,7 +114,7 @@ internal sealed class AIFeatureRegistry
 
     private AIFeature BuildFeature(AISnapshot snapshot, string name, AIFeatureOptions options)
     {
-        AIFeature Off(AIOffReason reason, string detail) => new(name, options, reason, detail, null, null, null);
+        AIFeature Off(AIOffReason reason, string detail) => new(name, options, reason, detail, null, null, null, null);
 
         if (!options.Enabled) return Off(AIOffReason.Disabled, "Enabled is false.");
         if (string.IsNullOrWhiteSpace(options.Provider)) return Off(AIOffReason.NotConfigured, "it names no Provider.");
@@ -135,13 +136,16 @@ internal sealed class AIFeatureRegistry
             switch (options.Kind)
             {
                 case AIFeatureKind.Chat when _options.ChatProviders.TryGetValue(provider, out var factory):
-                    return new(name, options, null, null, ChatPipeline(factory(providerSection, model), options), null, price);
+                    return new(name, options, null, null, ChatPipeline(factory(providerSection, model), options), null, null, price);
 
                 case AIFeatureKind.Image when _options.ImageProviders.TryGetValue(provider, out var factory):
-                    return new(name, options, null, null, null, ImagePipeline(factory(providerSection, model), options), price);
+                    return new(name, options, null, null, null, ImagePipeline(factory(providerSection, model), options), null, price);
+
+                case AIFeatureKind.Realtime when _options.RealtimeProviders.TryGetValue(provider, out var factory):
+                    return new(name, options, null, null, null, null, factory(providerSection), price);
 
                 default:
-                    var register = options.Kind == AIFeatureKind.Chat ? "Chat" : "Image";
+                    var register = options.Kind.ToString();
                     return Off(AIOffReason.NotConfigured,
                         $"no {options.Kind.ToString().ToLowerInvariant()} provider '{provider}' is registered; add ai.{register}(\"{provider}\", ...) in AddSpineAI.");
             }

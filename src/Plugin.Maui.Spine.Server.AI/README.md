@@ -34,6 +34,8 @@ var caller = await ai.IdentifyAsync(request);
 if (ai.Chat("RaceStory", caller) is not { } story) return Results.NotFound();   // off: no key, disabled or budget spent
 ```
 
+A feature with `"Kind": "Realtime"` hands the app a short-lived token for a live voice session at `POST /ai/realtime/{name}` (`ai.Realtime("openai", AIRealtimeProviders.OpenAI)` and `app.MapSpineRealtimeSessions()`). The provider's key stays on the server, and each token reserves its minutes from the budgets.
+
 Swapping provider is a change to `Provider` and `Model` in configuration, and takes effect without a deploy.
 
 ## Documentation

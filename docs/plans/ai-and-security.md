@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-15 (step 2.3c, the asset lookup in the app, merged as #545; the Showcase's Generated images page shows a Shimmer while pending (#549) now that #547 is fixed)
+**Last updated:** 2026-10-15 (step 4.2, realtime session tokens in Server.AI (#517), in review; see Decisions and Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -47,7 +47,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
-| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #517 | [ai §3–§5](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 Ready |
+| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #517 | [ai §3–§5](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 in review (#551) |
 | `Plugin.Maui.Spine.Server.AI.Assets` | New, server | #511 | [ai §6](../proposals/spine-ai.md) | Done (#544) |
 | `Plugin.Maui.Spine.Server.Messaging` (+ `.AzureStorage`, `.ServiceBus`) | New, server | #540 | — (design in `issues/540-*.md`, docs in `docs/wiki/messaging.md`) | Done (#541) |
 | `Plugin.Maui.Spine.AI` | New | #512, #543 | [ai §7](../proposals/spine-ai.md) | #512 done (#536); #543 done (#545) |
@@ -134,7 +134,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
 | 4.1 | Audio engine spike: full duplex, echo cancellation, levels and bands | #515 | 0.2 | Ready | | Highest risk. Measure echo on a real iPhone and an Android phone. |
-| 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Ready | | |
+| 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | In review | #551 | OpenAI and Azure OpenAI client secrets only (Q28, and the owner's choice of token over relay on 2026-10-15). `Kind: Realtime`, `ai.Realtime(...)`, `POST /ai/realtime/{name}`, minutes reserved per token (Decisions). |
 | 4.3 | Provider adapters, `IVoiceSession`, `VoiceView` and visual plug-ins | #516 | 4.1, 4.2 | Waiting | | OpenAI and Azure OpenAI only in v1 (Q28). WebSocket and PCM; WebRTC only if measurements call for it (Q31). Background audio is opt-in (Q26). |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 
@@ -198,6 +198,8 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.3b (#511) | The messaging sample's AppHost with the key passed as the secret parameter `openaikey`. The real postcard was made with the API run on its own against Azurite in Docker | Docker | `Parameters__openaikey=… dotnet run --project samples/SpineMessagingSample.AppHost`, then `send.http` |
 | 2.3b (#511) | A model that answers with a URL (`UriContent`) rather than bytes: the handler downloads it. OpenAI's gpt-image models answer with bytes | Such a provider | — |
 | 2.3c (#543) | `GeneratedImage` on Android, Windows and Mac Catalyst at run time (only compiled), and on a phone. Seen on the iPhone 17 Pro simulator: pending (a spinner in #543, a `Shimmer` since #549, light theme only), ready from blob storage, failed, polling stopped in the background and resumed at once | An emulator, a Windows machine, the Mac app | The Showcase's Generated images page against the messaging sample's API; `adb reverse tcp:5240 tcp:5240` on Android |
+| 4.2 (#517) | Azure OpenAI's `client_secrets` and its WebSocket with an `ek_` token as bearer; only built from Microsoft's docs and tested against a stub | An Azure OpenAI resource with a realtime deployment | `ai.Realtime("azure", AIRealtimeProviders.AzureOpenAI)`, then the check below against its `url` |
+| 4.2 (#517) | `SpineAIEndpoints.RealtimeSessionAsync` under Azure Functions (only compiled) | The scratch Functions AppHost | The Functions recipe below |
 | 2.3c (#543) | `GeneratedImage` in a recycled `CollectionView` cell whose key changes while an image is pending. Only a `BindableLayout` was used | Simulator | A scratch page with a long list of keys |
 | 2.4 (#512) | Windows at run time (only compiled), and Mac Catalyst at run time (only built) | A Windows machine; the Mac app | Showcase AI client page against the push sample server |
 | 2.4 (#512) | A release build on a phone over the network: cleartext is off there, and the client was checked only against `http://localhost` in Debug | A phone and an HTTPS backend (Orientera after step 2.2) | Any feature through `https` |
@@ -232,6 +234,7 @@ These are behaviours that are merged but have not been seen working. Take one wh
   - `func` from `~/.npm-global/bin` has to be on `PATH`
   - the Functions host listens on the port that `lsof` shows for `func`
   - stopping: `kill` the AppHost process. A Functions worker that `func` restarted may survive it, so check with `pgrep -fl Fx.dll`
+- **Realtime tokens live.** Run the push sample server with `Ai__Providers__openai__ApiKey` read from `~/.config/openai.env`. Then a file-based C# app (`dotnet run check.cs`, with the repo's `global.json` beside it) posts to `/ai/realtime/Voice` and opens the answer's `url` with `ClientWebSocket` and `Authorization: Bearer {token}`. The first event is `session.created`, carrying the server's voice, VAD, transcription and instructions. With no audio sent, the session costs nothing, but each token reserves its minutes in the sample's in-memory budget.
 - **The Spine.AI client in the Showcase.**
   - **Start the push sample server** (`dotnet run` in `samples/MauiSpinePushNotificationsSampleApp.Server`). The AI client page uses `http://localhost:5100/ai`, and Android reaches it after `adb reverse tcp:5100 tcp:5100`. 10.0.2.2 does not reach the host from the emulator's app traffic.
   - **A harness that loads before the page exists misses its first `nav` on Android** after a cold start. Tap the row, or wait for the main page.
@@ -350,6 +353,13 @@ Newest last. Each entry is dated and says who decided.
   - `GeneratedImage.PendingView` and `.FailedView` take other views by `{x:Reference}`, and the image shows and hides them. **Why:** MAUI bindings cannot follow an attached property (`Path=(GeneratedImage.Status)` stayed empty in the simulator, compiled or not), so a sibling's spinner or label could not be bound to the status.
   - `SpineAIOptions.AssetsBackend` points at `MapSpineAIAssets` when images come from another service than the features. **Why:** the Showcase's features run on the push sample server and its images on the messaging sample, and an app can serve images from a Functions app of its own.
   - Polling waits while every window is stopped (`Window.Stopped`/`Resumed`), and an image off screen asks nothing (`Loaded`/`Unloaded`).
+- **2026-10-15, owner (#517):** The realtime endpoint mints provider tokens only; there is no WebSocket relay in v1. **Why:** it runs on Azure Functions too, and rates, per-caller calls and the reservation bound the cost. A relay becomes its own issue when an app needs a locked configuration, real usage or server tools.
+- **2026-10-15, Claude (#517):**
+  - A realtime feature is `Kind: Realtime` on the existing feature model, with a `Realtime` section, and `SystemPrompt` and `MaxOutputTokens` reused. It must also be `Expose: true`, like an exposed chat feature. **Why:** one model for every feature keeps budgets, rates, the report and hot reload the same.
+  - `AIFeatureOptions.Callers` became nullable: unset means signed-in only for realtime and any caller otherwise (voice §6.2.3). **Why:** an explicit `Any` must still be possible, and the package is not released yet, so the type could change.
+  - Each token records `MaxMinutes × Ai:Prices:<provider>:<model>:PerMinute` as an incomplete call. **Why:** with a client secret the server never sees the session's usage (voice §6.2.6).
+  - `IAIRealtimeProvider` is Spine's own one-method interface, with built-in OpenAI and Azure OpenAI minters over a shared `HttpClient`. **Why:** M.E.AI's `IRealtimeClient` connects to a session but does not make tokens, and the vendor SDK would be a dependency for one POST.
+  - Seen live against OpenAI on 2026-10-15: the token opened `wss://api.openai.com/v1/realtime?model=gpt-realtime` with the server's voice, VAD, transcription and instructions, and `session.update` from the client changed the instructions. **The same token also opened a second connection to the same session within its TTL.** It is not single-use, so `TokenSeconds` defaults to 60 and the docs say so.
 - **2026-10-15, owner (#549):** The Showcase's pending view is a `Shimmer` around an empty `Border` shaped like the card's top (`RoundRectangle 12,12,0,0`), not a spinner. The spinner was a stopgap while #547 kept a lone empty block from drawing.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
@@ -451,6 +461,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-15:** #517 (realtime session tokens, step 4.2) in review as PR #551. 4.3 now waits only on the audio engine spike (4.1).
 - **2026-10-15:** #543 merged (PR #545). #547 (Shimmer over a single empty block) merged as PR #548, unreleased; the Generated images page uses a `Shimmer` as its pending view again (#549).
 - **2026-10-14:** #511 merged (PR #544). #543 (the asset lookup in the app) in review as PR #545.
 - **2026-10-14:** #540 merged (PR #541). #511 (generated assets) in review as PR #544, its own package; its app side split out as #543.
