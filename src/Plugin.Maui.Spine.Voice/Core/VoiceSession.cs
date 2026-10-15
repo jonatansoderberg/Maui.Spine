@@ -216,6 +216,7 @@ internal sealed class VoiceSession : IVoiceSession
         var frame = _audio.UpdateFrame();
         Evaluate();
         frame.State = State;
+        frame.Viseme = _options.VisemeSource is { } visemes && _audio.Playing is { } playing ? visemes.VisemeAt(playing) : -1;
         return frame;
     }
 

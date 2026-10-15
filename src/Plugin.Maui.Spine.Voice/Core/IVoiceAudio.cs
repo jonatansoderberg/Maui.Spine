@@ -117,6 +117,9 @@ public interface IVoiceAudio : IAsyncDisposable
     /// <summary>Whether answer audio is queued or playing.</summary>
     bool IsPlaying { get; }
 
+    /// <summary>The item playing now and how much of it has played; what a viseme source lines its mouth shapes up with.</summary>
+    PlaybackPosition? Playing { get; }
+
     /// <summary>The frame <see cref="UpdateFrame"/> writes.</summary>
     VoiceFrame Frame { get; }
 
@@ -151,6 +154,10 @@ public interface IVoiceAudio : IAsyncDisposable
     /// <summary>How much of <paramref name="itemId"/> has played.</summary>
     TimeSpan Played(string itemId);
 
-    /// <summary>Writes the latest levels, bands and state into <see cref="Frame"/>. Call it on the UI's tick.</summary>
+    /// <summary>
+    /// Writes the latest levels, bands and state into <see cref="Frame"/>. Call it on the UI's tick. The frame says
+    /// <see cref="VoiceState.Speaking"/> while an answer plays and the engine is listening, so a view drawing a bare engine
+    /// knows who speaks; <see cref="State"/> stays <see cref="VoiceState.Listening"/>.
+    /// </summary>
     VoiceFrame UpdateFrame();
 }

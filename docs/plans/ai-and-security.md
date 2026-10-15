@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-15 (step 4.1a merged as #566; step 4.3 split into 4.3a, the voice session and the OpenAI adapter (#516, in review), and 4.3b, `VoiceView` and the visuals (#567); a spoken conversation with barge-in and a tool seen on the owner's iPhone)
+**Last updated:** 2026-10-15 (step 4.3a merged as #568; step 4.3b, `VoiceView` and the visuals in `Plugin.Maui.Spine.Controls.Voice`, in review as #567; all four visuals seen in the simulator against the reference recording, the avatar and the screen's edge against a real realtime session)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -142,8 +142,8 @@ The order follows value against risk. Steps in different phases can run in paral
 | 4.1b | Audio engine on Android: `VOICE_COMMUNICATION`, `AcousticEchoCanceler`, the microphone foreground service | #562 | 4.1a | Waiting | | Measure with the Voice lab on the owner's Android phone. |
 | 4.1c | Audio engine on Windows: the communications category | #563 | 4.1a | Waiting | | |
 | 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Done | #551 | OpenAI and Azure OpenAI client secrets only (Q28, and the owner's choice of token over relay on 2026-10-15). `Kind: Realtime`, `ai.Realtime(...)`, `POST /ai/realtime/{name}`, minutes reserved per token (Decisions). |
-| 4.3a | `IVoiceSession` and the OpenAI adapter: token, socket, barge-in, transcript, client tools, push-to-talk, the time limit; the Showcase's Voice chat page | #516 | 4.1a, 4.2 | In review | | OpenAI and Azure OpenAI only in v1 (Q28), over its own WebSocket (Decisions). Seen on the owner's iPhone: a spoken conversation, a tool, barge-in four times. |
-| 4.3b | `VoiceView`, the `VoiceVisual` contract and the built-in visuals (SkiaSharp) | #567 | 4.3a | Waiting | | Split by the owner on 2026-10-15. |
+| 4.3a | `IVoiceSession` and the OpenAI adapter: token, socket, barge-in, transcript, client tools, push-to-talk, the time limit; the Showcase's Voice chat page | #516 | 4.1a, 4.2 | Done | #568 | OpenAI and Azure OpenAI only in v1 (Q28), over its own WebSocket (Decisions). Seen on the owner's iPhone: a spoken conversation, a tool, barge-in four times. |
+| 4.3b | `VoiceView`, the `VoiceVisual` contract and the built-in visuals (SkiaSharp) | #567 | 4.3a | In review | | Split by the owner on 2026-10-15. A package of its own, `Plugin.Maui.Spine.Controls.Voice`; `orb`, `bars`, `ring`, `avatar`; `IVisemeSource` in Spine.Voice (Decisions). Seen in the simulator: all four against the reference, the avatar and the edge against a real session. |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 
 ### Phase 5: sign-in
@@ -210,6 +210,7 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.3b (#511) | A model that answers with a URL (`UriContent`) rather than bytes: the handler downloads it. OpenAI's gpt-image models answer with bytes | Such a provider | — |
 | 2.3c (#543) | `GeneratedImage` on Android, Windows and Mac Catalyst at run time (only compiled), and on a phone. Seen on the iPhone 17 Pro simulator: pending (a spinner in #543, a `Shimmer` since #549, light theme only), ready from blob storage, failed, polling stopped in the background and resumed at once | An emulator, a Windows machine, the Mac app | The Showcase's Generated images page against the messaging sample's API; `adb reverse tcp:5240 tcp:5240` on Android |
 | 4.3a (#516) | Azure OpenAI's realtime socket from the app (only OpenAI was called), a session through `TimeLimit` on a device, a phone call during a session, `SpineVoiceBackground` with the screen locked, and the session on Mac Catalyst | An Azure OpenAI deployment; the iPhone; a second phone | The Voice chat page |
+| 4.3b (#567) | `VoiceView` on the iPhone, Android, Windows and Mac Catalyst (only the iOS simulator), with Reduce Motion on (only the visuals' tests), VoiceOver's announcements of the state, and a `VoiceVisualView` of an app's own (no test or sample hosts one) | The iPhone; an emulator; the Mac app | The Showcase's Voice visuals and Voice chat pages |
 | 4.1a (#515) | A Release build on the iPhone: CPU was 50–60 % of one core in Debug, which runs the interpreter; the resampler's kernel is now a table, measured only in Debug | The iPhone, and disk room for an AOT build (the owner asked not to build Release on 2026-10-15) | The Voice lab's echo test in a Release build |
 | 4.1a (#515) | A Bluetooth headset (HFP), the latency from the speaker to the microphone (the cross-correlation gave 71–161 ms on the loudspeaker and failed on the receiver), an interruption by a phone call, and a route change mid-conversation | A headset; a second phone to call from | Voice lab: Start, then call the phone, or connect the headset |
 | 4.1a (#515) | Mac Catalyst's echo cancellation: voice processing came on, but the echo barely rose above the room (−39.6 against −38.5 dBFS), so the 7 dB removed says little | A quieter room and a higher volume on the Mac | Voice lab on Mac Catalyst |
@@ -469,6 +470,14 @@ Newest last. Each entry is dated and says who decided.
   - `Speaking` follows what the engine still plays, not the provider's `response.done`. **Why:** the answer arrives faster than it is played.
   - The transcript is an observable `IList<ChatMessage>` changed on the main thread, so `ChatView.Messages` binds to it without either package referencing the other. A user turn is a "…" placeholder from the commit until its transcription, so the order is the order of speech.
   - Microphone frames are 100 ms, cut from whatever the device delivers. **Why:** a test caught a one-second capture going out as one message.
+- **2026-10-15, owner (#567):** `VoiceView` and the visuals are a package of their own, `Plugin.Maui.Spine.Controls.Voice`, so Spine.Voice keeps no SkiaSharp and no MAUI views; `IVisemeSource` comes now, in Spine.Voice.
+- **2026-10-15, Claude (#567):**
+  - The visuals' drawing is in the package's `net10.0` build, tested by drawing into bitmaps; `VoiceView` and the registry's MAUI half are on the MAUI frameworks only.
+  - The view's property is `Kind`, not `Visual`. **Why:** `Visual` hides `VisualElement.Visual`.
+  - Every view gets a new visual from a factory by name. **Why:** visuals keep their smoothing in fields.
+  - The engine's frame says `Speaking` while an answer plays; the engine's `State` stays `Listening`. **Why:** a view drawing a bare engine (the Showcase's Voice visuals page) otherwise drew the answer in the user's colour with a closed mouth.
+  - Visemes use Azure Speech's 22 numbers, `-1` for none. **Why:** the one widely used set with timings from a TTS; OpenAI's realtime API gives none.
+  - The screen's edge stays in Highlight (`AttachEdge` + `Intensity`), connected by the app; Controls.Voice does not reference Highlight.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
@@ -569,6 +578,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-15:** #516 merged (PR #568). #567 (`VoiceView`, step 4.3b) in review.
 - **2026-10-15:** #515 merged (PR #566). #516 (the voice session, step 4.3a) in review; `VoiceView` split out as #567.
 - **2026-10-15:** #515 (the audio engine's core and Apple, step 4.1a) in review; Android #562 and Windows #563 split out.
 - **2026-10-15:** #557 merged (PR #561). #521 split into 5.3a Google (in review as PR #565) and 5.3b Microsoft (#564).

@@ -119,7 +119,7 @@ The text of the card's buttons and counter comes from the strings `Spine.Highlig
 
 ```csharp
 using var edge = highlights.AttachEdge(window);   // "a model is working": Highlight's own Edge
-edge.Intensity = () => voice.Frame.OutputLevel;   // or follow a level from 0 to 1, read every frame
+edge.Intensity = () => voice.UpdateFrame().OutputLevel;   // or follow a level from 0 to 1, read every frame
 ```
 
 - With no `Intensity` it runs Edge's own turning colours. With a function, the rim's width and the glow's strength follow the level on every frame, eased so a level read at 20 to 60 Hz does not flicker. The function runs on the main thread: keep it cheap. If it throws, the glow stops and the exception is written to the debug log.

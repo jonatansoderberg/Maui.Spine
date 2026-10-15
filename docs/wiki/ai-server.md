@@ -144,7 +144,7 @@ Spine-Installation: 3f2c…
 
 ## Realtime voice sessions
 
-A feature with `"Kind": "Realtime"` sets up a live voice session that the app connects to itself. The server asks the provider for a short-lived token with its own key and the feature's session, and the app opens the provider's WebSocket with that token. The provider's key never reaches the app. The client half is the coming `Plugin.Maui.Spine.Voice` (#516); the design is in [the voice proposal](../proposals/spine-voice.md), §6.
+A feature with `"Kind": "Realtime"` sets up a live voice session that the app connects to itself. The server asks the provider for a short-lived token with its own key and the feature's session, and the app opens the provider's WebSocket with that token. The provider's key never reaches the app. The client half is `Plugin.Maui.Spine.Voice` ([Voice](voice.md)); the design is in [the voice proposal](../proposals/spine-voice.md), §6.
 
 ```csharp
 builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>

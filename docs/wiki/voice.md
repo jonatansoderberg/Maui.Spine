@@ -2,6 +2,7 @@
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Voice
+dotnet add package Plugin.Maui.Spine.Controls.Voice   # VoiceView, to draw it
 ```
 
 A spoken conversation with a realtime model has two parts:
@@ -9,7 +10,7 @@ A spoken conversation with a realtime model has two parts:
 - **The voice session (`IVoiceSession`)** gets a short-lived token from the app's server, connects to the provider, cuts the answer off when the user talks over it, keeps a transcript, and runs the tools the app answers itself.
 - **The audio engine (`IVoiceAudio`) under it** runs the microphone and the speaker at the same time, with the platform's echo cancellation. Without it the model hears its own answer and interrupts itself.
 
-The provider's key never reaches the app. `VoiceView` and the built-in visuals come in #567.
+The provider's key never reaches the app. **`VoiceView`** (Spine.Controls.Voice) draws the conversation: see [Drawing the conversation](#drawing-the-conversation).
 
 | Platform | Engine | State |
 |---|---|---|
@@ -127,7 +128,7 @@ await audio.StopAsync();
 - **Mute:** `IsMuted` stops the upload, and the input level falls to silence. A phone call does the same until it ends (`State` is `Muted`).
 - **Half duplex:** `Duplex = VoiceDuplex.HalfWhileSpeaking` stops the upload while an answer plays. It is for devices whose echo cancellation is too weak; the user then interrupts with a tap. The default is `Full`.
 - **Routes:** `UseSpeaker` chooses the loudspeaker or the receiver at the ear. A Bluetooth headset with a microphone (HFP) takes over while connected (`AllowBluetooth`). `Route` and `RouteChanged` say where the sound goes.
-- **States:** `Connecting` lasts one second after the start (`Convergence`), while the echo canceller settles, then `Listening`. `Thinking`, `Speaking` and `Interrupted` belong to the voice session in #516.
+- **States:** `Connecting` lasts one second after the start (`Convergence`), while the echo canceller settles, then `Listening`. `Thinking` and `Interrupted` belong to the voice session. The engine's frame says `Speaking` while an answer plays, so a view drawing a bare engine knows who speaks; the engine's `State` stays `Listening`.
 
 ## Levels and bands
 
@@ -135,8 +136,76 @@ On the UI's tick, `UpdateFrame()` writes the latest into `audio.Frame`, a `Voice
 - `InputLevel` and `OutputLevel`, 0 to 1 on a decibel scale from −60 to 0 dBFS. The input is measured after echo cancellation; the output as it plays.
 - `InputBands` and `OutputBands`, 24 each, log-spaced from 80 Hz to 8 kHz, as `ReadOnlySpan<float>`.
 - `State`, `Time` and `TimeInState`.
+- `Viseme`: the mouth shape of what plays now, when the app gives an `IVisemeSource` (below); otherwise `-1`.
 
 The frame is one object, overwritten on every tick without allocating. Read it during the call, and call `Snapshot()` to keep a copy.
+
+## Drawing the conversation
+
+`VoiceView` in Spine.Controls.Voice reads the frame of a session (or of a bare engine, `Audio="{Binding Engine}"`) on its own tick and draws it with SkiaSharp:
+
+```xml
+<VoiceView Session="{Binding Voice}" Kind="orb" HeightRequest="240" />
+```
+
+| `Kind` | What it draws | Under Reduce Motion |
+|---|---|---|
+| `orb` (default) | A soft blob that breathes with the level and wobbles with the bands: the user's colour while they talk, warm while the model speaks, a slow pulse while it thinks | A round orb, no wobble or pulse, whose size follows the level |
+| `bars` | The answer's 24 bands up from a line and the microphone's down, so talking over the answer shows as both | Two level bars |
+| `ring` | The answer's bands outward and the microphone's inward round an empty middle, for round a button or a picture | A ring whose width follows the level |
+| `avatar` | A face that blinks, looks at the user while listening and up while thinking, and whose mouth follows the visemes or the level | No blinking; the mouth moves slowly |
+
+- **Colours:** `InputColor` is the user's (unset, the app's `Primary`), `OutputColor` the model's (unset, a warm orange).
+- **Frame rate:** `FrameRate`, 1 to 60, 30 by default. It does not draw while it is detached, hidden (itself or an ancestor, such as an unselected tab), scrolled out of sight or the app is in the background. Under Reduce Motion it draws four times a second.
+- **Screen readers** hear one element whose description is the state ("Listening", "Speaking"). Muting, an interruption and the end are announced; the turns are not, so the announcements do not talk over the answer.
+- An unknown `Kind` draws the orb and logs a warning.
+
+### Visuals of your own
+
+A `VoiceVisual` draws on the view's canvas; a `VoiceVisualView` is a view of its own (3D, Rive, Lottie) that gets each frame. Register them by name:
+
+```csharp
+builder.UseSpineVoiceView(o =>
+{
+    o.AddVisual<PulseVisual>("pulse");
+    o.AddVisualView<MascotView>("mascot");
+});
+
+public sealed class PulseVisual : VoiceVisual
+{
+    public override void Draw(SKCanvas canvas, SKRect bounds, VoiceFrame frame, VoiceVisualContext context)
+    {
+        // context: the colours, the pixel scale, the time since the last frame and whether Reduce Motion is on.
+    }
+}
+```
+
+Each view gets a new instance, so a visual keeps its own smoothing state in fields. `Draw` runs on the main thread: keep it cheap and allocate little.
+
+### Visemes
+
+`IVisemeSource` gives the mouth shape for the item that plays and how much of it has played; the session asks it on every frame and puts the answer in `frame.Viseme`. The numbers are Azure Speech's 22 visemes (`Visemes.Silence` … `Visemes.P`), and `Visemes.Shape(viseme)` turns one into how open and how wide the mouth is.
+
+```csharp
+builder.UseSpineVoice(o => o.VisemeSource = new MyVisemes());   // e.g. timings from a TTS that gives them
+
+sealed class MyVisemes : IVisemeSource
+{
+    public int VisemeAt(PlaybackPosition playing) => Lookup(playing.ItemId, playing.Played);
+}
+```
+
+OpenAI's realtime API gives no visemes; without a source the avatar's mouth follows the answer's level.
+
+### The screen's edge
+
+Spine.Controls.Highlight glows the whole window's edge; give it the answer's level:
+
+```csharp
+edge = highlights.AttachEdge(window);
+edge.Intensity = () => voice.UpdateFrame().OutputLevel;
+// edge.Dispose() fades it out
+```
 
 ## How it works on Apple
 

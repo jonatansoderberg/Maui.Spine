@@ -43,6 +43,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Voice.Tests" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Voice.Tests" />
 	</ItemGroup>
 
 	<!-- Declares the package to UseSpine(), and contributes the entitlement and the opt-in background mode. -->
