@@ -1299,10 +1299,10 @@ NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw und
 NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
 HAIR_REACH = 0.0               # strands outside the hair's closed volume are dropped (at 6 mm the sheets outside the shell read as flaps and shards off the hair)
 EAR_POCKET = 0.010             # the hair keeps this far from the auricle (below EAR_TOP_SHARE of the ear), so the ear sits in a pocket of hair instead of under bits of it
-HAIR_HEAD_GAP = 0.015          # m: a hair face closer than this to the head's surface (skull, neck, ears, the face grid) goes: the envelope's sheet lying against the head (the forehead's slab, the inner shell on the scalp); the scalp carries the owner's roots and hairline itself, and through the hair's gaps those show (the owner chose 15 mm of 8/12/15/20 in the lab)
+HAIR_HEAD_GAP = 0.015          # m: a hair face closer than this to the skull or the neck goes: the envelope's sheet lying against the head (the inner shell on the scalp); the scalp carries the owner's roots and hairline itself, and through the hair's gaps those show (the owner chose 15 mm of 8/12/15/20 in the lab)
+HAIR_GRID_GAP = 0.025          # m: the same over the face grid (the forehead): at 15 mm thin strips of the forehead's slab stayed along the hairline and at the temples, which the owner marked
 EAR_TOP_SHARE = 0.35           # the ear's top this share of its height may carry hair (the views show the hair's edge over the upper helix)
 EAR_FRONT_MARGIN = 0.008       # over the ear's top, hair stays only this far outside the auricle's outer surface: in front of the ear, never on its rim (owner: in front, behind, or cut)
-HAIR_SCRAP_FACES = 40          # a piece of the hair layer smaller than this, left by the ear pockets, is a scrap and goes
 HAIR_SHELL_CLOSE = 1 if MV_HAIR else 5           # voxels (5 mm) of closing on the hair's volume: gaps between strand sheets up to twice this are hair (at 3 the fringe of sheets along the back and the crown's shards stood apart with the room between)
 HAIR_SHELL_OPEN = 0 if MV_HAIR else 1            # voxels of opening on the hair's volume before the shell: spikes thinner than two voxels go
 HAIR_SHELL_ERODE = 0           # voxels (5 mm) the shell sits inside the strands: 0 puts it at their envelope, filling the gaps between them at their own level
@@ -3711,23 +3711,25 @@ def build(work):
         pocket = np.zeros(len(F), bool)
     print('ear pocket: shell faces dropped', int(pocket.sum()))
     if PROJ_HAIR and HAIR_HEAD_GAP > 0:
-        head_faces = np.concatenate([np.where(front)[0], np.where((label == SKIN) | (label == NECK))[0]])
         rng_h = np.random.default_rng(1)
-        head_pts = np.concatenate([np.einsum('k,fkd->fd', b_, P[F[head_faces]]) for b_ in rng_h.dirichlet((1, 1, 1), size=6)] + [P[np.unique(F[head_faces])]])
-        against = (label == HAIR) & (cKDTree(head_pts).query(centres)[0] < HAIR_HEAD_GAP)
+        def surface_pts(faces):
+            return np.concatenate([np.einsum('k,fkd->fd', b_, P[F[faces]]) for b_ in rng_h.dirichlet((1, 1, 1), size=6)] + [P[np.unique(F[faces])]])
+        against = (label == HAIR) & ((cKDTree(surface_pts(np.where((label == SKIN) | (label == NECK))[0])).query(centres)[0] < HAIR_HEAD_GAP)
+                                     | (cKDTree(surface_pts(np.where(front)[0])).query(centres)[0] < HAIR_GRID_GAP))
         print('hair faces against the head dropped:', int(against[rest].sum()), 'of', len(rest))
         pocket = pocket | against
     keep_rest = ~pocket[rest]; rest, rest_uv = rest[keep_rest], rest_uv[keep_rest]
     if PROJ_HAIR and len(rest):
-        # Scraps the pockets leave: a piece of the hair layer under HAIR_SCRAP_FACES faces, joined to nothing, goes
-        # (owner's rule: no loose hair pieces ever).
+        # Only the piece joined to the main hair stays (owner's rule: no loose hair pieces ever; 2026-10-15 the
+        # envelope's inner shell, 2 914 faces hidden inside the hair but for specks at the parting and the nape,
+        # and the scraps the pockets and the head gap leave).
         from scipy.sparse import coo_matrix
         from scipy.sparse.csgraph import connected_components
         Fr = F[rest]; e_r = np.concatenate([Fr[:, [0, 1]], Fr[:, [1, 2]], Fr[:, [2, 0]]])
         nc_r, lab_r = connected_components(coo_matrix((np.ones(len(e_r)), (e_r[:, 0], e_r[:, 1])), shape=(len(P), len(P))), directed=False)
         comp_r = lab_r[Fr[:, 0]]; size_r = np.bincount(comp_r, minlength=nc_r)
-        scrap = size_r[comp_r] < HAIR_SCRAP_FACES
-        print('hair scraps dropped after the pockets:', int(scrap.sum()), 'faces in', int((size_r[(size_r > 0) & (size_r < HAIR_SCRAP_FACES)]).size), 'pieces')
+        scrap = comp_r != np.argmax(size_r)
+        print('hair pieces off the main hair dropped:', int(scrap.sum()), 'faces in', int((size_r > 0).sum()) - 1, 'pieces, the largest', sorted(size_r[size_r > 0].tolist(), reverse=True)[1:6])
         rest, rest_uv = rest[~scrap], rest_uv[~scrap]
     front = front & ~pocket
     photo, drawn = front & from_photo, front & ~from_photo
