@@ -1,0 +1,46 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.VoiceChat.VoiceChatPage"
+    x:TypeArguments="VoiceChatPageViewModel"
+    x:DataType="VoiceChatPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Server.AI, Plugin.Maui.Spine.Controls.Chat">
+
+        <Example Title="Talk to a realtime model"
+                 Summary="A spoken conversation with the push sample server's Voice feature (gpt-realtime, in Swedish). The server gives a short-lived token and keeps the OpenAI key; the app opens the provider's socket with it. Talk over the answer and it stops, and the model is told how much you heard. Ask what time it is: the app answers that tool itself.">
+            <VerticalStackLayout Spacing="12">
+                <Entry Text="{Binding Server}" Placeholder="http://192.168.1.10:5100/ai" Keyboard="Url" />
+                <VoiceMeterView Session="{Binding Session}" HeightRequest="120" />
+                <Label Text="{Binding Status}" FontSize="15" Opacity="0.8" />
+                <HorizontalStackLayout Spacing="10">
+                    <Button Text="Connect" Command="{Binding ConnectCommand}" />
+                    <Button Text="End" Command="{Binding EndCommand}" />
+                    <Button Text="Stop the answer" Command="{Binding StopCommand}" />
+                </HorizontalStackLayout>
+                <Grid ColumnDefinitions="*,Auto">
+                    <Label Text="Mute the microphone" VerticalOptions="Center" />
+                    <Switch Grid.Column="1" IsToggled="{Binding Muted}" />
+                </Grid>
+                <ChatView Messages="{Binding Session.Transcript}" HeightRequest="360" />
+            </VerticalStackLayout>
+            <Example.Code>
+                builder.UseSpineVoice(o =&gt;
+                {
+                    o.SessionEndpoint = new Uri("https://api.example.com/ai");
+                    o.AuthorizationHeader = ct =&gt; auth.GetHeaderAsync(ct);
+                    o.ClientTools.Add(AIFunctionFactory.Create(
+                        () =&gt; DateTime.Now.ToString("HH:mm"),
+                        "show_time", "Says what time it is."));
+                });
+
+                // In the view model:
+                await voice.ConnectAsync("Voice");
+                chat.Messages = voice.Transcript;
+                voice.Interrupt();        // a Stop button
+                await voice.EndAsync();
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>

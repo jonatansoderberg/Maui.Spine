@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-15 (step 4.1 split into 4.1a Apple and the core (#515, in review), 4.1b Android (#562) and 4.1c Windows (#563); the iPhone's echo measured, see Decisions and Verification backlog)
+**Last updated:** 2026-10-15 (step 4.1a merged as #566; step 4.3 split into 4.3a, the voice session and the OpenAI adapter (#516, in review), and 4.3b, `VoiceView` and the visuals (#567); a spoken conversation with barge-in and a tool seen on the owner's iPhone)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -53,7 +53,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.AI` | New | #512, #543 | [ai §7](../proposals/spine-ai.md) | #512 done (#536); #543 done (#545) |
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
-| `Plugin.Maui.Spine.Voice` | New | #515, #562, #563, #516, #518 | [voice](../proposals/spine-voice.md) | #515 in review (the core and Apple); #562 and #563 wait on it |
+| `Plugin.Maui.Spine.Voice` | New | #515, #562, #563, #516, #518 | [voice](../proposals/spine-voice.md) | #515 done (#566); #516 in review; #562, #563 and #567 wait |
 | `Plugin.Maui.Spine.Authentication` | New | #519, #557 | [authentication](../proposals/spine-authentication.md) | #519 done (#558); #557 done (#561); #521 adds the provider hook |
 | `Plugin.Maui.Spine.Authentication.Google` | New | #521 | [authentication](../proposals/spine-authentication.md) | In review |
 | `Plugin.Maui.Spine.Authentication.Microsoft` | New | #564 | [authentication](../proposals/spine-authentication.md) | Proposal |
@@ -78,9 +78,10 @@ graph LR
   ASSET --> ASSETC[#543 Asset lookup in the app]
   AI --> CL[#512 Spine.AI client]
   AI --> RT[#517 Realtime sessions]
-  VE[#515 Audio engine: core and Apple] --> VO[#516 Voice adapters and VoiceView]
+  VE[#515 Audio engine: core and Apple] --> VO[#516 Voice session and OpenAI adapter]
   VE --> VEA[#562 Android engine]
   VE --> VEW[#563 Windows engine]
+  VO --> VV[#567 VoiceView and visuals]
   RT --> VO
   VE --> LA[#518 Live Activity experiment]
   HL[#509 Highlight] --> SPOT[#530 Spotlight and tours]
@@ -137,11 +138,12 @@ The order follows value against risk. Steps in different phases can run in paral
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 4.1a | Audio engine: the shared core (queue with flush, resampler, meter, `VoiceFrame`) and the Apple engine, with the Showcase's Voice lab | #515 | 0.2 | In review | | Split by the owner on 2026-10-15. Measured on the owner's iPhone: echo cancellation removes the echo to digital silence on the loudspeaker in a quiet room, and lets the user's voice through (Decisions). |
+| 4.1a | Audio engine: the shared core (queue with flush, resampler, meter, `VoiceFrame`) and the Apple engine, with the Showcase's Voice lab | #515 | 0.2 | Done | #566 | Split by the owner on 2026-10-15. Measured on the owner's iPhone: echo cancellation removes the echo to digital silence on the loudspeaker in a quiet room, and lets the user's voice through (Decisions). |
 | 4.1b | Audio engine on Android: `VOICE_COMMUNICATION`, `AcousticEchoCanceler`, the microphone foreground service | #562 | 4.1a | Waiting | | Measure with the Voice lab on the owner's Android phone. |
 | 4.1c | Audio engine on Windows: the communications category | #563 | 4.1a | Waiting | | |
 | 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Done | #551 | OpenAI and Azure OpenAI client secrets only (Q28, and the owner's choice of token over relay on 2026-10-15). `Kind: Realtime`, `ai.Realtime(...)`, `POST /ai/realtime/{name}`, minutes reserved per token (Decisions). |
-| 4.3 | Provider adapters, `IVoiceSession`, `VoiceView` and visual plug-ins | #516 | 4.1, 4.2 | Waiting | | OpenAI and Azure OpenAI only in v1 (Q28). WebSocket and PCM; WebRTC only if measurements call for it (Q31). Background audio is opt-in (Q26). |
+| 4.3a | `IVoiceSession` and the OpenAI adapter: token, socket, barge-in, transcript, client tools, push-to-talk, the time limit; the Showcase's Voice chat page | #516 | 4.1a, 4.2 | In review | | OpenAI and Azure OpenAI only in v1 (Q28), over its own WebSocket (Decisions). Seen on the owner's iPhone: a spoken conversation, a tool, barge-in four times. |
+| 4.3b | `VoiceView`, the `VoiceVisual` contract and the built-in visuals (SkiaSharp) | #567 | 4.3a | Waiting | | Split by the owner on 2026-10-15. |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 
 ### Phase 5: sign-in
@@ -207,6 +209,7 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.3b (#511) | The messaging sample's AppHost with the key passed as the secret parameter `openaikey`. The real postcard was made with the API run on its own against Azurite in Docker | Docker | `Parameters__openaikey=… dotnet run --project samples/SpineMessagingSample.AppHost`, then `send.http` |
 | 2.3b (#511) | A model that answers with a URL (`UriContent`) rather than bytes: the handler downloads it. OpenAI's gpt-image models answer with bytes | Such a provider | — |
 | 2.3c (#543) | `GeneratedImage` on Android, Windows and Mac Catalyst at run time (only compiled), and on a phone. Seen on the iPhone 17 Pro simulator: pending (a spinner in #543, a `Shimmer` since #549, light theme only), ready from blob storage, failed, polling stopped in the background and resumed at once | An emulator, a Windows machine, the Mac app | The Showcase's Generated images page against the messaging sample's API; `adb reverse tcp:5240 tcp:5240` on Android |
+| 4.3a (#516) | Azure OpenAI's realtime socket from the app (only OpenAI was called), a session through `TimeLimit` on a device, a phone call during a session, `SpineVoiceBackground` with the screen locked, and the session on Mac Catalyst | An Azure OpenAI deployment; the iPhone; a second phone | The Voice chat page |
 | 4.1a (#515) | A Release build on the iPhone: CPU was 50–60 % of one core in Debug, which runs the interpreter; the resampler's kernel is now a table, measured only in Debug | The iPhone, and disk room for an AOT build (the owner asked not to build Release on 2026-10-15) | The Voice lab's echo test in a Release build |
 | 4.1a (#515) | A Bluetooth headset (HFP), the latency from the speaker to the microphone (the cross-correlation gave 71–161 ms on the loudspeaker and failed on the receiver), an interruption by a phone call, and a route change mid-conversation | A headset; a second phone to call from | Voice lab: Start, then call the phone, or connect the headset |
 | 4.1a (#515) | Mac Catalyst's echo cancellation: voice processing came on, but the echo barely rose above the room (−39.6 against −38.5 dBFS), so the 7 dB removed says little | A quieter room and a higher volume on the Mac | Voice lab on Mac Catalyst |
@@ -460,6 +463,12 @@ Newest last. Each entry is dated and says who decided.
   - A configuration change restarts the engine (Apple's advice); only a media-services reset rebuilds it. On a Mac that refuses the voice-processing unit, the engine starts without it and says so through `IsVoiceProcessingOn`.
   - No `DefaultToSpeaker`: the loudspeaker is an override. **Why:** with it, the receiver could not be chosen.
   - **Measured on the iPhone 16 Pro (iOS 27.0.1):** on the loudspeaker in a quiet room the echo went from −20 dBFS to −90…−120 dBFS in 120 of 134 windows of 100 ms, and the owner's voice passed through while the phone talked. On the receiver, 31 dB was removed. `Full` duplex is the default; no device so far needs `HalfWhileSpeaking`.
+- **2026-10-15, owner (#516):** The OpenAI realtime protocol is spoken directly over `ClientWebSocket` in `Plugin.Maui.Spine.Voice`, not through M.E.AI's experimental `IRealtimeClient` and the OpenAI SDK; `VoiceView` and the visuals draw with SkiaSharp; the step is split into 4.3a (#516, the session) and 4.3b (#567, the view).
+- **2026-10-15, Claude (#516):**
+  - The session ends itself after the server's `maxMinutes`. **Why:** the server cannot cut a session off (4.2).
+  - `Speaking` follows what the engine still plays, not the provider's `response.done`. **Why:** the answer arrives faster than it is played.
+  - The transcript is an observable `IList<ChatMessage>` changed on the main thread, so `ChatView.Messages` binds to it without either package referencing the other. A user turn is a "…" placeholder from the commit until its transcription, so the order is the order of speech.
+  - Microphone frames are 100 ms, cut from whatever the device delivers. **Why:** a test caught a one-second capture going out as one message.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
@@ -560,6 +569,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-15:** #515 merged (PR #566). #516 (the voice session, step 4.3a) in review; `VoiceView` split out as #567.
 - **2026-10-15:** #515 (the audio engine's core and Apple, step 4.1a) in review; Android #562 and Windows #563 split out.
 - **2026-10-15:** #557 merged (PR #561). #521 split into 5.3a Google (in review as PR #565) and 5.3b Microsoft (#564).
 - **2026-10-15:** #557 (browser sign-in and the mode without a Spine server, step 5.2b) in review as PR #561.

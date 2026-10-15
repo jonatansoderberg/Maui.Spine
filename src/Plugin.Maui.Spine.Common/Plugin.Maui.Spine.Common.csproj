@@ -29,6 +29,8 @@
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.AI.Tests" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.AI" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.AI.Tests" />
+		<!-- Voice reads the same refusals as the AI client from the session endpoint. -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Voice" />
 	</ItemGroup>
 
 	<!-- The entitlements step Plugin.Maui.Spine.Widgets and Plugin.Maui.Spine.PushNotifications share. -->

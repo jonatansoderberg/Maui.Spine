@@ -28,7 +28,7 @@ Spine ships as thirty-two NuGet packages built from this repository, one per pro
 | Controls | `Plugin.Maui.Spine.Images` | Every `UriImageSource` through a memory and disk cache, decoded at the view's size; `IImageCache`; BlurHash placeholders. Its `net10.0` build holds only the disk cache | `.Common` |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and `BlurHash`; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
-| AI | `Plugin.Maui.Spine.Voice` | [Voice](voice.md): the full-duplex audio engine with the platform's echo cancellation, the playback queue and `VoiceFrame` | `.Common` |
+| AI | `Plugin.Maui.Spine.Voice` | [Voice](voice.md): spoken conversations with a realtime model (`IVoiceSession`) on the full-duplex audio engine with the platform's echo cancellation | `.Common`, Microsoft.Extensions.AI.Abstractions |
 | AI | `Plugin.Maui.Spine.AI` | [AI in the app](ai-client.md): one `IChatClient` per named feature, on the device or the server, with fallback and on-device usage; generated images from the server on any `Image` | `.Common` |
 | Server | `Plugin.Maui.Spine.Server.AI` | [AI on the server](ai-server.md): named features, metering, prices, budgets and limits on Microsoft.Extensions.AI | `.Common` |
 | Server | `Plugin.Maui.Spine.Server.Authentication` | [Sign-in on the server](authentication-server.md): ID tokens checked, own access and refresh tokens, email and password, account deletion | `.Common`, Microsoft.AspNetCore.Authentication.JwtBearer, Azure.Data.Tables |
@@ -75,7 +75,7 @@ PushNotifications                                    AnimatedLabel
 | The push backend | `Plugin.Maui.Spine.Server` in the server project (brings `.Common`) |
 | A chat with a model, on any `IChatClient` | `Plugin.Maui.Spine.Controls.Chat` (brings the core, Markdown and Shimmer); with `Plugin.Maui.Spine.AI` for features on the app's server |
 | Markdown text: help, release notes, chat answers | `Plugin.Maui.Spine.Controls.Markdown` (brings the core and Markdig) |
-| Microphone and speaker at once for realtime voice, with echo cancellation | `Plugin.Maui.Spine.Voice` (brings `.Common`), plus `NSMicrophoneUsageDescription` |
+| A spoken conversation with a realtime model on the app's server, or the microphone and speaker at once with echo cancellation | `Plugin.Maui.Spine.Voice` (brings `.Common`), plus `NSMicrophoneUsageDescription` |
 | Language models in the app, on the device or through the app's server | `Plugin.Maui.Spine.AI` (brings `.Common`; the core is not required), plus the app's own on-device client such as Microsoft.Maui.Essentials.AI |
 | Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
 | Sign-in against the app's own server: Apple, Google, Microsoft, OpenID Connect, email and password | `Plugin.Maui.Spine.Server.Authentication` in the server project |

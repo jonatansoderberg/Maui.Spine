@@ -4,7 +4,12 @@
 dotnet add package Plugin.Maui.Spine.Voice
 ```
 
-Realtime voice AI needs the microphone and the speaker at the same time, with the platform's echo cancellation. Without it the provider hears its own answer and interrupts itself. `Plugin.Maui.Spine.Voice` owns that part. This page covers the audio engine. The voice session, the provider adapters and `VoiceView` come next (#516), on top of it.
+A spoken conversation with a realtime model has two parts:
+
+- **The voice session (`IVoiceSession`)** gets a short-lived token from the app's server, connects to the provider, cuts the answer off when the user talks over it, keeps a transcript, and runs the tools the app answers itself.
+- **The audio engine (`IVoiceAudio`) under it** runs the microphone and the speaker at the same time, with the platform's echo cancellation. Without it the model hears its own answer and interrupts itself.
+
+The provider's key never reaches the app. `VoiceView` and the built-in visuals come in #567.
 
 | Platform | Engine | State |
 |---|---|---|
@@ -14,6 +19,66 @@ Realtime voice AI needs the microphone and the speaker at the same time, with th
 | Windows | Communications audio category | Coming in #563 |
 
 On Android and Windows the engine says so when started: `VoiceAudioException` with `VoiceAudioProblem.Unavailable`.
+
+## A voice session
+
+The server side is [Realtime voice sessions](ai-server.md#realtime-voice-sessions): a feature with `"Kind": "Realtime"` and `MapSpineRealtimeSessions`. In the app:
+
+```csharp
+builder.UseSpineVoice(o =>
+{
+    o.SessionEndpoint = new Uri("https://api.example.com/ai");      // the prefix given to MapSpineRealtimeSessions
+    o.AuthorizationHeader = ct => auth.GetHeaderAsync(ct);           // realtime features answer signed-in callers by default
+    o.ClientTools.Add(AIFunctionFactory.Create(
+        () => DateTime.Now.ToString("HH:mm"), "show_time", "Says what time it is on the user's phone."));
+});
+```
+
+```csharp
+public partial class AssistantViewModel(IVoiceSession voice) : ViewModelBase   // a new session per page
+{
+    async Task TalkAsync()
+    {
+        await voice.ConnectAsync("Voice");                 // POST {SessionEndpoint}/realtime/Voice, then the provider's socket
+        Messages = voice.Transcript;                       // ChatView.Messages: the transcript as it is spoken
+    }
+
+    void Stop() => voice.Interrupt();                      // a tap cuts the answer off
+    Task EndAsync() => voice.EndAsync();
+}
+```
+
+- **Barge-in.** When the provider hears the user start to speak while the answer plays, the session does three things at once: it flushes the engine, it tells the model how much of the answer was heard (`conversation.item.truncate` with the played milliseconds), and it cancels the running response. `Interrupt()` does the same from a button. The state shows `Interrupted` for a moment, then `Listening`.
+- **States:**
+  - `Connecting` lasts while the token, the socket and the microphone open, and while the echo canceller settles.
+  - `Listening` is when the user talks.
+  - `Thinking` lasts from the response until its first audio.
+  - `Speaking` lasts while the answer plays, which is longer than the provider sends it.
+  - `Interrupted` and `Muted` are the other two.
+  - `StateChanged` is raised on the main thread.
+- **The transcript.** `Transcript` is an observable list of Microsoft.Extensions.AI `ChatMessage`s, changed on the main thread, so `Plugin.Maui.Spine.Controls.Chat`'s `ChatView` shows it as it is spoken. Neither package references the other.
+  - The user's turn appears as "…" when it is committed, and gets its words when the transcription comes. A turn that could not be transcribed is removed.
+  - The model's answer streams in.
+  - An answer cut off by the user has `spine.interrupted` in its `AdditionalProperties`. Its text is what the provider transcribed, which can run ahead of what was heard.
+  - Tool calls appear as `FunctionCallContent` and `FunctionResultContent`.
+- **Client tools.**
+  - `ClientTools` are added to the session when it connects. When the model calls one, the session runs it and sends the result back, and the model goes on.
+  - An unknown or failing tool answers with an error, so the model can say so rather than wait.
+  - Tools that touch user data belong on the server, which a relay will make possible.
+- **Push-to-talk.** `BeginTurn()` cuts off any answer and clears the input, and `EndTurn()` commits it and asks for the answer. It is meant for a feature with `"TurnDetection": "none"`.
+- **Text.** `SendTextAsync(text)` says something in writing, and the model answers aloud.
+- **The time limit.** The server cannot end a session (see [the token is not a lock](ai-server.md#realtime-voice-sessions)), so the session ends itself after the server's `maxMinutes`. `TimeLeft` counts down. `Ended` says why the session ended: `User`, `TimeLimit`, `Provider` (the socket closed) or `Failed`, with the exception.
+- **Refusals** are the AI client's exceptions:
+  - `AIFeatureOffException` when the feature is off or needs a signed-in user (`signInRequired`)
+  - `AIRateLimitedException` with `RetryAfter`
+  - `HttpRequestException` naming the URL for a wrong `SessionEndpoint`
+- **Providers.** The session speaks OpenAI's realtime events over a WebSocket, which covers Azure OpenAI too: the server's `protocol` is `openai` for both. Another protocol is refused before the microphone opens. Gemini Live and Azure Voice Live come when an app needs them.
+- **The installation id.** The token request sends it, the same `SecureStorage` key as push and the AI client. Per-installation rates then apply when the feature lets installations in.
+
+Seen on the owner's iPhone 16 Pro against `gpt-realtime` on 2026-10-15:
+- The token, the socket, a spoken Swedish conversation, and the states all worked.
+- `show_time` was called and answered ("Klockan är 19:30").
+- The owner talked over the answer four times. Each time the answer stopped, the model was told how much was heard, and it answered what he said.
 
 ## Setup
 
