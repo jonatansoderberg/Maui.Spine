@@ -41,8 +41,16 @@ public static class MauiProgram
                 {
                     a.Server = new Uri("http://localhost:5100/auth");
                     a.AddEmailPassword();
+                    a.CallbackScheme = "se.cosmomedia.spineshowcase";
 #if SPINE_SIGN_IN_WITH_APPLE
                     a.AddApple();
+#endif
+#if SPINE_SIGN_IN_WITH_GOOGLE
+                    a.AddGoogle(g => g.ServerClientId = typeof(MauiProgram).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+                        .Cast<System.Reflection.AssemblyMetadataAttribute>().First(m => m.Key == "SpineGoogleServerClientId").Value);
+#if !SPINE_SIGN_IN_WITH_APPLE
+                    a.AppleNotRequired = true;   // the Showcase's App ID has no Sign in with Apple yet; an App Store app adds AddApple()
+#endif
 #endif
                     a.LinkPushNotifications = true;
                 });

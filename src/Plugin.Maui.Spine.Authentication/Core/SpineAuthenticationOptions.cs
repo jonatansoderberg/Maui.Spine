@@ -19,7 +19,57 @@ public sealed partial class SpineAuthenticationOptions
     /// <summary>The key the refresh token and the user are kept under in secure storage.</summary>
     public string StorageKey { get; set; } = "spine.auth.session";
 
+    /// <summary>
+    /// The app's URL scheme a browser sign-in returns to on iOS, Mac Catalyst and Android (<c>{scheme}://callback</c>),
+    /// such as <c>se.example.app</c>. The same value goes in the project as <c>SpineAuthenticationCallbackScheme</c>,
+    /// which registers it on Android, and on the server in <c>RedirectSchemes</c>. Windows returns to a loopback address.
+    /// </summary>
+    public string? CallbackScheme { get; set; }
+
+    /// <summary>
+    /// The iOS browser sign-in shares no cookies with Safari, so it asks for nothing and remembers nobody (Q10). On by
+    /// default; off, iOS first asks "… wants to use … to sign in" and the provider may already know the user.
+    /// </summary>
+    public bool EphemeralBrowserSession { get; set; } = true;
+
     internal bool Apple { get; private set; }
+
+    internal List<SignInProvider> BrowserProviders { get; } = [];
+
+    internal Dictionary<string, string> DisplayNames { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    internal SpineIdentityProviderOptions? IdentityProvider { get; private set; }
+
+    /// <summary>
+    /// A provider the server brokers through the browser: one it configures with <c>WebClientId</c> (Google, an
+    /// <c>OpenIdConnect(name, …)</c>), shown as a button in the sign-in sheet.
+    /// </summary>
+    /// <param name="name">The provider's name on the server, as in <c>/auth/{name}/start</c>.</param>
+    /// <param name="displayName">The button's text: <c>Continue with {displayName}</c>.</param>
+    /// <returns>The same options, for chaining.</returns>
+    public SpineAuthenticationOptions AddOpenIdConnect(string name, string displayName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        BrowserProviders.RemoveAll(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+        BrowserProviders.Add(new SignInProvider(name.ToLowerInvariant(), false));
+        DisplayNames[name] = displayName;
+        return this;
+    }
+
+    /// <summary>
+    /// Signs in directly at an OpenID Connect provider, without a Spine server (Q7): Auth0, Entra, Keycloak, … The app
+    /// is a public client with PKCE, and its access token is the provider's. Use instead of <see cref="Server"/>.
+    /// </summary>
+    /// <param name="configure">Sets the authority and the client id.</param>
+    /// <returns>The same options, for chaining.</returns>
+    public SpineAuthenticationOptions UseIdentityProvider(Action<SpineIdentityProviderOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        IdentityProvider = new SpineIdentityProviderOptions();
+        configure(IdentityProvider);
+        return this;
+    }
 
     internal SpineEmailPasswordOptions? EmailPassword { get; private set; }
 
@@ -34,6 +84,29 @@ public sealed partial class SpineAuthenticationOptions
         Apple = true;
         return this;
     }
+
+    /// <summary>
+    /// The app is not on the App Store, so it need not offer Sign in with Apple beside Google or Microsoft (App Store
+    /// Review Guideline 4.8). Off by default: on iOS and Mac Catalyst, <c>UseSpine</c> throws when a provider package
+    /// is added without <see cref="AddApple"/>.
+    /// </summary>
+    public bool AppleNotRequired { get; set; }
+
+    internal List<NativeProvider> NativeProviders { get; } = [];
+
+    /// <summary>
+    /// A provider package's own sheet, such as Credential Manager for Google on Android. The provider is also added as
+    /// a browser provider, which the platforms without the sheet use through the server's broker.
+    /// </summary>
+    internal SpineAuthenticationOptions AddNative(NativeProvider provider, string displayName)
+    {
+        NativeProviders.RemoveAll(p => p.Name == provider.Name);
+        NativeProviders.Add(provider);
+        return AddOpenIdConnect(provider.Name, displayName);
+    }
+
+    /// <summary>Whether signing in with <paramref name="provider"/> goes through the browser on this platform.</summary>
+    internal bool IsBrowser(SignInProvider provider) => !NativeProviders.Any(n => n.Name == provider.Name && n.IsSupported);
 
     /// <summary>Email and password, in the package's sign-in sheet or through <see cref="ISpineAuth"/>'s methods.</summary>
     /// <param name="configure">Changes what the sheet offers.</param>
@@ -56,11 +129,42 @@ public sealed partial class SpineAuthenticationOptions
         }
     }
 
-    internal void Validate()
+    /// <param name="returnsToScheme">Whether a configured way to sign in goes through the browser and back to <see cref="CallbackScheme"/> on this platform.</param>
+    /// <param name="appStore">Whether the app runs on iOS or Mac Catalyst, where Guideline 4.8 applies.</param>
+    internal void Validate(bool returnsToScheme, bool appStore = false)
     {
-        _ = ServerRoot;
-        if (!Apple && EmailPassword is null)
-            throw new InvalidOperationException("Spine sign-in: offer at least one way to sign in: a.AddApple() or a.AddEmailPassword().");
+        if (appStore && NativeProviders.Count > 0 && !Apple && !AppleNotRequired)
+            throw new InvalidOperationException(
+                $"Spine sign-in: an app on the App Store that offers {string.Join(" and ", NativeProviders.Select(p => DisplayNames[p.Name]))} must also offer Sign in with Apple " +
+                "(App Store Review Guideline 4.8). Add a.AddApple(), or set a.AppleNotRequired = true for an app outside the App Store.");
+
+        if (returnsToScheme && string.IsNullOrWhiteSpace(CallbackScheme))
+            throw new InvalidOperationException(
+                "Spine sign-in: a browser sign-in needs a.CallbackScheme, the app's URL scheme, and the same value in the project as <SpineAuthenticationCallbackScheme> for Android.");
+
+        // Uri lowercases a scheme, while Android matches the intent filter's scheme as written, case-sensitively.
+        if (CallbackScheme is { } scheme && (scheme != scheme.ToLowerInvariant() || Uri.CheckSchemeName(scheme) is false))
+            throw new InvalidOperationException($"Spine sign-in: CallbackScheme \"{scheme}\" must be a lowercase URL scheme, such as se.example.app.");
+
+        if (IdentityProvider is { } provider)
+        {
+            if (Server is not null || Apple || EmailPassword is not null || BrowserProviders.Count > 0)
+                throw new InvalidOperationException(
+                    "Spine sign-in: UseIdentityProvider(...) signs in without a Spine server; Server, AddApple, AddEmailPassword, AddOpenIdConnect and the provider packages (AddGoogle) need one.");
+
+            if (provider.Authority is not { IsAbsoluteUri: true } || string.IsNullOrWhiteSpace(provider.ClientId))
+                throw new InvalidOperationException("Spine sign-in: UseIdentityProvider(...) needs an Authority and a ClientId.");
+
+            // The ID token's signature is not checked in the app, which rests on TLS to the provider.
+            if (!SpineIdentityProviderOptions.IsSecure(provider.Authority))
+                throw new InvalidOperationException($"Spine sign-in: the Authority {provider.Authority} must be https (http only on localhost).");
+        }
+        else
+        {
+            _ = ServerRoot;
+            if (!Apple && EmailPassword is null && BrowserProviders.Count == 0)
+                throw new InvalidOperationException("Spine sign-in: offer at least one way to sign in: a.AddApple(), a.AddEmailPassword() or a.AddOpenIdConnect(...).");
+        }
     }
 }
 

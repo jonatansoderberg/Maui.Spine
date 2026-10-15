@@ -8,7 +8,7 @@
     <SampleLayout Packages="Plugin.Maui.Spine.Authentication, Plugin.Maui.Spine.Server.Authentication">
 
         <Example Title="Sign in"
-                 Summary="Against the push sample server's /auth (samples/MauiSpinePushNotificationsSampleApp.Server on localhost:5100), whose email codes are written to its log. The sheet offers email and password, and Sign in with Apple when the app is built with SpineSignInWithApple.">
+                 Summary="Against the push sample server's /auth (samples/MauiSpinePushNotificationsSampleApp.Server on localhost:5100), whose email codes are written to its log. The sheet offers email and password, Sign in with Apple when the app is built with SpineSignInWithApple, and Google when it is built with SpineGoogleServerClientId (Credential Manager on Android, the browser elsewhere).">
             <VerticalStackLayout Spacing="10">
                 <Label Text="{Binding Status}" FontSize="15" FontAttributes="Bold" />
                 <Label Text="{Binding Providers, StringFormat='Offers: {0}'}" FontSize="14" Opacity="0.7" />

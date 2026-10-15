@@ -50,8 +50,14 @@ public static class SpineAuthenticationExtensions
             services.AddHttpClient(HttpClientName);
 
             services.AddSingleton(sp => new SpineAuthClient(sp.GetRequiredService<IHttpClientFactory>().CreateClient(HttpClientName), options.ServerRoot));
+            services.AddSingleton(sp => new IdentityProviderClient(
+                sp.GetRequiredService<IHttpClientFactory>().CreateClient(HttpClientName),
+                options.IdentityProvider ?? throw new InvalidOperationException("Spine sign-in: no UseIdentityProvider(...)."),
+                sp.GetService<TimeProvider>() ?? TimeProvider.System));
+            services.AddSingleton<IBrowserSignIn>(sp => new PlatformBrowserSignIn(options));
             services.AddSingleton(sp => new SpineAuthSession(
-                sp.GetRequiredService<SpineAuthClient>(), new SecureSpineAuthStorage(options.StorageKey),
+                options.IdentityProvider is null ? sp.GetRequiredService<SpineAuthClient>() : sp.GetRequiredService<IdentityProviderClient>(),
+                new SecureSpineAuthStorage(options.StorageKey),
                 sp.GetService<TimeProvider>() ?? TimeProvider.System,
                 sp.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Authentication") ?? NullLogger.Instance));
             services.AddSingleton(sp => new SpineAuthFlows(sp.GetRequiredService<SpineAuthClient>(), sp.GetRequiredService<SpineAuthSession>()));
@@ -73,7 +79,14 @@ public static class SpineAuthenticationExtensions
             services.AddTransient<SignInSheetViewModel>();
         }
 
-        if (spine?.ApplyConfiguration(options) == true) options.Validate();
+        if (spine?.ApplyConfiguration(options) == true)
+        {
+            // Windows returns to a loopback address and needs no scheme.
+            // On Android a native sheet can still fall back to the browser: an old Android, or no Google Play services.
+            var browser = options.IdentityProvider is not null || options.Apple && !AppleSignIn.IsSupported
+                || options.BrowserProviders.Any(p => OperatingSystem.IsAndroid() || options.IsBrowser(p));
+            options.Validate(returnsToScheme: browser && !OperatingSystem.IsWindows(), appStore: OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst());
+        }
 
         // PushNotifications resolves it when it is referenced; there only when the app asks for the link (Q11).
         if (options.LinkPushNotifications && !services.Any(static d => d.ServiceType == typeof(ISignedInSession)))

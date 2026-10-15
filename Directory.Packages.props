@@ -98,6 +98,17 @@
 		<PackageVersion Include="Xamarin.AndroidX.Biometric" Version="1.1.0.30" />
 	</ItemGroup>
 
+	<!--
+		Plugin.Maui.Spine.Authentication.Google, Android only. The 1.5.0.3 builds are the ones on the AndroidX releases
+		MAUI 10.0.50 ships (Core 1.16.0.3, Biometric 1.1.0.30, as above); 1.6 lifts Core to 1.19 and Biometric past
+		Spine's pin, and its PlayServicesAuth moves to a renamed GoogleId package.
+	-->
+	<ItemGroup>
+		<PackageVersion Include="Xamarin.AndroidX.Credentials" Version="1.5.0.3" />
+		<PackageVersion Include="Xamarin.AndroidX.Credentials.PlayServicesAuth" Version="1.5.0.3" />
+		<PackageVersion Include="Xamarin.GoogleAndroid.Libraries.Identity.GoogleId" Version="1.1.0.11" />
+	</ItemGroup>
+
 	<!-- Windows only; referenced under a condition in Plugin.Maui.Spine. -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />

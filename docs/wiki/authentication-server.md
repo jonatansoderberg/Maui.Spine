@@ -8,7 +8,7 @@ dotnet add package Plugin.Maui.Spine.Server.Authentication
 
 The package is a plain `net10.0` library with a framework reference to ASP.NET Core, so a Minimal API and an Azure Functions isolated worker can both host it. It does not reference `Plugin.Maui.Spine.Server`, so an app can have sign-in without push. The design is in [the proposal](../proposals/spine-authentication.md), §5.5 and §5.6.
 
-Where a platform has no native sheet for a provider (Apple on Android and Windows, Google on iOS, any OpenID Connect provider), the server brokers a sign-in through the system browser. See [Browser sign-in](#browser-sign-in). The app half, `Plugin.Maui.Spine.Authentication`, is #519.
+Where a platform has no native sheet for a provider (Apple on Android and Windows, Google on iOS, any OpenID Connect provider), the server brokers a sign-in through the system browser. See [Browser sign-in](#browser-sign-in). The app half is [`Plugin.Maui.Spine.Authentication`](authentication.md) (#519, browser sign-in #557).
 
 ---
 

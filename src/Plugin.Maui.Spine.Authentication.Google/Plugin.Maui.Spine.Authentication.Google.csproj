@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<AssemblyName>Plugin.Maui.Spine.Authentication.Google</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Authentication</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<!-- Credential Manager needs Android 6.0 (with Google Play services below Android 14). -->
+	<PropertyGroup>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Sign in with Google for a Spine app: Credential Manager's own sheet on Android, and the server's broker in the browser on iOS, Mac Catalyst and Windows. Adds a.AddGoogle() to Plugin.Maui.Spine.Authentication.</Description>
+		<SpineIcon>authentication.png</SpineIcon>
+		<PackageTags>$(PackageTags);authentication;sign-in;google;sign-in-with-google;credential-manager</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Authentication\Plugin.Maui.Spine.Authentication.csproj" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<PackageReference Include="Xamarin.AndroidX.Credentials" />
+		<PackageReference Include="Xamarin.AndroidX.Credentials.PlayServicesAuth" />
+		<PackageReference Include="Xamarin.GoogleAndroid.Libraries.Identity.GoogleId" />
+	</ItemGroup>
+
+</Project>

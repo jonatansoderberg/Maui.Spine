@@ -12,4 +12,39 @@
 		<SpineEntitlement Include="com.apple.developer.applesignin" Kind="array" Value="Default"
 						  Because="Sign in with Apple's native sheet (ASAuthorizationAppleIDProvider)." />
 	</ItemGroup>
+
+	<!--
+		A browser sign-in returns to the app's URL scheme. On Android the package's callback activity takes it, with an
+		intent filter for the scheme, and Custom Tabs needs a <queries> entry from Android 11 on. Both come from
+
+		  <SpineAuthenticationCallbackScheme>se.example.app</SpineAuthenticationCallbackScheme>
+
+		as a manifest overlay, the same value as a.CallbackScheme in o.AddAuthentication. The filter takes only the host
+		callback, so the app keeps its own links on the same scheme (se.example.app://widget/...).
+	-->
+	<Target Name="_SpineAuthenticationAndroidManifest" BeforeTargets="_ManifestMerger"
+			Condition="'$(SpineAuthenticationCallbackScheme)' != '' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<PropertyGroup>
+			<_SpineAuthenticationManifest>$(IntermediateOutputPath)spine-authentication\AndroidManifest.xml</_SpineAuthenticationManifest>
+		</PropertyGroup>
+		<ItemGroup>
+			<_SpineAuthenticationManifestLine Include="&lt;manifest xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;&gt;" />
+			<_SpineAuthenticationManifestLine Include="  &lt;queries&gt;&lt;intent&gt;&lt;action android:name=&quot;android.support.customtabs.action.CustomTabsService&quot; /&gt;&lt;/intent&gt;&lt;/queries&gt;" />
+			<_SpineAuthenticationManifestLine Include="  &lt;application&gt;" />
+			<_SpineAuthenticationManifestLine Include="    &lt;activity android:name=&quot;plugin.maui.spine.authentication.SpineAuthenticationCallbackActivity&quot; android:exported=&quot;true&quot;&gt;" />
+			<_SpineAuthenticationManifestLine Include="      &lt;intent-filter&gt;" />
+			<_SpineAuthenticationManifestLine Include="        &lt;action android:name=&quot;android.intent.action.VIEW&quot; /&gt;" />
+			<_SpineAuthenticationManifestLine Include="        &lt;category android:name=&quot;android.intent.category.DEFAULT&quot; /&gt;" />
+			<_SpineAuthenticationManifestLine Include="        &lt;category android:name=&quot;android.intent.category.BROWSABLE&quot; /&gt;" />
+			<_SpineAuthenticationManifestLine Include="        &lt;data android:scheme=&quot;$(SpineAuthenticationCallbackScheme)&quot; android:host=&quot;callback&quot; /&gt;" />
+			<_SpineAuthenticationManifestLine Include="      &lt;/intent-filter&gt;" />
+			<_SpineAuthenticationManifestLine Include="    &lt;/activity&gt;" />
+			<_SpineAuthenticationManifestLine Include="  &lt;/application&gt;" />
+			<_SpineAuthenticationManifestLine Include="&lt;/manifest&gt;" />
+		</ItemGroup>
+		<WriteLinesToFile File="$(_SpineAuthenticationManifest)" Lines="@(_SpineAuthenticationManifestLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+		<ItemGroup>
+			<AndroidManifestOverlay Include="$(_SpineAuthenticationManifest)" />
+		</ItemGroup>
+	</Target>
 </Project>

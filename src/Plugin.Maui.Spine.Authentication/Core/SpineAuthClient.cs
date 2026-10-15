@@ -15,8 +15,20 @@ internal sealed record ServerAnswer(SpineTokens? Tokens, int Status, string? Err
     public bool Accepted => Status == (int)HttpStatusCode.Accepted;
 }
 
+/// <summary>Where a session trades its refresh token: the app's Spine server, or an identity provider directly.</summary>
+internal interface ITokenEndpoint
+{
+    /// <param name="refreshToken">The token to trade.</param>
+    /// <param name="user">Who it belongs to, for an endpoint whose answer does not say again.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The new pair; status 401 when the endpoint refused the token for good.</returns>
+    Task<ServerAnswer> RefreshAsync(string refreshToken, SpineUser? user, CancellationToken cancellationToken);
+
+    Task<ServerAnswer> RevokeAsync(string refreshToken, CancellationToken cancellationToken);
+}
+
 /// <summary>The calls to <c>MapSpineAuthentication</c>'s endpoints.</summary>
-internal sealed class SpineAuthClient(HttpClient http, Uri root)
+internal sealed class SpineAuthClient(HttpClient http, Uri root) : ITokenEndpoint
 {
     public Uri Root => root;
 
@@ -38,8 +50,11 @@ internal sealed class SpineAuthClient(HttpClient http, Uri root)
     public Task<ServerAnswer> IdTokenAsync(string provider, SpineIdTokenRequest request, CancellationToken cancellationToken) =>
         PostAsync($"{provider}/token", request, cancellationToken);
 
-    public Task<ServerAnswer> RefreshAsync(string refreshToken, CancellationToken cancellationToken) =>
+    public Task<ServerAnswer> RefreshAsync(string refreshToken, SpineUser? user, CancellationToken cancellationToken) =>
         PostAsync("token", new SpineRefreshRequest(refreshToken), cancellationToken);
+
+    public Task<ServerAnswer> CodeAsync(SpineCodeExchange exchange, CancellationToken cancellationToken) =>
+        PostAsync("token", exchange, cancellationToken);
 
     public Task<ServerAnswer> RevokeAsync(string refreshToken, CancellationToken cancellationToken) =>
         PostAsync("revoke", new SpineRefreshRequest(refreshToken), cancellationToken);
