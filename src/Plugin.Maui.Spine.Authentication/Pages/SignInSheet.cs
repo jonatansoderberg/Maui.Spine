@@ -24,6 +24,19 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
         apple.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.AppleCommand));
         apple.SetBinding(IsVisibleProperty, static (SignInSheetViewModel vm) => vm.ShowApple);
 
+        // One button per provider the server brokers through the browser, in the order the app added them.
+        var browserProviders = new VerticalStackLayout { Spacing = 12 };
+        browserProviders.SetBinding(IsVisibleProperty, nameof(SignInSheetViewModel.ShowProviders));
+        if (BindingContext is SignInSheetViewModel { BrowserProviders: var providers })
+        {
+            foreach (var (provider, displayName) in providers)
+            {
+                var button = new Button { Text = string.Format(AuthStrings.Get("ContinueWith"), displayName), CornerRadius = 8, HeightRequest = 48, CommandParameter = provider };
+                button.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.ProviderCommand));
+                browserProviders.Children.Add(button);
+            }
+        }
+
         var or = new Label { Text = AuthStrings.Get("Or"), HorizontalOptions = LayoutOptions.Center, Opacity = 0.6 };
         or.SetBinding(IsVisibleProperty, static (SignInSheetViewModel vm) => vm.ShowOr);
 
@@ -69,7 +82,7 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
             {
                 Padding = new Thickness(HeaderBarConstants.PageMargin, 8, HeaderBarConstants.PageMargin, 16),
                 Spacing = 12,
-                Children = { apple, or, message, email, name, code, password, error, links },
+                Children = { apple, browserProviders, or, message, email, name, code, password, error, links },
             },
         };
 
@@ -138,7 +151,7 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
 
     /// <summary>The step on screen.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowApple), nameof(ShowOr), nameof(ShowEmail), nameof(ShowName), nameof(ShowCode), nameof(ShowPassword),
+    [NotifyPropertyChangedFor(nameof(ShowApple), nameof(ShowProviders), nameof(ShowOr), nameof(ShowEmail), nameof(ShowName), nameof(ShowCode), nameof(ShowPassword),
         nameof(PasswordLabel), nameof(ShowCreateAccount), nameof(ShowForgot), nameof(ShowResend), nameof(ShowBack))]
     public partial SignInStep Step { get; set; }
 
@@ -168,14 +181,21 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasError))]
     public partial string? Error { get; set; }
 
-    /// <summary>The Apple button's text.</summary>
-    public string AppleText { get; } = $"  {AuthStrings.Get("Apple")}";
+    /// <summary>The Apple button's text, with Apple's logo where the system font has it.</summary>
+    public string AppleText { get; } = AppleSignIn.IsSupported ? $"  {AuthStrings.Get("Apple")}" : AuthStrings.Get("Apple");
 
-    /// <summary>Apple's button shows.</summary>
-    public bool ShowApple => Step == SignInStep.SignIn && _options.Apple && AppleSignIn.IsSupported;
+    /// <summary>Apple's button shows: its own sheet on Apple platforms, the browser through the server elsewhere.</summary>
+    public bool ShowApple => Step == SignInStep.SignIn && _options.Apple;
 
-    /// <summary>The "or" between Apple and the fields shows.</summary>
-    public bool ShowOr => ShowApple && _options.EmailPassword is not null;
+    /// <summary>The providers the server brokers through the browser, as (name, display name).</summary>
+    public IReadOnlyList<(string Name, string DisplayName)> BrowserProviders =>
+        _options.BrowserProviders.Select(p => (p.Name, _options.DisplayNames.GetValueOrDefault(p.Name, p.Name))).ToList();
+
+    /// <summary>The browser providers' buttons show.</summary>
+    public bool ShowProviders => Step == SignInStep.SignIn && _options.BrowserProviders.Count > 0;
+
+    /// <summary>The "or" between the providers and the fields shows.</summary>
+    public bool ShowOr => (ShowApple || ShowProviders) && _options.EmailPassword is not null;
 
     /// <summary>The email field shows.</summary>
     public bool ShowEmail => _options.EmailPassword is not null;
@@ -224,6 +244,9 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
 
     [RelayCommand]
     private async Task Apple() => await FinishAsync(await _auth.SignInAsync("apple"));
+
+    [RelayCommand]
+    private async Task Provider(string name) => await FinishAsync(await _auth.SignInAsync(name));
 
     [RelayCommand]
     private async Task Continue()

@@ -43,8 +43,15 @@ public partial class SignInPageViewModel : SampleViewModel
     private async Task CallServer()
     {
         // The "SampleApi" client in MauiProgram carries the access token and refreshes it.
-        var response = await _http.CreateClient("SampleApi").GetAsync("sample/me");
-        Log = $"GET /sample/me: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync()}";
+        try
+        {
+            var response = await _http.CreateClient("SampleApi").GetAsync("sample/me");
+            Log = $"GET /sample/me: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync()}";
+        }
+        catch (HttpRequestException e)
+        {
+            Log = $"GET /sample/me: {e.Message}";
+        }
     }
 
     [RelayCommand]

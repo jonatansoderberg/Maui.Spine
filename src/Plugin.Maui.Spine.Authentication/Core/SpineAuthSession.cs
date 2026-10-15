@@ -42,7 +42,7 @@ internal sealed partial class StoredSessionJson : JsonSerializerContext;
 /// The signed-in user and their tokens. The access token lives in memory and is refreshed when less than a minute is
 /// left, one refresh at a time; a refresh the server refuses signs the user out.
 /// </summary>
-internal sealed class SpineAuthSession(SpineAuthClient client, ISpineAuthStorage storage, TimeProvider time, ILogger logger) : ISignedInSession
+internal sealed class SpineAuthSession(ITokenEndpoint client, ISpineAuthStorage storage, TimeProvider time, ILogger logger) : ISignedInSession
 {
     private static readonly TimeSpan Margin = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan RefreshTimeout = TimeSpan.FromSeconds(30);
@@ -163,7 +163,16 @@ internal sealed class SpineAuthSession(SpineAuthClient client, ISpineAuthStorage
             // Not the caller's token: a refresh abandoned halfway leaves the server with the token used and the client
             // without its successor. The server forgives one more try within its grace, but not a habit of it.
             using var timeout = new CancellationTokenSource(RefreshTimeout);
-            var answer = await client.RefreshAsync(refresh, timeout.Token);
+            ServerAnswer answer;
+            try
+            {
+                answer = await client.RefreshAsync(refresh, User, timeout.Token);
+            }
+            catch (Exception e) when (e is OperationCanceledException or HttpRequestException or IOException)
+            {
+                // The timeout, or a connection lost while the answer was read: offline, so the session is kept.
+                answer = new ServerAnswer(null, 0, e.Message);
+            }
             if (answer.Tokens is { } tokens)
             {
                 await SaveThenSetAsync(tokens);

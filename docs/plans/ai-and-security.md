@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-15 (step 5.2a merged as #558; the SpinePage binding-context bug it found is fixed in the core (#559); next 5.2b #557)
+**Last updated:** 2026-10-15 (step 5.2b #557 in review as PR #561: browser sign-in and the mode without a Spine server)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -54,7 +54,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
-| `Plugin.Maui.Spine.Authentication` | New | #519, #557 | [authentication](../proposals/spine-authentication.md) | #519 done (#558); #557 waiting |
+| `Plugin.Maui.Spine.Authentication` | New | #519, #557 | [authentication](../proposals/spine-authentication.md) | #519 done (#558); #557 in review |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 done (#553); #552 done (#554) |
 | Passkeys (client and server) | After v1 of sign-in | #522 | [authentication, Passkeys](../proposals/spine-authentication.md) | Waiting |
@@ -145,7 +145,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 5.1a | `Server.Authentication`: ID-token validation, own tokens, refresh rotation, email and password, account deletion, the push `UserId` | #520 | 0.2 | Done | #553 | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). Split on 2026-10-15; email and password included by the owner (Decisions). |
 | 5.1b | `Server.Authentication`: the browser broker (`/start`, `/callback`, PKCE, the one-time code; Apple web, Google web, OIDC) | #552 | 5.1a | Done | #554 | Split from #520 by the owner on 2026-10-15. `PublicUrl`, `RedirectSchemes` (custom schemes and http loopback), `WebClientId`/`WebClientSecret` per provider, Apple's `ServicesId`; the code is traded at `POST /auth/token` (Decisions). |
 | 5.2a | `Authentication` client: `ISpineAuth`, tokens in secure storage, the `HttpClient` handler, `[RequiresSignIn]`, the sign-in sheet, email and password, Sign in with Apple's sheet, the push link | #519 | 1.1, 5.1a | Done | #558 | Split on 2026-10-15. Registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8, kept by the owner) through a new core hook (Decisions). |
-| 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | Ready | | Split from #519 by the owner on 2026-10-15. |
+| 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | In review | #561 | Split from #519 by the owner on 2026-10-15. `AddOpenIdConnect(name, displayName)` for brokered providers, `CallbackScheme` + `SpineAuthenticationCallbackScheme`, `UseIdentityProvider(...)` as an in-package OIDC public client (Decisions). |
 | 5.3 | `Authentication.Google` and `.Microsoft` | #521 | 5.2a, 5.2b | Waiting | | |
 | 5.4 | Passkeys | #522 | 5.2a | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
 
@@ -203,6 +203,7 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 4.2 (#517) | Azure OpenAI's `client_secrets` and its WebSocket with an `ek_` token as bearer; only built from Microsoft's docs and tested against a stub | An Azure OpenAI resource with a realtime deployment | `ai.Realtime("azure", AIRealtimeProviders.AzureOpenAI)`, then the check below against its `url` |
 | 5.1a (#520) | A real Sign in with Apple ID token from the native sheet, Apple's code exchange and revocation, and real Google and Microsoft tokens. Only stub issuers and a stub of Apple's endpoints were used | The iPhone with the app half (#519), an Apple key, Google and Entra client ids | The push sample server's `/auth/apple/token` with `Auth:Apple:*` in user secrets |
 | 5.2a (#519) | Sign in with Apple's sheet on a device; the client on Android, Windows and Mac Catalyst at run time (only compiled); the push link with a real push token. Seen on the iPhone 17 Pro simulator: sign-up, the code, `[RequiresSignIn]` on a page and on a command, cancel, a call through the handler, sign-out, a restart that kept the session | The Showcase's App ID with the Sign in with Apple capability and a new profile, then `-p:SpineSignInWithApple=true` on the iPhone; an emulator; a Windows machine | The Showcase's Sign-in page against the push sample server on 5100 (`adb reverse tcp:5100 tcp:5100` on Android); codes are in the server's log. The MCP `text` tool types `@` as `2`, so paste emails with `xcrun simctl pbcopy` |
+| 5.2b (#557) | The browser sign-in against a real provider: Google and Apple through the broker, and the mode without a server against Auth0 or Entra ID. Custom Tabs and the callback activity on Android at run time (the merged manifest was checked; both emulators were busy or full on 2026-10-15). The Windows loopback. Seen on the iPhone 17 simulator against a local OIDC stub in the mode without a server: cancel, sign-in with PKCE and nonce, a restart that kept the session, a refresh, a revocation at sign-out. The brokered flow ran in tests only, against a real `Server.Authentication` broker | A Google web client (`Auth:Google:WebClientId`/`WebClientSecret` in the push sample server's user secrets) and Apple's Services ID; an emulator with space; a Windows machine; an Auth0 or Entra tenant | The Showcase's Sign-in page built with `-p:SpineSignInWithGoogle=true` against the push sample server on 5100 (`adb reverse tcp:5100 tcp:5100`); for the mode without a server, `a.UseIdentityProvider(...)` in a scratch build |
 | 5.1b (#552) | The browser sign-in against real Apple, Google and OIDC web clients: the callback, the code exchange, Apple's form_post and its `user` JSON. `/start` reached the real authorize pages through real discovery with placeholder client ids; everything after ran only against stubs | A Services ID with a return URL, a Google web client | The push sample server with `Auth:Apple:*` or `Auth:Google:*` in user secrets, a public URL (a tunnel) for Apple, which refuses `http://localhost` return URLs |
 | 5.1a (#520) | `SpineAuthEndpoints` under Azure Functions (only compiled) | The scratch Functions AppHost | The Functions recipe below |
 | 4.2 (#517) | `SpineAIEndpoints.RealtimeSessionAsync` under Azure Functions (only compiled) | The scratch Functions AppHost | The Functions recipe below |
@@ -408,6 +409,14 @@ Newest last. Each entry is dated and says who decided.
     - An unreachable Apple no longer fails the sign-in.
     - The Apple key is created once: IdentityModel caches signers by key id, so a key disposed per call broke the next secret.
   - `SpinePushNotificationsOptions.UserId` is generic (a `Func<HttpRequest, ValueTask<string?>>`) and lives in `.Server`, and `GetSpineUserIdAsync()` lives in the auth package. **Why:** neither package references the other.
+- **2026-10-15, owner (#557):** The browser sign-in and the mode without a Spine server (Q7) are both in #557.
+- **2026-10-15, Claude (#557):**
+  - The mode without a server is an OIDC public client written in the package, not `Duende.IdentityModel.OidcClient`. **Why:** the browser layer and the session are shared with the brokered flow, and the protocol needed is small (discovery, PKCE, code, refresh, revocation). The session's refresh sits behind an internal `ITokenEndpoint`, implemented by `SpineAuthClient` and `IdentityProviderClient`.
+  - The ID token's claims are checked (`iss`, `aud`, `exp`, nonce), not its signature. **Why:** it comes straight from the token endpoint over TLS (OIDC Core §3.1.3.7), and checking signatures would mean a JWKS cache and a JWT library in the app.
+  - Windows uses an RFC 8252 loopback socket (`TcpListener` on port 0, not `HttpListener`, which http.sys refuses for `127.0.0.1` without a URL ACL) and `Launcher`, because `WebAuthenticator` does not work on Windows in .NET 10. The server needs `AllowLoopbackRedirects`. A closed tab is noticed only after five minutes.
+  - A review agent read the diff before the PR. Fixed with tests: https for the authority and the token endpoint and a matching discovery issuer (the signature-less ID token rests on TLS), `CallbackScheme` checked at startup and lowercase, a refresh that times out keeps the session.
+  - Android needs no code in the app: the package has a `WebAuthenticatorCallbackActivity` with a fixed Java name, and its build targets write a manifest overlay from `<SpineAuthenticationCallbackScheme>`. The intent filter takes only the host `callback`. **Why:** the Showcase already used its scheme for `…://widget` links, and a scheme-only filter would have put a chooser in front of them.
+  - Brokered providers are added by name (`AddOpenIdConnect("google", "Google")`) instead of one method per provider. **Why:** the server brokers any OIDC provider by name, and #521 can add `AddGoogle()` on top.
 - **2026-10-15, owner (#517):** The realtime endpoint mints provider tokens only; there is no WebSocket relay in v1. **Why:** it runs on Azure Functions too, and rates, per-caller calls and the reservation bound the cost. A relay becomes its own issue when an app needs a locked configuration, real usage or server tools.
 - **2026-10-15, Claude (#517):**
   - A realtime feature is `Kind: Realtime` on the existing feature model, with a `Realtime` section, and `SystemPrompt` and `MaxOutputTokens` reused. It must also be `Expose: true`, like an exposed chat feature. **Why:** one model for every feature keeps budgets, rates, the report and hot reload the same.
@@ -516,6 +525,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-15:** #557 (browser sign-in and the mode without a Spine server, step 5.2b) in review as PR #561.
 - **2026-10-15:** #519 merged (PR #558). #559 fixes `SpinePage` content built in code, found by it. 5.2b (#557) is Ready.
 - **2026-10-15:** #552 merged (PR #554). #519 (the Authentication client, step 5.2a) in review as PR #558; browser sign-in and the mode without a server split out as #557 (5.2b).
 - **2026-10-15:** #520 merged (PR #553). #552 (the browser broker, step 5.1b) in review as PR #554.

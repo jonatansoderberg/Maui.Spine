@@ -4,13 +4,14 @@
 dotnet add package Plugin.Maui.Spine.Authentication
 ```
 
-`Plugin.Maui.Spine.Authentication` signs the user in against the app's own server, which runs [`Plugin.Maui.Spine.Server.Authentication`](authentication-server.md):
+`Plugin.Maui.Spine.Authentication` signs the user in against the app's own server, which runs [`Plugin.Maui.Spine.Server.Authentication`](authentication-server.md), or directly at an OpenID Connect provider ([without a Spine server](#without-a-spine-server)):
 - Sign in with Apple's own sheet on iOS and Mac Catalyst, and email and password in a ready-made sheet.
+- Sign-in in the system browser: Google or any provider the server brokers, and Apple on Android and Windows.
 - `[RequiresSignIn]` on a page or a command.
 - The refresh token in secure storage.
 - An `HttpClient` handler that adds the access token and refreshes it.
 
-The design is in [the proposal](../proposals/spine-authentication.md), §5.1–§5.3. Browser sign-in (Apple on Android and Windows, Google, any OpenID Connect provider) and a mode without a Spine server come with #557.
+The design is in [the proposal](../proposals/spine-authentication.md), §5.1–§5.3.
 
 ---
 
@@ -37,6 +38,54 @@ builder.Services.AddHttpClient<OrdersApi>(c => c.BaseAddress = new("https://api.
 
   The entitlement is never added unless the app asks, because a profile without the capability stops the app from installing. On the server, `Apple(o => o.BundleIds.Add(…))`.
 
+## Browser sign-in
+
+```csharp
+o.AddAuthentication(a =>
+{
+    a.Server = new Uri("https://api.example.com/auth");
+    a.CallbackScheme = "se.example.app";        // the app's URL scheme: {scheme}://callback
+    a.AddOpenIdConnect("google", "Google");     // a provider the server brokers: "Continue with Google"
+    a.AddApple();                               // Apple's sheet on iOS and Mac Catalyst, the browser elsewhere
+});
+```
+
+```xml
+<SpineAuthenticationCallbackScheme>se.example.app</SpineAuthenticationCallbackScheme>
+```
+
+- **The flow.** The app makes a PKCE verifier and a state, and opens `{Server}/{provider}/start` in the system browser. The server sends the user to the provider and back, then returns to the app with a one-time code. The app checks the state and trades the code and the verifier at `POST {Server}/token`. Tokens never pass through the browser.
+- **The browser** is MAUI's `WebAuthenticator` on iOS, Mac Catalyst and Android: `ASWebAuthenticationSession` and Custom Tabs. On Windows, where `WebAuthenticator` does not work in .NET 10, the default browser returns to a loopback address (`http://127.0.0.1:{port}/`, RFC 8252) and shows "You can close this window". A closed tab sends nothing back there, so the sign-in gives up after five minutes.
+- **`CallbackScheme`** is lowercase (Android matches the scheme as written). `UseSpine` throws at startup when a browser sign-in is configured without it, except on Windows.
+- **Android** needs no code. The project property gives the package's callback activity an intent filter for `{scheme}://callback`, and Custom Tabs its `<queries>` entry, through a manifest overlay. The filter takes only the host `callback`, so the app's own links on the same scheme still go to the app.
+- **iOS** asks for nothing and shares no cookies with Safari (`EphemeralBrowserSession`, on by default). Turned off, iOS first asks "… wants to use … to sign in", and a provider may already know the user.
+- **The server** lists the scheme in `RedirectSchemes` and sets `AllowLoopbackRedirects` for Windows; Google needs its `WebClientId` and `WebClientSecret`. See [the server's page](authentication-server.md).
+- **Closing the browser** is `Canceled`, and so is cancelling at the provider (`access_denied`). Another state in the answer is `Failed`.
+
+`SignInAsync()` opens the browser directly when a browser provider is the only way to sign in. Otherwise the sheet shows "Continue with …" per provider, and `SignInAsync("google")` opens one directly.
+
+## Without a Spine server
+
+```csharp
+o.AddAuthentication(a =>
+{
+    a.UseIdentityProvider(p =>
+    {
+        p.Authority = new Uri("https://example.eu.auth0.com/");
+        p.ClientId = "…";                                   // a native (public) client, no secret
+        p.Name = "auth0";
+        p.AuthorizeParameters["audience"] = "https://api.example.com";
+    });
+    a.CallbackScheme = "se.example.app";
+});
+```
+
+The app signs in directly at an OpenID Connect provider (Auth0, Entra ID, Keycloak, …) as a public client with PKCE, in the same system browser.
+- **The protocol.** Discovery from `/.well-known/openid-configuration`, the code exchange, refresh with `offline_access` (in `Scopes` by default), and RFC 7009 revocation at sign-out when the provider has a `revocation_endpoint`.
+- **The user** comes from the ID token: `sub`, `name`, `email`. The app checks its `iss`, `aud`, `exp` and nonce. Its signature is not checked: the token comes straight from the token endpoint over TLS (OIDC Core §3.1.3.7). So the `Authority` and the discovered token endpoint must be https (http only on localhost), and the discovery document's `issuer` must be the `Authority`. An API that receives the access token validates that one as usual.
+- **The access token** that `GetAccessTokenAsync` and the handler hand out is the provider's. Refresh, sign-out and `[RequiresSignIn]` work as with a Spine server; a refresh the provider refuses (`invalid_grant`) signs out.
+- **Not in this mode:** `Server`, `AddApple`, `AddEmailPassword` and `AddOpenIdConnect`, which `UseSpine` refuses at startup, and `DeleteAccountAsync` and the password methods, which answer `Failed`. The push link needs a push server that accepts the provider's token.
+
 ## `ISpineAuth`
 
 ```csharp
@@ -55,7 +104,9 @@ public sealed partial class AccountViewModel(ISpineAuth auth) : ViewModelBase
 |---|---|
 | `User`, `IsSignedIn`, `UserChanged` | Who is signed in. The stored session is read when the app starts, and `UserChanged` is raised once it is known, and after every sign-in and sign-out. |
 | `SignInAsync()` | Apple's own sheet when Apple is the only way on an Apple platform; otherwise the sign-in sheet. Answers at once when already signed in. Two callers at once share one sheet. |
-| `SignInAsync("apple")` | Apple's sheet directly. |
+| `SignInAsync("apple")` | Apple's sheet directly, or the browser where there is no sheet. |
+| `SignInAsync("google")` | The browser sign-in for a provider added with `AddOpenIdConnect`. |
+| `Providers` | The ways to sign in, each with whether it is native (Apple's sheet) or in the browser. |
 | `SignInWithPasswordAsync`, `SignUpAsync`, `VerifyEmailAsync`, `ResendCodeAsync`, `ForgotPasswordAsync`, `ResetPasswordAsync` | Email and password, for an app with its own sign-in page. |
 | `GetAccessTokenAsync()` | An access token with at least a minute left, refreshed when needed. |
 | `CreateHandler()` | The handler for an `HttpClient` built without `IHttpClientFactory`. |
@@ -90,7 +141,8 @@ A guarded tab is covered by a "Sign in to see this." screen with a Sign in butto
 ## The sign-in sheet
 
 `SignInSheet` is a `[NavigableSheet]` at medium and full height:
-- Sign in with Apple's button (on Apple platforms, when `AddApple()`);
+- Sign in with Apple's button (when `AddApple()`; the browser on Android and Windows);
+- "Continue with …" per provider added with `AddOpenIdConnect`;
 - email and password;
 - "Create account", "Forgot password?" and the step for the emailed code.
 
@@ -117,10 +169,11 @@ The Showcase's Sign-in page runs against the push sample server's `/auth` on `ht
 - a `[RequiresSignIn]` command that calls `/sample/me` through a client with `AddSpineAuthentication()`;
 - deleting the account.
 
-Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true`, because the Showcase's App ID does not have the capability yet.
+Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true`, because the Showcase's App ID does not have the capability yet. Google through the browser is offered only in a build with `-p:SpineSignInWithGoogle=true`, because the server needs a web client from the Google Cloud console (`Auth:Google:WebClientId` and `Auth:Google:WebClientSecret`). The Showcase's callback scheme is `se.cosmomedia.spineshowcase`.
 
 ## Not verified yet
 
 - Sign in with Apple's sheet on a device, which needs the capability on the App ID.
 - Android, Windows and Mac Catalyst at run time: they are only compiled. The iOS simulator ran sign-up, the code, `[RequiresSignIn]` on a page and on a command, a call through the handler, sign-out, and a restart that kept the session.
+- The browser sign-in ran in the iOS simulator against a local OpenID Connect stub, without a Spine server: cancel, sign-in, a restart that kept the session, a refresh and a revocation at sign-out. The brokered flow ran only in tests, against a real `Server.Authentication` broker with the browser stubbed. Not run yet: a real provider (Google, Apple through the broker, Auth0 or Entra), Custom Tabs and the callback activity on Android (the merged manifest was checked), and the Windows loopback.
 - The push link with a real push token.
