@@ -11,6 +11,10 @@ public sealed class VoiceMeterView : GraphicsView
     public static readonly BindableProperty AudioProperty = BindableProperty.Create(
         nameof(Audio), typeof(IVoiceAudio), typeof(VoiceMeterView));
 
+    /// <summary>A whole conversation instead of an engine: its frame carries the conversation's state too.</summary>
+    public static readonly BindableProperty SessionProperty = BindableProperty.Create(
+        nameof(Session), typeof(IVoiceSession), typeof(VoiceMeterView));
+
     private readonly Painter _painter = new();
     private IDispatcherTimer? _timer;
 
@@ -27,6 +31,12 @@ public sealed class VoiceMeterView : GraphicsView
         set => SetValue(AudioProperty, value);
     }
 
+    public IVoiceSession? Session
+    {
+        get => (IVoiceSession?)GetValue(SessionProperty);
+        set => SetValue(SessionProperty, value);
+    }
+
     private void Start()
     {
         _timer ??= Dispatcher.CreateTimer();
@@ -38,12 +48,23 @@ public sealed class VoiceMeterView : GraphicsView
 
     private void OnTick(object? sender, EventArgs e)
     {
-        if (Audio is not { } audio)
+        if (Session is { } session)
+        {
+            if (!session.IsConnected && _painter.Frame is { InputLevel: 0, OutputLevel: 0 })
+                return;
+            _painter.Frame = session.UpdateFrame();
+        }
+        else if (Audio is { } audio)
+        {
+            // A stopped engine's frame does not change after its last draw.
+            if (!audio.IsRunning && _painter.Frame is { InputLevel: 0, OutputLevel: 0 })
+                return;
+            _painter.Frame = audio.UpdateFrame();
+        }
+        else
+        {
             return;
-        // A stopped engine's frame does not change after its last draw.
-        if (!audio.IsRunning && _painter.Frame is { InputLevel: 0, OutputLevel: 0 })
-            return;
-        _painter.Frame = audio.UpdateFrame();
+        }
         _painter.Accent = Application.Current?.Resources.TryGetValue("Primary", out var color) == true && color is Color c ? c : Colors.DodgerBlue;
         Invalidate();
     }

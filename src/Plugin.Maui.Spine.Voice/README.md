@@ -1,12 +1,23 @@
 # Plugin.Maui.Spine.Voice
 
-Voice for Spine apps. The audio engine runs the microphone and the speaker at once, with the platform's echo cancellation, so a realtime voice model does not hear itself. It takes and gives PCM16 at the provider's rate, keeps a playback queue that is cut off at once when the user talks over the answer, and meters both directions into levels and 24 bands for visuals.
+Voice for Spine apps. `IVoiceSession` holds a spoken conversation with a realtime model on the app's server (OpenAI or Azure OpenAI): a short-lived token instead of a key in the app, the answer cut off when the user talks over it, a transcript for `ChatView`, and tools the app answers itself. Under it, the audio engine runs the microphone and the speaker at once, with the platform's echo cancellation, so a realtime voice model does not hear itself. It takes and gives PCM16 at the provider's rate, keeps a playback queue that is cut off at once when the user talks over the answer, and meters both directions into levels and 24 bands for visuals.
 
 iOS and Mac Catalyst now; Android and Windows come next.
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Voice
 ```
+
+```csharp
+builder.UseSpineVoice(o => o.SessionEndpoint = new Uri("https://api.example.com/ai"));
+
+await voice.ConnectAsync("Voice");       // IVoiceSession, one per conversation
+chat.Messages = voice.Transcript;
+voice.Interrupt();                       // a Stop button; talking over the answer does the same
+await voice.EndAsync();
+```
+
+The engine on its own, for a provider of your own:
 
 ```csharp
 var audio = services.GetRequiredService<IVoiceAudio>();   // one per conversation
