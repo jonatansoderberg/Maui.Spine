@@ -12,6 +12,9 @@
         <!-- The Barcodes page's scanner uses the camera, which the sandbox blocks without this. -->
         <key>com.apple.security.device.camera</key>
         <true/>
+        <!-- The Voice lab page uses the microphone. -->
+        <key>com.apple.security.device.audio-input</key>
+        <true/>
         <!-- Shared with the widget extension, which reads the timelines and pictures from it. -->
         <key>com.apple.security.application-groups</key>
         <array>

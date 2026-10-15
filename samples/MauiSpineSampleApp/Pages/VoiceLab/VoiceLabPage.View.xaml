@@ -1,0 +1,57 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.VoiceLab.VoiceLabPage"
+    x:TypeArguments="VoiceLabPageViewModel"
+    x:DataType="VoiceLabPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Voice">
+
+        <Example Title="Microphone and speaker at once"
+                 Summary="The engine runs the microphone and the player together, with the platform's echo cancellation on the microphone. The answer's level and bands grow up from the line, the microphone's down. Play the reference and talk over it: with echo cancellation the microphone should hear you and hardly the phone.">
+            <VerticalStackLayout Spacing="12">
+                <VoiceMeterView Audio="{Binding Audio}" HeightRequest="160" />
+                <Label Text="{Binding Status}" FontSize="15" Opacity="0.8" />
+                <HorizontalStackLayout Spacing="10">
+                    <Button Text="Start" Command="{Binding StartCommand}" />
+                    <Button Text="Stop" Command="{Binding StopCommand}" />
+                    <Button Text="Play the reference" Command="{Binding PlayReferenceCommand}" />
+                </HorizontalStackLayout>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+                    <Label Text="Echo cancellation (applies at the next start)" VerticalOptions="Center" />
+                    <Switch Grid.Column="1" IsToggled="{Binding VoiceProcessing}" />
+                    <Label Grid.Row="1" Text="Loudspeaker" VerticalOptions="Center" />
+                    <Switch Grid.Row="1" Grid.Column="1" IsToggled="{Binding Speaker}" />
+                    <Label Grid.Row="2" Text="Mute the microphone" VerticalOptions="Center" />
+                    <Switch Grid.Row="2" Grid.Column="1" IsToggled="{Binding Muted}" />
+                </Grid>
+            </VerticalStackLayout>
+            <Example.Code>
+                // One engine per conversation, from UseSpineVoice().
+                await audio.StartAsync(new VoiceAudioOptions
+                {
+                    InputRate = 24_000, OutputRate = 24_000,
+                });
+
+                audio.InputAvailable += pcm16 =&gt; socket.Send(pcm16);
+                audio.Enqueue(itemId, answerPcm16);
+
+                // The user talks over the answer:
+                var position = audio.Flush();   // item and ms played
+
+                // On the UI's tick:
+                var frame = audio.UpdateFrame();
+                Draw(frame.InputLevel, frame.OutputBands);
+            </Example.Code>
+        </Example>
+
+        <Example Title="Echo test"
+                 Summary="Plays 14 seconds of Swedish speech through the engine's own player while the microphone records, once without echo cancellation and once with it, and says how much echo reached the microphone, how much echo cancellation removed, the latency from the speaker to the microphone and the CPU. Keep the room quiet and the phone on the table. The results are also saved in voice-lab.json in the app's data.">
+            <VerticalStackLayout Spacing="10">
+                <Button Text="Run the echo test" Command="{Binding RunEchoTestCommand}" HorizontalOptions="Start" />
+                <Label Text="{Binding Results}" FontSize="14" FontFamily="Menlo" />
+            </VerticalStackLayout>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>
