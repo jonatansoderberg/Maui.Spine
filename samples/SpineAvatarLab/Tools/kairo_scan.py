@@ -1299,6 +1299,7 @@ NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw und
 NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
 HAIR_REACH = 0.0               # strands outside the hair's closed volume are dropped (at 6 mm the sheets outside the shell read as flaps and shards off the hair)
 EAR_POCKET = 0.010             # the hair keeps this far from the auricle (below EAR_TOP_SHARE of the ear), so the ear sits in a pocket of hair instead of under bits of it
+HAIR_HEAD_GAP = 0.015          # m: a hair face closer than this to the head's surface (skull, neck, ears, the face grid) goes: the envelope's sheet lying against the head (the forehead's slab, the inner shell on the scalp); the scalp carries the owner's roots and hairline itself, and through the hair's gaps those show (the owner chose 15 mm of 8/12/15/20 in the lab)
 EAR_TOP_SHARE = 0.35           # the ear's top this share of its height may carry hair (the views show the hair's edge over the upper helix)
 EAR_FRONT_MARGIN = 0.008       # over the ear's top, hair stays only this far outside the auricle's outer surface: in front of the ear, never on its rim (owner: in front, behind, or cut)
 HAIR_SCRAP_FACES = 40          # a piece of the hair layer smaller than this, left by the ear pockets, is a scrap and goes
@@ -3709,6 +3710,13 @@ def build(work):
     else:
         pocket = np.zeros(len(F), bool)
     print('ear pocket: shell faces dropped', int(pocket.sum()))
+    if PROJ_HAIR and HAIR_HEAD_GAP > 0:
+        head_faces = np.concatenate([np.where(front)[0], np.where((label == SKIN) | (label == NECK))[0]])
+        rng_h = np.random.default_rng(1)
+        head_pts = np.concatenate([np.einsum('k,fkd->fd', b_, P[F[head_faces]]) for b_ in rng_h.dirichlet((1, 1, 1), size=6)] + [P[np.unique(F[head_faces])]])
+        against = (label == HAIR) & (cKDTree(head_pts).query(centres)[0] < HAIR_HEAD_GAP)
+        print('hair faces against the head dropped:', int(against[rest].sum()), 'of', len(rest))
+        pocket = pocket | against
     keep_rest = ~pocket[rest]; rest, rest_uv = rest[keep_rest], rest_uv[keep_rest]
     if PROJ_HAIR and len(rest):
         # Scraps the pockets leave: a piece of the hair layer under HAIR_SCRAP_FACES faces, joined to nothing, goes
