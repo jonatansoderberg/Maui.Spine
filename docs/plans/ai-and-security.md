@@ -47,7 +47,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
-| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #517 | [ai §3–§5](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 in review (#PR) |
+| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #517 | [ai §3–§5](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 in review (#551) |
 | `Plugin.Maui.Spine.Server.AI.Assets` | New, server | #511 | [ai §6](../proposals/spine-ai.md) | Done (#544) |
 | `Plugin.Maui.Spine.Server.Messaging` (+ `.AzureStorage`, `.ServiceBus`) | New, server | #540 | — (design in `issues/540-*.md`, docs in `docs/wiki/messaging.md`) | Done (#541) |
 | `Plugin.Maui.Spine.AI` | New | #512, #543 | [ai §7](../proposals/spine-ai.md) | #512 done (#536); #543 done (#545) |
@@ -134,7 +134,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
 | 4.1 | Audio engine spike: full duplex, echo cancellation, levels and bands | #515 | 0.2 | Ready | | Highest risk. Measure echo on a real iPhone and an Android phone. |
-| 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | In review | #PR | OpenAI and Azure OpenAI client secrets only (Q28, and the owner's choice of token over relay on 2026-10-15). `Kind: Realtime`, `ai.Realtime(...)`, `POST /ai/realtime/{name}`, minutes reserved per token (Decisions). |
+| 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | In review | #551 | OpenAI and Azure OpenAI client secrets only (Q28, and the owner's choice of token over relay on 2026-10-15). `Kind: Realtime`, `ai.Realtime(...)`, `POST /ai/realtime/{name}`, minutes reserved per token (Decisions). |
 | 4.3 | Provider adapters, `IVoiceSession`, `VoiceView` and visual plug-ins | #516 | 4.1, 4.2 | Waiting | | OpenAI and Azure OpenAI only in v1 (Q28). WebSocket and PCM; WebRTC only if measurements call for it (Q31). Background audio is opt-in (Q26). |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 
@@ -461,7 +461,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
-- **2026-10-15:** #517 (realtime session tokens, step 4.2) in review as PR #PR. 4.3 now waits only on the audio engine spike (4.1).
+- **2026-10-15:** #517 (realtime session tokens, step 4.2) in review as PR #551. 4.3 now waits only on the audio engine spike (4.1).
 - **2026-10-15:** #543 merged (PR #545). #547 (Shimmer over a single empty block) merged as PR #548, unreleased; the Generated images page uses a `Shimmer` as its pending view again (#549).
 - **2026-10-14:** #511 merged (PR #544). #543 (the asset lookup in the app) in review as PR #545.
 - **2026-10-14:** #540 merged (PR #541). #511 (generated assets) in review as PR #544, its own package; its app side split out as #543.
