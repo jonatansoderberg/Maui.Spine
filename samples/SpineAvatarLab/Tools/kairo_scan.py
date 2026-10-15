@@ -150,6 +150,40 @@ def lab_zbuffer(p, F, view_yaw, size=2048, cell=4):
         return zb[i[:, 1], i[:, 0]]
     return at
 
+def lab_hair_windows(P, F_hair, uv_hair, tex, head_tris, ear_tris, view_yaw, size=2048, cell=4, extra_tris=None):
+    """The lab's view of the hair over the head: windows (skull showing through the hair, enclosed by its outline, not the
+    ear's pocket) and what is in front of them. The hair is drawn only where its texels are opaque (a face as 16
+    sub-triangles where any is cut) and only in front of the head (head_tris, ear_tris: the head's and the ears' faces as
+    (n,3,3) positions). Returns the window mask, the head depth per cell, the sub-triangles (positions (m,3,3), uvs
+    (m,3,2), face index (m,), cut (m,)), the drawn hair, skull and ear rasters, and the raster of extra_tris."""
+    from PIL import ImageDraw
+    from scipy.ndimage import binary_fill_holes, binary_dilation, label as nd_label
+    def subdivide(T):                       # (n,3,k) -> (4n,3,k): the four midpoint triangles
+        a, b, c = T[:, 0], T[:, 1], T[:, 2]; ab, bc, ca = (a + b) / 2, (b + c) / 2, (c + a) / 2
+        return np.concatenate([np.stack([a, ab, ca], 1), np.stack([ab, b, bc], 1), np.stack([ca, bc, c], 1), np.stack([ab, bc, ca], 1)])
+    H, W = tex.shape[:2]
+    def alpha_at(uv):
+        return tex[np.clip((uv[:, 1] * H).astype(int), 0, H - 1), np.clip((uv[:, 0] * W).astype(int), 0, W - 1), 3] >= 128
+    pos16, uv16 = subdivide(subdivide(P[F_hair])), subdivide(subdivide(uv_hair)); face16 = np.tile(np.arange(len(F_hair)), 16)
+    ok16 = alpha_at(uv16.mean(1)); cut_face = np.zeros(len(F_hair), bool); np.logical_or.at(cut_face, face16, ~ok16)
+    n = size // cell
+    rng = np.random.default_rng(3); hp = np.concatenate([np.einsum('k,fkd->fd', b_, head_tris) for b_ in rng.dirichlet((1, 1, 1), size=8)] + [head_tris.reshape(-1, 3)])
+    hpx, hz = lab_project(hp, view_yaw, size); ix = np.clip((hpx / cell).astype(int), 0, n - 1); head_zb = np.full((n, n), np.inf); np.minimum.at(head_zb, (ix[:, 1], ix[:, 0]), hz)
+    def in_front(pts, tol):
+        px, z = lab_project(pts, view_yaw, size); c = np.clip((px / cell).astype(int), 0, n - 1); return z < head_zb[c[:, 1], c[:, 0]] + tol
+    def raster(tris):
+        im = Image.new('L', (size, size), 0); d = ImageDraw.Draw(im); px = lab_project(tris.reshape(-1, 3), view_yaw, size)[0].reshape(-1, 3, 2)
+        for t in px: d.polygon([tuple(v) for v in t], fill=255)
+        return np.array(im) > 0
+    whole = ~cut_face & in_front(P[F_hair].mean(1), 0.002); part = ok16 & cut_face[face16] & in_front(pos16.mean(1), 0.002)
+    drawn = raster(P[F_hair][whole]) | raster(pos16[part])
+    skull = raster(head_tris); ear = raster(ear_tris) if len(ear_tris) else np.zeros_like(skull)
+    from scipy.ndimage import binary_closing
+    win = binary_fill_holes(binary_closing(drawn, iterations=HAIR_WINDOW_CLOSE) if HAIR_WINDOW_CLOSE else drawn) & ~drawn & skull & ~binary_dilation(ear, iterations=12)
+    lab_w, k = nd_label(win); area = np.bincount(lab_w.ravel(), minlength=k + 1); win &= (area[lab_w] >= 30) & (area[lab_w] <= HAIR_WINDOW_MAX)
+    extra = raster(extra_tris) if extra_tris is not None and len(extra_tris) else None
+    return win, head_zb, pos16, uv16, face16, ~ok16, drawn, skull, ear, extra
+
 def pose_model(p, yaw, pitch, pivot, collar_y):
     """Points at the lab's pose: the head (above the collar, the neck's upper part following) pitched about the
     pivot, then everything turned about y."""
@@ -803,9 +837,20 @@ def face_surface(P, F, src, hair=None, hair_src=None):
             # Never the photo's own strands: the mask keeps strands under 10 px as face, and with them the lock's
             # thin end over the temple went, a hole in the bangs showing the slab's inner wall (owner, twice).
             # The eyes, brows and mouth (dark or blue too) stay face, so nothing of the hair lies over them.
-            on_strand = src_mask_to_crop(lock_mask_src(hair_src))[vi2[:, 1], vi2[:, 0]][F].any(1)
+            lock_px = src_mask_to_crop(lock_mask_src(hair_src)); on_strand = lock_px[vi2[:, 1], vi2[:, 0]][F].any(1)
             print('face-mask drop rule: hair faces spared on the photo\'s strands', int((drop_face & on_strand).sum()))
             drop_face &= ~on_strand
+            if HAIR_NOTCH_CLOSE > 0:
+                # Nor a notch: skin the photo shows inside its hair (a bite out of the fringe's edge at the hairline),
+                # enclosed once the lock mask is closed by HAIR_NOTCH_CLOSE px and under HAIR_NOTCH_MAX px, keeps its
+                # hair faces; the projector's alpha still cuts them where the photo shows skin, and the window rule
+                # un-cuts them where the skull would show through (owner: "fyll hål").
+                closed_px = ndimage.binary_closing(lock_px, iterations=HAIR_NOTCH_CLOSE)
+                notch_px = ndimage.binary_fill_holes(closed_px) & ~lock_px & wide
+                lab_n, n_n = ndimage.label(notch_px); area_n = np.bincount(lab_n.ravel(), minlength=n_n + 1); notch_px &= (area_n[lab_n] >= 20) & (area_n[lab_n] <= HAIR_NOTCH_MAX)
+                in_notch = notch_px[vi2[:, 1], vi2[:, 0]][F].any(1)
+                print('face-mask drop rule: hair faces spared in the photo\'s notches', int((drop_face & in_notch).sum()), 'notches', int(((area_n >= 20) & (area_n <= HAIR_NOTCH_MAX))[1:].sum()))
+                drop_face &= ~in_notch
         over |= drop_face
     F = F[~over]
     # The grid, a hair in front of where the scan was.
@@ -1301,6 +1346,15 @@ HAIR_REACH = 0.0               # strands outside the hair's closed volume are dr
 EAR_POCKET = 0.010             # the hair keeps this far from the auricle (below EAR_TOP_SHARE of the ear), so the ear sits in a pocket of hair instead of under bits of it
 HAIR_HEAD_GAP = 0.015          # m: a hair face closer than this to the skull or the neck goes: the envelope's sheet lying against the head (the inner shell on the scalp); the scalp carries the owner's roots and hairline itself, and through the hair's gaps those show (the owner chose 15 mm of 8/12/15/20 in the lab)
 HAIR_GRID_GAP = 0.025          # m: the same over the face grid (the forehead): at 15 mm thin strips of the forehead's slab stayed along the hairline and at the temples, which the owner marked
+HAIR_OUTLINE_OPEN = 20         # px at 2048: in each of HAIR_OUTLINE_VIEWS the hair's filled outline is opened by this radius and the faces inside what the opening takes go: tongues and slivers thinner than twice this (~1.8 cm) on the outline (the tab under the bob's side the owner marked, 33 mm off the head)
+HAIR_OUTLINE_VIEWS = (0, 45, -45, 90, -90, 135, -135, 180)
+HAIR_OUTLINE_MIN_BIT = 1500    # px at 2048: a bit the opening takes smaller than this is a lock's tip, not a tongue, and stays (at 500 the bangs' thin end and the points along the nape's edge went, at 1000 a tapered lock end in profile; the tab is 1 870-3 393 px in the views that see it)
+HAIR_WINDOW_VIEWS = (0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180)
+HAIR_WINDOW_MAX = 40000        # px at 2048: a patch of skull showing through the hair, enclosed by it in a lab view, up to this size is a hole and is filled (the owner's "fyll hål": two above her right ear); the ear's pocket and the face are not enclosed or are larger
+HAIR_WINDOW_CLOSE = 6          # px at 2048: the hair's outline is closed by this before the windows are found, so a hole that reaches the outside through a channel narrower than twice this (a notch at the bangs' edge the owner marked, 3 mm wide at its mouth) counts as enclosed
+HAIR_NOTCH_CLOSE = 6           # photo px: the photo's lock mask closed by this; skin it then encloses (a notch into the hair with a mouth under twice this) keeps its hair faces in the face-mask drop rule (the owner's "fyll hål" at the bangs' edge: the skin was the photo's own, between the fringe and the hairline)
+HAIR_NOTCH_MAX = 4000          # photo px: a larger enclosed skin patch is the parting or the face, not a notch
+HAIR_CHIP_FACES = 12           # a group of visible hair faces (any opaque texel) joined to no other visible face, smaller than this, is a chip and its texels go (owner: no free-standing visible piece, ever)
 EAR_TOP_SHARE = 0.35           # the ear's top this share of its height may carry hair (the views show the hair's edge over the upper helix)
 EAR_FRONT_MARGIN = 0.008       # over the ear's top, hair stays only this far outside the auricle's outer surface: in front of the ear, never on its rim (owner: in front, behind, or cut)
 HAIR_SHELL_CLOSE = 1 if MV_HAIR else 5           # voxels (5 mm) of closing on the hair's volume: gaps between strand sheets up to twice this are hair (at 3 the fringe of sheets along the back and the crown's shards stood apart with the room between)
@@ -3716,9 +3770,42 @@ def build(work):
             return np.concatenate([np.einsum('k,fkd->fd', b_, P[F[faces]]) for b_ in rng_h.dirichlet((1, 1, 1), size=6)] + [P[np.unique(F[faces])]])
         against = (label == HAIR) & ((cKDTree(surface_pts(np.where((label == SKIN) | (label == NECK))[0])).query(centres)[0] < HAIR_HEAD_GAP)
                                      | (cKDTree(surface_pts(np.where(front)[0])).query(centres)[0] < HAIR_GRID_GAP))
+        if HAIR_WINDOW_MAX > 0:
+            # Where the sheet dips to the skull inside the hair's mass, the gap would punch a window through which the skull
+            # shows (two above her right ear, marked by the owner): a face about to go that alone covers such a window in
+            # a lab view stays. The windows are found on the hair left after the pockets and the gap.
+            keep_r = rest[~(pocket | against)[rest]]; uv_r = rest_uv[~(pocket | against)[rest]]
+            head_faces = np.concatenate([np.where(front)[0], np.where((label == SKIN) | (label == NECK))[0]]); spare = np.zeros(len(F), bool)
+            cand = np.where(against)[0]; c_cand = P[F[cand]].mean(1)
+            for yaw_w in HAIR_WINDOW_VIEWS:
+                win, head_zb, pos16, uv16, face16, cut16, _, _, _, _ = lab_hair_windows(P, F[keep_r], uv_r, rest_tex, P[F[head_faces]], P[F[ear_bare]], yaw_w)
+                n_w = win.shape[0] // 4; px_c, z_c = lab_project(c_cand, yaw_w, win.shape[0]); pc = np.clip(px_c.astype(int), 0, win.shape[0] - 1); cc = np.clip((px_c / 4).astype(int), 0, n_w - 1)
+                spare[cand[win[pc[:, 1], pc[:, 0]] & (z_c < head_zb[cc[:, 1], cc[:, 0]] + 0.02)]] = True
+            print('hair faces against the head kept for the windows they cover:', int(spare[rest].sum()))
+            against &= ~spare
         print('hair faces against the head dropped:', int(against[rest].sum()), 'of', len(rest))
         pocket = pocket | against
     keep_rest = ~pocket[rest]; rest, rest_uv = rest[keep_rest], rest_uv[keep_rest]
+    if PROJ_HAIR and len(rest) and HAIR_OUTLINE_OPEN > 0:
+        # Thin protrusions of the hair's outline in the lab's views go: the envelope is the views' hulls cut by each
+        # other, and where their edges disagree by a little it leaves a flat tongue (a tab under the bob's side,
+        # 1.5 cm tall, far from the head: no gap or piece rule reaches it). Per view the filled outline is opened by
+        # HAIR_OUTLINE_OPEN px (distance transforms); a face whose centre projects into what the opening took goes.
+        from scipy.ndimage import binary_fill_holes, distance_transform_edt, label as nd_label
+        from PIL import ImageDraw
+        size_o, Fr = 2048, F[rest]; centres_r = P[Fr].mean(1); drop_o = np.zeros(len(rest), bool)
+        for yaw_o in HAIR_OUTLINE_VIEWS:
+            px_o, _ = lab_project(P, yaw_o, size_o); im_o = Image.new('L', (size_o, size_o), 0); dr_o = ImageDraw.Draw(im_o)
+            for tri in px_o[Fr]: dr_o.polygon([tuple(v) for v in tri], fill=255)
+            filled = binary_fill_holes(np.array(im_o) > 0)
+            eroded = distance_transform_edt(filled) > HAIR_OUTLINE_OPEN
+            opened = distance_transform_edt(~eroded) <= HAIR_OUTLINE_OPEN
+            gone = filled & ~opened; lab_o, n_o = nd_label(gone)
+            area_o = np.concatenate([[0], np.bincount(lab_o.ravel(), minlength=n_o + 1)[1:]]); gone &= area_o[lab_o] >= HAIR_OUTLINE_MIN_BIT
+            pc_o = np.clip(lab_project(centres_r, yaw_o, size_o)[0].astype(int), 0, size_o - 1)
+            drop_o |= gone[pc_o[:, 1], pc_o[:, 0]]
+        print('hair outline tongues dropped:', int(drop_o.sum()), 'faces over', len(HAIR_OUTLINE_VIEWS), 'views')
+        rest, rest_uv = rest[~drop_o], rest_uv[~drop_o]
     if PROJ_HAIR and len(rest):
         # Only the piece joined to the main hair stays (owner's rule: no loose hair pieces ever; 2026-10-15 the
         # envelope's inner shell, 2 914 faces hidden inside the hair but for specks at the parting and the nape,
@@ -3731,6 +3818,82 @@ def build(work):
         scrap = comp_r != np.argmax(size_r)
         print('hair pieces off the main hair dropped:', int(scrap.sum()), 'faces in', int((size_r > 0).sum()) - 1, 'pieces, the largest', sorted(size_r[size_r > 0].tolist(), reverse=True)[1:6])
         rest, rest_uv = rest[~scrap], rest_uv[~scrap]
+    if PROJ_HAIR and len(rest) and HAIR_WINDOW_MAX > 0:
+        # The windows that remain are cut texels: a lock in front of a window whose alpha a view cut (the view saw skin or
+        # background between two of its strands) gets those texels back, coloured from the nearest opaque texel (under
+        # a cut the chart holds the view's own colour, skin or background on her left profile).
+        from scipy.ndimage import distance_transform_edt, binary_dilation
+        from PIL import ImageDraw
+        head_faces = np.concatenate([np.where(front & ~pocket)[0], np.where((label == SKIN) | (label == NECK))[0]]); Fr = F[rest]; uncut = np.zeros(len(rest), bool)
+        rng_w = np.random.default_rng(4); hs = np.concatenate([np.einsum('k,fkd->fd', b_, P[Fr]) for b_ in rng_w.dirichlet((1, 1, 1), size=6)] + [P[np.unique(Fr)]])
+        for yaw_w in HAIR_WINDOW_VIEWS:
+            win, head_zb, pos16, uv16, face16, cut16, _, _, _, _ = lab_hair_windows(P, Fr, rest_uv, rest_tex, P[F[head_faces]], P[F[ear_bare]], yaw_w)
+            size_w = win.shape[0]; n_w = size_w // 4
+            spx, sz = lab_project(hs, yaw_w, size_w); ix = np.clip((spx / 4).astype(int), 0, n_w - 1); zb = np.full((n_w, n_w), np.inf); np.minimum.at(zb, (ix[:, 1], ix[:, 0]), sz)
+            px_c, z_c = lab_project(P[Fr].mean(1), yaw_w, size_w); cc = np.clip((px_c / 4).astype(int), 0, n_w - 1); frontmost = z_c <= zb[cc[:, 1], cc[:, 0]] + 0.01
+            sc, sz16 = lab_project(pos16.mean(1), yaw_w, size_w); psc = np.clip(sc.astype(int), 0, size_w - 1); c16 = np.clip((sc / 4).astype(int), 0, n_w - 1)
+            # the window grown by 20 px: a face that only touches its edge has no sub-triangle centre inside, and its cut
+            # texels over the edge left a thin transparent ring round the patch through which the skull drew a bright rim;
+            # grown this far the patch's alpha edge lies where other hair, not the skull, is behind it
+            win_d = binary_dilation(win, iterations=20)
+            hit = win_d[psc[:, 1], psc[:, 0]] & cut16 & (sz16 < head_zb[c16[:, 1], c16[:, 0]] + 0.002)
+            sel = np.unique(face16[hit]); uncut[sel[frontmost[sel]]] = True
+        if uncut.any():
+            # The patch, grown three texels past the faces, takes the colour of the nearest solid texel (alpha 200 or
+            # more: under and around a cut the chart holds the view's own colour, light where it saw skin or background,
+            # and the half-cut band around the polygons drew a bright rim), softened by a small box blur so the nearest-
+            # texel copies do not read as streaks; then it is solid.
+            from scipy.ndimage import binary_dilation, uniform_filter
+            H_t, W_t = rest_tex.shape[:2]; solid = rest_tex[:, :, 3] >= 200
+            near_i = distance_transform_edt(~solid, return_distances=False, return_indices=True)
+            mask = Image.new('L', (W_t, H_t), 0); dm = ImageDraw.Draw(mask)
+            for tri in rest_uv[uncut]: dm.polygon([(float(u * W_t), float(v * H_t)) for u, v in tri], fill=255, outline=255)
+            core = np.array(mask) > 0; m = binary_dilation(core, iterations=12) & ~solid        # the half-cut band round the patch keeps the view's light colour for twelve texels: recoloured too
+            patch = rest_tex[:, :, :3].astype(np.float32); patch[m] = rest_tex[near_i[0][m], near_i[1][m], :3]
+            blurred = uniform_filter(patch, size=(5, 5, 1), mode='nearest'); rest_tex[m, :3] = np.clip(blurred[m], 0, 255).astype(np.uint8)
+            rest_tex[binary_dilation(core, iterations=6) & ~solid, 3] = 255
+        print('hair texels over the windows un-cut: faces', int(uncut.sum()))
+    if PROJ_HAIR and len(rest) and HAIR_CHIP_FACES > 0:
+        # No free-standing visible piece (owner, 2026-10-15: "0 helt fristående synliga delar"). The mesh is one piece,
+        # but the texture's alpha can leave an opaque island on faces whose neighbours are cut: visible faces (any
+        # opaque texel) grouped by shared edges, a group under HAIR_CHIP_FACES faces loses its texels. (A sweep over
+        # the lab's views cutting a small blob's front-most texels left the blob's back as a chip of its own.)
+        from scipy.ndimage import binary_dilation, label as nd_label
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.csgraph import connected_components
+        Fr = F[rest]; H_t, W_t = rest_tex.shape[:2]; chip_px = []
+        def subdiv(T):
+            a, b, c = T[:, 0], T[:, 1], T[:, 2]; ab, bc, ca = (a + b) / 2, (b + c) / 2, (c + a) / 2
+            return np.concatenate([np.stack([a, ab, ca], 1), np.stack([ab, b, bc], 1), np.stack([ca, bc, c], 1), np.stack([ab, bc, ca], 1)])
+        uv16 = subdiv(subdiv(rest_uv)); face16 = np.tile(np.arange(len(Fr)), 16); c16 = uv16.mean(1)
+        opaque16 = rest_tex[np.clip((c16[:, 1] * H_t).astype(int), 0, H_t - 1), np.clip((c16[:, 0] * W_t).astype(int), 0, W_t - 1), 3] >= 128
+        vis_face = np.zeros(len(Fr), bool); np.logical_or.at(vis_face, face16, opaque16)      # 'visible' is build()'s per-vertex array, read by own() later
+        def face_texels(fi):
+            uv = rest_uv[fi] * np.array([W_t, H_t]); x0, y0 = np.floor(uv.min(0)).astype(int); x1, y1 = np.ceil(uv.max(0)).astype(int)
+            if x1 <= x0 or y1 <= y0: return np.zeros((0, 2), int), np.zeros((0, 3))
+            gx, gy = np.meshgrid(np.arange(x0, x1) + 0.5, np.arange(y0, y1) + 0.5); q = np.stack([gx.ravel(), gy.ravel()], 1)
+            d = uv[1] - uv[0], uv[2] - uv[0]; den = d[0][0] * d[1][1] - d[1][0] * d[0][1]
+            if abs(den) < 1e-9: return np.zeros((0, 2), int), np.zeros((0, 3))
+            qq = q - uv[0]; b1 = (qq[:, 0] * d[1][1] - qq[:, 1] * d[1][0]) / den; b2 = (qq[:, 1] * d[0][0] - qq[:, 0] * d[0][1]) / den; b0 = 1 - b1 - b2
+            inside = (b0 >= -0.02) & (b1 >= -0.02) & (b2 >= -0.02)
+            rc = np.stack([np.clip(q[inside, 1].astype(int), 0, H_t - 1), np.clip(q[inside, 0].astype(int), 0, W_t - 1)], 1)
+            pts = b0[inside, None] * P[Fr[fi, 0]] + b1[inside, None] * P[Fr[fi, 1]] + b2[inside, None] * P[Fr[fi, 2]]
+            return rc, pts
+        if True:
+            vis_idx = np.where(vis_face)[0]; Fv = Fr[vis_idx]; e_c = np.sort(np.concatenate([Fv[:, [0, 1]], Fv[:, [1, 2]], Fv[:, [2, 0]]]), 1)
+            key = e_c[:, 0] * (len(P) + 1) + e_c[:, 1]; fid = np.tile(np.arange(len(vis_idx)), 3); order = np.argsort(key, kind='stable'); key, fid = key[order], fid[order]
+            _, start, count = np.unique(key, return_index=True, return_counts=True)
+            pairs = np.array([(fid[st + i], fid[st + j]) for st, cn in zip(start, count) if cn > 1 for i in range(cn) for j in range(i + 1, cn)])
+            if len(pairs):
+                nc, lab_c = connected_components(coo_matrix((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])), shape=(len(vis_idx), len(vis_idx))), directed=False)
+                size_c = np.bincount(lab_c, minlength=nc); chip = vis_idx[size_c[lab_c] < HAIR_CHIP_FACES]
+                for fi in chip:
+                    rc, _ = face_texels(fi)
+                    if len(rc): chip_px.append(rc)
+                print('hair chips by mesh: faces', len(chip), 'in', int((size_c < HAIR_CHIP_FACES).sum()), 'groups')
+        if chip_px:
+            cp = np.unique(np.concatenate(chip_px), axis=0); rest_tex[cp[:, 0], cp[:, 1], 3] = 0
+        print('hair chips cut: texels', sum(len(c) for c in chip_px))
     front = front & ~pocket
     photo, drawn = front & from_photo, front & ~from_photo
     groups = [(F[photo], fpos, fuv, fnrm, fvis, label[photo], overlap[photo], 7, True),
