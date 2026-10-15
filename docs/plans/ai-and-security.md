@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-15 (step 5.2a, the Authentication client (#519), in review; browser sign-in and the mode without a server split out as #557 (5.2b); 5.1b merged as #554; see Decisions and Verification backlog)
+**Last updated:** 2026-10-15 (step 5.2a merged as #558; the SpinePage binding-context bug it found is fixed in the core (#559); next 5.2b #557)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -54,7 +54,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Controls.Markdown` | New (Q21) | #513 | [ai §8](../proposals/spine-ai.md) | Done (#538) |
 | `Plugin.Maui.Spine.Controls.Chat` | New | #537 | [ai §8](../proposals/spine-ai.md) | Done (#539) |
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
-| `Plugin.Maui.Spine.Authentication` | New | #519, #557 | [authentication](../proposals/spine-authentication.md) | #519 in review (#558); #557 waiting |
+| `Plugin.Maui.Spine.Authentication` | New | #519, #557 | [authentication](../proposals/spine-authentication.md) | #519 done (#558); #557 waiting |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 done (#553); #552 done (#554) |
 | Passkeys (client and server) | After v1 of sign-in | #522 | [authentication, Passkeys](../proposals/spine-authentication.md) | Waiting |
@@ -144,8 +144,8 @@ The order follows value against risk. Steps in different phases can run in paral
 |---|---|---|---|---|---|---|
 | 5.1a | `Server.Authentication`: ID-token validation, own tokens, refresh rotation, email and password, account deletion, the push `UserId` | #520 | 0.2 | Done | #553 | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). Split on 2026-10-15; email and password included by the owner (Decisions). |
 | 5.1b | `Server.Authentication`: the browser broker (`/start`, `/callback`, PKCE, the one-time code; Apple web, Google web, OIDC) | #552 | 5.1a | Done | #554 | Split from #520 by the owner on 2026-10-15. `PublicUrl`, `RedirectSchemes` (custom schemes and http loopback), `WebClientId`/`WebClientSecret` per provider, Apple's `ServicesId`; the code is traded at `POST /auth/token` (Decisions). |
-| 5.2a | `Authentication` client: `ISpineAuth`, tokens in secure storage, the `HttpClient` handler, `[RequiresSignIn]`, the sign-in sheet, email and password, Sign in with Apple's sheet, the push link | #519 | 1.1, 5.1a | In review | #558 | Split on 2026-10-15. Registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8, kept by the owner) through a new core hook (Decisions). |
-| 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | Waiting | | Split from #519 by the owner on 2026-10-15. |
+| 5.2a | `Authentication` client: `ISpineAuth`, tokens in secure storage, the `HttpClient` handler, `[RequiresSignIn]`, the sign-in sheet, email and password, Sign in with Apple's sheet, the push link | #519 | 1.1, 5.1a | Done | #558 | Split on 2026-10-15. Registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8, kept by the owner) through a new core hook (Decisions). |
+| 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | Ready | | Split from #519 by the owner on 2026-10-15. |
 | 5.3 | `Authentication.Google` and `.Microsoft` | #521 | 5.2a, 5.2b | Waiting | | |
 | 5.4 | Passkeys | #522 | 5.2a | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
 
@@ -365,7 +365,7 @@ Newest last. Each entry is dated and says who decided.
   - The client's `net10.0` core (`SpineAuthClient`, `SpineAuthSession`, `SpineAuthFlows`, the handler) is tested against a real `Server.Authentication` host in a TestServer, 16 facts.
   - **A grace window on the server.** `RefreshReuseGrace`, 30 seconds by default, lets a retired refresh token give a new pair once more shortly after its use. **Why:** the review found that a refresh whose answer is lost (a timeout, a suspended app) left the client holding only the used token, and the next refresh revoked the whole sign-in. Auth0's "reuse interval" works the same way.
   - The client saves new tokens before using them. It refreshes with its own 30-second timeout rather than the caller's token. A Keychain read error at startup keeps the stored session instead of clearing it.
-  - Code-built content in a `SpinePage` does not get the page's view model as its `BindingContext`, while XAML content does once shown. `SignInSheet` sets it itself. A possible core issue, not fixed here.
+  - Code-built content in a `SpinePage` did not get the page's view model as its `BindingContext`. `SignInSheet` set it itself at first; the cause (a `ContentPresenter` outside a template) was fixed in the core in #559, and the workaround removed.
   - A `[RequiresSignIn]` command asks only where Spine runs the command; the Showcase uses `{PageCommand CallServer}`.
 - **2026-10-15, Claude (#552):**
   - The browser broker lives in the same package and reuses the native user step (`SignInUserAsync`), so a browser and a native sign-in of one account are one user. The web client's tokens are accepted beside `ClientIds`.
@@ -516,6 +516,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-15:** #519 merged (PR #558). #559 fixes `SpinePage` content built in code, found by it. 5.2b (#557) is Ready.
 - **2026-10-15:** #552 merged (PR #554). #519 (the Authentication client, step 5.2a) in review as PR #558; browser sign-in and the mode without a server split out as #557 (5.2b).
 - **2026-10-15:** #520 merged (PR #553). #552 (the browser broker, step 5.1b) in review as PR #554.
 - **2026-10-15:** #517 merged (PR #551). #520 (Server.Authentication, step 5.1a) in review as PR #553; the browser broker split out as #552 (5.1b).
