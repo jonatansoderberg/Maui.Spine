@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using System.Security.Cryptography;
 using Anthropic;
 using MauiSpinePushNotificationsSampleApp.Server;
 using Microsoft.Extensions.AI;
@@ -6,6 +8,7 @@ using Plugin.Maui.Spine.AI;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Server;
 using Plugin.Maui.Spine.Server.AI;
+using Plugin.Maui.Spine.Server.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +46,23 @@ builder.Services.AddSpinePushNotifications(o =>
 
     // A sample server on a laptop has no users to tell apart. A real one authenticates here.
     o.Authenticate = _ => ValueTask.FromResult(true);
+
+    // A device registered with a Spine access token is tagged user:<id> from the token, never from the body.
+    o.UserId = request => request.GetSpineUserIdAsync();
+});
+
+// Sign-in: Sign in with Apple for the Showcase's bundle id, and email and password with codes written to the log
+// (LogEmailSender). The signing key comes from user secrets (Auth:SigningKey); without one the server makes a key
+// that lives until it stops, so every session ends with a restart, as the in-memory users do.
+builder.Services.AddSingleton<ISpineAuthEmailSender, LogEmailSender>();
+builder.Services.AddAuthorization();
+builder.Services.AddSpineAuthentication(a =>
+{
+    a.Issuer = builder.Configuration["Auth:Issuer"] ?? "http://localhost:5100";
+    a.SigningKey = builder.Configuration["Auth:SigningKey"] ?? ECDsa.Create(ECCurve.NamedCurves.nistP256).ExportPkcs8PrivateKeyPem();
+    a.Apple(o => o.BundleIds.Add("se.cosmomedia.spineshowcase"));
+    a.EmailPassword();
+    a.UseInMemoryStore();
 });
 
 // AI features: the providers are one line each, everything else (features, models, prices, budgets) is the "Ai"
@@ -70,7 +90,22 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
 var app = builder.Build();
 
 // PUT and DELETE /push/installations/{id} — what the app registers through.
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapSpinePushNotifications("/push");
+
+// GET /auth/nonce, POST /auth/{provider}/token, POST /auth/token, POST /auth/revoke, DELETE /auth/account and
+// POST /auth/password/{signup,verify,resend,signin,forgot,reset}.
+app.MapSpineAuthentication("/auth");
+
+// Who the access token says you are. Signed-in users also get the AI features' SignedIn limits.
+app.MapGet("/sample/me", (ClaimsPrincipal user) => new
+{
+    id = user.FindFirstValue("sub"),
+    provider = user.FindFirstValue(SpineAuthDefaults.ProviderClaim),
+    email = user.FindFirstValue("email"),
+}).RequireAuthorization();
 
 // POST /ai/features/{name} for exposed features (Assistant), and GET /ai/usage for the report.
 app.MapSpineAI("/ai");

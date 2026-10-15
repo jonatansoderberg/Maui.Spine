@@ -124,6 +124,19 @@ public sealed class SpinePushNotificationsOptions
     /// </summary>
     public Func<HttpRequest, ValueTask<bool>>? Authenticate { get; set; }
 
+    /// <summary>
+    /// Says which signed-in user a registration belongs to, from the request rather than the body. When set, the
+    /// installation's <c>UserId</c> is replaced with the answer and its <c>user:</c> tags with <c>user:&lt;id&gt;</c>
+    /// (or none for a request without a user), so <c>PushTarget.User(id)</c> reaches only devices that signed in as
+    /// that user. Unset, the body's <c>UserId</c> and tags are stored as sent.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// o.UserId = request => request.GetSpineUserIdAsync();   // Plugin.Maui.Spine.Server.Authentication
+    /// </code>
+    /// </example>
+    public Func<HttpRequest, ValueTask<string?>>? UserId { get; set; }
+
     internal Func<IServiceProvider, IPushInstallationStore>? StoreFactory { get; private set; }
 
     /// <summary>Configures the APNs transport.</summary>

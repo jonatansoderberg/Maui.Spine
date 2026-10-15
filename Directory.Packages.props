@@ -43,6 +43,11 @@
 		<PackageVersion Include="FirebaseAdmin" Version="3.6.0" />
 	</ItemGroup>
 
+	<!-- Plugin.Maui.Spine.Server.Authentication. Brings the IdentityModel JWT handler and OpenID Connect discovery. -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+	</ItemGroup>
+
 	<!-- Plugin.Maui.Spine.Server.AI. IImageGenerator is experimental (MEAI001), suppressed inside the package. -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.Extensions.AI" Version="10.10.0" />

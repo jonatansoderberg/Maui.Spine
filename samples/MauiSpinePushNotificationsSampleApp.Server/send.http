@@ -115,3 +115,35 @@ Spine-Installation: sample-phone
 
 ### AI: what was spent, by day, feature and model (localhost only)
 GET {{host}}/ai/usage
+
+### Sign-in: sign up with email and password. The code is in the server's log ("Sign-in email (VerifyEmail)")
+POST {{host}}/auth/password/signup
+Content-Type: application/json
+
+{ "email": "anna@example.com", "password": "correct horse", "displayName": "Anna" }
+
+### Sign-in: the code from the log; the answer has accessToken and refreshToken
+POST {{host}}/auth/password/verify
+Content-Type: application/json
+
+{ "email": "anna@example.com", "code": "PASTE-CODE" }
+
+### Sign-in: email and password
+POST {{host}}/auth/password/signin
+Content-Type: application/json
+
+{ "email": "anna@example.com", "password": "correct horse" }
+
+### Sign-in: who the access token says you are
+GET {{host}}/sample/me
+Authorization: Bearer PASTE-ACCESS-TOKEN
+
+### Sign-in: a new pair for the refresh token (each refresh token works once)
+POST {{host}}/auth/token
+Content-Type: application/json
+
+{ "refreshToken": "PASTE-REFRESH-TOKEN" }
+
+### Sign-in: delete the account
+DELETE {{host}}/auth/account
+Authorization: Bearer PASTE-ACCESS-TOKEN

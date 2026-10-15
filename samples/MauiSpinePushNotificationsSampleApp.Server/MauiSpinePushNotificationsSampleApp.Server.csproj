@@ -12,6 +12,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server\Plugin.Maui.Spine.Server.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.AI\Plugin.Maui.Spine.Server.AI.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.Authentication\Plugin.Maui.Spine.Server.Authentication.csproj" />
 	</ItemGroup>
 
 	<!-- The AI providers, one line each in Program.cs. Spine.Server.AI itself references no vendor. -->
