@@ -157,7 +157,8 @@ public static class EchoTest
                 bestLag = lag;
             }
         }
-        return bestLag < 0 ? null : bestLag * Decimation * 1000.0 / Rate;
+        // A peak at the edge of the window is the correlation failing, not a latency.
+        return bestLag <= 0 || bestLag >= maxLag ? null : bestLag * Decimation * 1000.0 / Rate;
     }
 
     private static double[] Envelope(ReadOnlySpan<short> samples)

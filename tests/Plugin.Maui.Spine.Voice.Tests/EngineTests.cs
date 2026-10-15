@@ -7,6 +7,11 @@ internal sealed class FakePlatform(TimeProvider time) : VoiceAudioEngine(null, t
 {
     public override bool IsSupported => true;
 
+    public Exception? StartThrows { get; set; }
+    public TaskCompletionSource? StartGate { get; set; }
+    public int Starts { get; private set; }
+    public int Stops { get; private set; }
+
     public void Capture(float[] samples, int rate) => OnCaptured(samples, rate);
 
     public float[] Render(int frames, int rate)
@@ -18,14 +23,22 @@ internal sealed class FakePlatform(TimeProvider time) : VoiceAudioEngine(null, t
 
     public void Interrupt(bool on) => SetInterrupted(on);
 
-    protected override Task StartPlatformAsync(VoiceAudioOptions options, CancellationToken cancellationToken)
+    protected override async Task StartPlatformAsync(VoiceAudioOptions options, CancellationToken cancellationToken)
     {
+        Starts++;
+        if (StartGate is { } gate)
+            await gate.Task;
+        if (StartThrows is { } e)
+            throw e;
         IsVoiceProcessingOn = options.VoiceProcessing;
         SetRoute("Speaker");
-        return Task.CompletedTask;
     }
 
-    protected override Task StopPlatformAsync() => Task.CompletedTask;
+    protected override Task StopPlatformAsync()
+    {
+        Stops++;
+        return Task.CompletedTask;
+    }
 }
 
 public sealed class EngineTests
@@ -159,5 +172,75 @@ public sealed class EngineTests
         Assert.Equal(VoiceState.Idle, engine.UpdateFrame().State);
         Assert.False(engine.IsPlaying);
         await Assert.ThrowsAsync<ArgumentException>(() => engine.StartAsync(new VoiceAudioOptions { InputRate = 100 }));
+    }
+
+    [Fact]
+    public async Task A_failed_start_closes_what_the_platform_opened()
+    {
+        await using var engine = new FakePlatform(_time) { StartThrows = new VoiceAudioException(VoiceAudioProblem.Failed, "No engine.") };
+
+        await Assert.ThrowsAsync<VoiceAudioException>(() => engine.StartAsync());
+
+        Assert.Equal(1, engine.Stops);
+        Assert.False(engine.IsRunning);
+    }
+
+    [Fact]
+    public async Task Listening_is_announced_when_the_convergence_ends_without_a_tick()
+    {
+        await using var engine = new FakePlatform(_time);
+        var states = new List<VoiceState>();
+        engine.StateChanged += states.Add;
+        await engine.StartAsync(new VoiceAudioOptions { Convergence = TimeSpan.FromSeconds(1) });
+
+        _time.Advance(TimeSpan.FromSeconds(1));
+
+        Assert.Equal([VoiceState.Connecting, VoiceState.Listening], states);
+    }
+
+    [Fact]
+    public async Task Two_starts_at_once_open_the_platform_once()
+    {
+        await using var engine = new FakePlatform(_time) { StartGate = new TaskCompletionSource() };
+
+        var first = engine.StartAsync();
+        var second = engine.StartAsync();
+        engine.StartGate.SetResult();
+        await first;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => second);
+        Assert.Equal(1, engine.Starts);
+    }
+
+    [Fact]
+    public async Task Half_duplex_waits_for_the_tail_the_device_still_plays()
+    {
+        await using var engine = new FakePlatform(_time);
+        var uploads = 0;
+        engine.InputAvailable += _ => uploads++;
+        await engine.StartAsync(new VoiceAudioOptions { Duplex = VoiceDuplex.HalfWhileSpeaking, Prebuffer = TimeSpan.Zero });
+        engine.Enqueue("answer", Signals.Bytes(new short[480]));
+        engine.Complete("answer");
+        engine.Render(960, 48_000);                           // the whole answer is handed to the device
+
+        engine.Capture(new float[480], 24_000);
+        _time.Advance(TimeSpan.FromMilliseconds(350));
+        engine.Capture(new float[480], 24_000);
+
+        Assert.Equal(1, uploads);
+    }
+
+    [Fact]
+    public async Task A_stopped_engine_shows_silence()
+    {
+        await using var engine = new FakePlatform(_time);
+        await engine.StartAsync();
+        engine.Capture(Signals.Sine(440, 24_000, 24_000), 24_000);
+        Assert.True(engine.UpdateFrame().InputLevel > 0.5f);
+
+        await engine.StopAsync();
+
+        Assert.Equal(0, engine.UpdateFrame().InputLevel);
+        Assert.All(engine.Frame.InputBands.ToArray(), b => Assert.Equal(0, b));
     }
 }

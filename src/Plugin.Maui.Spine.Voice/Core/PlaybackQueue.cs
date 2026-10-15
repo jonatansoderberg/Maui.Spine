@@ -44,6 +44,7 @@ internal sealed class PlaybackQueue(int sampleRate, TimeSpan? prebuffer = null)
             {
                 item = new Item(itemId);
                 _items.AddLast(item);
+                ForgetOldCounts();
             }
             item.Append(samples);
         }
@@ -125,6 +126,21 @@ internal sealed class PlaybackQueue(int sampleRate, TimeSpan? prebuffer = null)
             _items.Clear();
             _current = null;
             _played.Clear();
+        }
+    }
+
+    /// <summary>Keeps the played counts of a long conversation bounded: only queued and recent items are asked about.</summary>
+    private void ForgetOldCounts()
+    {
+        const int Keep = 32;
+        if (_played.Count <= Keep)
+            return;
+        foreach (var id in _played.Keys.ToList())
+        {
+            if (_played.Count <= Keep / 2)
+                break;
+            if (id != _current?.Id && Find(id) is null)
+                _played.Remove(id);
         }
     }
 

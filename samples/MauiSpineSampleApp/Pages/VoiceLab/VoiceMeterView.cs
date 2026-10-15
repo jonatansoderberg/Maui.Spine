@@ -40,6 +40,9 @@ public sealed class VoiceMeterView : GraphicsView
     {
         if (Audio is not { } audio)
             return;
+        // A stopped engine's frame does not change after its last draw.
+        if (!audio.IsRunning && _painter.Frame is { InputLevel: 0, OutputLevel: 0 })
+            return;
         _painter.Frame = audio.UpdateFrame();
         _painter.Accent = Application.Current?.Resources.TryGetValue("Primary", out var color) == true && color is Color c ? c : Colors.DodgerBlue;
         Invalidate();

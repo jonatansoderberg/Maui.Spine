@@ -11,7 +11,13 @@ namespace Plugin.Maui.Spine.Voice;
 /// </summary>
 internal abstract class VoiceAudioEngine : IVoiceAudio
 {
+    /// <summary>How long the microphone stays held back after the answer's last sample in half duplex: what the device still plays.</summary>
+    private static readonly TimeSpan HalfDuplexTail = TimeSpan.FromMilliseconds(300);
+
     private readonly object _stateGate = new();
+    private readonly SemaphoreSlim _lifecycle = new(1, 1);
+    private ITimer? _convergence;
+    private long _lastAudible;
     private readonly VoiceFrame _frame = new();
     private float[] _inputBuffer = new float[4096];
     private short[] _inputPcm = new short[4096];
@@ -78,10 +84,25 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
     {
         options ??= new VoiceAudioOptions();
         options.Validate();
-        if (IsRunning)
-            throw new InvalidOperationException("The voice engine already runs; stop it before starting it again.");
         if (!IsSupported)
             throw new VoiceAudioException(VoiceAudioProblem.Unavailable, "Spine.Voice has no audio engine on this platform yet.");
+
+        // One start or stop at a time: a double tap must not open the microphone twice.
+        await _lifecycle.WaitAsync(cancellationToken);
+        try
+        {
+            await StartLockedAsync(options, cancellationToken);
+        }
+        finally
+        {
+            _lifecycle.Release();
+        }
+    }
+
+    private async Task StartLockedAsync(VoiceAudioOptions options, CancellationToken cancellationToken)
+    {
+        if (IsRunning)
+            throw new InvalidOperationException("The voice engine already runs; stop it before starting it again.");
 
         Options = options;
         _duplex = (int)options.Duplex;
@@ -94,10 +115,29 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
         _interrupted = false;
         UseSpeaker = options.PreferSpeaker;
 
-        await StartPlatformAsync(options, cancellationToken);
+        try
+        {
+            await StartPlatformAsync(options, cancellationToken);
+        }
+        catch
+        {
+            // A platform that got halfway (the session active, the engine not) is closed again, so the app's other
+            // audio is not left ducked.
+            try
+            {
+                await StopPlatformAsync();
+            }
+            catch (Exception e)
+            {
+                Logger.LogWarning(e, "Spine.Voice: closing after a failed start failed.");
+            }
+            throw;
+        }
 
         _startedAt = Time.GetTimestamp();
         IsRunning = true;
+        // Listening is announced when the convergence is over, also when nothing calls UpdateFrame.
+        _convergence = Time.CreateTimer(_ => Refresh(), null, options.Convergence, Timeout.InfiniteTimeSpan);
         Refresh();
         Logger.LogInformation("Spine.Voice: started at {Input}/{Output} Hz, voice processing {Processing}, route {Route}.",
             options.InputRate, options.OutputRate, IsVoiceProcessingOn ? "on" : "off", _route);
@@ -105,13 +145,23 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
 
     public async Task StopAsync()
     {
-        if (!IsRunning)
-            return;
+        await _lifecycle.WaitAsync();
+        try
+        {
+            if (!IsRunning)
+                return;
 
-        IsRunning = false;
-        _queue?.Reset();
-        await StopPlatformAsync();
-        Refresh();
+            IsRunning = false;
+            _convergence?.Dispose();
+            _convergence = null;
+            _queue?.Reset();
+            await StopPlatformAsync();
+            Refresh();
+        }
+        finally
+        {
+            _lifecycle.Release();
+        }
     }
 
     public void Enqueue(string itemId, ReadOnlySpan<byte> pcm16)
@@ -135,8 +185,19 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
 
     public VoiceFrame UpdateFrame()
     {
-        _frame.InputLevel = _inputMeter?.Read(_frame.WritableInputBands) ?? 0;
-        _frame.OutputLevel = _outputMeter?.Read(_frame.WritableOutputBands) ?? 0;
+        if (IsRunning)
+        {
+            _frame.InputLevel = _inputMeter?.Read(_frame.WritableInputBands) ?? 0;
+            _frame.OutputLevel = _outputMeter?.Read(_frame.WritableOutputBands) ?? 0;
+        }
+        else
+        {
+            // A stopped engine shows silence, not the last levels it heard.
+            _frame.InputLevel = 0;
+            _frame.OutputLevel = 0;
+            _frame.WritableInputBands.Clear();
+            _frame.WritableOutputBands.Clear();
+        }
         var now = Time.GetTimestamp();
         _frame.Time = IsRunning ? Time.GetElapsedTime(_startedAt, now) : TimeSpan.Zero;
         Refresh();
@@ -181,7 +242,7 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
         }
         meter.Write(resampled);
 
-        if (Duplex == VoiceDuplex.HalfWhileSpeaking && IsPlaying)
+        if (Duplex == VoiceDuplex.HalfWhileSpeaking && (IsPlaying || Time.GetElapsedTime(Interlocked.Read(ref _lastAudible)) < HalfDuplexTail))
             return;
 
         if (InputAvailable is not { } handler)
@@ -234,6 +295,8 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
 
         if (played == 0)
             meter.Decay((int)((long)destination.Length * Options.OutputRate / deviceRate));
+        if (played > 0 || _fifoCount > 0)
+            Interlocked.Exchange(ref _lastAudible, Time.GetTimestamp());
 
         var n = Math.Min(_fifoCount, destination.Length);
         _fifo.AsSpan(0, n).CopyTo(destination);

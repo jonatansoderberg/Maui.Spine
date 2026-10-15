@@ -18,6 +18,7 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
     private AVAudioEngine? _engine;
     private AVAudioSourceNode? _source;
     private readonly List<NSObject> _observers = [];
+    private NSObject? _configurationObserver;
     private float[] _render = new float[4096];
     private double _outputRate;
     private bool _speaker;
@@ -46,7 +47,8 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
             throw new VoiceAudioException(VoiceAudioProblem.PermissionDenied, "The user did not allow the microphone.");
         cancellationToken.ThrowIfCancellationRequested();
 
-        ConfigureSession(options);
+        // Off the calling thread: activating a session can take hundreds of milliseconds (iOS warns of a hang).
+        await Task.Run(() => ConfigureSession(options), cancellationToken);
         Build(options);
 
         // Notifications come on any thread, and an exception that leaves one ends the app: each is handled on the main
@@ -58,12 +60,10 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
         }));
         _observers.Add(AVAudioSession.Notifications.ObserveRouteChange((_, _) => OnMain("a route change", OnRouteChange)));
         _observers.Add(AVAudioSession.Notifications.ObserveMediaServicesWereReset((_, _) => OnMain("a media services reset", () => Rebuild("media services were reset"))));
-        // Any engine: the one observed is replaced when the engine is rebuilt.
-        _observers.Add(NSNotificationCenter.DefaultCenter.AddObserver(AVAudioEngine.ConfigurationChangeNotification, _ => OnMain("a configuration change", OnConfigurationChange)));
         SetRoute(RouteName(AVAudioSession.SharedInstance()));
     }
 
-    protected override Task StopPlatformAsync()
+    protected override async Task StopPlatformAsync()
     {
         foreach (var observer in _observers)
         {
@@ -72,8 +72,7 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
         }
         _observers.Clear();
         TearDown();
-        AVAudioSession.SharedInstance().SetActive(false, AVAudioSessionSetActiveOptions.NotifyOthersOnDeactivation, out _);
-        return Task.CompletedTask;
+        await Task.Run(() => AVAudioSession.SharedInstance().SetActive(false, AVAudioSessionSetActiveOptions.NotifyOthersOnDeactivation, out _));
     }
 
     private static Task<bool> RequestPermissionAsync()
@@ -163,6 +162,9 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
 
         _engine = engine;
         _source = source;
+        // This engine only: another AVAudioEngine in the app (speech, a game) changes configuration on its own.
+        _configurationObserver = NSNotificationCenter.DefaultCenter.AddObserver(
+            AVAudioEngine.ConfigurationChangeNotification, _ => OnMain("a configuration change", OnConfigurationChange), engine);
         error = null;
         Logger.LogInformation("Spine.Voice: engine at {Input} Hz in ({Channels} channels), {Output} Hz out, voice processing {Processing}.",
             inputRate, inputFormat.ChannelCount, _outputRate, IsVoiceProcessingOn ? "on" : "off");
@@ -280,6 +282,13 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
 
     private void TearDown()
     {
+        if (_configurationObserver is { } observer)
+        {
+            NSNotificationCenter.DefaultCenter.RemoveObserver(observer);
+            observer.Dispose();
+            _configurationObserver = null;
+        }
+
         if (_engine is { } engine)
         {
             engine.InputNode.RemoveTapOnBus(0);

@@ -85,8 +85,8 @@ public delegate void VoiceInputHandler(ReadOnlySpan<byte> pcm16);
 /// session instead.
 /// </summary>
 /// <remarks>
-/// One engine runs one conversation at a time. <see cref="InputAvailable"/> is raised on the audio thread; everything
-/// else may be called from any thread, and <see cref="UpdateFrame"/> belongs to the UI's tick.
+/// One engine runs one conversation at a time. <see cref="InputAvailable"/> is raised on the audio thread and the other
+/// events on any thread; everything may be called from any thread, and <see cref="UpdateFrame"/> belongs to the UI's tick.
 /// </remarks>
 public interface IVoiceAudio : IAsyncDisposable
 {
@@ -123,7 +123,7 @@ public interface IVoiceAudio : IAsyncDisposable
     /// <summary>The microphone's audio, on the audio thread. Not raised while muted, or while an answer plays in <see cref="VoiceDuplex.HalfWhileSpeaking"/>.</summary>
     event VoiceInputHandler? InputAvailable;
 
-    /// <summary><see cref="State"/> changed. Raised from <see cref="UpdateFrame"/> and from calls that change it.</summary>
+    /// <summary><see cref="State"/> changed. Raised on any thread: from <see cref="UpdateFrame"/>, from calls that change it, and when the convergence ends.</summary>
     event Action<VoiceState>? StateChanged;
 
     /// <summary>The sound moved, such as to a headset that was connected.</summary>

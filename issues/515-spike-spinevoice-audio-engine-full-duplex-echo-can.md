@@ -149,6 +149,17 @@ None. The owner answered on 2026-10-15: three issues, built in the repo with a S
   - the plan: 4.1 split, Decisions, the backlog, a test recipe
 - Measured on the owner's iPhone and on this Mac (see `docs/wiki/voice.md` § Measured).
 - Follow-up issues: #562 (Android) and #563 (Windows).
+- PR #566. `/code-review` found 9 things; fixed all:
+  - a failed start closes what the platform opened (the session is not left active)
+  - a start and a stop run one at a time (a double tap no longer opens the microphone twice)
+  - `Listening` is announced by a timer when the convergence ends, not only from `UpdateFrame`; `StateChanged` may come on any thread
+  - half duplex holds the microphone back for 300 ms after the answer's last sample, for what the device still plays
+  - the session is activated and deactivated off the calling thread
+  - the configuration-change observer is per engine
+  - the played counts per item stay bounded
+  - the echo test reports no latency when the correlation peaks at the edge of its window
+  - a stopped engine's frame shows silence, and the lab's meter view stops redrawing it
+  - 30 tests pass
 
 ## Decisions
 
