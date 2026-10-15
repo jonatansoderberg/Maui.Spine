@@ -77,16 +77,6 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
         proceed.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.ContinueCommand));
         proceed.SetBinding(IsVisibleProperty, static (SignInSheetViewModel vm) => vm.ShowEmail);
         Footer = new ContentView { Padding = HeaderBarConstants.PagePadding, Content = proceed };
-        Content.BindingContext = BindingContext;
-    }
-
-    /// <inheritdoc />
-    protected override void OnBindingContextChanged()
-    {
-        base.OnBindingContextChanged();
-
-        // Content set in code is not handed the page's view model the way XAML content is; it would bind to nothing.
-        if (Content is { } content) content.BindingContext = BindingContext;
     }
 
     private static View Field(string label, string visible, out Entry entry)
