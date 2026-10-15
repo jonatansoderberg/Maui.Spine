@@ -144,6 +144,16 @@ Content-Type: application/json
 
 { "refreshToken": "PASTE-REFRESH-TOKEN" }
 
+### Sign-in through the browser (Auth:Google:* or Auth:Apple:* in user secrets): open this URL in a browser.
+### The provider returns here and the server redirects to 127.0.0.1:53124 with ?code=…; nothing listens there, so copy the code from the address bar.
+GET {{host}}/auth/google/start?redirect_uri=http://127.0.0.1:53124/&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=s1
+
+### Sign-in: the browser's code with the verifier behind the challenge above
+POST {{host}}/auth/token
+Content-Type: application/json
+
+{ "code": "PASTE-CODE", "codeVerifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", "redirectUri": "http://127.0.0.1:53124/" }
+
 ### Sign-in: delete the account
 DELETE {{host}}/auth/account
 Authorization: Bearer PASTE-ACCESS-TOKEN

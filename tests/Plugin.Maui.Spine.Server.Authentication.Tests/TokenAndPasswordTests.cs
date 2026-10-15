@@ -132,7 +132,13 @@ public sealed class PasswordTests : IAsyncLifetime
 
     public async Task DisposeAsync() => await _host.DisposeAsync();
 
-    private Task<HttpResponseMessage> Step(string action, object body) => _host.PostAsync($"/auth/password/{action}", body);
+    // Emails go out after the answer, so each step waits for them before a test looks at what was sent.
+    private async Task<HttpResponseMessage> Step(string action, object body)
+    {
+        var response = await _host.PostAsync($"/auth/password/{action}", body);
+        await _host.App.Services.GetRequiredService<SpineAccounts>().EmailsSentAsync();
+        return response;
+    }
 
     private async Task<SpineTokens> SignedUpAsync()
     {

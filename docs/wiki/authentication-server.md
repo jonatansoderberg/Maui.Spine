@@ -8,7 +8,7 @@ dotnet add package Plugin.Maui.Spine.Server.Authentication
 
 The package is a plain `net10.0` library with a framework reference to ASP.NET Core, so a Minimal API and an Azure Functions isolated worker can both host it. It does not reference `Plugin.Maui.Spine.Server`, so an app can have sign-in without push. The design is in [the proposal](../proposals/spine-authentication.md), §5.5 and §5.6.
 
-The browser broker comes in [#552](https://github.com/jonatansoderberg/Maui.Spine/issues/552). It covers Apple on Android and Windows, Google on iOS, and any OpenID Connect provider through the system browser. The app half, `Plugin.Maui.Spine.Authentication`, is #519.
+Where a platform has no native sheet for a provider (Apple on Android and Windows, Google on iOS, any OpenID Connect provider), the server brokers a sign-in through the system browser. See [Browser sign-in](#browser-sign-in). The app half, `Plugin.Maui.Spine.Authentication`, is #519.
 
 ---
 
@@ -52,7 +52,9 @@ Bodies and answers are the records in `Plugin.Maui.Spine.Authentication` in `.Co
 |---|---|---|
 | `GET /auth/nonce` | A one-time nonce, kept on the server for `NonceLifetime` (10 min) | `SpineNonce` |
 | `POST /auth/{provider}/token` | An ID token from the platform's sheet, plus the raw nonce, traded for Spine tokens | `SpineTokens`; 401 `invalid_token` with the reason; 404 `unknown_provider` |
-| `POST /auth/token` | A refresh token traded for a new pair | `SpineTokens`; 401 `invalid_grant` |
+| `GET /auth/{provider}/start` | Opens a browser sign-in: a redirect to the provider | a redirect; 400 or 404 `SpineAuthProblem` |
+| `GET`/`POST /auth/{provider}/callback` | Where the provider returns: a redirect to the app with a one-time `code` | a redirect; a plain 400 page for an expired sign-in |
+| `POST /auth/token` | A refresh token (`SpineRefreshRequest`) or a browser sign-in's code with its PKCE verifier (`SpineCodeExchange`) traded for a new pair | `SpineTokens`; 401 `invalid_grant` |
 | `POST /auth/revoke` | Signs one device out by revoking its sign-in | 204, known token or not |
 | `DELETE /auth/account` | Deletes the user behind the access token | 204; 401 without a token |
 | `POST /auth/password/{signup,verify,resend,signin,forgot,reset}` | Email and password | see below |
@@ -76,6 +78,40 @@ A nonce is used once. Without one, an ID token that someone else got hold of cou
 **Users.** A user is found by (provider, `sub`). A new provider and `sub` makes a new user. Its email is kept only when the provider vouches for it: a trusted provider (`TrustEmail`) and `email_verified`. Anyone can put any address in a Microsoft tenant of their own, and an account that held someone else's address could later be handed to them through a password reset. Names are cut at 100 characters, and an ID token may be at most 16 KB. With `LinkByVerifiedEmail = true`, they are linked instead to the existing account with the same email. That needs the provider to vouch for the email (`email_verified` and a trusted provider) and the existing account's own email to be verified, so an unverified sign-up cannot take over someone's account. When linking is off and another account owns the email, the new user is made without an email. The display name comes from the request on the first sign-in (Apple sends the name only once) or from the token's `name`.
 
 **Apple's tokens.** With `TeamId`, `KeyId` and `PrivateKey` (the `.p8` of a Sign in with Apple key), the server trades the request's `authorizationCode` at `https://appleid.apple.com/auth/token`. Apple's refresh token is kept with the login. `DELETE /auth/account` revokes it at `/auth/revoke`, as [TN3194](https://developer.apple.com/documentation/technotes/tn3194-handling-account-deletions-and-revoking-tokens-for-sign-in-with-apple) requires. The client secret is a five-minute ES256 JWT signed with that key.
+
+## Browser sign-in
+
+RFC 8252 with the server as the confidential client: the provider's client secret never reaches the app, and the app holds only a two-minute code bound to its own PKCE verifier.
+
+```csharp
+a.PublicUrl = "https://api.example.com/auth";          // where a browser reaches MapSpineAuthentication's prefix
+a.RedirectSchemes.Add("se.example.app");                // the app's own scheme
+a.AllowLoopbackRedirects = true;                        // only with Windows clients
+a.Apple(o => { o.BundleIds.Add("se.example.app"); o.ServicesId = "se.example.web"; o.TeamId = "…"; o.KeyId = "…"; o.PrivateKey = "…"; });
+a.Google(o => { o.ClientIds.Add("…android…"); o.WebClientId = "…web…"; o.WebClientSecret = "…"; });
+a.OpenIdConnect("corp", o => { o.Authority = "https://login.example.com"; o.WebClientId = "…"; o.WebClientSecret = "…"; });
+```
+
+1. **The app** makes a PKCE verifier. It opens the system browser (`WebAuthenticator`, or the default browser on Windows) on `GET /auth/{provider}/start?redirect_uri=…&code_challenge=…&code_challenge_method=S256&state=…`.
+2. **The server** checks the redirect. It keeps the app's redirect, state and challenge under a state of its own for 10 minutes, and redirects to the provider's `authorization_endpoint` from discovery. It sends its own `nonce`, and its own PKCE challenge where the provider takes one.
+3. **The provider** returns to `{PublicUrl}/{provider}/callback`. Register that URL as the web client's redirect URI; Apple posts the answer as a form.
+4. **The server** takes its state once. It trades the provider's code at the `token_endpoint` with the client secret (for Apple, a five-minute ES256 JWT with the Services ID as `sub`) and checks the ID token as a native one, nonce included. It signs the user in under the same rules as a native sign-in, and redirects to the app's `redirect_uri` with a one-time `code` and the app's `state`.
+5. **The app** checks its `state` and posts `{ "code", "codeVerifier", "redirectUri" }` to `POST /auth/token`. The code works once, for two minutes, only with the same redirect and only with the verifier whose SHA-256 was the challenge.
+
+- **Redirects.** A redirect must use one of `RedirectSchemes`. These are custom schemes only: `http`, `https`, `javascript`, `data` and `file` are refused at startup.
+  - With `AllowLoopbackRedirects`, a redirect may also be `http` to a loopback IP literal on any port (`127.0.0.1`, `[::1]`; not the name `localhost`, RFC 8252 §8.3), which is what a Windows app uses. It is off by default: any program on the device can listen on loopback and finish a sign-in it started itself (RFC 8252 §8.6).
+  - A custom scheme has the same limit on a device where another app claims it. PKCE stops a stolen code, not an app that starts the flow itself.
+  - A redirect may not carry a fragment, or `code`, `state` or `error` in its query. It is stored, compared and sent back in its escaped form.
+  - Anything else answers 400, before any provider is involved.
+- **Errors go to the app.** A cancel at the provider comes back as `error=access_denied`. A code the provider refuses, or an unreachable provider, comes back as `server_error`. An ID token that fails validation comes back as `invalid_token`. The provider's own messages go to the log only. A callback whose state is unknown, used or older than 10 minutes cannot be returned to the app, so it shows a plain page that says to go back and try again.
+- **Per provider:** `WebClientId` turns the browser sign-in on; without it, `/start` answers 404.
+  - Tokens issued to the web client are accepted only from the server's own exchange, not at `POST /auth/{provider}/token`. Google on Android, whose Credential Manager issues tokens for the web client as its `serverClientId`, needs that id in `ClientIds` as well.
+  - The same account through the browser and through the native sheet is one user, because users go by the provider's `sub`.
+  - Apple: `ServicesId` with `TeamId`/`KeyId`/`PrivateKey`. Scopes `name email`, posted back as a form, without PKCE (Apple does not document it). The name Apple posts on the first sign-in becomes the display name, and the refresh token from this exchange is kept for revocation.
+  - Google and OpenID Connect: `WebClientId` and `WebClientSecret`, `openid email profile`, with PKCE.
+  - `Scopes`, `FormPost` and `UsePkce` change those defaults.
+- **`PublicUrl`** is required with any `WebClientId`. The request's `Host` is not trusted for the callback address.
+- **Rate limiting.** `/start` writes one row to the store for each request, kept 10 minutes, so put the group behind `.RequireRateLimiting(...)`. An unreachable discovery document answers 502 `provider_unavailable`.
 
 ## Spine's tokens
 
@@ -134,7 +170,7 @@ With `UserId` set, the body's `UserId` and any `user:` tags are replaced: `user:
 
 ## Azure Functions
 
-The handlers are public static methods on `SpineAuthEndpoints`: `NonceAsync`, `IdTokenAsync`, `RefreshAsync`, `RevokeAsync`, `DeleteAccountAsync`, `PasswordAsync` and `Jwks`. They take the `HttpRequest`, as Server.AI's do:
+The handlers are public static methods on `SpineAuthEndpoints`: `NonceAsync`, `IdTokenAsync`, `StartAsync`, `CallbackAsync` (`GET` and `POST`), `RefreshAsync`, `RevokeAsync`, `DeleteAccountAsync`, `PasswordAsync` and `Jwks`. They take the `HttpRequest`, as Server.AI's do:
 
 ```csharp
 [Function("AuthToken")]
@@ -150,10 +186,11 @@ Server.AI's default caller is the authenticated user's `sub`, so a signed-in use
 
 ## Sample
 
-The push sample server (`samples/MauiSpinePushNotificationsSampleApp.Server`) turns on Sign in with Apple for the Showcase's bundle id, plus email and password. The codes are written to its log by `LogEmailSender`. It also maps a protected `GET /sample/me`, and its push register takes the user from the token. `send.http` has the steps. Without `Auth:SigningKey` in user secrets, the sample makes a signing key at startup, so every session ends with a restart, just as the in-memory users do.
+The push sample server (`samples/MauiSpinePushNotificationsSampleApp.Server`) turns on Sign in with Apple for the Showcase's bundle id, plus email and password. The browser sign-in turns on when user secrets hold `Auth:Apple:ServicesId` (with `TeamId`, `KeyId` and `PrivateKey`) or `Auth:Google:WebClientId` and `WebClientSecret`. It returns to `se.cosmomedia.spineshowcase:` or a loopback address, at `http://localhost:5100/auth` unless `Auth:PublicUrl` says otherwise. The codes are written to its log by `LogEmailSender`. It also maps a protected `GET /sample/me`, and its push register takes the user from the token. `send.http` has the steps. Without `Auth:SigningKey` in user secrets, the sample makes a signing key at startup, so every session ends with a restart, just as the in-memory users do.
 
 ## Not verified yet
 
 - A real Sign in with Apple token from the native sheet, and a real authorization-code exchange and revocation. The tests use a stub issuer and a stub of Apple's endpoints; a device run comes with the app half (#519).
 - Real Google and Microsoft tokens.
+- The browser sign-in against real providers. Against Apple's and Google's real discovery documents, `/start` led to their authorize pages; with placeholder client ids, neither got further. The callback, the code exchange and Apple's form_post ran only against stubs.
 - The handlers under Azure Functions (only compiled).

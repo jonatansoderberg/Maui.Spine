@@ -55,23 +55,35 @@ internal sealed class SpineAccounts(
     private const int Retries = 5;
 
     private readonly PasswordHasher<SpineAuthUser> _hasher = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Task, bool> _sending = new();
 
     // A hash to compare against when the email is unknown, so a wrong email takes as long as a wrong password.
     private readonly Lazy<string> _decoy = new(() => new PasswordHasher<SpineAuthUser>().HashPassword(null!, Guid.NewGuid().ToString()));
 
     public async Task<SignInOutcome> SignInWithIdTokenAsync(string providerName, SpineIdTokenRequest request, CancellationToken cancellationToken)
     {
+        var (user, refusal) = await SignInUserAsync(providerName, request, null, false, cancellationToken);
+        return user is null ? refusal! : SignInOutcome.Ok(await tokens.IssueAsync(user, providerName, cancellationToken: cancellationToken));
+    }
+
+    /// <summary>
+    /// Validates an ID token and finds, links or makes its user. <paramref name="providerRefresh"/> is a provider refresh
+    /// token the caller already has (the browser broker's exchange); without it, Apple's code in the request is traded.
+    /// </summary>
+    public async Task<(SpineAuthUser? User, SignInOutcome? Refusal)> SignInUserAsync(
+        string providerName, SpineIdTokenRequest request, (string Token, string ClientId)? providerRefresh, bool brokered, CancellationToken cancellationToken)
+    {
         if (!options.Providers.TryGetValue(providerName, out var provider))
-            return SignInOutcome.Refused(404, SpineAuthErrors.UnknownProvider);
+            return (null, SignInOutcome.Refused(404, SpineAuthErrors.UnknownProvider));
 
         if (string.IsNullOrWhiteSpace(request.IdToken) || request.IdToken.Length > MaxIdTokenLength)
-            return SignInOutcome.Refused(400, SpineAuthErrors.InvalidRequest, "idToken is required and at most 16 KB.");
+            return (null, SignInOutcome.Refused(400, SpineAuthErrors.InvalidRequest, "idToken is required and at most 16 KB."));
 
-        var (token, problem) = await idTokens.ValidateAsync(providerName, provider, request, cancellationToken);
+        var (token, problem) = await idTokens.ValidateAsync(providerName, provider, request, brokered, cancellationToken);
         if (token is null)
         {
             logger.LogInformation("Spine sign-in: a {Provider} ID token was refused: {Problem}.", providerName, problem);
-            return SignInOutcome.Refused(401, SpineAuthErrors.InvalidToken, problem);
+            return (null, SignInOutcome.Refused(401, SpineAuthErrors.InvalidToken, problem));
         }
 
         var user = await users.FindByLoginAsync(providerName, token.Subject, cancellationToken);
@@ -114,7 +126,11 @@ internal sealed class SpineAccounts(
 
         var login = new SpineAuthLogin(providerName, token.Subject, user.Id);
 
-        if (apple is not null && providerName == "apple" && request.AuthorizationCode is { Length: > 0 } code
+        if (providerRefresh is { } kept)
+        {
+            login = login with { ProviderRefreshToken = kept.Token, ProviderClientId = kept.ClientId };
+        }
+        else if (apple is not null && providerName == "apple" && request.AuthorizationCode is { Length: > 0 } code
             && await apple.ExchangeAsync(code, token.Audience, cancellationToken) is { } appleRefresh)
         {
             login = login with { ProviderRefreshToken = appleRefresh, ProviderClientId = token.Audience };
@@ -125,7 +141,7 @@ internal sealed class SpineAccounts(
         }
 
         await users.SaveLoginAsync(login, cancellationToken);
-        return SignInOutcome.Ok(await tokens.IssueAsync(user, providerName, cancellationToken: cancellationToken));
+        return (user, null);
     }
 
     public async Task<SignInOutcome> SignUpAsync(SpinePasswordSignUp request, CancellationToken cancellationToken)
@@ -337,17 +353,26 @@ internal sealed class SpineAccounts(
     }
 
     // Sent without waiting, so an answer about an existing account takes no longer than one about a missing account.
-    private void Send(SpineAuthEmail message) => _ = Task.Run(async () =>
+    private void Send(SpineAuthEmail message)
     {
-        try
+        var sending = Task.Run(async () =>
         {
-            await email!.SendAsync(message, CancellationToken.None);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Spine sign-in: the {Kind} email could not be sent.", message.Kind);
-        }
-    });
+            try
+            {
+                await email!.SendAsync(message, CancellationToken.None);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Spine sign-in: the {Kind} email could not be sent.", message.Kind);
+            }
+        });
+
+        _sending[sending] = true;
+        sending.ContinueWith(done => _sending.TryRemove(done, out _), TaskScheduler.Default);
+    }
+
+    /// <summary>Completes when every email handed to the sender so far has been sent. For tests.</summary>
+    internal Task EmailsSentAsync() => Task.WhenAll(_sending.Keys);
 
     private static string CodeKey(SpineAuthEmailKind kind, string email) =>
         SpineTokenService.Hash($"{kind}|{email.Trim().ToUpperInvariant()}");

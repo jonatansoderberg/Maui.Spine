@@ -25,15 +25,32 @@ internal sealed class IdTokenValidator(ISpineAuthStore store, IHttpClientFactory
     {
         var nonce = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(16));
         var expiresAt = time.GetUtcNow() + options.NonceLifetime;
-        await store.SaveOneTimeAsync(NonceKey(nonce), "nonce", expiresAt, cancellationToken);
+        await SaveNonceAsync(nonce, expiresAt, cancellationToken);
         return new SpineNonce(nonce, expiresAt);
     }
 
+    private Task SaveNonceAsync(string nonce, DateTimeOffset expiresAt, CancellationToken cancellationToken) =>
+        store.SaveOneTimeAsync(NonceKey(nonce), "nonce", expiresAt, cancellationToken);
+
+    /// <summary>The nonce as the provider receives it: its SHA-256 as hex for providers that hash it, otherwise as it is.</summary>
+    public static string Sent(SpineIdTokenProviderOptions provider, string nonce) =>
+        provider.HashNonce ? Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(nonce))) : nonce;
+
+    public Task<OpenIdConnectConfiguration> ConfigurationAsync(string name, SpineIdTokenProviderOptions provider, CancellationToken cancellationToken) =>
+        Manager(name, provider).GetConfigurationAsync(cancellationToken);
+
+    private IConfigurationManager<OpenIdConnectConfiguration> Manager(string name, SpineIdTokenProviderOptions provider) =>
+        _configurations.GetOrAdd(name, _ => provider.Configuration ?? Discovery(provider.Authority!));
+
     /// <returns>The token's facts, or why it was refused: a short reason safe to show a developer.</returns>
+    // brokered: the token came from the server's own exchange in the browser sign-in, so the web client's audience is
+    // accepted and the nonce came from the broker's single-use state rather than /auth/nonce.
     public async Task<(ValidatedIdToken? Token, string? Problem)> ValidateAsync(
-        string name, SpineIdTokenProviderOptions provider, SpineIdTokenRequest request, CancellationToken cancellationToken)
+        string name, SpineIdTokenProviderOptions provider, SpineIdTokenRequest request, bool brokered, CancellationToken cancellationToken)
     {
-        var configuration = _configurations.GetOrAdd(name, _ => provider.Configuration ?? Discovery(provider.Authority!));
+        var audiences = brokered ? provider.Audiences.ToList() : provider.ClientIds.ToList();
+
+        var configuration = Manager(name, provider);
 
         var result = await ValidateWithAsync(await configuration.GetConfigurationAsync(cancellationToken));
 
@@ -47,13 +64,13 @@ internal sealed class IdTokenValidator(ISpineAuthStore store, IHttpClientFactory
         if (!result.IsValid || result.SecurityToken is not JsonWebToken token)
             return (null, Reason(result.Exception));
 
-        if (!await NonceIsGoodAsync(provider, request.Nonce, token, cancellationToken))
+        if (!await NonceIsGoodAsync(provider, request.Nonce, token, brokered, cancellationToken))
             return (null, "the nonce is missing, wrong, used or expired");
 
         if (token.Subject is not { Length: > 0 } subject)
             return (null, "the token has no sub");
 
-        var audience = token.Audiences.First(a => provider.ClientIds.Contains(a));
+        var audience = token.Audiences.First(audiences.Contains);
         return (new ValidatedIdToken(subject, audience, Claim(token, "email"), IsTrue(token, "email_verified"), Claim(token, "name")), null);
 
         async Task<TokenValidationResult> ValidateWithAsync(OpenIdConnectConfiguration config)
@@ -61,7 +78,7 @@ internal sealed class IdTokenValidator(ISpineAuthStore store, IHttpClientFactory
             var parameters = new TokenValidationParameters
             {
                 ValidIssuers = provider.ValidIssuers.Count > 0 ? provider.ValidIssuers : [config.Issuer],
-                ValidAudiences = provider.ClientIds,
+                ValidAudiences = audiences,
                 IssuerSigningKeys = config.SigningKeys,
                 ClockSkew = TimeSpan.FromMinutes(2),
                 ValidateLifetime = true,
@@ -75,15 +92,15 @@ internal sealed class IdTokenValidator(ISpineAuthStore store, IHttpClientFactory
         }
     }
 
-    private async Task<bool> NonceIsGoodAsync(SpineIdTokenProviderOptions provider, string? raw, JsonWebToken token, CancellationToken cancellationToken)
+    private async Task<bool> NonceIsGoodAsync(SpineIdTokenProviderOptions provider, string? raw, JsonWebToken token, bool brokered, CancellationToken cancellationToken)
     {
-        if (!provider.RequireNonce && raw is null) return true;
+        if (!brokered && !provider.RequireNonce && raw is null) return true;
         if (raw is not { Length: > 0 } || Claim(token, "nonce") is not { } claimed) return false;
 
-        var expected = provider.HashNonce ? Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(raw))) : raw;
+        var expected = Sent(provider, raw);
         if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(claimed))) return false;
 
-        return await store.TakeOneTimeAsync(NonceKey(raw), time.GetUtcNow(), cancellationToken) is not null;
+        return brokered || await store.TakeOneTimeAsync(NonceKey(raw), time.GetUtcNow(), cancellationToken) is not null;
     }
 
     private IConfigurationManager<OpenIdConnectConfiguration> Discovery(string authority) =>
