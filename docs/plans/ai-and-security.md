@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-15 (step 4.2, realtime session tokens in Server.AI (#517), in review; see Decisions and Verification backlog)
+**Last updated:** 2026-10-15 (step 5.1a, Server.Authentication (#520), in review; the browser broker split out as #552 (step 5.1b); 4.2 realtime merged as #551; see Decisions and Verification backlog)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -47,7 +47,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine` (core) | Navigation and command guards | #506 | [guards-biometrics §2](../proposals/spine-guards-biometrics.md) | Done (#526) |
 | `Plugin.Maui.Spine.Biometrics` | New | #507, #508 | [guards-biometrics §3–§5](../proposals/spine-guards-biometrics.md) | Done (#527, #529) |
 | `Plugin.Maui.Spine.Controls.Highlight` | New | #509, #530, #531 | [highlight](../proposals/spine-highlight.md) | Done (#532, #533, #534) |
-| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #517 | [ai §3–§5](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 in review (#551) |
+| `Plugin.Maui.Spine.Server.AI` | New, server | #510, #517 | [ai §3–§5](../proposals/spine-ai.md), [voice §6](../proposals/spine-voice.md) | #510 done (#535); #517 done (#551) |
 | `Plugin.Maui.Spine.Server.AI.Assets` | New, server | #511 | [ai §6](../proposals/spine-ai.md) | Done (#544) |
 | `Plugin.Maui.Spine.Server.Messaging` (+ `.AzureStorage`, `.ServiceBus`) | New, server | #540 | — (design in `issues/540-*.md`, docs in `docs/wiki/messaging.md`) | Done (#541) |
 | `Plugin.Maui.Spine.AI` | New | #512, #543 | [ai §7](../proposals/spine-ai.md) | #512 done (#536); #543 done (#545) |
@@ -56,7 +56,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Voice` | New | #515, #516, #518 | [voice](../proposals/spine-voice.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication` | New | #519 | [authentication](../proposals/spine-authentication.md) | Proposal |
 | `Plugin.Maui.Spine.Authentication.Google` / `.Microsoft` | New | #521 | [authentication](../proposals/spine-authentication.md) | Proposal |
-| `Plugin.Maui.Spine.Server.Authentication` | New, server | #520 | [authentication](../proposals/spine-authentication.md) | Proposal |
+| `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 in review (#553); #552 waiting |
 | Passkeys (client and server) | After v1 of sign-in | #522 | [authentication, Passkeys](../proposals/spine-authentication.md) | Waiting |
 | AI avatars and character visuals | Separate control library, specified by the owner | — | — | Outside this plan |
 | On-device `IChatClient`, Android and Windows | Spike outside the repo | #514 | [ai §9](../proposals/spine-ai.md) | Proposal |
@@ -134,7 +134,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
 | 4.1 | Audio engine spike: full duplex, echo cancellation, levels and bands | #515 | 0.2 | Ready | | Highest risk. Measure echo on a real iPhone and an Android phone. |
-| 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | In review | #551 | OpenAI and Azure OpenAI client secrets only (Q28, and the owner's choice of token over relay on 2026-10-15). `Kind: Realtime`, `ai.Realtime(...)`, `POST /ai/realtime/{name}`, minutes reserved per token (Decisions). |
+| 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Done | #551 | OpenAI and Azure OpenAI client secrets only (Q28, and the owner's choice of token over relay on 2026-10-15). `Kind: Realtime`, `ai.Realtime(...)`, `POST /ai/realtime/{name}`, minutes reserved per token (Decisions). |
 | 4.3 | Provider adapters, `IVoiceSession`, `VoiceView` and visual plug-ins | #516 | 4.1, 4.2 | Waiting | | OpenAI and Azure OpenAI only in v1 (Q28). WebSocket and PCM; WebRTC only if measurements call for it (Q31). Background audio is opt-in (Q26). |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 
@@ -142,8 +142,9 @@ The order follows value against risk. Steps in different phases can run in paral
 
 | Step | What | Issue | Depends on | Status | PR | Notes |
 |---|---|---|---|---|---|---|
-| 5.1 | `Server.Authentication`: ID-token validation, own tokens, refresh rotation | #520 | 0.2 | Ready | | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). |
-| 5.2 | `Authentication` client: Apple, OIDC, email and password, `[RequiresSignIn]`, refreshing handler | #519 | 1.1, 5.1 | Waiting | | Works with and without a Spine server (Q7), registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8). Needs a Windows path that works on .NET 10. |
+| 5.1a | `Server.Authentication`: ID-token validation, own tokens, refresh rotation, email and password, account deletion, the push `UserId` | #520 | 0.2 | In review | #553 | A minimal Azure Tables user store by default, plus `IUserResolver` (Q9). Split on 2026-10-15; email and password included by the owner (Decisions). |
+| 5.1b | `Server.Authentication`: the browser broker (`/start`, `/callback`, PKCE, the one-time code; Apple web, Google web, OIDC) | #552 | 5.1a | Waiting | | Split from #520 by the owner on 2026-10-15. |
+| 5.2 | `Authentication` client: Apple, OIDC, email and password, `[RequiresSignIn]`, refreshing handler | #519 | 1.1, 5.1a (5.1b for browser flows) | Waiting | | Works with and without a Spine server (Q7), registered as `o.AddAuthentication(...)` inside `UseSpine` (Q8). Needs a Windows path that works on .NET 10. |
 | 5.3 | `Authentication.Google` and `.Microsoft` | #521 | 5.2 | Waiting | | |
 | 5.4 | Passkeys | #522 | 5.2 | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
 
@@ -199,6 +200,8 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.3b (#511) | A model that answers with a URL (`UriContent`) rather than bytes: the handler downloads it. OpenAI's gpt-image models answer with bytes | Such a provider | — |
 | 2.3c (#543) | `GeneratedImage` on Android, Windows and Mac Catalyst at run time (only compiled), and on a phone. Seen on the iPhone 17 Pro simulator: pending (a spinner in #543, a `Shimmer` since #549, light theme only), ready from blob storage, failed, polling stopped in the background and resumed at once | An emulator, a Windows machine, the Mac app | The Showcase's Generated images page against the messaging sample's API; `adb reverse tcp:5240 tcp:5240` on Android |
 | 4.2 (#517) | Azure OpenAI's `client_secrets` and its WebSocket with an `ek_` token as bearer; only built from Microsoft's docs and tested against a stub | An Azure OpenAI resource with a realtime deployment | `ai.Realtime("azure", AIRealtimeProviders.AzureOpenAI)`, then the check below against its `url` |
+| 5.1a (#520) | A real Sign in with Apple ID token from the native sheet, Apple's code exchange and revocation, and real Google and Microsoft tokens. Only stub issuers and a stub of Apple's endpoints were used | The iPhone with the app half (#519), an Apple key, Google and Entra client ids | The push sample server's `/auth/apple/token` with `Auth:Apple:*` in user secrets |
+| 5.1a (#520) | `SpineAuthEndpoints` under Azure Functions (only compiled) | The scratch Functions AppHost | The Functions recipe below |
 | 4.2 (#517) | `SpineAIEndpoints.RealtimeSessionAsync` under Azure Functions (only compiled) | The scratch Functions AppHost | The Functions recipe below |
 | 2.3c (#543) | `GeneratedImage` in a recycled `CollectionView` cell whose key changes while an image is pending. Only a `BindableLayout` was used | Simulator | A scratch page with a long list of keys |
 | 2.4 (#512) | Windows at run time (only compiled), and Mac Catalyst at run time (only built) | A Windows machine; the Mac app | Showcase AI client page against the push sample server |
@@ -353,6 +356,27 @@ Newest last. Each entry is dated and says who decided.
   - `GeneratedImage.PendingView` and `.FailedView` take other views by `{x:Reference}`, and the image shows and hides them. **Why:** MAUI bindings cannot follow an attached property (`Path=(GeneratedImage.Status)` stayed empty in the simulator, compiled or not), so a sibling's spinner or label could not be bound to the status.
   - `SpineAIOptions.AssetsBackend` points at `MapSpineAIAssets` when images come from another service than the features. **Why:** the Showcase's features run on the push sample server and its images on the messaging sample, and an app can serve images from a Functions app of its own.
   - Polling waits while every window is stopped (`Window.Stopped`/`Resumed`), and an image off screen asks nothing (`Loaded`/`Unloaded`).
+- **2026-10-15, owner (#520):** #520 is split. 5.1a is the native flow, Spine's tokens, the store, account deletion and the push `UserId`. 5.1b (#552) is the browser broker. Email and password go in 5.1a, on the minimal store with Identity's `PasswordHasher` and not `UserManager` (Q9 holds).
+- **2026-10-15, Claude (#520):**
+  - Access tokens are ES256 JWTs from a P-256 PEM, with `kid` taken from a digest of the public key. The JWKS is published at `/auth/.well-known/jwks.json`, and `PreviousSigningKeys` rotate. **Why:** other services can check tokens without the private key, and the same key always gets the same `kid`.
+  - The wire records live in `.Common` (namespace `Plugin.Maui.Spine.Authentication`) with a source-generated `SpineAuthJson`. **Why:** the app half (#519) uses the same records under trimming.
+  - Refresh tokens are stored as SHA-256 hashes in families. A token presented twice revokes its family and logs it; a password reset and account deletion revoke every family. No grace window. **Why:** proposal §5.5. The client refreshes one request at a time.
+  - Nonces and emailed codes are one-time values in the store, taken by a conditional update. **Why:** against Azurite, a conditional delete let all five racing callers take the same nonce, because `DeleteEntityAsync` reports a delete of a missing row as a success. The Azurite tests caught it.
+  - `LinkByVerifiedEmail` is off by default. When on, it links only into an account whose own email is verified, so an unverified sign-up cannot capture a later Apple or Google user. When linking is off and the email is taken, the new user is made without an email.
+  - Email and password do not reveal accounts: sign-up answers 202 either way and sends `AlreadyRegistered` to the owner; `forgot` and `resend` always answer 202; a wrong password and an unknown email answer alike, with a decoy hash. Codes are 8 characters from a 30-letter alphabet, tied to their purpose.
+  - Microsoft tokens need no nonce (MSAL picks its own), and the issuer is checked against `tid` and `Tenant`. Microsoft's email is not trusted for linking.
+  - A review agent found two serious holes before the PR, both fixed with tests.
+    - Pre-account takeover: an unvouched provider email (Microsoft, or `email_verified: false`) was stored, so a later reset could hand that account to the address's owner with the attacker's login still on it. Only vouched emails are kept now.
+    - Lockout bypass: user updates were blind full-row writes, so parallel guesses each counted from zero and a stale sign-in could undo a reset. `SpineAuthUser.Version` now makes `UpdateAsync` conditional, with re-reads.
+  - Also from that review:
+    - A locked account answers `invalid_credentials`.
+    - Emails go out without the request waiting.
+    - Codes are one per purpose and email, and used up by any attempt.
+    - Passwords over 1024 characters are refused before hashing, and names are cut at 100 characters.
+    - A pushed device cannot be taken by another user.
+    - An unreachable Apple no longer fails the sign-in.
+    - The Apple key is created once: IdentityModel caches signers by key id, so a key disposed per call broke the next secret.
+  - `SpinePushNotificationsOptions.UserId` is generic (a `Func<HttpRequest, ValueTask<string?>>`) and lives in `.Server`, and `GetSpineUserIdAsync()` lives in the auth package. **Why:** neither package references the other.
 - **2026-10-15, owner (#517):** The realtime endpoint mints provider tokens only; there is no WebSocket relay in v1. **Why:** it runs on Azure Functions too, and rates, per-caller calls and the reservation bound the cost. A relay becomes its own issue when an app needs a locked configuration, real usage or server tools.
 - **2026-10-15, Claude (#517):**
   - A realtime feature is `Kind: Realtime` on the existing feature model, with a `Realtime` section, and `SystemPrompt` and `MaxOutputTokens` reused. It must also be `Expose: true`, like an exposed chat feature. **Why:** one model for every feature keeps budgets, rates, the report and hot reload the same.
@@ -461,6 +485,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-15:** #517 merged (PR #551). #520 (Server.Authentication, step 5.1a) in review as PR #553; the browser broker split out as #552 (5.1b).
 - **2026-10-15:** #517 (realtime session tokens, step 4.2) in review as PR #551. 4.3 now waits only on the audio engine spike (4.1).
 - **2026-10-15:** #543 merged (PR #545). #547 (Shimmer over a single empty block) merged as PR #548, unreleased; the Generated images page uses a `Shimmer` as its pending view again (#549).
 - **2026-10-14:** #511 merged (PR #544). #543 (the asset lookup in the app) in review as PR #545.

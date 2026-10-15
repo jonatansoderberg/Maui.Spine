@@ -164,6 +164,46 @@ public class SpinePushNotificationsEndpointsTests
     }
 
     [Fact]
+    public async Task The_user_comes_from_the_request_not_the_body()
+    {
+        var options = Options(o => o.UserId = _ => ValueTask.FromResult<string?>("anna"));
+        var (context, store) = Request("PUT", "/push/installations/a", Body("a", "kind:pm", "user:121330", "USER:999"), options);
+
+        await SpinePushNotificationsEndpoints.HandleAsync(context.Request);
+
+        var stored = (await store.GetAsync("a"))!;
+        Assert.Equal("anna", stored.UserId);
+        Assert.Equal(["kind:pm", "user:anna"], stored.Tags);
+    }
+
+    [Fact]
+    public async Task A_device_registered_by_one_user_cannot_be_taken_by_another()
+    {
+        var options = Options(o => o.UserId = r => ValueTask.FromResult<string?>(r.Headers["Test-User"].ToString() is { Length: > 0 } u ? u : null));
+        var (context, store) = Request("PUT", "/push/installations/a", Body(), options);
+        await store.UpsertAsync(new PushInstallation { Id = "a", Platform = PushPlatform.Apple, Handle = "t", UserId = "anna", Tags = ["user:anna"] });
+        context.Request.Headers["Test-User"] = "mallory";
+
+        var status = await StatusOf(await SpinePushNotificationsEndpoints.HandleAsync(context.Request), context);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, status);
+        Assert.Equal("anna", (await store.GetAsync("a"))!.UserId);
+    }
+
+    [Fact]
+    public async Task A_request_without_a_user_keeps_no_user_tag()
+    {
+        var options = Options(o => o.UserId = _ => ValueTask.FromResult<string?>(null));
+        var (context, store) = Request("PUT", "/push/installations/a", Body("a", "kind:pm", "user:121330"), options);
+
+        await SpinePushNotificationsEndpoints.HandleAsync(context.Request);
+
+        var stored = (await store.GetAsync("a"))!;
+        Assert.Null(stored.UserId);
+        Assert.Equal(["kind:pm"], stored.Tags);
+    }
+
+    [Fact]
     public async Task The_server_stamps_the_registration_with_its_own_clock()
     {
         var stale = PushJson.Serialize(new PushInstallation
