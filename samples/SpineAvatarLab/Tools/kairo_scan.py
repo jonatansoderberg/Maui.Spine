@@ -78,6 +78,244 @@ SIDE_VIEWS = [('gen-1.png', -135.0, 1.3954, -74.1, -87.2), ('gen-2.png', 135.0, 
               ('gen-7.png', 90.0, 1.3642, -75.4, -80.5)]
 
 DETAIL_SCALE = 12.0     # px in the views: variation finer than this is skin detail, coarser is their light
+
+# The owner's scalp views (assets-scalp: the lab's own renders of the bald head with the root layer painted on the
+# scalp: front, both profiles, back and the crown with the head pitched down 35 deg), fitted to the bald scan by
+# silhouette (Tools/scalpfit.py, IoU 0.99): the model turned about y by the yaw, the head pitched about its pivot,
+# and picture px = crop px * scale + offset. Where they show the root layer the scalp under the hair (the skull's
+# skin and the root cap) takes their pixels and their outline; where they show skin the skull is skin.
+SCALP_DIR = 'assets-scalp'
+SCALP_VIEWS = [('front.png', 0, 0, 2.2362, -116.8, -119.4), ('right.png', 90, 0, 2.2463, -119.5, -122.8),
+               ('left.png', -90, 0, 2.2515, -128.2, -124.6), ('back.png', 180, 0, 2.2428, -120.1, -121.4),
+               ('crown-head-down-35.png', 0, 35, 2.2808, -139.4, -136.5)]
+SCALP_ROOT_LUM = (150.0, 110.0)   # luminance over which a pixel of a scalp view goes from skin (or the knit) to the root layer
+SCALP_ROOT_HUE = (0.0, 30.0)      # blue minus red over which it goes from skin to the root layer (the pictures' soft hairline and nape fade carry through)
+SCALP_MIN_PX = 4000         # px: a smaller indigo component (an iris, a brow) is not the root layer
+SCALP_FEATHER = 2.0         # px of blur on the root weight
+SCALP_FACING = (0.15, 0.5)  # cosine range over which a view's weight comes in (a view at a grazing angle maps its silhouette's fringe onto centimetres of surface: counted fully, the left view's nape fringe ran down the neck as a streak). The root weight is the union of the views' (the owner's front and left pictures disagree at the temple's front edge), the colour comes from the views that show hair there.
+SCALP_SETTLE = (0.45, 0.6)  # the feathered root weight settles to skin below and roots above: in the pictures' hairline zone (strands over skin) the per-pixel weight averaged to a half and baked as a translucent band; the strands overlay draws that zone
+SCALP_SEEN = (0.1, 0.4)     # total view weight over which the pictures replace the generator's scalp
+SCALP_DEPTH_TOL = 0.01
+
+# The lab's camera, for the owner's scalp pictures (captures of the lab at `size 1200`, 2400 px, resized by the owner to
+# 2048): the package's framing (camera at LAB_CAMERA looking at the origin, vertical field of view LAB_FOV, a square
+# view), the view yaw about y, and the head's turn spread down the neck chain as the rig does (NeckLower 0.3,
+# NeckUpper 0.35, the head the rest, each about its own joint). Fitted by silhouette with the generator's own crop
+# camera (20 deg, 2.8 units away) the pictures matched at the outline but not inside it: a point on the head's
+# side near the silhouette mapped a hundred pixels off, onto the temple's skin, and the scalp sampler read skin
+# where the picture shows roots (the pale band at the temple).
+LAB_CAMERA = np.array([0.0, 0.04, 2.3]); LAB_FOV = 22.0
+LAB_CHAIN = (0.3, 0.35)        # the neck joints' shares of the head's turn (bindings neckChain), the head takes the rest
+
+def _quat_rot(axis, ang):
+    axis = np.asarray(axis, float); c, s_ = math.cos(ang), math.sin(ang); x, y, z = axis
+    return np.array([[c + x * x * (1 - c), x * y * (1 - c) - z * s_, x * z * (1 - c) + y * s_],
+                     [y * x * (1 - c) + z * s_, c + y * y * (1 - c), y * z * (1 - c) - x * s_],
+                     [z * x * (1 - c) - y * s_, z * y * (1 - c) + x * s_, c + z * z * (1 - c)]])
+
+def lab_pose(p, head_yaw, head_pitch, pivot, collar_y):
+    """Points (the generator's frame) under the lab's head turn (degrees): the rig's quaternion Qy(yaw) Qx(-pitch),
+    split by slerp shares over NeckLower (at j1), NeckUpper (at j2) and the head (at the pivot), as GltfAvatarRig does."""
+    if not head_yaw and not head_pitch:
+        return p
+    j1 = np.array([pivot[0], collar_y + (pivot[1] - collar_y) / 3, pivot[2]]); j2 = np.array([pivot[0], collar_y + (pivot[1] - collar_y) * 2 / 3, pivot[2]])
+    # the turn as an axis-angle, so a share of it is the same axis at a share of the angle (slerp from identity)
+    R = _quat_rot([0, 1, 0], math.radians(head_yaw)) @ _quat_rot([1, 0, 0], -math.radians(head_pitch))
+    ang = math.acos(np.clip((np.trace(R) - 1) / 2, -1, 1))
+    axis = np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]]); axis /= np.linalg.norm(axis) + 1e-12
+    q = p
+    for origin, share in ((pivot, 1 - sum(LAB_CHAIN)), (j2, LAB_CHAIN[1]), (j1, LAB_CHAIN[0])):     # the head first, then up the chain to the root
+        q = (q - origin) @ _quat_rot(axis, ang * share).T + origin
+    return q
+
+def lab_project(p, view_yaw, size=2048):
+    """The lab's view of posed points: picture px (size x size) and the depth along the camera's axis. The view yaw
+    turns the model about y (the container's orientation), the camera sits at LAB_CAMERA looking at the origin."""
+    q = p @ _quat_rot([0, 1, 0], math.radians(view_yaw)).T
+    f = -LAB_CAMERA / np.linalg.norm(LAB_CAMERA); r = np.cross(f, [0, 1, 0]); r /= np.linalg.norm(r); u = np.cross(r, f)
+    d = q - LAB_CAMERA
+    x, y, z = d @ r, d @ u, d @ f
+    t = math.tan(math.radians(LAB_FOV) / 2)
+    return np.stack([(x / (z + 1e-9) / t + 1) / 2 * size, (1 - y / (z + 1e-9) / t) / 2 * size], 1), z
+
+def lab_zbuffer(p, F, view_yaw, size=2048, cell=4):
+    """The nearest depth per cell of the lab's view of a mesh (dense face samples), as front_zbuffer is for the crop camera."""
+    rng = np.random.default_rng(2)
+    pts = np.concatenate([np.einsum('k,fkd->fd', b, p[F]) for b in rng.dirichlet((1, 1, 1), size=6)] + [p])
+    px, z = lab_project(pts, view_yaw, size); n = size // cell
+    ix = np.clip((px / cell).astype(int), 0, n - 1)
+    zb = np.full((n, n), np.inf); np.minimum.at(zb, (ix[:, 1], ix[:, 0]), z)
+    def at(q):
+        i = np.clip((q / cell).astype(int), 0, n - 1)
+        return zb[i[:, 1], i[:, 0]]
+    return at
+
+def pose_model(p, yaw, pitch, pivot, collar_y):
+    """Points at the lab's pose: the head (above the collar, the neck's upper part following) pitched about the
+    pivot, then everything turned about y."""
+    q = p
+    if pitch:
+        c, s_ = math.cos(math.radians(pitch)), math.sin(math.radians(pitch)); Rx = np.array([[1, 0, 0], [0, c, -s_], [0, s_, c]])
+        w = np.clip((p[:, 1] - collar_y) / 0.06, 0, 1)[:, None]
+        q = p + w * ((p - pivot) @ Rx.T + pivot - p)
+    return q @ rot_y(yaw).T
+
+def scalp_views(work, P, F, pivot):
+    """The owner's scalp views as one sampler: points (model frame) -> (colour, root weight 0..1, total view
+    weight). Each view weighs a point by how squarely it faces the camera (a radial normal: the skull is
+    convex), unoccluded by the bald model, inside the picture's silhouette. None without the pictures."""
+    cpx = src_to_crop([(MOUTH['cx'], COLLAR_Y)]); collar_y = unproject(cpx, np.array([D]))[0, 1]
+    # The bald model's own vertices only: with every vertex of P in the depth buffer, the hair envelope's (2-4 cm
+    # off the skull) hid the scalp cell by cell and the roots came out as a checkerboard of skin.
+    used = np.unique(F.reshape(-1)); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
+    P, F = P[used], remap[F]
+    centre = P[P[:, 1] > pivot[1]].mean(0)
+    views = []
+    for name, yaw, pitch, sc, ox, oy in SCALP_VIEWS:
+        path = f'{work}/{SCALP_DIR}/{name}'
+        if not os.path.exists(path):
+            continue
+        a = np.asarray(Image.open(path).convert('RGBA')).astype(float); pic, fg = a[..., :3], a[..., 3] > 127
+        lum_w = np.array([0.299, 0.587, 0.114]); lum = pic @ lum_w
+        root = fg * smooth(SCALP_ROOT_LUM[0], SCALP_ROOT_LUM[1], lum) * smooth(SCALP_ROOT_HUE[0], SCALP_ROOT_HUE[1], pic[..., 2] - pic[..., 0]) * smooth(-5.0, 10.0, pic[..., 2] - pic[..., 1])
+        core = ndimage.binary_opening(root > 0.5, iterations=2)
+        lab_, _ = ndimage.label(core); sizes = np.bincount(lab_.ravel()); small = sizes < SCALP_MIN_PX; small[0] = False
+        core = core & ~small[lab_]
+        root = smooth(SCALP_SETTLE[0], SCALP_SETTLE[1], ndimage.gaussian_filter(root * ndimage.binary_dilation(core, iterations=12), SCALP_FEATHER))
+        # a pixel's darkness against the local skin, for the colour: the views that show strands or roots at a point colour it
+        skin = fg & (root < 0.1)
+        est = np.stack([ndimage.gaussian_filter(pic[..., k] * skin, 25) for k in range(3)], -1) / np.maximum(ndimage.gaussian_filter(skin.astype(float), 25), 1e-3)[..., None]
+        root_lum = np.median(lum[core]) if core.any() else 60.0
+        dark = np.clip((est @ lum_w - lum) / np.maximum(est @ lum_w - root_lum, 1.0), 0, 1)
+        at, _ = front_zbuffer(pose_model(P, yaw, pitch, pivot, collar_y), F)
+        views.append(dict(yaw=yaw, pitch=pitch, scale=sc, off=np.array([ox, oy]), pic=pic, fg=fg.astype(float),
+                          root=root, hair=np.maximum(root, ndimage.gaussian_filter(dark, 1.0)), at=at,
+                          centre=pose_model(centre[None], yaw, pitch, pivot, collar_y)[0], shape=fg.shape))
+        print('scalp view', name, 'root px (weight > 0.5)', int((root > 0.5).sum()))
+    if not views:
+        return None
+    root_rgb = np.median(np.concatenate([v['pic'][v['hair'] > 0.7] for v in views]), 0)
+    def sample(q):
+        tot = np.zeros(len(q)); col = np.zeros((len(q), 3)); ctot = np.zeros(len(q)); keep = np.ones(len(q))
+        for v in views:
+            qp = pose_model(q, v['yaw'], v['pitch'], pivot, collar_y)
+            px, z = project(qp)
+            n = qp - v['centre']; n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
+            cam = np.array([0.0, 0.0, D]) - qp; cam /= np.linalg.norm(cam, axis=1, keepdims=True) + 1e-12
+            seen = z <= v['at'](px) + SCALP_DEPTH_TOL
+            ppx = px * v['scale'] + v['off']; H_, W_ = v['shape']
+            inside = (ppx[:, 0] >= 0) & (ppx[:, 0] < W_ - 1) & (ppx[:, 1] >= 0) & (ppx[:, 1] < H_ - 1)
+            yx = [np.clip(ppx[:, 1], 0, H_ - 1), np.clip(ppx[:, 0], 0, W_ - 1)]
+            w = smooth(SCALP_FACING[0], SCALP_FACING[1], (n * cam).sum(1)) * seen * inside * ndimage.map_coordinates(v['fg'], yx, order=1, mode='constant')
+            c = np.stack([ndimage.map_coordinates(v['pic'][..., k], yx, order=1, mode='nearest') for k in range(3)], -1)
+            r = ndimage.map_coordinates(v['root'], yx, order=1, mode='constant')
+            h = ndimage.map_coordinates(v['hair'], yx, order=1, mode='constant')
+            keep *= 1.0 - r * w
+            cw = w * (0.05 + 0.95 * h)
+            tot += w; ctot += cw; col += cw[:, None] * c
+        ok = ctot > 1e-6
+        col[ok] /= ctot[ok, None]
+        return col, 1.0 - keep, tot
+    sample.views = views
+    sample.collar_y = collar_y
+    sample.root_rgb = root_rgb
+    return sample
+
+STRANDS_LIFT = 0.0004            # m the hairline overlay stands off the surface it lies on
+STRANDS_BAND_PX = (60, 70)       # px of a scalp view past the root core's edge over the skin, and inside it, that the overlay covers (inside: the face grid's top edge lies 4-5 mm above the owner's hairline and shows the bald picture's skin over the skull's roots there; the overlay carries the roots across it)
+STRANDS_EYE_PX = (115, 95, 15)   # px of a scalp view: the ellipse round each eye (half-widths, raised by the third) that gets no overlay (the brows and the lashes are dark against the skin as the strands are)
+STRANDS_DARK = (0.05, 0.5)       # a pixel's darkness against the local skin (0 skin, 1 the roots' own) over which the overlay's alpha goes 0 -> 1 (a thin strand is half dark after the resampling and must still show)
+STRANDS_HAIR_BIAS = 0.25         # a view's claim on a face is its facing times (this + the alpha it draws there): the view that shows strands or roots on a face wins over one that shows bare skin (the left picture's hairline sits further back than the front's at the temple; by facing alone the left view took the temple's faces and drew nothing)
+STRANDS_FACING = 0.35            # cosine below which a view hangs no overlay on a skull face
+STRANDS_FACING_GRID = 0.05       # ...or on a grid face
+STRANDS_ATLAS = 2048
+
+def hairline_strands(P, F, faces, VN, scalp, pivot, eyes, is_grid=None):
+    """The owner's strands over the skin at the hairline, as in their scalp views: a thin overlay on the outermost
+    surface there (the face grid over the forehead and the temples, the skull elsewhere) textured straight from the
+    views' pixels, each pixel's alpha its darkness against the local skin (de-matted, so drawn over the skin it gives
+    the picture back). The skull's bake cannot carry them: over the forehead the surface is the face grid, which
+    shows the bald picture and nothing else. The grid's faces (`is_grid`) take the overlay wherever the views show
+    roots, not only in the band: at the temples the grid's edge zone stands in front of the skull's roots and showed
+    the bald picture's skin there. `faces`: candidate face indices into F (grid + skull skin)."""
+    lum_w = np.array([0.299, 0.587, 0.114])
+    faces = np.asarray(faces); is_grid = np.zeros(len(faces), bool) if is_grid is None else np.asarray(is_grid)
+    used = np.unique(F[faces].reshape(-1)); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
+    Pc, Fc = P[used], remap[F[faces]]
+    centres = Pc[Fc].mean(1); nrm = VN[used]
+    best = np.full(len(faces), -1); best_w = np.zeros(len(faces))
+    per = []
+    for v in scalp.views:
+        if v['pitch']:
+            continue
+        pic, fg, root = v['pic'], v['fg'] > 0.5, v['root']
+        core = root > 0.5
+        band = ndimage.binary_dilation(core, iterations=STRANDS_BAND_PX[0]) & ~ndimage.binary_erosion(core, iterations=STRANDS_BAND_PX[1]) & fg
+        skin = fg & (root < 0.1)
+        est = np.stack([ndimage.gaussian_filter(pic[..., k] * skin, 25) for k in range(3)], -1) / np.maximum(ndimage.gaussian_filter(skin.astype(float), 25), 1e-3)[..., None]
+        root_lum = np.median((pic @ lum_w)[core]) if core.any() else 60.0
+        dark = (est @ lum_w - pic @ lum_w) / np.maximum(est @ lum_w - root_lum, 1.0)
+        alpha = np.maximum(smooth(STRANDS_DARK[0], STRANDS_DARK[1], dark) * band, smooth(0.5, 0.7, root) * fg)
+        # Nothing round the eyes: the brows and the lashes are dark against the skin as the strands are.
+        yy_, xx_ = np.mgrid[0:alpha.shape[0], 0:alpha.shape[1]]
+        epx_, _ = project(pose_model(np.asarray(eyes), v['yaw'], 0, pivot, scalp.collar_y)); epx_ = epx_ * v['scale'] + v['off']
+        for ex_, ey_ in epx_:
+            alpha[((xx_ - ex_) / STRANDS_EYE_PX[0]) ** 2 + ((yy_ - ey_ + STRANDS_EYE_PX[2]) / STRANDS_EYE_PX[1]) ** 2 < 1] = 0.0
+        colour = np.clip(est + (pic - est) / np.maximum(alpha, 0.25)[..., None], 0, 255)
+        at, _ = front_zbuffer(pose_model(Pc, v['yaw'], 0, pivot, scalp.collar_y), Fc)
+        cp = pose_model(centres, v['yaw'], 0, pivot, scalp.collar_y); px, z = project(cp)
+        n = pose_model(centres + nrm[Fc].mean(1), v['yaw'], 0, pivot, scalp.collar_y) - cp; n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
+        cam = np.array([0.0, 0.0, D]) - cp; cam /= np.linalg.norm(cam, axis=1, keepdims=True) + 1e-12
+        ppx = px * v['scale'] + v['off']; H_, W_ = band.shape
+        inside = (ppx[:, 0] >= 1) & (ppx[:, 0] < W_ - 2) & (ppx[:, 1] >= 1) & (ppx[:, 1] < H_ - 2)
+        yi = np.clip(ppx[:, 1].astype(int), 0, H_ - 1); xi = np.clip(ppx[:, 0].astype(int), 0, W_ - 1)
+        covered = ndimage.binary_dilation(alpha > 0.05, iterations=3)
+        in_band = np.where(is_grid, covered[yi, xi], (covered & ndimage.binary_dilation(band, iterations=3))[yi, xi])
+        drawn = ndimage.map_coordinates(ndimage.maximum_filter(alpha, size=5), [ppx[:, 1], ppx[:, 0]], order=1, mode='constant')
+        w = (n * cam).sum(1) * (z <= at(px) + SCALP_DEPTH_TOL) * inside * in_band * (STRANDS_HAIR_BIAS + drawn)
+        take = w > np.maximum(best_w, np.where(is_grid, STRANDS_FACING_GRID, STRANDS_FACING))
+        best[take] = len(per); best_w[take] = w[take]
+        rows = np.where((alpha > 0.05).any(1))[0]; cols = np.where((alpha > 0.05).any(0))[0]
+        if not len(rows):
+            per.append(None); continue
+        box = (max(cols[0] - 4, 0), max(rows[0] - 4, 0), min(cols[-1] + 5, W_), min(rows[-1] + 5, H_))
+        per.append(dict(view=v, alpha=alpha, colour=colour, box=box))
+    sel = np.where(best >= 0)[0]
+    if not len(sel):
+        return None
+    # the atlas: every view's band crop on a shelf, scaled down together if they overflow
+    crops = [(i, p['box'][2] - p['box'][0], p['box'][3] - p['box'][1]) for i, p in enumerate(per) if p is not None and (best[sel] == i).any()]
+    scale = 1.0; x = y = shelf = 0; place = {}
+    for i, w_, h_ in crops:
+        if x + w_ > STRANDS_ATLAS:
+            x = 0; y += shelf; shelf = 0
+        place[i] = (x, y); x += w_; shelf = max(shelf, h_)
+    total_h = y + shelf
+    if total_h > STRANDS_ATLAS:
+        scale = STRANDS_ATLAS / total_h
+    atlas = np.zeros((STRANDS_ATLAS, STRANDS_ATLAS, 4), np.uint8)
+    for i, w_, h_ in crops:
+        p = per[i]; x0, y0, x1, y1 = p['box']; ax, ay = place[i]
+        rgba = np.dstack([p['colour'][y0:y1, x0:x1], p['alpha'][y0:y1, x0:x1] * 255]).astype(np.uint8)
+        if scale < 1.0:
+            im = Image.fromarray(rgba).resize((max(int(w_ * scale), 1), max(int(h_ * scale), 1)), Image.LANCZOS); rgba = np.asarray(im)
+            ax, ay = int(ax * scale), int(ay * scale)
+        h2, w2 = rgba.shape[:2]; atlas[ay:ay + h2, ax:ax + w2] = rgba
+        place[i] = (ax, ay)
+    pos, nr, uv, idx = [], [], [], []
+    for i, p in enumerate(per):
+        mine = sel[best[sel] == i]
+        if p is None or not len(mine):
+            continue
+        v = p['view']; x0, y0 = p['box'][:2]; ax, ay = place[i]
+        verts = Fc[mine].reshape(-1)
+        q = pose_model(Pc[verts], v['yaw'], 0, pivot, scalp.collar_y); px, _ = project(q)
+        ppx = px * v['scale'] + v['off']
+        u = (ax + (ppx[:, 0] - x0) * scale) / STRANDS_ATLAS; vv = (ay + (ppx[:, 1] - y0) * scale) / STRANDS_ATLAS
+        pos.append(Pc[verts] + nrm[verts] * STRANDS_LIFT); nr.append(nrm[verts]); uv.append(np.stack([u, vv], 1))
+    posw = np.concatenate(pos)
+    print('hairline strands:', len(sel), 'faces on the overlay, views', sorted({int(b) for b in best[sel]}), 'atlas scale', round(scale, 3))
+    return dict(pos=posw, nrm=np.concatenate(nr), uv=np.concatenate(uv), idx=np.arange(len(posw), dtype=np.uint32), material=0, material_name='strands', tex=atlas)
 DETAIL_GAIN = 3.0       # the grain's amplification on the skin
 
 def rot_y(a):
@@ -1019,14 +1257,17 @@ def compose(work):
         if edge_fade is not None:
             w = w * edge_fade(points)
         return w
+    override = {}        # build() may put the owner's scalp views here ('weight', 'colour'): the scalp from their pictures
     def bald_colour(points, gain=1.0):
         """The bald texture, turned to the hair's own dark under the hair: the scalp between strands."""
         col = bald_tex(points) * gain
         if not len(hair_points):
             return col
-        w = hair_weight(points)[:, None]
+        w = override.get('weight', hair_weight)(points)[:, None]
         # Hair close to the head: the palette's dark with the strands, not the nearest strand's colour.
-        return col * (1 - w) + hair_look(points, base=SCALP_BASE) * w
+        look = override['colour'](points) if 'colour' in override else hair_look(points, base=SCALP_BASE)
+        return col * (1 - w) + look * w
+    bald_colour.override = override
     # The head turns and nods where a real one does: at the top of the spine (the atlas and axis
     # vertebrae), level with the ear canals and well behind the neck's middle, since the spine runs
     # along the back of the neck. The neck below twists over its length (the skinned neck), the chin
@@ -2130,8 +2371,9 @@ BLINK_FRAMES = []               # (layer, from, to): painted states shown as fra
 LID_MATERIAL = 12              # index of the "lid" material
 EAR_MATERIAL = 16              # index of the "ear" material (the auricles' per-triangle atlas)
 ROOT_MATERIAL = 17             # index of the "roots" material (the root cap under the hair)
-ROOT_CAP = os.environ.get('KAIRO_ROOTS', '1') == '1'   # the root cap under the hair layer (KAIRO_ROOTS=0 builds without it)
-HAIR_CARDS = os.environ.get('KAIRO_CARDS', '1') == '1' # hair cards for the lock ends (Tools/haircards.py; KAIRO_CARDS=0 builds without them)
+ROOT_CAP = os.environ.get('KAIRO_ROOTS', '0') == '1'   # the root cap under the hair layer (KAIRO_ROOTS=1 builds with it). Off since the skull carries the owner's roots itself (C31): drawn 1-2 mm over the same roots it only softened the strands; the owner turned it off. Kept for the hair-on-grey review variant.
+HAIR_CARDS = os.environ.get('KAIRO_CARDS', '0') == '1' # hair cards for the lock ends (Tools/haircards.py; KAIRO_CARDS=1 builds them). Off: the owner judged them not worth it once the scalp carried their own roots (eight pieces at the nape's corners).
+HAIRLINE_SKIRT = os.environ.get('KAIRO_SKIRT', '0') == '1'   # the face grid's skirt as its own layer (KAIRO_SKIRT=1 builds it). Off on the owner's call: with the owner's scalp pictures on the skull it added nothing visible.
 ROOT_COVER = 0.5               # hair weight (compose's coverage field) above which a skull face is capped
 ROOT_LIFT = (0.0005, 0.002)    # how far the cap stands off the skin at its edge and in its middle (no z-fighting, no step at the edge; the hairline skirt is pulled to 4 mm in front of the head)
 ROOT_BASE = 40.0               # luminance of the roots: the palette's dark end, under the scalp's own 48, so the cap reads as shadowed roots
@@ -2867,7 +3109,7 @@ def lattice(n):
     a, b = i[m] / n, j[m] / n
     return np.stack([1 - a - b, a, b], 1)
 
-def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, ear_weight=None, photo_weight=None, hair_weight=None):
+def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, ear_weight=None, photo_weight=None, hair_weight=None, root_weight=None):
     """The skin's colours drawn into the layout: dense points on every face, the outermost along its
     chart's axis winning, the gaps filled from the nearest drawn texel. `ear_weight` (per vertex, 0..1)
     blends `colour` into `ear_colour`."""
@@ -2893,6 +3135,8 @@ def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, ear_weight=
             col = colour(pts, np.repeat(part, len(bary)))
             if ear_colour is not None:
                 e = np.einsum('bk,fk->fb', bary, ear_weight[F[part]]).reshape(-1)[:, None]
+                if root_weight is not None:
+                    e = e * (1 - root_weight(pts))[:, None]      # the owner's roots behind and above the ear win over the ear's flat tone
                 col = col * (1 - e) + ear_colour(pts) * e
             col = col * sh[:, None]
             x = np.clip(uv[:, 0].astype(int), 0, W - 1); y = np.clip(uv[:, 1].astype(int), 0, H - 1)
@@ -3249,6 +3493,26 @@ def build(work):
         return col, ndimage.map_coordinates(view['fg'], [px[:, 1], px[:, 0]], order=1, mode='constant')
     epx = src_to_crop([(626.0, IRISES[0][1])]); ei = epx.astype(int)
     eye_y = unproject(epx, zbuf[ei[:, 1], ei[:, 0]])[0, 1]
+    # The owner's scalp views: the skull's roots and their outline from their pictures (the root cap takes them too).
+    scalp = scalp_views(work, P, F[bare], pivot) if os.path.isdir(f'{work}/{SCALP_DIR}') else None
+    scalp_cap_colour = None
+    if scalp is not None:
+        base_weight = hair_weight
+        def hair_weight(points, base_weight=base_weight):
+            _, root_, tot_ = scalp(points); s_ = smooth(SCALP_SEEN[0], SCALP_SEEN[1], tot_)
+            return root_ * s_ + base_weight(points) * (1 - s_)
+        style_ = getattr(scan_colour, 'style', scan_colour)
+        def scalp_colour(points, base=SCALP_BASE):
+            col_, _, tot_ = scalp(points); s_ = smooth(SCALP_SEEN[0], SCALP_SEEN[1], tot_)[:, None]
+            return col_ * s_ + (scan_colour(points, base=base) if base == SCALP_BASE else style_(points, base=base)) * (1 - s_)
+        skin_colour.override['weight'] = hair_weight
+        skin_colour.override['colour'] = scalp_colour
+        scalp_cap_colour = lambda q: scalp_colour(q, base=ROOT_BASE)
+        def scalp_root_weight(points):
+            _, root_, tot_ = scalp(points)
+            return root_ * smooth(SCALP_SEEN[0], SCALP_SEEN[1], tot_)
+    else:
+        scalp_root_weight = None
     def side_weight(view, q, near):
         # Below the eyes, and not on or round the ears (their own atlas; a picture's ear a few px off
         # the scan's would print the concha on the skull behind).
@@ -3292,6 +3556,10 @@ def build(work):
         w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)) * smooth(jaw_y + 6, jaw_y - 8, c_sy(q))
              * smooth(0.6, 0.3, bare_down[near]))[:, None]
         w = np.maximum(w, (under_grid_px(q) & (kind == SKIN) & (c_sy(q) < jaw_y - 8))[:, None].astype(float))
+        if scalp_root_weight is not None:
+            # Not where the owner's scalp views show roots: at the temple the skull under the oval's edge took the bald
+            # picture's skin over the roots (a pale patch inside the hairline).
+            w = w * (1 - scalp_root_weight(q))[:, None]
         pc = projected(q)
         # The views' detail, averaged by their weights, on the skin's tone (1 where no view sees).
         total, detail = np.zeros((len(q), 1)), np.zeros((len(q), 3))
@@ -3335,21 +3603,43 @@ def build(work):
     for ec, side in ears:
         d_ = bc_ - ec
         ring |= (chart < 6) & (ear_w[F[bare]].max(1) < 0.01) & (np.abs(d_[:, 1]) < 0.12) & (np.abs(d_[:, 2]) < 0.10) & ((d_[:, 0] * side) > -0.06)
-    ear_tint = np.median(bare_colour(bc_[ring], np.where(ring)[0]), 0)
+    ring_col = bare_colour(bc_[ring], np.where(ring)[0])
+    # Skin only: with the owner's scalp views the skull behind the ears is roots, and their median made the ears indigo.
+    ring_skin = ring_col[:, 0] > ring_col[:, 2] + 15
+    ear_tint = np.median(ring_col[ring_skin], 0) if ring_skin.sum() >= 50 else skin_ref * 0.9
     print('ear tone from', int(ring.sum()), 'faces round the ears:', np.round(ear_tint), 'cheek', np.round(skin_ref))
-    ear_uv, ear_tex = atlas(P, F[ear_bare], lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), 1024, 0.5 + 0.5 * ao_ear)
+    skull_near_ear = cKDTree(P[F[np.setdiff1d(bare[label[bare] == SKIN], ear_bare)]].mean(1))
+    def ear_colour(q):
+        # The skull under and behind the helix is in the auricle's atlas (it overlaps the helix in the side projection)
+        # and took the ear's flat tone; where the owner's scalp views show roots it is roots (one flat tone: a per-triangle
+        # atlas carries no strands). Only at the skull's surface (within 4 mm of a skull face): the helix's rim, seen by
+        # the back view against the roots behind it, took a dark fringe.
+        tint = np.broadcast_to(ear_tint, (len(q), 3)).copy()
+        if scalp_root_weight is None:
+            return tint
+        col_, root_, tot_ = scalp(q)
+        w = (root_ * smooth(SCALP_SEEN[0], SCALP_SEEN[1], tot_) * smooth(0.004, 0.002, skull_near_ear.query(q)[0]))[:, None]
+        return tint * (1 - w) + col_ * w
+    ear_uv, ear_tex = atlas(P, F[ear_bare], ear_colour, 1024, 0.5 + 0.5 * ao_ear)
     # The skull's skin round the ear keeps the skin's mild shading: with the auricle's stronger
     # occlusion it showed dark facets behind the ear (the scan is coarse and noisy there).
     # The occlusion carries the skin's form now that its tone is flat (ears as before, their tone
     # was set with the lighter shade): the hollow under the jaw, the nape under the skull.
     skin_shade = (0.6 + 0.4 * shade) * ear_w + (0.4 + 0.6 * shade) * (1 - ear_w)
     skin_tex, drawn = skin_bake(P, F[bare], chart, corner_px, bare_colour, skin_shade, work,
-                                ear_colour=lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), ear_weight=ear_w, photo_weight=project_weight[bare], hair_weight=hair_weight)
+                                ear_colour=lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), ear_weight=ear_w, photo_weight=project_weight[bare], hair_weight=hair_weight, root_weight=scalp_root_weight)
     skin_template(skin_tex, drawn, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'obj', 'kairo-skin-template.png'), corner_px)
     skin_uv = corner_px / np.array([SKIN_TILE * 4, SKIN_TILE * 2])
     print('front faces', front.sum(), 'hair', len(rest), 'bald', len(bare))
-    cap = root_cap(P, F, bare[label[bare] == SKIN], hair_weight, VN, shade, scan_colour, ear_w, pivot) if ROOT_CAP and len(rest) else None
-    skirt = hairline_skirt(P, F, is_skirt, VN, scan_colour, projected) if PROJ_HAIR and is_skirt.any() else None
+    cap = root_cap(P, F, np.setdiff1d(bare[label[bare] == SKIN], ear_bare), hair_weight, VN, shade, scan_colour, ear_w, pivot, colour_fn=scalp_cap_colour) if ROOT_CAP and len(rest) else None
+    skirt = hairline_skirt(P, F, is_skirt, VN, scan_colour, projected) if PROJ_HAIR and HAIRLINE_SKIRT and is_skirt.any() else None
+    strands = None
+    if scalp is not None:
+        grid_faces = np.where(front)[0]; skull_faces = bare[label[bare] == SKIN]
+        cand = np.concatenate([grid_faces, skull_faces]); cand_grid = np.r_[np.ones(len(grid_faces), bool), np.zeros(len(skull_faces), bool)]
+        eyes_px = src_to_crop([(e['cx'], e['cy']) for e in EYES]); eyes_i = np.clip(eyes_px.astype(int), 0, N - 1)
+        eyes3d = unproject(eyes_px, zbuf[eyes_i[:, 1], eyes_i[:, 0]])
+        strands = hairline_strands(P, F, cand, VN, scalp, pivot, eyes3d, cand_grid)
     cards = None
     if PROJ_HAIR and HAIR_CARDS and hasattr(scan_colour, 'views'):
         import haircards
@@ -3467,7 +3757,7 @@ def build(work):
                 prim['targets'] = lift(pos[used], vis[used], SIDE[0][used] if pos is fpos else None) if morph else [np.zeros_like(p) for _ in TARGETS]
             prims[part].append(prim)
 
-    for extra in (cap, skirt, cards):
+    for extra in (cap, skirt, cards, strands):
         if extra is not None:
             extra['targets'] = lift(extra['pos'], None)
             extra['pos'] = extra['pos'] - pivot
@@ -3475,6 +3765,7 @@ def build(work):
     cap_tex = cap.pop('tex') if cap is not None else None
     skirt_tex = skirt.pop('tex') if skirt is not None else None
     cards_tex = cards.pop('tex') if cards is not None else None
+    strands_tex = strands.pop('tex') if strands is not None else None
     front_vertices = np.unique(F[front])
     ntree = cKDTree(P[front_vertices])
     def surface_normal(points):
@@ -3507,7 +3798,8 @@ def build(work):
                       ("lid", lid_tex), ("mouth", mouth_tex), ("lipwall", lipwall_tex), ("oshade", oshade_tex), ("ear", Image.fromarray(ear_tex)))
                      + ((("roots", Image.fromarray(cap_tex, 'RGBA')),) if cap is not None else ())
                      + ((("hairline", Image.fromarray(skirt_tex, 'RGBA')),) if skirt is not None else ())
-                     + ((("cards", Image.fromarray(cards_tex, 'RGBA')),) if cards is not None else ())):
+                     + ((("cards", Image.fromarray(cards_tex, 'RGBA')),) if cards is not None else ())
+                     + ((("strands", Image.fromarray(strands_tex, 'RGBA')),) if strands is not None else ())):
         if img.mode == 'RGBA' or name == "ear":        # the ear atlas lossless: JPEG rings at its cells' hard edges
             data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
         else:
@@ -3525,7 +3817,7 @@ def build(work):
         # the skull and the sides came out a different tone, an edge round the face.
         # The projected hair carries the views' own light, like the front: emissive too. (Lit, with its
         # roughness 0.62, the envelope's grooves caught the scene's speculars as glitter: "cut glass".)
-        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear", "roots", "hairline", "cards") or (name == "rest" and PROJ_HAIR):
+        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear", "roots", "hairline", "cards", "strands") or (name == "rest" and PROJ_HAIR):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
@@ -3535,7 +3827,7 @@ def build(work):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0       # no highlights on the baked light
         if name in ("core", "coreskin"):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0
-        if name in ("lidskin", "iris", "lid"):
+        if name in ("lidskin", "iris", "lid", "strands"):
             material["alphaMode"] = "BLEND"
         if name in ("rest", "roots", "hairline", "cards") and img.mode == 'RGBA':
             material["alphaMode"] = "MASK"; material["alphaCutoff"] = 0.5
@@ -3695,7 +3987,7 @@ def find_ears(P, F, bare, centre):
         print(f'ear {"+x" if side > 0 else "-x"}: {int(stands.sum())} auricle faces, y {lo_[1] - rim[1]:+.3f}..{hi_[1] - rim[1]:+.3f}, z {lo_[2] - rim[2]:+.3f}..{hi_[2] - rim[2]:+.3f} about the rim; skull side behind/front at the rim {np.interp(0, bands, behind):.3f}/{np.interp(0, bands, front_):.3f}, rim {xo.max():.3f}')
     return ears, ear_w, auricle
 
-def root_cap(P, F, faces, hair_weight, VN, shade, hair_look, ear_w, pivot):
+def root_cap(P, F, faces, hair_weight, VN, shade, hair_look, ear_w, pivot, colour_fn=None):
     """The hair's roots: the skull under the hair as a layer of its own, lifted off the skin, dark
     indigo with the fine root strands. Through any gap or alpha cut in the hair layer (the ear's
     pocket, the temples, the skirt along the hairline) the eye met the scalp's skin: hair-coloured in
@@ -3706,7 +3998,7 @@ def root_cap(P, F, faces, hair_weight, VN, shade, hair_look, ear_w, pivot):
     ears whatever the geometry does."""
     c = P[F[faces]].mean(1)
     w = hair_weight(c)
-    keep = faces[(w > ROOT_COVER) & (ear_w[F[faces]].max(1) < 0.05)]
+    keep = faces[w > ROOT_COVER]        # the auricles are left out by the caller; the skull inside the ear's window is capped where the roots are (left out, the window showed as a lighter rectangle of the skull's own roots behind the ear)
     if len(keep) < 50:
         print('root cap: nothing to cap'); return None
     used = np.unique(F[keep]); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
@@ -3723,13 +4015,13 @@ def root_cap(P, F, faces, hair_weight, VN, shade, hair_look, ear_w, pivot):
     Pc = P[used] + n * lift_[:, None]
     style = getattr(hair_look, 'style', hair_look)
     def colour(q):
-        return style(q, base=ROOT_BASE)
+        return colour_fn(q) if colour_fn is not None else style(q, base=ROOT_BASE)
     def alpha(q):
         # The coverage field alone. (The projector's view cut is for the envelope: its depth buffers hold
         # the envelope only, so the cap at the back of the head counted as seen through the face from
         # the front, and the hug rule cut it wherever the photo shows skin: three quarters of the cap.)
         return smooth(ROOT_COVER - 0.05, ROOT_COVER + 0.1, hair_weight(q))
-    uv, tex = hair_charts(Pc, Fc, colour, shade[used] * 0.85, n, alpha_fn=alpha, tile=ROOT_TILE)
+    uv, tex = hair_charts(Pc, Fc, colour, shade[used], n, alpha_fn=alpha, tile=ROOT_TILE)       # the skull's own shade: the cap carries the same roots as the skull under it (as a darker layer it showed its every edge)
     print('root cap:', len(Fc), 'faces of', len(faces), 'skull faces; lift (mm) p50', round(float(np.median(lift_)) * 1000, 2))
     return dict(pos=Pc[Fc].reshape(-1, 3), nrm=n[Fc].reshape(-1, 3), uv=uv.reshape(-1, 2), idx=np.arange(len(Fc) * 3), material=ROOT_MATERIAL, material_name='roots', tex=tex)
 
