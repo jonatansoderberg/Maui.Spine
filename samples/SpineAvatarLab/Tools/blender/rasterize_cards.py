@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 args = sys.argv[1:]; data = np.load(args[0]); out = args[1]
 SS = int(args[args.index('--ss') + 1]) if '--ss' in args else 4
 DEPTH = float(args[args.index('--depth') + 1]) if '--depth' in args else 0.012
-sw, sh = 64, 512
+sw, sh = (int(v) for v in (args[args.index('--strip') + 1] if '--strip' in args else '64,512').split(','))   # strip pixels; 56,448 keeps the package GLB under the archive's 32 MiB per-entry limit with 700 cards
 pos, offs, gidx, rnd = data['pos'], data['offs'], data['gidx'], data['rnd']
 samples, tang, norm, lat, width, strip, glen, card_of_guide = (data[k] for k in ('samples', 'tang', 'norm', 'lat', 'width', 'strip', 'glen', 'card_of_guide'))
 cols, rows = int(data['cols']), int(data['rows']); W, H = cols * sw, rows * sh
@@ -81,7 +81,9 @@ tip = np.ones(sh); e3 = int(0.15 * sh); tip[-e3:] = np.linspace(1, 0, e3) ** 0.7
 for r in range(rows): atlas[r * sh:(r + 1) * sh, :, 3] *= tip[:, None]
 # the root rows: alpha raised toward 1 over the first 4 % of the strip so the root edge is solid under the cap
 ramp_v = np.ones(sh); e2 = int(0.04 * sh); ramp_v[:e2] = 1.0
-for r in range(rows):
-    blk = atlas[r * sh:r * sh + e2, :, 3]; atlas[r * sh:r * sh + e2, :, 3] = np.where(blk > 0.05, np.maximum(blk, 0.9), blk)
+# the card's root end feathered: alpha rises over the strip's first 6 % (the root block forced to 0.9 made every card a
+# solid rectangle whose straight root edge stood as a tooth in the top and back silhouettes; the root pull keeps the roots dense)
+rootf = np.ones(sh); e2 = int(0.06 * sh); rootf[:e2] = np.linspace(0, 1, e2) ** 0.7
+for r in range(rows): atlas[r * sh:(r + 1) * sh, :, 3] *= rootf[:, None]
 Image.fromarray((np.clip(atlas, 0, 1) * 255).astype(np.uint8), 'RGBA').save(out)
 cov = atlas[..., 3]; print("atlas", W, H, "strand-card pairs drawn", drawn, "alpha>0.5 fraction", round(float((cov > 0.5).mean()), 3), "mean", round(float(cov.mean()), 3))

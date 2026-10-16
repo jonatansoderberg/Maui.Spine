@@ -4255,8 +4255,10 @@ def blender_cards(path, scale=1.0):
             out[mesh['name']] = dict(pos=pos, nrm=nrm, uv=acc(p['attributes']['TEXCOORD_0']).astype(np.float64), idx=acc(p['indices']).ravel().astype(np.uint32), material=0,
                                      tex=np.array(img.convert('RGBA' if mesh['name'] == 'KairoCards' else 'RGB')))
             print('  blender mesh', mesh['name'], 'node translation', np.round(t, 4))
-    cards = out['KairoCards']; cards['material_name'] = 'cards'
-    cap = out['KairoCap']; cap['material_name'] = 'cap'
+    def by_name(prefix):   # Blender suffixes a mesh name with .001 when an orphan datablock holds the plain one
+        return out[next(k for k in out if k == prefix or k.startswith(prefix + '.'))]
+    cards = by_name('KairoCards'); cards['material_name'] = 'cards'
+    cap = by_name('KairoCap'); cap['material_name'] = 'cap'
     print('blender hair cards:', len(cards['idx']) // 3, 'card triangles, atlas', cards['tex'].shape[1], 'x', cards['tex'].shape[0], '; cap', len(cap['idx']) // 3, 'triangles, texture', cap['tex'].shape[1])
     return cards, cap
 
