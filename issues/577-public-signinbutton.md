@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/577
 **Branch:** issue/577-public-signinbutton
-**Status:** In review
+**Status:** Completed
 
 ## Plan
 
