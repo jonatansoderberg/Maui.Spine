@@ -20,7 +20,7 @@ On the owner's iPhone, "Link Microsoft" opened Microsoft Authenticator, but the 
 ## Verification
 
 - The Showcase built for the simulator with widgets and `SpineMicrosoftClientId`: the app's `Info.plist` has both `msauth.se.cosmomedia.spineshowcase` and `se.cosmomedia.spineshowcase`.
-- On the iPhone: "Link Microsoft" through Authenticator returns to the app.
+- On the owner's iPhone (iOS 27.0, with Microsoft Authenticator): "Link Microsoft" went to Authenticator and came back to the Showcase, and the account was linked. Before the fix it never returned.
 
 ## Decisions
 
