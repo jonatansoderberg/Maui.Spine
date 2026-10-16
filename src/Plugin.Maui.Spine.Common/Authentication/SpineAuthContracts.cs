@@ -19,6 +19,7 @@ namespace Plugin.Maui.Spine.Authentication;
 /// account's domain. Null for personal accounts and the other providers.
 /// </param>
 /// <param name="SignInMethods">Every way the user can sign in to this account, such as <c>apple</c>, <c>google</c> and <c>password</c>.</param>
+/// <param name="Logins">The account's logins with what each provider says about it: one per provider identity, in the order they were linked.</param>
 public sealed record SpineUser(
     string Id,
     string? Email,
@@ -28,7 +29,39 @@ public sealed record SpineUser(
     string? GivenName = null,
     string? FamilyName = null,
     string? Organization = null,
-    IReadOnlyList<string>? SignInMethods = null);
+    IReadOnlyList<string>? SignInMethods = null,
+    IReadOnlyList<SpineLoginInfo>? Logins = null);
+
+/// <summary>One way the user signs in to the account, as the app can show it on an accounts page.</summary>
+/// <param name="Provider">The provider: <c>apple</c>, <c>google</c>, <c>microsoft</c>, <c>password</c>, …</param>
+/// <param name="Email">The email that provider gave, when it gave one; not necessarily verified, and not the account's <see cref="SpineUser.Email"/>.</param>
+/// <param name="DisplayName">The name that provider gave.</param>
+/// <param name="LinkedAt">When the login was added to the account; null for logins made before Spine kept it.</param>
+public sealed record SpineLoginInfo(string Provider, string? Email = null, string? DisplayName = null, DateTimeOffset? LinkedAt = null);
+
+/// <summary>
+/// A sign-in with an identity the server does not know, while the server asks before it makes an account
+/// (<c>AskBeforeNewAccount</c>). The app asks the user, then either creates the account (<c>POST /auth/pending/create</c>)
+/// or links the identity to the account the user proves with another way to sign in (<c>POST /auth/pending/link</c>).
+/// </summary>
+/// <param name="Ticket">The one-time ticket for the next step.</param>
+/// <param name="Provider">The provider the user signed in with.</param>
+/// <param name="Email">The email the provider vouches for, when it does.</param>
+/// <param name="DisplayName">The name the provider gave.</param>
+/// <param name="ExpiresAt">When the ticket stops working.</param>
+public sealed record SpinePendingIdentity(string Ticket, string Provider, string? Email, string? DisplayName, DateTimeOffset ExpiresAt);
+
+/// <summary>The body of <c>POST /auth/pending/create</c> and <c>POST /auth/pending/link</c>.</summary>
+/// <param name="Ticket">The pending identity's ticket.</param>
+public sealed record SpinePendingRequest(string Ticket);
+
+/// <summary>
+/// A one-time ticket from <c>POST /auth/link/ticket</c> that a browser sign-in carries (<c>link=</c> on
+/// <c>/auth/{provider}/start</c>), so the server links the identity to the signed-in user instead of signing in.
+/// </summary>
+/// <param name="Ticket">The ticket.</param>
+/// <param name="ExpiresAt">When it stops working.</param>
+public sealed record SpineLinkTicket(string Ticket, DateTimeOffset ExpiresAt);
 
 /// <summary>What a successful sign-in or refresh answers.</summary>
 /// <param name="AccessToken">A short-lived JWT for <c>Authorization: Bearer</c>.</param>
@@ -131,6 +164,12 @@ public static class SpineAuthErrors
 
     /// <summary>Sign-up is turned off on the server.</summary>
     public const string SignUpClosed = "signup_closed";
+
+    /// <summary>The identity to link belongs to another account. Nothing moves between accounts; sign in with it there and remove it first.</summary>
+    public const string IdentityInUse = "identity_in_use";
+
+    /// <summary>The login to remove is the account's last way to sign in.</summary>
+    public const string LastLogin = "last_login";
 }
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -146,6 +185,9 @@ public static class SpineAuthErrors
 [JsonSerializable(typeof(SpineEmailCode))]
 [JsonSerializable(typeof(SpinePasswordReset))]
 [JsonSerializable(typeof(SpineAuthProblem))]
+[JsonSerializable(typeof(SpinePendingIdentity))]
+[JsonSerializable(typeof(SpinePendingRequest))]
+[JsonSerializable(typeof(SpineLinkTicket))]
 internal sealed partial class SpineAuthJsonContext : JsonSerializerContext;
 
 /// <summary>The wire format of the sign-in endpoints, shared by the app and the server: camelCase, nulls left out.</summary>

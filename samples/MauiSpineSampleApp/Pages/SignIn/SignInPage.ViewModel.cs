@@ -1,6 +1,10 @@
+using System.Collections.ObjectModel;
 using Plugin.Maui.Spine.Authentication;
 
 namespace MauiSpineSampleApp.Pages.SignIn;
+
+/// <summary>One way the account signs in, as the Sign-in page lists it.</summary>
+public sealed record LoginRow(string Provider, string Details);
 
 public partial class SignInPageViewModel : SampleViewModel
 {
@@ -34,14 +38,48 @@ public partial class SignInPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial string Details { get; set; } = "";
 
+    /// <summary>The account's logins, from <see cref="SpineUser.Logins"/>.</summary>
+    public ObservableCollection<LoginRow> Logins { get; } = [];
+
+    /// <summary>The providers the app offers that the account does not sign in with yet.</summary>
+    public ObservableCollection<string> Linkable { get; } = [];
+
+    [ObservableProperty]
+    public partial string LinkLog { get; set; } = "";
+
     private void Update() => MainThread.BeginInvokeOnMainThread(async () =>
     {
         Status = _auth.User is { } user ? $"Signed in as {user.DisplayName ?? user.Email} with {user.Provider}" : "Signed out";
         Details = _auth.User is { } u
             ? $"Given name: {u.GivenName ?? "–"}, family name: {u.FamilyName ?? "–"}\nEmail: {u.Email ?? "–"}\nOrganization: {u.Organization ?? "–"}\nSigns in with: {string.Join(", ", u.SignInMethods ?? [u.Provider])}"
             : "";
+
+        Logins.Clear();
+        Linkable.Clear();
+        if (_auth.User is { } signedIn)
+        {
+            foreach (var login in signedIn.Logins ?? [])
+                Logins.Add(new LoginRow(login.Provider, string.Join(" · ", new[] { login.Email ?? login.DisplayName, login.LinkedAt?.ToLocalTime().ToString("g") }.OfType<string>())));
+            foreach (var provider in _auth.Providers.Where(p => p.Name != "password" && Logins.All(l => l.Provider != p.Name)))
+                Linkable.Add(provider.Name);
+        }
+
         Picture = await _auth.GetPictureAsync() is { } picture ? ImageSource.FromStream(() => new MemoryStream(picture)) : null;
     });
+
+    [RelayCommand]
+    private async Task Link(string provider)
+    {
+        var result = await _auth.LinkAsync(provider);
+        LinkLog = result.Status == SignInStatus.SignedIn ? $"{provider} added" : $"{provider}: {result.Status} {result.Error}";
+    }
+
+    [RelayCommand]
+    private async Task Unlink(string provider)
+    {
+        var result = await _auth.UnlinkAsync(provider);
+        LinkLog = result.Status == SignInStatus.SignedIn ? $"{provider} removed" : $"{provider}: {result.Error}";
+    }
 
     [RelayCommand]
     private async Task SignIn()

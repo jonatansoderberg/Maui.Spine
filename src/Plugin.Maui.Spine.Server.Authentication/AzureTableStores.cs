@@ -122,6 +122,17 @@ public sealed class AzureTableUserResolver(string connectionString, string prefi
     }
 
     /// <inheritdoc />
+    public async Task DeleteLoginAsync(SpineAuthLogin login, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(login);
+        await EnsureAsync(cancellationToken);
+
+        var key = LoginKey(login.Provider, login.Subject);
+        await _logins.DeleteEntityAsync(key, Row, ETag.All, cancellationToken);
+        await _userLogins.DeleteEntityAsync(TableKey.Encode(login.UserId), key, ETag.All, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task DeleteAsync(string userId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(userId);
@@ -186,6 +197,9 @@ public sealed class AzureTableUserResolver(string connectionString, string prefi
         ["UserId"] = login.UserId,
         ["ProviderRefreshToken"] = login.ProviderRefreshToken,
         ["ProviderClientId"] = login.ProviderClientId,
+        ["Email"] = login.Email,
+        ["DisplayName"] = login.DisplayName,
+        ["LinkedAt"] = login.LinkedAt,
     };
 
     private static SpineAuthLogin ToLogin(TableEntity row) =>
@@ -193,6 +207,9 @@ public sealed class AzureTableUserResolver(string connectionString, string prefi
         {
             ProviderRefreshToken = row.GetString("ProviderRefreshToken"),
             ProviderClientId = row.GetString("ProviderClientId"),
+            Email = row.GetString("Email"),
+            DisplayName = row.GetString("DisplayName"),
+            LinkedAt = row.GetDateTimeOffset("LinkedAt"),
         };
 }
 

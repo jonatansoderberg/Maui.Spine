@@ -4,7 +4,7 @@
   <s key="Spine.Authentication.Title.SignUp">Create account</s>
   <s key="Spine.Authentication.Title.Code">Check your email</s>
   <s key="Spine.Authentication.Title.Forgot">Reset password</s>
-  <s key="Spine.Authentication.Apple">Sign in with Apple</s>
+  <s key="Spine.Authentication.EmailButton">Continue with email</s>
   <s key="Spine.Authentication.ContinueWith">Continue with {0}</s>
   <s key="Spine.Authentication.Or">or</s>
   <s key="Spine.Authentication.Email">Email</s>
@@ -30,4 +30,13 @@
   <s key="Spine.Authentication.Error.invalid_token">The sign-in was refused. Try again.</s>
   <s key="Spine.Authentication.Error.provider_unavailable">The sign-in service can't be reached right now.</s>
   <s key="Spine.Authentication.Error.Other">Something went wrong. Try again.</s>
+  <s key="Spine.Authentication.Title.Choose">Welcome</s>
+  <s key="Spine.Authentication.Title.Prove">Sign in as before</s>
+  <s key="Spine.Authentication.Choose.Message">Is this your first time here? This {0} account is new to us.</s>
+  <s key="Spine.Authentication.Choose.Create">Create a new account</s>
+  <s key="Spine.Authentication.Choose.Existing">I've signed in before</s>
+  <s key="Spine.Authentication.Prove.Message">Sign in the way you did before, and your {0} account is added to that account.</s>
+  <s key="Spine.Authentication.AlsoNew">That account is new to us too. Choose another way, or create a new account.</s>
+  <s key="Spine.Authentication.Error.identity_in_use">That account already belongs to another account here. Sign in with it there and remove it first.</s>
+  <s key="Spine.Authentication.Error.last_login">This is the account's last way to sign in. Add another first.</s>
 </strings>

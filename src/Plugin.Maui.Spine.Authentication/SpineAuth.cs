@@ -110,15 +110,37 @@ internal sealed class SpineAuth : ISpineAuth
         if (_options.Direct is { } direct && string.Equals(name, direct.Name, StringComparison.OrdinalIgnoreCase))
             return DirectAsync(cancellationToken);
 
-        return name switch
-        {
-            "apple" when _options.Apple => AppleSignIn.IsSupported ? AppleAsync(cancellationToken) : BrowserAsync("apple", cancellationToken),
-            "password" when _options.EmailPassword is not null => OpenSheetAsync(),
-            _ when _natives.TryGetValue(name, out var native) => NativeAsync(name, native.Value, cancellationToken),
-            _ when _options.BrowserProviders.Any(p => p.Name == name) => BrowserAsync(name, cancellationToken),
-            _ => Task.FromResult(SignInResult.Failure($"'{provider}' is not a way this app signs in; add it in o.AddAuthentication(...).")),
-        };
+        return name == "password" && _options.EmailPassword is not null ? OpenSheetAsync() : WithAsync(name, null, cancellationToken);
     }
+
+    public async Task<SignInResult> LinkAsync(string provider, CancellationToken cancellationToken = default)
+    {
+        if (Direct) return await NeedsServer("Linking accounts");
+
+        var name = provider.ToLowerInvariant();
+        if (name == "password") return SignInResult.Failure("A password is added by signing up with the account's email, not linked.");
+
+        var (token, problem) = await Flows.LinkingAsAsync(cancellationToken);
+        return problem ?? await WithAsync(name, token, cancellationToken);
+    }
+
+    public Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken = default) =>
+        Direct ? NeedsServer("Linking accounts") : Flows.UnlinkAsync(provider.ToLowerInvariant(), cancellationToken);
+
+    public Task<SignInResult> CreateAccountAsync(SpinePendingIdentity pending, CancellationToken cancellationToken = default) =>
+        Direct ? NeedsServer("Linking accounts") : Flows.CreatePendingAsync(pending, cancellationToken);
+
+    public Task<SignInResult> LinkPendingAsync(SpinePendingIdentity pending, CancellationToken cancellationToken = default) =>
+        Direct ? NeedsServer("Linking accounts") : Flows.LinkPendingAsync(pending, cancellationToken);
+
+    // A provider's sheet or the browser; with link (the user's access token) the provider joins that user.
+    private Task<SignInResult> WithAsync(string name, string? link, CancellationToken cancellationToken) => name switch
+    {
+        "apple" when _options.Apple => AppleSignIn.IsSupported ? AppleAsync(cancellationToken, link) : BrowserAsync("apple", cancellationToken, link),
+        _ when _natives.TryGetValue(name, out var native) => NativeAsync(name, native.Value, cancellationToken, link),
+        _ when _options.BrowserProviders.Any(p => p.Name == name) => BrowserAsync(name, cancellationToken, link),
+        _ => Task.FromResult(SignInResult.Failure($"'{name}' is not a way this app signs in; add it in o.AddAuthentication(...).")),
+    };
 
     public Task<SignInResult> SignInWithPasswordAsync(string email, string password, CancellationToken cancellationToken = default) =>
         Direct ? NeedsServer("Email and password") : Flows.PasswordAsync(email, password, cancellationToken);
@@ -175,11 +197,11 @@ internal sealed class SpineAuth : ISpineAuth
         return OpenSheetAsync();
     }
 
-    private async Task<SignInResult> BrowserAsync(string provider, CancellationToken cancellationToken)
+    private async Task<SignInResult> BrowserAsync(string provider, CancellationToken cancellationToken, string? link = null)
     {
         try
         {
-            var result = await Flows.BrowserAsync(provider, _browser, cancellationToken);
+            var result = await Flows.BrowserAsync(provider, _browser, cancellationToken, link);
             if (result.Status == SignInStatus.Failed) _logger.LogWarning("Spine sign-in: the browser sign-in with {Provider} failed: {Error}", provider, result.Error);
             return result;
         }
@@ -190,20 +212,20 @@ internal sealed class SpineAuth : ISpineAuth
         }
     }
 
-    private async Task<SignInResult> NativeAsync(string provider, INativeSignIn native, CancellationToken cancellationToken)
+    private async Task<SignInResult> NativeAsync(string provider, INativeSignIn native, CancellationToken cancellationToken, string? link = null)
     {
         // A sign-in straight after a sign-out must not find the old account still remembered.
         await _forgetting;
         try
         {
-            var result = await Flows.NativeAsync(provider, native, cancellationToken);
+            var result = await Flows.NativeAsync(provider, native, cancellationToken, link);
             if (result.Status == SignInStatus.Failed) _logger.LogWarning("Spine sign-in: the sign-in with {Provider} failed: {Error}", provider, result.Error);
             return result;
         }
         catch (PlatformNotSupportedException e)
         {
             _logger.LogInformation("Spine sign-in: {Provider}'s own sheet is not available here ({Reason}); signing in through the browser.", provider, e.Message);
-            return await BrowserAsync(provider, cancellationToken);
+            return await BrowserAsync(provider, cancellationToken, link);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -249,9 +271,9 @@ internal sealed class SpineAuth : ISpineAuth
         }
     }
 
-    internal async Task<SignInResult> AppleAsync(CancellationToken cancellationToken)
+    internal async Task<SignInResult> AppleAsync(CancellationToken cancellationToken, string? link = null)
     {
-        if (!AppleSignIn.IsSupported) return await BrowserAsync("apple", cancellationToken);
+        if (!AppleSignIn.IsSupported) return await BrowserAsync("apple", cancellationToken, link);
 
         if (await Client.NonceAsync(cancellationToken) is not { } nonce)
             return SignInResult.Failure($"GET {new Uri(Client.Root, "nonce")} did not answer with a nonce.");
@@ -269,7 +291,7 @@ internal sealed class SpineAuth : ISpineAuth
 
         if (credential is null) return SignInResult.Canceled;
 
-        var result = await Flows.IdTokenAsync("apple", new SpineIdTokenRequest(credential.IdentityToken, nonce.Nonce, credential.AuthorizationCode, credential.Name, credential.GivenName, credential.FamilyName), cancellationToken);
+        var result = await Flows.IdTokenAsync("apple", new SpineIdTokenRequest(credential.IdentityToken, nonce.Nonce, credential.AuthorizationCode, credential.Name, credential.GivenName, credential.FamilyName), cancellationToken, link);
         if (result.Status == SignInStatus.Failed) _logger.LogWarning("Spine sign-in: the server refused Apple's token: {Error}", result.Error);
         return result;
     }

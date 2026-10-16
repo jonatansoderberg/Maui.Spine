@@ -21,11 +21,23 @@ internal sealed class SpineAuthFlows(SpineAuthClient client, SpineAuthSession se
     public Task<SignInResult> ResetAsync(string email, string code, string password, CancellationToken cancellationToken) =>
         StepAsync("reset", new SpinePasswordReset(email, code, password), cancellationToken);
 
-    public async Task<SignInResult> IdTokenAsync(string provider, SpineIdTokenRequest request, CancellationToken cancellationToken) =>
-        await ResultOfAsync(await client.IdTokenAsync(provider, request, cancellationToken));
+    /// <summary>
+    /// The access token that proves who a link is for, or why there is none. Linking adds a provider to the signed-in
+    /// user, so it needs one.
+    /// </summary>
+    public async Task<(string? Token, SignInResult? Problem)> LinkingAsAsync(CancellationToken cancellationToken) =>
+        await session.GetAccessTokenAsync(cancellationToken) is { } token
+            ? (token, null)
+            : (null, SignInResult.Failure("Linking needs a signed-in user; sign in first."));
+
+    /// <summary>An ID token to <c>/{provider}/token</c>, or with <paramref name="link"/> (an access token) to <c>/link/{provider}</c>.</summary>
+    public async Task<SignInResult> IdTokenAsync(string provider, SpineIdTokenRequest request, CancellationToken cancellationToken, string? link = null) =>
+        await ResultOfAsync(link is null
+            ? await client.IdTokenAsync(provider, request, cancellationToken)
+            : await client.LinkAsync(provider, request, link, cancellationToken), signedIn: link is null);
 
     /// <summary>A provider's own sheet: the server's nonce in, the provider's ID token out to <c>/{provider}/token</c>.</summary>
-    public async Task<SignInResult> NativeAsync(string provider, INativeSignIn native, CancellationToken cancellationToken)
+    public async Task<SignInResult> NativeAsync(string provider, INativeSignIn native, CancellationToken cancellationToken, string? link = null)
     {
         string? nonce = null;
         if (native.UsesNonce)
@@ -36,31 +48,59 @@ internal sealed class SpineAuthFlows(SpineAuthClient client, SpineAuthSession se
 
         if (await native.SignInAsync(nonce, cancellationToken) is not { } credential) return SignInResult.Canceled;
 
-        var result = await IdTokenAsync(provider, new SpineIdTokenRequest(credential.IdToken, nonce, DisplayName: credential.DisplayName), cancellationToken);
+        var result = await IdTokenAsync(provider, new SpineIdTokenRequest(credential.IdToken, nonce, DisplayName: credential.DisplayName), cancellationToken, link);
         if (result.Status == SignInStatus.Failed) await native.RefusedAsync(credential);
         return result;
     }
 
     /// <summary>
     /// A browser sign-in through the server's broker: <c>/{provider}/start</c> with a PKCE challenge, then the code it
-    /// returns with traded at <c>/token</c> with the verifier.
+    /// returns with traded at <c>/token</c> with the verifier. With <paramref name="link"/> (an access token), a link
+    /// ticket goes along, and the provider joins that user instead of signing in.
     /// </summary>
-    public async Task<SignInResult> BrowserAsync(string provider, IBrowserSignIn browser, CancellationToken cancellationToken)
+    public async Task<SignInResult> BrowserAsync(string provider, IBrowserSignIn browser, CancellationToken cancellationToken, string? link = null)
     {
         var pkce = Pkce.Create();
         var state = Pkce.Random();
-
-        var answer = await browser.AuthenticateAsync(callback => new Uri(client.Root, $"{Uri.EscapeDataString(provider)}/start?" + Pkce.Query(new Dictionary<string, string>
+        var query = new Dictionary<string, string>
         {
-            ["redirect_uri"] = callback.AbsoluteUri,
             ["code_challenge"] = pkce.Challenge,
             ["code_challenge_method"] = "S256",
             ["state"] = state,
-        })), cancellationToken);
+        };
+
+        if (link is not null)
+        {
+            var (ticket, error) = await client.LinkTicketAsync(link, cancellationToken);
+            if (ticket is null) return SignInResult.Failure(error!);
+            query["link"] = ticket.Ticket;
+        }
+
+        var answer = await browser.AuthenticateAsync(callback => new Uri(client.Root, $"{Uri.EscapeDataString(provider)}/start?"
+            + Pkce.Query(query.Append(KeyValuePair.Create("redirect_uri", callback.AbsoluteUri)))), cancellationToken);
 
         if (BrowserProblem(answer, state) is { } problem) return problem;
 
-        return await ResultOfAsync(await client.CodeAsync(new SpineCodeExchange(answer!.Values["code"], pkce.Verifier, answer.Callback.AbsoluteUri), cancellationToken));
+        return await ResultOfAsync(await client.CodeAsync(new SpineCodeExchange(answer!.Values["code"], pkce.Verifier, answer.Callback.AbsoluteUri), cancellationToken),
+            signedIn: link is null);
+    }
+
+    /// <summary>Removes a provider, or the password, from the signed-in user.</summary>
+    public async Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken)
+    {
+        var (token, problem) = await LinkingAsAsync(cancellationToken);
+        return problem ?? await ResultOfAsync(await client.UnlinkAsync(provider, token!, cancellationToken), signedIn: false);
+    }
+
+    /// <summary>A new account for the pending provider account.</summary>
+    public async Task<SignInResult> CreatePendingAsync(SpinePendingIdentity pending, CancellationToken cancellationToken) =>
+        await ResultOfAsync(await client.PendingAsync("create", pending, null, cancellationToken));
+
+    /// <summary>The pending provider account joins the signed-in user, who has just proved an existing account.</summary>
+    public async Task<SignInResult> LinkPendingAsync(SpinePendingIdentity pending, CancellationToken cancellationToken)
+    {
+        var (token, problem) = await LinkingAsAsync(cancellationToken);
+        return problem ?? await ResultOfAsync(await client.PendingAsync("link", pending, token, cancellationToken), signedIn: false);
     }
 
     /// <summary>What a browser answer that brought no usable code means: a cancel, a refusal or a forged answer.</summary>
@@ -93,9 +133,10 @@ internal sealed class SpineAuthFlows(SpineAuthClient client, SpineAuthSession se
     private async Task<SignInResult> StepAsync<T>(string step, T body, CancellationToken cancellationToken) =>
         await ResultOfAsync(await client.PasswordAsync(step, body, cancellationToken));
 
-    private async Task<SignInResult> ResultOfAsync(ServerAnswer answer)
+    private async Task<SignInResult> ResultOfAsync(ServerAnswer answer, bool signedIn = true)
     {
-        if (answer.Tokens is { } tokens) return SignInResult.Success(await session.AcceptAsync(tokens));
+        if (answer.Tokens is { } tokens) return SignInResult.Success(await session.AcceptAsync(tokens, signedIn));
+        if (answer.Pending is { } pending) return SignInResult.Choose(pending);
 
         // The server sent an email with a code: on sign-up, on a resend, on a forgotten password, and when an
         // unverified account tries to sign in.

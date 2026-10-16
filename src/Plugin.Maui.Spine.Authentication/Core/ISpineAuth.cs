@@ -76,6 +76,39 @@ public interface ISpineAuth
     /// <returns>The image's bytes, JPEG or PNG as the provider has it.</returns>
     Task<byte[]?> GetPictureAsync(CancellationToken cancellationToken = default) => Task.FromResult<byte[]?>(null);
 
+    /// <summary>
+    /// Adds a provider to the signed-in user, through its sheet or the browser like a sign-in. Answers
+    /// <see cref="SignInStatus.SignedIn"/> with the user, whose <see cref="SpineUser.Logins"/> now has it, or
+    /// <see cref="SignInStatus.Failed"/> with <see cref="SpineAuthErrors.IdentityInUse"/> when another account signs in
+    /// with that provider account. Needs a Spine server.
+    /// </summary>
+    /// <param name="provider">The provider's name, such as <c>google</c>.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    Task<SignInResult> LinkAsync(string provider, CancellationToken cancellationToken = default) => NotHere();
+
+    /// <summary>
+    /// Removes a provider, or <c>password</c>, from the signed-in user. The server never removes the last way to sign in:
+    /// <see cref="SignInStatus.Failed"/> with <see cref="SpineAuthErrors.LastLogin"/>.
+    /// </summary>
+    /// <param name="provider">The provider's name, as in <see cref="SpineLoginInfo.Provider"/>.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken = default) => NotHere();
+
+    /// <summary>Makes a new account for a provider account the server asked about (<see cref="SignInStatus.ChooseAccount"/>), and signs in.</summary>
+    /// <param name="pending">The result's <see cref="SignInResult.Pending"/>.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    Task<SignInResult> CreateAccountAsync(SpinePendingIdentity pending, CancellationToken cancellationToken = default) => NotHere();
+
+    /// <summary>
+    /// Adds a provider account the server asked about (<see cref="SignInStatus.ChooseAccount"/>) to the signed-in user:
+    /// sign in the way the user had before, then call this.
+    /// </summary>
+    /// <param name="pending">The result's <see cref="SignInResult.Pending"/>.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    Task<SignInResult> LinkPendingAsync(SpinePendingIdentity pending, CancellationToken cancellationToken = default) => NotHere();
+
+    private static Task<SignInResult> NotHere() => Task.FromResult(SignInResult.Failure("This ISpineAuth does not link accounts."));
+
     /// <summary>Raised after a sign-in, with the user.</summary>
     event EventHandler<SpineUser>? SignedIn;
 

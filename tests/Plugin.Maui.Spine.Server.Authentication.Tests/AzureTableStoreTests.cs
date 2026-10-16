@@ -90,6 +90,23 @@ public sealed class AzureTableStoreTests : IAsyncLifetime
     }
 
     [AzuriteFact]
+    public async Task A_login_keeps_its_details_and_can_be_removed_alone()
+    {
+        await _users.CreateAsync(User("u1", "anna@example.com"));
+        await _users.SaveLoginAsync(new SpineAuthLogin("google", "g-1", "u1") { Email = "bo@example.com", DisplayName = "Bo", LinkedAt = Now });
+        await _users.SaveLoginAsync(new SpineAuthLogin("apple", "a-1", "u1"));
+
+        var google = (await _users.GetLoginsAsync("u1")).Single(l => l.Provider == "google");
+        Assert.Equal(("bo@example.com", "Bo", Now), (google.Email, google.DisplayName, google.LinkedAt));
+
+        await _users.DeleteLoginAsync(google);
+
+        Assert.Null(await _users.FindByLoginAsync("google", "g-1"));
+        Assert.Equal("apple", Assert.Single(await _users.GetLoginsAsync("u1")).Provider);
+        Assert.Equal("u1", (await _users.FindByIdAsync("u1"))!.Id);
+    }
+
+    [AzuriteFact]
     public async Task An_update_keeps_the_email_and_saves_the_rest()
     {
         await _users.CreateAsync(User("u1", "anna@example.com"));

@@ -4,7 +4,7 @@
   <s key="Spine.Authentication.Title.SignUp">Skapa konto</s>
   <s key="Spine.Authentication.Title.Code">Kolla din e-post</s>
   <s key="Spine.Authentication.Title.Forgot">Återställ lösenord</s>
-  <s key="Spine.Authentication.Apple">Logga in med Apple</s>
+  <s key="Spine.Authentication.EmailButton">Fortsätt med e-post</s>
   <s key="Spine.Authentication.ContinueWith">Fortsätt med {0}</s>
   <s key="Spine.Authentication.Or">eller</s>
   <s key="Spine.Authentication.Email">E-post</s>
@@ -30,4 +30,13 @@
   <s key="Spine.Authentication.Error.invalid_token">Inloggningen nekades. Försök igen.</s>
   <s key="Spine.Authentication.Error.provider_unavailable">Inloggningstjänsten går inte att nå just nu.</s>
   <s key="Spine.Authentication.Error.Other">Något gick fel. Försök igen.</s>
+  <s key="Spine.Authentication.Title.Choose">Välkommen</s>
+  <s key="Spine.Authentication.Title.Prove">Logga in som förut</s>
+  <s key="Spine.Authentication.Choose.Message">Är du här för första gången? Det här {0}-kontot är nytt för oss.</s>
+  <s key="Spine.Authentication.Choose.Create">Skapa ett nytt konto</s>
+  <s key="Spine.Authentication.Choose.Existing">Jag har loggat in förut</s>
+  <s key="Spine.Authentication.Prove.Message">Logga in som du gjorde förut, så läggs ditt {0}-konto till där.</s>
+  <s key="Spine.Authentication.AlsoNew">Det kontot är också nytt för oss. Välj ett annat sätt, eller skapa ett nytt konto.</s>
+  <s key="Spine.Authentication.Error.identity_in_use">Det kontot hör redan till ett annat konto här. Logga in med det där och ta bort det först.</s>
+  <s key="Spine.Authentication.Error.last_login">Det här är kontots sista sätt att logga in. Lägg till ett annat först.</s>
 </strings>
