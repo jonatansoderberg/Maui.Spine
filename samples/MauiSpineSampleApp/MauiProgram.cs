@@ -7,6 +7,7 @@ using Plugin.Maui.Spine.Biometrics;
 using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Svg;
+using Plugin.Maui.Spine.Voice;
 
 namespace MauiSpineSampleApp;
 
@@ -101,6 +102,15 @@ public static class MauiProgram
 
         // The AI client page: the push sample server with its demo provider (samples/MauiSpinePushNotificationsSampleApp.Server).
         // Android reaches it on localhost through adb reverse tcp:5100 tcp:5100.
+        // The Voice chat page: the push sample server's realtime Voice feature. A phone sets the Mac's address on the page.
+        builder.UseSpineVoice(o =>
+        {
+            o.SessionEndpoint = new Uri("http://localhost:5100/ai");
+            o.ClientTools.Add(Microsoft.Extensions.AI.AIFunctionFactory.Create(
+                () => DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+                "show_time", "Says what time it is on the user's phone."));
+        });
+
         builder.UseSpineAI(o =>
         {
             o.Backend = new Uri("http://localhost:5100/ai");

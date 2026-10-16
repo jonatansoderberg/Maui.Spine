@@ -38,6 +38,8 @@
   <Project Path="src/Plugin.Maui.Spine.Server.Messaging.AzureStorage/Plugin.Maui.Spine.Server.Messaging.AzureStorage.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server.Messaging.ServiceBus/Plugin.Maui.Spine.Server.Messaging.ServiceBus.csproj" />
   <Project Path="src/Plugin.Maui.Spine.AI/Plugin.Maui.Spine.AI.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Voice/Plugin.Maui.Spine.Voice.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.Voice/Plugin.Maui.Spine.Controls.Voice.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication/Plugin.Maui.Spine.Authentication.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication.Google/Plugin.Maui.Spine.Authentication.Google.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication.Microsoft/Plugin.Maui.Spine.Authentication.Microsoft.csproj" />
@@ -53,6 +55,8 @@
   <Project Path="tests/Plugin.Maui.Spine.Authentication.Tests/Plugin.Maui.Spine.Authentication.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Server.Messaging.Tests/Plugin.Maui.Spine.Server.Messaging.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.AI.Tests/Plugin.Maui.Spine.AI.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.Voice.Tests/Plugin.Maui.Spine.Voice.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.Controls.Voice.Tests/Plugin.Maui.Spine.Controls.Voice.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Svg.Tests/Plugin.Maui.Spine.Svg.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Barcodes.Tests/Plugin.Maui.Spine.Barcodes.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Controls.Tests/Plugin.Maui.Spine.Controls.Tests.csproj" />

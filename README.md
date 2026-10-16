@@ -61,7 +61,7 @@
 
 ## Packages
 
-One version, thirty-two packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, thirty-four packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -71,6 +71,7 @@ One version, thirty-two packages, all on [nuget.org](https://www.nuget.org/packa
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes run by BGTaskScheduler and JobScheduler while the app is closed |
+| AI | `Plugin.Maui.Spine.Voice` | Spoken conversations with a realtime model on the app's server (`IVoiceSession`: barge-in, transcript for `ChatView`, client tools, no key in the app) on an audio engine with the platform's echo cancellation, levels and 24 bands each way (iOS and Mac Catalyst first) |
 | AI | `Plugin.Maui.Spine.AI` | One `IChatClient` per named feature: on the device first (Apple Intelligence), then the app's server, streamed; no keys in the app; off, budget and rate limits in one shape; generated images from the server on any `Image` |
 | Security | `Plugin.Maui.Spine.Authentication` | Sign-in against the app's own server: Sign in with Apple's sheet, email and password in a ready-made sheet, any OpenID Connect provider in the system browser, `[RequiresSignIn]` on a page or a command, refresh tokens in secure storage, an `HttpClient` handler |
 | Security | `Plugin.Maui.Spine.Authentication.Google` | Sign in with Google: Credential Manager's sheet on Android, the server's broker in the browser elsewhere |
@@ -84,6 +85,7 @@ One version, thirty-two packages, all on [nuget.org](https://www.nuget.org/packa
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients (accent, Aurora, Sunset or your own colours) that drift slowly behind glass |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view: a moving rim while a model works, rings that say tap here, a sweep, a running light or a breathing halo; once per install with a key |
 | Controls | `Plugin.Maui.Spine.Controls.Chat` | `ChatView` and `ChatComposer`: a conversation with any `IChatClient`, answers streamed as markdown that follow the end, Stop, suggestions, tool cards |
+| Controls | `Plugin.Maui.Spine.Controls.Voice` | `VoiceView`: a voice conversation drawn as it happens, as a breathing orb, duplex bars, a ring or a face whose mouth follows the answer; visuals of your own, quiet under Reduce Motion |
 | Controls | `Plugin.Maui.Spine.Controls.Markdown` | `MarkdownView`: markdown on native views (lists, code with Copy, quotes, tables, images), themed; a streamed answer rebuilds only its last block |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes such as 12 × 12 |
@@ -235,6 +237,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Push (client)](docs/wiki/push-notifications.md) | Permission, tokens, tags, and the handler that sees every message |
 | [Push (server)](docs/wiki/push-notifications-server.md) | The backend half: register, tag expressions, APNs and FCM |
 | [Sign-in (app)](docs/wiki/authentication.md) | `o.AddAuthentication`: Sign in with Apple, Google, Microsoft, browser sign-in, the mode without a server, email and password, `[RequiresSignIn]`, tokens and the `HttpClient` handler, the push link |
+| [Voice](docs/wiki/voice.md) | `IVoiceSession`: a spoken conversation with a realtime model, barge-in, the transcript, client tools; `IVoiceAudio`: the full-duplex engine with echo cancellation, the playback queue and barge-in, `VoiceFrame` levels and bands, and what was measured on an iPhone |
 | [AI in the app](docs/wiki/ai-client.md) | `UseSpineAI`: features as keyed `IChatClient`s, the fallback between device and server, the answers in one shape, on-device usage |
 | [AI on the server](docs/wiki/ai-server.md) | `AddSpineAI`: named features on Microsoft.Extensions.AI, providers in one line, metering and prices, budgets, rate limits, exposed features streamed as server-sent events, the usage report |
 | [Sign-in (server)](docs/wiki/authentication-server.md) | `AddSpineAuthentication`: ID tokens from the platforms' sheets, Spine's own ES256 access tokens and rotating refresh tokens, email and password, account deletion, the push register's user from the token |
@@ -262,7 +265,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The thirty-two packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The thirty-four packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 

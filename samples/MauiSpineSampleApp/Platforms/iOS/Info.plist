@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>The Voice chat page reaches the sample server on your Mac.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The Voice lab page measures the microphone and its echo cancellation.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>The Barcodes page scans codes with the camera.</string>
 	<key>NSFaceIDUsageDescription</key>
