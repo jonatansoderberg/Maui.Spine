@@ -11,6 +11,15 @@ using Microsoft.IdentityModel.Tokens;
 namespace Plugin.Maui.Spine.Server.Authentication;
 
 /// <summary>What an accepted ID token says about the user.</summary>
+/// <param name="Subject">The provider's <c>sub</c>.</param>
+/// <param name="Audience">The client id the token was issued for.</param>
+/// <param name="Email">The <c>email</c> claim, vouched for or not.</param>
+/// <param name="EmailVerified">The provider's <c>email_verified</c>.</param>
+/// <param name="Name">The <c>name</c> claim.</param>
+/// <param name="Picture">The <c>picture</c> claim, when it is an https address.</param>
+/// <param name="GivenName">The <c>given_name</c> claim.</param>
+/// <param name="FamilyName">The <c>family_name</c> claim.</param>
+/// <param name="Organization">A Microsoft work or school tenant (<c>tid</c>) or a Google Workspace domain (<c>hd</c>).</param>
 /// <param name="EmailDomainVerified">Microsoft's <c>xms_edov</c>: the tenant has verified the email's domain, so the address is the user's.</param>
 internal sealed record ValidatedIdToken(
     string Subject, string Audience, string? Email, bool EmailVerified, string? Name, string? Picture = null,
