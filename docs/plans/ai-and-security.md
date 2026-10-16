@@ -603,6 +603,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-16:** #577 merged (PR #578): the public `SignInButton`, and the `Unlink` symbol, a follow-up to 5.5.
 - **2026-10-16:** #575 merged (PR #576): account linking, step 5.5.
 - **2026-10-16:** #564 merged (PR #570). Apple's sheet, Google's broker and Microsoft verified against the real providers in the iPhone 17 simulator; #571 (entitlements, PR #572) found on the way.
 - **2026-10-15:** #521 merged (PR #565). #564 (Microsoft, step 5.3b) in review as PR #570.
