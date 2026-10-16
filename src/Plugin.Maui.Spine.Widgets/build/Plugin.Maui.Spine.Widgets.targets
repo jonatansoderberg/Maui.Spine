@@ -62,6 +62,11 @@
 		<SpineBackgroundTaskIdentifier Include="$(ApplicationId).spine-widgets.refresh" Condition="'$(SpineBackgroundTasksEnabled)' != 'true'" />
 	</ItemGroup>
 
+	<!-- The app's own scheme, which a widget's link opens; merged with the app's own URL types in Plugin.Maui.Spine.Common. -->
+	<ItemGroup Condition="'$(_SpineWidgetsApple)' == 'true' And '$(SpineWidgetsEnabled)' == 'true' And ('@(SpineWidget)' != '' Or ('@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true'))">
+		<SpineUrlScheme Include="$(ApplicationId)" Name="$(ApplicationId).spine-widgets" />
+	</ItemGroup>
+
 	<Target Name="_SpineWidgetsPrepare"
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And '$(_SpineWidgetsApple)' == 'true' And ('@(SpineWidget)' != '' Or ('@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true')) And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))">
 		<PropertyGroup>
@@ -119,7 +124,7 @@
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And '$(_SpineWidgetsApple)' == 'true' And ('@(SpineWidget)' != '' Or ('@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true')) And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))"
 			Inputs="@(_SpineWidgetsInputs)"
 			Outputs="$(_SpineWidgetsStamp)">
-		<Exec Command="bash &quot;$(_SpineWidgetsScript)&quot; --out &quot;$(_SpineWidgetsOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpineWidgetsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpineWidgetsSdk) --arch $(_SpineWidgetsArch) --min-os $(SpineWidgetsMinimumOSVersion) --config $(Configuration) --bundle-id &quot;$(_SpineWidgetsBundleId)&quot; --app-group &quot;$(SpineWidgetsAppGroup)&quot; --name &quot;$(SpineWidgetsExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --url-scheme &quot;$(ApplicationId)&quot; --live-activities $(SpineWidgetsLiveActivities) --frequent-updates $(SpineWidgetsFrequentUpdates) --provision &quot;$(SpineWidgetsCodesignProvision)&quot; --require-provision $(_SpineWidgetsRequireProvision) --push $(SpineWidgetsPush) --push-environment $(_SpineWidgetsPushEnvironment) $(_SpineWidgetsArgs)" />
+		<Exec Command="bash &quot;$(_SpineWidgetsScript)&quot; --out &quot;$(_SpineWidgetsOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpineWidgetsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpineWidgetsSdk) --arch $(_SpineWidgetsArch) --min-os $(SpineWidgetsMinimumOSVersion) --config $(Configuration) --bundle-id &quot;$(_SpineWidgetsBundleId)&quot; --app-group &quot;$(SpineWidgetsAppGroup)&quot; --name &quot;$(SpineWidgetsExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --live-activities $(SpineWidgetsLiveActivities) --frequent-updates $(SpineWidgetsFrequentUpdates) --provision &quot;$(SpineWidgetsCodesignProvision)&quot; --require-provision $(_SpineWidgetsRequireProvision) --push $(SpineWidgetsPush) --push-environment $(_SpineWidgetsPushEnvironment) $(_SpineWidgetsArgs)" />
 	</Target>
 
 	<!--
