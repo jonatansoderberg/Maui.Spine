@@ -28,9 +28,10 @@ internal sealed class SpineBroker(
     // Apple's form holds a code, a state, an ID token and a small user object; nothing bigger is read.
     private static readonly FormOptions CallbackForm = new() { ValueLengthLimit = 16 * 1024, ValueCountLimit = 16, MultipartBodyLengthLimit = 64 * 1024 };
 
-    private sealed record Pending(string Provider, string Redirect, string? AppState, string Challenge, string Nonce, string? Verifier);
+    private sealed record Pending(string Provider, string Redirect, string? AppState, string Challenge, string Nonce, string? Verifier, SpineCaller? LinkTo = null);
 
-    private sealed record Issued(string UserId, string Provider, string Challenge, string Redirect);
+    private sealed record Issued(string? UserId, string Provider, string Challenge, string Redirect, SpinePendingIdentity? PendingIdentity = null,
+        SpineAccounts.Identity? LinkIdentity = null, SpineCaller? LinkTo = null);
 
     public async Task<IResult> StartAsync(string providerName, IQueryCollection query, CancellationToken cancellationToken)
     {
@@ -63,6 +64,15 @@ internal sealed class SpineBroker(
             return Problem(502, SpineAuthErrors.ProviderUnavailable);
         }
 
+        // A link ticket (POST /auth/link/ticket) makes this browser sign-in add its identity to that user.
+        SpineCaller? linkTo = null;
+        if (query["link"].ToString() is { Length: > 0 } linkTicket)
+        {
+            if (await accounts.TakeLinkTicketAsync(linkTicket, cancellationToken) is not { } caller)
+                return Problem(400, SpineAuthErrors.InvalidGrant, "The link ticket is unknown, used or expired.");
+            linkTo = caller;
+        }
+
         var state = Random();
         var nonce = Random();
         var verifier = provider.UsePkce ? Random() : null;
@@ -70,7 +80,7 @@ internal sealed class SpineBroker(
 
         // One write per start: the nonce rides in the state, which is itself taken once.
         await store.SaveOneTimeAsync(StateKey(state),
-            JsonSerializer.Serialize(new Pending(providerName, redirect, appState, challenge, nonce, verifier)), expiresAt, cancellationToken);
+            JsonSerializer.Serialize(new Pending(providerName, redirect, appState, challenge, nonce, verifier, linkTo)), expiresAt, cancellationToken);
 
         var parameters = new Dictionary<string, string?>
         {
@@ -127,14 +137,24 @@ internal sealed class SpineBroker(
         var refresh = providerName == "apple" && exchanged.RefreshToken is { } appleRefresh ? (appleRefresh, provider.WebClientId!) : ((string, string)?)null;
         // Apple posts the name once beside the code; it is read only from Apple's own form.
         var name = provider is SpineAppleOptions && request.HasFormContentType ? AppleName(Get("user")) : null;
-        var (user, _) = await accounts.SignInUserAsync(
-            providerName, new SpineIdTokenRequest(exchanged.IdToken, pending.Nonce, null, name), refresh, brokered: true, cancellationToken);
-
-        if (user is null) return ToApp(pending, ("error", "invalid_token"));
+        var idToken = new SpineIdTokenRequest(exchanged.IdToken, pending.Nonce, null, name);
+        Issued issued;
+        if (pending.LinkTo is { } linkTo)
+        {
+            // Linked at the code exchange, after PKCE, never here (LinkBrokeredAsync).
+            var (identity, _) = await accounts.IdentityAsync(providerName, idToken, refresh, brokered: true, cancellationToken);
+            if (identity is null) return ToApp(pending, ("error", "invalid_token"));
+            issued = new Issued(null, linkTo.Provider, pending.Challenge, pending.Redirect, LinkIdentity: identity, LinkTo: linkTo);
+        }
+        else
+        {
+            var (user, refusal) = await accounts.SignInUserAsync(providerName, idToken, refresh, brokered: true, cancellationToken);
+            if (user is null && refusal?.PendingIdentity is null) return ToApp(pending, ("error", "invalid_token"));
+            issued = new Issued(user?.Id, providerName, pending.Challenge, pending.Redirect, refusal?.PendingIdentity);
+        }
 
         var appCode = Random();
-        await store.SaveOneTimeAsync(CodeKey(appCode),
-            JsonSerializer.Serialize(new Issued(user.Id, providerName, pending.Challenge, pending.Redirect)), time.GetUtcNow() + CodeLifetime, cancellationToken);
+        await store.SaveOneTimeAsync(CodeKey(appCode), JsonSerializer.Serialize(issued), time.GetUtcNow() + CodeLifetime, cancellationToken);
 
         return ToApp(pending, ("code", appCode));
     }
@@ -145,11 +165,16 @@ internal sealed class SpineBroker(
             || await store.TakeOneTimeAsync(CodeKey(request.Code), time.GetUtcNow(), cancellationToken) is not { } saved
             || JsonSerializer.Deserialize<Issued>(saved) is not { } issued
             || issued.Redirect != Normalized(request.RedirectUri)
-            || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(Challenge(request.CodeVerifier)), Encoding.ASCII.GetBytes(issued.Challenge))
-            || await users.FindByIdAsync(issued.UserId, cancellationToken) is not { } user)
+            || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(Challenge(request.CodeVerifier)), Encoding.ASCII.GetBytes(issued.Challenge)))
         {
             return SignInOutcome.Refused(401, SpineAuthErrors.InvalidGrant);
         }
+
+        if (issued.PendingIdentity is { } pendingIdentity) return SignInOutcome.Pending(pendingIdentity);
+        if (issued is { LinkIdentity: { } identity, LinkTo: { } linkTo }) return await accounts.LinkBrokeredAsync(identity, linkTo, cancellationToken);
+
+        if (issued.UserId is null || await users.FindByIdAsync(issued.UserId, cancellationToken) is not { } user)
+            return SignInOutcome.Refused(401, SpineAuthErrors.InvalidGrant);
 
         return SignInOutcome.Ok(await tokens.IssueAsync(user, issued.Provider, cancellationToken: cancellationToken));
     }

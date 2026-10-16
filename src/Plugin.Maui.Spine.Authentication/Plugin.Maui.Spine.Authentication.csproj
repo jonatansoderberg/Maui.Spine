@@ -28,6 +28,8 @@
 		<PackageReference Include="Microsoft.Maui.Controls" />
 		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
 		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
+		<!-- The sign-in buttons' logos: Apple drawn for Spine, Google's G from its sign-in assets, Microsoft's squares to its spec. -->
+		<EmbeddedResource Include="Resources\Svg\*.svg" />
 	</ItemGroup>
 
 	<ItemGroup>

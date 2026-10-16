@@ -199,6 +199,94 @@ public static class SpineAuthEndpoints
         return outcome is null ? BadBody() : Answer(request, outcome);
     }
 
+    /// <summary>
+    /// <c>POST /auth/link/ticket</c>: a one-time ticket (<see cref="SpineLinkTicket"/>) for linking a provider through the
+    /// browser. <c>GET /auth/{provider}/start?…&amp;link=&lt;ticket&gt;</c> carries it, and the callback adds the provider to
+    /// the signed-in user instead of signing in.
+    /// </summary>
+    /// <param name="request">The incoming request, with the user's access token.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>A <see cref="SpineLinkTicket"/>, or 401 without a valid access token.</returns>
+    public static async Task<IResult> LinkTicketAsync(HttpRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (await CallerAsync(request) is not { } caller) return Results.Unauthorized();
+        return NoStore(request, Results.Json(await Service<SpineAccounts>(request).CreateLinkTicketAsync(caller, cancellationToken), SpineAuthJson.Options));
+    }
+
+    /// <summary>
+    /// <c>POST /auth/link/{provider}</c>: an ID token from the provider's sheet (<see cref="SpineIdTokenRequest"/>) adds the
+    /// provider to the signed-in user. Answers with new tokens, whose user lists the logins.
+    /// </summary>
+    /// <param name="request">The incoming request, with the user's access token.</param>
+    /// <param name="provider">The provider's name, from the route.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>
+    /// <see cref="SpineTokens"/>, or a <see cref="SpineAuthProblem"/>: 401 without a valid access token or with a refused ID
+    /// token, 404 unknown provider, 409 <c>identity_in_use</c> when another account signs in with it.
+    /// </returns>
+    public static async Task<IResult> LinkAsync(HttpRequest request, string provider, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(provider);
+
+        if (await CallerAsync(request) is not { } caller) return Results.Unauthorized();
+        if (await BodyAsync(request, SpineAuthJsonTypes.IdToken, cancellationToken) is not { } body) return BadBody();
+        return Answer(request, await Service<SpineAccounts>(request).LinkWithIdTokenAsync(provider.ToLowerInvariant(), body, caller, cancellationToken));
+    }
+
+    /// <summary><c>DELETE /auth/link/{provider}</c>: removes a provider, or the password, from the signed-in user.</summary>
+    /// <param name="request">The incoming request, with the user's access token.</param>
+    /// <param name="provider">The provider's name, from the route; <c>password</c> for the password.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>
+    /// <see cref="SpineTokens"/>, or a <see cref="SpineAuthProblem"/>: 401 without a valid access token, 404 when the user has no
+    /// such login, 409 <c>last_login</c> for the last way to sign in, 501 when the app's user store cannot delete logins.
+    /// </returns>
+    public static async Task<IResult> UnlinkAsync(HttpRequest request, string provider, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(provider);
+
+        if (await CallerAsync(request) is not { } caller) return Results.Unauthorized();
+        return Answer(request, await Service<SpineAccounts>(request).UnlinkAsync(provider.ToLowerInvariant(), caller, cancellationToken));
+    }
+
+    /// <summary>
+    /// <c>POST /auth/pending/{action}</c> with a <see cref="SpinePendingRequest"/>: what becomes of a pending identity, the
+    /// 202 answer to a first sign-in when <see cref="SpineAuthOptions.AskBeforeNewAccount"/> is on. <c>create</c> makes a
+    /// new account for it; <c>link</c> adds it to the signed-in user, who has just proved an existing account.
+    /// </summary>
+    /// <param name="request">The incoming request; for <c>link</c>, with the user's access token.</param>
+    /// <param name="action">The choice, from the route.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>
+    /// <see cref="SpineTokens"/>, or a <see cref="SpineAuthProblem"/>: 401 <c>invalid_grant</c> for an unknown, used or expired
+    /// ticket, or without an access token for <c>link</c>; 409 <c>identity_in_use</c>.
+    /// </returns>
+    public static async Task<IResult> PendingAsync(HttpRequest request, string action, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(action);
+
+        var accounts = Service<SpineAccounts>(request);
+        switch (action.ToLowerInvariant())
+        {
+            case "create":
+                return await BodyAsync(request, SpineAuthJsonTypes.Pending, cancellationToken) is { Ticket.Length: > 0 } create
+                    ? Answer(request, await accounts.CreatePendingAsync(create, cancellationToken))
+                    : BadBody();
+            case "link":
+                if (await CallerAsync(request) is not { } caller) return Results.Unauthorized();
+                return await BodyAsync(request, SpineAuthJsonTypes.Pending, cancellationToken) is { Ticket.Length: > 0 } link
+                    ? Answer(request, await accounts.LinkPendingAsync(link, caller, cancellationToken))
+                    : BadBody();
+            default:
+                return Answer(request, SignInOutcome.Refused(404, SpineAuthErrors.InvalidRequest, $"There is no pending step '{action}'."));
+        }
+    }
+
     /// <summary><c>GET /auth/.well-known/jwks.json</c>: the public keys of Spine's access tokens, for other services that check them.</summary>
     /// <param name="request">The incoming request.</param>
     /// <returns>A JWK set.</returns>
@@ -209,6 +297,15 @@ public static class SpineAuthEndpoints
     }
 
     private static T Service<T>(HttpRequest request) where T : notnull => request.HttpContext.RequestServices.GetRequiredService<T>();
+
+    // The signed-in user and the provider their access token was issued for, which the new tokens keep.
+    private static async ValueTask<SpineCaller?> CallerAsync(HttpRequest request)
+    {
+        var result = await request.HttpContext.AuthenticateAsync(SpineAuthDefaults.AuthenticationScheme);
+        return result.Succeeded && result.Principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value is { Length: > 0 } id
+            ? new SpineCaller(id, result.Principal.FindFirst(SpineAuthDefaults.ProviderClaim)?.Value ?? SpineAuthDefaults.PasswordProvider)
+            : null;
+    }
 
     private static async Task<T?> BodyAsync<T>(HttpRequest request, JsonTypeInfo<T> type, CancellationToken cancellationToken) where T : class
     {
@@ -228,6 +325,7 @@ public static class SpineAuthEndpoints
     private static IResult Answer(HttpRequest request, SignInOutcome outcome)
     {
         if (outcome.Tokens is { } tokens) return NoStore(request, Results.Json(tokens, SpineAuthJson.Options));
+        if (outcome.PendingIdentity is { } pending) return NoStore(request, Results.Json(pending, SpineAuthJson.Options, statusCode: 202));
         if (outcome.Problem is null) return Results.StatusCode(outcome.Status);
 
         return Results.Json(outcome.Problem, SpineAuthJson.Options, statusCode: outcome.Status);
@@ -271,8 +369,8 @@ public static class SpineAuthEndpointRouteBuilderExtensions
     /// <summary>
     /// Maps every sign-in endpoint under <paramref name="prefix"/>: <c>GET nonce</c>, <c>POST {provider}/token</c>,
     /// <c>GET {provider}/start</c>, <c>GET</c>/<c>POST {provider}/callback</c>,
-    /// <c>POST token</c>, <c>POST revoke</c>, <c>DELETE account</c>, <c>POST password/{action}</c> and
-    /// <c>GET .well-known/jwks.json</c>.
+    /// <c>POST token</c>, <c>POST revoke</c>, <c>DELETE account</c>, <c>POST password/{action}</c>, <c>POST link/ticket</c>,
+    /// <c>POST</c>/<c>DELETE link/{provider}</c>, <c>POST pending/{action}</c> and <c>GET .well-known/jwks.json</c>.
     /// </summary>
     /// <param name="endpoints">The application's route builder.</param>
     /// <param name="prefix">The path the endpoints live under.</param>
@@ -291,6 +389,10 @@ public static class SpineAuthEndpointRouteBuilderExtensions
         group.MapGet("/{provider}/start", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.StartAsync(request, provider, ct));
         group.MapMethods("/{provider}/callback", ["GET", "POST"], (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.CallbackAsync(request, provider, ct));
         group.MapPost("/{provider}/token", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.IdTokenAsync(request, provider, ct));
+        group.MapPost("/link/ticket", (HttpRequest request, CancellationToken ct) => SpineAuthEndpoints.LinkTicketAsync(request, ct));
+        group.MapPost("/link/{provider}", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.LinkAsync(request, provider, ct));
+        group.MapDelete("/link/{provider}", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.UnlinkAsync(request, provider, ct));
+        group.MapPost("/pending/{action}", (HttpRequest request, string action, CancellationToken ct) => SpineAuthEndpoints.PendingAsync(request, action, ct));
         group.MapGet("/.well-known/jwks.json", (HttpRequest request) => SpineAuthEndpoints.Jwks(request));
 
         return group;
@@ -308,6 +410,7 @@ internal static class SpineAuthJsonTypes
     public static JsonTypeInfo<SpineEmailCode> Code => Info<SpineEmailCode>();
     public static JsonTypeInfo<SpineEmailRequest> Email => Info<SpineEmailRequest>();
     public static JsonTypeInfo<SpinePasswordReset> Reset => Info<SpinePasswordReset>();
+    public static JsonTypeInfo<SpinePendingRequest> Pending => Info<SpinePendingRequest>();
 
     private static JsonTypeInfo<T> Info<T>() => (JsonTypeInfo<T>)SpineAuthJson.Options.GetTypeInfo(typeof(T));
 }

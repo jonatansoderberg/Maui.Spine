@@ -58,6 +58,10 @@ Bodies and answers are the records in `Plugin.Maui.Spine.Authentication` in `.Co
 | `POST /auth/revoke` | Signs one device out by revoking its sign-in | 204, known token or not |
 | `DELETE /auth/account` | Deletes the user behind the access token | 204; 401 without a token |
 | `POST /auth/password/{signup,verify,resend,signin,forgot,reset}` | Email and password | see below |
+| `POST /auth/link/{provider}` | With the user's access token: an ID token (`SpineIdTokenRequest`) adds the provider to that user | `SpineTokens`; 409 `identity_in_use` |
+| `POST /auth/link/ticket` | With the user's access token: a one-time ticket (5 minutes) for linking through the browser, passed as `link=` to `/{provider}/start` | `SpineLinkTicket` |
+| `DELETE /auth/link/{provider}` | With the user's access token: removes a provider, or `password` | `SpineTokens`; 404; 409 `last_login`; 501 when the app's `IUserResolver` cannot delete logins |
+| `POST /auth/pending/{create,link}` | A pending identity's ticket (`SpinePendingRequest`): a new account, or, with an access token, the account the user proved | `SpineTokens`; 401 `invalid_grant`; 409 `identity_in_use` |
 | `GET /auth/.well-known/jwks.json` | The public keys, for other services that check Spine's access tokens | a JWK set |
 
 A refusal is a `SpineAuthProblem` whose `error` is one of `SpineAuthErrors`. `detail` says only what is safe to tell a developer: an ID token's reason ("the token is for another client id"), never whether an account exists.
@@ -153,6 +157,15 @@ a.OpenIdConnect("corp", o => { o.Authority = "https://login.example.com"; o.WebC
 - **Passwords** are hashed with ASP.NET Core Identity's `PasswordHasher` and rehashed when its format moves on. They are `MinPasswordLength` (8) to 1024 characters long.
 - **A user from Apple or Google** can add a password through `forgot` and `reset`, because the code proves the email.
 
+## Linking accounts
+
+A user has one `Id` and any number of logins: a provider and its subject, with the email and name it gave and when it was added (`SpineUser.Logins`). Linking adds one; the user's access token is the proof of who it goes to, and the answer is new tokens with the logins updated.
+
+- **An identity that belongs to another user** is refused with 409 `identity_in_use`. Nothing is merged.
+- **Unlinking** never removes the last way in (409 `last_login`). Removing `password` also clears the password hash. Apple's tokens are revoked.
+- **A pending identity.** With `a.AskBeforeNewAccount = true`, a sign-in with a provider account the server does not know answers 202 with a `SpinePendingIdentity` (a ticket, the provider, a vouched email, a name, an expiry of `PendingIdentityLifetime`, 10 minutes) and makes no user. `POST /auth/pending/create` makes the account; `POST /auth/pending/link` with an access token adds it to the account the user just signed in to. It works for the ID-token endpoint and the browser broker's code exchange alike. `LinkByVerifiedEmail` still links first, without asking.
+- `IUserResolver.DeleteLoginAsync` is a default interface method that throws `NotSupportedException`, so an app's own resolver still compiles; unlinking answers 501 until it implements it.
+
 ## Stores
 
 `UseAzureTableStore(connectionString, prefix = "SpineAuth")` keeps users and tokens in Azure Table Storage:
@@ -184,7 +197,7 @@ With `UserId` set, the body's `UserId` and any `user:` tags are replaced: `user:
 
 ## Azure Functions
 
-The handlers are public static methods on `SpineAuthEndpoints`: `NonceAsync`, `IdTokenAsync`, `StartAsync`, `CallbackAsync` (`GET` and `POST`), `RefreshAsync`, `RevokeAsync`, `DeleteAccountAsync`, `PasswordAsync` and `Jwks`. They take the `HttpRequest`, as Server.AI's do:
+The handlers are public static methods on `SpineAuthEndpoints`: `NonceAsync`, `IdTokenAsync`, `StartAsync`, `CallbackAsync` (`GET` and `POST`), `RefreshAsync`, `RevokeAsync`, `DeleteAccountAsync`, `PasswordAsync`, `LinkTicketAsync`, `LinkAsync`, `UnlinkAsync`, `PendingAsync` and `Jwks`. They take the `HttpRequest`, as Server.AI's do:
 
 ```csharp
 [Function("AuthToken")]

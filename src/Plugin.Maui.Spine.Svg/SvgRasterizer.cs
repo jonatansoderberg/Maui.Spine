@@ -49,8 +49,15 @@ internal static class SvgRasterizer
         svg.CopyTo(buffer);
         buffer.Position = 0;
 
-        var tintCurrentColor = tint.Alpha > 0 && Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length)
-            .Contains("currentColor", StringComparison.OrdinalIgnoreCase);
+        var text = Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length);
+        if (SvgCssFeatures.Rewrite(text) is { } rewritten)
+        {
+            buffer.SetLength(0);
+            buffer.Write(Encoding.UTF8.GetBytes(rewritten));
+            buffer.Position = 0;
+        }
+
+        var tintCurrentColor = tint.Alpha > 0 && text.Contains("currentColor", StringComparison.OrdinalIgnoreCase);
         paint = tintCurrentColor ? null : TintPaint(tint);
         var scaleStrokes = Math.Abs(lineWidthScale - 1) > 1e-6f;
         if (paint is not null)

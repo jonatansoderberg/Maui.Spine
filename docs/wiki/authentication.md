@@ -189,13 +189,16 @@ public sealed partial class AccountViewModel(ISpineAuth auth) : ViewModelBase
 | `CreateHandler()` | The handler for an `HttpClient` built without `IHttpClientFactory`. |
 | `SignOutAsync()` | Signs out here and revokes the refresh token on the server. |
 | `DeleteAccountAsync()` | Deletes the account on the server, which revokes Apple's tokens and every session, and signs out. The App Store asks an app with sign-up to offer it. |
-| `SignedIn`, `SignedOut` | Raised after a sign-in, and after a sign-out, a deletion or a refresh the server refused. |
+| `LinkAsync("google")`, `UnlinkAsync("google")` | Adds a provider to the signed-in user through its sheet or the browser, or removes one; see [One account, several ways in](#one-account-several-ways-in). |
+| `CreateAccountAsync(pending)`, `LinkPendingAsync(pending)` | What becomes of a provider account the server asked about (`ChooseAccount`). The sign-in sheet calls them by itself. |
+| `SignedIn`, `SignedOut` | Raised after a sign-in, and after a sign-out, a deletion or a refresh the server refused. A link or an unlink raises only `UserChanged`. |
 
 Every step answers a `SignInResult`:
 - `SignedIn`, with the user;
 - `Canceled`;
 - `CodeSent`: an email with a code is on its way;
 - `Deleted`;
+- `ChooseAccount`, with `Pending`: the provider account is new to a server that asks first (below);
 - `Failed`, with `Error` set to the server's `SpineAuthErrors` value, such as `invalid_credentials`. When the server could not be reached or is not a Spine server, `Error` names the path and the HTTP status instead, so a wrong `Server` does not look like a wrong password.
 
 ## `[RequiresSignIn]`
@@ -218,14 +221,36 @@ A guarded tab is covered by a "Sign in to see this." screen with a Sign in butto
 ## The sign-in sheet
 
 `SignInSheet` is a `[NavigableSheet]` at medium and full height:
-- Sign in with Apple's button (when `AddApple()`; the browser on Android and Windows);
-- "Continue with …" per provider added with `AddOpenIdConnect`;
-- email and password;
-- "Create account", "Forgot password?" and the step for the emailed code.
+- one button per provider, in one shape (48 high, radius 8, the logo on the left, "Continue with …") with each brand's colours for the light and dark theme: Apple black or white, Google white or #131314 with its outline, Microsoft white or #2F2F2F;
+- "Continue with email", which opens the email and password fields (they show at once when there are no providers);
+- "Create account", "Forgot password?" and the step for the emailed code;
+- "Is this your first time here?" after a provider account the server does not know (`AskBeforeNewAccount`): "Create a new account", or "I've signed in before", which shows the other ways and adds the new provider to the account the user signs in to.
+
+The logos are SVGs in the package: Apple's drawn for Spine (Apple's downloadable artwork is licensed for mock-ups only), Google's G as Google ships it, Microsoft's four squares to its spec.
 
 The server's errors are shown in the sheet, such as a wrong password or a code that is wrong or old, and the X closes it. The text is in English and Swedish (keys `Spine.Authentication.*`), and an app overrides it as any Spine string. `AllowSignUp` and `AllowReset` hide the links when the server does not allow them.
 
 For an app's own design, `a.SignInPage<MySignInSheet>()` takes any `[NavigableSheet]` that returns a `SignInResult` (`INavigableWithResult<SignInResult>`) and signs in through `ISpineAuth`.
+
+## One account, several ways in
+
+The server's `Id` is the user, whichever provider they sign in with. `User.Logins` lists the ways in: the provider, the email and name it gave, and when it was added.
+
+```csharp
+await auth.LinkAsync("google");    // Google's sheet or the browser; the same user after, with a new login
+await auth.UnlinkAsync("google");  // never the last way in: Failed with last_login
+
+foreach (var login in auth.User!.Logins!)
+    Console.WriteLine($"{login.Provider} {login.Email} {login.LinkedAt}");
+```
+
+A provider account that already belongs to another user is refused with `identity_in_use`, and nothing is merged: the user signs in to that account and removes it there first.
+
+**A first sign-in.** With `a.AskBeforeNewAccount = true` on the server, a provider account it does not know makes no user. The result is `ChooseAccount`, and the sign-in sheet asks:
+- "Create a new account": `CreateAccountAsync(result.Pending)`;
+- "I've signed in before": the user signs in another way, then `LinkPendingAsync(result.Pending)` adds the new provider to that account. When that sign-in is new too, the sheet says so and asks again.
+
+An app with its own sign-in page handles `ChooseAccount` the same way. The question is valid for ten minutes. Linking needs a Spine server; without one the methods answer `Failed`.
 
 ## The user's details
 
@@ -238,6 +263,7 @@ For an app's own design, `a.SignInPage<MySignInSheet>()` takes any `[NavigableSh
 | `Email` | Only an address someone vouched for: an emailed code, Apple, Google, or a Microsoft work or school account whose domain the tenant verified. Personal Microsoft accounts get none. |
 | `Organization` | A Microsoft work or school account's tenant id, or a Google Workspace domain; null for personal accounts. |
 | `SignInMethods` | Every way the user can sign in to the account, such as `apple`, `google`, `password`. |
+| `Logins` | The same ways with their details: the provider, the email and name it gave, when it was added. |
 | `Provider` | How the user signed in this time. |
 
 **The picture.** `GetPictureAsync()` gives the signed-in user's picture as bytes (JPEG or PNG), or null:
@@ -283,3 +309,4 @@ Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true
 - Sign in with Microsoft on Android, Windows (WAM) and Mac Catalyst, and with Microsoft Authenticator installed.
 - Sign in with Google at run time: Credential Manager on Android and the broker against Google, both waiting for a Google Cloud project. Seen in the iOS simulator: the sheet's "Continue with Google" opens the broker's start URL.
 - The push link with a real push token.
+- Linking (#575) ran in the iOS simulator against the push sample server: a password account, Apple linked from the Sign-in page and unlinked, the last login refused, and after an unlink a new Apple sign-in through "Is this your first time here?" and "I've signed in before" with the password, ending with one account with both. Linking Google and Microsoft from the app ran only in tests, through the sheet's path and the browser broker.
