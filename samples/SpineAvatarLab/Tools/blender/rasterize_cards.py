@@ -18,6 +18,9 @@ C0 = _vec('--c0', [0.13, 0.15, 0.40]); C1 = _vec('--c1', [0.50, 0.54, 0.82]); GA
 def ramp(r): r = r ** GAMMA; return C0 * (1 - r) + C1 * r
 R_ROOT = float(args[args.index('--rroot') + 1]) if '--rroot' in args else 0.0009
 R_TIP = float(args[args.index('--rtip') + 1]) if '--rtip' in args else 0.0003
+SHADE_DEPTH = float(args[args.index('--shadedepth') + 1]) if '--shadedepth' in args else 0.04
+SHADE_MIN = float(args[args.index('--shademin') + 1]) if '--shademin' in args else 0.6
+ONLY = int(args[args.index('--only') + 1]) if '--only' in args else 0   # rasterize only the first N strips (a quick colour test)
 # per-strand arc lengths
 N = len(offs) - 1
 arc = np.zeros(len(pos), np.float32); slen = np.zeros(N, np.float32)
@@ -26,7 +29,7 @@ for si in range(N):
     if len(p) > 1:
         s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(p, axis=0), axis=1))]); arc[offs[si]:offs[si + 1]] = s; slen[si] = s[-1]
 drawn = 0
-for k in range(n_cards):
+for k in range(ONLY or n_cards):
     hw = width[k] * 0.5; L = glen[k]; c = int(strip[k]) % cols; r = int(strip[k]) // cols
     sm = samples[k]; lo = sm.min(0) - hw - DEPTH; hi = sm.max(0) + hw + DEPTH
     # candidate points by the card's box, then strands with any candidate point
@@ -53,7 +56,7 @@ for k in range(n_cards):
         items.append((float(np.mean(dep[inside])), si, u, v, dep, inside))
     items.sort(key=lambda t: t[0])
     for mean_dep, si, u, v, dep, inside in items:
-        col = ramp(float(rnd[si])); shade = float(np.clip(1.0 + mean_dep / 0.04, 0.6, 1.0))
+        col = ramp(float(rnd[si])); shade = float(np.clip(1.0 + mean_dep / SHADE_DEPTH, SHADE_MIN, 1.0))   # deeper strands darker: the reference's locks are dark between their crests
         # near the root the bundle is pulled toward the card's centre line (the clump forms over the first 6 cm), so the
         # card's root end is dense and the parting reads as a line, not a band
         ROOT_PULL = float(args[args.index('--rootpull') + 1]) if '--rootpull' in args else 0.25
