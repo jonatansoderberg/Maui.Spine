@@ -45,6 +45,10 @@ Asked for by the owner on 2026-10-16. The owner chose:
   - a new signing key for Azure;
   - container logging on.
 - **Google:** the Web client's redirect URIs are `http://localhost:5100/auth/google/callback` and `https://spine-showcase-e41ddd.azurewebsites.net/auth/google/callback`.
+- **Found testing on the phone:**
+  - The Sign-in page's Unlink asks first: an action sheet with a destructive "Unlink …". The owner found Google unlinked without remembering a tap; the server log showed the `DELETE /auth/link/google` call. A swipe starting on the icon did not reproduce it in the simulator.
+  - Request logging is on in Azure (`Logging__LogLevel__Microsoft.AspNetCore.Hosting.Diagnostics`), to see it if it happens again.
+  - `SignInButton`'s Microsoft text is #1F1F1F, as Google's, instead of Microsoft's #5E5E5E, which looked disabled.
 - **`README.md`** for the server: running locally, the settings, deploying, the log.
 
 ## Verification

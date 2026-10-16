@@ -91,6 +91,15 @@ public partial class SignInPageViewModel : SampleViewModel
     [RelayCommand]
     private async Task Unlink(string provider)
     {
+        // Removing a way in is not undone by the same tap, so it asks first.
+        var name = Logins.FirstOrDefault(l => l.Provider == provider)?.Name ?? provider;
+        var unlink = new MenuAction($"Unlink {name}", "Unlink.svg") { IsDestructive = true };
+        var picked = await _navigation.ShowActionsAsync(new ActionSheet(null, $"{name} no longer signs in to this account. Link it again to add it back.")
+        {
+            Actions = [unlink],
+        });
+        if (picked != unlink) return;
+
         var result = await _auth.UnlinkAsync(provider);
         LinkLog = result.Status == SignInStatus.SignedIn ? $"{provider} removed" : $"{provider}: {result.Error}";
     }

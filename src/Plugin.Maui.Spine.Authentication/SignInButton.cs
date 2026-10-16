@@ -139,7 +139,7 @@ internal sealed record ProviderLook(string? Logo, bool TintsLogo, ProviderColors
     public static ProviderLook Google { get; } = new("signin-google.svg", false, NeutralLight, NeutralDark);
 
     public static ProviderLook Microsoft { get; } = new("signin-microsoft.svg", false,
-        new(Colors.White, Color.FromArgb("#5E5E5E"), Color.FromArgb("#8C8C8C")), new(Color.FromArgb("#2F2F2F"), Colors.White, null));
+        new(Colors.White, Color.FromArgb("#1F1F1F"), Color.FromArgb("#8C8C8C")), new(Color.FromArgb("#2F2F2F"), Colors.White, null));
 
     public static ProviderLook Email { get; } = new("signin-password.svg", true, NeutralLight, NeutralDark);
 
