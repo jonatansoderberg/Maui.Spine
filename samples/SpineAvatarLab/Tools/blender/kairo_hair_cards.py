@@ -634,3 +634,167 @@ def exposure_with_alpha(F, cards_ob, cap_ob, atlas_img, yaw, box, step=8, cols=3
                 for s in set(hit_strips): strips[s] = strips.get(s, 0) + 1
     ev.to_mesh_clear(); root.rotation_euler[2] = 0; bpy.context.view_layer.update()
     return exposed, visible, nocard, strips
+
+
+def cap_under_cards(cap_ob, cards_ob, reach=0.04, grow=1):
+    """the cap only where cards cover it: faces with no card within `reach` along their outward normal go, after a
+    dilation of `grow` rings of the covered set (so a card's edge still has cap under it). Without this the cap stood
+    on her left temple above the brow and as triangles along the hairline in front of the ear (the owner's marks)."""
+    cb = bvh_of(cards_ob)[0]; me = cap_ob.data; mw = cap_ob.matrix_world; rot = mw.to_3x3()
+    covered = np.zeros(len(me.polygons), bool)
+    for p in me.polygons:
+        c = mw @ p.center; n = (rot @ p.normal).normalized()
+        if n.dot(c - PIV) < 0: n = -n
+        covered[p.index] = cb.ray_cast(c + n * 0.002, n, reach)[0] is not None
+    bm = bmesh.new(); bm.from_mesh(me); bm.faces.ensure_lookup_table()
+    keep = covered.copy()
+    for _ in range(grow):
+        nxt = keep.copy()
+        for f in bm.faces:
+            if keep[f.index]:
+                for e in f.edges:
+                    for g in e.link_faces: nxt[g.index] = True
+        keep = nxt
+    kill = [f for f in bm.faces if not keep[f.index]]
+    bmesh.ops.delete(bm, geom=kill, context='FACES'); bm.to_mesh(me); bm.free(); me.update()
+    return int(covered.sum()), len(kill), len(me.polygons)
+
+
+def cap_exposed_by_render(cap_ob, cards_ob, yaws=(0, 30, -30, 45, -45, 60, -60, 75, -75, 90, -90, 120, -120, 180), res=1600, out_dir=None, dilate=2, edge_px=0):
+    """the lab's own test: the cap rendered flat green behind the alpha-clipped cards and the head through LabCamera at
+    each yaw; a cap face is exposed in a view when the pixel under its centre is green. Returns {face index: views}."""
+    import numpy as np
+    from bpy_extras.object_utils import world_to_camera_view
+    sc = bpy.context.scene; cam = bpy.data.objects['LabCamera']; root = bpy.data.objects['Root']
+    green = bpy.data.materials.get('CapGreen') or bpy.data.materials.new('CapGreen'); green.use_nodes = True; nt = green.node_tree; nt.nodes.clear()
+    o = nt.nodes.new('ShaderNodeOutputMaterial'); e = nt.nodes.new('ShaderNodeEmission'); e.inputs['Color'].default_value = (0, 1, 0, 1); e.inputs['Strength'].default_value = 1.0; nt.links.new(e.outputs['Emission'], o.inputs['Surface'])
+    real = cap_ob.data.materials[0]; cap_ob.data.materials[0] = green
+    out_dir = out_dir or S; exposed = {}; old_vt = sc.view_settings.view_transform
+    try:
+        try: sc.view_settings.view_transform = 'Standard'   # AgX turns the pure green pastel and the threshold misses it
+        except TypeError: pass
+        for yaw in yaws:
+            path = f"{out_dir}/_capexp-y{yaw}.png"
+            lab_render(path, yaw, show=[cards_ob.name, cap_ob.name, 'Head', 'Lids', 'Neck', 'Body'], engine='BLENDER_EEVEE', res=res, samples=4)
+            im = bpy.data.images.load(path); W, H = im.size; px = np.empty(W * H * 4, np.float32); im.pixels.foreach_get(px); px = px.reshape(H, W, 4); bpy.data.images.remove(im)
+            isgreen = (px[..., 1] > px[..., 0] + 0.25) & (px[..., 1] > px[..., 2] + 0.25)
+            def grow(mask, n):   # a 3x3 dilation by shifts (no scipy inside Blender)
+                for _ in range(n):
+                    g = mask.copy()
+                    for dy in (-1, 0, 1):
+                        for dx in (-1, 0, 1):
+                            g |= np.roll(np.roll(mask, dy, axis=0), dx, axis=1)
+                    mask = g
+                return mask
+            if edge_px:
+                # only the green at the hair's EDGE counts (green within edge_px of skin or background): cap seen through a
+                # gap between strands inside the hair stays, as the dark backing; without it the skull's skin peeked through
+                skin = (px[..., 0] > px[..., 1]) & (px[..., 1] > px[..., 2]) & (px[..., 0] > 0.45)
+                bg = (px[..., :3].min(-1) > 0.8) & (px[..., :3].max(-1) - px[..., :3].min(-1) < 0.1)
+                other = skin | bg      # named explicitly: the anti-aliased green/blue boundary pixels counted as 'other' before and every strand gap became an edge
+                isgreen = isgreen & grow(other, edge_px)
+            isgreen = grow(isgreen, dilate)
+            print('   view', yaw, 'green share of the frame', round(float(isgreen.mean()), 4))
+            root.rotation_euler[2] = math.radians(yaw); bpy.context.view_layer.update(); mw = cap_ob.matrix_world
+            verts = cap_ob.data.vertices
+            for p in cap_ob.data.polygons:
+                pts = [mw @ p.center] + [mw @ verts[i].co for i in p.vertices]   # a face goes when any corner shows, not only its centre
+                for q in pts:
+                    v = world_to_camera_view(sc, cam, q)
+                    if v.z <= 0: continue
+                    x = int(v.x * W); y = int(v.y * H)   # image row 0 is the bottom in Blender's pixel array, like v.y
+                    if 0 <= x < W and 0 <= y < H and isgreen[y, x]: exposed.setdefault(p.index, []).append(yaw); break
+            root.rotation_euler[2] = 0; bpy.context.view_layer.update()
+    finally:
+        cap_ob.data.materials[0] = real; root.rotation_euler[2] = 0; bpy.context.view_layer.update(); sc.view_settings.view_transform = old_vt
+    return exposed
+
+def drop_faces(ob, indices, grow=0):
+    bm = bmesh.new(); bm.from_mesh(ob.data); bm.faces.ensure_lookup_table()
+    kill = set(indices)
+    for _ in range(grow):   # the dropped set grown by a ring: slivers at the drop's edge went with the owner's two leftover triangles
+        kill |= {g.index for i in list(kill) for e in bm.faces[i].edges for g in e.link_faces}
+    bmesh.ops.delete(bm, geom=[bm.faces[i] for i in kill], context='FACES'); bm.to_mesh(ob.data); bm.free(); ob.data.update()
+    return len(ob.data.polygons)
+
+
+def cap_outside_cards(cap_ob, cards_ob, yaws=(0, 15, -15, 30, -30, 45, -45, 60, -60, 75, -75, 90, -90, 105, -105, 120, -120, 150, -150, 180), eps=0.0015):
+    """cap faces that a lab view sees with NO card geometry between the camera and the face (the cap poking out past the
+    cards' edges: the owner's navy triangles). A face behind a card stays even where the card's texels are transparent:
+    there the cap is the dark backing between the strands (dropped, the skull's skin peeked through). Per view the head's
+    own surface hides what lies behind it. Returns {face index: views}."""
+    cam = bpy.data.objects['LabCamera']; origin = cam.matrix_world.translation; root = bpy.data.objects['Root']; out = {}
+    me = cap_ob.data
+    for yaw in yaws:
+        root.rotation_euler[2] = math.radians(yaw); bpy.context.view_layer.update()
+        cb = bvh_of(cards_ob)[0]; hb = bvh_of(bpy.data.objects['Head'])[0]; mw = cap_ob.matrix_world
+        for p in me.polygons:
+            corners = [mw @ me.vertices[i].co for i in p.vertices]
+            pts = [mw @ p.center] + corners + [(corners[i] + corners[(i + 1) % len(corners)]) / 2 for i in range(len(corners))]   # centre, corners, edge midpoints
+            for q in pts:
+                d = q - origin; dist = d.length; d /= dist
+                if hb.ray_cast(origin, d, dist - eps)[0] is not None: continue       # behind the head
+                if cb.ray_cast(origin, d, dist - eps)[0] is None:                     # nothing of the cards in front
+                    out.setdefault(p.index, []).append(yaw); break
+    root.rotation_euler[2] = 0; bpy.context.view_layer.update()
+    return out
+
+
+def build_cap_for_cards(cards_ob, edge_px=6, grow=1):
+    """the scalp cap for a cards layer: rebuilt from the zones with spherical UVs, then every face the lab views see
+    OUTSIDE the cards' geometry (cap_outside_cards, 20 yaws) or through a transparent card texel within edge_px of skin
+    or background (cap_exposed_by_render with edge_px: a navy sliver against the skin) is dropped with `grow` rings;
+    faces behind the cards stay as the dark backing between strands (dropped, the skull's skin peeked through)."""
+    cap = build_cap_zones()
+    me = cap.data; mw = cap.matrix_world
+    uv = me.uv_layers.get('UVMap') or me.uv_layers.new(name='UVMap')
+    def sph(p):
+        d = p - PIV; th = math.atan2(d.x, -d.y); u = (th + math.pi) / (2 * math.pi); ph = math.acos(max(-1.0, min(1.0, d.z / max(d.length, 1e-9)))); return u, 1 - ph / math.pi
+    wv = [mw @ v.co for v in me.vertices]; vu = [sph(p) for p in wv]
+    for poly in me.polygons:
+        us = [vu[me.loops[li].vertex_index][0] for li in poly.loop_indices]; shift = (max(us) - min(us)) > 0.5
+        for li in poly.loop_indices:
+            u, v = vu[me.loops[li].vertex_index]
+            if shift and u < 0.5: u += 1.0
+            uv.data[li].uv = (u, v)
+    for p in me.polygons: p.material_index = 0
+    cap.data.materials[0] = cap_material_lab('HairCap', bpy.data.images['HairCapTex'])
+    n0 = len(me.polygons)
+    geo = cap_outside_cards(cap, cards_ob)
+    ren = cap_exposed_by_render(cap, cards_ob, edge_px=edge_px) if edge_px else {}
+    both = set(geo) | set(ren)
+    left = drop_faces(cap, list(both), grow=grow)
+    print(f"cap: {n0} faces; outside the cards {len(geo)}, at a transparent edge against skin/background {len(ren)}, union {len(both)}; kept {left}")
+    return cap
+
+
+TEMPLE_PARAMS = dict(lam=0.15, child_lam=(0.08, 0.3))
+
+def add_temple_guides(F, zs=None, x=0.168, y=-0.128, seed=77):
+    """guides rooted on her left temple's hairline in front of the ear (the strip the owner's view showed as a navy sliver
+    or as skin: the cards hanging there had transparent texels), one every 10 mm in z, close to the scalp, flowing with
+    the default comb (back and down along the temple)"""
+    P = F.P; rng = random.Random(seed); added = []; em_bvh = bvh_of(F.emitter)[0]
+    zs = zs if zs is not None else [z / 1000 for z in range(95, 175, 10)]
+    for z in zs:
+        loc, nrm, idx, dist = em_bvh.find_nearest(Vector((x, y, z)))
+        if loc is None or dist > 0.03: continue
+        n = (loc - PIV).normalized(); lam = TEMPLE_PARAMS['lam']
+        phase = rng.uniform(0, 2 * math.pi); amp = P['wave_amp'] * rng.uniform(0.6, 1.0); wl = P['wave_len'] * rng.uniform(0.9, 1.2); F.bias = (rng.random() - 0.5) * 0.2
+        pts, ss, why = F.trace_wave(loc, n, lam, phase, amp, wl, P['wave_rad'] * 0.5)
+        if len(pts) < 4: continue
+        g = dict(root=loc, pts=pts, ss=ss, lam=lam, phase=phase, amp=amp, wl=wl, bias=F.bias, why=why, side=1, temple=True)
+        F.guides.append(g); added.append(g)
+    return added
+
+def grow_all_layers(F, seed=7):
+    """the full candidate: t16 strands + fringe, parting, sweep and temple layers with their children; returns everything
+    build_cards and dump_layers need, in a fixed order (deterministic)"""
+    strands, lams, whys, gidx = F.grow_styled(16000, seed=seed)
+    fr = add_fringe_guides(F); pg = add_parting_guides(F); sw = add_sweep_guides(F); tp = add_temple_guides(F); fl = add_filler_guides(F, min_dist=0.024)
+    fs, fg = grow_fringe_children(F, fr); ps, pgi = grow_parting_children(F, pg)
+    ws, wgi = grow_layer_children(F, sw, SWEEP_PARAMS['child_lam'], params=SWEEP_PARAMS)
+    ts, tgi = grow_layer_children(F, tp, TEMPLE_PARAMS['child_lam'], seed=78)
+    layers = dict(fringe=(fs, fg, 9), parting=(ps, pgi, 10), sweep=(ws, wgi, 11), temple=(ts, tgi, 12))
+    print("guides: t16 140, fringe", len(fr), "parting", len(pg), "sweep", len(sw), "temple", len(tp), "filler", len(fl), "| children:", {k: len(v[0]) for k, v in layers.items()})
+    return strands, gidx, layers
