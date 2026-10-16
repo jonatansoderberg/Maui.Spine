@@ -275,7 +275,9 @@ internal sealed class IdentityProviderClient(HttpClient http, SpineIdentityProvi
         else if (Claim("sub") is not { Length: > 0 }) problem = "The id_token has no sub.";
 
         return problem is null
-            ? new SpineUser(Claim("sub")!, Claim("email"), Claim("name") ?? Claim("preferred_username"), options.Name)
+            ? new SpineUser(Claim("sub")!, Claim("email"), Claim("name") ?? Claim("preferred_username"), options.Name,
+                PictureUrl: Claim("picture") is { } picture && picture.StartsWith("https://", StringComparison.Ordinal) ? picture : null,
+                GivenName: Claim("given_name"), FamilyName: Claim("family_name"), Organization: Claim("org_id") ?? Claim("hd"))
             : null;
     }
 }

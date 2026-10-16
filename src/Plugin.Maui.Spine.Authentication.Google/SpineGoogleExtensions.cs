@@ -31,6 +31,6 @@ public static class SpineGoogleExtensions
             throw new InvalidOperationException(
                 "Spine sign-in: a.AddGoogle(g => g.ServerClientId = …) needs the OAuth Web client's id from the Google Cloud console on Android, the one the server lists in Google(o => o.ClientIds).");
 
-        return options.AddNative(new NativeProvider("google", GoogleSignIn.IsSupported, _ => new GoogleSignIn(google)), google.DisplayName);
+        return options.AddNative(new NativeProvider("google", GoogleSignIn.IsSupported, _ => new GoogleSignIn(google), FallsBackToBrowser: OperatingSystem.IsAndroid()), google.DisplayName);
     }
 }

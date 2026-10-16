@@ -77,6 +77,19 @@ A nonce is used once. Without one, an ID token that someone else got hold of cou
 
 **Users.** A user is found by (provider, `sub`). A new provider and `sub` makes a new user. Its email is kept only when the provider vouches for it: a trusted provider (`TrustEmail`) and `email_verified`. Anyone can put any address in a Microsoft tenant of their own, and an account that held someone else's address could later be handed to them through a password reset. Names are cut at 100 characters, and an ID token may be at most 16 KB. With `LinkByVerifiedEmail = true`, they are linked instead to the existing account with the same email. That needs the provider to vouch for the email (`email_verified` and a trusted provider) and the existing account's own email to be verified, so an unverified sign-up cannot take over someone's account. When linking is off and another account owns the email, the new user is made without an email. The display name comes from the request on the first sign-in (Apple sends the name only once) or from the token's `name`.
 
+**Microsoft's email** is kept only when the token says the tenant verified the address's domain (`xms_edov`). That claim comes only from work and school accounts, and only with the optional claims `email` and `xms_edov` on the app registration. Personal Microsoft accounts get no email.
+
+**What the user carries** (`SpineUser`, in every token answer, after a refresh too):
+
+| | From |
+|---|---|
+| `GivenName`, `FamilyName` | The request (Apple's sheet, the first time) or the token's `given_name` and `family_name`. Kept as first given, like the display name. |
+| `PictureUrl` | The token's `picture`, https only and at most 2,048 characters (Google, and OpenID Connect providers that send one). It follows the provider, which is where the user changes it. Microsoft's picture has no address: the app fetches it from Graph. |
+| `Organization` | A Microsoft work or school account's tenant id (`tid`, not the personal accounts' tenant), or a Google Workspace domain (`hd`). It follows each Google and Microsoft sign-in, so a personal account clears it; Apple and passwords leave it as it is. |
+| `SignInMethods` | Every provider with a login on the account (`apple`, `google`, `password`, …), read from the store when the tokens are issued. |
+
+The user store keeps the names, the picture and the organization: three columns more on the Azure Tables row, read as empty from rows written before.
+
 **Apple's tokens.** With `TeamId`, `KeyId` and `PrivateKey` (the `.p8` of a Sign in with Apple key), the server trades the request's `authorizationCode` at `https://appleid.apple.com/auth/token`. Apple's refresh token is kept with the login. `DELETE /auth/account` revokes it at `/auth/revoke`, as [TN3194](https://developer.apple.com/documentation/technotes/tn3194-handling-account-deletions-and-revoking-tokens-for-sign-in-with-apple) requires. The client secret is a five-minute ES256 JWT signed with that key.
 
 ## Browser sign-in

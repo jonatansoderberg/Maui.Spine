@@ -5,6 +5,7 @@
       "src\\Plugin.Maui.Spine.AI\\Plugin.Maui.Spine.AI.csproj",
       "src\\Plugin.Maui.Spine.Authentication\\Plugin.Maui.Spine.Authentication.csproj",
       "src\\Plugin.Maui.Spine.Authentication.Google\\Plugin.Maui.Spine.Authentication.Google.csproj",
+      "src\\Plugin.Maui.Spine.Authentication.Microsoft\\Plugin.Maui.Spine.Authentication.Microsoft.csproj",
       "src\\Plugin.Maui.Spine.BackgroundTasks\\Plugin.Maui.Spine.BackgroundTasks.csproj",
       "src\\Plugin.Maui.Spine.Biometrics\\Plugin.Maui.Spine.Biometrics.csproj",
       "src\\Plugin.Maui.Spine.Barcodes\\Plugin.Maui.Spine.Barcodes.csproj",

@@ -17,6 +17,18 @@ public sealed class SpineAuthUser
     /// <summary>The name to show.</summary>
     public string? DisplayName { get; set; }
 
+    /// <summary>A public https address of the user's picture, from the provider they last signed in with that gives one.</summary>
+    public string? PictureUrl { get; set; }
+
+    /// <summary>The first name, as first given.</summary>
+    public string? GivenName { get; set; }
+
+    /// <summary>The last name, as first given.</summary>
+    public string? FamilyName { get; set; }
+
+    /// <summary>The organization of the account the user last signed in with: a Microsoft tenant id, a Google Workspace domain.</summary>
+    public string? Organization { get; set; }
+
     /// <summary>The password as ASP.NET Core Identity's <c>PasswordHasher</c> hashes it, or <see langword="null"/>.</summary>
     public string? PasswordHash { get; set; }
 
@@ -35,7 +47,8 @@ public sealed class SpineAuthUser
     /// </summary>
     public string? Version { get; set; }
 
-    internal SpineUser ToContract(string provider) => new(Id, Email, DisplayName, provider);
+    internal SpineUser ToContract(string provider, IReadOnlyList<string> signInMethods) =>
+        new(Id, Email, DisplayName, provider, PictureUrl, GivenName, FamilyName, Organization, signInMethods);
 }
 
 /// <summary>One way a user signs in: a provider and the provider's id for them.</summary>
@@ -220,6 +233,10 @@ public sealed class InMemoryUserResolver : IUserResolver
         Email = email ?? user.Email,
         EmailVerified = user.EmailVerified,
         DisplayName = user.DisplayName,
+        PictureUrl = user.PictureUrl,
+        GivenName = user.GivenName,
+        FamilyName = user.FamilyName,
+        Organization = user.Organization,
         PasswordHash = user.PasswordHash,
         FailedSignIns = user.FailedSignIns,
         LockedUntil = user.LockedUntil,

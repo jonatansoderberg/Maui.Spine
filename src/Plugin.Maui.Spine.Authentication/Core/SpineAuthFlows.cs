@@ -27,12 +27,18 @@ internal sealed class SpineAuthFlows(SpineAuthClient client, SpineAuthSession se
     /// <summary>A provider's own sheet: the server's nonce in, the provider's ID token out to <c>/{provider}/token</c>.</summary>
     public async Task<SignInResult> NativeAsync(string provider, INativeSignIn native, CancellationToken cancellationToken)
     {
-        if (await client.NonceAsync(cancellationToken) is not { } nonce)
-            return SignInResult.Failure($"GET {new Uri(client.Root, "nonce")} did not answer with a nonce.");
+        string? nonce = null;
+        if (native.UsesNonce)
+        {
+            nonce = (await client.NonceAsync(cancellationToken))?.Nonce;
+            if (nonce is null) return SignInResult.Failure($"GET {new Uri(client.Root, "nonce")} did not answer with a nonce.");
+        }
 
-        if (await native.SignInAsync(nonce.Nonce, cancellationToken) is not { } credential) return SignInResult.Canceled;
+        if (await native.SignInAsync(nonce, cancellationToken) is not { } credential) return SignInResult.Canceled;
 
-        return await IdTokenAsync(provider, new SpineIdTokenRequest(credential.IdToken, nonce.Nonce, DisplayName: credential.DisplayName), cancellationToken);
+        var result = await IdTokenAsync(provider, new SpineIdTokenRequest(credential.IdToken, nonce, DisplayName: credential.DisplayName), cancellationToken);
+        if (result.Status == SignInStatus.Failed) await native.RefusedAsync(credential);
+        return result;
     }
 
     /// <summary>

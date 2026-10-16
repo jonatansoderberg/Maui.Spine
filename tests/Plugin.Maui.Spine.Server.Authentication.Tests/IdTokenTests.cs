@@ -145,6 +145,85 @@ public sealed class IdTokenTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await SignInAsync("google", token, nonce)).Status);
     }
 
+    private async Task<SpineTokens> GoogleWithPictureAsync(string picture)
+    {
+        var nonce = await _host.NonceAsync();
+        var token = _host.GoogleIssuer.Token("google-7", AuthHost.GoogleClient, nonce, "eva@example.com", true,
+            extra: new Dictionary<string, object> { ["picture"] = picture });
+        var response = await _host.PostAsync("/auth/google/token", new SpineIdTokenRequest(token, nonce));
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<SpineTokens>())!;
+    }
+
+    [Fact]
+    public async Task Googles_picture_is_kept_follows_a_change_and_survives_a_refresh()
+    {
+        var first = await GoogleWithPictureAsync("https://lh3.googleusercontent.com/a/one");
+        Assert.Equal("https://lh3.googleusercontent.com/a/one", first.User.PictureUrl);
+
+        var changed = await GoogleWithPictureAsync("https://lh3.googleusercontent.com/a/two");
+        Assert.Equal("https://lh3.googleusercontent.com/a/two", changed.User.PictureUrl);
+
+        var refreshed = await _host.PostAsync("/auth/token", new SpineRefreshRequest(changed.RefreshToken));
+        Assert.Equal("https://lh3.googleusercontent.com/a/two", (await refreshed.Content.ReadFromJsonAsync<SpineTokens>())!.User.PictureUrl);
+    }
+
+    [Fact]
+    public async Task Googles_names_and_workspace_domain_reach_the_app()
+    {
+        var nonce = await _host.NonceAsync();
+        var token = _host.GoogleIssuer.Token("google-8", AuthHost.GoogleClient, nonce, "eva@contoso.com", true,
+            extra: new Dictionary<string, object> { ["given_name"] = "Eva", ["family_name"] = "Berg", ["hd"] = "contoso.com" });
+        var tokens = (await (await _host.PostAsync("/auth/google/token", new SpineIdTokenRequest(token, nonce)))
+            .Content.ReadFromJsonAsync<SpineTokens>(SpineAuthJson.Options))!;
+
+        Assert.Equal("Eva", tokens.User.GivenName);
+        Assert.Equal("Berg", tokens.User.FamilyName);
+        Assert.Equal("contoso.com", tokens.User.Organization);
+        Assert.Equal(["google"], tokens.User.SignInMethods);
+    }
+
+    [Fact]
+    public async Task Apples_names_come_from_the_sheet()
+    {
+        var nonce = await _host.NonceAsync();
+        var token = _host.AppleIssuer.Token("apple-9", AuthHost.Bundle, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(nonce))));
+        var tokens = (await (await _host.PostAsync("/auth/apple/token", new SpineIdTokenRequest(token, nonce, DisplayName: "Ola Nord", GivenName: "Ola", FamilyName: "Nord")))
+            .Content.ReadFromJsonAsync<SpineTokens>(SpineAuthJson.Options))!;
+
+        Assert.Equal(("Ola", "Nord"), (tokens.User.GivenName, tokens.User.FamilyName));
+        Assert.Null(tokens.User.Organization);
+    }
+
+    private async Task<SpineTokens> MicrosoftAsync(string subject, IDictionary<string, object> claims)
+    {
+        var token = _host.MicrosoftIssuer.Token(subject, AuthHost.MicrosoftClient, extra: claims);
+        var response = await _host.PostAsync("/auth/microsoft/token", new SpineIdTokenRequest(token));
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<SpineTokens>(SpineAuthJson.Options))!;
+    }
+
+    [Fact]
+    public async Task Microsofts_email_is_kept_only_when_the_tenant_verified_its_domain()
+    {
+        var verified = await MicrosoftAsync("ms-5", new Dictionary<string, object>
+        {
+            ["tid"] = AuthHost.Tenant, ["email"] = "mo@contoso.com", ["xms_edov"] = true,
+        });
+        Assert.Equal("mo@contoso.com", verified.User.Email);
+        Assert.Equal(AuthHost.Tenant, verified.User.Organization);
+
+        var unverified = await MicrosoftAsync("ms-6", new Dictionary<string, object> { ["tid"] = AuthHost.Tenant, ["email"] = "victim@example.com" });
+        Assert.Null(unverified.User.Email);
+    }
+
+    [Fact]
+    public async Task A_picture_that_is_not_https_is_not_passed_on()
+    {
+        var tokens = await GoogleWithPictureAsync("http://example.com/me.jpg");
+        Assert.Null(tokens.User.PictureUrl);
+    }
+
     [Fact]
     public async Task Microsoft_accepts_a_token_without_a_nonce_from_an_accepted_tenant_only()
     {
@@ -251,6 +330,7 @@ public sealed class LinkingTests
         Assert.Equal(apple.User.Id, google.User.Id);
         Assert.Equal("google", google.User.Provider);
         Assert.Equal(2, (await host.Users.GetLoginsAsync(apple.User.Id)).Count);
+        Assert.Equal(["apple", "google"], google.User.SignInMethods);
     }
 
     [Fact]

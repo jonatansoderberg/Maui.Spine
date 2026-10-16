@@ -17,7 +17,7 @@ internal sealed class GoogleSignIn(SpineGoogleOptions options) : INativeSignIn
     // Credential Manager needs Android 6.0; Spine's apps start lower, and there the broker in the browser takes over.
     public static bool IsSupported => OperatingSystem.IsAndroidVersionAtLeast(23);
 
-    public async Task<NativeCredential?> SignInAsync(string nonce, CancellationToken cancellationToken)
+    public async Task<NativeCredential?> SignInAsync(string? nonce, CancellationToken cancellationToken)
     {
         var activity = Platform.CurrentActivity ?? throw new InvalidOperationException("Sign in with Google needs the app's activity, and there is none yet.");
         var manager = CredentialManager.Create(activity);
@@ -26,7 +26,7 @@ internal sealed class GoogleSignIn(SpineGoogleOptions options) : INativeSignIn
         // every account on the device, the first time.
         try
         {
-            return await RequestAsync(manager, activity, Option(nonce, signedInBefore: true), cancellationToken);
+            return await RequestAsync(manager, activity, Option(nonce!, signedInBefore: true), cancellationToken);
         }
         catch (NoCredentialException)
         {
@@ -34,7 +34,7 @@ internal sealed class GoogleSignIn(SpineGoogleOptions options) : INativeSignIn
 
         try
         {
-            return await RequestAsync(manager, activity, Option(nonce, signedInBefore: false), cancellationToken);
+            return await RequestAsync(manager, activity, Option(nonce!, signedInBefore: false), cancellationToken);
         }
         catch (NoCredentialException e)
         {

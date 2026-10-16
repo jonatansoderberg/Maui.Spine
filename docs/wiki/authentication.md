@@ -8,6 +8,7 @@ dotnet add package Plugin.Maui.Spine.Authentication
 - Sign in with Apple's own sheet on iOS and Mac Catalyst, and email and password in a ready-made sheet.
 - Sign-in in the system browser: any provider the server brokers, and Apple on Android and Windows.
 - [Sign in with Google](#sign-in-with-google) with `Plugin.Maui.Spine.Authentication.Google`: Credential Manager's sheet on Android, the browser elsewhere.
+- [Sign in with Microsoft](#sign-in-with-microsoft) with `Plugin.Maui.Spine.Authentication.Microsoft`: MSAL with the broker, via the Spine server or straight to an Entra-protected API.
 - `[RequiresSignIn]` on a page or a command.
 - The refresh token in secure storage.
 - An `HttpClient` handler that adds the access token and refreshes it.
@@ -95,6 +96,51 @@ o.AddAuthentication(a =>
 
 The Google Cloud steps (a Web client, and an Android client with the package name and the signing key's SHA-1) are in [the package's README](../../src/Plugin.Maui.Spine.Authentication.Google/README.md).
 
+## Sign in with Microsoft
+
+```bash
+dotnet add package Plugin.Maui.Spine.Authentication.Microsoft
+```
+
+Two ways, both through MSAL.
+
+**Through the Spine server** (`AddMicrosoft`): MSAL's ID token goes to `POST {Server}/microsoft/token`. The user is then a Spine user like any other, with Spine's tokens. The server configures `Microsoft(o => { o.ClientId = …; o.Tenant = …; })`.
+
+```csharp
+o.AddAuthentication(a =>
+{
+    a.Server = new Uri("https://api.example.com/auth");
+    a.AddApple();
+    a.AddMicrosoft(m => m.ClientId = "…");
+});
+```
+
+**Without a Spine server** (`UseMicrosoft`, in place of `Server`): the session's tokens are MSAL's.
+- `GetAccessTokenAsync` and the `HttpClient` handler hand out an access token for `Scopes`, for an API that Entra protects.
+- MSAL keeps the tokens and renews them silently.
+- When MSAL needs the user again (a revoked sign-in, a changed password), the app signs out and raises `SignedOut`.
+
+```csharp
+o.AddAuthentication(a => a.UseMicrosoft(m =>
+{
+    m.ClientId = "…";
+    m.Tenant = "contoso.onmicrosoft.com";
+    m.Scopes.Add("api://orders/access_as_user");
+}));
+```
+
+- **The broker.**
+  - **iOS and Android:** Microsoft Authenticator or Company Portal when one is installed, which gives single sign-on and the device-bound tokens that conditional access asks for; otherwise the system browser.
+  - **Windows:** WAM.
+  - **Mac Catalyst:** MSAL has no build for it, so its sign-in runs in Spine's browser layer and returns to `{CallbackScheme}://callback`.
+  - `m.UseBroker = false` keeps to the system browser.
+- **A remembered account** signs in without a prompt when MSAL can renew its token.
+- **Sign-out** removes the account from MSAL's cache too.
+- **The cache.** MSAL keeps it in the Keychain on iOS (in the app's own keychain group, so no entitlement) and on Mac Catalyst, in its own storage on Android, and in a DPAPI-protected file on Windows.
+- **App Store Review Guideline 4.8** applies to `AddMicrosoft` as to Google. `UseMicrosoft` is for apps whose users sign in with their organization's account, which the guideline exempts, so it is not checked.
+
+The Entra setup, a redirect URI per platform and the iOS Info.plist entries (the build stops without them), is in [the package's README](../../src/Plugin.Maui.Spine.Authentication.Microsoft/README.md).
+
 ## Without a Spine server
 
 ```csharp
@@ -181,6 +227,33 @@ The server's errors are shown in the sheet, such as a wrong password or a code t
 
 For an app's own design, `a.SignInPage<MySignInSheet>()` takes any `[NavigableSheet]` that returns a `SignInResult` (`INavigableWithResult<SignInResult>`) and signs in through `ISpineAuth`.
 
+## The user's details
+
+`ISpineAuth.User` carries what the providers say about the user:
+
+| | |
+|---|---|
+| `Id` | The server's own id: the same however the user signs in, unlike the providers' ids (Microsoft's `sub` differs per app). |
+| `DisplayName`, `GivenName`, `FamilyName` | From the first sign-in: Apple's sheet (once only), Google's and Microsoft's tokens, the sign-up form. |
+| `Email` | Only an address someone vouched for: an emailed code, Apple, Google, or a Microsoft work or school account whose domain the tenant verified. Personal Microsoft accounts get none. |
+| `Organization` | A Microsoft work or school account's tenant id, or a Google Workspace domain; null for personal accounts. |
+| `SignInMethods` | Every way the user can sign in to the account, such as `apple`, `google`, `password`. |
+| `Provider` | How the user signed in this time. |
+
+**The picture.** `GetPictureAsync()` gives the signed-in user's picture as bytes (JPEG or PNG), or null:
+- Google's comes from `PictureUrl`, an address the server keeps;
+- Microsoft's comes from Graph (`/me/photo`), with `User.Read`, which MSAL asks for at sign-in (`m.Picture`, on by default);
+- Apple and email and password have none.
+
+It is kept on the device for a day, and forgotten at sign-out.
+
+```csharp
+if (await auth.GetPictureAsync() is { } picture)
+    Avatar.Source = ImageSource.FromStream(() => new MemoryStream(picture));
+```
+
+**Without a Spine server,** the session fills these from the provider's ID token (`UseIdentityProvider`) or from MSAL (`UseMicrosoft`). With MSAL, `Email` is the account's sign-in name, which is not verified.
+
 ## Tokens
 
 - **The refresh token and the user** are kept in `SecureStorage` (the Keychain on Apple, the Keystore on Android), under `StorageKey`. The access token is kept in memory only.
@@ -207,5 +280,6 @@ Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true
 - Sign in with Apple's sheet on a device, which needs the capability on the App ID.
 - Android, Windows and Mac Catalyst at run time: they are only compiled. The iOS simulator ran sign-up, the code, `[RequiresSignIn]` on a page and on a command, a call through the handler, sign-out, and a restart that kept the session.
 - The browser sign-in ran in the iOS simulator against a local OpenID Connect stub, without a Spine server: cancel, sign-in, a restart that kept the session, a refresh and a revocation at sign-out. The brokered flow ran only in tests, against a real `Server.Authentication` broker with the browser stubbed. Not run yet: a real provider (Google, Apple through the broker, Auth0 or Entra), Custom Tabs and the callback activity on Android (the merged manifest was checked), and the Windows loopback.
+- Sign in with Microsoft on Android, Windows (WAM) and Mac Catalyst, and with Microsoft Authenticator installed.
 - Sign in with Google at run time: Credential Manager on Android and the broker against Google, both waiting for a Google Cloud project. Seen in the iOS simulator: the sheet's "Continue with Google" opens the broker's start URL.
 - The push link with a real push token.

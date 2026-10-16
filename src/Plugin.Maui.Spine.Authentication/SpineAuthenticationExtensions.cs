@@ -55,8 +55,13 @@ public static class SpineAuthenticationExtensions
                 options.IdentityProvider ?? throw new InvalidOperationException("Spine sign-in: no UseIdentityProvider(...)."),
                 sp.GetService<TimeProvider>() ?? TimeProvider.System));
             services.AddSingleton<IBrowserSignIn>(sp => new PlatformBrowserSignIn(options));
+            services.AddSingleton(sp => new PictureCache(
+                sp.GetRequiredService<IHttpClientFactory>().CreateClient(HttpClientName),
+                Path.Combine(FileSystem.CacheDirectory, "spine-authentication"),
+                sp.GetService<TimeProvider>() ?? TimeProvider.System));
+            services.AddSingleton(sp => options.Direct?.Create(sp) ?? throw new InvalidOperationException("Spine sign-in: this app signs in with a Spine server."));
             services.AddSingleton(sp => new SpineAuthSession(
-                options.IdentityProvider is null ? sp.GetRequiredService<SpineAuthClient>() : sp.GetRequiredService<IdentityProviderClient>(),
+                options.Direct is null ? sp.GetRequiredService<SpineAuthClient>() : sp.GetRequiredService<IDirectSignIn>(),
                 new SecureSpineAuthStorage(options.StorageKey),
                 sp.GetService<TimeProvider>() ?? TimeProvider.System,
                 sp.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Authentication") ?? NullLogger.Instance));
@@ -82,9 +87,11 @@ public static class SpineAuthenticationExtensions
         if (spine?.ApplyConfiguration(options) == true)
         {
             // Windows returns to a loopback address and needs no scheme.
-            // On Android a native sheet can still fall back to the browser: an old Android, or no Google Play services.
-            var browser = options.IdentityProvider is not null || options.Apple && !AppleSignIn.IsSupported
-                || options.BrowserProviders.Any(p => OperatingSystem.IsAndroid() || options.IsBrowser(p));
+            // A native sheet that can fall back to the browser at run time (Google without Google Play services) needs
+            // the scheme even where it is supported.
+            var browser = options.Direct is { UsesBrowser: true } || options.Apple && !AppleSignIn.IsSupported
+                || options.NativeProviders.Any(p => p.UsesBrowser || p.FallsBackToBrowser)
+                || options.BrowserProviders.Any(options.IsBrowser);
             options.Validate(returnsToScheme: browser && !OperatingSystem.IsWindows(), appStore: OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst());
         }
 

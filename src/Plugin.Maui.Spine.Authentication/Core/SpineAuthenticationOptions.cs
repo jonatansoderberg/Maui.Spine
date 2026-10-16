@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+
 namespace Plugin.Maui.Spine.Authentication;
 
 /// <summary>How the app signs in: its server and the ways it offers. Set inside <c>UseSpine(o => o.AddAuthentication(a => …))</c>.</summary>
@@ -40,6 +42,18 @@ public sealed partial class SpineAuthenticationOptions
 
     internal SpineIdentityProviderOptions? IdentityProvider { get; private set; }
 
+    internal DirectProvider? Direct { get; private set; }
+
+    /// <summary>Signs in without a Spine server, in place of <see cref="Server"/>: one way per app.</summary>
+    internal SpineAuthenticationOptions UseDirect(DirectProvider provider)
+    {
+        if (Direct is { } other && other.Method != provider.Method)
+            throw new InvalidOperationException($"Spine sign-in: {other.Method} and {provider.Method} each sign in without a Spine server; use one.");
+
+        Direct = provider;
+        return this;
+    }
+
     /// <summary>
     /// A provider the server brokers through the browser: one it configures with <c>WebClientId</c> (Google, an
     /// <c>OpenIdConnect(name, …)</c>), shown as a button in the sign-in sheet.
@@ -66,9 +80,11 @@ public sealed partial class SpineAuthenticationOptions
     public SpineAuthenticationOptions UseIdentityProvider(Action<SpineIdentityProviderOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
-        IdentityProvider = new SpineIdentityProviderOptions();
-        configure(IdentityProvider);
-        return this;
+        var provider = new SpineIdentityProviderOptions();
+        configure(provider);
+        IdentityProvider = provider;
+        return UseDirect(new DirectProvider(provider.Name, "UseIdentityProvider(...)", UsesBrowser: true,
+            sp => new IdentityProviderSignIn(sp.GetRequiredService<IdentityProviderClient>(), sp.GetRequiredService<IBrowserSignIn>())));
     }
 
     internal SpineEmailPasswordOptions? EmailPassword { get; private set; }
@@ -146,12 +162,15 @@ public sealed partial class SpineAuthenticationOptions
         if (CallbackScheme is { } scheme && (scheme != scheme.ToLowerInvariant() || Uri.CheckSchemeName(scheme) is false))
             throw new InvalidOperationException($"Spine sign-in: CallbackScheme \"{scheme}\" must be a lowercase URL scheme, such as se.example.app.");
 
-        if (IdentityProvider is { } provider)
+        if (Direct is { } direct)
         {
             if (Server is not null || Apple || EmailPassword is not null || BrowserProviders.Count > 0)
                 throw new InvalidOperationException(
-                    "Spine sign-in: UseIdentityProvider(...) signs in without a Spine server; Server, AddApple, AddEmailPassword, AddOpenIdConnect and the provider packages (AddGoogle) need one.");
+                    $"Spine sign-in: {direct.Method} signs in without a Spine server; Server, AddApple, AddEmailPassword, AddOpenIdConnect and the provider packages (AddGoogle, AddMicrosoft) need one.");
+        }
 
+        if (IdentityProvider is { } provider)
+        {
             if (provider.Authority is not { IsAbsoluteUri: true } || string.IsNullOrWhiteSpace(provider.ClientId))
                 throw new InvalidOperationException("Spine sign-in: UseIdentityProvider(...) needs an Authority and a ClientId.");
 
@@ -159,7 +178,7 @@ public sealed partial class SpineAuthenticationOptions
             if (!SpineIdentityProviderOptions.IsSecure(provider.Authority))
                 throw new InvalidOperationException($"Spine sign-in: the Authority {provider.Authority} must be https (http only on localhost).");
         }
-        else
+        else if (Direct is null)
         {
             _ = ServerRoot;
             if (!Apple && EmailPassword is null && BrowserProviders.Count == 0)

@@ -16,6 +16,7 @@ internal sealed class SpineAuth : ISpineAuth
     private readonly Lock _gate = new();
     private readonly Dictionary<string, Lazy<INativeSignIn>> _natives;
     private Task<SignInResult>? _signingIn;
+    private Task _forgetting = Task.CompletedTask;
 
     public SpineAuth(
         SpineAuthenticationOptions options, SpineAuthSession session, IBrowserSignIn browser, IServiceProvider services, ILogger<SpineAuth> logger)
@@ -30,15 +31,26 @@ internal sealed class SpineAuth : ISpineAuth
         session.SignedOut += (_, e) =>
         {
             SignedOut?.Invoke(this, e);
-            _ = ForgetNativeAccountsAsync();
+            _forgetting = ForgetNativeAccountsAsync();
+            try
+            {
+                Pictures.Clear();
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Spine sign-in: the signed-out user's picture could not be removed.");
+            }
         };
         session.Changed += (_, e) => UserChanged?.Invoke(this, e);
 
         var providers = new List<SignInProvider>();
-        if (options.IdentityProvider is { } identityProvider) providers.Add(new SignInProvider(identityProvider.Name, false));
+        if (options.Direct is { } direct) providers.Add(new SignInProvider(direct.Name, !direct.UsesBrowser));
         if (options.Apple) providers.Add(new SignInProvider("apple", AppleSignIn.IsSupported));
         if (options.EmailPassword is not null) providers.Add(new SignInProvider("password", false));
-        providers.AddRange(options.BrowserProviders.Select(p => p with { IsNative = !options.IsBrowser(p) }));
+        providers.AddRange(options.BrowserProviders.Select(p => p with
+        {
+            IsNative = options.NativeProviders.Any(n => n.Name == p.Name && n.IsSupported && !n.UsesBrowser),
+        }));
         Providers = providers;
 
         _natives = options.NativeProviders.Where(p => p.IsSupported)
@@ -50,10 +62,12 @@ internal sealed class SpineAuth : ISpineAuth
 
     private SpineAuthClient Client => _services.GetRequiredService<SpineAuthClient>();
 
-    private bool Direct => _options.IdentityProvider is not null;
+    private PictureCache Pictures => _services.GetRequiredService<PictureCache>();
 
-    private static Task<SignInResult> NeedsServer(string what) =>
-        Task.FromResult(SignInResult.Failure($"{what} needs a Spine server; this app signs in with UseIdentityProvider(...)."));
+    private bool Direct => _options.Direct is not null;
+
+    private Task<SignInResult> NeedsServer(string what) =>
+        Task.FromResult(SignInResult.Failure($"{what} needs a Spine server; this app signs in with {_options.Direct?.Method}."));
 
     public SpineUser? User => _session.User;
 
@@ -93,7 +107,7 @@ internal sealed class SpineAuth : ISpineAuth
     {
         var name = provider.ToLowerInvariant();
 
-        if (_options.IdentityProvider is { } identityProvider && string.Equals(name, identityProvider.Name, StringComparison.OrdinalIgnoreCase))
+        if (_options.Direct is { } direct && string.Equals(name, direct.Name, StringComparison.OrdinalIgnoreCase))
             return DirectAsync(cancellationToken);
 
         return name switch
@@ -129,7 +143,23 @@ internal sealed class SpineAuth : ISpineAuth
     public DelegatingHandler CreateHandler(HttpMessageHandler? inner = null) =>
         new SpineAuthHandler(_session) { InnerHandler = inner ?? new HttpClientHandler() };
 
-    public Task SignOutAsync(CancellationToken cancellationToken = default) => _session.SignOutAsync(cancellationToken);
+    public async Task<byte[]?> GetPictureAsync(CancellationToken cancellationToken = default)
+    {
+        await _session.LoadAsync();
+        if (User is not { } user) return null;
+
+        Func<CancellationToken, Task<byte[]?>>? source =
+            Direct ? _services.GetRequiredService<IDirectSignIn>().PictureAsync
+            : _natives.TryGetValue(user.Provider, out var native) ? native.Value.PictureAsync
+            : null;
+        return await Pictures.GetAsync(user, source, cancellationToken);
+    }
+
+    public async Task SignOutAsync(CancellationToken cancellationToken = default)
+    {
+        await _session.SignOutAsync(cancellationToken);
+        await _forgetting;
+    }
 
     public Task<SignInResult> DeleteAccountAsync(CancellationToken cancellationToken = default) =>
         Direct ? NeedsServer("Deleting the account") : Flows.DeleteAccountAsync(cancellationToken);
@@ -162,6 +192,8 @@ internal sealed class SpineAuth : ISpineAuth
 
     private async Task<SignInResult> NativeAsync(string provider, INativeSignIn native, CancellationToken cancellationToken)
     {
+        // A sign-in straight after a sign-out must not find the old account still remembered.
+        await _forgetting;
         try
         {
             var result = await Flows.NativeAsync(provider, native, cancellationToken);
@@ -201,7 +233,7 @@ internal sealed class SpineAuth : ISpineAuth
     {
         try
         {
-            var (tokens, problem) = await _services.GetRequiredService<IdentityProviderClient>().SignInAsync(_browser, cancellationToken);
+            var (tokens, problem) = await _services.GetRequiredService<IDirectSignIn>().SignInAsync(cancellationToken);
             if (tokens is null)
             {
                 if (problem!.Status == SignInStatus.Failed) _logger.LogWarning("Spine sign-in: the identity provider's sign-in failed: {Error}", problem.Error);
@@ -237,7 +269,7 @@ internal sealed class SpineAuth : ISpineAuth
 
         if (credential is null) return SignInResult.Canceled;
 
-        var result = await Flows.IdTokenAsync("apple", new SpineIdTokenRequest(credential.IdentityToken, nonce.Nonce, credential.AuthorizationCode, credential.Name), cancellationToken);
+        var result = await Flows.IdTokenAsync("apple", new SpineIdTokenRequest(credential.IdentityToken, nonce.Nonce, credential.AuthorizationCode, credential.Name, credential.GivenName, credential.FamilyName), cancellationToken);
         if (result.Status == SignInStatus.Failed) _logger.LogWarning("Spine sign-in: the server refused Apple's token: {Error}", result.Error);
         return result;
     }

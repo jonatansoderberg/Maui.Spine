@@ -8,9 +8,15 @@
     <SampleLayout Packages="Plugin.Maui.Spine.Authentication, Plugin.Maui.Spine.Server.Authentication">
 
         <Example Title="Sign in"
-                 Summary="Against the push sample server's /auth (samples/MauiSpinePushNotificationsSampleApp.Server on localhost:5100), whose email codes are written to its log. The sheet offers email and password, Sign in with Apple when the app is built with SpineSignInWithApple, and Google when it is built with SpineGoogleServerClientId (Credential Manager on Android, the browser elsewhere).">
+                 Summary="Against the push sample server's /auth (samples/MauiSpinePushNotificationsSampleApp.Server on localhost:5100), whose email codes are written to its log. The sheet offers email and password, Sign in with Apple when the app is built with SpineSignInWithApple, Google when it is built with SpineGoogleServerClientId (Credential Manager on Android, the browser elsewhere), and Microsoft when it is built with SpineMicrosoftClientId (MSAL).">
             <VerticalStackLayout Spacing="10">
+                <!-- The provider's picture (Google, Microsoft); hidden when there is none. -->
+                <Border WidthRequest="64" HeightRequest="64" HorizontalOptions="Start" StrokeThickness="0"
+                        StrokeShape="RoundRectangle 32" IsVisible="{Binding HasPicture}">
+                    <Image Source="{Binding Picture}" Aspect="AspectFill" />
+                </Border>
                 <Label Text="{Binding Status}" FontSize="15" FontAttributes="Bold" />
+                <Label Text="{Binding Details}" FontSize="14" />
                 <Label Text="{Binding Providers, StringFormat='Offers: {0}'}" FontSize="14" Opacity="0.7" />
                 <Label Text="{Binding Log}" FontSize="14" />
                 <Button Text="Sign in" Command="{Binding SignInCommand}" />
@@ -25,6 +31,10 @@
                 }));
 
                 var result = await _auth.SignInAsync();
+
+                // The provider's picture (Google, Microsoft), or null.
+                if (await _auth.GetPictureAsync() is { } picture)
+                    Picture = ImageSource.FromStream(() => new MemoryStream(picture));
             </Example.Code>
         </Example>
 

@@ -62,6 +62,20 @@ public interface ISpineAuth
     /// </summary>
     Task<SignInResult> DeleteAccountAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The signed-in user's picture from the provider, kept on the device for a day and forgotten at sign-out: Google's
+    /// (through <see cref="SpineUser.PictureUrl"/>), Microsoft's (through Graph). Null when nobody is signed in, the
+    /// provider has none (Apple, email and password), or it could not be fetched and none was kept.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// if (await auth.GetPictureAsync() is { } picture)
+    ///     Avatar.Source = ImageSource.FromStream(() => new MemoryStream(picture));
+    /// </code>
+    /// </example>
+    /// <returns>The image's bytes, JPEG or PNG as the provider has it.</returns>
+    Task<byte[]?> GetPictureAsync(CancellationToken cancellationToken = default) => Task.FromResult<byte[]?>(null);
+
     /// <summary>Raised after a sign-in, with the user.</summary>
     event EventHandler<SpineUser>? SignedIn;
 

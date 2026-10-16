@@ -88,6 +88,10 @@ builder.Services.AddSpineAuthentication(a =>
         });
     }
 
+    // Microsoft through MSAL in the app: the app registration's client id, and who may sign in.
+    if (builder.Configuration["Auth:Microsoft:ClientId"] is { Length: > 0 } microsoftClient)
+        a.Microsoft(o => { o.ClientId = microsoftClient; o.Tenant = builder.Configuration["Auth:Microsoft:Tenant"] ?? "common"; });
+
     a.EmailPassword();
     a.UseInMemoryStore();
 });

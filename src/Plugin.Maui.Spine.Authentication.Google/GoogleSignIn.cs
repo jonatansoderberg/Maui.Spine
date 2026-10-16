@@ -7,7 +7,7 @@ internal sealed class GoogleSignIn(SpineGoogleOptions options) : INativeSignIn
 {
     public static bool IsSupported => false;
 
-    public Task<NativeCredential?> SignInAsync(string nonce, CancellationToken cancellationToken) =>
+    public Task<NativeCredential?> SignInAsync(string? nonce, CancellationToken cancellationToken) =>
         throw new PlatformNotSupportedException($"Google's own sheet is Android only; {options.DisplayName} goes through the browser here.");
 
     public Task SignedOutAsync() => Task.CompletedTask;

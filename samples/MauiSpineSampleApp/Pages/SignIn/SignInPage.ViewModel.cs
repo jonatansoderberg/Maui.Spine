@@ -25,8 +25,23 @@ public partial class SignInPageViewModel : SampleViewModel
 
     public string Providers => string.Join(", ", _auth.Providers.Select(p => p.IsNative ? $"{p.Name} (native)" : p.Name));
 
-    private void Update() => MainThread.BeginInvokeOnMainThread(() =>
-        Status = _auth.User is { } user ? $"Signed in as {user.DisplayName ?? user.Email} with {user.Provider}" : "Signed out");
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPicture))]
+    public partial ImageSource? Picture { get; set; }
+
+    public bool HasPicture => Picture is not null;
+
+    [ObservableProperty]
+    public partial string Details { get; set; } = "";
+
+    private void Update() => MainThread.BeginInvokeOnMainThread(async () =>
+    {
+        Status = _auth.User is { } user ? $"Signed in as {user.DisplayName ?? user.Email} with {user.Provider}" : "Signed out";
+        Details = _auth.User is { } u
+            ? $"Given name: {u.GivenName ?? "–"}, family name: {u.FamilyName ?? "–"}\nEmail: {u.Email ?? "–"}\nOrganization: {u.Organization ?? "–"}\nSigns in with: {string.Join(", ", u.SignInMethods ?? [u.Provider])}"
+            : "";
+        Picture = await _auth.GetPictureAsync() is { } picture ? ImageSource.FromStream(() => new MemoryStream(picture)) : null;
+    });
 
     [RelayCommand]
     private async Task SignIn()
