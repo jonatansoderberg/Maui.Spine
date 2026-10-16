@@ -273,11 +273,11 @@ The Showcase's Sign-in page runs against the push sample server's `/auth` on `ht
 - a `[RequiresSignIn]` command that calls `/sample/me` through a client with `AddSpineAuthentication()`;
 - deleting the account.
 
-Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true`, because the Showcase's App ID does not have the capability yet. Google is offered only in a build with `-p:SpineGoogleServerClientId=<the Web client's id>`, because it needs a Google Cloud project: the push sample server reads `Auth:Google:WebClientId` and `Auth:Google:WebClientSecret`, and the Android client needs the debug key's SHA-1. Without Sign in with Apple, that build sets `AppleNotRequired`. The Showcase's callback scheme is `se.cosmomedia.spineshowcase`.
+Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true`, which adds the entitlement; a profile for the Showcase's App ID must then have the capability, as `Spine Showcase Development` does. The simulator needs an Apple ID signed in under Settings. Google is offered only in a build with `-p:SpineGoogleServerClientId=<the Web client's id>`, because it needs a Google Cloud project: the push sample server reads `Auth:Google:WebClientId` and `Auth:Google:WebClientSecret`, and the Android client needs the debug key's SHA-1. Without Sign in with Apple, that build sets `AppleNotRequired`. The Showcase's callback scheme is `se.cosmomedia.spineshowcase`.
 
 ## Not verified yet
 
-- Sign in with Apple's sheet on a device, which needs the capability on the App ID.
+- Sign in with Apple's sheet on a device. It ran in the iOS simulator with a real Apple ID: the sheet, the server's check against Apple's keys, the names and the email. Apple's token revocation at account deletion needs the Sign in with Apple key on the server and is not run.
 - Android, Windows and Mac Catalyst at run time: they are only compiled. The iOS simulator ran sign-up, the code, `[RequiresSignIn]` on a page and on a command, a call through the handler, sign-out, and a restart that kept the session.
 - The browser sign-in ran in the iOS simulator against a local OpenID Connect stub, without a Spine server: cancel, sign-in, a restart that kept the session, a refresh and a revocation at sign-out. The brokered flow ran only in tests, against a real `Server.Authentication` broker with the browser stubbed. Not run yet: a real provider (Google, Apple through the broker, Auth0 or Entra), Custom Tabs and the callback activity on Android (the merged manifest was checked), and the Windows loopback.
 - Sign in with Microsoft on Android, Windows (WAM) and Mac Catalyst, and with Microsoft Authenticator installed.

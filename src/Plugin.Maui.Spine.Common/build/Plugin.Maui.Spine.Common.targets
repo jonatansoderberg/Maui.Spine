@@ -52,12 +52,12 @@
 			<_SpineEntitlementLine Include="&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;" />
 			<_SpineEntitlementLine Include="&lt;plist version=&quot;1.0&quot;&gt;" />
 			<_SpineEntitlementLine Include="&lt;dict&gt;" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'string'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;string&gt;%(Value)&lt;/string&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'string'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'array'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;array&gt;&lt;string&gt;%(Value)&lt;/string&gt;&lt;/array&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'array'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'boolean'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;%(Value)/&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'boolean'" />
+			<!-- One line per entitlement, key and value together: two transforms per kind would write every key of
+			     that kind before every value, and two entitlements of one kind (Sign in with Apple and App Groups)
+			     made two keys in a row. -->
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;&lt;string&gt;%(Value)&lt;/string&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'string'" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;&lt;array&gt;&lt;string&gt;%(Value)&lt;/string&gt;&lt;/array&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'array'" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;&lt;%(Value)/&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'boolean'" />
 			<_SpineEntitlementLine Include="&lt;/dict&gt;" />
 			<_SpineEntitlementLine Include="&lt;/plist&gt;" />
 		</ItemGroup>
