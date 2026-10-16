@@ -8,7 +8,7 @@ cp "$PKG" "$APP_DIR/bin/Debug/net10.0-maccatalyst/maccatalyst-arm64/Avatar Lab.a
 printf "renderer native\nfollow off\ntheme light\nmotion reduced\nsize 1200\nload kairo\n" >> $LAB_DIR/cmds; sleep 12
 printf "dump\n" >> $LAB_DIR/cmds; sleep 1
 printf "head 0 0\nlookat 600 600\nstate idle\nblink 0\nviseme off\n" >> $LAB_DIR/cmds; sleep 1.5
-for v in 0 60 -60 180; do printf "yaw $v\n" >> $LAB_DIR/cmds; sleep 1.5; printf "shotview y$v\n" >> $LAB_DIR/cmds; sleep 2; done
+for v in 0 60 -60 180; do printf "yaw $v\n" >> $LAB_DIR/cmds; sleep 2.5; printf "shotview y$v\n" >> $LAB_DIR/cmds; sleep 2; done
 sleep 3
 python3 - $LAB_DIR/out $OUT $NAME <<'PY'
 import base64, io, sys

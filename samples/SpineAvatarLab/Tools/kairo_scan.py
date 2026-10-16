@@ -4235,15 +4235,26 @@ def blender_cards(path, scale=1.0):
     def image(i):
         bv = js['bufferViews'][js['images'][i]['bufferView']]; off = bv.get('byteOffset', 0)
         return Image.open(io.BytesIO(bin_[off:off + bv['byteLength']]))
+    # Each mesh's node transform (Blender exports an object's location as a node translation: the cap object sits at the
+    # head pivot, the cards at the origin) is applied to the positions and normals, so the primitives land where Blender shows them.
+    def node_matrix(n):
+        t = np.array(n.get('translation', [0, 0, 0]), float); q = np.array(n.get('rotation', [0, 0, 0, 1]), float); sc = np.array(n.get('scale', [1, 1, 1]), float)
+        x, y, z, w = q
+        R = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+        return R * sc[None, :], t
+    mesh_nodes = {n['mesh']: node_matrix(n) for n in js.get('nodes', []) if 'mesh' in n}
     out = {}
-    for mesh in js['meshes']:
+    for mi, mesh in enumerate(js['meshes']):
+        R, t = mesh_nodes.get(mi, (np.eye(3), np.zeros(3)))
         for p in mesh['primitives']:
             mat = js['materials'][p['material']]; img = image(js['textures'][mat['pbrMetallicRoughness']['baseColorTexture']['index']]['source'])
             if scale != 1.0 and mesh['name'] == 'KairoCards':
                 img = img.resize((max(4, round(img.width * scale)), max(4, round(img.height * scale))), Image.LANCZOS)
-            out[mesh['name']] = dict(pos=acc(p['attributes']['POSITION']).astype(np.float64), nrm=acc(p['attributes']['NORMAL']).astype(np.float64),
-                                     uv=acc(p['attributes']['TEXCOORD_0']).astype(np.float64), idx=acc(p['indices']).ravel().astype(np.uint32), material=0,
+            pos = acc(p['attributes']['POSITION']).astype(np.float64) @ R.T + t
+            nrm = acc(p['attributes']['NORMAL']).astype(np.float64) @ np.linalg.inv(R).T; nrm /= np.linalg.norm(nrm, axis=1, keepdims=True) + 1e-12
+            out[mesh['name']] = dict(pos=pos, nrm=nrm, uv=acc(p['attributes']['TEXCOORD_0']).astype(np.float64), idx=acc(p['indices']).ravel().astype(np.uint32), material=0,
                                      tex=np.array(img.convert('RGBA' if mesh['name'] == 'KairoCards' else 'RGB')))
+            print('  blender mesh', mesh['name'], 'node translation', np.round(t, 4))
     cards = out['KairoCards']; cards['material_name'] = 'cards'
     cap = out['KairoCap']; cap['material_name'] = 'cap'
     print('blender hair cards:', len(cards['idx']) // 3, 'card triangles, atlas', cards['tex'].shape[1], 'x', cards['tex'].shape[0], '; cap', len(cap['idx']) // 3, 'triangles, texture', cap['tex'].shape[1])

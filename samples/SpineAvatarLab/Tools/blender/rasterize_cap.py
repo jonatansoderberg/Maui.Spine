@@ -22,7 +22,7 @@ for si in range(len(offs) - 1):
         if abs(u[j] - u[j + 1]) > 0.5: continue
         t = (j - a) / max(1, n - 1)
         shade = 0.8 + 0.2 * t; rgb = tuple(int(255 * min(1, c * shade)) for c in col)
-        w = max(1, int(round((2.2 - 1.2 * t) * SS)))
+        w = max(1, int(round((3.2 - 1.6 * t) * SS)))   # coarser roots: the cap reads as combed hair along the parting, not a smooth sheet
         d.line([(x[j], y[j]), (x[j + 1], y[j + 1])], fill=rgb, width=w)
     drawn += 1
 small = img.resize((N, N), Image.BOX).filter(ImageFilter.GaussianBlur(0.4))

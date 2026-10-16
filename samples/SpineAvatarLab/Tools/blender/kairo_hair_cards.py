@@ -395,6 +395,8 @@ def cap_material_lab(name='HairCap', image=None, emissive=0.9):
     return mat
 
 
+FLAT_PULL = 0.4      # the flat layers' children keep most of their own spread: clumped at 0.85 each card was a narrow bundle with transparent sides (the cap showed between the bundles)
+FLAT_SPREAD = 0.02   # root jitter round the guide root (m)
 FRINGE_PARAMS = dict(bangs_comb=0.6, bangs_forward=0.6, bangs_grav=1.15, fringe_lam=0.3)   # deep: the fringe hangs 1-3 cm in front of the forehead instead of on the bangs' outer bulge   # the fringe layer falls steeper (about 60 deg) than t16's bangs, so its cards reach the brows across the forehead
 
 def add_fringe_guides(F, xs=None, seed=33):
@@ -417,7 +419,7 @@ def add_fringe_guides(F, xs=None, seed=33):
     return added
 
 
-def grow_fringe_children(F, fringe, per_guide=60, spread=0.012, seed=44):
+def grow_fringe_children(F, fringe, per_guide=60, spread=FLAT_SPREAD, seed=44):
     """children for the fringe guides: roots jittered on the emitter within `spread` of the guide's root, the guide's wave
     params with jitter, clumped to the guide like grow_styled's children. Returns (strands, gidx) to append."""
     P = F.P; rng = random.Random(seed)
@@ -437,9 +439,198 @@ def grow_fringe_children(F, fringe, per_guide=60, spread=0.012, seed=44):
             res = []
             for p, s in zip(pts, ss):
                 if s > Lg + 0.02: break
-                w = 0.85 * (1 - math.exp(-s / P['clump_rise']))
+                w = FLAT_PULL * (1 - math.exp(-s / P['clump_rise']))
                 if Lg > 0: w *= 1 - P['tip_spread'] * smoothstep((s - 0.75 * Lg) / (0.25 * Lg))
                 res.append(F.push_out(p + (F.along(g['pts'], g['ss'], s) - p) * w))
             if len(res) >= 3: out.append(res); gidx.append(gi)
     P.clear(); P.update(saved)
     return out, gidx
+
+
+def parting_zone_coverage(F, cards_ob, cap_ob, half=0.04, zmin=None):
+    """share of the cap's faces within `half` of the parting (x) on the top of the head that have a card in front of
+    them along their normal (within 15 cm): the owner's "the top looks odd" measure"""
+    zmin = PIV.z + 0.14 if zmin is None else zmin
+    cb = bvh_of(cards_ob)[0]; mw = cap_ob.matrix_world; rot = mw.to_3x3(); n = cov = 0
+    for p in cap_ob.data.polygons:
+        c = mw @ p.center
+        if c.z < zmin or abs(c.x - F.x_part(c.y)) > half: continue
+        nrm = (rot @ p.normal).normalized()
+        if nrm.dot(c - PIV) < 0: nrm = -nrm
+        n += 1
+        if cb.ray_cast(c + nrm * 0.002, nrm, 0.15)[0] is not None: cov += 1
+    return cov, n
+
+PARTING_PARAMS = dict(parting_lam=0.12, parting_child_lam=(0.06, 0.25))
+
+def add_parting_guides(F, step=0.012, offset=0.012, seed=55):
+    """guides rooted on both sides of the parting (x_part(y) +- offset) from the front hairline to the crown's back,
+    one every `step` along y, lying close to the scalp (parting_lam) and flowing with the default comb (away from the
+    parting and back): cards for the top of the head, whose own guide roots were random"""
+    P = F.P; rng = random.Random(seed); added = []
+    em_bvh = bvh_of(F.emitter)[0]
+    y0, y1 = F.parting[0].y, F.parting[-1].y
+    y = y0
+    while y <= y1 + 1e-6:
+        for side in (-1, 1):
+            x = F.x_part(y) + side * offset
+            loc, nrm, idx, dist = em_bvh.find_nearest(Vector((x, y, PIV.z + 0.3)))
+            if loc is None or dist > 0.08: continue
+            n = (loc - PIV).normalized(); lam = PARTING_PARAMS['parting_lam']
+            phase = rng.uniform(0, 2 * math.pi); amp = P['wave_amp'] * rng.uniform(0.6, 1.0); wl = P['wave_len'] * rng.uniform(0.9, 1.2)
+            F.bias = (rng.random() - 0.5) * 0.2
+            pts, ss, why = F.trace_wave(loc, n, lam, phase, amp, wl, P['wave_rad'] * 0.5)
+            if len(pts) < 4: continue
+            g = dict(root=loc, pts=pts, ss=ss, lam=lam, phase=phase, amp=amp, wl=wl, bias=F.bias, why=why, side=side, parting=True)
+            F.guides.append(g); added.append(g)
+        y += step
+    return added
+
+def grow_parting_children(F, guides, per_guide=60, spread=FLAT_SPREAD, seed=56):
+    """flat children for the parting guides (lam parting_child_lam), clumped to their guide like the fringe's"""
+    P = F.P; rng = random.Random(seed); em_bvh = bvh_of(F.emitter)[0]; lo, hi = PARTING_PARAMS['parting_child_lam']
+    out = []; gidx = []
+    for g in guides:
+        gi = F.guides.index(g); Lg = g['ss'][-1]
+        for _ in range(per_guide):
+            off = Vector((rng.uniform(-spread, spread), rng.uniform(-spread, spread), rng.uniform(-spread, spread)))
+            loc, nrm, idx, dist = em_bvh.find_nearest(g['root'] + off)
+            if loc is None: continue
+            n = (loc - PIV).normalized(); u = rng.random(); j = P['child_jitter']
+            lam = lo + (hi - lo) * u; F.bias = g['bias'] + (rng.random() - 0.5) * 0.1
+            pts, ss, why = F.trace_wave(loc, n, lam, g['phase'] + (rng.random() - 0.5) * j * 1.5, g['amp'] * (1 + (u - 0.5) * j), g['wl'], P['wave_rad'] * 0.5)
+            if len(pts) < 3: continue
+            res = []
+            for p, s in zip(pts, ss):
+                if s > Lg + 0.02: break
+                w = FLAT_PULL * (1 - math.exp(-s / P['clump_rise']))
+                if Lg > 0: w *= 1 - P['tip_spread'] * smoothstep((s - 0.75 * Lg) / (0.25 * Lg))
+                res.append(F.push_out(p + (F.along(g['pts'], g['ss'], s) - p) * w))
+            if len(res) >= 3: out.append(res); gidx.append(gi)
+    return out, gidx
+
+
+SWEEP_PARAMS = dict(back_drift=1.0, grav_top=0.3, part_back=0.0, bangs_comb=1.0, lam=0.15, child_lam=(0.08, 0.3))
+
+def add_sweep_guides(F, xs=None, seed=66):
+    """guides rooted on her LEFT front hairline (x > the parting), combed back-and-sideways over the crown close to the
+    scalp: in the reference that side is swept back from the hairline; without them the hairline band above her left
+    brow had no card in front of the cap (51 % of the cap's pixels at yaw 0)"""
+    P = F.P; rng = random.Random(seed); added = []; saved = dict(P); P.update({k: v for k, v in SWEEP_PARAMS.items() if k in P})
+    xs = xs if xs is not None else [x / 1000 for x in range(20, 140, 10)]
+    for x in xs:
+        col = [v for v in F.em_v if abs(v.x - x) < 0.006 and v.z > PIV.z + 0.08]
+        if not col: continue
+        pt = min(col, key=lambda v: v.y); n = (pt - PIV).normalized(); lam = SWEEP_PARAMS['lam']
+        phase = rng.uniform(0, 2 * math.pi); amp = P['wave_amp'] * rng.uniform(0.6, 1.0); wl = P['wave_len'] * rng.uniform(0.9, 1.2); F.bias = (rng.random() - 0.5) * 0.2
+        pts, ss, why = F.trace_wave(pt, n, lam, phase, amp, wl, P['wave_rad'] * 0.5)
+        if len(pts) < 4: continue
+        g = dict(root=pt, pts=pts, ss=ss, lam=lam, phase=phase, amp=amp, wl=wl, bias=F.bias, why=why, side=1, sweep=True)
+        F.guides.append(g); added.append(g)
+    P.clear(); P.update(saved)
+    return added
+
+def grow_layer_children(F, guides, lam_range, per_guide=60, spread=FLAT_SPREAD, seed=67, params=None):
+    """flat children for a guide layer (fringe/parting/sweep), clumped to their guide; params override the comb while tracing"""
+    P = F.P; rng = random.Random(seed); em_bvh = bvh_of(F.emitter)[0]; lo, hi = lam_range
+    saved = dict(P)
+    if params: P.update({k: v for k, v in params.items() if k in P})
+    out = []; gidx = []
+    for g in guides:
+        gi = F.guides.index(g); Lg = g['ss'][-1]
+        for _ in range(per_guide):
+            off = Vector((rng.uniform(-spread, spread), rng.uniform(-spread, spread), rng.uniform(-spread, spread)))
+            loc, nrm, idx, dist = em_bvh.find_nearest(g['root'] + off)
+            if loc is None: continue
+            n = (loc - PIV).normalized(); u = rng.random(); j = P['child_jitter']
+            lam = lo + (hi - lo) * u; F.bias = g['bias'] + (rng.random() - 0.5) * 0.1
+            pts, ss, why = F.trace_wave(loc, n, lam, g['phase'] + (rng.random() - 0.5) * j * 1.5, g['amp'] * (1 + (u - 0.5) * j), g['wl'], P['wave_rad'] * 0.5)
+            if len(pts) < 3: continue
+            res = []
+            for p, s in zip(pts, ss):
+                if s > Lg + 0.02: break
+                w = FLAT_PULL * (1 - math.exp(-s / P['clump_rise']))
+                if Lg > 0: w *= 1 - P['tip_spread'] * smoothstep((s - 0.75 * Lg) / (0.25 * Lg))
+                res.append(F.push_out(p + (F.along(g['pts'], g['ss'], s) - p) * w))
+            if len(res) >= 3: out.append(res); gidx.append(gi)
+    P.clear(); P.update(saved)
+    return out, gidx
+
+def camera_cap_exposure(F, cards_ob, cap_ob, yaws=(0, 60, -60), step=10):
+    """share of the cap's pixels (a `step` px grid over the head in the 1200 px LabCamera frame) with no card in front"""
+    cam = bpy.data.objects['LabCamera']; cm = cam.matrix_world; origin = cm.translation; t = math.tan(math.radians(11.0)); root = bpy.data.objects['Root']; out = {}
+    for yaw in yaws:
+        root.rotation_euler[2] = math.radians(yaw); bpy.context.view_layer.update()
+        cb = bvh_of(cards_ob)[0]; capb = bvh_of(cap_ob)[0]; hb = bvh_of(bpy.data.objects['Head'])[0]; exposed = n = 0; where = []
+        for px in range(300, 900, step):
+            for py in range(100, 700, step):
+                nx = (px + 0.5) / 1200 * 2 - 1; ny = 1 - (py + 0.5) / 1200 * 2; d = (cm.to_3x3() @ Vector((nx * t, ny * t, -1.0))).normalized()
+                hc = capb.ray_cast(origin, d, 6.0)
+                if hc[0] is None: continue
+                hh = hb.ray_cast(origin, d, 6.0)
+                if hh[0] is not None and hh[3] < hc[3]: continue      # the cap behind the head's own surface (seen through the face) is not visible
+                n += 1; hk = cb.ray_cast(origin, d, 6.0)
+                if hk[0] is None or hk[3] > hc[3]: exposed += 1; where.append((px, py, hc[0]))
+        out[yaw] = (exposed, n, where)
+    root.rotation_euler[2] = 0; bpy.context.view_layer.update()
+    return out
+
+def dump_layers(F, all_strands, all_gidx, info, rnd, path, cols, rows, n_samples=16):
+    offs = np.zeros(len(all_strands) + 1, np.int64)
+    for i, s in enumerate(all_strands): offs[i + 1] = offs[i] + len(s)
+    pos = np.zeros((offs[-1], 3), np.float32)
+    for i, s in enumerate(all_strands): pos[offs[i]:offs[i + 1]] = np.array([tuple(p) for p in s], np.float32)
+    samples = np.zeros((len(info), n_samples, 3), np.float32); tang = np.zeros_like(samples); norm = np.zeros_like(samples); lat = np.zeros_like(samples)
+    width = np.zeros(len(info), np.float32); strip = np.zeros(len(info), np.int32); guide_of = np.zeros(len(info), np.int32); glen = np.zeros(len(info), np.float32); glam = np.zeros(len(info), np.float32)
+    for k, ci in enumerate(info):
+        g = F.guides[int(ci['guide'])]; sm, L = resample(g['pts'], g['ss'], n_samples); frm = card_frames(F, sm)
+        samples[k] = np.array([tuple(p) for p in sm], np.float32); tang[k] = np.array([tuple(tt) for tt, n, b in frm], np.float32); norm[k] = np.array([tuple(n) for tt, n, b in frm], np.float32); lat[k] = np.array([tuple(b) for tt, n, b in frm], np.float32)
+        width[k] = ci['width']; strip[k] = ci['strip']; guide_of[k] = ci['guide']; glen[k] = L; glam[k] = ci['lam']
+    card_of_guide = -np.ones(len(F.guides), np.int32)
+    for k in range(len(info)): card_of_guide[guide_of[k]] = k
+    np.savez(path, pos=pos, offs=offs, gidx=np.array(all_gidx, np.int32), lams=np.zeros(len(all_strands), np.float32), rnd=rnd, samples=samples, tang=tang, norm=norm, lat=lat,
+             width=width, strip=strip, guide_of=guide_of, glen=glen, glam=glam, card_of_guide=card_of_guide, piv=np.array(tuple(PIV), np.float32), cols=cols, rows=rows)
+
+
+def exposure_with_alpha(F, cards_ob, cap_ob, atlas_img, yaw, box, step=8, cols=32):
+    """like the lab: rays through a pixel grid (1200 px frame, box in that frame), every card hit in front of the cap
+    sampled in the atlas (Blender's own pixel convention); a pixel is exposed when no hit is opaque (alpha >= 0.5).
+    Returns exposed/visible counts and, for the exposed pixels, which strips were hit transparent and how many had no card."""
+    import numpy as np
+    cam = bpy.data.objects['LabCamera']; cm = cam.matrix_world; origin = cm.translation; t = math.tan(math.radians(11.0)); root = bpy.data.objects['Root']
+    root.rotation_euler[2] = math.radians(yaw); bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get(); ev = cards_ob.evaluated_get(dg); me = ev.to_mesh(); mw = cards_ob.matrix_world
+    verts = [mw @ v.co for v in me.vertices]; me.calc_loop_triangles(); tris = [tuple(tr.vertices) for tr in me.loop_triangles]
+    tri_loops = [tuple(tr.loops) for tr in me.loop_triangles]; uvl = me.uv_layers.active.data; uvs = [(uvl[l].uv.x, uvl[l].uv.y) for l in range(len(uvl))]
+    cb = BVHTree.FromPolygons(verts, tris); capb = bvh_of(cap_ob)[0]; hb = bvh_of(bpy.data.objects['Head'])[0]
+    W, H = atlas_img.size; px = np.empty(W * H * 4, np.float32); atlas_img.pixels.foreach_get(px); alpha = px.reshape(H, W, 4)[..., 3]
+    def uv_at(idx, loc):
+        a, b, c = (verts[i] for i in tris[idx]); ua, ub, uc = (uvs[l] for l in tri_loops[idx])
+        v0 = b - a; v1 = c - a; v2 = loc - a; d00 = v0.dot(v0); d01 = v0.dot(v1); d11 = v1.dot(v1); d20 = v2.dot(v0); d21 = v2.dot(v1); den = d00 * d11 - d01 * d01
+        if abs(den) < 1e-14: return ua
+        w1 = (d11 * d20 - d01 * d21) / den; w2 = (d00 * d21 - d01 * d20) / den; w0 = 1 - w1 - w2
+        return (w0 * ua[0] + w1 * ub[0] + w2 * uc[0], w0 * ua[1] + w1 * ub[1] + w2 * uc[1])
+    x0, y0, x1, y1 = box; exposed = visible = nocard = 0; strips = {}
+    for pxx in range(x0, x1, step):
+        for pyy in range(y0, y1, step):
+            nx = (pxx + 0.5) / 1200 * 2 - 1; ny = 1 - (pyy + 0.5) / 1200 * 2; d = (cm.to_3x3() @ Vector((nx * t, ny * t, -1.0))).normalized()
+            hc = capb.ray_cast(origin, d, 6.0)
+            if hc[0] is None: continue
+            hh = hb.ray_cast(origin, d, 6.0)
+            if hh[0] is not None and hh[3] < hc[3]: continue
+            visible += 1; o = origin.copy(); dist = 0.0; opaque = False; hit_strips = []
+            for _ in range(40):
+                loc, nrm, idx, dd = cb.ray_cast(o, d, 6.0)
+                if loc is None: break
+                dist += dd
+                if dist >= hc[3]: break
+                u, v = uv_at(idx, loc); a = alpha[min(H - 1, max(0, int(v * H))), min(W - 1, max(0, int(u * W)))]
+                hit_strips.append(int(u * cols) + cols * int(v * (H / (W / cols * 8))))
+                if a >= 0.5: opaque = True; break
+                o = loc + d * 1e-5
+            if not opaque:
+                exposed += 1
+                if not hit_strips: nocard += 1
+                for s in set(hit_strips): strips[s] = strips.get(s, 0) + 1
+    ev.to_mesh_clear(); root.rotation_euler[2] = 0; bpy.context.view_layer.update()
+    return exposed, visible, nocard, strips
