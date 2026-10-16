@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Threading.RateLimiting;
 using Anthropic;
 using MauiSpinePushNotificationsSampleApp.Server;
 using Microsoft.Extensions.AI;
@@ -11,6 +12,17 @@ using Plugin.Maui.Spine.Server.AI;
 using Plugin.Maui.Spine.Server.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// In Azure (Sample:Hosted, README.md) anyone can reach the server: sign-in is rate limited, users are kept in Table
+// storage, and the push endpoints reach only the caller's own devices. On the Mac it stays the open sample it was.
+var hosted = builder.Configuration.GetValue<bool>("Sample:Hosted");
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = hosted ? 30 : 1000, Window = TimeSpan.FromMinutes(1) }));
+});
 
 // The register is in memory: restart the server and every device has to register again, which is
 // exactly what a sample wants. Credentials come from user secrets or the environment, never the repo.
@@ -97,7 +109,11 @@ builder.Services.AddSpineAuthentication(a =>
     // A first sign-in with a provider account the server does not know asks "Is this your first time here?", so a
     // user who signed in another way before ends up with one account (the Showcase's sheet asks; #575).
     a.AskBeforeNewAccount = true;
-    a.UseInMemoryStore();
+
+    if (builder.Configuration["Auth:Storage"] is { Length: > 0 } storage)
+        a.UseAzureTableStore(storage);
+    else
+        a.UseInMemoryStore();
 });
 
 // AI features: the providers are one line each, everything else (features, models, prices, budgets) is the "Ai"
@@ -127,12 +143,17 @@ var app = builder.Build();
 // PUT and DELETE /push/installations/{id} — what the app registers through.
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapSpinePushNotifications("/push");
 
 // GET /auth/nonce, POST /auth/{provider}/token, POST /auth/token, POST /auth/revoke, DELETE /auth/account and
 // POST /auth/password/{signup,verify,resend,signin,forgot,reset}.
-app.MapSpineAuthentication("/auth");
+app.MapSpineAuthentication("/auth").RequireRateLimiting("auth");
+
+// Hosted, the push endpoints are for a signed-in user and their own devices; on the Mac, for anyone and every device.
+async ValueTask<(bool Allowed, string? UserId)> PushCallerAsync(HttpRequest request) =>
+    hosted ? await request.GetSpineUserIdAsync() is { } id ? (true, id) : (false, null) : (true, null);
 
 // Who the access token says you are. Signed-in users also get the AI features' SignedIn limits.
 app.MapGet("/sample/me", (ClaimsPrincipal user) => new
@@ -193,8 +214,13 @@ app.MapPost("/sample/picture", async (PictureRequest request, HttpRequest http, 
 });
 
 /// Sends one message and answers with what happened per installation.
-app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushNotificationsOptions options, CancellationToken cancellationToken) =>
+app.MapPost("/send", async (SendRequest request, HttpRequest http, IPushSender sender, SpinePushNotificationsOptions options, CancellationToken cancellationToken) =>
 {
+    var (allowed, userId) = await PushCallerAsync(http);
+    if (!allowed) return Results.Unauthorized();
+    if (userId is not null && request.Kind == "broadcast")
+        return Results.BadRequest("A broadcast reaches everyone following the channel, so the hosted server does not send one.");
+
     // The wait is here rather than in the app because the point of it is to let the caller put the
     // app in the background — and a backgrounded app is exactly what cannot be relied on to still be
     // running a timer. Capped so a stray value cannot tie up the request for long.
@@ -203,6 +229,7 @@ app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushNo
 
     var target = request.Target switch
     {
+        _ when userId is not null => PushTarget.User(userId),
         { Length: > 0 } expression when request.TargetKind == "installation" => PushTarget.Installation(expression),
         { Length: > 0 } expression => PushTarget.Tags(expression),
         _ => PushTarget.All,
@@ -271,8 +298,10 @@ app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushNo
 /// activity started on it follows the same channel, which is what makes one push reach them all. Made
 /// at the first request rather than at startup, so a server without Apple credentials still starts.
 string? sampleChannel = null;
-app.MapPost("/channels", async (IServiceProvider services, CancellationToken cancellationToken) =>
+app.MapPost("/channels", async (HttpRequest http, IServiceProvider services, CancellationToken cancellationToken) =>
 {
+    if (!(await PushCallerAsync(http)).Allowed) return Results.Unauthorized();
+
     if (services.GetService<IPushChannels>() is not { } channels)
         return Results.Problem("Apple is not configured, so there are no channels. Put Apple credentials in user secrets.");
 
@@ -312,12 +341,17 @@ app.MapGet("/widget/remote", () =>
 });
 
 /// What the register currently holds, so the app can show whether it got through.
-app.MapGet("/installations", async (IPushInstallationStore store, CancellationToken cancellationToken) =>
+app.MapGet("/installations", async (HttpRequest http, IPushInstallationStore store, CancellationToken cancellationToken) =>
 {
+    var (allowed, userId) = await PushCallerAsync(http);
+    if (!allowed) return Results.Unauthorized();
+
     var found = new List<object>();
 
-    await foreach (var installation in store.QueryAsync(PushTagExpression.MatchAll, cancellationToken: cancellationToken))
+    var whose = userId is null ? PushTagExpression.MatchAll : PushTagExpression.Parse($"user:{userId}");
+    await foreach (var installation in store.QueryAsync(whose, cancellationToken: cancellationToken))
     {
+
         found.Add(new
         {
             installation.Id,

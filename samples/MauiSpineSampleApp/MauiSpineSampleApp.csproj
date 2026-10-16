@@ -836,6 +836,15 @@
 	<PropertyGroup Condition="'$(SpineSignInWithApple)' == 'true'">
 		<DefineConstants>$(DefineConstants);SPINE_SIGN_IN_WITH_APPLE</DefineConstants>
 	</PropertyGroup>
+	<!-- The push sample server the Showcase signs in to and calls: this computer's by default, or the one in Azure for a
+	     phone, -p:SpineSampleServer=https://… (samples/MauiSpinePushNotificationsSampleApp.Server/README.md). -->
+	<PropertyGroup>
+		<SpineSampleServer Condition="'$(SpineSampleServer)' == ''">http://localhost:5100/</SpineSampleServer>
+	</PropertyGroup>
+	<ItemGroup>
+		<AssemblyMetadata Include="SpineSampleServer" Value="$(SpineSampleServer)" />
+	</ItemGroup>
+
 	<!-- A browser sign-in (Google through the server's broker off Android, Apple on Android and Windows) returns to the
 	     app's scheme; the Android callback activity's intent filter comes from this. Google needs a Google Cloud project,
 	     so it is on only in a build with -p:SpineGoogleServerClientId=<the Web client's id>, the id the push sample
