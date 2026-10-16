@@ -1172,7 +1172,8 @@ def compose(work):
     top_y = np.median(hi)
     NECK_SPAN[:] = [twist, collar_y]
     print('compose: bald', len(BF), 'knit', knit.sum(), 'hair', hair.sum(), 'collar y', round(float(collar_y), 3))
-    if BALD:
+    hair_proj = hair.copy()        # cards mode: the projector still sees the envelope (its depth buffers, the scalp's side-skin rule), the mesh does not
+    if BALD or CARDS_HAIR:
         hair[:] = False
     SP_, SF, hair_occ = hair_shell(HP, HF[hair]) if hair.any() else (np.zeros((0, 3)), np.zeros((0, 3), np.int32), None)
     # Strands far outside the hair's closed volume are the scan's loose shards: jagged tips round the
@@ -1234,7 +1235,7 @@ def compose(work):
     SHELL[:] = [np.concatenate([np.zeros(keep_b.sum() + hair.sum(), bool), np.ones(len(SF), bool), np.zeros(len(CF), bool)])]
     used = np.unique(F); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
     styled = hair_style(horig, work, Image.open(f'{work}/kairo-front.png').convert('RGB'), axis)
-    hair_look = hair_projector(work, HP, HF[hair], axis, fallback_style=styled, head_pts=BP[np.unique(BF[~knit])]) if PROJ_HAIR else styled
+    hair_look = hair_projector(work, HP, HF[hair_proj], axis, fallback_style=styled, head_pts=BP[np.unique(BF[~knit])]) if PROJ_HAIR else styled
     hair_look.style = styled           # the palette's strands at any base luminance, for the root cap
     photo_hair = ((photo[..., 2] > photo[..., 0] + 12) | (photo.sum(-1) < 150)) & ~skin_px
     face_px = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/kairo-front.png').convert('RGB')), iterations=10)
@@ -1306,7 +1307,7 @@ def compose(work):
     def bald_colour(points, gain=1.0):
         """The bald texture, turned to the hair's own dark under the hair: the scalp between strands."""
         col = bald_tex(points) * gain
-        if not len(hair_points):
+        if not len(hair_points) and not override:      # cards mode: no envelope in the mesh, the owner's scalp pictures still colour the skull
             return col
         w = override.get('weight', hair_weight)(points)[:, None]
         # Hair close to the head: the palette's dark with the strands, not the nearest strand's colour.
@@ -1333,8 +1334,15 @@ BALD = os.environ.get('KAIRO_BALD') == '1'   # build the head without the hair l
 # of the photo plus the owner's generated profiles and back, fitted into the single-view frame by tools/mvfit.py.
 # KAIRO_HAIR=proj: the hair is the multiview volume's smooth envelope (tools/hairenv.py), painted per
 # texel from the owner's generated views through Pixal3D's cameras (hair_projector).
-PROJ_HAIR = os.environ.get('KAIRO_HAIR') == 'proj'
-MV_HAIR = os.environ.get('KAIRO_HAIR') in ('mv', 'proj')
+# KAIRO_HAIR=cards: the hair is the owner's Blender hair cards (KAIRO_CARDS_GLB under the work dir: ribbons with a strand
+# atlas, alphaMode MASK, plus an opaque scalp cap; made from the approved hair curves in kairo-hair-cards-wip.blend by
+# kairo/tools/blender) on the bald head. The envelope leaves the mesh but still feeds the projector (the scalp's
+# side-skin rule) and the palette; the cards and the cap are extra head primitives with the brows' lift targets.
+CARDS_HAIR = os.environ.get('KAIRO_HAIR') == 'cards'
+CARDS_GLB = os.environ.get('KAIRO_CARDS_GLB', 'blender/kairo-hair-cards.glb')
+CARDS_ATLAS_SCALE = float(os.environ.get('KAIRO_CARDS_ATLAS', '1.0'))   # the atlas scaled for the package (half of 2048 x 3584 thinned the strands under the mask cutoff in the lab: kept full, written as a 256-colour PNG instead)
+PROJ_HAIR = os.environ.get('KAIRO_HAIR') in ('proj', 'cards')
+MV_HAIR = os.environ.get('KAIRO_HAIR') in ('mv', 'proj', 'cards')
 HAIR_GLB, HAIR_TEX = ((os.environ.get('KAIRO_ENV', 'mv-hair/kairo-env.glb'), 'mv-hair/kairo-env.png') if PROJ_HAIR else ('mv-hair/kairo-mv-fit.glb', 'mv-hair/kairo-mv_base.png')) if MV_HAIR else ('kairo-s42.glb', 'kairo-s42_base.png')
 # (KAIRO_ENV names another envelope file under the work dir, so candidate envelopes can be built side by side.)
 UNDER_CHIN_PHOTO = 0.0         # under the chin: share of the picture's own shadow (1 showed as a dark patch when the head tilted)
@@ -3460,15 +3468,17 @@ def build(work):
     # were a flat mop. Normals smoothed over 1 cm (the scan's are crumpled) give the locks, not the
     # scan's wrinkles; the light comes from above and in front, as in the owner's reference views.
     hv = np.unique(F[label == HAIR])
-    hn = VN[hv].copy(); htree = cKDTree(P[hv])
-    for _ in range(2):
+    hn = VN[hv].copy(); htree = cKDTree(P[hv]) if len(hv) else None
+    for _ in range(2 if len(hv) else 0):
         nb = htree.query_ball_point(P[hv], r=0.01)
         hn = np.array([hn[i].mean(0) for i in nb]); hn /= np.linalg.norm(hn, axis=1, keepdims=True) + 1e-12
     hair_light = np.array([0.2, 0.75, 0.6]); hair_light /= np.linalg.norm(hair_light)
     lam = (np.abs(hn @ hair_light) + 0.5) / 1.5   # wrapped: the scan is wound either way, and the sides went dark with a plain lambert term
     hair_shade = shade.copy(); hair_shade[hv] = 1.0 if PROJ_HAIR else (0.6 + 0.4 * ao[hv]) * (HAIR_FORM[0] + HAIR_FORM[1] * lam)     # the views carry their light; the occlusion term darkened the front against the photo
     hair_lift = float(hair_gain @ np.array([0.299, 0.587, 0.114]))        # the palette keeps the hue; only the tone lifts to the photo's
-    if PROJ_HAIR:
+    if PROJ_HAIR and not len(rest):
+        rest_uv, rest_tex = np.zeros((0, 3, 2), np.float32), np.zeros((4, 4, 4), np.uint8)   # cards mode: the envelope is not in the mesh, the rest material keeps its index with a stub
+    elif PROJ_HAIR:
         rc_ = P[F[rest]].mean(1)
         skirt = scan_colour.hairline(rc_) if hasattr(scan_colour, 'hairline') else np.zeros(len(rc_), bool)
         print('hair skirt faces', int(skirt.sum()))
@@ -3695,8 +3705,10 @@ def build(work):
         eyes_px = src_to_crop([(e['cx'], e['cy']) for e in EYES]); eyes_i = np.clip(eyes_px.astype(int), 0, N - 1)
         eyes3d = unproject(eyes_px, zbuf[eyes_i[:, 1], eyes_i[:, 0]])
         strands = hairline_strands(P, F, cand, VN, scalp, pivot, eyes3d, cand_grid)
-    cards = None
-    if PROJ_HAIR and HAIR_CARDS and hasattr(scan_colour, 'views'):
+    cards = None; bcap = None
+    if CARDS_HAIR:
+        cards, bcap = blender_cards(f'{work}/{CARDS_GLB}', CARDS_ATLAS_SCALE)
+    elif PROJ_HAIR and HAIR_CARDS and hasattr(scan_colour, 'views'):
         import haircards
         cards = haircards.build_cards(scan_colour.views, scan_colour.from_world, getattr(scan_colour, 'ear_cut', None), scan_colour.normals)
         if cards is not None:
@@ -3930,7 +3942,7 @@ def build(work):
                 prim['targets'] = lift(pos[used], vis[used], SIDE[0][used] if pos is fpos else None) if morph else [np.zeros_like(p) for _ in TARGETS]
             prims[part].append(prim)
 
-    for extra in (cap, skirt, cards, strands):
+    for extra in (cap, skirt, cards, bcap, strands):
         if extra is not None:
             extra['targets'] = lift(extra['pos'], None)
             extra['pos'] = extra['pos'] - pivot
@@ -3938,6 +3950,7 @@ def build(work):
     cap_tex = cap.pop('tex') if cap is not None else None
     skirt_tex = skirt.pop('tex') if skirt is not None else None
     cards_tex = cards.pop('tex') if cards is not None else None
+    bcap_tex = bcap.pop('tex') if bcap is not None else None
     strands_tex = strands.pop('tex') if strands is not None else None
     front_vertices = np.unique(F[front])
     ntree = cKDTree(P[front_vertices])
@@ -3972,9 +3985,13 @@ def build(work):
                      + ((("roots", Image.fromarray(cap_tex, 'RGBA')),) if cap is not None else ())
                      + ((("hairline", Image.fromarray(skirt_tex, 'RGBA')),) if skirt is not None else ())
                      + ((("cards", Image.fromarray(cards_tex, 'RGBA')),) if cards is not None else ())
+                     + ((("cap", Image.fromarray(bcap_tex, 'RGB')),) if bcap is not None else ())
                      + ((("strands", Image.fromarray(strands_tex, 'RGBA')),) if strands is not None else ())):
         if img.mode == 'RGBA' or name == "ear":        # the ear atlas lossless: JPEG rings at its cells' hard edges
-            data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
+            if name == "cards" and CARDS_HAIR:
+                # The strand atlas as a 256-colour PNG: under a third of the RGBA file (11.5 MB -> 3.3 MB) with the mask's 0.5 cut unchanged on every texel.
+                img = img.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
+            data = io.BytesIO(); img.save(data, 'PNG', optimize=True); i = g.image(data.getvalue(), "image/png", name)
         else:
             i = g.image(jpeg(img, 92 if name in ("front", "bald", "rest") else 88, 0 if name == "rest" else None), "image/jpeg", name)
         # No mipmaps for the ear's per-triangle atlas (minified, its levels averaged the black between
@@ -3990,7 +4007,7 @@ def build(work):
         # the skull and the sides came out a different tone, an edge round the face.
         # The projected hair carries the views' own light, like the front: emissive too. (Lit, with its
         # roughness 0.62, the envelope's grooves caught the scene's speculars as glitter: "cut glass".)
-        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear", "roots", "hairline", "cards", "strands") or (name == "rest" and PROJ_HAIR):
+        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear", "roots", "hairline", "cards", "cap", "strands") or (name == "rest" and PROJ_HAIR):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
@@ -4036,7 +4053,7 @@ def build(work):
     g.node("HeadPivot", t=pivot - j2, children=[3, lids_node] + [4 + k for k in range(len(frames))])
     # Floating scraps of the scan go: a sliver a few millimetres off the temple past her left eye's outer
     # corner showed as a speck beside the eye from the front and outside the head from behind.
-    prims['head'] = [drop_floating(p_) if p_['material'] in (2, EAR_MATERIAL, ROOT_MATERIAL) else p_ for p_ in prims['head']]
+    prims['head'] = [drop_floating(p_) if names_[p_['material']] in ('skin', 'ear', 'roots') else p_ for p_ in prims['head']]   # by name: past the ear the optional layers' indices are not fixed (the cards would have taken the cap's)
     m_head = g.mesh("Head", prims['head'], TARGETS)
     g.node("Head", m_head)
     for k, (prim, _) in enumerate(frames):
@@ -4201,6 +4218,37 @@ def root_cap(P, F, faces, hair_weight, VN, shade, hair_look, ear_w, pivot, colou
 ROOT_BLEND_PX = 10             # source px either side of the photo's hair (gaps closed) over which the skirt goes from skin to roots
 ROOT_SKIRT_SHADE = 0.9         # the roots on the skirt a little darker than the cap's: it folds back into the head
 
+def blender_cards(path, scale=1.0):
+    """The hair as the owner's Blender hair cards: a GLB (kairo/tools/blender, export_cards_glb) with a 'KairoCards' mesh
+    (ribbons along the hair curves' guides, UV strips in one RGBA strand atlas, alphaMode MASK) and a 'KairoCap' mesh
+    (the skull under the hair lifted 2.5 mm, an opaque root texture), exported Y-up in this generator's frame (Blender's
+    HeadPivot is this pivot, so the positions are used as they are and the extras loop subtracts the pivot). Returns the
+    two head primitives; the atlas is scaled by `scale` for the package's 32 MiB limit."""
+    import struct
+    data = open(path, 'rb').read()
+    assert data[:4] == b'glTF', path
+    jl = struct.unpack_from('<I', data, 12)[0]; js = json.loads(data[20:20 + jl]); bl = struct.unpack_from('<I', data, 20 + jl)[0]; bin_ = data[28 + jl:28 + jl + bl]
+    def acc(i):
+        a = js['accessors'][i]; bv = js['bufferViews'][a['bufferView']]; off = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
+        n = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3}[a['type']]; dt = {5126: np.float32, 5123: np.uint16, 5125: np.uint32, 5121: np.uint8}[a['componentType']]
+        return np.frombuffer(bin_, dt, a['count'] * n, off).reshape(a['count'], n)
+    def image(i):
+        bv = js['bufferViews'][js['images'][i]['bufferView']]; off = bv.get('byteOffset', 0)
+        return Image.open(io.BytesIO(bin_[off:off + bv['byteLength']]))
+    out = {}
+    for mesh in js['meshes']:
+        for p in mesh['primitives']:
+            mat = js['materials'][p['material']]; img = image(js['textures'][mat['pbrMetallicRoughness']['baseColorTexture']['index']]['source'])
+            if scale != 1.0 and mesh['name'] == 'KairoCards':
+                img = img.resize((max(4, round(img.width * scale)), max(4, round(img.height * scale))), Image.LANCZOS)
+            out[mesh['name']] = dict(pos=acc(p['attributes']['POSITION']).astype(np.float64), nrm=acc(p['attributes']['NORMAL']).astype(np.float64),
+                                     uv=acc(p['attributes']['TEXCOORD_0']).astype(np.float64), idx=acc(p['indices']).ravel().astype(np.uint32), material=0,
+                                     tex=np.array(img.convert('RGBA' if mesh['name'] == 'KairoCards' else 'RGB')))
+    cards = out['KairoCards']; cards['material_name'] = 'cards'
+    cap = out['KairoCap']; cap['material_name'] = 'cap'
+    print('blender hair cards:', len(cards['idx']) // 3, 'card triangles, atlas', cards['tex'].shape[1], 'x', cards['tex'].shape[0], '; cap', len(cap['idx']) // 3, 'triangles, texture', cap['tex'].shape[1])
+    return cards, cap
+
 def hairline_skirt(P, F, is_skirt, VN, hair_look, projected):
     """The face grid's skirt (its border folded 1.5 cm back into the head) as a layer of its own: the
     picture's own skin where its rim lies on the photo's skin, cut away where the rim lies under the
@@ -4356,7 +4404,7 @@ def package(glb, ids, posters):
         "previews/poster-light.png": open(posters[0], 'rb').read() if posters else tiny_png(),
         "previews/poster-dark.png": open(posters[1], 'rb').read() if posters else tiny_png(),
         "LICENSE.txt": b"Kairo: the owner's character images, reconstructed with Pixal3D (MIT code and flow weights; DINOv3 encoder under the DINOv3 License) and rigged by source/kairo_scan.py.\n",
-        "provenance.json": json.dumps({"model": "Pixal3D single view (pixal3d.cpp Q8_0) from the owner's front image, seed 42; textured from the image; rigged by source/kairo_scan.py",
+        "provenance.json": json.dumps({"model": "Pixal3D single view (pixal3d.cpp Q8_0) from the owner's front image, seed 42; textured from the image; rigged by source/kairo_scan.py" + ("; hair: the owner's Blender hair cards (" + CARDS_GLB + ") grown from the approved hair curves in kairo-hair-cards-wip.blend" if CARDS_HAIR else ""),
                                        "posters": "captured from the lab" if posters else "placeholder 1x1, not a render"}, indent=1).encode(),
         "source/kairo_scan.py": open(__file__, 'rb').read(),
     }
