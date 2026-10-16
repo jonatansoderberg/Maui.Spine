@@ -40,7 +40,7 @@ public static class MauiProgram
                 // with SpineSignInWithApple=true; the device registers for push as the signed-in user.
                 options.AddAuthentication(a =>
                 {
-                    a.Server = new Uri("http://localhost:5100/auth");
+                    a.Server = new Uri(SampleServer, "auth");
                     a.AddEmailPassword();
                     a.CallbackScheme = "se.cosmomedia.spineshowcase";
 #if SPINE_SIGN_IN_WITH_APPLE
@@ -98,14 +98,14 @@ public static class MauiProgram
         builder.UseSpineBiometrics(o => o.AppLock(a => a.IsEnabled = () => Preferences.Get(MauiSpineSampleApp.Pages.Biometrics.BiometricsPageViewModel.AppLockKey, false)));
 
         // The Sign-in page's calls to the sample server, with the access token.
-        builder.Services.AddHttpClient("SampleApi", c => c.BaseAddress = new Uri("http://localhost:5100/")).AddSpineAuthentication();
+        builder.Services.AddHttpClient("SampleApi", c => c.BaseAddress = SampleServer).AddSpineAuthentication();
 
         // The AI client page: the push sample server with its demo provider (samples/MauiSpinePushNotificationsSampleApp.Server).
         // Android reaches it on localhost through adb reverse tcp:5100 tcp:5100.
         // The Voice chat page: the push sample server's realtime Voice feature. A phone sets the Mac's address on the page.
         builder.UseSpineVoice(o =>
         {
-            o.SessionEndpoint = new Uri("http://localhost:5100/ai");
+            o.SessionEndpoint = new Uri(SampleServer, "ai");
             o.ClientTools.Add(Microsoft.Extensions.AI.AIFunctionFactory.Create(
                 () => DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
                 "show_time", "Says what time it is on the user's phone."));
@@ -113,7 +113,7 @@ public static class MauiProgram
 
         builder.UseSpineAI(o =>
         {
-            o.Backend = new Uri("http://localhost:5100/ai");
+            o.Backend = new Uri(SampleServer, "ai");
             // The Generated images page reads postcards from the messaging sample's API, another service than the features.
             o.AssetsBackend = new Uri("http://localhost:5240/ai");
             o.Feature("Assistant", f => f
@@ -145,4 +145,8 @@ public static class MauiProgram
     private static string BuildSetting(string key) =>
         typeof(MauiProgram).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
             .Cast<System.Reflection.AssemblyMetadataAttribute>().First(m => m.Key == key).Value!;
+
+    // The push sample server: on this computer by default (a simulator, or Android through adb reverse), or the one in
+    // Azure with -p:SpineSampleServer=https://… (a phone; samples/MauiSpinePushNotificationsSampleApp.Server/README.md).
+    private static readonly Uri SampleServer = new(BuildSetting("SpineSampleServer").TrimEnd('/') + "/");
 }
