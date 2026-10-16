@@ -8,7 +8,27 @@ namespace Plugin.Maui.Spine.Authentication;
 /// <param name="Email">The email, when the user has one.</param>
 /// <param name="DisplayName">The name to show, when there is one.</param>
 /// <param name="Provider">How the user signed in this time: <c>apple</c>, <c>google</c>, <c>password</c>, …</param>
-public sealed record SpineUser(string Id, string? Email, string? DisplayName, string Provider);
+/// <param name="PictureUrl">
+/// A public https address of the user's picture, when a provider gave one (Google's <c>picture</c>). Microsoft's
+/// picture has no address; <c>ISpineAuth.GetPictureAsync</c> in the app fetches either.
+/// </param>
+/// <param name="GivenName">The first name, when a provider gave it: Apple's sheet the first time, Google's and Microsoft's tokens.</param>
+/// <param name="FamilyName">The last name, as <paramref name="GivenName"/>.</param>
+/// <param name="Organization">
+/// The organization the account belongs to: a Microsoft work or school account's tenant id, a Google Workspace
+/// account's domain. Null for personal accounts and the other providers.
+/// </param>
+/// <param name="SignInMethods">Every way the user can sign in to this account, such as <c>apple</c>, <c>google</c> and <c>password</c>.</param>
+public sealed record SpineUser(
+    string Id,
+    string? Email,
+    string? DisplayName,
+    string Provider,
+    string? PictureUrl = null,
+    string? GivenName = null,
+    string? FamilyName = null,
+    string? Organization = null,
+    IReadOnlyList<string>? SignInMethods = null);
 
 /// <summary>What a successful sign-in or refresh answers.</summary>
 /// <param name="AccessToken">A short-lived JWT for <c>Authorization: Bearer</c>.</param>
@@ -30,7 +50,10 @@ public sealed record SpineNonce(string Nonce, DateTimeOffset ExpiresAt);
 /// <param name="Nonce">The raw nonce from <c>GET /auth/nonce</c>.</param>
 /// <param name="AuthorizationCode">Apple's one-time code, which the server keeps to revoke Apple's tokens when the account is deleted.</param>
 /// <param name="DisplayName">The name the sheet returned. Apple sends it only on the first sign-in.</param>
-public sealed record SpineIdTokenRequest(string IdToken, string? Nonce = null, string? AuthorizationCode = null, string? DisplayName = null);
+/// <param name="GivenName">The first name the sheet returned, as <paramref name="DisplayName"/>.</param>
+/// <param name="FamilyName">The last name the sheet returned, as <paramref name="DisplayName"/>.</param>
+public sealed record SpineIdTokenRequest(
+    string IdToken, string? Nonce = null, string? AuthorizationCode = null, string? DisplayName = null, string? GivenName = null, string? FamilyName = null);
 
 /// <summary>The body of <c>POST /auth/token</c> and <c>POST /auth/revoke</c>.</summary>
 /// <param name="RefreshToken">The refresh token to trade or revoke.</param>

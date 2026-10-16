@@ -62,7 +62,8 @@ internal sealed class SpineTokenService
         await _store.AddRefreshAsync(new SpineRefreshToken(
             Hash(refresh), familyId ?? Guid.NewGuid().ToString("N"), user.Id, provider, now + _options.RefreshTokenLifetime), cancellationToken);
 
-        return new SpineTokens(access, expiresAt, refresh, user.ToContract(provider));
+        var methods = (await _users.GetLoginsAsync(user.Id, cancellationToken)).Select(l => l.Provider).Distinct().Order().ToList();
+        return new SpineTokens(access, expiresAt, refresh, user.ToContract(provider, methods));
     }
 
     /// <summary>Trades a refresh token for a new pair. A token presented twice revokes its whole family.</summary>

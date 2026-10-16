@@ -47,11 +47,13 @@ public static class MauiProgram
                     a.AddApple();
 #endif
 #if SPINE_SIGN_IN_WITH_GOOGLE
-                    a.AddGoogle(g => g.ServerClientId = typeof(MauiProgram).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
-                        .Cast<System.Reflection.AssemblyMetadataAttribute>().First(m => m.Key == "SpineGoogleServerClientId").Value);
-#if !SPINE_SIGN_IN_WITH_APPLE
-                    a.AppleNotRequired = true;   // the Showcase's App ID has no Sign in with Apple yet; an App Store app adds AddApple()
+                    a.AddGoogle(g => g.ServerClientId = BuildSetting("SpineGoogleServerClientId"));
 #endif
+#if SPINE_SIGN_IN_WITH_MICROSOFT
+                    a.AddMicrosoft(m => m.ClientId = BuildSetting("SpineMicrosoftClientId"));
+#endif
+#if (SPINE_SIGN_IN_WITH_GOOGLE || SPINE_SIGN_IN_WITH_MICROSOFT) && !SPINE_SIGN_IN_WITH_APPLE
+                    a.AppleNotRequired = true;   // the Showcase's App ID has no Sign in with Apple yet; an App Store app adds AddApple()
 #endif
                     a.LinkPushNotifications = true;
                 });
@@ -138,4 +140,9 @@ public static class MauiProgram
 
         return builder.Build();
     }
+
+    // A value the build put in the assembly (-p:SpineGoogleServerClientId=…, -p:SpineMicrosoftClientId=…).
+    private static string BuildSetting(string key) =>
+        typeof(MauiProgram).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+            .Cast<System.Reflection.AssemblyMetadataAttribute>().First(m => m.Key == key).Value!;
 }

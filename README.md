@@ -61,7 +61,7 @@
 
 ## Packages
 
-One version, thirty-three packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, thirty-four packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -75,6 +75,7 @@ One version, thirty-three packages, all on [nuget.org](https://www.nuget.org/pac
 | AI | `Plugin.Maui.Spine.AI` | One `IChatClient` per named feature: on the device first (Apple Intelligence), then the app's server, streamed; no keys in the app; off, budget and rate limits in one shape; generated images from the server on any `Image` |
 | Security | `Plugin.Maui.Spine.Authentication` | Sign-in against the app's own server: Sign in with Apple's sheet, email and password in a ready-made sheet, any OpenID Connect provider in the system browser, `[RequiresSignIn]` on a page or a command, refresh tokens in secure storage, an `HttpClient` handler |
 | Security | `Plugin.Maui.Spine.Authentication.Google` | Sign in with Google: Credential Manager's sheet on Android, the server's broker in the browser elsewhere |
+| Security | `Plugin.Maui.Spine.Authentication.Microsoft` | Sign in with Microsoft through MSAL and the broker (Authenticator, Company Portal, WAM), via the Spine server or straight to an Entra-protected API |
 | Security | `Plugin.Maui.Spine.Biometrics` | Face ID, Touch ID, fingerprint and Windows Hello; `[RequiresUnlock]` on a page or a command, an app lock and `[PrivacyShield]` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |
@@ -235,7 +236,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Background tasks](docs/wiki/background-tasks.md) | `[BackgroundTask]` on BGTaskScheduler and JobScheduler: what runs when on each platform, status, requests, `spine.task` from a push, and the widgets' refresh as a task |
 | [Push (client)](docs/wiki/push-notifications.md) | Permission, tokens, tags, and the handler that sees every message |
 | [Push (server)](docs/wiki/push-notifications-server.md) | The backend half: register, tag expressions, APNs and FCM |
-| [Sign-in (app)](docs/wiki/authentication.md) | `o.AddAuthentication`: Sign in with Apple, Google, browser sign-in, the mode without a server, email and password, `[RequiresSignIn]`, tokens and the `HttpClient` handler, the push link |
+| [Sign-in (app)](docs/wiki/authentication.md) | `o.AddAuthentication`: Sign in with Apple, Google, Microsoft, browser sign-in, the mode without a server, email and password, `[RequiresSignIn]`, tokens and the `HttpClient` handler, the push link |
 | [Voice](docs/wiki/voice.md) | `IVoiceSession`: a spoken conversation with a realtime model, barge-in, the transcript, client tools; `IVoiceAudio`: the full-duplex engine with echo cancellation, the playback queue and barge-in, `VoiceFrame` levels and bands, and what was measured on an iPhone |
 | [AI in the app](docs/wiki/ai-client.md) | `UseSpineAI`: features as keyed `IChatClient`s, the fallback between device and server, the answers in one shape, on-device usage |
 | [AI on the server](docs/wiki/ai-server.md) | `AddSpineAI`: named features on Microsoft.Extensions.AI, providers in one line, metering and prices, budgets, rate limits, exposed features streamed as server-sent events, the usage report |
@@ -264,7 +265,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The thirty-three packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The thirty-four packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 

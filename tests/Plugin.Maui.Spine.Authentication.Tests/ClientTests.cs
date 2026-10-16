@@ -15,6 +15,7 @@ namespace Plugin.Maui.Spine.Authentication.Tests;
 internal sealed class Mailbox : ISpineAuthEmailSender
 {
     private readonly List<SpineAuthEmail> _sent = [];
+    private int _taken;
 
     public Task SendAsync(SpineAuthEmail email, CancellationToken cancellationToken = default)
     {
@@ -22,14 +23,18 @@ internal sealed class Mailbox : ISpineAuthEmailSender
         return Task.CompletedTask;
     }
 
-    /// <summary>The server sends after it answers, so the code may arrive a moment later.</summary>
+    /// <summary>
+    /// The next code not yet taken. The server sends after it answers, so the code may arrive a moment later; waiting
+    /// for a new one keeps a test from reading an earlier email's code meanwhile.
+    /// </summary>
     public async Task<string> CodeAsync()
     {
         for (var i = 0; i < 200; i++)
         {
             lock (_sent)
             {
-                if (_sent.LastOrDefault(e => e.Code is not null) is { Code: { } code }) return code;
+                var codes = _sent.Where(e => e.Code is not null).ToList();
+                if (codes.Count > _taken) return codes[_taken++].Code!;
             }
 
             await Task.Delay(10);

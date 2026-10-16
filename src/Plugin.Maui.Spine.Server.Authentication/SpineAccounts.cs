@@ -90,8 +90,11 @@ internal sealed class SpineAccounts(
 
         // An email the provider does not vouch for is not kept at all: the token's owner chose it, and an account that
         // owned someone else's address could later be handed to them through a password reset.
-        var verifiedEmail = provider.TrustEmail && token.EmailVerified ? token.Email : null;
+        // Microsoft vouches only for an email whose domain the tenant has verified (xms_edov).
+        var verifiedEmail = provider.TrustEmail && token.EmailVerified || token.EmailDomainVerified ? token.Email : null;
         var name = Name(request.DisplayName) ?? Name(token.Name);
+        var given = Name(request.GivenName) ?? Name(token.GivenName);
+        var family = Name(request.FamilyName) ?? Name(token.FamilyName);
 
         // Only into an account whose own email is verified: an unverified sign-up could be someone else's claim on it.
         if (user is null && options.LinkByVerifiedEmail && verifiedEmail is not null
@@ -108,6 +111,10 @@ internal sealed class SpineAccounts(
                 Email = verifiedEmail,
                 EmailVerified = verifiedEmail is not null,
                 DisplayName = name,
+                PictureUrl = token.Picture,
+                GivenName = given,
+                FamilyName = family,
+                Organization = token.Organization,
                 CreatedAt = time.GetUtcNow(),
             };
 
@@ -119,9 +126,30 @@ internal sealed class SpineAccounts(
                 await users.CreateAsync(user, cancellationToken);
             }
         }
-        else if (user.DisplayName is null && name is not null)
+        else
         {
-            user = await ChangeAsync(user.Id, u => u.DisplayName is null && (u.DisplayName = name) is not null, cancellationToken) ?? user;
+            // Names are kept as first given (the user may have changed them in the app); the picture and the organization
+            // follow the provider the user signs in with.
+            // Google and Microsoft say whether the account belongs to an organization, so a personal account clears it.
+            var reportsOrganization = provider is SpineMicrosoftOptions || providerName == "google";
+
+            bool Changes(SpineAuthUser u) =>
+                u.DisplayName is null && name is not null || u.GivenName is null && given is not null || u.FamilyName is null && family is not null
+                || token.Picture is not null && token.Picture != u.PictureUrl || reportsOrganization && token.Organization != u.Organization;
+
+            if (Changes(user))
+            {
+                user = await ChangeAsync(user.Id, u =>
+                {
+                    if (!Changes(u)) return false;
+                    u.DisplayName ??= name;
+                    u.GivenName ??= given;
+                    u.FamilyName ??= family;
+                    u.PictureUrl = token.Picture ?? u.PictureUrl;
+                    if (reportsOrganization) u.Organization = token.Organization;
+                    return true;
+                }, cancellationToken) ?? user;
+            }
         }
 
         var login = new SpineAuthLogin(providerName, token.Subject, user.Id);

@@ -17,6 +17,9 @@ public sealed class NativeTests : IAsyncLifetime
 {
     // Credential Manager issues the ID token for the web client the app names as its serverClientId.
     private const string ServerClientId = "google-web.apps.googleusercontent.com";
+    private const string MicrosoftClient = "msal-app";
+    private const string Tenant = "3f1d0c8e-0000-4000-8000-000000000001";
+    private static readonly string MicrosoftIssuer = $"https://login.microsoftonline.com/{Tenant}/v2.0";
 
     private readonly RsaSecurityKey _googleKey = new(RSA.Create(2048)) { KeyId = "g1" };
     private WebApplication _server = null!;
@@ -30,6 +33,8 @@ public sealed class NativeTests : IAsyncLifetime
 
         var google = new OpenIdConnectConfiguration { Issuer = "https://accounts.google.com" };
         google.SigningKeys.Add(_googleKey);
+        var microsoft = new OpenIdConnectConfiguration { Issuer = MicrosoftIssuer };
+        microsoft.SigningKeys.Add(_googleKey);
 
         builder.Services.AddSpineAuthentication(a =>
         {
@@ -39,6 +44,11 @@ public sealed class NativeTests : IAsyncLifetime
             {
                 o.ClientIds.Add(ServerClientId);
                 o.Configuration = new StaticConfigurationManager<OpenIdConnectConfiguration>(google);
+            });
+            a.Microsoft(o =>
+            {
+                o.ClientId = MicrosoftClient;
+                o.Configuration = new StaticConfigurationManager<OpenIdConnectConfiguration>(microsoft);
             });
             a.UseInMemoryStore();
         });
@@ -79,6 +89,26 @@ public sealed class NativeTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_provider_with_its_own_nonce_sends_none()
+    {
+        // MSAL puts a nonce of its own in Microsoft's token; the server's nonce would not match it.
+        var msal = new FakeSheet(_ => new NativeCredential(new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = MicrosoftIssuer,
+            Audience = MicrosoftClient,
+            Expires = DateTime.UtcNow.AddMinutes(10),
+            Claims = new Dictionary<string, object> { ["sub"] = "ms-1", ["tid"] = Tenant, ["nonce"] = "msal-own", ["name"] = "Mo" },
+            SigningCredentials = new SigningCredentials(_googleKey, SecurityAlgorithms.RsaSha256),
+        })), usesNonce: false);
+
+        var result = await _flows.NativeAsync("microsoft", msal, default);
+
+        Assert.Equal(SignInStatus.SignedIn, result.Status);
+        Assert.Equal("microsoft", result.User!.Provider);
+        Assert.Null(msal.Nonce);
+    }
+
+    [Fact]
     public async Task A_closed_sheet_is_a_cancel()
     {
         var result = await _flows.NativeAsync("google", new FakeSheet(_ => null), default);
@@ -99,19 +129,31 @@ public sealed class NativeTests : IAsyncLifetime
     [Fact]
     public async Task A_token_for_another_client_is_refused()
     {
-        var result = await _flows.NativeAsync("google", new FakeSheet(nonce => new NativeCredential(GoogleToken(nonce, "other-app"))), default);
+        var sheet = new FakeSheet(nonce => new NativeCredential(GoogleToken(nonce, "other-app"), AccountId: "acct-1"));
+        var result = await _flows.NativeAsync("google", sheet, default);
 
         Assert.Equal(SignInStatus.Failed, result.Status);
+        Assert.Equal("acct-1", sheet.Refused);   // forgotten, so the next sign-in asks instead of sending it again
     }
 
-    private sealed class FakeSheet(Func<string, NativeCredential?> answer) : INativeSignIn
+    private sealed class FakeSheet(Func<string, NativeCredential?> answer, bool usesNonce = true) : INativeSignIn
     {
         public string? Nonce { get; private set; }
 
-        public Task<NativeCredential?> SignInAsync(string nonce, CancellationToken cancellationToken)
+        public bool UsesNonce => usesNonce;
+
+        public string? Refused { get; private set; }
+
+        public Task RefusedAsync(NativeCredential credential)
+        {
+            Refused = credential.AccountId;
+            return Task.CompletedTask;
+        }
+
+        public Task<NativeCredential?> SignInAsync(string? nonce, CancellationToken cancellationToken)
         {
             Nonce = nonce;
-            return Task.FromResult(answer(nonce));
+            return Task.FromResult(answer(nonce ?? ""));
         }
 
         public Task SignedOutAsync() => Task.CompletedTask;

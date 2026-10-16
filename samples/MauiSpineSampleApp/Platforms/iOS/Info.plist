@@ -42,5 +42,22 @@
 	<!-- Lets the Lightbox sample's Save button add the photo showing to Photos. -->
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Saves the photo you are looking at to your library.</string>
+	<!-- Sign in with Microsoft: MSAL asks whether Microsoft Authenticator is installed, and the broker answers on msauth.{bundle id}. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>msauthv2</string>
+		<string>msauthv3</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>se.cosmomedia.spineshowcase.msauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>msauth.se.cosmomedia.spineshowcase</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

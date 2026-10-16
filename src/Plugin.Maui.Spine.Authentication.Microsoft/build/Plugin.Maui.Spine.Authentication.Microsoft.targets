@@ -1,0 +1,56 @@
+<Project>
+	<!--
+		MSAL's broker on iOS (Microsoft Authenticator) answers through the URL scheme msauth.{bundle id}, and MSAL asks
+		whether the broker is installed through LSApplicationQueriesSchemes msauthv2 and msauthv3. Both go in the app's
+		own Info.plist, which this package does not write: an iOS app build stops here with what to add instead. Set
+		SpineMicrosoftCheckInfoPlist to false to skip the check, for example with UseBroker = false.
+	-->
+	<Target Name="_SpineCheckMicrosoftInfoPlist"
+			AfterTargets="_DetectAppManifest"
+			Condition="'$(SpineMicrosoftCheckInfoPlist)' != 'false' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' And '$(OutputType)' == 'Exe' And '$(DesignTimeBuild)' != 'true'">
+
+		<PropertyGroup>
+			<_SpineMicrosoftManifest>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(AppBundleManifest)'))</_SpineMicrosoftManifest>
+			<_SpineMicrosoftManifestText Condition="'$(AppBundleManifest)' != '' And Exists('$(_SpineMicrosoftManifest)')">$([System.IO.File]::ReadAllText('$(_SpineMicrosoftManifest)'))</_SpineMicrosoftManifestText>
+			<_SpineMicrosoftDeclared Condition="$(_SpineMicrosoftManifestText.Contains('msauthv2')) And $(_SpineMicrosoftManifestText.Contains('msauthv3')) And $(_SpineMicrosoftManifestText.Contains('msauth.$(ApplicationId)'))">true</_SpineMicrosoftDeclared>
+		</PropertyGroup>
+
+		<Error Condition="'$(_SpineMicrosoftDeclared)' != 'true'"
+			   Text="Spine: Plugin.Maui.Spine.Authentication.Microsoft needs, in the app's Info.plist ($(AppBundleManifest)), LSApplicationQueriesSchemes with msauthv2 and msauthv3, and a CFBundleURLTypes entry with the scheme msauth.$(ApplicationId), so MSAL can use Microsoft Authenticator and get its answer back. See the package README, or set SpineMicrosoftCheckInfoPlist to false when the app turns the broker off or does not sign in with Microsoft (the package came in through another reference)." />
+	</Target>
+
+	<!--
+		Android: MSAL's activity (the package's SpineMicrosoftCallbackActivity) takes the answer at msauth://{package}/…,
+		and <queries> lets MSAL see the brokers and Custom Tabs from Android 11 on. Written as a manifest overlay.
+	-->
+	<Target Name="_SpineMicrosoftAndroidManifest" BeforeTargets="_ManifestMerger"
+			Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' And '$(OutputType)' == 'Exe'">
+		<PropertyGroup>
+			<_SpineMicrosoftAndroidManifest>$(IntermediateOutputPath)spine-authentication-microsoft\AndroidManifest.xml</_SpineMicrosoftAndroidManifest>
+		</PropertyGroup>
+		<ItemGroup>
+			<_SpineMicrosoftManifestLine Include="&lt;manifest xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;&gt;" />
+			<_SpineMicrosoftManifestLine Include="  &lt;queries&gt;" />
+			<_SpineMicrosoftManifestLine Include="    &lt;package android:name=&quot;com.azure.authenticator&quot; /&gt;" />
+			<_SpineMicrosoftManifestLine Include="    &lt;package android:name=&quot;com.microsoft.windowsintune.companyportal&quot; /&gt;" />
+			<_SpineMicrosoftManifestLine Include="    &lt;package android:name=&quot;com.microsoft.workaccount&quot; /&gt;" />
+			<_SpineMicrosoftManifestLine Include="    &lt;intent&gt;&lt;action android:name=&quot;android.support.customtabs.action.CustomTabsService&quot; /&gt;&lt;/intent&gt;" />
+			<_SpineMicrosoftManifestLine Include="  &lt;/queries&gt;" />
+			<_SpineMicrosoftManifestLine Include="  &lt;application&gt;" />
+			<_SpineMicrosoftManifestLine Include="    &lt;activity android:name=&quot;plugin.maui.spine.authentication.SpineMicrosoftCallbackActivity&quot; android:exported=&quot;true&quot;&gt;" />
+			<_SpineMicrosoftManifestLine Include="      &lt;intent-filter&gt;" />
+			<_SpineMicrosoftManifestLine Include="        &lt;action android:name=&quot;android.intent.action.VIEW&quot; /&gt;" />
+			<_SpineMicrosoftManifestLine Include="        &lt;category android:name=&quot;android.intent.category.DEFAULT&quot; /&gt;" />
+			<_SpineMicrosoftManifestLine Include="        &lt;category android:name=&quot;android.intent.category.BROWSABLE&quot; /&gt;" />
+			<_SpineMicrosoftManifestLine Include="        &lt;data android:scheme=&quot;msauth&quot; android:host=&quot;$(ApplicationId)&quot; /&gt;" />
+			<_SpineMicrosoftManifestLine Include="      &lt;/intent-filter&gt;" />
+			<_SpineMicrosoftManifestLine Include="    &lt;/activity&gt;" />
+			<_SpineMicrosoftManifestLine Include="  &lt;/application&gt;" />
+			<_SpineMicrosoftManifestLine Include="&lt;/manifest&gt;" />
+		</ItemGroup>
+		<WriteLinesToFile File="$(_SpineMicrosoftAndroidManifest)" Lines="@(_SpineMicrosoftManifestLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+		<ItemGroup>
+			<AndroidManifestOverlay Include="$(_SpineMicrosoftAndroidManifest)" />
+		</ItemGroup>
+	</Target>
+</Project>

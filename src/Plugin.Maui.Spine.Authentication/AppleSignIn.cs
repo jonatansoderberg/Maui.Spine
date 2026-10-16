@@ -7,7 +7,7 @@ using UIKit;
 namespace Plugin.Maui.Spine.Authentication;
 
 /// <summary>What Apple's sheet hands over: the identity token for the server, the one-time code and, the first time only, the name.</summary>
-internal sealed record AppleCredential(string IdentityToken, string? AuthorizationCode, string? Name);
+internal sealed record AppleCredential(string IdentityToken, string? AuthorizationCode, string? Name, string? GivenName = null, string? FamilyName = null);
 
 /// <summary>Sign in with Apple's own sheet, on iOS and Mac Catalyst.</summary>
 internal static class AppleSignIn
@@ -66,7 +66,9 @@ internal static class AppleSignIn
             done.TrySetResult(new AppleCredential(
                 token.ToString(NSStringEncoding.UTF8),
                 credential.AuthorizationCode?.ToString(NSStringEncoding.UTF8),
-                string.IsNullOrEmpty(name) ? null : name));
+                string.IsNullOrEmpty(name) ? null : name,
+                credential.FullName?.GivenName is { Length: > 0 } given ? given : null,
+                credential.FullName?.FamilyName is { Length: > 0 } family ? family : null));
         }
 
         public override void DidComplete(ASAuthorizationController controller, NSError error)

@@ -11,7 +11,10 @@ using Microsoft.IdentityModel.Tokens;
 namespace Plugin.Maui.Spine.Server.Authentication;
 
 /// <summary>What an accepted ID token says about the user.</summary>
-internal sealed record ValidatedIdToken(string Subject, string Audience, string? Email, bool EmailVerified, string? Name);
+/// <param name="EmailDomainVerified">Microsoft's <c>xms_edov</c>: the tenant has verified the email's domain, so the address is the user's.</param>
+internal sealed record ValidatedIdToken(
+    string Subject, string Audience, string? Email, bool EmailVerified, string? Name, string? Picture = null,
+    string? GivenName = null, string? FamilyName = null, string? Organization = null, bool EmailDomainVerified = false);
 
 /// <summary>Checks ID tokens from the providers' native sheets: signature from the provider's JWKS, issuer, audience, expiry and nonce.</summary>
 internal sealed class IdTokenValidator(ISpineAuthStore store, IHttpClientFactory http, TimeProvider time, SpineAuthOptions options)
@@ -71,7 +74,12 @@ internal sealed class IdTokenValidator(ISpineAuthStore store, IHttpClientFactory
             return (null, "the token has no sub");
 
         var audience = token.Audiences.First(audiences.Contains);
-        return (new ValidatedIdToken(subject, audience, Claim(token, "email"), IsTrue(token, "email_verified"), Claim(token, "name")), null);
+        var microsoft = provider is SpineMicrosoftOptions;
+        return (new ValidatedIdToken(
+            subject, audience, Claim(token, "email"), IsTrue(token, "email_verified"), Claim(token, "name"), Picture(Claim(token, "picture")),
+            Claim(token, "given_name"), Claim(token, "family_name"),
+            Organization: microsoft ? Claim(token, "tid") is { } tid && tid != SpineMicrosoftOptions.ConsumersTenant ? tid : null : Claim(token, "hd"),
+            EmailDomainVerified: microsoft && IsTrue(token, "xms_edov")), null);
 
         async Task<TokenValidationResult> ValidateWithAsync(OpenIdConnectConfiguration config)
         {
@@ -116,6 +124,10 @@ internal sealed class IdTokenValidator(ISpineAuthStore store, IHttpClientFactory
         if (microsoft.AcceptsTenant(tenant) && issuer == $"https://login.microsoftonline.com/{tenant}/v2.0") return issuer;
         throw new SecurityTokenInvalidIssuerException($"The issuer '{issuer}' is not a tenant this app accepts.");
     }
+
+    // Only an https address of reasonable length: the app loads it without asking, so nothing else is passed on.
+    private static string? Picture(string? claim) =>
+        claim is { Length: <= 2048 } && Uri.TryCreate(claim, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps ? uri.AbsoluteUri : null;
 
     private static string NonceKey(string nonce) => SpineTokenService.Hash($"nonce|{nonce}");
 

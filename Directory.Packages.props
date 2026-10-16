@@ -109,6 +109,16 @@
 		<PackageVersion Include="Xamarin.GoogleAndroid.Libraries.Identity.GoogleId" Version="1.1.0.11" />
 	</ItemGroup>
 
+	<!--
+		Plugin.Maui.Spine.Authentication.Microsoft. MSAL ships builds for Android and iOS and a net8.0 build, which
+		Mac Catalyst and Windows take; the broker (WAM) and the cache persistence (DPAPI) are Windows only.
+	-->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.Identity.Client" Version="4.90.1" />
+		<PackageVersion Include="Microsoft.Identity.Client.Broker" Version="4.90.1" />
+		<PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.90.1" />
+	</ItemGroup>
+
 	<!-- Windows only; referenced under a condition in Plugin.Maui.Spine. -->
 	<ItemGroup>
 		<PackageVersion Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />

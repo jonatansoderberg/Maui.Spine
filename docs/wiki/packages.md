@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as thirty-three NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as thirty-four NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -11,6 +11,7 @@ Spine ships as thirty-three NuGet packages built from this repository, one per p
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications | `.Common` |
 | Security | `Plugin.Maui.Spine.Authentication` | [Sign-in in the app](authentication.md): `ISpineAuth`, Sign in with Apple's sheet, email and password, `[RequiresSignIn]`, the `HttpClient` handler | `Plugin.Maui.Spine`, `.Common`, Microsoft.Extensions.Http |
 | Security | `Plugin.Maui.Spine.Authentication.Google` | [Sign in with Google](authentication.md#sign-in-with-google): Credential Manager on Android, the broker elsewhere | `.Authentication`; on Android Xamarin.AndroidX.Credentials (+ PlayServicesAuth, GoogleId) |
+| Security | `Plugin.Maui.Spine.Authentication.Microsoft` | [Sign in with Microsoft](authentication.md#sign-in-with-microsoft): MSAL with the broker, via the Spine server or directly | `.Authentication`, Microsoft.Identity.Client (+ `.Broker`, `.Extensions.Msal` on Windows) |
 | Security | `Plugin.Maui.Spine.Biometrics` | `IBiometricAuth` (Face ID, Touch ID, fingerprint, Windows Hello), `IUnlock`, `[RequiresUnlock]`, `Unlock.Command`, the app lock and `[PrivacyShield]`. Brings `Xamarin.AndroidX.Biometric` on Android | `Plugin.Maui.Spine`, `.Common` |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes on BGTaskScheduler (iOS) and JobScheduler (Android), a timer while the app runs elsewhere | `Plugin.Maui.Spine`, `.Common` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header | `.Svg` |
@@ -46,7 +47,7 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
   ▲           ▲  ▲
   │           │  ├── BackgroundTasks (and Common; runs Widgets' refresh through Common)
   │           │  ├── Biometrics (and Common)
-  │           │  └── Authentication (and Common) ◄── Authentication.Google (and AndroidX Credentials)
+  │           │  └── Authentication (and Common) ◄── Authentication.Google (and AndroidX Credentials), Authentication.Microsoft (and MSAL)
   │   Calendar, DataGrid, Shimmer, Rows, MeshBackground, Highlight, Markdown, Scanner ──► Barcodes
   │   Chat ──► Markdown, Shimmer
 PushNotifications                                    AnimatedLabel
@@ -68,7 +69,7 @@ PushNotifications                                    AnimatedLabel
 | Widgets or Live Activities | `Plugin.Maui.Spine.Widgets` (brings the core and `.Common`) |
 | Push or local notifications | `Plugin.Maui.Spine.PushNotifications` (brings `.Common`; the core is not required) |
 | Work while the app is closed, or widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` (brings the core and `.Common`) |
-| Sign-in against the app's own server, a page or command behind it | `Plugin.Maui.Spine.Authentication` in the app (and `.Authentication.Google` for Google), `Plugin.Maui.Spine.Server.Authentication` on the server |
+| Sign-in against the app's own server, a page or command behind it | `Plugin.Maui.Spine.Authentication` in the app (and `.Authentication.Google`, `.Authentication.Microsoft`), `Plugin.Maui.Spine.Server.Authentication` on the server |
 | Face ID, fingerprint or Windows Hello before a page or a command | `Plugin.Maui.Spine.Biometrics` (brings the core and `.Common`) |
 | QR codes and other barcodes on screen | `Plugin.Maui.Spine.Barcodes` (no camera, no permissions) |
 | Scanning codes with the camera | `Plugin.Maui.Spine.Scanner` (brings the core and `.Barcodes`) |
@@ -100,6 +101,7 @@ PushNotifications                                    AnimatedLabel
 | `Plugin.Maui.Spine.BackgroundTasks` | Registered; call `UseSpineBackgroundTasks(o => …)` only to change intervals or the catch-up run | Needs the core, so always with `UseSpine` |
 | `Plugin.Maui.Spine.Authentication` | Registered; configured with `o.AddAuthentication(a => …)` inside `UseSpine` | Needs the core, so always with `UseSpine` |
 | `Plugin.Maui.Spine.Authentication.Google` | Nothing to register: `a.AddGoogle(g => …)` inside `o.AddAuthentication(...)` | Needs `.Authentication` |
+| `Plugin.Maui.Spine.Authentication.Microsoft` | Registered (passes MSAL the broker's answers); `a.AddMicrosoft(m => …)` or `a.UseMicrosoft(m => …)` inside `o.AddAuthentication(...)` | Needs `.Authentication` |
 | `Plugin.Maui.Spine.Biometrics` | Registered; call `UseSpineBiometrics(o => …)` only to change how long an unlock counts, what happens without a screen lock, or to turn on the app lock | Needs the core, so always with `UseSpine` |
 | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Registered | `UseAnimatedLabel()` |
 | `Plugin.Maui.Spine.Controls.HeroCollectionView` | Nothing | Nothing (`UseHeroCollectionView()` still compiles, and does nothing) |
@@ -154,7 +156,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 
 | Package | Frameworks |
 |---|---|
-| MAUI packages (core, Svg, Widgets, PushNotifications, BackgroundTasks, Biometrics, Authentication.Google, the controls, Scanner) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
+| MAUI packages (core, Svg, Widgets, PushNotifications, BackgroundTasks, Biometrics, Authentication.Google, Authentication.Microsoft, the controls, Scanner) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
 | `Plugin.Maui.Spine.Barcodes` | `net10.0` (encoding, `LightGridReader`) and the four MAUI frameworks (adding `BarcodeView`) |
 | `Plugin.Maui.Spine.Images` | `net10.0` (the disk cache only, for tests) and the four MAUI frameworks |
 | `Plugin.Maui.Spine.Controls.Voice` | `net10.0` (the visuals' drawing, for tests) and the four MAUI frameworks (adding `VoiceView` and `UseSpineVoiceView`) |
@@ -193,7 +195,7 @@ These packages carry MSBuild files that run in the consuming app's build, import
 | Package | What its build files do |
 |---|---|
 | `Plugin.Maui.Spine` | Writes `SpineModules.g.cs` into the app: a `[ModuleInitializer]` that hands each referenced package's registration to `UseSpine()` (from the `SpineModule` items below). Only in an app project; `SpineGenerateModuleRegistrations=false` turns it off |
-| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Controls.Voice`, `.Scanner`, `.Images`, `.AI`, `.Voice`, `.Authentication` | Declare their `SpineModule` in `<PackageId>.props` |
+| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Controls.Voice`, `.Scanner`, `.Images`, `.AI`, `.Voice`, `.Authentication`, `.Authentication.Microsoft` | Declare their `SpineModule` in `<PackageId>.props` |
 | `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other packages contribute, and one partial `Info.plist` with `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers` from the `SpineBackgroundMode` and `SpineBackgroundTaskIdentifier` items, merged with the app's own |
 | `Plugin.Maui.Spine.Widgets` | Compiles the WidgetKit extension and the bridge framework with `swiftc` on iOS; generates the manifest overlay and provider metadata on Android |
 | `Plugin.Maui.Spine.PushNotifications` | Contributes the `aps-environment` entitlement; compiles the Notification Service Extension on iOS when `SpinePushNotificationsImages` is on |
