@@ -89,6 +89,20 @@ public sealed partial class SpineAuthOptions
     public bool LinkByVerifiedEmail { get; set; }
 
     /// <summary>
+    /// A sign-in with an identity the server does not know makes no account; it answers 202 with a
+    /// <c>SpinePendingIdentity</c>, and the app asks whether this is a new account or one the user has signed in to
+    /// another way (<c>POST /auth/pending/create</c> or, after that other sign-in, <c>POST /auth/pending/link</c>). Off by
+    /// default: an unknown identity makes a new account at once.
+    /// </summary>
+    public bool AskBeforeNewAccount { get; set; }
+
+    /// <summary>How long a pending identity's ticket waits for the user's answer. Ten minutes by default.</summary>
+    public TimeSpan PendingIdentityLifetime { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>How long a link ticket (<c>POST /auth/link/ticket</c>) waits for its browser sign-in. Five minutes by default.</summary>
+    public TimeSpan LinkTicketLifetime { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
     /// Runs before an account is deleted, so the app can delete its own data for the user. An exception here stops
     /// the deletion and answers 500.
     /// </summary>

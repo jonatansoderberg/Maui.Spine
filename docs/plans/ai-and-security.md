@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-16 (5.3b merged as #570; Apple's sheet, Google's broker and Microsoft verified against the real providers in the simulator)
+**Last updated:** 2026-10-16 (5.5 account linking merged as #576; 5.3b merged as #570; Apple's sheet, Google's broker and Microsoft verified against the real providers in the simulator)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -157,6 +157,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 5.3a | `Authentication.Google`: Credential Manager on Android, the broker elsewhere; the provider hook (`INativeSignIn`) in `Authentication` | #521 | 5.2a, 5.2b | Done | #565 | Split by the owner on 2026-10-15. `a.AddGoogle(g => g.ServerClientId = …)`; Guideline 4.8 checked at startup (`AppleNotRequired`); AndroidX Credentials 1.5.0.3 to stay on MAUI's AndroidX (Decisions). Compiled and unit-tested only: no Google Cloud project yet (owner, 2026-10-15). |
 | 5.3b | `Authentication.Microsoft`: MSAL with the broker (Authenticator, Company Portal, WAM); MSAL's ID token to the Spine server (`AddMicrosoft`), or MSAL's own access token without one (`UseMicrosoft`) | #564 | 5.3a | Done | #570 | Split from #521 by the owner on 2026-10-15, with both modes. The mode without a server is generalized in the core (`IDirectSignIn`), shared with `UseIdentityProvider`; Mac Catalyst runs MSAL's net8.0 build with a custom web UI over Spine's browser layer (Decisions). |
 | 5.4 | Passkeys | #522 | 5.2a | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
+| 5.5 | Account linking: one account with several providers, `Logins` with their details, link and unlink, and a pending identity before a new account (`AskBeforeNewAccount`) with "Is this your first time here?" in the sheet; the sheet's provider buttons in one shape with each brand's logo | #575 | 5.3b | Done | #576 | Asked for by the owner on 2026-10-16 (Decisions). Also `Password`, `AccountLink` and `Merge` in the icon set, and Spine.Svg draws Figma's conic gradients and alpha masks (Google's G). |
 
 ---
 
@@ -450,6 +451,11 @@ Newest last. Each entry is dated and says who decided.
   - The package has a `SpineModule` of its own: MSAL's answers come back through `OpenUrl` (iOS) and `OnActivityResult` (Android), which only the builder's lifecycle events reach.
   - Guideline 4.8 is checked for `AddMicrosoft` as for Google, not for `UseMicrosoft`, whose apps sign users in with their organization's account (an exemption in 4.8).
   - MSAL 4.90.1, not 4.91.0 (published 2026-10-12).
+- **2026-10-16, owner (#575):** an identity is held as pending before an account is made (`AskBeforeNewAccount`), rather than merging two accounts afterwards; a provider account that belongs to another user is refused with a reason; done here as step 5.5. The sign-in buttons follow each brand in one shape, with official logos as vectors: Google's G as Google ships it (Spine.Svg learns its conic gradient), Apple's drawn for Spine because Apple's artwork is licensed for mock-ups only.
+- **2026-10-16, Claude (#575):**
+  - Linking answers with new tokens for the same user, and the client raises `UserChanged` but not `SignedIn`. **Why:** a link is not a new sign-in; push registration and the like should not run again.
+  - The new `ISpineAuth` members and `IUserResolver.DeleteLoginAsync` are default interface members. **Why:** an app's own implementations still compile.
+  - A password is not linked, only removed: an account gets one by signing up with its email. **Why:** linking a password would need a verified email step of its own.
 - **2026-10-15, owner (#521):** #521 is split. 5.3a (#521) is Google plus the provider hook, 5.3b (#564) is Microsoft. Microsoft gets both modes: MSAL's ID token to the Spine server, and MSAL's own access token for an Entra-protected API without a server. 5.3a stops at compiled and unit-tested; the run against Google waits in the verification backlog for a Google Cloud project.
 - **2026-10-15, Claude (#521):**
   - The provider hook (`INativeSignIn`, `NativeProvider`, `AddNative`) is internal, opened to the provider packages with `InternalsVisibleTo`, as `.Common` does for its siblings. **Why:** no public extension API to keep stable before a third provider package asks for one.
@@ -597,6 +603,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-16:** #575 merged (PR #576): account linking, step 5.5.
 - **2026-10-16:** #564 merged (PR #570). Apple's sheet, Google's broker and Microsoft verified against the real providers in the iPhone 17 simulator; #571 (entitlements, PR #572) found on the way.
 - **2026-10-15:** #521 merged (PR #565). #564 (Microsoft, step 5.3b) in review as PR #570.
 - **2026-10-15:** #516 merged (PR #568). #567 (`VoiceView`, step 4.3b) in review.

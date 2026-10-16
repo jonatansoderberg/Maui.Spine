@@ -47,8 +47,10 @@ public sealed class SpineAuthUser
     /// </summary>
     public string? Version { get; set; }
 
-    internal SpineUser ToContract(string provider, IReadOnlyList<string> signInMethods) =>
-        new(Id, Email, DisplayName, provider, PictureUrl, GivenName, FamilyName, Organization, signInMethods);
+    internal SpineUser ToContract(string provider, IReadOnlyList<SpineAuthLogin> logins) =>
+        new(Id, Email, DisplayName, provider, PictureUrl, GivenName, FamilyName, Organization,
+            logins.Select(l => l.Provider).Distinct().Order().ToList(),
+            logins.OrderBy(l => l.LinkedAt ?? DateTimeOffset.MinValue).Select(l => l.ToContract()).ToList());
 }
 
 /// <summary>One way a user signs in: a provider and the provider's id for them.</summary>
@@ -62,6 +64,17 @@ public sealed record SpineAuthLogin(string Provider, string Subject, string User
 
     /// <summary>The client id <see cref="ProviderRefreshToken"/> was issued to.</summary>
     public string? ProviderClientId { get; init; }
+
+    /// <summary>The email this provider gave for the user, vouched for or not; shown on the app's accounts page.</summary>
+    public string? Email { get; init; }
+
+    /// <summary>The name this provider gave.</summary>
+    public string? DisplayName { get; init; }
+
+    /// <summary>When the login was added to the user.</summary>
+    public DateTimeOffset? LinkedAt { get; init; }
+
+    internal SpineLoginInfo ToContract() => new(Provider, Email, DisplayName, LinkedAt);
 }
 
 /// <summary>
@@ -95,6 +108,13 @@ public interface IUserResolver
 
     /// <summary>Removes a user, their email and every login.</summary>
     Task DeleteAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes one login from its user (unlinking a provider). The built-in stores implement it; a resolver over the
+    /// app's own database that does not, makes <c>DELETE /auth/link/{provider}</c> answer 501.
+    /// </summary>
+    Task DeleteLoginAsync(SpineAuthLogin login, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This IUserResolver cannot remove a login.");
 }
 
 /// <summary>A refresh token as the store keeps it: by its hash, never the token itself.</summary>
@@ -211,6 +231,14 @@ public sealed class InMemoryUserResolver : IUserResolver
     {
         ArgumentNullException.ThrowIfNull(login);
         lock (_gate) _logins[(login.Provider.ToLowerInvariant(), login.Subject)] = login;
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task DeleteLoginAsync(SpineAuthLogin login, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(login);
+        lock (_gate) _logins.Remove((login.Provider.ToLowerInvariant(), login.Subject));
         return Task.CompletedTask;
     }
 

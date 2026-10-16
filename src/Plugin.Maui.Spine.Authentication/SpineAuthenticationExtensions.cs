@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Plugin.Maui.Spine.Core;
+using Plugin.Maui.Spine.Svg;
 
 namespace Plugin.Maui.Spine.Authentication;
 
@@ -83,6 +84,7 @@ public static class SpineAuthenticationExtensions
             services.AddTransient<SignInSheet>();
             services.AddTransient<SignInSheetViewModel>();
         }
+        builder.UseEmbeddedSvgImages(assembly);
 
         if (spine?.ApplyConfiguration(options) == true)
         {

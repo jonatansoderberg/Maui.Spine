@@ -38,6 +38,47 @@
             </Example.Code>
         </Example>
 
+        <Example Title="One account, several ways in"
+                 Summary="The account keeps the same id whichever way the user signs in. Its logins come with the user; link another provider through its sheet or the browser, or remove one, never the last. The sample server asks before making a new account for a provider account it does not know, and the sheet offers to add it to the account the user had.">
+            <VerticalStackLayout Spacing="10">
+                <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Logins}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="LoginRow">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <VerticalStackLayout VerticalOptions="Center">
+                                    <Label Text="{Binding Provider}" FontSize="15" FontAttributes="Bold" />
+                                    <Label Text="{Binding Details}" FontSize="13" Opacity="0.7" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1" Text="Unlink" VerticalOptions="Center"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type SignInPageViewModel}}, Path=UnlinkCommand}"
+                                        CommandParameter="{Binding Provider}" />
+                            </Grid>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+                <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Linkable}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <Button Text="{Binding ., StringFormat='Link {0}'}" Margin="0,0,8,8"
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type SignInPageViewModel}}, Path=LinkCommand}"
+                                    CommandParameter="{Binding .}" />
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </FlexLayout>
+                <Label Text="{Binding LinkLog}" FontSize="14" />
+            </VerticalStackLayout>
+            <Example.Code>
+                // Server: ask before a new account, so the sheet can add the provider to the one the user had.
+                builder.Services.AddSpineAuthentication(a => { …; a.AskBeforeNewAccount = true; });
+
+                foreach (var login in _auth.User!.Logins!)
+                    Console.WriteLine($"{login.Provider} {login.Email} {login.LinkedAt}");
+
+                await _auth.LinkAsync("google");    // Google's sheet or the browser; the same user after
+                await _auth.UnlinkAsync("google");  // never the last way in
+            </Example.Code>
+        </Example>
+
         <Example Title="A page behind a sign-in"
                  Summary="[RequiresSignIn] on the page: the sheet opens first, then the page.">
             <Button Text="Open Members" Command="{Binding OpenMembersCommand}" />

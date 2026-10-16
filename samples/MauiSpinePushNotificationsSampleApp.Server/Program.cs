@@ -93,6 +93,10 @@ builder.Services.AddSpineAuthentication(a =>
         a.Microsoft(o => { o.ClientId = microsoftClient; o.Tenant = builder.Configuration["Auth:Microsoft:Tenant"] ?? "common"; });
 
     a.EmailPassword();
+
+    // A first sign-in with a provider account the server does not know asks "Is this your first time here?", so a
+    // user who signed in another way before ends up with one account (the Showcase's sheet asks; #575).
+    a.AskBeforeNewAccount = true;
     a.UseInMemoryStore();
 });
 

@@ -68,7 +68,9 @@ internal sealed class SpineAuthSession(ITokenEndpoint client, ISpineAuthStorage 
         lock (_loadGate) return _loading ??= LoadCoreAsync();
     }
 
-    public async Task<SpineUser> AcceptAsync(SpineTokens tokens)
+    /// <param name="tokens">The new pair.</param>
+    /// <param name="signedIn">Whether this is a sign-in; a link or an unlink changes the same user's tokens and raises only <see cref="Changed"/>.</param>
+    public async Task<SpineUser> AcceptAsync(SpineTokens tokens, bool signedIn = true)
     {
         await LoadAsync();
         string? replaced;
@@ -87,7 +89,7 @@ internal sealed class SpineAuthSession(ITokenEndpoint client, ISpineAuthStorage 
         // A sign-in on top of another (an app's own page calling the password methods) leaves the old sign-in unused.
         if (replaced is not null && replaced != tokens.RefreshToken) _ = client.RevokeAsync(replaced, CancellationToken.None);
 
-        SignedIn?.Invoke(this, tokens.User);
+        if (signedIn) SignedIn?.Invoke(this, tokens.User);
         Changed?.Invoke(this, EventArgs.Empty);
         return tokens.User;
     }

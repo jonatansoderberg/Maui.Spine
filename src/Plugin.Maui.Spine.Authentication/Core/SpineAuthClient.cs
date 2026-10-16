@@ -10,7 +10,8 @@ namespace Plugin.Maui.Spine.Authentication;
 /// <param name="Tokens">The tokens on 200.</param>
 /// <param name="Status">The HTTP status, or 0 when the server could not be reached.</param>
 /// <param name="Error">The server's <see cref="SpineAuthErrors"/> value, or a message naming the path and the status.</param>
-internal sealed record ServerAnswer(SpineTokens? Tokens, int Status, string? Error)
+/// <param name="Pending">A provider account the server holds until the user chooses (202 with a body).</param>
+internal sealed record ServerAnswer(SpineTokens? Tokens, int Status, string? Error, SpinePendingIdentity? Pending = null)
 {
     public bool Accepted => Status == (int)HttpStatusCode.Accepted;
 }
@@ -69,12 +70,45 @@ internal sealed class SpineAuthClient(HttpClient http, Uri root) : ITokenEndpoin
         return await SendAsync(request, cancellationToken);
     }
 
-    private async Task<ServerAnswer> PostAsync<T>(string path, T body, CancellationToken cancellationToken)
+    public Task<ServerAnswer> LinkAsync(string provider, SpineIdTokenRequest request, string accessToken, CancellationToken cancellationToken) =>
+        PostAsync($"link/{Uri.EscapeDataString(provider)}", request, cancellationToken, accessToken);
+
+    public async Task<ServerAnswer> UnlinkAsync(string provider, string accessToken, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, new Uri(root, $"link/{Uri.EscapeDataString(provider)}"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        return await SendAsync(request, cancellationToken);
+    }
+
+    /// <summary>A one-time ticket for linking through the browser, or a message naming the path and the status.</summary>
+    public async Task<(SpineLinkTicket? Ticket, string? Error)> LinkTicketAsync(string accessToken, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(root, "link/ticket"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        try
+        {
+            using var response = await http.SendAsync(request, cancellationToken);
+            return response.IsSuccessStatusCode && await TryReadAsync<SpineLinkTicket>(response, cancellationToken) is { } ticket
+                ? (ticket, null)
+                : (null, $"POST {request.RequestUri} answered {(int)response.StatusCode}.");
+        }
+        catch (Exception e) when (e is HttpRequestException || e is TaskCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            return (null, $"POST {request.RequestUri}: {e.Message}");
+        }
+    }
+
+    /// <summary><c>pending/create</c>, or <c>pending/link</c> with the access token of the account the user proved.</summary>
+    public Task<ServerAnswer> PendingAsync(string action, SpinePendingIdentity pending, string? accessToken, CancellationToken cancellationToken) =>
+        PostAsync($"pending/{action}", new SpinePendingRequest(pending.Ticket), cancellationToken, accessToken);
+
+    private async Task<ServerAnswer> PostAsync<T>(string path, T body, CancellationToken cancellationToken, string? accessToken = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(root, path))
         {
             Content = JsonContent.Create(body, (JsonTypeInfo<T>)SpineAuthJson.Options.GetTypeInfo(typeof(T))),
         };
+        if (accessToken is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return await SendAsync(request, cancellationToken);
     }
 
@@ -94,8 +128,12 @@ internal sealed class SpineAuthClient(HttpClient http, Uri root) : ITokenEndpoin
         using (response)
         {
             var status = (int)response.StatusCode;
-            if (response.StatusCode == HttpStatusCode.OK && request.Method != HttpMethod.Delete)
+            if (response.StatusCode == HttpStatusCode.OK)
                 return new ServerAnswer(await ReadAsync<SpineTokens>(response, cancellationToken), status, null);
+
+            // A 202 is an email on its way, or, with a body, a provider account waiting for the user's choice.
+            if (response.StatusCode == HttpStatusCode.Accepted && response.Content.Headers.ContentLength is not 0)
+                return new ServerAnswer(null, status, null, await TryReadAsync<SpinePendingIdentity>(response, cancellationToken));
 
             if (response.IsSuccessStatusCode) return new ServerAnswer(null, status, null);
 
