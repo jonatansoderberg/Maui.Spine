@@ -3,13 +3,11 @@ using CommunityToolkit.Mvvm.Input;
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Presentation;
-using Plugin.Maui.Spine.Svg;
 
 namespace Plugin.Maui.Spine.Authentication;
 
 /// <summary>
-/// The package's sign-in sheet: a button per provider (Apple, Google, Microsoft and the app's own) in one shape with each
-/// brand's logo and colours, then email and password with steps for a new
+/// The package's sign-in sheet: a <see cref="SignInButton"/> per provider (Apple, Google, Microsoft and the app's own), then email and password with steps for a new
 /// account, the emailed code and a forgotten password. Returns the <see cref="SignInResult"/>; closing it cancels.
 /// <see cref="ISpineAuth.SignInAsync(CancellationToken)"/> opens it.
 /// </summary>
@@ -19,10 +17,9 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
     /// <summary>Builds the sheet.</summary>
     public SignInSheet()
     {
-        var apple = ProviderButton(string.Format(AuthStrings.Get("ContinueWith"), "Apple"), ProviderLook.Apple, null);
-        apple.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.AppleCommand));
-        var appleRow = Row(apple, ProviderLook.Apple);
-        var rows = new List<(string Provider, View Row)> { ("apple", appleRow) };
+        var apple = new SignInButton { Provider = "apple" };
+        apple.SetBinding(SignInButton.CommandProperty, nameof(SignInSheetViewModel.AppleCommand));
+        var rows = new List<(string Provider, View Row)> { ("apple", apple) };
 
         // One button per provider the server brokers through the browser, in the order the app added them.
         var browserProviders = new VerticalStackLayout { Spacing = 12 };
@@ -30,12 +27,10 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
         {
             foreach (var (provider, displayName) in providers)
             {
-                var look = ProviderLook.For(provider);
-                var button = ProviderButton(string.Format(AuthStrings.Get("ContinueWith"), displayName), look, provider);
-                button.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.ProviderCommand));
-                var row = Row(button, look);
-                browserProviders.Children.Add(row);
-                rows.Add((provider, row));
+                var button = new SignInButton { Provider = provider, Text = string.Format(AuthStrings.Get("ContinueWith"), displayName), CommandParameter = provider };
+                button.SetBinding(SignInButton.CommandProperty, nameof(SignInSheetViewModel.ProviderCommand));
+                browserProviders.Children.Add(button);
+                rows.Add((provider, button));
             }
 
             // Which buttons show depends on the step and, on "I've signed in before", on the provider being added.
@@ -54,15 +49,13 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
         // "Is this your first time here?" after a provider account the server does not know yet.
         var createNew = new Button { Text = AuthStrings.Get("Choose.Create"), FontAttributes = FontAttributes.Bold, CornerRadius = 8, HeightRequest = 48 };
         createNew.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.CreateNewAccountCommand));
-        var signedInBefore = ProviderButton(AuthStrings.Get("Choose.Existing"), ProviderLook.For(""), null);
-        signedInBefore.Padding = new Thickness(16, 0);
-        signedInBefore.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.SignedInBeforeCommand));
+        var signedInBefore = new SignInButton { Text = AuthStrings.Get("Choose.Existing") };
+        signedInBefore.SetBinding(SignInButton.CommandProperty, nameof(SignInSheetViewModel.SignedInBeforeCommand));
         var choose = new VerticalStackLayout { Spacing = 12, Children = { createNew, signedInBefore } };
         choose.SetBinding(IsVisibleProperty, static (SignInSheetViewModel vm) => vm.ShowChoice);
 
-        var emailButton = ProviderButton(AuthStrings.Get("EmailButton"), ProviderLook.Email, null);
-        emailButton.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.ShowEmailFieldsCommand));
-        var emailRow = Row(emailButton, ProviderLook.Email);
+        var emailRow = new SignInButton { Provider = "password" };
+        emailRow.SetBinding(SignInButton.CommandProperty, nameof(SignInSheetViewModel.ShowEmailFieldsCommand));
         emailRow.SetBinding(IsVisibleProperty, static (SignInSheetViewModel vm) => vm.ShowEmailButton);
 
         var or = new Label { Text = AuthStrings.Get("Or"), HorizontalOptions = LayoutOptions.Center, Opacity = 0.6 };
@@ -110,7 +103,7 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
             {
                 Padding = new Thickness(HeaderBarConstants.PageMargin, 8, HeaderBarConstants.PageMargin, 16),
                 Spacing = 12,
-                Children = { message, choose, appleRow, browserProviders, emailRow, or, email, name, code, password, error, links },
+                Children = { message, choose, apple, browserProviders, emailRow, or, email, name, code, password, error, links },
             },
         };
 
@@ -118,52 +111,6 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
         proceed.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.ContinueCommand));
         proceed.SetBinding(IsVisibleProperty, static (SignInSheetViewModel vm) => vm.ShowEmail);
         Footer = new ContentView { Padding = HeaderBarConstants.PagePadding, Content = proceed };
-    }
-
-    // The providers' buttons share one shape: 48 high, radius 8, the logo 20 wide on the left, the text centred. The
-    // colours are each brand's own for the light and dark theme: Apple black or white (HIG), Google's and Microsoft's
-    // from their sign-in branding, and email in Google's neutral outline so it sits with them.
-    private static Button ProviderButton(string text, ProviderLook look, string? parameter)
-    {
-        var button = new Button
-        {
-            Text = text,
-            CommandParameter = parameter,
-            FontAttributes = FontAttributes.Bold,
-            FontSize = 16,
-            CornerRadius = 8,
-            HeightRequest = 48,
-            Padding = new Thickness(48, 0),
-        };
-        button.SetAppThemeColor(Button.BackgroundColorProperty, look.Light.Background, look.Dark.Background);
-        button.SetAppThemeColor(Button.TextColorProperty, look.Light.Text, look.Dark.Text);
-        button.SetAppThemeColor(Button.BorderColorProperty, look.Light.Border ?? look.Light.Background, look.Dark.Border ?? look.Dark.Background);
-        button.BorderWidth = look.Light.Border is null && look.Dark.Border is null ? 0 : 1;
-        return button;
-    }
-
-    private static View Row(Button button, ProviderLook look)
-    {
-        var row = new Grid { Children = { button } };
-        if (look.Logo is null)
-            return row;
-
-        var logo = new Image { WidthRequest = 20, HeightRequest = 20, HorizontalOptions = LayoutOptions.Start, VerticalOptions = LayoutOptions.Center, Margin = new Thickness(16, 0, 0, 0), InputTransparent = true };
-        SvgImageSource.SetEnableSvg(logo, true);
-        SvgImageSource.SetPadding(logo, new Thickness(0));
-        SvgImageSource.SetAdjustColorsForDark(logo, false);
-        if (look.TintsLogo)
-        {
-            SvgImageSource.SetLightTintColor(logo, look.Light.Text);
-            SvgImageSource.SetDarkTintColor(logo, look.Dark.Text);
-        }
-        else
-        {
-            SvgImageSource.SetTintColor(logo, Colors.Transparent);
-        }
-        SvgImageSource.SetSvg(logo, look.Logo);
-        row.Children.Add(logo);
-        return row;
     }
 
     private static View Field(string label, string visible, out Entry entry)
@@ -186,33 +133,6 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
         button.SetBinding(IsVisibleProperty, visible);
         return button;
     }
-}
-
-internal sealed record ProviderColors(Color Background, Color Text, Color? Border);
-
-/// <summary>How a provider's sign-in button looks: its logo, and its colours in the light and dark theme.</summary>
-internal sealed record ProviderLook(string? Logo, bool TintsLogo, ProviderColors Light, ProviderColors Dark)
-{
-    private static readonly ProviderColors NeutralLight = new(Colors.White, Color.FromArgb("#1F1F1F"), Color.FromArgb("#747775"));
-    private static readonly ProviderColors NeutralDark = new(Color.FromArgb("#131314"), Color.FromArgb("#E3E3E3"), Color.FromArgb("#8E918F"));
-
-    public static ProviderLook Apple { get; } = new("signin-apple.svg", true, new(Colors.Black, Colors.White, null), new(Colors.White, Colors.Black, null));
-
-    public static ProviderLook Google { get; } = new("signin-google.svg", false, NeutralLight, NeutralDark);
-
-    public static ProviderLook Microsoft { get; } = new("signin-microsoft.svg", false,
-        new(Colors.White, Color.FromArgb("#5E5E5E"), Color.FromArgb("#8C8C8C")), new(Color.FromArgb("#2F2F2F"), Colors.White, null));
-
-    public static ProviderLook Email { get; } = new("signin-password.svg", true, NeutralLight, NeutralDark);
-
-    /// <summary>A provider by its name; one Spine has no logo for gets the neutral outline without one.</summary>
-    public static ProviderLook For(string provider) => provider.ToLowerInvariant() switch
-    {
-        "apple" => Apple,
-        "google" => Google,
-        "microsoft" => Microsoft,
-        _ => new(null, false, NeutralLight, NeutralDark),
-    };
 }
 
 /// <summary>The steps of <see cref="SignInSheet"/>.</summary>

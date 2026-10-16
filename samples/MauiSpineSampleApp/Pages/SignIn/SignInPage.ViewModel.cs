@@ -3,8 +3,22 @@ using Plugin.Maui.Spine.Authentication;
 
 namespace MauiSpineSampleApp.Pages.SignIn;
 
-/// <summary>One way the account signs in, as the Sign-in page lists it.</summary>
-public sealed record LoginRow(string Provider, string Details);
+/// <summary>One way the account signs in, as the Sign-in page lists it, with the logo the sign-in sheet uses.</summary>
+public sealed record LoginRow(string Provider, string Details)
+{
+    public string Name => Provider switch { "apple" => "Apple", "google" => "Google", "microsoft" => "Microsoft", "password" => "Email and password", _ => Provider };
+
+    public string Logo => $"signin-{(Provider is "apple" or "google" or "microsoft" ? Provider : "password")}.svg";
+
+    // Google's and Microsoft's logos keep their own colours; Apple's and the password symbol take the text colour.
+    public Color? Tint => Provider is "google" or "microsoft" ? Colors.Transparent : null;
+}
+
+/// <summary>A provider the account can add, with the button's text.</summary>
+public sealed record LinkRow(string Provider)
+{
+    public string Text => $"Link {Provider switch { "apple" => "Apple", "google" => "Google", "microsoft" => "Microsoft", _ => Provider }}";
+}
 
 public partial class SignInPageViewModel : SampleViewModel
 {
@@ -42,7 +56,7 @@ public partial class SignInPageViewModel : SampleViewModel
     public ObservableCollection<LoginRow> Logins { get; } = [];
 
     /// <summary>The providers the app offers that the account does not sign in with yet.</summary>
-    public ObservableCollection<string> Linkable { get; } = [];
+    public ObservableCollection<LinkRow> Linkable { get; } = [];
 
     [ObservableProperty]
     public partial string LinkLog { get; set; } = "";
@@ -61,7 +75,7 @@ public partial class SignInPageViewModel : SampleViewModel
             foreach (var login in signedIn.Logins ?? [])
                 Logins.Add(new LoginRow(login.Provider, string.Join(" · ", new[] { login.Email ?? login.DisplayName, login.LinkedAt?.ToLocalTime().ToString("g") }.OfType<string>())));
             foreach (var provider in _auth.Providers.Where(p => p.Name != "password" && Logins.All(l => l.Provider != p.Name)))
-                Linkable.Add(provider.Name);
+                Linkable.Add(new LinkRow(provider.Name));
         }
 
         Picture = await _auth.GetPictureAsync() is { } picture ? ImageSource.FromStream(() => new MemoryStream(picture)) : null;

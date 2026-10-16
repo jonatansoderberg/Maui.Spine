@@ -603,6 +603,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-16:** #577 (the public `SignInButton`, and the `Unlink` symbol) in review, a follow-up to 5.5.
 - **2026-10-16:** #575 (account linking, step 5.5) in review as PR #576.
 - **2026-10-15:** #521 merged (PR #565). #564 (Microsoft, step 5.3b) in review as PR #570.
 - **2026-10-15:** #516 merged (PR #568). #567 (`VoiceView`, step 4.3b) in review.

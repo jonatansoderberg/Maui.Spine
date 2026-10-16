@@ -232,6 +232,15 @@ The server's errors are shown in the sheet, such as a wrong password or a code t
 
 For an app's own design, `a.SignInPage<MySignInSheet>()` takes any `[NavigableSheet]` that returns a `SignInResult` (`INavigableWithResult<SignInResult>`) and signs in through `ISpineAuth`.
 
+**`SignInButton`** is the sheet's button as a control of its own, for an app's sign-in page or "Link …" buttons:
+
+```xml
+<SignInButton Provider="google" Command="{Binding SignInCommand}" CommandParameter="google" />
+<SignInButton Provider="microsoft" Text="Link Microsoft" Command="{Binding LinkCommand}" CommandParameter="microsoft" />
+```
+
+`Provider` picks the logo and colours: `apple`, `google`, `microsoft`, `password` (the password symbol), or anything else for the neutral outline without a logo. `Text` defaults to "Continue with …" ("Continue with email" for `password`). `Command`, `CommandParameter` and `Clicked` work as on a `Button`. The logos are in the package, so no icon package is needed.
+
 ## One account, several ways in
 
 The server's `Id` is the user, whichever provider they sign in with. `User.Logins` lists the ways in: the provider, the email and name it gave, and when it was added.

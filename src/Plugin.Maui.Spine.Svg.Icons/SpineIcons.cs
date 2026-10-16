@@ -330,6 +330,8 @@ public static class SpineIcons
     public const string Trashcan = "Trashcan.svg";
     /// <summary>The <c>Tv.svg</c> icon.</summary>
     public const string Tv = "Tv.svg";
+    /// <summary>The <c>Unlink.svg</c> icon.</summary>
+    public const string Unlink = "Unlink.svg";
     /// <summary>The <c>Unlock.svg</c> icon.</summary>
     public const string Unlock = "Unlock.svg";
     /// <summary>The <c>Unpin.svg</c> icon.</summary>
@@ -634,6 +636,7 @@ public static class SpineIcons
         TowelRailRadiator,
         Trashcan,
         Tv,
+        Unlink,
         Unlock,
         Unpin,
         Up,

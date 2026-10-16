@@ -44,27 +44,32 @@
                 <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Logins}">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="LoginRow">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                <VerticalStackLayout VerticalOptions="Center">
-                                    <Label Text="{Binding Provider}" FontSize="15" FontAttributes="Bold" />
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                <Image SvgImageSource.Svg="{Binding Logo}" SvgImageSource.Padding="0" SvgImageSource.TintColor="{Binding Tint}"
+                                       SvgImageSource.AdjustColorsForDark="False" WidthRequest="20" HeightRequest="20" VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                    <Label Text="{Binding Name}" FontSize="15" FontAttributes="Bold" />
                                     <Label Text="{Binding Details}" FontSize="13" Opacity="0.7" />
                                 </VerticalStackLayout>
-                                <Button Grid.Column="1" Text="Unlink" VerticalOptions="Center"
-                                        Command="{Binding Source={RelativeSource AncestorType={x:Type SignInPageViewModel}}, Path=UnlinkCommand}"
-                                        CommandParameter="{Binding Provider}" />
+                                <ImageButton Grid.Column="2" SvgImageSource.Svg="Unlink.svg" SvgImageSource.Padding="10"
+                                             WidthRequest="44" HeightRequest="44" BackgroundColor="Transparent" VerticalOptions="Center"
+                                             Command="{Binding Source={RelativeSource AncestorType={x:Type SignInPageViewModel}}, Path=UnlinkCommand}"
+                                             CommandParameter="{Binding Provider}"
+                                             SemanticProperties.Description="{Binding Name, StringFormat='Unlink {0}'}" />
                             </Grid>
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
                 </VerticalStackLayout>
-                <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Linkable}">
+                <!-- The sign-in sheet's own buttons, with each provider's logo and colours. -->
+                <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Linkable}">
                     <BindableLayout.ItemTemplate>
-                        <DataTemplate x:DataType="x:String">
-                            <Button Text="{Binding ., StringFormat='Link {0}'}" Margin="0,0,8,8"
-                                    Command="{Binding Source={RelativeSource AncestorType={x:Type SignInPageViewModel}}, Path=LinkCommand}"
-                                    CommandParameter="{Binding .}" />
+                        <DataTemplate x:DataType="LinkRow">
+                            <SignInButton Provider="{Binding Provider}" Text="{Binding Text}"
+                                          Command="{Binding Source={RelativeSource AncestorType={x:Type SignInPageViewModel}}, Path=LinkCommand}"
+                                          CommandParameter="{Binding Provider}" />
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
-                </FlexLayout>
+                </VerticalStackLayout>
                 <Label Text="{Binding LinkLog}" FontSize="14" />
             </VerticalStackLayout>
             <Example.Code>
@@ -73,6 +78,8 @@
 
                 foreach (var login in _auth.User!.Logins!)
                     Console.WriteLine($"{login.Provider} {login.Email} {login.LinkedAt}");
+
+                &lt;SignInButton Provider="google" Text="Link Google" Command="{Binding LinkCommand}" CommandParameter="google" /&gt;
 
                 await _auth.LinkAsync("google");    // Google's sheet or the browser; the same user after
                 await _auth.UnlinkAsync("google");  // never the last way in
