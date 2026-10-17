@@ -92,6 +92,8 @@ PushNotifications                                    AnimatedLabel
 | That conversation drawn: an orb, bars, a ring or a face | `Plugin.Maui.Spine.Controls.Voice` (brings the core and `.Voice`) |
 | An animated character or ambient visual from a `.spineavatar`: for an assistant, a guide, text mouthed or read aloud | `Plugin.Maui.Spine.Controls.Avatar` (brings the core, `.Controls.Avatar.Core` and `.Speech`) |
 | Text read aloud with the best installed voice, word by word | `Plugin.Maui.Spine.Speech` |
+| Text read aloud by a voice on the app's server, with mouth shapes for an avatar | `ServerSpeech` in `Plugin.Maui.Spine.Voice`, and a `Kind: Speech` feature in `Plugin.Maui.Spine.Server.AI` |
+| A `.spineavatar` checked, packed with posters and stripped for shipping | The `spine-avatar` tool, `Plugin.Maui.Spine.Avatar.Tool` |
 | A voice assistant with a face: an avatar following a realtime conversation | `Plugin.Maui.Spine.Controls.Avatar.Voice` (brings the avatar and voice packages) |
 | Language models in the app, on the device or through the app's server | `Plugin.Maui.Spine.AI` (brings `.Common`; the core is not required), plus the app's own on-device client such as Microsoft.Maui.Essentials.AI |
 | Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
