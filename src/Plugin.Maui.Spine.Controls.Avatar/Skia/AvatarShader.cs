@@ -7,16 +7,26 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Skia;
 /// frame from the uniforms in <see cref="AvatarShaderContract"/>. For avatars that are light and
 /// motion rather than shapes (flowing aurora ribbons), which keyframed vector parts cannot do.
 /// </summary>
+/// <remarks>
+/// The model holds the checked source, and each renderer compiles its own effect and disposes it, so no effect is left to
+/// the finalizer. While the model kept one effect that nothing disposed, a test drew an opaque black square instead of the
+/// shader about once in 30 runs of the avatar tests; with each renderer owning its effect, 100 runs passed (#628).
+/// </remarks>
 internal sealed class AvatarShaderModel : ISkiaAvatarModel
 {
-    private AvatarShaderModel(SKRuntimeEffect effect, AvatarManifest manifest, Dictionary<string, AvatarThemeSlot> themes)
+    private AvatarShaderModel(string source, AvatarManifest manifest, Dictionary<string, AvatarThemeSlot> themes)
     {
-        Effect = effect;
+        Source = source;
         Manifest = manifest;
         Themes = themes;
     }
 
-    internal SKRuntimeEffect Effect { get; }
+    /// <summary>The SkSL, checked against the contract by <see cref="Compile"/>.</summary>
+    internal string Source { get; }
+
+    /// <summary>A compiled effect for one renderer, which disposes it.</summary>
+    internal SKRuntimeEffect CreateEffect() =>
+        SKRuntimeEffect.CreateShader(Source, out var errors) ?? throw new InvalidOperationException($"The checked shader no longer compiles: {errors}");
 
     internal AvatarManifest Manifest { get; }
 
@@ -28,7 +38,7 @@ internal sealed class AvatarShaderModel : ISkiaAvatarModel
     public static AvatarShaderModel Compile(AvatarPackage package, AvatarRepresentation representation)
     {
         var source = System.Text.Encoding.UTF8.GetString(package.GetFile(representation.Model).Span);
-        var effect = SKRuntimeEffect.CreateShader(source, out var errors)
+        using var effect = SKRuntimeEffect.CreateShader(source, out var errors)
             ?? throw new AvatarFormatException(representation.Model, $"the shader does not compile: {errors}");
 
         var themes = new Dictionary<string, AvatarThemeSlot>(StringComparer.Ordinal);
@@ -39,12 +49,11 @@ internal sealed class AvatarShaderModel : ISkiaAvatarModel
         var unknown = effect.Uniforms.Where(u => !AvatarShaderContract.Uniforms.ContainsKey(u) && !themes.ContainsKey(u)).ToList();
         if (unknown.Count > 0 || effect.Children.Any())
         {
-            effect.Dispose();
             throw new AvatarFormatException(representation.Model, unknown.Count > 0
                 ? $"uniforms {string.Join(", ", unknown)} are not in the runtime's contract"
                 : "child shaders are not supported");
         }
-        return new AvatarShaderModel(effect, package.Manifest, themes);
+        return new AvatarShaderModel(source, package.Manifest, themes);
     }
 }
 
@@ -68,6 +77,7 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     private static readonly SKSamplingOptions Upscale = new(SKFilterMode.Linear);
 
     private readonly AvatarShaderModel _model;
+    private readonly SKRuntimeEffect _effect;
     private SKSurface? _buffer;
     private readonly HashSet<string> _declared;
     private readonly SKRuntimeEffectUniforms _uniforms;
@@ -87,8 +97,9 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     public AvatarShaderRenderer(AvatarShaderModel model)
     {
         _model = model;
-        _declared = [.. model.Effect.Uniforms];
-        _uniforms = new SKRuntimeEffectUniforms(model.Effect);
+        _effect = model.CreateEffect();
+        _declared = [.. _effect.Uniforms];
+        _uniforms = new SKRuntimeEffectUniforms(_effect);
         _themeValues = model.Themes.Keys.ToDictionary(k => k, _ => new float[3], StringComparer.Ordinal);
 
         foreach (var (state, profile) in model.Manifest.States)
@@ -182,7 +193,7 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
         _resolution[0] = width; _resolution[1] = height;
         SetFrameUniforms(dark, accent);
 
-        using var shader = _model.Effect.ToShader(_uniforms);
+        using var shader = _effect.ToShader(_uniforms);
         _paint.Shader = shader;
         _paint.BlendMode = SKBlendMode.Src;
         _buffer.Canvas.DrawRect(0, 0, width, height, _paint);
@@ -216,7 +227,7 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     {
         _resolution[0] = bounds.Width; _resolution[1] = bounds.Height;
         SetFrameUniforms(dark, accent);
-        using var shader = _model.Effect.ToShader(_uniforms);
+        using var shader = _effect.ToShader(_uniforms);
         _paint.Shader = shader;
         canvas.Save();
         canvas.Translate(bounds.Left, bounds.Top);
@@ -240,5 +251,6 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
         _paint.Dispose();
         _uniforms.Dispose();
         _buffer?.Dispose();
+        _effect.Dispose();
     }
 }

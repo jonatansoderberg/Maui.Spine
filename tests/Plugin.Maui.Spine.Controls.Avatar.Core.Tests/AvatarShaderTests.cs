@@ -3,6 +3,7 @@ using SkiaSharp;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
+[Collection(Measurements.Name)]
 public class AvatarShaderTests
 {
     private static SKBitmap Render(Action<AvatarRenderFrame> setup, bool dark = true)
