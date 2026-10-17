@@ -18,6 +18,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar.Voice\Plugin.Maui.Spine.Controls.Avatar.Voice.csproj" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Avatars\*.spineavatar" LinkBase="Avatars" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Fixtures\*" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\..\samples\MauiSpineSampleApp\Resources\Raw\voice-reference.wav" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>
