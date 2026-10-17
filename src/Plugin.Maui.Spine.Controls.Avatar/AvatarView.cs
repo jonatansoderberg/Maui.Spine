@@ -311,8 +311,15 @@ public sealed class AvatarView : ContentView
                 {
                     if (renderers.FirstOrDefault(r => r.CanDraw(candidate)) is { } renderer)
                     {
-                        // The Skia model compiles here, off the UI thread; other renderers build on it.
-                        var skia = renderer is SkiaAvatarRenderer ? SkiaAvatarModel.Compile(package, candidate) : null;
+                        // The Skia models compile here, off the UI thread; other renderers build on it.
+                        var skia = renderer switch
+                        {
+                            SkiaAvatarRenderer => SkiaAvatarModel.Compile(package, candidate),
+                            GltfSkiaAvatarRenderer => GltfSkiaModel.TryCreate(package, candidate),
+                            _ => null,
+                        };
+                        if (renderer is GltfSkiaAvatarRenderer && skia is null)
+                            continue;
                         return (package, (AvatarRepresentation?)candidate, (AvatarRenderer?)renderer, skia);
                     }
                 }
@@ -360,6 +367,8 @@ public sealed class AvatarView : ContentView
         renderers.Add(SkiaAvatarRenderer.Instance);
 #if IOS || MACCATALYST
         renderers.Add(SceneKitAvatarRenderer.Instance);
+#else
+        renderers.Add(GltfSkiaAvatarRenderer.Instance);
 #endif
         return renderers;
     }

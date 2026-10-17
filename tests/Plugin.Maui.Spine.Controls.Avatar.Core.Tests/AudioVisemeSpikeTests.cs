@@ -6,6 +6,7 @@ using Xunit.Abstractions;
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
 // Spike S1 (issue #605): numbers for the heuristic, written to the test output. Not a quality gate.
+[Collection(Measurements.Name)]
 public class AudioVisemeSpikeTests(ITestOutputHelper output)
 {
     private static readonly string[] AzureNames = ["sil", "ae", "aa", "ao", "eh", "er", "iy", "uw", "ow", "aw", "oy", "ay", "h", "r", "l", "s", "sh", "th", "f", "d", "k", "p"];

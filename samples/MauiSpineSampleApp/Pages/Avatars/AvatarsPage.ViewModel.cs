@@ -22,8 +22,8 @@ public partial class AvatarsPageViewModel : SampleViewModel
         UpdateKairo();
     }
 
-    // glTF avatars are drawn by SceneKit on iOS and Mac Catalyst; elsewhere the view shows their poster until a 3D route exists.
-    private static string Gltf => OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() ? "glTF · SceneKit" : "glTF · poster";
+    // glTF avatars are drawn by SceneKit on iOS and Mac Catalyst and by Skia on the CPU elsewhere (no textures).
+    private static string Gltf => OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() ? "glTF · SceneKit" : "glTF · Skia";
 
     /// <summary>Bundled as MauiAssets, stripped of their generators' source: about 1.9 MB together.</summary>
     public IReadOnlyList<AvatarEntry> Bundled { get; } =

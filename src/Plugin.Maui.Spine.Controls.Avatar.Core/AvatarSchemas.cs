@@ -255,7 +255,9 @@ public static class AvatarSchemas
         lock (s_patterns)
         {
             if (!s_patterns.TryGetValue(pattern, out var regex))
-                s_patterns[pattern] = regex = new Regex(pattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+                // Linear in the input, so a long string cannot stall a load, and no timeout: a 100 ms one failed a valid
+                // package on a busy Android emulator.
+                s_patterns[pattern] = regex = new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
             return regex;
         }
     }

@@ -3,6 +3,7 @@ using SkiaSharp;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
+[Collection(Measurements.Name)]
 public class Spine2dRendererTests
 {
     private static Spine2dRenderer Renderer(string avatar = "dotling")
