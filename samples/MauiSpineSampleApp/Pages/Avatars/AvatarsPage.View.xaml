@@ -50,7 +50,7 @@
         </Example>
 
         <Example Title="Downloaded when asked"
-                 Summary="Kairo is 16.6 MB, too large to bundle: the app downloads it from the sample server once, keeps it in its data folder and opens it from there. A source never touches the network itself. Its hair needs SceneKit, so Android and Windows show its poster.">
+                 Summary="Kairo is about 10 MB, too large to bundle: the app downloads it from the sample server, keeps it in its data folder and opens it from there. The server lists each avatar with the version its package names; when it has a later one than the kept copy, the button updates it (checked against the server's SHA-256). A source never touches the network itself.">
             <VerticalStackLayout Spacing="10">
                 <Border Padding="12" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light=#F2F3F5, Dark=#1C1D21}"
                         IsVisible="{Binding HasKairo}"
@@ -70,15 +70,16 @@
                 <Label Text="{Binding KairoStatus}" FontSize="14" Opacity="0.8" />
                 <ProgressBar Progress="{Binding KairoProgress}" IsVisible="{Binding IsDownloading}" />
                 <HorizontalStackLayout Spacing="10">
-                    <Button Text="Download Kairo" Command="{Binding DownloadKairoCommand}" />
+                    <Button Text="{Binding DownloadText}" Command="{Binding DownloadKairoCommand}" IsVisible="{Binding CanGetKairo}" />
                     <Button Text="Cancel" Command="{Binding DownloadKairoCancelCommand}" IsVisible="{Binding IsDownloading}" />
                     <Button Text="Forget it" Command="{Binding ForgetKairoCommand}" IsVisible="{Binding HasKairo}" />
                 </HorizontalStackLayout>
             </VerticalStackLayout>
             <Example.Code>
                 var path = Path.Combine(FileSystem.AppDataDirectory, "avatars", "kairo.spineavatar");
-                if (!File.Exists(path))
-                    await DownloadAsync("https://example.com/avatars/kairo.spineavatar", path);
+                var offered = (await AvatarDownloads.ListAsync(http))?.FirstOrDefault(a =&gt; a.Id == "kairo");
+                if (offered is not null &amp;&amp; offered.IsNewerThan(AvatarDownloads.VersionOf(path)))
+                    await AvatarDownloads.DownloadAsync(http, offered, path, progress, cancellationToken);
                 Avatar = AvatarSource.FromFile(path);
             </Example.Code>
         </Example>

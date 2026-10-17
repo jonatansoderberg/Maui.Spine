@@ -4518,7 +4518,7 @@ def package(glb, ids, posters):
     }
     states = ("idle", "connecting", "listening", "thinking", "speaking", "interrupted", "muted")
     manifest = {
-        "schemaVersion": "1.0", "id": "kairo", "displayName": "Kairo", "assetVersion": "2.0.0", "minRuntimeVersion": "1.0.0", "profile": "character",
+        "schemaVersion": "1.0", "id": "kairo", "displayName": "Kairo", "assetVersion": "3.0.0", "minRuntimeVersion": "1.0.0", "profile": "character",
         "representations": [{"id": "native3d-primary", "renderer": "native3d", "format": "glb", "model": "models/kairo.glb", "bindings": "bindings/native3d.json",
                              "capabilities": ["ambient", "expressions", "gestures", "reducedMotion", "speechArticulation", "gaze", "blink"],
                              "platforms": ["android", "ios", "maccatalyst", "windows"], "idleOwner": "scheduler", "blinkOwner": "scheduler", "gazeOwner": "scheduler"}],

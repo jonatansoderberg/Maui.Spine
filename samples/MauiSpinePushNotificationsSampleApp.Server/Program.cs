@@ -335,16 +335,20 @@ app.MapPost("/channels", async (HttpRequest http, IServiceProvider services, Can
     }
 });
 
-/// Avatars too large to bundle with the Showcase (Kairo, 16.6 MB), downloaded by its Avatars page and cached there.
-/// The files are published next to the server (the csproj links Kairo from the avatar lab); anything else is not served.
+/// Avatars too large to bundle with the Showcase (Kairo), downloaded by its Avatars page and cached there. The files are
+/// published next to the server (the csproj links them from samples/Avatars, the repository's one copy); anything else is
+/// not served. GET /sample/avatars lists them with the version each package's manifest names, its size and its SHA-256,
+/// so an app compares the version with its cached copy's and downloads a newer one (and checks the hash).
+var avatars = AvatarCatalog.Read(Path.Combine(AppContext.BaseDirectory, "avatars"));
+app.MapGet("/sample/avatars", () => Results.Ok(avatars.Values));
 app.MapGet("/sample/avatars/{name}", (string name) =>
 {
-    if (name is not "kairo.spineavatar")
+    if (!avatars.TryGetValue(Path.GetFileNameWithoutExtension(name), out var avatar) || name != avatar.File)
         return Results.NotFound();
-    var path = Path.Combine(AppContext.BaseDirectory, "avatars", name);
+    var path = Path.Combine(AppContext.BaseDirectory, "avatars", avatar.File);
     return File.Exists(path)
-        ? Results.File(path, "application/zip", name, enableRangeProcessing: true)
-        : Results.Problem($"{name} is not in {Path.GetDirectoryName(path)}.", statusCode: StatusCodes.Status404NotFound);
+        ? Results.File(path, "application/zip", avatar.File, entityTag: new($"\"{avatar.Sha256}\""), enableRangeProcessing: true)
+        : Results.Problem($"{avatar.File} is not in {Path.GetDirectoryName(path)}.", statusCode: StatusCodes.Status404NotFound);
 });
 
 /// The remote widget's content. The platform fetches this itself at every reload — the widget

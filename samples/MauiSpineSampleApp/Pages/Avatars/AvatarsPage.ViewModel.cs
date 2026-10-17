@@ -21,7 +21,6 @@ public sealed record AvatarPoster(ImageSource Light, ImageSource Dark);
 public partial class AvatarsPageViewModel : SampleViewModel
 {
     private const string KairoFile = "kairo.spineavatar";
-    private const long KairoBytes = 16_607_659;
 
     private readonly INavigationService _navigation;
     private readonly IHttpClientFactory _http;
@@ -33,6 +32,7 @@ public partial class AvatarsPageViewModel : SampleViewModel
         _http = http;
         UpdateKairo();
         _ = LoadPostersAsync();
+        _ = CheckKairoAsync();
     }
 
     // glTF avatars are drawn by SceneKit on iOS and Mac Catalyst and by Skia on the CPU elsewhere (no textures).
@@ -67,6 +67,16 @@ public partial class AvatarsPageViewModel : SampleViewModel
     [NotifyCanExecuteChangedFor(nameof(DownloadKairoCommand))]
     public partial bool IsDownloading { get; set; }
 
+    /// <summary>Kairo as the server offers it (its version, size and hash), once asked; null until then or offline.</summary>
+    private AvatarDownload? _offered;
+
+    /// <summary>True while there is something to download: no copy yet, or the server has a later version than the kept one.</summary>
+    [ObservableProperty]
+    public partial bool CanGetKairo { get; set; } = true;
+
+    [ObservableProperty]
+    public partial string DownloadText { get; set; } = "Download Kairo";
+
     // A gallery of four live avatars drew all four every frame; the posters cost one read of each package, off the UI thread.
     private async Task LoadPostersAsync()
     {
@@ -92,39 +102,35 @@ public partial class AvatarsPageViewModel : SampleViewModel
     [RelayCommand]
     private Task Open(AvatarEntry entry) => _navigation.NavigateToAsync<AvatarDetailPage, AvatarEntry>(entry);
 
+    // The server lists what it offers with each package's version; the kept copy's manifest names its own. A later version on the
+    // server turns the button into an update.
+    private async Task CheckKairoAsync()
+    {
+        var offered = await AvatarDownloads.ListAsync(_http.CreateClient("SampleServer"));
+        _offered = offered?.FirstOrDefault(a => a.Id == "kairo");
+        UpdateKairo();
+    }
+
     [RelayCommand(CanExecute = nameof(CanDownload), IncludeCancelCommand = true)]
     private async Task DownloadKairo(CancellationToken cancellationToken)
     {
         IsDownloading = true;
         KairoProgress = 0;
-        var partial = _kairoPath + ".part";
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_kairoPath)!);
-            using var response = await _http.CreateClient("SampleServer").GetAsync($"sample/avatars/{KairoFile}", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            var http = _http.CreateClient("SampleServer");
+            _offered ??= (await AvatarDownloads.ListAsync(http, cancellationToken))?.FirstOrDefault(a => a.Id == "kairo");
+            if (_offered is null)
             {
-                KairoStatus = $"The server said {(int)response.StatusCode} {response.ReasonPhrase} for {response.RequestMessage?.RequestUri}.";
+                KairoStatus = $"The sample server ({http.BaseAddress}) did not answer with its avatars.";
                 return;
             }
-
-            var total = response.Content.Headers.ContentLength ?? KairoBytes;
-            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
-            await using (var target = File.Create(partial))
+            var progress = new Progress<(long Read, long Total)>(p =>
             {
-                var buffer = new byte[81920];
-                long read = 0;
-                int n;
-                while ((n = await source.ReadAsync(buffer, cancellationToken)) > 0)
-                {
-                    await target.WriteAsync(buffer.AsMemory(0, n), cancellationToken);
-                    read += n;
-                    KairoProgress = (double)read / total;
-                    KairoStatus = $"{read / 1_000_000.0:0.0} of {total / 1_000_000.0:0.0} MB";
-                }
-            }
-            // Only a complete file takes the cached name, so a cancelled download is never opened.
-            File.Move(partial, _kairoPath, overwrite: true);
+                KairoProgress = (double)p.Read / p.Total;
+                KairoStatus = $"{p.Read / 1_000_000.0:0.0} of {p.Total / 1_000_000.0:0.0} MB";
+            });
+            await AvatarDownloads.DownloadAsync(http, _offered, _kairoPath, progress, cancellationToken);
             UpdateKairo();
         }
         catch (OperationCanceledException)
@@ -137,7 +143,6 @@ public partial class AvatarsPageViewModel : SampleViewModel
         }
         finally
         {
-            File.Delete(partial);
             IsDownloading = false;
         }
     }
@@ -153,20 +158,31 @@ public partial class AvatarsPageViewModel : SampleViewModel
 
     private void UpdateKairo()
     {
-        if (File.Exists(_kairoPath))
+        var kept = File.Exists(_kairoPath) ? AvatarDownloads.VersionOf(_kairoPath) ?? "" : null;
+        var size = _offered is null ? "" : $", {_offered.Bytes / 1_000_000.0:0.0} MB";
+        if (kept is not null)
         {
             HasKairo = true;
-            // The hair's alpha-masked cards need SceneKit; the Skia glTF renderer leaves Kairo to its poster.
-            var renderer = OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() ? "glTF · SceneKit" : "glTF · poster";
-            // Live: the sample server serves the lab's Kairo, whose posters are 1×1 placeholders until it is packed (#542).
-            Kairo = new("kairo", "Kairo", "A head reconstructed from photos, with hair made in Blender: 322,000 triangles and morph targets for the face.", "Character", renderer, AvatarSource.FromFile(_kairoPath), Live: true);
-            KairoStatus = $"Downloaded, {new FileInfo(_kairoPath).Length / 1_000_000.0:0.0} MB in the app's data; opened from there from now on.";
+            // A new entry, so the card and the detail page open the file as it is now.
+            Kairo = new("kairo", "Kairo", "A head reconstructed from photos, with hair generated from four reference views and morph targets for the face.", "Character", Gltf, AvatarSource.FromFile(_kairoPath), Live: true);
+            var newer = _offered is not null && _offered.IsNewerThan(kept);
+            CanGetKairo = newer;
+            DownloadText = newer ? $"Update to {_offered!.Version}" : "Download Kairo";
+            KairoStatus = newer
+                ? $"Kairo {kept} is kept in the app's data; the sample server has {_offered!.Version}{size}."
+                : _offered is null
+                    ? $"Kairo {kept}, kept in the app's data and opened from there."
+                    : $"Kairo {kept}, the sample server's latest, kept in the app's data.";
         }
         else
         {
             HasKairo = false;
             Kairo = null;
-            KairoStatus = $"{KairoBytes / 1_000_000.0:0.0} MB from the sample server, kept in the app's data.";
+            CanGetKairo = true;
+            DownloadText = "Download Kairo";
+            KairoStatus = _offered is null
+                ? "From the sample server, kept in the app's data."
+                : $"Kairo {_offered.Version}{size} from the sample server, kept in the app's data.";
         }
     }
 }
