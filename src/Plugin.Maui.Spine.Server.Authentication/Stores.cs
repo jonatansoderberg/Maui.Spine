@@ -89,7 +89,7 @@ public sealed record SpineAuthLogin(string Provider, string Subject, string User
     /// <summary>The device a passkey was made on, as the app said.</summary>
     public string? DeviceName { get; init; }
 
-    /// <summary>When the login last signed in; kept for passkeys.</summary>
+    /// <summary>When the login last signed in: a provider's token or browser sign-in, a passkey, a password or an emailed code.</summary>
     public DateTimeOffset? LastUsedAt { get; init; }
 
     internal SpineLoginInfo ToContract() => new(Provider, Email, DisplayName, LinkedAt, Subject, PasskeyAuthenticator, DeviceName, LastUsedAt);

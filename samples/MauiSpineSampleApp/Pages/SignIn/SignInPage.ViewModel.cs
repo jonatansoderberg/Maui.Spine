@@ -82,10 +82,14 @@ public partial class SignInPageViewModel : SampleViewModel
         Picture = await _auth.GetPictureAsync() is { } picture ? ImageSource.FromStream(() => new MemoryStream(picture)) : null;
     });
 
-    // A passkey says where it is kept, the device it was made on and when it was last used, so several can be told apart.
+    // A passkey says where it is kept and the device it was made on, so several can be told apart; every login says when it
+    // was added and last used.
     private static string LoginDetails(SpineLoginInfo login) => string.Join(" · ", (login.Provider == "passkey"
-        ? new[] { login.Authenticator, login.DeviceName, login.LastUsedAt is { } used ? $"last used {used.ToLocalTime():g}" : null }
-        : new[] { login.Email ?? login.DisplayName, login.LinkedAt?.ToLocalTime().ToString("g") }).OfType<string>());
+            ? new[] { login.Authenticator, login.DeviceName }
+            : new[] { login.Email ?? login.DisplayName })
+        .Append(login.LinkedAt is { } added ? $"added {added.ToLocalTime():g}" : null)
+        .Append(login.LastUsedAt is { } used ? $"last used {used.ToLocalTime():g}" : null)
+        .OfType<string>());
 
     [RelayCommand]
     private async Task Link(string provider)
