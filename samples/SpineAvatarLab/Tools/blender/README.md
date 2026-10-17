@@ -21,3 +21,19 @@ Candidate 29 (2026-10-16): 705 cards (`build_candidate(T22_PARAMS, npz, filler_m
 the package is built with `KAIRO_HAIR=cards KAIRO_CARDS_GLB=blender/kairo-hair-cards.glb python Tools/kairo_scan.py
 ~/.cache/spine-avatar-lab/kairo <out>` and checked in the lab with `Tools/lab/lab-cards.sh` (`YAWS="-40 -60"` for other views); the owner's marked screenshots are measured in their own view with `Tools/lab/viewmatch`-style IoU (kairo/tools/viewmatch.py) and `Tools/lab/markcrop.py` (the marked boxes mapped into the capture by the hair's bbox, dark-navy pixel counts before and after); `Tools/lab/edgecap.py` counts cap outside the hair in a flat-green-cap capture (`solo.py flat=cap:0,1,0`), `Tools/lab/skinpeek.py` the skin enclosed by hair in a box, `Tools/lab/spikes.py` the silhouette's spikes (hair an 11 mm opening removes outside the head), and `Tools/lab/haircolor.py` the hair's luminance percentiles, pale/dark shares, saturation and hue (run on the reference views in `kairo/tools/ref/` and on the lab captures alike). The session notes are in
 `issues/542-kairo-hair-root-cap.md` (2026-10-16 entries).
+
+## Tripo hair (2026-10-17, the approved tripo45)
+
+The hair in `Resources/Raw/Avatars/kairo.spineavatar` is generated, not carded. In Blender, after the files above:
+
+| File | What |
+|---|---|
+| `tripo_fit.py` | `fit_tripo` (a Tripo model from `generate_3d` fitted to `Head`), `register_to` + `apply_fit` (another view's model registered to the front one), `merge_hair3` (whole locks per azimuth sector into one mesh, 2x2 atlas), `export_tripo` (GLB in the cards' slot: `KairoCards` + `KairoCap`, the cap behind the hair, an under-shell joined in) |
+| `ear_fix.py` | `fix_ears`: locks through the ears moved outside or behind the ear, small or over-bent ones dropped |
+| `hairline_fix.py` | `fix_hairline`: the hair's straight lower edge at the forehead broken into tips on the scalp |
+| `hair_chain.py` | the steps in order (`run_chain`), the atlas retone (`../lab/hair_retone.py`), Tripo's collar dropped, loose shards dropped |
+
+tripo45: `merge_hair3([('TripoFull', (-85, 85)), ('TripoRightPngFit', (40, 140)), ('TripoBackFit', (95, -95)), ('TripoLeftPngFit', (-140, -40))], 'TripoMerged4')`,
+then `fix_ears`, `fix_hairline`, the retone (`hair_retone.py` k 2.2/1.3), the collar dropped (`TripoMerged8`), five loose pieces at the right eye's corner removed (`TripoMerged8b`),
+`export_tripo('TripoMerged8b', path, cap_mode='behind', under='TripoUnder', cap_image='HairCapTexDark')`; the package:
+`KAIRO_HAIR=cards KAIRO_CARDS_GLB=blender/kairo-hair-tripo45.glb python Tools/kairo_scan.py ~/.cache/spine-avatar-lab/kairo Resources/Raw/Avatars`.

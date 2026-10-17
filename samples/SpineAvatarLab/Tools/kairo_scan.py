@@ -90,6 +90,7 @@ SCALP_VIEWS = [('front.png', 0, 0, 2.2362, -116.8, -119.4), ('right.png', 90, 0,
                ('crown-head-down-35.png', 0, 35, 2.2808, -139.4, -136.5)]
 SCALP_ROOT_LUM = (150.0, 110.0)   # luminance over which a pixel of a scalp view goes from skin (or the knit) to the root layer
 SCALP_ROOT_HUE = (0.0, 30.0)      # blue minus red over which it goes from skin to the root layer (the pictures' soft hairline and nape fade carry through)
+SCALP_ROOT_TINT = (0.72, 0.72, 0.94)   # per channel on the views' roots and strands (scalp_views): darker, bluer roots
 SCALP_MIN_PX = 4000         # px: a smaller indigo component (an iris, a brow) is not the root layer
 SCALP_FEATHER = 2.0         # px of blur on the root weight
 SCALP_FACING = (0.15, 0.5)  # cosine range over which a view's weight comes in (a view at a grazing angle maps its silhouette's fringe onto centimetres of surface: counted fully, the left view's nape fringe ran down the neck as a streak). The root weight is the union of the views' (the owner's front and left pictures disagree at the temple's front edge), the colour comes from the views that show hair there.
@@ -221,6 +222,9 @@ def scalp_views(work, P, F, pivot):
         est = np.stack([ndimage.gaussian_filter(pic[..., k] * skin, 25) for k in range(3)], -1) / np.maximum(ndimage.gaussian_filter(skin.astype(float), 25), 1e-3)[..., None]
         root_lum = np.median(lum[core]) if core.any() else 60.0
         dark = np.clip((est @ lum_w - lum) / np.maximum(est @ lum_w - root_lum, 1.0), 0, 1)
+        # The roots and strands toward the reference's dark indigo (SCALP_ROOT_TINT): as painted they read a light, greyish
+        # lilac at the hairline (lab 75,71,111 against the reference's 69,65,119 and darker at the root; the owner: too light).
+        pic = pic * (1 - np.maximum(root, ndimage.gaussian_filter(dark, 1.0))[..., None] * (1 - np.array(SCALP_ROOT_TINT)))
         at, _ = front_zbuffer(pose_model(P, yaw, pitch, pivot, collar_y), F)
         views.append(dict(yaw=yaw, pitch=pitch, scale=sc, off=np.array([ox, oy]), pic=pic, fg=fg.astype(float),
                           root=root, hair=np.maximum(root, ndimage.gaussian_filter(dark, 1.0)), at=at,
@@ -663,6 +667,22 @@ def eyeball_texture(src):
     far = ndimage.distance_transform_edt(~white) > 10
     out[far] = np.percentile(a[white], 30, axis=0)
     return Image.fromarray(ndimage.gaussian_filter(out, (2, 2, 0)).astype(np.uint8))
+
+def socket_texture(skin_ref, eyeball):
+    """The socket wall over its depth (rows: 0 = face edge, 1 = eyeball). The reference's lids meet the
+    white directly: a thin pinkish waterline at the edge, then the white in the lid's grey shadow, so the
+    wall reads as part of the eye and not as a band of skin round it (the owner: a light, oversized filler)."""
+    a = np.asarray(eyeball).reshape(-1, 3).astype(float)
+    sclera = np.percentile(a[a.mean(1) > np.percentile(a.mean(1), 60)], 50, axis=0)
+    v = np.linspace(0, 1, 64)[:, None]
+    waterline = skin_ref * np.array([0.80, 0.60, 0.57])
+    # warm grey like the rendered white beside it (lab: ball 202,186,185), so the wall's inner end meets the ball unseen
+    shade, ball = sclera * np.array([0.86, 0.79, 0.77]), sclera * np.array([0.98, 0.94, 0.93])
+    t = np.clip((v - 0.05) / 0.25, 0, 1); t = t * t * (3 - 2 * t)
+    u = np.clip((v - 0.30) / 0.70, 0, 1)
+    col = waterline * (1 - t) + (shade * (1 - u) + ball * u) * t
+    print('socket wall: sclera', sclera.round(0), 'waterline', waterline.round(0), 'shade', shade.round(0), 'ball end', ball.round(0))
+    return Image.fromarray(np.tile(col[:, None, :], (1, 4, 1)).clip(0, 255).astype(np.uint8))
 
 SOCKET_MATERIAL = 11          # index of the "socket" material
 EYEBALL_MATERIAL = 10         # index of the "eyeball" material in build's list
@@ -1490,13 +1510,53 @@ def occlusion(P, F, VN, res=0.004, reach=0.06):
 
 # ---------------------------------------------------------------- stage 3: textures
 
-def atlas(P, F, sample, size, shade=None):
-    """Every triangle its own half-cell in an atlas, coloured by `sample` at points on it."""
+KNIT_ATLAS_PX = 2048   # the turtleneck's atlas (4096 sharpened the side seams a little for a megabyte more)
+
+def knit_weights(P, F, w_face, rounds=6):
+    """Per vertex, how much of the bald picture the turtleneck shows: the faces' weights (how squarely the
+    camera saw them) averaged over their neighbours, about 3 cm."""
+    vn = np.zeros(len(P)); cnt = np.zeros(len(P))
+    np.add.at(vn, F.reshape(-1), np.repeat(w_face, 3)); np.add.at(cnt, F.reshape(-1), 1)
+    used = cnt > 0
+    wv = np.where(used, vn / np.maximum(cnt, 1), 0)
+    for _ in range(rounds):
+        vn[:] = 0; np.add.at(vn, F.reshape(-1), np.repeat(wv[F].mean(1), 3))
+        wv = np.where(used, vn / np.maximum(cnt, 1), 0)
+    return wv
+
+def knit_blend(P, F, wv, scan, picture):
+    """Colour for the turtleneck's atlas, sample(points, [weight, shade]): the bald picture by the weight (knit_weights),
+    the scan's own colour in its baked light and shade toward the sides and back, so no line shows between them (as the picture's own faces, the line
+    where the visibility test gave up drew a serrated strip down each side; the owner: the collar has defects)."""
+    # The scan's colour as the knit's local tone (median within 3 cm) times its own light and dark, clamped: its warm
+    # specks (single texels) showed on the back as orange dots; seams and folds keep their shading.
+    c = P[F].mean(1); ctree = cKDTree(c); col = scan(c)
+    base = np.array([np.median(col[k], 0) for k in ctree.query_ball_point(c, r=0.03)])
+    lum = np.array([0.299, 0.587, 0.114])
+    print('knit blend: atlas faces', len(F), 'picture share', round(float(wv[F].mean()), 3))
+    # The weight and the shade interpolated across each triangle (atlas vattr): taken from the nearest vertex they
+    # stepped within the triangles, and where the picture's seam and the scan's do not coincide the steps drew
+    # fragments of seam along it.
+    def sample(q, a):
+        w, sh = a[:, :1], a[:, 1:2]
+        px, _ = project(q); sp = (px - np.array([OX, OY])) / S
+        pic = np.stack([ndimage.map_coordinates(picture[..., ch], [sp[:, 1], sp[:, 0]], order=1, mode='nearest') for ch in range(3)], 1)
+        _, f_ = ctree.query(q); b = base[f_]
+        own = b * np.clip((scan(q) @ lum) / np.maximum(b @ lum, 1), 0.72, 1.06)[:, None]
+        return pic * w + own * sh * (1 - w)
+    return sample
+
+def atlas(P, F, sample, size, shade=None, vattr=None):
+    """Every triangle its own half-cell in an atlas, coloured by `sample` at points on it (with `vattr`, per-vertex
+    values interpolated across each triangle are passed along: sample(points, values))."""
     if not len(F):
         return np.zeros((0, 3, 2)), np.zeros((4, 4, 3), np.uint8)
     cells = int(np.ceil(np.sqrt(len(F) / 2))); cs = size // cells
     lo, hi = 1.0 / cs, 1 - 1.0 / cs
-    tri = np.array([[[lo, lo], [hi, lo], [lo, hi]], [[hi, hi], [lo, hi], [hi, lo]]])
+    # A texel's gap along the cell's diagonal: the two triangles of a cell met there and the sampler blended each
+    # into the other, an outline round every triangle.
+    gap = 1.0 / cs
+    tri = np.array([[[lo, lo], [hi - gap, lo], [lo, hi - gap]], [[hi, hi], [lo + gap, hi], [hi, lo + gap]]])
     gx, gy = np.meshgrid((np.arange(cs) + 0.5) / cs, (np.arange(cs) + 0.5) / cs)
     lower = (gx + gy) <= 1.0
     tex = np.zeros((size, size, 3), np.uint8); drawn = np.zeros((size, size), bool)
@@ -1507,13 +1567,19 @@ def atlas(P, F, sample, size, shade=None):
         a, b, c = P[F[ks, 0]], P[F[ks, 1]], P[F[ks, 2]]
         m = lower if h == 0 else ~lower
         tx, ty = gx[m], gy[m]
-        w1, w2 = ((tx - lo) / (hi - lo), (ty - lo) / (hi - lo)) if h == 0 else ((hi - ty) / (hi - lo), (hi - tx) / (hi - lo))
+        # The barycentrics of the texel in its triangle's UVs (tri). The upper triangles had theirs swapped, their texture
+        # mirrored across the diagonal: a seam crossing one came out as fragments beside it.
+        w1, w2 = ((tx - lo) / (hi - gap - lo), (ty - lo) / (hi - gap - lo)) if h == 0 else ((hi - tx) / (hi - lo - gap), (hi - ty) / (hi - lo - gap))
         w0 = 1 - w1 - w2
         pts = a[:, None] * w0[None, :, None] + b[:, None] * w1[None, :, None] + c[:, None] * w2[None, :, None]
         ck = ks // 2
         px = (ck % cells)[:, None] * cs + np.where(m)[1][None, :]
         py = (ck // cells)[:, None] * cs + np.where(m)[0][None, :]
-        col = sample(pts.reshape(-1, 3)).reshape(len(ks), -1, 3)
+        if vattr is None:
+            col = sample(pts.reshape(-1, 3)).reshape(len(ks), -1, 3)
+        else:
+            att = vattr[F[ks, 0]][:, None] * w0[None, :, None] + vattr[F[ks, 1]][:, None] * w1[None, :, None] + vattr[F[ks, 2]][:, None] * w2[None, :, None]
+            col = sample(pts.reshape(-1, 3), att.reshape(-1, vattr.shape[1])).reshape(len(ks), -1, 3)
         if shade is not None:
             col = col * (shade[F[ks, 0]][:, None] * w0 + shade[F[ks, 1]][:, None] * w1 + shade[F[ks, 2]][:, None] * w2)[..., None]
         tex[py.reshape(-1), px.reshape(-1)] = np.clip(col, 0, 255).reshape(-1, 3).astype(np.uint8)
@@ -2387,10 +2453,31 @@ class Glb:
         q['idx'] = inv.reshape(-1)[np.asarray(p['idx']).astype(np.int64)].astype(np.uint32)
         return q
 
+    # Vertex data on power-of-two grids (KAIRO_QUANT=0 keeps full floats): still float32 for every loader, but with the low
+    # mantissa bytes zero the package's deflate halves them (the owner: the avatar under 10 MB). Positions 0.06 mm, morph
+    # offsets 0.03 mm, normals 1/256, texture coordinates 1/32768 (an eighth of a texel at 4096), skin weights 1/1024.
+    QUANT = dict(pos=2.0 ** -14, nrm=2.0 ** -8, uv=2.0 ** -15, weights=2.0 ** -10, targets=2.0 ** -15)
+
+    @classmethod
+    def quantize(cls, p):
+        if os.environ.get('KAIRO_QUANT', '1') == '0':
+            return p
+        q = dict(p)
+        for k in ('pos', 'nrm', 'uv', 'weights'):
+            if p.get(k) is not None:
+                q[k] = np.round(np.asarray(p[k], np.float64) / cls.QUANT[k]) * cls.QUANT[k]
+        if p.get('weights') is not None:
+            q['weights'] = q['weights'] / np.maximum(q['weights'].sum(1, keepdims=True), 1e-9)
+            q['weights'] = np.round(q['weights'] / cls.QUANT['weights']) * cls.QUANT['weights']
+            q['weights'][:, 0] += 1 - q['weights'].sum(1)      # the rounding's remainder on the first joint: they sum to one
+        if p.get('targets') is not None:
+            q['targets'] = [np.round(np.asarray(t, np.float64) / cls.QUANT['targets']) * cls.QUANT['targets'] for t in p['targets']]
+        return q
+
     def mesh(self, name, prims, target_names=()):
         out = []
         for p in prims:
-            p = self.weld(p)
+            p = self.weld(self.quantize(p))
             prim = {"attributes": {"POSITION": self.accessor(p['pos'], "VEC3", 34962, True), "NORMAL": self.accessor(p['nrm'], "VEC3", 34962),
                                    "TEXCOORD_0": self.accessor(p['uv'], "VEC2", 34962)},
                     "indices": self.accessor(p['idx'].astype(np.uint32), "SCALAR", 34963), "material": p['material']}
@@ -3345,6 +3432,15 @@ def build(work):
     # picture, which is drawn to the same frame and fits the bald body there. Where the two pictures
     # met on the forehead their slightly different light drew a broken line.
     front &= label < CORE
+    # The turtleneck's picture faces end where the camera saw the knit squarely; toward the sides an atlas blends
+    # the picture into the scan's colour (knit_blend).
+    knit_was_front = front & (label == KNIT)
+    knit_wv = knit_weights(P, F[label == KNIT], smooth(0.15, 0.5, np.abs(toward[label == KNIT])) * seen[label == KNIT])
+    # Faces seen squarely keep the picture itself (its seams crisp); the rest go to the atlas, which next to them
+    # is the picture too, so the line between the two materials does not show.
+    knit_keep = knit_was_front & (knit_wv[F].min(1) > 0.97)
+    front &= (label != KNIT) | knit_keep
+    print('knit: picture faces', int(knit_keep.sum()), 'of', int((label == KNIT).sum()), '(before', int(knit_was_front.sum()), ')')
     photo_px = np.asarray(src).astype(float)
     hair_px = (photo_px[..., 2] > photo_px[..., 0] + 12) | (photo_px.sum(-1) < 150)
     near_hair = ndimage.distance_transform_edt(~hair_px) < 30
@@ -3394,7 +3490,9 @@ def build(work):
     # The face grid's normals come from its own smoothed surface: smoothing them together with the
     # layers behind (hair, the scan's eyes) turned whole regions away.
     VN[grid_start:] = GRID_NORMALS[0]
-    fv = np.unique(F[front]); fv = fv[fv < grid_start]
+    # The whole turtleneck's normals are smoothed with the front's: only its picture faces were, and the step in the light
+    # at their old edge drew a serrated darker patch on each shoulder.
+    fv = np.unique(F[front | (label == KNIT)]); fv = fv[fv < grid_start]
     ftree = cKDTree(P[fv])
     n = VN[fv].copy()
     for _ in range(3):
@@ -3660,7 +3758,9 @@ def build(work):
     bc_ = bc_[inside]
     bare_kind = cKDTree(P[F[bare]].mean(1))
     bare_down = bare_down[inside]
-    knit_uv, knit_tex = atlas(P, F[knit_bare], lambda q: skin_colour(q, bald_gain[KNIT]), 2048, 0.6 + 0.4 * shade)
+    knit_uv, knit_tex = atlas(P, F[knit_bare], knit_blend(P, F[knit_bare], knit_wv, lambda q: skin_colour(q, bald_gain[KNIT]),
+                                                          np.asarray(bald_src).astype(float)), KNIT_ATLAS_PX,
+                              vattr=np.stack([knit_wv, 0.6 + 0.4 * shade], 1))
     # Ears: the tone of the skin round them, flat, their form from the baked occlusion alone (the
     # generator's ear texture was blotchy and the painting did not fit the scan's ear; a pinker tint,
     # and the jaw's toning and the photo on the lobe, made the ear two-coloured against the temple).
@@ -3973,31 +4073,54 @@ def build(work):
     # No mipmaps for the ears' per-triangle atlas: minified, its levels average unrelated triangles
     # into grain. Linear sampling reads each pixel's own triangle instead.
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9729, "wrapS": 33071, "wrapT": 33071})
-    for name, img in ((("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex, 'RGBA' if rest_tex.shape[-1] == 4 else 'RGB')), ("skin", Image.fromarray(skin_tex)),
+    # Materials no face uses (in the cards build: the photo, the scan's own hair, the closed-lid picture) keep their
+    # place in the list (the indices are fixed) with a 4 px image: their pictures were 0.8 MB of the package.
+    used_k = {p_['material'] for part_ in prims.values() for p_ in part_ if 'material_name' not in p_} | {lid['material']}
+    used_n = {p_['material_name'] for part_ in prims.values() for p_ in part_ if 'material_name' in p_}
+    for mat_k, (name, img) in enumerate(((("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex, 'RGBA' if rest_tex.shape[-1] == 4 else 'RGB')), ("skin", Image.fromarray(skin_tex)),
                       ("lidskin", lid_texture(closed, src)), ("bald", bald_src), ("iris", iris_texture(src)),
                       ("core", Image.new('RGB', (4, 4), (8, 6, 8))), ("hairphoto", hair_photo(hsrc)),
                       # Inside the head the core is shadowed skin: through the scan's gaps (round the eye
                       # sockets, behind the face's edge) black read as holes in the cheek.
                       ("coreskin", Image.new('RGB', (4, 4), tuple(int(c * 0.8) for c in skin_ref))), ("knit", Image.fromarray(knit_tex)),
-                      ("eyeball", eyeball_texture(src)),
-                      ("socket", Image.fromarray(np.tile((skin_ref[None, :] * np.array([1.0, 0.86, 0.86]) * np.linspace(0.95, 0.75, 64)[:, None])[:, None, :], (1, 4, 1)).astype(np.uint8))),
+                      ("eyeball", (eyeball_img := eyeball_texture(src))),
+                      ("socket", socket_texture(skin_ref, eyeball_img)),
                       ("lid", lid_tex), ("mouth", mouth_tex), ("lipwall", lipwall_tex), ("oshade", oshade_tex), ("ear", Image.fromarray(ear_tex)))
                      + ((("roots", Image.fromarray(cap_tex, 'RGBA')),) if cap is not None else ())
                      + ((("hairline", Image.fromarray(skirt_tex, 'RGBA')),) if skirt is not None else ())
                      + ((("cards", Image.fromarray(cards_tex, 'RGBA')),) if cards is not None else ())
                      + ((("cap", Image.fromarray(bcap_tex, 'RGB')),) if bcap is not None else ())
-                     + ((("strands", Image.fromarray(strands_tex, 'RGBA')),) if strands is not None else ())):
+                     + ((("strands", Image.fromarray(strands_tex, 'RGBA')),) if strands is not None else ()))):
+        if mat_k not in used_k and name not in used_n:
+            print('material', name, 'unused: 4 px image'); img = Image.new('RGB', (4, 4), (128, 128, 128))
+        if name == "cards" and img.mode == 'RGBA' and (np.asarray(img)[..., 3] >= 128).all():
+            # An opaque hair atlas (the Tripo hair is a closed surface): a JPEG, no mask, at KAIRO_CARDS_PX
+            # (the 256-colour PNG at 4096 was 3.8 MB of the package, the JPEG at 3072 about 1.7 MB; at 2048 the strands went soft up close).
+            px_ = int(os.environ.get('KAIRO_CARDS_PX', '3072'))
+            img = img.convert('RGB'); img = img.resize((px_, px_), Image.LANCZOS) if img.size[0] > px_ else img
+        has_alpha = img.mode == 'RGBA'     # read before the cards atlas becomes a 256-colour image (mode P): the MASK below depends on it
         if img.mode == 'RGBA' or name == "ear":        # the ear atlas lossless: JPEG rings at its cells' hard edges
             if name == "cards" and CARDS_HAIR:
                 # The strand atlas as a 256-colour PNG: under a third of the RGBA file (11.5 MB -> 3.3 MB) with the mask's 0.5 cut unchanged on every texel.
+                # Its alpha binarized at the cut first (KAIRO_CARDS_ALPHA=soft keeps it): the renderer drew texels with alpha between the
+                # cut and one as pale ghosts at the crown (cards seen at a grazing angle, their alpha averaged by the mip levels).
+                if os.environ.get('KAIRO_CARDS_ALPHA', 'hard') == 'hard':
+                    arr = np.array(img.convert('RGBA')); opaque = arr[..., 3] >= 128
+                    # The transparent texels take the nearest opaque texel's colour: sampled between an opaque strand and a transparent
+                    # neighbour (bilinear, mip levels) a texel showed the neighbour's colour as a white rim along every card edge.
+                    _, (iy, ix) = ndimage.distance_transform_edt(~opaque, return_indices=True)
+                    arr[..., :3] = arr[iy, ix, :3]; arr[..., 3] = np.where(opaque, 255, 0).astype(np.uint8); img = Image.fromarray(arr, 'RGBA')
+                img = img.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
+            if name == "strands":
+                # The hairline overlay as a 256-colour PNG too: 2.7 MB -> 0.4 MB, the blue strands and their soft alpha in the palette.
                 img = img.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
             data = io.BytesIO(); img.save(data, 'PNG', optimize=True); i = g.image(data.getvalue(), "image/png", name)
         else:
             i = g.image(jpeg(img, 92 if name in ("front", "bald", "rest") else 88, 0 if name == "rest" else None), "image/jpeg", name)
-        # No mipmaps for the ear's per-triangle atlas (minified, its levels averaged the black between
-        # cells into every triangle's edge). The hair atlas has its gutters filled and keeps mipmaps:
+        # No mipmaps for the ear's and the turtleneck's per-triangle atlases (minified, their levels averaged
+        # neighbouring cells into every triangle's edge: on the knit, outlined triangles and dark fragments along the seams). The hair atlas has its gutters filled and keeps mipmaps:
         # without them the minified strands aliased into triangle-sized grain.
-        g.gltf["textures"].append({"sampler": 1 if name == "ear" else 0, "source": i})
+        g.gltf["textures"].append({"sampler": 1 if name in ("ear", "knit") else 0, "source": i})
         material = {"name": name, "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1], "baseColorTexture": {"index": i},
                                                            "metallicFactor": 0, "roughnessFactor": 0.62}}
         # The scan's winding is unreliable (thin hair sheets, the collar seen from inside): culled back
@@ -4019,7 +4142,7 @@ def build(work):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0
         if name in ("lidskin", "iris", "lid", "strands"):
             material["alphaMode"] = "BLEND"
-        if name in ("rest", "roots", "hairline", "cards") and img.mode == 'RGBA':
+        if name in ("rest", "roots", "hairline", "cards") and has_alpha:
             material["alphaMode"] = "MASK"; material["alphaCutoff"] = 0.5
         g.gltf["materials"].append(material)
     names_ = [m_['name'] for m_ in g.gltf['materials']]

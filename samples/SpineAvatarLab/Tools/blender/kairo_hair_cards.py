@@ -815,21 +815,23 @@ def grow_all_layers(F, seed=7):
 T22_PARAMS = dict(T16_PARAMS, lift=0.04, guide_lams=(0.97, 0.85, 0.97, 0.7), filler_lams=(0.97, 0.85))   # the cards' candidate: a short rise from the scalp and most guides just under the wig surface, so the outer silhouette is one shell
 
 
-def build_candidate(params, npz, filler_min_dist=0.024, w_scale=2.5, min_w=0.05, max_w=0.09, clip_out=0.004, conform=True, cols=32):
+def build_candidate(params, npz, filler_min_dist=0.024, w_scale=2.5, min_w=0.05, max_w=0.09, clip_out=0.004, conform=True, cols=32, ridge=True, hole_pts=None):
     """the whole cards candidate from the style params: all layers grown, the strand objects rebuilt (hidden), the cards built
     with just enough atlas rows (built twice: once to count), the npz dumped for rasterize_cards.py. Returns (cards_ob, rows, n_cards)."""
     F = StyledField10(params=params)
     strands, lams, whys, gidx = F.grow_styled(16000, seed=7)
-    fr = add_fringe_guides(F); pg = add_parting_guides(F); sw = add_sweep_guides(F); tp = add_temple_guides(F); fl = add_filler_guides(F, min_dist=filler_min_dist)
+    fr = add_fringe_guides(F); pg = add_parting_guides(F); sw = add_sweep_guides(F); tp = add_temple_guides(F); rg = add_ridge_guides(F) if ridge else []; vg = add_volume_guides(F, hole_pts) if hole_pts else []; fl = add_filler_guides(F, min_dist=filler_min_dist)
     fs, fg = grow_fringe_children(F, fr); ps, pgi = grow_parting_children(F, pg)
     ws, wgi = grow_layer_children(F, sw, SWEEP_PARAMS['child_lam'], params=SWEEP_PARAMS); ts, tgi = grow_layer_children(F, tp, TEMPLE_PARAMS['child_lam'], seed=78)
-    layers = dict(fringe=(fs, fg, 9), parting=(ps, pgi, 10), sweep=(ws, wgi, 11), temple=(ts, tgi, 12))
-    print("guides: t16 140, fringe", len(fr), "parting", len(pg), "sweep", len(sw), "temple", len(tp), "filler", len(fl), "| children:", {k: len(v[0]) for k, v in layers.items()})
+    rs, rgi = grow_layer_children(F, rg, RIDGE_PARAMS['child_lam'], seed=89, params=RIDGE_PARAMS) if rg else ([], [])
+    vs, vgi = grow_layer_children(F, vg, VOLUME_PARAMS['child_lam'], seed=100, params=VOLUME_PARAMS) if vg else ([], [])
+    layers = dict(fringe=(fs, fg, 9), parting=(ps, pgi, 10), sweep=(ws, wgi, 11), temple=(ts, tgi, 12), ridge=(rs, rgi, 13), volume=(vs, vgi, 14))
+    print("guides: t16 140, fringe", len(fr), "parting", len(pg), "sweep", len(sw), "temple", len(tp), "ridge", len(rg), "volume", len(vg), "filler", len(fl), "| children:", {k: len(v[0]) for k, v in layers.items()})
     objs = {}
     for name, (st, gi, seed) in layers.items():
         ob = build_hair_object('Kairo' + name.capitalize(), st, [0.2] * len(st), radius_root=0.0012, radius_tip=0.0005); add_strand_attributes(ob, seed); objs[name] = ob
     hob = build_hair_object('KairoHair', strands, [0.5] * len(strands), radius_root=0.0012, radius_tip=0.0005); add_strand_attributes(hob, 5)
-    order = ('fringe', 'parting', 'sweep', 'temple')
+    order = ('fringe', 'parting', 'sweep', 'temple', 'ridge', 'volume')
     all_strands = strands + sum((layers[k][0] for k in order), []); all_gidx = gidx + sum((layers[k][1] for k in order), [])
     kw = dict(min_w=min_w, max_w=max_w, w_scale=w_scale, cross=False, clip_out=clip_out, conform=conform)
     cards_ob, info = build_cards(F, all_strands, all_gidx, rows=24, **kw)
@@ -870,3 +872,61 @@ def silhouette_holes(cards_ob, yaws=(0, 60, -60, 180), step=4, band=(300, 900, 2
         out[yaw] = (holes, n)
     root.rotation_euler[2] = 0; bpy.context.view_layer.update()
     return out
+
+
+RIDGE_PARAMS = dict(lift=0.01, lam=0.95, child_lam=(0.85, 0.98))
+
+def add_ridge_guides(F, step=0.012, offset=0.015, seed=88):
+    """guides rooted 15 mm either side of the parting that rise to the wig surface within 1 cm (lift 0.01) and run along
+    it outward: the cards of the dome's ridge. The other guides rise over 4 cm, so the volume right above the parting
+    had no card within the outer 3 cm and the top silhouette showed a notch on her left (the owner's mark)."""
+    P = F.P; rng = random.Random(seed); added = []; saved = dict(P); P.update({k: v for k, v in RIDGE_PARAMS.items() if k in P})
+    em_bvh = bvh_of(F.emitter)[0]
+    y0, y1 = F.parting[0].y, F.parting[-1].y
+    y = y0
+    while y <= y1 + 1e-6:
+        for side in (-1, 1):
+            x = F.x_part(y) + side * offset
+            loc, nrm, idx, dist = em_bvh.find_nearest(Vector((x, y, PIV.z + 0.3)))
+            if loc is None or dist > 0.08: continue
+            n = (loc - PIV).normalized(); lam = RIDGE_PARAMS['lam']
+            phase = rng.uniform(0, 2 * math.pi); amp = P['wave_amp'] * rng.uniform(0.6, 1.0); wl = P['wave_len'] * rng.uniform(0.9, 1.2)
+            F.bias = (rng.random() - 0.5) * 0.2
+            pts, ss, why = F.trace_wave(loc, n, lam, phase, amp, wl, P['wave_rad'] * 0.5)
+            if len(pts) < 4: continue
+            g = dict(root=loc, pts=pts, ss=ss, lam=lam, phase=phase, amp=amp, wl=wl, bias=F.bias, why=why, side=side, ridge=True)
+            F.guides.append(g); added.append(g)
+        y += step
+    P.clear(); P.update(saved)
+    return added
+
+
+VOLUME_PARAMS = dict(lift=0.01, lam=0.97, child_lam=(0.88, 0.99), cell=0.015)
+
+def add_volume_guides(F, hole_pts, seed=99):
+    """guides rooted on the scalp under the points where lab views see the wig volume with no card in front (the owner's
+    notch above the front crown: the pompadour volume the other guides pass under on their way into the fringe): hole
+    points clustered on a 15 mm grid, each cluster's centre cast toward the head pivot onto the emitter, traced with
+    lift 0.01 and lam 0.97 so the card rises to the surface at once and runs along it with the comb"""
+    P = F.P; rng = random.Random(seed); added = []; saved = dict(P); P.update({k: v for k, v in VOLUME_PARAMS.items() if k in P})
+    em = bvh_of(F.emitter)[0]; cell = VOLUME_PARAMS['cell']
+    cells = {}
+    for q in hole_pts:
+        q = Vector(q); key = tuple(int(math.floor(c / cell)) for c in q); cells.setdefault(key, []).append(q)
+    for key in sorted(cells):
+        c = sum(cells[key], Vector()) / len(cells[key]); d = (PIV - c).normalized()
+        loc, nrm, idx, dist = em.ray_cast(c, d, 0.3)
+        if loc is None:
+            # no scalp under it (the front of the parting): the card starts inside the volume, 1 cm under the wig surface,
+            # and runs with the comb across the parting; its feathered root end hides the start
+            u = (c - PIV).normalized()
+            if not F.R.is_valid(u, 1): continue
+            loc = PIV + u * (F.R.sample(F.R.sm, u) - VOLUME_PARAMS.get('bridge_depth', 0.01))
+        n = (loc - PIV).normalized(); lam = VOLUME_PARAMS['lam']
+        phase = rng.uniform(0, 2 * math.pi); amp = P['wave_amp'] * rng.uniform(0.6, 1.0); wl = P['wave_len'] * rng.uniform(0.9, 1.2); F.bias = (rng.random() - 0.5) * 0.2
+        pts, ss, why = F.trace_wave(loc, n, lam, phase, amp, wl, P['wave_rad'] * 0.5)
+        if len(pts) < 4: continue
+        g = dict(root=loc, pts=pts, ss=ss, lam=lam, phase=phase, amp=amp, wl=wl, bias=F.bias, why=why, side=1, volume=True)
+        F.guides.append(g); added.append(g)
+    P.clear(); P.update(saved)
+    return added
