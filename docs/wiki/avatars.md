@@ -8,7 +8,7 @@ Animated characters and ambient visuals for a voice assistant, text-to-speech, a
 
 | Package | What |
 | --- | --- |
-| `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: Skia (vector scenes, SkSL shaders) everywhere, SceneKit (glTF) on iOS and Mac Catalyst, the poster where neither applies |
+| `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: Skia (vector scenes, SkSL shaders) everywhere, glTF with SceneKit on iOS and Mac Catalyst and with Skia on Android and Windows, the poster where none applies |
 | `Plugin.Maui.Spine.Controls.Avatar.Core` | The format, the scheduler, the drivers' contract and the text driver, visemes, glTF; no MAUI |
 | `Plugin.Maui.Spine.Speech` | Text-to-speech with word boundaries, which `SpeechAvatarDriver` speaks through ([Speech](speech.md)) |
 | `Plugin.Maui.Spine.Controls.Avatar.Voice` | `VoiceAvatarDriver` for a realtime [voice](voice.md) conversation, and VoiceView's `character` |
@@ -27,7 +27,7 @@ avatar.LookAt(point);       // a point in the view's coordinates, or null to loo
 avatar.Interrupt();
 ```
 
-`UseSpine()` registers the package for an app that references it. The view picks the first representation of the avatar a renderer here can draw: Skia for `spine2d` and `sksl` (on the GPU through Metal on iOS and Mac Catalyst), SceneKit for `glb` on iOS and Mac Catalyst. Where none applies (a glTF avatar on Android and Windows today) it shows the avatar's poster with its state underneath and logs once.
+`UseSpine()` registers the package for an app that references it. The view picks the first representation of the avatar a renderer here can draw: Skia for `spine2d` and `sksl` (on the GPU through Metal on iOS and Mac Catalyst), SceneKit for `glb` on iOS and Mac Catalyst, and Skia on the CPU for `glb` on Android and Windows. The Skia glTF renderer poses, skins and lights the model per vertex and does not sample textures, so a textured material shows its base colour; a model with alpha-masked materials (hair cards, lashes) is left to its poster. Where no renderer applies the view shows the avatar's poster with its state underneath and logs once.
 
 | Property | What |
 | --- | --- |

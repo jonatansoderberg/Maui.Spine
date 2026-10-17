@@ -2,7 +2,7 @@
 
 `AvatarView` for Spine: animated characters and ambient visuals from `.spineavatar` files, for a voice assistant, text read aloud, a streamed chat answer, a guide or a status indicator.
 
-- **Renderers**: Skia for vector scenes and SkSL shaders on every platform (Metal on iOS and Mac Catalyst), SceneKit for glTF characters on iOS and Mac Catalyst. Where the platform has no renderer for any of an avatar's representations, the view shows its poster and its state.
+- **Renderers**: Skia for vector scenes and SkSL shaders on every platform (Metal on iOS and Mac Catalyst), SceneKit for glTF characters on iOS and Mac Catalyst, Skia on the CPU for glTF characters on Android and Windows (no textures; alpha-masked models show their poster). Where the platform has no renderer for any of an avatar's representations, the view shows its poster and its state.
 - **Driving**: the view's own `State`, `IsMuted` and `Expression`, or a driver: `TextAvatarDriver` mouths text with no audio; the Speech and Voice packages add drivers for text-to-speech and realtime voice.
 - **Well-behaved**: no timer while detached, hidden, scrolled away or in the background; Reduce Motion gives a still pose; the app's accent and theme; one screen-reader element.
 

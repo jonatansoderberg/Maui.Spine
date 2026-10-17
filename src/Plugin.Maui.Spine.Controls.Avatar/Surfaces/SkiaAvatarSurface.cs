@@ -22,6 +22,23 @@ internal sealed class SkiaAvatarRenderer : AvatarRenderer
 }
 
 /// <summary>
+/// The built-in renderer for <c>native3d</c> GLB representations where SceneKit is not (Android, Windows): Skia on the
+/// CPU, for models without alpha-masked materials (<see cref="GltfSkiaModel"/>).
+/// </summary>
+internal sealed class GltfSkiaAvatarRenderer : AvatarRenderer
+{
+    public static GltfSkiaAvatarRenderer Instance { get; } = new();
+
+    public override string Renderer => "native3d";
+
+    public override bool CanDraw(AvatarRepresentation representation) =>
+        representation.Renderer == "native3d" && representation.Format == "glb";
+
+    public override AvatarSurface CreateSurface(AvatarPackage package, AvatarRepresentation representation) =>
+        new SkiaAvatarSurface(new GltfSkiaModel(package, representation));
+}
+
+/// <summary>
 /// A skia avatar: the frame is evaluated and drawn in the paint pass. On iOS and Mac Catalyst it draws on the GPU through
 /// an <c>SKMetalView</c>; elsewhere on the CPU through an <see cref="SKCanvasView"/>.
 /// </summary>
