@@ -8,7 +8,7 @@
     <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar">
 
         <Example Title="Bundled with the app"
-                 Summary="Four avatars shipped as MauiAssets, each a .spineavatar the view checks before it draws it. Characters have a face that speaks and shows expressions; ambient ones are light and shape. Tap one to drive it.">
+                 Summary="Four avatars shipped as MauiAssets, each a .spineavatar packed by the spine-avatar tool (rendered posters, no generator source) that the view checks before it draws it. Characters have a face that speaks and shows expressions; ambient ones are light and shape. Tap one to drive it.">
             <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Bundled}">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="AvatarEntry">
@@ -42,7 +42,7 @@
         </Example>
 
         <Example Title="Downloaded when asked"
-                 Summary="Kairo is 16.6 MB, too large to bundle: the app downloads it from the sample server once, keeps it in its data folder and opens it from there. A source never touches the network itself.">
+                 Summary="Kairo is 16.6 MB, too large to bundle: the app downloads it from the sample server once, keeps it in its data folder and opens it from there. A source never touches the network itself. Its hair needs SceneKit, so Android and Windows show its poster.">
             <VerticalStackLayout Spacing="10">
                 <Border Padding="12" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light=#F2F3F5, Dark=#1C1D21}"
                         IsVisible="{Binding HasKairo}"

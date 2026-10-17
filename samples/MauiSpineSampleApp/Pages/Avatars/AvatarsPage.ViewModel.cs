@@ -118,7 +118,9 @@ public partial class AvatarsPageViewModel : SampleViewModel
         if (File.Exists(_kairoPath))
         {
             HasKairo = true;
-            Kairo = new("kairo", "Kairo", "A head reconstructed from photos, with hair made in Blender: 322,000 triangles and morph targets for the face.", "Character", Gltf, AvatarSource.FromFile(_kairoPath));
+            // The hair's alpha-masked cards need SceneKit; the Skia glTF renderer leaves Kairo to its poster.
+            var renderer = OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() ? "glTF · SceneKit" : "glTF · poster";
+            Kairo = new("kairo", "Kairo", "A head reconstructed from photos, with hair made in Blender: 322,000 triangles and morph targets for the face.", "Character", renderer, AvatarSource.FromFile(_kairoPath));
             KairoStatus = $"Downloaded, {new FileInfo(_kairoPath).Length / 1_000_000.0:0.0} MB in the app's data; opened from there from now on.";
         }
         else

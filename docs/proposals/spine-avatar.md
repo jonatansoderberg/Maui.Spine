@@ -36,7 +36,7 @@ A representation names its `renderer` and `format`, its `model` and, when it has
 
 | Renderer | Format | Model | Drawn by |
 | --- | --- | --- | --- |
-| `native3d` | `glb` | glTF 2.0 binary with morph targets, skins and clips; no required extensions | SceneKit (iOS, Mac Catalyst); Android and Windows follow S2 of the plan |
+| `native3d` | `glb` | glTF 2.0 binary with morph targets, skins and clips; no required extensions | SceneKit (iOS, Mac Catalyst); Skia on the CPU on Android and Windows (S2), for models without alpha-masked materials |
 | `skia` | `sksl` | One SkSL shader, at most 64 KB | Skia on every platform |
 | `skia` | `spine2d` | A vector scene, `*.avatar2d.json` (§7, frozen) | Skia on every platform |
 
