@@ -39,6 +39,7 @@ public class GltfSkiaRendererTests(ITestOutputHelper output)
         var scheduler = new AvatarScheduler(package, representation, time, 1);
         using var renderer = new GltfSkiaModel(package, representation).CreateRenderer();
         using var surface = SKSurface.Create(new SKImageInfo(size, size));
+        var canvas = surface.Canvas;
         var bounds = new SKRect(0, 0, size, size);
 
         scheduler.SetState(AvatarState.Speaking);
@@ -47,8 +48,8 @@ public class GltfSkiaRendererTests(ITestOutputHelper output)
         {
             time.Advance(TimeSpan.FromMilliseconds(33));
             renderer.Evaluate(scheduler.Update());
-            surface.Canvas.Clear(SKColors.White);
-            renderer.Draw(surface.Canvas, bounds, dark: false);
+            canvas.Clear(SKColors.White);
+            renderer.Draw(canvas, bounds, dark: false);
         }
 
         const int frames = 120;
@@ -61,8 +62,8 @@ public class GltfSkiaRendererTests(ITestOutputHelper output)
             var frame = scheduler.Update();
             watch.Restart();
             renderer.Evaluate(frame);
-            surface.Canvas.Clear(SKColors.White);
-            renderer.Draw(surface.Canvas, bounds, dark: false);
+            canvas.Clear(SKColors.White);
+            renderer.Draw(canvas, bounds, dark: false);
             surface.Flush();
             times[i] = watch.Elapsed.TotalMilliseconds;
         }
