@@ -1,7 +1,7 @@
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>Mono PCM16 audio read from a RIFF WAV file.</summary>
-public sealed record AvatarPcm(short[] Samples, int SampleRate)
+internal sealed record AvatarPcm(short[] Samples, int SampleRate)
 {
     public TimeSpan Duration => TimeSpan.FromSeconds((double)Samples.Length / SampleRate);
 
@@ -55,7 +55,7 @@ public sealed record AvatarPcm(short[] Samples, int SampleRate)
 /// Analysis profile "spine-lab-v1": level is RMS mapped from −50…0 dBFS to 0…1; bands are 24
 /// log-spaced bands from 80 Hz to 8 kHz of a 512-point Hann FFT, mapped from −70…−10 dB to 0…1.
 /// </remarks>
-public sealed class AvatarAudioAnalysis
+internal sealed class AvatarAudioAnalysis
 {
     public const string Profile = "spine-lab-v1";
     public const double HopSeconds = 0.01;
@@ -123,6 +123,10 @@ public sealed class AvatarAudioAnalysis
 /// </summary>
 public static class AvatarTextVisemes
 {
+    /// <summary>An estimated viseme.</summary>
+    /// <param name="Start">Seconds from the start of the text.</param>
+    /// <param name="Duration">Seconds.</param>
+    /// <param name="Viseme">The canonical id 0–14.</param>
     public readonly record struct Estimate(double Start, double Duration, int Viseme);
 
     /// <summary>
@@ -155,6 +159,7 @@ public static class AvatarTextVisemes
         }
     }
 
+    /// <summary>Visemes for <paramref name="text"/> from its letters, timed from 0 at <paramref name="charactersPerSecond"/>; punctuation pauses.</summary>
     public static List<Estimate> FromText(string text, double charactersPerSecond = 14)
     {
         var cues = new List<Estimate>();

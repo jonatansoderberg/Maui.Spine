@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		The avatar format and the timeline, with no MAUI and no Skia: the .spineavatar reader and validator, the
+		schemas, the scheduler, the drivers' contract, the glTF model and rig. Tested on net10.0 without a device.
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>Plugin.Maui.Spine.Controls.Avatar.Core</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Controls.Avatar</RootNamespace>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>The core of Spine's avatars, without MAUI: the .spineavatar format 1.0 (a safe ZIP reader with SHA-256 checks, the manifest and bindings schemas, defaults and validation), the scheduler that mixes states, expressions, visemes, blinks, gaze and springs into one frame, the driver contract with a text driver, the canonical visemes with the Azure map, and a glTF reader and rig.</Description>
+		<SpineIcon>avatar.png</SpineIcon>
+		<PackageTags>$(PackageTags);avatar;viseme;lip-sync;gltf;animation</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Schemas\*.json" LogicalName="Plugin.Maui.Spine.Controls.Avatar.Core.Schemas.%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- The view and its surfaces read the scheduler's and package's internals (AvatarInput.Scheduler, AvatarJson). -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Voice" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
+		<!-- The lab's inspector and its own copies of the surfaces until B1.3 of docs/plans/spine-avatar.md. -->
+		<InternalsVisibleTo Include="SpineAvatarLab" />
+	</ItemGroup>
+
+</Project>

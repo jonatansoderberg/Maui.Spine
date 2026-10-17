@@ -1,4 +1,4 @@
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// One way of driving an avatar: a voice session, a text stream, text-to-speech, a script, the app's
@@ -81,8 +81,10 @@ public sealed class AvatarInput
     /// <summary>Whether an avatar is loaded; until then cues, levels and gestures go nowhere.</summary>
     public bool IsLoaded => _scheduler is not null;
 
+    /// <summary>The state last set.</summary>
     public AvatarState State => _state;
 
+    /// <summary>Whether the muted badge shows.</summary>
     public bool IsMuted => _muted;
 
     /// <summary>Whether the loaded avatar shapes its mouth from visemes (otherwise it follows the output level).</summary>
@@ -106,6 +108,7 @@ public sealed class AvatarInput
         }
     }
 
+    /// <summary>What the mouth timing is worth; the runtime keeps it equal to the driver's.</summary>
     public AvatarLipSyncQuality LipSyncQuality
     {
         get => _quality;
@@ -117,6 +120,7 @@ public sealed class AvatarInput
         }
     }
 
+    /// <summary>Crossfades to <paramref name="state"/>.</summary>
     public void SetState(AvatarState state)
     {
         _state = state;
@@ -130,8 +134,10 @@ public sealed class AvatarInput
         _scheduler?.SetMicMuted(muted);
     }
 
+    /// <summary>The microphone level (0–1) and, optionally, its 24 bands.</summary>
     public void SetInputLevel(float level, ReadOnlySpan<float> bands = default) => _scheduler?.SetInputLevel(level, bands);
 
+    /// <summary>The voice level (0–1) and, optionally, its 24 bands.</summary>
     public void SetOutputLevel(float level, ReadOnlySpan<float> bands = default) => _scheduler?.SetOutputLevel(level, bands);
 
     /// <summary>A viseme on the playback clock's timeline. False when it was dropped (stale generation, too far ahead, no avatar).</summary>
@@ -141,6 +147,7 @@ public sealed class AvatarInput
     /// <summary>Drops every queued cue and closes the mouth; cues of older generations are ignored from now on.</summary>
     public void ResetSpeech(long generation) => _scheduler?.ResetSpeech(generation);
 
+    /// <summary>Shows an expression for a while over the base expression.</summary>
     public void SetExpression(AvatarExpressionRequest request) => _scheduler?.SetExpression(request);
 
     /// <summary>The expression shown when no timed one is.</summary>
@@ -172,6 +179,7 @@ public sealed class AvatarRuntime
 {
     private AvatarDriver? _driver;
 
+    /// <summary>What the driver, or the app with no driver, pushes into the avatar.</summary>
     public AvatarInput Input { get; } = new();
 
     /// <summary>The loaded avatar's scheduler, or null while none is loaded.</summary>
@@ -194,6 +202,7 @@ public sealed class AvatarRuntime
     /// <summary>Starts drawing <paramref name="scheduler"/>'s avatar; the driver carries on with it.</summary>
     public void Load(AvatarScheduler scheduler) => Input.Scheduler = scheduler;
 
+    /// <summary>Stops drawing; the driver and <see cref="Input"/>'s state stay.</summary>
     public void Unload() => Input.Scheduler = null;
 
     /// <summary>The driver's tick, then the scheduler's: the frame to draw, or null while no avatar is loaded.</summary>

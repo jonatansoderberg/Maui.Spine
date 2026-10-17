@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 // Required constructor parameters and nullable annotations are enforced, so a manifest missing a
 // field fails with its JSON path instead of loading with a null that breaks a frame later.
@@ -22,7 +22,7 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core;
 internal sealed partial class AvatarJsonContext : JsonSerializerContext;
 
 /// <summary>The <c>timed-cues.json</c> fixture format of the reference bundle.</summary>
-public sealed record AvatarCueFixture(
+internal sealed record AvatarCueFixture(
     string AudioFile,
     int SampleRate,
     string Format,
@@ -31,9 +31,9 @@ public sealed record AvatarCueFixture(
     IReadOnlyList<AvatarFixtureCue> Cues,
     string? Description = null);
 
-public sealed record AvatarFixtureCue(string Segment, long Generation, double OffsetSeconds, double DurationSeconds, int CanonicalViseme, float Strength);
+internal sealed record AvatarFixtureCue(string Segment, long Generation, double OffsetSeconds, double DurationSeconds, int CanonicalViseme, float Strength);
 
-public static class AvatarJson
+internal static class AvatarJson
 {
     /// <summary>Reads <c>avatar.json</c> and applies the defaults; what the defaults had to say goes to <paramref name="report"/>.</summary>
     public static AvatarManifest ReadManifest(ReadOnlySpan<byte> utf8, AvatarValidationReport report) =>
@@ -64,8 +64,10 @@ public static class AvatarJson
     }
 }
 
+/// <summary>A file of the package is not what the format says; <see cref="Path"/> names it.</summary>
 public sealed class AvatarFormatException(string path, string message, Exception? inner = null)
     : Exception($"{path}: {message}", inner)
 {
+    /// <summary>The file (and, where known, the JSON path) at fault.</summary>
     public string Path { get; } = path;
 }

@@ -1,9 +1,14 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>The bounds a <c>.spineavatar</c> must stay within (spec §13). A trusted asset may get larger ones.</summary>
+/// <param name="MaxCompressedBytes">The archive's size.</param>
+/// <param name="MaxUncompressedBytes">All entries together, decompressed.</param>
+/// <param name="MaxEntries">Entries in the archive.</param>
+/// <param name="MaxEntryBytes">One entry, decompressed.</param>
+/// <param name="MaxCompressionRatio">Decompressed to compressed size, for entries over 64 KB.</param>
 public sealed record AvatarArchiveLimits(
     long MaxCompressedBytes = 50 * 1024 * 1024,
     long MaxUncompressedBytes = 150 * 1024 * 1024,
@@ -11,6 +16,7 @@ public sealed record AvatarArchiveLimits(
     long MaxEntryBytes = 32 * 1024 * 1024,
     double MaxCompressionRatio = 200)
 {
+    /// <summary>The limits of format 1.0: 50 MB compressed, 150 MB uncompressed, 512 entries, 32 MB per entry, 200× compression.</summary>
     public static AvatarArchiveLimits Default { get; } = new();
 }
 
@@ -21,8 +27,11 @@ public sealed record AvatarArchiveLimits(
 /// </summary>
 public static class AvatarArchive
 {
+    /// <summary>The manifest's path at the archive's root.</summary>
     public const string ManifestPath = "avatar.json";
 
+    /// <summary>Reads and validates a package.</summary>
+    /// <exception cref="AvatarLoadException">A check failed; its <see cref="AvatarLoadException.Report"/> says which.</exception>
     public static AvatarPackage Read(Stream stream, AvatarArchiveLimits? limits = null, CancellationToken cancellationToken = default)
     {
         var report = new AvatarValidationReport();
@@ -270,8 +279,10 @@ public static class AvatarArchive
     }
 }
 
+/// <summary>A package did not load; <see cref="Report"/> has every check.</summary>
 public sealed class AvatarLoadException(AvatarValidationReport report)
     : Exception("The avatar did not load: " + string.Join("; ", report.Failures.Select(f => $"{f.Area}/{f.Name}: {f.Detail}")))
 {
+    /// <summary>The checks, with the failures that stopped the load.</summary>
     public AvatarValidationReport Report { get; } = report;
 }

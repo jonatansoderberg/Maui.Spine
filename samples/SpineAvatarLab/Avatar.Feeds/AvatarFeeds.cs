@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Plugin.Maui.Spine.Controls.Avatar.Core;
+using Plugin.Maui.Spine.Controls.Avatar;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Feeds;
 

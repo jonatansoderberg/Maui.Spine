@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Plugin.Maui.Spine.Controls.Avatar.Core;
+using Plugin.Maui.Spine.Controls.Avatar;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Feeds;
 
@@ -25,7 +25,7 @@ public sealed partial class AvatarPcmPlayer : IAvatarPlaybackClock, IDisposable
     public static string ClockDescription => PlatformClockDescription;
 
     /// <summary>Starts <paramref name="pcm"/> from the beginning in a new generation, dropping anything playing.</summary>
-    public long Play(AvatarPcm pcm)
+    internal long Play(AvatarPcm pcm)
     {
         Stop();
         _duration = pcm.Duration.TotalSeconds;

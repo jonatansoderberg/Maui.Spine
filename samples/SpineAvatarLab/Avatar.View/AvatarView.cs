@@ -1,4 +1,4 @@
-using Plugin.Maui.Spine.Controls.Avatar.Core;
+using Plugin.Maui.Spine.Controls.Avatar;
 using Plugin.Maui.Spine.Controls.Avatar.Skia;
 using Plugin.Maui.Spine.Controls.Avatar.ThreeD;
 

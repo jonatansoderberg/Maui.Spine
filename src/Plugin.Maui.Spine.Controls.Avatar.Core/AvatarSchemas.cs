@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// The JSON schemas of format 1.0, embedded in the assembly, and the check that applies them to a
@@ -16,7 +16,9 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core;
 /// </remarks>
 public static class AvatarSchemas
 {
+    /// <summary>The resource name of <c>avatar.schema.json</c>.</summary>
     public const string ManifestResourceName = "Plugin.Maui.Spine.Controls.Avatar.Core.Schemas.avatar.schema.json";
+    /// <summary>The resource name of <c>bindings.schema.json</c>.</summary>
     public const string BindingsResourceName = "Plugin.Maui.Spine.Controls.Avatar.Core.Schemas.bindings.schema.json";
 
     // Extension keys files from before the schema wrote at the top level of a bindings file.

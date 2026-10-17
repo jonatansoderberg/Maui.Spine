@@ -1,4 +1,4 @@
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// Springs on top of the keyframed motion: squash and stretch with the voice, a small hop when

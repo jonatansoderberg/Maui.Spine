@@ -23,6 +23,7 @@ Spine ships as thirty-four NuGet packages built from this repository, one per pr
 | Controls | `Plugin.Maui.Spine.Controls.Chat` | [`ChatView` and `ChatComposer`](chat.md): a conversation with any `IChatClient` | `Plugin.Maui.Spine`, `.Controls.Markdown`, `.Controls.Shimmer`, Microsoft.Extensions.AI.Abstractions |
 | Controls | `Plugin.Maui.Spine.Controls.Markdown` | [`MarkdownView`](markdown.md): markdown on native views, rebuilt block by block while it streams | `Plugin.Maui.Spine`, Markdig |
 | Controls | `Plugin.Maui.Spine.Controls.Voice` | [`VoiceView`](voice.md#drawing-the-conversation): a voice conversation drawn with SkiaSharp (orb, bars, ring, avatar), visuals of your own, visemes | `Plugin.Maui.Spine`, `.Voice`, SkiaSharp |
+| Controls | `Plugin.Maui.Spine.Controls.Avatar.Core` | The core of [avatars](avatars.md) with no MAUI: the `.spineavatar` format 1.0 (safe reader, schemas, defaults, validation), the scheduler, the driver contract with a text driver, the canonical visemes, a glTF reader and rig | — |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view (Edge, Pulse, Sheen, Trace, Breathe), `Highlight.Repeat` and `.Key`, `IHighlights` | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron | `Plugin.Maui.Spine`, `.AnimatedLabel` |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes; `LightGridReader` for a code shown by lamps | — |
@@ -54,6 +55,7 @@ PushNotifications                                    AnimatedLabel
   Images ──► Common
   Voice ──► Common
   Controls.Voice ──► Voice, Spine (and SkiaSharp)
+  Controls.Avatar.Core (no dependencies)
   AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
   Common ◄── Server.Authentication (and JwtBearer, Azure.Data.Tables)
   Server.Messaging ◄── Server.Messaging.AzureStorage ◄── Server.Messaging.ServiceBus

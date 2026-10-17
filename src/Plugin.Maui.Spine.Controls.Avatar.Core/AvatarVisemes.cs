@@ -1,4 +1,4 @@
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// The avatar's mouth vocabulary: the 15 canonical visemes of <c>oculus15-v1</c> (0 <c>sil</c> … 14
@@ -6,9 +6,53 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core;
 /// </summary>
 public static class AvatarVisemes
 {
+    /// <summary>The number of canonical visemes.</summary>
     public const int Count = 15;
 
-    public const int Silence = 0, PP = 1, FF = 2, TH = 3, DD = 4, KK = 5, CH = 6, SS = 7, NN = 8, RR = 9, AA = 10, E = 11, I = 12, O = 13, U = 14;
+    /// <summary>sil: silence, the rest mouth.</summary>
+    public const int Silence = 0;
+
+    /// <summary>p, b, m: lips closed.</summary>
+    public const int PP = 1;
+
+    /// <summary>f, v: lower lip to the teeth.</summary>
+    public const int FF = 2;
+
+    /// <summary>th: tongue between the teeth.</summary>
+    public const int TH = 3;
+
+    /// <summary>t, d: nearly closed.</summary>
+    public const int DD = 4;
+
+    /// <summary>k, g: half open, back.</summary>
+    public const int KK = 5;
+
+    /// <summary>ch, j, sh: lips forward.</summary>
+    public const int CH = 6;
+
+    /// <summary>s, z: teeth together.</summary>
+    public const int SS = 7;
+
+    /// <summary>n, l: half open, tongue up.</summary>
+    public const int NN = 8;
+
+    /// <summary>r: slightly rounded.</summary>
+    public const int RR = 9;
+
+    /// <summary>a: wide open.</summary>
+    public const int AA = 10;
+
+    /// <summary>e: half open, spread.</summary>
+    public const int E = 11;
+
+    /// <summary>i: spread, nearly closed.</summary>
+    public const int I = 12;
+
+    /// <summary>o: rounded.</summary>
+    public const int O = 13;
+
+    /// <summary>u: rounded, small.</summary>
+    public const int U = 14;
 
     /// <summary>The canonical names, by id.</summary>
     public static IReadOnlyList<string> Names => AvatarVocabulary.Visemes;

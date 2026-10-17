@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// What a representation can do, computed from its bindings and model (decision D9). A manifest that
@@ -9,16 +9,26 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core;
 /// </summary>
 public static class AvatarCapabilities
 {
+    /// <summary>Idle motion and states: every avatar.</summary>
     public const string Ambient = "ambient";
+    /// <summary>Shows the eight expressions.</summary>
     public const string Expressions = "expressions";
+    /// <summary>Follows the input and output levels.</summary>
     public const string AudioReactive = "audioReactive";
+    /// <summary>Shapes its mouth from visemes.</summary>
     public const string SpeechArticulation = "speechArticulation";
+    /// <summary>Moves its gaze.</summary>
     public const string Gaze = "gaze";
+    /// <summary>Blinks.</summary>
     public const string Blink = "blink";
+    /// <summary>Plays gestures (nod, shake…).</summary>
     public const string Gestures = "gestures";
+    /// <summary>Has a still pose for Reduce Motion: every avatar.</summary>
     public const string ReducedMotion = "reducedMotion";
+    /// <summary>Has colours an app can restyle.</summary>
     public const string ThemeSlots = "themeSlots";
 
+    /// <summary>Every capability, in report order.</summary>
     public static readonly string[] All = [Ambient, Expressions, AudioReactive, SpeechArticulation, Gaze, Blink, Gestures, ReducedMotion, ThemeSlots];
 
     private static readonly string[] LevelUniforms = ["inLevel", "outLevel", "energy", "bands", "bandLow", "bandMid", "bandHigh"];

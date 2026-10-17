@@ -10,17 +10,13 @@
 		<Using Include="Xunit" />
 	</ItemGroup>
 
-	<PropertyGroup>
-	</PropertyGroup>
-
 	<!--
-		The avatar code lives in the lab app until it becomes packages (issue #524, Phase A). Core and the
-		Skia renderer must stay free of MAUI, so they are compiled in here: a MAUI type in either fails this build.
+		The Skia renderer is still the lab's (Avatar.Skia) until Plugin.Maui.Spine.Controls.Avatar takes it in B1.2 of
+		docs/plans/spine-avatar.md; it must stay free of MAUI, which compiling it here enforces.
 	-->
 	<ItemGroup>
-		<Compile Include="..\..\samples\SpineAvatarLab\Avatar.Core\**\*.cs" LinkBase="Avatar.Core" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar.Core\Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
 		<Compile Include="..\..\samples\SpineAvatarLab\Avatar.Skia\**\*.cs" LinkBase="Avatar.Skia" />
-		<EmbeddedResource Include="..\..\samples\SpineAvatarLab\Avatar.Core\Schemas\*.json" LogicalName="Plugin.Maui.Spine.Controls.Avatar.Core.Schemas.%(Filename)%(Extension)" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Avatars\*.spineavatar" LinkBase="Avatars" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Fixtures\*" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>

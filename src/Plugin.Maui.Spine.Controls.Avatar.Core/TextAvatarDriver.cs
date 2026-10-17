@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// Mouths text with no audio: a streamed chat answer, a caption. The mouth is guessed from the letters
@@ -23,6 +23,7 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     private long _generation;
     private bool _busy, _complete;
 
+    /// <summary>A driver with quality EstimatedText.</summary>
     public TextAvatarDriver() => LipSyncQuality = AvatarLipSyncQuality.EstimatedText;
 
     /// <summary>How fast text is mouthed; 14 is a calm speaking pace.</summary>
@@ -90,6 +91,7 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
         new(_generation, TimeSpan.FromSeconds(_position), _busy && _position < _end, PositionIsPresentationTime: true,
             TimeSpan.Zero, TimeSpan.FromMilliseconds(250), Stopwatch.GetTimestamp());
 
+    /// <inheritdoc />
     protected internal override void OnAttached()
     {
         Input.PlaybackClock = this;
@@ -101,6 +103,7 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
         Input.ResetSpeech(_generation);
     }
 
+    /// <inheritdoc />
     protected internal override void OnDetached()
     {
         Input.ResetSpeech(++_generation);
@@ -109,6 +112,7 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
             Input.PlaybackClock = null;
     }
 
+    /// <inheritdoc />
     protected internal override void OnTick(TimeSpan delta)
     {
         if (!_busy)

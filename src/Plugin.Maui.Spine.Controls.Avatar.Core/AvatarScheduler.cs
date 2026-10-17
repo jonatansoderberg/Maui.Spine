@@ -1,8 +1,9 @@
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>Counters a lab or a test reads to see what the scheduler dropped and why.</summary>
 public sealed class AvatarSchedulerDiagnostics
 {
+    /// <summary>Viseme cues taken into the buffer.</summary>
     public long AcceptedCues { get; internal set; }
 
     /// <summary>Cues from an older generation, after a flush or a new session.</summary>
@@ -11,13 +12,16 @@ public sealed class AvatarSchedulerDiagnostics
     /// <summary>Cues further ahead than <see cref="AvatarScheduler.MaxCueLookahead"/> or past the buffer's capacity.</summary>
     public long RejectedCues { get; internal set; }
 
+    /// <summary>Speech resets (flushes, new generations).</summary>
     public long Resets { get; internal set; }
 
     /// <summary>Times the playback clock stood still while it said it was playing.</summary>
     public long Underruns { get; internal set; }
 
+    /// <summary>Cues in the buffer after the last update.</summary>
     public int QueuedCues { get; internal set; }
 
+    /// <summary>The playback position the last update used.</summary>
     public double SpeechPositionSeconds { get; internal set; }
 }
 
@@ -34,7 +38,9 @@ public sealed class AvatarSchedulerDiagnostics
 /// </remarks>
 public sealed class AvatarScheduler
 {
+    /// <summary>The most cues the buffer holds.</summary>
     public const int CueCapacity = 512;
+    /// <summary>How far ahead of the playhead a cue may start.</summary>
     public static readonly TimeSpan MaxCueLookahead = TimeSpan.FromSeconds(2);
 
     private const double CoarticulationLead = 0.035;
@@ -119,6 +125,11 @@ public sealed class AvatarScheduler
     private float _manualWeight;
     private float _speechActivity;
 
+    /// <summary>A timeline for <paramref name="representation"/> of <paramref name="package"/>.</summary>
+    /// <param name="package">The loaded avatar.</param>
+    /// <param name="representation">The representation to drive; its bindings and model decide the poses and clips.</param>
+    /// <param name="time">The time base; the system clock by default, a fake one in tests.</param>
+    /// <param name="seed">Seeds idle, blink and saccade randomness, so a run can be replayed.</param>
     public AvatarScheduler(AvatarPackage package, AvatarRepresentation representation, TimeProvider? time = null, int seed = 0)
     {
         _time = time ?? TimeProvider.System;
@@ -176,13 +187,16 @@ public sealed class AvatarScheduler
         _nextBlinkAt = NextBlinkInterval();
     }
 
+    /// <summary>What the scheduler accepted, dropped and why.</summary>
     public AvatarSchedulerDiagnostics Diagnostics { get; } = new();
 
+    /// <summary>Whether visemes shape the mouth (otherwise speech shows through the output level).</summary>
     public bool HasSpeechArticulation { get; }
 
     /// <summary>The gesture names this avatar can play (nod, shake, lean, interrupt…).</summary>
     public IEnumerable<string> Gestures => _gestures.Keys;
 
+    /// <summary>The current state.</summary>
     public AvatarState State
     {
         get { lock (_gate) return _state; }
@@ -194,6 +208,7 @@ public sealed class AvatarScheduler
     /// <summary>Positive delays the picture against the sound (spec §9, VisualOffsetMs).</summary>
     public TimeSpan VisualOffset { get; set; }
 
+    /// <summary>What the mouth timing is worth; copied into each frame.</summary>
     public AvatarLipSyncQuality LipSyncQuality { get; set; }
 
     /// <summary>How much spring motion to add: 0 off, 1 as designed, up to 2. Always off under Reduce Motion.</summary>
@@ -203,6 +218,7 @@ public sealed class AvatarScheduler
         set => _secondary.Amount = float.IsFinite(value) ? Math.Clamp(value, 0, 2) : 1;
     }
 
+    /// <summary>Seconds since the scheduler started.</summary>
     public double Now => _time.GetElapsedTime(_start).TotalSeconds;
 
     /// <summary>
@@ -218,6 +234,7 @@ public sealed class AvatarScheduler
 
     private static readonly float MaxLook = (float)(30 * Math.PI / 180);
 
+    /// <summary>Restarts the randomness from <paramref name="seed"/>.</summary>
     public void Reseed(int seed)
     {
         lock (_gate)
@@ -227,6 +244,7 @@ public sealed class AvatarScheduler
         }
     }
 
+    /// <summary>Crossfades to <paramref name="state"/> over its transition.</summary>
     public void SetState(AvatarState state)
     {
         lock (_gate)
@@ -248,6 +266,7 @@ public sealed class AvatarScheduler
         }
     }
 
+    /// <summary>Shows or hides the muted badge, independent of the state.</summary>
     public void SetMicMuted(bool muted)
     {
         lock (_gate)
@@ -259,6 +278,7 @@ public sealed class AvatarScheduler
         }
     }
 
+    /// <summary>Fades to the reduced-motion pose (or back): no springs, no idle motion.</summary>
     public void SetReducedMotion(bool reduced)
     {
         lock (_gate)
@@ -336,6 +356,7 @@ public sealed class AvatarScheduler
         }
     }
 
+    /// <summary>The microphone level (0–1) and, optionally, its <see cref="AvatarRenderFrame.BandCount"/> bands.</summary>
     public void SetInputLevel(float level, ReadOnlySpan<float> bands = default)
     {
         lock (_gate)
@@ -346,6 +367,7 @@ public sealed class AvatarScheduler
         }
     }
 
+    /// <summary>The voice level (0–1) and, optionally, its <see cref="AvatarRenderFrame.BandCount"/> bands.</summary>
     public void SetOutputLevel(float level, ReadOnlySpan<float> bands = default)
     {
         lock (_gate)
@@ -366,6 +388,7 @@ public sealed class AvatarScheduler
 
     private float? _manualBlink;
 
+    /// <summary>Holds a viseme without a clock (an inspector), or releases it with null.</summary>
     public void SetManualViseme(int? canonicalId)
     {
         if (canonicalId is < 0 or > 14)
@@ -431,6 +454,7 @@ public sealed class AvatarScheduler
         }
     }
 
+    /// <summary>Advances the timeline to now and returns the frame; the same instance every time, overwritten by the next call.</summary>
     public AvatarRenderFrame Update()
     {
         lock (_gate)

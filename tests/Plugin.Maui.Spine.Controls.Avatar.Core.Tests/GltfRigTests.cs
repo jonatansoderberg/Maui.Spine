@@ -1,5 +1,5 @@
 using System.Numerics;
-using Plugin.Maui.Spine.Controls.Avatar.Core.Gltf;
+using Plugin.Maui.Spine.Controls.Avatar.Gltf;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 

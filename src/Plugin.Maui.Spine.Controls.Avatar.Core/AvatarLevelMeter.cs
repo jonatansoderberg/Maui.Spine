@@ -1,11 +1,11 @@
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// Level and 24 bands from a live stream (a microphone), with the same profile as
 /// <see cref="AvatarAudioAnalysis"/>: RMS over the last 20 ms mapped from −50…0 dBFS, and 24 log-spaced
 /// bands of a 512-point Hann FFT. Meant for the audio thread: no allocation after construction.
 /// </summary>
-public sealed class AvatarLevelMeter
+internal sealed class AvatarLevelMeter
 {
     private const int FftSize = 512;
 

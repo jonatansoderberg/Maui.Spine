@@ -2,14 +2,14 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// Semantic validation beyond the JSON schemas (authoring profile, "Semantic validation"): every
 /// reference resolves in the representation that claims it, ids are unique, paths parse, keyframes
 /// are ordered. It says nothing about how the avatar looks; that takes rendered sheets.
 /// </summary>
-public static partial class AvatarValidator
+internal static partial class AvatarValidator
 {
     private static readonly string[] KnownProfiles = ["ambient", "character", "humanoidAdvanced"];
     private static readonly string[] SpeechModes = ["none", "audioReactive", "canonicalVisemes"];

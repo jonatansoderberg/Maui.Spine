@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// The uniforms an <c>sksl</c> representation may declare; the runtime fills each one it finds every
@@ -8,7 +8,7 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core;
 /// <c>uniform:&lt;name&gt;</c> bindings. Anything else fails validation, so a shader written for a
 /// newer runtime is refused instead of drawn with zeros.
 /// </summary>
-public static partial class AvatarShaderContract
+internal static partial class AvatarShaderContract
 {
     public const int BandCount = 8;
 
