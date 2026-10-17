@@ -214,7 +214,7 @@ internal sealed partial class HighlightState : IDisposable
     {
         try
         {
-            var result = await Tours.RunAsync(null, [new TourStep(_view, Highlight.GetTip(_view) ?? "")], token);
+            var result = await Tours.RunAsync(null, [new TourStep(_view, Highlight.GetTip(_view) ?? "") { Presenter = Highlight.GetPresenter(_view) }], token);
             if (!token.IsCancellationRequested && result.Outcome is TourOutcome.Completed or TourOutcome.Skipped)
             {
                 _spotlight = null;

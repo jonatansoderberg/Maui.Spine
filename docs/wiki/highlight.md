@@ -113,6 +113,17 @@ var result = await highlights.TourAsync("onboarding",
 
 The text of the card's buttons and counter comes from the strings `Spine.Highlight.Next`, `.Skip`, `.Done` and `.Step` ("Step {0} of {1}"), in English and Swedish; override them in the app's strings (see [Strings](strings.md)).
 
+### A guide in the card
+
+`TourStep.Presenter` puts a view beside the tip in the tour card, and `Highlight.Presenter` does the same for a one-step `Spotlight`. A view that implements `ITipPresenter` (from the core) is told each step as it opens (the tip, the title, the target's frame in window coordinates, `TourStep.Gesture`) and when the tour ends. `AvatarPresenter` in `Plugin.Maui.Spine.Controls.Avatar` is one: the avatar says the tip, looks at the spotlighted element and nods or leans; see [Avatars](avatars.md#presenters-and-scripts).
+
+```csharp
+var guide = new AvatarPresenter { Avatar = nova, ShowsCaption = false, Speak = true };
+await highlights.TourAsync("onboarding",
+    new TourStep(searchField, "Search finds any note.") { Presenter = guide },
+    new TourStep(newButton, "Start a new note here.") { Presenter = guide, Gesture = "nod" });
+```
+
 ## The window's edge
 
 `IHighlights.AttachEdge(window)` puts Edge round the whole window, above the header bar, the tab bar and sheets. It follows the display's rounded corners: a table by screen size on iPhone and iPad (iOS has no API for it), the system's rounded-corner insets on Android 12 and later, square elsewhere. It takes no touches: the page and an open sheet work as usual under it.

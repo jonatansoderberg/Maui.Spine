@@ -244,6 +244,10 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
+    "MauiSpineSampleApp.Pages.AvatarGuide")]
+
+[assembly: XmlnsDefinition(
+    "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.GeneratedImages")]
 
 [assembly: XmlnsDefinition(

@@ -255,6 +255,35 @@ public sealed class AvatarView : ContentView
         _runtime.Input.LookAt(_lookAt?.X, _lookAt?.Y);
     }
 
+    /// <summary>
+    /// Plays <paramref name="script"/> with a <see cref="ScriptAvatarDriver"/>, speaking through Spine.Speech when the app has
+    /// it, then gives the avatar back to the driver it had. A tap on the avatar ends a <c>WaitForTap</c> step.
+    /// </summary>
+    /// <param name="script">The steps.</param>
+    /// <param name="cancellationToken">Stops the script, and the voice with it.</param>
+    /// <param name="caption">Told the part of the current line said so far, for a caption.</param>
+    public async Task PlayAsync(AvatarScript script, CancellationToken cancellationToken = default, Action<string>? caption = null)
+    {
+        var previous = Driver;
+        var speech = (Handler?.MauiContext?.Services ?? IPlatformApplication.Current?.Services)?.GetService<Speech.ISpineSpeech>();
+        var driver = new ScriptAvatarDriver(speech);
+        if (caption is not null)
+            driver.CaptionChanged += (_, text) => caption(text);
+        var tap = new TapGestureRecognizer { Command = new Command(driver.Continue) };
+        GestureRecognizers.Add(tap);
+        Driver = driver;
+        try
+        {
+            await driver.RunAsync(script, this, cancellationToken);
+        }
+        finally
+        {
+            GestureRecognizers.Remove(tap);
+            if (ReferenceEquals(Driver, driver))
+                Driver = previous;
+        }
+    }
+
     /// <summary>Loads <see cref="Source"/> again; setting the source does this by itself.</summary>
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {

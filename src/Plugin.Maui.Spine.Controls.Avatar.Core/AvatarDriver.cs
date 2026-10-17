@@ -31,6 +31,12 @@ public abstract class AvatarDriver
     /// <summary>The avatar was interrupted (the view's <c>Interrupt()</c>, the user talking over it): stop speaking.</summary>
     protected internal virtual void OnInterrupted() { }
 
+    /// <summary>A tick from a driver that composes this one (a script running a text or speech driver).</summary>
+    internal void Tick(TimeSpan delta) => OnTick(delta);
+
+    /// <summary>An interruption passed on by a driver that composes this one.</summary>
+    internal void Interrupted() => OnInterrupted();
+
     internal void Attach(AvatarInput input)
     {
         if (_input is not null)

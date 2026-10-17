@@ -13,6 +13,7 @@ internal sealed partial class SpotlightView : Grid
 {
     const uint MoveMilliseconds = 300;
     const double CardMaxWidth = 340;
+    const double PresenterWidth = 96;
 
     readonly DimDrawable _drawable = new();
     readonly GraphicsView _dim;
@@ -22,6 +23,8 @@ internal sealed partial class SpotlightView : Grid
     readonly Label _count;
     readonly Button _skip;
     readonly Button _next;
+    readonly Grid _content;
+    View? _presenter;
     TaskCompletionSource<SpotlightAnswer>? _answer;
     (double X, double Y, double Width, double Height)? _hole;
     double _radius;
@@ -77,8 +80,10 @@ internal sealed partial class SpotlightView : Grid
             VerticalOptions = LayoutOptions.Start,
             Opacity = 0,
             Shadow = new Shadow { Brush = Brush.Black, Opacity = 0.25f, Radius = 16, Offset = new Point(0, 4) },
-            Content = new VerticalStackLayout { Spacing = 4, Children = { _title, _tip, buttons } },
         };
+        _content = new Grid { ColumnDefinitions = [new(GridLength.Auto), new(GridLength.Star)], ColumnSpacing = 12 };
+        _content.Add(new VerticalStackLayout { Spacing = 4, Children = { _title, _tip, buttons } }, 1);
+        _card.Content = _content;
         _card.GestureRecognizers.Add(new TapGestureRecognizer { Command = new Command(() => Answer(SpotlightAnswer.Next)) });
 
         Children.Add(_dim);
@@ -110,6 +115,7 @@ internal sealed partial class SpotlightView : Grid
         if (!first && !still)
             await _card.FadeToAsync(0, 120);
 
+        SetPresenter(step.Presenter);
         _title.Text = step.Title;
         _title.IsVisible = !string.IsNullOrEmpty(step.Title);
         _tip.Text = step.Tip;
@@ -135,6 +141,7 @@ internal sealed partial class SpotlightView : Grid
             await _card.FadeToAsync(1, still ? 0u : 150u);
         }
 
+        (_presenter as ITipPresenter)?.Present(new TipPresentation(step.Tip, step.Title, frame, step.Gesture, number, count));
         _tip.SetSemanticFocus();
         SemanticScreenReader.Default.Announce(count > 1 ? $"{HighlightStrings.Step(number, count)}. {step.Tip}" : step.Tip);
         FocusPlatform();
@@ -143,12 +150,34 @@ internal sealed partial class SpotlightView : Grid
         return await _answer.Task;
     }
 
-    public Task FadeOutAsync() => this.FadeToAsync(0, ReducedMotion.IsOn ? 0u : 180u);
+    public Task FadeOutAsync()
+    {
+        (_presenter as ITipPresenter)?.Dismiss();
+        return this.FadeToAsync(0, ReducedMotion.IsOn ? 0u : 180u);
+    }
+
+    // The presenter sits left of the tip; a step with the same presenter keeps it, so an avatar is not reloaded.
+    void SetPresenter(View? presenter)
+    {
+        if (ReferenceEquals(presenter, _presenter))
+            return;
+        if (_presenter is not null)
+        {
+            (_presenter as ITipPresenter)?.Dismiss();
+            _content.Remove(_presenter);
+        }
+        _presenter = presenter;
+        if (presenter is null)
+            return;
+        presenter.WidthRequest = PresenterWidth;
+        presenter.VerticalOptions = LayoutOptions.Center;
+        _content.Add(presenter, 0);
+    }
 
     void PlaceCard((double X, double Y, double Width, double Height) hole, Size window)
     {
         var insets = SafeInsets();
-        var width = Math.Min(CardMaxWidth, window.Width - 2 * SpotlightLayout.Margin);
+        var width = Math.Min(CardMaxWidth + (_presenter is null ? 0 : PresenterWidth + _content.ColumnSpacing), window.Width - 2 * SpotlightLayout.Margin);
         _card.WidthRequest = width;
 
         // Measured without the previous step's place: the measure includes the margin.

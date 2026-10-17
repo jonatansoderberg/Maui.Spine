@@ -2,7 +2,7 @@
 
 Animated characters and ambient visuals for a voice assistant, text-to-speech, a streamed chat answer, a guide or a status indicator. An avatar is content, a `.spineavatar` file the app bundles or downloads; Spine draws it, drives it and checks it.
 
-> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core, the view, the Speech and Voice drivers exist; the presenter and scripts follow. This page grows with them.
+> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core, the view, the drivers, the presenter and scripts exist; chat wiring and the tool follow.
 
 ## Packages
 
@@ -41,6 +41,28 @@ avatar.Interrupt();
 | `LoadState`, `LoadError`, `Package`, `RendererName`, `LipSyncQuality`, `Gestures` | What is shown and how |
 
 The view runs no timer while it is detached, hidden (itself or an ancestor), scrolled out of sight or the app is in the background. A screen reader hears one element; muting and an interruption are announced, other state changes are not.
+
+## Presenters and scripts
+
+`AvatarPresenter` is an avatar that presents: setting `Text` makes it say the text (aloud with `Speak="True"` and Spine.Speech, mouthed otherwise) while a caption bubble fills in with it. `Placement` puts the avatar `Left`, `Right` or `Top` of the caption; `ShowsCaption="False"` leaves only the avatar (in a tour card, which shows the tip itself). A screen reader hears one element, the caption.
+
+```xml
+<AvatarPresenter Avatar="{Binding Avatar}" Text="{Binding Caption}" Placement="Left" />
+```
+
+An `AvatarScript` is a short performance, played by `AvatarView.PlayAsync` or `AvatarPresenter.PlayAsync`, one step after another; the view's own driver comes back after it:
+
+```csharp
+var script = AvatarScript.Create()
+    .State(AvatarState.Connecting)
+    .Say("Hi, I am Nova.")                                  // aloud when the app has Spine.Speech
+    .Express(AvatarExpression.Happy).Gesture("nod")
+    .LookAt(addButton).Say("Tap here to add one.", speak: false)
+    .WaitForTap();                                          // a tap on the avatar goes on
+await presenter.PlayAsync(script, cancellationToken);
+```
+
+In a Highlight tour, a presenter given as `TourStep.Presenter` (or `Highlight.Presenter` on a Spotlight) says each step's tip, looks at the spotlighted element and plays the step's `Gesture`; see [Highlight](highlight.md#a-guide-in-the-card).
 
 ## With a voice conversation
 

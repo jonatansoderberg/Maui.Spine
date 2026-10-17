@@ -300,6 +300,15 @@
       <DependentUpon>VoiceLabPage.cs</DependentUpon>
     </Compile>
 
+    <MauiXaml Update="Pages\AvatarGuide\AvatarGuidePage.View.xaml">
+      <DependentUpon>AvatarGuidePage.cs</DependentUpon>
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+
+    <Compile Include="Pages\AvatarGuide\AvatarGuidePage.ViewModel.cs">
+      <DependentUpon>AvatarGuidePage.cs</DependentUpon>
+    </Compile>
+
     <MauiXaml Update="Pages\Assistant\AssistantPage.View.xaml">
       <DependentUpon>AssistantPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>
