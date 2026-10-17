@@ -23,6 +23,15 @@ public sealed record TourStep(object Target, string Tip)
     /// <summary>The room, in points, between the target and the edge of the lit hole round it.</summary>
     public double Padding { get; init; } = 8;
 
+    /// <summary>
+    /// A view shown in the tour card beside the tip, such as an avatar presenter. When it is an <see cref="ITipPresenter"/>
+    /// it is given the tip, the target's frame and <see cref="Gesture"/> as the step opens. The same view can present every step.
+    /// </summary>
+    public View? Presenter { get; init; }
+
+    /// <summary>A gesture the <see cref="Presenter"/> plays as the step opens (nod, lean).</summary>
+    public string? Gesture { get; init; }
+
     public static implicit operator TourStep((VisualElement Target, string Tip) step) => new(step.Target, step.Tip);
 }
 
