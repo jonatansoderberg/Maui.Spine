@@ -5,25 +5,42 @@
     x:TypeArguments="AssistantPageViewModel"
     x:DataType="AssistantPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar.Voice, Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Chat">
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar.Voice, Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Chat, Plugin.Maui.Spine.Speech">
 
         <Example Title="A voice assistant with a face"
-                 Summary="A realtime conversation with the push sample server's Voice feature, drawn as an avatar: it listens with the microphone's level, thinks, speaks with its mouth on the answer's level (the realtime models send no visemes), wears the muted badge, and flinches when you talk over it. The same avatar can sit in a VoiceView as its character, ticked by the VoiceView.">
+                 Summary="Talk: a realtime conversation with the push sample server's Voice feature, drawn as an avatar: it listens with the microphone's level, thinks, speaks with its mouth on the answer's level (the realtime models send no visemes), wears the muted badge, and flinches when you talk over it. The same avatar can sit in a VoiceView as its character, ticked by the VoiceView. Type: a chat whose answer the avatar mouths as it streams in, Thinking until the first words, and reads aloud when it is done if you like.">
             <VerticalStackLayout Spacing="12">
-                <Entry Text="{Binding Server}" Placeholder="http://192.168.1.10:5100/ai" Keyboard="Url" />
-                <SegmentedControl SelectedIndex="{Binding HostIndex}">
+                <SegmentedControl SelectedIndex="{Binding ModeIndex}">
+                    <Segment Title="Talk" />
+                    <Segment Title="Type" />
+                </SegmentedControl>
+                <Entry Text="{Binding Server}" Placeholder="http://192.168.1.10:5100/ai" Keyboard="Url" IsVisible="{Binding IsVoice}" />
+                <SegmentedControl SelectedIndex="{Binding HostIndex}" IsVisible="{Binding IsVoice}">
                     <Segment Title="AvatarView" />
                     <Segment Title="VoiceView character" />
                 </SegmentedControl>
                 <AvatarView Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="240" IsVisible="{Binding IsFree}" />
                 <VoiceView Session="{Binding Session}" Kind="character" VoiceAvatar.Source="{Binding Avatar.Source}" HeightRequest="240" IsVisible="{Binding IsHosted}" />
-                <Label Text="{Binding Status}" FontSize="15" Opacity="0.8" />
-                <HorizontalStackLayout Spacing="10">
+                <VerticalStackLayout Spacing="12" IsVisible="{Binding IsText}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <Entry Text="{Binding Draft}" Placeholder="Ask something" ReturnCommand="{Binding SendCommand, Source={x:Reference TextChat}, x:DataType=ChatView}" ReturnCommandParameter="{Binding Draft}" />
+                        <Button Grid.Column="1" Text="Ask" Command="{Binding SendCommand, Source={x:Reference TextChat}, x:DataType=ChatView}" CommandParameter="{Binding Draft}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
+                        <Label Text="Answers from the server's Assistant feature (off: the offline demo)" VerticalOptions="Center" />
+                        <Switch Grid.Column="1" IsToggled="{Binding UseServer}" />
+                        <Label Grid.Row="1" Text="Read each answer aloud when it is done" VerticalOptions="Center" />
+                        <Switch Grid.Row="1" Grid.Column="1" IsToggled="{Binding ReadAloud}" />
+                    </Grid>
+                    <ChatView x:Name="TextChat" Client="{Binding ChatClient}" HeightRequest="320" />
+                </VerticalStackLayout>
+                <Label Text="{Binding Status}" FontSize="15" Opacity="0.8" IsVisible="{Binding IsVoice}" />
+                <HorizontalStackLayout Spacing="10" IsVisible="{Binding IsVoice}">
                     <Button Text="Connect" Command="{Binding ConnectCommand}" />
                     <Button Text="End" Command="{Binding EndCommand}" />
                     <Button Text="Hold to talk" Pressed="OnTalkPressed" Released="OnTalkReleased" />
                 </HorizontalStackLayout>
-                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6" IsVisible="{Binding IsVoice}">
                     <Label Text="Avatar" VerticalOptions="Center" />
                     <Picker Grid.Column="1" ItemsSource="{Binding Avatars}" SelectedItem="{Binding Avatar}" MinimumWidthRequest="140" />
                     <Label Grid.Row="1" Text="Mute the microphone" VerticalOptions="Center" />
@@ -31,11 +48,11 @@
                     <Label Grid.Row="2" Text="Glow the screen's edge with the answer" VerticalOptions="Center" />
                     <Switch Grid.Row="2" Grid.Column="1" IsToggled="{Binding Edge}" />
                 </Grid>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" IsVisible="{Binding IsVoice}">
                     <Entry Text="{Binding Message}" Placeholder="Type instead of talking" ReturnCommand="{Binding SendCommand}" />
                     <Button Grid.Column="1" Text="Send" Command="{Binding SendCommand}" />
                 </Grid>
-                <ChatView Messages="{Binding Session.Transcript}" HeightRequest="320" />
+                <ChatView Messages="{Binding Session.Transcript}" HeightRequest="320" IsVisible="{Binding IsVoice}" />
             </VerticalStackLayout>
             <Example.Code>
                 // An avatar on the page, driven by the session:
@@ -48,6 +65,10 @@
                 await voice.ConnectAsync("Voice");
                 await voice.SendTextAsync("What can you do?");   // typed instead of spoken
                 voice.BeginTurn(); … voice.EndTurn();             // push-to-talk
+
+                // Typed: the avatar mouths the answer as it streams in.
+                chat.Sent += (_, _) =&gt; text.Begin();
+                chat.Streamed += (_, e) =&gt; { text.Append(e.Delta); if (e.IsComplete) text.Complete(); };
             </Example.Code>
         </Example>
 
