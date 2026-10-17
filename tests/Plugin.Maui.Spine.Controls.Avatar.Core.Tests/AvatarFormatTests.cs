@@ -106,7 +106,7 @@ public class AvatarFormatTests
     public void ExtensionKeysAtTheTopLevelWarnWithWhereTheyBelong()
     {
         var report = new AvatarValidationReport();
-        Assert.NotNull(AvatarArchive.TryRead(new MemoryStream(AvatarArchiveTests.Reference("kairo")), report));
+        Assert.NotNull(AvatarArchive.TryRead(new MemoryStream(AvatarArchiveTests.Reference("mpfb")), report));
 
         Assert.Contains(report.Checks, c => c.Status == AvatarCheckStatus.Warning && c.Detail == "bindings/native3d.json lighting: is not a key of the schema; write it as extensions.\"spine.lighting\"");
     }
@@ -144,12 +144,14 @@ public class AvatarFormatTests
     public void MissingExpressionWarnsAndShowsNeutral()
     {
         var report = new AvatarValidationReport();
-        var package = AvatarArchive.TryRead(AvatarArchiveTests.RewriteJson("nova", "bindings/native3d.json",
-            b => b["poses"]!.AsObject().Remove("expr_curious")), report);
+        // A pose the manifest names itself must exist: a missing one fails.
+        var package = AvatarArchive.TryRead(AvatarArchiveTests.RewriteManifest("robot-expressive",
+            m => m["expressions"]!["curious"]!["pose"] = "expr_wondering"), report);
         Assert.Null(package);
 
         report = new AvatarValidationReport();
-        package = AvatarArchive.TryRead(RewriteBoth("nova", m => m["expressions"]!.AsObject().Remove("curious"), b => b["poses"]!.AsObject().Remove("expr_curious")), report);
+        // A default pose (expr_<name>) may be missing: the expression warns and shows as neutral.
+        package = AvatarArchive.TryRead(RewriteBoth("robot-expressive", m => m["expressions"]!["curious"]!.AsObject().Remove("pose"), b => b["poses"]!.AsObject().Remove("expr_curious")), report);
 
         Assert.True(package is not null, string.Join("\n", report.Failures.Select(f => f.Detail)));
         Assert.Contains(report.Checks, c => c.Status == AvatarCheckStatus.Warning && c.Detail == "expression 'curious' has no pose 'expr_curious'; it shows as neutral");
@@ -164,7 +166,7 @@ public class AvatarFormatTests
     public void DeclaredCapabilitiesAreKeptAndChecked()
     {
         var report = new AvatarValidationReport();
-        var package = AvatarArchive.TryRead(AvatarArchiveTests.RewriteManifest("voice-totem",
+        var package = AvatarArchive.TryRead(AvatarArchiveTests.RewriteManifest("robot-expressive",
             m => m["representations"]![0]!["capabilities"]!.AsArray().Add("blink")), report);
 
         Assert.NotNull(package);
@@ -176,7 +178,7 @@ public class AvatarFormatTests
     public void PlatformsWarnThatTheyAreNoLongerRead()
     {
         var report = new AvatarValidationReport();
-        AvatarArchive.TryRead(new MemoryStream(AvatarArchiveTests.Reference("nova")), report);
+        AvatarArchive.TryRead(new MemoryStream(AvatarArchiveTests.Reference("pebble-bot")), report);
 
         Assert.Contains(report.Checks, c => c.Name == "platforms" && c.Status == AvatarCheckStatus.Warning);
     }

@@ -24,7 +24,7 @@ the package is built with `KAIRO_HAIR=cards KAIRO_CARDS_GLB=blender/kairo-hair-c
 
 ## Tripo hair (2026-10-17, the approved tripo45)
 
-The hair in `Resources/Raw/Avatars/kairo.spineavatar` is generated, not carded. In Blender, after the files above:
+The hair in `samples/Avatars/kairo.spineavatar` is generated, not carded. In Blender, after the files above:
 
 | File | What |
 |---|---|
@@ -36,4 +36,5 @@ The hair in `Resources/Raw/Avatars/kairo.spineavatar` is generated, not carded. 
 tripo45: `merge_hair3([('TripoFull', (-85, 85)), ('TripoRightPngFit', (40, 140)), ('TripoBackFit', (95, -95)), ('TripoLeftPngFit', (-140, -40))], 'TripoMerged4')`,
 then `fix_ears`, `fix_hairline`, the retone (`hair_retone.py` k 2.2/1.3), the collar dropped (`TripoMerged8`), five loose pieces at the right eye's corner removed (`TripoMerged8b`),
 `export_tripo('TripoMerged8b', path, cap_mode='behind', under='TripoUnder', cap_image='HairCapTexDark')`; the package:
-`KAIRO_HAIR=cards KAIRO_CARDS_GLB=blender/kairo-hair-tripo45.glb python Tools/kairo_scan.py ~/.cache/spine-avatar-lab/kairo Resources/Raw/Avatars`.
+`KAIRO_HAIR=cards KAIRO_CARDS_GLB=blender/kairo-hair-tripo45.glb python Tools/kairo_scan.py ~/.cache/spine-avatar-lab/kairo <work>`, then packed into the one copy with posters captured in the lab (light and dark, transparent background):
+`dotnet run --project src/Plugin.Maui.Spine.Avatar.Tool -- pack <work>/kairo.spineavatar -o samples/Avatars/kairo.spineavatar --strip --poster-light <light.png> --poster-dark <dark.png>`.

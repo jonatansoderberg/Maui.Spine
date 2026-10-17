@@ -48,9 +48,9 @@ Read before starting: `issues/524-avatar-lab-load-render-and-drive-the-reference
 | `Avatar.View/` | `AvatarView`, `SkiaAvatarSurface` (Metal on Apple, CPU elsewhere) |
 | `Lab/` | the lab page and its harness (`LabHarness.cs`, commands in `LabPage.RunCommandAsync`) |
 | `Tools/` | one generator per avatar family (below) and `Tools/lab/` scripts |
-| `Resources/Raw/Avatars/*.spineavatar` | bundled packages; register new ones in `LabPage` (`_avatars` list) and in `tests/…/AvatarArchiveTests.ReferenceAvatars` |
+| `samples/Avatars/*.spineavatar` | the repository's one copy of every avatar, bundled by the lab, the Showcase (its set) and the sample server (Kairo) and linked by the tests; register new ones in `LabPage` (`_avatars` list) and in `tests/…/AvatarArchiveTests.ReferenceAvatars` |
 
-Generators write the package straight into `Resources/Raw/Avatars` and embed their own source in it. Regenerate, never hand-edit a package.
+Generators write into `samples/Avatars` and embed their own source in the package; an avatar an app ships (the Showcase's set, Kairo) is kept there packed instead (step 6), so generate it to a work folder and pack it into `samples/Avatars`. Regenerate, never hand-edit a package.
 
 ## 2. Pick the approach
 
@@ -139,7 +139,7 @@ Generate with ChatGPT using `docs/plans/spine-avatar-model-prompt.md`, repack wi
 ## 6. Finish
 
 1. Tests pass; the package loads on both renderers (`renderer native`, `renderer web`) where relevant.
-2. Ship it with the `spine-avatar` tool (`src/Plugin.Maui.Spine.Avatar.Tool`, step C1; `dotnet run --project src/Plugin.Maui.Spine.Avatar.Tool -- …` in the repo): `pack <lab file> -o <out> --strip` renders 512 px posters with the Skia renderers (vector, SkSL, glTF without alpha-masked materials), drops `source/` and rewrites the hash table; a model only SceneKit draws (Kairo's hair cards) takes posters captured on Apple with a transparent background (`SCNView.Snapshot()` under Reduce Motion, light and dark) through `--poster-light`/`--poster-dark`. Then `validate <out> --profile shipping` and `render-sheet <out> -o <dir>` to look at every state and expression. What an app bundles or downloads is always the packed file (the Showcase's `Resources/Raw/Avatars`); the lab keeps its source.
+2. Ship it with the `spine-avatar` tool (`src/Plugin.Maui.Spine.Avatar.Tool`, step C1; `dotnet run --project src/Plugin.Maui.Spine.Avatar.Tool -- …` in the repo): `pack <lab file> -o <out> --strip` renders 512 px posters with the Skia renderers (vector, SkSL, glTF without alpha-masked materials), drops `source/` and rewrites the hash table; a model only SceneKit draws (Kairo's hair cards) takes posters captured on Apple with a transparent background (`SCNView.Snapshot()` under Reduce Motion, light and dark) through `--poster-light`/`--poster-dark`. Then `validate <out> --profile shipping` and `render-sheet <out> -o <dir>` to look at every state and expression. What an app bundles or downloads is always the packed file, in `samples/Avatars`, and the lab loads that same file: one copy, one version (the generator's source stays in `Tools/`).
 3. Changelog entry in `issues/524-…md` (what, why, what failed on the way), commit with explicit paths, push to PR #525.
 4. The pose x view matrix in the native renderer, with the numbers from step 0's tools before and after.
 5. `Tools/lab/phone.sh` and copy the Mac app to `~/Applications/Avatar Lab.app`; tell the owner what to look at. Ask what they see; do not interpret their screenshots on their behalf. For their own screenshots, a hair-on-grey-head package (`solo.py … flat=<every material but rest>:0.3,0.3,0.3`) in the lab shows the hair alone.
