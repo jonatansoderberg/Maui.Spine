@@ -27,7 +27,7 @@ public sealed class AIConfiguration
     public string? TimeZone { get; set; }
 }
 
-/// <summary>Whether a feature makes text, pictures or live voice sessions.</summary>
+/// <summary>Whether a feature makes text, pictures, live voice sessions or speech.</summary>
 public enum AIFeatureKind
 {
     /// <summary>An <see cref="IChatClient"/>.</summary>
@@ -38,6 +38,9 @@ public enum AIFeatureKind
 
     /// <summary>A realtime voice session the app connects to itself, set up by <see cref="IAIRealtimeProvider"/>.</summary>
     Realtime,
+
+    /// <summary>Text read aloud, with mouth shapes when the provider gives them, made by <see cref="IAISpeechProvider"/>.</summary>
+    Speech,
 }
 
 /// <summary>Who an exposed feature answers.</summary>
@@ -79,6 +82,9 @@ public sealed class AIFeatureOptions
 
     /// <summary>The session a realtime feature sets up: voice, turn detection, transcription and length.</summary>
     public AIRealtimeOptions? Realtime { get; set; }
+
+    /// <summary>A speech feature's voice, language, style and longest text.</summary>
+    public AISpeechOptions? Speech { get; set; }
 
     /// <summary>
     /// Makes the feature reachable straight from the app at <c>POST /ai/features/{name}</c>. The server then
@@ -172,6 +178,27 @@ public sealed class AIRealtimeOptions
 
     /// <summary>How long the app has to start its session with the token, 10–7200 seconds. 60 by default.</summary>
     public int TokenSeconds { get; set; } = 60;
+}
+
+/// <summary>
+/// A speech feature's voice: <c>Ai:Features:&lt;Name&gt;:Speech</c>. Set on the server; the app sends only the text.
+/// </summary>
+public sealed class AISpeechOptions
+{
+    /// <summary>The provider's voice, such as <c>marin</c> (OpenAI) or <c>sv-SE-SofieNeural</c> (Azure). Unset, the provider's default.</summary>
+    public string? Voice { get; set; }
+
+    /// <summary>The language, as a BCP-47 tag such as <c>sv-SE</c>, for providers that need one.</summary>
+    public string? Language { get; set; }
+
+    /// <summary>How to speak, for models that take instructions (<c>gpt-4o-mini-tts</c>): "Calm and warm".</summary>
+    public string? Instructions { get; set; }
+
+    /// <summary>0.25–4, 1 by default, for providers that take a speed.</summary>
+    public float? Speed { get; set; }
+
+    /// <summary>The longest text one call may read, in characters. Longer gets 413. 4000 by default (OpenAI's limit is 4096).</summary>
+    public int MaxCharacters { get; set; } = 4000;
 }
 
 /// <summary>A feature's response cache.</summary>
@@ -278,6 +305,9 @@ public sealed class AIPrice
 
     /// <summary>A minute of a realtime session, which each token reserves <see cref="AIRealtimeOptions.MaxMinutes"/> of.</summary>
     public decimal? PerMinute { get; set; }
+
+    /// <summary>A million characters read aloud by a speech feature.</summary>
+    public decimal? PerMillionCharacters { get; set; }
 
     /// <summary>
     /// Counts a provider reports in <see cref="UsageDetails.AdditionalCounts"/>, such as cache writes, priced

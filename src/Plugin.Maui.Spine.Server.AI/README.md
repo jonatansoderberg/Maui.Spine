@@ -36,6 +36,8 @@ if (ai.Chat("RaceStory", caller) is not { } story) return Results.NotFound();   
 
 A feature with `"Kind": "Realtime"` hands the app a short-lived token for a live voice session at `POST /ai/realtime/{name}` (`ai.Realtime("openai", AIRealtimeProviders.OpenAI)` and `app.MapSpineRealtimeSessions()`). The provider's key stays on the server, and each token reserves its minutes from the budgets.
 
+A feature with `"Kind": "Speech"` reads text aloud at `POST /ai/speech/{name}`: PCM16 with the mouth shapes and their times from Azure Speech (`ai.Speech("azure", AISpeechProviders.AzureSpeech)`, over the service's WebSocket, no native SDK), or audio alone from OpenAI (`AISpeechProviders.OpenAI`). Metered by characters (`PerMillionCharacters`).
+
 Swapping provider is a change to `Provider` and `Model` in configuration, and takes effect without a deploy.
 
 ## Documentation
