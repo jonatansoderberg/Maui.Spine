@@ -37,4 +37,7 @@
 | Unit tests | Speech 10, avatar 164: pass |
 | iPhone 17 Pro simulator, Showcase (Debug) | 68 voices; Speak: Speaking with EstimatedText, 16 word events over 6.1 s, then Idle; Stop: Stopped, back to Idle |
 | Mac Catalyst, scratch app (Debug) | 41 English voices; "Hello, I am Nova…" spoken in 8.3 s with 16 word events in order (Hello 1.36 s … word 8.25 s), Nova Speaking with EstimatedText |
+| Android emulator Pixel 10 Pro, Showcase (Debug) | Google's engine: 284 voices; Speak: Thinking until the voice started, 16 word events from `onRangeStart`, Completed in 6.0 s (19.5 s the first time, the engine starting while the Mac ran at a load of 50–65) |
 | Windows | Compiled on the Mac (`EnableWindowsTargeting`); not run |
+
+NotMeasured: Windows at run time, an Android phone, the owner's iPhone with an Enhanced or Premium voice.
