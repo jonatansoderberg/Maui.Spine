@@ -53,6 +53,29 @@ public interface IAIFeatures
     /// <param name="caller">Who the call is for.</param>
     IImageGenerator? Image(string feature, AICaller caller);
 
+    /// <summary>
+    /// Sets up a realtime voice session for <paramref name="caller"/>: checks the feature's callers, rates and budgets,
+    /// asks the provider for a short-lived token and reserves the session's minutes.
+    /// </summary>
+    /// <param name="feature">The feature's name; its <c>Kind</c> is <c>Realtime</c>.</param>
+    /// <param name="caller">Who the session is for.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>What the app connects with, or <see langword="null"/> when the feature is off or not a realtime feature.</returns>
+    /// <exception cref="AIFeatureException">The caller is refused, over a rate or out of budget.</exception>
+    Task<AIRealtimeSession?> RealtimeAsync(string feature, AICaller caller, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads <paramref name="text"/> aloud for <paramref name="caller"/>: checks the feature's callers, rates and budgets,
+    /// asks the provider and records the characters.
+    /// </summary>
+    /// <param name="feature">The feature's name; its <c>Kind</c> is <c>Speech</c>.</param>
+    /// <param name="text">The text; at most the feature's <see cref="AISpeechOptions.MaxCharacters"/>.</param>
+    /// <param name="caller">Who it is for.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The audio and its mouth shapes, or <see langword="null"/> when the feature is off or not a speech feature.</returns>
+    /// <exception cref="AIFeatureException">The caller is refused, over a rate or out of budget, or the text is too long.</exception>
+    Task<AISpeech?> SpeechAsync(string feature, string text, AICaller caller, CancellationToken cancellationToken = default);
+
     /// <summary>Whether <paramref name="feature"/> answers right now.</summary>
     /// <param name="feature">The feature's name.</param>
     AIFeatureState StateOf(string feature);
@@ -94,6 +117,64 @@ internal sealed class AIFeatures(
         return TryGetOn(feature, out var found) && found.Image is { } shared
             ? new CallerImageGenerator(shared, found, caller, gate, meter)
             : null;
+    }
+
+    public async Task<AIRealtimeSession?> RealtimeAsync(string feature, AICaller caller, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(feature);
+        ArgumentNullException.ThrowIfNull(caller);
+
+        if (!TryGetOn(feature, out var found) || found.Realtime is not { } provider) return null;
+
+        using var lease = gate.Acquire(found, caller);
+        await gate.CheckAsync(found, caller, cancellationToken);
+
+        var session = found.Options.Realtime ?? new AIRealtimeOptions();
+        var request = new AIRealtimeRequest(found.Name, found.Model, found.Options.SystemPrompt, found.Options.MaxOutputTokens, session, caller);
+        var started = meter.Time.GetTimestamp();
+
+        try
+        {
+            var made = await provider.CreateSessionAsync(request, cancellationToken);
+            await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, null, minutes: Math.Max(0, session.MaxMinutes));
+            return made;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, e);
+            throw;
+        }
+    }
+
+    public async Task<AISpeech?> SpeechAsync(string feature, string text, AICaller caller, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(feature);
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(caller);
+
+        if (!TryGetOn(feature, out var found) || found.Speech is not { } provider) return null;
+
+        var options = found.Options.Speech ?? new AISpeechOptions();
+        if (text.Length > options.MaxCharacters)
+            throw new AIRequestTooLargeException(found.Name, "characters", options.MaxCharacters);
+
+        using var lease = gate.Acquire(found, caller);
+        await gate.CheckAsync(found, caller, cancellationToken);
+
+        var request = new AISpeechRequest(found.Name, found.Model, text, options, caller);
+        var started = meter.Time.GetTimestamp();
+
+        try
+        {
+            var speech = await provider.SynthesizeAsync(request, cancellationToken);
+            await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, null, characters: text.Length);
+            return speech;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, e);
+            throw;
+        }
     }
 
     public AIFeatureState StateOf(string feature)

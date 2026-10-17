@@ -60,21 +60,24 @@ public abstract class SpinePage<TViewModel> : ContentView, INavigable, IPageFoot
     /// Initializes the page and resolves <typeparamref name="TViewModel"/>
     /// from the DI container as the <c>BindingContext</c>.
     /// </summary>
-    public SpinePage() 
+    public SpinePage()
     {
-        base.Content = _contentPresenter;
         BindingContext = _services.GetService<TViewModel>();
     }
 
-    private readonly ContentPresenter _contentPresenter = new();
-
     /// <summary>
-    /// The main content view of the page. Set this from XAML or code-behind to provide the page UI.
+    /// The main content view of the page. Set this from XAML or code-behind to provide the page UI; either way it
+    /// inherits the page's view model as its <c>BindingContext</c>.
     /// </summary>
-    public new View Content
+    /// <remarks>
+    /// The same property as <see cref="ContentView.Content"/>, kept so code compiled against earlier versions still
+    /// finds it. It once held a <see cref="ContentPresenter"/>, which never hands its content a binding context outside
+    /// a control template: content set in code bound to nothing, while XAML set the base property and did not notice.
+    /// </remarks>
+    public new View? Content
     {
-        get => _contentPresenter.Content;
-        set => _contentPresenter.Content = value;
+        get => base.Content;
+        set => base.Content = value;
     }
 
     /// <summary>

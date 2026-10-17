@@ -68,6 +68,13 @@ public static class Highlight
         BindableProperty.CreateAttached("Tip", typeof(string), typeof(Highlight), null,
             propertyChanged: static (bindable, _, _) => GetState(bindable)?.Refresh());
 
+    /// <summary>
+    /// Attached property: a view shown beside the tip of a <see cref="HighlightKind.Spotlight"/> hint, such as an avatar
+    /// presenter; an <see cref="Plugin.Maui.Spine.Core.ITipPresenter"/> is given the tip and the view's frame.
+    /// </summary>
+    public static readonly BindableProperty PresenterProperty =
+        BindableProperty.CreateAttached("Presenter", typeof(View), typeof(Highlight), null);
+
     /// <summary>Attached property: 0–1, 1 by default. The rim's width, the opacity and the glow scale with it.</summary>
     public static readonly BindableProperty IntensityProperty =
         BindableProperty.CreateAttached("Intensity", typeof(double), typeof(Highlight), 1d,
@@ -109,6 +116,10 @@ public static class Highlight
     public static string? GetKey(BindableObject view) => (string?)view.GetValue(KeyProperty);
 
     public static void SetKey(BindableObject view, string? value) => view.SetValue(KeyProperty, value);
+
+    public static View? GetPresenter(BindableObject view) => (View?)view.GetValue(PresenterProperty);
+
+    public static void SetPresenter(BindableObject view, View? value) => view.SetValue(PresenterProperty, value);
 
     public static string? GetTip(BindableObject view) => (string?)view.GetValue(TipProperty);
 

@@ -4,7 +4,9 @@ namespace Plugin.Maui.Spine.Images;
 /// The box, in pixels, an image is decoded for and how it fills it. Zero means no box: the image is
 /// decoded at its own size.
 /// </summary>
-internal readonly record struct ImageTarget(int Width, int Height, Aspect Aspect)
+// A class, not a readonly record struct: Mono's full AOT for iOS skipped every method of the struct that built or read
+// one (it keeps a [ThreadStatic] nullable copy of itself), and the first image on screen crashed a Release app (#579).
+internal sealed record ImageTarget(int Width, int Height, Aspect Aspect)
 {
     // MAUI's image source services are given no view, only the source. The Source mapping knows the view,
     // and MAUI calls the service synchronously from it, so the mapping leaves the box here on the main

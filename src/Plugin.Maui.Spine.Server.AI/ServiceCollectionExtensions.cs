@@ -55,6 +55,10 @@ public static class ServiceCollectionExtensions
         {
             var name = feature.Key;
 
+            if (string.Equals(feature["Kind"], nameof(AIFeatureKind.Realtime), StringComparison.OrdinalIgnoreCase)
+                || string.Equals(feature["Kind"], nameof(AIFeatureKind.Speech), StringComparison.OrdinalIgnoreCase))
+                continue;
+
             if (string.Equals(feature["Kind"], nameof(AIFeatureKind.Image), StringComparison.OrdinalIgnoreCase))
                 services.AddKeyedSingleton<IImageGenerator>(name, (sp, _) => new FeatureImageGenerator(name, sp.GetRequiredService<AIFeatures>()));
             else

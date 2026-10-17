@@ -23,13 +23,16 @@ internal sealed class AIUsageMeter(AIFeatureRegistry registry, IAIUsageStore sto
     /// <param name="images">Images generated.</param>
     /// <param name="estimatedInput">Input tokens to record when the provider reported none.</param>
     /// <param name="error">The exception the call ended with.</param>
+    /// <param name="minutes">Realtime minutes reserved, priced at <see cref="AIPrice.PerMinute"/>.</param>
+    /// <param name="characters">Characters read aloud, priced at <see cref="AIPrice.PerMillionCharacters"/>.</param>
     public async Task RecordAsync(
-        AIFeature feature, AICaller caller, string model, long started, UsageDetails? usage, int images, long estimatedInput, Exception? error)
+        AIFeature feature, AICaller caller, string model, long started, UsageDetails? usage, int images, long estimatedInput, Exception? error,
+        int minutes = 0, long characters = 0)
     {
         try
         {
             var snapshot = registry.Current;
-            var complete = usage is not null || (images > 0 && error is null);
+            var complete = usage is not null || ((images > 0 || characters > 0) && error is null);
             var counted = usage ?? new UsageDetails { InputTokenCount = estimatedInput };
             var price = snapshot.PriceOf(feature.Provider, model);
 
@@ -50,7 +53,7 @@ internal sealed class AIUsageMeter(AIFeatureRegistry registry, IAIUsageStore sto
                 OutputTokens: counted.OutputTokenCount ?? 0,
                 ReasoningTokens: counted.ReasoningTokenCount ?? 0,
                 Images: images,
-                Cost: AIPricing.Cost(price, counted, images),
+                Cost: AIPricing.Cost(price, counted, images, minutes, characters),
                 Complete: complete,
                 Duration: duration,
                 Error: error is null ? null : $"{error.GetType().Name}: {error.Message}");

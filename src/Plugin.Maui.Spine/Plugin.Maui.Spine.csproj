@@ -42,6 +42,12 @@
     <None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
   </ItemGroup>
 
+  <!-- FrameTimer, for the views that draw on every frame. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar" />
+    <InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Voice" />
+  </ItemGroup>
+
   <ItemGroup>
     <Folder Include="Platforms\iOS\" />
     <Folder Include="Platforms\MacCatalyst\" />

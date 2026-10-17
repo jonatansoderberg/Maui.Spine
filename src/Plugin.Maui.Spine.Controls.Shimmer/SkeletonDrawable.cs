@@ -1,7 +1,7 @@
 namespace Plugin.Maui.Spine.Controls;
 
 /// <summary>A placeholder block in overlay coordinates; <paramref name="Fill"/> when it has no colour of its own.</summary>
-internal readonly record struct Placeholder(RectF Rect, float Radius, bool Fill);
+internal readonly record struct Placeholder(RectF Rect, CornerRadius Radius, bool Fill);
 
 /// <summary>
 /// Paints the placeholders that have no colour of their own, then the wave clipped to every
@@ -92,8 +92,9 @@ internal sealed class SkeletonDrawable : IDrawable
             if (fillOnly && !placeholder.Fill)
                 continue;
 
-            if (placeholder.Radius > 0)
-                path.AppendRoundedRectangle(placeholder.Rect, placeholder.Radius);
+            var radius = placeholder.Radius;
+            if (radius != default)
+                path.AppendRoundedRectangle(placeholder.Rect, (float)radius.TopLeft, (float)radius.TopRight, (float)radius.BottomLeft, (float)radius.BottomRight);
             else
                 path.AppendRectangle(placeholder.Rect);
         }

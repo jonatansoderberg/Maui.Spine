@@ -207,10 +207,10 @@ public class AvatarArchiveTests
     public void MissingManifestFieldNamesTheField()
     {
         var report = new AvatarValidationReport();
-        var package = AvatarArchive.TryRead(RewriteManifest("dotling", json => json.AsObject().Remove("speech")), report);
+        var package = AvatarArchive.TryRead(RewriteManifest("dotling", json => json.AsObject().Remove("displayName")), report);
 
         Assert.Null(package);
-        Assert.Contains(report.Failures, f => f.Area == "manifest" && f.Detail!.Contains("speech", StringComparison.Ordinal));
+        Assert.Contains(report.Failures, f => f.Area == "manifest" && f.Detail!.Contains("displayName", StringComparison.Ordinal));
     }
 
     // A copy of a reference archive with one entry added or changed. The manifest is left alone, so

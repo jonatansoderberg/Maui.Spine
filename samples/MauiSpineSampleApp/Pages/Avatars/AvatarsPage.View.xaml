@@ -1,0 +1,87 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Avatars.AvatarsPage"
+    x:TypeArguments="AvatarsPageViewModel"
+    x:DataType="AvatarsPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar">
+
+        <Example Title="Bundled with the app"
+                 Summary="Four avatars shipped as MauiAssets, each a .spineavatar packed by the spine-avatar tool (rendered posters, no generator source) that the view checks before it draws it. The cards show each package's own poster, light or dark with the theme, so the list draws nothing per frame; the avatar comes alive on its page. Characters have a face that speaks and shows expressions; ambient ones are light and shape. Tap one to drive it.">
+            <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Bundled}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="AvatarEntry">
+                        <Border Padding="12" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light=#F2F3F5, Dark=#1C1D21}"
+                                Tap.Command="{PageCommand Open}" Tap.CommandParameter="{Binding .}"
+                                Semantic.Merge="True">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="16" />
+                            </Border.StrokeShape>
+                            <Grid ColumnDefinitions="96,*" ColumnSpacing="12">
+                                <!-- One image per theme: an AppThemeBinding of two Bindings left Source unset. -->
+                                <Image Source="{Binding Poster.Light}" IsVisible="{AppThemeBinding Light=True, Dark=False}" HeightRequest="96" WidthRequest="96" Aspect="AspectFit" />
+                                <Image Source="{Binding Poster.Dark}" IsVisible="{AppThemeBinding Light=False, Dark=True}" HeightRequest="96" WidthRequest="96" Aspect="AspectFit" />
+                                <AvatarView Source="{Binding LiveSource}" IsVisible="{Binding Live}" HeightRequest="96" WidthRequest="96" MaxFramesPerSecond="15" />
+                                <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                    <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" />
+                                    <Label Text="{Binding Summary}" FontSize="14" Opacity="0.75" />
+                                    <HorizontalStackLayout Spacing="6">
+                                        <Label Text="{Binding Profile}" FontSize="12" Padding="8,2" BackgroundColor="{AppThemeBinding Light=#E3E5EA, Dark=#2C2E34}" />
+                                        <Label Text="{Binding Renderer}" FontSize="12" Padding="8,2" BackgroundColor="{AppThemeBinding Light=#E3E5EA, Dark=#2C2E34}" />
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;Image Source="{Binding PosterLight}" IsVisible="{AppThemeBinding Light=True, Dark=False}" /&gt;
+                &lt;Image Source="{Binding PosterDark}" IsVisible="{AppThemeBinding Light=False, Dark=True}" /&gt;
+                &lt;AvatarView Source="{Binding Avatar}" MaxFramesPerSecond="15" /&gt;   &lt;!-- on the avatar's own page --&gt;
+
+                // In the view model: the posters from the package, read once off the UI thread.
+                Avatar = AvatarSource.FromMauiAsset("Avatars/nova.spineavatar");
+                var package = await Task.Run(async () =&gt; AvatarArchive.Read(await Avatar.OpenAsync(ct)));
+                var light = package.GetFile(package.Manifest.Posters.Light).ToArray();
+                PosterLight = ImageSource.FromStream(() =&gt; new MemoryStream(light));
+            </Example.Code>
+        </Example>
+
+        <Example Title="Downloaded when asked"
+                 Summary="Kairo is 16.6 MB, too large to bundle: the app downloads it from the sample server once, keeps it in its data folder and opens it from there. A source never touches the network itself. Its hair needs SceneKit, so Android and Windows show its poster.">
+            <VerticalStackLayout Spacing="10">
+                <Border Padding="12" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light=#F2F3F5, Dark=#1C1D21}"
+                        IsVisible="{Binding HasKairo}"
+                        Tap.Command="{Binding OpenCommand}" Tap.CommandParameter="{Binding Kairo}"
+                        Semantic.Merge="True">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="16" />
+                    </Border.StrokeShape>
+                    <Grid ColumnDefinitions="96,*" ColumnSpacing="12">
+                        <AvatarView Source="{Binding Kairo.Source}" HeightRequest="96" WidthRequest="96" MaxFramesPerSecond="15" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                            <Label Text="{Binding Kairo.Title}" FontSize="17" FontAttributes="Bold" />
+                            <Label Text="{Binding Kairo.Summary}" FontSize="14" Opacity="0.75" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+                <Label Text="{Binding KairoStatus}" FontSize="14" Opacity="0.8" />
+                <ProgressBar Progress="{Binding KairoProgress}" IsVisible="{Binding IsDownloading}" />
+                <HorizontalStackLayout Spacing="10">
+                    <Button Text="Download Kairo" Command="{Binding DownloadKairoCommand}" />
+                    <Button Text="Cancel" Command="{Binding DownloadKairoCancelCommand}" IsVisible="{Binding IsDownloading}" />
+                    <Button Text="Forget it" Command="{Binding ForgetKairoCommand}" IsVisible="{Binding HasKairo}" />
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+            <Example.Code>
+                var path = Path.Combine(FileSystem.AppDataDirectory, "avatars", "kairo.spineavatar");
+                if (!File.Exists(path))
+                    await DownloadAsync("https://example.com/avatars/kairo.spineavatar", path);
+                Avatar = AvatarSource.FromFile(path);
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>

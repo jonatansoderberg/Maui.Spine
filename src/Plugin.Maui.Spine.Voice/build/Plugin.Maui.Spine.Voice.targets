@@ -1,0 +1,24 @@
+<Project>
+	<!--
+		What Apple needs declared for the microphone. The app writes NSMicrophoneUsageDescription itself; the engine
+		names the key in its failure when it is missing.
+
+		Consumer knob:
+		  SpineVoiceBackground  default false  (iOS: UIBackgroundModes audio, so a conversation started in the
+		                                        foreground goes on with the screen locked; Apple reviews it)
+
+		Mac Catalyst gets the sandbox's audio-input entitlement. Both are contributed as items and written once by
+		Plugin.Maui.Spine.Common.targets.
+	-->
+	<PropertyGroup>
+		<SpineVoiceBackground Condition="'$(SpineVoiceBackground)' == ''">false</SpineVoiceBackground>
+	</PropertyGroup>
+
+	<ItemGroup Condition="'$(SpineVoiceBackground)' == 'true' And $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<SpineBackgroundMode Include="audio" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+		<SpineEntitlement Include="com.apple.security.device.audio-input" Kind="boolean" Value="true" Because="Spine.Voice uses the microphone, which the App Sandbox blocks without it." />
+	</ItemGroup>
+</Project>

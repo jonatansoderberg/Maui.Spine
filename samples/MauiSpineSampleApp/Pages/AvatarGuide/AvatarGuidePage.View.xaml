@@ -1,0 +1,72 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.AvatarGuide.AvatarGuidePage"
+    x:TypeArguments="AvatarGuidePageViewModel"
+    x:DataType="AvatarGuidePageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar, Plugin.Maui.Spine.Controls.Highlight, Plugin.Maui.Spine.Speech">
+
+        <Example Title="A presenter that plays a script"
+                 Summary="AvatarPresenter is an avatar with a caption that fills in as it speaks. A script says lines aloud or only mouths them, shows an expression, nods, looks at a button and waits for a tap on the avatar.">
+            <VerticalStackLayout Spacing="12">
+                <AvatarPresenter x:Name="Presenter" Avatar="{Binding Avatar}" Placement="Left" AvatarSize="120" />
+                <HorizontalStackLayout Spacing="10">
+                    <Button x:Name="ScriptButton" Text="Play the script" Command="{Binding PlayScriptCommand}" />
+                    <Label Text="Speak aloud" VerticalOptions="Center" />
+                    <Switch IsToggled="{Binding Speak}" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+                <Label Text="{Binding Status}" FontSize="13" Opacity="0.8" />
+            </VerticalStackLayout>
+            <Example.Code>
+                var script = AvatarScript.Create()
+                    .Say("Hi, I am Nova.")
+                    .Express(AvatarExpression.Happy).Gesture("nod")
+                    .LookAt(addButton).Say("Tap here to add one.", speak: false)
+                    .WaitForTap();
+                await presenter.PlayAsync(script);
+            </Example.Code>
+        </Example>
+
+        <Example Title="A guided tour"
+                 Summary="A Highlight tour with the presenter in its card: Nova says each tip, looks at the control the spotlight lights, and nods or leans as a step opens. Skip, Back, Escape, Reduce Motion and the screen reader behave as in any tour.">
+            <VerticalStackLayout Spacing="12">
+                <Border Padding="12" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light=#F2F3F5, Dark=#1C1D21}">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="16" />
+                    </Border.StrokeShape>
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="12" ColumnSpacing="10">
+                        <SearchBar x:Name="SearchField" Placeholder="Search notes" />
+                        <Button x:Name="SettingsButton" Grid.Column="1" Text="⚙︎" FontSize="20" WidthRequest="44" HeightRequest="44" CornerRadius="22" Padding="0" />
+                        <Button x:Name="NewNoteButton" Grid.Row="1" Text="New note" HorizontalOptions="Start" />
+                    </Grid>
+                </Border>
+                <Button Text="Start the tour" Command="{Binding StartTourCommand}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+            <Example.Code>
+                var guide = new AvatarPresenter { Avatar = nova, ShowsCaption = false, Speak = true };
+                await highlights.TourAsync("onboarding",
+                    new TourStep(searchField, "Search finds any note.") { Presenter = guide },
+                    new TourStep(newNoteButton, "Start a new note here.") { Presenter = guide, Gesture = "nod" });
+            </Example.Code>
+        </Example>
+
+        <Example Title="A one-step hint"
+                 Summary="Highlight.Kind=&quot;Spotlight&quot; with Highlight.Presenter: the same guide says the hint.">
+            <VerticalStackLayout Spacing="12">
+                <Border x:Name="StreakCard" Padding="14,12" StrokeShape="RoundRectangle 12" StrokeThickness="1" HorizontalOptions="Start"
+                        Stroke="{DynamicResource CardOutline}" BackgroundColor="{DynamicResource CardBackground}"
+                        Highlight.Kind="Spotlight" Highlight.IsActive="{Binding IsHintOn}"
+                        Highlight.Tip="Your streak lives here: seven days in a row.">
+                    <Label Text="🔥 7 days" TextColor="{DynamicResource CardText}" />
+                </Border>
+                <Button Text="Show the hint" Command="{Binding ShowHintCommand}" HorizontalOptions="Start" />
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;Border Highlight.Kind="Spotlight" Highlight.Tip="Your streak lives here"
+                        Highlight.Presenter="{Binding Guide}"&gt; … &lt;/Border&gt;
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>

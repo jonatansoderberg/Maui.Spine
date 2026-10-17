@@ -9,15 +9,18 @@ internal sealed class SpineAIRuntime
 {
     private readonly Func<CancellationToken, Task<string?>> _installationId;
     private readonly Lazy<HttpClient> _http;
+    private readonly Func<CancellationToken, Task>? _whenActive;
 
     public SpineAIRuntime(
         SpineAIOptions options,
         Func<CancellationToken, Task<string?>> installationId,
         IAIDeviceUsageStore usage,
         ILoggerFactory? loggerFactory = null,
-        TimeProvider? time = null)
+        TimeProvider? time = null,
+        Func<CancellationToken, Task>? whenActive = null)
     {
         Options = options;
+        _whenActive = whenActive;
         _installationId = installationId;
         Usage = usage;
         Logger = (loggerFactory ?? NullLoggerFactory.Instance).CreateLogger("Plugin.Maui.Spine.AI");
@@ -38,6 +41,19 @@ internal sealed class SpineAIRuntime
     public HttpClient Http => _http.Value;
 
     public Task<string?> InstallationIdAsync(CancellationToken cancellationToken) => _installationId(cancellationToken);
+
+    /// <summary>Completes when the app is in front; at once where nothing tracks that, as in tests.</summary>
+    public Task WhenActiveAsync(CancellationToken cancellationToken) => _whenActive?.Invoke(cancellationToken) ?? Task.CompletedTask;
+
+    /// <summary>The <c>Authorization</c> and installation headers every call to the backend carries.</summary>
+    public async Task AddHeadersAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (Options.AuthorizationHeader is { } authorization && await authorization(cancellationToken) is { Length: > 0 } header)
+            request.Headers.TryAddWithoutValidation("Authorization", header);
+
+        if (await InstallationIdAsync(cancellationToken) is { Length: > 0 } installation)
+            request.Headers.TryAddWithoutValidation(Common.SpineInstallation.Header, installation);
+    }
 
     /// <summary>The client for <paramref name="feature"/>, or <see langword="null"/> when the app declared no such feature.</summary>
     public IChatClient? Feature(string feature, IServiceProvider services) =>

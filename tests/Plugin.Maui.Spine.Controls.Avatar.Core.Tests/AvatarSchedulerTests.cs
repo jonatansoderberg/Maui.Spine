@@ -2,6 +2,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
+[Collection(Measurements.Name)]
 public class AvatarSchedulerTests
 {
     private static readonly TimeSpan Frame = TimeSpan.FromMilliseconds(16);

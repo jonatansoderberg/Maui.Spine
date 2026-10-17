@@ -1,0 +1,124 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.SignIn.SignInPage"
+    x:TypeArguments="SignInPageViewModel"
+    x:DataType="SignInPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Authentication, Plugin.Maui.Spine.Server.Authentication">
+
+        <Example Title="Sign in"
+                 Summary="Against the push sample server's /auth (samples/MauiSpinePushNotificationsSampleApp.Server on localhost:5100, or in Azure in a build with SpineSampleServer), whose email codes are written to its log. The sheet offers email and password, Sign in with Apple when the app is built with SpineSignInWithApple, Google when it is built with SpineGoogleServerClientId (Credential Manager on Android, the browser elsewhere), and Microsoft when it is built with SpineMicrosoftClientId (MSAL).">
+            <VerticalStackLayout Spacing="10">
+                <!-- The provider's picture (Google, Microsoft); hidden when there is none. -->
+                <Border WidthRequest="64" HeightRequest="64" HorizontalOptions="Start" StrokeThickness="0"
+                        StrokeShape="RoundRectangle 32" IsVisible="{Binding HasPicture}">
+                    <Image Source="{Binding Picture}" Aspect="AspectFill" />
+                </Border>
+                <Label Text="{Binding Status}" FontSize="15" FontAttributes="Bold" />
+                <Label Text="{Binding Details}" FontSize="14" />
+                <Label Text="{Binding Providers, StringFormat='Offers: {0}'}" FontSize="14" Opacity="0.7" />
+                <Label Text="{Binding Log}" FontSize="14" />
+                <Button Text="Sign in" Command="{Binding SignInCommand}" />
+                <Button Text="Sign out" Command="{Binding SignOutCommand}" />
+            </VerticalStackLayout>
+            <Example.Code>
+                builder.UseSpine(o => o.AddAuthentication(a =>
+                {
+                    a.Server = new Uri("https://api.example.com/auth");
+                    a.AddApple();
+                    a.AddEmailPassword();
+                }));
+
+                var result = await _auth.SignInAsync();
+
+                // The provider's picture (Google, Microsoft), or null.
+                if (await _auth.GetPictureAsync() is { } picture)
+                    Picture = ImageSource.FromStream(() => new MemoryStream(picture));
+            </Example.Code>
+        </Example>
+
+        <Example Title="One account, several ways in"
+                 Summary="The account keeps the same id whichever way the user signs in. Its logins come with the user; link another provider through its sheet or the browser, or remove one, never the last. The sample server asks before making a new account for a provider account it does not know, and the sheet offers to add it to the account the user had.">
+            <VerticalStackLayout Spacing="10">
+                <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Logins}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="LoginRow">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                <Image SvgImageSource.Svg="{Binding Logo}" SvgImageSource.Padding="0" SvgImageSource.TintColor="{Binding Tint}"
+                                       SvgImageSource.AdjustColorsForDark="False" WidthRequest="20" HeightRequest="20" VerticalOptions="Center" />
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                                    <Label Text="{Binding Name}" FontSize="15" FontAttributes="Bold" />
+                                    <Label Text="{Binding Details}" FontSize="13" Opacity="0.7" />
+                                </VerticalStackLayout>
+                                <ImageButton Grid.Column="2" SvgImageSource.Svg="Unlink.svg" SvgImageSource.Padding="10"
+                                             WidthRequest="44" HeightRequest="44" BackgroundColor="Transparent" VerticalOptions="Center"
+                                             Command="{Binding Source={RelativeSource AncestorType={x:Type SignInPageViewModel}}, Path=UnlinkCommand}"
+                                             CommandParameter="{Binding .}"
+                                             SemanticProperties.Description="{Binding Name, StringFormat='Unlink {0}'}" />
+                            </Grid>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+                <!-- The sign-in sheet's own buttons, with each provider's logo and colours. -->
+                <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Linkable}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="LinkRow">
+                            <SignInButton Provider="{Binding Provider}" Text="{Binding Text}"
+                                          Command="{Binding Source={RelativeSource AncestorType={x:Type SignInPageViewModel}}, Path=LinkCommand}"
+                                          CommandParameter="{Binding Provider}" />
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+                <Label Text="{Binding LinkLog}" FontSize="14" />
+            </VerticalStackLayout>
+            <Example.Code>
+                // Server: ask before a new account, so the sheet can add the provider to the one the user had.
+                builder.Services.AddSpineAuthentication(a => { …; a.AskBeforeNewAccount = true; });
+
+                foreach (var login in _auth.User!.Logins!)
+                    Console.WriteLine($"{login.Provider} {login.Email} {login.LinkedAt}");
+
+                &lt;SignInButton Provider="google" Text="Link Google" Command="{Binding LinkCommand}" CommandParameter="google" /&gt;
+
+                await _auth.LinkAsync("google");    // Google's sheet or the browser; the same user after
+                await _auth.UnlinkAsync("google");  // never the last way in
+                await _auth.UnlinkAsync("passkey", login.Subject!);  // one passkey of several
+            </Example.Code>
+        </Example>
+
+        <Example Title="A page behind a sign-in"
+                 Summary="[RequiresSignIn] on the page: the sheet opens first, then the page.">
+            <Button Text="Open Members" Command="{Binding OpenMembersCommand}" />
+            <Example.Code>
+                [NavigableRegion(Title = "Members"), RequiresSignIn]
+                public partial class MembersPage { … }
+            </Example.Code>
+        </Example>
+
+        <Example Title="Calls with the access token"
+                 Summary="An HttpClient with AddSpineAuthentication() sends the token, refreshes it and retries once after a 401. The command asks for a sign-in first, because the button runs it through {PageCommand}; a plain {Binding} would not ask.">
+            <Button Text="GET /sample/me" Command="{PageCommand CallServer}" />
+            <Example.Code>
+                builder.Services.AddHttpClient("SampleApi", c => c.BaseAddress = new("http://localhost:5100/"))
+                                .AddSpineAuthentication();
+
+                [RequiresSignIn]
+                [RelayCommand]
+                private Task CallServer() => …
+
+                &lt;Button Command="{PageCommand CallServer}" /&gt;
+            </Example.Code>
+        </Example>
+
+        <Example Title="Delete the account"
+                 Summary="The App Store asks an app with sign-up to offer this. The server revokes Apple's tokens and every session.">
+            <Button Text="Delete account" Command="{Binding DeleteAccountCommand}" />
+            <Example.Code>
+                await _auth.DeleteAccountAsync();
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+
+</SpinePage>

@@ -1,8 +1,9 @@
 using System.Numerics;
-using Plugin.Maui.Spine.Controls.Avatar.Core.Gltf;
+using Plugin.Maui.Spine.Controls.Avatar.Gltf;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
+[Collection(Measurements.Name)]
 public class GltfRigTests
 {
     private static (GltfModel Model, GltfAvatarRig Rig) Load(string avatar)
@@ -137,10 +138,11 @@ public class GltfRigTests
         frame.AddClip("idle_a", 1.2, 1, AvatarClipLayer.Idle);
         rig.Apply(frame);
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 200; i++)
-            rig.Apply(frame);
-        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+        Assert.Equal(0, Measurements.Allocated(() =>
+        {
+            for (var i = 0; i < 200; i++)
+                rig.Apply(frame);
+        }));
     }
 
     [Fact]

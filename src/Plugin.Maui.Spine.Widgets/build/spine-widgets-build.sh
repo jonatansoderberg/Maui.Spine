@@ -5,7 +5,7 @@
 set -euo pipefail
 
 OUT=""; SOURCES=""; SDK="iphonesimulator"; ARCH="arm64"; MIN_OS="17.0"; CONFIG="Debug"
-BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; URL_SCHEME=""; LIVE="true"; FREQUENT="false"
+BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; LIVE="true"; FREQUENT="false"
 PROVISION=""; REQUIRE_PROVISION="false"; PUSH="false"; PUSH_ENV="development"
 WIDGETS=()
 CONTROLS=()
@@ -22,7 +22,6 @@ while [[ $# -gt 0 ]]; do
     --app-group) APP_GROUP="$2"; shift 2;;
     --name) NAME="$2"; shift 2;;
     --display-name) DISPLAY_NAME="$2"; shift 2;;
-    --url-scheme) URL_SCHEME="$2"; shift 2;;
     --live-activities) LIVE="$2"; shift 2;;
     --frequent-updates) FREQUENT="$2"; shift 2;;
     --provision) PROVISION="$2"; shift 2;;
@@ -322,17 +321,8 @@ fi
 PLIST
   # BGTaskSchedulerPermittedIdentifiers is an array, which the SDK replaces rather than merges; the
   # targets contribute the identifier to the one list Plugin.Maui.Spine.Common.targets writes.
-  if [[ -n "$URL_SCHEME" ]]; then
-    cat <<PLIST
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key><string>$(plist_escape "$URL_SCHEME").spine-widgets</string>
-			<key>CFBundleURLSchemes</key><array><string>$(plist_escape "$URL_SCHEME")</string></array>
-		</dict>
-	</array>
-PLIST
-  fi
+  # CFBundleURLTypes is an array as well; the targets contribute the app's scheme to the one list
+  # Plugin.Maui.Spine.Common.targets writes, so the app's own schemes are not erased (#582).
   echo "</dict>"
   echo "</plist>"
 } > "$OUT/HostManifest.plist"

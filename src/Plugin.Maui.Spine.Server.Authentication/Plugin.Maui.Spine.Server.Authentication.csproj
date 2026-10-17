@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>Plugin.Maui.Spine.Server.Authentication</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Server.Authentication</RootNamespace>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Sign-in on the server for Spine apps: Apple, Google, Microsoft and OpenID Connect ID tokens validated, email and password with verification and lockout, the app's own short-lived access tokens and rotating refresh tokens, and account deletion that revokes Apple's tokens. For ASP.NET Core and Azure Functions.</Description>
+		<SpineIcon>server-auth.png</SpineIcon>
+		<PackageTags>$(PackageTags);authentication;sign-in;sign-in-with-apple;jwt;refresh-tokens;aspnetcore;azure-functions</PackageTags>
+	</PropertyGroup>
+
+	<!-- The same single framework reference as Plugin.Maui.Spine.Server: it serves ASP.NET Core and the Functions isolated worker. -->
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Authentication.Tests" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Authentication.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+	</ItemGroup>
+
+	<!-- The wire contracts live in .Common, shared with the app's Plugin.Maui.Spine.Authentication. -->
+	<ItemGroup>
+		<Using Include="Plugin.Maui.Spine.Authentication" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Azure.Data.Tables" />
+		<PackageReference Include="Fido2" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+	</ItemGroup>
+
+</Project>

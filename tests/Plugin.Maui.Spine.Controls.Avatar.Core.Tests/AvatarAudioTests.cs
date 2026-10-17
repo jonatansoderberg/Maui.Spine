@@ -1,5 +1,6 @@
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
+[Collection(Measurements.Name)]
 public class AvatarAudioTests
 {
     private static string Fixture(string name) => Path.Combine(AppContext.BaseDirectory, "Fixtures", name);
@@ -55,13 +56,14 @@ public class AvatarAudioTests
         Assert.True(meter.Analyze(bands) > 0.8f);
         Assert.True(bands[..10].Max() > bands[16..].Max());
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 100; i++)
+        Assert.Equal(0, Measurements.Allocated(() =>
         {
-            meter.Push(tone.AsSpan(0, 512));
-            meter.Analyze(bands);
-        }
-        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+            for (var i = 0; i < 100; i++)
+            {
+                meter.Push(tone.AsSpan(0, 512));
+                meter.Analyze(bands);
+            }
+        }));
     }
 
     [Fact]

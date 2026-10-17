@@ -13,6 +13,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.Messaging\Plugin.Maui.Spine.Server.Messaging.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.Messaging.AzureStorage\Plugin.Maui.Spine.Server.Messaging.AzureStorage.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.Messaging.ServiceBus\Plugin.Maui.Spine.Server.Messaging.ServiceBus.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.AI.Assets\Plugin.Maui.Spine.Server.AI.Assets.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

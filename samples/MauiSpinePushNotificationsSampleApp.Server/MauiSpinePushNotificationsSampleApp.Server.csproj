@@ -12,12 +12,18 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server\Plugin.Maui.Spine.Server.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.AI\Plugin.Maui.Spine.Server.AI.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Server.Authentication\Plugin.Maui.Spine.Server.Authentication.csproj" />
 	</ItemGroup>
 
 	<!-- The AI providers, one line each in Program.cs. Spine.Server.AI itself references no vendor. -->
 	<ItemGroup>
 		<PackageReference Include="Anthropic" />
 		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+	</ItemGroup>
+
+	<!-- Kairo for the Showcase's Avatars page (GET /sample/avatars/kairo.spineavatar): too large to bundle, downloaded and cached by the app. -->
+	<ItemGroup>
+		<None Include="..\SpineAvatarLab\Resources\Raw\Avatars\kairo.spineavatar" Link="avatars\kairo.spineavatar" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 	</ItemGroup>
 
 </Project>

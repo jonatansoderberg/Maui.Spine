@@ -66,6 +66,17 @@ public static class SpinePushNotificationsEndpoints
         if (string.IsNullOrWhiteSpace(body.Handle))
             return Results.BadRequest("The installation has no handle.");
 
+        if (options.UserId is { } resolve)
+        {
+            var userId = await resolve(request);
+
+            // A device belongs to the user who registered it until it registers again without one (signing out).
+            if (userId is not null && await store.GetAsync(id, cancellationToken) is { UserId: { } owner } && owner != userId)
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+            body = WithUser(body, userId);
+        }
+
         // The clock is the server's: a device with a wrong date must not look freshly registered,
         // since that is what Prune goes by.
         var installation = body with
@@ -76,6 +87,13 @@ public static class SpinePushNotificationsEndpoints
 
         await store.UpsertAsync(installation, cancellationToken);
         return Results.NoContent();
+    }
+
+    internal static PushInstallation WithUser(PushInstallation installation, string? userId)
+    {
+        var tags = installation.Tags.Where(t => !t.StartsWith("user:", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (userId is { Length: > 0 }) tags.Add($"user:{userId}");
+        return installation with { UserId = userId is { Length: > 0 } ? userId : null, Tags = tags };
     }
 
     internal static async Task<IResult> DeleteAsync(IPushInstallationStore store, string id, CancellationToken cancellationToken)

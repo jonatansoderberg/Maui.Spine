@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Threading.RateLimiting;
 using Anthropic;
 using MauiSpinePushNotificationsSampleApp.Server;
 using Microsoft.Extensions.AI;
@@ -6,8 +9,20 @@ using Plugin.Maui.Spine.AI;
 using Plugin.Maui.Spine.Common;
 using Plugin.Maui.Spine.Server;
 using Plugin.Maui.Spine.Server.AI;
+using Plugin.Maui.Spine.Server.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// In Azure (Sample:Hosted, README.md) anyone can reach the server: sign-in is rate limited, users are kept in Table
+// storage, and the push endpoints reach only the caller's own devices. On the Mac it stays the open sample it was.
+var hosted = builder.Configuration.GetValue<bool>("Sample:Hosted");
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = hosted ? 30 : 1000, Window = TimeSpan.FromMinutes(1) }));
+});
 
 // The register is in memory: restart the server and every device has to register again, which is
 // exactly what a sample wants. Credentials come from user secrets or the environment, never the repo.
@@ -43,6 +58,75 @@ builder.Services.AddSpinePushNotifications(o =>
 
     // A sample server on a laptop has no users to tell apart. A real one authenticates here.
     o.Authenticate = _ => ValueTask.FromResult(true);
+
+    // A device registered with a Spine access token is tagged user:<id> from the token, never from the body.
+    o.UserId = request => request.GetSpineUserIdAsync();
+});
+
+// Sign-in: Sign in with Apple for the Showcase's bundle id, and email and password with codes written to the log
+// (LogEmailSender). The signing key comes from user secrets (Auth:SigningKey); without one the server makes a key
+// that lives until it stops, so every session ends with a restart, as the in-memory users do.
+builder.Services.AddSingleton<ISpineAuthEmailSender, LogEmailSender>();
+builder.Services.AddAuthorization();
+builder.Services.AddSpineAuthentication(a =>
+{
+    a.Issuer = builder.Configuration["Auth:Issuer"] ?? "http://localhost:5100";
+    a.SigningKey = builder.Configuration["Auth:SigningKey"] ?? ECDsa.Create(ECCurve.NamedCurves.nistP256).ExportPkcs8PrivateKeyPem();
+    a.PublicUrl = builder.Configuration["Auth:PublicUrl"] ?? "http://localhost:5100/auth";
+    a.RedirectSchemes.Add("se.cosmomedia.spineshowcase");
+    a.AllowLoopbackRedirects = true;   // the Showcase runs on Windows, which returns to a loopback address
+    a.Apple(o =>
+    {
+        o.BundleIds.Add("se.cosmomedia.spineshowcase");
+
+        // The browser sign-in (Android, Windows) and revocation on deletion need a Services ID and a Sign in with Apple key.
+        if (builder.Configuration["Auth:Apple:ServicesId"] is { Length: > 0 } servicesId)
+        {
+            o.ServicesId = servicesId;
+            o.TeamId = builder.Configuration["Auth:Apple:TeamId"];
+            o.KeyId = builder.Configuration["Auth:Apple:KeyId"];
+            o.PrivateKey = builder.Configuration["Auth:Apple:PrivateKey"];
+        }
+    });
+
+    // Google through the browser: a web client from the Google Cloud console, with {PublicUrl}/google/callback as its redirect.
+    if (builder.Configuration["Auth:Google:WebClientId"] is { Length: > 0 } googleWeb)
+    {
+        a.Google(o =>
+        {
+            o.ClientIds.Add(googleWeb);   // Credential Manager on Android issues its tokens for the web client
+            o.WebClientId = googleWeb;
+            o.WebClientSecret = builder.Configuration["Auth:Google:WebClientSecret"];
+        });
+    }
+
+    // Microsoft through MSAL in the app: the app registration's client id, and who may sign in.
+    if (builder.Configuration["Auth:Microsoft:ClientId"] is { Length: > 0 } microsoftClient)
+        a.Microsoft(o => { o.ClientId = microsoftClient; o.Tenant = builder.Configuration["Auth:Microsoft:Tenant"] ?? "common"; });
+
+    a.EmailPassword();
+
+    // Passkeys for the domain the server answers on (the Azure host in appsettings.Production.json). The Showcase built
+    // with -p:SpinePasskeyDomain=<that host> may use them once apple-app-site-association names it with the team id.
+    if (builder.Configuration["Auth:Passkeys:RelyingPartyId"] is { Length: > 0 } passkeyDomain)
+    {
+        a.Passkeys(p =>
+        {
+            p.RelyingPartyId = passkeyDomain;
+            p.RelyingPartyName = "Spine Showcase";
+            if ((builder.Configuration["Auth:Apple:TeamId"] ?? builder.Configuration["Push:Apple:TeamId"]) is { Length: > 0 } team)
+                p.AppleAppIds.Add($"{team}.se.cosmomedia.spineshowcase");
+        });
+    }
+
+    // A first sign-in with a provider account the server does not know asks "Is this your first time here?", so a
+    // user who signed in another way before ends up with one account (the Showcase's sheet asks; #575).
+    a.AskBeforeNewAccount = true;
+
+    if (builder.Configuration["Auth:Storage"] is { Length: > 0 } storage)
+        a.UseAzureTableStore(storage);
+    else
+        a.UseInMemoryStore();
 });
 
 // AI features: the providers are one line each, everything else (features, models, prices, budgets) is the "Ai"
@@ -53,6 +137,10 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
     ai.Chat("anthropic", (p, model) => new AnthropicClient { ApiKey = p["ApiKey"] }.AsIChatClient(model));
     ai.Chat("openai", (p, model) => new OpenAIClient(p["ApiKey"]).GetChatClient(model).AsIChatClient());
     ai.Image("openai", (p, model) => new OpenAIClient(p["ApiKey"]).GetImageClient(model).AsIImageGenerator());
+    ai.Realtime("openai", AIRealtimeProviders.OpenAI);
+    ai.Speech("demo", _ => new DemoSpeechProvider());
+    ai.Speech("azure", AISpeechProviders.AzureSpeech);
+    ai.Speech("openai", AISpeechProviders.OpenAI);
     ai.UseInMemoryUsageStore();
 
     // The report shows every caller's spending. A sample on a laptop shows it to the laptop only.
@@ -69,10 +157,36 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
 var app = builder.Build();
 
 // PUT and DELETE /push/installations/{id} — what the app registers through.
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
+
 app.MapSpinePushNotifications("/push");
+
+// GET /auth/nonce, POST /auth/{provider}/token, POST /auth/token, POST /auth/revoke, DELETE /auth/account and
+// POST /auth/password/{signup,verify,resend,signin,forgot,reset}, POST /auth/passkey/{register,signin}[/options].
+app.MapSpineAuthentication("/auth").RequireRateLimiting("auth");
+
+// GET /.well-known/apple-app-site-association: the Showcase may use this domain's passkeys.
+app.MapSpinePasskeyAssociations();
+
+// Hosted, the push endpoints are for a signed-in user and their own devices; on the Mac, for anyone and every device.
+async ValueTask<(bool Allowed, string? UserId)> PushCallerAsync(HttpRequest request) =>
+    hosted ? await request.GetSpineUserIdAsync() is { } id ? (true, id) : (false, null) : (true, null);
+
+// Who the access token says you are. Signed-in users also get the AI features' SignedIn limits.
+app.MapGet("/sample/me", (ClaimsPrincipal user) => new
+{
+    id = user.FindFirstValue("sub"),
+    provider = user.FindFirstValue(SpineAuthDefaults.ProviderClaim),
+    email = user.FindFirstValue("email"),
+}).RequireAuthorization();
 
 // POST /ai/features/{name} for exposed features (Assistant), and GET /ai/usage for the report.
 app.MapSpineAI("/ai");
+
+// POST /ai/realtime/{name}: a short-lived token for a realtime voice session (Voice). The OpenAI key stays here.
+app.MapSpineRealtimeSessions("/ai");
 
 /// A feature the server owns: the app sends facts, the server writes the prompt. The caller is whoever the request
 /// is for, so the per-installation limits apply here as they do on the exposed route.
@@ -119,8 +233,13 @@ app.MapPost("/sample/picture", async (PictureRequest request, HttpRequest http, 
 });
 
 /// Sends one message and answers with what happened per installation.
-app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushNotificationsOptions options, CancellationToken cancellationToken) =>
+app.MapPost("/send", async (SendRequest request, HttpRequest http, IPushSender sender, SpinePushNotificationsOptions options, CancellationToken cancellationToken) =>
 {
+    var (allowed, userId) = await PushCallerAsync(http);
+    if (!allowed) return Results.Unauthorized();
+    if (userId is not null && request.Kind == "broadcast")
+        return Results.BadRequest("A broadcast reaches everyone following the channel, so the hosted server does not send one.");
+
     // The wait is here rather than in the app because the point of it is to let the caller put the
     // app in the background — and a backgrounded app is exactly what cannot be relied on to still be
     // running a timer. Capped so a stray value cannot tie up the request for long.
@@ -129,6 +248,7 @@ app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushNo
 
     var target = request.Target switch
     {
+        _ when userId is not null => PushTarget.User(userId),
         { Length: > 0 } expression when request.TargetKind == "installation" => PushTarget.Installation(expression),
         { Length: > 0 } expression => PushTarget.Tags(expression),
         _ => PushTarget.All,
@@ -197,8 +317,10 @@ app.MapPost("/send", async (SendRequest request, IPushSender sender, SpinePushNo
 /// activity started on it follows the same channel, which is what makes one push reach them all. Made
 /// at the first request rather than at startup, so a server without Apple credentials still starts.
 string? sampleChannel = null;
-app.MapPost("/channels", async (IServiceProvider services, CancellationToken cancellationToken) =>
+app.MapPost("/channels", async (HttpRequest http, IServiceProvider services, CancellationToken cancellationToken) =>
 {
+    if (!(await PushCallerAsync(http)).Allowed) return Results.Unauthorized();
+
     if (services.GetService<IPushChannels>() is not { } channels)
         return Results.Problem("Apple is not configured, so there are no channels. Put Apple credentials in user secrets.");
 
@@ -211,6 +333,18 @@ app.MapPost("/channels", async (IServiceProvider services, CancellationToken can
     {
         return Results.Problem(e.Message, statusCode: (int)e.StatusCode);
     }
+});
+
+/// Avatars too large to bundle with the Showcase (Kairo, 16.6 MB), downloaded by its Avatars page and cached there.
+/// The files are published next to the server (the csproj links Kairo from the avatar lab); anything else is not served.
+app.MapGet("/sample/avatars/{name}", (string name) =>
+{
+    if (name is not "kairo.spineavatar")
+        return Results.NotFound();
+    var path = Path.Combine(AppContext.BaseDirectory, "avatars", name);
+    return File.Exists(path)
+        ? Results.File(path, "application/zip", name, enableRangeProcessing: true)
+        : Results.Problem($"{name} is not in {Path.GetDirectoryName(path)}.", statusCode: StatusCodes.Status404NotFound);
 });
 
 /// The remote widget's content. The platform fetches this itself at every reload — the widget
@@ -238,12 +372,17 @@ app.MapGet("/widget/remote", () =>
 });
 
 /// What the register currently holds, so the app can show whether it got through.
-app.MapGet("/installations", async (IPushInstallationStore store, CancellationToken cancellationToken) =>
+app.MapGet("/installations", async (HttpRequest http, IPushInstallationStore store, CancellationToken cancellationToken) =>
 {
+    var (allowed, userId) = await PushCallerAsync(http);
+    if (!allowed) return Results.Unauthorized();
+
     var found = new List<object>();
 
-    await foreach (var installation in store.QueryAsync(PushTagExpression.MatchAll, cancellationToken: cancellationToken))
+    var whose = userId is null ? PushTagExpression.MatchAll : PushTagExpression.Parse($"user:{userId}");
+    await foreach (var installation in store.QueryAsync(whose, cancellationToken: cancellationToken))
     {
+
         found.Add(new
         {
             installation.Id,

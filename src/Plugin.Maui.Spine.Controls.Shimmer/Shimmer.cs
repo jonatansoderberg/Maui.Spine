@@ -7,7 +7,8 @@ namespace Plugin.Maui.Spine.Controls;
 /// </summary>
 /// <remarks>
 /// The blocks are every <see cref="BoxView"/>, every <see cref="Border"/> without content and every
-/// childless element with a visible background. A block without a colour of its own is filled with
+/// childless element with a visible background, the placeholder layout itself included: a shimmer
+/// around a single empty <see cref="Border"/> is one block. A block without a colour of its own is filled with
 /// <see cref="ShimmerStyleOptions.PlaceholderColor"/>, which follows the theme. With Reduce Motion
 /// on, the blocks stay and the wave does not run.
 /// </remarks>

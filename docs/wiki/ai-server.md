@@ -142,6 +142,104 @@ Spine-Installation: 3f2c…
 - **Failures after the first byte.** A failure once the stream has started ends it with `event: error`.
 - **Provider failures** answer 502, "The model call failed." The provider's own message goes to the log only, because it can name keys or internals.
 
+## Realtime voice sessions
+
+A feature with `"Kind": "Realtime"` sets up a live voice session that the app connects to itself. The server asks the provider for a short-lived token with its own key and the feature's session, and the app opens the provider's WebSocket with that token. The provider's key never reaches the app. The client half is `Plugin.Maui.Spine.Voice` ([Voice](voice.md)); the design is in [the voice proposal](../proposals/spine-voice.md), §6.
+
+```csharp
+builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
+{
+    ai.Realtime("openai", AIRealtimeProviders.OpenAI);          // ApiKey, optional Endpoint
+    ai.Realtime("azure", AIRealtimeProviders.AzureOpenAI);      // ApiKey, Endpoint = https://<resource>.openai.azure.com
+    …
+});
+
+app.MapSpineRealtimeSessions("/ai");   // POST /ai/realtime/{name}
+```
+
+```json
+"Voice": {
+  "Kind": "Realtime", "Provider": "openai", "Model": "gpt-realtime", "Expose": true,
+  "SystemPrompt": "You are a friendly voice assistant. Keep it short.",
+  "Realtime": { "Voice": "marin", "TurnDetection": "semantic_vad", "NoiseReduction": "near_field",
+                "TranscriptionModel": "gpt-4o-mini-transcribe", "Language": "sv",
+                "MaxMinutes": 5, "TokenSeconds": 60 },
+  "RequestsPerMinute": { "SignedIn": 3 },
+  "Budget": { "DayHard": 5, "PerCaller": { "SignedIn": { "DayCalls": 20 } } }
+}
+```
+
+and under `Prices`, `"openai": { "gpt-realtime": { "PerMinute": 0.2 } }`.
+
+The request has no body. Everything about the session is the feature's configuration: the model (for Azure OpenAI, the deployment), `SystemPrompt` as the instructions, `MaxOutputTokens`, and the `Realtime` section. Unset entries leave the provider's defaults. `"TurnDetection": "none"` turns voice activity detection off, so the app commits each turn itself. The audio is PCM16 at 24 kHz both ways.
+
+```http
+POST /ai/realtime/Voice
+Authorization: Bearer <the app's own sign-in>
+
+200 OK
+Cache-Control: no-store
+
+{ "feature": "Voice", "protocol": "openai", "model": "gpt-realtime",
+  "url": "wss://api.openai.com/v1/realtime?model=gpt-realtime",
+  "token": "ek_…", "expiresAt": "2026-10-15T08:29:29+00:00", "maxMinutes": 5 }
+```
+
+The app opens `url` with `Authorization: Bearer {token}` before `expiresAt`. `protocol` names the events spoken on the socket: `openai` for both OpenAI and Azure OpenAI.
+
+- **Signed-in callers only by default.** Unlike chat and image features, a realtime feature with no `Callers` answers only `AICaller.SignedIn`, because a session is paid by the minute. Installations and anonymous callers get 403 `signInRequired`. `"Callers": "Any"` lets them in, with their own rates and budgets.
+- **Metering by reservation.** The server never sees the session's real usage. Each token therefore records `MaxMinutes × PerMinute` at once, marked incomplete in the report, and the budgets count it from then on. A failed request to the provider records the call at no cost.
+- **The token is not a lock.** Over its connection the app can change the instructions, voice and tools; this was seen with `session.update` against OpenAI. Until it expires, the same token also opens further connections to the same session. A session is not cut off after `MaxMinutes` either. Keep `TokenSeconds` short. Rates, per-caller `DayCalls` and budgets bound what one caller can start. A server that has to hold the configuration, see real usage or run tools needs a relay, which is not built yet.
+- **Rate limits** apply to tokens: `RequestsPerMinute` answers 429 with `Retry-After`. `ConcurrentPerCaller` covers only the request for the token, because the server cannot see when a session ends.
+- **The log** has the provider's session id with the caller for each token. A provider failure answers 502 with "The model call failed.", and the provider's own message goes to the log.
+- **Other providers.** `IAIRealtimeProvider` is one method, so an app can register its own with `ai.Realtime(name, section => …)`. Gemini Live, Azure Voice Live and WebRTC are in the proposal and come when an app needs them. Azure OpenAI uses its key only; Entra is not supported yet.
+
+`IAIFeatures.RealtimeAsync(feature, caller)` does the same for a route of your own.
+
+## Speech
+
+A feature with `"Kind": "Speech"` reads text aloud for the app: PCM16 mono and, when the provider gives them, the mouth shapes (visemes) with their times, which an avatar plays as TimedVisemes ([Avatars](avatars.md)).
+
+```csharp
+builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
+{
+    ai.Speech("azure", AISpeechProviders.AzureSpeech);   // ApiKey, Region (or Endpoint): audio and visemes
+    ai.Speech("openai", AISpeechProviders.OpenAI);       // ApiKey, optional Endpoint: audio only
+});
+
+app.MapSpineAI("/ai");   // POST /ai/speech/{name}, with the other AI endpoints
+```
+
+```json
+"Read": {
+  "Kind": "Speech", "Provider": "azure", "Model": "neural", "Expose": true,
+  "Speech": { "Voice": "sv-SE-SofieNeural", "MaxCharacters": 2000 },
+  "RequestsPerMinute": { "SignedIn": 20, "Installation": 5 }
+}
+```
+
+and under `Prices`, `"azure": { "neural": { "PerMillionCharacters": 16 } }`.
+
+```http
+POST /ai/speech/Read
+Content-Type: application/json
+
+{ "text": "Välkommen tillbaka." }
+```
+
+```json
+{ "feature": "Read", "sampleRate": 24000, "audio": "<base64 PCM16>", "durationMs": 1240,
+  "visemes": [ { "id": 0, "offsetMs": 0 }, { "id": 19, "offsetMs": 50 }, … ] }
+```
+
+- **The voice is the server's.** The app sends only the text; `Speech:Voice`, `Language`, `Instructions` (models that take them, such as `gpt-4o-mini-tts`) and `Speed` are the feature's. A text over `MaxCharacters` (4000 by default) gets 413.
+- **Visemes** are in Azure Speech's alphabet of 22 (0 silence … 21 p, b, m), each with its offset from the start of the audio. Azure Speech has them; OpenAI's speech has none, and the app then estimates the mouth from the text.
+- **Azure Speech** is spoken over the service's WebSocket, the protocol of Microsoft's open-source JavaScript Speech SDK, because its REST endpoint returns audio only; no native SDK is needed. The voice is a neural voice name, the language comes from it unless `Language` is set, and `Model` is only what the usage report shows. A key is the only sign-in so far.
+- **Metering by characters**: each call records its text's length, priced at `PerMillionCharacters`. Callers, rates, `ConcurrentPerCaller` and budgets apply as for chat; unset `Callers` is `Any`.
+- **Other providers.** `IAISpeechProvider` is one method: `ai.Speech(name, section => …)`.
+
+`IAIFeatures.SpeechAsync(feature, text, caller)` does the same for a route of your own.
+
 ## Metering and prices
 
 Every call through a feature is recorded as an `AIUsageRecord` with these fields:
@@ -225,6 +323,16 @@ public sealed class AiFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ai/features/{name}")] HttpRequest request, string name, CancellationToken ct) =>
         SpineAIEndpoints.FeatureAsync(request, name, ct);
 
+    [Function("AiRealtime")]
+    public Task<IResult> Realtime(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ai/realtime/{name}")] HttpRequest request, string name, CancellationToken ct) =>
+        SpineAIEndpoints.RealtimeSessionAsync(request, name, ct);
+
+    [Function("AiSpeech")]
+    public Task<IResult> Speech(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ai/speech/{name}")] HttpRequest request, string name, CancellationToken ct) =>
+        SpineAIEndpoints.SpeechAsync(request, name, ct);
+
     [Function("AiUsage")]
     public Task<IResult> Usage(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ai/usage")] HttpRequest request, CancellationToken ct) =>
@@ -236,4 +344,6 @@ Server-sent events stream through the Functions host one update at a time. This 
 
 ## Sample
 
-The push sample server (`samples/MauiSpinePushNotificationsSampleApp.Server`) registers a `demo` provider that needs no key, plus Anthropic and OpenAI. Its `send.http` has requests for an exposed feature (JSON and streamed), a feature the server owns, a picture, and the report.
+The push sample server (`samples/MauiSpinePushNotificationsSampleApp.Server`) registers a `demo` provider that needs no key, plus Anthropic and OpenAI. Its `send.http` has requests for an exposed feature (JSON and streamed), a feature the server owns, a picture, a realtime voice token (`Voice`, open to any caller because the sample has no sign-in), and the report.
+
+Images that should be made once and kept, rather than per call, go through [Generated assets](ai-assets.md).

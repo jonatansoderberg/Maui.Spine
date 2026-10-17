@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseSpineAvatar() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Controls.Avatar" Register="Plugin.Maui.Spine.Controls.SpineAvatarExtensions.UseSpineAvatar" />
+	</ItemGroup>
+</Project>

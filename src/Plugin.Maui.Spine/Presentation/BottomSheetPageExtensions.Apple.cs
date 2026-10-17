@@ -343,7 +343,11 @@ internal static class BottomSheetPageExtensions
         {
             base.ViewDidLoad();
 
-            View!.BackgroundColor = UIColor.Clear;
+            // A Mac sheet is an opaque card, and Liquid Glass draws from what lies behind it: over a clear view a
+            // glass header button (the close button) had nothing to sample and drew flat grey in the light theme
+            // (#555). The system background is what a native sheet's view has. An iPhone sheet at a partial detent
+            // is glass itself and stays clear.
+            View!.BackgroundColor = OperatingSystem.IsMacCatalyst() ? UIColor.SystemBackground : UIColor.Clear;
 
             _nativeContent.TranslatesAutoresizingMaskIntoConstraints = false;
             View!.AddSubview(_nativeContent);

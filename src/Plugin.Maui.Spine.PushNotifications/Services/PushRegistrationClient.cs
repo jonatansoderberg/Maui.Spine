@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Authentication;
 using Plugin.Maui.Spine.Common;
 
 namespace Plugin.Maui.Spine.PushNotifications.Services;
@@ -8,10 +9,12 @@ namespace Plugin.Maui.Spine.PushNotifications.Services;
 /// <summary>Talks to the backend's <c>MapSpinePushNotifications</c> endpoints.</summary>
 /// <param name="options">Where the backend is and how to authorize against it.</param>
 /// <param name="logger">Where failures are reported.</param>
+/// <param name="services">Where a signed-in session (<c>Plugin.Maui.Spine.Authentication</c>) is found, when the app links it.</param>
 /// <param name="httpClient">The client to send with; one is created when none is given.</param>
 internal sealed class PushRegistrationClient(
     SpinePushNotificationsOptions options,
     ILogger<PushRegistrationClient> logger,
+    IServiceProvider services,
     HttpClient? httpClient = null)
 {
     private readonly HttpClient _client = httpClient ?? new HttpClient();
@@ -46,11 +49,14 @@ internal sealed class PushRegistrationClient(
             Content = content,
         };
 
-        if (options.AuthorizationHeader is { } authorization &&
-            await authorization(cancellationToken) is { Length: > 0 } value)
-        {
-            request.Headers.Authorization = AuthenticationHeaderValue.Parse(value);
-        }
+        // The app's own header wins; otherwise the signed-in user's, when sign-in is linked to push.
+        var header = options.AuthorizationHeader is { } authorization
+            ? await authorization(cancellationToken)
+            : services.GetService(typeof(ISignedInSession)) is ISignedInSession session
+                ? await session.GetAuthorizationHeaderAsync(cancellationToken)
+                : null;
+
+        if (header is { Length: > 0 }) request.Headers.Authorization = AuthenticationHeaderValue.Parse(header);
 
         try
         {

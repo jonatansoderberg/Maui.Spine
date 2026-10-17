@@ -6,6 +6,8 @@ namespace Plugin.Maui.Spine.Svg.Icons;
 /// </summary>
 public static class SpineIcons
 {
+    /// <summary>The <c>AccountLink.svg</c> icon.</summary>
+    public const string AccountLink = "AccountLink.svg";
     /// <summary>The <c>AirConditioner.svg</c> icon.</summary>
     public const string AirConditioner = "AirConditioner.svg";
     /// <summary>The <c>Arrow.svg</c> icon.</summary>
@@ -190,6 +192,8 @@ public static class SpineIcons
     public const string Map = "Map.svg";
     /// <summary>The <c>Menu.svg</c> icon.</summary>
     public const string Menu = "Menu.svg";
+    /// <summary>The <c>Merge.svg</c> icon.</summary>
+    public const string Merge = "Merge.svg";
     /// <summary>The <c>MeshBackground.svg</c> icon.</summary>
     public const string MeshBackground = "MeshBackground.svg";
     /// <summary>The <c>Microowen.svg</c> icon.</summary>
@@ -214,6 +218,10 @@ public static class SpineIcons
     public const string Owen = "Owen.svg";
     /// <summary>The <c>Palette.svg</c> icon.</summary>
     public const string Palette = "Palette.svg";
+    /// <summary>The <c>Passkey.svg</c> icon.</summary>
+    public const string Passkey = "Passkey.svg";
+    /// <summary>The <c>Password.svg</c> icon.</summary>
+    public const string Password = "Password.svg";
     /// <summary>The <c>Pause.svg</c> icon.</summary>
     public const string Pause = "Pause.svg";
     /// <summary>The <c>Phone.svg</c> icon.</summary>
@@ -324,6 +332,8 @@ public static class SpineIcons
     public const string Trashcan = "Trashcan.svg";
     /// <summary>The <c>Tv.svg</c> icon.</summary>
     public const string Tv = "Tv.svg";
+    /// <summary>The <c>Unlink.svg</c> icon.</summary>
+    public const string Unlink = "Unlink.svg";
     /// <summary>The <c>Unlock.svg</c> icon.</summary>
     public const string Unlock = "Unlock.svg";
     /// <summary>The <c>Unpin.svg</c> icon.</summary>
@@ -466,6 +476,7 @@ public static class SpineIcons
     /// <summary>Every icon in the package, in ordinal order.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
+        AccountLink,
         AirConditioner,
         Arrow,
         Auto,
@@ -558,6 +569,7 @@ public static class SpineIcons
         MailboxUnread,
         Map,
         Menu,
+        Merge,
         MeshBackground,
         Microowen,
         Minus,
@@ -570,6 +582,8 @@ public static class SpineIcons
         OnlineBadge,
         Owen,
         Palette,
+        Passkey,
+        Password,
         Pause,
         Phone,
         Pin,
@@ -625,6 +639,7 @@ public static class SpineIcons
         TowelRailRadiator,
         Trashcan,
         Tv,
+        Unlink,
         Unlock,
         Unpin,
         Up,

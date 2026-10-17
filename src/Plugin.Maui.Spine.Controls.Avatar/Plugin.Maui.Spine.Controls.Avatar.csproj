@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		net10.0 carries only the Skia renderer (Skia/, SkiaSharp) and the drivers (Drivers/), so scenes, shaders and drivers are
+		tested without a device; the MAUI TFMs add AvatarView, the surfaces and UseSpineAvatar.
+	-->
+	<PropertyGroup>
+		<TargetFrameworks>net10.0;$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<AssemblyName>Plugin.Maui.Spine.Controls.Avatar</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Controls</RootNamespace>
+		<!-- The renderer door waits for spike S2 of docs/plans/spine-avatar.md; the package uses it itself. -->
+		<NoWarn>$(NoWarn);SPINEAVATAR001</NoWarn>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' != 'net10.0'">
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>AvatarView for Spine: animated characters and ambient visuals from .spineavatar files, drawn with SkiaSharp (vector scenes and SkSL shaders) and SceneKit (glTF on iOS and Mac Catalyst), driven by the app's state, by text or by a driver, with Reduce Motion, the app's theme and one screen-reader element.</Description>
+		<SpineIcon>avatar.png</SpineIcon>
+		<PackageTags>$(PackageTags);avatar;character;lip-sync;skiasharp;scenekit;gltf</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="SkiaSharp" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Avatar.Core\Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Speech\Plugin.Maui.Spine.Speech.csproj" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<PackageReference Include="SkiaSharp.Views.Maui.Controls" />
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+		<Compile Remove="**\*.cs" />
+		<Compile Include="Skia\**\*.cs" />
+		<Compile Include="Drivers\**\*.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Voice" />
+		<!-- The spine-avatar tool draws posters and sheets with the Skia renderers. -->
+		<InternalsVisibleTo Include="spine-avatar" />
+		<!-- The lab's inspector reads the surfaces' frame timing once it runs on this package (B1.3). -->
+		<InternalsVisibleTo Include="SpineAvatarLab" />
+	</ItemGroup>
+
+	<!-- Declares the package to UseSpine(); see Plugin.Maui.Spine's build\Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
+</Project>

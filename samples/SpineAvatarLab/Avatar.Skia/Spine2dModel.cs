@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Plugin.Maui.Spine.Controls.Avatar.Core;
+using Plugin.Maui.Spine.Controls.Avatar;
 using SkiaSharp;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Skia;

@@ -3,6 +3,7 @@ using SkiaSharp;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
+[Collection(Measurements.Name)]
 public class Spine2dRendererTests
 {
     private static Spine2dRenderer Renderer(string avatar = "dotling")
@@ -116,19 +117,22 @@ public class Spine2dRendererTests
     {
         using var renderer = Renderer();
         using var surface = SKSurface.Create(new SKImageInfo(320, 320));
+        // Held, not read per frame: SkiaSharp keeps only a weak reference to the wrapper, so a later read can allocate.
+        var canvas = surface.Canvas;
         var frame = Speaking("expr_happy", "viseme_aa");
         frame.AddClip("idle_a", 1.3, 1, AvatarClipLayer.Idle);
         frame.AddClip("blink", 0.1, 1, AvatarClipLayer.Reflex);
         renderer.Evaluate(frame);
-        renderer.Draw(surface.Canvas, new SKRect(0, 0, 320, 320), dark: false);
+        renderer.Draw(canvas, new SKRect(0, 0, 320, 320), dark: false);
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 200; i++)
+        Assert.Equal(0, Measurements.Allocated(() =>
         {
-            renderer.Evaluate(frame);
-            renderer.Draw(surface.Canvas, new SKRect(0, 0, 320, 320), dark: i % 2 == 0);
-        }
-        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+            for (var i = 0; i < 200; i++)
+            {
+                renderer.Evaluate(frame);
+                renderer.Draw(canvas, new SKRect(0, 0, 320, 320), dark: i % 2 == 0);
+            }
+        }));
     }
 
     [Fact]
@@ -142,24 +146,28 @@ public class Spine2dRendererTests
 
         using var renderer = new Spine2dRenderer(Spine2dModel.Compile(package, package.Manifest.Representations[0]));
         using var surface = SKSurface.Create(new SKImageInfo(320, 320));
+        // Held, not read per frame: SkiaSharp keeps only a weak reference to the wrapper, so a later read can allocate.
+        var canvas = surface.Canvas;
         var frame = Speaking("expr_happy", "viseme_aa");
         renderer.Evaluate(frame);
-        renderer.Draw(surface.Canvas, new SKRect(0, 0, 320, 320), dark: false);
+        renderer.Draw(canvas, new SKRect(0, 0, 320, 320), dark: false);
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 100; i++)
+        Assert.Equal(0, Measurements.Allocated(() =>
         {
-            renderer.Evaluate(frame);
-            renderer.Draw(surface.Canvas, new SKRect(0, 0, 320, 320), dark: false);
-        }
-        Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
+            for (var i = 0; i < 100; i++)
+            {
+                renderer.Evaluate(frame);
+                renderer.Draw(canvas, new SKRect(0, 0, 320, 320), dark: false);
+            }
+        }));
     }
 
-    public static TheoryData<string, AvatarSheetKind> Sheets()
+    // The kind goes by name: the sheet types are internal to the Avatar package and a theory's parameters are public.
+    public static TheoryData<string, string> Sheets()
     {
-        var data = new TheoryData<string, AvatarSheetKind>();
+        var data = new TheoryData<string, string>();
         foreach (var avatar in new[] { "dotling", "voice-totem", "pip", "aurora", "aurora-motion", "aurora-flow" })
-            foreach (var kind in Enum.GetValues<AvatarSheetKind>())
+            foreach (var kind in Enum.GetNames<AvatarSheetKind>())
                 data.Add(avatar, kind);
         return data;
     }
@@ -167,8 +175,9 @@ public class Spine2dRendererTests
     // The sheets land in the test output for review next to the bundle's own previews.
     [Theory]
     [MemberData(nameof(Sheets))]
-    public void SheetsRender(string avatar, AvatarSheetKind kind)
+    public void SheetsRender(string avatar, string kindName)
     {
+        var kind = Enum.Parse<AvatarSheetKind>(kindName);
         var package = AvatarArchiveTests.Load(avatar);
         var directory = Path.Combine(AppContext.BaseDirectory, "sheets");
         Directory.CreateDirectory(directory);

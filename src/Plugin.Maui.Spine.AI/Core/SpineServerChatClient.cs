@@ -117,12 +117,7 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
         };
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(stream ? "text/event-stream" : "application/json"));
 
-        if (runtime.Options.AuthorizationHeader is { } authorization && await authorization(cancellationToken) is { Length: > 0 } header)
-            request.Headers.TryAddWithoutValidation("Authorization", header);
-
-        if (await runtime.InstallationIdAsync(cancellationToken) is { Length: > 0 } installation)
-            request.Headers.TryAddWithoutValidation(SpineInstallation.Header, installation);
-
+        await runtime.AddHeadersAsync(request, cancellationToken);
         return request;
     }
 
@@ -173,14 +168,14 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
             $"The AI feature '{feature}' got {(int)response.StatusCode} {response.ReasonPhrase} from {url}: {Shorten(text)}", null, response.StatusCode);
     }
 
-    private static TimeSpan? RetryAfter(HttpResponseMessage response) => response.Headers.RetryAfter switch
+    internal static TimeSpan? RetryAfter(HttpResponseMessage response) => response.Headers.RetryAfter switch
     {
         { Delta: { } delta } => delta,
         { Date: { } date } => date - DateTimeOffset.UtcNow,
         _ => null,
     };
 
-    private static JsonDocument? TryParse(string text)
+    internal static JsonDocument? TryParse(string text)
     {
         try
         {
@@ -192,14 +187,14 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
         }
     }
 
-    private static string? Property(JsonDocument? json, string name) =>
+    internal static string? Property(JsonDocument? json, string name) =>
         json?.RootElement.ValueKind == JsonValueKind.Object && json.RootElement.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
 
     private static string ErrorMessage(string data) => Property(TryParse(data), "error") ?? data;
 
-    private static string Shorten(string text) => text.Length <= 300 ? text : text[..300] + "…";
+    internal static string Shorten(string text) => text.Length <= 300 ? text : text[..300] + "…";
 
     private static JsonSerializerOptions CreateJson()
     {

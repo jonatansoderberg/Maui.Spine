@@ -52,12 +52,12 @@
 			<_SpineEntitlementLine Include="&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;" />
 			<_SpineEntitlementLine Include="&lt;plist version=&quot;1.0&quot;&gt;" />
 			<_SpineEntitlementLine Include="&lt;dict&gt;" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'string'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;string&gt;%(Value)&lt;/string&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'string'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'array'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;array&gt;&lt;string&gt;%(Value)&lt;/string&gt;&lt;/array&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'array'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'boolean'" />
-			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;%(Value)/&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'boolean'" />
+			<!-- One line per entitlement, key and value together: two transforms per kind would write every key of
+			     that kind before every value, and two entitlements of one kind (Sign in with Apple and App Groups)
+			     made two keys in a row. -->
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;&lt;string&gt;%(Value)&lt;/string&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'string'" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;&lt;array&gt;&lt;string&gt;%(Value)&lt;/string&gt;&lt;/array&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'array'" />
+			<_SpineEntitlementLine Include="@(SpineEntitlement->'&lt;key&gt;%(Identity)&lt;/key&gt;&lt;%(Value)/&gt;')" Condition="'%(SpineEntitlement.Kind)' == 'boolean'" />
 			<_SpineEntitlementLine Include="&lt;/dict&gt;" />
 			<_SpineEntitlementLine Include="&lt;/plist&gt;" />
 		</ItemGroup>
@@ -156,6 +156,64 @@
 		</ItemGroup>
 
 		<Message Importance="normal" Text="Spine: UIBackgroundModes (@(_SpineBackgroundModeUnique, ', ')) and BGTaskSchedulerPermittedIdentifiers (@(_SpineBackgroundTaskIdentifierUnique, ', ')) written to $(_SpineBackgroundModesFile)." />
+	</Target>
+
+	<!--
+		CFBundleURLTypes is an array too. A package that needs the app to own a URL scheme (Plugin.Maui.Spine.Widgets
+		for a widget's link) contributes it, and this target writes one partial plist with the app's own entries,
+		copied as they are, and each contributed scheme the app does not declare already. A package that wrote the
+		key itself erased the app's schemes, among them MSAL's msauth.{bundle id} (#582).
+
+		  <SpineUrlScheme Include="$(ApplicationId)" Name="$(ApplicationId).spine-widgets" />
+	-->
+	<Target Name="_SpineWriteUrlTypes"
+			Condition="'$(_SpineEntitlementsApplies)' == 'true' And '@(SpineUrlScheme)' != ''"
+			DependsOnTargets="_DetectAppManifest"
+			BeforeTargets="CollectAppManifests;_CompileAppManifestInputs;_CompileAppManifest">
+
+		<PropertyGroup>
+			<_SpineUrlTypesFile>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'spine', 'UrlTypes.plist'))</_SpineUrlTypesFile>
+			<_SpineAppManifestText Condition="'$(AppBundleManifest)' != '' And Exists('$(AppBundleManifest)')">$([System.IO.File]::ReadAllText('$(AppBundleManifest)'))</_SpineAppManifestText>
+		</PropertyGroup>
+
+		<!-- Each of the app's own entries, as XML, so a role or several schemes in one entry survive. -->
+		<XmlPeek XmlInputPath="$(AppBundleManifest)" ProhibitDtd="false"
+				 Query="/plist/dict/key[.='CFBundleURLTypes']/following-sibling::*[1]/dict"
+				 Condition="'$(AppBundleManifest)' != '' And Exists('$(AppBundleManifest)')">
+			<Output TaskParameter="Result" ItemName="_SpineAppUrlType" />
+		</XmlPeek>
+
+		<ItemGroup>
+			<_SpineUrlSchemeNew Include="@(SpineUrlScheme)" Condition="!$(_SpineAppManifestText.Contains('&lt;string&gt;%(Identity)&lt;/string&gt;'))" />
+		</ItemGroup>
+		<RemoveDuplicates Inputs="@(_SpineUrlSchemeNew)">
+			<Output TaskParameter="Filtered" ItemName="_SpineUrlSchemeUnique" />
+		</RemoveDuplicates>
+
+		<MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(_SpineUrlTypesFile)'))" />
+
+		<ItemGroup>
+			<!-- '?' is a wildcard in an Include; see _SpineWriteEntitlements. -->
+			<_SpineUrlTypesLine Include="&lt;%3Fxml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;%3F&gt;" />
+			<_SpineUrlTypesLine Include="&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;" />
+			<_SpineUrlTypesLine Include="&lt;plist version=&quot;1.0&quot;&gt;" />
+			<_SpineUrlTypesLine Include="&lt;dict&gt;" />
+			<_SpineUrlTypesLine Include="&lt;key&gt;CFBundleURLTypes&lt;/key&gt;" />
+			<_SpineUrlTypesLine Include="&lt;array&gt;" />
+			<_SpineUrlTypesLine Include="@(_SpineAppUrlType)" />
+			<_SpineUrlTypesLine Include="@(_SpineUrlSchemeUnique->'&lt;dict&gt;&lt;key&gt;CFBundleURLName&lt;/key&gt;&lt;string&gt;%(Name)&lt;/string&gt;&lt;key&gt;CFBundleURLSchemes&lt;/key&gt;&lt;array&gt;&lt;string&gt;%(Identity)&lt;/string&gt;&lt;/array&gt;&lt;/dict&gt;')" />
+			<_SpineUrlTypesLine Include="&lt;/array&gt;" />
+			<_SpineUrlTypesLine Include="&lt;/dict&gt;" />
+			<_SpineUrlTypesLine Include="&lt;/plist&gt;" />
+		</ItemGroup>
+
+		<WriteLinesToFile File="$(_SpineUrlTypesFile)" Lines="@(_SpineUrlTypesLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+
+		<ItemGroup>
+			<PartialAppManifest Include="$(_SpineUrlTypesFile)" />
+		</ItemGroup>
+
+		<Message Importance="normal" Text="Spine: CFBundleURLTypes (the app's own and @(_SpineUrlSchemeUnique, ', ')) written to $(_SpineUrlTypesFile)." />
 	</Target>
 
 </Project>

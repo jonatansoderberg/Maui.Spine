@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<AssemblyName>Plugin.Maui.Spine.Authentication.Microsoft</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Authentication</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Sign in with Microsoft (personal accounts and Entra ID) for a Spine app, through MSAL with the broker: Microsoft Authenticator or Company Portal on iOS and Android, WAM on Windows. Its ID token goes to the Spine server (a.AddMicrosoft), or its access token goes straight to an Entra-protected API (a.UseMicrosoft).</Description>
+		<SpineIcon>authentication.png</SpineIcon>
+		<PackageTags>$(PackageTags);authentication;sign-in;microsoft;entra;msal;wam</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<PackageReference Include="Microsoft.Identity.Client" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Authentication\Plugin.Maui.Spine.Authentication.csproj" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+		<PackageReference Include="Microsoft.Identity.Client.Broker" />
+		<PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" />
+	</ItemGroup>
+
+	<!-- The keychain group and the Info.plist check on iOS, MSAL's activity on Android; a ProjectReference consumer
+	     imports build\Plugin.Maui.Spine.Authentication.Microsoft.targets explicitly. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
+</Project>

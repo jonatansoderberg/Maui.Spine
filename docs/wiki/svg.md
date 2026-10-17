@@ -65,9 +65,18 @@ Embed the app's own SVG files and pass the assembly to `UseEmbeddedSvgImages` (o
 
 After that an icon is available by short name (e.g. `"myicon.svg"`) — no other registration is needed, and both the image source and the icon service can find it. The name is matched against the end of the manifest resource name, so the folder it sits in does not matter.
 
+### Figma exports: conic gradients and alpha masks
+
+Svg.Skia draws standard SVG. Two things that Figma exports, and browsers draw, are outside it, so Spine rewrites them before parsing:
+
+- **An angular gradient.** Figma writes it as a `foreignObject` whose content is a CSS `conic-gradient(…)`. Spine replaces it with an image of the same box, drawn with Skia's sweep gradient. It reads `from`, `at`, and colour stops in `rgb()`/`rgba()`/hex, placed in `deg`, `turn`, `rad`, `grad` or `%`, or without a position. Google's G in its Sign in with Google assets is drawn this way.
+- **`mask-type: alpha`.** Svg.Skia reads every mask by luminance. In an alpha mask Spine turns the colours white and keeps their alpha, so the luminance equals the alpha.
+
+The file itself stays as it was exported.
+
 ### The built-in icon set
 
-`Plugin.Maui.Spine.Svg.Icons` carries 228 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
+`Plugin.Maui.Spine.Svg.Icons` carries 233 ready-made icons — UI glyphs, status and content symbols, rooms and appliances, media controls, weather symbols and status badges:
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Svg.Icons

@@ -32,6 +32,8 @@ public sealed class SpineAIOptions
 {
     internal Dictionary<string, Func<IConfiguration, string, IChatClient>> ChatProviders { get; } = new(StringComparer.OrdinalIgnoreCase);
     internal Dictionary<string, Func<IConfiguration, string, IImageGenerator>> ImageProviders { get; } = new(StringComparer.OrdinalIgnoreCase);
+    internal Dictionary<string, Func<IConfiguration, IAIRealtimeProvider>> RealtimeProviders { get; } = new(StringComparer.OrdinalIgnoreCase);
+    internal Dictionary<string, Func<IConfiguration, IAISpeechProvider>> SpeechProviders { get; } = new(StringComparer.OrdinalIgnoreCase);
     internal Func<IServiceProvider, IAIUsageStore>? StoreFactory { get; private set; }
 
     /// <summary>
@@ -73,6 +75,41 @@ public sealed class SpineAIOptions
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
         ImageProviders[provider] = factory ?? throw new ArgumentNullException(nameof(factory));
+        return this;
+    }
+
+    /// <summary>Registers a realtime provider, which sets up voice sessions the app connects to itself.</summary>
+    /// <param name="provider">The name features use, and the key under <c>Ai:Providers</c>.</param>
+    /// <param name="factory">
+    /// Builds the provider from its section: <see cref="AIRealtimeProviders.OpenAI(IConfiguration)"/>,
+    /// <see cref="AIRealtimeProviders.AzureOpenAI(IConfiguration)"/> or one of your own.
+    /// </param>
+    /// <returns>The same options, for chaining.</returns>
+    /// <example>
+    /// <code>
+    /// ai.Realtime("openai", AIRealtimeProviders.OpenAI);
+    /// </code>
+    /// </example>
+    public SpineAIOptions Realtime(string provider, Func<IConfiguration, IAIRealtimeProvider> factory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        RealtimeProviders[provider] = factory ?? throw new ArgumentNullException(nameof(factory));
+        return this;
+    }
+
+    /// <summary>Registers a speech provider, which reads text aloud for <c>Kind: Speech</c> features.</summary>
+    /// <param name="provider">The name features use, and the key under <c>Ai:Providers</c>.</param>
+    /// <param name="factory">Builds the provider from its section: <see cref="AISpeechProviders.OpenAI(IConfiguration)"/> or one of your own.</param>
+    /// <returns>The same options, for chaining.</returns>
+    /// <example>
+    /// <code>
+    /// ai.Speech("openai", AISpeechProviders.OpenAI);
+    /// </code>
+    /// </example>
+    public SpineAIOptions Speech(string provider, Func<IConfiguration, IAISpeechProvider> factory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        SpeechProviders[provider] = factory ?? throw new ArgumentNullException(nameof(factory));
         return this;
     }
 

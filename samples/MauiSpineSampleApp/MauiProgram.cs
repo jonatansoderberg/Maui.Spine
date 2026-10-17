@@ -2,10 +2,12 @@
 using MauiSpineSampleApp.Resources.Styles;
 using Microsoft.Extensions.Logging;
 using Plugin.Maui.Spine.AI;
+using Plugin.Maui.Spine.Authentication;
 using Plugin.Maui.Spine.Biometrics;
 using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Extensions;
 using Plugin.Maui.Spine.Svg;
+using Plugin.Maui.Spine.Voice;
 
 namespace MauiSpineSampleApp;
 
@@ -34,6 +36,30 @@ public static class MauiProgram
                 options.Haptics.TabSwitch = Haptic.Selection;
                 options.Haptics.SheetDetent = Haptic.Selection;
                 options.Haptics.DismissBlocked = Haptic.Warning;
+                // The Sign-in page: the push sample server's /auth. Apple needs the capability, so it is on only in a build
+                // with SpineSignInWithApple=true; the device registers for push as the signed-in user.
+                options.AddAuthentication(a =>
+                {
+                    a.Server = new Uri(SampleServer, "auth");
+                    a.AddEmailPassword();
+                    a.CallbackScheme = "se.cosmomedia.spineshowcase";
+#if SPINE_SIGN_IN_WITH_APPLE
+                    a.AddApple();
+#endif
+#if SPINE_SIGN_IN_WITH_GOOGLE
+                    a.AddGoogle(g => g.ServerClientId = BuildSetting("SpineGoogleServerClientId"));
+#endif
+#if SPINE_SIGN_IN_WITH_MICROSOFT
+                    a.AddMicrosoft(m => m.ClientId = BuildSetting("SpineMicrosoftClientId"));
+#endif
+#if SPINE_PASSKEYS
+                    a.AddPasskeys();
+#endif
+#if (SPINE_SIGN_IN_WITH_GOOGLE || SPINE_SIGN_IN_WITH_MICROSOFT) && !SPINE_SIGN_IN_WITH_APPLE
+                    a.AppleNotRequired = true;   // the Showcase's App ID has no Sign in with Apple yet; an App Store app adds AddApple()
+#endif
+                    a.LinkPushNotifications = true;
+                });
                 // Pages run to the bottom of the screen; their scroll view keeps the last row clear of the home indicator.
                 options.RegionDefaults.SafeAreaEdges = Plugin.Maui.Spine.Core.SafeAreaEdges.Top | Plugin.Maui.Spine.Core.SafeAreaEdges.Left | Plugin.Maui.Spine.Core.SafeAreaEdges.Right;
                 options.RegionDefaults.ScrollInset = Plugin.Maui.Spine.Core.SafeAreaEdges.Bottom;
@@ -74,11 +100,27 @@ public static class MauiProgram
         builder.UseHighlights();
         builder.UseSpineBiometrics(o => o.AppLock(a => a.IsEnabled = () => Preferences.Get(MauiSpineSampleApp.Pages.Biometrics.BiometricsPageViewModel.AppLockKey, false)));
 
+        // The Sign-in page's calls to the sample server, with the access token.
+        builder.Services.AddHttpClient("SampleApi", c => c.BaseAddress = SampleServer).AddSpineAuthentication();
+        // Files the sample server hands out without sign-in (Kairo for the Avatars page).
+        builder.Services.AddHttpClient("SampleServer", c => c.BaseAddress = SampleServer);
+
         // The AI client page: the push sample server with its demo provider (samples/MauiSpinePushNotificationsSampleApp.Server).
         // Android reaches it on localhost through adb reverse tcp:5100 tcp:5100.
+        // The Voice chat page: the push sample server's realtime Voice feature. A phone sets the Mac's address on the page.
+        builder.UseSpineVoice(o =>
+        {
+            o.SessionEndpoint = new Uri(SampleServer, "ai");
+            o.ClientTools.Add(Microsoft.Extensions.AI.AIFunctionFactory.Create(
+                () => DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+                "show_time", "Says what time it is on the user's phone."));
+        });
+
         builder.UseSpineAI(o =>
         {
-            o.Backend = new Uri("http://localhost:5100/ai");
+            o.Backend = new Uri(SampleServer, "ai");
+            // The Generated images page reads postcards from the messaging sample's API, another service than the features.
+            o.AssetsBackend = new Uri("http://localhost:5240/ai");
             o.Feature("Assistant", f => f
 #if IOS || MACCATALYST
                 // IsIOSVersionAtLeast is true on Mac Catalyst on macOS 26 as well.
@@ -103,4 +145,13 @@ public static class MauiProgram
 
         return builder.Build();
     }
+
+    // A value the build put in the assembly (-p:SpineGoogleServerClientId=…, -p:SpineMicrosoftClientId=…).
+    private static string BuildSetting(string key) =>
+        typeof(MauiProgram).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+            .Cast<System.Reflection.AssemblyMetadataAttribute>().First(m => m.Key == key).Value!;
+
+    // The push sample server: on this computer by default (a simulator, or Android through adb reverse), or the one in
+    // Azure with -p:SpineSampleServer=https://… (a phone; samples/MauiSpinePushNotificationsSampleApp.Server/README.md).
+    private static readonly Uri SampleServer = new(BuildSetting("SpineSampleServer").TrimEnd('/') + "/");
 }

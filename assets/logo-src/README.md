@@ -26,10 +26,14 @@ The full-size originals behind `assets/icons/` (256×256 package icons) and `ass
 | `biometrics.png` | `Plugin.Maui.Spine.Biometrics` (the BackgroundTasks original with its corner turned violet and a padlock glyph instead of the clock; generated with PIL, a faint trace of the clock's disc remains at full size) |
 | `highlight.png` | `Plugin.Maui.Spine.Controls.Highlight` (the Biometrics original with its corner in an indigo-to-violet gradient and two four-point sparkles instead of the padlock; generated with PIL) |
 | `server-ai.png` | `Plugin.Maui.Spine.Server.AI` (the Server original with two four-point sparkles above the server glyph in its teal corner; generated with PIL) |
+| `authentication.png` | `Plugin.Maui.Spine.Authentication` (the Biometrics original with the padlock painted out and a person glyph in its violet corner; generated with PIL) |
+| `server-auth.png` | `Plugin.Maui.Spine.Server.Authentication` (the Server original with a key above the server glyph in its teal corner; generated with PIL) |
 | `server-messaging.png` | `Plugin.Maui.Spine.Server.Messaging` and its `.AzureStorage` and `.ServiceBus` transports (the Server original with a queue of three envelopes above the server glyph in its teal corner; generated with PIL) |
 | `ai.png` | `Plugin.Maui.Spine.AI` (the Images original with its corner in a blue-to-violet gradient and a speech bubble holding a four-point sparkle instead of the picture glyph; generated with PIL) |
 | `markdown.png` | `Plugin.Maui.Spine.Controls.Markdown` (the DataGrid original with the table glyph painted over by the markdown mark, M and a down arrow in a rounded frame; generated with PIL) |
 | `chat.png` | `Plugin.Maui.Spine.Controls.Chat` (the Images original with its corner in a green gradient and two speech bubbles instead of the picture glyph; generated with PIL) |
+| `avatar.png` | `Plugin.Maui.Spine.Controls.Avatar`, `.Avatar.Core` and `.Avatar.Voice` (the Chat original with its corner in a violet-to-fuchsia gradient and a round face instead of the bubbles; generated with PIL) |
+| `speech.png` | `Plugin.Maui.Spine.Speech` (the Chat original with its corner in a teal-to-blue gradient and a speaker with sound waves; generated with PIL) |
 
 Package icons are 1254×1254; nuget.org wants at most 1 MB per icon, so the packed copies are resized to 256×256:
 

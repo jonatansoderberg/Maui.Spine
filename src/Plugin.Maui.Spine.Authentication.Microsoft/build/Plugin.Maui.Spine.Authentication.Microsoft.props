@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseSpineAuthenticationMicrosoft() for the app, which passes MSAL its answers; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Authentication.Microsoft" Register="Plugin.Maui.Spine.Authentication.SpineMicrosoftExtensions.UseSpineAuthenticationMicrosoft" />
+	</ItemGroup>
+</Project>

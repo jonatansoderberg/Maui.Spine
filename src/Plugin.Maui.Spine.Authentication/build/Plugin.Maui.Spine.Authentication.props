@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseSpineAuthentication() for the app, which reads o.AddAuthentication(...); see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Authentication" Register="Plugin.Maui.Spine.Authentication.SpineAuthenticationExtensions.UseSpineAuthentication" />
+	</ItemGroup>
+</Project>
