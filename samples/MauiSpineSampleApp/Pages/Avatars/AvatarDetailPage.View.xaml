@@ -1,0 +1,117 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Avatars.AvatarDetailPage"
+    x:TypeArguments="AvatarDetailPageViewModel"
+    x:DataType="AvatarDetailPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar">
+
+        <Example Title="{Binding Entry.Title}"
+                 Summary="{Binding Entry.Summary}">
+            <VerticalStackLayout Spacing="12">
+                <AvatarView x:Name="Avatar"
+                            Source="{Binding Entry.Source}"
+                            Driver="{Binding Driver}"
+                            State="{Binding State, Mode=TwoWay}"
+                            IsMuted="{Binding IsMuted}"
+                            Expression="{Binding Expression}"
+                            MotionMode="{Binding MotionMode}"
+                            MaxFramesPerSecond="{Binding FrameRate}"
+                            HeightRequest="{Binding Size}"
+                            WidthRequest="{Binding Size}"
+                            HorizontalOptions="Center" />
+                <Label FontSize="13" Opacity="0.7" HorizontalTextAlignment="Center">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="{Binding Source={x:Reference Avatar}, Path=RendererName, x:DataType=AvatarView}" />
+                            <Span Text=" · lip sync " />
+                            <Span Text="{Binding Source={x:Reference Avatar}, Path=LipSyncQuality, x:DataType=AvatarView}" />
+                            <Span Text=" · " />
+                            <Span Text="{Binding Source={x:Reference Avatar}, Path=LoadState, x:DataType=AvatarView}" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+                <SegmentedControl SelectedIndex="{Binding DriverIndex}">
+                    <Segment Title="Manual" />
+                    <Segment Title="Text" />
+                </SegmentedControl>
+
+                <VerticalStackLayout Spacing="10" IsVisible="{Binding IsManual}">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+                        <Label Text="State" VerticalOptions="Center" />
+                        <Picker Grid.Column="1" ItemsSource="{Binding States}" SelectedItem="{Binding State}" MinimumWidthRequest="140" />
+                        <Label Grid.Row="1" Text="Expression" VerticalOptions="Center" />
+                        <Picker Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Expressions}" SelectedItem="{Binding Expression}" MinimumWidthRequest="140" />
+                        <Label Grid.Row="2" Text="Microphone off" VerticalOptions="Center" />
+                        <Switch Grid.Row="2" Grid.Column="1" IsToggled="{Binding IsMuted}" />
+                    </Grid>
+                    <Label Text="A timed expression" FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+                        <Picker ItemsSource="{Binding Expressions}" SelectedItem="{Binding TimedExpression}" />
+                        <Button Grid.Column="1" Text="Show" Command="{Binding ShowExpressionCommand}" />
+                        <Slider Grid.Row="1" Minimum="0" Maximum="1" Value="{Binding Intensity}" />
+                        <Label Grid.Row="1" Grid.Column="1" Text="{Binding Intensity, StringFormat='intensity {0:0.00}'}" VerticalOptions="Center" />
+                        <Slider Grid.Row="2" Minimum="0.5" Maximum="8" Value="{Binding DurationSeconds}" />
+                        <Label Grid.Row="2" Grid.Column="1" Text="{Binding DurationSeconds, StringFormat='{0:0.0} s'}" VerticalOptions="Center" />
+                    </Grid>
+                    <Label Text="Gestures" FontAttributes="Bold" />
+                    <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Source={x:Reference Avatar}, Path=Gestures, x:DataType=AvatarView}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Button Text="{Binding .}" Command="{PageCommand Gesture}" CommandParameter="{Binding .}" Margin="0,0,8,8" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </FlexLayout>
+                    <Button Text="Interrupt" Command="{Binding InterruptCommand}" HorizontalOptions="Start" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="10" IsVisible="{Binding IsText}">
+                    <Editor Text="{Binding Text}" AutoSize="TextChanges" />
+                    <HorizontalStackLayout Spacing="10">
+                        <Button Text="Mouth it" Command="{Binding MouthCommand}" />
+                        <Button Text="Stream it" Command="{Binding StreamCommand}" />
+                        <Button Text="Stop" Command="{Binding StopCommand}" />
+                    </HorizontalStackLayout>
+                    <Label Text="The mouth is guessed from the letters and timed by the driver's own clock, so the quality says EstimatedText. Stream it shows Thinking until the first piece arrives, as a chat answer does." FontSize="13" Opacity="0.7" />
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;AvatarView Source="{Binding Avatar}" Driver="{Binding Driver}" State="{Binding State}" /&gt;
+
+                avatar.SetExpression(new(AvatarExpression.Happy, 0.9f, TimeSpan.FromSeconds(3)));
+                await avatar.PlayGestureAsync("nod");
+
+                var text = new TextAvatarDriver();
+                Driver = text;
+                text.Mouth("Hello!");                       // or, as an answer streams in:
+                text.Begin(); text.Append(delta); text.Complete();
+            </Example.Code>
+        </Example>
+
+        <Example Title="Size, motion and frame rate"
+                 Summary="The same avatar at 64, 128 and 320 points. Reduced holds a still pose and draws four times a second; System follows the platform's Reduce Motion. The theme menu in the header bar shows the light and dark colours.">
+            <VerticalStackLayout Spacing="10">
+                <SegmentedControl SelectedIndex="{Binding SizeIndex}">
+                    <Segment Title="64" />
+                    <Segment Title="128" />
+                    <Segment Title="320" />
+                </SegmentedControl>
+                <SegmentedControl SelectedIndex="{Binding MotionIndex}">
+                    <Segment Title="System" />
+                    <Segment Title="Reduced" />
+                    <Segment Title="Full" />
+                </SegmentedControl>
+                <SegmentedControl SelectedIndex="{Binding FrameRateIndex}">
+                    <Segment Title="15 fps" />
+                    <Segment Title="30 fps" />
+                    <Segment Title="60 fps" />
+                </SegmentedControl>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;AvatarView MotionMode="System" MaxFramesPerSecond="30" AccentColor="{StaticResource Primary}" /&gt;
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>

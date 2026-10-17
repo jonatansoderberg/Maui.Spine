@@ -316,6 +316,18 @@ app.MapPost("/channels", async (HttpRequest http, IServiceProvider services, Can
     }
 });
 
+/// Avatars too large to bundle with the Showcase (Kairo, 16.6 MB), downloaded by its Avatars page and cached there.
+/// The files are published next to the server (the csproj links Kairo from the avatar lab); anything else is not served.
+app.MapGet("/sample/avatars/{name}", (string name) =>
+{
+    if (name is not "kairo.spineavatar")
+        return Results.NotFound();
+    var path = Path.Combine(AppContext.BaseDirectory, "avatars", name);
+    return File.Exists(path)
+        ? Results.File(path, "application/zip", name, enableRangeProcessing: true)
+        : Results.Problem($"{name} is not in {Path.GetDirectoryName(path)}.", statusCode: StatusCodes.Status404NotFound);
+});
+
 /// The remote widget's content. The platform fetches this itself at every reload — the widget
 /// extension on iOS, a receiver in the app's process on Android — so what the widget shows can change
 /// while the app is not running. The clock says the answer is fresh; "Från servern" says where it came from.

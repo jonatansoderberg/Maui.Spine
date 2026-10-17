@@ -195,7 +195,7 @@ public sealed class AvatarView : ContentView
     /// <summary>Why the last load failed, or null.</summary>
     public Exception? LoadError { get; private set; }
 
-    /// <summary>The avatar shown, or null.</summary>
+    /// <summary>The avatar shown, or null. Raises <see cref="BindableObject.PropertyChanged"/>, as do <see cref="Representation"/>, <see cref="RendererName"/>, <see cref="Gestures"/> and <see cref="LipSyncQuality"/>.</summary>
     public AvatarPackage? Package { get; private set; }
 
     /// <summary>The representation drawn, or null when none is (empty, or shown as its poster).</summary>
@@ -356,6 +356,16 @@ public sealed class AvatarView : ContentView
         UpdateDescription();
         UpdateLoop();
         Tick(TimeSpan.Zero);
+        RaiseShown();
+    }
+
+    private void RaiseShown()
+    {
+        OnPropertyChanged(nameof(Package));
+        OnPropertyChanged(nameof(Representation));
+        OnPropertyChanged(nameof(RendererName));
+        OnPropertyChanged(nameof(Gestures));
+        OnPropertyChanged(nameof(LipSyncQuality));
     }
 
     private void Unload()
@@ -370,6 +380,7 @@ public sealed class AvatarView : ContentView
         _runtime.Unload();
         SetLoadState(AvatarLoadState.Empty);
         UpdateDescription();
+        RaiseShown();
     }
 
     private void SetLoadState(AvatarLoadState state)
@@ -520,7 +531,10 @@ public sealed class AvatarView : ContentView
         if (_surface is null)
             return;
 
+        var quality = _runtime.Input.LipSyncQuality;
         var frame = _runtime.Tick(delta);
+        if (_runtime.Input.LipSyncQuality != quality)
+            OnPropertyChanged(nameof(LipSyncQuality));
 
         // The driver, or the scheduler on its way out of Interrupted, moves the state; the property follows.
         var state = _runtime.Input.State;

@@ -198,6 +198,8 @@ public sealed class AvatarRuntime
                 return;
             _driver?.Detach();
             _driver = value;
+            if (value is null)
+                Input.LipSyncQuality = AvatarLipSyncQuality.None;
             value?.Attach(Input);
         }
     }
