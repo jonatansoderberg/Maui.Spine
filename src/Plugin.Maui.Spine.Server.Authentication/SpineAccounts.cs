@@ -293,14 +293,18 @@ internal sealed class SpineAccounts(
         return user is null ? refusal! : SignInOutcome.Ok(await tokens.IssueAsync(user, caller.Provider, cancellationToken: cancellationToken));
     }
 
-    /// <summary><c>DELETE /auth/link/{provider}</c>: removes a provider from the signed-in user, never the last way to sign in.</summary>
-    public async Task<SignInOutcome> UnlinkAsync(string providerName, SpineCaller caller, CancellationToken cancellationToken)
+    /// <summary>
+    /// <c>DELETE /auth/link/{provider}</c>: removes a provider from the signed-in user, never the last way to sign in.
+    /// With <paramref name="subject"/> (<c>DELETE /auth/link/{provider}/{subject}</c>), only that login, such as one passkey.
+    /// </summary>
+    public async Task<SignInOutcome> UnlinkAsync(string providerName, SpineCaller caller, CancellationToken cancellationToken, string? subject = null)
     {
         if (await users.FindByIdAsync(caller.UserId, cancellationToken) is not { } user) return SignInOutcome.Refused(401, SpineAuthErrors.InvalidGrant);
 
         var logins = await users.GetLoginsAsync(user.Id, cancellationToken);
-        var removing = logins.Where(l => l.Provider == providerName).ToList();
-        if (removing.Count == 0) return SignInOutcome.Refused(404, SpineAuthErrors.InvalidRequest, $"The account has no {providerName} login.");
+        var removing = logins.Where(l => l.Provider == providerName && (subject is null || l.Subject == subject)).ToList();
+        if (removing.Count == 0)
+            return SignInOutcome.Refused(404, SpineAuthErrors.InvalidRequest, subject is null ? $"The account has no {providerName} login." : $"The account has no such {providerName} login.");
         if (removing.Count == logins.Count)
             return SignInOutcome.Refused(409, SpineAuthErrors.LastLogin, "This is the account's last way to sign in; add another first.");
 

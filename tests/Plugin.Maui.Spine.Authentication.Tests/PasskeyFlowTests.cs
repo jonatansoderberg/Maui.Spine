@@ -97,6 +97,19 @@ public sealed class PasskeyFlowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task One_passkey_is_unlinked_by_its_subject()
+    {
+        await _flows.SignUpAsync("anna@example.com", "correct horse", "Anna", default);
+        var linked = await _flows.PasskeyRegisterAsync(new Sheet(_authenticator), null, default, link: await _session.GetAccessTokenAsync());
+        var passkey = linked.User!.Logins!.Single(l => l.Provider == "passkey");
+
+        var result = await _flows.UnlinkAsync("passkey", default, passkey.Subject);
+
+        Assert.Equal(SignInStatus.SignedIn, result.Status);
+        Assert.Equal(["password"], result.User!.Logins!.Select(l => l.Provider).ToArray());
+    }
+
+    [Fact]
     public async Task Closing_the_sheet_cancels()
     {
         var sheet = new Sheet(_authenticator) { Canceled = true };

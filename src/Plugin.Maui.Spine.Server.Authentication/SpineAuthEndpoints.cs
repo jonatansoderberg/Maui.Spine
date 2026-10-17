@@ -245,13 +245,25 @@ public static class SpineAuthEndpoints
     /// <see cref="SpineTokens"/>, or a <see cref="SpineAuthProblem"/>: 401 without a valid access token, 404 when the user has no
     /// such login, 409 <c>last_login</c> for the last way to sign in, 501 when the app's user store cannot delete logins.
     /// </returns>
-    public static async Task<IResult> UnlinkAsync(HttpRequest request, string provider, CancellationToken cancellationToken = default)
+    public static async Task<IResult> UnlinkAsync(HttpRequest request, string provider, CancellationToken cancellationToken = default) =>
+        await UnlinkAsync(request, provider, null, cancellationToken);
+
+    /// <summary>
+    /// <c>DELETE /auth/link/{provider}/{subject}</c>: removes one login of a provider from the signed-in user, such as one
+    /// passkey of several (<see cref="SpineLoginInfo.Subject"/>).
+    /// </summary>
+    /// <param name="request">The incoming request, with the user's access token.</param>
+    /// <param name="provider">The provider's name, from the route.</param>
+    /// <param name="subject">The login's subject, from the route; <see langword="null"/> removes every login of the provider.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>As <see cref="UnlinkAsync(HttpRequest, string, CancellationToken)"/>.</returns>
+    public static async Task<IResult> UnlinkAsync(HttpRequest request, string provider, string? subject, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(provider);
 
         if (await CallerAsync(request) is not { } caller) return Results.Unauthorized();
-        return Answer(request, await Service<SpineAccounts>(request).UnlinkAsync(provider.ToLowerInvariant(), caller, cancellationToken));
+        return Answer(request, await Service<SpineAccounts>(request).UnlinkAsync(provider.ToLowerInvariant(), caller, cancellationToken, subject));
     }
 
     /// <summary>
@@ -461,7 +473,7 @@ public static class SpineAuthEndpointRouteBuilderExtensions
     /// Maps every sign-in endpoint under <paramref name="prefix"/>: <c>GET nonce</c>, <c>POST {provider}/token</c>,
     /// <c>GET {provider}/start</c>, <c>GET</c>/<c>POST {provider}/callback</c>,
     /// <c>POST token</c>, <c>POST revoke</c>, <c>DELETE account</c>, <c>POST password/{action}</c>, <c>POST link/ticket</c>,
-    /// <c>POST</c>/<c>DELETE link/{provider}</c>, <c>POST pending/{action}</c>, <c>POST passkey/{**action}</c> and
+    /// <c>POST</c>/<c>DELETE link/{provider}</c>, <c>DELETE link/{provider}/{subject}</c>, <c>POST pending/{action}</c>, <c>POST passkey/{**action}</c> and
     /// <c>GET .well-known/jwks.json</c>.
     /// </summary>
     /// <param name="endpoints">The application's route builder.</param>
@@ -484,6 +496,7 @@ public static class SpineAuthEndpointRouteBuilderExtensions
         group.MapPost("/link/ticket", (HttpRequest request, CancellationToken ct) => SpineAuthEndpoints.LinkTicketAsync(request, ct));
         group.MapPost("/link/{provider}", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.LinkAsync(request, provider, ct));
         group.MapDelete("/link/{provider}", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.UnlinkAsync(request, provider, ct));
+        group.MapDelete("/link/{provider}/{subject}", (HttpRequest request, string provider, string subject, CancellationToken ct) => SpineAuthEndpoints.UnlinkAsync(request, provider, subject, ct));
         group.MapPost("/pending/{action}", (HttpRequest request, string action, CancellationToken ct) => SpineAuthEndpoints.PendingAsync(request, action, ct));
         group.MapPost("/passkey/{**action}", (HttpRequest request, string action, CancellationToken ct) => SpineAuthEndpoints.PasskeyAsync(request, action, ct));
         group.MapGet("/.well-known/jwks.json", (HttpRequest request) => SpineAuthEndpoints.Jwks(request));

@@ -130,6 +130,9 @@ internal sealed class SpineAuth : ISpineAuth
     public Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken = default) =>
         Direct ? NeedsServer("Linking accounts") : Flows.UnlinkAsync(provider.ToLowerInvariant(), cancellationToken);
 
+    public Task<SignInResult> UnlinkAsync(string provider, string subject, CancellationToken cancellationToken = default) =>
+        Direct ? NeedsServer("Linking accounts") : Flows.UnlinkAsync(provider.ToLowerInvariant(), cancellationToken, subject);
+
     public Task<SignInResult> CreateAccountAsync(SpinePendingIdentity pending, CancellationToken cancellationToken = default) =>
         Direct ? NeedsServer("Linking accounts") : Flows.CreatePendingAsync(pending, cancellationToken);
 

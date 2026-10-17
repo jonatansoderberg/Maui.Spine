@@ -115,11 +115,11 @@ internal sealed class SpineAuthFlows(SpineAuthClient client, SpineAuthSession se
             signedIn: link is null);
     }
 
-    /// <summary>Removes a provider, or the password, from the signed-in user.</summary>
-    public async Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken)
+    /// <summary>Removes a provider, or the password, from the signed-in user; with <paramref name="subject"/>, only that login.</summary>
+    public async Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken, string? subject = null)
     {
         var (token, problem) = await LinkingAsAsync(cancellationToken);
-        return problem ?? await ResultOfAsync(await client.UnlinkAsync(provider, token!, cancellationToken), signedIn: false);
+        return problem ?? await ResultOfAsync(await client.UnlinkAsync(provider, token!, cancellationToken, subject), signedIn: false);
     }
 
     /// <summary>A new account for the pending provider account.</summary>

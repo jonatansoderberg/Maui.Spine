@@ -80,7 +80,7 @@ public sealed record SpineAuthLogin(string Provider, string Subject, string User
     /// <summary>A passkey's signature counter, which a sign-in must move forward when the authenticator keeps one.</summary>
     public uint PasskeySignCount { get; init; }
 
-    internal SpineLoginInfo ToContract() => new(Provider, Email, DisplayName, LinkedAt);
+    internal SpineLoginInfo ToContract() => new(Provider, Email, DisplayName, LinkedAt, Subject);
 }
 
 /// <summary>

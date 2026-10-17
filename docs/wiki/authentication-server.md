@@ -60,6 +60,7 @@ Bodies and answers are the records in `Plugin.Maui.Spine.Authentication` in `.Co
 | `POST /auth/password/{signup,verify,resend,signin,forgot,reset}` | Email and password | see below |
 | `POST /auth/link/{provider}` | With the user's access token: an ID token (`SpineIdTokenRequest`) adds the provider to that user | `SpineTokens`; 409 `identity_in_use` |
 | `POST /auth/link/ticket` | With the user's access token: a one-time ticket (5 minutes) for linking through the browser, passed as `link=` to `/{provider}/start` | `SpineLinkTicket` |
+| `DELETE /auth/link/{provider}/{subject}` | With the user's access token: removes one login of a provider, such as one passkey (`SpineLoginInfo.Subject`) | as below |
 | `DELETE /auth/link/{provider}` | With the user's access token: removes a provider, or `password` | `SpineTokens`; 404; 409 `last_login`; 501 when the app's `IUserResolver` cannot delete logins |
 | `POST /auth/pending/{create,link}` | A pending identity's ticket (`SpinePendingRequest`): a new account, or, with an access token, the account the user proved | `SpineTokens`; 401 `invalid_grant`; 409 `identity_in_use` |
 | `POST /auth/passkey/register/options`, `/register` | A new passkey: for the user behind the access token, or without one for a new account (`SpinePasskeyNewAccount`); the WebAuthn options (`SpinePasskeyChallenge`), then the platform's answer (`SpinePasskeyResponse`) | `SpinePasskeyChallenge`, then `SpineTokens`; 403 `signup_closed`; 401 `invalid_token` for a refused passkey, `invalid_grant` for an expired ceremony |
@@ -185,7 +186,7 @@ app.MapSpinePasskeyAssociations();                               // /.well-known
 
 WebAuthn is [Fido2NetLib](https://github.com/passwordless-lib/fido2-net-lib). The server asks for a discoverable passkey with user verification and no attestation, and accepts the origin `https://{RelyingPartyId}`, the Android apps' `android:apk-key-hash:` origins and any in `Origins`.
 
-- **A passkey is a login:** provider `passkey`, the credential id as the subject, its public key and signature counter on `SpineAuthLogin`. `Logins`, unlinking and "never the last way in" work as for the other providers, and the built-in stores keep the key with the login. `DELETE /auth/link/passkey` removes all of the user's passkeys.
+- **A passkey is a login:** provider `passkey`, the credential id as the subject, its public key and signature counter on `SpineAuthLogin`. `Logins`, unlinking and "never the last way in" work as for the other providers, and the built-in stores keep the key with the login. `DELETE /auth/link/passkey/{credential id}` removes one passkey (`SpineLoginInfo.Subject` carries the id), and `DELETE /auth/link/passkey` all of them.
 - **The user handle** is the UTF-8 of the user's id, so a sign-in without a username names its user; the server checks it against the passkey's owner.
 - **A ceremony works once,** within `ChallengeLifetime` (5 minutes), kept in the one-time store. A counter that does not move forward refuses the sign-in, as from a cloned authenticator; Apple's passkeys keep it at 0.
 - **A new account made with a passkey** needs a name or an email for the platform's sheet. The email stays on the login, unverified, never as the account's email; a code verifies an email, as for a password account. `AllowSignUp = false` closes it (403 `signup_closed`).

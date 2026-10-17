@@ -95,6 +95,15 @@ public interface ISpineAuth
     /// <param name="cancellationToken">Cancels the call.</param>
     Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken = default) => NotHere();
 
+    /// <summary>
+    /// Removes one login of a provider from the signed-in user: one passkey of several, say, from a lost phone. Never the
+    /// last way to sign in.
+    /// </summary>
+    /// <param name="provider">The provider's name, as in <see cref="SpineLoginInfo.Provider"/>.</param>
+    /// <param name="subject">The login's <see cref="SpineLoginInfo.Subject"/>.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    Task<SignInResult> UnlinkAsync(string provider, string subject, CancellationToken cancellationToken = default) => NotHere();
+
     /// <summary>Makes a new account for a provider account the server asked about (<see cref="SignInStatus.ChooseAccount"/>), and signs in.</summary>
     /// <param name="pending">The result's <see cref="SignInResult.Pending"/>.</param>
     /// <param name="cancellationToken">Cancels the call.</param>

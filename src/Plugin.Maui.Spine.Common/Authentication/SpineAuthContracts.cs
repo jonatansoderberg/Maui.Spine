@@ -37,7 +37,11 @@ public sealed record SpineUser(
 /// <param name="Email">The email that provider gave, when it gave one; not necessarily verified, and not the account's <see cref="SpineUser.Email"/>.</param>
 /// <param name="DisplayName">The name that provider gave.</param>
 /// <param name="LinkedAt">When the login was added to the account; null for logins made before Spine kept it.</param>
-public sealed record SpineLoginInfo(string Provider, string? Email = null, string? DisplayName = null, DateTimeOffset? LinkedAt = null);
+/// <param name="Subject">
+/// The provider's id for this login (a passkey's credential id), so one of several logins of a provider can be removed:
+/// <c>ISpineAuth.UnlinkAsync(provider, subject)</c>.
+/// </param>
+public sealed record SpineLoginInfo(string Provider, string? Email = null, string? DisplayName = null, DateTimeOffset? LinkedAt = null, string? Subject = null);
 
 /// <summary>
 /// The start of a passkey ceremony: <c>POST /auth/passkey/register/options</c> or <c>/signin/options</c>. The app hands

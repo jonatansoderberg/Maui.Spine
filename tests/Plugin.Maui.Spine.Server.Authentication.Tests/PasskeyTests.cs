@@ -256,6 +256,39 @@ public sealed class PasskeyTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task One_passkey_of_several_is_removed_and_the_others_still_sign_in()
+    {
+        var signedUp = await SignUpAsync();
+        var challenge = await ChallengeAsync("/auth/passkey/register/options", null, signedUp.AccessToken);
+        var phone = new SoftwareAuthenticator($"https://{AuthHost.PasskeyDomain}", AuthHost.PasskeyDomain);
+        var added = await TokensAsync(await SendAsync("/auth/passkey/register", new SpinePasskeyResponse(challenge.ChallengeId, phone.Create(challenge.Options))));
+        var lost = added.User.Logins!.Single(l => l.Subject == phone.Ids.Single());
+
+        using var unlink = new HttpRequestMessage(HttpMethod.Delete, $"/auth/link/passkey/{lost.Subject}");
+        unlink.Headers.Authorization = new AuthenticationHeaderValue("Bearer", added.AccessToken);
+        var removed = await TokensAsync(await _host.Http.SendAsync(unlink));
+
+        Assert.Equal([_iPhone.Ids.Single()], removed.User.Logins!.Select(l => l.Subject).ToArray());
+        await TokensAsync(await SignInAsync());
+
+        var lostChallenge = await ChallengeAsync("/auth/passkey/signin/options", null);
+        var refused = await SendAsync("/auth/passkey/signin", new SpinePasskeyResponse(lostChallenge.ChallengeId, phone.Get(lostChallenge.Options)));
+        Assert.Equal(SpineAuthErrors.UnknownPasskey, (await AuthHost.ProblemAsync(refused))!.Error);
+    }
+
+    [Fact]
+    public async Task The_only_passkey_cannot_be_removed_by_its_subject_either()
+    {
+        var signedUp = await SignUpAsync();
+        using var unlink = new HttpRequestMessage(HttpMethod.Delete, $"/auth/link/passkey/{_iPhone.Ids.Single()}");
+        unlink.Headers.Authorization = new AuthenticationHeaderValue("Bearer", signedUp.AccessToken);
+
+        var response = await _host.Http.SendAsync(unlink);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
     public async Task The_association_files_name_the_apps()
     {
         var apple = JsonNode.Parse(await _host.Http.GetStringAsync("/.well-known/apple-app-site-association"))!;

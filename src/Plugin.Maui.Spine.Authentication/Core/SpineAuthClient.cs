@@ -73,9 +73,10 @@ internal sealed class SpineAuthClient(HttpClient http, Uri root) : ITokenEndpoin
     public Task<ServerAnswer> LinkAsync(string provider, SpineIdTokenRequest request, string accessToken, CancellationToken cancellationToken) =>
         PostAsync($"link/{Uri.EscapeDataString(provider)}", request, cancellationToken, accessToken);
 
-    public async Task<ServerAnswer> UnlinkAsync(string provider, string accessToken, CancellationToken cancellationToken)
+    public async Task<ServerAnswer> UnlinkAsync(string provider, string accessToken, CancellationToken cancellationToken, string? subject = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Delete, new Uri(root, $"link/{Uri.EscapeDataString(provider)}"));
+        var path = $"link/{Uri.EscapeDataString(provider)}" + (subject is null ? "" : $"/{Uri.EscapeDataString(subject)}");
+        using var request = new HttpRequestMessage(HttpMethod.Delete, new Uri(root, path));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return await SendAsync(request, cancellationToken);
     }
