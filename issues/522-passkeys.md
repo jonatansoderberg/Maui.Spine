@@ -2,7 +2,7 @@
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/522
 **Branch:** issue/522-passkeys
-**Status:** In Progress
+**Status:** In Review (PR #608)
 
 ## Plan
 
@@ -93,3 +93,9 @@ The wikis (`authentication.md`, `authentication-server.md`), the new package's R
 - **One passkey at a time:** `SpineLoginInfo.Subject`, `DELETE /auth/link/{provider}/{subject}` and `ISpineAuth.UnlinkAsync(provider, subject)`; the Showcase's Unlink on a passkey row removes that passkey only.
 - **Left as they are, for now:** adding a passkey needs only a valid access token, like linking any other provider; the unauthenticated options endpoints write a one-time row each, like `/auth/nonce`, and the sample server rate-limits `/auth`.
 - **Symbol:** `Passkey` in the icon set (233 icons): the set's User and an upright Key, top and bottom aligned, the key's hole lowered a little; `signin-passkey.svg` is the same glyph.
+
+## Verification
+
+- The owner's iPhone against Azure (2026-10-17): a new account with a passkey, sign-in with the button, and sign-in through AutoFill.
+- The iPhone 17 simulator against Azure: sign-up and sign-in with the button.
+- Server tests 127, app tests 74.
