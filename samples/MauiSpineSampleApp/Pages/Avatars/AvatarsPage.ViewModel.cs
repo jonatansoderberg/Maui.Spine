@@ -25,7 +25,7 @@ public partial class AvatarsPageViewModel : SampleViewModel
     // glTF avatars are drawn by SceneKit on iOS and Mac Catalyst and by Skia on the CPU elsewhere (no textures).
     private static string Gltf => OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() ? "glTF · SceneKit" : "glTF · Skia";
 
-    /// <summary>Bundled as MauiAssets, stripped of their generators' source: about 1.9 MB together.</summary>
+    /// <summary>Bundled as MauiAssets, packed by spine-avatar with 512 px posters and no source: about 2 MB together.</summary>
     public IReadOnlyList<AvatarEntry> Bundled { get; } =
     [
         new("nova", "Nova", "A small robot with a light in each ear: a model generated in code, 15 mouth shapes, gestures and a mute badge.", "Character", Gltf, AvatarSource.FromMauiAsset("Avatars/nova.spineavatar")),

@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		The spine-avatar command: inspect, validate, pack, strip, render posters and sheets, report. Plain net10.0, so it runs
+		wherever .NET runs; posters are drawn with the package's own Skia renderers (vector scenes, shaders, glTF without
+		alpha-masked materials).
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<OutputType>Exe</OutputType>
+		<AssemblyName>spine-avatar</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Avatar.Tool</RootNamespace>
+		<PackAsTool>true</PackAsTool>
+		<ToolCommandName>spine-avatar</ToolCommandName>
+		<PackageId>Plugin.Maui.Spine.Avatar.Tool</PackageId>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>The spine-avatar command for .spineavatar files: inspect a package, validate it (with the shipping profile: real posters, no source/), pack it with the format's defaults, computed capabilities, rendered posters and a fresh hash table, strip source/, render posters and state and expression sheets, and report on several packages at once.</Description>
+		<SpineIcon>avatar.png</SpineIcon>
+		<PackageTags>$(PackageTags);avatar;tool;spineavatar</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Avatar.Core\Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Avatar\Plugin.Maui.Spine.Controls.Avatar.csproj" SetTargetFramework="TargetFramework=net10.0" />
+		<PackageReference Include="SkiaSharp" />
+		<!-- So it runs on a Linux build agent too; Windows and macOS come with SkiaSharp. -->
+		<PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+	</ItemGroup>
+
+	<!--
+		SkiaSharp brings its library for fifteen platforms and 85 MB of symbols per Windows one. The tool keeps the
+		platforms a developer or a build agent runs on, without symbols: macOS, Windows and Linux on x64 and arm64, and
+		Alpine on x64.
+	-->
+	<PropertyGroup>
+		<ToolRuntimes>;osx;win-x64;win-arm64;linux-x64;linux-arm64;linux-musl-x64;</ToolRuntimes>
+	</PropertyGroup>
+	<Target Name="TrimNativeAssets" AfterTargets="ComputeResolvedFilesToPublishList">
+		<ItemGroup>
+			<ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(RelativePath)').StartsWith('runtimes')) and ('%(Extension)' == '.pdb' or !$(ToolRuntimes.Contains(';$([System.String]::Copy('%(RelativePath)').Split('/\')[1]);')))" />
+		</ItemGroup>
+	</Target>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
+	</ItemGroup>
+
+</Project>

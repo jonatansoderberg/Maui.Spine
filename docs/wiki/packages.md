@@ -26,6 +26,7 @@ Spine ships as thirty-four NuGet packages built from this repository, one per pr
 | Controls | `Plugin.Maui.Spine.Controls.Voice` | [`VoiceView`](voice.md#drawing-the-conversation): a voice conversation drawn with SkiaSharp (orb, bars, ring, avatar), visuals of your own, visemes | `Plugin.Maui.Spine`, `.Voice`, SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Avatar` | [`AvatarView`](avatars.md): animated characters and ambient visuals from `.spineavatar` files, drawn with SkiaSharp and SceneKit, driven by the app, by text or by a driver | `Plugin.Maui.Spine`, `.Controls.Avatar.Core`, `.Speech`, SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Avatar.Voice` | [`VoiceAvatarDriver`](avatars.md#with-a-voice-conversation) and VoiceView's `character`: an avatar following a realtime voice conversation | `.Controls.Avatar`, `.Voice`, `.Controls.Voice` |
+| Tool | `Plugin.Maui.Spine.Avatar.Tool` | The `spine-avatar` .NET tool for [`.spineavatar` files](avatars.md#making-a-package): inspect, validate (with the shipping profile), pack with rendered posters, strip `source/`, render sheets, report | `.Controls.Avatar.Core`, `.Controls.Avatar` (its Skia renderers), SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Avatar.Core` | The core of [avatars](avatars.md) with no MAUI: the `.spineavatar` format 1.0 (safe reader, schemas, defaults, validation), the scheduler, the driver contract with a text driver, the canonical visemes, a glTF reader and rig | — |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view (Edge, Pulse, Sheen, Trace, Breathe), `Highlight.Repeat` and `.Key`, `IHighlights` | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron | `Plugin.Maui.Spine`, `.AnimatedLabel` |
@@ -57,11 +58,12 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
   │   Chat ──► Markdown, Shimmer
 PushNotifications                                    AnimatedLabel
   Images ──► Common
-  Voice ──► Common
+  Voice ──► Common, Speech
   Controls.Voice ──► Voice, Spine (and SkiaSharp)
   Controls.Avatar ──► Controls.Avatar.Core, Speech, Spine (and SkiaSharp)
   Speech (no Spine dependency)
   Controls.Avatar.Voice ──► Controls.Avatar, Voice, Controls.Voice
+  Avatar.Tool ──► Controls.Avatar (net10.0), Controls.Avatar.Core (a .NET tool, not a library)
   AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
   Common ◄── Server.Authentication (and JwtBearer, Azure.Data.Tables)
   Server.Messaging ◄── Server.Messaging.AzureStorage ◄── Server.Messaging.ServiceBus
@@ -171,6 +173,7 @@ A package gets nothing internal from the core. It uses these small public hooks 
 | MAUI packages (core, Svg, Widgets, PushNotifications, BackgroundTasks, Biometrics, Authentication.Google, Authentication.Microsoft, Authentication.Passkeys, the controls, Scanner) | `net10.0-android`, `net10.0-ios`, `net10.0-maccatalyst`, `net10.0-windows10.0.19041.0` |
 | `Plugin.Maui.Spine.Barcodes` | `net10.0` (encoding, `LightGridReader`) and the four MAUI frameworks (adding `BarcodeView`) |
 | `Plugin.Maui.Spine.Images` | `net10.0` (the disk cache only, for tests) and the four MAUI frameworks |
+| `Plugin.Maui.Spine.Avatar.Tool` | `net10.0`, as a .NET tool (`dotnet tool install -g Plugin.Maui.Spine.Avatar.Tool`, command `spine-avatar`) |
 | `Plugin.Maui.Spine.Controls.Voice` | `net10.0` (the visuals' drawing, for tests) and the four MAUI frameworks (adding `VoiceView` and `UseSpineVoiceView`) |
 | `Plugin.Maui.Spine.Voice` | `net10.0` (the meter, the queue, the resampler and the shared engine, for tests) and the four MAUI frameworks (adding the platform engines and `UseSpineVoice`) |
 | `Plugin.Maui.Spine.AI` | `net10.0` (the server client, the fallback chain and the meter, for tests and non-MAUI clients) and the four MAUI frameworks (adding `UseSpineAI`) |
