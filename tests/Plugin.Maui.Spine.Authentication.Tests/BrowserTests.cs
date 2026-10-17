@@ -211,6 +211,16 @@ public sealed class IdentityProviderTests
     }, AppCallback);
 
     [Fact]
+    public async Task An_email_the_provider_does_not_vouch_for_comes_unverified()
+    {
+        _provider.Tamper = "email_verified";
+
+        var (tokens, _) = await Client().SignInAsync(Browser(), default);
+
+        Assert.Equal(("anna@example.com", false), (tokens!.User.Email, tokens.User.EmailVerified));
+    }
+
+    [Fact]
     public async Task Sign_in_with_pkce_and_the_user_from_the_id_token()
     {
         var browser = Browser();
@@ -219,6 +229,7 @@ public sealed class IdentityProviderTests
         Assert.Null(problem);
         Assert.Equal("user-1", tokens!.User.Id);
         Assert.Equal("Anna", tokens.User.DisplayName);
+        Assert.Equal(("anna@example.com", true), (tokens.User.Email, tokens.User.EmailVerified));
         Assert.Equal("example", tokens.User.Provider);
         Assert.Equal("provider-access", tokens.AccessToken);
         Assert.Equal("provider-refresh", tokens.RefreshToken);
@@ -415,6 +426,7 @@ public sealed class IdentityProviderTests
                 ["sub"] = "user-1",
                 ["name"] = "Anna",
                 ["email"] = "anna@example.com",
+                ["email_verified"] = Tamper != "email_verified",
                 ["nonce"] = Tamper == "nonce" ? "other" : Nonce,
             };
 

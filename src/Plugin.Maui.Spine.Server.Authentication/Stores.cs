@@ -47,10 +47,14 @@ public sealed class SpineAuthUser
     /// </summary>
     public string? Version { get; set; }
 
+    // The account's own email when it has one. Without, the email the provider of this sign-in gave, marked unverified:
+    // the app can show it, but only the account's own is trusted for a reset or a link by email.
     internal SpineUser ToContract(string provider, IReadOnlyList<SpineAuthLogin> logins) =>
-        new(Id, Email, DisplayName, provider, PictureUrl, GivenName, FamilyName, Organization,
+        new(Id, Email ?? logins.FirstOrDefault(l => l.Provider == provider && l.Email is not null)?.Email,
+            DisplayName, provider, PictureUrl, GivenName, FamilyName, Organization,
             logins.Select(l => l.Provider).Distinct().Order().ToList(),
-            logins.OrderBy(l => l.LinkedAt ?? DateTimeOffset.MinValue).Select(l => l.ToContract()).ToList());
+            logins.OrderBy(l => l.LinkedAt ?? DateTimeOffset.MinValue).Select(l => l.ToContract()).ToList(),
+            EmailVerified: Email is not null && EmailVerified);
 }
 
 /// <summary>One way a user signs in: a provider and the provider's id for them.</summary>

@@ -65,7 +65,7 @@ public partial class SignInPageViewModel : SampleViewModel
     {
         Status = _auth.User is { } user ? $"Signed in as {user.DisplayName ?? user.Email} with {user.Provider}" : "Signed out";
         Details = _auth.User is { } u
-            ? $"Given name: {u.GivenName ?? "–"}, family name: {u.FamilyName ?? "–"}\nEmail: {u.Email ?? "–"}\nOrganization: {u.Organization ?? "–"}\nSigns in with: {string.Join(", ", u.SignInMethods ?? [u.Provider])}"
+            ? $"Given name: {u.GivenName ?? "–"}, family name: {u.FamilyName ?? "–"}\nEmail: {u.Email ?? "–"}{(u.Email is not null && !u.EmailVerified ? " (unverified)" : "")}\nOrganization: {u.Organization ?? "–"}\nSigns in with: {string.Join(", ", u.SignInMethods ?? [u.Provider])}"
             : "";
 
         Logins.Clear();

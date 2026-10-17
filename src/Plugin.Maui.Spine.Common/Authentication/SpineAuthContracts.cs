@@ -5,7 +5,10 @@ namespace Plugin.Maui.Spine.Authentication;
 
 /// <summary>A signed-in user as the app sees them.</summary>
 /// <param name="Id">The user's id on the app's server: the access token's <c>sub</c>.</param>
-/// <param name="Email">The email, when the user has one.</param>
+/// <param name="Email">
+/// The email, when the user has one: the account's own, or else the one the provider gave at this sign-in.
+/// <paramref name="EmailVerified"/> says whether anyone vouched for it.
+/// </param>
 /// <param name="DisplayName">The name to show, when there is one.</param>
 /// <param name="Provider">How the user signed in this time: <c>apple</c>, <c>google</c>, <c>password</c>, …</param>
 /// <param name="PictureUrl">
@@ -20,6 +23,11 @@ namespace Plugin.Maui.Spine.Authentication;
 /// </param>
 /// <param name="SignInMethods">Every way the user can sign in to this account, such as <c>apple</c>, <c>google</c> and <c>password</c>.</param>
 /// <param name="Logins">The account's logins with what each provider says about it: one per provider identity, in the order they were linked.</param>
+/// <param name="EmailVerified">
+/// Whether <paramref name="Email"/> is vouched for: an emailed code, Apple, Google, or a Microsoft work or school account
+/// whose domain the tenant verified. A personal Microsoft account's email is not, and neither is a name the user typed.
+/// Treat an unverified email as something to show or prefill, never as proof of who the user is.
+/// </param>
 public sealed record SpineUser(
     string Id,
     string? Email,
@@ -30,7 +38,8 @@ public sealed record SpineUser(
     string? FamilyName = null,
     string? Organization = null,
     IReadOnlyList<string>? SignInMethods = null,
-    IReadOnlyList<SpineLoginInfo>? Logins = null);
+    IReadOnlyList<SpineLoginInfo>? Logins = null,
+    bool EmailVerified = false);
 
 /// <summary>One way the user signs in to the account, as the app can show it on an accounts page.</summary>
 /// <param name="Provider">The provider: <c>apple</c>, <c>google</c>, <c>microsoft</c>, <c>password</c>, …</param>
