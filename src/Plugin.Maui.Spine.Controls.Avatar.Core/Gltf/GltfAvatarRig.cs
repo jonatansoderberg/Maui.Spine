@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Text.Json;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core.Gltf;
+namespace Plugin.Maui.Spine.Controls.Avatar.Gltf;
 
 /// <summary>
 /// Turns an <see cref="AvatarRenderFrame"/> into node transforms and morph weights for a GLB avatar,
@@ -15,7 +15,7 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core.Gltf;
 /// speaking) and speech poses, each blending from the values at the start of its layer, then the mute
 /// badge, blink, level parameters, gaze and the springs. Allocation-free per frame.
 /// </remarks>
-public sealed class GltfAvatarRig
+internal sealed class GltfAvatarRig
 {
     private const float GestureFade = 0.25f;
 

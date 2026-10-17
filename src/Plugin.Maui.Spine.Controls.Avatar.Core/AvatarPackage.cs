@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 /// <summary>
 /// A loaded, verified avatar. Immutable and safe to share between views: every view keeps its own
@@ -22,13 +22,18 @@ public sealed class AvatarPackage
     /// <summary>The manifest with its defaults applied and each representation's capabilities computed.</summary>
     public AvatarManifest Manifest { get; internal set; }
 
+    /// <summary>What loading found, every check with its result.</summary>
     public AvatarValidationReport Report { get; }
 
+    /// <summary>The paths of every file in the archive.</summary>
     public IEnumerable<string> FilePaths => _files.Keys;
 
+    /// <summary>A file's bytes.</summary>
+    /// <exception cref="AvatarFormatException">The archive has no such file.</exception>
     public ReadOnlyMemory<byte> GetFile(string path) =>
         _files.TryGetValue(path, out var bytes) ? bytes : throw new AvatarFormatException(path, "is not in the archive");
 
+    /// <summary>A file's bytes, if the archive has it.</summary>
     public bool TryGetFile(string path, out ReadOnlyMemory<byte> bytes)
     {
         var found = _files.TryGetValue(path, out var value);
@@ -77,12 +82,12 @@ public sealed class AvatarPackage
             };
         });
 
-    public Spine2dScene GetScene(AvatarRepresentation representation) =>
+    internal Spine2dScene GetScene(AvatarRepresentation representation) =>
         representation.Format == "spine2d"
             ? Parsed("scene:" + representation.Id, () => AvatarJson.ReadScene(GetFile(representation.Model).Span, representation.Model))
             : throw new InvalidOperationException($"{representation.Id} is {representation.Format}, not spine2d");
 
-    public AvatarGlb GetGlb(AvatarRepresentation representation) =>
+    internal AvatarGlb GetGlb(AvatarRepresentation representation) =>
         representation.Format == "glb"
             ? Parsed("glb:" + representation.Id, () => AvatarGlb.Read(GetFile(representation.Model), representation.Model))
             : throw new InvalidOperationException($"{representation.Id} is {representation.Format}, not glb");
@@ -114,7 +119,7 @@ public sealed class AvatarPackage
 }
 
 /// <summary>The JSON chunk of a GLB 2.0 file, read only far enough to check bindings against it.</summary>
-public sealed class AvatarGlb
+internal sealed class AvatarGlb
 {
     private AvatarGlb(JsonDocument json, int binaryLength)
     {

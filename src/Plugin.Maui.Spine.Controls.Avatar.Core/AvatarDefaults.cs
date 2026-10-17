@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
 // The manifest as written. Everything D9 gives a default is optional here; AvatarDefaults turns it into
 // an AvatarManifest. Unknown fields are left to the schema check, which names them.
@@ -71,17 +71,25 @@ internal sealed record AvatarReducedMotionDocument(string? Pose = null, bool? Re
 /// </summary>
 public static class AvatarDefaults
 {
+    /// <summary>A state's or expression's crossfade.</summary>
     public const int TransitionMs = 220;
+    /// <summary>The crossfade into interrupted.</summary>
     public const int InterruptedTransitionMs = 90;
+    /// <summary>The crossfade into surprised.</summary>
     public const int SurprisedTransitionMs = 100;
+    /// <summary>How much of an expression's mouth survives while speaking.</summary>
     public const double ExpressionMouthScale = 0.45;
+    /// <summary>How long a viseme takes to let go.</summary>
     public const int ReleaseMs = 80;
+    /// <summary>The crossfade into the reduced-motion pose.</summary>
     public const int ReducedMotionTransitionMs = 180;
+    /// <summary>[min, max] seconds between blinks.</summary>
     public static readonly IReadOnlyList<double> BlinkIntervalSeconds = [2.8, 6.5];
 
     /// <summary>The channels an expression is documented to write when the manifest names none, by profile.</summary>
     public static IReadOnlyList<string> ExpressionChannels(string profile) => profile == "ambient" ? ["ambientPose"] : ["face", "body"];
 
+    /// <summary>The profile a state has when the manifest says nothing about it.</summary>
     public static AvatarStateProfile State(string state) => new(
         Pose: state,
         InputReactive: state == "listening",

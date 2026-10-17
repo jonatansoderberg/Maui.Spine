@@ -1,6 +1,5 @@
 using System.Globalization;
 using Plugin.Maui.Spine.Controls.Avatar;
-using Plugin.Maui.Spine.Controls.Avatar.Core;
 using Plugin.Maui.Spine.Controls.Avatar.Feeds;
 using Plugin.Maui.Spine.Controls.Avatar.Skia;
 

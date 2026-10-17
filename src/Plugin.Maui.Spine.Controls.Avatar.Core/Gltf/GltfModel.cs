@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Text.Json;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core.Gltf;
+namespace Plugin.Maui.Spine.Controls.Avatar.Gltf;
 
 /// <summary>
 /// The parts of a GLB 2.0 file an avatar needs, decoded once into plain arrays: node hierarchy and
@@ -10,7 +10,7 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core.Gltf;
 /// geometry or texture extensions; a file that needs them fails with the reason.
 /// Renderer-neutral, so a native engine (SceneKit, Filament) and a software renderer can share it.
 /// </summary>
-public sealed class GltfModel
+internal sealed class GltfModel
 {
     public required GltfNode[] Nodes { get; init; }
 
@@ -323,26 +323,37 @@ public sealed class GltfModel
     }
 }
 
-public sealed record GltfNode(int Index, string Name, int[] Children, int Mesh, int Skin, Vector3 Translation, Quaternion Rotation, Vector3 Scale);
+internal sealed record GltfNode(int Index, string Name, int[] Children, int Mesh, int Skin, Vector3 Translation, Quaternion Rotation, Vector3 Scale);
 
-public sealed record GltfMesh(string Name, GltfPrimitive[] Primitives, string[] TargetNames, float[] DefaultWeights)
+internal sealed record GltfMesh(string Name, GltfPrimitive[] Primitives, string[] TargetNames, float[] DefaultWeights)
 {
     public int TargetCount => Primitives.Length == 0 ? 0 : Primitives.Max(p => p.Targets.Length);
 }
 
 /// <param name="Positions">x, y, z per vertex.</param>
+/// <param name="Normals">x, y, z per vertex, or null.</param>
+/// <param name="Indices">Three per triangle.</param>
+/// <param name="TexCoords">u, v per vertex, or null.</param>
 /// <param name="Joints">Four joint indices per vertex (indices into the skin's joint list), or null.</param>
-public sealed record GltfPrimitive(float[] Positions, float[]? Normals, int[] Indices, float[]? TexCoords, int[]? Joints, float[]? Weights, int Material, GltfMorphTarget[] Targets)
+/// <param name="Weights">Four joint weights per vertex, or null.</param>
+/// <param name="Material">Index into the model's materials.</param>
+/// <param name="Targets">The morph targets.</param>
+internal sealed record GltfPrimitive(float[] Positions, float[]? Normals, int[] Indices, float[]? TexCoords, int[]? Joints, float[]? Weights, int Material, GltfMorphTarget[] Targets)
 {
     public int VertexCount => Positions.Length / 3;
 }
 
 /// <summary>Per-vertex position (and optionally normal) deltas.</summary>
-public sealed record GltfMorphTarget(float[] Positions, float[]? Normals);
+internal sealed record GltfMorphTarget(float[] Positions, float[]? Normals);
 
+/// <param name="Name">The material's name.</param>
 /// <param name="BaseColor">Linear RGBA.</param>
+/// <param name="Metallic">0–1.</param>
+/// <param name="Roughness">0–1.</param>
+/// <param name="DoubleSided">Whether back faces draw.</param>
+/// <param name="Blend">Alpha-blended.</param>
 /// <param name="Emissive">Linear RGB, already multiplied by KHR_materials_emissive_strength.</param>
-public sealed record GltfMaterial(string Name, Vector4 BaseColor, float Metallic, float Roughness, Vector3 Emissive, bool DoubleSided, bool Blend)
+internal sealed record GltfMaterial(string Name, Vector4 BaseColor, float Metallic, float Roughness, Vector3 Emissive, bool DoubleSided, bool Blend)
 {
     /// <summary>Alpha-tested (hair, lashes): pixels under <see cref="AlphaCutoff"/> are discarded.</summary>
     public bool Mask { get; init; }
@@ -360,16 +371,21 @@ public sealed record GltfMaterial(string Name, Vector4 BaseColor, float Metallic
     public bool Mipmaps { get; init; } = true;
 }
 
-public sealed record GltfImage(string Name, string MimeType, ReadOnlyMemory<byte> Bytes);
+internal sealed record GltfImage(string Name, string MimeType, ReadOnlyMemory<byte> Bytes);
 
-public sealed record GltfSkin(int[] Joints, Matrix4x4[] InverseBindMatrices, int Skeleton);
+internal sealed record GltfSkin(int[] Joints, Matrix4x4[] InverseBindMatrices, int Skeleton);
 
-public enum GltfPath { Translation, Rotation, Scale, Weights }
+internal enum GltfPath { Translation, Rotation, Scale, Weights }
 
-public enum GltfInterpolation { Linear, Step, CubicSpline }
+internal enum GltfInterpolation { Linear, Step, CubicSpline }
 
+/// <param name="Node">The animated node.</param>
+/// <param name="Path">The animated property.</param>
+/// <param name="Times">Keyframe times in seconds.</param>
+/// <param name="Values">Keyframe values, <paramref name="Width"/> per key (three times that for cubic splines).</param>
+/// <param name="Interpolation">How keys are blended.</param>
 /// <param name="Width">Values per keyframe: 3 for translation and scale, 4 for rotation, the morph target count for weights.</param>
-public sealed record GltfChannel(int Node, GltfPath Path, float[] Times, float[] Values, int Width, GltfInterpolation Interpolation)
+internal sealed record GltfChannel(int Node, GltfPath Path, float[] Times, float[] Values, int Width, GltfInterpolation Interpolation)
 {
     /// <summary>Writes the value at <paramref name="time"/> into <paramref name="result"/> (length <see cref="Width"/>). No allocation.</summary>
     public void Sample(float time, Span<float> result)
@@ -437,4 +453,4 @@ public sealed record GltfChannel(int Node, GltfPath Path, float[] Times, float[]
     }
 }
 
-public sealed record GltfClip(string Name, GltfChannel[] Channels, float Duration);
+internal sealed record GltfClip(string Name, GltfChannel[] Channels, float Duration);

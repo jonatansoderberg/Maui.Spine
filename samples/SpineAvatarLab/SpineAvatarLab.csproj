@@ -2,8 +2,8 @@
 
 	<!--
 		The avatar lab of issue #524: the reference avatars loaded, drawn and driven on devices before any
-		package exists. Avatar.* folders are the future packages; Avatar.Core and Avatar.Skia stay free of
-		MAUI, which tests/Plugin.Maui.Spine.Controls.Avatar.Core.Tests enforces by compiling them alone.
+		package existed. Avatar.Core is now Plugin.Maui.Spine.Controls.Avatar.Core; the other Avatar.* folders follow in
+		B1.3 of docs/plans/spine-avatar.md. Avatar.Skia stays free of MAUI, which the Core tests enforce by compiling it.
 	-->
 	<PropertyGroup>
 		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
@@ -32,7 +32,10 @@
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#E8F6F7" />
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#E8F6F7" BaseSize="160,160" />
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
-		<EmbeddedResource Include="Avatar.Core\Schemas\*.json" LogicalName="Plugin.Maui.Spine.Controls.Avatar.Core.Schemas.%(Filename)%(Extension)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar.Core\Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

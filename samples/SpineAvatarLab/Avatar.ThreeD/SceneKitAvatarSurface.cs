@@ -3,8 +3,8 @@ using System.Diagnostics;
 using System.Numerics;
 using CoreGraphics;
 using Foundation;
-using Plugin.Maui.Spine.Controls.Avatar.Core;
-using Plugin.Maui.Spine.Controls.Avatar.Core.Gltf;
+using Plugin.Maui.Spine.Controls.Avatar;
+using Plugin.Maui.Spine.Controls.Avatar.Gltf;
 using SceneKit;
 using UIKit;
 

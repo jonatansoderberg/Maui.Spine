@@ -1,14 +1,14 @@
 using System.Globalization;
 
-namespace Plugin.Maui.Spine.Controls.Avatar.Core;
+namespace Plugin.Maui.Spine.Controls.Avatar;
 
-public enum AvatarPathCommand : byte { MoveTo, LineTo, CubicTo, QuadTo, Close }
+internal enum AvatarPathCommand : byte { MoveTo, LineTo, CubicTo, QuadTo, Close }
 
 /// <summary>
 /// Path data in the restricted grammar of the authoring profile: absolute M, L, C, Q and Z only.
 /// Not a general SVG parser. Two paths with equal <see cref="Commands"/> can be interpolated point by point.
 /// </summary>
-public sealed class AvatarPathData
+internal sealed class AvatarPathData
 {
     private AvatarPathData(AvatarPathCommand[] commands, float[] points)
     {
