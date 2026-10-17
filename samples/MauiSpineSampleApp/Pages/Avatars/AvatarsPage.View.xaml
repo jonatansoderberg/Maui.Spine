@@ -8,7 +8,7 @@
     <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar">
 
         <Example Title="Bundled with the app"
-                 Summary="Four avatars shipped as MauiAssets, each a .spineavatar packed by the spine-avatar tool (rendered posters, no generator source) that the view checks before it draws it. Characters have a face that speaks and shows expressions; ambient ones are light and shape. Tap one to drive it.">
+                 Summary="Four avatars shipped as MauiAssets, each a .spineavatar packed by the spine-avatar tool (rendered posters, no generator source) that the view checks before it draws it. The cards show each package's own poster, light or dark with the theme, so the list draws nothing per frame; the avatar comes alive on its page. Characters have a face that speaks and shows expressions; ambient ones are light and shape. Tap one to drive it.">
             <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Bundled}">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="AvatarEntry">
@@ -19,7 +19,10 @@
                                 <RoundRectangle CornerRadius="16" />
                             </Border.StrokeShape>
                             <Grid ColumnDefinitions="96,*" ColumnSpacing="12">
-                                <AvatarView Source="{Binding Source}" HeightRequest="96" WidthRequest="96" MaxFramesPerSecond="15" />
+                                <!-- One image per theme: an AppThemeBinding of two Bindings left Source unset. -->
+                                <Image Source="{Binding Poster.Light}" IsVisible="{AppThemeBinding Light=True, Dark=False}" HeightRequest="96" WidthRequest="96" Aspect="AspectFit" />
+                                <Image Source="{Binding Poster.Dark}" IsVisible="{AppThemeBinding Light=False, Dark=True}" HeightRequest="96" WidthRequest="96" Aspect="AspectFit" />
+                                <AvatarView Source="{Binding LiveSource}" IsVisible="{Binding Live}" HeightRequest="96" WidthRequest="96" MaxFramesPerSecond="15" />
                                 <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
                                     <Label Text="{Binding Title}" FontSize="17" FontAttributes="Bold" />
                                     <Label Text="{Binding Summary}" FontSize="14" Opacity="0.75" />
@@ -34,10 +37,15 @@
                 </BindableLayout.ItemTemplate>
             </VerticalStackLayout>
             <Example.Code>
-                &lt;AvatarView Source="{Binding Avatar}" HeightRequest="96" WidthRequest="96" MaxFramesPerSecond="15" /&gt;
+                &lt;Image Source="{Binding PosterLight}" IsVisible="{AppThemeBinding Light=True, Dark=False}" /&gt;
+                &lt;Image Source="{Binding PosterDark}" IsVisible="{AppThemeBinding Light=False, Dark=True}" /&gt;
+                &lt;AvatarView Source="{Binding Avatar}" MaxFramesPerSecond="15" /&gt;   &lt;!-- on the avatar's own page --&gt;
 
-                // In the view model:
+                // In the view model: the posters from the package, read once off the UI thread.
                 Avatar = AvatarSource.FromMauiAsset("Avatars/nova.spineavatar");
+                var package = await Task.Run(async () =&gt; AvatarArchive.Read(await Avatar.OpenAsync(ct)));
+                var light = package.GetFile(package.Manifest.Posters.Light).ToArray();
+                PosterLight = ImageSource.FromStream(() =&gt; new MemoryStream(light));
             </Example.Code>
         </Example>
 
