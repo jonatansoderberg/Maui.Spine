@@ -1,0 +1,55 @@
+<SpinePage
+    xmlns="http://schemas.microsoft.com/dotnet/maui/global"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="MauiSpineSampleApp.Pages.Assistant.AssistantPage"
+    x:TypeArguments="AssistantPageViewModel"
+    x:DataType="AssistantPageViewModel">
+
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar.Voice, Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Chat">
+
+        <Example Title="A voice assistant with a face"
+                 Summary="A realtime conversation with the push sample server's Voice feature, drawn as an avatar: it listens with the microphone's level, thinks, speaks with its mouth on the answer's level (the realtime models send no visemes), wears the muted badge, and flinches when you talk over it. The same avatar can sit in a VoiceView as its character, ticked by the VoiceView.">
+            <VerticalStackLayout Spacing="12">
+                <Entry Text="{Binding Server}" Placeholder="http://192.168.1.10:5100/ai" Keyboard="Url" />
+                <SegmentedControl SelectedIndex="{Binding HostIndex}">
+                    <Segment Title="AvatarView" />
+                    <Segment Title="VoiceView character" />
+                </SegmentedControl>
+                <AvatarView Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="240" IsVisible="{Binding IsFree}" />
+                <VoiceView Session="{Binding Session}" Kind="character" VoiceAvatar.Source="{Binding Avatar.Source}" HeightRequest="240" IsVisible="{Binding IsHosted}" />
+                <Label Text="{Binding Status}" FontSize="15" Opacity="0.8" />
+                <HorizontalStackLayout Spacing="10">
+                    <Button Text="Connect" Command="{Binding ConnectCommand}" />
+                    <Button Text="End" Command="{Binding EndCommand}" />
+                    <Button Text="Hold to talk" Pressed="OnTalkPressed" Released="OnTalkReleased" />
+                </HorizontalStackLayout>
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+                    <Label Text="Avatar" VerticalOptions="Center" />
+                    <Picker Grid.Column="1" ItemsSource="{Binding Avatars}" SelectedItem="{Binding Avatar}" MinimumWidthRequest="140" />
+                    <Label Grid.Row="1" Text="Mute the microphone" VerticalOptions="Center" />
+                    <Switch Grid.Row="1" Grid.Column="1" IsToggled="{Binding Muted}" />
+                    <Label Grid.Row="2" Text="Glow the screen's edge with the answer" VerticalOptions="Center" />
+                    <Switch Grid.Row="2" Grid.Column="1" IsToggled="{Binding Edge}" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <Entry Text="{Binding Message}" Placeholder="Type instead of talking" ReturnCommand="{Binding SendCommand}" />
+                    <Button Grid.Column="1" Text="Send" Command="{Binding SendCommand}" />
+                </Grid>
+                <ChatView Messages="{Binding Session.Transcript}" HeightRequest="320" />
+            </VerticalStackLayout>
+            <Example.Code>
+                // An avatar on the page, driven by the session:
+                &lt;AvatarView Source="{Binding Avatar}" Driver="{Binding Driver}" /&gt;
+                Driver = new VoiceAvatarDriver(voiceSession);
+
+                // Or as VoiceView's character, ticked by the VoiceView:
+                &lt;VoiceView Session="{Binding Voice}" Kind="character" VoiceAvatar.Source="{Binding Avatar}" /&gt;
+
+                await voice.ConnectAsync("Voice");
+                await voice.SendTextAsync("What can you do?");   // typed instead of spoken
+                voice.BeginTurn(); … voice.EndTurn();             // push-to-talk
+            </Example.Code>
+        </Example>
+
+    </SampleLayout>
+</SpinePage>

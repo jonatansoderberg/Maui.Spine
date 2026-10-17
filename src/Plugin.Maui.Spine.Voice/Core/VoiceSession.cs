@@ -25,6 +25,9 @@ internal sealed class VoiceSession : IVoiceSession
     private static readonly TimeSpan InterruptedFor = TimeSpan.FromMilliseconds(600);
 
     private readonly IVoiceAudio _audio;
+
+    /// <summary>The engine the session plays through; an avatar's driver reads its playback position for the mouth's clock.</summary>
+    internal IVoiceAudio Audio => _audio;
     private readonly SpineVoiceOptions _options;
     private readonly VoiceTokenClient _tokens;
     private readonly Func<IVoiceSocket> _socketFactory;

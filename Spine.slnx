@@ -43,6 +43,7 @@
   <Project Path="src/Plugin.Maui.Spine.Controls.Avatar.Core/Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Avatar/Plugin.Maui.Spine.Controls.Avatar.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Speech/Plugin.Maui.Spine.Speech.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Controls.Avatar.Voice/Plugin.Maui.Spine.Controls.Avatar.Voice.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication/Plugin.Maui.Spine.Authentication.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication.Google/Plugin.Maui.Spine.Authentication.Google.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication.Microsoft/Plugin.Maui.Spine.Authentication.Microsoft.csproj" />
