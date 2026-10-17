@@ -1,10 +1,22 @@
 using System.Net.Http;
 using Plugin.Maui.Spine.Controls;
+using Plugin.Maui.Spine.Controls.Avatar;
 
 namespace MauiSpineSampleApp.Pages.Avatars;
 
-/// <summary>An avatar the gallery shows and the detail page opens.</summary>
-public sealed record AvatarEntry(string Id, string Title, string Summary, string Profile, string Renderer, AvatarSource Source);
+/// <summary>
+/// An avatar the gallery shows and the detail page opens. Its card shows <see cref="Poster"/> once read from the package,
+/// or the live avatar when <see cref="Live"/> is set (the package could not be read, or its posters are placeholders).
+/// </summary>
+public sealed record AvatarEntry(
+    string Id, string Title, string Summary, string Profile, string Renderer, AvatarSource Source, AvatarPoster? Poster = null, bool Live = false)
+{
+    /// <summary>The source for the card's live avatar: none while the poster shows.</summary>
+    public AvatarSource? LiveSource => Live ? Source : null;
+}
+
+/// <summary>A package's light and dark posters.</summary>
+public sealed record AvatarPoster(ImageSource Light, ImageSource Dark);
 
 public partial class AvatarsPageViewModel : SampleViewModel
 {
@@ -20,13 +32,17 @@ public partial class AvatarsPageViewModel : SampleViewModel
         _navigation = navigation;
         _http = http;
         UpdateKairo();
+        _ = LoadPostersAsync();
     }
 
     // glTF avatars are drawn by SceneKit on iOS and Mac Catalyst and by Skia on the CPU elsewhere (no textures).
     private static string Gltf => OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() ? "glTF · SceneKit" : "glTF · Skia";
 
     /// <summary>Bundled as MauiAssets, packed by spine-avatar with 512 px posters and no source: about 2 MB together.</summary>
-    public IReadOnlyList<AvatarEntry> Bundled { get; } =
+    [ObservableProperty]
+    public partial IReadOnlyList<AvatarEntry> Bundled { get; set; } = BundledAvatars;
+
+    private static readonly AvatarEntry[] BundledAvatars =
     [
         new("nova", "Nova", "A small robot with a light in each ear: a model generated in code, 15 mouth shapes, gestures and a mute badge.", "Character", Gltf, AvatarSource.FromMauiAsset("Avatars/nova.spineavatar")),
         new("plush-puff", "Puff", "A plush creature that squashes as it talks and blushes when it is happy.", "Character", Gltf, AvatarSource.FromMauiAsset("Avatars/plush-puff.spineavatar")),
@@ -50,6 +66,28 @@ public partial class AvatarsPageViewModel : SampleViewModel
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadKairoCommand))]
     public partial bool IsDownloading { get; set; }
+
+    // A gallery of four live avatars drew all four every frame; the posters cost one read of each package, off the UI thread.
+    private async Task LoadPostersAsync()
+    {
+        var entries = await Task.WhenAll(BundledAvatars.Select(entry => Task.Run(async () =>
+        {
+            try
+            {
+                await using var stream = await entry.Source.OpenAsync(CancellationToken.None);
+                var package = AvatarArchive.Read(stream);
+                var light = package.GetFile(package.Manifest.Posters.Light).ToArray();
+                var dark = package.GetFile(package.Manifest.Posters.Dark).ToArray();
+                return entry with { Poster = new(ImageSource.FromStream(() => new MemoryStream(light)), ImageSource.FromStream(() => new MemoryStream(dark))) };
+            }
+            catch (Exception e) when (e is IOException or AvatarLoadException)
+            {
+                // The live avatar shows the package's own error on the card.
+                return entry with { Live = true };
+            }
+        })));
+        Bundled = entries;
+    }
 
     [RelayCommand]
     private Task Open(AvatarEntry entry) => _navigation.NavigateToAsync<AvatarDetailPage, AvatarEntry>(entry);
@@ -120,7 +158,8 @@ public partial class AvatarsPageViewModel : SampleViewModel
             HasKairo = true;
             // The hair's alpha-masked cards need SceneKit; the Skia glTF renderer leaves Kairo to its poster.
             var renderer = OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() ? "glTF · SceneKit" : "glTF · poster";
-            Kairo = new("kairo", "Kairo", "A head reconstructed from photos, with hair made in Blender: 322,000 triangles and morph targets for the face.", "Character", renderer, AvatarSource.FromFile(_kairoPath));
+            // Live: the sample server serves the lab's Kairo, whose posters are 1×1 placeholders until it is packed (#542).
+            Kairo = new("kairo", "Kairo", "A head reconstructed from photos, with hair made in Blender: 322,000 triangles and morph targets for the face.", "Character", renderer, AvatarSource.FromFile(_kairoPath), Live: true);
             KairoStatus = $"Downloaded, {new FileInfo(_kairoPath).Length / 1_000_000.0:0.0} MB in the app's data; opened from there from now on.";
         }
         else
