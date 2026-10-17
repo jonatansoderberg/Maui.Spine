@@ -65,7 +65,7 @@ public sealed class VoiceView : ContentView
     private VoiceState _announced = VoiceState.Idle;
     private bool _unknownKind;
     private Color? _accent;
-    private IDispatcherTimer? _timer;
+    private FrameTimer? _timer;
     private Window? _window;
     private bool _windowStopped;
     private TimeSpan _lastTick;
@@ -212,7 +212,7 @@ public sealed class VoiceView : ContentView
         var rate = ReducedMotion.IsOn ? ReducedFrameRate : FrameRate;
         if (_timer is null)
         {
-            _timer = Dispatcher.CreateTimer();
+            _timer = new FrameTimer();
             _timer.Tick += OnTick;
             _clock.Restart();
             _lastTick = TimeSpan.Zero;

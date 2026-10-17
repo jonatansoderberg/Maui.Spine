@@ -88,7 +88,7 @@ public sealed class AvatarView : ContentView
     private readonly AvatarRuntime _runtime = new();
     private readonly Stopwatch _clock = new();
     private AvatarSurface? _surface;
-    private IDispatcherTimer? _timer;
+    private FrameTimer? _timer;
     private Window? _window;
     private bool _windowStopped;
     private CancellationTokenSource? _loadCancellation;
@@ -534,7 +534,7 @@ public sealed class AvatarView : ContentView
 
         if (_timer is null)
         {
-            _timer = Dispatcher.CreateTimer();
+            _timer = new FrameTimer();
             _timer.Tick += OnTick;
             _clock.Restart();
             _lastTick = TimeSpan.Zero;
