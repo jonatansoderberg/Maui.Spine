@@ -307,6 +307,18 @@ Build: `<SpineBackgroundMode Include="audio" />` when `SpineVoiceBackground` is 
 
 ---
 
+## Appendix: visemes from the answer's audio (spike S1, #605, 2026-10-17)
+
+The realtime providers send no visemes, so an avatar's mouth follows the answer's level. Spike S1 of [the avatar plan](../plans/spine-avatar.md) tried guessing mouth shapes from the audio itself: `AudioVisemeClassifier` (internal in `Plugin.Maui.Spine.Voice`) reads each 20 ms frame's level, three band energies from one-pole filters (under ~900 Hz for F1, ~900–2500 Hz for F2, above for hiss) and its zero crossings, and picks one of Azure's ids: silence, a lip onset (p) after silence, s or f for hiss, and among vowels open or not by level and spread (eh, iy), round (ow, uw) or neutral (aa, ae) by the F2/F1 energy ratio, holding a shape two frames before changing.
+
+| Measure | Result |
+| --- | --- |
+| Cost | 5.6 µs per frame on the Mac (Debug), 0 B allocated; the plan's budget was 0.3 ms |
+| The lab fixture (`synthetic-test.wav`, tones with authored cues) | 26 % of frames exactly the cue's viseme, 40.5 % in the same open, round or closed group. The fixture is tones, not speech, so this measures little |
+| The Showcase's reference speech (13.6 s of Swedish) | sil 23 %, aa 36 %, eh 10 %, ow 11 %, uw 6 %, s 6 %, p 5 %, ae 1 %, iy 2 %; 10.4 shape changes a second, about the rate of phonemes. Thresholds calibrated on this speech's own feature distribution |
+
+**Verdict: parked.** The shapes are plausible but unvalidated: no phoneme-timed speech was at hand (no espeak, no Azure key on the Mac), and an avatar told these are visemes would report TimedVisemes, which the plan's "honest lip-sync" forbids. The level-driven mouth (AudioReactive) stays the realtime default. To revisit with step S3: synthesize text with Azure Speech, which returns its own viseme timeline, run the classifier on that audio, and compare frame by frame; ship it only behind an option and with its own quality if the agreement is clearly better than the level alone. The classifier and its measurement tests stay in the repository for that.
+
 ## 11. Sources
 
 Read in the repo: `MeshBackground.cs`, `MeshBackgroundExtensions.cs`, `AnimatedLabel.cs`, `AnimatedLabelExtensions.cs`, `Directory.Packages.props`, `ILiveActivityService.cs`, `LiveActivityLayout.cs`, `W.cs`, `SpineWidgetsExtensions.cs`, `PushNotificationsRegistered.cs`, `Plugin.Maui.Spine.Common.targets`, `Plugin.Maui.Spine.BackgroundTasks.targets`, the Scanner handlers, `SpineBackgroundJobService.cs`, `Haptics.cs`, the server package, `docs/wiki/packages.md`, `docs/wiki/widgets.md`, `docs/proposals/spine-background-tasks.md`, `docs/plans/ai-and-security.md`, and the concept page (https://claude.ai/artifact/J5TCSDk8Rk1vZNti9MBM3J).
