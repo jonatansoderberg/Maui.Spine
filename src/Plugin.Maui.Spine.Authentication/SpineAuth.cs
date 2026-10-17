@@ -231,7 +231,7 @@ internal sealed class SpineAuth : ISpineAuth
         if (Direct) return DirectAsync(cancellationToken);
 
         // One way to sign in, with a sheet of its own (Apple's) or the browser: no Spine sheet in front of it.
-        var ways = (_options.Apple ? 1 : 0) + (_options.EmailPassword is null ? 0 : 1) + (_options.Passkeys is null ? 0 : 1) + _options.BrowserProviders.Count;
+        var ways = (_options.Apple ? 1 : 0) + (_options.EmailPassword is null ? 0 : 1) + (_options.Passkeys is { IsSupported: true } ? 1 : 0) + _options.BrowserProviders.Count;
         if (ways == 1 && _options.Apple) return AppleSignIn.IsSupported ? AppleAsync(cancellationToken) : BrowserAsync("apple", cancellationToken);
         if (ways == 1 && _options.BrowserProviders.Count == 1) return SignInAsync(_options.BrowserProviders[0].Name, cancellationToken);
         return OpenSheetAsync();

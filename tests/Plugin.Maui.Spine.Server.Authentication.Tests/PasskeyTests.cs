@@ -188,6 +188,19 @@ public sealed class PasskeyTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_credential_id_too_long_to_keep_makes_no_account()
+    {
+        var challenge = await ChallengeAsync("/auth/passkey/register/options", new SpinePasskeyNewAccount("Bo", null));
+        var userId = System.Text.Encoding.UTF8.GetString(Base64UrlEncoder.DecodeBytes((string)JsonNode.Parse(challenge.Options)!["user"]!["id"]!));
+
+        var response = await SendAsync("/auth/passkey/register",
+            new SpinePasskeyResponse(challenge.ChallengeId, _iPhone.Create(challenge.Options, idLength: 1000)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(await _host.Users.FindByIdAsync(userId));
+    }
+
+    [Fact]
     public async Task A_sign_in_whose_user_handle_is_someone_else_is_refused()
     {
         await SignUpAsync();

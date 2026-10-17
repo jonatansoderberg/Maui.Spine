@@ -19,7 +19,9 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
     {
         var apple = new SignInButton { Provider = "apple" };
         apple.SetBinding(SignInButton.CommandProperty, nameof(SignInSheetViewModel.AppleCommand));
-        var rows = new List<(string Provider, View Row)> { ("apple", apple) };
+        var passkey = new SignInButton { Provider = "passkey", CommandParameter = "passkey" };
+        passkey.SetBinding(SignInButton.CommandProperty, nameof(SignInSheetViewModel.ProviderCommand));
+        var rows = new List<(string Provider, View Row)> { ("apple", apple), ("passkey", passkey) };
 
         // One button per provider the server brokers through the browser, in the order the app added them.
         var browserProviders = new VerticalStackLayout { Spacing = 12 };
@@ -45,10 +47,6 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
                 if (e.PropertyName == nameof(SignInSheetViewModel.Step)) Show();
             };
         }
-
-        var passkey = new SignInButton { Provider = "passkey", CommandParameter = "passkey" };
-        passkey.SetBinding(SignInButton.CommandProperty, nameof(SignInSheetViewModel.ProviderCommand));
-        rows.Add(("passkey", passkey));
 
         // "Is this your first time here?" after a provider account the server does not know yet.
         var createNew = new Button { Text = AuthStrings.Get("Choose.Create"), FontAttributes = FontAttributes.Bold, CornerRadius = 8, HeightRequest = 48 };
@@ -342,12 +340,17 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
     }
 
     private bool _visible;
+    private bool _signingIn;
     private CancellationTokenSource? _autoFill;
 
-    // The email field offers the device's passkeys while it shows on a sign-in step.
+    // The server's challenge lasts five minutes, so a waiting AutoFill request is made again before it expires.
+    private static readonly TimeSpan AutoFillRenewal = TimeSpan.FromMinutes(4);
+
+    // The email field offers the device's passkeys while it shows on a sign-in step, and not while another sheet is up:
+    // iOS runs one authorization request at a time.
     private void UpdateAutoFill()
     {
-        var wanted = _visible && SigningIn && ShowEmail && _options.Passkeys is { SupportsAutoFill: true };
+        var wanted = _visible && !_signingIn && SigningIn && ShowEmail && _options.Passkeys is { SupportsAutoFill: true };
         if (wanted == _autoFill is not null) return;
 
         if (!wanted)
@@ -364,22 +367,54 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
 
     private async Task AutoFillAsync(CancellationTokenSource autoFill)
     {
-        var result = await _auth.SignInWithPasskeyAutoFillAsync(autoFill.Token);
+        using var renewal = CancellationTokenSource.CreateLinkedTokenSource(autoFill.Token);
+        renewal.CancelAfter(AutoFillRenewal);
+        var result = await _auth.SignInWithPasskeyAutoFillAsync(renewal.Token);
         if (autoFill.IsCancellationRequested) return;
+
+        // Only a passkey the user picked and the server refused is worth telling them; the challenge failing to load
+        // (offline, no passkeys on the server) waits quietly and tries again.
+        var picked = result.Status == SignInStatus.SignedIn
+            || result is { Status: SignInStatus.Failed, Error: SpineAuthErrors.UnknownPasskey or SpineAuthErrors.InvalidToken };
+        if (picked) await FinishAsync(result);
+        if (result.Status is SignInStatus.Failed && !picked)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), autoFill.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+
         if (_autoFill == autoFill) _autoFill = null;
         autoFill.Dispose();
+        if (result.Status != SignInStatus.SignedIn) UpdateAutoFill();
+    }
 
-        if (result.Status == SignInStatus.Canceled)
+    // A sheet of the platform's own (Apple's, a provider's, the passkey sheet): AutoFill steps aside until it closes.
+    private async Task WithoutAutoFillAsync(Func<Task<SignInResult>> signIn)
+    {
+        _signingIn = true;
+        UpdateAutoFill();
+        try
+        {
+            await FinishAsync(await signIn());
+        }
+        finally
+        {
+            _signingIn = false;
             UpdateAutoFill();
-        else
-            await FinishAsync(result);
+        }
     }
 
     [RelayCommand]
-    private async Task Apple() => await FinishAsync(await _auth.SignInAsync("apple"));
+    private Task Apple() => WithoutAutoFillAsync(() => _auth.SignInAsync("apple"));
 
     [RelayCommand]
-    private async Task Provider(string name) => await FinishAsync(await _auth.SignInAsync(name));
+    private Task Provider(string name) => WithoutAutoFillAsync(() => _auth.SignInAsync(name));
 
     [RelayCommand]
     private async Task Continue()

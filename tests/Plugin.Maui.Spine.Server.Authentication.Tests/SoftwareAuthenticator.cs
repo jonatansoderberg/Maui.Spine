@@ -19,10 +19,10 @@ internal sealed class SoftwareAuthenticator(string origin, string rpId)
     public IReadOnlyCollection<string> Ids => _passkeys.Keys;
 
     /// <summary>Answers <c>navigator.credentials.create()</c> for the options' challenge and user.</summary>
-    public string Create(string optionsJson, string? originOverride = null)
+    public string Create(string optionsJson, string? originOverride = null, int idLength = 16)
     {
         var options = JsonNode.Parse(optionsJson)!;
-        var id = RandomNumberGenerator.GetBytes(16);
+        var id = RandomNumberGenerator.GetBytes(idLength);
         var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var userHandle = Base64UrlEncoder.DecodeBytes((string)options["user"]!["id"]!);
         _passkeys[Base64UrlEncoder.Encode(id)] = (key, userHandle, 0);
@@ -42,7 +42,7 @@ internal sealed class SoftwareAuthenticator(string origin, string rpId)
         authData.WriteByte(0x01 | 0x04 | 0x40);
         authData.Write(new byte[4]);
         authData.Write(new byte[16]);
-        authData.WriteByte(0);
+        authData.WriteByte((byte)(id.Length >> 8));
         authData.WriteByte((byte)id.Length);
         authData.Write(id);
         authData.Write(cose.Encode());

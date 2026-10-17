@@ -17,6 +17,10 @@ internal sealed class SpinePasskeys(
 {
     private const int MaxCredentialLength = 64 * 1024;
     private const int MaxNameLength = 100;
+
+    // A credential id is at most 1023 bytes in WebAuthn; platform passkeys use 16 to 64. Longer ones would not fit a key
+    // in Azure Tables once encoded.
+    private const int MaxCredentialIdLength = 255;
     private const string Provider = SpineAuthDefaults.PasskeyProvider;
 
     private readonly SpinePasskeyOptions _options = options.PasskeyOptions!;
@@ -102,8 +106,8 @@ internal sealed class SpinePasskeys(
         if (await TakeAsync(response.ChallengeId, Kind.Register, cancellationToken) is not { } ceremony)
             return SignInOutcome.Refused(401, SpineAuthErrors.InvalidGrant, "The passkey request expired or was already used; start again.");
 
-        if (Read<AuthenticatorAttestationRawResponse>(response.Credential) is not { } attestation)
-            return SignInOutcome.Refused(400, SpineAuthErrors.InvalidRequest, "credential is not a WebAuthn registration.");
+        if (Read<AuthenticatorAttestationRawResponse>(response.Credential) is not { RawId.Length: > 0 and <= MaxCredentialIdLength } attestation)
+            return SignInOutcome.Refused(400, SpineAuthErrors.InvalidRequest, "credential is not a WebAuthn registration, or its id is longer than 255 bytes.");
 
         RegisteredPublicKeyCredential credential;
         try
@@ -136,14 +140,24 @@ internal sealed class SpinePasskeys(
             await users.CreateAsync(user, cancellationToken);
         }
 
-        await users.SaveLoginAsync(new SpineAuthLogin(Provider, Base64UrlEncoder.Encode(credential.Id), user.Id)
+        var login = new SpineAuthLogin(Provider, Base64UrlEncoder.Encode(credential.Id), user.Id)
         {
             LinkedAt = time.GetUtcNow(),
             Email = ceremony.Email,
             DisplayName = ceremony.DisplayName ?? user.DisplayName,
             PasskeyPublicKey = credential.PublicKey,
             PasskeySignCount = credential.SignCount,
-        }, cancellationToken);
+        };
+        try
+        {
+            await users.SaveLoginAsync(login, cancellationToken);
+        }
+        catch when (ceremony.Caller is null)
+        {
+            // A new account without its passkey could never be signed in to.
+            await users.DeleteAsync(user.Id, CancellationToken.None);
+            throw;
+        }
 
         logger.LogInformation("Spine sign-in: user {User} added a passkey.", user.Id);
         return SignInOutcome.Ok(await tokens.IssueAsync(user, ceremony.Caller?.Provider ?? Provider, cancellationToken: cancellationToken));
@@ -195,7 +209,8 @@ internal sealed class SpinePasskeys(
             return SignInOutcome.Refused(401, SpineAuthErrors.InvalidToken, e.Message);
         }
 
-        if (result.SignCount != login.PasskeySignCount)
+        // Saved only while the passkey is still there: a removal during the sign-in must not bring it back.
+        if (result.SignCount != login.PasskeySignCount && await users.FindByLoginAsync(Provider, subject, cancellationToken) is not null)
             await users.SaveLoginAsync(login with { PasskeySignCount = result.SignCount }, cancellationToken);
 
         return SignInOutcome.Ok(await tokens.IssueAsync(user, Provider, cancellationToken: cancellationToken));
