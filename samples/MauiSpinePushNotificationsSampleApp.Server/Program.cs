@@ -106,6 +106,19 @@ builder.Services.AddSpineAuthentication(a =>
 
     a.EmailPassword();
 
+    // Passkeys for the domain the server answers on (the Azure host in appsettings.Production.json). The Showcase built
+    // with -p:SpinePasskeyDomain=<that host> may use them once apple-app-site-association names it with the team id.
+    if (builder.Configuration["Auth:Passkeys:RelyingPartyId"] is { Length: > 0 } passkeyDomain)
+    {
+        a.Passkeys(p =>
+        {
+            p.RelyingPartyId = passkeyDomain;
+            p.RelyingPartyName = "Spine Showcase";
+            if ((builder.Configuration["Auth:Apple:TeamId"] ?? builder.Configuration["Push:Apple:TeamId"]) is { Length: > 0 } team)
+                p.AppleAppIds.Add($"{team}.se.cosmomedia.spineshowcase");
+        });
+    }
+
     // A first sign-in with a provider account the server does not know asks "Is this your first time here?", so a
     // user who signed in another way before ends up with one account (the Showcase's sheet asks; #575).
     a.AskBeforeNewAccount = true;
@@ -148,8 +161,11 @@ app.UseRateLimiter();
 app.MapSpinePushNotifications("/push");
 
 // GET /auth/nonce, POST /auth/{provider}/token, POST /auth/token, POST /auth/revoke, DELETE /auth/account and
-// POST /auth/password/{signup,verify,resend,signin,forgot,reset}.
+// POST /auth/password/{signup,verify,resend,signin,forgot,reset}, POST /auth/passkey/{register,signin}[/options].
 app.MapSpineAuthentication("/auth").RequireRateLimiting("auth");
+
+// GET /.well-known/apple-app-site-association: the Showcase may use this domain's passkeys.
+app.MapSpinePasskeyAssociations();
 
 // Hosted, the push endpoints are for a signed-in user and their own devices; on the Mac, for anyone and every device.
 async ValueTask<(bool Allowed, string? UserId)> PushCallerAsync(HttpRequest request) =>

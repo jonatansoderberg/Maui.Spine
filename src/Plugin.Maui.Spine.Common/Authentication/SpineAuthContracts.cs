@@ -37,7 +37,29 @@ public sealed record SpineUser(
 /// <param name="Email">The email that provider gave, when it gave one; not necessarily verified, and not the account's <see cref="SpineUser.Email"/>.</param>
 /// <param name="DisplayName">The name that provider gave.</param>
 /// <param name="LinkedAt">When the login was added to the account; null for logins made before Spine kept it.</param>
-public sealed record SpineLoginInfo(string Provider, string? Email = null, string? DisplayName = null, DateTimeOffset? LinkedAt = null);
+/// <param name="Subject">
+/// The provider's id for this login (a passkey's credential id), so one of several logins of a provider can be removed:
+/// <c>ISpineAuth.UnlinkAsync(provider, subject)</c>.
+/// </param>
+public sealed record SpineLoginInfo(string Provider, string? Email = null, string? DisplayName = null, DateTimeOffset? LinkedAt = null, string? Subject = null);
+
+/// <summary>
+/// The start of a passkey ceremony: <c>POST /auth/passkey/register/options</c> or <c>/signin/options</c>. The app hands
+/// <paramref name="Options"/> to the platform and posts its answer back with <paramref name="ChallengeId"/>.
+/// </summary>
+/// <param name="ChallengeId">Names this ceremony on the server; it works once, for a few minutes.</param>
+/// <param name="Options">WebAuthn's <c>PublicKeyCredentialCreationOptions</c> or <c>…RequestOptions</c>, as JSON.</param>
+public sealed record SpinePasskeyChallenge(string ChallengeId, string Options);
+
+/// <summary>A new account made with a passkey: the body of <c>POST /auth/passkey/register/options</c> without an access token.</summary>
+/// <param name="DisplayName">The name the passkey and the account carry.</param>
+/// <param name="Email">An email to show; kept unverified, not as the account's email, until a code verifies it.</param>
+public sealed record SpinePasskeyNewAccount(string? DisplayName, string? Email);
+
+/// <summary>What the platform's passkey sheet answered: the body of <c>POST /auth/passkey/register</c> or <c>/signin</c>.</summary>
+/// <param name="ChallengeId">The <see cref="SpinePasskeyChallenge.ChallengeId"/>.</param>
+/// <param name="Credential">The WebAuthn credential as JSON (<c>PublicKeyCredential.toJSON()</c>'s shape).</param>
+public sealed record SpinePasskeyResponse(string ChallengeId, string Credential);
 
 /// <summary>
 /// A sign-in with an identity the server does not know, while the server asks before it makes an account
@@ -170,6 +192,9 @@ public static class SpineAuthErrors
 
     /// <summary>The login to remove is the account's last way to sign in.</summary>
     public const string LastLogin = "last_login";
+
+    /// <summary>The passkey is not on any account here: removed from it, or the account was deleted.</summary>
+    public const string UnknownPasskey = "unknown_passkey";
 }
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -188,6 +213,9 @@ public static class SpineAuthErrors
 [JsonSerializable(typeof(SpinePendingIdentity))]
 [JsonSerializable(typeof(SpinePendingRequest))]
 [JsonSerializable(typeof(SpineLinkTicket))]
+[JsonSerializable(typeof(SpinePasskeyChallenge))]
+[JsonSerializable(typeof(SpinePasskeyNewAccount))]
+[JsonSerializable(typeof(SpinePasskeyResponse))]
 internal sealed partial class SpineAuthJsonContext : JsonSerializerContext;
 
 /// <summary>The wire format of the sign-in endpoints, shared by the app and the server: camelCase, nulls left out.</summary>

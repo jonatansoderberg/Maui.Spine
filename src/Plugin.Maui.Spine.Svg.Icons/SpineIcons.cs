@@ -218,6 +218,8 @@ public static class SpineIcons
     public const string Owen = "Owen.svg";
     /// <summary>The <c>Palette.svg</c> icon.</summary>
     public const string Palette = "Palette.svg";
+    /// <summary>The <c>Passkey.svg</c> icon.</summary>
+    public const string Passkey = "Passkey.svg";
     /// <summary>The <c>Password.svg</c> icon.</summary>
     public const string Password = "Password.svg";
     /// <summary>The <c>Pause.svg</c> icon.</summary>
@@ -580,6 +582,7 @@ public static class SpineIcons
         OnlineBadge,
         Owen,
         Palette,
+        Passkey,
         Password,
         Pause,
         Phone,

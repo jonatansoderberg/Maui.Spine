@@ -15,6 +15,7 @@ internal sealed class SpineAuth : ISpineAuth
     private readonly ILogger _logger;
     private readonly Lock _gate = new();
     private readonly Dictionary<string, Lazy<INativeSignIn>> _natives;
+    private readonly Lazy<IPasskeyCeremony>? _passkeys;
     private Task<SignInResult>? _signingIn;
     private Task _forgetting = Task.CompletedTask;
 
@@ -47,6 +48,7 @@ internal sealed class SpineAuth : ISpineAuth
         if (options.Direct is { } direct) providers.Add(new SignInProvider(direct.Name, !direct.UsesBrowser));
         if (options.Apple) providers.Add(new SignInProvider("apple", AppleSignIn.IsSupported));
         if (options.EmailPassword is not null) providers.Add(new SignInProvider("password", false));
+        if (options.Passkeys is { IsSupported: true }) providers.Add(new SignInProvider("passkey", true));
         providers.AddRange(options.BrowserProviders.Select(p => p with
         {
             IsNative = options.NativeProviders.Any(n => n.Name == p.Name && n.IsSupported && !n.UsesBrowser),
@@ -55,6 +57,7 @@ internal sealed class SpineAuth : ISpineAuth
 
         _natives = options.NativeProviders.Where(p => p.IsSupported)
             .ToDictionary(p => p.Name, p => new Lazy<INativeSignIn>(() => p.Create(services)));
+        _passkeys = options.Passkeys is { IsSupported: true } passkeys ? new Lazy<IPasskeyCeremony>(() => passkeys.Create(services)) : null;
     }
 
     // Only in the mode with a Spine server: resolved when used, so the mode without one never builds a client for it.
@@ -127,15 +130,55 @@ internal sealed class SpineAuth : ISpineAuth
     public Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken = default) =>
         Direct ? NeedsServer("Linking accounts") : Flows.UnlinkAsync(provider.ToLowerInvariant(), cancellationToken);
 
+    public Task<SignInResult> UnlinkAsync(string provider, string subject, CancellationToken cancellationToken = default) =>
+        Direct ? NeedsServer("Linking accounts") : Flows.UnlinkAsync(provider.ToLowerInvariant(), cancellationToken, subject);
+
     public Task<SignInResult> CreateAccountAsync(SpinePendingIdentity pending, CancellationToken cancellationToken = default) =>
         Direct ? NeedsServer("Linking accounts") : Flows.CreatePendingAsync(pending, cancellationToken);
 
     public Task<SignInResult> LinkPendingAsync(SpinePendingIdentity pending, CancellationToken cancellationToken = default) =>
         Direct ? NeedsServer("Linking accounts") : Flows.LinkPendingAsync(pending, cancellationToken);
 
+    public Task<SignInResult> SignUpWithPasskeyAsync(string? displayName, string? email, CancellationToken cancellationToken = default) =>
+        Direct ? NeedsServer("Passkeys") : PasskeyAsync(c => Flows.PasskeyRegisterAsync(c, new SpinePasskeyNewAccount(displayName, email), cancellationToken));
+
+    public Task<SignInResult> SignInWithPasskeyAutoFillAsync(CancellationToken cancellationToken = default) =>
+        Direct || _options.Passkeys is not { SupportsAutoFill: true }
+            ? Task.FromResult(SignInResult.Canceled)
+            : PasskeyAsync(c => Flows.PasskeySignInAsync(c, autoFill: true, cancellationToken), quietCancel: true);
+
+    private async Task<SignInResult> PasskeyAsync(Func<IPasskeyCeremony, Task<SignInResult>> ceremony, bool quietCancel = false)
+    {
+        if (_passkeys is null)
+        {
+            return SignInResult.Failure(_options.Passkeys is null
+                ? "Passkeys are not set up: reference Plugin.Maui.Spine.Authentication.Passkeys and add a.AddPasskeys()."
+                : "This device has no passkeys (iOS and Mac Catalyst 16 or later; Android #601, Windows #602).");
+        }
+
+        try
+        {
+            var result = await ceremony(_passkeys.Value);
+            if (result.Status == SignInStatus.Failed) _logger.LogWarning("Spine sign-in: the passkey sign-in failed: {Error}", result.Error);
+            return result;
+        }
+        catch (OperationCanceledException) when (quietCancel)
+        {
+            return SignInResult.Canceled;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            _logger.LogWarning(e, "Spine sign-in: the passkey sheet failed.");
+            return SignInResult.Failure(e.Message);
+        }
+    }
+
     // A provider's sheet or the browser; with link (the user's access token) the provider joins that user.
     private Task<SignInResult> WithAsync(string name, string? link, CancellationToken cancellationToken) => name switch
     {
+        "passkey" => PasskeyAsync(c => link is null
+            ? Flows.PasskeySignInAsync(c, autoFill: false, cancellationToken)
+            : Flows.PasskeyRegisterAsync(c, null, cancellationToken, link)),
         "apple" when _options.Apple => AppleSignIn.IsSupported ? AppleAsync(cancellationToken, link) : BrowserAsync("apple", cancellationToken, link),
         _ when _natives.TryGetValue(name, out var native) => NativeAsync(name, native.Value, cancellationToken, link),
         _ when _options.BrowserProviders.Any(p => p.Name == name) => BrowserAsync(name, cancellationToken, link),
@@ -191,7 +234,7 @@ internal sealed class SpineAuth : ISpineAuth
         if (Direct) return DirectAsync(cancellationToken);
 
         // One way to sign in, with a sheet of its own (Apple's) or the browser: no Spine sheet in front of it.
-        var ways = (_options.Apple ? 1 : 0) + (_options.EmailPassword is null ? 0 : 1) + _options.BrowserProviders.Count;
+        var ways = (_options.Apple ? 1 : 0) + (_options.EmailPassword is null ? 0 : 1) + (_options.Passkeys is { IsSupported: true } ? 1 : 0) + _options.BrowserProviders.Count;
         if (ways == 1 && _options.Apple) return AppleSignIn.IsSupported ? AppleAsync(cancellationToken) : BrowserAsync("apple", cancellationToken);
         if (ways == 1 && _options.BrowserProviders.Count == 1) return SignInAsync(_options.BrowserProviders[0].Name, cancellationToken);
         return OpenSheetAsync();

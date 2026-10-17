@@ -74,7 +74,13 @@ public sealed record SpineAuthLogin(string Provider, string Subject, string User
     /// <summary>When the login was added to the user.</summary>
     public DateTimeOffset? LinkedAt { get; init; }
 
-    internal SpineLoginInfo ToContract() => new(Provider, Email, DisplayName, LinkedAt);
+    /// <summary>A passkey's public key, as COSE; only on <c>passkey</c> logins.</summary>
+    public byte[]? PasskeyPublicKey { get; init; }
+
+    /// <summary>A passkey's signature counter, which a sign-in must move forward when the authenticator keeps one.</summary>
+    public uint PasskeySignCount { get; init; }
+
+    internal SpineLoginInfo ToContract() => new(Provider, Email, DisplayName, LinkedAt, Subject);
 }
 
 /// <summary>

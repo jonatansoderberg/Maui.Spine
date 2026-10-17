@@ -51,6 +51,7 @@
 		<!-- The provider packages plug their sheets in through the internal INativeSignIn. -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Authentication.Google" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Authentication.Microsoft" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Authentication.Passkeys" />
 	</ItemGroup>
 
 	<!-- The module declaration and the Sign in with Apple entitlement; a ProjectReference consumer imports

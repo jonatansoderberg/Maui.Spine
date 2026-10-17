@@ -16,12 +16,13 @@ All Spine packages share one version. Reference every Spine package the app uses
 | The app needs | Install | Brings in |
 |---|---|---|
 | Navigation: regions, sheets, tabs, header bar, glass buttons, shortcuts, Windows windowing | `Plugin.Maui.Spine` | `Plugin.Maui.Spine.Svg` |
-| The built-in icon set (232 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
+| The built-in icon set (233 SVG glyphs, resolved by file name) | `Plugin.Maui.Spine.Svg.Icons` | — |
 | Home-screen widgets, Live Activities, Control Center controls and Quick Settings tiles from C# | `Plugin.Maui.Spine.Widgets` | the core and `Plugin.Maui.Spine.Common` |
 | Push and local notifications | `Plugin.Maui.Spine.PushNotifications` | `Plugin.Maui.Spine.Common` (not the core) |
 | Background work while the app is closed (`[BackgroundTask]`), widgets kept fresh by a sync | `Plugin.Maui.Spine.BackgroundTasks` | the core and `Plugin.Maui.Spine.Common` |
 | Sign-in against the app's own server: Sign in with Apple's sheet, email and password in a ready-made sheet, `[RequiresSignIn]` on a page or command, an `HttpClient` handler with the access token (`o.AddAuthentication(a => …)` in `UseSpine`, `ISpineAuth`, `AddSpineAuthentication()`) | `Plugin.Maui.Spine.Authentication` | the core and `Plugin.Maui.Spine.Common` |
 | Sign in with Google: Credential Manager on Android, the server's broker in the browser elsewhere (`a.AddGoogle(g => g.ServerClientId = …)`) | `Plugin.Maui.Spine.Authentication.Google` | `Plugin.Maui.Spine.Authentication` |
+| Passkeys through the platform's sheet (iOS, Mac Catalyst): `a.AddPasskeys()`, `<SpinePasskeyDomain>` in the project, `Passkeys(p => p.RelyingPartyId = …)` and `MapSpinePasskeyAssociations()` on the server | `Plugin.Maui.Spine.Authentication.Passkeys` | `Plugin.Maui.Spine.Authentication` |
 | Sign in with Microsoft through MSAL and the broker: via the Spine server (`a.AddMicrosoft(m => m.ClientId = …)`) or straight to an Entra-protected API (`a.UseMicrosoft(m => { m.ClientId = …; m.Scopes.Add(…); })`) | `Plugin.Maui.Spine.Authentication.Microsoft` | `Plugin.Maui.Spine.Authentication` |
 | Face ID, Touch ID, fingerprint or Windows Hello before a page or a command (`[RequiresUnlock]`, `IUnlock`), an app lock, or a page kept out of screenshots (`[PrivacyShield]`) | `Plugin.Maui.Spine.Biometrics` | the core and `Plugin.Maui.Spine.Common` |
 | The push backend, in an ASP.NET Core or Azure Functions project | `Plugin.Maui.Spine.Server` | `Plugin.Maui.Spine.Common` |

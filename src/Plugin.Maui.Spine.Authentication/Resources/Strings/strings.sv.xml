@@ -39,4 +39,8 @@
   <s key="Spine.Authentication.AlsoNew">Det kontot är också nytt för oss. Välj ett annat sätt, eller skapa ett nytt konto.</s>
   <s key="Spine.Authentication.Error.identity_in_use">Det kontot hör redan till ett annat konto här. Logga in med det där och ta bort det först.</s>
   <s key="Spine.Authentication.Error.last_login">Det här är kontots sista sätt att logga in. Lägg till ett annat först.</s>
+  <s key="Spine.Authentication.PasskeyButton">Logga in med lösennyckel</s>
+  <s key="Spine.Authentication.CreatePasskeyAccount">Skapa konto med lösennyckel</s>
+  <s key="Spine.Authentication.PasskeyNeedsName">Ange ett namn eller en e-postadress för lösennyckeln.</s>
+  <s key="Spine.Authentication.Error.unknown_passkey">Den här lösennyckeln fungerar inte längre här. Logga in på ett annat sätt eller skapa ett nytt konto.</s>
 </strings>

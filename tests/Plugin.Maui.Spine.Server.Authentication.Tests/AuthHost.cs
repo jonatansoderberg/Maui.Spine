@@ -109,6 +109,8 @@ internal sealed class AuthHost : IAsyncDisposable
     public const string ServicesId = "se.example.web";
     public const string MicrosoftClient = "msal-client";
     public const string Tenant = "11111111-2222-3333-4444-555555555555";
+    public const string PasskeyDomain = "api.test";
+    public const string AndroidFingerprint = "AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89";
 
     private AuthHost(WebApplication app, FakeTimeProvider time, FakeIssuer apple, FakeIssuer google, FakeIssuer microsoft, List<string> deleted)
     {
@@ -133,7 +135,7 @@ internal sealed class AuthHost : IAsyncDisposable
     public InMemorySpineAuthStore Store => (InMemorySpineAuthStore)App.Services.GetRequiredService<ISpineAuthStore>();
     public IUserResolver Users => App.Services.GetRequiredService<IUserResolver>();
 
-    public static async Task<AuthHost> StartAsync(Action<SpineAuthOptions>? configure = null)
+    public static async Task<AuthHost> StartAsync(Action<SpineAuthOptions>? configure = null, bool passkeys = true)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -178,6 +180,16 @@ internal sealed class AuthHost : IAsyncDisposable
                 o.Configuration = issuers.Microsoft.Configuration;
             });
             a.EmailPassword();
+            if (passkeys)
+            {
+                a.Passkeys(p =>
+                {
+                    p.RelyingPartyId = PasskeyDomain;
+                    p.RelyingPartyName = "Example";
+                    p.AppleAppIds.Add($"TEAM123456.{Bundle}");
+                    p.AndroidApps.Add(new SpinePasskeyAndroidApp(Bundle, [AndroidFingerprint]));
+                });
+            }
             a.UseInMemoryStore();
             a.OnAccountDeleting = (user, _, _) =>
             {
@@ -192,6 +204,7 @@ internal sealed class AuthHost : IAsyncDisposable
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapSpineAuthentication();
+        app.MapSpinePasskeyAssociations();
         app.MapGet("/me", (ClaimsPrincipal user) => user.FindFirst("sub")!.Value).RequireAuthorization();
         await app.StartAsync();
 

@@ -13,6 +13,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Compile Include="..\Plugin.Maui.Spine.Server.Authentication.Tests\SoftwareAuthenticator.cs" Link="SoftwareAuthenticator.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.TestHost" />
 		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
 		<PackageReference Include="Microsoft.NET.Test.Sdk" />

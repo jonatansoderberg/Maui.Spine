@@ -15,6 +15,9 @@ public static class SpineAuthDefaults
 
     /// <summary>The provider name of email and password sign-in.</summary>
     public const string PasswordProvider = "password";
+
+    /// <summary>The provider name of passkeys: one login per passkey, its credential id as the subject.</summary>
+    public const string PasskeyProvider = "passkey";
 }
 
 /// <summary>Everything about sign-in on the server: the tokens, the providers and the stores.</summary>
@@ -24,6 +27,8 @@ public sealed partial class SpineAuthOptions
     internal Func<IServiceProvider, ISpineAuthStore>? StoreFactory { get; private set; }
     internal Func<IServiceProvider, IUserResolver>? UsersFactory { get; private set; }
     internal SpineEmailPasswordOptions? EmailPasswordOptions { get; private set; }
+
+    internal SpinePasskeyOptions? PasskeyOptions { get; private set; }
     private bool _ownUsers;
 
     /// <summary>The <c>iss</c> of Spine's access tokens, usually the server's base URL.</summary>
@@ -179,6 +184,21 @@ public sealed partial class SpineAuthOptions
         return this;
     }
 
+    /// <summary>
+    /// Passkeys (WebAuthn): sign-in and sign-up with a passkey, and a passkey added to a signed-in user, for the domain
+    /// <see cref="SpinePasskeyOptions.RelyingPartyId"/>. Map <c>MapSpinePasskeyAssociations()</c> on that domain too, so
+    /// iOS and Android let the app use passkeys for it.
+    /// </summary>
+    /// <param name="configure">Sets the domain and the apps.</param>
+    /// <returns>The same options, for chaining.</returns>
+    public SpineAuthOptions Passkeys(Action<SpinePasskeyOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        PasskeyOptions = new SpinePasskeyOptions();
+        configure(PasskeyOptions);
+        return this;
+    }
+
     /// <summary>Keeps users and tokens in the process. For tests and samples: everyone is signed out on restart.</summary>
     /// <returns>The same options, for chaining.</returns>
     public SpineAuthOptions UseInMemoryStore()
@@ -235,6 +255,9 @@ public sealed partial class SpineAuthOptions
 
         if (StoreFactory is null || UsersFactory is null)
             throw new InvalidOperationException("AddSpineAuthentication: pick a store with UseInMemoryStore(), UseAzureTableStore(...) or UseStore(...) and UseUsers(...).");
+
+        if (PasskeyOptions is { RelyingPartyId: null or "" })
+            throw new InvalidOperationException("AddSpineAuthentication: Passkeys(p => p.RelyingPartyId = …) needs the domain the passkeys belong to, such as api.example.com.");
 
         if (AccessTokenLifetime <= TimeSpan.Zero || RefreshTokenLifetime <= AccessTokenLifetime)
             throw new InvalidOperationException("AddSpineAuthentication: AccessTokenLifetime must be positive and shorter than RefreshTokenLifetime.");
@@ -409,6 +432,39 @@ public sealed class SpineMicrosoftOptions : SpineIdTokenProviderOptions
         _ => string.Equals(tid, Tenant, StringComparison.OrdinalIgnoreCase),
     };
 }
+
+/// <summary>Passkeys: the relying party, and the apps allowed to use its passkeys.</summary>
+public sealed class SpinePasskeyOptions
+{
+    /// <summary>
+    /// The domain the passkeys belong to, such as <c>api.example.com</c>. It cannot change later: a passkey works only for
+    /// the domain it was made for. The server serves the association files on it (<c>MapSpinePasskeyAssociations</c>).
+    /// </summary>
+    public string? RelyingPartyId { get; set; }
+
+    /// <summary>The name the platform's sheet shows. "Spine" by default; set the app's name.</summary>
+    public string RelyingPartyName { get; set; } = "Spine";
+
+    /// <summary>Extra origins accepted besides <c>https://{RelyingPartyId}</c>, such as a web app's.</summary>
+    public IList<string> Origins { get; } = [];
+
+    /// <summary>The iOS and macOS apps, as <c>TEAMID.bundle.id</c>, listed in <c>apple-app-site-association</c> (<c>webcredentials</c>).</summary>
+    public IList<string> AppleAppIds { get; } = [];
+
+    /// <summary>The Android apps listed in <c>assetlinks.json</c> (<c>get_login_creds</c>); their signing certificates are also accepted as origins.</summary>
+    public IList<SpinePasskeyAndroidApp> AndroidApps { get; } = [];
+
+    /// <summary>A new account can be made with a passkey. On by default.</summary>
+    public bool AllowSignUp { get; set; } = true;
+
+    /// <summary>How long a registration or sign-in ceremony may take. 5 minutes by default.</summary>
+    public TimeSpan ChallengeLifetime { get; set; } = TimeSpan.FromMinutes(5);
+}
+
+/// <summary>An Android app that may use the server's passkeys.</summary>
+/// <param name="PackageName">The app's package name.</param>
+/// <param name="Sha256Fingerprints">Its signing certificates' SHA-256 fingerprints, as <c>keytool</c> prints them (<c>AB:CD:…</c>).</param>
+public sealed record SpinePasskeyAndroidApp(string PackageName, IReadOnlyList<string> Sha256Fingerprints);
 
 /// <summary>Email and password sign-in.</summary>
 public sealed class SpineEmailPasswordOptions
