@@ -43,7 +43,7 @@ public sealed record SpineUser(
 /// </param>
 /// <param name="Authenticator">Where a passkey is kept, such as <c>iCloud Keychain</c>, when the server knows its authenticator.</param>
 /// <param name="DeviceName">The device a passkey was made on, as the app said.</param>
-/// <param name="LastUsedAt">When the login last signed in, for the logins that keep it (passkeys).</param>
+/// <param name="LastUsedAt">When the login last signed in; null until it signs in once with a server that keeps it.</param>
 public sealed record SpineLoginInfo(
     string Provider, string? Email = null, string? DisplayName = null, DateTimeOffset? LinkedAt = null, string? Subject = null,
     string? Authenticator = null, string? DeviceName = null, DateTimeOffset? LastUsedAt = null);

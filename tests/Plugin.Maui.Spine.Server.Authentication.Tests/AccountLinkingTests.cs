@@ -150,6 +150,31 @@ public sealed class AccountLinkingTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Every_sign_in_keeps_when_its_login_was_last_used_but_a_link_does_not()
+    {
+        const string email = "dag@example.com";
+        await _host.PostAsync("/auth/password/signup", new SpinePasswordSignUp(email, Password));
+        var verified = await TokensAsync(await _host.PostAsync("/auth/password/verify", new SpineEmailCode(email, _host.Email.LastCode)));
+        var start = _host.Time.GetUtcNow();
+        Assert.Equal(start, verified.User.Logins!.Single().LastUsedAt);
+
+        // Linked before the clock moves: the access token is checked against the real clock.
+        var linked = await TokensAsync(await SendAsync(HttpMethod.Post, "/auth/link/google", verified.AccessToken, await GoogleRequestAsync()));
+        Assert.Null(linked.User.Logins!.Single(l => l.Provider == "google").LastUsedAt);
+
+        _host.Time.Advance(TimeSpan.FromMinutes(1));
+        var signedIn = await TokensAsync(await _host.PostAsync("/auth/password/signin", new SpinePasswordSignIn(email, Password)));
+        Assert.Equal(_host.Time.GetUtcNow(), signedIn.User.Logins!.Single(l => l.Provider == "password").LastUsedAt);
+
+        _host.Time.Advance(TimeSpan.FromMinutes(1));
+        var withGoogle = await TokensAsync(await GoogleAsync());
+        var google = withGoogle.User.Logins!.Single(l => l.Provider == "google");
+        Assert.Equal(start, google.LinkedAt);
+        Assert.Equal(_host.Time.GetUtcNow(), google.LastUsedAt);
+        Assert.Equal(_host.Time.GetUtcNow() - TimeSpan.FromMinutes(1), withGoogle.User.Logins!.Single(l => l.Provider == "password").LastUsedAt);
+    }
+
+    [Fact]
     public async Task Removing_the_password_stops_it_signing_in()
     {
         const string email = "cia@example.com";

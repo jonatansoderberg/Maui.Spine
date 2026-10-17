@@ -621,6 +621,8 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
+- **2026-10-17:** #611 merged (PR #615). #616 in review: every login keeps when it was last used, and the Showcase labels "added" and "last used".
+
 - **2026-10-17:** #522 merged (PR #608), verified on the owner's iPhone with AutoFill. #611 in review: each passkey says where it is kept, the device it was made on and when it was last used.
 
 - **2026-10-17:** 5.4 split into 5.4a (#522, the server, iOS and Mac Catalyst), 5.4b (#601, Android) and 5.4c (#602, Windows). #522 in review as PR #608: passkeys on the Azure sample server and in the Showcase.
