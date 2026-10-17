@@ -150,7 +150,7 @@ public sealed class AccountLinkingTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Every_sign_in_keeps_when_its_login_was_last_used_but_a_link_does_not()
+    public async Task Every_sign_in_and_link_keeps_when_its_login_was_last_used()
     {
         const string email = "dag@example.com";
         await _host.PostAsync("/auth/password/signup", new SpinePasswordSignUp(email, Password));
@@ -160,7 +160,7 @@ public sealed class AccountLinkingTests : IAsyncLifetime
 
         // Linked before the clock moves: the access token is checked against the real clock.
         var linked = await TokensAsync(await SendAsync(HttpMethod.Post, "/auth/link/google", verified.AccessToken, await GoogleRequestAsync()));
-        Assert.Null(linked.User.Logins!.Single(l => l.Provider == "google").LastUsedAt);
+        Assert.Equal(start, linked.User.Logins!.Single(l => l.Provider == "google").LastUsedAt);
 
         _host.Time.Advance(TimeSpan.FromMinutes(1));
         var signedIn = await TokensAsync(await _host.PostAsync("/auth/password/signin", new SpinePasswordSignIn(email, Password)));

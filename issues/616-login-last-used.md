@@ -12,9 +12,9 @@ The owner asked on 2026-10-17: label the dates on every login row, and keep "las
 
 - `SpineAccounts`: `LastUsedAt` at every sign-in through `ResolveAsync` (ID tokens and the browser broker), a pending identity made into an account, and every password sign-in (`PasswordSignedInAsync`: sign-up without verification, a verified code, a password, a reset).
 - Showcase: every login row shows "added …" and "last used …"; a passkey row also where it is kept and its device.
-- Test: a password sign-up, a Google link (no last use), a password sign-in and a Google sign-in, each moving only its own login's `LastUsedAt`.
+- Test: a password sign-up, a Google link, a password sign-in and a Google sign-in, each moving only its own login's `LastUsedAt`.
 - Docs: both wikis, the plan's history.
 
 ## Decisions
 
-- A link is not a sign-in with the provider, so it leaves `LastUsedAt` as it was (null for a new link).
+- A link counts as a use: the user signs in with the provider to add it, and a row that said nothing after "I've signed in before" looked wrong to the owner (first a link left it empty; changed on 2026-10-17).

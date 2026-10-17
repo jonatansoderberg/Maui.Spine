@@ -189,8 +189,8 @@ internal sealed class SpineAccounts(
         {
             Email = identity.Email ?? existing?.Email,
             DisplayName = identity.Name ?? existing?.DisplayName,
-            // A link proves the provider account but signs nobody in with it.
-            LastUsedAt = linkTo is null ? time.GetUtcNow() : existing?.LastUsedAt,
+            // A link is a use too: the user just signed in with the provider to add it.
+            LastUsedAt = time.GetUtcNow(),
         };
         if (identity.ProviderRefreshToken is { } refresh)
             login = login with { ProviderRefreshToken = refresh, ProviderClientId = identity.ProviderClientId };
