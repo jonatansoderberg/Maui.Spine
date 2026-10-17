@@ -20,6 +20,7 @@
 ## Active Plans
 Multi-issue efforts have a living plan under `docs/plans/`. When an issue belongs to one, read the plan first and update its step status, decisions and "Last updated" line in the same PR.
 - `docs/plans/ai-and-security.md` — AI, voice, sign-in, biometrics and highlight (roadmap #505, issues #506–#522).
+- `docs/plans/spine-avatar.md` — avatars: the lab (#524, #542), then the Core, Avatar, Speech and Avatar.Voice packages, drivers, the Showcase pages and the spikes (phases B0–C; issues created per step).
 
 ## GitHub Issue Workflow
 
