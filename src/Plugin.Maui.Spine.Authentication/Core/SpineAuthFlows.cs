@@ -101,17 +101,17 @@ internal sealed class SpineAuthFlows(SpineAuthClient client, SpineAuthSession se
 
     /// <summary>
     /// A new passkey: for <paramref name="newAccount"/>, which it then signs in to, or with <paramref name="link"/> (an
-    /// access token) for that user.
+    /// access token) for that user. <paramref name="deviceName"/> is kept with it, to tell the account's passkeys apart.
     /// </summary>
     public async Task<SignInResult> PasskeyRegisterAsync(
-        IPasskeyCeremony ceremony, SpinePasskeyNewAccount? newAccount, CancellationToken cancellationToken, string? link = null)
+        IPasskeyCeremony ceremony, SpinePasskeyNewAccount? newAccount, CancellationToken cancellationToken, string? link = null, string? deviceName = null)
     {
         var (challenge, error) = await client.PasskeyOptionsAsync("register", link is null ? newAccount : null, link, cancellationToken);
         if (challenge is null) return SignInResult.Failure(error!);
 
         if (await ceremony.CreateAsync(challenge.Options, cancellationToken) is not { } credential) return SignInResult.Canceled;
 
-        return await ResultOfAsync(await client.PasskeyAsync("register", new SpinePasskeyResponse(challenge.ChallengeId, credential), cancellationToken),
+        return await ResultOfAsync(await client.PasskeyAsync("register", new SpinePasskeyResponse(challenge.ChallengeId, credential, deviceName), cancellationToken),
             signedIn: link is null);
     }
 

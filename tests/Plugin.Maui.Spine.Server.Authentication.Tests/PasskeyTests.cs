@@ -289,6 +289,35 @@ public sealed class PasskeyTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_passkey_says_where_it_is_kept_the_device_it_was_made_on_and_when_it_was_last_used()
+    {
+        _iPhone.Aaguid = new Guid("fbfc3007-154e-4ecc-8c0b-6e020557d7bd");
+        var challenge = await ChallengeAsync("/auth/passkey/register/options", new SpinePasskeyNewAccount("Bo", null));
+        var signedUp = await TokensAsync(await SendAsync("/auth/passkey/register",
+            new SpinePasskeyResponse(challenge.ChallengeId, _iPhone.Create(challenge.Options), "Bo's iPhone")));
+
+        var made = signedUp.User.Logins!.Single();
+        Assert.Equal("iCloud Keychain", made.Authenticator);
+        Assert.Equal("Bo's iPhone", made.DeviceName);
+        Assert.Equal(_host.Time.GetUtcNow(), made.LastUsedAt);
+
+        _host.Time.Advance(TimeSpan.FromDays(2));
+        var signedIn = await TokensAsync(await SignInAsync());
+        Assert.Equal(_host.Time.GetUtcNow(), signedIn.User.Logins!.Single().LastUsedAt);
+    }
+
+    [Fact]
+    public async Task An_authenticator_the_server_does_not_know_has_no_name()
+    {
+        _iPhone.Aaguid = Guid.NewGuid();
+
+        var signedUp = await SignUpAsync();
+
+        Assert.Null(signedUp.User.Logins!.Single().Authenticator);
+        Assert.Null(signedUp.User.Logins!.Single().DeviceName);
+    }
+
+    [Fact]
     public async Task The_association_files_name_the_apps()
     {
         var apple = JsonNode.Parse(await _host.Http.GetStringAsync("/.well-known/apple-app-site-association"))!;

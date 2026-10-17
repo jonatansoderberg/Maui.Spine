@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-17 (5.4 passkeys split into 5.4a Apple, 5.4b Android and 5.4c Windows; 5.4a in review; Q12 answered)
+**Last updated:** 2026-10-17 (5.4a merged as #608; #611 adds where each passkey is kept, its device and when it was last used)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -58,7 +58,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Authentication.Google` | New | #521 | [authentication](../proposals/spine-authentication.md) | Done (#565) |
 | `Plugin.Maui.Spine.Authentication.Microsoft` | New | #564 | [authentication](../proposals/spine-authentication.md) | Done (#570) |
 | `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 done (#553); #552 done (#554) |
-| `Plugin.Maui.Spine.Authentication.Passkeys` and passkeys in `Server.Authentication` | New | #522, #601, #602 | [authentication, Passkeys](../proposals/spine-authentication.md) | #522 (iOS, Mac Catalyst and the server) in review as #608; #601 Android and #602 Windows wait |
+| `Plugin.Maui.Spine.Authentication.Passkeys` and passkeys in `Server.Authentication` | New | #522, #601, #602 | [authentication, Passkeys](../proposals/spine-authentication.md) | #522 (iOS, Mac Catalyst and the server) done (#608), #611 the passkeys' details; #601 Android and #602 Windows wait |
 | AI avatars and character visuals | Separate control library, specified by the owner | — | — | Outside this plan |
 | On-device `IChatClient`, Android and Windows | Spike outside the repo | #514 | [ai §9](../proposals/spine-ai.md) | Proposal |
 
@@ -156,7 +156,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | Done | #561 | Split from #519 by the owner on 2026-10-15. `AddOpenIdConnect(name, displayName)` for brokered providers, `CallbackScheme` + `SpineAuthenticationCallbackScheme`, `UseIdentityProvider(...)` as an in-package OIDC public client (Decisions). |
 | 5.3a | `Authentication.Google`: Credential Manager on Android, the broker elsewhere; the provider hook (`INativeSignIn`) in `Authentication` | #521 | 5.2a, 5.2b | Done | #565 | Split by the owner on 2026-10-15. `a.AddGoogle(g => g.ServerClientId = …)`; Guideline 4.8 checked at startup (`AppleNotRequired`); AndroidX Credentials 1.5.0.3 to stay on MAUI's AndroidX (Decisions). Compiled and unit-tested only: no Google Cloud project yet (owner, 2026-10-15). |
 | 5.3b | `Authentication.Microsoft`: MSAL with the broker (Authenticator, Company Portal, WAM); MSAL's ID token to the Spine server (`AddMicrosoft`), or MSAL's own access token without one (`UseMicrosoft`) | #564 | 5.3a | Done | #570 | Split from #521 by the owner on 2026-10-15, with both modes. The mode without a server is generalized in the core (`IDirectSignIn`), shared with `UseIdentityProvider`; Mac Catalyst runs MSAL's net8.0 build with a custom web UI over Spine's browser layer (Decisions). |
-| 5.4a | Passkeys on the server (Fido2NetLib, `Passkeys(...)`, the association files) and in the app on iOS and Mac Catalyst (`Authentication.Passkeys`): sign-in, sign-up, "Add a passkey", AutoFill in the sheet's email field | #522 | 5.5 | In review | #608 | Split by the owner on 2026-10-17 (Decisions). The relying party is the Azure sample server. |
+| 5.4a | Passkeys on the server (Fido2NetLib, `Passkeys(...)`, the association files) and in the app on iOS and Mac Catalyst (`Authentication.Passkeys`): sign-in, sign-up, "Add a passkey", AutoFill in the sheet's email field | #522 | 5.5 | Done | #608 | Split by the owner on 2026-10-17 (Decisions). The relying party is the Azure sample server. |
 | 5.4b | Passkeys on Android: Credential Manager's `CreatePublicKeyCredentialRequest` and `GetPublicKeyCredentialOption`, `assetlinks.json` from `AndroidApps` | #601 | 5.4a | Waiting | | The server side is ready: `AndroidApps` adds the `android:apk-key-hash:` origins. |
 | 5.4c | Passkeys on Windows: WebAuthn through `webauthn.dll` | #602 | 5.4a | Waiting | | |
 | 5.5 | Account linking: one account with several providers, `Logins` with their details, link and unlink, and a pending identity before a new account (`AskBeforeNewAccount`) with "Is this your first time here?" in the sheet; the sheet's provider buttons in one shape with each brand's logo | #575 | 5.3b | Done | #576 | Asked for by the owner on 2026-10-16 (Decisions). Also `Password`, `AccountLink` and `Merge` in the icon set, and Spine.Svg draws Figma's conic gradients and alpha masks (Google's G). |
@@ -522,7 +522,8 @@ Newest last. Each entry is dated and says who decided.
   - **AutoFill only on iOS.** `performAutoFillAssistedRequests` is not in Mac Catalyst's binding; the Mac shows the passkey sheet from the button. A button's request cancels a pending AutoFill request first, and AutoFill waits for the sheet to close, because iOS runs one request at a time.
   - **`excludeCredentials` through the browser protocol.** iOS 17.4 has it on the platform request, but the .NET binding only on `IASAuthorizationWebBrowserPlatformPublicKeyCredentialRegistrationRequest`, which the request conforms to; Spine sets it through that interface when the request responds to the selector.
   - **A simulator build needs the team's signing identity** (`CodesignKey` and a profile) for the passkey sheet: without an `application-identifier` iOS refuses with error 1004 ("process without application identifier").
-
+- **2026-10-17, owner (#611):** A passkey row shows where it is kept (from the AAGUID), the device it was made on (the app's device name) and when it was last used.
+- **2026-10-17, Claude (#611):** The authenticator's name is resolved at registration and kept with the login, so `SpineAuthUser.ToContract` needs no options; `AuthenticatorNames` is a table of well-known AAGUIDs the app can extend. The device name is the app's own label and is not checked.
 
 ## Open questions
 
@@ -619,6 +620,8 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 ---
 
 ## Plan history
+
+- **2026-10-17:** #522 merged (PR #608), verified on the owner's iPhone with AutoFill. #611 in review: each passkey says where it is kept, the device it was made on and when it was last used.
 
 - **2026-10-17:** 5.4 split into 5.4a (#522, the server, iOS and Mac Catalyst), 5.4b (#601, Android) and 5.4c (#602, Windows). #522 in review as PR #608: passkeys on the Azure sample server and in the Showcase.
 

@@ -41,7 +41,12 @@ public sealed record SpineUser(
 /// The provider's id for this login (a passkey's credential id), so one of several logins of a provider can be removed:
 /// <c>ISpineAuth.UnlinkAsync(provider, subject)</c>.
 /// </param>
-public sealed record SpineLoginInfo(string Provider, string? Email = null, string? DisplayName = null, DateTimeOffset? LinkedAt = null, string? Subject = null);
+/// <param name="Authenticator">Where a passkey is kept, such as <c>iCloud Keychain</c>, when the server knows its authenticator.</param>
+/// <param name="DeviceName">The device a passkey was made on, as the app said.</param>
+/// <param name="LastUsedAt">When the login last signed in, for the logins that keep it (passkeys).</param>
+public sealed record SpineLoginInfo(
+    string Provider, string? Email = null, string? DisplayName = null, DateTimeOffset? LinkedAt = null, string? Subject = null,
+    string? Authenticator = null, string? DeviceName = null, DateTimeOffset? LastUsedAt = null);
 
 /// <summary>
 /// The start of a passkey ceremony: <c>POST /auth/passkey/register/options</c> or <c>/signin/options</c>. The app hands
@@ -59,7 +64,8 @@ public sealed record SpinePasskeyNewAccount(string? DisplayName, string? Email);
 /// <summary>What the platform's passkey sheet answered: the body of <c>POST /auth/passkey/register</c> or <c>/signin</c>.</summary>
 /// <param name="ChallengeId">The <see cref="SpinePasskeyChallenge.ChallengeId"/>.</param>
 /// <param name="Credential">The WebAuthn credential as JSON (<c>PublicKeyCredential.toJSON()</c>'s shape).</param>
-public sealed record SpinePasskeyResponse(string ChallengeId, string Credential);
+/// <param name="DeviceName">At registration, the device the passkey is made on, kept to tell the account's passkeys apart; not checked.</param>
+public sealed record SpinePasskeyResponse(string ChallengeId, string Credential, string? DeviceName = null);
 
 /// <summary>
 /// A sign-in with an identity the server does not know, while the server asks before it makes an account

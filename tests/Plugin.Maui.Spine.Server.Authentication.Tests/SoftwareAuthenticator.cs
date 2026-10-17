@@ -16,6 +16,9 @@ internal sealed class SoftwareAuthenticator(string origin, string rpId)
 
     public bool KeepsCounter { get; set; }
 
+    /// <summary>The AAGUID the authenticator names itself with; empty, as many do, by default.</summary>
+    public Guid Aaguid { get; set; }
+
     public IReadOnlyCollection<string> Ids => _passkeys.Keys;
 
     /// <summary>Answers <c>navigator.credentials.create()</c> for the options' challenge and user.</summary>
@@ -41,7 +44,7 @@ internal sealed class SoftwareAuthenticator(string origin, string rpId)
         authData.Write(SHA256.HashData(Encoding.UTF8.GetBytes(rpId)));
         authData.WriteByte(0x01 | 0x04 | 0x40);
         authData.Write(new byte[4]);
-        authData.Write(new byte[16]);
+        authData.Write(Aaguid.ToByteArray(bigEndian: true));
         authData.WriteByte((byte)(id.Length >> 8));
         authData.WriteByte((byte)id.Length);
         authData.Write(id);
