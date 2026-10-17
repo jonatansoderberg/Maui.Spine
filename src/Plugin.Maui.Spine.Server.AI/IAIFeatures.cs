@@ -64,6 +64,18 @@ public interface IAIFeatures
     /// <exception cref="AIFeatureException">The caller is refused, over a rate or out of budget.</exception>
     Task<AIRealtimeSession?> RealtimeAsync(string feature, AICaller caller, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Reads <paramref name="text"/> aloud for <paramref name="caller"/>: checks the feature's callers, rates and budgets,
+    /// asks the provider and records the characters.
+    /// </summary>
+    /// <param name="feature">The feature's name; its <c>Kind</c> is <c>Speech</c>.</param>
+    /// <param name="text">The text; at most the feature's <see cref="AISpeechOptions.MaxCharacters"/>.</param>
+    /// <param name="caller">Who it is for.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The audio and its mouth shapes, or <see langword="null"/> when the feature is off or not a speech feature.</returns>
+    /// <exception cref="AIFeatureException">The caller is refused, over a rate or out of budget, or the text is too long.</exception>
+    Task<AISpeech?> SpeechAsync(string feature, string text, AICaller caller, CancellationToken cancellationToken = default);
+
     /// <summary>Whether <paramref name="feature"/> answers right now.</summary>
     /// <param name="feature">The feature's name.</param>
     AIFeatureState StateOf(string feature);
@@ -126,6 +138,37 @@ internal sealed class AIFeatures(
             var made = await provider.CreateSessionAsync(request, cancellationToken);
             await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, null, minutes: Math.Max(0, session.MaxMinutes));
             return made;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, e);
+            throw;
+        }
+    }
+
+    public async Task<AISpeech?> SpeechAsync(string feature, string text, AICaller caller, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(feature);
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(caller);
+
+        if (!TryGetOn(feature, out var found) || found.Speech is not { } provider) return null;
+
+        var options = found.Options.Speech ?? new AISpeechOptions();
+        if (text.Length > options.MaxCharacters)
+            throw new AIRequestTooLargeException(found.Name, "characters", options.MaxCharacters);
+
+        using var lease = gate.Acquire(found, caller);
+        await gate.CheckAsync(found, caller, cancellationToken);
+
+        var request = new AISpeechRequest(found.Name, found.Model, text, options, caller);
+        var started = meter.Time.GetTimestamp();
+
+        try
+        {
+            var speech = await provider.SynthesizeAsync(request, cancellationToken);
+            await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, null, characters: text.Length);
+            return speech;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

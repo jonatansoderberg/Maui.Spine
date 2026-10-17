@@ -8,18 +8,19 @@ internal static class AIPricing
     private const decimal Million = 1_000_000m;
 
     /// <summary>
-    /// What <paramref name="usage"/>, <paramref name="images"/> and realtime <paramref name="minutes"/> cost at <paramref name="price"/>, or
+    /// What <paramref name="usage"/>, <paramref name="images"/>, realtime <paramref name="minutes"/> and <paramref name="characters"/> read
+    /// aloud cost at <paramref name="price"/>, or
     /// <see langword="null"/> when there is no price.
     /// </summary>
     /// <remarks>
     /// Microsoft.Extensions.AI counts cached input inside <see cref="UsageDetails.InputTokenCount"/> and reasoning inside
     /// <see cref="UsageDetails.OutputTokenCount"/>, so each is taken out before the rest is priced as plain input or output.
     /// </remarks>
-    public static decimal? Cost(AIPrice? price, UsageDetails? usage, int images, int minutes = 0)
+    public static decimal? Cost(AIPrice? price, UsageDetails? usage, int images, int minutes = 0, long characters = 0)
     {
         if (price is null) return null;
 
-        var cost = images * (price.PerImage ?? 0) + minutes * (price.PerMinute ?? 0);
+        var cost = images * (price.PerImage ?? 0) + minutes * (price.PerMinute ?? 0) + characters * (price.PerMillionCharacters ?? 0) / Million;
         if (usage is null) return cost;
 
         var input = usage.InputTokenCount ?? 0;
