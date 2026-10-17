@@ -47,6 +47,7 @@
   <Project Path="src/Plugin.Maui.Spine.Authentication/Plugin.Maui.Spine.Authentication.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication.Google/Plugin.Maui.Spine.Authentication.Google.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication.Microsoft/Plugin.Maui.Spine.Authentication.Microsoft.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Authentication.Passkeys/Plugin.Maui.Spine.Authentication.Passkeys.csproj" />
   <Project Path="src/Plugin.Maui.Spine.PushNotifications/Plugin.Maui.Spine.PushNotifications.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Barcodes/Plugin.Maui.Spine.Barcodes.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Scanner/Plugin.Maui.Spine.Scanner.csproj" />

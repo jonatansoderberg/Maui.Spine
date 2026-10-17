@@ -7,7 +7,7 @@ namespace Plugin.Maui.Spine.Authentication;
 /// A provider's button in the shape the sign-in sheet uses: 48 high, radius 8, the provider's logo on the left and the
 /// text centred, in the provider's own colours for the light and dark theme. Apple, Google and Microsoft get their logos
 /// and brand colours (Apple black or white, Google white or #131314 with its outline, Microsoft white or #2F2F2F),
-/// <c>password</c> the password symbol in the neutral outline, and any other provider the neutral outline without a logo.
+/// <c>password</c> and <c>passkey</c> their symbols in the neutral outline, and any other provider the neutral outline without a logo.
 /// </summary>
 /// <example>
 /// <code>
@@ -60,14 +60,14 @@ public sealed class SignInButton : ContentView
         Apply();
     }
 
-    /// <summary>The provider's name, such as <c>apple</c>, <c>google</c>, <c>microsoft</c> or <c>password</c>; it picks the logo and colours.</summary>
+    /// <summary>The provider's name, such as <c>apple</c>, <c>google</c>, <c>microsoft</c>, <c>password</c> or <c>passkey</c>; it picks the logo and colours.</summary>
     public string Provider
     {
         get => (string)GetValue(ProviderProperty);
         set => SetValue(ProviderProperty, value);
     }
 
-    /// <summary>The text; "Continue with Apple" and the like (or "Continue with email" for <c>password</c>) when not set.</summary>
+    /// <summary>The text; "Continue with Apple" and the like ("Continue with email" for <c>password</c>, "Sign in with a passkey" for <c>passkey</c>) when not set.</summary>
     public string? Text
     {
         get => (string?)GetValue(TextProperty);
@@ -96,9 +96,12 @@ public sealed class SignInButton : ContentView
         var provider = (Provider ?? "").ToLowerInvariant();
         var look = ProviderLook.For(provider);
 
-        _button.Text = Text ?? (provider is "password" or "email"
-            ? AuthStrings.Get("EmailButton")
-            : string.Format(AuthStrings.Get("ContinueWith"), ProviderLook.BrandName(provider)));
+        _button.Text = Text ?? provider switch
+        {
+            "password" or "email" => AuthStrings.Get("EmailButton"),
+            "passkey" => AuthStrings.Get("PasskeyButton"),
+            _ => string.Format(AuthStrings.Get("ContinueWith"), ProviderLook.BrandName(provider)),
+        };
         _button.Padding = new Thickness(look.Logo is null ? 16 : 48, 0);
         _button.SetAppThemeColor(Button.BackgroundColorProperty, look.Light.Background, look.Dark.Background);
         _button.SetAppThemeColor(Button.TextColorProperty, look.Light.Text, look.Dark.Text);
@@ -143,6 +146,8 @@ internal sealed record ProviderLook(string? Logo, bool TintsLogo, ProviderColors
 
     public static ProviderLook Email { get; } = new("signin-password.svg", true, NeutralLight, NeutralDark);
 
+    public static ProviderLook Passkey { get; } = new("signin-passkey.svg", true, NeutralLight, NeutralDark);
+
     public static ProviderLook Neutral { get; } = new(null, false, NeutralLight, NeutralDark);
 
     /// <summary>A provider by its name; one Spine has no logo for gets the neutral outline without one.</summary>
@@ -152,6 +157,7 @@ internal sealed record ProviderLook(string? Logo, bool TintsLogo, ProviderColors
         "google" => Google,
         "microsoft" => Microsoft,
         "password" or "email" => Email,
+        "passkey" => Passkey,
         _ => Neutral,
     };
 

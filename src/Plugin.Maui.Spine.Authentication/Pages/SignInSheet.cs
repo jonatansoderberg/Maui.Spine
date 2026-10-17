@@ -46,6 +46,10 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
             };
         }
 
+        var passkey = new SignInButton { Provider = "passkey", CommandParameter = "passkey" };
+        passkey.SetBinding(SignInButton.CommandProperty, nameof(SignInSheetViewModel.ProviderCommand));
+        rows.Add(("passkey", passkey));
+
         // "Is this your first time here?" after a provider account the server does not know yet.
         var createNew = new Button { Text = AuthStrings.Get("Choose.Create"), FontAttributes = FontAttributes.Bold, CornerRadius = 8, HeightRequest = 48 };
         createNew.SetBinding(Button.CommandProperty, nameof(SignInSheetViewModel.CreateNewAccountCommand));
@@ -63,6 +67,13 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
 
         var email = Field(AuthStrings.Get("Email"), nameof(SignInSheetViewModel.ShowEmail), out var emailEntry);
         emailEntry.Keyboard = Keyboard.Email;
+#if IOS || MACCATALYST
+        // AutoFill offers passkeys above a field whose content is a username.
+        emailEntry.HandlerChanged += (_, _) =>
+        {
+            if (emailEntry.Handler?.PlatformView is UIKit.UITextField field) field.TextContentType = UIKit.UITextContentType.Username;
+        };
+#endif
         emailEntry.SetBinding(Entry.TextProperty, static (SignInSheetViewModel vm) => vm.Email, BindingMode.TwoWay);
 
         var name = Field(AuthStrings.Get("Name"), nameof(SignInSheetViewModel.ShowName), out var nameEntry);
@@ -91,6 +102,7 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
             Children =
             {
                 Link(AuthStrings.Get("CreateAccount"), nameof(SignInSheetViewModel.CreateAccountCommand), nameof(SignInSheetViewModel.ShowCreateAccount)),
+                Link(AuthStrings.Get("CreatePasskeyAccount"), nameof(SignInSheetViewModel.CreatePasskeyAccountCommand), nameof(SignInSheetViewModel.ShowCreatePasskeyAccount)),
                 Link(AuthStrings.Get("Forgot"), nameof(SignInSheetViewModel.ForgotCommand), nameof(SignInSheetViewModel.ShowForgot)),
                 Link(AuthStrings.Get("Resend"), nameof(SignInSheetViewModel.ResendCommand), nameof(SignInSheetViewModel.ShowResend)),
                 Link(AuthStrings.Get("BackToSignIn"), nameof(SignInSheetViewModel.BackCommand), nameof(SignInSheetViewModel.ShowBack)),
@@ -103,7 +115,7 @@ public sealed class SignInSheet : SpinePage<SignInSheetViewModel>, INavigableWit
             {
                 Padding = new Thickness(HeaderBarConstants.PageMargin, 8, HeaderBarConstants.PageMargin, 16),
                 Spacing = 12,
-                Children = { message, choose, apple, browserProviders, emailRow, or, email, name, code, password, error, links },
+                Children = { message, choose, apple, browserProviders, passkey, emailRow, or, email, name, code, password, error, links },
             },
         };
 
@@ -158,6 +170,9 @@ public enum SignInStep
 
     /// <summary>"I've signed in before": the other ways to sign in, and the pending account is added after.</summary>
     Prove,
+
+    /// <summary>A new account made with a passkey: a name and an email for it.</summary>
+    PasskeySignUp,
 }
 
 /// <summary>The view model of <see cref="SignInSheet"/>.</summary>
@@ -179,7 +194,7 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
     /// <summary>The step on screen.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowApple), nameof(ShowChoice), nameof(ShowProviders), nameof(ShowEmailButton), nameof(ShowOr), nameof(ShowEmail), nameof(ShowName), nameof(ShowCode), nameof(ShowPassword),
-        nameof(PasswordLabel), nameof(ShowCreateAccount), nameof(ShowForgot), nameof(ShowResend), nameof(ShowBack))]
+        nameof(PasswordLabel), nameof(ShowCreateAccount), nameof(ShowCreatePasskeyAccount), nameof(ShowForgot), nameof(ShowResend), nameof(ShowBack))]
     public partial SignInStep Step { get; set; }
 
     /// <summary>The email.</summary>
@@ -224,7 +239,10 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
     /// </summary>
     /// <param name="provider">The provider's name.</param>
     public bool ShowsProvider(string provider) =>
-        SigningIn && (provider != "apple" || _options.Apple) && !(Step == SignInStep.Prove && provider == _pending?.Provider);
+        SigningIn && (provider != "apple" || _options.Apple) && (provider != "passkey" || HasPasskeys)
+        && !(Step == SignInStep.Prove && provider == _pending?.Provider);
+
+    private bool HasPasskeys => _options.Passkeys is { IsSupported: true };
 
     /// <summary>"Create a new account" and "I've signed in before" show.</summary>
     public bool ShowChoice => Step == SignInStep.Choose;
@@ -239,22 +257,26 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
     /// <summary>The fields were opened with "Continue with email".</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmailButton), nameof(ShowOr), nameof(ShowEmail), nameof(ShowName), nameof(ShowCode), nameof(ShowPassword),
-        nameof(ShowCreateAccount), nameof(ShowForgot))]
+        nameof(ShowCreateAccount), nameof(ShowCreatePasskeyAccount), nameof(ShowForgot))]
     public partial bool EmailOpened { get; set; }
 
-    private bool HasProviderButtons => _options.Apple || _options.BrowserProviders.Count > 0;
+    private bool HasProviderButtons => _options.Apple || HasPasskeys || _options.BrowserProviders.Count > 0;
 
     /// <summary>"Continue with email" shows: next to the providers' buttons, until it opens the fields.</summary>
     public bool ShowEmailButton => SigningIn && _options.EmailPassword is not null && HasProviderButtons && !EmailOpened;
 
     /// <summary>The "or" between the providers and the fields shows.</summary>
-    public bool ShowOr => SigningIn && (ShowApple || ShowProviders) && ShowEmail;
+    public bool ShowOr => SigningIn && (ShowApple || ShowProviders || HasPasskeys) && ShowEmail;
 
-    /// <summary>The email field shows: at once without providers, after "Continue with email" with them.</summary>
-    public bool ShowEmail => _options.EmailPassword is not null && Step != SignInStep.Choose && (EmailOpened || !HasProviderButtons || !SigningIn);
+    /// <summary>
+    /// The email field shows: at once without providers, after "Continue with email" with them, and for a new account
+    /// made with a passkey.
+    /// </summary>
+    public bool ShowEmail => Step == SignInStep.PasskeySignUp
+        || _options.EmailPassword is not null && Step != SignInStep.Choose && (EmailOpened || !HasProviderButtons || !SigningIn);
 
     /// <summary>The name field shows.</summary>
-    public bool ShowName => ShowEmail && Step == SignInStep.SignUp;
+    public bool ShowName => ShowEmail && Step is SignInStep.SignUp or SignInStep.PasskeySignUp;
 
     /// <summary>The code field shows.</summary>
     public bool ShowCode => ShowEmail && Step is SignInStep.Code or SignInStep.Reset;
@@ -267,6 +289,9 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
 
     /// <summary>"Create account" shows.</summary>
     public bool ShowCreateAccount => ShowEmail && Step == SignInStep.SignIn && _options.EmailPassword is { AllowSignUp: true };
+
+    /// <summary>"Create account with a passkey" shows: on the first step, where the device has passkeys.</summary>
+    public bool ShowCreatePasskeyAccount => Step == SignInStep.SignIn && _options.Passkeys is { IsSupported: true, AllowSignUp: true };
 
     /// <summary>"Forgot password?" shows.</summary>
     public bool ShowForgot => ShowEmail && Step == SignInStep.SignIn && _options.EmailPassword is { AllowReset: true };
@@ -287,7 +312,7 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
     {
         Title = AuthStrings.Get(value switch
         {
-            SignInStep.SignUp => "Title.SignUp",
+            SignInStep.SignUp or SignInStep.PasskeySignUp => "Title.SignUp",
             SignInStep.Code => "Title.Code",
             SignInStep.Forgot or SignInStep.Reset => "Title.Forgot",
             SignInStep.Choose => "Title.Choose",
@@ -295,6 +320,59 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
             _ => "Title.SignIn",
         });
         Error = null;
+        UpdateAutoFill();
+    }
+
+    partial void OnEmailOpenedChanged(bool value) => UpdateAutoFill();
+
+    /// <inheritdoc />
+    public override Task OnAppearingAsync(NavigationDirection navigationDirection)
+    {
+        _visible = true;
+        UpdateAutoFill();
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public override Task OnDisappearingAsync(NavigationDirection navigationDirection)
+    {
+        _visible = false;
+        UpdateAutoFill();
+        return Task.CompletedTask;
+    }
+
+    private bool _visible;
+    private CancellationTokenSource? _autoFill;
+
+    // The email field offers the device's passkeys while it shows on a sign-in step.
+    private void UpdateAutoFill()
+    {
+        var wanted = _visible && SigningIn && ShowEmail && _options.Passkeys is { SupportsAutoFill: true };
+        if (wanted == _autoFill is not null) return;
+
+        if (!wanted)
+        {
+            _autoFill!.Cancel();
+            _autoFill.Dispose();
+            _autoFill = null;
+            return;
+        }
+
+        var autoFill = _autoFill = new CancellationTokenSource();
+        _ = AutoFillAsync(autoFill);
+    }
+
+    private async Task AutoFillAsync(CancellationTokenSource autoFill)
+    {
+        var result = await _auth.SignInWithPasskeyAutoFillAsync(autoFill.Token);
+        if (autoFill.IsCancellationRequested) return;
+        if (_autoFill == autoFill) _autoFill = null;
+        autoFill.Dispose();
+
+        if (result.Status == SignInStatus.Canceled)
+            UpdateAutoFill();
+        else
+            await FinishAsync(result);
     }
 
     [RelayCommand]
@@ -309,12 +387,19 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
         Error = null;
         var email = Email.Trim();
 
+        if (Step == SignInStep.PasskeySignUp && email.Length == 0 && string.IsNullOrWhiteSpace(DisplayName))
+        {
+            Error = AuthStrings.Get("PasskeyNeedsName");
+            return;
+        }
+
         var result = Step switch
         {
             SignInStep.SignIn or SignInStep.Prove => await _auth.SignInWithPasswordAsync(email, Password),
             SignInStep.SignUp => await _auth.SignUpAsync(email, Password, string.IsNullOrWhiteSpace(DisplayName) ? null : DisplayName.Trim()),
             SignInStep.Code => await _auth.VerifyEmailAsync(email, Code),
             SignInStep.Forgot => await _auth.ForgotPasswordAsync(email),
+            SignInStep.PasskeySignUp => await _auth.SignUpWithPasskeyAsync(string.IsNullOrWhiteSpace(DisplayName) ? null : DisplayName.Trim(), email.Length == 0 ? null : email),
             _ => await _auth.ResetPasswordAsync(email, Code, Password),
         };
 
@@ -343,6 +428,14 @@ public sealed partial class SignInSheetViewModel : ViewModelBase
     {
         Message = null;
         Step = SignInStep.SignUp;
+        return Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    private Task CreatePasskeyAccount()
+    {
+        Message = null;
+        Step = SignInStep.PasskeySignUp;
         return Task.CompletedTask;
     }
 

@@ -102,6 +102,38 @@ internal sealed class SpineAuthClient(HttpClient http, Uri root) : ITokenEndpoin
     public Task<ServerAnswer> PendingAsync(string action, SpinePendingIdentity pending, string? accessToken, CancellationToken cancellationToken) =>
         PostAsync($"pending/{action}", new SpinePendingRequest(pending.Ticket), cancellationToken, accessToken);
 
+    /// <summary>
+    /// <c>passkey/register/options</c> or <c>passkey/signin/options</c>: the WebAuthn options for the platform's sheet, or
+    /// the server's error. A registration with <paramref name="accessToken"/> adds a passkey to that user; without one, it
+    /// makes <paramref name="newAccount"/>.
+    /// </summary>
+    public async Task<(SpinePasskeyChallenge? Challenge, string? Error)> PasskeyOptionsAsync(
+        string ceremony, SpinePasskeyNewAccount? newAccount, string? accessToken, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(root, $"passkey/{ceremony}/options"));
+        if (newAccount is not null)
+            request.Content = JsonContent.Create(newAccount, (JsonTypeInfo<SpinePasskeyNewAccount>)SpineAuthJson.Options.GetTypeInfo(typeof(SpinePasskeyNewAccount)));
+        if (accessToken is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        try
+        {
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (response.IsSuccessStatusCode && await TryReadAsync<SpinePasskeyChallenge>(response, cancellationToken) is { } challenge)
+                return (challenge, null);
+
+            return (null, (await TryReadAsync<SpineAuthProblem>(response, cancellationToken))?.Error
+                ?? $"POST {request.RequestUri} answered {(int)response.StatusCode}.");
+        }
+        catch (Exception e) when (e is HttpRequestException || e is TaskCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            return (null, $"POST {request.RequestUri}: {e.Message}");
+        }
+    }
+
+    /// <summary><c>passkey/register</c> or <c>passkey/signin</c>: the platform's credential, traded for tokens.</summary>
+    public Task<ServerAnswer> PasskeyAsync(string ceremony, SpinePasskeyResponse response, CancellationToken cancellationToken) =>
+        PostAsync($"passkey/{ceremony}", response, cancellationToken);
+
     private async Task<ServerAnswer> PostAsync<T>(string path, T body, CancellationToken cancellationToken, string? accessToken = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(root, path))

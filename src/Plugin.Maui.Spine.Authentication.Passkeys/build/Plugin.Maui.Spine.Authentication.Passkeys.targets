@@ -1,0 +1,16 @@
+<Project>
+	<!--
+		iOS and macOS let an app use the passkeys of a domain that names the app in its apple-app-site-association
+		file (webcredentials), and only when the app has the domain in its Associated Domains entitlement:
+
+		  <SpinePasskeyDomain>api.example.com</SpinePasskeyDomain>
+
+		The server's Passkeys(p => p.RelyingPartyId = "api.example.com") and MapSpinePasskeyAssociations() serve the
+		file. The App ID needs the Associated Domains capability in the developer portal, and a new provisioning profile.
+		Written with the other packages' entitlements by Plugin.Maui.Spine.Common.
+	-->
+	<ItemGroup Condition="'$(SpinePasskeyDomain)' != '' And ($([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' Or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst')">
+		<SpineEntitlement Include="com.apple.developer.associated-domains" Kind="array" Value="webcredentials:$(SpinePasskeyDomain)"
+						  Because="Passkeys for $(SpinePasskeyDomain) (SpinePasskeyDomain)." />
+	</ItemGroup>
+</Project>

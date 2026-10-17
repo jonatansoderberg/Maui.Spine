@@ -85,6 +85,36 @@ internal sealed class SpineAuthFlows(SpineAuthClient client, SpineAuthSession se
             signedIn: link is null);
     }
 
+    /// <summary>
+    /// A sign-in with a passkey the device has: the server's challenge, the platform's sheet (or, with
+    /// <paramref name="autoFill"/>, the keyboard's suggestions), and the signed answer back.
+    /// </summary>
+    public async Task<SignInResult> PasskeySignInAsync(IPasskeyCeremony ceremony, bool autoFill, CancellationToken cancellationToken)
+    {
+        var (challenge, error) = await client.PasskeyOptionsAsync("signin", null, null, cancellationToken);
+        if (challenge is null) return SignInResult.Failure(error!);
+
+        if (await ceremony.GetAsync(challenge.Options, autoFill, cancellationToken) is not { } credential) return SignInResult.Canceled;
+
+        return await ResultOfAsync(await client.PasskeyAsync("signin", new SpinePasskeyResponse(challenge.ChallengeId, credential), cancellationToken));
+    }
+
+    /// <summary>
+    /// A new passkey: for <paramref name="newAccount"/>, which it then signs in to, or with <paramref name="link"/> (an
+    /// access token) for that user.
+    /// </summary>
+    public async Task<SignInResult> PasskeyRegisterAsync(
+        IPasskeyCeremony ceremony, SpinePasskeyNewAccount? newAccount, CancellationToken cancellationToken, string? link = null)
+    {
+        var (challenge, error) = await client.PasskeyOptionsAsync("register", link is null ? newAccount : null, link, cancellationToken);
+        if (challenge is null) return SignInResult.Failure(error!);
+
+        if (await ceremony.CreateAsync(challenge.Options, cancellationToken) is not { } credential) return SignInResult.Canceled;
+
+        return await ResultOfAsync(await client.PasskeyAsync("register", new SpinePasskeyResponse(challenge.ChallengeId, credential), cancellationToken),
+            signedIn: link is null);
+    }
+
     /// <summary>Removes a provider, or the password, from the signed-in user.</summary>
     public async Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken)
     {

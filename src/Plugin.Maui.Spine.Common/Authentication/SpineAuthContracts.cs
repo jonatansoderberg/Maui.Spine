@@ -188,6 +188,9 @@ public static class SpineAuthErrors
 
     /// <summary>The login to remove is the account's last way to sign in.</summary>
     public const string LastLogin = "last_login";
+
+    /// <summary>The passkey is not on any account here: removed from it, or the account was deleted.</summary>
+    public const string UnknownPasskey = "unknown_passkey";
 }
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

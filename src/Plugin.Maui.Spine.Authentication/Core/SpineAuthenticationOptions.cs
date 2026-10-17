@@ -121,6 +121,15 @@ public sealed partial class SpineAuthenticationOptions
         return AddOpenIdConnect(provider.Name, displayName);
     }
 
+    internal PasskeyProvider? Passkeys { get; private set; }
+
+    /// <summary>Passkeys through the platform's sheet: a button in the sign-in sheet, sign-up and AutoFill where the device has them.</summary>
+    internal SpineAuthenticationOptions AddPasskeyCeremony(PasskeyProvider provider)
+    {
+        Passkeys = provider;
+        return this;
+    }
+
     /// <summary>Whether signing in with <paramref name="provider"/> goes through the browser on this platform.</summary>
     internal bool IsBrowser(SignInProvider provider) => !NativeProviders.Any(n => n.Name == provider.Name && n.IsSupported);
 
@@ -164,9 +173,9 @@ public sealed partial class SpineAuthenticationOptions
 
         if (Direct is { } direct)
         {
-            if (Server is not null || Apple || EmailPassword is not null || BrowserProviders.Count > 0)
+            if (Server is not null || Apple || EmailPassword is not null || Passkeys is not null || BrowserProviders.Count > 0)
                 throw new InvalidOperationException(
-                    $"Spine sign-in: {direct.Method} signs in without a Spine server; Server, AddApple, AddEmailPassword, AddOpenIdConnect and the provider packages (AddGoogle, AddMicrosoft) need one.");
+                    $"Spine sign-in: {direct.Method} signs in without a Spine server; Server, AddApple, AddEmailPassword, AddPasskeys, AddOpenIdConnect and the provider packages (AddGoogle, AddMicrosoft) need one.");
         }
 
         if (IdentityProvider is { } provider)
@@ -181,8 +190,8 @@ public sealed partial class SpineAuthenticationOptions
         else if (Direct is null)
         {
             _ = ServerRoot;
-            if (!Apple && EmailPassword is null && BrowserProviders.Count == 0)
-                throw new InvalidOperationException("Spine sign-in: offer at least one way to sign in: a.AddApple(), a.AddEmailPassword() or a.AddOpenIdConnect(...).");
+            if (!Apple && EmailPassword is null && Passkeys is null && BrowserProviders.Count == 0)
+                throw new InvalidOperationException("Spine sign-in: offer at least one way to sign in: a.AddApple(), a.AddEmailPassword(), a.AddPasskeys() or a.AddOpenIdConnect(...).");
         }
     }
 }

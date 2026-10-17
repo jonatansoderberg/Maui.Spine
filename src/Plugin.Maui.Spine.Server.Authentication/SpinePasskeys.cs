@@ -174,7 +174,7 @@ internal sealed class SpinePasskeys(
         var login = user is null ? null
             : (await users.GetLoginsAsync(user.Id, cancellationToken)).FirstOrDefault(l => l.Provider == Provider && l.Subject == subject);
         if (user is null || login?.PasskeyPublicKey is null)
-            return SignInOutcome.Refused(401, SpineAuthErrors.InvalidCredentials, "This passkey is not known here: it may have been removed from the account.");
+            return SignInOutcome.Refused(401, SpineAuthErrors.UnknownPasskey, "This passkey is not known here: it may have been removed from the account.");
 
         VerifyAssertionResult result;
         try
@@ -192,7 +192,7 @@ internal sealed class SpinePasskeys(
         catch (Fido2VerificationException e)
         {
             logger.LogInformation("Spine sign-in: a passkey sign-in for user {User} was refused: {Problem}.", user.Id, e.Message);
-            return SignInOutcome.Refused(401, SpineAuthErrors.InvalidCredentials, e.Message);
+            return SignInOutcome.Refused(401, SpineAuthErrors.InvalidToken, e.Message);
         }
 
         if (result.SignCount != login.PasskeySignCount)

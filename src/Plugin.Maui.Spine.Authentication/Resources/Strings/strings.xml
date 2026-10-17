@@ -39,4 +39,8 @@
   <s key="Spine.Authentication.AlsoNew">That account is new to us too. Choose another way, or create a new account.</s>
   <s key="Spine.Authentication.Error.identity_in_use">That account already belongs to another account here. Sign in with it there and remove it first.</s>
   <s key="Spine.Authentication.Error.last_login">This is the account's last way to sign in. Add another first.</s>
+  <s key="Spine.Authentication.PasskeyButton">Sign in with a passkey</s>
+  <s key="Spine.Authentication.CreatePasskeyAccount">Create account with a passkey</s>
+  <s key="Spine.Authentication.PasskeyNeedsName">Enter a name or an email for the passkey.</s>
+  <s key="Spine.Authentication.Error.unknown_passkey">This passkey no longer works here. Sign in another way, or create a new account.</s>
 </strings>
