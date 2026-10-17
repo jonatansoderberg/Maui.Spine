@@ -78,7 +78,8 @@ internal sealed class MicrosoftDirectSignIn(MicrosoftClient client, SpineMicroso
         result.Account.HomeAccountId.Identifier,
         new SpineUser(
             result.UniqueId ?? result.Account.HomeAccountId.ObjectId,
-            result.Account.Username,
+            // The sign-in name, unverified (EmailVerified stays false); a phone number is no email.
+            result.Account.Username is { } username && username.Contains('@') ? username : null,
             Claim(result, "name"),
             options.Name,
             GivenName: Claim(result, "given_name"),

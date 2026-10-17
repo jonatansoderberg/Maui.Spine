@@ -213,8 +213,13 @@ public sealed class IdTokenTests : IAsyncLifetime
         Assert.Equal("mo@contoso.com", verified.User.Email);
         Assert.Equal(AuthHost.Tenant, verified.User.Organization);
 
+        Assert.True(verified.User.EmailVerified);
+
+        // A personal account's or an unverified domain's email reaches the app, marked unverified, and is not the account's.
         var unverified = await MicrosoftAsync("ms-6", new Dictionary<string, object> { ["tid"] = AuthHost.Tenant, ["email"] = "victim@example.com" });
-        Assert.Null(unverified.User.Email);
+        Assert.Equal("victim@example.com", unverified.User.Email);
+        Assert.False(unverified.User.EmailVerified);
+        Assert.Null((await _host.Users.FindByIdAsync(unverified.User.Id))!.Email);
     }
 
     [Fact]
@@ -238,7 +243,7 @@ public sealed class IdTokenTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task An_email_the_provider_does_not_vouch_for_is_not_kept()
+    public async Task An_email_the_provider_does_not_vouch_for_is_not_the_accounts()
     {
         // Anyone can put any email in their own Entra tenant; Microsoft's email is not trusted.
         var token = _host.MicrosoftIssuer.Token("ms-1", AuthHost.MicrosoftClient, email: "victim@example.com",
@@ -246,13 +251,15 @@ public sealed class IdTokenTests : IAsyncLifetime
         var response = await _host.PostAsync("/auth/microsoft/token", new SpineIdTokenRequest(token));
         var tokens = (await response.Content.ReadFromJsonAsync<SpineTokens>(SpineAuthJson.Options))!;
 
-        Assert.Null(tokens.User.Email);
+        Assert.False(tokens.User.EmailVerified);
         Assert.Null(await _host.Users.FindByEmailAsync("victim@example.com"));
 
         var nonce = await _host.NonceAsync();
         var unverified = _host.GoogleIssuer.Token("google-9", AuthHost.GoogleClient, nonce, "victim@example.com", false);
         var google = await _host.PostAsync("/auth/google/token", new SpineIdTokenRequest(unverified, nonce));
-        Assert.Null((await google.Content.ReadFromJsonAsync<SpineTokens>(SpineAuthJson.Options))!.User.Email);
+        var googleUser = (await google.Content.ReadFromJsonAsync<SpineTokens>(SpineAuthJson.Options))!.User;
+        Assert.Equal(("victim@example.com", false), (googleUser.Email, googleUser.EmailVerified));
+        Assert.Null(await _host.Users.FindByEmailAsync("victim@example.com"));
     }
 
     [Fact]
@@ -297,7 +304,11 @@ public sealed class IdTokenTests : IAsyncLifetime
         var google = (await response.Content.ReadFromJsonAsync<SpineTokens>(SpineAuthJson.Options))!;
 
         Assert.NotEqual(apple.User.Id, google.User.Id);
-        Assert.Null(google.User.Email);
+        Assert.True(apple.User.EmailVerified);
+
+        // Google vouches for it, but it is the other account's: shown, not this account's.
+        Assert.Equal(("same@example.com", false), (google.User.Email, google.User.EmailVerified));
+        Assert.Null((await _host.Users.FindByIdAsync(google.User.Id))!.Email);
     }
 
     [Fact]

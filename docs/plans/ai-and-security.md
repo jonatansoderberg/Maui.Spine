@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-17 (5.4a merged as #608; #611 adds where each passkey is kept, its device and when it was last used)
+**Last updated:** 2026-10-17 (5.4a done: #608, #615, #617; #596, an unverified email in the app, in review as #599)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -440,7 +440,7 @@ Newest last. Each entry is dated and says who decided.
   - The picture is bytes from `GetPictureAsync`, not only an address. **Why:** Microsoft's picture is behind Graph and needs a token; Google's address is kept on the server (`PictureUrl`), and the provider hooks give the rest. It is cached a day on disk and cleared at sign-out.
   - MSAL asks for `User.Read` at sign-in (`WithExtraScopesToConsent`), and for `email` in `AddMicrosoft` mode, so the picture and the address need no second prompt.
   - `Organization` follows each Google and Microsoft sign-in (a personal account clears it); the names are kept as first given. `SignInMethods` is read from the logins whenever tokens are issued, one store read more per refresh.
-  - A personal Microsoft account still gets no email: `xms_edov` is a work and school claim, and Microsoft's own guidance is not to take `email` on trust. Whether to pass on an unverified contact address is open for the owner.
+  - A personal Microsoft account still gets no email: `xms_edov` is a work and school claim, and Microsoft's own guidance is not to take `email` on trust. The owner decided on 2026-10-17 to pass it on marked unverified: `SpineUser.EmailVerified` (#596), while the account's own email stays verified-only.
   - A review agent read the MSAL diff before the PR. Fixed: a refused account forgotten so the next sign-in asks, `CallbackScheme` required on Android only for providers that fall back to the browser (Google), a forced renewal after an API's 401 in `UseMicrosoft`, sign-out waiting for MSAL to forget the account, Mac Catalyst's provider list.
   - Found on the way: a nonce sent with Microsoft's token, which the server refused (MSAL picks its own; `INativeSignIn.UsesNonce`), and a race in the client tests' mailbox that read an earlier email's code.
 - **2026-10-15, owner (#564):** Both modes, as `AddMicrosoft` (via the Spine server) and `UseMicrosoft` (directly, in place of `Server`); the broker where it is installed; verification against an app registration in the owner's tenant, made by Claude with az through a device code the owner approves.
@@ -620,6 +620,8 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 ---
 
 ## Plan history
+
+- **2026-10-17:** #616 merged (PR #617). #596 in review (PR #599, master merged in): an unverified email reaches the app with `SpineUser.EmailVerified` false (the owner's answer to the open question from #564).
 
 - **2026-10-17:** #611 merged (PR #615). #616 in review: every login keeps when it was last used, and the Showcase labels "added" and "last used".
 

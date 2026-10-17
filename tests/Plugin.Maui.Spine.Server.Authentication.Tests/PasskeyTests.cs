@@ -73,7 +73,9 @@ public sealed class PasskeyTests : IAsyncLifetime
     {
         var signedUp = await SignUpAsync(email: "anna@example.com");
 
-        Assert.Null(signedUp.User.Email);
+        // The app sees it as given, unverified (#596); the account itself has no email.
+        Assert.Equal("anna@example.com", signedUp.User.Email);
+        Assert.False(signedUp.User.EmailVerified);
         Assert.Null((await _host.Users.FindByIdAsync(signedUp.User.Id))!.Email);
         Assert.Null(await _host.Users.FindByEmailAsync("anna@example.com"));
     }

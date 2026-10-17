@@ -304,7 +304,7 @@ An app with its own sign-in page handles `ChooseAccount` the same way. The quest
 |---|---|
 | `Id` | The server's own id: the same however the user signs in, unlike the providers' ids (Microsoft's `sub` differs per app). |
 | `DisplayName`, `GivenName`, `FamilyName` | From the first sign-in: Apple's sheet (once only), Google's and Microsoft's tokens, the sign-up form. |
-| `Email` | Only an address someone vouched for: an emailed code, Apple, Google, or a Microsoft work or school account whose domain the tenant verified. Personal Microsoft accounts get none. |
+| `Email`, `EmailVerified` | The account's own email, or else the one the provider gave at this sign-in. `EmailVerified` is true only when someone vouched for it: an emailed code, Apple, Google, or a Microsoft work or school account whose domain the tenant verified. A personal Microsoft account's email comes with `EmailVerified` false. Show or prefill an unverified email, but never treat it as proof of who the user is. The account's own email on the server, which password resets go to and linking by email trusts, stays verified-only. |
 | `Organization` | A Microsoft work or school account's tenant id, or a Google Workspace domain; null for personal accounts. |
 | `SignInMethods` | Every way the user can sign in to the account, such as `apple`, `google`, `password`. |
 | `Logins` | The same ways with their details: the provider, the email and name it gave, when it was added. |
@@ -322,7 +322,7 @@ if (await auth.GetPictureAsync() is { } picture)
     Avatar.Source = ImageSource.FromStream(() => new MemoryStream(picture));
 ```
 
-**Without a Spine server,** the session fills these from the provider's ID token (`UseIdentityProvider`) or from MSAL (`UseMicrosoft`). With MSAL, `Email` is the account's sign-in name, which is not verified.
+**Without a Spine server,** the session fills these from the provider's ID token (`UseIdentityProvider`) or from MSAL (`UseMicrosoft`). With MSAL, `Email` is the account's sign-in name when it is an email address, with `EmailVerified` false. With `UseIdentityProvider`, `EmailVerified` is the token's `email_verified`.
 
 ## Tokens
 

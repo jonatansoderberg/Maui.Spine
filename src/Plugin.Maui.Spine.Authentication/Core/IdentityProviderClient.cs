@@ -277,7 +277,9 @@ internal sealed class IdentityProviderClient(HttpClient http, SpineIdentityProvi
         return problem is null
             ? new SpineUser(Claim("sub")!, Claim("email"), Claim("name") ?? Claim("preferred_username"), options.Name,
                 PictureUrl: Claim("picture") is { } picture && picture.StartsWith("https://", StringComparison.Ordinal) ? picture : null,
-                GivenName: Claim("given_name"), FamilyName: Claim("family_name"), Organization: Claim("org_id") ?? Claim("hd"))
+                GivenName: Claim("given_name"), FamilyName: Claim("family_name"), Organization: Claim("org_id") ?? Claim("hd"),
+                EmailVerified: claims.TryGetProperty("email_verified", out var verified)
+                    && (verified.ValueKind == JsonValueKind.True || verified.ValueKind == JsonValueKind.String && verified.GetString() == "true"))
             : null;
     }
 }
