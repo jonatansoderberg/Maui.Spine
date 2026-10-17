@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jonatansoderberg/Maui.Spine/schemas/spineavatar/1.0/avatar.schema.json",
+  "title": "Spine Avatar manifest (avatar.json), format 1.0",
+  "description": "The manifest at the root of a .spineavatar archive. Everything not required has a default; write only what differs from it. The authoring profile is docs/proposals/spine-avatar.md.",
+  "type": "object",
+  "required": ["schemaVersion", "id", "displayName", "assetVersion", "minRuntimeVersion", "profile", "representations", "posters", "license", "provenance", "files"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+$", "description": "1.0. A newer 1.x loads with a warning; its newer fields are ignored." },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,63}$" },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "assetVersion": { "$ref": "#/$defs/version" },
+    "minRuntimeVersion": { "$ref": "#/$defs/version" },
+    "profile": {
+      "enum": ["ambient", "character", "humanoidAdvanced"],
+      "description": "character: a face that speaks and shows the eight expressions; ambient: an orb, waves or light."
+    },
+    "representations": {
+      "type": "array", "minItems": 1, "maxItems": 8,
+      "description": "Ways to draw the avatar, best first. The view takes the first whose renderer the platform has.",
+      "items": { "$ref": "#/$defs/representation" }
+    },
+    "states": {
+      "type": "object", "additionalProperties": false,
+      "description": "Overrides per state. Default for each state: pose = the state's name, transitionMs 220 (interrupted 90), listening input-reactive, speaking output-reactive, thinking gaze processing, the rest gaze engaged.",
+      "properties": {
+        "idle": { "$ref": "#/$defs/state" },
+        "connecting": { "$ref": "#/$defs/state" },
+        "listening": { "$ref": "#/$defs/state" },
+        "thinking": { "$ref": "#/$defs/state" },
+        "speaking": { "$ref": "#/$defs/state" },
+        "interrupted": { "$ref": "#/$defs/state" },
+        "muted": { "$ref": "#/$defs/state" }
+      }
+    },
+    "expressions": {
+      "type": "object", "additionalProperties": false,
+      "description": "Overrides per expression. Default: pose expr_<name>, transitionMs 220 (surprised 100). An expression whose pose the representation lacks falls back to neutral with a warning.",
+      "properties": {
+        "neutral": { "$ref": "#/$defs/expression" },
+        "happy": { "$ref": "#/$defs/expression" },
+        "curious": { "$ref": "#/$defs/expression" },
+        "thinking": { "$ref": "#/$defs/expression" },
+        "concerned": { "$ref": "#/$defs/expression" },
+        "surprised": { "$ref": "#/$defs/expression" },
+        "apologetic": { "$ref": "#/$defs/expression" },
+        "confident": { "$ref": "#/$defs/expression" }
+      }
+    },
+    "speech": {
+      "type": "object", "additionalProperties": false,
+      "description": "Absent: mode none. canonicalProfile oculus15-v1 alone means canonicalVisemes with the standard mapping 0 → viseme_sil … 14 → viseme_U.",
+      "properties": {
+        "mode": { "enum": ["none", "audioReactive", "canonicalVisemes"] },
+        "canonicalProfile": { "const": "oculus15-v1" },
+        "mapping": {
+          "type": "object", "additionalProperties": false,
+          "description": "Canonical id 0–14 → pose.",
+          "patternProperties": { "^(1[0-4]|[0-9])$": { "$ref": "#/$defs/name" } }
+        },
+        "expressionMouthScale": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.45, "description": "How much of an expression's mouth survives while speaking." },
+        "releaseMs": { "type": "integer", "minimum": 0, "maximum": 1000, "default": 80 }
+      }
+    },
+    "motions": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "idleVariants": { "type": "array", "items": { "$ref": "#/$defs/name" }, "description": "Absent: idle_a and idle_b, those the model has." },
+        "gestures": {
+          "type": "object", "additionalProperties": { "$ref": "#/$defs/name" },
+          "description": "Gesture name → animation. Absent: nod, shake, lean (clip lean or lean_in), interrupt, hop, wiggle, thumbsUp, jump and dance, those the model has."
+        },
+        "seedable": { "type": "boolean", "default": true },
+        "blinkIntervalSeconds": { "$ref": "#/$defs/range", "default": [2.8, 6.5] },
+        "breathPeriodSeconds": { "$ref": "#/$defs/range" }
+      }
+    },
+    "themes": {
+      "type": "object", "additionalProperties": false, "required": ["slots"],
+      "properties": {
+        "slots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object", "additionalProperties": false, "required": ["light", "dark", "bindings"],
+            "properties": {
+              "light": { "$ref": "#/$defs/color" },
+              "dark": { "$ref": "#/$defs/color" },
+              "bindings": {
+                "type": "array", "items": { "type": "string", "minLength": 1 },
+                "description": "material:<index> (glb), uniform:<name> (sksl), or <node>.fill, <node>.fill.linear|radial|sweep.stops[i], <node>.stroke (spine2d)."
+              }
+            }
+          }
+        }
+      }
+    },
+    "reducedMotion": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "pose": { "$ref": "#/$defs/name", "default": "reduced_motion" },
+        "retainSpeech": { "type": "boolean", "default": true },
+        "transitionMs": { "type": "integer", "minimum": 0, "maximum": 2000, "default": 180 }
+      }
+    },
+    "posters": {
+      "type": "object", "additionalProperties": false, "required": ["light", "dark"],
+      "description": "Mandatory; made by the tool (spine-avatar render-sheet). The sheets are optional.",
+      "properties": {
+        "light": { "$ref": "#/$defs/path" },
+        "dark": { "$ref": "#/$defs/path" },
+        "states": { "$ref": "#/$defs/path" },
+        "expressions": { "$ref": "#/$defs/path" },
+        "visemes": { "$ref": "#/$defs/path" }
+      }
+    },
+    "license": { "$ref": "#/$defs/path" },
+    "provenance": { "$ref": "#/$defs/path" },
+    "files": {
+      "type": "array", "maxItems": 511,
+      "description": "Every file in the archive but avatar.json, with its SHA-256 and size.",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["path", "sha256", "bytes"],
+        "properties": {
+          "path": { "$ref": "#/$defs/path" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "bytes": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "extensions": { "type": "object", "description": "Keys <namespace>.<name> for tools and renderers outside the format." }
+  },
+  "$defs": {
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-+][0-9A-Za-z.-]+)?$" },
+    "name": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,64}$" },
+    "path": { "type": "string", "pattern": "^[^/\\\\:][^\\\\:]*$", "maxLength": 256 },
+    "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$" },
+    "range": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0 } },
+    "owner": { "enum": ["scheduler", "model", "none"], "default": "scheduler" },
+    "representation": {
+      "type": "object", "additionalProperties": false, "required": ["id", "renderer", "format", "model"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+        "renderer": { "type": "string", "pattern": "^[a-z][a-z0-9]{1,31}$", "description": "skia or native3d in format 1.0; a new renderer id is an addition, not a new version." },
+        "format": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,31}$", "description": "spine2d or sksl on skia, glb on native3d." },
+        "model": { "$ref": "#/$defs/path" },
+        "bindings": { "$ref": "#/$defs/path", "description": "Absent: no bindings (an sksl shader needs none)." },
+        "capabilities": {
+          "type": "array", "uniqueItems": true,
+          "description": "Absent: computed by the validator from the bindings and model. A declared list is used and checked against the computed one.",
+          "items": { "enum": ["ambient", "expressions", "audioReactive", "speechArticulation", "gaze", "blink", "gestures", "reducedMotion", "themeSlots"] }
+        },
+        "platforms": { "type": "array", "items": { "type": "string" }, "deprecated": true, "description": "No longer read: the renderer decides." },
+        "idleOwner": { "$ref": "#/$defs/owner" },
+        "blinkOwner": { "$ref": "#/$defs/owner" },
+        "gazeOwner": { "$ref": "#/$defs/owner" },
+        "requiredFeatures": {
+          "type": "array", "uniqueItems": true,
+          "description": "spine2d 1.1 features the scene uses; a runtime without one refuses the representation.",
+          "items": { "enum": ["gradients", "blur", "strokes", "blendModes"] }
+        }
+      }
+    },
+    "state": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "pose": { "$ref": "#/$defs/name" },
+        "animation": { "$ref": "#/$defs/name" },
+        "inputReactive": { "type": "boolean" },
+        "outputReactive": { "type": "boolean" },
+        "gaze": { "enum": ["engaged", "processing", "none"] },
+        "transitionMs": { "type": "integer", "minimum": 0, "maximum": 2000 }
+      }
+    },
+    "expression": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "pose": { "$ref": "#/$defs/name" },
+        "channels": { "type": "array", "items": { "type": "string" }, "description": "Documentation of what the pose moves; the bindings' channelMasks decide." },
+        "transitionMs": { "type": "integer", "minimum": 0, "maximum": 2000 }
+      }
+    }
+  }
+}

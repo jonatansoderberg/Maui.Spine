@@ -13,7 +13,7 @@ namespace Plugin.Maui.Spine.Controls.Avatar.Core;
     ReadCommentHandling = JsonCommentHandling.Disallow,
     MaxDepth = 32,
     NumberHandling = JsonNumberHandling.Strict)]
-[JsonSerializable(typeof(AvatarManifest))]
+[JsonSerializable(typeof(AvatarManifestDocument))]
 [JsonSerializable(typeof(AvatarBindings))]
 [JsonSerializable(typeof(Spine2dScene))]
 [JsonSerializable(typeof(Spine2dWrite[]))]
@@ -35,7 +35,9 @@ public sealed record AvatarFixtureCue(string Segment, long Generation, double Of
 
 public static class AvatarJson
 {
-    public static AvatarManifest ReadManifest(ReadOnlySpan<byte> utf8) => Read(utf8, AvatarJsonContext.Default.AvatarManifest, "avatar.json");
+    /// <summary>Reads <c>avatar.json</c> and applies the defaults; what the defaults had to say goes to <paramref name="report"/>.</summary>
+    public static AvatarManifest ReadManifest(ReadOnlySpan<byte> utf8, AvatarValidationReport report) =>
+        AvatarDefaults.Resolve(Read(utf8, AvatarJsonContext.Default.AvatarManifestDocument, "avatar.json"), report);
 
     public static AvatarBindings ReadBindings(ReadOnlySpan<byte> utf8, string path) => Read(utf8, AvatarJsonContext.Default.AvatarBindings, path);
 

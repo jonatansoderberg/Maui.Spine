@@ -196,7 +196,8 @@ internal sealed class ThreeDAvatarSurface : IAvatarSurface
         if (!_pageReady || _disposed)
             return;
 
-        var bindings = _package.GetFile(_representation.Bindings);
+        // The page reads the bindings file as written: it knows neither the conventions nor extensions (lab only).
+        var bindings = _representation.Bindings is { } path ? _package.GetFile(path) : "{}"u8.ToArray();
         using var stream = new MemoryStream();
         using (var json = new Utf8JsonWriter(stream))
         {

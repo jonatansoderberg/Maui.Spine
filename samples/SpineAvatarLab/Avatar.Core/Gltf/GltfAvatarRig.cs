@@ -406,8 +406,7 @@ public sealed class GltfAvatarRig
             Weights[mesh][target] = value;
     }
 
-    private static JsonElement? Extra(AvatarBindings bindings, string name) =>
-        bindings.Extra?.TryGetValue(name, out var value) == true ? value : null;
+    private static JsonElement? Extra(AvatarBindings bindings, string name) => bindings.Find(name);
 
     private static Write ReadWrite(JsonElement w)
     {

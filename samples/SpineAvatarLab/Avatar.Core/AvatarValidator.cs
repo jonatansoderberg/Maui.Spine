@@ -26,9 +26,6 @@ public static partial class AvatarValidator
         ["web3d"] = ["glb", "vrm"],
     };
 
-    // Binding fields the authoring profile defines for every renderer.
-    private static readonly HashSet<string> ProfileBindingFields = ["schemaVersion", "renderer", "poses", "animations", "parameters", "channelMasks", "framing"];
-
     [GeneratedRegex("^[a-z0-9][a-z0-9-]{1,63}$")]
     private static partial Regex IdPattern();
 
@@ -65,23 +62,10 @@ public static partial class AvatarValidator
         foreach (var duplicate in m.Representations.GroupBy(r => r.Id).Where(g => g.Count() > 1))
             report.Fail(area, "representations", $"representation id '{duplicate.Key}' is used {duplicate.Count()} times");
 
-        foreach (var state in AvatarVocabulary.States)
+        foreach (var (state, profile) in m.States)
         {
-            if (!m.States.TryGetValue(state, out var profile))
-                report.Fail(area, "states", $"state '{state}' is missing");
-            else if (profile.TransitionMs is < 0 or > 2000)
+            if (profile.TransitionMs is < 0 or > 2000)
                 report.Fail(area, "states", $"{state}.transitionMs {profile.TransitionMs} is outside 0–2000");
-        }
-
-        foreach (var expression in AvatarVocabulary.Expressions)
-        {
-            if (!m.Expressions.ContainsKey(expression))
-            {
-                if (m.Profile == "ambient")
-                    report.Warn(area, "expressions", $"expression '{expression}' is missing; the ambient profile allows that");
-                else
-                    report.Fail(area, "expressions", $"expression '{expression}' is missing; the {m.Profile} profile needs all eight");
-            }
         }
 
         if (!SpeechModes.Contains(m.Speech.Mode))
@@ -139,7 +123,7 @@ public static partial class AvatarValidator
             if (!SupportedRequiredFeatures.Contains(feature))
                 report.Fail(area, "requiredFeatures", $"'{feature}' is required but not supported by this runtime");
         }
-        foreach (var path in new[] { r.Model, r.Bindings })
+        foreach (var path in new[] { r.Model, r.Bindings }.OfType<string>())
         {
             if (AvatarArchive.UnsafeName(path) is { } reason)
                 report.Fail(area, "path", $"{path}: {reason}");
@@ -149,32 +133,48 @@ public static partial class AvatarValidator
         if (report.Failures.Count() > failures)
             return;
 
+        if (r.Bindings is { } bindingsPath)
+            AvatarSchemas.Check(AvatarSchemas.Bindings, package.GetFile(bindingsPath).Span, bindingsPath, area, report);
+        else if (r.Format != "sksl")
+            report.Warn(area, "bindings", $"no bindings file: a {r.Format} representation then moves only what its model's names give by convention");
+
         AvatarBindings? bindings = null;
         if (!report.Try(area, "bindings", () => bindings = package.GetBindings(r)) || bindings is null)
             return;
 
-        if (bindings.Extra is { Count: > 0 } extra)
-            report.Warn(area, "bindings", $"fields outside the authoring profile: {string.Join(", ", extra.Keys.Where(k => !ProfileBindingFields.Contains(k)))}");
-        if (bindings.Framing?.Extra is { Count: > 0 } framingExtra)
-            report.Warn(area, "bindings", $"framing fields outside the authoring profile: {string.Join(", ", framingExtra.Keys)}");
+        if (r.Has("speechArticulation") && m.Speech.Mode != "canonicalVisemes")
+            report.Fail(area, "capabilities", "claims speechArticulation, but speech.mode is not canonicalVisemes");
 
-        // Pose references: what the manifest names must exist in this representation's bindings.
-        var poseRefs = new List<(string Owner, string Pose)>();
-        foreach (var (state, profile) in m.States)
-            if (profile.Pose is { } pose) poseRefs.Add(($"states.{state}", pose));
-        foreach (var (expression, profile) in m.Expressions)
-            poseRefs.Add(($"expressions.{expression}", profile.Pose));
-        poseRefs.Add(("reducedMotion", m.ReducedMotion.Pose));
-        if (r.Has("speechArticulation"))
+        // Pose references. A pose the manifest names must exist in this representation's bindings; a
+        // default pose may be absent, which makes it empty. A shader reads states, expressions and
+        // visemes as uniforms, so it has no poses to check.
+        var poseRefs = new List<(string Owner, string Pose, bool Declared)>();
+        if (r.Format != "sksl")
         {
-            foreach (var (id, pose) in m.Speech.Mapping)
-                poseRefs.Add(($"speech.mapping.{id}", pose));
-            if (m.Speech.Mode != "canonicalVisemes")
-                report.Fail(area, "capabilities", "claims speechArticulation, but speech.mode is not canonicalVisemes");
+            foreach (var (state, profile) in m.States)
+                poseRefs.Add(($"states.{state}", profile.Pose ?? state, profile.Declared));
+            foreach (var (expression, profile) in m.Expressions)
+            {
+                if (profile.Declared || bindings.Poses.ContainsKey(profile.Pose))
+                    poseRefs.Add(($"expressions.{expression}", profile.Pose, profile.Declared));
+                else if (expression != "neutral")
+                    report.Warn(area, "expressions", $"expression '{expression}' has no pose '{profile.Pose}'; it shows as neutral");
+            }
+            poseRefs.Add(("reducedMotion", m.ReducedMotion.Pose, m.ReducedMotion.Declared));
+            if (r.Has("speechArticulation"))
+            {
+                foreach (var (id, pose) in m.Speech.Mapping)
+                {
+                    if (m.Speech.MappingDeclared || bindings.Poses.ContainsKey(pose))
+                        poseRefs.Add(($"speech.mapping.{id}", pose, m.Speech.MappingDeclared));
+                    else if (id != "0")
+                        report.Warn(area, "speech", $"canonical viseme {id} has no pose '{pose}'; the mouth does not move for it");
+                }
+            }
         }
-        foreach (var (owner, pose) in poseRefs)
+        foreach (var (owner, pose, declared) in poseRefs)
         {
-            if (!bindings.Poses.ContainsKey(pose))
+            if (declared && !bindings.Poses.ContainsKey(pose))
                 report.Fail(area, "poses", $"{owner} names pose '{pose}', which the bindings do not define");
         }
 
@@ -182,10 +182,11 @@ public static partial class AvatarValidator
         report.Try(area, "model", () => clips = package.GetClipDurations(r));
         clips ??= new Dictionary<string, double>();
 
+        var motions = package.GetMotions(r);
         var animationRefs = new List<(string Owner, string Animation)>();
-        foreach (var idle in m.Motions.IdleVariants)
+        foreach (var idle in motions.IdleVariants!)
             animationRefs.Add(("motions.idleVariants", idle));
-        foreach (var (gesture, animation) in m.Motions.Gestures)
+        foreach (var (gesture, animation) in motions.Gestures!)
             animationRefs.Add(($"motions.gestures.{gesture}", animation));
         foreach (var (state, profile) in m.States)
             if (profile.Animation is { } animation) animationRefs.Add(($"states.{state}.animation", animation));
@@ -202,9 +203,9 @@ public static partial class AvatarValidator
                 report.Fail(area, "animations", $"bindings animation '{name}' points at clip '{clip}', which the model does not have");
         }
 
-        if (r.Has("blink") && r.BlinkOwner == "scheduler" && !bindings.Animations.ContainsKey("blink") && bindings.Extra?.ContainsKey("blink") != true)
+        if (r.Has("blink") && r.BlinkOwner == "scheduler" && r.Format != "sksl" && !bindings.Animations.ContainsKey("blink") && bindings.Find("blink") is null)
             report.Fail(area, "capabilities", "claims blink owned by the scheduler, but there is neither a blink clip nor a blink binding");
-        if (r.Has("gaze") && r.GazeOwner == "scheduler" && bindings.Extra?.ContainsKey("gaze") != true)
+        if (r.Has("gaze") && r.GazeOwner == "scheduler" && r.Format != "sksl" && bindings.Find("gaze") is null)
             report.Warn(area, "capabilities", "claims gaze owned by the scheduler, but has no gaze binding; gaze comes only from poses and clips");
 
         switch (r.Format)
@@ -628,7 +629,7 @@ public static partial class AvatarValidator
 
         foreach (var extra in new[] { "blink", "muteBadge", "gaze" })
         {
-            if (bindings.Extra?.TryGetValue(extra, out var element) == true)
+            if (bindings.Find(extra) is { } element)
             {
                 foreach (var entry in element.ValueKind == JsonValueKind.Array ? element.EnumerateArray().ToArray() : [element])
                     CheckMorph($"bindings.{extra}", entry);

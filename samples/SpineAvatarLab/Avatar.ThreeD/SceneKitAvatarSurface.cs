@@ -73,9 +73,9 @@ internal sealed class SceneKitAvatarSurface : IAvatarSurface
 
         // "portrait" (a face): a soft key from the front left, a fill, no coloured rim and little bloom.
         // The studio rig's cyan rim from behind right read as a side lamp on skin.
-        var portrait = bindings.Extra?.TryGetValue("lighting", out var lighting) == true && lighting.GetString() == "portrait";
+        var portrait = bindings.Find("lighting")?.GetString() == "portrait";
         // An avatar whose face is light (Nova's eyes) asks for a softer, wider glow.
-        var bloom = bindings.Extra?.TryGetValue("bloom", out var b) == true ? b : (System.Text.Json.JsonElement?)null;
+        var bloom = bindings.Find("bloom");
         float Bloom(string name, float fallback) => bloom is { } e && e.TryGetProperty(name, out var v) ? v.GetSingle() : fallback;
         var framing = bindings.Framing?.Extra;
         _verticalFov = framing?.TryGetValue("verticalFov", out var fov) == true ? fov.GetSingle() : 35;

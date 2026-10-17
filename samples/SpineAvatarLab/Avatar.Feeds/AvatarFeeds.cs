@@ -275,3 +275,9 @@ public sealed class AvatarTextSpeechFeed
             new(Generation, _watch.Elapsed, _watch.IsRunning, PositionIsPresentationTime: true, TimeSpan.Zero, TimeSpan.FromMilliseconds(250), Stopwatch.GetTimestamp());
     }
 }
+
+/// <summary>A line for the platform voice (lab only; the product's is Spine.Speech).</summary>
+public sealed record AvatarTextRequest(
+    string Text, string Language = "sv-SE", string? VoiceId = null,
+    float Rate = 1f, float Pitch = 1f,
+    AvatarExpressionRequest? Expression = null);
