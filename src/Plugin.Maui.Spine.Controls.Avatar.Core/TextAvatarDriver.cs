@@ -13,13 +13,8 @@ namespace Plugin.Maui.Spine.Controls.Avatar;
 /// </remarks>
 public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
 {
-    private const double Lookahead = 1;
-    private const float Strength = 0.8f;
-
-    private readonly List<AvatarTextVisemes.Estimate> _timeline = [];
-    private readonly float[] _bands = new float[AvatarRenderFrame.BandCount];
-    private double _position, _end;
-    private int _next, _current;
+    private readonly EstimatedMouth _mouth = new();
+    private double _position;
     private long _generation;
     private bool _busy, _complete;
 
@@ -49,11 +44,7 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
         if (!_busy || _complete)
             Start();
 
-        var start = Math.Max(_end, _position);
-        foreach (var estimate in AvatarTextVisemes.FromText(text, CharactersPerSecond))
-            _timeline.Add(estimate with { Start = start + estimate.Start });
-        if (_timeline.Count > 0)
-            _end = Math.Max(_end, _timeline[^1].Start + _timeline[^1].Duration);
+        _mouth.AddText(text, Math.Max(_mouth.End, _position), CharactersPerSecond);
     }
 
     /// <summary>No more text: once the queued text is mouthed the avatar goes back to Idle.</summary>
@@ -69,7 +60,7 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
         if (!_busy)
             return;
         _busy = false;
-        _timeline.Clear();
+        _mouth.Clear();
         _generation++;
         if (IsAttached)
         {
@@ -88,7 +79,7 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     }
 
     AvatarPlaybackSnapshot IAvatarPlaybackClock.GetSnapshot() =>
-        new(_generation, TimeSpan.FromSeconds(_position), _busy && _position < _end, PositionIsPresentationTime: true,
+        new(_generation, TimeSpan.FromSeconds(_position), _busy && _position < _mouth.End, PositionIsPresentationTime: true,
             TimeSpan.Zero, TimeSpan.FromMilliseconds(250), Stopwatch.GetTimestamp());
 
     /// <inheritdoc />
@@ -96,9 +87,7 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     {
         Input.PlaybackClock = this;
         // A driver attached mid-utterance starts its cues over: those it had laid down went to another avatar.
-        _next = _current = 0;
-        while (_next < _timeline.Count && _timeline[_next].Start + _timeline[_next].Duration <= _position)
-            _next++;
+        _mouth.Rewind(_position);
         _generation++;
         Input.ResetSpeech(_generation);
     }
@@ -113,35 +102,25 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     }
 
     /// <inheritdoc />
+    protected internal override void OnInterrupted() => Clear();
+
+    /// <inheritdoc />
     protected internal override void OnTick(TimeSpan delta)
     {
         if (!_busy)
             return;
 
-        var mouthing = _position < _end;
-        if (mouthing)
-            _position = Math.Min(_position + Math.Max(delta.TotalSeconds, 0), _end);
+        if (_position < _mouth.End)
+            _position = Math.Min(_position + Math.Max(delta.TotalSeconds, 0), _mouth.End);
 
-        while (_next < _timeline.Count && _timeline[_next].Start <= _position + Lookahead)
+        _mouth.Push(Input, _generation, _position);
+        if (_mouth.Sound(Input, _position) > 0 || _position < _mouth.End)
         {
-            var e = _timeline[_next++];
-            Input.EnqueueViseme(_generation, TimeSpan.FromSeconds(e.Start), TimeSpan.FromSeconds(e.Duration), e.Viseme, Strength);
-        }
-
-        if (_position < _end)
-        {
-            while (_current < _timeline.Count - 1 && _timeline[_current].Start + _timeline[_current].Duration <= _position)
-                _current++;
-            var viseme = _timeline[_current].Viseme;
-            var level = AvatarTextVisemes.Level(viseme);
-            AvatarTextVisemes.Bands(viseme, level, _position, _bands);
-            Input.SetOutputLevel(level, _bands);
             if (Input.State != AvatarState.Speaking)
                 Input.SetState(AvatarState.Speaking);
             return;
         }
 
-        Input.SetOutputLevel(0);
         if (_complete)
         {
             _busy = false;
@@ -155,9 +134,8 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     {
         _busy = true;
         _complete = false;
-        _timeline.Clear();
-        _position = _end = 0;
-        _next = _current = 0;
+        _mouth.Clear();
+        _position = 0;
         _generation++;
         if (IsAttached)
         {

@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<!--
-		net10.0 carries only the Skia renderer (Skia/, SkiaSharp), so spine2d scenes and shaders are tested by drawing
-		into a bitmap without a device; the MAUI TFMs add AvatarView, the surfaces and UseSpineAvatar.
+		net10.0 carries only the Skia renderer (Skia/, SkiaSharp) and the drivers (Drivers/), so scenes, shaders and drivers are
+		tested without a device; the MAUI TFMs add AvatarView, the surfaces and UseSpineAvatar.
 	-->
 	<PropertyGroup>
 		<TargetFrameworks>net10.0;$(SpineMauiTargetFrameworks)</TargetFrameworks>
@@ -26,6 +26,7 @@
 	<ItemGroup>
 		<PackageReference Include="SkiaSharp" />
 		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Avatar.Core\Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Speech\Plugin.Maui.Spine.Speech.csproj" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
@@ -37,6 +38,7 @@
 	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
 		<Compile Remove="**\*.cs" />
 		<Compile Include="Skia\**\*.cs" />
+		<Compile Include="Drivers\**\*.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

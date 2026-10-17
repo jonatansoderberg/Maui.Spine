@@ -5,7 +5,7 @@
     x:TypeArguments="AvatarDetailPageViewModel"
     x:DataType="AvatarDetailPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar">
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar, Plugin.Maui.Spine.Speech">
 
         <Example Title="{Binding Entry.Title}"
                  Summary="{Binding Entry.Summary}">
@@ -35,6 +35,7 @@
                 <SegmentedControl SelectedIndex="{Binding DriverIndex}">
                     <Segment Title="Manual" />
                     <Segment Title="Text" />
+                    <Segment Title="Speak" />
                 </SegmentedControl>
 
                 <VerticalStackLayout Spacing="10" IsVisible="{Binding IsManual}">
@@ -75,12 +76,27 @@
                     </HorizontalStackLayout>
                     <Label Text="The mouth is guessed from the letters and timed by the driver's own clock, so the quality says EstimatedText. Stream it shows Thinking until the first piece arrives, as a chat answer does." FontSize="13" Opacity="0.7" />
                 </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="10" IsVisible="{Binding IsSpeak}">
+                    <Picker Title="Voice" ItemsSource="{Binding Voices}" SelectedItem="{Binding Voice}" />
+                    <Editor Text="{Binding Text}" AutoSize="TextChanges" />
+                    <HorizontalStackLayout Spacing="10">
+                        <Button Text="Speak" Command="{Binding SpeakCommand}" />
+                        <Button Text="Stop" Command="{Binding StopSpeakingCommand}" />
+                    </HorizontalStackLayout>
+                    <Label Text="{Binding SpeechStatus}" FontSize="13" Opacity="0.8" />
+                    <Label Text="The platform's voice reads the text; each word's mouth shapes are guessed from its letters and start as the voice reaches it, so pauses and the voice's pace keep the mouth in step (EstimatedText). Apple's Enhanced and Premium voices are downloaded in Settings, Accessibility, Spoken Content." FontSize="13" Opacity="0.7" />
+                </VerticalStackLayout>
             </VerticalStackLayout>
             <Example.Code>
                 &lt;AvatarView Source="{Binding Avatar}" Driver="{Binding Driver}" State="{Binding State}" /&gt;
 
                 avatar.SetExpression(new(AvatarExpression.Happy, 0.9f, TimeSpan.FromSeconds(3)));
                 await avatar.PlayGestureAsync("nod");
+
+                var speech = new SpeechAvatarDriver(spineSpeech);   // Plugin.Maui.Spine.Speech
+                Driver = speech;
+                await speech.SpeakAsync("Welcome back", new SpeakOptions { Language = "en-GB" });
 
                 var text = new TextAvatarDriver();
                 Driver = text;

@@ -2,7 +2,7 @@
 
 Animated characters and ambient visuals for a voice assistant, text-to-speech, a streamed chat answer, a guide or a status indicator. An avatar is content, a `.spineavatar` file the app bundles or downloads; Spine draws it, drives it and checks it.
 
-> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core and the view exist; Speech, the voice driver, the presenter and scripts follow. This page grows with them.
+> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core, the view and the Speech driver exist; the voice driver, the presenter and scripts follow. This page grows with them.
 
 ## Packages
 
@@ -10,6 +10,7 @@ Animated characters and ambient visuals for a voice assistant, text-to-speech, a
 | --- | --- |
 | `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: Skia (vector scenes, SkSL shaders) everywhere, SceneKit (glTF) on iOS and Mac Catalyst, the poster where neither applies |
 | `Plugin.Maui.Spine.Controls.Avatar.Core` | The format, the scheduler, the drivers' contract and the text driver, visemes, glTF; no MAUI |
+| `Plugin.Maui.Spine.Speech` | Text-to-speech with word boundaries, which `SpeechAvatarDriver` speaks through ([Speech](speech.md)) |
 
 ## The view
 
@@ -67,5 +68,15 @@ text.Append("Hello, ");     // Speaking while it mouths
 text.Append("I am Nova.");
 text.Complete();            // Idle once it is mouthed
 ```
+
+`SpeechAvatarDriver` reads text aloud through [Speech](speech.md) and moves the mouth with the voice: Thinking until the voice starts, Speaking while it speaks, each word's mouth shapes laid down as the voice reaches it (EstimatedText). The view's `Interrupt()` stops the voice.
+
+```csharp
+var speech = new SpeechAvatarDriver(spineSpeech);
+avatar.Driver = speech;
+await speech.SpeakAsync("Welcome back", new SpeakOptions { Language = "en-GB" });
+```
+
+Removing a driver (`Driver = null`) leaves the avatar Idle and back on the view's own properties.
 
 Visemes are the 15 of `oculus15-v1`; `AvatarVisemes.FromAzure` maps Azure Speech's 22 (Spine.Voice's `Visemes`).
