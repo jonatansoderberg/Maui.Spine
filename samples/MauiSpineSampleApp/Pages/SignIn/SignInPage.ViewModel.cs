@@ -73,7 +73,7 @@ public partial class SignInPageViewModel : SampleViewModel
         if (_auth.User is { } signedIn)
         {
             foreach (var login in signedIn.Logins ?? [])
-                Logins.Add(new LoginRow(login.Provider, Details(login), login.Subject));
+                Logins.Add(new LoginRow(login.Provider, LoginDetails(login), login.Subject));
             // An account can have a passkey on each device, so "Add a passkey" stays.
             foreach (var provider in _auth.Providers.Where(p => p.Name != "password" && (p.Name == "passkey" || Logins.All(l => l.Provider != p.Name))))
                 Linkable.Add(new LinkRow(provider.Name));
@@ -83,7 +83,7 @@ public partial class SignInPageViewModel : SampleViewModel
     });
 
     // A passkey says where it is kept, the device it was made on and when it was last used, so several can be told apart.
-    private static string Details(SpineLoginInfo login) => string.Join(" · ", (login.Provider == "passkey"
+    private static string LoginDetails(SpineLoginInfo login) => string.Join(" · ", (login.Provider == "passkey"
         ? new[] { login.Authenticator, login.DeviceName, login.LastUsedAt is { } used ? $"last used {used.ToLocalTime():g}" : null }
         : new[] { login.Email ?? login.DisplayName, login.LinkedAt?.ToLocalTime().ToString("g") }).OfType<string>());
 
