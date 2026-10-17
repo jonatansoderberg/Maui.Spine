@@ -2,15 +2,16 @@
 
 Animated characters and ambient visuals for a voice assistant, text-to-speech, a streamed chat answer, a guide or a status indicator. An avatar is content, a `.spineavatar` file the app bundles or downloads; Spine draws it, drives it and checks it.
 
-> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core, the view and the Speech driver exist; the voice driver, the presenter and scripts follow. This page grows with them.
+> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core, the view, the drivers, the presenter, scripts and chat wiring exist; the tool follows.
 
 ## Packages
 
 | Package | What |
 | --- | --- |
-| `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: Skia (vector scenes, SkSL shaders) everywhere, SceneKit (glTF) on iOS and Mac Catalyst, the poster where neither applies |
+| `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: Skia (vector scenes, SkSL shaders) everywhere, glTF with SceneKit on iOS and Mac Catalyst and with Skia on Android and Windows, the poster where none applies |
 | `Plugin.Maui.Spine.Controls.Avatar.Core` | The format, the scheduler, the drivers' contract and the text driver, visemes, glTF; no MAUI |
 | `Plugin.Maui.Spine.Speech` | Text-to-speech with word boundaries, which `SpeechAvatarDriver` speaks through ([Speech](speech.md)) |
+| `Plugin.Maui.Spine.Controls.Avatar.Voice` | `VoiceAvatarDriver` for a realtime [voice](voice.md) conversation, and VoiceView's `character` |
 
 ## The view
 
@@ -26,7 +27,7 @@ avatar.LookAt(point);       // a point in the view's coordinates, or null to loo
 avatar.Interrupt();
 ```
 
-`UseSpine()` registers the package for an app that references it. The view picks the first representation of the avatar a renderer here can draw: Skia for `spine2d` and `sksl` (on the GPU through Metal on iOS and Mac Catalyst), SceneKit for `glb` on iOS and Mac Catalyst. Where none applies (a glTF avatar on Android and Windows today) it shows the avatar's poster with its state underneath and logs once.
+`UseSpine()` registers the package for an app that references it. The view picks the first representation of the avatar a renderer here can draw: Skia for `spine2d` and `sksl` (on the GPU through Metal on iOS and Mac Catalyst), SceneKit for `glb` on iOS and Mac Catalyst, and Skia on the CPU for `glb` on Android and Windows. The Skia glTF renderer poses, skins and lights the model per vertex and does not sample textures, so a textured material shows its base colour; a model with alpha-masked materials (hair cards, lashes) is left to its poster. Where no renderer applies the view shows the avatar's poster with its state underneath and logs once.
 
 | Property | What |
 | --- | --- |
@@ -40,6 +41,50 @@ avatar.Interrupt();
 | `LoadState`, `LoadError`, `Package`, `RendererName`, `LipSyncQuality`, `Gestures` | What is shown and how |
 
 The view runs no timer while it is detached, hidden (itself or an ancestor), scrolled out of sight or the app is in the background. A screen reader hears one element; muting and an interruption are announced, other state changes are not.
+
+## Presenters and scripts
+
+`AvatarPresenter` is an avatar that presents: setting `Text` makes it say the text (aloud with `Speak="True"` and Spine.Speech, mouthed otherwise) while a caption bubble fills in with it. `Placement` puts the avatar `Left`, `Right` or `Top` of the caption; `ShowsCaption="False"` leaves only the avatar (in a tour card, which shows the tip itself). A screen reader hears one element, the caption.
+
+```xml
+<AvatarPresenter Avatar="{Binding Avatar}" Text="{Binding Caption}" Placement="Left" />
+```
+
+An `AvatarScript` is a short performance, played by `AvatarView.PlayAsync` or `AvatarPresenter.PlayAsync`, one step after another; the view's own driver comes back after it:
+
+```csharp
+var script = AvatarScript.Create()
+    .State(AvatarState.Connecting)
+    .Say("Hi, I am Nova.")                                  // aloud when the app has Spine.Speech
+    .Express(AvatarExpression.Happy).Gesture("nod")
+    .LookAt(addButton).Say("Tap here to add one.", speak: false)
+    .WaitForTap();                                          // a tap on the avatar goes on
+await presenter.PlayAsync(script, cancellationToken);
+```
+
+In a Highlight tour, a presenter given as `TourStep.Presenter` (or `Highlight.Presenter` on a Spotlight) says each step's tip, looks at the spotlighted element and plays the step's `Gesture`; see [Highlight](highlight.md#a-guide-in-the-card).
+
+## With a voice conversation
+
+`Plugin.Maui.Spine.Controls.Avatar.Voice` follows a [Spine.Voice](voice.md) session. The avatar's seven states are the session's, one to one; the microphone's and the answer's levels and 24 bands reach it every tick; a new answer or a cut-off one starts a new speech generation. The realtime providers send no visemes, so the mouth follows the answer's level (AudioReactive); with a viseme source registered (`SpineVoiceOptions.VisemeSource`) the session's visemes become timed cues on the answer's playback clock (TimedVisemes). The view's `Interrupt()` interrupts the session.
+
+On a page centred on the avatar, give an `AvatarView` the driver:
+
+```xml
+<AvatarView Source="{Binding Avatar}" Driver="{Binding Driver}" HeightRequest="240" />
+```
+
+```csharp
+Driver = new VoiceAvatarDriver(voiceSession);   // or new VoiceAvatarDriver(audioEngine) for a bare IVoiceAudio
+```
+
+Where the conversation is drawn by a `VoiceView`, use its `character` kind; the avatar runs on the VoiceView's tick rather than a timer of its own, and the VoiceView is the one screen-reader element:
+
+```xml
+<VoiceView Session="{Binding Voice}" Kind="character" VoiceAvatar.Source="{Binding Avatar}" HeightRequest="240" />
+```
+
+Without `VoiceAvatar.Source` the character shows `SpineAvatarOptions.DefaultSource` (`UseSpineAvatar(o => o.DefaultSource = …)`), and logs a warning when neither is set.
 
 ## The format
 
@@ -67,6 +112,13 @@ text.Begin();               // a reply is coming: Thinking
 text.Append("Hello, ");     // Speaking while it mouths
 text.Append("I am Nova.");
 text.Complete();            // Idle once it is mouthed
+```
+
+With a [ChatView](chat.md), the chat's `Sent` and `Streamed` events drive the Text driver, so the avatar thinks until the answer's first words and mouths it as it streams in:
+
+```csharp
+chat.Sent += (_, _) => text.Begin();
+chat.Streamed += (_, e) => { text.Append(e.Delta); if (e.IsComplete) text.Complete(); };
 ```
 
 `SpeechAvatarDriver` reads text aloud through [Speech](speech.md) and moves the mouth with the voice: Thinking until the voice starts, Speaking while it speaks, each word's mouth shapes laid down as the voice reaches it (EstimatedText). The view's `Interrupt()` stops the voice.

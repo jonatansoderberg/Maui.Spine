@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-16 (5.5 account linking merged as #576; 5.3b merged as #570; Apple's sheet, Google's broker and Microsoft verified against the real providers in the simulator)
+**Last updated:** 2026-10-17 (5.4a done: #608, #615, #617; #596, an unverified email in the app, in review as #599)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -58,7 +58,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Authentication.Google` | New | #521 | [authentication](../proposals/spine-authentication.md) | Done (#565) |
 | `Plugin.Maui.Spine.Authentication.Microsoft` | New | #564 | [authentication](../proposals/spine-authentication.md) | Done (#570) |
 | `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 done (#553); #552 done (#554) |
-| Passkeys (client and server) | After v1 of sign-in | #522 | [authentication, Passkeys](../proposals/spine-authentication.md) | Waiting |
+| `Plugin.Maui.Spine.Authentication.Passkeys` and passkeys in `Server.Authentication` | New | #522, #601, #602 | [authentication, Passkeys](../proposals/spine-authentication.md) | #522 (iOS, Mac Catalyst and the server) done (#608), #611 the passkeys' details; #601 Android and #602 Windows wait |
 | AI avatars and character visuals | Separate control library, specified by the owner | — | — | Outside this plan |
 | On-device `IChatClient`, Android and Windows | Spike outside the repo | #514 | [ai §9](../proposals/spine-ai.md) | Proposal |
 
@@ -156,7 +156,9 @@ The order follows value against risk. Steps in different phases can run in paral
 | 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | Done | #561 | Split from #519 by the owner on 2026-10-15. `AddOpenIdConnect(name, displayName)` for brokered providers, `CallbackScheme` + `SpineAuthenticationCallbackScheme`, `UseIdentityProvider(...)` as an in-package OIDC public client (Decisions). |
 | 5.3a | `Authentication.Google`: Credential Manager on Android, the broker elsewhere; the provider hook (`INativeSignIn`) in `Authentication` | #521 | 5.2a, 5.2b | Done | #565 | Split by the owner on 2026-10-15. `a.AddGoogle(g => g.ServerClientId = …)`; Guideline 4.8 checked at startup (`AppleNotRequired`); AndroidX Credentials 1.5.0.3 to stay on MAUI's AndroidX (Decisions). Compiled and unit-tested only: no Google Cloud project yet (owner, 2026-10-15). |
 | 5.3b | `Authentication.Microsoft`: MSAL with the broker (Authenticator, Company Portal, WAM); MSAL's ID token to the Spine server (`AddMicrosoft`), or MSAL's own access token without one (`UseMicrosoft`) | #564 | 5.3a | Done | #570 | Split from #521 by the owner on 2026-10-15, with both modes. The mode without a server is generalized in the core (`IDirectSignIn`), shared with `UseIdentityProvider`; Mac Catalyst runs MSAL's net8.0 build with a custom web UI over Spine's browser layer (Decisions). |
-| 5.4 | Passkeys | #522 | 5.2a | Waiting | | Accepted for after v1 (Q12). The sample domain is still open. |
+| 5.4a | Passkeys on the server (Fido2NetLib, `Passkeys(...)`, the association files) and in the app on iOS and Mac Catalyst (`Authentication.Passkeys`): sign-in, sign-up, "Add a passkey", AutoFill in the sheet's email field | #522 | 5.5 | Done | #608 | Split by the owner on 2026-10-17 (Decisions). The relying party is the Azure sample server. |
+| 5.4b | Passkeys on Android: Credential Manager's `CreatePublicKeyCredentialRequest` and `GetPublicKeyCredentialOption`, `assetlinks.json` from `AndroidApps` | #601 | 5.4a | Waiting | | The server side is ready: `AndroidApps` adds the `android:apk-key-hash:` origins. |
+| 5.4c | Passkeys on Windows: WebAuthn through `webauthn.dll` | #602 | 5.4a | Waiting | | |
 | 5.5 | Account linking: one account with several providers, `Logins` with their details, link and unlink, and a pending identity before a new account (`AskBeforeNewAccount`) with "Is this your first time here?" in the sheet; the sheet's provider buttons in one shape with each brand's logo | #575 | 5.3b | Done | #576 | Asked for by the owner on 2026-10-16 (Decisions). Also `Password`, `AccountLink` and `Merge` in the icon set, and Spine.Svg draws Figma's conic gradients and alpha masks (Google's G). |
 
 ---
@@ -506,6 +508,22 @@ Newest last. Each entry is dated and says who decided.
 - **2026-10-09, owner:** AI avatars and other character visuals become a separate control library that the owner specifies. Spine.Voice keeps only the plug-in contract (`VoiceVisual`, `VoiceVisualView`, `VoiceFrame`) and its simple built-in visuals.
 
 ---
+- **2026-10-17, owner (#522):** Passkeys, step 5.4:
+  - the relying party is the Azure sample server (#581);
+  - Fido2NetLib on the server;
+  - Apple first (5.4a), then Android (#601) and Windows (#602);
+  - in the app, all four: "Sign in with a passkey" in the sheet, "Add a passkey" to a signed-in account, passkeys offered by AutoFill in the email field, and a new account made with a passkey.
+- **2026-10-17, Claude (#522):**
+  - **A passkey is a login.** Provider `passkey`, the credential id (base64url) as the subject, and its public key and counter on `SpineAuthLogin`, so the stores and `IUserResolver` need no new methods, and `Logins`, unlinking and "never the last way in" work as for the others. **Why:** a separate credential store would duplicate every lookup the logins already have. `SpineLoginInfo.Subject` and `DELETE /auth/link/{provider}/{subject}` remove one passkey of several (a lost phone's); unlinking `passkey` removes them all.
+  - **The user handle is the UTF-8 of the user id.** A discoverable sign-in names its user, and the server checks the handle against the login's user before it checks the signature.
+  - **The email given at a passkey sign-up stays on the login, unverified,** never as the account's email (#596's rule): the person typing it has not shown they own it.
+  - **Ceremonies live in the one-time store,** keyed by a random id the app sends back, five minutes by default; a register challenge cannot finish a sign-in and the other way round.
+  - **Its own package, `Plugin.Maui.Spine.Authentication.Passkeys`,** for the Associated Domains entitlement (`SpinePasskeyDomain`) and the platform code; the flows, the sheet and `ISpineAuth`'s methods are in the core behind an internal `IPasskeyCeremony`, as Google's and Microsoft's sheets are behind `INativeSignIn`.
+  - **AutoFill only on iOS.** `performAutoFillAssistedRequests` is not in Mac Catalyst's binding; the Mac shows the passkey sheet from the button. A button's request cancels a pending AutoFill request first, and AutoFill waits for the sheet to close, because iOS runs one request at a time.
+  - **`excludeCredentials` through the browser protocol.** iOS 17.4 has it on the platform request, but the .NET binding only on `IASAuthorizationWebBrowserPlatformPublicKeyCredentialRegistrationRequest`, which the request conforms to; Spine sets it through that interface when the request responds to the selector.
+  - **A simulator build needs the team's signing identity** (`CodesignKey` and a profile) for the passkey sheet: without an `application-identifier` iOS refuses with error 1004 ("process without application identifier").
+- **2026-10-17, owner (#611):** A passkey row shows where it is kept (from the AAGUID), the device it was made on (the app's device name) and when it was last used.
+- **2026-10-17, Claude (#611):** The authenticator's name is resolved at registration and kept with the login, so `SpineAuthUser.ToContract` needs no options; `AuthenticatorNames` is a table of well-known AAGUIDs the app can extend. The device name is the app's own label and is not checked.
 
 ## Open questions
 
@@ -526,7 +544,7 @@ Collected from each proposal's own "Open questions" section, which has the full 
 | Q9 | Default user store: ASP.NET Core Identity with EF Core, or a minimal store on Azure Tables? | authentication §10.3 | 5.1 | **A minimal store on Azure Tables by default, plus `IUserResolver`** for the app's own store. No Identity default. |
 | Q10 | Ephemeral iOS browser session by default? | authentication §10.4 | 5.2 | Ephemeral by default. |
 | Q11 | Send the signed-in token to the push backend automatically when both packages are referenced? | authentication §10.5 | 5.2 | **Opt-in.** |
-| Q12 | Passkeys: yes or no, and which domain do the samples use? | authentication §10.6 | 5.4 | Yes, after v1. The domain is still open. |
+| Q12 | Passkeys: yes or no, and which domain do the samples use? | authentication §10.6 | 5.4 | Yes, after v1. The samples use the Azure sample server's host, `spine-showcase-e41ddd.azurewebsites.net` (owner, 2026-10-17). |
 | Q13 | Tours: advance on a tap anywhere (v1), or pass the tap through to the target? | highlight §10.1 | 3.1 | Tap anywhere goes to the next step. |
 | Q14 | Android Auto Backup can restore "seen" keys after a reinstall. Accept that, or exclude them? | highlight §10.2 | 3.1 | Accept and document it. |
 | Q15 | Edge's default colours: the spectrum or the app's accent? | highlight §10.3 | 3.1 | The spectrum; the accent is an option. |
@@ -603,7 +621,14 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
-- **2026-10-17:** #596 in review: an unverified email reaches the app with `SpineUser.EmailVerified` false (the owner's answer to the open question from #564).
+- **2026-10-17:** #616 merged (PR #617). #596 in review (PR #599, master merged in): an unverified email reaches the app with `SpineUser.EmailVerified` false (the owner's answer to the open question from #564).
+
+- **2026-10-17:** #611 merged (PR #615). #616 in review: every login keeps when it was last used, and the Showcase labels "added" and "last used".
+
+- **2026-10-17:** #522 merged (PR #608), verified on the owner's iPhone with AutoFill. #611 in review: each passkey says where it is kept, the device it was made on and when it was last used.
+
+- **2026-10-17:** 5.4 split into 5.4a (#522, the server, iOS and Mac Catalyst), 5.4b (#601, Android) and 5.4c (#602, Windows). #522 in review as PR #608: passkeys on the Azure sample server and in the Showcase.
+
 - **2026-10-16:** #581 in review: the push sample server in Azure (`spine-showcase-e41ddd`, F1), and the Showcase's `SpineSampleServer` build property. On the owner's iPhone against it: Google, Apple and Microsoft through Authenticator, the last after #582 (PR #583), which stopped Spine.Widgets erasing the app's URL schemes.
 - **2026-10-16:** #577 merged (PR #578): the public `SignInButton`, and the `Unlink` symbol, a follow-up to 5.5.
 - **2026-10-16:** #575 merged (PR #576): account linking, step 5.5.

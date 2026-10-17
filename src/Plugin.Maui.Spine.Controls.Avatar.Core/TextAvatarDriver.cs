@@ -30,6 +30,9 @@ public sealed class TextAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     /// <summary>Seconds of text mouthed so far in this utterance.</summary>
     public double Position => _position;
 
+    /// <summary>Seconds the text queued so far takes to mouth.</summary>
+    public double Length => _mouth.End;
+
     /// <summary>A reply is coming: Thinking until its first text arrives.</summary>
     public void Begin()
     {

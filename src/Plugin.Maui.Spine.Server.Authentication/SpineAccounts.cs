@@ -189,6 +189,8 @@ internal sealed class SpineAccounts(
         {
             Email = identity.Email ?? existing?.Email,
             DisplayName = identity.Name ?? existing?.DisplayName,
+            // A link is a use too: the user just signed in with the provider to add it.
+            LastUsedAt = time.GetUtcNow(),
         };
         if (identity.ProviderRefreshToken is { } refresh)
             login = login with { ProviderRefreshToken = refresh, ProviderClientId = identity.ProviderClientId };
@@ -267,6 +269,7 @@ internal sealed class SpineAccounts(
             await users.SaveLoginAsync(new SpineAuthLogin(identity.Provider, identity.Subject, user.Id)
             {
                 LinkedAt = time.GetUtcNow(),
+                LastUsedAt = time.GetUtcNow(),
                 Email = identity.Email,
                 DisplayName = identity.Name,
                 ProviderRefreshToken = identity.ProviderRefreshToken,
@@ -293,14 +296,18 @@ internal sealed class SpineAccounts(
         return user is null ? refusal! : SignInOutcome.Ok(await tokens.IssueAsync(user, caller.Provider, cancellationToken: cancellationToken));
     }
 
-    /// <summary><c>DELETE /auth/link/{provider}</c>: removes a provider from the signed-in user, never the last way to sign in.</summary>
-    public async Task<SignInOutcome> UnlinkAsync(string providerName, SpineCaller caller, CancellationToken cancellationToken)
+    /// <summary>
+    /// <c>DELETE /auth/link/{provider}</c>: removes a provider from the signed-in user, never the last way to sign in.
+    /// With <paramref name="subject"/> (<c>DELETE /auth/link/{provider}/{subject}</c>), only that login, such as one passkey.
+    /// </summary>
+    public async Task<SignInOutcome> UnlinkAsync(string providerName, SpineCaller caller, CancellationToken cancellationToken, string? subject = null)
     {
         if (await users.FindByIdAsync(caller.UserId, cancellationToken) is not { } user) return SignInOutcome.Refused(401, SpineAuthErrors.InvalidGrant);
 
         var logins = await users.GetLoginsAsync(user.Id, cancellationToken);
-        var removing = logins.Where(l => l.Provider == providerName).ToList();
-        if (removing.Count == 0) return SignInOutcome.Refused(404, SpineAuthErrors.InvalidRequest, $"The account has no {providerName} login.");
+        var removing = logins.Where(l => l.Provider == providerName && (subject is null || l.Subject == subject)).ToList();
+        if (removing.Count == 0)
+            return SignInOutcome.Refused(404, SpineAuthErrors.InvalidRequest, subject is null ? $"The account has no {providerName} login." : $"The account has no such {providerName} login.");
         if (removing.Count == logins.Count)
             return SignInOutcome.Refused(409, SpineAuthErrors.LastLogin, "This is the account's last way to sign in; add another first.");
 
@@ -387,10 +394,19 @@ internal sealed class SpineAccounts(
         }, cancellationToken);
 
         if (!password.RequireVerifiedEmail)
-            return SignInOutcome.Ok(await tokens.IssueAsync(user, SpineAuthDefaults.PasswordProvider, cancellationToken: cancellationToken));
+            return SignInOutcome.Ok(await PasswordSignedInAsync(user, cancellationToken));
 
         await SendCodeAsync(SpineAuthEmailKind.VerifyEmail, user, cancellationToken);
         return SignInOutcome.Accepted;
+    }
+
+    // A password sign-in (a password, an emailed code, a reset) is the password login's use.
+    private async Task<SpineTokens> PasswordSignedInAsync(SpineAuthUser user, CancellationToken cancellationToken)
+    {
+        if ((await users.GetLoginsAsync(user.Id, cancellationToken)).FirstOrDefault(l => l.Provider == SpineAuthDefaults.PasswordProvider) is { } login)
+            await users.SaveLoginAsync(login with { LastUsedAt = time.GetUtcNow() }, cancellationToken);
+
+        return await tokens.IssueAsync(user, SpineAuthDefaults.PasswordProvider, cancellationToken: cancellationToken);
     }
 
     public async Task<SignInOutcome> VerifyEmailAsync(SpineEmailCode request, CancellationToken cancellationToken)
@@ -401,7 +417,7 @@ internal sealed class SpineAccounts(
             return SignInOutcome.Refused(400, SpineAuthErrors.InvalidCode);
         }
 
-        return SignInOutcome.Ok(await tokens.IssueAsync(user, SpineAuthDefaults.PasswordProvider, cancellationToken: cancellationToken));
+        return SignInOutcome.Ok(await PasswordSignedInAsync(user, cancellationToken));
     }
 
     public async Task<SignInOutcome> ResendAsync(SpineEmailRequest request, CancellationToken cancellationToken)
@@ -459,7 +475,7 @@ internal sealed class SpineAccounts(
                 return SignInOutcome.Refused(403, SpineAuthErrors.EmailNotVerified);
             }
 
-            return SignInOutcome.Ok(await tokens.IssueAsync(user, SpineAuthDefaults.PasswordProvider, cancellationToken: cancellationToken));
+            return SignInOutcome.Ok(await PasswordSignedInAsync(user, cancellationToken));
         }
 
         logger.LogWarning("Spine sign-in: a password sign-in gave up after {Retries} conflicting writes.", Retries);
@@ -507,7 +523,7 @@ internal sealed class SpineAccounts(
         }
         await store.RevokeUserAsync(user.Id, cancellationToken);
 
-        return SignInOutcome.Ok(await tokens.IssueAsync(user, SpineAuthDefaults.PasswordProvider, cancellationToken: cancellationToken));
+        return SignInOutcome.Ok(await PasswordSignedInAsync(user, cancellationToken));
     }
 
     public async Task DeleteAsync(string userId, IServiceProvider services, CancellationToken cancellationToken)

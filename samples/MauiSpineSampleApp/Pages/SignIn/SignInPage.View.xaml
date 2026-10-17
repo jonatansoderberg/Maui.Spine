@@ -54,7 +54,7 @@
                                 <ImageButton Grid.Column="2" SvgImageSource.Svg="Unlink.svg" SvgImageSource.Padding="10"
                                              WidthRequest="44" HeightRequest="44" BackgroundColor="Transparent" VerticalOptions="Center"
                                              Command="{Binding Source={RelativeSource AncestorType={x:Type SignInPageViewModel}}, Path=UnlinkCommand}"
-                                             CommandParameter="{Binding Provider}"
+                                             CommandParameter="{Binding .}"
                                              SemanticProperties.Description="{Binding Name, StringFormat='Unlink {0}'}" />
                             </Grid>
                         </DataTemplate>
@@ -83,6 +83,7 @@
 
                 await _auth.LinkAsync("google");    // Google's sheet or the browser; the same user after
                 await _auth.UnlinkAsync("google");  // never the last way in
+                await _auth.UnlinkAsync("passkey", login.Subject!);  // one passkey of several
             </Example.Code>
         </Example>
 

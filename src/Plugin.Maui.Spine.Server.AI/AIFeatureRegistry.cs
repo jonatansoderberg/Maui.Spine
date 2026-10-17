@@ -17,6 +17,8 @@ internal sealed record AIFeature(
     IAIRealtimeProvider? Realtime,
     AIPrice? Price)
 {
+    public IAISpeechProvider? Speech { get; init; }
+
     public string Provider => Options.Provider ?? "";
     public string Model => Options.Model ?? "";
 }
@@ -143,6 +145,9 @@ internal sealed class AIFeatureRegistry
 
                 case AIFeatureKind.Realtime when _options.RealtimeProviders.TryGetValue(provider, out var factory):
                     return new(name, options, null, null, null, null, factory(providerSection), price);
+
+                case AIFeatureKind.Speech when _options.SpeechProviders.TryGetValue(provider, out var factory):
+                    return new(name, options, null, null, null, null, null, price) { Speech = factory(providerSection) };
 
                 default:
                     var register = options.Kind.ToString();

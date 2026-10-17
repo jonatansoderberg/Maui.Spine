@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+		<AssemblyName>Plugin.Maui.Spine.Authentication.Passkeys</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Authentication</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Passkeys for Spine sign-in: sign in, sign up and add a passkey to an account through the platform's own passkey sheet, and passkeys offered by AutoFill in the email field. iOS and Mac Catalyst 16 or later; the Spine server checks them (Passkeys(...) in Plugin.Maui.Spine.Server.Authentication).</Description>
+		<SpineIcon>authentication.png</SpineIcon>
+		<PackageTags>$(PackageTags);authentication;sign-in;passkeys;webauthn;fido2</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Authentication\Plugin.Maui.Spine.Authentication.csproj" />
+	</ItemGroup>
+
+	<!-- The Associated Domains entitlement from SpinePasskeyDomain; a ProjectReference consumer imports
+	     build\Plugin.Maui.Spine.Authentication.Passkeys.targets explicitly. -->
+	<ItemGroup>
+		<None Include="build\**" Pack="true" PackagePath="build\;buildTransitive\" />
+	</ItemGroup>
+
+</Project>

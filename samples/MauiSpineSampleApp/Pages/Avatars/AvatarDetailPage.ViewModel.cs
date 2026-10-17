@@ -1,6 +1,7 @@
 using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Controls.Avatar;
 using Plugin.Maui.Spine.Speech;
+using Plugin.Maui.Spine.Voice;
 
 namespace MauiSpineSampleApp.Pages.Avatars;
 
@@ -14,10 +15,16 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     private readonly ISpineSpeech _voices;
     private AvatarView? _view;
 
-    public AvatarDetailPageViewModel(ISpineSpeech speech)
+    private readonly IVoiceAudio _audio;
+    private readonly VoiceAvatarDriver _listen;
+    private short[]? _reference;
+
+    public AvatarDetailPageViewModel(ISpineSpeech speech, IVoiceAudio audio)
     {
         _voices = speech;
         _speech = new SpeechAvatarDriver(speech);
+        _audio = audio;
+        _listen = new VoiceAvatarDriver(audio);
     }
 
     public IReadOnlyList<AvatarState> States { get; } = Enum.GetValues<AvatarState>();
@@ -29,8 +36,13 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
 
     /// <summary>0 drives the avatar by hand, 1 mouths text, 2 reads it aloud.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsManual), nameof(IsText), nameof(IsSpeak))]
+    [NotifyPropertyChangedFor(nameof(IsManual), nameof(IsText), nameof(IsSpeak), nameof(IsListen))]
     public partial int DriverIndex { get; set; }
+
+    public bool IsListen => DriverIndex == 3;
+
+    [ObservableProperty]
+    public partial string ListenStatus { get; set; } = "The engine is off.";
 
     public bool IsManual => DriverIndex == 0;
 
@@ -101,7 +113,7 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     {
         _text.Clear();
         _speech.Stop();
-        return Task.CompletedTask;
+        return _audio.StopAsync();
     }
 
     internal void Attach(AvatarView view) => _view = view;
@@ -110,7 +122,9 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     {
         _text.Clear();
         _speech.Stop();
-        Driver = value switch { 1 => _text, 2 => _speech, _ => null };
+        Driver = value switch { 1 => _text, 2 => _speech, 3 => _listen, _ => null };
+        if (value != 3 && _audio.IsRunning)
+            _ = StopEngine();
         if (value == 2 && Voices.Count == 0)
             _ = LoadVoicesAsync();
     }
@@ -149,6 +163,53 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
 
     [RelayCommand]
     private void StopSpeaking() => _speech.Stop();
+
+    /// <summary>Opens the microphone through Spine.Voice's engine: Listening with its level, no provider.</summary>
+    [RelayCommand]
+    private async Task StartEngine()
+    {
+        try
+        {
+            await _audio.StartAsync(new VoiceAudioOptions());
+            ListenStatus = "Listening: talk and the avatar follows your level.";
+        }
+        catch (VoiceAudioException e)
+        {
+            ListenStatus = e.Message;
+        }
+    }
+
+    /// <summary>Plays the Voice lab's reference speech through the engine, as an answer would: Speaking on its level.</summary>
+    [RelayCommand]
+    private async Task PlayReference()
+    {
+        if (!_audio.IsRunning)
+            await StartEngine();
+        if (!_audio.IsRunning)
+            return;
+        _reference ??= await ReadReferenceAsync();
+        var bytes = new byte[_reference.Length * 2];
+        Buffer.BlockCopy(_reference, 0, bytes, 0, bytes.Length);
+        var item = $"reference-{Guid.NewGuid():N}";
+        _audio.Enqueue(item, bytes);
+        _audio.Complete(item);
+        ListenStatus = "Playing the reference answer.";
+    }
+
+    [RelayCommand]
+    private async Task StopEngine()
+    {
+        await _audio.StopAsync();
+        ListenStatus = "The engine is off.";
+    }
+
+    private static async Task<short[]> ReadReferenceAsync()
+    {
+        await using var stream = await FileSystem.OpenAppPackageFileAsync("voice-reference.wav");
+        using var memory = new MemoryStream();
+        await stream.CopyToAsync(memory);
+        return MauiSpineSampleApp.Pages.VoiceLab.EchoTest.ReadWav(memory.ToArray());
+    }
 
     [RelayCommand]
     private void ShowExpression() =>

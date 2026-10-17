@@ -3,6 +3,7 @@ using Plugin.Maui.Spine.Controls.Avatar.Gltf;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
+[Collection(Measurements.Name)]
 public class GltfRigTests
 {
     private static (GltfModel Model, GltfAvatarRig Rig) Load(string avatar)

@@ -1,5 +1,6 @@
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
+[Collection(Measurements.Name)]
 public class AvatarAudioTests
 {
     private static string Fixture(string name) => Path.Combine(AppContext.BaseDirectory, "Fixtures", name);

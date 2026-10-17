@@ -17,6 +17,22 @@ public sealed class ChatAnsweredEventArgs(ChatResponse response) : EventArgs
     public ChatResponse Response { get; } = response;
 }
 
+/// <summary>A piece of an answer as it streams in, for something that follows it (an avatar mouthing it, a caption).</summary>
+/// <param name="delta">The text that arrived with this update; empty on the last one.</param>
+/// <param name="text">The answer's text so far.</param>
+/// <param name="isComplete">True once, at the end, however the answer ended: complete, stopped or failed.</param>
+public sealed class ChatStreamedEventArgs(string delta, string text, bool isComplete) : EventArgs
+{
+    /// <summary>The text that arrived with this update; empty on the last one.</summary>
+    public string Delta { get; } = delta;
+
+    /// <summary>The answer's text so far.</summary>
+    public string Text { get; } = text;
+
+    /// <summary>True once, at the end, however the answer ended: complete, stopped or failed.</summary>
+    public bool IsComplete { get; } = isComplete;
+}
+
 /// <summary>An answer that failed.</summary>
 /// <param name="exception">What went wrong.</param>
 public sealed class ChatFailedEventArgs(Exception exception) : EventArgs
@@ -156,6 +172,12 @@ public class ChatView : ContentView
     /// <summary>Raised when the user's message has been added to the conversation.</summary>
     public event EventHandler<ChatMessage>? Sent;
 
+    /// <summary>
+    /// Raised as an answer's text streams in, piece by piece, and once more with <see cref="ChatStreamedEventArgs.IsComplete"/>
+    /// when it ends. While <see cref="IsBusy"/> is true and no piece has come, the model is still thinking.
+    /// </summary>
+    public event EventHandler<ChatStreamedEventArgs>? Streamed;
+
     /// <summary>Raised when an answer is complete and in the conversation.</summary>
     public event EventHandler<ChatAnsweredEventArgs>? Answered;
 
@@ -199,10 +221,17 @@ public class ChatView : ContentView
 
         try
         {
+            var streamed = 0;
             await foreach (var update in client.GetStreamingResponseAsync([.. Conversation], ChatOptions, running.Token))
             {
                 var (text, calls) = answer.Add(update);
                 if (text || calls) row.Show(answer, ChatAnswerState.Streaming, calls);
+                if (text && Streamed is { } handler)
+                {
+                    var all = answer.Text;
+                    handler(this, new ChatStreamedEventArgs(all[streamed..], all, isComplete: false));
+                    streamed = all.Length;
+                }
             }
 
             var response = answer.ToResponse();
@@ -228,6 +257,7 @@ public class ChatView : ContentView
         {
             if (_running == running) _running = null;
             IsBusy = false;
+            Streamed?.Invoke(this, new ChatStreamedEventArgs("", answer.Text, isComplete: true));
         }
     }
 

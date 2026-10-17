@@ -60,8 +60,11 @@ Bodies and answers are the records in `Plugin.Maui.Spine.Authentication` in `.Co
 | `POST /auth/password/{signup,verify,resend,signin,forgot,reset}` | Email and password | see below |
 | `POST /auth/link/{provider}` | With the user's access token: an ID token (`SpineIdTokenRequest`) adds the provider to that user | `SpineTokens`; 409 `identity_in_use` |
 | `POST /auth/link/ticket` | With the user's access token: a one-time ticket (5 minutes) for linking through the browser, passed as `link=` to `/{provider}/start` | `SpineLinkTicket` |
+| `DELETE /auth/link/{provider}/{subject}` | With the user's access token: removes one login of a provider, such as one passkey (`SpineLoginInfo.Subject`) | as below |
 | `DELETE /auth/link/{provider}` | With the user's access token: removes a provider, or `password` | `SpineTokens`; 404; 409 `last_login`; 501 when the app's `IUserResolver` cannot delete logins |
 | `POST /auth/pending/{create,link}` | A pending identity's ticket (`SpinePendingRequest`): a new account, or, with an access token, the account the user proved | `SpineTokens`; 401 `invalid_grant`; 409 `identity_in_use` |
+| `POST /auth/passkey/register/options`, `/register` | A new passkey: for the user behind the access token, or without one for a new account (`SpinePasskeyNewAccount`); the WebAuthn options (`SpinePasskeyChallenge`), then the platform's answer (`SpinePasskeyResponse`) | `SpinePasskeyChallenge`, then `SpineTokens`; 403 `signup_closed`; 401 `invalid_token` for a refused passkey, `invalid_grant` for an expired ceremony |
+| `POST /auth/passkey/signin/options`, `/signin` | A sign-in with any passkey the device has for the domain | `SpinePasskeyChallenge`, then `SpineTokens`; 401 `unknown_passkey`, `invalid_token` |
 | `GET /auth/.well-known/jwks.json` | The public keys, for other services that check Spine's access tokens | a JWK set |
 
 A refusal is a `SpineAuthProblem` whose `error` is one of `SpineAuthErrors`. `detail` says only what is safe to tell a developer: an ID token's reason ("the token is for another client id"), never whether an account exists.
@@ -166,6 +169,31 @@ A user has one `Id` and any number of logins: a provider and its subject, with t
 - **A pending identity.** With `a.AskBeforeNewAccount = true`, a sign-in with a provider account the server does not know answers 202 with a `SpinePendingIdentity` (a ticket, the provider, a vouched email, a name, an expiry of `PendingIdentityLifetime`, 10 minutes) and makes no user. `POST /auth/pending/create` makes the account; `POST /auth/pending/link` with an access token adds it to the account the user just signed in to. It works for the ID-token endpoint and the browser broker's code exchange alike. `LinkByVerifiedEmail` still links first, without asking.
 - `IUserResolver.DeleteLoginAsync` is a default interface method that throws `NotSupportedException`, so an app's own resolver still compiles; unlinking answers 501 until it implements it.
 
+## Passkeys
+
+```csharp
+a.Passkeys(p =>
+{
+    p.RelyingPartyId = "api.example.com";                        // the domain the passkeys belong to; it cannot change later
+    p.RelyingPartyName = "Example";
+    p.AppleAppIds.Add("TEAMID.se.example.app");                  // apple-app-site-association (webcredentials)
+    p.AndroidApps.Add(new("se.example.app", ["AB:CD:…"]));       // assetlinks.json (get_login_creds), and its origin
+});
+
+app.MapSpineAuthentication("/auth");
+app.MapSpinePasskeyAssociations();                               // /.well-known/… at the site's root
+```
+
+WebAuthn is [Fido2NetLib](https://github.com/passwordless-lib/fido2-net-lib). The server asks for a discoverable passkey with user verification and no attestation, and accepts the origin `https://{RelyingPartyId}`, the Android apps' `android:apk-key-hash:` origins and any in `Origins`.
+
+- **A passkey is a login:** provider `passkey`, the credential id as the subject, its public key and signature counter on `SpineAuthLogin`. `Logins`, unlinking and "never the last way in" work as for the other providers, and the built-in stores keep the key with the login. `DELETE /auth/link/passkey/{credential id}` removes one passkey (`SpineLoginInfo.Subject` carries the id), and `DELETE /auth/link/passkey` all of them.
+- **Telling passkeys apart:** at registration the server keeps the authenticator's AAGUID and its name from `AuthenticatorNames` (iCloud Keychain, Google Password Manager, Windows Hello and the common password managers by default; add your own), and the device name the app sends in `SpinePasskeyResponse.DeviceName`; each sign-in sets `LastUsedAt`. `SpineLoginInfo` carries `Authenticator`, `DeviceName` and `LastUsedAt`.
+- **Every login keeps `LastUsedAt`:** a provider's ID token or browser sign-in, a pending identity made into an account, a passkey, and a password, an emailed code or a reset for `password`. Linking a provider counts too: the user signed in with it to add it.
+- **The user handle** is the UTF-8 of the user's id, so a sign-in without a username names its user; the server checks it against the passkey's owner.
+- **A ceremony works once,** within `ChallengeLifetime` (5 minutes), kept in the one-time store. A counter that does not move forward refuses the sign-in, as from a cloned authenticator; Apple's passkeys keep it at 0.
+- **A new account made with a passkey** needs a name or an email for the platform's sheet. The email stays on the login, unverified, never as the account's email; a code verifies an email, as for a password account. `AllowSignUp = false` closes it (403 `signup_closed`).
+- **The association files** are served only with `Passkeys(...)` configured. An app that serves its own `apple-app-site-association` adds `webcredentials` to it instead of mapping Spine's.
+
 ## Stores
 
 `UseAzureTableStore(connectionString, prefix = "SpineAuth")` keeps users and tokens in Azure Table Storage:
@@ -197,7 +225,7 @@ With `UserId` set, the body's `UserId` and any `user:` tags are replaced: `user:
 
 ## Azure Functions
 
-The handlers are public static methods on `SpineAuthEndpoints`: `NonceAsync`, `IdTokenAsync`, `StartAsync`, `CallbackAsync` (`GET` and `POST`), `RefreshAsync`, `RevokeAsync`, `DeleteAccountAsync`, `PasswordAsync`, `LinkTicketAsync`, `LinkAsync`, `UnlinkAsync`, `PendingAsync` and `Jwks`. They take the `HttpRequest`, as Server.AI's do:
+The handlers are public static methods on `SpineAuthEndpoints`: `NonceAsync`, `IdTokenAsync`, `StartAsync`, `CallbackAsync` (`GET` and `POST`), `RefreshAsync`, `RevokeAsync`, `DeleteAccountAsync`, `PasswordAsync`, `LinkTicketAsync`, `LinkAsync`, `UnlinkAsync`, `PendingAsync`, `PasskeyAsync`, `AppleAppSiteAssociation`, `AssetLinks` and `Jwks`. They take the `HttpRequest`, as Server.AI's do:
 
 ```csharp
 [Function("AuthToken")]

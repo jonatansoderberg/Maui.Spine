@@ -196,6 +196,50 @@ The app opens `url` with `Authorization: Bearer {token}` before `expiresAt`. `pr
 
 `IAIFeatures.RealtimeAsync(feature, caller)` does the same for a route of your own.
 
+## Speech
+
+A feature with `"Kind": "Speech"` reads text aloud for the app: PCM16 mono and, when the provider gives them, the mouth shapes (visemes) with their times, which an avatar plays as TimedVisemes ([Avatars](avatars.md)).
+
+```csharp
+builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
+{
+    ai.Speech("azure", AISpeechProviders.AzureSpeech);   // ApiKey, Region (or Endpoint): audio and visemes
+    ai.Speech("openai", AISpeechProviders.OpenAI);       // ApiKey, optional Endpoint: audio only
+});
+
+app.MapSpineAI("/ai");   // POST /ai/speech/{name}, with the other AI endpoints
+```
+
+```json
+"Read": {
+  "Kind": "Speech", "Provider": "azure", "Model": "neural", "Expose": true,
+  "Speech": { "Voice": "sv-SE-SofieNeural", "MaxCharacters": 2000 },
+  "RequestsPerMinute": { "SignedIn": 20, "Installation": 5 }
+}
+```
+
+and under `Prices`, `"azure": { "neural": { "PerMillionCharacters": 16 } }`.
+
+```http
+POST /ai/speech/Read
+Content-Type: application/json
+
+{ "text": "Välkommen tillbaka." }
+```
+
+```json
+{ "feature": "Read", "sampleRate": 24000, "audio": "<base64 PCM16>", "durationMs": 1240,
+  "visemes": [ { "id": 0, "offsetMs": 0 }, { "id": 19, "offsetMs": 50 }, … ] }
+```
+
+- **The voice is the server's.** The app sends only the text; `Speech:Voice`, `Language`, `Instructions` (models that take them, such as `gpt-4o-mini-tts`) and `Speed` are the feature's. A text over `MaxCharacters` (4000 by default) gets 413.
+- **Visemes** are in Azure Speech's alphabet of 22 (0 silence … 21 p, b, m), each with its offset from the start of the audio. Azure Speech has them; OpenAI's speech has none, and the app then estimates the mouth from the text.
+- **Azure Speech** is spoken over the service's WebSocket, the protocol of Microsoft's open-source JavaScript Speech SDK, because its REST endpoint returns audio only; no native SDK is needed. The voice is a neural voice name, the language comes from it unless `Language` is set, and `Model` is only what the usage report shows. A key is the only sign-in so far.
+- **Metering by characters**: each call records its text's length, priced at `PerMillionCharacters`. Callers, rates, `ConcurrentPerCaller` and budgets apply as for chat; unset `Callers` is `Any`.
+- **Other providers.** `IAISpeechProvider` is one method: `ai.Speech(name, section => …)`.
+
+`IAIFeatures.SpeechAsync(feature, text, caller)` does the same for a route of your own.
+
 ## Metering and prices
 
 Every call through a feature is recorded as an `AIUsageRecord` with these fields:
@@ -283,6 +327,11 @@ public sealed class AiFunctions
     public Task<IResult> Realtime(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ai/realtime/{name}")] HttpRequest request, string name, CancellationToken ct) =>
         SpineAIEndpoints.RealtimeSessionAsync(request, name, ct);
+
+    [Function("AiSpeech")]
+    public Task<IResult> Speech(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ai/speech/{name}")] HttpRequest request, string name, CancellationToken ct) =>
+        SpineAIEndpoints.SpeechAsync(request, name, ct);
 
     [Function("AiUsage")]
     public Task<IResult> Usage(

@@ -154,6 +154,7 @@ The frame is one object, overwritten on every tick without allocating. Read it d
 | `bars` | The answer's 24 bands up from a line and the microphone's down, so talking over the answer shows as both | Two level bars |
 | `ring` | The answer's bands outward and the microphone's inward round an empty middle, for round a button or a picture | A ring whose width follows the level |
 | `avatar` | A face that blinks, looks at the user while listening and up while thinking, and whose mouth follows the visemes or the level | No blinking; the mouth moves slowly |
+| `character` | A `.spineavatar` avatar (Nova, a plush, a shader), from `Plugin.Maui.Spine.Controls.Avatar.Voice`: the conversation's state, levels and visemes on the avatar, ticked by the VoiceView. The avatar is `VoiceAvatar.Source` on the VoiceView. See [Avatars](avatars.md#with-a-voice-conversation) | The avatar's still pose, four frames a second |
 
 - **Colours:** `InputColor` is the user's (unset, the app's `Primary`), `OutputColor` the model's (unset, a warm orange).
 - **Frame rate:** `FrameRate`, 1 to 60, 30 by default. It does not draw while it is detached, hidden (itself or an ancestor, such as an unselected tab), scrolled out of sight or the app is in the background. Under Reduce Motion it draws four times a second.

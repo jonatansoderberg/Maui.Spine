@@ -47,6 +47,13 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<SpineAccounts>(), sp.GetRequiredService<SpineTokenService>(), sp.GetService<AppleTokenClient>(),
             sp.GetRequiredService<IHttpClientFactory>(), TimeOf(sp), LoggerOf(sp)));
 
+        if (options.PasskeyOptions is not null)
+        {
+            services.AddSingleton(sp => new SpinePasskeys(
+                options, sp.GetRequiredService<IUserResolver>(), sp.GetRequiredService<ISpineAuthStore>(), sp.GetRequiredService<SpineTokenService>(),
+                TimeOf(sp), LoggerOf(sp)));
+        }
+
         services.AddAuthentication(SpineAuthDefaults.AuthenticationScheme).AddJwtBearer(SpineAuthDefaults.AuthenticationScheme);
         services.AddOptions<JwtBearerOptions>(SpineAuthDefaults.AuthenticationScheme).Configure<SpineTokenService>((bearer, tokens) =>
         {

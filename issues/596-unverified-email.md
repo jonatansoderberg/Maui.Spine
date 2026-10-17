@@ -12,6 +12,7 @@ The owner decided on 2026-10-17, answering the question left open in #564: pass 
 
 ## Changes
 
+- **Master merged in (2026-10-17)** after passkeys (#522, #611, #616): a passkey sign-up's email now reaches the app as given, with `EmailVerified` false, so the passkey test checks that instead of no email.
 - **`SpineUser.EmailVerified`:** an optional `bool`, false by default, after `Logins`, so existing callers compile.
 - **Server:**
   - `SpineAuthUser.ToContract` gives the account's own email with its flag. Without one, it gives the email the provider of this sign-in gave, with `EmailVerified` false.

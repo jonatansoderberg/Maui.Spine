@@ -88,7 +88,7 @@ public sealed class AvatarView : ContentView
     private readonly AvatarRuntime _runtime = new();
     private readonly Stopwatch _clock = new();
     private AvatarSurface? _surface;
-    private IDispatcherTimer? _timer;
+    private FrameTimer? _timer;
     private Window? _window;
     private bool _windowStopped;
     private CancellationTokenSource? _loadCancellation;
@@ -255,6 +255,35 @@ public sealed class AvatarView : ContentView
         _runtime.Input.LookAt(_lookAt?.X, _lookAt?.Y);
     }
 
+    /// <summary>
+    /// Plays <paramref name="script"/> with a <see cref="ScriptAvatarDriver"/>, speaking through Spine.Speech when the app has
+    /// it, then gives the avatar back to the driver it had. A tap on the avatar ends a <c>WaitForTap</c> step.
+    /// </summary>
+    /// <param name="script">The steps.</param>
+    /// <param name="cancellationToken">Stops the script, and the voice with it.</param>
+    /// <param name="caption">Told the part of the current line said so far, for a caption.</param>
+    public async Task PlayAsync(AvatarScript script, CancellationToken cancellationToken = default, Action<string>? caption = null)
+    {
+        var previous = Driver;
+        var speech = (Handler?.MauiContext?.Services ?? IPlatformApplication.Current?.Services)?.GetService<Speech.ISpineSpeech>();
+        var driver = new ScriptAvatarDriver(speech);
+        if (caption is not null)
+            driver.CaptionChanged += (_, text) => caption(text);
+        var tap = new TapGestureRecognizer { Command = new Command(driver.Continue) };
+        GestureRecognizers.Add(tap);
+        Driver = driver;
+        try
+        {
+            await driver.RunAsync(script, this, cancellationToken);
+        }
+        finally
+        {
+            GestureRecognizers.Remove(tap);
+            if (ReferenceEquals(Driver, driver))
+                Driver = previous;
+        }
+    }
+
     /// <summary>Loads <see cref="Source"/> again; setting the source does this by itself.</summary>
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
@@ -282,8 +311,15 @@ public sealed class AvatarView : ContentView
                 {
                     if (renderers.FirstOrDefault(r => r.CanDraw(candidate)) is { } renderer)
                     {
-                        // The Skia model compiles here, off the UI thread; other renderers build on it.
-                        var skia = renderer is SkiaAvatarRenderer ? SkiaAvatarModel.Compile(package, candidate) : null;
+                        // The Skia models compile here, off the UI thread; other renderers build on it.
+                        var skia = renderer switch
+                        {
+                            SkiaAvatarRenderer => SkiaAvatarModel.Compile(package, candidate),
+                            GltfSkiaAvatarRenderer => GltfSkiaModel.TryCreate(package, candidate),
+                            _ => null,
+                        };
+                        if (renderer is GltfSkiaAvatarRenderer && skia is null)
+                            continue;
                         return (package, (AvatarRepresentation?)candidate, (AvatarRenderer?)renderer, skia);
                     }
                 }
@@ -331,6 +367,8 @@ public sealed class AvatarView : ContentView
         renderers.Add(SkiaAvatarRenderer.Instance);
 #if IOS || MACCATALYST
         renderers.Add(SceneKitAvatarRenderer.Instance);
+#else
+        renderers.Add(GltfSkiaAvatarRenderer.Instance);
 #endif
         return renderers;
     }
@@ -496,7 +534,7 @@ public sealed class AvatarView : ContentView
 
         if (_timer is null)
         {
-            _timer = Dispatcher.CreateTimer();
+            _timer = new FrameTimer();
             _timer.Tick += OnTick;
             _clock.Restart();
             _lastTick = TimeSpan.Zero;

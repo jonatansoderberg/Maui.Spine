@@ -34,6 +34,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Azure.Data.Tables" />
+		<PackageReference Include="Fido2" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
 	</ItemGroup>
 
