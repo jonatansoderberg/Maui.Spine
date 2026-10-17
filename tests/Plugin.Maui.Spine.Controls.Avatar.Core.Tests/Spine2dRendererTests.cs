@@ -155,11 +155,12 @@ public class Spine2dRendererTests
         Assert.Equal(0, GC.GetAllocatedBytesForCurrentThread() - before);
     }
 
-    public static TheoryData<string, AvatarSheetKind> Sheets()
+    // The kind goes by name: the sheet types are internal to the Avatar package and a theory's parameters are public.
+    public static TheoryData<string, string> Sheets()
     {
-        var data = new TheoryData<string, AvatarSheetKind>();
+        var data = new TheoryData<string, string>();
         foreach (var avatar in new[] { "dotling", "voice-totem", "pip", "aurora", "aurora-motion", "aurora-flow" })
-            foreach (var kind in Enum.GetValues<AvatarSheetKind>())
+            foreach (var kind in Enum.GetNames<AvatarSheetKind>())
                 data.Add(avatar, kind);
         return data;
     }
@@ -167,8 +168,9 @@ public class Spine2dRendererTests
     // The sheets land in the test output for review next to the bundle's own previews.
     [Theory]
     [MemberData(nameof(Sheets))]
-    public void SheetsRender(string avatar, AvatarSheetKind kind)
+    public void SheetsRender(string avatar, string kindName)
     {
+        var kind = Enum.Parse<AvatarSheetKind>(kindName);
         var package = AvatarArchiveTests.Load(avatar);
         var directory = Path.Combine(AppContext.BaseDirectory, "sheets");
         Directory.CreateDirectory(directory);
