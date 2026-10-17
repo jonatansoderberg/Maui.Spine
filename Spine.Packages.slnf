@@ -9,6 +9,7 @@
       "src\\Plugin.Maui.Spine.Controls.Avatar\\Plugin.Maui.Spine.Controls.Avatar.csproj",
       "src\\Plugin.Maui.Spine.Speech\\Plugin.Maui.Spine.Speech.csproj",
       "src\\Plugin.Maui.Spine.Controls.Avatar.Voice\\Plugin.Maui.Spine.Controls.Avatar.Voice.csproj",
+      "src\\Plugin.Maui.Spine.Avatar.Tool\\Plugin.Maui.Spine.Avatar.Tool.csproj",
       "src\\Plugin.Maui.Spine.Authentication\\Plugin.Maui.Spine.Authentication.csproj",
       "src\\Plugin.Maui.Spine.Authentication.Google\\Plugin.Maui.Spine.Authentication.Google.csproj",
       "src\\Plugin.Maui.Spine.Authentication.Microsoft\\Plugin.Maui.Spine.Authentication.Microsoft.csproj",

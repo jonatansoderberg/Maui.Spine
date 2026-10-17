@@ -25,6 +25,8 @@
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Voice" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
+		<!-- The spine-avatar tool validates and draws with the same internals. -->
+		<InternalsVisibleTo Include="spine-avatar" />
 		<!-- The lab's inspector and its own copies of the surfaces until B1.3 of docs/plans/spine-avatar.md. -->
 		<InternalsVisibleTo Include="SpineAvatarLab" />
 	</ItemGroup>

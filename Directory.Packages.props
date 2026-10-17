@@ -9,6 +9,7 @@
 		<PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.50" />
 		<PackageVersion Include="SkiaSharp" Version="3.119.2" />
+		<PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.2" />
 		<PackageVersion Include="SkiaSharp.Views.Maui.Controls" Version="3.119.2" />
 		<PackageVersion Include="Svg.Skia" Version="3.6.0" />
 	</ItemGroup>

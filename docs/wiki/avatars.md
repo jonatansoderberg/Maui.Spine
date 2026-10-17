@@ -12,6 +12,7 @@ Animated characters and ambient visuals for a voice assistant, text-to-speech, a
 | `Plugin.Maui.Spine.Controls.Avatar.Core` | The format, the scheduler, the drivers' contract and the text driver, visemes, glTF; no MAUI |
 | `Plugin.Maui.Spine.Speech` | Text-to-speech with word boundaries, which `SpeechAvatarDriver` speaks through ([Speech](speech.md)) |
 | `Plugin.Maui.Spine.Controls.Avatar.Voice` | `VoiceAvatarDriver` for a realtime [voice](voice.md) conversation, and VoiceView's `character` |
+| `Plugin.Maui.Spine.Avatar.Tool` | The `spine-avatar` command: checks, packs and draws `.spineavatar` files ([Making a package](#making-a-package)) |
 
 ## The view
 
@@ -99,6 +100,29 @@ if (package is null)
     foreach (var failure in report.Failures)
         Console.WriteLine($"{failure.Area}/{failure.Name}: {failure.Detail}");
 ```
+
+## Making a package
+
+The `spine-avatar` .NET tool turns a generator's output into a package to ship, and checks one before it goes out:
+
+```bash
+dotnet tool install -g Plugin.Maui.Spine.Avatar.Tool
+```
+
+```bash
+spine-avatar pack nova.spineavatar -o shipped/nova.spineavatar --strip
+```
+
+| Command | What |
+| --- | --- |
+| `inspect <file>` | Representations with their capabilities, posters and their size, every file, the validation summary |
+| `validate <file> [--profile shipping]` | The format's checks; `shipping` also fails a poster under 128 px (a placeholder) and anything under `source/`, and warns over 2 MB (download it rather than bundle it). Exit code 1 on a failure |
+| `pack <file> -o <out> [--strip]` | The manifest and bindings rewritten with the defaults, capabilities left to be computed, posters rendered at 512 px (`--size`), `source/` dropped with `--strip`, the hash table rewritten, the result validated |
+| `strip <file> -o <out>` | Only `source/` removed and the hash table rewritten |
+| `render-sheet <file> -o <dir>` | The posters and a sheet of the states and one of the expressions, as PNG, for review |
+| `report <file>...` | One Markdown row per package: size, representations, posters, `source/`, validation, shipping |
+
+Posters are drawn with the package's own Skia renderers on any OS: vector scenes, shaders and glTF models without alpha-masked materials. A model only SceneKit draws (alpha-masked hair or lashes, such as Kairo) keeps its posters unless `--poster-light` and `--poster-dark` give it pictures captured on Apple, with a transparent background.
 
 ## Driving an avatar
 
