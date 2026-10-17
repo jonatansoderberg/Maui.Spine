@@ -66,6 +66,9 @@ public sealed class AvatarInput
         get => _scheduler;
         set
         {
+            // The scheduler moves on by itself (out of Interrupted); the next one starts where it was.
+            if (_scheduler is { } old)
+                _state = old.State;
             _scheduler = value;
             if (value is null)
                 return;
@@ -81,8 +84,8 @@ public sealed class AvatarInput
     /// <summary>Whether an avatar is loaded; until then cues, levels and gestures go nowhere.</summary>
     public bool IsLoaded => _scheduler is not null;
 
-    /// <summary>The state last set.</summary>
-    public AvatarState State => _state;
+    /// <summary>The avatar's state: what was last set, or where the scheduler moved on to by itself (after Interrupted).</summary>
+    public AvatarState State => _scheduler?.State ?? _state;
 
     /// <summary>Whether the muted badge shows.</summary>
     public bool IsMuted => _muted;

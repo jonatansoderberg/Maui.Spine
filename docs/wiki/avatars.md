@@ -2,13 +2,43 @@
 
 Animated characters and ambient visuals for a voice assistant, text-to-speech, a streamed chat answer, a guide or a status indicator. An avatar is content, a `.spineavatar` file the app bundles or downloads; Spine draws it, drives it and checks it.
 
-> **Status:** in progress, following [the plan](../plans/spine-avatar.md). `Plugin.Maui.Spine.Controls.Avatar.Core` exists; the view (`Plugin.Maui.Spine.Controls.Avatar`), Speech and the voice driver follow. This page grows with them.
+> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core and the view exist; Speech, the voice driver, the presenter and scripts follow. This page grows with them.
 
 ## Packages
 
 | Package | What |
 | --- | --- |
+| `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: Skia (vector scenes, SkSL shaders) everywhere, SceneKit (glTF) on iOS and Mac Catalyst, the poster where neither applies |
 | `Plugin.Maui.Spine.Controls.Avatar.Core` | The format, the scheduler, the drivers' contract and the text driver, visemes, glTF; no MAUI |
+
+## The view
+
+```xml
+<AvatarView Source="{Binding Avatar}" State="Listening" Expression="Curious" HeightRequest="240" />
+```
+
+```csharp
+avatar.Source = AvatarSource.FromMauiAsset("Avatars/nova.spineavatar");   // or FromFile for a downloaded one
+avatar.SetExpression(new(AvatarExpression.Happy, 0.8f, TimeSpan.FromSeconds(3)));
+await avatar.PlayGestureAsync("nod");
+avatar.LookAt(point);       // a point in the view's coordinates, or null to look back at the viewer
+avatar.Interrupt();
+```
+
+`UseSpine()` registers the package for an app that references it. The view picks the first representation of the avatar a renderer here can draw: Skia for `spine2d` and `sksl` (on the GPU through Metal on iOS and Mac Catalyst), SceneKit for `glb` on iOS and Mac Catalyst. Where none applies (a glTF avatar on Android and Windows today) it shows the avatar's poster with its state underneath and logs once.
+
+| Property | What |
+| --- | --- |
+| `Source` | The avatar. A new one cancels the load before it; the avatar on screen stays until the next is ready |
+| `Driver` | What drives it; null for the view's own `State`, `IsMuted` and `Expression` |
+| `State`, `IsMuted`, `Expression`, `ExpressionIntensity` | The manual state, the microphone-off badge, the base expression. With a driver, `State` follows the driver |
+| `MotionMode` | `System` follows Reduce Motion: a still pose, four frames a second, a slow mouth. `Reduced` and `Full` override it |
+| `MaxFramesPerSecond` | 15, 30 (default) or 60 |
+| `AccentColor` | The colour of the avatar's `accent` slot; unset, the app's accent |
+| `AccessibilityText` | What a screen reader says; unset, the avatar's name and state |
+| `LoadState`, `LoadError`, `Package`, `RendererName`, `LipSyncQuality`, `Gestures` | What is shown and how |
+
+The view runs no timer while it is detached, hidden (itself or an ancestor), scrolled out of sight or the app is in the background. A screen reader hears one element; muting and an interruption are announced, other state changes are not.
 
 ## The format
 

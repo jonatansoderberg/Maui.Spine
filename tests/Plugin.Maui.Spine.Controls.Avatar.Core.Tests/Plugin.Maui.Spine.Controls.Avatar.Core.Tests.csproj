@@ -10,13 +10,10 @@
 		<Using Include="Xunit" />
 	</ItemGroup>
 
-	<!--
-		The Skia renderer is still the lab's (Avatar.Skia) until Plugin.Maui.Spine.Controls.Avatar takes it in B1.2 of
-		docs/plans/spine-avatar.md; it must stay free of MAUI, which compiling it here enforces.
-	-->
+	<!-- The Avatar package's net10.0 build is its Skia renderer alone, so scenes and shaders are drawn here without a device. -->
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar.Core\Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
-		<Compile Include="..\..\samples\SpineAvatarLab\Avatar.Skia\**\*.cs" LinkBase="Avatar.Skia" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar\Plugin.Maui.Spine.Controls.Avatar.csproj" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Avatars\*.spineavatar" LinkBase="Avatars" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Fixtures\*" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
