@@ -31,6 +31,8 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
     private readonly SKPaint _paint = new() { IsAntialias = true, Style = SKPaintStyle.Fill };
     private readonly SKMaskFilter?[] _blurs;
     private readonly SKShader?[] _shaders;
+    private readonly BlurredLayer?[] _layers;
+    private readonly SKSamplingOptions _sampling = new(SKFilterMode.Linear);
     private bool? _shaderDark;
     private SKColor? _shaderAccent;
 
@@ -52,10 +54,14 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
         // Sigma in scene units: the filter follows the canvas transform, so a blur scales with the avatar.
         _blurs = [.. model.Blurs.Select(b => b > 0 ? SKMaskFilter.CreateBlur(SKBlurStyle.Normal, b, respectCTM: true) : null)];
         _shaders = new SKShader?[n];
+        _layers = [.. model.Blurs.Select((b, i) => b > 0 ? new BlurredLayer(PathLength(model, i)) : null)];
         Reset();
     }
 
     public Spine2dModel Model => _model;
+
+    /// <summary>Whether a CPU canvas draws blurred nodes from cached images; off only to compare against direct drawing.</summary>
+    internal bool CacheBlurs { get; set; } = true;
 
     public void Evaluate(AvatarRenderFrame frame)
     {
@@ -104,6 +110,8 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
         if (_shaderDark != dark || _shaderAccent != accent)
             BuildShaders(dark, accent);
 
+        // On the GPU a blur is cheap; on the CPU it is the costliest thing drawn, so there blurred nodes come from images.
+        var cpu = canvas.Context is null && CacheBlurs;
         var save = canvas.Save();
         for (var i = 0; i < _model.NodeCount; i++)
         {
@@ -114,34 +122,109 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
             canvas.Save();
             var matrix = fit.PreConcat(_world[i]);
             canvas.Concat(in matrix);
-
-            _paint.MaskFilter = _blurs[i];
-            _paint.BlendMode = _model.BlendModes[i];
-            if (_model.FillKinds[i] != FillKind.None)
-            {
-                // A gradient's colours come from its shader; the paint's alpha still fades it.
-                var color = _shaders[i] is null ? Fill(i, dark, accent) : SKColors.White;
-                _paint.Shader = _shaders[i];
-                _paint.Color = color.WithAlpha((byte)Math.Clamp(color.Alpha * _alpha[i], 0, 255));
-                DrawShape(canvas, kind, i);
-            }
-            if (_model.Strokes[i] is { } stroke)
-            {
-                var color = Slot(stroke.Slot, stroke.Color, dark, accent);
-                _paint.Shader = null;
-                _paint.Style = SKPaintStyle.Stroke;
-                _paint.StrokeWidth = stroke.Width;
-                _paint.StrokeCap = stroke.Cap;
-                _paint.Color = color.WithAlpha((byte)Math.Clamp(color.Alpha * _alpha[i], 0, 255));
-                DrawShape(canvas, kind, i);
-                _paint.Style = SKPaintStyle.Fill;
-            }
+            if (_layers[i] is { } layer && cpu)
+                DrawBlurred(canvas, i, layer, in matrix, dark, accent);
+            else
+                DrawNode(canvas, i, _alpha[i], _model.BlendModes[i], dark, accent);
             canvas.Restore();
         }
         _paint.Shader = null;
         _paint.MaskFilter = null;
         _paint.BlendMode = SKBlendMode.SrcOver;
         canvas.RestoreToCount(save);
+    }
+
+    private void DrawNode(SKCanvas canvas, int i, float alpha, SKBlendMode blend, bool dark, SKColor? accent)
+    {
+        var kind = _model.Kinds[i];
+        _paint.MaskFilter = _blurs[i];
+        _paint.BlendMode = blend;
+        if (_model.FillKinds[i] != FillKind.None)
+        {
+            // A gradient's colours come from its shader; the paint's alpha still fades it.
+            var color = _shaders[i] is null ? Fill(i, dark, accent) : SKColors.White;
+            _paint.Shader = _shaders[i];
+            _paint.Color = color.WithAlpha((byte)Math.Clamp(color.Alpha * alpha, 0, 255));
+            DrawShape(canvas, kind, i);
+        }
+        if (_model.Strokes[i] is { } stroke)
+        {
+            var color = Slot(stroke.Slot, stroke.Color, dark, accent);
+            _paint.Shader = null;
+            _paint.Style = SKPaintStyle.Stroke;
+            _paint.StrokeWidth = stroke.Width;
+            _paint.StrokeCap = stroke.Cap;
+            _paint.Color = color.WithAlpha((byte)Math.Clamp(color.Alpha * alpha, 0, 255));
+            DrawShape(canvas, kind, i);
+            _paint.Style = SKPaintStyle.Fill;
+        }
+    }
+
+    // The blurred shape is drawn once into an image at half the node's device scale (a blur has no detail to lose) and
+    // redrawn only when that scale moves by more than a quarter, the path's points change or the theme does; each frame
+    // draws the image with the node's transform, opacity and blend.
+    private void DrawBlurred(SKCanvas canvas, int i, BlurredLayer layer, in SKMatrix matrix, bool dark, SKColor? accent)
+    {
+        var scale = MathF.Max(
+            MathF.Sqrt(matrix.ScaleX * matrix.ScaleX + matrix.SkewY * matrix.SkewY),
+            MathF.Sqrt(matrix.SkewX * matrix.SkewX + matrix.ScaleY * matrix.ScaleY));
+        if (scale <= 0)
+            return;
+        if (layer.Image is null || scale > layer.Scale * 1.25f || scale < layer.Scale * 0.8f || !PathUnchanged(i, layer))
+            Rasterise(i, layer, scale, dark, accent);
+
+        _paint.Shader = null;
+        _paint.MaskFilter = null;
+        _paint.BlendMode = _model.BlendModes[i];
+        _paint.Color = SKColors.White.WithAlpha((byte)Math.Clamp(255 * _alpha[i], 0, 255));
+        canvas.DrawImage(layer.Image, layer.Bounds, _sampling, _paint);
+    }
+
+    private void Rasterise(int i, BlurredLayer layer, float scale, bool dark, SKColor? accent)
+    {
+        var bounds = _model.Kinds[i] == NodeKind.Path ? BuildPath(i).Bounds : _model.Bounds[i];
+        var reach = _model.Blurs[i] * 3 + (_model.Strokes[i]?.Width ?? 0) / 2;
+        bounds.Inflate(reach, reach);
+        var resolution = scale * BlurredLayer.Resolution;
+        var width = Math.Max(1, (int)MathF.Ceiling(bounds.Width * resolution));
+        var height = Math.Max(1, (int)MathF.Ceiling(bounds.Height * resolution));
+
+        using (var surface = SKSurface.Create(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul)))
+        {
+            var canvas = surface.Canvas;
+            canvas.Clear(SKColors.Transparent);
+            canvas.Scale(width / bounds.Width, height / bounds.Height);
+            canvas.Translate(-bounds.Left, -bounds.Top);
+            DrawNode(canvas, i, 1, SKBlendMode.SrcOver, dark, accent);
+            layer.Image?.Dispose();
+            layer.Image = surface.Snapshot();
+        }
+        layer.Bounds = bounds;
+        layer.Scale = scale;
+        if (layer.Path is { } points)
+            Array.Copy(_path, _model.PathOffsets[i], points, 0, points.Length);
+    }
+
+    private bool PathUnchanged(int i, BlurredLayer layer) =>
+        layer.Path is not { } points || _path.AsSpan(_model.PathOffsets[i], points.Length).SequenceEqual(points);
+
+    private static int PathLength(Spine2dModel model, int i) =>
+        model.Kinds[i] == NodeKind.Path ? model.PathCommands[i]!.Sum(AvatarPathData.Arity) : 0;
+
+    private sealed class BlurredLayer(int pathLength) : IDisposable
+    {
+        public const float Resolution = 0.5f;
+
+        public SKImage? Image;
+        public SKRect Bounds;
+        public float Scale;
+        public readonly float[]? Path = pathLength > 0 ? new float[pathLength] : null;
+
+        public void Dispose()
+        {
+            Image?.Dispose();
+            Image = null;
+        }
     }
 
     private void DrawShape(SKCanvas canvas, NodeKind kind, int i)
@@ -185,6 +268,8 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
         }
         _shaderDark = dark;
         _shaderAccent = accent;
+        foreach (var layer in _layers)
+            layer?.Dispose();
     }
 
     /// <summary>The current value of a node property after <see cref="Evaluate"/>; for tests and the inspector.</summary>
@@ -207,6 +292,8 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
             shader?.Dispose();
         foreach (var path in _paths)
             path?.Dispose();
+        foreach (var layer in _layers)
+            layer?.Dispose();
     }
 
     private void Reset()
