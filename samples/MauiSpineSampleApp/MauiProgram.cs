@@ -52,6 +52,9 @@ public static class MauiProgram
 #if SPINE_SIGN_IN_WITH_MICROSOFT
                     a.AddMicrosoft(m => m.ClientId = BuildSetting("SpineMicrosoftClientId"));
 #endif
+#if SPINE_PASSKEYS
+                    a.AddPasskeys();
+#endif
 #if (SPINE_SIGN_IN_WITH_GOOGLE || SPINE_SIGN_IN_WITH_MICROSOFT) && !SPINE_SIGN_IN_WITH_APPLE
                     a.AppleNotRequired = true;   // the Showcase's App ID has no Sign in with Apple yet; an App Store app adds AddApple()
 #endif

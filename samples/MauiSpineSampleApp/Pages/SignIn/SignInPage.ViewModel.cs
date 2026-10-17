@@ -6,9 +6,9 @@ namespace MauiSpineSampleApp.Pages.SignIn;
 /// <summary>One way the account signs in, as the Sign-in page lists it, with the logo the sign-in sheet uses.</summary>
 public sealed record LoginRow(string Provider, string Details)
 {
-    public string Name => Provider switch { "apple" => "Apple", "google" => "Google", "microsoft" => "Microsoft", "password" => "Email and password", _ => Provider };
+    public string Name => Provider switch { "apple" => "Apple", "google" => "Google", "microsoft" => "Microsoft", "password" => "Email and password", "passkey" => "Passkey", _ => Provider };
 
-    public string Logo => $"signin-{(Provider is "apple" or "google" or "microsoft" ? Provider : "password")}.svg";
+    public string Logo => $"signin-{(Provider is "apple" or "google" or "microsoft" or "passkey" ? Provider : "password")}.svg";
 
     // Google's and Microsoft's logos keep their own colours; Apple's and the password symbol take the text colour.
     public Color? Tint => Provider is "google" or "microsoft" ? Colors.Transparent : null;
@@ -17,7 +17,7 @@ public sealed record LoginRow(string Provider, string Details)
 /// <summary>A provider the account can add, with the button's text.</summary>
 public sealed record LinkRow(string Provider)
 {
-    public string Text => $"Link {Provider switch { "apple" => "Apple", "google" => "Google", "microsoft" => "Microsoft", _ => Provider }}";
+    public string Text => Provider == "passkey" ? "Add a passkey" : $"Link {Provider switch { "apple" => "Apple", "google" => "Google", "microsoft" => "Microsoft", _ => Provider }}";
 }
 
 public partial class SignInPageViewModel : SampleViewModel
@@ -74,7 +74,8 @@ public partial class SignInPageViewModel : SampleViewModel
         {
             foreach (var login in signedIn.Logins ?? [])
                 Logins.Add(new LoginRow(login.Provider, string.Join(" · ", new[] { login.Email ?? login.DisplayName, login.LinkedAt?.ToLocalTime().ToString("g") }.OfType<string>())));
-            foreach (var provider in _auth.Providers.Where(p => p.Name != "password" && Logins.All(l => l.Provider != p.Name)))
+            // An account can have a passkey on each device, so "Add a passkey" stays.
+            foreach (var provider in _auth.Providers.Where(p => p.Name != "password" && (p.Name == "passkey" || Logins.All(l => l.Provider != p.Name))))
                 Linkable.Add(new LinkRow(provider.Name));
         }
 
@@ -94,7 +95,10 @@ public partial class SignInPageViewModel : SampleViewModel
         // Removing a way in is not undone by the same tap, so it asks first.
         var name = Logins.FirstOrDefault(l => l.Provider == provider)?.Name ?? provider;
         var unlink = new MenuAction($"Unlink {name}", "Unlink.svg") { IsDestructive = true };
-        var picked = await _navigation.ShowActionsAsync(new ActionSheet(null, $"{name} no longer signs in to this account. Link it again to add it back.")
+        var message = provider == "passkey"
+            ? "The account's passkeys no longer sign in to it. Delete them from Passwords on each device, and add a new one to sign in with a passkey again."
+            : $"{name} no longer signs in to this account. Link it again to add it back.";
+        var picked = await _navigation.ShowActionsAsync(new ActionSheet(null, message)
         {
             Actions = [unlink],
         });

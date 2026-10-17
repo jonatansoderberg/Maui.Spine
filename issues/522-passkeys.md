@@ -71,6 +71,21 @@ The wikis (`authentication.md`, `authentication-server.md`), the new package's R
 
 ## Changes
 
+- **Server** (`Plugin.Maui.Spine.Server.Authentication`): `Passkeys(p => …)` with `SpinePasskeyOptions` (relying party, origins, Apple app ids, Android apps, sign-up, challenge lifetime); `SpinePasskeys` over Fido2NetLib 4.2.0; `POST /auth/passkey/{register/options,register,signin/options,signin}` (`SpineAuthEndpoints.PasskeyAsync`); `MapSpinePasskeyAssociations()` for `apple-app-site-association` and `assetlinks.json`; `PasskeyPublicKey` and `PasskeySignCount` on `SpineAuthLogin`, also in Azure Tables; `SpineAuthDefaults.PasskeyProvider`.
+- **Contracts** (`.Common`): `SpinePasskeyChallenge`, `SpinePasskeyNewAccount`, `SpinePasskeyResponse`, and the error `unknown_passkey`.
+- **App core** (`Plugin.Maui.Spine.Authentication`): the internal `IPasskeyCeremony` and `AddPasskeyCeremony`; the flows (`PasskeySignInAsync`, `PasskeyRegisterAsync`) and the client calls; `ISpineAuth.SignUpWithPasskeyAsync` and `SignInWithPasskeyAutoFillAsync`; `SignInAsync("passkey")` and `LinkAsync("passkey")`; `passkey` in `Providers`.
+- **The sheet:** a passkey `SignInButton` ("Sign in with a passkey"), the step `PasskeySignUp` behind "Create account with a passkey", AutoFill while the email field shows (its text content type is `Username` on iOS), English and Swedish text, and `signin-passkey.svg`.
+- **New package** `Plugin.Maui.Spine.Authentication.Passkeys`: `a.AddPasskeys()`, `ApplePasskeys` over `ASAuthorizationPlatformPublicKeyCredentialProvider`, and `SpinePasskeyDomain` → the Associated Domains entitlement.
+- **Showcase:** `-p:SpinePasskeyDomain=…` turns passkeys on; "Add a passkey" on the Sign-in page; the unlink question says what removing passkeys means.
+- **Push sample server:** `Auth:Passkeys:RelyingPartyId` (the Azure host in `appsettings.Production.json`), the Apple app id from the team id it already has, and `MapSpinePasskeyAssociations()`. Deployed to Azure.
+- **Tests:** 18 server tests with a software authenticator (ES256, "none" attestation), 5 client flow tests against a real server.
+- **Docs:** the wikis, the package README, the README and packages tables, the spine-setup skill, and the plan (5.4a/b/c, Q12).
+
 ## Decisions
 
 - 2026-10-17, owner: the Azure domain; Fido2NetLib; Apple first, then Android (#601) and Windows (#602); all four ways into the app.
+- **A passkey is a login with its key on `SpineAuthLogin`,** not new `IUserResolver` methods as the plan said: the stores keep it with the login, and nothing else changes for an app's own resolver. AAGUID and transports are not kept; nothing reads them yet.
+- **`unknown_passkey`** is its own error: "Wrong email or password" would be wrong for a passkey that was removed from the account. A refused signature or user handle is `invalid_token`.
+- **AutoFill is iOS only** (Mac Catalyst's binding has no `PerformAutoFillAssistedRequests`). A button's request cancels a pending AutoFill request first, and AutoFill waits for the sheet to close.
+- **`excludeCredentials`** goes through `IASAuthorizationWebBrowserPlatformPublicKeyCredentialRegistrationRequest`, where the .NET binding has it, when the request responds to `setExcludedCredentials:` (iOS 17.4).
+- **The simulator needs a signed build** for passkeys: without `application-identifier` in the entitlements iOS answers 1004 ("process without application identifier"). An incremental build after adding `CodesignKey` kept the old embedded entitlements; a clean simulator build was needed.

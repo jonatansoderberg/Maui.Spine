@@ -76,6 +76,7 @@ One version, thirty-four packages, all on [nuget.org](https://www.nuget.org/pack
 | Security | `Plugin.Maui.Spine.Authentication` | Sign-in against the app's own server: Sign in with Apple's sheet, email and password in a ready-made sheet, any OpenID Connect provider in the system browser, `[RequiresSignIn]` on a page or a command, refresh tokens in secure storage, an `HttpClient` handler |
 | Security | `Plugin.Maui.Spine.Authentication.Google` | Sign in with Google: Credential Manager's sheet on Android, the server's broker in the browser elsewhere |
 | Security | `Plugin.Maui.Spine.Authentication.Microsoft` | Sign in with Microsoft through MSAL and the broker (Authenticator, Company Portal, WAM), via the Spine server or straight to an Entra-protected API |
+| Security | `Plugin.Maui.Spine.Authentication.Passkeys` | Passkeys through the platform's own sheet: sign-in, sign-up, "Add a passkey" and AutoFill; iOS and Mac Catalyst |
 | Security | `Plugin.Maui.Spine.Biometrics` | Face ID, Touch ID, fingerprint and Windows Hello; `[RequiresUnlock]` on a page or a command, an app lock and `[PrivacyShield]` |
 | Controls | `Plugin.Maui.Spine.Controls.HeroCollectionView` | `CollectionView` with a collapsing hero header |
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |

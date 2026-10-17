@@ -9,6 +9,7 @@ dotnet add package Plugin.Maui.Spine.Authentication
 - Sign-in in the system browser: any provider the server brokers, and Apple on Android and Windows.
 - [Sign in with Google](#sign-in-with-google) with `Plugin.Maui.Spine.Authentication.Google`: Credential Manager's sheet on Android, the browser elsewhere.
 - [Sign in with Microsoft](#sign-in-with-microsoft) with `Plugin.Maui.Spine.Authentication.Microsoft`: MSAL with the broker, via the Spine server or straight to an Entra-protected API.
+- [Passkeys](#passkeys) with `Plugin.Maui.Spine.Authentication.Passkeys`: sign-in, sign-up and AutoFill through the platform's own passkey sheet, on iOS and Mac Catalyst.
 - `[RequiresSignIn]` on a page or a command.
 - The refresh token in secure storage.
 - An `HttpClient` handler that adds the access token and refreshes it.
@@ -140,6 +141,40 @@ o.AddAuthentication(a => a.UseMicrosoft(m =>
 - **App Store Review Guideline 4.8** applies to `AddMicrosoft` as to Google. `UseMicrosoft` is for apps whose users sign in with their organization's account, which the guideline exempts, so it is not checked.
 
 The Entra setup, a redirect URI per platform and the iOS Info.plist entries (the build stops without them), is in [the package's README](../../src/Plugin.Maui.Spine.Authentication.Microsoft/README.md).
+
+## Passkeys
+
+```bash
+dotnet add package Plugin.Maui.Spine.Authentication.Passkeys
+```
+
+```csharp
+o.AddAuthentication(a =>
+{
+    a.Server = new Uri("https://api.example.com/auth");
+    a.AddApple();
+    a.AddPasskeys();                           // a => a.AddPasskeys(p => p.AllowSignUp = false) without sign-up
+});
+```
+
+```xml
+<SpinePasskeyDomain>api.example.com</SpinePasskeyDomain>
+```
+
+A passkey belongs to a domain, the server's `Passkeys(p => p.RelyingPartyId = "api.example.com")`, and iOS lets the app use it only when the two vouch for each other:
+- **The app** has the domain in its Associated Domains entitlement as `webcredentials:api.example.com`. `SpinePasskeyDomain` adds it, and the App ID needs the Associated Domains capability, then a provisioning profile made again.
+- **The domain** names the app in `/.well-known/apple-app-site-association`, which `app.MapSpinePasskeyAssociations()` serves from `AppleAppIds` (`TEAMID.bundle.id`). Apple's CDN fetches it, so the server must be public over https.
+
+What the sheet offers:
+- **"Sign in with a passkey"**: the platform's sheet lists the device's passkeys for the domain (and passkeys on a nearby phone), with no username typed.
+- **"Create account with a passkey"**: a name or an email, then the sheet makes the passkey and the account signs in. The email is shown on the login, unverified, and is not the account's email.
+- **AutoFill** on iOS: while the email field shows, the keyboard's suggestions offer the device's passkeys, and picking one signs in.
+- **"Add a passkey"** on a signed-in account: `LinkAsync("passkey")`. An account can have a passkey on each device; `UnlinkAsync("passkey")` removes them all, never the last way in.
+
+The same through `ISpineAuth`: `SignInAsync("passkey")`, `SignUpWithPasskeyAsync(displayName, email)`, and `SignInWithPasskeyAutoFillAsync(cancellationToken)` for an app's own sign-in page, started when its username field shows and cancelled when the page goes. That field needs the `Username` text content type (the sheet sets it on iOS).
+
+- **Platforms:** iOS and Mac Catalyst 16 or later. Android (#601) and Windows (#602) are not there yet; the sheet leaves passkeys out there, and the methods answer `Failed`.
+- **The simulator** needs a signed build (`CodesignKey` and a profile for the App ID) so the app has an application identifier, and Face ID enrolled (Features ▸ Face ID ▸ Enrolled). Without the identifier iOS answers error 1004.
 
 ## Without a Spine server
 
@@ -308,6 +343,8 @@ The Showcase's Sign-in page runs against the push sample server's `/auth` on `ht
 - a `[RequiresSignIn]` command that calls `/sample/me` through a client with `AddSpineAuthentication()`;
 - deleting the account.
 
+Passkeys are offered only in a build with `-p:SpinePasskeyDomain=spine-showcase-e41ddd.azurewebsites.net`, against the push sample server in Azure (`-p:SpineSampleServer=https://spine-showcase-e41ddd.azurewebsites.net/`), whose association file names the Showcase. The Sign-in page then has "Add a passkey".
+
 Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true`, which adds the entitlement; a profile for the Showcase's App ID must then have the capability, as `Spine Showcase Development` does. The simulator needs an Apple ID signed in under Settings. Google is offered only in a build with `-p:SpineGoogleServerClientId=<the Web client's id>`, because it needs a Google Cloud project: the push sample server reads `Auth:Google:WebClientId` and `Auth:Google:WebClientSecret`, and the Android client needs the debug key's SHA-1. Without Sign in with Apple, that build sets `AppleNotRequired`. The Showcase's callback scheme is `se.cosmomedia.spineshowcase`.
 
 ## Not verified yet
@@ -318,4 +355,5 @@ Sign in with Apple is offered only in a build with `-p:SpineSignInWithApple=true
 - Sign in with Microsoft on Android, Windows (WAM) and Mac Catalyst, and with Microsoft Authenticator installed.
 - Sign in with Google's Credential Manager on Android. The broker ran against the real Google in the iOS simulator: the sign-in, the code traded at Google, the picture, the names and the verified email.
 - The push link with a real push token.
+- Passkeys (#522) ran in the iPhone 17 simulator against the push sample server in Azure: a new account with a passkey, sign-out, and sign-in with "Sign in with a passkey". The AutoFill request started when the email field showed, but its suggestions were not seen, because the simulator had a hardware keyboard. Not run yet: AutoFill's suggestions, "Add a passkey" to an account, a device, and Mac Catalyst.
 - Linking (#575) ran in the iOS simulator against the push sample server: a password account, Apple linked from the Sign-in page and unlinked, the last login refused, and after an unlink a new Apple sign-in through "Is this your first time here?" and "I've signed in before" with the password, ending with one account with both. Linking Google and Microsoft from the app ran only in tests, through the sheet's path and the browser broker.

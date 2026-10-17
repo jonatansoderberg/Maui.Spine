@@ -36,6 +36,7 @@ dotnet build ../MauiSpineSampleApp -c Release -f net10.0-ios -r ios-arm64 \
 `appsettings.Production.json` sets `Sample:Hosted`. With it:
 - **Sign-in:** `/auth` is rate limited per IP (30 a minute).
 - **Accounts:** users are kept in Table storage (`Auth:Storage`), so they survive a restart.
+- **Passkeys:** `Auth:Passkeys:RelyingPartyId` is the Azure host, and `/.well-known/apple-app-site-association` names the Showcase (`<team id>.se.cosmomedia.spineshowcase`, the team id from `Auth:Apple:TeamId` or `Push:Apple:TeamId`). A Showcase built with `-p:SpinePasskeyDomain=spine-showcase-e41ddd.azurewebsites.net` uses them.
 - **Push:** `/send`, `/installations` and `/channels` need a signed-in user, and reach and list only that user's devices. Broadcasts are not sent.
 - **AI:** the paid features (Story, Quick, Picture, Voice) answer signed-in users only, within their daily caps. Assistant and Summary use the free demo provider.
 - **Avatars:** `GET /sample/avatars/kairo.spineavatar` serves Kairo (16.6 MB) to the Showcase's Avatars page, which caches it. The file is published with the server (linked from `samples/SpineAvatarLab`); nothing else is served there.

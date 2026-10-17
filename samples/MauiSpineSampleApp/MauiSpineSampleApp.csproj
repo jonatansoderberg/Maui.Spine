@@ -828,6 +828,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Authentication\Plugin.Maui.Spine.Authentication.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Authentication.Google\Plugin.Maui.Spine.Authentication.Google.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Authentication.Microsoft\Plugin.Maui.Spine.Authentication.Microsoft.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Authentication.Passkeys\Plugin.Maui.Spine.Authentication.Passkeys.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg\Plugin.Maui.Spine.Svg.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Svg.Icons\Plugin.Maui.Spine.Svg.Icons.csproj" />
 	</ItemGroup>
@@ -860,6 +861,7 @@
 	<Import Project="..\..\src\Plugin.Maui.Spine.Biometrics\build\Plugin.Maui.Spine.Biometrics.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Authentication\build\Plugin.Maui.Spine.Authentication.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Authentication.Microsoft\build\Plugin.Maui.Spine.Authentication.Microsoft.targets" />
+	<Import Project="..\..\src\Plugin.Maui.Spine.Authentication.Passkeys\build\Plugin.Maui.Spine.Authentication.Passkeys.targets" />
 	<Import Project="..\..\src\Plugin.Maui.Spine.Voice\build\Plugin.Maui.Spine.Voice.targets" />
 
 	<!-- Sign in with Apple needs the capability in the App ID; build with -p:SpineSignInWithApple=true when it has it. -->
@@ -888,6 +890,12 @@
 	<ItemGroup Condition="'$(SpineGoogleServerClientId)' != ''">
 		<AssemblyMetadata Include="SpineGoogleServerClientId" Value="$(SpineGoogleServerClientId)" />
 	</ItemGroup>
+	<!-- Passkeys belong to the server's domain, and the App ID needs Associated Domains, so they are on only in a build
+	     with -p:SpinePasskeyDomain=<the server's host>, the Auth:Passkeys:RelyingPartyId of the push sample server
+	     (spine-showcase-e41ddd.azurewebsites.net in Azure). -->
+	<PropertyGroup Condition="'$(SpinePasskeyDomain)' != ''">
+		<DefineConstants>$(DefineConstants);SPINE_PASSKEYS</DefineConstants>
+	</PropertyGroup>
 	<!-- Sign in with Microsoft needs an Entra app registration, so it is on only in a build with
 	     -p:SpineMicrosoftClientId=<its Application (client) id>, the id the push sample server has as Auth:Microsoft:ClientId. -->
 	<PropertyGroup Condition="'$(SpineMicrosoftClientId)' != ''">
