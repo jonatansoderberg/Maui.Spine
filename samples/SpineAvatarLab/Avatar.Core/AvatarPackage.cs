@@ -19,7 +19,8 @@ public sealed class AvatarPackage
         Report = report;
     }
 
-    public AvatarManifest Manifest { get; }
+    /// <summary>The manifest with its defaults applied and each representation's capabilities computed.</summary>
+    public AvatarManifest Manifest { get; internal set; }
 
     public AvatarValidationReport Report { get; }
 
@@ -35,13 +36,45 @@ public sealed class AvatarPackage
         return found;
     }
 
+    /// <summary>
+    /// The representation's bindings with the conventions applied: a clip whose name is an animation's
+    /// is that animation, and in a GLB a morph target named like a pose (<c>viseme_PP</c>,
+    /// <c>expr_happy</c>) is that pose when the file does not define it. No bindings file: empty bindings.
+    /// </summary>
     public AvatarBindings GetBindings(AvatarRepresentation representation) =>
-        Parsed("bindings:" + representation.Id, () =>
+        Parsed("bindings:" + representation.Id, () => AvatarConventions.Apply(this, representation, GetDeclaredBindings(representation)));
+
+    /// <summary>The bindings file as written, without the conventions.</summary>
+    public AvatarBindings GetDeclaredBindings(AvatarRepresentation representation) =>
+        Parsed("declared-bindings:" + representation.Id, () =>
         {
-            var bindings = AvatarJson.ReadBindings(GetFile(representation.Bindings).Span, representation.Bindings);
+            if (representation.Bindings is not { } path)
+                return AvatarBindings.Empty(representation.Renderer);
+            var bindings = AvatarJson.ReadBindings(GetFile(path).Span, path);
             return bindings.Renderer == representation.Renderer
                 ? bindings
-                : throw new AvatarFormatException(representation.Bindings, $"renderer is '{bindings.Renderer}', the representation's is '{representation.Renderer}'");
+                : throw new AvatarFormatException(path, $"renderer is '{bindings.Renderer}', the representation's is '{representation.Renderer}'");
+        });
+
+    /// <summary>The idle variants and gestures this representation plays: the manifest's, or by convention the clips it has.</summary>
+    public AvatarMotions GetMotions(AvatarRepresentation representation) =>
+        Parsed("motions:" + representation.Id, () =>
+        {
+            var motions = Manifest.Motions;
+            if (motions.IdleVariants is not null && motions.Gestures is not null)
+                return motions;
+            var animations = GetBindings(representation).Animations;
+            var gestures = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var (gesture, clips) in AvatarVocabulary.Gestures)
+            {
+                if (clips.FirstOrDefault(animations.ContainsKey) is { } animation)
+                    gestures[gesture] = animation;
+            }
+            return motions with
+            {
+                IdleVariants = motions.IdleVariants ?? [.. AvatarVocabulary.IdleVariants.Where(animations.ContainsKey)],
+                Gestures = motions.Gestures ?? gestures,
+            };
         });
 
     public Spine2dScene GetScene(AvatarRepresentation representation) =>

@@ -32,6 +32,7 @@
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#E8F6F7" />
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#E8F6F7" BaseSize="160,160" />
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+		<EmbeddedResource Include="Avatar.Core\Schemas\*.json" LogicalName="Plugin.Maui.Spine.Controls.Avatar.Core.Schemas.%(Filename)%(Extension)" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -139,13 +139,13 @@ public sealed class AvatarScheduler
             _stateClip[i] = Clip(bindings.StateAnimations?.GetValueOrDefault(name) ?? _stateProfile[i].Animation);
         }
 
+        // An expression the representation has no pose for shows as neutral (a shader reads expressions as uniforms, so it has them all).
+        var neutralPose = manifest.Expressions["neutral"].Pose;
         for (var i = 0; i < 8; i++)
         {
-            if (manifest.Expressions.TryGetValue(AvatarVocabulary.Expressions[i], out var expression))
-            {
-                _expressionPose[i] = expression.Pose;
-                _expressionTransitionMs[i] = expression.TransitionMs;
-            }
+            var expression = manifest.Expressions[AvatarVocabulary.Expressions[i]];
+            _expressionPose[i] = representation.Format == "sksl" || bindings.Poses.ContainsKey(expression.Pose) ? expression.Pose : neutralPose;
+            _expressionTransitionMs[i] = expression.TransitionMs;
         }
 
         HasSpeechArticulation = manifest.Speech.Mode == "canonicalVisemes" && representation.Has("speechArticulation");
@@ -155,8 +155,9 @@ public sealed class AvatarScheduler
                 _visemePose[i] = manifest.Speech.Mapping.GetValueOrDefault(i.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
-        _idleClips = [.. manifest.Motions.IdleVariants.Select(Clip).OfType<string>()];
-        foreach (var (gesture, animation) in manifest.Motions.Gestures)
+        var motions = package.GetMotions(representation);
+        _idleClips = [.. motions.IdleVariants!.Select(Clip).OfType<string>()];
+        foreach (var (gesture, animation) in motions.Gestures!)
         {
             if (Clip(animation) is { } clip)
                 _gestures[gesture] = clip;
@@ -165,8 +166,8 @@ public sealed class AvatarScheduler
         _schedulerBlinks = representation.BlinkOwner == "scheduler" && representation.Has("blink");
         _schedulerGazes = representation.GazeOwner == "scheduler" && representation.Has("gaze");
         _blinkClip = _schedulerBlinks ? Clip("blink") : null;
-        _blinkMin = manifest.Motions.BlinkIntervalSeconds?[0] ?? 2.8;
-        _blinkMax = manifest.Motions.BlinkIntervalSeconds?[1] ?? 6.5;
+        _blinkMin = (motions.BlinkIntervalSeconds ?? AvatarDefaults.BlinkIntervalSeconds)[0];
+        _blinkMax = (motions.BlinkIntervalSeconds ?? AvatarDefaults.BlinkIntervalSeconds)[1];
         _reducedPose = manifest.ReducedMotion.Pose;
         _reducedTransition = manifest.ReducedMotion.TransitionMs / 1000.0;
         _release = Math.Clamp(manifest.Speech.ReleaseMs, 50, 100) / 1000.0;

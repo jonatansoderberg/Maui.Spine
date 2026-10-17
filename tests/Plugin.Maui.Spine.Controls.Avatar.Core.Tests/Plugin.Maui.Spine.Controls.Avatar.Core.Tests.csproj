@@ -20,6 +20,7 @@
 	<ItemGroup>
 		<Compile Include="..\..\samples\SpineAvatarLab\Avatar.Core\**\*.cs" LinkBase="Avatar.Core" />
 		<Compile Include="..\..\samples\SpineAvatarLab\Avatar.Skia\**\*.cs" LinkBase="Avatar.Skia" />
+		<EmbeddedResource Include="..\..\samples\SpineAvatarLab\Avatar.Core\Schemas\*.json" LogicalName="Plugin.Maui.Spine.Controls.Avatar.Core.Schemas.%(Filename)%(Extension)" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Avatars\*.spineavatar" LinkBase="Avatars" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Fixtures\*" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>

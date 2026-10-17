@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jonatansoderberg/Maui.Spine/schemas/spineavatar/1.0/bindings.schema.json",
+  "title": "Spine Avatar bindings, format 1.0",
+  "description": "What each pose, animation and level moves in one representation's model. Conventional names need no entry: an animation is the model's clip of the same name, and in a GLB a pose is the morph target of the same name. A pose that is not listed is empty; do not write empty poses. An sksl representation needs no bindings file.",
+  "type": "object",
+  "required": ["schemaVersion", "renderer"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "renderer": { "type": "string", "pattern": "^[a-z][a-z0-9]{1,31}$" },
+    "poses": { "type": "object", "additionalProperties": { "type": "array" } },
+    "animations": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 }, "description": "Animation name → the model's clip, only where the names differ." },
+    "stateAnimations": {
+      "type": "object", "additionalProperties": false,
+      "description": "A looping animation per state, replacing the idle loop while the state shows.",
+      "properties": {
+        "idle": { "type": "string" }, "connecting": { "type": "string" }, "listening": { "type": "string" }, "thinking": { "type": "string" },
+        "speaking": { "type": "string" }, "interrupted": { "type": "string" }, "muted": { "type": "string" }
+      }
+    },
+    "parameters": {
+      "type": "object", "additionalProperties": false,
+      "description": "Levels 0–1 mapped onto properties from min to max. Values are absolute, unlike clip values in spine2d 1.1, which are offsets and factors.",
+      "properties": {
+        "inputLevel": { "$ref": "#/$defs/levelWrites" }, "outputLevel": { "$ref": "#/$defs/levelWrites" },
+        "inputLow": { "$ref": "#/$defs/levelWrites" }, "inputMid": { "$ref": "#/$defs/levelWrites" }, "inputHigh": { "$ref": "#/$defs/levelWrites" },
+        "outputLow": { "$ref": "#/$defs/levelWrites" }, "outputMid": { "$ref": "#/$defs/levelWrites" }, "outputHigh": { "$ref": "#/$defs/levelWrites" }
+      }
+    },
+    "channelMasks": {
+      "type": "object", "additionalProperties": false,
+      "description": "The channels each layer may write; a write outside its layer's mask is dropped.",
+      "properties": {
+        "expression": { "$ref": "#/$defs/strings" }, "speech": { "$ref": "#/$defs/strings" },
+        "idle": { "$ref": "#/$defs/strings" }, "reflex": { "$ref": "#/$defs/strings" }
+      }
+    },
+    "framing": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "safeInset": { "type": "number", "minimum": 0, "maximum": 0.5 },
+        "fit": { "enum": ["contain", "cover"] },
+        "cameraPosition": { "$ref": "#/$defs/vector3" },
+        "lookAt": { "$ref": "#/$defs/vector3" },
+        "verticalFov": { "type": "number", "exclusiveMinimum": 0, "maximum": 120 }
+      }
+    },
+    "clipBlend": { "enum": ["additive", "override"], "description": "glb: override for skinned characters, whose clips must not add to the rest pose." },
+    "gaze": {
+      "type": "object", "additionalProperties": false,
+      "description": "glb: slide a node (rangeMeters), turn a bone (headRotation) or drive look morph targets; turn follows a held look.",
+      "properties": {
+        "node": { "$ref": "#/$defs/index" },
+        "rangeMeters": { "type": "number" },
+        "headRotation": { "type": "number" },
+        "morphs": {
+          "type": "object", "additionalProperties": false, "required": ["mesh", "left", "right", "up", "down"],
+          "properties": {
+            "mesh": { "$ref": "#/$defs/index" }, "primitives": { "$ref": "#/$defs/indices" },
+            "left": { "$ref": "#/$defs/index" }, "right": { "$ref": "#/$defs/index" }, "up": { "$ref": "#/$defs/index" }, "down": { "$ref": "#/$defs/index" }
+          }
+        },
+        "turn": {
+          "type": "object", "additionalProperties": false, "required": ["node", "factor"],
+          "properties": { "node": { "$ref": "#/$defs/index" }, "factor": { "type": "number" } }
+        }
+      }
+    },
+    "blink": {
+      "description": "glb: the morph target(s) the scheduler drives 0 → 1 → 0.",
+      "anyOf": [{ "$ref": "#/$defs/blinkTarget" }, { "type": "array", "items": { "$ref": "#/$defs/blinkTarget" } }]
+    },
+    "muteBadge": { "$ref": "#/$defs/morphWrite" },
+    "headNode": { "$ref": "#/$defs/index" },
+    "eyesNode": { "$ref": "#/$defs/index" },
+    "mouthNode": { "$ref": "#/$defs/index" },
+    "speechMouthMesh": { "$ref": "#/$defs/index", "description": "glb: the mesh whose expression targets are damped while speaking." },
+    "expressionMouthTargets": { "$ref": "#/$defs/indices" },
+    "defaultTransforms": { "type": "object" },
+    "extensions": {
+      "type": "object",
+      "description": "Renderer- or model-specific keys, <namespace>.<name>. Spine's renderers read spine.lighting (\"portrait\"), spine.bloom ({intensity, threshold, radius}), spine.springs (false: no squash, lift or tilt), spine.neckChain and spine.blinkFrames.",
+      "propertyNames": { "pattern": "^[a-z][a-zA-Z0-9]*\\.[A-Za-z0-9_.-]+$" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "renderer": { "const": "native3d" } }, "required": ["renderer"] },
+      "then": { "properties": { "poses": { "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/glbWrite" } } } } }
+    },
+    {
+      "if": { "properties": { "renderer": { "const": "skia" } }, "required": ["renderer"] },
+      "then": { "properties": { "poses": { "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/spine2dWrite" } } } } }
+    }
+  ],
+  "$defs": {
+    "index": { "type": "integer", "minimum": 0 },
+    "indices": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+    "strings": { "type": "array", "items": { "type": "string" } },
+    "vector3": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+    "morphWrite": {
+      "type": "object", "additionalProperties": false, "required": ["node", "mesh", "targetIndex"],
+      "properties": {
+        "node": { "$ref": "#/$defs/index" }, "mesh": { "$ref": "#/$defs/index" }, "primitives": { "$ref": "#/$defs/indices" },
+        "targetIndex": { "$ref": "#/$defs/index" }, "value": { "type": "number" },
+        "expectedName": { "type": "string", "description": "The target's name in the mesh's extras.targetNames, checked at load." }
+      }
+    },
+    "transformWrite": {
+      "type": "object", "additionalProperties": false, "required": ["node", "property", "value"],
+      "properties": {
+        "node": { "$ref": "#/$defs/index" },
+        "property": { "enum": ["translation", "rotation", "scale"] },
+        "value": { "type": "array", "minItems": 3, "maxItems": 4, "items": { "type": "number" } }
+      }
+    },
+    "glbWrite": { "anyOf": [{ "$ref": "#/$defs/morphWrite" }, { "$ref": "#/$defs/transformWrite" }] },
+    "spine2dWrite": {
+      "type": "object", "additionalProperties": false, "required": ["node", "property", "value"],
+      "properties": {
+        "node": { "type": "string", "minLength": 1 },
+        "property": { "type": "string" },
+        "value": { "type": ["number", "string"] }
+      }
+    },
+    "levelWrites": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["node", "min", "max"],
+        "properties": {
+          "node": { "type": ["integer", "string"] },
+          "mesh": { "$ref": "#/$defs/index" }, "primitives": { "$ref": "#/$defs/indices" }, "targetIndex": { "$ref": "#/$defs/index" },
+          "property": { "type": "string" },
+          "min": { "type": ["number", "array"] }, "max": { "type": ["number", "array"] }
+        }
+      }
+    },
+    "blinkTarget": {
+      "type": "object", "additionalProperties": false, "required": ["node", "mesh", "targetIndex"],
+      "properties": {
+        "node": { "$ref": "#/$defs/index" }, "mesh": { "$ref": "#/$defs/index" }, "primitives": { "$ref": "#/$defs/indices" },
+        "targetIndex": { "$ref": "#/$defs/index" }, "value": { "type": "number" }, "expectedName": { "type": "string" },
+        "suppressExpressionTargets": { "$ref": "#/$defs/indices" },
+        "expressionScaleRule": { "enum": ["oneMinusBlink"] },
+        "steps": { "$ref": "#/$defs/indices", "description": "Targets played in order as the lid closes (lid frames)." },
+        "closures": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["targetIndex", "closure"],
+            "properties": { "targetIndex": { "$ref": "#/$defs/index" }, "closure": { "type": "number", "minimum": 0, "maximum": 1 } }
+          }
+        }
+      }
+    }
+  }
+}

@@ -38,10 +38,12 @@ public static class AvatarArchive
         if (files is null)
             return null;
 
+        AvatarSchemas.Check(AvatarSchemas.Manifest, files[ManifestPath], ManifestPath, "manifest", report);
+
         AvatarManifest manifest;
         try
         {
-            manifest = AvatarJson.ReadManifest(files[ManifestPath]);
+            manifest = AvatarJson.ReadManifest(files[ManifestPath], report);
         }
         catch (AvatarFormatException e)
         {
@@ -53,6 +55,7 @@ public static class AvatarArchive
             return null;
 
         var package = new AvatarPackage(manifest, files, report);
+        AvatarCapabilities.Apply(package, report);
         AvatarValidator.Validate(package, report);
         return report.HasFailures ? null : package;
     }
