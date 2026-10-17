@@ -38,6 +38,7 @@ dotnet build ../MauiSpineSampleApp -c Release -f net10.0-ios -r ios-arm64 \
 - **Accounts:** users are kept in Table storage (`Auth:Storage`), so they survive a restart.
 - **Push:** `/send`, `/installations` and `/channels` need a signed-in user, and reach and list only that user's devices. Broadcasts are not sent.
 - **AI:** the paid features (Story, Quick, Picture, Voice) answer signed-in users only, within their daily caps. Assistant and Summary use the free demo provider.
+- **Avatars:** `GET /sample/avatars/kairo.spineavatar` serves Kairo (16.6 MB) to the Showcase's Avatars page, which caches it. The file is published with the server (linked from `samples/SpineAvatarLab`); nothing else is served there.
 
 The push register and the AI usage stay in memory, so they reset when the server sleeps. Apps register again when they start.
 

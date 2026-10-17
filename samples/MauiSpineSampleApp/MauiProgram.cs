@@ -99,6 +99,8 @@ public static class MauiProgram
 
         // The Sign-in page's calls to the sample server, with the access token.
         builder.Services.AddHttpClient("SampleApi", c => c.BaseAddress = SampleServer).AddSpineAuthentication();
+        // Files the sample server hands out without sign-in (Kairo for the Avatars page).
+        builder.Services.AddHttpClient("SampleServer", c => c.BaseAddress = SampleServer);
 
         // The AI client page: the push sample server with its demo provider (samples/MauiSpinePushNotificationsSampleApp.Server).
         // Android reaches it on localhost through adb reverse tcp:5100 tcp:5100.
