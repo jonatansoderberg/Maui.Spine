@@ -200,6 +200,8 @@ public sealed class AzureTableUserResolver(string connectionString, string prefi
         ["Email"] = login.Email,
         ["DisplayName"] = login.DisplayName,
         ["LinkedAt"] = login.LinkedAt,
+        ["PasskeyPublicKey"] = login.PasskeyPublicKey,
+        ["PasskeySignCount"] = login.PasskeyPublicKey is null ? null : (long)login.PasskeySignCount,
     };
 
     private static SpineAuthLogin ToLogin(TableEntity row) =>
@@ -210,6 +212,8 @@ public sealed class AzureTableUserResolver(string connectionString, string prefi
             Email = row.GetString("Email"),
             DisplayName = row.GetString("DisplayName"),
             LinkedAt = row.GetDateTimeOffset("LinkedAt"),
+            PasskeyPublicKey = row.GetBinary("PasskeyPublicKey"),
+            PasskeySignCount = (uint)(row.GetInt64("PasskeySignCount") ?? 0),
         };
 }
 

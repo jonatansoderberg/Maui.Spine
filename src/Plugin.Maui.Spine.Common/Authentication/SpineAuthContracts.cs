@@ -40,6 +40,24 @@ public sealed record SpineUser(
 public sealed record SpineLoginInfo(string Provider, string? Email = null, string? DisplayName = null, DateTimeOffset? LinkedAt = null);
 
 /// <summary>
+/// The start of a passkey ceremony: <c>POST /auth/passkey/register/options</c> or <c>/signin/options</c>. The app hands
+/// <paramref name="Options"/> to the platform and posts its answer back with <paramref name="ChallengeId"/>.
+/// </summary>
+/// <param name="ChallengeId">Names this ceremony on the server; it works once, for a few minutes.</param>
+/// <param name="Options">WebAuthn's <c>PublicKeyCredentialCreationOptions</c> or <c>…RequestOptions</c>, as JSON.</param>
+public sealed record SpinePasskeyChallenge(string ChallengeId, string Options);
+
+/// <summary>A new account made with a passkey: the body of <c>POST /auth/passkey/register/options</c> without an access token.</summary>
+/// <param name="DisplayName">The name the passkey and the account carry.</param>
+/// <param name="Email">An email to show; kept unverified, not as the account's email, until a code verifies it.</param>
+public sealed record SpinePasskeyNewAccount(string? DisplayName, string? Email);
+
+/// <summary>What the platform's passkey sheet answered: the body of <c>POST /auth/passkey/register</c> or <c>/signin</c>.</summary>
+/// <param name="ChallengeId">The <see cref="SpinePasskeyChallenge.ChallengeId"/>.</param>
+/// <param name="Credential">The WebAuthn credential as JSON (<c>PublicKeyCredential.toJSON()</c>'s shape).</param>
+public sealed record SpinePasskeyResponse(string ChallengeId, string Credential);
+
+/// <summary>
 /// A sign-in with an identity the server does not know, while the server asks before it makes an account
 /// (<c>AskBeforeNewAccount</c>). The app asks the user, then either creates the account (<c>POST /auth/pending/create</c>)
 /// or links the identity to the account the user proves with another way to sign in (<c>POST /auth/pending/link</c>).
@@ -188,6 +206,9 @@ public static class SpineAuthErrors
 [JsonSerializable(typeof(SpinePendingIdentity))]
 [JsonSerializable(typeof(SpinePendingRequest))]
 [JsonSerializable(typeof(SpineLinkTicket))]
+[JsonSerializable(typeof(SpinePasskeyChallenge))]
+[JsonSerializable(typeof(SpinePasskeyNewAccount))]
+[JsonSerializable(typeof(SpinePasskeyResponse))]
 internal sealed partial class SpineAuthJsonContext : JsonSerializerContext;
 
 /// <summary>The wire format of the sign-in endpoints, shared by the app and the server: camelCase, nulls left out.</summary>

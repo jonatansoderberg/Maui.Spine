@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -287,6 +288,96 @@ public static class SpineAuthEndpoints
         }
     }
 
+    /// <summary>
+    /// <c>POST /auth/passkey/{action}</c>, the passkey ceremonies: <c>register/options</c> then <c>register</c> make a
+    /// passkey, for the signed-in user (with an access token) or for a new account (a <see cref="SpinePasskeyNewAccount"/>
+    /// body, without one); <c>signin/options</c> then <c>signin</c> sign in with one. The options answer a
+    /// <see cref="SpinePasskeyChallenge"/>; the second step takes a <see cref="SpinePasskeyResponse"/>.
+    /// </summary>
+    /// <param name="request">The incoming request.</param>
+    /// <param name="action">The step, from the route.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>
+    /// A <see cref="SpinePasskeyChallenge"/> or <see cref="SpineTokens"/>, or a <see cref="SpineAuthProblem"/>: 404 when
+    /// passkeys are not configured, 403 <c>signup_closed</c>, 401 for an expired ceremony or a refused or unknown passkey.
+    /// </returns>
+    public static async Task<IResult> PasskeyAsync(HttpRequest request, string action, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (Service<SpineAuthOptions>(request).PasskeyOptions is null)
+            return Answer(request, SignInOutcome.Refused(404, SpineAuthErrors.UnknownProvider));
+
+        var passkeys = Service<SpinePasskeys>(request);
+        switch (action.ToLowerInvariant())
+        {
+            case "register/options":
+                var caller = await CallerAsync(request);
+                if (caller is null && request.Headers.Authorization.Count > 0) return Results.Unauthorized();
+
+                var newAccount = caller is null ? await BodyAsync(request, SpineAuthJsonTypes.PasskeyNewAccount, cancellationToken) : null;
+                if (caller is null && newAccount is null) return BadBody();
+
+                var (challenge, refusal) = await passkeys.RegisterOptionsAsync(newAccount, caller, cancellationToken);
+                return challenge is null ? Answer(request, refusal!) : NoStore(request, Results.Json(challenge, SpineAuthJson.Options));
+            case "signin/options":
+                return NoStore(request, Results.Json(await passkeys.SignInOptionsAsync(cancellationToken), SpineAuthJson.Options));
+            case "register":
+                return await BodyAsync(request, SpineAuthJsonTypes.PasskeyResponse, cancellationToken) is { ChallengeId.Length: > 0 } registration
+                    ? Answer(request, await passkeys.RegisterAsync(registration, cancellationToken))
+                    : BadBody();
+            case "signin":
+                return await BodyAsync(request, SpineAuthJsonTypes.PasskeyResponse, cancellationToken) is { ChallengeId.Length: > 0 } signIn
+                    ? Answer(request, await passkeys.SignInAsync(signIn, cancellationToken))
+                    : BadBody();
+            default:
+                return Answer(request, SignInOutcome.Refused(404, SpineAuthErrors.InvalidRequest, $"There is no passkey step '{action}'."));
+        }
+    }
+
+    /// <summary>
+    /// <c>GET /.well-known/apple-app-site-association</c>: the iOS and macOS apps that may use the domain's passkeys
+    /// (<see cref="SpinePasskeyOptions.AppleAppIds"/>, as <c>webcredentials</c>).
+    /// </summary>
+    /// <param name="request">The incoming request.</param>
+    /// <returns>The association file, or 404 when passkeys are not configured.</returns>
+    public static IResult AppleAppSiteAssociation(HttpRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (Service<SpineAuthOptions>(request).PasskeyOptions is not { } passkeys) return Results.NotFound();
+
+        var file = new JsonObject
+        {
+            ["webcredentials"] = new JsonObject { ["apps"] = new JsonArray([.. passkeys.AppleAppIds.Select(id => JsonValue.Create(id))]) },
+        };
+        return Results.Text(file.ToJsonString(), "application/json");
+    }
+
+    /// <summary>
+    /// <c>GET /.well-known/assetlinks.json</c>: the Android apps that may use the domain's passkeys
+    /// (<see cref="SpinePasskeyOptions.AndroidApps"/>, as <c>get_login_creds</c>).
+    /// </summary>
+    /// <param name="request">The incoming request.</param>
+    /// <returns>The statement list, or 404 when passkeys are not configured.</returns>
+    public static IResult AssetLinks(HttpRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (Service<SpineAuthOptions>(request).PasskeyOptions is not { } passkeys) return Results.NotFound();
+
+        var file = new JsonArray([.. passkeys.AndroidApps.Select(app => (JsonNode)new JsonObject
+        {
+            ["relation"] = new JsonArray("delegate_permission/common.get_login_creds"),
+            ["target"] = new JsonObject
+            {
+                ["namespace"] = "android_app",
+                ["package_name"] = app.PackageName,
+                ["sha256_cert_fingerprints"] = new JsonArray([.. app.Sha256Fingerprints.Select(f => JsonValue.Create(f))]),
+            },
+        })]);
+        return Results.Text(file.ToJsonString(), "application/json");
+    }
+
     /// <summary><c>GET /auth/.well-known/jwks.json</c>: the public keys of Spine's access tokens, for other services that check them.</summary>
     /// <param name="request">The incoming request.</param>
     /// <returns>A JWK set.</returns>
@@ -370,7 +461,8 @@ public static class SpineAuthEndpointRouteBuilderExtensions
     /// Maps every sign-in endpoint under <paramref name="prefix"/>: <c>GET nonce</c>, <c>POST {provider}/token</c>,
     /// <c>GET {provider}/start</c>, <c>GET</c>/<c>POST {provider}/callback</c>,
     /// <c>POST token</c>, <c>POST revoke</c>, <c>DELETE account</c>, <c>POST password/{action}</c>, <c>POST link/ticket</c>,
-    /// <c>POST</c>/<c>DELETE link/{provider}</c>, <c>POST pending/{action}</c> and <c>GET .well-known/jwks.json</c>.
+    /// <c>POST</c>/<c>DELETE link/{provider}</c>, <c>POST pending/{action}</c>, <c>POST passkey/{**action}</c> and
+    /// <c>GET .well-known/jwks.json</c>.
     /// </summary>
     /// <param name="endpoints">The application's route builder.</param>
     /// <param name="prefix">The path the endpoints live under.</param>
@@ -393,9 +485,27 @@ public static class SpineAuthEndpointRouteBuilderExtensions
         group.MapPost("/link/{provider}", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.LinkAsync(request, provider, ct));
         group.MapDelete("/link/{provider}", (HttpRequest request, string provider, CancellationToken ct) => SpineAuthEndpoints.UnlinkAsync(request, provider, ct));
         group.MapPost("/pending/{action}", (HttpRequest request, string action, CancellationToken ct) => SpineAuthEndpoints.PendingAsync(request, action, ct));
+        group.MapPost("/passkey/{**action}", (HttpRequest request, string action, CancellationToken ct) => SpineAuthEndpoints.PasskeyAsync(request, action, ct));
         group.MapGet("/.well-known/jwks.json", (HttpRequest request) => SpineAuthEndpoints.Jwks(request));
 
         return group;
+    }
+
+    /// <summary>
+    /// Maps <c>/.well-known/apple-app-site-association</c> and <c>/.well-known/assetlinks.json</c> at the site's root, so
+    /// iOS, macOS and Android let the apps in <see cref="SpinePasskeyOptions"/> use passkeys for its domain. Map them on
+    /// the host that <see cref="SpinePasskeyOptions.RelyingPartyId"/> names; an app with its own association files adds
+    /// <c>webcredentials</c> and <c>get_login_creds</c> to those instead.
+    /// </summary>
+    /// <param name="endpoints">The application's route builder.</param>
+    /// <returns>The same route builder, for chaining.</returns>
+    public static IEndpointRouteBuilder MapSpinePasskeyAssociations(this IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+
+        endpoints.MapGet("/.well-known/apple-app-site-association", (HttpRequest request) => SpineAuthEndpoints.AppleAppSiteAssociation(request));
+        endpoints.MapGet("/.well-known/assetlinks.json", (HttpRequest request) => SpineAuthEndpoints.AssetLinks(request));
+        return endpoints;
     }
 }
 
@@ -411,6 +521,8 @@ internal static class SpineAuthJsonTypes
     public static JsonTypeInfo<SpineEmailRequest> Email => Info<SpineEmailRequest>();
     public static JsonTypeInfo<SpinePasswordReset> Reset => Info<SpinePasswordReset>();
     public static JsonTypeInfo<SpinePendingRequest> Pending => Info<SpinePendingRequest>();
+    public static JsonTypeInfo<SpinePasskeyNewAccount> PasskeyNewAccount => Info<SpinePasskeyNewAccount>();
+    public static JsonTypeInfo<SpinePasskeyResponse> PasskeyResponse => Info<SpinePasskeyResponse>();
 
     private static JsonTypeInfo<T> Info<T>() => (JsonTypeInfo<T>)SpineAuthJson.Options.GetTypeInfo(typeof(T));
 }
