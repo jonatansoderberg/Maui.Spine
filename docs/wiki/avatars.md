@@ -2,7 +2,7 @@
 
 Animated characters and ambient visuals for a voice assistant, text-to-speech, a streamed chat answer, a guide or a status indicator. An avatar is content, a `.spineavatar` file the app bundles or downloads; Spine draws it, drives it and checks it.
 
-> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core, the view, the drivers, the presenter and scripts exist; chat wiring and the tool follow.
+> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core, the view, the drivers, the presenter, scripts and chat wiring exist; the tool follows.
 
 ## Packages
 
@@ -112,6 +112,13 @@ text.Begin();               // a reply is coming: Thinking
 text.Append("Hello, ");     // Speaking while it mouths
 text.Append("I am Nova.");
 text.Complete();            // Idle once it is mouthed
+```
+
+With a [ChatView](chat.md), the chat's `Sent` and `Streamed` events drive the Text driver, so the avatar thinks until the answer's first words and mouths it as it streams in:
+
+```csharp
+chat.Sent += (_, _) => text.Begin();
+chat.Streamed += (_, e) => { text.Append(e.Delta); if (e.IsComplete) text.Complete(); };
 ```
 
 `SpeechAvatarDriver` reads text aloud through [Speech](speech.md) and moves the mouth with the voice: Thinking until the voice starts, Speaking while it speaks, each word's mouth shapes laid down as the voice reaches it (EstimatedText). The view's `Interrupt()` stops the voice.

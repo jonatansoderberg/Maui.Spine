@@ -1,7 +1,10 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Plugin.Maui.Spine.AI;
+using Microsoft.Extensions.AI;
 using Plugin.Maui.Spine.Controls;
+using Plugin.Maui.Spine.Controls.Avatar;
+using Plugin.Maui.Spine.Speech;
 using Plugin.Maui.Spine.Voice;
 
 namespace MauiSpineSampleApp.Pages.Assistant;
@@ -27,15 +30,86 @@ public partial class AssistantPageViewModel : SampleViewModel
             IsConnected = false;
             Status = error is null ? $"Ended: {reason}." : $"Ended: {error.Message}";
         };
-        Driver = new VoiceAvatarDriver(Session);
+        _voiceDriver = new VoiceAvatarDriver(Session);
+        _speech = new SpeechAvatarDriver(services.GetRequiredService<ISpineSpeech>());
+        _assistant = services.GetRequiredKeyedService<IChatClient>("Assistant");
+        Driver = _voiceDriver;
+        ChatClient = _demo;
         Avatar = Avatars[0];
+    }
+
+    private readonly VoiceAvatarDriver _voiceDriver;
+    private readonly TextAvatarDriver _textDriver = new();
+    private readonly SpeechAvatarDriver _speech;
+    private readonly IChatClient _demo = new MauiSpineSampleApp.Pages.Chat.DemoChatClient();
+    private readonly IChatClient _assistant;
+
+    /// <summary>0: talk with the realtime model; 1: type, and the avatar mouths the answer as it streams in.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsVoice), nameof(IsText))]
+    public partial int ModeIndex { get; set; }
+
+    public bool IsVoice => ModeIndex == 0;
+
+    public bool IsText => ModeIndex == 1;
+
+    /// <summary>The text mode's answers: the Showcase's offline demo, or the server's Assistant feature.</summary>
+    [ObservableProperty]
+    public partial IChatClient ChatClient { get; set; }
+
+    [ObservableProperty]
+    public partial bool UseServer { get; set; }
+
+    /// <summary>Read each finished answer aloud, after mouthing it as it streamed.</summary>
+    [ObservableProperty]
+    public partial bool ReadAloud { get; set; }
+
+    [ObservableProperty]
+    public partial string Draft { get; set; } = "What can an avatar do?";
+
+    partial void OnModeIndexChanged(int value)
+    {
+        _textDriver.Clear();
+        _speech.Stop();
+        if (value == 1)
+            HostIndex = 0;
+        Driver = value == 1 ? _textDriver : _voiceDriver;
+    }
+
+    partial void OnUseServerChanged(bool value) => ChatClient = value ? _assistant : _demo;
+
+    /// <summary>The question went out: the avatar thinks until the answer's first piece arrives.</summary>
+    internal void OnSent()
+    {
+        _speech.Stop();
+        Driver = _textDriver;
+        _textDriver.Begin();
+    }
+
+    /// <summary>A piece of the answer arrived, or the answer ended.</summary>
+    internal async void OnStreamed(ChatStreamedEventArgs e)
+    {
+        if (e.Delta.Length > 0)
+            _textDriver.Append(e.Delta);
+        if (!e.IsComplete)
+            return;
+        _textDriver.Complete();
+        if (!ReadAloud || e.Text.Length == 0)
+            return;
+        while (_textDriver.IsBusy)
+            await Task.Delay(100);
+        Driver = _speech;
+        await _speech.SpeakAsync(e.Text);
+        if (IsText)
+            Driver = _textDriver;
     }
 
     /// <summary>The conversation: the avatar, the chat view and the edge read it.</summary>
     public IVoiceSession Session { get; }
 
-    /// <summary>The free-standing avatar's driver; VoiceView's character makes its own.</summary>
-    public VoiceAvatarDriver Driver { get; }
+    /// <summary>The free-standing avatar's driver: the voice session's, or in text mode the text or speech driver.</summary>
+    [ObservableProperty]
+    public partial AvatarDriver Driver { get; set; }
 
     public IReadOnlyList<AvatarChoice> Avatars { get; } =
     [

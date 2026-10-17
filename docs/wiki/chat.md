@@ -50,6 +50,7 @@ Every call sends the whole conversation to `Client`, with `ChatOptions` when the
 | `SendAsync(text)`, `SendCommand` | Send from code or a button of the app's own |
 | `Stop()`, `StopCommand` | Stop the answer on its way |
 | `Sent`, `Answered`, `Failed` | Events. `Answered` carries the whole `ChatResponse`, usage included |
+| `Streamed` | Each piece of an answer's text as it arrives (`Delta`, `Text` so far), and once more with `IsComplete` when it ends, however it ends. While `IsBusy` is true and no piece has come, the model is thinking |
 
 ## Streaming
 
@@ -67,6 +68,21 @@ Every call sends the whole conversation to `Client`, with `ChatOptions` when the
 | `AIFeatureOffException` (an `IEmptyResultException`) | This feature is not available right now. |
 | `AIRateLimitedException` | Too many questions. Try again in N s. |
 | Anything else | The answer could not be fetched. `Failed` carries the exception |
+
+### An avatar that mouths the answer
+
+`Streamed` is what an avatar needs to follow an answer with no audio (see [Avatars](avatars.md)):
+
+```csharp
+var text = new TextAvatarDriver();
+avatar.Driver = text;
+chat.Sent += (_, _) => text.Begin();                       // Thinking until the first words
+chat.Streamed += (_, e) =>
+{
+    text.Append(e.Delta);                                  // mouthed from its letters
+    if (e.IsComplete) text.Complete();
+};
+```
 
 ## The composer
 
