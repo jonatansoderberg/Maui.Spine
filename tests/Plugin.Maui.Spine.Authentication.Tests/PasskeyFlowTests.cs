@@ -88,9 +88,10 @@ public sealed class PasskeyFlowTests : IAsyncLifetime
         var signIns = 0;
         _session.SignedIn += (_, _) => signIns++;
 
-        var linked = await _flows.PasskeyRegisterAsync(new Sheet(_authenticator), null, default, link: await _session.GetAccessTokenAsync());
+        var linked = await _flows.PasskeyRegisterAsync(new Sheet(_authenticator), null, default, link: await _session.GetAccessTokenAsync(), deviceName: "Anna's iPhone");
 
         Assert.Equal(SignInStatus.SignedIn, linked.Status);
+        Assert.Equal("Anna's iPhone", linked.User!.Logins!.Single(l => l.Provider == "passkey").DeviceName);
         Assert.Equal(anna.User!.Id, linked.User!.Id);
         Assert.Equal(["passkey", "password"], linked.User.Logins!.Select(l => l.Provider).Order().ToArray());
         Assert.Equal(0, signIns);

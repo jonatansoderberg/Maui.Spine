@@ -169,7 +169,7 @@ What the sheet offers:
 - **"Sign in with a passkey"**: the platform's sheet lists the device's passkeys for the domain (and passkeys on a nearby phone), with no username typed.
 - **"Create account with a passkey"**: a name or an email, then the sheet makes the passkey and the account signs in. The email is shown on the login, unverified, and is not the account's email.
 - **AutoFill** on iOS: while the email field shows, the keyboard's suggestions offer the device's passkeys, and picking one signs in.
-- **"Add a passkey"** on a signed-in account: `LinkAsync("passkey")`. An account can have a passkey on each device; `UnlinkAsync("passkey", login.Subject)` removes one (a lost phone's), `UnlinkAsync("passkey")` all of them, never the last way in.
+- **"Add a passkey"** on a signed-in account: `LinkAsync("passkey")`. An account can have a passkey on each device; `UnlinkAsync("passkey", login.Subject)` removes one (a lost phone's), `UnlinkAsync("passkey")` all of them, never the last way in. Each passkey in `User.Logins` says where it is kept (`Authenticator`, such as "iCloud Keychain"), the device it was made on (`DeviceName`, which the app sends; iOS 16 and later answer "iPhone" without the user-assigned-device-name entitlement) and when it last signed in (`LastUsedAt`).
 
 The same through `ISpineAuth`: `SignInAsync("passkey")`, `SignUpWithPasskeyAsync(displayName, email)`, and `SignInWithPasskeyAutoFillAsync(cancellationToken)` for an app's own sign-in page, started when its username field shows and cancelled when the page goes. That field needs the `Username` text content type (the sheet sets it on iOS).
 

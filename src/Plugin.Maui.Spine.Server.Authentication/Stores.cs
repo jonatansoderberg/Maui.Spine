@@ -80,7 +80,19 @@ public sealed record SpineAuthLogin(string Provider, string Subject, string User
     /// <summary>A passkey's signature counter, which a sign-in must move forward when the authenticator keeps one.</summary>
     public uint PasskeySignCount { get; init; }
 
-    internal SpineLoginInfo ToContract() => new(Provider, Email, DisplayName, LinkedAt, Subject);
+    /// <summary>The AAGUID of the authenticator that made a passkey; empty for those that do not say.</summary>
+    public Guid? PasskeyAaguid { get; init; }
+
+    /// <summary>The name of the authenticator, from <c>SpinePasskeyOptions.AuthenticatorNames</c> at registration.</summary>
+    public string? PasskeyAuthenticator { get; init; }
+
+    /// <summary>The device a passkey was made on, as the app said.</summary>
+    public string? DeviceName { get; init; }
+
+    /// <summary>When the login last signed in; kept for passkeys.</summary>
+    public DateTimeOffset? LastUsedAt { get; init; }
+
+    internal SpineLoginInfo ToContract() => new(Provider, Email, DisplayName, LinkedAt, Subject, PasskeyAuthenticator, DeviceName, LastUsedAt);
 }
 
 /// <summary>

@@ -202,6 +202,10 @@ public sealed class AzureTableUserResolver(string connectionString, string prefi
         ["LinkedAt"] = login.LinkedAt,
         ["PasskeyPublicKey"] = login.PasskeyPublicKey,
         ["PasskeySignCount"] = login.PasskeyPublicKey is null ? null : (long)login.PasskeySignCount,
+        ["PasskeyAaguid"] = login.PasskeyAaguid,
+        ["PasskeyAuthenticator"] = login.PasskeyAuthenticator,
+        ["DeviceName"] = login.DeviceName,
+        ["LastUsedAt"] = login.LastUsedAt,
     };
 
     private static SpineAuthLogin ToLogin(TableEntity row) =>
@@ -214,6 +218,10 @@ public sealed class AzureTableUserResolver(string connectionString, string prefi
             LinkedAt = row.GetDateTimeOffset("LinkedAt"),
             PasskeyPublicKey = row.GetBinary("PasskeyPublicKey"),
             PasskeySignCount = (uint)(row.GetInt64("PasskeySignCount") ?? 0),
+            PasskeyAaguid = row.GetGuid("PasskeyAaguid"),
+            PasskeyAuthenticator = row.GetString("PasskeyAuthenticator"),
+            DeviceName = row.GetString("DeviceName"),
+            LastUsedAt = row.GetDateTimeOffset("LastUsedAt"),
         };
 }
 

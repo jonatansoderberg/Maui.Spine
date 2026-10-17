@@ -147,6 +147,10 @@ internal sealed class SpinePasskeys(
             DisplayName = ceremony.DisplayName ?? user.DisplayName,
             PasskeyPublicKey = credential.PublicKey,
             PasskeySignCount = credential.SignCount,
+            PasskeyAaguid = credential.AaGuid == Guid.Empty ? null : credential.AaGuid,
+            PasskeyAuthenticator = _options.AuthenticatorNames.TryGetValue(credential.AaGuid, out var authenticator) ? authenticator : null,
+            DeviceName = Trim(response.DeviceName),
+            LastUsedAt = time.GetUtcNow(),
         };
         try
         {
@@ -210,8 +214,8 @@ internal sealed class SpinePasskeys(
         }
 
         // Saved only while the passkey is still there: a removal during the sign-in must not bring it back.
-        if (result.SignCount != login.PasskeySignCount && await users.FindByLoginAsync(Provider, subject, cancellationToken) is not null)
-            await users.SaveLoginAsync(login with { PasskeySignCount = result.SignCount }, cancellationToken);
+        if (await users.FindByLoginAsync(Provider, subject, cancellationToken) is not null)
+            await users.SaveLoginAsync(login with { PasskeySignCount = result.SignCount, LastUsedAt = time.GetUtcNow() }, cancellationToken);
 
         return SignInOutcome.Ok(await tokens.IssueAsync(user, Provider, cancellationToken: cancellationToken));
     }

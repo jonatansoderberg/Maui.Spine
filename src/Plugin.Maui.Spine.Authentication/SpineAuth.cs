@@ -140,12 +140,15 @@ internal sealed class SpineAuth : ISpineAuth
         Direct ? NeedsServer("Linking accounts") : Flows.LinkPendingAsync(pending, cancellationToken);
 
     public Task<SignInResult> SignUpWithPasskeyAsync(string? displayName, string? email, CancellationToken cancellationToken = default) =>
-        Direct ? NeedsServer("Passkeys") : PasskeyAsync(c => Flows.PasskeyRegisterAsync(c, new SpinePasskeyNewAccount(displayName, email), cancellationToken));
+        Direct ? NeedsServer("Passkeys") : PasskeyAsync(c => Flows.PasskeyRegisterAsync(c, new SpinePasskeyNewAccount(displayName, email), cancellationToken, deviceName: DeviceName));
 
     public Task<SignInResult> SignInWithPasskeyAutoFillAsync(CancellationToken cancellationToken = default) =>
         Direct || _options.Passkeys is not { SupportsAutoFill: true }
             ? Task.FromResult(SignInResult.Canceled)
             : PasskeyAsync(c => Flows.PasskeySignInAsync(c, autoFill: true, cancellationToken), quietCancel: true);
+
+    // iOS 16 and later answer the model ("iPhone") unless the app has the user-assigned-device-name entitlement.
+    private static string? DeviceName => DeviceInfo.Current.Name is { Length: > 0 } name ? name : null;
 
     private async Task<SignInResult> PasskeyAsync(Func<IPasskeyCeremony, Task<SignInResult>> ceremony, bool quietCancel = false)
     {
@@ -178,7 +181,7 @@ internal sealed class SpineAuth : ISpineAuth
     {
         "passkey" => PasskeyAsync(c => link is null
             ? Flows.PasskeySignInAsync(c, autoFill: false, cancellationToken)
-            : Flows.PasskeyRegisterAsync(c, null, cancellationToken, link)),
+            : Flows.PasskeyRegisterAsync(c, null, cancellationToken, link, DeviceName)),
         "apple" when _options.Apple => AppleSignIn.IsSupported ? AppleAsync(cancellationToken, link) : BrowserAsync("apple", cancellationToken, link),
         _ when _natives.TryGetValue(name, out var native) => NativeAsync(name, native.Value, cancellationToken, link),
         _ when _options.BrowserProviders.Any(p => p.Name == name) => BrowserAsync(name, cancellationToken, link),

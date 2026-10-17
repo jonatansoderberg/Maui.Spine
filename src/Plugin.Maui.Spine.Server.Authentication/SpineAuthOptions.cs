@@ -459,6 +459,27 @@ public sealed class SpinePasskeyOptions
 
     /// <summary>How long a registration or sign-in ceremony may take. 5 minutes by default.</summary>
     public TimeSpan ChallengeLifetime { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Names for authenticators by their AAGUID, kept with a passkey (<c>SpineLoginInfo.Authenticator</c>) so an accounts
+    /// page can say where it is: iCloud Keychain, Google Password Manager, Windows Hello and the common password
+    /// managers by default. Add or rename entries; an AAGUID that is not here gets no name.
+    /// </summary>
+    public IDictionary<Guid, string> AuthenticatorNames { get; } = new Dictionary<Guid, string>
+    {
+        [new("fbfc3007-154e-4ecc-8c0b-6e020557d7bd")] = "iCloud Keychain",
+        [new("dd4ec289-e01d-41c9-bb89-70fa845d4bf2")] = "iCloud Keychain (Managed)",
+        [new("ea9b8d66-4d01-1d21-3ce4-b6b48cb575d4")] = "Google Password Manager",
+        [new("adce0002-35bc-c60a-648b-0b25f1f05503")] = "Chrome on Mac",
+        [new("08987058-cadc-4b81-b6e1-30de50dcbe96")] = "Windows Hello",
+        [new("9ddd1817-af5a-4672-a2b9-3e3dd95000a9")] = "Windows Hello",
+        [new("6028b017-b1d4-4c02-b4b3-afcdafc96bb2")] = "Windows Hello",
+        [new("bada5566-a7aa-401f-bd96-45619a55120d")] = "1Password",
+        [new("d548826e-79b4-db40-a3d8-11116f7e8349")] = "Bitwarden",
+        [new("531126d6-e717-415c-9320-3d9aa6981239")] = "Dashlane",
+        [new("53414d53-554e-4700-0000-000000000000")] = "Samsung Pass",
+        [new("0ea242b4-43c4-4a1b-8b17-dd6d0b6baec6")] = "Keeper",
+    };
 }
 
 /// <summary>An Android app that may use the server's passkeys.</summary>
