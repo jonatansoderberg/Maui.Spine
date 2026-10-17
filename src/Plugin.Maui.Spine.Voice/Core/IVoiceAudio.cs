@@ -39,6 +39,12 @@ public sealed class VoiceAudioException(VoiceAudioProblem problem, string messag
 /// <summary>How the engine runs one conversation.</summary>
 public sealed class VoiceAudioOptions
 {
+    /// <summary>
+    /// Whether the microphone is opened. On by default; off, the engine only plays (a server voice reading text aloud):
+    /// no microphone permission, no echo cancellation, no convergence, and the app's audio category is playback.
+    /// </summary>
+    public bool Input { get; init; } = true;
+
     /// <summary>The microphone's rate, as the provider wants it. 24 kHz by default (OpenAI); Gemini takes 16 kHz.</summary>
     public int InputRate { get; init; } = 24_000;
 

@@ -34,6 +34,8 @@
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Speech.Tests" />
 		<!-- The avatar tests drive the Speech driver with a fake voice built on the shared queue. -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
+		<!-- ServerSpeech builds on the shared queue and reports the engine's playback position. -->
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Voice" />
 	</ItemGroup>
 
 	<!-- Declares the package to UseSpine(); see Plugin.Maui.Spine's build\Plugin.Maui.Spine.targets. -->

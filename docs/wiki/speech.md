@@ -36,7 +36,7 @@ public sealed class ReaderViewModel(ISpineSpeech speech)
 | --- | --- |
 | `Started` | The audio started |
 | `Word` | A word reached: `Start`, `Length` in the text, `At` the position then |
-| `Viseme` | A mouth shape with its time, from a voice that reports them (a server voice, later) |
+| `Viseme` | A mouth shape with its time (Azure Speech's ids 0–21), from a voice that reports them: `ServerSpeech` with an Azure feature |
 | `Ended`, `Completed` | Once, with `Completed`, `Stopped` or `Failed` |
 | `Position` | Zero while queued; the player's position on Windows, the time since the audio started elsewhere; frozen at the end |
 | `Stop()` | Stops it, or drops it from the queue |
@@ -44,6 +44,24 @@ public sealed class ReaderViewModel(ISpineSpeech speech)
 Utterances play one after another, and events arrive on the main thread. `StopAll()` stops the one speaking and drops the rest.
 
 Words come from `willSpeakRangeOfSpeechString` on Apple, `UtteranceProgressListener.onRangeStart` on Android (Android 8 and later, and only on engines that implement it, such as Google's), and the synthesis stream's word-boundary cues on Windows, raised as the player reaches them.
+
+## A voice from the server
+
+`ServerSpeech` in `Plugin.Maui.Spine.Voice` is an `ISpineSpeech` whose voice is a speech feature on the app's server ([AI server](ai-server.md#speech), `Kind: Speech`). It sends the text to `POST {SessionEndpoint}/speech/{Feature}` with the app's sign-in and installation id, and plays the answer through Spine.Voice's engine without the microphone (`VoiceAudioOptions.Input = false`: no microphone permission, the playback audio category). The mouth shapes the server sends (Azure Speech) are raised as `Viseme` events, all at the start, with each one's time and length; an avatar's Speech driver then has TimedVisemes. A voice without them (OpenAI) gets its words spread over the audio by their length, raised as `Word` events when playback reaches them, so the driver guesses the mouth (EstimatedText).
+
+```csharp
+builder.UseSpineVoice(o =>
+{
+    o.SessionEndpoint = new Uri("https://api.example.com/ai");   // the prefix given to MapSpineAI
+    o.SpeechFeature = "Read";
+});
+
+var speech = services.GetRequiredService<ServerSpeech>();
+speech.Failed += e => status.Text = e.Message;   // a refusal (budget, rate), the network or the engine
+avatar.Driver = new SpeechAvatarDriver(speech);
+```
+
+The voice is the server feature's, so `SpeakOptions` other than the text are not sent and `GetVoicesAsync` is empty. `Position` is what the engine has played. The engine starts with the first utterance and closes five seconds after the last. Only iOS and Mac Catalyst have Spine.Voice's engine so far; elsewhere `IsSupported` is false and an utterance fails.
 
 ## With an avatar
 

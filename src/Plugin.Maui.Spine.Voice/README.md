@@ -17,6 +17,14 @@ voice.Interrupt();                       // a Stop button; talking over the answ
 await voice.EndAsync();
 ```
 
+Text read aloud by a speech feature on the server (`Kind: Speech`), played without the microphone; Azure Speech's mouth shapes reach an avatar's Speech driver as TimedVisemes:
+
+```csharp
+var speech = services.GetRequiredService<ServerSpeech>();   // an ISpineSpeech
+speech.Feature = "Read";
+await speech.Speak("Välkommen tillbaka.").Completed;
+```
+
 The engine on its own, for a provider of your own:
 
 ```csharp

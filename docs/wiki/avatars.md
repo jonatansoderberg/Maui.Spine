@@ -102,7 +102,7 @@ if (package is null)
 
 ## Driving an avatar
 
-One driver at a time pushes state, levels and visemes into the avatar on each tick (`AvatarDriver`, `AvatarInput`). Every driver states what its mouth timing is worth (`AvatarLipSyncQuality`): `EstimatedText` for text, `AudioReactive` for a level, `TimedVisemes` for a voice with viseme timings.
+One driver at a time pushes state, levels and visemes into the avatar on each tick (`AvatarDriver`, `AvatarInput`). Every driver states what its mouth timing is worth (`AvatarLipSyncQuality`): `EstimatedText` for text, `AudioReactive` for a level, `TimedVisemes` for a voice with viseme timings, such as a server voice from Azure Speech through `ServerSpeech` ([Speech](speech.md#a-voice-from-the-server)).
 
 `TextAvatarDriver` mouths text with no audio, for a streamed chat answer or a caption:
 

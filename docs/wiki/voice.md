@@ -98,6 +98,7 @@ The app supplies the microphone's usage text. Without it the engine fails at sta
 ```
 
 - **Mac Catalyst:** the package contributes `com.apple.security.device.audio-input`. An app with its own `Entitlements.plist` adds the key there, and the build says so if it is missing.
+- **Playback only:** `new VoiceAudioOptions { Input = false }` opens no microphone: no permission prompt, no usage text needed, no echo cancellation or convergence, and the playback audio category (spoken audio). [`ServerSpeech`](speech.md#a-voice-from-the-server) plays a server voice that way.
 - **Background audio:** off by default. With `<SpineVoiceBackground>true</SpineVoiceBackground>` the package adds the iOS `audio` background mode, so a conversation that started in the foreground goes on with the screen locked. Apple reviews it.
 
 ## A conversation

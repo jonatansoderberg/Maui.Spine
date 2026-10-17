@@ -113,6 +113,13 @@ Content-Type: application/json
 POST {{host}}/ai/realtime/Voice
 Spine-Installation: sample-phone
 
+### AI: text read aloud (Read, the demo voice): base64 PCM16 at 24 kHz and a viseme per letter. ReadAzure, once its key is set, has Azure's voice and visemes
+POST {{host}}/ai/speech/Read
+Content-Type: application/json
+Spine-Installation: sample-phone
+
+{ "text": "Hej, jag heter Nova." }
+
 ### AI: what was spent, by day, feature and model (localhost only)
 GET {{host}}/ai/usage
 

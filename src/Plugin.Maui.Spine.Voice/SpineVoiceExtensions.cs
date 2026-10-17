@@ -10,7 +10,8 @@ public static class SpineVoiceExtensions
     static readonly SpineVoiceOptions Options = new();
 
     /// <summary>
-    /// Registers <see cref="IVoiceSession"/> and <see cref="IVoiceAudio"/>, a new one for each conversation. <c>UseSpine()</c>
+    /// Registers <see cref="IVoiceSession"/> and <see cref="IVoiceAudio"/>, a new one for each conversation, and
+    /// <see cref="ServerSpeech"/>. <c>UseSpine()</c>
     /// calls it for an app that references this package; call it yourself with the session endpoint, before or after
     /// <c>UseSpine()</c>. A second call applies its options.
     /// </summary>
@@ -35,6 +36,13 @@ public static class SpineVoiceExtensions
             Options,
             new VoiceTokenClient(Options, InstallationIdAsync),
             static () => new ClientVoiceSocket(),
+            static action => MainThread.BeginInvokeOnMainThread(action),
+            services.GetService<TimeProvider>(),
+            services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Voice")));
+        builder.Services.TryAddTransient(static services => new ServerSpeech(
+            CreateAudio(services),
+            Options,
+            InstallationIdAsync,
             static action => MainThread.BeginInvokeOnMainThread(action),
             services.GetService<TimeProvider>(),
             services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Voice")));
