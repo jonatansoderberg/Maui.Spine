@@ -2,7 +2,7 @@
 
 Animated characters and ambient visuals for a voice assistant, text-to-speech, a streamed chat answer, a guide or a status indicator. An avatar is content, a `.spineavatar` file the app bundles or downloads; Spine draws it, drives it and checks it.
 
-> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core, the view and the Speech driver exist; the voice driver, the presenter and scripts follow. This page grows with them.
+> **Status:** in progress, following [the plan](../plans/spine-avatar.md). Core, the view, the Speech and Voice drivers exist; the presenter and scripts follow. This page grows with them.
 
 ## Packages
 
@@ -11,6 +11,7 @@ Animated characters and ambient visuals for a voice assistant, text-to-speech, a
 | `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: Skia (vector scenes, SkSL shaders) everywhere, SceneKit (glTF) on iOS and Mac Catalyst, the poster where neither applies |
 | `Plugin.Maui.Spine.Controls.Avatar.Core` | The format, the scheduler, the drivers' contract and the text driver, visemes, glTF; no MAUI |
 | `Plugin.Maui.Spine.Speech` | Text-to-speech with word boundaries, which `SpeechAvatarDriver` speaks through ([Speech](speech.md)) |
+| `Plugin.Maui.Spine.Controls.Avatar.Voice` | `VoiceAvatarDriver` for a realtime [voice](voice.md) conversation, and VoiceView's `character` |
 
 ## The view
 
@@ -40,6 +41,28 @@ avatar.Interrupt();
 | `LoadState`, `LoadError`, `Package`, `RendererName`, `LipSyncQuality`, `Gestures` | What is shown and how |
 
 The view runs no timer while it is detached, hidden (itself or an ancestor), scrolled out of sight or the app is in the background. A screen reader hears one element; muting and an interruption are announced, other state changes are not.
+
+## With a voice conversation
+
+`Plugin.Maui.Spine.Controls.Avatar.Voice` follows a [Spine.Voice](voice.md) session. The avatar's seven states are the session's, one to one; the microphone's and the answer's levels and 24 bands reach it every tick; a new answer or a cut-off one starts a new speech generation. The realtime providers send no visemes, so the mouth follows the answer's level (AudioReactive); with a viseme source registered (`SpineVoiceOptions.VisemeSource`) the session's visemes become timed cues on the answer's playback clock (TimedVisemes). The view's `Interrupt()` interrupts the session.
+
+On a page centred on the avatar, give an `AvatarView` the driver:
+
+```xml
+<AvatarView Source="{Binding Avatar}" Driver="{Binding Driver}" HeightRequest="240" />
+```
+
+```csharp
+Driver = new VoiceAvatarDriver(voiceSession);   // or new VoiceAvatarDriver(audioEngine) for a bare IVoiceAudio
+```
+
+Where the conversation is drawn by a `VoiceView`, use its `character` kind; the avatar runs on the VoiceView's tick rather than a timer of its own, and the VoiceView is the one screen-reader element:
+
+```xml
+<VoiceView Session="{Binding Voice}" Kind="character" VoiceAvatar.Source="{Binding Avatar}" HeightRequest="240" />
+```
+
+Without `VoiceAvatar.Source` the character shows `SpineAvatarOptions.DefaultSource` (`UseSpineAvatar(o => o.DefaultSource = …)`), and logs a warning when neither is set.
 
 ## The format
 

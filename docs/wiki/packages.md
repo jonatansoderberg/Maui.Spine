@@ -24,6 +24,7 @@ Spine ships as thirty-four NuGet packages built from this repository, one per pr
 | Controls | `Plugin.Maui.Spine.Controls.Markdown` | [`MarkdownView`](markdown.md): markdown on native views, rebuilt block by block while it streams | `Plugin.Maui.Spine`, Markdig |
 | Controls | `Plugin.Maui.Spine.Controls.Voice` | [`VoiceView`](voice.md#drawing-the-conversation): a voice conversation drawn with SkiaSharp (orb, bars, ring, avatar), visuals of your own, visemes | `Plugin.Maui.Spine`, `.Voice`, SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Avatar` | [`AvatarView`](avatars.md): animated characters and ambient visuals from `.spineavatar` files, drawn with SkiaSharp and SceneKit, driven by the app, by text or by a driver | `Plugin.Maui.Spine`, `.Controls.Avatar.Core`, `.Speech`, SkiaSharp |
+| Controls | `Plugin.Maui.Spine.Controls.Avatar.Voice` | [`VoiceAvatarDriver`](avatars.md#with-a-voice-conversation) and VoiceView's `character`: an avatar following a realtime voice conversation | `.Controls.Avatar`, `.Voice`, `.Controls.Voice` |
 | Controls | `Plugin.Maui.Spine.Controls.Avatar.Core` | The core of [avatars](avatars.md) with no MAUI: the `.spineavatar` format 1.0 (safe reader, schemas, defaults, validation), the scheduler, the driver contract with a text driver, the canonical visemes, a glTF reader and rig | — |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view (Edge, Pulse, Sheen, Trace, Breathe), `Highlight.Repeat` and `.Key`, `IHighlights` | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron | `Plugin.Maui.Spine`, `.AnimatedLabel` |
@@ -59,6 +60,7 @@ PushNotifications                                    AnimatedLabel
   Controls.Voice ──► Voice, Spine (and SkiaSharp)
   Controls.Avatar ──► Controls.Avatar.Core, Speech, Spine (and SkiaSharp)
   Speech (no Spine dependency)
+  Controls.Avatar.Voice ──► Controls.Avatar, Voice, Controls.Voice
   AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
   Common ◄── Server.Authentication (and JwtBearer, Azure.Data.Tables)
   Server.Messaging ◄── Server.Messaging.AzureStorage ◄── Server.Messaging.ServiceBus
@@ -87,6 +89,7 @@ PushNotifications                                    AnimatedLabel
 | That conversation drawn: an orb, bars, a ring or a face | `Plugin.Maui.Spine.Controls.Voice` (brings the core and `.Voice`) |
 | An animated character or ambient visual from a `.spineavatar`: for an assistant, a guide, text mouthed or read aloud | `Plugin.Maui.Spine.Controls.Avatar` (brings the core, `.Controls.Avatar.Core` and `.Speech`) |
 | Text read aloud with the best installed voice, word by word | `Plugin.Maui.Spine.Speech` |
+| A voice assistant with a face: an avatar following a realtime conversation | `Plugin.Maui.Spine.Controls.Avatar.Voice` (brings the avatar and voice packages) |
 | Language models in the app, on the device or through the app's server | `Plugin.Maui.Spine.AI` (brings `.Common`; the core is not required), plus the app's own on-device client such as Microsoft.Maui.Essentials.AI |
 | Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
 | Sign-in against the app's own server: Apple, Google, Microsoft, OpenID Connect, email and password | `Plugin.Maui.Spine.Server.Authentication` in the server project |

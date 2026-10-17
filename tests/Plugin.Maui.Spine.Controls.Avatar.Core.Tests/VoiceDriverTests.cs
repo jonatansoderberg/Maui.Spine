@@ -1,0 +1,175 @@
+using Microsoft.Extensions.Time.Testing;
+using Plugin.Maui.Spine.Controls;
+using Plugin.Maui.Spine.Voice;
+
+namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
+
+public class VoiceDriverTests
+{
+    private static readonly TimeSpan Frame = TimeSpan.FromMilliseconds(33);
+
+    private readonly FakeTimeProvider _time = new();
+
+    private (AvatarRuntime Runtime, FakeAudio Audio) Create()
+    {
+        var package = AvatarArchiveTests.Load("nova");
+        var runtime = new AvatarRuntime();
+        runtime.Load(new AvatarScheduler(package, package.Manifest.Representations[0], _time, 5));
+        var audio = new FakeAudio();
+        runtime.Driver = new VoiceAvatarDriver(audio);
+        return (runtime, audio);
+    }
+
+    private AvatarRenderFrame Run(AvatarRuntime runtime, FakeAudio audio, int frames)
+    {
+        AvatarRenderFrame frame = null!;
+        for (var i = 0; i < frames; i++)
+        {
+            _time.Advance(Frame);
+            if (audio.Playing is { } playing)
+                audio.Playing = playing with { Played = playing.Played + Frame };
+            frame = runtime.Tick(Frame)!;
+        }
+        return frame;
+    }
+
+    [Theory]
+    [InlineData(VoiceState.Connecting, AvatarState.Connecting)]
+    [InlineData(VoiceState.Listening, AvatarState.Listening)]
+    [InlineData(VoiceState.Thinking, AvatarState.Thinking)]
+    [InlineData(VoiceState.Speaking, AvatarState.Speaking)]
+    [InlineData(VoiceState.Muted, AvatarState.Muted)]
+    [InlineData(VoiceState.Interrupted, AvatarState.Interrupted)]
+    public void TheStateFollowsOneToOne(VoiceState voice, AvatarState avatar)
+    {
+        var (runtime, audio) = Create();
+        audio.Frame.State = voice;
+        Run(runtime, audio, 1);
+
+        Assert.Equal(avatar, runtime.Input.State);
+    }
+
+    [Fact]
+    public void ListeningFollowsTheMicrophone()
+    {
+        var (runtime, audio) = Create();
+        audio.Frame.State = VoiceState.Listening;
+        audio.Frame.InputLevel = 0.8f;
+        var frame = Run(runtime, audio, 10);
+
+        Assert.True(frame.InputLevel > 0.5f);
+        Assert.Equal(AvatarLipSyncQuality.AudioReactive, runtime.Input.LipSyncQuality);
+    }
+
+    [Fact]
+    public void VisemesFromTheSessionBecomeTimedCues()
+    {
+        var (runtime, audio) = Create();
+        audio.Frame.State = VoiceState.Speaking;
+        audio.Playing = new("item-1", TimeSpan.Zero);
+        audio.IsPlaying = true;
+        audio.Frame.Viseme = Visemes.P;
+        Run(runtime, audio, 3);
+        audio.Frame.Viseme = Visemes.Aa;
+        var frame = Run(runtime, audio, 3);
+
+        Assert.Equal(AvatarLipSyncQuality.TimedVisemes, runtime.Input.LipSyncQuality);
+        Assert.Contains(frame.Speech.ToArray(), w => w.Pose == "viseme_aa" && w.Weight > 0.3f);
+    }
+
+    [Fact]
+    public void ANewAnswerDropsTheCuesOfTheOneCutOff()
+    {
+        var (runtime, audio) = Create();
+        audio.Frame.State = VoiceState.Speaking;
+        audio.Playing = new("item-1", TimeSpan.Zero);
+        audio.IsPlaying = true;
+        audio.Frame.Viseme = Visemes.Aa;
+        Run(runtime, audio, 5);
+        var resets = runtime.Scheduler!.Diagnostics.Resets;
+
+        audio.Playing = new("item-2", TimeSpan.Zero);
+        Run(runtime, audio, 1);
+
+        Assert.Equal(resets + 1, runtime.Scheduler.Diagnostics.Resets);
+    }
+
+    [Fact]
+    public void InterruptFlushesTheEngine()
+    {
+        var (runtime, audio) = Create();
+        audio.Frame.State = VoiceState.Speaking;
+        Run(runtime, audio, 2);
+
+        runtime.Interrupt();
+
+        Assert.Equal(1, audio.Flushes);
+    }
+
+    [Fact]
+    public void MutedShowsTheBadge()
+    {
+        var (runtime, audio) = Create();
+        audio.IsMuted = true;
+        audio.Frame.State = VoiceState.Muted;
+        var frame = Run(runtime, audio, 20);
+
+        Assert.True(runtime.Input.IsMuted);
+        Assert.True(frame.MicMutedWeight > 0.5f);
+    }
+
+    private sealed class FakeAudio : IVoiceAudio
+    {
+        public VoiceFrame Frame { get; } = new();
+
+        public bool IsSupported => true;
+
+        public VoiceState State => Frame.State;
+
+        public VoiceDuplex Duplex { get; set; } = VoiceDuplex.Full;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+        public bool IsRunning => true;
+
+        public bool IsVoiceProcessingOn => true;
+
+        public string? Route => "speaker";
+
+        public bool IsMuted { get; set; }
+
+        public bool UseSpeaker { get; set; }
+
+        public bool IsPlaying { get; set; }
+
+        public PlaybackPosition? Playing { get; set; }
+
+        public int Flushes { get; private set; }
+
+        public event VoiceInputHandler? InputAvailable { add { } remove { } }
+
+        public event Action<VoiceState>? StateChanged { add { } remove { } }
+
+        public event Action<string>? RouteChanged { add { } remove { } }
+
+        public event Action<VoiceAudioException>? Failed { add { } remove { } }
+
+        public Task StartAsync(VoiceAudioOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task StopAsync() => Task.CompletedTask;
+
+        public void Enqueue(string itemId, ReadOnlySpan<byte> pcm16) { }
+
+        public void Complete(string itemId) { }
+
+        public PlaybackPosition? Flush()
+        {
+            Flushes++;
+            return Playing;
+        }
+
+        public TimeSpan Played(string itemId) => Playing?.Played ?? TimeSpan.Zero;
+
+        public VoiceFrame UpdateFrame() => Frame;
+    }
+}
