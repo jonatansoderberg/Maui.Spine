@@ -43,6 +43,7 @@ from plush_avatars import quat, wave, tiny_png, srgb_to_linear
 # ---------------------------------------------------------------- the camera
 
 D, T, N = 2.83564091, math.tan(0.34906584 / 2), 1020   # pixal3d.cpp single-view camera, crop size
+CAMERA_D = D                                           # the camera's distance under its own name, for scopes that name a directory D
 S, OX, OY = 0.751, 45.0, 31.0                           # source px -> crop px (fitted, mean error 1.5)
 BALD_OY = -20.0     # the bald run's crop: the cutter centres the subject, and without hair it sits higher
 
@@ -77,6 +78,282 @@ SIDE_VIEWS = [('gen-1.png', -135.0, 1.3954, -74.1, -87.2), ('gen-2.png', 135.0, 
               ('gen-7.png', 90.0, 1.3642, -75.4, -80.5)]
 
 DETAIL_SCALE = 12.0     # px in the views: variation finer than this is skin detail, coarser is their light
+
+# The owner's scalp views (assets-scalp: the lab's own renders of the bald head with the root layer painted on the
+# scalp: front, both profiles, back and the crown with the head pitched down 35 deg), fitted to the bald scan by
+# silhouette (Tools/scalpfit.py, IoU 0.99): the model turned about y by the yaw, the head pitched about its pivot,
+# and picture px = crop px * scale + offset. Where they show the root layer the scalp under the hair (the skull's
+# skin and the root cap) takes their pixels and their outline; where they show skin the skull is skin.
+SCALP_DIR = 'assets-scalp'
+SCALP_VIEWS = [('front.png', 0, 0, 2.2362, -116.8, -119.4), ('right.png', 90, 0, 2.2463, -119.5, -122.8),
+               ('left.png', -90, 0, 2.2515, -128.2, -124.6), ('back.png', 180, 0, 2.2428, -120.1, -121.4),
+               ('crown-head-down-35.png', 0, 35, 2.2808, -139.4, -136.5)]
+SCALP_ROOT_LUM = (150.0, 110.0)   # luminance over which a pixel of a scalp view goes from skin (or the knit) to the root layer
+SCALP_ROOT_HUE = (0.0, 30.0)      # blue minus red over which it goes from skin to the root layer (the pictures' soft hairline and nape fade carry through)
+SCALP_ROOT_TINT = (0.72, 0.72, 0.94)   # per channel on the views' roots and strands (scalp_views): darker, bluer roots
+SCALP_MIN_PX = 4000         # px: a smaller indigo component (an iris, a brow) is not the root layer
+SCALP_FEATHER = 2.0         # px of blur on the root weight
+SCALP_FACING = (0.15, 0.5)  # cosine range over which a view's weight comes in (a view at a grazing angle maps its silhouette's fringe onto centimetres of surface: counted fully, the left view's nape fringe ran down the neck as a streak). The root weight is the union of the views' (the owner's front and left pictures disagree at the temple's front edge), the colour comes from the views that show hair there.
+SCALP_SETTLE = (0.45, 0.6)  # the feathered root weight settles to skin below and roots above: in the pictures' hairline zone (strands over skin) the per-pixel weight averaged to a half and baked as a translucent band; the strands overlay draws that zone
+SCALP_SEEN = (0.1, 0.4)     # total view weight over which the pictures replace the generator's scalp
+SCALP_DEPTH_TOL = 0.01
+
+# The lab's camera, for the owner's scalp pictures (captures of the lab at `size 1200`, 2400 px, resized by the owner to
+# 2048): the package's framing (camera at LAB_CAMERA looking at the origin, vertical field of view LAB_FOV, a square
+# view), the view yaw about y, and the head's turn spread down the neck chain as the rig does (NeckLower 0.3,
+# NeckUpper 0.35, the head the rest, each about its own joint). Fitted by silhouette with the generator's own crop
+# camera (20 deg, 2.8 units away) the pictures matched at the outline but not inside it: a point on the head's
+# side near the silhouette mapped a hundred pixels off, onto the temple's skin, and the scalp sampler read skin
+# where the picture shows roots (the pale band at the temple).
+LAB_CAMERA = np.array([0.0, 0.04, 2.3]); LAB_FOV = 22.0
+LAB_CHAIN = (0.3, 0.35)        # the neck joints' shares of the head's turn (bindings neckChain), the head takes the rest
+
+def _quat_rot(axis, ang):
+    axis = np.asarray(axis, float); c, s_ = math.cos(ang), math.sin(ang); x, y, z = axis
+    return np.array([[c + x * x * (1 - c), x * y * (1 - c) - z * s_, x * z * (1 - c) + y * s_],
+                     [y * x * (1 - c) + z * s_, c + y * y * (1 - c), y * z * (1 - c) - x * s_],
+                     [z * x * (1 - c) - y * s_, z * y * (1 - c) + x * s_, c + z * z * (1 - c)]])
+
+def lab_pose(p, head_yaw, head_pitch, pivot, collar_y):
+    """Points (the generator's frame) under the lab's head turn (degrees): the rig's quaternion Qy(yaw) Qx(-pitch),
+    split by slerp shares over NeckLower (at j1), NeckUpper (at j2) and the head (at the pivot), as GltfAvatarRig does."""
+    if not head_yaw and not head_pitch:
+        return p
+    j1 = np.array([pivot[0], collar_y + (pivot[1] - collar_y) / 3, pivot[2]]); j2 = np.array([pivot[0], collar_y + (pivot[1] - collar_y) * 2 / 3, pivot[2]])
+    # the turn as an axis-angle, so a share of it is the same axis at a share of the angle (slerp from identity)
+    R = _quat_rot([0, 1, 0], math.radians(head_yaw)) @ _quat_rot([1, 0, 0], -math.radians(head_pitch))
+    ang = math.acos(np.clip((np.trace(R) - 1) / 2, -1, 1))
+    axis = np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]]); axis /= np.linalg.norm(axis) + 1e-12
+    q = p
+    for origin, share in ((pivot, 1 - sum(LAB_CHAIN)), (j2, LAB_CHAIN[1]), (j1, LAB_CHAIN[0])):     # the head first, then up the chain to the root
+        q = (q - origin) @ _quat_rot(axis, ang * share).T + origin
+    return q
+
+def lab_project(p, view_yaw, size=2048):
+    """The lab's view of posed points: picture px (size x size) and the depth along the camera's axis. The view yaw
+    turns the model about y (the container's orientation), the camera sits at LAB_CAMERA looking at the origin."""
+    q = p @ _quat_rot([0, 1, 0], math.radians(view_yaw)).T
+    f = -LAB_CAMERA / np.linalg.norm(LAB_CAMERA); r = np.cross(f, [0, 1, 0]); r /= np.linalg.norm(r); u = np.cross(r, f)
+    d = q - LAB_CAMERA
+    x, y, z = d @ r, d @ u, d @ f
+    t = math.tan(math.radians(LAB_FOV) / 2)
+    return np.stack([(x / (z + 1e-9) / t + 1) / 2 * size, (1 - y / (z + 1e-9) / t) / 2 * size], 1), z
+
+def lab_zbuffer(p, F, view_yaw, size=2048, cell=4):
+    """The nearest depth per cell of the lab's view of a mesh (dense face samples), as front_zbuffer is for the crop camera."""
+    rng = np.random.default_rng(2)
+    pts = np.concatenate([np.einsum('k,fkd->fd', b, p[F]) for b in rng.dirichlet((1, 1, 1), size=6)] + [p])
+    px, z = lab_project(pts, view_yaw, size); n = size // cell
+    ix = np.clip((px / cell).astype(int), 0, n - 1)
+    zb = np.full((n, n), np.inf); np.minimum.at(zb, (ix[:, 1], ix[:, 0]), z)
+    def at(q):
+        i = np.clip((q / cell).astype(int), 0, n - 1)
+        return zb[i[:, 1], i[:, 0]]
+    return at
+
+def lab_hair_windows(P, F_hair, uv_hair, tex, head_tris, ear_tris, view_yaw, size=2048, cell=4, extra_tris=None):
+    """The lab's view of the hair over the head: windows (skull showing through the hair, enclosed by its outline, not the
+    ear's pocket) and what is in front of them. The hair is drawn only where its texels are opaque (a face as 16
+    sub-triangles where any is cut) and only in front of the head (head_tris, ear_tris: the head's and the ears' faces as
+    (n,3,3) positions). Returns the window mask, the head depth per cell, the sub-triangles (positions (m,3,3), uvs
+    (m,3,2), face index (m,), cut (m,)), the drawn hair, skull and ear rasters, and the raster of extra_tris."""
+    from PIL import ImageDraw
+    from scipy.ndimage import binary_fill_holes, binary_dilation, label as nd_label
+    def subdivide(T):                       # (n,3,k) -> (4n,3,k): the four midpoint triangles
+        a, b, c = T[:, 0], T[:, 1], T[:, 2]; ab, bc, ca = (a + b) / 2, (b + c) / 2, (c + a) / 2
+        return np.concatenate([np.stack([a, ab, ca], 1), np.stack([ab, b, bc], 1), np.stack([ca, bc, c], 1), np.stack([ab, bc, ca], 1)])
+    H, W = tex.shape[:2]
+    def alpha_at(uv):
+        return tex[np.clip((uv[:, 1] * H).astype(int), 0, H - 1), np.clip((uv[:, 0] * W).astype(int), 0, W - 1), 3] >= 128
+    pos16, uv16 = subdivide(subdivide(P[F_hair])), subdivide(subdivide(uv_hair)); face16 = np.tile(np.arange(len(F_hair)), 16)
+    ok16 = alpha_at(uv16.mean(1)); cut_face = np.zeros(len(F_hair), bool); np.logical_or.at(cut_face, face16, ~ok16)
+    n = size // cell
+    rng = np.random.default_rng(3); hp = np.concatenate([np.einsum('k,fkd->fd', b_, head_tris) for b_ in rng.dirichlet((1, 1, 1), size=8)] + [head_tris.reshape(-1, 3)])
+    hpx, hz = lab_project(hp, view_yaw, size); ix = np.clip((hpx / cell).astype(int), 0, n - 1); head_zb = np.full((n, n), np.inf); np.minimum.at(head_zb, (ix[:, 1], ix[:, 0]), hz)
+    def in_front(pts, tol):
+        px, z = lab_project(pts, view_yaw, size); c = np.clip((px / cell).astype(int), 0, n - 1); return z < head_zb[c[:, 1], c[:, 0]] + tol
+    def raster(tris):
+        im = Image.new('L', (size, size), 0); d = ImageDraw.Draw(im); px = lab_project(tris.reshape(-1, 3), view_yaw, size)[0].reshape(-1, 3, 2)
+        for t in px: d.polygon([tuple(v) for v in t], fill=255)
+        return np.array(im) > 0
+    whole = ~cut_face & in_front(P[F_hair].mean(1), 0.002); part = ok16 & cut_face[face16] & in_front(pos16.mean(1), 0.002)
+    drawn = raster(P[F_hair][whole]) | raster(pos16[part])
+    skull = raster(head_tris); ear = raster(ear_tris) if len(ear_tris) else np.zeros_like(skull)
+    from scipy.ndimage import binary_closing
+    win = binary_fill_holes(binary_closing(drawn, iterations=HAIR_WINDOW_CLOSE) if HAIR_WINDOW_CLOSE else drawn) & ~drawn & skull & ~binary_dilation(ear, iterations=12)
+    lab_w, k = nd_label(win); area = np.bincount(lab_w.ravel(), minlength=k + 1); win &= (area[lab_w] >= 30) & (area[lab_w] <= HAIR_WINDOW_MAX)
+    extra = raster(extra_tris) if extra_tris is not None and len(extra_tris) else None
+    return win, head_zb, pos16, uv16, face16, ~ok16, drawn, skull, ear, extra
+
+def pose_model(p, yaw, pitch, pivot, collar_y):
+    """Points at the lab's pose: the head (above the collar, the neck's upper part following) pitched about the
+    pivot, then everything turned about y."""
+    q = p
+    if pitch:
+        c, s_ = math.cos(math.radians(pitch)), math.sin(math.radians(pitch)); Rx = np.array([[1, 0, 0], [0, c, -s_], [0, s_, c]])
+        w = np.clip((p[:, 1] - collar_y) / 0.06, 0, 1)[:, None]
+        q = p + w * ((p - pivot) @ Rx.T + pivot - p)
+    return q @ rot_y(yaw).T
+
+def scalp_views(work, P, F, pivot):
+    """The owner's scalp views as one sampler: points (model frame) -> (colour, root weight 0..1, total view
+    weight). Each view weighs a point by how squarely it faces the camera (a radial normal: the skull is
+    convex), unoccluded by the bald model, inside the picture's silhouette. None without the pictures."""
+    cpx = src_to_crop([(MOUTH['cx'], COLLAR_Y)]); collar_y = unproject(cpx, np.array([D]))[0, 1]
+    # The bald model's own vertices only: with every vertex of P in the depth buffer, the hair envelope's (2-4 cm
+    # off the skull) hid the scalp cell by cell and the roots came out as a checkerboard of skin.
+    used = np.unique(F.reshape(-1)); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
+    P, F = P[used], remap[F]
+    centre = P[P[:, 1] > pivot[1]].mean(0)
+    views = []
+    for name, yaw, pitch, sc, ox, oy in SCALP_VIEWS:
+        path = f'{work}/{SCALP_DIR}/{name}'
+        if not os.path.exists(path):
+            continue
+        a = np.asarray(Image.open(path).convert('RGBA')).astype(float); pic, fg = a[..., :3], a[..., 3] > 127
+        lum_w = np.array([0.299, 0.587, 0.114]); lum = pic @ lum_w
+        root = fg * smooth(SCALP_ROOT_LUM[0], SCALP_ROOT_LUM[1], lum) * smooth(SCALP_ROOT_HUE[0], SCALP_ROOT_HUE[1], pic[..., 2] - pic[..., 0]) * smooth(-5.0, 10.0, pic[..., 2] - pic[..., 1])
+        core = ndimage.binary_opening(root > 0.5, iterations=2)
+        lab_, _ = ndimage.label(core); sizes = np.bincount(lab_.ravel()); small = sizes < SCALP_MIN_PX; small[0] = False
+        core = core & ~small[lab_]
+        root = smooth(SCALP_SETTLE[0], SCALP_SETTLE[1], ndimage.gaussian_filter(root * ndimage.binary_dilation(core, iterations=12), SCALP_FEATHER))
+        # a pixel's darkness against the local skin, for the colour: the views that show strands or roots at a point colour it
+        skin = fg & (root < 0.1)
+        est = np.stack([ndimage.gaussian_filter(pic[..., k] * skin, 25) for k in range(3)], -1) / np.maximum(ndimage.gaussian_filter(skin.astype(float), 25), 1e-3)[..., None]
+        root_lum = np.median(lum[core]) if core.any() else 60.0
+        dark = np.clip((est @ lum_w - lum) / np.maximum(est @ lum_w - root_lum, 1.0), 0, 1)
+        # The roots and strands toward the reference's dark indigo (SCALP_ROOT_TINT): as painted they read a light, greyish
+        # lilac at the hairline (lab 75,71,111 against the reference's 69,65,119 and darker at the root; the owner: too light).
+        pic = pic * (1 - np.maximum(root, ndimage.gaussian_filter(dark, 1.0))[..., None] * (1 - np.array(SCALP_ROOT_TINT)))
+        at, _ = front_zbuffer(pose_model(P, yaw, pitch, pivot, collar_y), F)
+        views.append(dict(yaw=yaw, pitch=pitch, scale=sc, off=np.array([ox, oy]), pic=pic, fg=fg.astype(float),
+                          root=root, hair=np.maximum(root, ndimage.gaussian_filter(dark, 1.0)), at=at,
+                          centre=pose_model(centre[None], yaw, pitch, pivot, collar_y)[0], shape=fg.shape))
+        print('scalp view', name, 'root px (weight > 0.5)', int((root > 0.5).sum()))
+    if not views:
+        return None
+    root_rgb = np.median(np.concatenate([v['pic'][v['hair'] > 0.7] for v in views]), 0)
+    def sample(q):
+        tot = np.zeros(len(q)); col = np.zeros((len(q), 3)); ctot = np.zeros(len(q)); keep = np.ones(len(q))
+        for v in views:
+            qp = pose_model(q, v['yaw'], v['pitch'], pivot, collar_y)
+            px, z = project(qp)
+            n = qp - v['centre']; n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
+            cam = np.array([0.0, 0.0, D]) - qp; cam /= np.linalg.norm(cam, axis=1, keepdims=True) + 1e-12
+            seen = z <= v['at'](px) + SCALP_DEPTH_TOL
+            ppx = px * v['scale'] + v['off']; H_, W_ = v['shape']
+            inside = (ppx[:, 0] >= 0) & (ppx[:, 0] < W_ - 1) & (ppx[:, 1] >= 0) & (ppx[:, 1] < H_ - 1)
+            yx = [np.clip(ppx[:, 1], 0, H_ - 1), np.clip(ppx[:, 0], 0, W_ - 1)]
+            w = smooth(SCALP_FACING[0], SCALP_FACING[1], (n * cam).sum(1)) * seen * inside * ndimage.map_coordinates(v['fg'], yx, order=1, mode='constant')
+            c = np.stack([ndimage.map_coordinates(v['pic'][..., k], yx, order=1, mode='nearest') for k in range(3)], -1)
+            r = ndimage.map_coordinates(v['root'], yx, order=1, mode='constant')
+            h = ndimage.map_coordinates(v['hair'], yx, order=1, mode='constant')
+            keep *= 1.0 - r * w
+            cw = w * (0.05 + 0.95 * h)
+            tot += w; ctot += cw; col += cw[:, None] * c
+        ok = ctot > 1e-6
+        col[ok] /= ctot[ok, None]
+        return col, 1.0 - keep, tot
+    sample.views = views
+    sample.collar_y = collar_y
+    sample.root_rgb = root_rgb
+    return sample
+
+STRANDS_LIFT = 0.0004            # m the hairline overlay stands off the surface it lies on
+STRANDS_BAND_PX = (60, 70)       # px of a scalp view past the root core's edge over the skin, and inside it, that the overlay covers (inside: the face grid's top edge lies 4-5 mm above the owner's hairline and shows the bald picture's skin over the skull's roots there; the overlay carries the roots across it)
+STRANDS_EYE_PX = (115, 95, 15)   # px of a scalp view: the ellipse round each eye (half-widths, raised by the third) that gets no overlay (the brows and the lashes are dark against the skin as the strands are)
+STRANDS_DARK = (0.05, 0.5)       # a pixel's darkness against the local skin (0 skin, 1 the roots' own) over which the overlay's alpha goes 0 -> 1 (a thin strand is half dark after the resampling and must still show)
+STRANDS_HAIR_BIAS = 0.25         # a view's claim on a face is its facing times (this + the alpha it draws there): the view that shows strands or roots on a face wins over one that shows bare skin (the left picture's hairline sits further back than the front's at the temple; by facing alone the left view took the temple's faces and drew nothing)
+STRANDS_FACING = 0.35            # cosine below which a view hangs no overlay on a skull face
+STRANDS_FACING_GRID = 0.05       # ...or on a grid face
+STRANDS_ATLAS = 2048
+
+def hairline_strands(P, F, faces, VN, scalp, pivot, eyes, is_grid=None):
+    """The owner's strands over the skin at the hairline, as in their scalp views: a thin overlay on the outermost
+    surface there (the face grid over the forehead and the temples, the skull elsewhere) textured straight from the
+    views' pixels, each pixel's alpha its darkness against the local skin (de-matted, so drawn over the skin it gives
+    the picture back). The skull's bake cannot carry them: over the forehead the surface is the face grid, which
+    shows the bald picture and nothing else. The grid's faces (`is_grid`) take the overlay wherever the views show
+    roots, not only in the band: at the temples the grid's edge zone stands in front of the skull's roots and showed
+    the bald picture's skin there. `faces`: candidate face indices into F (grid + skull skin)."""
+    lum_w = np.array([0.299, 0.587, 0.114])
+    faces = np.asarray(faces); is_grid = np.zeros(len(faces), bool) if is_grid is None else np.asarray(is_grid)
+    used = np.unique(F[faces].reshape(-1)); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
+    Pc, Fc = P[used], remap[F[faces]]
+    centres = Pc[Fc].mean(1); nrm = VN[used]
+    best = np.full(len(faces), -1); best_w = np.zeros(len(faces))
+    per = []
+    for v in scalp.views:
+        if v['pitch']:
+            continue
+        pic, fg, root = v['pic'], v['fg'] > 0.5, v['root']
+        core = root > 0.5
+        band = ndimage.binary_dilation(core, iterations=STRANDS_BAND_PX[0]) & ~ndimage.binary_erosion(core, iterations=STRANDS_BAND_PX[1]) & fg
+        skin = fg & (root < 0.1)
+        est = np.stack([ndimage.gaussian_filter(pic[..., k] * skin, 25) for k in range(3)], -1) / np.maximum(ndimage.gaussian_filter(skin.astype(float), 25), 1e-3)[..., None]
+        root_lum = np.median((pic @ lum_w)[core]) if core.any() else 60.0
+        dark = (est @ lum_w - pic @ lum_w) / np.maximum(est @ lum_w - root_lum, 1.0)
+        alpha = np.maximum(smooth(STRANDS_DARK[0], STRANDS_DARK[1], dark) * band, smooth(0.5, 0.7, root) * fg)
+        # Nothing round the eyes: the brows and the lashes are dark against the skin as the strands are.
+        yy_, xx_ = np.mgrid[0:alpha.shape[0], 0:alpha.shape[1]]
+        epx_, _ = project(pose_model(np.asarray(eyes), v['yaw'], 0, pivot, scalp.collar_y)); epx_ = epx_ * v['scale'] + v['off']
+        for ex_, ey_ in epx_:
+            alpha[((xx_ - ex_) / STRANDS_EYE_PX[0]) ** 2 + ((yy_ - ey_ + STRANDS_EYE_PX[2]) / STRANDS_EYE_PX[1]) ** 2 < 1] = 0.0
+        colour = np.clip(est + (pic - est) / np.maximum(alpha, 0.25)[..., None], 0, 255)
+        at, _ = front_zbuffer(pose_model(Pc, v['yaw'], 0, pivot, scalp.collar_y), Fc)
+        cp = pose_model(centres, v['yaw'], 0, pivot, scalp.collar_y); px, z = project(cp)
+        n = pose_model(centres + nrm[Fc].mean(1), v['yaw'], 0, pivot, scalp.collar_y) - cp; n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
+        cam = np.array([0.0, 0.0, D]) - cp; cam /= np.linalg.norm(cam, axis=1, keepdims=True) + 1e-12
+        ppx = px * v['scale'] + v['off']; H_, W_ = band.shape
+        inside = (ppx[:, 0] >= 1) & (ppx[:, 0] < W_ - 2) & (ppx[:, 1] >= 1) & (ppx[:, 1] < H_ - 2)
+        yi = np.clip(ppx[:, 1].astype(int), 0, H_ - 1); xi = np.clip(ppx[:, 0].astype(int), 0, W_ - 1)
+        covered = ndimage.binary_dilation(alpha > 0.05, iterations=3)
+        in_band = np.where(is_grid, covered[yi, xi], (covered & ndimage.binary_dilation(band, iterations=3))[yi, xi])
+        drawn = ndimage.map_coordinates(ndimage.maximum_filter(alpha, size=5), [ppx[:, 1], ppx[:, 0]], order=1, mode='constant')
+        w = (n * cam).sum(1) * (z <= at(px) + SCALP_DEPTH_TOL) * inside * in_band * (STRANDS_HAIR_BIAS + drawn)
+        take = w > np.maximum(best_w, np.where(is_grid, STRANDS_FACING_GRID, STRANDS_FACING))
+        best[take] = len(per); best_w[take] = w[take]
+        rows = np.where((alpha > 0.05).any(1))[0]; cols = np.where((alpha > 0.05).any(0))[0]
+        if not len(rows):
+            per.append(None); continue
+        box = (max(cols[0] - 4, 0), max(rows[0] - 4, 0), min(cols[-1] + 5, W_), min(rows[-1] + 5, H_))
+        per.append(dict(view=v, alpha=alpha, colour=colour, box=box))
+    sel = np.where(best >= 0)[0]
+    if not len(sel):
+        return None
+    # the atlas: every view's band crop on a shelf, scaled down together if they overflow
+    crops = [(i, p['box'][2] - p['box'][0], p['box'][3] - p['box'][1]) for i, p in enumerate(per) if p is not None and (best[sel] == i).any()]
+    scale = 1.0; x = y = shelf = 0; place = {}
+    for i, w_, h_ in crops:
+        if x + w_ > STRANDS_ATLAS:
+            x = 0; y += shelf; shelf = 0
+        place[i] = (x, y); x += w_; shelf = max(shelf, h_)
+    total_h = y + shelf
+    if total_h > STRANDS_ATLAS:
+        scale = STRANDS_ATLAS / total_h
+    atlas = np.zeros((STRANDS_ATLAS, STRANDS_ATLAS, 4), np.uint8)
+    for i, w_, h_ in crops:
+        p = per[i]; x0, y0, x1, y1 = p['box']; ax, ay = place[i]
+        rgba = np.dstack([p['colour'][y0:y1, x0:x1], p['alpha'][y0:y1, x0:x1] * 255]).astype(np.uint8)
+        if scale < 1.0:
+            im = Image.fromarray(rgba).resize((max(int(w_ * scale), 1), max(int(h_ * scale), 1)), Image.LANCZOS); rgba = np.asarray(im)
+            ax, ay = int(ax * scale), int(ay * scale)
+        h2, w2 = rgba.shape[:2]; atlas[ay:ay + h2, ax:ax + w2] = rgba
+        place[i] = (ax, ay)
+    pos, nr, uv, idx = [], [], [], []
+    for i, p in enumerate(per):
+        mine = sel[best[sel] == i]
+        if p is None or not len(mine):
+            continue
+        v = p['view']; x0, y0 = p['box'][:2]; ax, ay = place[i]
+        verts = Fc[mine].reshape(-1)
+        q = pose_model(Pc[verts], v['yaw'], 0, pivot, scalp.collar_y); px, _ = project(q)
+        ppx = px * v['scale'] + v['off']
+        u = (ax + (ppx[:, 0] - x0) * scale) / STRANDS_ATLAS; vv = (ay + (ppx[:, 1] - y0) * scale) / STRANDS_ATLAS
+        pos.append(Pc[verts] + nrm[verts] * STRANDS_LIFT); nr.append(nrm[verts]); uv.append(np.stack([u, vv], 1))
+    posw = np.concatenate(pos)
+    print('hairline strands:', len(sel), 'faces on the overlay, views', sorted({int(b) for b in best[sel]}), 'atlas scale', round(scale, 3))
+    return dict(pos=posw, nrm=np.concatenate(nr), uv=np.concatenate(uv), idx=np.arange(len(posw), dtype=np.uint32), material=0, material_name='strands', tex=atlas)
 DETAIL_GAIN = 3.0       # the grain's amplification on the skin
 
 def rot_y(a):
@@ -231,6 +508,38 @@ def face_mask_src(src):
         sizes = ndimage.sum(m, labels, range(1, n + 1)); m = labels == (1 + int(np.argmax(sizes)))
     return m
 
+def lock_mask_src(src):
+    """The photo's hair as locks: the hair rule's pixels (blue, or dark) with the eyes, brows and mouth taken out
+    (blue or dark too), the gaps between a lock's strands closed over HAIR_LOCK_CLOSE px. The face mask keeps
+    strands under 10 px as face, and by it the bangs' lock's thin end over the temple was cut out of the hair
+    layer (the owner's hole in the bangs, twice); by this mask the lock stays whole and is cut only round it."""
+    a = np.asarray(src).astype(float)
+    m = (a[..., 2] > a[..., 0] + 12) | (a.sum(-1) < 150)
+    yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]]
+    for x, y, rx, ry in FEATURES:
+        m &= ~(((xx - x) / (rx * 1.1)) ** 2 + ((yy - y) / (ry * 1.1)) ** 2 < 1)
+    for b in BROWS:          # the brows' outer thirds lie outside the eye ellipses
+        m &= ~((xx > b['x0'] - 12) & (xx < b['x1'] + 12) & (np.abs(yy - b['y']) < 28))
+    m = ndimage.binary_closing(ndimage.binary_opening(m, iterations=1), iterations=HAIR_LOCK_CLOSE)
+    return ndimage.binary_dilation(m, iterations=2)
+
+def photo_offset(frame, photo):
+    """Where the photo sits in a staged view that holds it pixel for pixel (mvstage.py pads it into a larger
+    square): the (x, y) of its top-left corner, by matching a patch round her right eye."""
+    from numpy.lib.stride_tricks import sliding_window_view
+    f = np.asarray(frame, float).mean(-1); p = np.asarray(photo, float).mean(-1)
+    y0, x0, n = 460, 460, 96
+    t = p[y0:y0 + n, x0:x0 + n]
+    ry, rx = f.shape[0] - p.shape[0] + 1, f.shape[1] - p.shape[1] + 1
+    best = (np.inf, 0, 0)
+    for dy in range(ry):
+        w = sliding_window_view(f[y0 + dy:y0 + dy + n, x0:x0 + n + rx - 1], (n, n))[0]
+        d = np.abs(w - t).mean((1, 2)); k = int(d.argmin())
+        if d[k] < best[0]:
+            best = (float(d[k]), k, dy)
+    assert best[0] < 2.0, f'the photo was not found in the staged view (best mean difference {best[0]:.1f})'
+    return best[1], best[2]
+
 def face_mask_crop(src):
     yy, xx = np.mgrid[0:N, 0:N]
     mask = face_mask_src(src)
@@ -358,6 +667,22 @@ def eyeball_texture(src):
     far = ndimage.distance_transform_edt(~white) > 10
     out[far] = np.percentile(a[white], 30, axis=0)
     return Image.fromarray(ndimage.gaussian_filter(out, (2, 2, 0)).astype(np.uint8))
+
+def socket_texture(skin_ref, eyeball):
+    """The socket wall over its depth (rows: 0 = face edge, 1 = eyeball). The reference's lids meet the
+    white directly: a thin pinkish waterline at the edge, then the white in the lid's grey shadow, so the
+    wall reads as part of the eye and not as a band of skin round it (the owner: a light, oversized filler)."""
+    a = np.asarray(eyeball).reshape(-1, 3).astype(float)
+    sclera = np.percentile(a[a.mean(1) > np.percentile(a.mean(1), 60)], 50, axis=0)
+    v = np.linspace(0, 1, 64)[:, None]
+    waterline = skin_ref * np.array([0.80, 0.60, 0.57])
+    # warm grey like the rendered white beside it (lab: ball 202,186,185), so the wall's inner end meets the ball unseen
+    shade, ball = sclera * np.array([0.86, 0.79, 0.77]), sclera * np.array([0.98, 0.94, 0.93])
+    t = np.clip((v - 0.05) / 0.25, 0, 1); t = t * t * (3 - 2 * t)
+    u = np.clip((v - 0.30) / 0.70, 0, 1)
+    col = waterline * (1 - t) + (shade * (1 - u) + ball * u) * t
+    print('socket wall: sclera', sclera.round(0), 'waterline', waterline.round(0), 'shade', shade.round(0), 'ball end', ball.round(0))
+    return Image.fromarray(np.tile(col[:, None, :], (1, 4, 1)).clip(0, 255).astype(np.uint8))
 
 SOCKET_MATERIAL = 11          # index of the "socket" material
 EYEBALL_MATERIAL = 10         # index of the "eyeball" material in build's list
@@ -527,7 +852,26 @@ def face_surface(P, F, src, hair=None, hair_src=None):
         # strand, and this rule chopped the bangs' lock where it thins out over the forehead, since
         # strands under 10 px stay inside the face mask.)
         wide = ndimage.binary_dilation(face_mask_crop(hair_src) if hair_src is not None else face, iterations=3)
-        over |= hair & wide[vi2[:, 1], vi2[:, 0]][F].any(1) & (vz < zs[vi2[:, 1], vi2[:, 0]] + 0.01)[F].any(1)
+        drop_face = hair & wide[vi2[:, 1], vi2[:, 0]][F].any(1) & (vz < zs[vi2[:, 1], vi2[:, 0]] + 0.01)[F].any(1)
+        if hair_src is not None and PROJ_HAIR:
+            # Never the photo's own strands: the mask keeps strands under 10 px as face, and with them the lock's
+            # thin end over the temple went, a hole in the bangs showing the slab's inner wall (owner, twice).
+            # The eyes, brows and mouth (dark or blue too) stay face, so nothing of the hair lies over them.
+            lock_px = src_mask_to_crop(lock_mask_src(hair_src)); on_strand = lock_px[vi2[:, 1], vi2[:, 0]][F].any(1)
+            print('face-mask drop rule: hair faces spared on the photo\'s strands', int((drop_face & on_strand).sum()))
+            drop_face &= ~on_strand
+            if HAIR_NOTCH_CLOSE > 0:
+                # Nor a notch: skin the photo shows inside its hair (a bite out of the fringe's edge at the hairline),
+                # enclosed once the lock mask is closed by HAIR_NOTCH_CLOSE px and under HAIR_NOTCH_MAX px, keeps its
+                # hair faces; the projector's alpha still cuts them where the photo shows skin, and the window rule
+                # un-cuts them where the skull would show through (owner: "fyll hål").
+                closed_px = ndimage.binary_closing(lock_px, iterations=HAIR_NOTCH_CLOSE)
+                notch_px = ndimage.binary_fill_holes(closed_px) & ~lock_px & wide
+                lab_n, n_n = ndimage.label(notch_px); area_n = np.bincount(lab_n.ravel(), minlength=n_n + 1); notch_px &= (area_n[lab_n] >= 20) & (area_n[lab_n] <= HAIR_NOTCH_MAX)
+                in_notch = notch_px[vi2[:, 1], vi2[:, 0]][F].any(1)
+                print('face-mask drop rule: hair faces spared in the photo\'s notches', int((drop_face & in_notch).sum()), 'notches', int(((area_n >= 20) & (area_n <= HAIR_NOTCH_MAX))[1:].sum()))
+                drop_face &= ~in_notch
+        over |= drop_face
     F = F[~over]
     # The grid, a hair in front of where the scan was.
     step = 1.6
@@ -631,6 +975,7 @@ def face_surface(P, F, src, hair=None, hair_src=None):
     a0, b0 = border[:, 0], border[:, 1]
     gf = np.concatenate([gf, np.concatenate([np.stack([b0, a0, back[a0]], 1), np.stack([b0, back[a0], back[b0]], 1)]) + len(P)])
     print('face grid skirt', len(border), 'edges')
+    SKIRT_EDGES[:] = [len(border)]
     GRID_NORMALS[:] = [gn]
     SIDE[:] = [np.concatenate([np.zeros(len(P)), side, np.zeros(len(gp) - len(side))])]
     FACE_INFO[:] = [zs, ndimage.binary_dilation(face, iterations=3), zg]
@@ -847,7 +1192,8 @@ def compose(work):
     top_y = np.median(hi)
     NECK_SPAN[:] = [twist, collar_y]
     print('compose: bald', len(BF), 'knit', knit.sum(), 'hair', hair.sum(), 'collar y', round(float(collar_y), 3))
-    if BALD:
+    hair_proj = hair.copy()        # cards mode: the projector still sees the envelope (its depth buffers, the scalp's side-skin rule), the mesh does not
+    if BALD or CARDS_HAIR:
         hair[:] = False
     SP_, SF, hair_occ = hair_shell(HP, HF[hair]) if hair.any() else (np.zeros((0, 3)), np.zeros((0, 3), np.int32), None)
     # Strands far outside the hair's closed volume are the scan's loose shards: jagged tips round the
@@ -882,9 +1228,12 @@ def compose(work):
         occ_h = ndimage.binary_closing(occ_h, structure=ndimage.generate_binary_structure(3, 1), iterations=1)
         for y_ in range(shape_h[1]):
             occ_h[:, y_, :] = ndimage.binary_fill_holes(occ_h[:, y_, :])
+        # Well inside: the volume eroded by HAIR_IN_HEAD_VOXELS. (Tested against the distance to the scan's
+        # surface samples, outer faces of the hair hugging the nape went one by one, since the bald scan's
+        # samples are sparse there: single missing triangles showing the neck from behind.)
+        occ_h = ndimage.binary_erosion(occ_h, iterations=HAIR_IN_HEAD_VOXELS)
         hv_ = ((hc - lo_h) / res_h).astype(int); okh = (hv_ >= 0).all(1) & (hv_ < np.array(shape_h)).all(1)
         in_head = np.zeros(len(hc), bool); in_head[okh] = occ_h[hv_[okh, 0], hv_[okh, 1], hv_[okh, 2]]
-        in_head &= cKDTree(pts_h).query(hc)[0] > HAIR_IN_HEAD
         print('hair faces inside the head dropped:', int((hair & in_head).sum()), 'of', int(hair.sum()))
         hair &= ~in_head
     # Not over the face: where the photo shows skin near the front, no hair lies.
@@ -906,12 +1255,14 @@ def compose(work):
     SHELL[:] = [np.concatenate([np.zeros(keep_b.sum() + hair.sum(), bool), np.ones(len(SF), bool), np.zeros(len(CF), bool)])]
     used = np.unique(F); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
     styled = hair_style(horig, work, Image.open(f'{work}/kairo-front.png').convert('RGB'), axis)
-    hair_look = hair_projector(work, HP, HF[hair], axis, fallback_style=styled, head_pts=BP[np.unique(BF[~knit])]) if PROJ_HAIR else styled
+    hair_look = hair_projector(work, HP, HF[hair_proj], axis, fallback_style=styled, head_pts=BP[np.unique(BF[~knit])]) if PROJ_HAIR else styled
+    hair_look.style = styled           # the palette's strands at any base luminance, for the root cap
     photo_hair = ((photo[..., 2] > photo[..., 0] + 12) | (photo.sum(-1) < 150)) & ~skin_px
     face_px = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/kairo-front.png').convert('RGB')), iterations=10)
     bald_face = ndimage.binary_dilation(face_mask_src(Image.open(f'{work}/bald/kairo-bald-front.png').convert('RGB')), iterations=6)
     face_d = ndimage.distance_transform_edt(~face_px)
     photo_env = ndimage.binary_closing(photo_hair, iterations=HAIR_GAPS) & ~ndimage.binary_erosion(face_px, iterations=16)
+    hair_look.photo_env = photo_env    # the photo's hair with the gaps between its strands, for the hairline skirt's roots
     hair_points = hc[hair]; hair_cols = hair_look(hair_points) if hair.any() else hcol[hair]
     epx = src_to_crop([(626.0, IRISES[0][1])])
     eye_y = unproject(epx, at(epx))[0, 1]
@@ -960,15 +1311,29 @@ def compose(work):
         # in front of the skull's depth map and the skull's triangles poke through in blocks; skin on
         # skin that is invisible, dark on skin it drew a staircase along the hairline.
         under_grid = bald_face[sp_[:, 1], sp_[:, 0]] & (z_ > at(cp_) - 0.008)
-        return w * (1 - under_grid)
+        w = w * (1 - under_grid)
+        # Nor where the owner's side and back views show skin (the temple below the bangs' edge, the neck below
+        # the hair): the front photo's hair sweeps over the temple at a distance, and by it alone the temple was scalp.
+        side_skin = getattr(hair_look, 'side_skin', None)
+        if side_skin is not None:
+            w = w * (1 - side_skin(points))
+        # ...and fading out under the hair layer's edge (edge_fade): the darkening and the root cap end inside
+        # the strand tips, never beside them.
+        edge_fade = getattr(hair_look, 'edge_fade', None)
+        if edge_fade is not None:
+            w = w * edge_fade(points)
+        return w
+    override = {}        # build() may put the owner's scalp views here ('weight', 'colour'): the scalp from their pictures
     def bald_colour(points, gain=1.0):
         """The bald texture, turned to the hair's own dark under the hair: the scalp between strands."""
         col = bald_tex(points) * gain
-        if not len(hair_points):
+        if not len(hair_points) and not override:      # cards mode: no envelope in the mesh, the owner's scalp pictures still colour the skull
             return col
-        w = hair_weight(points)[:, None]
+        w = override.get('weight', hair_weight)(points)[:, None]
         # Hair close to the head: the palette's dark with the strands, not the nearest strand's colour.
-        return col * (1 - w) + hair_look(points, base=SCALP_BASE) * w
+        look = override['colour'](points) if 'colour' in override else hair_look(points, base=SCALP_BASE)
+        return col * (1 - w) + look * w
+    bald_colour.override = override
     # The head turns and nods where a real one does: at the top of the spine (the atlas and axis
     # vertebrae), level with the ear canals and well behind the neck's middle, since the spine runs
     # along the back of the neck. The neck below twists over its length (the skinned neck), the chin
@@ -989,27 +1354,49 @@ BALD = os.environ.get('KAIRO_BALD') == '1'   # build the head without the hair l
 # of the photo plus the owner's generated profiles and back, fitted into the single-view frame by tools/mvfit.py.
 # KAIRO_HAIR=proj: the hair is the multiview volume's smooth envelope (tools/hairenv.py), painted per
 # texel from the owner's generated views through Pixal3D's cameras (hair_projector).
-PROJ_HAIR = os.environ.get('KAIRO_HAIR') == 'proj'
-MV_HAIR = os.environ.get('KAIRO_HAIR') in ('mv', 'proj')
-HAIR_GLB, HAIR_TEX = (('mv-hair/kairo-env.glb', 'mv-hair/kairo-env.png') if PROJ_HAIR else ('mv-hair/kairo-mv-fit.glb', 'mv-hair/kairo-mv_base.png')) if MV_HAIR else ('kairo-s42.glb', 'kairo-s42_base.png')
+# KAIRO_HAIR=cards: the hair is the owner's Blender hair cards (KAIRO_CARDS_GLB under the work dir: ribbons with a strand
+# atlas, alphaMode MASK, plus an opaque scalp cap; made from the approved hair curves in kairo-hair-cards-wip.blend by
+# kairo/tools/blender) on the bald head. The envelope leaves the mesh but still feeds the projector (the scalp's
+# side-skin rule) and the palette; the cards and the cap are extra head primitives with the brows' lift targets.
+CARDS_HAIR = os.environ.get('KAIRO_HAIR') == 'cards'
+CARDS_GLB = os.environ.get('KAIRO_CARDS_GLB', 'blender/kairo-hair-cards.glb')
+CARDS_ATLAS_SCALE = float(os.environ.get('KAIRO_CARDS_ATLAS', '1.0'))   # the atlas scaled for the package (half of 2048 x 3584 thinned the strands under the mask cutoff in the lab: kept full, written as a 256-colour PNG instead)
+PROJ_HAIR = os.environ.get('KAIRO_HAIR') in ('proj', 'cards')
+MV_HAIR = os.environ.get('KAIRO_HAIR') in ('mv', 'proj', 'cards')
+HAIR_GLB, HAIR_TEX = ((os.environ.get('KAIRO_ENV', 'mv-hair/kairo-env.glb'), 'mv-hair/kairo-env.png') if PROJ_HAIR else ('mv-hair/kairo-mv-fit.glb', 'mv-hair/kairo-mv_base.png')) if MV_HAIR else ('kairo-s42.glb', 'kairo-s42_base.png')
+# (KAIRO_ENV names another envelope file under the work dir, so candidate envelopes can be built side by side.)
 UNDER_CHIN_PHOTO = 0.0         # under the chin: share of the picture's own shadow (1 showed as a dark patch when the head tilted)
 NECK_TWIST = 0.05              # the neck's shortest twisting length above the collar (model units)
 WEB = []                       # bald-scan faces to drop (loose bits), set by compose
 NECK_SPAN = []                 # (neck axis xz, collar rim y per sector, jaw underside y per sector), set by compose
 NECK_OVERLAP = 0.012           # the neck's top this far is in both body and head, covering the seam on turns
 HAIR_REACH = 0.0               # strands outside the hair's closed volume are dropped (at 6 mm the sheets outside the shell read as flaps and shards off the hair)
-EAR_POCKET = 0.010             # the shell keeps this far (m) from the auricle, so the ear sits in a pocket of hair instead of under a lid of it
+EAR_POCKET = 0.010             # the hair keeps this far from the auricle (below EAR_TOP_SHARE of the ear), so the ear sits in a pocket of hair instead of under bits of it
+HAIR_HEAD_GAP = 0.015          # m: a hair face closer than this to the skull or the neck goes: the envelope's sheet lying against the head (the inner shell on the scalp); the scalp carries the owner's roots and hairline itself, and through the hair's gaps those show (the owner chose 15 mm of 8/12/15/20 in the lab)
+HAIR_GRID_GAP = 0.025          # m: the same over the face grid (the forehead): at 15 mm thin strips of the forehead's slab stayed along the hairline and at the temples, which the owner marked
+HAIR_OUTLINE_OPEN = 20         # px at 2048: in each of HAIR_OUTLINE_VIEWS the hair's filled outline is opened by this radius and the faces inside what the opening takes go: tongues and slivers thinner than twice this (~1.8 cm) on the outline (the tab under the bob's side the owner marked, 33 mm off the head)
+HAIR_OUTLINE_VIEWS = (0, 45, -45, 90, -90, 135, -135, 180)
+HAIR_OUTLINE_MIN_BIT = 1500    # px at 2048: a bit the opening takes smaller than this is a lock's tip, not a tongue, and stays (at 500 the bangs' thin end and the points along the nape's edge went, at 1000 a tapered lock end in profile; the tab is 1 870-3 393 px in the views that see it)
+HAIR_WINDOW_VIEWS = (0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180)
+HAIR_WINDOW_MAX = 40000        # px at 2048: a patch of skull showing through the hair, enclosed by it in a lab view, up to this size is a hole and is filled (the owner's "fyll hål": two above her right ear); the ear's pocket and the face are not enclosed or are larger
+HAIR_WINDOW_CLOSE = 6          # px at 2048: the hair's outline is closed by this before the windows are found, so a hole that reaches the outside through a channel narrower than twice this (a notch at the bangs' edge the owner marked, 3 mm wide at its mouth) counts as enclosed
+HAIR_NOTCH_CLOSE = 6           # photo px: the photo's lock mask closed by this; skin it then encloses (a notch into the hair with a mouth under twice this) keeps its hair faces in the face-mask drop rule (the owner's "fyll hål" at the bangs' edge: the skin was the photo's own, between the fringe and the hairline)
+HAIR_NOTCH_MAX = 4000          # photo px: a larger enclosed skin patch is the parting or the face, not a notch
+HAIR_CHIP_FACES = 12           # a group of visible hair faces (any opaque texel) joined to no other visible face, smaller than this, is a chip and its texels go (owner: no free-standing visible piece, ever)
+EAR_TOP_SHARE = 0.35           # the ear's top this share of its height may carry hair (the views show the hair's edge over the upper helix)
+EAR_FRONT_MARGIN = 0.008       # over the ear's top, hair stays only this far outside the auricle's outer surface: in front of the ear, never on its rim (owner: in front, behind, or cut)
 HAIR_SHELL_CLOSE = 1 if MV_HAIR else 5           # voxels (5 mm) of closing on the hair's volume: gaps between strand sheets up to twice this are hair (at 3 the fringe of sheets along the back and the crown's shards stood apart with the room between)
 HAIR_SHELL_OPEN = 0 if MV_HAIR else 1            # voxels of opening on the hair's volume before the shell: spikes thinner than two voxels go
 HAIR_SHELL_ERODE = 0           # voxels (5 mm) the shell sits inside the strands: 0 puts it at their envelope, filling the gaps between them at their own level
 SHELL = []                     # per composed face: part of the hair's shell (set by compose)
 HAIR_BEHIND_GRID_MAX = 0.06    # m behind the face grid beyond which a hair face is the back of the head, not something behind the eyes
 HAIR_BEHIND_GRID = 0.002       # m behind the face grid's depth, within the face, beyond which a hair face is dropped (projected hair)
-HAIR_IN_HEAD = 0.002           # m inside the head's surface beyond which a hair face is dropped (projected hair)
+HAIR_IN_HEAD_VOXELS = 2        # 4 mm voxels the head's filled volume is eroded by before hair faces inside it are dropped (projected hair)
 HAIR_FACE_DEPTH = 0.006 if MV_HAIR else 0.02         # strands and shell over the photo's skin go only this close behind the front (m)
 HAIR_SHELL_FACES = not MV_HAIR    # the shell's faces fill the scan's gaps; the multiview hair is a closed volume already, and the shell hid its locks
 HAIR_LOOSE = 0.0015            # a piece of hair mesh further than this from both the hair's main surface and the scalp is loose and goes
 HAIR_GAPS = 16                 # source px: gaps between the photo's strands narrower than twice this take hair colour
+HAIR_LOCK_CLOSE = 8            # source px: gaps between a lock's strands narrower than twice this are lock (lock_mask_src)
 
 def subdivide_neck(P, F, edge=0.005):
     """The scan's faces from the collar to the chin split until no edge is longer than `edge`: the
@@ -1123,13 +1510,53 @@ def occlusion(P, F, VN, res=0.004, reach=0.06):
 
 # ---------------------------------------------------------------- stage 3: textures
 
-def atlas(P, F, sample, size, shade=None):
-    """Every triangle its own half-cell in an atlas, coloured by `sample` at points on it."""
+KNIT_ATLAS_PX = 2048   # the turtleneck's atlas (4096 sharpened the side seams a little for a megabyte more)
+
+def knit_weights(P, F, w_face, rounds=6):
+    """Per vertex, how much of the bald picture the turtleneck shows: the faces' weights (how squarely the
+    camera saw them) averaged over their neighbours, about 3 cm."""
+    vn = np.zeros(len(P)); cnt = np.zeros(len(P))
+    np.add.at(vn, F.reshape(-1), np.repeat(w_face, 3)); np.add.at(cnt, F.reshape(-1), 1)
+    used = cnt > 0
+    wv = np.where(used, vn / np.maximum(cnt, 1), 0)
+    for _ in range(rounds):
+        vn[:] = 0; np.add.at(vn, F.reshape(-1), np.repeat(wv[F].mean(1), 3))
+        wv = np.where(used, vn / np.maximum(cnt, 1), 0)
+    return wv
+
+def knit_blend(P, F, wv, scan, picture):
+    """Colour for the turtleneck's atlas, sample(points, [weight, shade]): the bald picture by the weight (knit_weights),
+    the scan's own colour in its baked light and shade toward the sides and back, so no line shows between them (as the picture's own faces, the line
+    where the visibility test gave up drew a serrated strip down each side; the owner: the collar has defects)."""
+    # The scan's colour as the knit's local tone (median within 3 cm) times its own light and dark, clamped: its warm
+    # specks (single texels) showed on the back as orange dots; seams and folds keep their shading.
+    c = P[F].mean(1); ctree = cKDTree(c); col = scan(c)
+    base = np.array([np.median(col[k], 0) for k in ctree.query_ball_point(c, r=0.03)])
+    lum = np.array([0.299, 0.587, 0.114])
+    print('knit blend: atlas faces', len(F), 'picture share', round(float(wv[F].mean()), 3))
+    # The weight and the shade interpolated across each triangle (atlas vattr): taken from the nearest vertex they
+    # stepped within the triangles, and where the picture's seam and the scan's do not coincide the steps drew
+    # fragments of seam along it.
+    def sample(q, a):
+        w, sh = a[:, :1], a[:, 1:2]
+        px, _ = project(q); sp = (px - np.array([OX, OY])) / S
+        pic = np.stack([ndimage.map_coordinates(picture[..., ch], [sp[:, 1], sp[:, 0]], order=1, mode='nearest') for ch in range(3)], 1)
+        _, f_ = ctree.query(q); b = base[f_]
+        own = b * np.clip((scan(q) @ lum) / np.maximum(b @ lum, 1), 0.72, 1.06)[:, None]
+        return pic * w + own * sh * (1 - w)
+    return sample
+
+def atlas(P, F, sample, size, shade=None, vattr=None):
+    """Every triangle its own half-cell in an atlas, coloured by `sample` at points on it (with `vattr`, per-vertex
+    values interpolated across each triangle are passed along: sample(points, values))."""
     if not len(F):
         return np.zeros((0, 3, 2)), np.zeros((4, 4, 3), np.uint8)
     cells = int(np.ceil(np.sqrt(len(F) / 2))); cs = size // cells
     lo, hi = 1.0 / cs, 1 - 1.0 / cs
-    tri = np.array([[[lo, lo], [hi, lo], [lo, hi]], [[hi, hi], [lo, hi], [hi, lo]]])
+    # A texel's gap along the cell's diagonal: the two triangles of a cell met there and the sampler blended each
+    # into the other, an outline round every triangle.
+    gap = 1.0 / cs
+    tri = np.array([[[lo, lo], [hi - gap, lo], [lo, hi - gap]], [[hi, hi], [lo + gap, hi], [hi, lo + gap]]])
     gx, gy = np.meshgrid((np.arange(cs) + 0.5) / cs, (np.arange(cs) + 0.5) / cs)
     lower = (gx + gy) <= 1.0
     tex = np.zeros((size, size, 3), np.uint8); drawn = np.zeros((size, size), bool)
@@ -1140,13 +1567,19 @@ def atlas(P, F, sample, size, shade=None):
         a, b, c = P[F[ks, 0]], P[F[ks, 1]], P[F[ks, 2]]
         m = lower if h == 0 else ~lower
         tx, ty = gx[m], gy[m]
-        w1, w2 = ((tx - lo) / (hi - lo), (ty - lo) / (hi - lo)) if h == 0 else ((hi - ty) / (hi - lo), (hi - tx) / (hi - lo))
+        # The barycentrics of the texel in its triangle's UVs (tri). The upper triangles had theirs swapped, their texture
+        # mirrored across the diagonal: a seam crossing one came out as fragments beside it.
+        w1, w2 = ((tx - lo) / (hi - gap - lo), (ty - lo) / (hi - gap - lo)) if h == 0 else ((hi - tx) / (hi - lo - gap), (hi - ty) / (hi - lo - gap))
         w0 = 1 - w1 - w2
         pts = a[:, None] * w0[None, :, None] + b[:, None] * w1[None, :, None] + c[:, None] * w2[None, :, None]
         ck = ks // 2
         px = (ck % cells)[:, None] * cs + np.where(m)[1][None, :]
         py = (ck // cells)[:, None] * cs + np.where(m)[0][None, :]
-        col = sample(pts.reshape(-1, 3)).reshape(len(ks), -1, 3)
+        if vattr is None:
+            col = sample(pts.reshape(-1, 3)).reshape(len(ks), -1, 3)
+        else:
+            att = vattr[F[ks, 0]][:, None] * w0[None, :, None] + vattr[F[ks, 1]][:, None] * w1[None, :, None] + vattr[F[ks, 2]][:, None] * w2[None, :, None]
+            col = sample(pts.reshape(-1, 3), att.reshape(-1, vattr.shape[1])).reshape(len(ks), -1, 3)
         if shade is not None:
             col = col * (shade[F[ks, 0]][:, None] * w0 + shade[F[ks, 1]][:, None] * w1 + shade[F[ks, 2]][:, None] * w2)[..., None]
         tex[py.reshape(-1), px.reshape(-1)] = np.clip(col, 0, 255).reshape(-1, 3).astype(np.uint8)
@@ -1160,14 +1593,25 @@ def atlas(P, F, sample, size, shade=None):
 
 HAIR_SKIRT_DIST = 0.012        # m from the face grid within which a near-front hair face is skirt (its own chart)
 HAIR_CHART_SMOOTH = 0.03       # radius (m) the normals are averaged over for the chart choice
-HAIR_CHART_TILE = 1152          # px per chart tile of the projected hair's texture (six box charts, 3 x 2 tiles)
+HAIR_CHART_ISLAND = 0.012      # radius (m): a face takes the chart most of its neighbourhood uses (no single-face islands)
+HAIR_CHART_MIN_OWN = 0.3       # a face whose own normal leans less than this (cosine) to its chart's axis is baked in the chart it faces most instead
+HAIR_CHART_FORESHORTEN = 0.75  # a face may use a chart that foreshortens it at most this much relative to its best chart (own normal)
+HAIR_CHART_VISIBLE = 0.6       # share of a face's samples that must be outermost in a chart for the face to count as visible there
+HAIR_FRONT_CHART_COS = 0.7     # faces in the front band go to the front chart only when they face it this squarely (at 0.5 the sheet in front of the ear, facing mostly sideways, was stretched twice over in it)
+HAIR_CHART_TILE = 1152          # px per chart tile of the projected hair's texture (six box charts, the hairline chart, the side charts' second layer: 4 x 2 tiles)
+HAIR_CHART_SECOND_OWN = 0.6     # a side-facing face hidden in its side chart goes to the second-layer chart unless its chart sees its own normal this squarely
+HAIR_ALPHA_SPECK = (1000, 300)  # texels: smaller islands in the baked alpha (hair in a cut region; a cut inside the hair) take their surroundings
+HAIR_CUT_SPECK_FACES = 3        # a connected group of this many cut faces or fewer, with uncut faces all round, is drawn uncut (a triangle of skin through the hair)
+HAIR_ALPHA_OPEN = 3             # texels (at the hair's tile size) the baked alpha is opened and closed by: strand tips and notches under 2.4 mm go
+HAIR_ALPHA_MEDIAN = 5           # texels of the median filter on the baked alpha (single-texel notches and specks along the edges go)
+HAIR_ALPHA_BLUR = 1.2           # texels of blur on the baked alpha: the MASK cutoff draws a rounded edge instead of a staircase
 
-def hair_charts(P, F, sample, shade, VN, alpha_fn=None, skirt=None):
+def hair_charts(P, F, sample, shade, VN, alpha_fn=None, skirt=None, tile=None):
     """The projected hair's texture as six box charts (right, left, top, under, front, back: each face in
     the chart its normal faces most), baked by dense sampling with the outermost sample winning, the
     gaps filled from the nearest texel. A per-triangle atlas put every triangle's edge at a jump in
     the texture: the sampler took the coarsest mip level there and drew the mesh as grain."""
-    T = HAIR_CHART_TILE; W, H = 4 * T, 2 * T
+    T = tile or HAIR_CHART_TILE; W, H = 4 * T, 2 * T
     fn = VN[F].mean(1); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
     # The chart from normals averaged over 3 cm: by each face's own normal the three-quarter regions
     # alternated between the side and the front chart triangle by triangle, and each chart's bake
@@ -1176,8 +1620,8 @@ def hair_charts(P, F, sample, shade, VN, alpha_fn=None, skirt=None):
     for _ in range(2):
         nb = tree_.query_ball_point(fc_, r=HAIR_CHART_SMOOTH)
         fn = np.array([fn[i].mean(0) for i in nb]); fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
-    tile = np.array([(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1), (3, 0)])
-    inplane = {0: (2, 1), 1: (2, 1), 2: (0, 2), 3: (0, 2), 4: (0, 1), 5: (0, 1), 6: (0, 1)}
+    tile = np.array([(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1), (3, 0), (3, 1)])
+    inplane = {0: (2, 1), 1: (2, 1), 2: (0, 2), 3: (0, 2), 4: (0, 1), 5: (0, 1), 6: (0, 1), 7: (2, 1)}
     lo = P[F].reshape(-1, 3).min(0) - 0.01; hi = P[F].reshape(-1, 3).max(0) + 0.01; span = (hi - lo).max()
     # Each face takes the chart it faces most among those in which it is not hidden: in a chart's
     # projection the outermost surface wins the texels, and a face under an overhang (the locks over the
@@ -1185,67 +1629,177 @@ def hair_charts(P, F, sample, shade, VN, alpha_fn=None, skirt=None):
     # against a coarse depth map per chart (1 cm cells, 8 mm tolerance).
     dirs = np.array([(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)], float)
     score = fn @ dirs.T                                     # how squarely each chart sees the face
-    cs_ = 0.01; G_ = int(np.ceil(span / cs_)) + 2
+    # Hidden is measured as the bake measures it: every face's samples into each chart's depth map at the
+    # chart's own resolution, the outermost sample per texel winning; a face is hidden in a chart where under
+    # HAIR_CHART_VISIBLE of its own samples win. (A coarse 1 cm map with an 8 mm tolerance missed the locks
+    # overhanging the side of the head by a few millimetres, and the faces under them, baked in the top
+    # chart, took the overhang's texels as flat facets.)
     hidden = np.zeros((len(F), 6), bool)
-    rng_ = np.random.default_rng(2); b6 = rng_.dirichlet((1, 1, 1), size=6)
-    spts = np.einsum('bk,fkd->fbd', b6, P[F]).reshape(-1, 3)
+    rng_ = np.random.default_rng(2); b16 = rng_.dirichlet((1, 1, 1), size=16)
+    spts = np.einsum('bk,fkd->fbd', b16, P[F]).reshape(-1, 3); sfid = np.repeat(np.arange(len(F)), len(b16))
     for ch in range(6):
         a, b = inplane[ch]; ax = ch // 2; sg = 1.0 if ch % 2 == 0 else -1.0
-        gi = np.clip(((spts[:, a] - lo[a]) / cs_).astype(int), 0, G_ - 1); gj = np.clip(((spts[:, b] - lo[b]) / cs_).astype(int), 0, G_ - 1)
-        dmap = np.full((G_, G_), -np.inf); np.maximum.at(dmap, (gi, gj), spts[:, ax] * sg)
-        # (Empty cells take the nearest filled one; a maximum filter over 3 x 3 cells made 84 % of the
-        # faces "hidden" by their own curved neighbourhood.)
-        empty = ~np.isfinite(dmap); _, (qi, qj) = ndimage.distance_transform_edt(empty, return_indices=True); dmap = dmap[qi, qj]
-        ci = np.clip(((fc_[:, a] - lo[a]) / cs_).astype(int), 0, G_ - 1); cj = np.clip(((fc_[:, b] - lo[b]) / cs_).astype(int), 0, G_ - 1)
-        hidden[:, ch] = fc_[:, ax] * sg < dmap[ci, cj] - 0.008
-    score_ok = np.where(hidden, -np.inf, score)
-    chart = np.where(np.isfinite(score_ok.max(1)), score_ok.argmax(1), score.argmax(1))
+        u = (spts[:, a] - lo[a]) / span; v = (spts[:, b] - lo[b]) / span
+        gi = np.clip((u * (T - 1)).astype(int), 0, T - 1); gj = np.clip((v * (T - 1)).astype(int), 0, T - 1)
+        dep = spts[:, ax] * sg
+        dmap = np.full((T, T), -np.inf); np.maximum.at(dmap, (gi, gj), dep)
+        wins = dep >= dmap[gi, gj] - 0.002
+        share = np.bincount(sfid, wins, minlength=len(F)) / len(b16)
+        hidden[:, ch] = share < HAIR_CHART_VISIBLE
+    own = np.cross(P[F[:, 1]] - P[F[:, 0]], P[F[:, 2]] - P[F[:, 0]]); own /= np.linalg.norm(own, axis=1, keepdims=True) + 1e-12
+    own_score = np.abs(own @ dirs.T)                        # how little each chart foreshortens the face (its own normal)
+    def signed(axis_):
+        return axis_ * 2 + (fn[np.arange(len(F)), axis_] < 0).astype(int)
+    # The chart: among those where the face is visible, foreshortened at most HAIR_CHART_FORESHORTEN of its best and
+    # faced by its smoothed normal, the one the smoothed normal faces most (coherent regions, no flicker along the
+    # ridges); with no such chart, the visible one its own normal faces most; with none visible, the one it faces
+    # most. (By the smoothed normals alone the steep sides of every lock went to the top or front chart as slivers
+    # of texels stretched over each face: flat facets and comb teeth in a field of strands.)
+    ok = ~hidden & (own_score >= HAIR_CHART_FORESHORTEN * own_score.max(1, keepdims=True)) & (score > 0)
+    cand = np.where(ok, score, -np.inf); vis_own = np.where(hidden, -np.inf, own_score)
+    chart = np.where(np.isfinite(cand.max(1)), cand.argmax(1), np.where(np.isfinite(vis_own.max(1)), signed(vis_own.argmax(1) // 2), signed(own_score.argmax(1) // 2)))
+    best = score.argmax(1)
+    # The side charts' second layer: a side-facing face hidden in its side chart (the walls of the pocket between
+    # the bob's side and the temple, behind the side itself) took the front or top chart, where it is a sliver of
+    # texels stretched over the whole face: vertical stripes from three quarters. Such faces share one more
+    # tile, a side projection of their own (both sides, half a tile each) in which they are the outermost.
+    # (By the face's own normal: in a groove under an overhanging lock the 3 cm smoothed normal is the lock's,
+    #  and the groove's faces, hidden in their side chart, were baked foreshortened in the top chart as facets.)
+    own_axis = own_score.argmax(1)
+    side_chart = (fn[:, 0] < 0).astype(int)
+    ax_now = np.where(chart == 6, 2, np.where(chart == 7, 0, chart // 2))
+    second = (own_axis == 0) & hidden[np.arange(len(F)), side_chart] & ((ax_now == 0) | (own_score[np.arange(len(F)), ax_now] < HAIR_CHART_SECOND_OWN))
+    chart = np.where(second, 7, chart)
     # The front band (the hairline, the skirt over the forehead) goes to the front chart whenever it is
     # not hidden there: by the averaged normals the curved forehead's faces leaned into the side and
     # top charts, where they are not the outermost and took those charts' texels, so the alpha cut
     # at the hairline came out as a patchwork of charts.
+    # (Only faces that face the front at least HAIR_FRONT_CHART_COS: at any facing, the bob's side in front of
+    #  the ear, sideways-facing and within the band, went to the front chart, where it is a sliver of texels
+    #  stretched across each face: comb teeth along its edge from every angle since P25.)
     near_front = fc_[:, 2] > np.percentile(fc_[:, 2], 99.5) - HAIR_MASK_DEPTH
-    chart = np.where(near_front & ~hidden[:, 4] & (score[:, 4] > 0.0), 4, chart)
+    chart = np.where(near_front & ~hidden[:, 4] & (score[:, 4] > HAIR_FRONT_CHART_COS), 4, chart)
     # The skirt (the hair layer lying on the face near the hairline) has its own chart, a front
     # projection in which only skirt faces are baked: under the bangs it is the outermost surface in
     # none of the six box charts and took their texels, a patchwork at the hairline.
     if skirt is not None:
         chart = np.where(skirt, 6, chart)
-    axis = np.where(chart == 6, 2, chart // 2); sign = np.where(chart == 6, 1.0, np.where(chart % 2 == 0, 1.0, -1.0))
+    # Islands: a face whose chart differs from most of its neighbourhood (HAIR_CHART_ISLAND radius) takes the
+    # neighbourhood's chart when that chart is one it may use (visible, not foreshortened, faced): single
+    # faces baked in another projection were flat-coloured facets in a field of strands. The skirt keeps its chart.
+    keep_ = skirt if skirt is not None else np.zeros(len(F), bool)
+    for _ in range(2):
+        nb = tree_.query_ball_point(fc_, r=HAIR_CHART_ISLAND)
+        mode = np.array([np.bincount(chart[i], minlength=8).argmax() for i in nb])
+        allowed = (mode < 6) & ok[np.arange(len(F)), np.clip(mode, 0, 5)]
+        chart = np.where(~keep_ & allowed, mode, chart)
+    # Slivers: a face whose own normal leans under HAIR_CHART_MIN_OWN to its chart's axis is a sliver of texels
+    # there and takes the chart its own normal faces most among those where it is not hidden.
+    ax_of = np.where(chart == 6, 2, np.where(chart == 7, 0, chart // 2))
+    own_now = np.abs(own[np.arange(len(F)), ax_of])
+    sliver = (own_now < HAIR_CHART_MIN_OWN) & np.isfinite(vis_own.max(1)) & (vis_own.max(1) > HAIR_CHART_MIN_OWN + 0.2) & (chart != 6)
+    chart = np.where(sliver, signed(vis_own.argmax(1) // 2), chart)
+    print('hair charts: slivers moved to the chart their own normal faces', int(sliver.sum()))
+    axis = np.where(chart == 6, 2, np.where(chart == 7, 0, chart // 2))
+    sign = np.where(chart == 6, 1.0, np.where(chart == 7, np.where(fn[:, 0] >= 0, 1.0, -1.0), np.where(chart % 2 == 0, 1.0, -1.0)))
     print('hair charts: faces hidden in their best chart', int(hidden[np.arange(len(F)), score.argmax(1)].sum()), 'of', len(F))
-    def px_of(pts, ch):
+    def px_of(pts, ch, side=0.0):
         a, b = inplane[ch]
         u = (pts[:, a] - lo[a]) / span; v = (pts[:, b] - lo[b]) / span
         if ch in (0, 4, 6): u = 1 - u                       # seen from +x / +z the horizontal axis runs the other way
         if ch in (2,): v = 1 - v
+        if ch == 7:
+            # a quarter of the tile per (side of the head, way it faces): faces of one quarter share one depth test
+            quad = int(side); facing, side_of = quad % 2, quad // 2
+            u = ((1 - u) if facing else u) * 0.5 + 0.5 * facing; v = v * 0.5 + 0.5 * side_of
         return np.stack([tile[ch, 0] * T + 1 + u * (T - 2), tile[ch, 1] * T + 1 + (1 - v) * (T - 2)], 1)
     uv = np.zeros((len(F), 3, 2))
     for ch in range(7):
         m = chart == ch
         if m.any():
             uv[m] = px_of(P[F[m]].reshape(-1, 3), ch).reshape(-1, 3, 2)
+    cx_ = (lo[0] + hi[0]) / 2
+    def quad_of(m):
+        return (fc_[m, 0] >= cx_).astype(int) * 2 + (fn[m, 0] >= 0).astype(int)
+    def second_layer(m):
+        chart[m] = 7; axis[m] = 0; sign[m] = np.where(fn[m, 0] >= 0, 1.0, -1.0)
+        idx_m = np.where(m)[0]; q_ = quad_of(m)
+        for q in range(4):
+            mq = idx_m[q_ == q]
+            if len(mq):
+                uv[mq] = px_of(P[F[mq]].reshape(-1, 3), 7, q).reshape(-1, 3, 2)
+    if (chart == 7).any():
+        second_layer(chart == 7)
     img = np.zeros((H, W, 3)); depth = np.full((H, W), -np.inf); drawn = np.zeros((H, W), bool); aimg = np.ones((H, W))
-    area = 0.5 * np.abs(np.cross(uv[:, 1] - uv[:, 0], uv[:, 2] - uv[:, 0]))
-    bucket = np.digitize(area, [60, 250, 1000])
-    for k, n in enumerate((16, 32, 64, 128)):
-        bary = lattice(n); faces = np.where(bucket == k)[0]
-        if not len(faces):
-            continue
-        for part in np.array_split(faces, max(1, len(faces) * len(bary) // 1500000)):
+    def bake(sel):
+        area = 0.5 * np.abs(np.cross(uv[sel, 1] - uv[sel, 0], uv[sel, 2] - uv[sel, 0]))
+        bucket = np.digitize(area, [60, 250, 1000])
+        for k, n in enumerate((16, 32, 64, 128)):
+            bary = lattice(n); faces = sel[bucket == k]
+            if not len(faces):
+                continue
+            for part in np.array_split(faces, max(1, len(faces) * len(bary) // 1500000)):
+                pts = np.einsum('bk,fkd->fbd', bary, P[F[part]]).reshape(-1, 3)
+                puv = np.einsum('bk,fkd->fbd', bary, uv[part]).reshape(-1, 2)
+                sh = np.einsum('bk,fk->fb', bary, shade[F[part]]).reshape(-1)
+                ax = np.repeat(axis[part], len(bary)); sg = np.repeat(sign[part], len(bary)); fid = np.repeat(part, len(bary))
+                dep = pts[np.arange(len(pts)), ax] * sg
+                col = sample(pts) * sh[:, None]
+                x = np.clip(puv[:, 0].astype(int), 0, W - 1); y = np.clip(puv[:, 1].astype(int), 0, H - 1)
+                o = np.argsort(dep); better = dep[o] > depth[y[o], x[o]]
+                img[y[o][better], x[o][better]] = col[o][better]; depth[y[o][better], x[o][better]] = dep[o][better]; drawn[y[o][better], x[o][better]] = True
+                if alpha_fn is not None:
+                    aimg[y[o][better], x[o][better]] = alpha_fn(pts)[o][better]
+    bake(np.arange(len(F)))
+    _, (iy, ix) = ndimage.distance_transform_edt(~drawn, return_indices=True)
+    img = img[iy, ix]; aimg = aimg[iy, ix]
+    if alpha_fn is not None:
+        # Specks: an island of hair texels smaller than HAIR_ALPHA_SPECK inside a cut region is a flake
+        # (the views' strand-level masks on a surface that does not follow them to the strand: from three
+        # quarters the bob's side in front of the ear read as flakes over the cheek), and a pinhole of
+        # cut texels that small inside the hair is a hole in it; both take their surroundings.
+        cut = aimg < 0.5
+        for region, value, limit in ((~cut, 0.0, HAIR_ALPHA_SPECK[0]), (cut, 1.0, HAIR_ALPHA_SPECK[1])):
+            lab_, _ = ndimage.label(region)
+            sizes = np.bincount(lab_.ravel()); small = sizes < limit; small[0] = False
+            aimg = np.where(small[lab_], value, aimg)
+        print('hair charts: alpha specks filled', int((cut != (aimg < 0.5)).sum()), 'texels')
+        # Faces whose texels another face in front of them cut (texels are shared wherever a chart's projection
+        # stacks faces): a cut face, or two or three, with uncut faces all round is a triangle of skin through the
+        # hair (the nape from behind). Their texels are drawn again, uncut, outermost or not.
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.csgraph import connected_components
+        b4 = np.array([[1 / 3, 1 / 3, 1 / 3], [0.6, 0.2, 0.2], [0.2, 0.6, 0.2], [0.2, 0.2, 0.6]])
+        suv = np.einsum('bk,fkd->fbd', b4, uv); sx = np.clip(suv[..., 0].astype(int), 0, W - 1); sy = np.clip(suv[..., 1].astype(int), 0, H - 1)
+        fcut = (aimg[sy, sx] < 0.5).mean(1) >= 0.5
+        _, vid = np.unique(np.round(P, 5), axis=0, return_inverse=True); Fu = vid.reshape(-1)[F]
+        es = np.sort(np.concatenate([Fu[:, [0, 1]], Fu[:, [1, 2]], Fu[:, [2, 0]]]), 1); fe = np.tile(np.arange(len(F)), 3)
+        ek = es[:, 0] * (Fu.max() + 1) + es[:, 1]; o_ = np.argsort(ek, kind='stable'); ek, fe = ek[o_], fe[o_]
+        pair = ek[1:] == ek[:-1]; fa_, fb_ = fe[:-1][pair], fe[1:][pair]
+        both = fcut[fa_] & fcut[fb_]
+        ncc, lab_f = connected_components(coo_matrix((np.ones(both.sum()), (fa_[both], fb_[both])), shape=(len(F), len(F))), directed=False)
+        csize = np.bincount(lab_f[fcut], minlength=ncc)
+        redo = np.where(fcut & (csize[lab_f] <= HAIR_CUT_SPECK_FACES))[0]
+        for part in np.array_split(redo, max(1, len(redo) // 2000)):
+            if not len(part):
+                continue
+            bary = lattice(32)
             pts = np.einsum('bk,fkd->fbd', bary, P[F[part]]).reshape(-1, 3)
             puv = np.einsum('bk,fkd->fbd', bary, uv[part]).reshape(-1, 2)
             sh = np.einsum('bk,fk->fb', bary, shade[F[part]]).reshape(-1)
-            ch = np.repeat(chart[part], len(bary)); ax = np.repeat(axis[part], len(bary)); sg = np.repeat(sign[part], len(bary))
-            dep = pts[np.arange(len(pts)), ax] * sg
-            col = sample(pts) * sh[:, None]
             x = np.clip(puv[:, 0].astype(int), 0, W - 1); y = np.clip(puv[:, 1].astype(int), 0, H - 1)
-            o = np.argsort(dep); better = dep[o] > depth[y[o], x[o]]
-            img[y[o][better], x[o][better]] = col[o][better]; depth[y[o][better], x[o][better]] = dep[o][better]; drawn[y[o][better], x[o][better]] = True
-            if alpha_fn is not None:
-                aimg[y[o][better], x[o][better]] = alpha_fn(pts)[o][better]
-    _, (iy, ix) = ndimage.distance_transform_edt(~drawn, return_indices=True)
-    img = img[iy, ix]; aimg = aimg[iy, ix]
-    print('hair charts: faces per chart', np.bincount(chart, minlength=7), 'drawn texels', int(drawn.sum()), 'cut texels', int((aimg < 0.5).sum()))
+            img[y, x] = sample(pts) * sh[:, None]; aimg[y, x] = 1.0
+        print('hair charts: cut faces drawn again', len(redo), 'of', int(fcut.sum()), 'cut faces')
+        # The alpha's edge smoothed: cut texel by texel from the views' masks, the layer's edges were staircases
+        # and torn strand tips along the hairline, the ears and the bob's lower edge (owner: "jämna till hack
+        # och ojämnheter"). A median over HAIR_ALPHA_MEDIAN texels takes the single-texel notches, a blur of
+        # HAIR_ALPHA_BLUR rounds the edge the MASK cutoff then draws.
+        k_ = max(1, int(round(HAIR_ALPHA_OPEN * T / HAIR_CHART_TILE)))
+        hard = aimg >= 0.5
+        aimg = ndimage.binary_closing(ndimage.binary_opening(hard, iterations=k_), iterations=k_).astype(float)
+        aimg = ndimage.median_filter(aimg, size=HAIR_ALPHA_MEDIAN)
+        aimg = ndimage.gaussian_filter(aimg, HAIR_ALPHA_BLUR)
+    print('hair charts: faces per chart', np.bincount(chart, minlength=8), 'drawn texels', int(drawn.sum()), 'cut texels', int((aimg < 0.5).sum()))
     if alpha_fn is None:
         return uv / np.array([W, H]), np.clip(img, 0, 255).astype(np.uint8)
     return uv / np.array([W, H]), np.dstack([np.clip(img, 0, 255), aimg * 255]).astype(np.uint8)
@@ -1383,6 +1937,7 @@ MOUTH_GRID = (430, 640)                     # the harmonic fields' origin (sourc
 MOUTH_FIELDS = {}                           # per slit target: (dx, dy) over the grid
 SIDE = []                                   # per vertex: +1 upper lip's edge, -1 lower lip's edge, 0 elsewhere (set by face_surface)
 SLIT_RIM = []                               # the cut's edges: positions and crop px of both ends, and their side
+SKIRT_EDGES = []                            # how many border edges the face grid's skirt folds back from (its faces are the last 2 x that many of the grid's), set by face_surface
 
 def lip_outline(work, name):
     """The lips in one picture, per position across the mouth: the upper lip's top U, the opening's top A
@@ -1898,10 +2453,31 @@ class Glb:
         q['idx'] = inv.reshape(-1)[np.asarray(p['idx']).astype(np.int64)].astype(np.uint32)
         return q
 
+    # Vertex data on power-of-two grids (KAIRO_QUANT=0 keeps full floats): still float32 for every loader, but with the low
+    # mantissa bytes zero the package's deflate halves them (the owner: the avatar under 10 MB). Positions 0.06 mm, morph
+    # offsets 0.03 mm, normals 1/256, texture coordinates 1/32768 (an eighth of a texel at 4096), skin weights 1/1024.
+    QUANT = dict(pos=2.0 ** -14, nrm=2.0 ** -8, uv=2.0 ** -15, weights=2.0 ** -10, targets=2.0 ** -15)
+
+    @classmethod
+    def quantize(cls, p):
+        if os.environ.get('KAIRO_QUANT', '1') == '0':
+            return p
+        q = dict(p)
+        for k in ('pos', 'nrm', 'uv', 'weights'):
+            if p.get(k) is not None:
+                q[k] = np.round(np.asarray(p[k], np.float64) / cls.QUANT[k]) * cls.QUANT[k]
+        if p.get('weights') is not None:
+            q['weights'] = q['weights'] / np.maximum(q['weights'].sum(1, keepdims=True), 1e-9)
+            q['weights'] = np.round(q['weights'] / cls.QUANT['weights']) * cls.QUANT['weights']
+            q['weights'][:, 0] += 1 - q['weights'].sum(1)      # the rounding's remainder on the first joint: they sum to one
+        if p.get('targets') is not None:
+            q['targets'] = [np.round(np.asarray(t, np.float64) / cls.QUANT['targets']) * cls.QUANT['targets'] for t in p['targets']]
+        return q
+
     def mesh(self, name, prims, target_names=()):
         out = []
         for p in prims:
-            p = self.weld(p)
+            p = self.weld(self.quantize(p))
             prim = {"attributes": {"POSITION": self.accessor(p['pos'], "VEC3", 34962, True), "NORMAL": self.accessor(p['nrm'], "VEC3", 34962),
                                    "TEXCOORD_0": self.accessor(p['uv'], "VEC2", 34962)},
                     "indices": self.accessor(p['idx'].astype(np.uint32), "SCALAR", 34963), "material": p['material']}
@@ -1944,6 +2520,15 @@ EYE_FRAMES = 'eye-layers-2'      # the owner's layers: kairo-lid-half.png, kairo
 BLINK_FRAMES = []               # (layer, from, to): painted states shown as frames; the lids below replaced them
 LID_MATERIAL = 12              # index of the "lid" material
 EAR_MATERIAL = 16              # index of the "ear" material (the auricles' per-triangle atlas)
+ROOT_MATERIAL = 17             # index of the "roots" material (the root cap under the hair)
+ROOT_CAP = os.environ.get('KAIRO_ROOTS', '0') == '1'   # the root cap under the hair layer (KAIRO_ROOTS=1 builds with it). Off since the skull carries the owner's roots itself (C31): drawn 1-2 mm over the same roots it only softened the strands; the owner turned it off. Kept for the hair-on-grey review variant.
+HAIR_CARDS = os.environ.get('KAIRO_CARDS', '0') == '1' # hair cards for the lock ends (Tools/haircards.py; KAIRO_CARDS=1 builds them). Off: the owner judged them not worth it once the scalp carried their own roots (eight pieces at the nape's corners).
+HAIRLINE_SKIRT = os.environ.get('KAIRO_SKIRT', '0') == '1'   # the face grid's skirt as its own layer (KAIRO_SKIRT=1 builds it). Off on the owner's call: with the owner's scalp pictures on the skull it added nothing visible.
+ROOT_COVER = 0.5               # hair weight (compose's coverage field) above which a skull face is capped
+ROOT_LIFT = (0.0005, 0.002)    # how far the cap stands off the skin at its edge and in its middle (no z-fighting, no step at the edge; the hairline skirt is pulled to 4 mm in front of the head)
+ROOT_BASE = 40.0               # luminance of the roots: the palette's dark end, under the scalp's own 48, so the cap reads as shadowed roots
+ROOT_TILE = 512                # px per box chart tile of the cap's texture (2048 x 1024, mostly hidden)
+ROOT_EDGE_PX = 12              # px of a view (about 3 mm) inside the hair's edge over which the root cap and the scalp's darkening fade in
 LID_LAYER = 'kairo-lid-closed.png'
 LID_RETOUCH = 'hairfree-package/kairo-lid-texture-hairfree.png'   # the owner's retouch of the lid texture crop (RGB; the alpha is ours)
 LID_MIRROR = True               # her right lid (image left) is her left one mirrored about the face's midline (owner: the painted right lid kept a dark defect in the blink)
@@ -2327,6 +2912,13 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
     Ws = to_world(samples)
     views = []
     ref = None
+    def inpaint_edge(rgb, hairpx, px=2):
+        """The view's pixels within `px` of the hair's edge replaced by the nearest pixel further in: the edge
+        pixels are hair and skin (or backdrop) mixed, light, and projected onto the layer's edge they drew a
+        bright dotted outline along every cut (the comb teeth on the sheet in front of the ear)."""
+        core = ndimage.binary_erosion(hairpx, iterations=px)
+        _, (iy, ix) = ndimage.distance_transform_edt(~core, return_indices=True)
+        return np.where((hairpx & ~core)[..., None], rgb[iy, ix], rgb)
     for fr in meta['frames']:
         im = Image.open(f"{VD}/{fr['file_path']}").convert('RGBA'); S_ = im.size[0]
         a = np.asarray(im).astype(float); rgb, alpha = a[..., :3], a[..., 3] / 255.0
@@ -2337,6 +2929,11 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         sat = (rgb.max(-1) - rgb.min(-1)) / (rgb.max(-1) + 1e-6)
         hairpx = (rgb[..., 2] > rgb[..., 0] + 10) & ((sat > 0.25) | ((rgb @ lum_w) < 135)) & (alpha > 0.5)
         hairpx = ndimage.binary_opening(hairpx, iterations=1)
+        raw_ = hairpx.copy()
+        rgb = inpaint_edge(rgb, hairpx)
+        # every non-hair pixel as the nearest hair pixel: the cards sample along their strips' edges
+        _, (fy_, fx_) = ndimage.distance_transform_edt(~ndimage.binary_erosion(hairpx, iterations=2), return_indices=True)
+        filled_ = rgb[fy_, fx_]
         c2w = np.array(fr['transform_matrix'], float); w2c = np.linalg.inv(c2w)
         focal = (S_ / 2.0) / np.tan(fov / 2.0)
         def proj(W, w2c=w2c, focal=focal, S_=S_):
@@ -2346,7 +2943,16 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         # the view's depth buffer from the envelope (4 px cells, the nearest sample per cell, spread by one cell)
         x, y, d = proj(Ws); cell = 4; B = S_ // cell
         ix = np.clip((x / cell).astype(int), 0, B - 1); iy = np.clip((y / cell).astype(int), 0, B - 1)
-        zb = np.full((B, B), np.inf); np.minimum.at(zb, (iy, ix), d); zb = ndimage.minimum_filter(zb, size=3)
+        zb = np.full((B, B), np.inf); np.minimum.at(zb, (iy, ix), d)
+        zb_env = zb.copy(); zb_head = np.full((B, B), np.inf)      # the envelope's and the head's own depths (unspread): the hair cards' silhouette and occlusion
+        if head_pts is not None:
+            # ...and from the head: a view cuts and colours only what it sees, and the bob's side in front of the
+            # ear lies behind the cheek from the front (the photo shows cheek there because the cheek is in front).
+            xh, yh, dh = proj(to_world(head_pts))
+            ixh = np.clip((xh / cell).astype(int), 0, B - 1); iyh = np.clip((yh / cell).astype(int), 0, B - 1)
+            okh = (xh >= 0) & (xh < S_) & (yh >= 0) & (yh < S_) & (dh > 0)
+            np.minimum.at(zb, (iyh[okh], ixh[okh]), dh[okh]); np.minimum.at(zb_head, (iyh[okh], ixh[okh]), dh[okh])
+        zb = ndimage.minimum_filter(zb, size=3)
         lum = rgb @ lum_w
         pl = np.percentile(lum[hairpx], [10, 90]) if hairpx.sum() > 100 else np.array([40.0, 120.0])
         skinpx = ndimage.binary_erosion((rgb[..., 0] > rgb[..., 2] + 30) & (rgb.sum(-1) > 200) & (alpha > 0.5), iterations=1)
@@ -2354,20 +2960,101 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         # layer is cut there. By skin alone the eyes and the brows kept hair over them once the
         # face-mask drop rule was off.
         nothair = (alpha > 0.5) & ~ndimage.binary_dilation(hairpx, iterations=2)
+        if views:
+            # Closed by HAIR_VIEW_CLOSE px first: the bob's side in front of the ear is strands with the cheek
+            # between them in the profile views, and cut strand by strand on a surface it read as ragged.
+            closed_ = ndimage.binary_closing(hairpx, iterations=HAIR_VIEW_CLOSE)
+            # ...and smoothed over HAIR_VIEW_SMOOTH px: the strand-level outline cut the surface in a saw-tooth.
+            closed_ = ndimage.gaussian_filter(closed_.astype(float), HAIR_VIEW_SMOOTH) > 0.5
+            nothair = (alpha > 0.5) & ~ndimage.binary_dilation(closed_, iterations=2)
+            # The side and back views cut the layer only where they show skin in the open (the cheek, the ear,
+            # the neck below the hair): a small patch of skin enclosed by hair is the neck or the scalp seen
+            # between two strands of that view, and cut into the envelope's smooth surface it was a hole
+            # showing the pink neck from behind (the owner's circles at the nape). The surface keeps its
+            # texels there (the views give them no colour, so they take the dark strands).
+            lab_, _ = ndimage.label(nothair)
+            sizes_ = np.bincount(lab_.ravel()); small_ = sizes_ < HAIR_VIEW_GAP_PX; small_[0] = False
+            nothair &= ~small_[lab_]
         if not views:
             # The front view is the photo: its face (eyes, brows and mouth included, which are blue or
             # dark and pass the hair rule) is never hair. Only strands wider than 10 px are hair inside
             # the face's oval; the mask's own edge follows them.
-            fm_ = face_mask_src(Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)))
-            nothair |= fm_ & (alpha > 0.5)
-        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, skinpx=skinpx, nothair=nothair, proj=proj, zb=zb, cell=cell, S=S_, cam=c2w[:3, 3], pl=pl, name=fr['file_path']))
+            # The photo is staged in a larger frame: the mask is built on the photo and placed at the photo's
+            # offset in the frame (built on the frame's own pixels with the landmarks in photo coordinates, it
+            # sat 106 x 90 px off: it covered her right temple and missed half of each eye). The photo's locks
+            # stay hair inside it: by the mask's own rule strands under 10 px were face, and the bangs' lock's
+            # thin end over the temple was cut out of the layer (the owner's hole in the bangs).
+            photo_ = Image.open(f'{work}/kairo-front.png').convert('RGB')
+            ox_, oy_ = photo_offset(a[..., :3], np.asarray(photo_))
+            def in_frame(m_):
+                out_ = np.zeros((S_, S_), bool); h_, w_ = m_.shape
+                out_[oy_:oy_ + h_, ox_:ox_ + w_] = m_[:S_ - oy_, :S_ - ox_]
+                return out_
+            fm_ = in_frame(face_mask_src(photo_)); lock_ = in_frame(lock_mask_src(photo_)) & fm_
+            print('hair view', fr['file_path'], 'holds the photo at', (ox_, oy_), '; lock px inside the face mask', int(lock_.sum()))
+            # Inside the face mask the locks are hair pixel for pixel, skin between their strands included: the
+            # layer is continuous over them and shows the photo there (cut strand by strand, the gaps drew the
+            # dark fallback as torn triangles along the fringe; the surface lies 4-20 mm off the forehead, so
+            # the photo's skin on it meets the skin behind).
+            # The fringe's outline closed over HAIR_FRONT_CLOSE px and smoothed as the side views' are: the strand
+            # tips' gaps cut the slab's edge into a saw-tooth of slivers.
+            hairpx = ndimage.binary_closing(hairpx, iterations=HAIR_FRONT_CLOSE)
+            hairpx = ndimage.gaussian_filter(hairpx.astype(float), HAIR_VIEW_SMOOTH) > 0.5
+            hairpx = hairpx | lock_
+            raw_ = (raw_ | lock_) & ~(fm_ & ~lock_)        # the cards' hair: the irises and the brows pass the hue rule
+            nothair = (alpha > 0.5) & ~ndimage.binary_dilation(hairpx, iterations=2)
+            nothair |= fm_ & ~lock_ & (alpha > 0.5)
+        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, raw=raw_, filled=filled_, skinpx=skinpx, nothair=nothair, proj=proj, zb=zb, zb_env=zb_env, zb_head=zb_head, cell=cell, S=S_, cam=c2w[:3, 3], c2w=c2w, focal=focal, pl=pl, name=fr['file_path']))
         if ref is None:
             ref = pl
+    crown_fit = f'{D}/crown-fit.json'
+    if os.path.exists(crown_fit) and os.path.exists(f'{work}/{CROWN_VIEW}'):
+        # The owner's crown view (the head pitched down, seen from the front; tools/crownfit.py fitted its pitch,
+        # scale and offset by silhouette) as a fifth view: the turntable's four see the top of the head at grazing
+        # angles only, and it drew the fallback's ring pattern instead of the parting's strands.
+        cf = json.load(open(crown_fit)); th_ = math.radians(cf['pitch']); sc_ = cf['scale']; off_ = np.array(cf['offset']); piv_ = np.array(cf['pivot'])
+        R_ = np.array([[1, 0, 0], [0, math.cos(th_), -math.sin(th_)], [0, math.sin(th_), math.cos(th_)]])
+        def to_model(Wq):
+            return np.stack([Wq[:, 0], Wq[:, 2], -Wq[:, 1]], 1) * s_ + t_
+        def proj_c(Wq, R_=R_, sc_=sc_, off_=off_, piv_=piv_):
+            px, zc = project(piv_ + (to_model(Wq) - piv_) @ R_.T)
+            return px[:, 0] * sc_ + off_[0], px[:, 1] * sc_ + off_[1], zc
+        im = Image.open(f'{work}/{CROWN_VIEW}').convert('RGB'); S_ = im.size[0]
+        rgb = np.asarray(im).astype(float)
+        corner = np.median(np.concatenate([rgb[:30, :30].reshape(-1, 3), rgb[:30, -30:].reshape(-1, 3)]), 0)
+        alpha = ndimage.binary_fill_holes(ndimage.binary_closing(np.abs(rgb - corner).max(-1) > 22, iterations=3)).astype(float)
+        rgb = ndimage.gaussian_filter(rgb, (HAIR_PROJ_BLUR, HAIR_PROJ_BLUR, 0))
+        sat = (rgb.max(-1) - rgb.min(-1)) / (rgb.max(-1) + 1e-6)
+        hairpx = (rgb[..., 2] > rgb[..., 0] + 10) & ((sat > 0.25) | ((rgb @ lum_w) < 135)) & (alpha > 0.5)
+        hairpx = ndimage.binary_opening(hairpx, iterations=1)
+        rgb = inpaint_edge(rgb, hairpx)
+        x, y, d = proj_c(Ws); cell = 4; B = S_ // cell
+        ix = np.clip((x / cell).astype(int), 0, B - 1); iy = np.clip((y / cell).astype(int), 0, B - 1)
+        zb = np.full((B, B), np.inf); np.minimum.at(zb, (iy, ix), d)
+        if head_pts is not None:
+            xh, yh, dh = proj_c(to_world(head_pts)); okh = (xh >= 0) & (xh < S_) & (yh >= 0) & (yh < S_) & (dh > 0)
+            np.minimum.at(zb, (np.clip((yh[okh] / cell).astype(int), 0, B - 1), np.clip((xh[okh] / cell).astype(int), 0, B - 1)), dh[okh])
+        zb = ndimage.minimum_filter(zb, size=3)
+        lum = rgb @ lum_w
+        pl = np.percentile(lum[hairpx], [10, 90]) if hairpx.sum() > 100 else np.array([40.0, 120.0])
+        skinpx = ndimage.binary_erosion((rgb[..., 0] > rgb[..., 2] + 30) & (rgb.sum(-1) > 200) & (alpha > 0.5), iterations=1)
+        closed_ = ndimage.gaussian_filter(ndimage.binary_closing(hairpx, iterations=HAIR_VIEW_CLOSE).astype(float), HAIR_VIEW_SMOOTH) > 0.5
+        nothair = (alpha > 0.5) & ~ndimage.binary_dilation(closed_, iterations=2)
+        lab_, _ = ndimage.label(nothair); sizes_ = np.bincount(lab_.ravel()); small_ = sizes_ < HAIR_VIEW_GAP_PX; small_[0] = False
+        nothair &= ~small_[lab_]
+        cam_w = to_world((piv_ + (np.array([0.0, 0.0, CAMERA_D]) - piv_) @ R_)[None])[0]
+        views.append(dict(rgb=rgb, alpha=alpha, hairpx=hairpx, skinpx=skinpx, nothair=nothair, proj=proj_c, zb=zb, cell=cell, S=S_, cam=cam_w, pl=pl, name='crown'))
+        print('hair view crown: pitch', round(cf['pitch'], 1), 'deg, fit IoU', round(cf['iou'], 3))
     for v in views:
+        v['edge_d'] = ndimage.distance_transform_edt(v['nothair'])      # px into the view's skin from the hair's edge
+        v['hair_d'] = ndimage.distance_transform_edt(~v['nothair'])     # px into the view's hair from the skin's edge
         # luminance matched to the front's by two points
         g_ = (ref[1] - ref[0]) / max(v['pl'][1] - v['pl'][0], 1.0); o_ = ref[0] - g_ * v['pl'][0]
         lum = v['rgb'] @ lum_w
         v['rgb'] = v['rgb'] * ((g_ * lum + o_) / np.maximum(lum, 1.0))[..., None]
+        if 'filled' in v:
+            lf_ = v['filled'] @ lum_w
+            v['filled'] = v['filled'] * ((g_ * lf_ + o_) / np.maximum(lf_, 1.0))[..., None]
         print('hair view', v['name'], 'hair px', int(v['hairpx'].sum()), 'lum p10/p90', np.round(v['pl'], 0), '-> gain', round(float(g_), 3))
     fallback = np.array([44.0, 41.0, 86.0])
     def sample(points, gain=1.0, base=None):
@@ -2383,16 +3070,25 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
             cx = np.clip((x / v['cell']).astype(int), 0, v['zb'].shape[1] - 1); cy = np.clip((y / v['cell']).astype(int), 0, v['zb'].shape[0] - 1)
             vis = d <= v['zb'][cy, cx] + HAIR_PROJ_TOL
             dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
-            cosang = np.clip((n * dcam).sum(1), 0, 1)
+            # Unsigned: the layer is a sheet shown from both sides, and a groove's far wall between two locks,
+            # facing away from every camera, took the fallback and showed as black facets beside the lock.
+            cosang = np.abs((n * dcam).sum(1))
+            if v is views[0]:
+                # Along the hairline the front view counts at least as a grazing view (cosine HAIR_FRONT_MIN_COS):
+                # the slab's edge walls under the strand tips, seen squarely by no view, took the dark fallback
+                # and showed as dark flecks along the fringe; with the photo's pixels they are the strands' thickness.
+                cosang = np.where(band_px[yi, xi], np.maximum(cosang, HAIR_FRONT_MIN_COS), cosang)
             w = inside * vis * v['hairpx'][yi, xi] * v['alpha'][yi, xi] * cosang ** HAIR_PROJ_POWER
             acc += w[:, None] * v['rgb'][yi, xi]; tot += w
         # Where no view sees (undersides, the inside of the shell seen through a gap): the palette's dark
         # with the strands, not a flat colour (flat patches read as holes).
         fb = fallback_style(points, base=HAIR_PROJ_FALLBACK_BASE) if fallback_style is not None else np.broadcast_to(fallback, (len(points), 3))
-        out = np.where((tot > 1e-6)[:, None], acc / np.maximum(tot, 1e-6)[:, None], fb)
+        # (A point seen by no view better than grazing, HAIR_PROJ_MIN_W: the undersides and inner walls of the bangs'
+        #  slab over the temple took the front view's pixels alone, normalised to full weight and stretched along
+        #  the view into stripes; they are the shadow under the hair and take the dark strands.)
+        out = np.where((tot > HAIR_PROJ_MIN_W)[:, None], acc / np.maximum(tot, 1e-6)[:, None], fb)
         return out * gain
     front_view = views[0]; z_front = np.percentile(P[:, 2], 99.5)
-    head_tree = cKDTree(head_pts) if head_pts is not None else None
     def alpha(points):
         """0 where the hair layer must not show: a point that a view sees squarely and unoccluded
         where that view shows skin. From the front that makes the hairline the photo's own hair mask,
@@ -2411,16 +3107,62 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
             dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
             squarely = (n * dcam).sum(1) > HAIR_MASK_COS
             depth_ok = (points[:, 2] > z_front - HAIR_MASK_DEPTH) if k_ == 0 else np.ones(len(points), bool)
-            if k_ == 0 and head_tree is not None:
-                # Hair lying on the skin (within HAIR_HUG of the head) is cut by the front view whatever
-                # way it faces where the photo shows skin. (For the side views too, at 2 cm, it changed
-                # nothing measurable: the flakes over the cheek at three quarters are the bob's own side
-                # in front of the ear, 1-11 cm off the skin, which the side views cut ragged.)
-                hug = head_tree.query(points)[0] < HAIR_HUG
-                squarely = squarely | hug; depth_ok = depth_ok | hug
+            if k_ == 0:
+                # The front view cuts whatever it sees over skin within its band, whichever way it faces: the
+                # slab's side walls and back round a thin lock, 2-5 cm off the skin and facing sideways, showed
+                # through the cut front face as a dark striped box (a hug rule within 2 cm of the skin missed them).
+                # A point it sees edge-on, though, only where the skin reaches HAIR_EDGE_ON_PX past the hair's
+                # edge: on the bob's side in front of the ear, parallel to the view, the mask's edge projected as
+                # comb teeth along the sheet's lower edge (a pixel of the mask is centimetres along the sheet).
+                deep = v['edge_d'][yi, xi] >= HAIR_EDGE_ON_PX
+                squarely = squarely | deep
             cut |= inside & vis & squarely & v['nothair'][yi, xi] & depth_ok
+        ear_cut_ = getattr(sample, 'ear_cut', None)
+        if ear_cut_ is not None:
+            cut |= ear_cut_(points)
         return np.where(cut, 0.0, 1.0)
     sample.alpha = alpha
+    def side_skin(points):
+        """True where a side or back view sees the point squarely and unoccluded and shows skin there: the
+        temple below the bangs' edge, the neck below the hair. The scalp's coverage (compose's hair weight) stops
+        there, so the skin bake keeps its skin and the root cap ends: with the front photo alone deciding, the
+        temple under the bangs' sweep counted as scalp, and its dark root strands stood between the bangs and
+        the ear as a striped wall from three quarters."""
+        W = to_world(points)
+        n = dir_world(fn[ftree.query(points)[1]])
+        seen = np.zeros(len(points), bool)
+        for v in views[1:]:
+            x, y, d = v['proj'](W); S_ = v['S']
+            inside = (x >= 0) & (x < S_ - 1) & (y >= 0) & (y < S_ - 1) & (d > 0)
+            xi = np.clip(x.astype(int), 0, S_ - 1); yi = np.clip(y.astype(int), 0, S_ - 1)
+            cx = np.clip((x / v['cell']).astype(int), 0, v['zb'].shape[1] - 1); cy = np.clip((y / v['cell']).astype(int), 0, v['zb'].shape[0] - 1)
+            vis = d <= v['zb'][cy, cx] + HAIR_PROJ_TOL
+            dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
+            seen |= inside & vis & ((n * dcam).sum(1) > HAIR_MASK_COS) & v['nothair'][yi, xi]
+        return seen
+    sample.side_skin = side_skin
+    def edge_fade(points):
+        """0..1: how far inside the hair's edge a point lies, by the views that see it (the front within its
+        depth band): the distance in a view's pixels from the point's pixel to that view's skin, from
+        ROOT_EDGE_PX / 2 to 1.5 x ROOT_EDGE_PX. The root cap and the scalp's darkening fade out under the
+        hair layer's edge instead of standing beside it as dark flecks along the fringe and the temples."""
+        W = to_world(points)
+        fade = np.ones(len(points))
+        for k_, v in enumerate(views):
+            x, y, d = v['proj'](W); S_ = v['S']
+            inside = (x >= 0) & (x < S_ - 1) & (y >= 0) & (y < S_ - 1) & (d > 0)
+            xi = np.clip(x.astype(int), 0, S_ - 1); yi = np.clip(y.astype(int), 0, S_ - 1)
+            cx = np.clip((x / v['cell']).astype(int), 0, v['zb'].shape[1] - 1); cy = np.clip((y / v['cell']).astype(int), 0, v['zb'].shape[0] - 1)
+            vis = d <= v['zb'][cy, cx] + HAIR_PROJ_TOL
+            if k_ == 0:
+                sees = points[:, 2] > z_front - HAIR_MASK_DEPTH
+            else:
+                dcam = v['cam'][None, :] - W; dcam /= np.linalg.norm(dcam, axis=1, keepdims=True) + 1e-12
+                sees = (dir_world(fn[ftree.query(points)[1]]) * dcam).sum(1) > HAIR_MASK_COS
+            f = smooth(ROOT_EDGE_PX * 0.5, ROOT_EDGE_PX * 1.5, v['hair_d'][yi, xi])
+            fade = np.where(inside & vis & sees, np.minimum(fade, f), fade)
+        return fade
+    sample.edge_fade = edge_fade
     band_px = ndimage.binary_dilation(front_view['nothair'], iterations=HAIR_BAND_PX)
     def hairline(points):
         """True for points near the front whose pixel in the front view lies on or within HAIR_BAND_PX of
@@ -2432,19 +3174,35 @@ def hair_projector(work, P, F, axis, fallback_style=None, head_pts=None):
         xi = np.clip(x.astype(int), 0, S_ - 1); yi = np.clip(y.astype(int), 0, S_ - 1)
         return inside & band_px[yi, xi] & (points[:, 2] > z_front - HAIR_MASK_DEPTH)
     sample.hairline = hairline
+    sample.views = views
+    sample.to_world = to_world
+    def from_world(Wq):
+        return np.stack([Wq[:, 0], Wq[:, 2], -Wq[:, 1]], 1) * s_ + t_
+    sample.from_world = from_world
+    sample.normals = (to_world(fc), dir_world(fn))     # the envelope's face centres and smoothed outward normals, in the views' world: the hair cards' facing
     return sample
 
-HAIR_HUG = 0.008                # m from the head's skin within which hair is cut by the front view regardless of facing
-HAIR_MASK_COS = 0.4             # a view cuts the hair layer where it shows skin only for points it sees this squarely (cosine)
+HAIR_MASK_COS = 0.4             # a side or back view cuts the hair layer where it shows skin only for points it sees this squarely (cosine); the front view at any facing
 HAIR_BAND_PX = 30               # px of the front view round the photo's skin that count as the hairline band
+HAIR_VIEW_GAP_PX = 600          # px of a side or back view: a smaller patch of skin enclosed by hair does not cut the layer (a gap between that view's strands)
+HAIR_VIEW_CLOSE = 8             # px a side or back view's hair mask is closed by before it cuts (strands with skin between them stay one surface)
+HAIR_VIEW_SMOOTH = 3.0          # px of blur on a view's closed hair mask before it cuts (a strand-level outline cut the surface in a saw-tooth)
+HAIR_FRONT_CLOSE = 4            # px the front view's hair mask is closed by outside the face mask (the fringe's strand tips)
+HAIR_FRONT_MIN_COS = 0.35       # along the hairline band the front view counts at least this squarely (its walls took the dark fallback otherwise)
+HAIR_EDGE_ON_PX = 40            # px of the front view: a point it sees edge-on is cut only this far inside the photo's skin
 HAIR_MASK_DEPTH = 0.10          # m behind the front within which the photo's skin cuts the hair layer (alpha 0)
 HAIR_PROJ_FALLBACK_BASE = 52.0  # luminance of the strand-textured fallback where no view sees
+CROWN_VIEW = 'assets-hair/crown.png'   # the owner's crown view, painted as a fifth view when mv-hair/crown-fit.json exists (tools/crownfit.py)
 # (the tolerance spans the shell's thickness on purpose: a point on the inner surface, seen only through a gap, then
 #  takes the outer surface's strands from the view instead of the fallback; the far side of the head stays out at 15 cm+)
-HAIR_PROJ_TOL = 0.08            # world units (the head is ~1): a point this far behind the envelope's depth in a view still counts as seen
+HAIR_PROJ_TOL = 0.22            # world units (the head is ~1): a point this far behind the envelope's depth in a view still counts as seen
+# (0.22: at 0.08 the walls of the pocket between the bob's side and the temple, 0.08-0.15 behind the side the profile
+#  view sees, took the dark fallback and read as a flat wall from three quarters, and at 0.16 the deepest of them still
+#  took the front view's pixels alone, stretched into stripes; the far side of the head stays out at 0.3)
 HAIR_PROJ_BLUR = 0.6           # px of blur on the 1024 px views before sampling
 HAIR_PROJ_SMOOTH = 0.02        # radius (m) the envelope's normals are averaged over for the views' weights
 HAIR_PROJ_POWER = 4.0            # the views' weight by how squarely they see a point: high, so one view dominates and strands stay crisp
+HAIR_PROJ_MIN_W = 0.3 ** 4       # a point's best view must see it at least this squarely (cosine 0.3 at power 4) or the fallback paints it
 
 # A paintable layout for the skin the photo does not cover: orthographic views in fixed windows of
 # model space (so a painting stays put when the mesh changes), one 1024 px tile each.
@@ -2452,6 +3210,7 @@ HAIR_PROJ_POWER = 4.0            # the views' weight by how squarely they see a 
 # The ear tiles are unused since the auricles got a per-triangle atlas of their own (`ear` material:
 # in a side projection the concha's floor shared texels with the helix overhanging it); they stay so
 # the other charts keep their place for paintings.
+UNDER_GRID_DEPTH = 0.012       # m behind the front-most surface within which skull skin under the bald picture's oval takes the picture's pixels
 SKIN_TILE = 1024
 SKIN_CHARTS = [("right", 0, 0, 0, 1, 0.72), ("left", 1, 0, 0, -1, 0.72), ("back", 2, 0, 2, -1, 0.72), ("top", 3, 0, 1, 1, 0.6),
                ("under", 0, 1, 1, -1, 0.72), ("front", 1, 1, 2, 1, 0.72), ("ear right", 2, 1, 0, 1, 0.20), ("ear left", 3, 1, 0, -1, 0.20)]
@@ -2500,7 +3259,7 @@ def lattice(n):
     a, b = i[m] / n, j[m] / n
     return np.stack([1 - a - b, a, b], 1)
 
-def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, ear_weight=None, photo_weight=None, hair_weight=None):
+def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, ear_weight=None, photo_weight=None, hair_weight=None, root_weight=None):
     """The skin's colours drawn into the layout: dense points on every face, the outermost along its
     chart's axis winning, the gaps filled from the nearest drawn texel. `ear_weight` (per vertex, 0..1)
     blends `colour` into `ear_colour`."""
@@ -2526,6 +3285,8 @@ def skin_bake(P, F, chart, px, colour, shade, work, ear_colour=None, ear_weight=
             col = colour(pts, np.repeat(part, len(bary)))
             if ear_colour is not None:
                 e = np.einsum('bk,fk->fb', bary, ear_weight[F[part]]).reshape(-1)[:, None]
+                if root_weight is not None:
+                    e = e * (1 - root_weight(pts))[:, None]      # the owner's roots behind and above the ear win over the ear's flat tone
                 col = col * (1 - e) + ear_colour(pts) * e
             col = col * sh[:, None]
             x = np.clip(uv[:, 0].astype(int), 0, W - 1); y = np.clip(uv[:, 1].astype(int), 0, H - 1)
@@ -2610,11 +3371,12 @@ def build(work):
     P, F, grid_start, kept = face_surface(P, F, src, label == HAIR, hsrc)
     label = np.concatenate([label[kept], np.full(len(F) - kept.sum(), GRID)])
     shell_f = np.concatenate([SHELL[0][kept], np.zeros(len(F) - kept.sum(), bool)])
+    is_skirt = np.zeros(len(F), bool); is_skirt[len(F) - 2 * SKIRT_EDGES[0]:] = True       # the grid's folded-back border, its own layer below
     hair_f = np.where((label == HAIR) & ~shell_f)[0]
     if len(hair_f):
         keep_h = loose_pieces(P, F[hair_f], P[np.unique(F[(label == SKIN) | (label == NECK) | shell_f])])
         drop_h = np.zeros(len(F), bool); drop_h[hair_f[~keep_h]] = True
-        F, label, shell_f = F[~drop_h], label[~drop_h], shell_f[~drop_h]
+        F, label, shell_f, is_skirt = F[~drop_h], label[~drop_h], shell_f[~drop_h], is_skirt[~drop_h]
     if PROJ_HAIR:
         # No hair behind the face grid within the face: the envelope's inner surface and its far side
         # lie there, hidden by the grid except through the eye openings, where they showed as
@@ -2627,13 +3389,19 @@ def build(work):
         gz_ = FACE_INFO[0][hi_[:, 1], hi_[:, 0]]
         behind_grid = (label == HAIR) & in_face & (hzc > gz_ + HAIR_BEHIND_GRID) & (hzc < gz_ + HAIR_BEHIND_GRID_MAX)
         print('hair faces behind the face grid dropped:', int(behind_grid.sum()), 'of', int((label == HAIR).sum()))
-        F, label, shell_f = F[~behind_grid], label[~behind_grid], shell_f[~behind_grid]
+        F, label, shell_f, is_skirt = F[~behind_grid], label[~behind_grid], shell_f[~behind_grid], is_skirt[~behind_grid]
 
+    if PROJ_HAIR:
+        n0 = len(F); F, label, shell_f = fill_small_holes(P, F, label, shell_f); is_skirt = np.concatenate([is_skirt, np.zeros(len(F) - n0, bool)])
     front, visible, zbuf = front_faces(P, F, work)
     # The face grid is the picture by construction: the visibility test missed scattered grid faces,
     # which then took the generator's colours as spots.
     on_grid = (F >= grid_start).all(1)
     front |= on_grid
+    if PROJ_HAIR:
+        # The grid's skirt is its own layer (hairline_skirt below): under the hair it drew the bald picture's
+        # skin as triangles between the strands at the temples (owner: render the roots there instead).
+        front &= ~is_skirt
     # Head faces turned to the camera take the photo even where the visibility test missed them: as
     # atlas faces (darkened by occlusion) their slivers at the grid's edge and along the hairline
     # showed as dark specks. Hair is wound either way, so it counts by angle alone.
@@ -2664,6 +3432,15 @@ def build(work):
     # picture, which is drawn to the same frame and fits the bald body there. Where the two pictures
     # met on the forehead their slightly different light drew a broken line.
     front &= label < CORE
+    # The turtleneck's picture faces end where the camera saw the knit squarely; toward the sides an atlas blends
+    # the picture into the scan's colour (knit_blend).
+    knit_was_front = front & (label == KNIT)
+    knit_wv = knit_weights(P, F[label == KNIT], smooth(0.15, 0.5, np.abs(toward[label == KNIT])) * seen[label == KNIT])
+    # Faces seen squarely keep the picture itself (its seams crisp); the rest go to the atlas, which next to them
+    # is the picture too, so the line between the two materials does not show.
+    knit_keep = knit_was_front & (knit_wv[F].min(1) > 0.97)
+    front &= (label != KNIT) | knit_keep
+    print('knit: picture faces', int(knit_keep.sum()), 'of', int((label == KNIT).sum()), '(before', int(knit_was_front.sum()), ')')
     photo_px = np.asarray(src).astype(float)
     hair_px = (photo_px[..., 2] > photo_px[..., 0] + 12) | (photo_px.sum(-1) < 150)
     near_hair = ndimage.distance_transform_edt(~hair_px) < 30
@@ -2713,7 +3490,9 @@ def build(work):
     # The face grid's normals come from its own smoothed surface: smoothing them together with the
     # layers behind (hair, the scan's eyes) turned whole regions away.
     VN[grid_start:] = GRID_NORMALS[0]
-    fv = np.unique(F[front]); fv = fv[fv < grid_start]
+    # The whole turtleneck's normals are smoothed with the front's: only its picture faces were, and the step in the light
+    # at their old edge drew a serrated darker patch on each shoulder.
+    fv = np.unique(F[front | (label == KNIT)]); fv = fv[fv < grid_start]
     ftree = cKDTree(P[fv])
     n = VN[fv].copy()
     for _ in range(3):
@@ -2747,27 +3526,63 @@ def build(work):
     ao_ear = np.array([ao[n_].mean() for n_ in near_v])        # once more for the auricles' atlas, whose triangles show every step
     shade = 0.75 + 0.25 * ao          # stronger, the hanging hair greyed the cheek beneath it
     rest = np.where(~front & (label == HAIR))[0]
+    bare = np.where(~front & (label != HAIR) & (label < CORE) & ~is_skirt)[0]
+    centre = np.array([pivot[0], P[grid_start:, 1].mean(), pivot[2]])
+    ears, ear_w, auricle = find_ears(P, F, bare, centre)
+    ear_bare = bare[auricle]
+    if PROJ_HAIR and len(ear_bare):
+        # The ears' pockets: hair within EAR_POCKET of an auricle, below its top EAR_TOP_SHARE, is cut (alpha, every
+        # view) and dropped (below): strands of the views crossing the ear left dark bits in the concha and a
+        # ragged rim round it (owner: "skräp i örat"). The hair over the ear's top stays as the views show it.
+        apts = P[np.unique(F[ear_bare])]
+        limit = np.zeros(len(apts)); outer = {}
+        for ec, side in ears:
+            mine = np.sign(apts[:, 0] - centre[0]) == side
+            if mine.any():
+                top, bottom = apts[mine, 1].max(), apts[mine, 1].min()
+                limit[mine] = top - EAR_TOP_SHARE * (top - bottom)
+                # The auricle's outer extent per 3 mm cell of (y, z), spread over 9 mm: hair over the ear's top
+                # stays only outside it (hair lay through the helix, owner: "hår ska inte kunna penetrera örat").
+                yz = apts[mine, 1:]; lo_e = yz.min(0) - 0.006; n_e = np.ceil((yz.max(0) + 0.006 - lo_e) / 0.003).astype(int) + 1
+                grid = np.full(n_e, -np.inf); ie = ((yz - lo_e) / 0.003).astype(int)
+                np.maximum.at(grid, (ie[:, 0], ie[:, 1]), (apts[mine, 0] - centre[0]) * side)
+                outer[side] = (lo_e, n_e, ndimage.maximum_filter(grid, size=3))
+        def ear_outer(q):
+            o_ = np.full(len(q), -np.inf)
+            for side, (lo_e, n_e, grid) in outer.items():
+                mine = np.sign(q[:, 0] - centre[0]) == side
+                ie = ((q[mine, 1:] - lo_e) / 0.003).astype(int); ok = (ie >= 0).all(1) & (ie < n_e).all(1)
+                v_ = np.full(int(mine.sum()), -np.inf); v_[ok] = grid[ie[ok, 0], ie[ok, 1]]; o_[mine] = v_
+            return o_
+        def ear_cut(q):
+            """True for points of the hair the ears forbid: within EAR_POCKET of an auricle and either below its
+            top share or not outside its outer surface by EAR_FRONT_MARGIN."""
+            d_, i_ = cKDTree(apts).query(q)
+            return (d_ < EAR_POCKET) & ((q[:, 1] < limit[i_]) | (np.abs(q[:, 0] - centre[0]) < ear_outer(q) + EAR_FRONT_MARGIN))
+        scan_colour.ears = (apts, limit)
+        scan_colour.ear_cut = ear_cut
     # The hair's form is baked into its atlas, as the photo's light is into the front: the material is
     # nine tenths emissive, so the scene's light shapes nothing, and with occlusion alone the sides
     # were a flat mop. Normals smoothed over 1 cm (the scan's are crumpled) give the locks, not the
     # scan's wrinkles; the light comes from above and in front, as in the owner's reference views.
     hv = np.unique(F[label == HAIR])
-    hn = VN[hv].copy(); htree = cKDTree(P[hv])
-    for _ in range(2):
+    hn = VN[hv].copy(); htree = cKDTree(P[hv]) if len(hv) else None
+    for _ in range(2 if len(hv) else 0):
         nb = htree.query_ball_point(P[hv], r=0.01)
         hn = np.array([hn[i].mean(0) for i in nb]); hn /= np.linalg.norm(hn, axis=1, keepdims=True) + 1e-12
     hair_light = np.array([0.2, 0.75, 0.6]); hair_light /= np.linalg.norm(hair_light)
     lam = (np.abs(hn @ hair_light) + 0.5) / 1.5   # wrapped: the scan is wound either way, and the sides went dark with a plain lambert term
     hair_shade = shade.copy(); hair_shade[hv] = 1.0 if PROJ_HAIR else (0.6 + 0.4 * ao[hv]) * (HAIR_FORM[0] + HAIR_FORM[1] * lam)     # the views carry their light; the occlusion term darkened the front against the photo
     hair_lift = float(hair_gain @ np.array([0.299, 0.587, 0.114]))        # the palette keeps the hue; only the tone lifts to the photo's
-    if PROJ_HAIR:
+    if PROJ_HAIR and not len(rest):
+        rest_uv, rest_tex = np.zeros((0, 3, 2), np.float32), np.zeros((4, 4, 4), np.uint8)   # cards mode: the envelope is not in the mesh, the rest material keeps its index with a stub
+    elif PROJ_HAIR:
         rc_ = P[F[rest]].mean(1)
         skirt = scan_colour.hairline(rc_) if hasattr(scan_colour, 'hairline') else np.zeros(len(rc_), bool)
         print('hair skirt faces', int(skirt.sum()))
         rest_uv, rest_tex = hair_charts(P, F[rest], lambda q: scan_colour(q, hair_lift), hair_shade, VN, alpha_fn=getattr(scan_colour, 'alpha', None), skirt=skirt)
     else:
         rest_uv, rest_tex = atlas(P, F[rest], lambda q: scan_colour(q, hair_lift), 4096, hair_shade)
-    bare = np.where(~front & (label != HAIR) & (label < CORE))[0]
     # The turtleneck keeps a per-triangle atlas; only skin goes into the paintable layout (seen from
     # below, the shoulders covered the chin's underside there).
     knit_bare = bare[label[bare] == KNIT]; bare = bare[label[bare] != KNIT]
@@ -2787,6 +3602,14 @@ def build(work):
     # tone: its own colour drifted grey-beige there, a strip between cheek and ear on a turn.
     cheek = np.asarray(bald_src).astype(float)[open_skin]
     skin_ref = np.median(cheek, 0)
+    # The skull under the face grid's edge zone (the bald picture's oval, within UNDER_GRID_DEPTH of the front):
+    # it takes the picture's pixels whatever way its noisy faces turn. By facing alone the forehead's top under
+    # the fringe was a patchwork of the picture and the one tone, and with the head pitched up that strip
+    # showed between the grid's edge and the hair as a pink band (owner: "det rosa strecket över ögonbrynen").
+    bald_oval = ndimage.binary_dilation(face_mask_src(src), iterations=6)
+    def under_grid_px(q):
+        cpx_, cz_ = project(q); spi_ = np.clip(((cpx_ - np.array([OX, OY])) / S).astype(int), 0, bald_oval.shape[0] - 1)
+        return bald_oval[spi_[:, 1], spi_[:, 0]] & (cz_ < front_depth(cpx_) + UNDER_GRID_DEPTH)
     # The side views on the skin below the eyes: per view the faces turned to its camera and seen from
     # it (a coarse z-buffer in that view, softened over the neighbouring faces as the front's is),
     # sampled where the picture shows skin.
@@ -2833,6 +3656,26 @@ def build(work):
         return col, ndimage.map_coordinates(view['fg'], [px[:, 1], px[:, 0]], order=1, mode='constant')
     epx = src_to_crop([(626.0, IRISES[0][1])]); ei = epx.astype(int)
     eye_y = unproject(epx, zbuf[ei[:, 1], ei[:, 0]])[0, 1]
+    # The owner's scalp views: the skull's roots and their outline from their pictures (the root cap takes them too).
+    scalp = scalp_views(work, P, F[bare], pivot) if os.path.isdir(f'{work}/{SCALP_DIR}') else None
+    scalp_cap_colour = None
+    if scalp is not None:
+        base_weight = hair_weight
+        def hair_weight(points, base_weight=base_weight):
+            _, root_, tot_ = scalp(points); s_ = smooth(SCALP_SEEN[0], SCALP_SEEN[1], tot_)
+            return root_ * s_ + base_weight(points) * (1 - s_)
+        style_ = getattr(scan_colour, 'style', scan_colour)
+        def scalp_colour(points, base=SCALP_BASE):
+            col_, _, tot_ = scalp(points); s_ = smooth(SCALP_SEEN[0], SCALP_SEEN[1], tot_)[:, None]
+            return col_ * s_ + (scan_colour(points, base=base) if base == SCALP_BASE else style_(points, base=base)) * (1 - s_)
+        skin_colour.override['weight'] = hair_weight
+        skin_colour.override['colour'] = scalp_colour
+        scalp_cap_colour = lambda q: scalp_colour(q, base=ROOT_BASE)
+        def scalp_root_weight(points):
+            _, root_, tot_ = scalp(points)
+            return root_ * smooth(SCALP_SEEN[0], SCALP_SEEN[1], tot_)
+    else:
+        scalp_root_weight = None
     def side_weight(view, q, near):
         # Below the eyes, and not on or round the ears (their own atlas; a picture's ear a few px off
         # the scan's would print the concha on the skull behind).
@@ -2875,6 +3718,11 @@ def build(work):
         # lit chin's edge: a light bib under the chin whenever the head tilted up).
         w = (project_weight[bare][near] * ((kind == SKIN) | (kind == NECK)) * smooth(jaw_y + 6, jaw_y - 8, c_sy(q))
              * smooth(0.6, 0.3, bare_down[near]))[:, None]
+        w = np.maximum(w, (under_grid_px(q) & (kind == SKIN) & (c_sy(q) < jaw_y - 8))[:, None].astype(float))
+        if scalp_root_weight is not None:
+            # Not where the owner's scalp views show roots: at the temple the skull under the oval's edge took the bald
+            # picture's skin over the roots (a pale patch inside the hairline).
+            w = w * (1 - scalp_root_weight(q))[:, None]
         pc = projected(q)
         # The views' detail, averaged by their weights, on the skin's tone (1 where no view sees).
         total, detail = np.zeros((len(q), 1)), np.zeros((len(q), 3))
@@ -2896,59 +3744,8 @@ def build(work):
         wc = UNDER_CHIN_PHOTO * (smooth(0.04, 0.01, chin_tree.query(q)[0]) * below * on_skin * ((kind == SKIN) | (kind == NECK)))[:, None]
         return out * (1 - wc) + pc * wc
     # The skin's own layout (paintable), see SKIN_CHARTS.
-    centre = np.array([pivot[0], P[grid_start:, 1].mean(), pivot[2]])
-    sk = P[F[bare]].reshape(-1, 3)
-    ears = []
-    ear_w = np.zeros(len(P))
-    auricle = np.zeros(len(bare), bool)
+    ears, ear_w, auricle = find_ears(P, F, bare, centre)     # again on the skin faces left after the knit split
     bc_ = P[F[bare]].mean(1)
-    for side in (1, -1):
-        band = sk[(np.abs(sk[:, 1] - centre[1]) < 0.08)]
-        rim = band[np.argmax((band[:, 0] - centre[0]) * side)]
-        # The whole ear, lobe included: what stands out sideways from the skull, per height, inside
-        # the ear's window. The skull's side is measured behind the ear (toward the nape) and in front
-        # of it (the jaw) and interpolated between. A disc round the helix's outermost point caught the
-        # upper ear only; the lobe and the lower concha went to the side and under charts, toned like
-        # the jaw and the photo, and the ear showed in two colours. The ear's colour rule covers the
-        # whole window, skull skin included (the concha's floor and the tragus lie at the skull's
-        # surface and showed the generator's grey there): its tone is that skin's own. The auricle
-        # gets a per-triangle atlas of its own: every face of the window that overlaps another in the
-        # side projection (the helix over the concha, the auricle over the skull behind it, the two
-        # sides of its shell) or stands well out from the skull. Standing out alone, with the skull
-        # measured behind and in front of the ear, took the parietal bulge above the ear as well.
-        dy, dz = bc_[:, 1] - rim[1], bc_[:, 2] - rim[2]
-        xo = (bc_[:, 0] - centre[0]) * side
-        bands = np.arange(-0.13, 0.10, 0.01) + 0.005
-        def profile(zlo, zhi):
-            prof = np.full(len(bands), np.nan)
-            for k_, y0 in enumerate(bands):
-                m = (np.abs(dy - y0) < 0.01) & (dz > zlo) & (dz < zhi)
-                if m.sum() > 3:
-                    prof[k_] = np.percentile(xo[m], 95)
-            good = ~np.isnan(prof)
-            prof = np.interp(bands, bands[good], prof[good])
-            return ndimage.gaussian_filter1d(prof, 1.0)
-        behind, front_ = profile(-0.06, -0.03), profile(0.06, 0.09)
-        t = np.clip((dz + 0.045) / 0.12, 0, 1)
-        skull = np.interp(dy, bands, behind) * (1 - t) + np.interp(dy, bands, front_) * t
-        window = smooth(-0.13, -0.11, dy) * smooth(0.085, 0.065, dy) * smooth(-0.035, -0.02, dz) * smooth(0.08, 0.065, dz) * smooth(0.12, 0.14, xo)
-        np.maximum.at(ear_w, F[bare].reshape(-1), np.repeat(window, 3))
-        wf = np.where(window > 0.3)[0]
-        pts = np.einsum('bk,fkd->fbd', lattice(6), P[F[bare[wf]]])
-        yz = pts[..., 1:].reshape(-1, 2); xs = (pts[..., 0].reshape(-1) - centre[0]) * side
-        cell = np.floor((yz - yz.min(0)) / 0.0015).astype(int); key = cell[:, 0] * 100000 + cell[:, 1]
-        fid = np.repeat(wf, pts.shape[1])
-        o_ = np.argsort(key, kind='stable'); key, xs, fid = key[o_], xs[o_], fid[o_]
-        starts = np.r_[0, np.where(np.diff(key))[0] + 1]
-        span = np.maximum.reduceat(xs, starts) - np.minimum.reduceat(xs, starts)
-        cid = np.repeat(np.arange(len(starts)), np.diff(np.r_[starts, len(key)]))
-        overlapped = np.zeros(len(bare), bool); overlapped[fid[span[cid] > 0.003]] = True
-        stands = overlapped | (xo - skull > 0.008)
-        stands = (window > 0.5) & (stands | vote(P, F[bare], stands, r=0.006))   # closed: the helix's top overlaps nothing of its own
-        auricle |= stands
-        lo_, hi_ = bc_[stands].min(0), bc_[stands].max(0)
-        ears.append((np.array([rim[0] - side * 0.02, (lo_[1] + hi_[1]) / 2, (lo_[2] + hi_[2]) / 2]), side))
-        print(f'ear {"+x" if side > 0 else "-x"}: {int(stands.sum())} auricle faces, y {lo_[1] - rim[1]:+.3f}..{hi_[1] - rim[1]:+.3f}, z {lo_[2] - rim[2]:+.3f}..{hi_[2] - rim[2]:+.3f} about the rim; skull side behind/front at the rim {np.interp(0, bands, behind):.3f}/{np.interp(0, bands, front_):.3f}, rim {xo.max():.3f}')
     ear_bare = bare[auricle]
     bare, bc_, bare_down = bare[~auricle], bc_[~auricle], bare_down[~auricle]
     bare_kind = cKDTree(P[F[bare]].mean(1))
@@ -2961,7 +3758,9 @@ def build(work):
     bc_ = bc_[inside]
     bare_kind = cKDTree(P[F[bare]].mean(1))
     bare_down = bare_down[inside]
-    knit_uv, knit_tex = atlas(P, F[knit_bare], lambda q: skin_colour(q, bald_gain[KNIT]), 2048, 0.6 + 0.4 * shade)
+    knit_uv, knit_tex = atlas(P, F[knit_bare], knit_blend(P, F[knit_bare], knit_wv, lambda q: skin_colour(q, bald_gain[KNIT]),
+                                                          np.asarray(bald_src).astype(float)), KNIT_ATLAS_PX,
+                              vattr=np.stack([knit_wv, 0.6 + 0.4 * shade], 1))
     # Ears: the tone of the skin round them, flat, their form from the baked occlusion alone (the
     # generator's ear texture was blotchy and the painting did not fit the scan's ear; a pinker tint,
     # and the jaw's toning and the photo on the lobe, made the ear two-coloured against the temple).
@@ -2969,19 +3768,51 @@ def build(work):
     for ec, side in ears:
         d_ = bc_ - ec
         ring |= (chart < 6) & (ear_w[F[bare]].max(1) < 0.01) & (np.abs(d_[:, 1]) < 0.12) & (np.abs(d_[:, 2]) < 0.10) & ((d_[:, 0] * side) > -0.06)
-    ear_tint = np.median(bare_colour(bc_[ring], np.where(ring)[0]), 0)
+    ring_col = bare_colour(bc_[ring], np.where(ring)[0])
+    # Skin only: with the owner's scalp views the skull behind the ears is roots, and their median made the ears indigo.
+    ring_skin = ring_col[:, 0] > ring_col[:, 2] + 15
+    ear_tint = np.median(ring_col[ring_skin], 0) if ring_skin.sum() >= 50 else skin_ref * 0.9
     print('ear tone from', int(ring.sum()), 'faces round the ears:', np.round(ear_tint), 'cheek', np.round(skin_ref))
-    ear_uv, ear_tex = atlas(P, F[ear_bare], lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), 1024, 0.5 + 0.5 * ao_ear)
+    skull_near_ear = cKDTree(P[F[np.setdiff1d(bare[label[bare] == SKIN], ear_bare)]].mean(1))
+    def ear_colour(q):
+        # The skull under and behind the helix is in the auricle's atlas (it overlaps the helix in the side projection)
+        # and took the ear's flat tone; where the owner's scalp views show roots it is roots (one flat tone: a per-triangle
+        # atlas carries no strands). Only at the skull's surface (within 4 mm of a skull face): the helix's rim, seen by
+        # the back view against the roots behind it, took a dark fringe.
+        tint = np.broadcast_to(ear_tint, (len(q), 3)).copy()
+        if scalp_root_weight is None:
+            return tint
+        col_, root_, tot_ = scalp(q)
+        w = (root_ * smooth(SCALP_SEEN[0], SCALP_SEEN[1], tot_) * smooth(0.004, 0.002, skull_near_ear.query(q)[0]))[:, None]
+        return tint * (1 - w) + col_ * w
+    ear_uv, ear_tex = atlas(P, F[ear_bare], ear_colour, 1024, 0.5 + 0.5 * ao_ear)
     # The skull's skin round the ear keeps the skin's mild shading: with the auricle's stronger
     # occlusion it showed dark facets behind the ear (the scan is coarse and noisy there).
     # The occlusion carries the skin's form now that its tone is flat (ears as before, their tone
     # was set with the lighter shade): the hollow under the jaw, the nape under the skull.
     skin_shade = (0.6 + 0.4 * shade) * ear_w + (0.4 + 0.6 * shade) * (1 - ear_w)
     skin_tex, drawn = skin_bake(P, F[bare], chart, corner_px, bare_colour, skin_shade, work,
-                                ear_colour=lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), ear_weight=ear_w, photo_weight=project_weight[bare], hair_weight=hair_weight)
+                                ear_colour=lambda q: np.broadcast_to(ear_tint, (len(q), 3)).copy(), ear_weight=ear_w, photo_weight=project_weight[bare], hair_weight=hair_weight, root_weight=scalp_root_weight)
     skin_template(skin_tex, drawn, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'obj', 'kairo-skin-template.png'), corner_px)
     skin_uv = corner_px / np.array([SKIN_TILE * 4, SKIN_TILE * 2])
     print('front faces', front.sum(), 'hair', len(rest), 'bald', len(bare))
+    cap = root_cap(P, F, np.setdiff1d(bare[label[bare] == SKIN], ear_bare), hair_weight, VN, shade, scan_colour, ear_w, pivot, colour_fn=scalp_cap_colour) if ROOT_CAP and len(rest) else None
+    skirt = hairline_skirt(P, F, is_skirt, VN, scan_colour, projected) if PROJ_HAIR and HAIRLINE_SKIRT and is_skirt.any() else None
+    strands = None
+    if scalp is not None:
+        grid_faces = np.where(front)[0]; skull_faces = bare[label[bare] == SKIN]
+        cand = np.concatenate([grid_faces, skull_faces]); cand_grid = np.r_[np.ones(len(grid_faces), bool), np.zeros(len(skull_faces), bool)]
+        eyes_px = src_to_crop([(e['cx'], e['cy']) for e in EYES]); eyes_i = np.clip(eyes_px.astype(int), 0, N - 1)
+        eyes3d = unproject(eyes_px, zbuf[eyes_i[:, 1], eyes_i[:, 0]])
+        strands = hairline_strands(P, F, cand, VN, scalp, pivot, eyes3d, cand_grid)
+    cards = None; bcap = None
+    if CARDS_HAIR:
+        cards, bcap = blender_cards(f'{work}/{CARDS_GLB}', CARDS_ATLAS_SCALE)
+    elif PROJ_HAIR and HAIR_CARDS and hasattr(scan_colour, 'views'):
+        import haircards
+        cards = haircards.build_cards(scan_colour.views, scan_colour.from_world, getattr(scan_colour, 'ear_cut', None), scan_colour.normals)
+        if cards is not None:
+            cards['material'] = 0; cards['material_name'] = 'cards'
 
     # The surface seen from the camera, as depth over image position: targets slide points along it.
     vis_px, vis_z = inp[visible], zc[visible]
@@ -3037,9 +3868,144 @@ def build(work):
     head_skin = cKDTree(centres[label == SKIN])
     overlap = (label == NECK) & (head_skin.query(centres)[0] < NECK_OVERLAP)
     # The ear's pocket: shell faces over the auricle go (the shell's wider closing wrapped the ear).
-    pocket = shell_f & (cKDTree(P[np.unique(F[ear_bare])]).query(P[F].mean(1))[0] < EAR_POCKET) if len(ear_bare) else np.zeros(len(F), bool)
+    if len(ear_bare):
+        d_ear, i_ear = cKDTree(P[np.unique(F[ear_bare])]).query(P[F].mean(1))
+        pocket = shell_f & (d_ear < EAR_POCKET)
+        if PROJ_HAIR and hasattr(scan_colour, 'ear_cut'):
+            pocket |= (label == HAIR) & scan_colour.ear_cut(P[F].mean(1))
+    else:
+        pocket = np.zeros(len(F), bool)
     print('ear pocket: shell faces dropped', int(pocket.sum()))
+    if PROJ_HAIR and HAIR_HEAD_GAP > 0:
+        rng_h = np.random.default_rng(1)
+        def surface_pts(faces):
+            return np.concatenate([np.einsum('k,fkd->fd', b_, P[F[faces]]) for b_ in rng_h.dirichlet((1, 1, 1), size=6)] + [P[np.unique(F[faces])]])
+        against = (label == HAIR) & ((cKDTree(surface_pts(np.where((label == SKIN) | (label == NECK))[0])).query(centres)[0] < HAIR_HEAD_GAP)
+                                     | (cKDTree(surface_pts(np.where(front)[0])).query(centres)[0] < HAIR_GRID_GAP))
+        if HAIR_WINDOW_MAX > 0:
+            # Where the sheet dips to the skull inside the hair's mass, the gap would punch a window through which the skull
+            # shows (two above her right ear, marked by the owner): a face about to go that alone covers such a window in
+            # a lab view stays. The windows are found on the hair left after the pockets and the gap.
+            keep_r = rest[~(pocket | against)[rest]]; uv_r = rest_uv[~(pocket | against)[rest]]
+            head_faces = np.concatenate([np.where(front)[0], np.where((label == SKIN) | (label == NECK))[0]]); spare = np.zeros(len(F), bool)
+            cand = np.where(against)[0]; c_cand = P[F[cand]].mean(1)
+            for yaw_w in HAIR_WINDOW_VIEWS:
+                win, head_zb, pos16, uv16, face16, cut16, _, _, _, _ = lab_hair_windows(P, F[keep_r], uv_r, rest_tex, P[F[head_faces]], P[F[ear_bare]], yaw_w)
+                n_w = win.shape[0] // 4; px_c, z_c = lab_project(c_cand, yaw_w, win.shape[0]); pc = np.clip(px_c.astype(int), 0, win.shape[0] - 1); cc = np.clip((px_c / 4).astype(int), 0, n_w - 1)
+                spare[cand[win[pc[:, 1], pc[:, 0]] & (z_c < head_zb[cc[:, 1], cc[:, 0]] + 0.02)]] = True
+            print('hair faces against the head kept for the windows they cover:', int(spare[rest].sum()))
+            against &= ~spare
+        print('hair faces against the head dropped:', int(against[rest].sum()), 'of', len(rest))
+        pocket = pocket | against
     keep_rest = ~pocket[rest]; rest, rest_uv = rest[keep_rest], rest_uv[keep_rest]
+    if PROJ_HAIR and len(rest) and HAIR_OUTLINE_OPEN > 0:
+        # Thin protrusions of the hair's outline in the lab's views go: the envelope is the views' hulls cut by each
+        # other, and where their edges disagree by a little it leaves a flat tongue (a tab under the bob's side,
+        # 1.5 cm tall, far from the head: no gap or piece rule reaches it). Per view the filled outline is opened by
+        # HAIR_OUTLINE_OPEN px (distance transforms); a face whose centre projects into what the opening took goes.
+        from scipy.ndimage import binary_fill_holes, distance_transform_edt, label as nd_label
+        from PIL import ImageDraw
+        size_o, Fr = 2048, F[rest]; centres_r = P[Fr].mean(1); drop_o = np.zeros(len(rest), bool)
+        for yaw_o in HAIR_OUTLINE_VIEWS:
+            px_o, _ = lab_project(P, yaw_o, size_o); im_o = Image.new('L', (size_o, size_o), 0); dr_o = ImageDraw.Draw(im_o)
+            for tri in px_o[Fr]: dr_o.polygon([tuple(v) for v in tri], fill=255)
+            filled = binary_fill_holes(np.array(im_o) > 0)
+            eroded = distance_transform_edt(filled) > HAIR_OUTLINE_OPEN
+            opened = distance_transform_edt(~eroded) <= HAIR_OUTLINE_OPEN
+            gone = filled & ~opened; lab_o, n_o = nd_label(gone)
+            area_o = np.concatenate([[0], np.bincount(lab_o.ravel(), minlength=n_o + 1)[1:]]); gone &= area_o[lab_o] >= HAIR_OUTLINE_MIN_BIT
+            pc_o = np.clip(lab_project(centres_r, yaw_o, size_o)[0].astype(int), 0, size_o - 1)
+            drop_o |= gone[pc_o[:, 1], pc_o[:, 0]]
+        print('hair outline tongues dropped:', int(drop_o.sum()), 'faces over', len(HAIR_OUTLINE_VIEWS), 'views')
+        rest, rest_uv = rest[~drop_o], rest_uv[~drop_o]
+    if PROJ_HAIR and len(rest):
+        # Only the piece joined to the main hair stays (owner's rule: no loose hair pieces ever; 2026-10-15 the
+        # envelope's inner shell, 2 914 faces hidden inside the hair but for specks at the parting and the nape,
+        # and the scraps the pockets and the head gap leave).
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.csgraph import connected_components
+        Fr = F[rest]; e_r = np.concatenate([Fr[:, [0, 1]], Fr[:, [1, 2]], Fr[:, [2, 0]]])
+        nc_r, lab_r = connected_components(coo_matrix((np.ones(len(e_r)), (e_r[:, 0], e_r[:, 1])), shape=(len(P), len(P))), directed=False)
+        comp_r = lab_r[Fr[:, 0]]; size_r = np.bincount(comp_r, minlength=nc_r)
+        scrap = comp_r != np.argmax(size_r)
+        print('hair pieces off the main hair dropped:', int(scrap.sum()), 'faces in', int((size_r > 0).sum()) - 1, 'pieces, the largest', sorted(size_r[size_r > 0].tolist(), reverse=True)[1:6])
+        rest, rest_uv = rest[~scrap], rest_uv[~scrap]
+    if PROJ_HAIR and len(rest) and HAIR_WINDOW_MAX > 0:
+        # The windows that remain are cut texels: a lock in front of a window whose alpha a view cut (the view saw skin or
+        # background between two of its strands) gets those texels back, coloured from the nearest opaque texel (under
+        # a cut the chart holds the view's own colour, skin or background on her left profile).
+        from scipy.ndimage import distance_transform_edt, binary_dilation
+        from PIL import ImageDraw
+        head_faces = np.concatenate([np.where(front & ~pocket)[0], np.where((label == SKIN) | (label == NECK))[0]]); Fr = F[rest]; uncut = np.zeros(len(rest), bool)
+        rng_w = np.random.default_rng(4); hs = np.concatenate([np.einsum('k,fkd->fd', b_, P[Fr]) for b_ in rng_w.dirichlet((1, 1, 1), size=6)] + [P[np.unique(Fr)]])
+        for yaw_w in HAIR_WINDOW_VIEWS:
+            win, head_zb, pos16, uv16, face16, cut16, _, _, _, _ = lab_hair_windows(P, Fr, rest_uv, rest_tex, P[F[head_faces]], P[F[ear_bare]], yaw_w)
+            size_w = win.shape[0]; n_w = size_w // 4
+            spx, sz = lab_project(hs, yaw_w, size_w); ix = np.clip((spx / 4).astype(int), 0, n_w - 1); zb = np.full((n_w, n_w), np.inf); np.minimum.at(zb, (ix[:, 1], ix[:, 0]), sz)
+            px_c, z_c = lab_project(P[Fr].mean(1), yaw_w, size_w); cc = np.clip((px_c / 4).astype(int), 0, n_w - 1); frontmost = z_c <= zb[cc[:, 1], cc[:, 0]] + 0.01
+            sc, sz16 = lab_project(pos16.mean(1), yaw_w, size_w); psc = np.clip(sc.astype(int), 0, size_w - 1); c16 = np.clip((sc / 4).astype(int), 0, n_w - 1)
+            # the window grown by 20 px: a face that only touches its edge has no sub-triangle centre inside, and its cut
+            # texels over the edge left a thin transparent ring round the patch through which the skull drew a bright rim;
+            # grown this far the patch's alpha edge lies where other hair, not the skull, is behind it
+            win_d = binary_dilation(win, iterations=20)
+            hit = win_d[psc[:, 1], psc[:, 0]] & cut16 & (sz16 < head_zb[c16[:, 1], c16[:, 0]] + 0.002)
+            sel = np.unique(face16[hit]); uncut[sel[frontmost[sel]]] = True
+        if uncut.any():
+            # The patch, grown three texels past the faces, takes the colour of the nearest solid texel (alpha 200 or
+            # more: under and around a cut the chart holds the view's own colour, light where it saw skin or background,
+            # and the half-cut band around the polygons drew a bright rim), softened by a small box blur so the nearest-
+            # texel copies do not read as streaks; then it is solid.
+            from scipy.ndimage import binary_dilation, uniform_filter
+            H_t, W_t = rest_tex.shape[:2]; solid = rest_tex[:, :, 3] >= 200
+            near_i = distance_transform_edt(~solid, return_distances=False, return_indices=True)
+            mask = Image.new('L', (W_t, H_t), 0); dm = ImageDraw.Draw(mask)
+            for tri in rest_uv[uncut]: dm.polygon([(float(u * W_t), float(v * H_t)) for u, v in tri], fill=255, outline=255)
+            core = np.array(mask) > 0; m = binary_dilation(core, iterations=12) & ~solid        # the half-cut band round the patch keeps the view's light colour for twelve texels: recoloured too
+            patch = rest_tex[:, :, :3].astype(np.float32); patch[m] = rest_tex[near_i[0][m], near_i[1][m], :3]
+            blurred = uniform_filter(patch, size=(5, 5, 1), mode='nearest'); rest_tex[m, :3] = np.clip(blurred[m], 0, 255).astype(np.uint8)
+            rest_tex[binary_dilation(core, iterations=6) & ~solid, 3] = 255
+        print('hair texels over the windows un-cut: faces', int(uncut.sum()))
+    if PROJ_HAIR and len(rest) and HAIR_CHIP_FACES > 0:
+        # No free-standing visible piece (owner, 2026-10-15: "0 helt fristående synliga delar"). The mesh is one piece,
+        # but the texture's alpha can leave an opaque island on faces whose neighbours are cut: visible faces (any
+        # opaque texel) grouped by shared edges, a group under HAIR_CHIP_FACES faces loses its texels. (A sweep over
+        # the lab's views cutting a small blob's front-most texels left the blob's back as a chip of its own.)
+        from scipy.ndimage import binary_dilation, label as nd_label
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.csgraph import connected_components
+        Fr = F[rest]; H_t, W_t = rest_tex.shape[:2]; chip_px = []
+        def subdiv(T):
+            a, b, c = T[:, 0], T[:, 1], T[:, 2]; ab, bc, ca = (a + b) / 2, (b + c) / 2, (c + a) / 2
+            return np.concatenate([np.stack([a, ab, ca], 1), np.stack([ab, b, bc], 1), np.stack([ca, bc, c], 1), np.stack([ab, bc, ca], 1)])
+        uv16 = subdiv(subdiv(rest_uv)); face16 = np.tile(np.arange(len(Fr)), 16); c16 = uv16.mean(1)
+        opaque16 = rest_tex[np.clip((c16[:, 1] * H_t).astype(int), 0, H_t - 1), np.clip((c16[:, 0] * W_t).astype(int), 0, W_t - 1), 3] >= 128
+        vis_face = np.zeros(len(Fr), bool); np.logical_or.at(vis_face, face16, opaque16)      # 'visible' is build()'s per-vertex array, read by own() later
+        def face_texels(fi):
+            uv = rest_uv[fi] * np.array([W_t, H_t]); x0, y0 = np.floor(uv.min(0)).astype(int); x1, y1 = np.ceil(uv.max(0)).astype(int)
+            if x1 <= x0 or y1 <= y0: return np.zeros((0, 2), int), np.zeros((0, 3))
+            gx, gy = np.meshgrid(np.arange(x0, x1) + 0.5, np.arange(y0, y1) + 0.5); q = np.stack([gx.ravel(), gy.ravel()], 1)
+            d = uv[1] - uv[0], uv[2] - uv[0]; den = d[0][0] * d[1][1] - d[1][0] * d[0][1]
+            if abs(den) < 1e-9: return np.zeros((0, 2), int), np.zeros((0, 3))
+            qq = q - uv[0]; b1 = (qq[:, 0] * d[1][1] - qq[:, 1] * d[1][0]) / den; b2 = (qq[:, 1] * d[0][0] - qq[:, 0] * d[0][1]) / den; b0 = 1 - b1 - b2
+            inside = (b0 >= -0.02) & (b1 >= -0.02) & (b2 >= -0.02)
+            rc = np.stack([np.clip(q[inside, 1].astype(int), 0, H_t - 1), np.clip(q[inside, 0].astype(int), 0, W_t - 1)], 1)
+            pts = b0[inside, None] * P[Fr[fi, 0]] + b1[inside, None] * P[Fr[fi, 1]] + b2[inside, None] * P[Fr[fi, 2]]
+            return rc, pts
+        if True:
+            vis_idx = np.where(vis_face)[0]; Fv = Fr[vis_idx]; e_c = np.sort(np.concatenate([Fv[:, [0, 1]], Fv[:, [1, 2]], Fv[:, [2, 0]]]), 1)
+            key = e_c[:, 0] * (len(P) + 1) + e_c[:, 1]; fid = np.tile(np.arange(len(vis_idx)), 3); order = np.argsort(key, kind='stable'); key, fid = key[order], fid[order]
+            _, start, count = np.unique(key, return_index=True, return_counts=True)
+            pairs = np.array([(fid[st + i], fid[st + j]) for st, cn in zip(start, count) if cn > 1 for i in range(cn) for j in range(i + 1, cn)])
+            if len(pairs):
+                nc, lab_c = connected_components(coo_matrix((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])), shape=(len(vis_idx), len(vis_idx))), directed=False)
+                size_c = np.bincount(lab_c, minlength=nc); chip = vis_idx[size_c[lab_c] < HAIR_CHIP_FACES]
+                for fi in chip:
+                    rc, _ = face_texels(fi)
+                    if len(rc): chip_px.append(rc)
+                print('hair chips by mesh: faces', len(chip), 'in', int((size_c < HAIR_CHIP_FACES).sum()), 'groups')
+        if chip_px:
+            cp = np.unique(np.concatenate(chip_px), axis=0); rest_tex[cp[:, 0], cp[:, 1], 3] = 0
+        print('hair chips cut: texels', sum(len(c) for c in chip_px))
     front = front & ~pocket
     photo, drawn = front & from_photo, front & ~from_photo
     groups = [(F[photo], fpos, fuv, fnrm, fvis, label[photo], overlap[photo], 7, True),
@@ -3076,6 +4042,16 @@ def build(work):
                 prim['targets'] = lift(pos[used], vis[used], SIDE[0][used] if pos is fpos else None) if morph else [np.zeros_like(p) for _ in TARGETS]
             prims[part].append(prim)
 
+    for extra in (cap, skirt, cards, bcap, strands):
+        if extra is not None:
+            extra['targets'] = lift(extra['pos'], None)
+            extra['pos'] = extra['pos'] - pivot
+            prims['head'].append(extra)
+    cap_tex = cap.pop('tex') if cap is not None else None
+    skirt_tex = skirt.pop('tex') if skirt is not None else None
+    cards_tex = cards.pop('tex') if cards is not None else None
+    bcap_tex = bcap.pop('tex') if bcap is not None else None
+    strands_tex = strands.pop('tex') if strands is not None else None
     front_vertices = np.unique(F[front])
     ntree = cKDTree(P[front_vertices])
     def surface_normal(points):
@@ -3097,23 +4073,54 @@ def build(work):
     # No mipmaps for the ears' per-triangle atlas: minified, its levels average unrelated triangles
     # into grain. Linear sampling reads each pixel's own triangle instead.
     g.gltf["samplers"].append({"magFilter": 9729, "minFilter": 9729, "wrapS": 33071, "wrapT": 33071})
-    for name, img in (("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex, 'RGBA' if rest_tex.shape[-1] == 4 else 'RGB')), ("skin", Image.fromarray(skin_tex)),
+    # Materials no face uses (in the cards build: the photo, the scan's own hair, the closed-lid picture) keep their
+    # place in the list (the indices are fixed) with a 4 px image: their pictures were 0.8 MB of the package.
+    used_k = {p_['material'] for part_ in prims.values() for p_ in part_ if 'material_name' not in p_} | {lid['material']}
+    used_n = {p_['material_name'] for part_ in prims.values() for p_ in part_ if 'material_name' in p_}
+    for mat_k, (name, img) in enumerate(((("front", sclera_photo(src)), ("rest", Image.fromarray(rest_tex, 'RGBA' if rest_tex.shape[-1] == 4 else 'RGB')), ("skin", Image.fromarray(skin_tex)),
                       ("lidskin", lid_texture(closed, src)), ("bald", bald_src), ("iris", iris_texture(src)),
                       ("core", Image.new('RGB', (4, 4), (8, 6, 8))), ("hairphoto", hair_photo(hsrc)),
                       # Inside the head the core is shadowed skin: through the scan's gaps (round the eye
                       # sockets, behind the face's edge) black read as holes in the cheek.
                       ("coreskin", Image.new('RGB', (4, 4), tuple(int(c * 0.8) for c in skin_ref))), ("knit", Image.fromarray(knit_tex)),
-                      ("eyeball", eyeball_texture(src)),
-                      ("socket", Image.fromarray(np.tile((skin_ref[None, :] * np.array([1.0, 0.86, 0.86]) * np.linspace(0.95, 0.75, 64)[:, None])[:, None, :], (1, 4, 1)).astype(np.uint8))),
-                      ("lid", lid_tex), ("mouth", mouth_tex), ("lipwall", lipwall_tex), ("oshade", oshade_tex), ("ear", Image.fromarray(ear_tex))):
+                      ("eyeball", (eyeball_img := eyeball_texture(src))),
+                      ("socket", socket_texture(skin_ref, eyeball_img)),
+                      ("lid", lid_tex), ("mouth", mouth_tex), ("lipwall", lipwall_tex), ("oshade", oshade_tex), ("ear", Image.fromarray(ear_tex)))
+                     + ((("roots", Image.fromarray(cap_tex, 'RGBA')),) if cap is not None else ())
+                     + ((("hairline", Image.fromarray(skirt_tex, 'RGBA')),) if skirt is not None else ())
+                     + ((("cards", Image.fromarray(cards_tex, 'RGBA')),) if cards is not None else ())
+                     + ((("cap", Image.fromarray(bcap_tex, 'RGB')),) if bcap is not None else ())
+                     + ((("strands", Image.fromarray(strands_tex, 'RGBA')),) if strands is not None else ()))):
+        if mat_k not in used_k and name not in used_n:
+            print('material', name, 'unused: 4 px image'); img = Image.new('RGB', (4, 4), (128, 128, 128))
+        if name == "cards" and img.mode == 'RGBA' and (np.asarray(img)[..., 3] >= 128).all():
+            # An opaque hair atlas (the Tripo hair is a closed surface): a JPEG, no mask, at KAIRO_CARDS_PX
+            # (the 256-colour PNG at 4096 was 3.8 MB of the package, the JPEG at 3072 about 1.7 MB; at 2048 the strands went soft up close).
+            px_ = int(os.environ.get('KAIRO_CARDS_PX', '3072'))
+            img = img.convert('RGB'); img = img.resize((px_, px_), Image.LANCZOS) if img.size[0] > px_ else img
+        has_alpha = img.mode == 'RGBA'     # read before the cards atlas becomes a 256-colour image (mode P): the MASK below depends on it
         if img.mode == 'RGBA' or name == "ear":        # the ear atlas lossless: JPEG rings at its cells' hard edges
-            data = io.BytesIO(); img.save(data, 'PNG'); i = g.image(data.getvalue(), "image/png", name)
+            if name == "cards" and CARDS_HAIR:
+                # The strand atlas as a 256-colour PNG: under a third of the RGBA file (11.5 MB -> 3.3 MB) with the mask's 0.5 cut unchanged on every texel.
+                # Its alpha binarized at the cut first (KAIRO_CARDS_ALPHA=soft keeps it): the renderer drew texels with alpha between the
+                # cut and one as pale ghosts at the crown (cards seen at a grazing angle, their alpha averaged by the mip levels).
+                if os.environ.get('KAIRO_CARDS_ALPHA', 'hard') == 'hard':
+                    arr = np.array(img.convert('RGBA')); opaque = arr[..., 3] >= 128
+                    # The transparent texels take the nearest opaque texel's colour: sampled between an opaque strand and a transparent
+                    # neighbour (bilinear, mip levels) a texel showed the neighbour's colour as a white rim along every card edge.
+                    _, (iy, ix) = ndimage.distance_transform_edt(~opaque, return_indices=True)
+                    arr[..., :3] = arr[iy, ix, :3]; arr[..., 3] = np.where(opaque, 255, 0).astype(np.uint8); img = Image.fromarray(arr, 'RGBA')
+                img = img.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
+            if name == "strands":
+                # The hairline overlay as a 256-colour PNG too: 2.7 MB -> 0.4 MB, the blue strands and their soft alpha in the palette.
+                img = img.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE)
+            data = io.BytesIO(); img.save(data, 'PNG', optimize=True); i = g.image(data.getvalue(), "image/png", name)
         else:
             i = g.image(jpeg(img, 92 if name in ("front", "bald", "rest") else 88, 0 if name == "rest" else None), "image/jpeg", name)
-        # No mipmaps for the ear's per-triangle atlas (minified, its levels averaged the black between
-        # cells into every triangle's edge). The hair atlas has its gutters filled and keeps mipmaps:
+        # No mipmaps for the ear's and the turtleneck's per-triangle atlases (minified, their levels averaged
+        # neighbouring cells into every triangle's edge: on the knit, outlined triangles and dark fragments along the seams). The hair atlas has its gutters filled and keeps mipmaps:
         # without them the minified strands aliased into triangle-sized grain.
-        g.gltf["textures"].append({"sampler": 1 if name == "ear" else 0, "source": i})
+        g.gltf["textures"].append({"sampler": 1 if name in ("ear", "knit") else 0, "source": i})
         material = {"name": name, "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1], "baseColorTexture": {"index": i},
                                                            "metallicFactor": 0, "roughnessFactor": 0.62}}
         # The scan's winding is unreliable (thin hair sheets, the collar seen from inside): culled back
@@ -3123,7 +4130,7 @@ def build(work):
         # the skull and the sides came out a different tone, an edge round the face.
         # The projected hair carries the views' own light, like the front: emissive too. (Lit, with its
         # roughness 0.62, the envelope's grooves caught the scene's speculars as glitter: "cut glass".)
-        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear") or (name == "rest" and PROJ_HAIR):
+        if name in ("front", "lidskin", "bald", "iris", "hairphoto", "skin", "coreskin", "knit", "eyeball", "socket", "lid", "mouth", "lipwall", "oshade", "ear", "roots", "hairline", "cards", "cap", "strands") or (name == "rest" and PROJ_HAIR):
             # The picture already carries its light: shown mostly as it is (emissive), with a little
             # shading on top for depth when the head turns. Fully lit, the scan's uneven normals
             # mottled the face and the turtleneck.
@@ -3133,11 +4140,15 @@ def build(work):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0       # no highlights on the baked light
         if name in ("core", "coreskin"):
             material["pbrMetallicRoughness"]["roughnessFactor"] = 1.0
-        if name in ("lidskin", "iris", "lid"):
+        if name in ("lidskin", "iris", "lid", "strands"):
             material["alphaMode"] = "BLEND"
-        if name == "rest" and img.mode == 'RGBA':
+        if name in ("rest", "roots", "hairline", "cards") and has_alpha:
             material["alphaMode"] = "MASK"; material["alphaCutoff"] = 0.5
         g.gltf["materials"].append(material)
+    names_ = [m_['name'] for m_ in g.gltf['materials']]
+    for p_ in prims['head']:
+        if 'material_name' in p_:
+            p_['material'] = names_.index(p_.pop('material_name'))
     # 0 Root, 1 Body (turtleneck), 2 HeadPivot (at the neck), 3 Head.
     neck_node = 4 + len(BLINK_FRAMES)
     # The neck's joints on the spine, at a third and two thirds of the way from the collar up to the
@@ -3165,7 +4176,7 @@ def build(work):
     g.node("HeadPivot", t=pivot - j2, children=[3, lids_node] + [4 + k for k in range(len(frames))])
     # Floating scraps of the scan go: a sliver a few millimetres off the temple past her left eye's outer
     # corner showed as a speck beside the eye from the front and outside the head from behind.
-    prims['head'] = [drop_floating(p_) if p_['material'] in (2, EAR_MATERIAL) else p_ for p_ in prims['head']]
+    prims['head'] = [drop_floating(p_) if names_[p_['material']] in ('skin', 'ear', 'roots') else p_ for p_ in prims['head']]   # by name: past the ear the optional layers' indices are not fixed (the cards would have taken the cap's)
     m_head = g.mesh("Head", prims['head'], TARGETS)
     g.node("Head", m_head)
     for k, (prim, _) in enumerate(frames):
@@ -3184,6 +4195,221 @@ def build(work):
     assert g.node("Lids", m_lids) == lids_node
     clips(g)
     return g.bytes(), dict(m_head=m_head, head_prims=len(prims['head']), neck_chain=(n1_node, n2_node), m_lids=m_lids, lids_node=lids_node)
+
+def fill_small_holes(P, F, label, shell_f, max_edges=8):
+    """Boundary loops of up to `max_edges` edges in the hair layer, fan-triangulated: the drops above (faces
+    inside the head, behind the face grid, loose pieces) and the envelope's own decimation leave single
+    missing triangles in a closed surface, each a hole showing the skin behind. Larger openings (the
+    face, the ears, the nape's lower edge) stay as they are."""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    hair = np.where(label == HAIR)[0]
+    if not len(hair):
+        return F, label, shell_f
+    Fh = F[hair]
+    e = np.sort(np.concatenate([Fh[:, [0, 1]], Fh[:, [1, 2]], Fh[:, [2, 0]]]), 1)
+    key, idx_, cnt = np.unique(e[:, 0].astype(np.int64) * len(P) + e[:, 1], return_index=True, return_counts=True)
+    be = e[idx_[cnt == 1]]
+    if not len(be):
+        return F, label, shell_f
+    nc, lab_ = connected_components(coo_matrix((np.ones(len(be)), (be[:, 0], be[:, 1])), shape=(len(P), len(P))), directed=False)
+    loop = lab_[be[:, 0]]; nedge = np.bincount(loop, minlength=nc)
+    # orientation from the faces: a boundary edge (a, b) as its face winds it, so the fan winds the same way
+    wound = {}
+    for f in Fh:
+        for a, b in ((f[0], f[1]), (f[1], f[2]), (f[2], f[0])):
+            wound[(min(a, b), max(a, b))] = (a, b)
+    new = []
+    for c in np.where((nedge >= 3) & (nedge <= max_edges))[0]:
+        es = [wound[(int(a), int(b))] for a, b in be[loop == c]]
+        nxt = {a: b for a, b in es}
+        if len(nxt) != len(es):
+            continue
+        start = es[0][0]; ring = [start]
+        while len(ring) <= len(es):
+            n_ = nxt.get(ring[-1])
+            if n_ is None or n_ == start:
+                break
+            ring.append(n_)
+        if len(ring) != len(es):
+            continue
+        # the hole's winding is the faces' around it; the fan fills it with the opposite winding (a hole's rim runs against its faces)
+        for k in range(1, len(ring) - 1):
+            new.append((ring[0], ring[k + 1], ring[k]))
+    if not new:
+        print('hair holes: none to fill'); return F, label, shell_f
+    new = np.array(new, np.int32)
+    print('hair holes filled:', len(new), 'triangles in', int(((nedge >= 3) & (nedge <= max_edges)).sum()), 'loops of up to', max_edges, 'edges')
+    return np.concatenate([F, new]), np.concatenate([label, np.full(len(new), HAIR)]), np.concatenate([shell_f, np.zeros(len(new), bool)])
+
+def find_ears(P, F, bare, centre):
+    """The auricles among the skull's bare faces: per side the ear's window about the point standing out most
+    sideways, and in it the faces that overlap another in the side projection or stand well out from the
+    skull. Returns (ears [(centre, side)], ear_w per vertex (the window), auricle mask over `bare`)."""
+    sk = P[F[bare]].reshape(-1, 3)
+    ears = []
+    ear_w = np.zeros(len(P))
+    auricle = np.zeros(len(bare), bool)
+    bc_ = P[F[bare]].mean(1)
+    for side in (1, -1):
+        band = sk[(np.abs(sk[:, 1] - centre[1]) < 0.08)]
+        rim = band[np.argmax((band[:, 0] - centre[0]) * side)]
+        # The whole ear, lobe included: what stands out sideways from the skull, per height, inside
+        # the ear's window. The skull's side is measured behind the ear (toward the nape) and in front
+        # of it (the jaw) and interpolated between. A disc round the helix's outermost point caught the
+        # upper ear only; the lobe and the lower concha went to the side and under charts, toned like
+        # the jaw and the photo, and the ear showed in two colours. The ear's colour rule covers the
+        # whole window, skull skin included (the concha's floor and the tragus lie at the skull's
+        # surface and showed the generator's grey there): its tone is that skin's own. The auricle
+        # gets a per-triangle atlas of its own: every face of the window that overlaps another in the
+        # side projection (the helix over the concha, the auricle over the skull behind it, the two
+        # sides of its shell) or stands well out from the skull. Standing out alone, with the skull
+        # measured behind and in front of the ear, took the parietal bulge above the ear as well.
+        dy, dz = bc_[:, 1] - rim[1], bc_[:, 2] - rim[2]
+        xo = (bc_[:, 0] - centre[0]) * side
+        bands = np.arange(-0.13, 0.10, 0.01) + 0.005
+        def profile(zlo, zhi):
+            prof = np.full(len(bands), np.nan)
+            for k_, y0 in enumerate(bands):
+                m = (np.abs(dy - y0) < 0.01) & (dz > zlo) & (dz < zhi)
+                if m.sum() > 3:
+                    prof[k_] = np.percentile(xo[m], 95)
+            good = ~np.isnan(prof)
+            prof = np.interp(bands, bands[good], prof[good])
+            return ndimage.gaussian_filter1d(prof, 1.0)
+        behind, front_ = profile(-0.06, -0.03), profile(0.06, 0.09)
+        t = np.clip((dz + 0.045) / 0.12, 0, 1)
+        skull = np.interp(dy, bands, behind) * (1 - t) + np.interp(dy, bands, front_) * t
+        window = smooth(-0.13, -0.11, dy) * smooth(0.085, 0.065, dy) * smooth(-0.035, -0.02, dz) * smooth(0.08, 0.065, dz) * smooth(0.12, 0.14, xo)
+        np.maximum.at(ear_w, F[bare].reshape(-1), np.repeat(window, 3))
+        wf = np.where(window > 0.3)[0]
+        pts = np.einsum('bk,fkd->fbd', lattice(6), P[F[bare[wf]]])
+        yz = pts[..., 1:].reshape(-1, 2); xs = (pts[..., 0].reshape(-1) - centre[0]) * side
+        cell = np.floor((yz - yz.min(0)) / 0.0015).astype(int); key = cell[:, 0] * 100000 + cell[:, 1]
+        fid = np.repeat(wf, pts.shape[1])
+        o_ = np.argsort(key, kind='stable'); key, xs, fid = key[o_], xs[o_], fid[o_]
+        starts = np.r_[0, np.where(np.diff(key))[0] + 1]
+        span = np.maximum.reduceat(xs, starts) - np.minimum.reduceat(xs, starts)
+        cid = np.repeat(np.arange(len(starts)), np.diff(np.r_[starts, len(key)]))
+        overlapped = np.zeros(len(bare), bool); overlapped[fid[span[cid] > 0.003]] = True
+        stands = overlapped | (xo - skull > 0.008)
+        stands = (window > 0.5) & (stands | vote(P, F[bare], stands, r=0.006))   # closed: the helix's top overlaps nothing of its own
+        auricle |= stands
+        lo_, hi_ = bc_[stands].min(0), bc_[stands].max(0)
+        ears.append((np.array([rim[0] - side * 0.02, (lo_[1] + hi_[1]) / 2, (lo_[2] + hi_[2]) / 2]), side))
+        print(f'ear {"+x" if side > 0 else "-x"}: {int(stands.sum())} auricle faces, y {lo_[1] - rim[1]:+.3f}..{hi_[1] - rim[1]:+.3f}, z {lo_[2] - rim[2]:+.3f}..{hi_[2] - rim[2]:+.3f} about the rim; skull side behind/front at the rim {np.interp(0, bands, behind):.3f}/{np.interp(0, bands, front_):.3f}, rim {xo.max():.3f}')
+    return ears, ear_w, auricle
+
+def root_cap(P, F, faces, hair_weight, VN, shade, hair_look, ear_w, pivot, colour_fn=None):
+    """The hair's roots: the skull under the hair as a layer of its own, lifted off the skin, dark
+    indigo with the fine root strands. Through any gap or alpha cut in the hair layer (the ear's
+    pocket, the temples, the skirt along the hairline) the eye met the scalp's skin: hair-coloured in
+    the lab, plain grey on the owner's grey review head. A cap that is hair reads as roots either way.
+    Coverage is compose()'s own field (the hair volume's ray test, the photo's closed hair mask, the
+    scalp behind the face and the ears, nothing under the face grid), never the auricles; its alpha is
+    that coverage feathered and the views' skin cut, so its edge stays behind the hairline and off the
+    ears whatever the geometry does."""
+    c = P[F[faces]].mean(1)
+    w = hair_weight(c)
+    keep = faces[w > ROOT_COVER]        # the auricles are left out by the caller; the skull inside the ear's window is capped where the roots are (left out, the window showed as a lighter rectangle of the skull's own roots behind the ear)
+    if len(keep) < 50:
+        print('root cap: nothing to cap'); return None
+    used = np.unique(F[keep]); remap = np.full(len(P), -1); remap[used] = np.arange(len(used))
+    Fc = remap[F[keep]].astype(np.int32)
+    # Normals smoothed over 1 cm (the scan's skull is crumpled) and turned outward from the head's axis.
+    tree = cKDTree(P[used]); n = VN[used].copy()
+    for _ in range(2):
+        nb = tree.query_ball_point(P[used], r=0.01)
+        n = np.array([n[i].mean(0) for i in nb]); n /= np.linalg.norm(n, axis=1, keepdims=True) + 1e-12
+    centre = np.array([pivot[0], P[used, 1].mean(), pivot[2]])
+    n *= np.sign(((P[used] - centre) * n).sum(1, keepdims=True) + 1e-12)
+    wv = hair_weight(P[used])
+    lift_ = ROOT_LIFT[0] + (ROOT_LIFT[1] - ROOT_LIFT[0]) * smooth(ROOT_COVER, 0.85, wv)
+    Pc = P[used] + n * lift_[:, None]
+    style = getattr(hair_look, 'style', hair_look)
+    def colour(q):
+        return colour_fn(q) if colour_fn is not None else style(q, base=ROOT_BASE)
+    def alpha(q):
+        # The coverage field alone. (The projector's view cut is for the envelope: its depth buffers hold
+        # the envelope only, so the cap at the back of the head counted as seen through the face from
+        # the front, and the hug rule cut it wherever the photo shows skin: three quarters of the cap.)
+        return smooth(ROOT_COVER - 0.05, ROOT_COVER + 0.1, hair_weight(q))
+    uv, tex = hair_charts(Pc, Fc, colour, shade[used], n, alpha_fn=alpha, tile=ROOT_TILE)       # the skull's own shade: the cap carries the same roots as the skull under it (as a darker layer it showed its every edge)
+    print('root cap:', len(Fc), 'faces of', len(faces), 'skull faces; lift (mm) p50', round(float(np.median(lift_)) * 1000, 2))
+    return dict(pos=Pc[Fc].reshape(-1, 3), nrm=n[Fc].reshape(-1, 3), uv=uv.reshape(-1, 2), idx=np.arange(len(Fc) * 3), material=ROOT_MATERIAL, material_name='roots', tex=tex)
+
+ROOT_BLEND_PX = 10             # source px either side of the photo's hair (gaps closed) over which the skirt goes from skin to roots
+ROOT_SKIRT_SHADE = 0.9         # the roots on the skirt a little darker than the cap's: it folds back into the head
+
+def blender_cards(path, scale=1.0):
+    """The hair as the owner's Blender hair cards: a GLB (kairo/tools/blender, export_cards_glb) with a 'KairoCards' mesh
+    (ribbons along the hair curves' guides, UV strips in one RGBA strand atlas, alphaMode MASK) and a 'KairoCap' mesh
+    (the skull under the hair lifted 2.5 mm, an opaque root texture), exported Y-up in this generator's frame (Blender's
+    HeadPivot is this pivot, so the positions are used as they are and the extras loop subtracts the pivot). Returns the
+    two head primitives; the atlas is scaled by `scale` for the package's 32 MiB limit."""
+    import struct
+    data = open(path, 'rb').read()
+    assert data[:4] == b'glTF', path
+    jl = struct.unpack_from('<I', data, 12)[0]; js = json.loads(data[20:20 + jl]); bl = struct.unpack_from('<I', data, 20 + jl)[0]; bin_ = data[28 + jl:28 + jl + bl]
+    def acc(i):
+        a = js['accessors'][i]; bv = js['bufferViews'][a['bufferView']]; off = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
+        n = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3}[a['type']]; dt = {5126: np.float32, 5123: np.uint16, 5125: np.uint32, 5121: np.uint8}[a['componentType']]
+        return np.frombuffer(bin_, dt, a['count'] * n, off).reshape(a['count'], n)
+    def image(i):
+        bv = js['bufferViews'][js['images'][i]['bufferView']]; off = bv.get('byteOffset', 0)
+        return Image.open(io.BytesIO(bin_[off:off + bv['byteLength']]))
+    # Each mesh's node transform (Blender exports an object's location as a node translation: the cap object sits at the
+    # head pivot, the cards at the origin) is applied to the positions and normals, so the primitives land where Blender shows them.
+    def node_matrix(n):
+        t = np.array(n.get('translation', [0, 0, 0]), float); q = np.array(n.get('rotation', [0, 0, 0, 1]), float); sc = np.array(n.get('scale', [1, 1, 1]), float)
+        x, y, z, w = q
+        R = np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+        return R * sc[None, :], t
+    mesh_nodes = {n['mesh']: node_matrix(n) for n in js.get('nodes', []) if 'mesh' in n}
+    out = {}
+    for mi, mesh in enumerate(js['meshes']):
+        R, t = mesh_nodes.get(mi, (np.eye(3), np.zeros(3)))
+        for p in mesh['primitives']:
+            mat = js['materials'][p['material']]; img = image(js['textures'][mat['pbrMetallicRoughness']['baseColorTexture']['index']]['source'])
+            if scale != 1.0 and mesh['name'] == 'KairoCards':
+                img = img.resize((max(4, round(img.width * scale)), max(4, round(img.height * scale))), Image.LANCZOS)
+            pos = acc(p['attributes']['POSITION']).astype(np.float64) @ R.T + t
+            nrm = acc(p['attributes']['NORMAL']).astype(np.float64) @ np.linalg.inv(R).T; nrm /= np.linalg.norm(nrm, axis=1, keepdims=True) + 1e-12
+            out[mesh['name']] = dict(pos=pos, nrm=nrm, uv=acc(p['attributes']['TEXCOORD_0']).astype(np.float64), idx=acc(p['indices']).ravel().astype(np.uint32), material=0,
+                                     tex=np.array(img.convert('RGBA' if mesh['name'] == 'KairoCards' else 'RGB')))
+            print('  blender mesh', mesh['name'], 'node translation', np.round(t, 4))
+    def by_name(prefix):   # Blender suffixes a mesh name with .001 when an orphan datablock holds the plain one
+        return out[next(k for k in out if k == prefix or k.startswith(prefix + '.'))]
+    cards = by_name('KairoCards'); cards['material_name'] = 'cards'
+    cap = by_name('KairoCap'); cap['material_name'] = 'cap'
+    print('blender hair cards:', len(cards['idx']) // 3, 'card triangles, atlas', cards['tex'].shape[1], 'x', cards['tex'].shape[0], '; cap', len(cap['idx']) // 3, 'triangles, texture', cap['tex'].shape[1])
+    return cards, cap
+
+def hairline_skirt(P, F, is_skirt, VN, hair_look, projected):
+    """The face grid's skirt (its border folded 1.5 cm back into the head) as a layer of its own: the
+    picture's own skin where its rim lies on the photo's skin, cut away where the rim lies under the
+    photo's hair (feathered over ROOT_BLEND_PX). As part of the grid it carried the bald picture's skin
+    at the rim, and at the temples, where the head recedes behind the grid's edge, it stood out between
+    the hair's strands as skin-coloured triangles; drawn as roots it stood out just the same."""
+    faces = np.where(is_skirt)[0]
+    env = getattr(hair_look, 'photo_env', None)
+    if env is None:
+        return None
+    inside = ndimage.distance_transform_edt(env); outside = ndimage.distance_transform_edt(~env)
+    style = getattr(hair_look, 'style', hair_look)
+    def under_hair(q):
+        cp_, _ = project(q); sp_ = np.clip(((cp_ - np.array([OX, OY])) / S).astype(int), 0, env.shape[0] - 1)
+        return smooth(-ROOT_BLEND_PX, ROOT_BLEND_PX, inside[sp_[:, 1], sp_[:, 0]] - outside[sp_[:, 1], sp_[:, 0]])
+    def colour(q):
+        return projected(q)
+    def alpha(q):
+        # Under the photo's hair the skirt is cut away: drawn as roots it still stood out of the receding temple as a
+        # saw-tooth of triangles along the hairline (owner: "lila trianglar längs med huvudet"); the dark scalp and the
+        # root cap behind the grid's edge are what the hair's gaps should show there.
+        return 1.0 - under_hair(q)
+    uv, tex = hair_charts(P, F[faces], colour, np.ones(len(P)), VN, alpha_fn=alpha, tile=256)
+    print('hairline skirt:', len(faces), 'faces as their own layer')
+    return dict(pos=P[F[faces]].reshape(-1, 3), nrm=VN[F[faces]].reshape(-1, 3), uv=uv.reshape(-1, 2), idx=np.arange(len(faces) * 3), material=0, material_name='hairline', tex=tex)
 
 def drop_floating(prim, min_verts=60, gap=0.004):
     """The primitive without its small connected pieces that sit more than `gap` from its main surface
@@ -3292,7 +4518,7 @@ def package(glb, ids, posters):
     }
     states = ("idle", "connecting", "listening", "thinking", "speaking", "interrupted", "muted")
     manifest = {
-        "schemaVersion": "1.0", "id": "kairo", "displayName": "Kairo", "assetVersion": "2.0.0", "minRuntimeVersion": "1.0.0", "profile": "character",
+        "schemaVersion": "1.0", "id": "kairo", "displayName": "Kairo", "assetVersion": "3.0.0", "minRuntimeVersion": "1.0.0", "profile": "character",
         "representations": [{"id": "native3d-primary", "renderer": "native3d", "format": "glb", "model": "models/kairo.glb", "bindings": "bindings/native3d.json",
                              "capabilities": ["ambient", "expressions", "gestures", "reducedMotion", "speechArticulation", "gaze", "blink"],
                              "platforms": ["android", "ios", "maccatalyst", "windows"], "idleOwner": "scheduler", "blinkOwner": "scheduler", "gazeOwner": "scheduler"}],
@@ -3314,7 +4540,7 @@ def package(glb, ids, posters):
         "previews/poster-light.png": open(posters[0], 'rb').read() if posters else tiny_png(),
         "previews/poster-dark.png": open(posters[1], 'rb').read() if posters else tiny_png(),
         "LICENSE.txt": b"Kairo: the owner's character images, reconstructed with Pixal3D (MIT code and flow weights; DINOv3 encoder under the DINOv3 License) and rigged by source/kairo_scan.py.\n",
-        "provenance.json": json.dumps({"model": "Pixal3D single view (pixal3d.cpp Q8_0) from the owner's front image, seed 42; textured from the image; rigged by source/kairo_scan.py",
+        "provenance.json": json.dumps({"model": "Pixal3D single view (pixal3d.cpp Q8_0) from the owner's front image, seed 42; textured from the image; rigged by source/kairo_scan.py" + ("; hair: the owner's Blender hair cards (" + CARDS_GLB + ") grown from the approved hair curves in kairo-hair-cards-wip.blend" if CARDS_HAIR else ""),
                                        "posters": "captured from the lab" if posters else "placeholder 1x1, not a render"}, indent=1).encode(),
         "source/kairo_scan.py": open(__file__, 'rb').read(),
     }

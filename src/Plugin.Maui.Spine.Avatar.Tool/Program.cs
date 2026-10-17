@@ -25,11 +25,11 @@ catch (Exception e) when (e is IOException or UnauthorizedAccessException or Arg
     return 2;
 }
 
-internal sealed record Options(string? Output, string? Profile, string? PosterLight, string? PosterDark, int Size, bool Strip)
+internal sealed record Options(string? Output, string? Profile, string? PosterLight, string? PosterDark, int Size, bool Strip, string? AssetVersion = null)
 {
     public static Options Parse(string[] args)
     {
-        string? output = null, profile = null, light = null, dark = null;
+        string? output = null, profile = null, light = null, dark = null, assetVersion = null;
         var size = 512;
         var strip = false;
         for (var i = 0; i < args.Length; i++)
@@ -43,10 +43,15 @@ internal sealed record Options(string? Output, string? Profile, string? PosterLi
                 case "--poster-dark": dark = Next(); break;
                 case "--size": size = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                 case "--strip": strip = true; break;
+                case "--asset-version":
+                    assetVersion = Next();
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(assetVersion, @"^\d+\.\d+\.\d+$"))
+                        throw new ArgumentException($"--asset-version takes major.minor.patch, not {assetVersion}.");
+                    break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
             }
         }
-        return new Options(output, profile, light, dark, size, strip);
+        return new Options(output, profile, light, dark, size, strip, assetVersion);
     }
 }
 
@@ -63,9 +68,10 @@ internal static class Commands
 
               inspect <file>                         what the package holds
               validate <file> [--profile shipping]   the format's checks; shipping adds real posters and no source/
-              pack <file> -o <out> [--strip] [--poster-light <png> --poster-dark <png>]
+              pack <file> -o <out> [--strip] [--poster-light <png> --poster-dark <png>] [--asset-version 1.2.0]
                                                      the defaults applied, capabilities computed, posters rendered,
-                                                     the hash table rewritten
+                                                     the hash table rewritten; a new release takes a higher
+                                                     assetVersion, which apps compare to update a downloaded copy
               strip <file> -o <out>                  source/ removed, the hash table rewritten
               render-sheet <file> -o <dir> [--size 512]
                                                      posters and the state and expression sheets as PNG
@@ -150,7 +156,13 @@ internal static class Commands
             Console.WriteLine($"posters: kept as they were, because {reason}");
         }
 
-        AvatarFiles.Write(output, AvatarSlimming.Manifest(package), files);
+        var manifest = AvatarSlimming.Manifest(package);
+        if (options.AssetVersion is { } version)
+        {
+            manifest["assetVersion"] = version;
+            Console.WriteLine($"assetVersion: {package.Manifest.AssetVersion} -> {version}");
+        }
+        AvatarFiles.Write(output, manifest, files);
         return Check(file, output);
     }
 

@@ -117,7 +117,7 @@ spine-avatar pack nova.spineavatar -o shipped/nova.spineavatar --strip
 | --- | --- |
 | `inspect <file>` | Representations with their capabilities, posters and their size, every file, the validation summary |
 | `validate <file> [--profile shipping]` | The format's checks; `shipping` also fails a poster under 128 px (a placeholder) and anything under `source/`, and warns over 2 MB (download it rather than bundle it). Exit code 1 on a failure |
-| `pack <file> -o <out> [--strip]` | The manifest and bindings rewritten with the defaults, capabilities left to be computed, posters rendered at 512 px (`--size`), `source/` dropped with `--strip`, the hash table rewritten, the result validated |
+| `pack <file> -o <out> [--strip] [--asset-version 1.2.0]` | The manifest and bindings rewritten with the defaults, capabilities left to be computed, posters rendered at 512 px (`--size`), `source/` dropped with `--strip`, `assetVersion` set for a new release, the hash table rewritten, the result validated |
 | `strip <file> -o <out>` | Only `source/` removed and the hash table rewritten |
 | `render-sheet <file> -o <dir>` | The posters and a sheet of the states and one of the expressions, as PNG, for review |
 | `report <file>...` | One Markdown row per package: size, representations, posters, `source/`, validation, shipping |
@@ -156,3 +156,12 @@ await speech.SpeakAsync("Welcome back", new SpeakOptions { Language = "en-GB" })
 Removing a driver (`Driver = null`) leaves the avatar Idle and back on the view's own properties.
 
 Visemes are the 15 of `oculus15-v1`; `AvatarVisemes.FromAzure` maps Azure Speech's 22 (Spine.Voice's `Visemes`).
+
+## Versions and downloaded avatars
+
+A package's `assetVersion` (major.minor.patch) is its release: `spine-avatar pack … --asset-version 3.0.0` sets it, and a changed
+avatar ships with a higher one. An app that downloads an avatar rather than bundling it keeps the file in its data folder and
+compares versions to update it. The Showcase does this for Kairo (`Pages/Avatars/AvatarDownloads.cs`): the sample server lists
+what it offers at `GET /sample/avatars` (id, version, file, size, SHA-256, read from each package at startup), the app reads the
+kept copy's version from its manifest, offers the update when the server's is later, and keeps a download only when it matches
+the server's hash. A source never touches the network; the app opens the kept file with `AvatarSource.FromFile`.

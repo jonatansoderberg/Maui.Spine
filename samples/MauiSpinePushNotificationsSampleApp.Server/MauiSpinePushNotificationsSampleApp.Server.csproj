@@ -23,7 +23,7 @@
 
 	<!-- Kairo for the Showcase's Avatars page (GET /sample/avatars/kairo.spineavatar): too large to bundle, downloaded and cached by the app. -->
 	<ItemGroup>
-		<None Include="..\SpineAvatarLab\Resources\Raw\Avatars\kairo.spineavatar" Link="avatars\kairo.spineavatar" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+		<None Include="..\Avatars\kairo.spineavatar" Link="avatars\kairo.spineavatar" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 	</ItemGroup>
 
 </Project>

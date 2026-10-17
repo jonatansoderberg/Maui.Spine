@@ -16,7 +16,7 @@ public class GltfSkiaRendererTests(ITestOutputHelper output)
     [InlineData("plush-puff", true)]
     [InlineData("pebble-bot", true)]
     [InlineData("robot-expressive", true)]
-    [InlineData("kairo", false)]
+    [InlineData("kairo", true)]
     [InlineData("mpfb", false)]
     public void TakesModelsWithoutAlphaMasks(string name, bool drawn)
     {

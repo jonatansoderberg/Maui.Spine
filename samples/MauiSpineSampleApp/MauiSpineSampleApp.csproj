@@ -64,6 +64,8 @@
 
 		<!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+		<!-- The bundled avatars from the repository's one copy (samples/Avatars), shared with the Avatar Lab; Kairo comes from the sample server. -->
+		<MauiAsset Include="..\Avatars\nova.spineavatar;..\Avatars\plush-puff.spineavatar;..\Avatars\voice-totem.spineavatar;..\Avatars\aurora-flow.spineavatar" LogicalName="Avatars\%(Filename)%(Extension)" />
 	</ItemGroup>
 
 	<ItemGroup>
