@@ -58,7 +58,7 @@ Status values: **Proposal** (written, not reviewed), **Waiting** (on another ste
 | `Plugin.Maui.Spine.Authentication.Google` | New | #521 | [authentication](../proposals/spine-authentication.md) | Done (#565) |
 | `Plugin.Maui.Spine.Authentication.Microsoft` | New | #564 | [authentication](../proposals/spine-authentication.md) | Done (#570) |
 | `Plugin.Maui.Spine.Server.Authentication` | New, server | #520, #552 | [authentication](../proposals/spine-authentication.md) | #520 done (#553); #552 done (#554) |
-| `Plugin.Maui.Spine.Authentication.Passkeys` and passkeys in `Server.Authentication` | New | #522, #601, #602 | [authentication, Passkeys](../proposals/spine-authentication.md) | #522 (iOS, Mac Catalyst and the server) in review; #601 Android and #602 Windows wait |
+| `Plugin.Maui.Spine.Authentication.Passkeys` and passkeys in `Server.Authentication` | New | #522, #601, #602 | [authentication, Passkeys](../proposals/spine-authentication.md) | #522 (iOS, Mac Catalyst and the server) in review as #608; #601 Android and #602 Windows wait |
 | AI avatars and character visuals | Separate control library, specified by the owner | — | — | Outside this plan |
 | On-device `IChatClient`, Android and Windows | Spike outside the repo | #514 | [ai §9](../proposals/spine-ai.md) | Proposal |
 
@@ -156,7 +156,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 5.2b | `Authentication` client: browser sign-in (`WebAuthenticator`, the Windows loopback, the Android callback activity) and the mode without a Spine server (Q7) | #557 | 5.2a, 5.1b | Done | #561 | Split from #519 by the owner on 2026-10-15. `AddOpenIdConnect(name, displayName)` for brokered providers, `CallbackScheme` + `SpineAuthenticationCallbackScheme`, `UseIdentityProvider(...)` as an in-package OIDC public client (Decisions). |
 | 5.3a | `Authentication.Google`: Credential Manager on Android, the broker elsewhere; the provider hook (`INativeSignIn`) in `Authentication` | #521 | 5.2a, 5.2b | Done | #565 | Split by the owner on 2026-10-15. `a.AddGoogle(g => g.ServerClientId = …)`; Guideline 4.8 checked at startup (`AppleNotRequired`); AndroidX Credentials 1.5.0.3 to stay on MAUI's AndroidX (Decisions). Compiled and unit-tested only: no Google Cloud project yet (owner, 2026-10-15). |
 | 5.3b | `Authentication.Microsoft`: MSAL with the broker (Authenticator, Company Portal, WAM); MSAL's ID token to the Spine server (`AddMicrosoft`), or MSAL's own access token without one (`UseMicrosoft`) | #564 | 5.3a | Done | #570 | Split from #521 by the owner on 2026-10-15, with both modes. The mode without a server is generalized in the core (`IDirectSignIn`), shared with `UseIdentityProvider`; Mac Catalyst runs MSAL's net8.0 build with a custom web UI over Spine's browser layer (Decisions). |
-| 5.4a | Passkeys on the server (Fido2NetLib, `Passkeys(...)`, the association files) and in the app on iOS and Mac Catalyst (`Authentication.Passkeys`): sign-in, sign-up, "Add a passkey", AutoFill in the sheet's email field | #522 | 5.5 | In review | | Split by the owner on 2026-10-17 (Decisions). The relying party is the Azure sample server. |
+| 5.4a | Passkeys on the server (Fido2NetLib, `Passkeys(...)`, the association files) and in the app on iOS and Mac Catalyst (`Authentication.Passkeys`): sign-in, sign-up, "Add a passkey", AutoFill in the sheet's email field | #522 | 5.5 | In review | #608 | Split by the owner on 2026-10-17 (Decisions). The relying party is the Azure sample server. |
 | 5.4b | Passkeys on Android: Credential Manager's `CreatePublicKeyCredentialRequest` and `GetPublicKeyCredentialOption`, `assetlinks.json` from `AndroidApps` | #601 | 5.4a | Waiting | | The server side is ready: `AndroidApps` adds the `android:apk-key-hash:` origins. |
 | 5.4c | Passkeys on Windows: WebAuthn through `webauthn.dll` | #602 | 5.4a | Waiting | | |
 | 5.5 | Account linking: one account with several providers, `Logins` with their details, link and unlink, and a pending identity before a new account (`AskBeforeNewAccount`) with "Is this your first time here?" in the sheet; the sheet's provider buttons in one shape with each brand's logo | #575 | 5.3b | Done | #576 | Asked for by the owner on 2026-10-16 (Decisions). Also `Password`, `AccountLink` and `Merge` in the icon set, and Spine.Svg draws Figma's conic gradients and alpha masks (Google's G). |
@@ -620,7 +620,7 @@ Merge `origin/master` into the branch and fix those files by hand before merging
 
 ## Plan history
 
-- **2026-10-17:** 5.4 split into 5.4a (#522, the server, iOS and Mac Catalyst), 5.4b (#601, Android) and 5.4c (#602, Windows). #522 in review: passkeys on the Azure sample server and in the Showcase.
+- **2026-10-17:** 5.4 split into 5.4a (#522, the server, iOS and Mac Catalyst), 5.4b (#601, Android) and 5.4c (#602, Windows). #522 in review as PR #608: passkeys on the Azure sample server and in the Showcase.
 
 - **2026-10-16:** #581 in review: the push sample server in Azure (`spine-showcase-e41ddd`, F1), and the Showcase's `SpineSampleServer` build property. On the owner's iPhone against it: Google, Apple and Microsoft through Authenticator, the last after #582 (PR #583), which stopped Spine.Widgets erasing the app's URL schemes.
 - **2026-10-16:** #577 merged (PR #578): the public `SignInButton`, and the `Unlink` symbol, a follow-up to 5.5.
