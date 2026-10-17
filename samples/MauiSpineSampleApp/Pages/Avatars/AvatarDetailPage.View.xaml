@@ -5,7 +5,7 @@
     x:TypeArguments="AvatarDetailPageViewModel"
     x:DataType="AvatarDetailPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar, Plugin.Maui.Spine.Speech, Plugin.Maui.Spine.Controls.Avatar.Voice">
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar, Plugin.Maui.Spine.Speech, Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Avatar.Voice">
 
         <Example Title="{Binding Entry.Title}"
                  Summary="{Binding Entry.Summary}">
@@ -86,7 +86,7 @@
                         <Button Text="Stop" Command="{Binding StopSpeakingCommand}" />
                     </HorizontalStackLayout>
                     <Label Text="{Binding SpeechStatus}" FontSize="13" Opacity="0.8" />
-                    <Label Text="The platform's voice reads the text; each word's mouth shapes are guessed from its letters and start as the voice reaches it, so pauses and the voice's pace keep the mouth in step (EstimatedText). Apple's Enhanced and Premium voices are downloaded in Settings, Accessibility, Spoken Content." FontSize="13" Opacity="0.7" />
+                    <Label Text="The platform's voice reads the text; each word's mouth shapes are guessed from its letters and start as the voice reaches it, so pauses and the voice's pace keep the mouth in step (EstimatedText). Apple's Enhanced and Premium voices are downloaded in Settings, Accessibility, Spoken Content. The server voices at the end of the list come from the sample server's speech features (Spine.Server.AI, Kind Speech): its audio plays through Spine.Voice's engine without the microphone, and the mouth shapes it sends are TimedVisemes." FontSize="13" Opacity="0.7" />
                 </VerticalStackLayout>
 
                 <VerticalStackLayout Spacing="10" IsVisible="{Binding IsListen}">
@@ -108,6 +108,10 @@
                 var speech = new SpeechAvatarDriver(spineSpeech);   // Plugin.Maui.Spine.Speech
                 Driver = speech;
                 await speech.SpeakAsync("Welcome back", new SpeakOptions { Language = "en-GB" });
+
+                var server = services.GetRequiredService&lt;ServerSpeech&gt;();   // Plugin.Maui.Spine.Voice
+                server.Feature = "Read";                    // a Kind: Speech feature on the app's server
+                Driver = new SpeechAvatarDriver(server);    // TimedVisemes when the server sends them
 
                 var text = new TextAvatarDriver();
                 Driver = text;

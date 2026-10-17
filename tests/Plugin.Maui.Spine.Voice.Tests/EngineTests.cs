@@ -10,6 +10,7 @@ internal sealed class FakePlatform(TimeProvider time) : VoiceAudioEngine(null, t
     public Exception? StartThrows { get; set; }
     public TaskCompletionSource? StartGate { get; set; }
     public int Starts { get; private set; }
+    public VoiceAudioOptions? StartedWith { get; private set; }
     public int Stops { get; private set; }
 
     public void Capture(float[] samples, int rate) => OnCaptured(samples, rate);
@@ -26,6 +27,7 @@ internal sealed class FakePlatform(TimeProvider time) : VoiceAudioEngine(null, t
     protected override async Task StartPlatformAsync(VoiceAudioOptions options, CancellationToken cancellationToken)
     {
         Starts++;
+        StartedWith = options;
         if (StartGate is { } gate)
             await gate.Task;
         if (StartThrows is { } e)

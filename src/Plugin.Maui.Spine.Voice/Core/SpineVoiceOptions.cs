@@ -6,8 +6,9 @@ namespace Plugin.Maui.Spine.Voice;
 public sealed class SpineVoiceOptions
 {
     /// <summary>
-    /// The backend's prefix given to <c>MapSpineRealtimeSessions</c>, such as <c>https://api.example.com/ai</c>. A session
-    /// asks <c>POST {SessionEndpoint}/realtime/{feature}</c> for its token.
+    /// The backend's prefix given to <c>MapSpineRealtimeSessions</c> and <c>MapSpineAI</c>, such as
+    /// <c>https://api.example.com/ai</c>. A session asks <c>POST {SessionEndpoint}/realtime/{feature}</c> for its token, and
+    /// <see cref="ServerSpeech"/> <c>POST {SessionEndpoint}/speech/{feature}</c> for its audio.
     /// </summary>
     public Uri? SessionEndpoint { get; set; }
 
@@ -31,4 +32,7 @@ public sealed class SpineVoiceOptions
     /// avatars follow the output level; the realtime providers give no visemes themselves.
     /// </summary>
     public IVisemeSource? VisemeSource { get; set; }
+
+    /// <summary>The server's speech feature (<c>Kind: Speech</c>) a <see cref="ServerSpeech"/> reads with unless it is given another.</summary>
+    public string? SpeechFeature { get; set; }
 }

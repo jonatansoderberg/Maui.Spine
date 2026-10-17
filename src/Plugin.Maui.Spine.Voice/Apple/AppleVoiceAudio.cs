@@ -22,6 +22,7 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
     private float[] _render = new float[4096];
     private double _outputRate;
     private bool _speaker;
+    private bool _tapped;
 
     public override bool IsSupported => true;
 
@@ -38,13 +39,16 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
 
     protected override async Task StartPlatformAsync(VoiceAudioOptions options, CancellationToken cancellationToken)
     {
-        // Asking without the usage string ends the app with no message; say what is missing instead.
-        if (NSBundle.MainBundle.ObjectForInfoDictionary("NSMicrophoneUsageDescription") is null)
-            throw new VoiceAudioException(VoiceAudioProblem.NotConfigured,
-                "Add NSMicrophoneUsageDescription to Info.plist to use the microphone.");
+        if (options.Input)
+        {
+            // Asking without the usage string ends the app with no message; say what is missing instead.
+            if (NSBundle.MainBundle.ObjectForInfoDictionary("NSMicrophoneUsageDescription") is null)
+                throw new VoiceAudioException(VoiceAudioProblem.NotConfigured,
+                    "Add NSMicrophoneUsageDescription to Info.plist to use the microphone.");
 
-        if (!await RequestPermissionAsync())
-            throw new VoiceAudioException(VoiceAudioProblem.PermissionDenied, "The user did not allow the microphone.");
+            if (!await RequestPermissionAsync())
+                throw new VoiceAudioException(VoiceAudioProblem.PermissionDenied, "The user did not allow the microphone.");
+        }
         cancellationToken.ThrowIfCancellationRequested();
 
         // Off the calling thread: activating a session can take hundreds of milliseconds (iOS warns of a hang).
@@ -88,6 +92,15 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
     private void ConfigureSession(VoiceAudioOptions options)
     {
         var session = AVAudioSession.SharedInstance();
+        if (!options.Input)
+        {
+            // Spoken audio: the system pauses a podcast rather than mixing over it, and the loudspeaker is the default route.
+            Check(session.SetCategory(AVAudioSessionCategory.Playback.GetConstant()!, AVAudioSessionMode.SpokenAudio.GetConstant()!, default, out var playbackError),
+                playbackError, "set the audio category");
+            Check(session.SetActive(true, out playbackError), playbackError, "activate the audio session");
+            return;
+        }
+
         // No DefaultToSpeaker: it sends the sound to the loudspeaker whatever the override says, so the receiver could
         // never be chosen. The loudspeaker is the override instead (UseSpeaker).
         var categoryOptions = options.AllowBluetooth ? AVAudioSessionCategoryOptions.AllowBluetooth : default;
@@ -104,12 +117,12 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
 
     private void Build(VoiceAudioOptions options)
     {
-        if (TryBuild(options, options.VoiceProcessing, out var error))
+        if (TryBuild(options, options.Input && options.VoiceProcessing, out var error))
             return;
 
         // Some Macs' devices refuse the voice-processing unit (kAudioUnitErr_FailedInitialization). The conversation still
         // runs, without echo cancellation, and says so: IsVoiceProcessingOn is false and the log names the reason.
-        if (options.VoiceProcessing)
+        if (options.Input && options.VoiceProcessing)
         {
             Logger.LogWarning("Spine.Voice: the engine did not start with voice processing ({Error}); starting without it.", error);
             if (TryBuild(options, voiceProcessing: false, out error))
@@ -122,26 +135,39 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
     private bool TryBuild(VoiceAudioOptions options, bool voiceProcessing, out string? error)
     {
         var engine = new AVAudioEngine();
-        var input = engine.InputNode;
 
         // The mixer and output first: on macOS the voice-processing unit spans input and output, and fails to
         // initialise when the output side is not connected yet.
         var mixer = engine.MainMixerNode;
         var output = engine.OutputNode;
 
-        if (voiceProcessing)
+        // Without input the input node is never touched: asking for it makes the engine want a microphone.
+        var inputRate = 0;
+        uint inputChannels = 0;
+        if (options.Input)
         {
-            if (!input.SetVoiceProcessingEnabled(true, out var vpError))
-                Logger.LogWarning("Spine.Voice: voice processing could not be turned on: {Error}.", vpError?.LocalizedDescription);
-            else if (!output.VoiceProcessingEnabled)
-                output.SetVoiceProcessingEnabled(true, out _);
-        }
-        IsVoiceProcessingOn = input.VoiceProcessingEnabled;
+            var input = engine.InputNode;
+            if (voiceProcessing)
+            {
+                if (!input.SetVoiceProcessingEnabled(true, out var vpError))
+                    Logger.LogWarning("Spine.Voice: voice processing could not be turned on: {Error}.", vpError?.LocalizedDescription);
+                else if (!output.VoiceProcessingEnabled)
+                    output.SetVoiceProcessingEnabled(true, out _);
+            }
+            IsVoiceProcessingOn = input.VoiceProcessingEnabled;
 
-        // With voice processing the input node can report several channels; the first is the processed microphone.
-        var inputFormat = input.GetBusOutputFormat(0);
-        var inputRate = (int)inputFormat.SampleRate;
-        input.InstallTapOnBus(0, TapFrames, inputFormat, (buffer, _) => OnTap(buffer, inputRate));
+            // With voice processing the input node can report several channels; the first is the processed microphone.
+            var inputFormat = input.GetBusOutputFormat(0);
+            inputRate = (int)inputFormat.SampleRate;
+            inputChannels = inputFormat.ChannelCount;
+            var rate = inputRate;
+            input.InstallTapOnBus(0, TapFrames, inputFormat, (buffer, _) => OnTap(buffer, rate));
+            _tapped = true;
+        }
+        else
+        {
+            IsVoiceProcessingOn = false;
+        }
 
         _outputRate = mixer.GetBusOutputFormat(0).SampleRate;
         var outputFormat = new AVAudioFormat(AVAudioCommonFormat.PCMFloat32, _outputRate, 1, false);
@@ -153,7 +179,9 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
         if (!engine.StartAndReturnError(out var startError))
         {
             error = startError?.LocalizedDescription;
-            input.RemoveTapOnBus(0);
+            if (_tapped)
+                engine.InputNode.RemoveTapOnBus(0);
+            _tapped = false;
             engine.DetachNode(source);
             source.Dispose();
             engine.Dispose();
@@ -167,7 +195,7 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
             AVAudioEngine.ConfigurationChangeNotification, _ => OnMain("a configuration change", OnConfigurationChange), engine);
         error = null;
         Logger.LogInformation("Spine.Voice: engine at {Input} Hz in ({Channels} channels), {Output} Hz out, voice processing {Processing}.",
-            inputRate, inputFormat.ChannelCount, _outputRate, IsVoiceProcessingOn ? "on" : "off");
+            inputRate, inputChannels, _outputRate, IsVoiceProcessingOn ? "on" : "off");
         return true;
     }
 
@@ -291,7 +319,9 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
 
         if (_engine is { } engine)
         {
-            engine.InputNode.RemoveTapOnBus(0);
+            if (_tapped)
+                engine.InputNode.RemoveTapOnBus(0);
+            _tapped = false;
             engine.Stop();
             if (_source is not null)
                 engine.DetachNode(_source);
@@ -304,6 +334,9 @@ internal sealed class AppleVoiceAudio(ILogger? logger, TimeProvider? time) : Voi
 
     private void ApplySpeaker()
     {
+        // Playback alone already uses the loudspeaker, and the override belongs to the play-and-record category.
+        if (!Options.Input)
+            return;
         // Only meaningful on the built-in route: a headset keeps the sound whatever this says.
         AVAudioSession.SharedInstance().OverrideOutputAudioPort(
             _speaker ? AVAudioSessionPortOverride.Speaker : AVAudioSessionPortOverride.None, out _);

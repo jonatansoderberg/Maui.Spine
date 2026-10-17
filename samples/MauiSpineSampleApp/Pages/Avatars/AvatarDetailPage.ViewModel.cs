@@ -13,16 +13,21 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     private readonly TextAvatarDriver _text = new();
     private readonly SpeechAvatarDriver _speech;
     private readonly ISpineSpeech _voices;
+    private readonly ServerSpeech _server;
+    private readonly SpeechAvatarDriver _serverSpeech;
     private AvatarView? _view;
 
     private readonly IVoiceAudio _audio;
     private readonly VoiceAvatarDriver _listen;
     private short[]? _reference;
 
-    public AvatarDetailPageViewModel(ISpineSpeech speech, IVoiceAudio audio)
+    public AvatarDetailPageViewModel(ISpineSpeech speech, IVoiceAudio audio, ServerSpeech server)
     {
         _voices = speech;
         _speech = new SpeechAvatarDriver(speech);
+        _server = server;
+        _serverSpeech = new SpeechAvatarDriver(server);
+        _server.Failed += e => SpeechStatus = $"The server voice failed: {e.Message}";
         _audio = audio;
         _listen = new VoiceAvatarDriver(audio);
     }
@@ -122,25 +127,47 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     {
         _text.Clear();
         _speech.Stop();
-        Driver = value switch { 1 => _text, 2 => _speech, 3 => _listen, _ => null };
+        _serverSpeech.Stop();
+        Driver = value switch { 1 => _text, 2 => SpeechDriver, 3 => _listen, _ => null };
         if (value != 3 && _audio.IsRunning)
             _ = StopEngine();
         if (value == 2 && Voices.Count == 0)
             _ = LoadVoicesAsync();
     }
 
+    // The server's speech features come after the installed voices: the sample server's demo voice needs no key, and
+    // ReadAzure is Azure Speech once its key is set there.
+    private static readonly VoiceChoice[] ServerVoices =
+    [
+        new(null, "Read", "Server: demo voice, timed visemes"),
+        new(null, "ReadAzure", "Server: Azure Speech, timed visemes"),
+    ];
+
+    private SpeechAvatarDriver SpeechDriver => Voice?.Feature is null ? _speech : _serverSpeech;
+
+    partial void OnVoiceChanged(VoiceChoice? value)
+    {
+        if (DriverIndex != 2)
+            return;
+        _speech.Stop();
+        _serverSpeech.Stop();
+        Driver = SpeechDriver;
+    }
+
     private async Task LoadVoicesAsync()
     {
         if (!_voices.IsSupported)
         {
-            SpeechStatus = "This platform has no text-to-speech.";
+            Voices = ServerVoices;
+            Voice = Voices[0];
+            SpeechStatus = "This platform has no text-to-speech of its own; the server's voices remain.";
             return;
         }
         var voices = await _voices.GetVoicesAsync();
-        Voices = [.. voices.Select(v => new VoiceChoice(v))];
+        Voices = [.. voices.Select(v => new VoiceChoice(v)), .. ServerVoices];
         var language = System.Globalization.CultureInfo.CurrentUICulture.Name;
-        Voice = Voices.FirstOrDefault(v => v.Voice.Language.Replace('_', '-').Equals(language, StringComparison.OrdinalIgnoreCase))
-            ?? Voices.FirstOrDefault(v => v.Voice.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase))
+        Voice = Voices.FirstOrDefault(v => v.Voice is not null && v.Voice.Language.Replace('_', '-').Equals(language, StringComparison.OrdinalIgnoreCase))
+            ?? Voices.FirstOrDefault(v => v.Voice is not null && v.Voice.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase))
             ?? Voices.FirstOrDefault();
         SpeechStatus = $"{Voices.Count} voices installed.";
     }
@@ -152,17 +179,31 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
         if (string.IsNullOrWhiteSpace(Text))
             return;
         var words = 0;
+        var visemes = 0;
         var started = DateTime.Now;
-        SpeechStatus = "Starting the voice…";
-        var done = _speech.SpeakAsync(Text, new SpeakOptions { VoiceId = Voice?.Voice.Id, Language = Voice?.Voice.Language });
-        if (_speech.Current is { } utterance)
+        var driver = SpeechDriver;
+        if (Voice?.Feature is { } feature)
+            _server.Feature = feature;
+        Driver = driver;
+        SpeechStatus = Voice?.Feature is null ? "Starting the voice…" : "Asking the server…";
+        var done = driver.SpeakAsync(Text, new SpeakOptions { VoiceId = Voice?.Voice?.Id, Language = Voice?.Voice?.Language });
+        if (driver.Current is { } utterance)
+        {
             utterance.Word += (_, word) => SpeechStatus = $"Word {++words} at {word.At.TotalSeconds:0.00} s: {Text.Substring(word.Start, word.Length)}";
+            utterance.Viseme += (_, _) => visemes++;
+            utterance.Started += (_, _) => SpeechStatus = visemes > 0 ? $"Speaking, {visemes} visemes from the server ({driver.LipSyncQuality})." : "Speaking.";
+        }
         var reason = await done;
-        SpeechStatus = $"{reason} after {words} words in {(DateTime.Now - started).TotalSeconds:0.0} s.";
+        if (reason != SpeechEndReason.Failed)
+            SpeechStatus = $"{reason} after {(visemes > 0 ? $"{visemes} visemes ({AvatarLipSyncQuality.TimedVisemes})" : $"{words} words")} in {(DateTime.Now - started).TotalSeconds:0.0} s.";
     }
 
     [RelayCommand]
-    private void StopSpeaking() => _speech.Stop();
+    private void StopSpeaking()
+    {
+        _speech.Stop();
+        _serverSpeech.Stop();
+    }
 
     /// <summary>Opens the microphone through Spine.Voice's engine: Listening with its level, no provider.</summary>
     [RelayCommand]
@@ -247,8 +288,9 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     private void Stop() => _text.Clear();
 }
 
-/// <summary>A voice in the picker: its name, language and quality.</summary>
-public sealed record VoiceChoice(SpeechVoice Voice)
+/// <summary>A voice in the picker: an installed voice with its name, language and quality, or a speech feature on the server.</summary>
+public sealed record VoiceChoice(SpeechVoice? Voice, string? Feature = null, string? Label = null)
 {
-    public override string ToString() => $"{Voice.Name} ({Voice.Language}{(Voice.Quality == SpeechVoiceQuality.Default ? "" : ", " + Voice.Quality)})";
+    public override string ToString() => Label
+        ?? $"{Voice!.Name} ({Voice.Language}{(Voice.Quality == SpeechVoiceQuality.Default ? "" : ", " + Voice.Quality)})";
 }

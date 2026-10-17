@@ -138,6 +138,9 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
     ai.Chat("openai", (p, model) => new OpenAIClient(p["ApiKey"]).GetChatClient(model).AsIChatClient());
     ai.Image("openai", (p, model) => new OpenAIClient(p["ApiKey"]).GetImageClient(model).AsIImageGenerator());
     ai.Realtime("openai", AIRealtimeProviders.OpenAI);
+    ai.Speech("demo", _ => new DemoSpeechProvider());
+    ai.Speech("azure", AISpeechProviders.AzureSpeech);
+    ai.Speech("openai", AISpeechProviders.OpenAI);
     ai.UseInMemoryUsageStore();
 
     // The report shows every caller's spending. A sample on a laptop shows it to the laptop only.

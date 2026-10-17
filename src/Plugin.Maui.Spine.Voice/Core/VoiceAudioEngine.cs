@@ -140,7 +140,7 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
         _startedAt = Time.GetTimestamp();
         IsRunning = true;
         // Listening is announced when the convergence is over, also when nothing calls UpdateFrame.
-        _convergence = Time.CreateTimer(_ => Refresh(), null, options.Convergence, Timeout.InfiniteTimeSpan);
+        _convergence = Time.CreateTimer(_ => Refresh(), null, options.Input ? options.Convergence : TimeSpan.Zero, Timeout.InfiniteTimeSpan);
         Refresh();
         Logger.LogInformation("Spine.Voice: started at {Input}/{Output} Hz, voice processing {Processing}, route {Route}.",
             options.InputRate, options.OutputRate, IsVoiceProcessingOn ? "on" : "off", _route);
@@ -348,7 +348,7 @@ internal abstract class VoiceAudioEngine : IVoiceAudio
             next = VoiceState.Idle;
         else if (_muted || _interrupted)
             next = VoiceState.Muted;
-        else if (Time.GetElapsedTime(_startedAt) < Options.Convergence)
+        else if (Options.Input && Time.GetElapsedTime(_startedAt) < Options.Convergence)
             next = VoiceState.Connecting;
         else
             next = VoiceState.Listening;
