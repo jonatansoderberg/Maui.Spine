@@ -1,0 +1,6 @@
+<Project>
+	<!-- UseSpine() calls UseSpineSpeech() for the app; see Plugin.Maui.Spine.targets. -->
+	<ItemGroup>
+		<SpineModule Include="Plugin.Maui.Spine.Speech" Register="Plugin.Maui.Spine.Speech.SpineSpeechExtensions.UseSpineSpeech" />
+	</ItemGroup>
+</Project>

@@ -124,8 +124,8 @@ public sealed class AvatarView : ContentView
     }
 
     /// <summary>
-    /// What drives the avatar. Null: the view's own <see cref="State"/>, <see cref="IsMuted"/> and <see cref="Expression"/>.
-    /// A driver drives one view at a time.
+    /// What drives the avatar. Null: the view's own <see cref="State"/>, <see cref="IsMuted"/> and <see cref="Expression"/>;
+    /// removing a driver leaves the avatar Idle. A driver drives one view at a time.
     /// </summary>
     public AvatarDriver? Driver
     {
@@ -240,8 +240,8 @@ public sealed class AvatarView : ContentView
     public Task PlayGestureAsync(string name, CancellationToken cancellationToken = default) =>
         Task.Delay(_runtime.Input.PlayGesture(name), cancellationToken);
 
-    /// <summary>Cuts speech short: the mouth closes at once and the interrupted reflex plays.</summary>
-    public void Interrupt() => _runtime.Input.Interrupt();
+    /// <summary>Cuts speech short: the mouth closes at once, the interrupted reflex plays, and the driver stops speaking.</summary>
+    public void Interrupt() => _runtime.Interrupt();
 
     /// <summary>
     /// Looks toward a point in this view's coordinates (it may lie outside the view, at a control elsewhere on the page), or
@@ -394,8 +394,10 @@ public sealed class AvatarView : ContentView
         _runtime.Driver = driver;
         if (driver is null)
         {
-            // Back to the view's own properties.
-            _runtime.Input.SetState(State);
+            // Back to the view's own properties. State followed the driver, so what it says now is the driver's, not the
+            // app's: the avatar rests.
+            State = AvatarState.Idle;
+            _runtime.Input.SetState(AvatarState.Idle);
             _runtime.Input.SetMuted(IsMuted);
         }
         OnPropertyChanged(nameof(LipSyncQuality));

@@ -42,6 +42,7 @@
   <Project Path="src/Plugin.Maui.Spine.Controls.Voice/Plugin.Maui.Spine.Controls.Voice.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Avatar.Core/Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Avatar/Plugin.Maui.Spine.Controls.Avatar.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.Speech/Plugin.Maui.Spine.Speech.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication/Plugin.Maui.Spine.Authentication.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication.Google/Plugin.Maui.Spine.Authentication.Google.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Authentication.Microsoft/Plugin.Maui.Spine.Authentication.Microsoft.csproj" />
@@ -63,6 +64,7 @@
   <Project Path="tests/Plugin.Maui.Spine.Barcodes.Tests/Plugin.Maui.Spine.Barcodes.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Controls.Tests/Plugin.Maui.Spine.Controls.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Controls.Avatar.Core.Tests/Plugin.Maui.Spine.Controls.Avatar.Core.Tests.csproj" />
+  <Project Path="tests/Plugin.Maui.Spine.Speech.Tests/Plugin.Maui.Spine.Speech.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Images.Tests/Plugin.Maui.Spine.Images.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.BackgroundTasks.Tests/Plugin.Maui.Spine.BackgroundTasks.Tests.csproj" />
   <Project Path="tests/Plugin.Maui.Spine.Biometrics.Tests/Plugin.Maui.Spine.Biometrics.Tests.csproj" />

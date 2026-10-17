@@ -1,5 +1,6 @@
 using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Controls.Avatar;
+using Plugin.Maui.Spine.Speech;
 
 namespace MauiSpineSampleApp.Pages.Avatars;
 
@@ -9,7 +10,15 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     private static readonly int[] FrameRates = [15, 30, 60];
 
     private readonly TextAvatarDriver _text = new();
+    private readonly SpeechAvatarDriver _speech;
+    private readonly ISpineSpeech _voices;
     private AvatarView? _view;
+
+    public AvatarDetailPageViewModel(ISpineSpeech speech)
+    {
+        _voices = speech;
+        _speech = new SpeechAvatarDriver(speech);
+    }
 
     public IReadOnlyList<AvatarState> States { get; } = Enum.GetValues<AvatarState>();
 
@@ -18,14 +27,26 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     [ObservableProperty]
     public partial AvatarEntry? Entry { get; set; }
 
-    /// <summary>0 drives the avatar by hand, 1 mouths text.</summary>
+    /// <summary>0 drives the avatar by hand, 1 mouths text, 2 reads it aloud.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsManual), nameof(IsText))]
+    [NotifyPropertyChangedFor(nameof(IsManual), nameof(IsText), nameof(IsSpeak))]
     public partial int DriverIndex { get; set; }
 
     public bool IsManual => DriverIndex == 0;
 
     public bool IsText => DriverIndex == 1;
+
+    public bool IsSpeak => DriverIndex == 2;
+
+    /// <summary>The installed voices, best first.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<VoiceChoice> Voices { get; set; } = [];
+
+    [ObservableProperty]
+    public partial VoiceChoice? Voice { get; set; }
+
+    [ObservableProperty]
+    public partial string SpeechStatus { get; set; } = "";
 
     [ObservableProperty]
     public partial AvatarDriver? Driver { get; set; }
@@ -79,6 +100,7 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     public override Task OnDisappearingAsync(NavigationDirection navigationDirection)
     {
         _text.Clear();
+        _speech.Stop();
         return Task.CompletedTask;
     }
 
@@ -87,8 +109,46 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
     partial void OnDriverIndexChanged(int value)
     {
         _text.Clear();
-        Driver = value == 1 ? _text : null;
+        _speech.Stop();
+        Driver = value switch { 1 => _text, 2 => _speech, _ => null };
+        if (value == 2 && Voices.Count == 0)
+            _ = LoadVoicesAsync();
     }
+
+    private async Task LoadVoicesAsync()
+    {
+        if (!_voices.IsSupported)
+        {
+            SpeechStatus = "This platform has no text-to-speech.";
+            return;
+        }
+        var voices = await _voices.GetVoicesAsync();
+        Voices = [.. voices.Select(v => new VoiceChoice(v))];
+        var language = System.Globalization.CultureInfo.CurrentUICulture.Name;
+        Voice = Voices.FirstOrDefault(v => v.Voice.Language.Replace('_', '-').Equals(language, StringComparison.OrdinalIgnoreCase))
+            ?? Voices.FirstOrDefault(v => v.Voice.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase))
+            ?? Voices.FirstOrDefault();
+        SpeechStatus = $"{Voices.Count} voices installed.";
+    }
+
+    /// <summary>Reads <see cref="Text"/> aloud in the chosen voice; each word's mouth starts as the voice reaches it.</summary>
+    [RelayCommand]
+    private async Task Speak()
+    {
+        if (string.IsNullOrWhiteSpace(Text))
+            return;
+        var words = 0;
+        var started = DateTime.Now;
+        SpeechStatus = "Starting the voice…";
+        var done = _speech.SpeakAsync(Text, new SpeakOptions { VoiceId = Voice?.Voice.Id, Language = Voice?.Voice.Language });
+        if (_speech.Current is { } utterance)
+            utterance.Word += (_, word) => SpeechStatus = $"Word {++words} at {word.At.TotalSeconds:0.00} s: {Text.Substring(word.Start, word.Length)}";
+        var reason = await done;
+        SpeechStatus = $"{reason} after {words} words in {(DateTime.Now - started).TotalSeconds:0.0} s.";
+    }
+
+    [RelayCommand]
+    private void StopSpeaking() => _speech.Stop();
 
     [RelayCommand]
     private void ShowExpression() =>
@@ -124,4 +184,10 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
 
     [RelayCommand]
     private void Stop() => _text.Clear();
+}
+
+/// <summary>A voice in the picker: its name, language and quality.</summary>
+public sealed record VoiceChoice(SpeechVoice Voice)
+{
+    public override string ToString() => $"{Voice.Name} ({Voice.Language}{(Voice.Quality == SpeechVoiceQuality.Default ? "" : ", " + Voice.Quality)})";
 }

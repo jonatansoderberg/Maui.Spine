@@ -14,6 +14,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar.Core\Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar\Plugin.Maui.Spine.Controls.Avatar.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Speech\Plugin.Maui.Spine.Speech.csproj" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Avatars\*.spineavatar" LinkBase="Avatars" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Fixtures\*" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>

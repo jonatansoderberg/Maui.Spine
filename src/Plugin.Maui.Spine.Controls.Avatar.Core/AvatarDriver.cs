@@ -28,6 +28,9 @@ public abstract class AvatarDriver
     /// <summary>One tick of the view, before the scheduler updates. <paramref name="delta"/> is the time since the last tick.</summary>
     protected internal abstract void OnTick(TimeSpan delta);
 
+    /// <summary>The avatar was interrupted (the view's <c>Interrupt()</c>, the user talking over it): stop speaking.</summary>
+    protected internal virtual void OnInterrupted() { }
+
     internal void Attach(AvatarInput input)
     {
         if (_input is not null)
@@ -202,6 +205,13 @@ public sealed class AvatarRuntime
                 Input.LipSyncQuality = AvatarLipSyncQuality.None;
             value?.Attach(Input);
         }
+    }
+
+    /// <summary>Cuts speech short: the interrupted reflex plays and the driver stops what it was saying.</summary>
+    public void Interrupt()
+    {
+        Input.Interrupt();
+        _driver?.OnInterrupted();
     }
 
     /// <summary>Starts drawing <paramref name="scheduler"/>'s avatar; the driver carries on with it.</summary>
