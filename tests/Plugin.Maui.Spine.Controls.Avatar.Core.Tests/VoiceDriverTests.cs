@@ -78,6 +78,33 @@ public class VoiceDriverTests
     }
 
     [Fact]
+    public void WithoutVisemesTheMouthOpensWithTheAnswersLevel()
+    {
+        var (runtime, audio) = Create();
+        audio.Frame.State = VoiceState.Speaking;
+        audio.Playing = new("item-1", TimeSpan.Zero);
+        audio.IsPlaying = true;
+        audio.Frame.OutputLevel = 0.6f;
+        var frame = Run(runtime, audio, 6);
+
+        Assert.Equal(AvatarLipSyncQuality.AudioReactive, runtime.Input.LipSyncQuality);
+        Assert.Contains(frame.Speech.ToArray(), w => w.Pose.StartsWith("viseme_", StringComparison.Ordinal) && w.Weight > 0.2f);
+    }
+
+    [Fact]
+    public void WithoutVisemesASilentAnswerKeepsTheMouthShut()
+    {
+        var (runtime, audio) = Create();
+        audio.Frame.State = VoiceState.Speaking;
+        audio.Playing = new("item-1", TimeSpan.Zero);
+        audio.IsPlaying = true;
+        audio.Frame.OutputLevel = 0;
+        var frame = Run(runtime, audio, 6);
+
+        Assert.DoesNotContain(frame.Speech.ToArray(), w => w.Weight > 0.05f);
+    }
+
+    [Fact]
     public void ANewAnswerDropsTheCuesOfTheOneCutOff()
     {
         var (runtime, audio) = Create();

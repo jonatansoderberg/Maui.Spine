@@ -86,6 +86,8 @@ public class ChatView : ContentView
     private bool _follow = true;
     private double _lastScrollY;
     private bool _adding;
+    // Where each drawn row's messages start in Messages; out of step with _rows once SendAsync draws rows itself.
+    private readonly List<int> _rowStarts = [];
     private CancellationTokenSource? _running;
 
     public ChatView()
@@ -290,7 +292,20 @@ public class ChatView : ContentView
 
     private void OnConversationChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (!_adding) Rebuild();
+        if (_adding || IsBusy) return;
+
+        // A voice session replaces its answer's message ten times a second as the words come: only the row it is in, and
+        // those after it, are drawn again. Drawing the whole conversation each time made the text flicker and the list jump.
+        var at = e.Action is NotifyCollectionChangedAction.Add or NotifyCollectionChangedAction.Replace ? e.NewStartingIndex : -1;
+        if (at < 0 || _rowStarts.Count != _rows.Count)
+        {
+            Rebuild();
+            return;
+        }
+
+        var row = _rowStarts.Count - 1;
+        while (row > 0 && _rowStarts[row] > at) row--;
+        Draw(Math.Max(row, 0));
     }
 
     /// <summary>Draws the conversation again from <see cref="Messages"/>: on a new list, a change by the app, or a new theme.</summary>
@@ -303,28 +318,60 @@ public class ChatView : ContentView
         _rows.Spacing = style.MessageSpacing;
         _rows.Padding = style.Padding;
         _jump.BackgroundColor = style.JumpButtonBackground;
+        _rowStarts.Clear();
+        Draw(0);
+    }
 
-        AnswerRow? last = null;
-        foreach (var message in Messages ?? [])
+    /// <summary>Draws the rows from <paramref name="from"/> on, keeping a row whose view still fits its messages.</summary>
+    private void Draw(int from)
+    {
+        var messages = Messages ?? [];
+        var i = from < _rowStarts.Count ? _rowStarts[from] : 0;
+        _rowStarts.RemoveRange(from, _rowStarts.Count - from);
+        var row = from;
+
+        while (i < messages.Count)
         {
+            var message = messages[i];
             if (message.Role == ChatRole.User)
             {
-                _rows.Add(UserRow(message.Text));
-                last = null;
+                if (!(row < _rows.Count && _rows[row] is UserRowGrid shown && shown.Text == message.Text))
+                    Place(row, UserRow(message.Text));
+                _rowStarts.Add(i++);
+                row++;
             }
             else if (message.Role == ChatRole.Assistant || message.Role == ChatRole.Tool)
             {
-                // A tool's results belong to the answer that called it.
-                if (last is null)
+                // One answer up to the user's next message; a tool's results belong to the answer that called it.
+                var start = i;
+                var answer = new ChatAnswer();
+                for (; i < messages.Count && messages[i].Role != ChatRole.User; i++)
                 {
-                    last = new AnswerRow(this);
-                    _rows.Add(last);
+                    if (messages[i].Role == ChatRole.Assistant || messages[i].Role == ChatRole.Tool)
+                        answer.Add(new ChatResponseUpdate { Role = messages[i].Role, Contents = [.. messages[i].Contents] });
                 }
 
-                last.Answer.Add(new ChatResponseUpdate { Role = message.Role, Contents = [.. message.Contents] });
-                last.Show(last.Answer, ChatAnswerState.Done, calls: true);
+                if (!(row < _rows.Count && _rows[row] is AnswerRow view))
+                    Place(row, view = new AnswerRow(this));
+                view.Show(answer, ChatAnswerState.Done, calls: true);
+                _rowStarts.Add(start);
+                row++;
+            }
+            else
+            {
+                i++;
             }
         }
+
+        while (_rows.Count > row)
+            _rows.RemoveAt(_rows.Count - 1);
+    }
+
+    private void Place(int row, View view)
+    {
+        if (row < _rows.Count)
+            _rows.RemoveAt(row);
+        _rows.Insert(row, view);
     }
 
     private View UserRow(string text)
@@ -343,7 +390,7 @@ public class ChatView : ContentView
         SemanticProperties.SetDescription(bubble, ChatStrings.Get("Spine.Chat.You", text));
         ContextMenu.SetItems(bubble, CopyMenu(() => text));
 
-        var row = new Grid { ColumnDefinitions = [new ColumnDefinition(new GridLength(1 - style.BubbleMaxWidth, GridUnitType.Star)), new ColumnDefinition(new GridLength(style.BubbleMaxWidth, GridUnitType.Star))] };
+        var row = new UserRowGrid(text) { ColumnDefinitions = [new ColumnDefinition(new GridLength(1 - style.BubbleMaxWidth, GridUnitType.Star)), new ColumnDefinition(new GridLength(style.BubbleMaxWidth, GridUnitType.Star))] };
         row.Add(bubble, 1);
         return row;
     }
@@ -419,6 +466,11 @@ public class ChatView : ContentView
         return done.Task;
     }
 
+    private sealed class UserRowGrid(string text) : Grid
+    {
+        public string Text { get; } = text;
+    }
+
     /// <summary>One answer: its tool cards, the thinking state, the markdown, and how it ended.</summary>
     private sealed class AnswerRow : VerticalStackLayout
     {
@@ -432,7 +484,7 @@ public class ChatView : ContentView
         public AnswerRow(ChatView chat)
         {
             _chat = chat;
-            _shown = Answer;
+            _shown = new ChatAnswer();
             var style = chat.Effective;
             Spacing = 8;
 
@@ -444,11 +496,9 @@ public class ChatView : ContentView
             Add(_text);
             Add(_status);
 
-            // The answer last shown: a streamed one is folded outside the row, a rebuilt one into Answer.
+            // The answer last shown, streamed or drawn from the conversation.
             ContextMenu.SetItems(_text, CopyMenu(() => _shown.Text));
         }
-
-        public ChatAnswer Answer { get; } = new();
 
         public void Show(ChatAnswer answer, ChatAnswerState state, bool calls)
         {

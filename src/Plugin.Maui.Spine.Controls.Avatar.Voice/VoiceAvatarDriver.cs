@@ -10,7 +10,8 @@ namespace Plugin.Maui.Spine.Controls;
 /// </summary>
 /// <remarks>
 /// <para>Quality TimedVisemes once the session reports visemes (<c>SpineVoiceOptions.VisemeSource</c>), AudioReactive until
-/// then: the realtime providers send none, so the mouth follows the answer's level.</para>
+/// then: the realtime providers send none, so the mouth opens with the answer's level (aa, rounder O or wider E by where
+/// its energy sits).</para>
 /// <para>The view's <c>Interrupt()</c> interrupts the session (or flushes a bare engine's playback).</para>
 /// </remarks>
 /// <example>
@@ -22,6 +23,8 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
 {
     private static readonly TimeSpan MinimumCue = TimeSpan.FromMilliseconds(33);
     private static readonly TimeSpan CueOverlap = TimeSpan.FromMilliseconds(30);
+    private const float MouthFloor = 0.06f;
+    private const int Aa = 10, E = 11, O = 13;
 
     private readonly IVoiceSession? _session;
     private readonly IVoiceAudio? _audio;
@@ -134,5 +137,26 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
             var length = (delta > MinimumCue ? delta : MinimumCue) + CueOverlap;
             Input.EnqueueViseme(_generation, _played, length, viseme);
         }
+        else if (!_sawViseme && _state == VoiceState.Speaking && frame.OutputLevel >= MouthFloor)
+            LevelMouth(frame, delta);
+    }
+
+    // AudioReactive: no shape is known, so the mouth opens with the answer's level, rounder when its energy sits low and
+    // wider when it sits high. Without it the answer only moved the body, and the face looked as if someone else spoke.
+    private void LevelMouth(VoiceFrame frame, TimeSpan delta)
+    {
+        var bands = frame.OutputBands;
+        float low = 0, high = 0;
+        for (var i = 0; i < bands.Length; i++)
+        {
+            if (i < bands.Length / 3)
+                low += bands[i];
+            else if (i >= bands.Length * 2 / 3)
+                high += bands[i];
+        }
+        var total = low + high;
+        var shape = total <= 0 ? Aa : low > 2 * high ? O : high > low ? E : Aa;
+        var length = (delta > MinimumCue ? delta : MinimumCue) + CueOverlap;
+        Input.EnqueueViseme(_generation, _played, length, shape, Math.Clamp(frame.OutputLevel * 1.4f, 0.25f, 1f));
     }
 }
