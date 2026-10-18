@@ -107,7 +107,12 @@ public partial class VoiceChatPageViewModel : SampleViewModel
         }
         catch (AIFeatureOffException e)
         {
-            Status = $"The server's Voice feature is off ({e.Reason}). Does it have an OpenAI key?";
+            Status = e.Reason switch
+            {
+                AIOffReason.SignInRequired => "The server's Voice feature answers signed-in users only; sign in first.",
+                AIOffReason.Budget => "Today's Voice budget is spent; try again tomorrow.",
+                _ => $"The server's Voice feature is off ({e.Reason}). Does it have an OpenAI key?",
+            };
         }
         catch (AIRateLimitedException e)
         {
