@@ -244,7 +244,7 @@ public partial class AvatarDetailPageViewModel : SampleViewModel, IReceivesNavig
         if (reason == SpeechEndReason.Failed)
             SpeechStatus = Voice?.Feature is null ? "The voice could not start; pick another one." : SpeechStatus.StartsWith("The server", StringComparison.Ordinal) ? SpeechStatus : "The server voice failed; check the connection or pick a device voice.";
         else if (words == 0 && visemes == 0 && reason == SpeechEndReason.Completed)
-            SpeechStatus = "The voice finished without saying anything; pick another one.";
+            SpeechStatus = $"Completed in {(DateTime.Now - started).TotalSeconds:0.0} s. This voice reports no words, so the mouth was guessed from the text.";
         else
             SpeechStatus = $"{reason} after {(visemes > 0 ? $"{visemes} mouth shapes from the server" : $"{words} words")} in {(DateTime.Now - started).TotalSeconds:0.0} s.";
     }

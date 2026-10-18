@@ -72,6 +72,41 @@ public class SpeechDriverTests
     }
 
     [Fact]
+    public void AVoiceThatReportsNoWordsStillMovesTheMouth()
+    {
+        var (runtime, voice, driver) = Create();
+        _ = driver.SpeakAsync("one two three");
+        voice.Current!.OnStarted();
+        Run(runtime, TimeSpan.FromMilliseconds(900));
+        Assert.Equal(0, runtime.Scheduler!.Diagnostics.AcceptedCues);
+
+        // A second of silence while the voice speaks: the words are guessed from the text, one after the other.
+        Run(runtime, TimeSpan.FromMilliseconds(300));
+        var afterFirst = runtime.Scheduler.Diagnostics.AcceptedCues;
+        Assert.True(afterFirst > 0);
+        Run(runtime, TimeSpan.FromSeconds(1));
+        Assert.True(runtime.Scheduler.Diagnostics.AcceptedCues > afterFirst);
+        Assert.Equal(AvatarLipSyncQuality.EstimatedText, runtime.Input.LipSyncQuality);
+    }
+
+    [Fact]
+    public void AWordAlreadyGuessedIsNotMouthedAgain()
+    {
+        var (runtime, voice, driver) = Create();
+        _ = driver.SpeakAsync("one two");
+        var utterance = voice.Current!;
+        utterance.OnStarted();
+        Run(runtime, TimeSpan.FromSeconds(3));
+        var guessed = runtime.Scheduler!.Diagnostics.AcceptedCues;
+        Assert.True(guessed > 0);
+
+        utterance.OnWord(0, 3);
+        utterance.OnWord(4, 3);
+        Run(runtime, TimeSpan.FromMilliseconds(100));
+        Assert.Equal(guessed, runtime.Scheduler.Diagnostics.AcceptedCues);
+    }
+
+    [Fact]
     public void InterruptStopsTheVoice()
     {
         var (runtime, voice, driver) = Create();
