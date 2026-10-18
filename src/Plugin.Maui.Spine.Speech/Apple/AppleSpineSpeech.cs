@@ -56,8 +56,31 @@ internal sealed class AppleSpineSpeech() : QueuedSpeech(MainThread.BeginInvokeOn
         private SpeechUtterance? _utterance;
         private Action<SpeechUtterance, SpeechEndReason>? _finished;
         private bool _stopping;
+        private bool _sessionOurs;
 
         public Synthesizer() => _native.Delegate = this;
+
+        // Spoken audio, as Spine.Voice plays a server's voice: heard with the Ring/Silent switch on silent (the synthesizer's
+        // own default follows the switch, so the voice was mute while the mouth still moved) and the system pauses a podcast
+        // rather than mixing over it. A session that records (Spine.Voice listening) is left as it is.
+        private void BeginSession()
+        {
+            var session = AVAudioSession.SharedInstance();
+            if (session.Category == AVAudioSessionCategory.PlayAndRecord.GetConstant() || session.Category == AVAudioSessionCategory.Record.GetConstant())
+                return;
+            if (session.SetCategory(AVAudioSessionCategory.Playback.GetConstant()!, AVAudioSessionMode.SpokenAudio.GetConstant()!, default, out _)
+                && session.SetActive(true, out _))
+                _sessionOurs = true;
+        }
+
+        private void EndSession()
+        {
+            if (!_sessionOurs)
+                return;
+            _sessionOurs = false;
+            // Off the main thread: deactivating waits for the audio to stop. Others (a paused podcast) are told to resume.
+            _ = Task.Run(() => AVAudioSession.SharedInstance().SetActive(false, AVAudioSessionSetActiveOptions.NotifyOthersOnDeactivation, out _));
+        }
 
         public void Start(AVSpeechUtterance native, SpeechUtterance utterance, Action<SpeechUtterance, SpeechEndReason> finished)
         {
@@ -65,6 +88,7 @@ internal sealed class AppleSpineSpeech() : QueuedSpeech(MainThread.BeginInvokeOn
             _utterance = utterance;
             _finished = finished;
             _stopping = false;
+            BeginSession();
             _native.SpeakUtterance(native);
         }
 
@@ -82,6 +106,8 @@ internal sealed class AppleSpineSpeech() : QueuedSpeech(MainThread.BeginInvokeOn
                 return;
             _speaking = null;
             _utterance = null;
+            if (!_native.Speaking)
+                EndSession();
             // A stop can arrive as didFinish rather than didCancel (seen on the iOS 26 simulator).
             _finished?.Invoke(utterance, _stopping ? SpeechEndReason.Stopped : reason);
         }

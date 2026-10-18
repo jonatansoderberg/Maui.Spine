@@ -40,14 +40,22 @@
                 </SegmentedControl>
 
                 <VerticalStackLayout Spacing="10" IsVisible="{Binding IsManual}">
+                    <Label Text="Your app drives the avatar itself: it sets the state, the expression and the badge as its conversation goes. Try each part, or set them below." FontSize="13" Opacity="0.7" />
+                    <FlexLayout Wrap="Wrap">
+                        <Button Text="Try the states" Command="{Binding TryStatesCommand}" Margin="0,0,8,8" />
+                        <Button Text="Try the expressions" Command="{Binding TryExpressionsCommand}" Margin="0,0,8,8" />
+                        <Button Text="Try the microphone badge" Command="{Binding TryMuteCommand}" Margin="0,0,8,8" />
+                    </FlexLayout>
+                    <Label Text="{Binding TryStatus}" FontSize="14" />
                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
                         <Label Text="State" VerticalOptions="Center" />
                         <Picker Grid.Column="1" ItemsSource="{Binding States}" SelectedItem="{Binding State}" MinimumWidthRequest="140" />
                         <Label Grid.Row="1" Text="Expression" VerticalOptions="Center" />
                         <Picker Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Expressions}" SelectedItem="{Binding Expression}" MinimumWidthRequest="140" />
-                        <Label Grid.Row="2" Text="Microphone off" VerticalOptions="Center" />
+                        <Label Grid.Row="2" Text="Microphone-off badge" VerticalOptions="Center" />
                         <Switch Grid.Row="2" Grid.Column="1" IsToggled="{Binding IsMuted}" />
                     </Grid>
+                    <Label Text="The badge tells the user their microphone is muted; it opens or mutes nothing itself. Avatars without a badge show nothing for it." FontSize="13" Opacity="0.7" />
                     <Label Text="A timed expression" FontAttributes="Bold" />
                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
                         <Picker ItemsSource="{Binding Expressions}" SelectedItem="{Binding TimedExpression}" />
@@ -75,7 +83,7 @@
                         <Button Text="Stream it" Command="{Binding StreamCommand}" />
                         <Button Text="Stop" Command="{Binding StopCommand}" />
                     </HorizontalStackLayout>
-                    <Label Text="The mouth is guessed from the letters and timed by the driver's own clock, so the quality says EstimatedText. Stream it shows Thinking until the first piece arrives, as a chat answer does." FontSize="13" Opacity="0.7" />
+                    <Label Text="No sound here: the mouth follows the text alone, as when a chat answer is shown on screen. Mouth it takes the whole text at once. Stream it acts out an answer arriving piece by piece: Thinking first, then the mouth moves word by word as the words come in." FontSize="13" Opacity="0.7" />
                 </VerticalStackLayout>
 
                 <VerticalStackLayout Spacing="10" IsVisible="{Binding IsSpeak}">
@@ -86,7 +94,7 @@
                         <Button Text="Stop" Command="{Binding StopSpeakingCommand}" />
                     </HorizontalStackLayout>
                     <Label Text="{Binding SpeechStatus}" FontSize="13" Opacity="0.8" />
-                    <Label Text="The platform's voice reads the text; each word's mouth shapes are guessed from its letters and start as the voice reaches it, so pauses and the voice's pace keep the mouth in step (EstimatedText). Apple's Enhanced and Premium voices are downloaded in Settings, Accessibility, Spoken Content. The server voices at the end of the list come from the sample server's speech features (Spine.Server.AI, Kind Speech): its audio plays through Spine.Voice's engine without the microphone, and the mouth shapes it sends are TimedVisemes." FontSize="13" Opacity="0.7" />
+                    <Label Text="A voice reads the text aloud and the mouth follows each word as it is spoken. The device's voices come first (better ones download in Settings, Accessibility, Spoken Content); the server's voices at the end send their own mouth shapes with the audio." FontSize="13" Opacity="0.7" />
                 </VerticalStackLayout>
 
                 <VerticalStackLayout Spacing="10" IsVisible="{Binding IsListen}">
@@ -95,8 +103,14 @@
                         <Button Text="Play an answer" Command="{Binding PlayReferenceCommand}" />
                         <Button Text="Stop" Command="{Binding StopEngineCommand}" />
                     </HorizontalStackLayout>
-                    <Label Text="{Binding ListenStatus}" FontSize="13" Opacity="0.8" />
-                    <Label Text="Spine.Voice's engine with no provider: the microphone's level while you talk (Listening), and a recorded answer played through it (Speaking with the mouth on its level, AudioReactive). VoiceAvatarDriver follows the engine's frame." FontSize="13" Opacity="0.7" />
+                    <Label Text="{Binding ListenStatus}" FontSize="14" />
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="6" IsVisible="{Binding IsEngineRunning}">
+                        <Label Text="You" VerticalOptions="Center" />
+                        <ProgressBar Grid.Column="1" Progress="{Binding InputLevel}" VerticalOptions="Center" />
+                        <Label Grid.Row="1" Text="Answer" VerticalOptions="Center" />
+                        <ProgressBar Grid.Row="1" Grid.Column="1" Progress="{Binding OutputLevel}" VerticalOptions="Center" />
+                    </Grid>
+                    <Label Text="A voice conversation's sound drives the avatar: Listen opens the microphone and the avatar listens as you talk; Play an answer plays a recorded reply and the mouth follows it, as when an assistant answers. Nothing is sent anywhere." FontSize="13" Opacity="0.7" />
                 </VerticalStackLayout>
             </VerticalStackLayout>
             <Example.Code>
