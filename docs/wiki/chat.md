@@ -44,6 +44,7 @@ Every call sends the whole conversation to `Client`, with `ChatOptions` when the
 | `Messages` | The conversation |
 | `ChatOptions` | Options for every call |
 | `ThinkingTemplate` | What shows before the first word. Unset, two lines under a shimmer; Highlight's `Edge` on a card works well too |
+| `PendingKey` | `"spine.pending"`: a user message with this key set to `true` in `AdditionalProperties` is shown as a shimmering bubble until it is replaced with its text, as a voice session does while it transcribes the user's turn |
 | `ShowToolCalls` | A card for each function the model called, for debugging. Off by default: the model tells the user what a function did, and the calls are in the log ([Functions](ai-client.md#functions)) |
 | `ToolCallTemplate` | A tool call's card when `ShowToolCalls` is on, with a `ChatToolCall` (`Name`, `Arguments`, `Result`, `IsDone`) as its binding context. Unset, a compact card that turns from "Running…" to "Done" |
 | `StyleOptions` | `ChatStyleOptions`: see [Styling](#styling) |
@@ -119,7 +120,7 @@ chat.Streamed += (_, e) =>
 
 ## Strings
 
-`Spine.Chat.*` comes in English and Swedish: the placeholder, Send, Stop, You, Assistant, Thinking, Stopped, Try again, the three failure lines, Copy, the jump button, and Running… and Done for tool cards. Override them in the app's own strings; see [Strings](strings.md).
+`Spine.Chat.*` comes in English and Swedish: the placeholder, Send, Stop, You, Assistant, Thinking, Transcribing (a pending turn), Stopped, Try again, the three failure lines, Copy, the jump button, and Running… and Done for tool cards. Override them in the app's own strings; see [Strings](strings.md).
 
 ## Limits in v1
 

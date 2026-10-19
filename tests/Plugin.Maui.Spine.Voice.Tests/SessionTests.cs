@@ -363,6 +363,24 @@ public sealed class SessionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_users_turn_is_pending_until_its_words_arrive()
+    {
+        await ConnectAsync();
+
+        _socket.Push(new { type = "input_audio_buffer.committed", item_id = "u1" });
+        await Until(() => _session.Transcript.Count == 1, "the turn added");
+        var pending = _session.Transcript.Single();
+        Assert.Equal(ChatRole.User, pending.Role);
+        Assert.Equal("", pending.Text);
+        Assert.Equal(true, pending.AdditionalProperties?[VoiceSession.PendingKey]);
+
+        _socket.Push(new { type = "conversation.item.input_audio_transcription.completed", item_id = "u1", transcript = " Vad är klockan? " });
+        await Until(() => _session.Transcript.Single().Text.Length > 0, "the words");
+        Assert.Equal("Vad är klockan?", _session.Transcript.Single().Text);
+        Assert.False(_session.Transcript.Single().AdditionalProperties?.ContainsKey(VoiceSession.PendingKey) ?? false);
+    }
+
+    [Fact]
     public async Task The_servers_functions_from_the_token_are_declared_with_the_apps_own()
     {
         _tokens.Body = TokenWithFunctions;

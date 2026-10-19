@@ -128,6 +128,26 @@ public class VoiceDriverTests
     }
 
     [Fact]
+    public void TheMouthClosesWhenTheAnswerHasPlayed()
+    {
+        var (runtime, audio) = Create();
+        audio.Frame.State = VoiceState.Speaking;
+        audio.Playing = new("item-1", TimeSpan.Zero);
+        audio.IsPlaying = true;
+        audio.Frame.OutputLevel = 0.6f;
+        Assert.Contains(Run(runtime, audio, 6).Speech.ToArray(), w => w.Weight > 0.2f);
+
+        // The last sample has played: nothing is playing, the level is gone, the session listens again.
+        audio.Playing = null;
+        audio.IsPlaying = false;
+        audio.Frame.OutputLevel = 0;
+        audio.Frame.State = VoiceState.Listening;
+        var frame = Run(runtime, audio, 20);
+
+        Assert.DoesNotContain(frame.Speech.ToArray(), w => w.Pose.StartsWith("viseme_", StringComparison.Ordinal) && w.Weight > 0.05f);
+    }
+
+    [Fact]
     public void ANewAnswerDropsTheCuesOfTheOneCutOff()
     {
         var (runtime, audio) = Create();

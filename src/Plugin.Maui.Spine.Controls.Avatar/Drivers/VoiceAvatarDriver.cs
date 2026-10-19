@@ -110,6 +110,9 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
 
         if (frame.State != _state)
         {
+            // Without an engine the end of Speaking is the end of the answer: its last cue would hold the mouth open.
+            if (_audio is null && _state == VoiceState.Speaking)
+                Input.ResetSpeech(++_generation);
             _state = frame.State;
             if (_state == VoiceState.Interrupted)
                 Input.Interrupt();
@@ -129,6 +132,13 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
                 Input.ResetSpeech(++_generation);
             }
             _played = playing.Played;
+        }
+        else if (_item is not null)
+        {
+            // The answer has played. Each cue starts at the playhead and runs a tick past it, so the last one sat under a
+            // playhead that had stopped and held the mouth in its shape; a reset fades it closed.
+            _item = null;
+            Input.ResetSpeech(++_generation);
         }
         else if (_audio is null && _state == VoiceState.Speaking)
             _played += delta;   // no engine to ask: the driver's own clock, running while the answer plays

@@ -69,6 +69,13 @@ public class ChatView : ContentView
     public static readonly BindableProperty ToolCallTemplateProperty = BindableProperty.Create(
         nameof(ToolCallTemplate), typeof(DataTemplate), typeof(ChatView));
 
+    /// <summary>
+    /// The <see cref="ChatMessage.AdditionalProperties"/> key of a user's message the app is still writing, such as a
+    /// spoken turn being transcribed (Spine.Voice sets it): the view shows a shimmering bubble until the message is
+    /// replaced with its text.
+    /// </summary>
+    public const string PendingKey = "spine.pending";
+
     public static readonly BindableProperty ShowToolCallsProperty = BindableProperty.Create(
         nameof(ShowToolCalls), typeof(bool), typeof(ChatView), false,
         propertyChanged: (b, _, _) => ((ChatView)b).Rebuild());
@@ -349,8 +356,9 @@ public class ChatView : ContentView
             var message = messages[i];
             if (message.Role == ChatRole.User)
             {
-                if (!(row < _rows.Count && _rows[row] is UserRowGrid shown && shown.Text == message.Text))
-                    Place(row, UserRow(message.Text));
+                var pending = message.AdditionalProperties?.TryGetValue(PendingKey, out var flag) == true && flag is true;
+                if (!(row < _rows.Count && _rows[row] is UserRowGrid shown && shown.Text == message.Text && shown.IsPending == pending))
+                    Place(row, pending ? PendingUserRow() : UserRow(message.Text));
                 _rowStarts.Add(i++);
                 row++;
             }
@@ -411,6 +419,34 @@ public class ChatView : ContentView
         ContextMenu.SetItems(bubble, CopyMenu(() => text));
 
         var row = new UserRowGrid(text) { ColumnDefinitions = [new ColumnDefinition(new GridLength(1 - style.BubbleMaxWidth, GridUnitType.Star)), new ColumnDefinition(new GridLength(style.BubbleMaxWidth, GridUnitType.Star))] };
+        row.Add(bubble, 1);
+        return row;
+    }
+
+    /// <summary>The user's turn before its words are known: a faint bubble with a shimmering line.</summary>
+    private View PendingUserRow()
+    {
+        var style = Effective;
+        var line = new Border
+        {
+            StrokeThickness = 0,
+            HeightRequest = 12,
+            WidthRequest = 120,
+            StrokeShape = new RoundRectangle { CornerRadius = 6 },
+        };
+
+        var bubble = new Border
+        {
+            StrokeThickness = 0,
+            BackgroundColor = style.UserBubbleColor.WithAlpha(0.35f),
+            StrokeShape = new RoundRectangle { CornerRadius = style.BubbleCornerRadius },
+            Padding = new Thickness(14, 13),
+            HorizontalOptions = LayoutOptions.End,
+            Content = new Shimmer { IsLoading = true, SkeletonContent = line },
+        };
+        SemanticProperties.SetDescription(bubble, ChatStrings.Get("Spine.Chat.Transcribing"));
+
+        var row = new UserRowGrid("") { IsPending = true, ColumnDefinitions = [new ColumnDefinition(new GridLength(1 - style.BubbleMaxWidth, GridUnitType.Star)), new ColumnDefinition(new GridLength(style.BubbleMaxWidth, GridUnitType.Star))] };
         row.Add(bubble, 1);
         return row;
     }
@@ -489,6 +525,8 @@ public class ChatView : ContentView
     private sealed class UserRowGrid(string text) : Grid
     {
         public string Text { get; } = text;
+
+        public bool IsPending { get; init; }
     }
 
     /// <summary>One answer: its tool cards, the thinking state, the markdown, and how it ended.</summary>

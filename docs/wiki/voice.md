@@ -57,7 +57,7 @@ public partial class AssistantViewModel(IVoiceSession voice) : ViewModelBase   /
   - `Interrupted` and `Muted` are the other two.
   - `StateChanged` is raised on the main thread.
 - **The transcript.** `Transcript` is an observable list of Microsoft.Extensions.AI `ChatMessage`s, changed on the main thread, so `Plugin.Maui.Spine.Controls.Chat`'s `ChatView` shows it as it is spoken. Neither package references the other.
-  - The user's turn appears as "…" when it is committed, and gets its words when the transcription comes. A turn that could not be transcribed is removed.
+  - The user's turn appears when it is committed, empty and marked pending (`AdditionalProperties["spine.pending"]`, `ChatView.PendingKey`), so `ChatView` shows a shimmering bubble; it gets its words when the transcription comes. A turn that could not be transcribed is removed.
   - The model's answer streams in.
   - An answer cut off by the user has `spine.interrupted` in its `AdditionalProperties`. Its text is what the provider transcribed, which can run ahead of what was heard.
   - Tool calls appear as `FunctionCallContent` and `FunctionResultContent`.

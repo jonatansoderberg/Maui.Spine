@@ -18,6 +18,12 @@ internal sealed class VoiceSession : IVoiceSession
 {
     public const string InterruptedKey = "spine.interrupted";
 
+    /// <summary>
+    /// Marks the user's turn while it is being transcribed: ChatView (<c>ChatView.PendingKey</c>, the same string) shows
+    /// it as a shimmer until the words arrive.
+    /// </summary>
+    public const string PendingKey = "spine.pending";
+
     /// <summary>The tool <see cref="EndsOnGoodbye"/> gives the model.</summary>
     public const string EndConversationTool = "end_conversation";
 
@@ -374,7 +380,7 @@ internal sealed class VoiceSession : IVoiceSession
                 break;
 
             case "input_audio_buffer.committed" when Text(e, "item_id") is { } userItem:
-                _dispatch(() => AddMessage(userItem, new ChatMessage(ChatRole.User, "…")));
+                _dispatch(() => AddMessage(userItem, new ChatMessage(ChatRole.User, "") { AdditionalProperties = new() { [PendingKey] = true } }));
                 break;
 
             case "conversation.item.input_audio_transcription.completed" when Text(e, "item_id") is { } heardItem:
@@ -773,7 +779,17 @@ internal sealed class VoiceSession : IVoiceSession
             return;
         }
 
-        var replacement = new ChatMessage(role, append ? old.Text + text : text) { AdditionalProperties = old.AdditionalProperties };
+        // The words have arrived, so a pending turn is pending no longer.
+        var properties = old.AdditionalProperties;
+        if (properties?.ContainsKey(PendingKey) == true)
+        {
+            properties = new AdditionalPropertiesDictionary(properties);
+            properties.Remove(PendingKey);
+            if (properties.Count == 0)
+                properties = null;
+        }
+
+        var replacement = new ChatMessage(role, append ? old.Text + text : text) { AdditionalProperties = properties };
         var index = _transcript.IndexOf(old);
         _byItem[itemId] = replacement;
         if (index >= 0)
