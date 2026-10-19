@@ -28,6 +28,7 @@ public partial class ChatPageViewModel : SampleViewModel
             new Choice("Server", "The push sample server's Assistant. Ask \"Vilka bokningar har jag?\" signed in and signed out, or \"Vad är klockan?\".", () => Use(server, "The server's Assistant: ask about your bookings or the time")),
         ]);
         model.Select(0);
+        Use(demo, "Demo answers in the app");
 
         _options = [
             model,
@@ -35,8 +36,13 @@ public partial class ChatPageViewModel : SampleViewModel
             new ToggleOption("Show function calls", "A card for each function the model called (ChatView.ShowToolCalls), for debugging; the model tells the user the result anyway.", () => ShowToolCalls, value => ShowToolCalls = value),
         ];
 
-        PageActions.Add(new PageAction("Options", ShowChatOptionsCommand));
-        PageActions.Add(new PageAction("New chat", NewChatCommand));
+        // The header bar has one trailing slot; the chat's menu takes it from the base class's theme menu.
+        PageActions.Remove(PageActions.Single(a => a.Menu == ThemeMenu));
+        PageActions.Add(new PageAction(null, new MenuItems
+        {
+            new MenuAction("Options", null, ShowChatOptionsCommand),
+            new MenuAction("New chat", null, NewChatCommand),
+        }) { Svg = "more.svg", Description = "Chat" });
     }
 
     /// <summary>The conversation; the view adds to it, and clearing it starts over.</summary>
