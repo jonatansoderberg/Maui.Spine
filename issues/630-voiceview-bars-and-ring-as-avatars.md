@@ -30,6 +30,8 @@ Started as "VoiceView's bars and ring become avatars". After the first round the
 - Showcase, Voice chat: the avatar beside one row of slim controls (Connect/End in one button, Mute, Stop) and the chat filling the rest of the screen; the avatar, hang up after goodbye, the screen's edge and the server address in the Try options sheet (a new `TextOption`). Checked on the simulator with the live server: the model called `end_conversation` and said goodbye; the simulator's own echo (the Mac's speaker into its microphone) then counted as talking over it, so the hang-up itself waits for the iPhone.
 - #632: the follow-up issue for functions the model calls on the device or the server, with the user's context, for voice and text chat.
 
+- Showcase, Voice chat and Assistant: half duplex on a simulator (`DeviceType.Virtual`), which has no echo cancellation: the Mac's speaker reached its microphone, the model heard its own answer as the user talking over it and cut it off (the farewell too, which also kept the call from ending). Not checked live: the server's Voice budget for the day was spent.
+
 ## Decisions
 
 - **One visual for a voice: AvatarView** (the owner, 2026-10-19): the orb is removed, not converted; the canvas face is retired (Nova and Puff do it better); the canvas plug-in contracts go (a look of one's own is a `.spineavatar`); the Showcase keeps one path.

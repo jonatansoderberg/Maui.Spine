@@ -36,6 +36,10 @@ public partial class VoiceChatPageViewModel : SampleViewModel
         Driver = new VoiceAvatarDriver(Session);
         // On by default here: "tack, hej då" ends the call, as with a person.
         Session.EndsOnGoodbye = true;
+        // A simulator has no echo cancellation: the Mac's speaker reaches its microphone, the model hears its own answer
+        // as the user talking over it, and cuts it off. Not sending the microphone while it speaks avoids that.
+        if (DeviceInfo.DeviceType == DeviceType.Virtual)
+            Session.Duplex = VoiceDuplex.HalfWhileSpeaking;
 
         var avatars = new ChoiceGroup("Avatar", [.. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
         {

@@ -32,6 +32,9 @@ public partial class AssistantPageViewModel : SampleViewModel
             Status = error is null ? $"Ended: {reason}." : $"Ended: {error.Message}";
         };
         _voiceDriver = new VoiceAvatarDriver(Session);
+        // A simulator has no echo cancellation; see the Voice chat page.
+        if (DeviceInfo.DeviceType == DeviceType.Virtual)
+            Session.Duplex = VoiceDuplex.HalfWhileSpeaking;
         _speech = new SpeechAvatarDriver(services.GetRequiredService<ISpineSpeech>());
         _assistant = services.GetRequiredKeyedService<IChatClient>("Assistant");
         Driver = _voiceDriver;
