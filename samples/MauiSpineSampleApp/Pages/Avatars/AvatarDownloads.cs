@@ -37,7 +37,12 @@ public static class AvatarDownloads
     {
         try
         {
-            return await http.GetFromJsonAsync("sample/avatars", AvatarDownloadJson.Default.ListAvatarDownload, cancellationToken);
+            // Never from a cache: iOS kept a list without cache headers and the app saw no update (3.0.0 "up to date").
+            using var request = new HttpRequestMessage(HttpMethod.Get, "sample/avatars");
+            request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+            using var response = await http.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync(AvatarDownloadJson.Default.ListAvatarDownload, cancellationToken);
         }
         catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException)
         {
