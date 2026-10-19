@@ -7,9 +7,15 @@ using System.Text.Json.Serialization;
 
 namespace MauiSpineSampleApp.Pages.Avatars;
 
-/// <summary>An avatar the sample server hands out (GET /sample/avatars): the version its manifest names, its file, size and SHA-256.</summary>
-public sealed record AvatarDownload(string Id, string Version, string File, long Bytes, string Sha256)
+/// <summary>
+/// An avatar the sample server hands out (GET /sample/avatars): the name, profile and version its manifest names, its file,
+/// size and SHA-256. Its posters are at <c>sample/avatars/{Id}/poster-light.png</c> and <c>poster-dark.png</c>.
+/// </summary>
+public sealed record AvatarDownload(string Id, string Version, string File, long Bytes, string Sha256, string? Name = null, string? Profile = null)
 {
+    /// <summary>The size in megabytes, for a status line.</summary>
+    public string Size => $"{Bytes / 1_000_000.0:0.0} MB";
+
     /// <summary>True when this is a later release than <paramref name="version"/> (a package's <c>assetVersion</c>, major.minor.patch).</summary>
     public bool IsNewerThan(string? version) =>
         version is null || !System.Version.TryParse(version, out var have) || !System.Version.TryParse(Version, out var offered) || offered > have;
@@ -39,8 +45,27 @@ public static class AvatarDownloads
         }
     }
 
+    /// <summary>Where the app keeps downloaded avatars.</summary>
+    public static string Folder { get; } = Path.Combine(FileSystem.AppDataDirectory, "avatars");
+
+    /// <summary>Where the app keeps <paramref name="avatar"/>.</summary>
+    public static string PathOf(AvatarDownload avatar) => Path.Combine(Folder, avatar.File);
+
+    /// <summary>The avatars the app has kept, with the name each manifest gives: what a page can offer offline.</summary>
+    public static IReadOnlyList<(string Path, string Name)> Kept()
+    {
+        if (!Directory.Exists(Folder))
+            return [];
+        return [.. Directory.EnumerateFiles(Folder, "*.spineavatar").Select(p => (p, NameOf(p) ?? Path.GetFileNameWithoutExtension(p))).OrderBy(k => k.Item2)];
+    }
+
+    /// <summary>The <c>displayName</c> of the package at <paramref name="path"/>, or null without one.</summary>
+    public static string? NameOf(string path) => Read(path, "displayName");
+
     /// <summary>The <c>assetVersion</c> of the package at <paramref name="path"/>, or null without one (or without the file).</summary>
-    public static string? VersionOf(string path)
+    public static string? VersionOf(string path) => Read(path, "assetVersion");
+
+    private static string? Read(string path, string property)
     {
         try
         {
@@ -49,7 +74,7 @@ public static class AvatarDownloads
             if (manifest is null)
                 return null;
             using var json = JsonDocument.Parse(manifest);
-            return json.RootElement.TryGetProperty("assetVersion", out var version) ? version.GetString() : null;
+            return json.RootElement.TryGetProperty(property, out var value) ? value.GetString() : null;
         }
         catch (Exception e) when (e is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
         {

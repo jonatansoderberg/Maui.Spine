@@ -164,6 +164,6 @@ Visemes are the 15 of `oculus15-v1`; `AvatarVisemes.FromAzure` maps Azure Speech
 A package's `assetVersion` (major.minor.patch) is its release: `spine-avatar pack … --asset-version 3.0.0` sets it, and a changed
 avatar ships with a higher one. An app that downloads an avatar rather than bundling it keeps the file in its data folder and
 compares versions to update it. The Showcase does this for Kairo (`Pages/Avatars/AvatarDownloads.cs`): the sample server lists
-what it offers at `GET /sample/avatars` (id, version, file, size, SHA-256, read from each package at startup), the app reads the
+what it offers at `GET /sample/avatars` (id, name, profile, version, file, size, SHA-256, read from each package at startup, with the posters beside it), the app reads the
 kept copy's version from its manifest, offers the update when the server's is later, and keeps a download only when it matches
 the server's hash. A source never touches the network; the app opens the kept file with `AvatarSource.FromFile`.

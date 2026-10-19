@@ -3,18 +3,15 @@ using Plugin.Maui.Spine.Controls;
 namespace MauiSpineSampleApp.Pages.Avatars;
 
 /// <summary>
-/// The avatars the voice pages offer: the sound in and out first, then the characters and ambient ones, and Kairo once
-/// the Avatars page has downloaded it. Each character names its own voice (<c>AvatarManifest.Voices</c>), which the
+/// The avatars the voice pages offer: the sound in and out first, then the characters and ambient ones, and every hosted one
+/// the Avatars page has downloaded. Each character names its own voice (<c>AvatarManifest.Voices</c>), which the
 /// conversation asks the server for.
 /// </summary>
 public static class VoiceAvatars
 {
-    /// <summary>Where the Avatars page keeps the downloaded Kairo.</summary>
-    public static string KairoPath { get; } = Path.Combine(FileSystem.AppDataDirectory, "avatars", "kairo.spineavatar");
-
-    /// <summary>The bundled avatars, and Kairo when it has been downloaded.</summary>
+    /// <summary>The bundled avatars, and every one the Avatars page has downloaded (Kairo, …).</summary>
     public static IReadOnlyList<AvatarChoice> All =>
-        File.Exists(KairoPath) ? [.. Bundled, new("Kairo", AvatarSource.FromFile(KairoPath))] : Bundled;
+        [.. Bundled, .. AvatarDownloads.Kept().Select(k => new AvatarChoice(k.Name, AvatarSource.FromFile(k.Path)))];
 
     private static IReadOnlyList<AvatarChoice> Bundled { get; } =
     [

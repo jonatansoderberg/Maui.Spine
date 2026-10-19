@@ -18,28 +18,71 @@ public sealed record AvatarEntry(
 /// <summary>A package's light and dark posters.</summary>
 public sealed record AvatarPoster(ImageSource Light, ImageSource Dark);
 
+/// <summary>
+/// One card in the gallery: a bundled avatar, or one the sample server hosts, with its download state. A hosted one opens
+/// once it is kept; until then its card shows the server's poster, its size and a Download button.
+/// </summary>
+public sealed partial class AvatarItem(AvatarEntry entry, AvatarDownload? hosted = null) : ObservableObject
+{
+    [ObservableProperty]
+    public partial AvatarEntry Entry { get; set; } = entry;
+
+    /// <summary>What the server offers, or null for a bundled avatar (or a kept one the server no longer lists).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHosted))]
+    public partial AvatarDownload? Hosted { get; set; } = hosted;
+
+    /// <summary>Hosted by the server or downloaded from it, rather than bundled.</summary>
+    public bool IsHosted => Hosted is not null || Kept;
+
+    /// <summary>Whether a copy is kept in the app's data, so the card opens it.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHosted))]
+    public partial bool Kept { get; set; }
+
+    [ObservableProperty]
+    public partial string Status { get; set; } = "";
+
+    [ObservableProperty]
+    public partial double Progress { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsDownloading { get; set; }
+
+    /// <summary>Download or Update; empty when there is nothing to get.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanGet))]
+    public partial string GetText { get; set; } = "";
+
+    public bool CanGet => GetText.Length > 0 && !IsDownloading;
+
+    partial void OnIsDownloadingChanged(bool value) => OnPropertyChanged(nameof(CanGet));
+
+    internal CancellationTokenSource? Cancel { get; set; }
+
+    internal string? Path { get; set; }
+}
+
 public partial class AvatarsPageViewModel : SampleViewModel
 {
-
     private readonly INavigationService _navigation;
     private readonly IHttpClientFactory _http;
-    private readonly string _kairoPath = VoiceAvatars.KairoPath;
 
     public AvatarsPageViewModel(INavigationService navigation, IHttpClientFactory http)
     {
         _navigation = navigation;
         _http = http;
-        UpdateKairo();
+        Items = [.. BundledAvatars.Select(e => new AvatarItem(e)), .. KeptItems()];
         _ = LoadPostersAsync();
-        _ = CheckKairoAsync();
+        _ = ListHostedAsync();
     }
 
     // glTF avatars are drawn by SceneKit on iOS and Mac Catalyst and by Skia on the CPU elsewhere (no textures).
     private static string Gltf => OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() ? "glTF · SceneKit" : "glTF · Skia";
 
-    /// <summary>Bundled as MauiAssets, packed by spine-avatar with 512 px posters and no source: about 2 MB together.</summary>
+    /// <summary>Every avatar: the bundled ones, then those the server hosts (downloaded or not).</summary>
     [ObservableProperty]
-    public partial IReadOnlyList<AvatarEntry> Bundled { get; set; } = BundledAvatars;
+    public partial IReadOnlyList<AvatarItem> Items { get; set; }
 
     private static readonly AvatarEntry[] BundledAvatars =
     [
@@ -51,37 +94,37 @@ public partial class AvatarsPageViewModel : SampleViewModel
         new("ring", "Ring", "Built into Spine: the answer's bands outward and the microphone's inward round an empty middle, for round a button or a picture.", "Built in", "Vector · Skia", AvatarSource.BuiltIn("ring")),
     ];
 
-    /// <summary>Kairo, once downloaded; null until then.</summary>
-    [ObservableProperty]
-    public partial AvatarEntry? Kairo { get; set; }
+    // What the gallery says about an avatar the server hosts; the server gives its name and profile, not a description.
+    private static readonly Dictionary<string, string> HostedSummaries = new(StringComparer.Ordinal)
+    {
+        ["kairo"] = "A head reconstructed from photos, with hair generated from four reference views and morph targets for the face. About 10 MB: hosted, not bundled.",
+    };
 
-    [ObservableProperty]
-    public partial bool HasKairo { get; set; }
+    private static string SummaryOf(string id) =>
+        HostedSummaries.GetValueOrDefault(id) ?? "Hosted by the sample server: downloaded when asked, kept in the app's data, updated when the server has a later version.";
 
-    [ObservableProperty]
-    public partial string KairoStatus { get; set; } = "";
+    private static string Title(string profile) => profile.Length == 0 ? profile : char.ToUpperInvariant(profile[0]) + profile[1..];
 
-    [ObservableProperty]
-    public partial double KairoProgress { get; set; }
+    // Kept copies show at once, before the server answers, so the page works offline.
+    private static IEnumerable<AvatarItem> KeptItems() =>
+        AvatarDownloads.Kept().Select(k =>
+        {
+            var id = System.IO.Path.GetFileNameWithoutExtension(k.Path);
+            var item = new AvatarItem(new(id, k.Name, SummaryOf(id), "Character", "Hosted", AvatarSource.FromFile(k.Path))) { Path = k.Path };
+            Refresh(item);
+            return item;
+        });
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(DownloadKairoCommand))]
-    public partial bool IsDownloading { get; set; }
-
-    /// <summary>Kairo as the server offers it (its version, size and hash), once asked; null until then or offline.</summary>
-    private AvatarDownload? _offered;
-
-    /// <summary>True while there is something to download: no copy yet, or the server has a later version than the kept one.</summary>
-    [ObservableProperty]
-    public partial bool CanGetKairo { get; set; } = true;
-
-    [ObservableProperty]
-    public partial string DownloadText { get; set; } = "Download Kairo";
-
-    // A gallery of four live avatars drew all four every frame; the posters cost one read of each package, off the UI thread.
+    // A gallery of live avatars drew all of them every frame; the posters cost one read of each package, off the UI thread.
     private async Task LoadPostersAsync()
     {
-        var entries = await Task.WhenAll(BundledAvatars.Select(entry => Task.Run(async () =>
+        await Task.WhenAll(Items.Where(i => !i.IsHosted || i.Kept).Select(LoadPosterAsync));
+    }
+
+    private static async Task LoadPosterAsync(AvatarItem item)
+    {
+        var entry = item.Entry;
+        var loaded = await Task.Run(async () =>
         {
             try
             {
@@ -89,101 +132,141 @@ public partial class AvatarsPageViewModel : SampleViewModel
                 var package = AvatarArchive.Read(stream);
                 var light = package.GetFile(package.Manifest.Posters.Light).ToArray();
                 var dark = package.GetFile(package.Manifest.Posters.Dark).ToArray();
-                return entry with { Poster = new(ImageSource.FromStream(() => new MemoryStream(light)), ImageSource.FromStream(() => new MemoryStream(dark))) };
+                return entry with { Poster = new(ImageSource.FromStream(() => new MemoryStream(light)), ImageSource.FromStream(() => new MemoryStream(dark))), Live = false };
             }
             catch (Exception e) when (e is IOException or AvatarLoadException)
             {
                 // The live avatar shows the package's own error on the card.
                 return entry with { Live = true };
             }
-        })));
-        Bundled = entries;
+        });
+        MainThread.BeginInvokeOnMainThread(() => item.Entry = loaded);
+    }
+
+    // The server lists what it hosts with each package's name, profile and version: new avatars join the list with the
+    // server's posters, kept ones learn whether the server has a later version.
+    private async Task ListHostedAsync()
+    {
+        var http = _http.CreateClient("SampleServer");
+        var offered = await AvatarDownloads.ListAsync(http);
+        if (offered is null)
+        {
+            foreach (var item in Items.Where(i => i.Kept))
+                Refresh(item);
+            return;
+        }
+
+        var items = Items.ToList();
+        foreach (var avatar in offered)
+        {
+            var path = AvatarDownloads.PathOf(avatar);
+            if (items.FirstOrDefault(i => i.Path == path) is { } kept)
+            {
+                kept.Hosted = avatar;
+                Refresh(kept);
+                continue;
+            }
+            var poster = new AvatarPoster(
+                ImageSource.FromUri(new Uri(http.BaseAddress!, $"sample/avatars/{avatar.Id}/poster-light.png")),
+                ImageSource.FromUri(new Uri(http.BaseAddress!, $"sample/avatars/{avatar.Id}/poster-dark.png")));
+            var entry = new AvatarEntry(avatar.Id, avatar.Name ?? avatar.Id, SummaryOf(avatar.Id), Title(avatar.Profile ?? "character"), "Hosted", AvatarSource.FromFile(path), poster);
+            var item = new AvatarItem(entry, avatar) { Path = path };
+            Refresh(item);
+            items.Add(item);
+        }
+        Items = items;
     }
 
     [RelayCommand]
-    private Task Open(AvatarEntry entry) => _navigation.NavigateToAsync<AvatarDetailPage, AvatarEntry>(entry);
-
-    // The server lists what it offers with each package's version; the kept copy's manifest names its own. A later version on the
-    // server turns the button into an update.
-    private async Task CheckKairoAsync()
+    private async Task Open(AvatarItem item)
     {
-        var offered = await AvatarDownloads.ListAsync(_http.CreateClient("SampleServer"));
-        _offered = offered?.FirstOrDefault(a => a.Id == "kairo");
-        UpdateKairo();
+        // A hosted avatar opens once it is kept; until then a tap downloads it.
+        if (item.IsHosted && !item.Kept)
+        {
+            await Get(item);
+            return;
+        }
+        await _navigation.NavigateToAsync<AvatarDetailPage, AvatarEntry>(item.Entry);
     }
 
-    [RelayCommand(CanExecute = nameof(CanDownload), IncludeCancelCommand = true)]
-    private async Task DownloadKairo(CancellationToken cancellationToken)
+    [RelayCommand]
+    private async Task Get(AvatarItem item)
     {
-        IsDownloading = true;
-        KairoProgress = 0;
+        if (item.Hosted is not { } avatar || item.IsDownloading || item.Path is not { } path)
+            return;
+        item.IsDownloading = true;
+        item.Progress = 0;
+        using var cancel = item.Cancel = new CancellationTokenSource();
         try
         {
-            var http = _http.CreateClient("SampleServer");
-            _offered ??= (await AvatarDownloads.ListAsync(http, cancellationToken))?.FirstOrDefault(a => a.Id == "kairo");
-            if (_offered is null)
-            {
-                KairoStatus = $"The sample server ({http.BaseAddress}) did not answer with its avatars.";
-                return;
-            }
+            // Progress<T> posts its reports; one that arrives after the download has ended must not overwrite the result.
             var progress = new Progress<(long Read, long Total)>(p =>
             {
-                KairoProgress = (double)p.Read / p.Total;
-                KairoStatus = $"{p.Read / 1_000_000.0:0.0} of {p.Total / 1_000_000.0:0.0} MB";
+                if (!item.IsDownloading)
+                    return;
+                item.Progress = (double)p.Read / p.Total;
+                item.Status = $"Downloading {p.Read / 1_000_000.0:0.0} of {p.Total / 1_000_000.0:0.0} MB";
             });
-            await AvatarDownloads.DownloadAsync(http, _offered, _kairoPath, progress, cancellationToken);
-            UpdateKairo();
+            await AvatarDownloads.DownloadAsync(_http.CreateClient("SampleServer"), avatar, path, progress, cancel.Token);
+            item.IsDownloading = false;
+            // A new source, so the card and the detail page open the file as it is now.
+            item.Entry = item.Entry with { Source = AvatarSource.FromFile(path) };
+            Refresh(item);
+            await LoadPosterAsync(item);
         }
         catch (OperationCanceledException)
         {
-            KairoStatus = "Cancelled.";
+            item.IsDownloading = false;
+            Refresh(item);
+            item.Status = "Cancelled. " + item.Status;
         }
-        catch (Exception e) when (e is HttpRequestException or IOException)
+        catch (Exception e) when (e is HttpRequestException or IOException or InvalidDataException)
         {
-            KairoStatus = $"Download failed: {e.Message}";
+            item.IsDownloading = false;
+            Refresh(item);
+            item.Status = $"Download failed: {e.Message}";
         }
         finally
         {
-            IsDownloading = false;
+            item.Cancel = null;
         }
     }
 
-    private bool CanDownload() => !IsDownloading;
+    [RelayCommand]
+    private static void Cancel(AvatarItem item) => item.Cancel?.Cancel();
 
     [RelayCommand]
-    private void ForgetKairo()
+    private void Forget(AvatarItem item)
     {
-        File.Delete(_kairoPath);
-        UpdateKairo();
+        if (item.Path is not { } path)
+            return;
+        File.Delete(path);
+        if (item.Hosted is null)
+            Items = [.. Items.Where(i => i != item)];
+        else
+            Refresh(item);
     }
 
-    private void UpdateKairo()
+    /// <summary>The card's status and button from the kept copy and what the server offers.</summary>
+    private static void Refresh(AvatarItem item)
     {
-        var kept = File.Exists(_kairoPath) ? AvatarDownloads.VersionOf(_kairoPath) ?? "" : null;
-        var size = _offered is null ? "" : $", {_offered.Bytes / 1_000_000.0:0.0} MB";
-        if (kept is not null)
+        var kept = item.Path is { } path && File.Exists(path) ? AvatarDownloads.VersionOf(path) ?? "" : null;
+        var offered = item.Hosted;
+        item.Kept = kept is not null;
+        if (kept is null)
         {
-            HasKairo = true;
-            // A new entry, so the card and the detail page open the file as it is now.
-            Kairo = new("kairo", "Kairo", "A head reconstructed from photos, with hair generated from four reference views and morph targets for the face.", "Character", Gltf, AvatarSource.FromFile(_kairoPath), Live: true);
-            var newer = _offered is not null && _offered.IsNewerThan(kept);
-            CanGetKairo = newer;
-            DownloadText = newer ? $"Update to {_offered!.Version}" : "Download Kairo";
-            KairoStatus = newer
-                ? $"Kairo {kept} is kept in the app's data; the sample server has {_offered!.Version}{size}."
-                : _offered is null
-                    ? $"Kairo {kept}, kept in the app's data and opened from there."
-                    : $"Kairo {kept}, the sample server's latest, kept in the app's data.";
+            item.GetText = offered is null ? "" : "Download";
+            item.Status = offered is null ? "No longer on the server." : $"On the sample server · {offered.Version} · {offered.Size}";
+        }
+        else if (offered is not null && offered.IsNewerThan(kept))
+        {
+            item.GetText = $"Update to {offered.Version}";
+            item.Status = $"Downloaded {kept} · {offered.Version} available · {offered.Size}";
         }
         else
         {
-            HasKairo = false;
-            Kairo = null;
-            CanGetKairo = true;
-            DownloadText = "Download Kairo";
-            KairoStatus = _offered is null
-                ? "From the sample server, kept in the app's data."
-                : $"Kairo {_offered.Version}{size} from the sample server, kept in the app's data.";
+            item.GetText = "";
+            item.Status = offered is null ? $"Downloaded {kept} · server not reached" : $"Downloaded {kept} · up to date";
         }
     }
 }
