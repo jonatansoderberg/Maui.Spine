@@ -65,10 +65,11 @@ public partial class AssistantViewModel(IVoiceSession voice) : ViewModelBase   /
 - **Client tools.**
   - `ClientTools` are added to the session when it connects. When the model calls one, the session runs it and sends the result back, and the model goes on.
   - An unknown or failing tool answers with an error, so the model can say so rather than wait.
-  - Tools that touch user data belong on the server, which a relay will make possible.
+  - Tools that touch user data belong on the server; #632 plans functions that run on the server with the user's context.
+- **Hanging up on goodbye.** `EndsOnGoodbye = true` gives the model a tool, `end_conversation`, to call when the user is done ("tack, hej då"). The model says a short goodbye, and the session ends with `VoiceSessionEnd.Goodbye` once that has played and 0.7 s of quiet has passed, so the last word leaves the speaker. Talking over the goodbye keeps the conversation going. Off by default.
 - **Push-to-talk.** `BeginTurn()` cuts off any answer and clears the input, and `EndTurn()` commits it and asks for the answer. It is meant for a feature with `"TurnDetection": "none"`.
 - **Text.** `SendTextAsync(text)` says something in writing, and the model answers aloud.
-- **The time limit.** The server cannot end a session (see [the token is not a lock](ai-server.md#realtime-voice-sessions)), so the session ends itself after the server's `maxMinutes`. `TimeLeft` counts down. `Ended` says why the session ended: `User`, `TimeLimit`, `Provider` (the socket closed) or `Failed`, with the exception.
+- **The time limit.** The server cannot end a session (see [the token is not a lock](ai-server.md#realtime-voice-sessions)), so the session ends itself after the server's `maxMinutes`. `TimeLeft` counts down. `Ended` says why the session ended: `User`, `TimeLimit`, `Provider` (the socket closed), `Goodbye` or `Failed`, with the exception.
 - **Refusals** are the AI client's exceptions:
   - `AIFeatureOffException` when the feature is off or needs a signed-in user (`signInRequired`)
   - `AIRateLimitedException` with `RetryAfter`

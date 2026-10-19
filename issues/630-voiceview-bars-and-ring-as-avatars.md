@@ -25,6 +25,11 @@ Started as "VoiceView's bars and ring become avatars". After the first round the
 - Showcase: Voice visuals removed (its reference speech is the Avatars detail page's Listen tab); Bars and Ring in the Avatars gallery from the built-in sources; Assistant without its AvatarView/VoiceView switch; Voice chat picks an avatar (`VoiceAvatars.All`: Bars, Ring, Nova, Puff, Voice Totem, Aurora Flow) instead of a VoiceView kind. Checked on the iOS simulator: bars and ring move with the reference speech and the microphone, and with the Text tab's estimated mouth; the microphone's side takes the app's accent.
 - Docs: voice, avatars and packages wiki pages, the Controls.Avatar README, the root README, the spine-controls, spine-avatar and spine-setup skills, both plans (spine-avatar C2b and the package map; ai-and-security 4.3b marked superseded, a dated decision), the voice proposal's status.
 
+- `IVoiceSession.EndsOnGoodbye` (the owner asked for it on Voice chat): an `end_conversation` tool the model calls when the user says goodbye; the session ends with `VoiceSessionEnd.Goodbye` after the farewell has played and 0.7 s of quiet (the output buffer's last word); talking over the farewell cancels it. Tests in `SessionTests`.
+- Showcase, every page: an example's summary is a one-line info box (SVG info icon and chevron) that opens on a tap.
+- Showcase, Voice chat: the avatar beside one row of slim controls (Connect/End in one button, Mute, Stop) and the chat filling the rest of the screen; the avatar, hang up after goodbye, the screen's edge and the server address in the Try options sheet (a new `TextOption`). Checked on the simulator with the live server: the model called `end_conversation` and said goodbye; the simulator's own echo (the Mac's speaker into its microphone) then counted as talking over it, so the hang-up itself waits for the iPhone.
+- #632: the follow-up issue for functions the model calls on the device or the server, with the user's context, for voice and text chat.
+
 ## Decisions
 
 - **One visual for a voice: AvatarView** (the owner, 2026-10-19): the orb is removed, not converted; the canvas face is retired (Nova and Puff do it better); the canvas plug-in contracts go (a look of one's own is a `.spineavatar`); the Showcase keeps one path.

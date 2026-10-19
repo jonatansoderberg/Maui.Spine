@@ -8,25 +8,25 @@
     <SampleLayout Packages="Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Avatar, Plugin.Maui.Spine.Server.AI, Plugin.Maui.Spine.Controls.Chat, Plugin.Maui.Spine.Controls.Highlight">
 
         <Example Title="Talk to a realtime model"
-                 Summary="A spoken conversation with the push sample server's Voice feature (gpt-realtime, in Swedish). The server gives a short-lived token and keeps the OpenAI key; the app opens the provider's socket with it. Talk over the answer and it stops, and the model is told how much you heard. Ask what time it is: the app answers that tool itself.">
-            <VerticalStackLayout Spacing="12">
-                <Entry Text="{Binding Server}" Placeholder="http://192.168.1.10:5100/ai" Keyboard="Url" />
-                <AvatarView Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="200" />
-                <Label Text="{Binding Status}" FontSize="15" Opacity="0.8" />
-                <HorizontalStackLayout Spacing="10">
-                    <Button Text="Connect" Command="{Binding ConnectCommand}" />
-                    <Button Text="End" Command="{Binding EndCommand}" />
-                    <Button Text="Stop the answer" Command="{Binding StopCommand}" />
-                </HorizontalStackLayout>
-                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
-                    <Label Text="Avatar" VerticalOptions="Center" />
-                    <Picker Grid.Column="1" ItemsSource="{Binding Avatars}" SelectedItem="{Binding Avatar}" MinimumWidthRequest="120" />
-                    <Label Grid.Row="1" Text="Glow the screen's edge with the answer" VerticalOptions="Center" />
-                    <Switch Grid.Row="1" Grid.Column="1" IsToggled="{Binding Edge}" />
-                    <Label Grid.Row="2" Text="Mute the microphone" VerticalOptions="Center" />
-                    <Switch Grid.Row="2" Grid.Column="1" IsToggled="{Binding Muted}" />
+                 OptionsCommand="{Binding ShowOptionsCommand}"
+                 Summary="A spoken conversation with the push sample server's Voice feature (gpt-realtime, in Swedish). The server gives a short-lived token and keeps the OpenAI key; the app opens the provider's socket with it. Talk over the answer and it stops, and the model is told how much you heard. Ask what time it is: the app answers that tool itself. Say goodbye and it hangs up once it has said goodbye too (EndsOnGoodbye). The avatar, the screen's edge and the server are under Try options.">
+            <VerticalStackLayout Spacing="10">
+                <!-- The avatar beside the controls, so the chat gets the rest of the screen. -->
+                <Grid ColumnDefinitions="96,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6">
+                    <AvatarView Grid.RowSpan="2" Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="76" WidthRequest="96" VerticalOptions="Center" />
+                    <Label Grid.Column="1" Text="{Binding Status}" FontSize="14" Opacity="0.75" LineBreakMode="TailTruncation" />
+                    <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Spacing="8">
+                        <Button Text="{Binding CallText}" Command="{Binding CallCommand}"
+                                FontSize="14" Padding="14,4" HeightRequest="34" MinimumHeightRequest="34" CornerRadius="17" />
+                        <Button Text="{Binding MuteText}" Command="{Binding ToggleMuteCommand}"
+                                FontSize="14" Padding="12,4" HeightRequest="34" MinimumHeightRequest="34" CornerRadius="17"
+                                BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}" />
+                        <Button Text="Stop" Command="{Binding StopCommand}"
+                                FontSize="14" Padding="12,4" HeightRequest="34" MinimumHeightRequest="34" CornerRadius="17"
+                                BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}" />
+                    </HorizontalStackLayout>
                 </Grid>
-                <ChatView Messages="{Binding Session.Transcript}" HeightRequest="360" />
+                <ChatView Messages="{Binding Session.Transcript}" HeightRequest="{Binding ChatHeight}" />
             </VerticalStackLayout>
             <Example.Code>
                 builder.UseSpineVoice(o =&gt;
@@ -38,13 +38,14 @@
                         "show_time", "Says what time it is."));
                 });
 
-                // The conversation drawn (the sound in and out), and the screen's edge with the answer:
+                // The conversation drawn, and the screen's edge with the answer:
                 &lt;AvatarView Source="bars" Driver="{Binding Driver}" /&gt;
                 Driver = new VoiceAvatarDriver(voice);
                 edge = highlights.AttachEdge(window);
                 edge.Intensity = () =&gt; voice.UpdateFrame().OutputLevel;
 
                 // In the view model:
+                voice.EndsOnGoodbye = true;   // "thanks, bye" hangs up
                 await voice.ConnectAsync("Voice");
                 chat.Messages = voice.Transcript;
                 voice.Interrupt();        // a Stop button

@@ -336,6 +336,79 @@ public sealed class SessionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Ending_on_goodbye_gives_the_model_a_tool_to_hang_up_with()
+    {
+        _session.EndsOnGoodbye = true;
+        await ConnectAsync();
+
+        await Until(() => _socket.OfType("session.update").Any(), "a session.update");
+        var tools = _socket.OfType("session.update").Single().GetProperty("session").GetProperty("tools");
+        Assert.Contains(tools.EnumerateArray(), t => t.GetProperty("name").GetString() == VoiceSession.EndConversationTool);
+    }
+
+    [Fact]
+    public async Task Without_it_the_model_gets_no_such_tool()
+    {
+        await ConnectAsync();
+        await Task.Delay(50);
+
+        Assert.DoesNotContain(_socket.OfType("session.update"), u => u.GetProperty("session").GetProperty("tools").EnumerateArray()
+            .Any(t => t.GetProperty("name").GetString() == VoiceSession.EndConversationTool));
+    }
+
+    [Fact]
+    public async Task A_goodbye_ends_the_session_once_the_farewell_has_played()
+    {
+        _session.EndsOnGoodbye = true;
+        await ConnectAsync();
+
+        _socket.Push(new { type = "response.function_call_arguments.done", call_id = "c1", name = VoiceSession.EndConversationTool, arguments = "{}" });
+        await Until(() => _socket.OfType("response.create").Any(), "the farewell asked for");
+        Assert.True(_session.IsConnected);
+
+        // The model says goodbye: the session stays until the answer has been heard to its end.
+        _socket.Push(new { type = "response.created", response = new { id = "r2" } });
+        _socket.Push(new { type = "response.output_audio.delta", item_id = "a2", delta = Audio(2400) });
+        _socket.Push(new { type = "response.output_audio.done", item_id = "a2" });
+        _socket.Push(new { type = "response.done", response = new { id = "r2", status = "completed" } });
+        await Until(() => _audio.IsPlaying, "the farewell queued");
+        _time.Advance(TimeSpan.FromMilliseconds(500));
+        Assert.True(_session.IsConnected);
+
+        _audio.Render(4800, 48_000);
+        for (var i = 0; i < 3; i++)
+            _time.Advance(TimeSpan.FromMilliseconds(100));
+        await Task.Delay(50);
+        Assert.True(_session.IsConnected);            // the last word is still in the speaker
+        for (var i = 0; i < 6; i++)
+            _time.Advance(TimeSpan.FromMilliseconds(100));     // the session's tick, ten times a second
+        await Until(() => _ended.Count == 1, "ended");
+        Assert.Equal(VoiceSessionEnd.Goodbye, _ended[0].Reason);
+        Assert.False(_session.IsConnected);
+    }
+
+    [Fact]
+    public async Task Talking_over_the_farewell_keeps_the_conversation_going()
+    {
+        _session.EndsOnGoodbye = true;
+        await ConnectAsync();
+
+        _socket.Push(new { type = "response.function_call_arguments.done", call_id = "c1", name = VoiceSession.EndConversationTool, arguments = "{}" });
+        await Until(() => _socket.OfType("response.create").Any(), "the farewell asked for");
+        _socket.Push(new { type = "response.created", response = new { id = "r2" } });
+        _socket.Push(new { type = "response.output_audio.delta", item_id = "a2", delta = Audio(2400) });
+        await Until(() => _audio.IsPlaying, "the farewell playing");
+        _socket.Push(new { type = "input_audio_buffer.speech_started" });
+        _socket.Push(new { type = "response.done", response = new { id = "r2", status = "cancelled" } });
+        await Until(() => !_audio.IsPlaying, "cut off");
+        _time.Advance(TimeSpan.FromSeconds(1));
+        await Task.Delay(50);
+
+        Assert.True(_session.IsConnected);
+        Assert.Empty(_ended);
+    }
+
+    [Fact]
     public async Task An_unknown_tool_answers_with_an_error_so_the_model_can_say_so()
     {
         await ConnectAsync();
