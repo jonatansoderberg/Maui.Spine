@@ -8,10 +8,9 @@ Animated characters and ambient visuals for a voice assistant, text-to-speech, a
 
 | Package | What |
 | --- | --- |
-| `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: Skia (vector scenes, SkSL shaders) everywhere, glTF with SceneKit on iOS and Mac Catalyst and with Skia on Android and Windows, the poster where none applies |
+| `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`, its drivers (text, speech, a realtime [voice](voice.md) conversation) and the built-in `bars` and `ring`: Skia (vector scenes, SkSL shaders) everywhere, glTF with SceneKit on iOS and Mac Catalyst and with Skia on Android and Windows, the poster where none applies |
 | `Plugin.Maui.Spine.Controls.Avatar.Core` | The format, the scheduler, the drivers' contract and the text driver, visemes, glTF; no MAUI |
 | `Plugin.Maui.Spine.Speech` | Text-to-speech with word boundaries, which `SpeechAvatarDriver` speaks through ([Speech](speech.md)) |
-| `Plugin.Maui.Spine.Controls.Avatar.Voice` | `VoiceAvatarDriver` for a realtime [voice](voice.md) conversation, and VoiceView's `character` |
 | `Plugin.Maui.Spine.Avatar.Tool` | The `spine-avatar` command: checks, packs and draws `.spineavatar` files ([Making a package](#making-a-package)) |
 
 ## The view
@@ -38,6 +37,7 @@ avatar.Interrupt();
 | `MotionMode` | `System` follows Reduce Motion: a still pose, four frames a second, a slow mouth. `Reduced` and `Full` override it |
 | `MaxFramesPerSecond` | 15, 30 (default) or 60 |
 | `AccentColor` | The colour of the avatar's `accent` slot; unset, the app's accent |
+| `SetThemeColor(slot, color)` | A colour for any other theme slot, in light and dark (spine2d and sksl); null gives the slot back. The built-in bars and ring draw the answer in `output` and the microphone in `accent` |
 | `AccessibilityText` | What a screen reader says; unset, the avatar's name and state |
 | `LoadState`, `LoadError`, `Package`, `RendererName`, `LipSyncQuality`, `Gestures` | What is shown and how |
 
@@ -67,7 +67,7 @@ In a Highlight tour, a presenter given as `TourStep.Presenter` (or `Highlight.Pr
 
 ## With a voice conversation
 
-`Plugin.Maui.Spine.Controls.Avatar.Voice` follows a [Spine.Voice](voice.md) session. The avatar's seven states are the session's, one to one; the microphone's and the answer's levels and 24 bands reach it every tick; a new answer or a cut-off one starts a new speech generation. The realtime providers send no visemes, so the mouth follows the answer's level (AudioReactive); with a viseme source registered (`SpineVoiceOptions.VisemeSource`) the session's visemes become timed cues on the answer's playback clock (TimedVisemes). The view's `Interrupt()` interrupts the session.
+`VoiceAvatarDriver` follows a [Spine.Voice](voice.md) session. The avatar's seven states are the session's, one to one; the microphone's and the answer's levels and 24 bands reach it every tick; a new answer or a cut-off one starts a new speech generation. The realtime providers send no visemes, so the mouth follows the answer's level (AudioReactive); with a viseme source registered (`SpineVoiceOptions.VisemeSource`) the session's visemes become timed cues on the answer's playback clock (TimedVisemes). The view's `Interrupt()` interrupts the session.
 
 On a page centred on the avatar, give an `AvatarView` the driver:
 
@@ -79,13 +79,15 @@ On a page centred on the avatar, give an `AvatarView` the driver:
 Driver = new VoiceAvatarDriver(voiceSession);   // or new VoiceAvatarDriver(audioEngine) for a bare IVoiceAudio
 ```
 
-Where the conversation is drawn by a `VoiceView`, use its `character` kind; the avatar runs on the VoiceView's tick rather than a timer of its own, and the VoiceView is the one screen-reader element:
+**The avatar's voice.** A package names the voice it speaks with, per provider, in its manifest: `"voices": { "openai": "marin", "azure": "sv-SE-SofieNeural" }` (`AvatarManifest.Voices`, `AvatarInput.Voices`). The driver sets the session's `Voice` to the avatar's `openai` one, and the session asks the server for it at its next connection; the server uses it when the feature offers it (`Realtime:Voices`, [AI on the server](ai-server.md)), and `SpokenVoice` says what it got. An avatar that names none, such as bars and ring, speaks with the feature's own voice. `UsesAvatarVoice = false` leaves the choice to the app. The Showcase's avatars: Kairo `marin`, Nova `cedar`, Puff `coral`, Voice Totem `sage`, Aurora Flow `shimmer`; `spine-avatar pack … --voice openai=marin` writes it.
+
+The sound in and out rather than a face: Spine has two avatars built in, given by name.
 
 ```xml
-<VoiceView Session="{Binding Voice}" Kind="character" VoiceAvatar.Source="{Binding Avatar}" HeightRequest="240" />
+<AvatarView Source="bars" Driver="{Binding Driver}" HeightRequest="200" />   <!-- or Source="ring" -->
 ```
 
-Without `VoiceAvatar.Source` the character shows `SpineAvatarOptions.DefaultSource` (`UseSpineAvatar(o => o.DefaultSource = …)`), and logs a warning when neither is set.
+`bars` puts the answer's 24 bands up from a line and the microphone's down; `ring` puts them outward and inward round an empty middle, for round a button or a picture. In code: `AvatarSource.BuiltIn("bars")`; `AvatarSource.BuiltInNames` lists them. Each band is its own part on its own parameter (`outputBand0`–`23`, `inputBand0`–`23`), so an avatar of your own can draw a spectrum the same way.
 
 ## The format
 
@@ -162,6 +164,6 @@ Visemes are the 15 of `oculus15-v1`; `AvatarVisemes.FromAzure` maps Azure Speech
 A package's `assetVersion` (major.minor.patch) is its release: `spine-avatar pack … --asset-version 3.0.0` sets it, and a changed
 avatar ships with a higher one. An app that downloads an avatar rather than bundling it keeps the file in its data folder and
 compares versions to update it. The Showcase does this for Kairo (`Pages/Avatars/AvatarDownloads.cs`): the sample server lists
-what it offers at `GET /sample/avatars` (id, version, file, size, SHA-256, read from each package at startup), the app reads the
+what it offers at `GET /sample/avatars` (id, name, profile, version, file, size, SHA-256, read from each package at startup, with the posters beside it), the app reads the
 kept copy's version from its manifest, offers the update when the server's is later, and keeps a download only when it matches
 the server's hash. A source never touches the network; the app opens the kept file with `AvatarSource.FromFile`.

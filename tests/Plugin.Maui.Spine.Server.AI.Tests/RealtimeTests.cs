@@ -45,6 +45,8 @@ public sealed class RealtimeTests : IAsyncLifetime
         ("Ai:Features:Talk:Expose", "true"),
         ("Ai:Features:Talk:SystemPrompt", "Svara kort."),
         ("Ai:Features:Talk:Realtime:Voice", "marin"),
+        ("Ai:Features:Talk:Realtime:Voices:0", "cedar"),
+        ("Ai:Features:Talk:Realtime:Voices:1", "coral"),
         ("Ai:Features:Talk:Realtime:MaxMinutes", "5"),
         ("Ai:Features:Talk:RequestsPerMinute:SignedIn", "2"),
         ("Ai:Features:Open:Kind", "Realtime"),
@@ -132,6 +134,23 @@ public sealed class RealtimeTests : IAsyncLifetime
         Assert.Equal("Svara kort.", asked.Instructions);
         Assert.Equal("marin", asked.Options.Voice);
         Assert.Equal(AICaller.SignedIn("anna"), asked.Caller);
+    }
+
+    [Theory]
+    [InlineData("cedar", "cedar")]          // offered: the app's avatar speaks with it
+    [InlineData("CORAL", "coral")]          // as the feature names it
+    [InlineData("shimmer", "marin")]        // not offered: the feature's own voice
+    [InlineData("", "marin")]
+    public async Task The_app_may_ask_for_a_voice_the_feature_offers(string asked, string used)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/ai/realtime/Talk?voice={asked}");
+        request.Headers.Add(UserHeader, "anna");
+
+        var response = await _http.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(used, Assert.Single(_provider.Requests).Options.Voice);
+        Assert.Equal(used, (string?)JsonNode.Parse(await response.Content.ReadAsStringAsync())!["voice"]);
     }
 
     [Fact]

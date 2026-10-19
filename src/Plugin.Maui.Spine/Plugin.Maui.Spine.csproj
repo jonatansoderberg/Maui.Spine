@@ -45,7 +45,6 @@
   <!-- FrameTimer, for the views that draw on every frame. -->
   <ItemGroup>
     <InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar" />
-    <InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Voice" />
   </ItemGroup>
 
   <ItemGroup>

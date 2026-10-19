@@ -1,11 +1,12 @@
 using System.Windows.Input;
 using MauiSpineSampleApp.Pages;
 using Microsoft.Maui.Controls.Shapes;
+using Plugin.Maui.Spine.Svg;
 
 namespace MauiSpineSampleApp.Controls;
 
 /// <summary>
-/// One example on a sample page: a title, a line on what the feature solves, and the live demo.
+/// One example on a sample page: a title, what the feature solves in an info box that opens on a tap, and the live demo.
 /// When the page is switched to Code the demo gives way to <see cref="Code"/>. An example with
 /// settings to try sets <see cref="OptionsCommand"/>, which puts a "Try options" link next to the title.
 /// </summary>
@@ -22,7 +23,7 @@ public sealed class Example : ContentView
 
     public static readonly BindableProperty SummaryProperty = BindableProperty.Create(
         nameof(Summary), typeof(string), typeof(Example), null,
-        propertyChanged: (b, _, n) => ((Example)b)._summary.Text = (string?)n);
+        propertyChanged: (b, _, n) => ((Example)b).OnSummaryChanged((string?)n));
 
     public static readonly BindableProperty CodeProperty = BindableProperty.Create(
         nameof(Code), typeof(string), typeof(Example), null,
@@ -42,6 +43,11 @@ public sealed class Example : ContentView
 
     private readonly Label _title = new() { FontSize = 18, FontAttributes = FontAttributes.Bold, VerticalOptions = LayoutOptions.Center };
     private readonly Label _summary = new() { FontSize = 15 };
+    // The icons' artwork keeps a margin inside its 50-unit box, so they are drawn without the source's own padding.
+    private readonly Image _infoGlyph = new() { WidthRequest = 26, HeightRequest = 26, VerticalOptions = LayoutOptions.Start, Margin = new Thickness(-3, -3, -3, -4) };
+    private readonly Image _chevron = new() { WidthRequest = 26, HeightRequest = 26, VerticalOptions = LayoutOptions.Start, Margin = new Thickness(-4, -3, -6, -4) };
+    private readonly Border _info;
+    private bool _expanded;
     private readonly ContentView _demo = new();
     private readonly Button _options = new()
     {
@@ -78,7 +84,28 @@ public sealed class Example : ContentView
         titleRow.Add(_title);
         titleRow.Add(_options, 1);
 
-        Content = new VerticalStackLayout { Spacing = 10, Children = { titleRow, _summary, _demo, _codeBlock } };
+        // What the example shows, in one line until tapped: the demo stays near the top of the page.
+        var infoRow = new Grid { ColumnDefinitions = [new(GridLength.Auto), new(GridLength.Star), new(GridLength.Auto)], ColumnSpacing = 8 };
+        SvgImageSource.SetPadding(_infoGlyph, new Thickness(0));
+        SvgImageSource.SetPadding(_chevron, new Thickness(0));
+        SvgImageSource.SetSvg(_infoGlyph, "info.svg");
+        SvgImageSource.SetSvg(_chevron, "chevrondown.svg");
+        infoRow.Add(_infoGlyph);
+        infoRow.Add(_summary, 1);
+        infoRow.Add(_chevron, 2);
+        _info = new Border
+        {
+            StrokeThickness = 0,
+            StrokeShape = new RoundRectangle { CornerRadius = 10 },
+            Padding = new Thickness(12, 8),
+            Content = infoRow,
+            IsVisible = false,
+        };
+        _info.GestureRecognizers.Add(new TapGestureRecognizer { Command = new Command(ToggleInfo) });
+        AutomationProperties.SetIsInAccessibleTree(_summary, false);
+        Collapse(true);
+
+        Content = new VerticalStackLayout { Spacing = 10, Children = { titleRow, _info, _demo, _codeBlock } };
 
         Update();
         Paint();
@@ -146,6 +173,24 @@ public sealed class Example : ContentView
             OptionsCommand.Execute(null);
     }
 
+    private void OnSummaryChanged(string? summary)
+    {
+        _summary.Text = summary;
+        _info.IsVisible = !string.IsNullOrWhiteSpace(summary);
+        SemanticProperties.SetDescription(_info, summary);
+    }
+
+    private void ToggleInfo() => Collapse(_expanded);
+
+    private void Collapse(bool collapse)
+    {
+        _expanded = !collapse;
+        _summary.MaxLines = collapse ? 1 : -1;
+        _summary.LineBreakMode = collapse ? LineBreakMode.TailTruncation : LineBreakMode.WordWrap;
+        SvgImageSource.SetSvg(_chevron, collapse ? "chevrondown.svg" : "chevronup.svg");
+        SemanticProperties.SetHint(_info, collapse ? "Double tap to read all of it" : "Double tap to fold it");
+    }
+
     private void Update()
     {
         _demo.IsVisible = !ShowCode;
@@ -158,7 +203,10 @@ public sealed class Example : ContentView
         var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
         var accent = SpineTheme.GetAccent(dark ? AppTheme.Dark : AppTheme.Light) ?? Colors.Gray;
 
-        _summary.TextColor = dark ? Color.FromArgb("#EBEBF5").WithAlpha(0.6f) : Color.FromArgb("#3C3C43").WithAlpha(0.6f);
+        _summary.TextColor = dark ? Color.FromArgb("#EBEBF5").WithAlpha(0.7f) : Color.FromArgb("#3C3C43").WithAlpha(0.75f);
+        SvgImageSource.SetTintColor(_infoGlyph, accent);
+        SvgImageSource.SetTintColor(_chevron, _summary.TextColor);
+        _info.BackgroundColor = accent.WithAlpha(dark ? 0.16f : 0.08f);
         _options.BackgroundColor = accent.WithAlpha(dark ? 0.25f : 0.13f);
         _options.TextColor = accent;
         _codeBlock.BackgroundColor = Color.FromArgb("#808080").WithAlpha(dark ? 0.2f : 0.1f);

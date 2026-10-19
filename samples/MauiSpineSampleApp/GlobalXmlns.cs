@@ -56,10 +56,6 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
-    "Plugin.Maui.Spine.Controls", AssemblyName = "Plugin.Maui.Spine.Controls.Voice")]
-
-[assembly: XmlnsDefinition(
-    "http://schemas.microsoft.com/dotnet/maui/global",
     "Plugin.Maui.Spine.Controls", AssemblyName = "Plugin.Maui.Spine.Controls.Avatar")]
 
 [assembly: XmlnsDefinition(
@@ -69,10 +65,6 @@
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "Plugin.Maui.Spine.Speech", AssemblyName = "Plugin.Maui.Spine.Speech")]
-
-[assembly: XmlnsDefinition(
-    "http://schemas.microsoft.com/dotnet/maui/global",
-    "Plugin.Maui.Spine.Controls", AssemblyName = "Plugin.Maui.Spine.Controls.Avatar.Voice")]
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
@@ -229,10 +221,6 @@
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.VoiceChat")]
-
-[assembly: XmlnsDefinition(
-    "http://schemas.microsoft.com/dotnet/maui/global",
-    "MauiSpineSampleApp.Pages.VoiceVisuals")]
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",

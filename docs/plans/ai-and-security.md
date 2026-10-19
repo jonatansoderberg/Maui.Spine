@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-17 (5.4a done: #608, #615, #617; #596, an unverified email in the app, in review as #599)
+**Last updated:** 2026-10-19 (#630: VoiceView removed; a voice is drawn by AvatarView, see docs/plans/spine-avatar.md C2b)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -143,7 +143,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 4.1c | Audio engine on Windows: the communications category | #563 | 4.1a | Waiting | | |
 | 4.2 | Realtime session endpoints in `Server.AI` | #517 | 2.1 | Done | #551 | OpenAI and Azure OpenAI client secrets only (Q28, and the owner's choice of token over relay on 2026-10-15). `Kind: Realtime`, `ai.Realtime(...)`, `POST /ai/realtime/{name}`, minutes reserved per token (Decisions). |
 | 4.3a | `IVoiceSession` and the OpenAI adapter: token, socket, barge-in, transcript, client tools, push-to-talk, the time limit; the Showcase's Voice chat page | #516 | 4.1a, 4.2 | Done | #568 | OpenAI and Azure OpenAI only in v1 (Q28), over its own WebSocket (Decisions). Seen on the owner's iPhone: a spoken conversation, a tool, barge-in four times. |
-| 4.3b | `VoiceView`, the `VoiceVisual` contract and the built-in visuals (SkiaSharp) | #567 | 4.3a | In review | | Split by the owner on 2026-10-15. A package of its own, `Plugin.Maui.Spine.Controls.Voice`; `orb`, `bars`, `ring`, `avatar`; `IVisemeSource` in Spine.Voice (Decisions). Seen in the simulator: all four against the reference, the avatar and the edge against a real session. |
+| 4.3b | `VoiceView`, the `VoiceVisual` contract and the built-in visuals (SkiaSharp) | #567 | 4.3a | In review | | Split by the owner on 2026-10-15. A package of its own, `Plugin.Maui.Spine.Controls.Voice`; `orb`, `bars`, `ring`, `avatar`; `IVisemeSource` in Spine.Voice (Decisions). Seen in the simulator: all four against the reference, the avatar and the edge against a real session. Superseded by #630 (2026-10-19): VoiceView, its visuals and `Plugin.Maui.Spine.Controls.Voice` were removed; a voice is drawn by `AvatarView` with `VoiceAvatarDriver`, and bars and ring are built-in avatars. |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 
 ### Phase 5: sign-in
@@ -524,6 +524,7 @@ Newest last. Each entry is dated and says who decided.
   - **A simulator build needs the team's signing identity** (`CodesignKey` and a profile) for the passkey sheet: without an `application-identifier` iOS refuses with error 1004 ("process without application identifier").
 - **2026-10-17, owner (#611):** A passkey row shows where it is kept (from the AAGUID), the device it was made on (the app's device name) and when it was last used.
 - **2026-10-17, Claude (#611):** The authenticator's name is resolved at registration and kept with the login, so `SpineAuthUser.ToContract` needs no options; `AuthenticatorNames` is a table of well-known AAGUIDs the app can extend. The device name is the app's own label and is not checked.
+- **2026-10-19, owner (#630):** One visual for a voice: `AvatarView` with `VoiceAvatarDriver`. VoiceView, the `orb` and the canvas face, the `VoiceVisual`/`VoiceVisualView` contracts and `Plugin.Maui.Spine.Controls.Voice` are removed (unreleased); bars and ring became built-in avatars in Controls.Avatar. This replaces the 2026-10-09 and 2026-10-15 decisions on VoiceView below. `IVisemeSource` stays in Spine.Voice; the screen's edge stays in Highlight.
 
 ## Open questions
 

@@ -161,7 +161,8 @@ app.MapSpineRealtimeSessions("/ai");   // POST /ai/realtime/{name}
 "Voice": {
   "Kind": "Realtime", "Provider": "openai", "Model": "gpt-realtime", "Expose": true,
   "SystemPrompt": "You are a friendly voice assistant. Keep it short.",
-  "Realtime": { "Voice": "marin", "TurnDetection": "semantic_vad", "NoiseReduction": "near_field",
+  "Realtime": { "Voice": "marin", "Voices": ["marin", "cedar", "coral"],
+                "TurnDetection": "semantic_vad", "NoiseReduction": "near_field",
                 "TranscriptionModel": "gpt-4o-mini-transcribe", "Language": "sv",
                 "MaxMinutes": 5, "TokenSeconds": 60 },
   "RequestsPerMinute": { "SignedIn": 3 },
@@ -171,7 +172,7 @@ app.MapSpineRealtimeSessions("/ai");   // POST /ai/realtime/{name}
 
 and under `Prices`, `"openai": { "gpt-realtime": { "PerMinute": 0.2 } }`.
 
-The request has no body. Everything about the session is the feature's configuration: the model (for Azure OpenAI, the deployment), `SystemPrompt` as the instructions, `MaxOutputTokens`, and the `Realtime` section. Unset entries leave the provider's defaults. `"TurnDetection": "none"` turns voice activity detection off, so the app commits each turn itself. The audio is PCM16 at 24 kHz both ways.
+The request has no body. It may ask for a voice, `?voice=cedar`, such as the one the app's avatar names; the server uses it when it is one of the feature's `Voices`, otherwise the feature's `Voice`, and says which in the answer's `voice`. Everything else about the session is the feature's configuration: the model (for Azure OpenAI, the deployment), `SystemPrompt` as the instructions, `MaxOutputTokens`, and the `Realtime` section. Unset entries leave the provider's defaults. `"TurnDetection": "none"` turns voice activity detection off, so the app commits each turn itself. The audio is PCM16 at 24 kHz both ways.
 
 ```http
 POST /ai/realtime/Voice

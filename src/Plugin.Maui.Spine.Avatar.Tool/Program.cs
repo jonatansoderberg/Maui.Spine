@@ -25,13 +25,14 @@ catch (Exception e) when (e is IOException or UnauthorizedAccessException or Arg
     return 2;
 }
 
-internal sealed record Options(string? Output, string? Profile, string? PosterLight, string? PosterDark, int Size, bool Strip, string? AssetVersion = null)
+internal sealed record Options(string? Output, string? Profile, string? PosterLight, string? PosterDark, int Size, bool Strip, string? AssetVersion = null, IReadOnlyDictionary<string, string>? Voices = null)
 {
     public static Options Parse(string[] args)
     {
         string? output = null, profile = null, light = null, dark = null, assetVersion = null;
         var size = 512;
         var strip = false;
+        var voices = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var i = 0; i < args.Length; i++)
         {
             string Next() => i + 1 < args.Length ? args[++i] : throw new ArgumentException($"{args[i]} needs a value.");
@@ -48,10 +49,16 @@ internal sealed record Options(string? Output, string? Profile, string? PosterLi
                     if (!System.Text.RegularExpressions.Regex.IsMatch(assetVersion, @"^\d+\.\d+\.\d+$"))
                         throw new ArgumentException($"--asset-version takes major.minor.patch, not {assetVersion}.");
                     break;
+                case "--voice":
+                    var pair = Next().Split('=', 2);
+                    if (pair.Length != 2 || !System.Text.RegularExpressions.Regex.IsMatch(pair[0], "^[a-z][a-z0-9-]{0,31}$") || pair[1].Length is 0 or > 64)
+                        throw new ArgumentException("--voice takes provider=voice, such as openai=marin.");
+                    voices[pair[0]] = pair[1];
+                    break;
                 default: throw new ArgumentException($"Unknown option {args[i]}.");
             }
         }
-        return new Options(output, profile, light, dark, size, strip, assetVersion);
+        return new Options(output, profile, light, dark, size, strip, assetVersion, voices.Count > 0 ? voices : null);
     }
 }
 
@@ -69,9 +76,10 @@ internal static class Commands
               inspect <file>                         what the package holds
               validate <file> [--profile shipping]   the format's checks; shipping adds real posters and no source/
               pack <file> -o <out> [--strip] [--poster-light <png> --poster-dark <png>] [--asset-version 1.2.0]
-                                                     the defaults applied, capabilities computed, posters rendered,
+                   [--voice openai=marin ...]        the defaults applied, capabilities computed, posters rendered,
                                                      the hash table rewritten; a new release takes a higher
-                                                     assetVersion, which apps compare to update a downloaded copy
+                                                     assetVersion, which apps compare to update a downloaded copy;
+                                                     --voice names the avatar's voice per provider
               strip <file> -o <out>                  source/ removed, the hash table rewritten
               render-sheet <file> -o <dir> [--size 512]
                                                      posters and the state and expression sheets as PNG
@@ -161,6 +169,14 @@ internal static class Commands
         {
             manifest["assetVersion"] = version;
             Console.WriteLine($"assetVersion: {package.Manifest.AssetVersion} -> {version}");
+        }
+        if (options.Voices is { } voices)
+        {
+            var named = manifest["voices"] as System.Text.Json.Nodes.JsonObject ?? new System.Text.Json.Nodes.JsonObject();
+            foreach (var (provider, voice) in voices)
+                named[provider] = voice;
+            manifest["voices"] = named;
+            Console.WriteLine($"voices: {string.Join(", ", named.Select(p => $"{p.Key}={p.Value}"))}");
         }
         AvatarFiles.Write(output, manifest, files);
         return Check(file, output);

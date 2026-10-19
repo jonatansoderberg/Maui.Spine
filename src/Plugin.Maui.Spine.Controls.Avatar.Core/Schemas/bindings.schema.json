@@ -26,6 +26,9 @@
         "inputLevel": { "$ref": "#/$defs/levelWrites" }, "outputLevel": { "$ref": "#/$defs/levelWrites" },
         "inputLow": { "$ref": "#/$defs/levelWrites" }, "inputMid": { "$ref": "#/$defs/levelWrites" }, "inputHigh": { "$ref": "#/$defs/levelWrites" },
         "outputLow": { "$ref": "#/$defs/levelWrites" }, "outputMid": { "$ref": "#/$defs/levelWrites" }, "outputHigh": { "$ref": "#/$defs/levelWrites" }
+      },
+      "patternProperties": {
+        "^(input|output)Band([0-9]|1[0-9]|2[0-3])$": { "$ref": "#/$defs/levelWrites", "description": "One band of the 24, low to high." }
       }
     },
     "channelMasks": {

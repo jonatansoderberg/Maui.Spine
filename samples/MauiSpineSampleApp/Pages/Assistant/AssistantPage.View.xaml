@@ -5,22 +5,17 @@
     x:TypeArguments="AssistantPageViewModel"
     x:DataType="AssistantPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar.Voice, Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Chat, Plugin.Maui.Spine.Speech">
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar, Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Chat, Plugin.Maui.Spine.Speech">
 
         <Example Title="A voice assistant with a face"
-                 Summary="Talk: a realtime conversation with the push sample server's Voice feature, drawn as an avatar: it listens with the microphone's level, thinks, speaks with its mouth on the answer's level (the realtime models send no visemes), wears the muted badge, and flinches when you talk over it. The same avatar can sit in a VoiceView as its character, ticked by the VoiceView. Type: a chat whose answer the avatar mouths as it streams in, Thinking until the first words, and reads aloud when it is done if you like.">
+                 Summary="Talk: a realtime conversation with the push sample server's Voice feature, drawn as an avatar: it listens with the microphone's level, thinks, speaks with its mouth on the answer's level (the realtime models send no visemes), wears the muted badge, and flinches when you talk over it. Bars and Ring, built into Spine, show the sound in and out instead of a face. Type: a chat whose answer the avatar mouths as it streams in, Thinking until the first words, and reads aloud when it is done if you like.">
             <VerticalStackLayout Spacing="12">
                 <SegmentedControl SelectedIndex="{Binding ModeIndex}">
                     <Segment Title="Talk" />
                     <Segment Title="Type" />
                 </SegmentedControl>
                 <Entry Text="{Binding Server}" Placeholder="http://192.168.1.10:5100/ai" Keyboard="Url" IsVisible="{Binding IsVoice}" />
-                <SegmentedControl SelectedIndex="{Binding HostIndex}" IsVisible="{Binding IsVoice}">
-                    <Segment Title="AvatarView" />
-                    <Segment Title="VoiceView character" />
-                </SegmentedControl>
-                <AvatarView Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="240" IsVisible="{Binding IsFree}" />
-                <VoiceView Session="{Binding Session}" Kind="character" VoiceAvatar.Source="{Binding Avatar.Source}" HeightRequest="240" IsVisible="{Binding IsHosted}" />
+                <AvatarView Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="240" />
                 <VerticalStackLayout Spacing="12" IsVisible="{Binding IsText}">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
                         <Entry Text="{Binding Draft}" Placeholder="Ask something" ReturnCommand="{Binding SendCommand, Source={x:Reference TextChat}, x:DataType=ChatView}" ReturnCommandParameter="{Binding Draft}" />
@@ -59,8 +54,8 @@
                 &lt;AvatarView Source="{Binding Avatar}" Driver="{Binding Driver}" /&gt;
                 Driver = new VoiceAvatarDriver(voiceSession);
 
-                // Or as VoiceView's character, ticked by the VoiceView:
-                &lt;VoiceView Session="{Binding Voice}" Kind="character" VoiceAvatar.Source="{Binding Avatar}" /&gt;
+                // The sound in and out instead of a face:
+                &lt;AvatarView Source="bars" Driver="{Binding Driver}" /&gt;
 
                 await voice.ConnectAsync("Voice");
                 await voice.SendTextAsync("What can you do?");   // typed instead of spoken

@@ -16,6 +16,17 @@ internal sealed class VoiceSession : IVoiceSession
 {
     public const string InterruptedKey = "spine.interrupted";
 
+    /// <summary>The tool <see cref="EndsOnGoodbye"/> gives the model.</summary>
+    public const string EndConversationTool = "end_conversation";
+
+    // EndsOnGoodbye's way out: asked for (the tool ran), the farewell under way, the farewell done (end once it has played).
+    private const int NoGoodbye = 0, FarewellAsked = 1, FarewellUnderWay = 2, FarewellDone = 3;
+    private int _goodbye;
+    // How long the farewell must have been quiet before the call ends: the queue says it has played when its last sample
+    // went to the device, which still has the output buffer and the speaker's latency to go. Ending at once cut the last word.
+    private static readonly TimeSpan FarewellTail = TimeSpan.FromMilliseconds(700);
+    private long _quietSince;
+
     /// <summary>The provider's rate both ways.</summary>
     private const int Rate = 24_000;
 
@@ -105,6 +116,25 @@ internal sealed class VoiceSession : IVoiceSession
     public event Action<VoiceState>? StateChanged;
     public event Action<VoiceSessionEnd, Exception?>? Ended;
 
+    public string? Voice { get; set; }
+
+    public string? SpokenVoice { get; private set; }
+
+    public bool EndsOnGoodbye
+    {
+        get;
+        set
+        {
+            if (field == value)
+                return;
+            field = value;
+            if (_connected)
+                Send(ToolsUpdate());
+            if (!value)
+                Interlocked.Exchange(ref _goodbye, NoGoodbye);
+        }
+    }
+
     public async Task ConnectAsync(string feature, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(feature);
@@ -124,7 +154,8 @@ internal sealed class VoiceSession : IVoiceSession
         Evaluate();
         try
         {
-            var token = await _tokens.RequestAsync(feature, cancellationToken);
+            var token = await _tokens.RequestAsync(feature, cancellationToken, Voice);
+            SpokenVoice = token.Voice;
             if (token.Protocol != "openai")
                 throw new NotSupportedException($"The voice feature '{feature}' speaks '{token.Protocol}', which Spine.Voice cannot speak yet; only 'openai' (OpenAI and Azure OpenAI).");
 
@@ -137,8 +168,9 @@ internal sealed class VoiceSession : IVoiceSession
 
             _run = new CancellationTokenSource();
             _outbox = Channel.CreateUnbounded<object>(new UnboundedChannelOptions { SingleReader = true });
-            if (_options.ClientTools.Count > 0)
-                Send(ToolsUpdate(_options.ClientTools));
+            Interlocked.Exchange(ref _goodbye, NoGoodbye);
+            if (_options.ClientTools.Count > 0 || EndsOnGoodbye)
+                Send(ToolsUpdate());
 
             if (token.MaxMinutes is { } minutes and > 0)
             {
@@ -351,6 +383,7 @@ internal sealed class VoiceSession : IVoiceSession
                 break;
 
             case "response.created":
+                Interlocked.CompareExchange(ref _goodbye, FarewellUnderWay, FarewellAsked);
                 _responseActive = true;
                 _answerAudio = false;
                 break;
@@ -387,6 +420,7 @@ internal sealed class VoiceSession : IVoiceSession
 
             case "response.done":
                 _responseActive = false;
+                Interlocked.CompareExchange(ref _goodbye, FarewellDone, FarewellUnderWay);
                 break;
 
             case "error":
@@ -402,6 +436,8 @@ internal sealed class VoiceSession : IVoiceSession
     /// <summary>Cuts the answer off: the engine flushes, the model hears how much was played, and a running response stops.</summary>
     private void BargeIn()
     {
+        // Talking over the farewell (or the Stop button) keeps the conversation going.
+        Interlocked.Exchange(ref _goodbye, NoGoodbye);
         Tick();
         var position = _audio.Flush();
         if (position is { } played)
@@ -434,7 +470,10 @@ internal sealed class VoiceSession : IVoiceSession
         _dispatch(() => _transcript.Add(new ChatMessage(ChatRole.Assistant, [call])));
 
         object? result;
-        if (_options.ClientTools.FirstOrDefault(t => t.Name == name) is not { } tool)
+        var goodbye = name == EndConversationTool && EndsOnGoodbye;
+        if (goodbye)
+            result = "The call ends after your goodbye. Say a short goodbye now.";
+        else if (_options.ClientTools.FirstOrDefault(t => t.Name == name) is not { } tool)
         {
             result = new { error = $"The app has no tool named '{name}'." };
             _logger.LogWarning("Spine.Voice: the model called '{Tool}', which the app does not have.", name);
@@ -464,6 +503,9 @@ internal sealed class VoiceSession : IVoiceSession
                 ["output"] = result as string ?? JsonSerializer.Serialize(result, AIJsonUtilities.DefaultOptions),
             },
         });
+        // The response that called the tool may still report done after this; only the next one is the farewell.
+        if (goodbye)
+            Interlocked.Exchange(ref _goodbye, FarewellAsked);
         Send(new JsonObject { ["type"] = "response.create" });
     }
 
@@ -487,10 +529,20 @@ internal sealed class VoiceSession : IVoiceSession
         return parsed;
     }
 
-    private static JsonObject ToolsUpdate(IEnumerable<AIFunction> tools)
+    private JsonObject ToolsUpdate()
     {
         var list = new JsonArray();
-        foreach (var tool in tools)
+        if (EndsOnGoodbye)
+        {
+            list.Add(new JsonObject
+            {
+                ["type"] = "function",
+                ["name"] = EndConversationTool,
+                ["description"] = "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation; then say a short goodbye in their language. Do not call it for a pause or a thank-you in the middle of a conversation.",
+                ["parameters"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
+            });
+        }
+        foreach (var tool in _options.ClientTools)
         {
             list.Add(new JsonObject
             {
@@ -524,6 +576,16 @@ internal sealed class VoiceSession : IVoiceSession
             });
         }
         Evaluate();
+
+        // The farewell has been heard to its end, its last word out of the speaker too: hang up.
+        if (_audio.IsPlaying || _responseActive)
+            Interlocked.Exchange(ref _quietSince, 0);
+        else if (Interlocked.Read(ref _quietSince) == 0)
+            Interlocked.Exchange(ref _quietSince, _time.GetUtcNow().UtcTicks);
+        if (Volatile.Read(ref _goodbye) == FarewellDone && Interlocked.Read(ref _quietSince) is var quiet and > 0
+            && _time.GetUtcNow().UtcTicks - quiet >= FarewellTail.Ticks
+            && Interlocked.CompareExchange(ref _goodbye, NoGoodbye, FarewellDone) == FarewellDone)
+            _ = EndCoreAsync(VoiceSessionEnd.Goodbye, null);
     }
 
     private void Evaluate()
@@ -598,6 +660,7 @@ internal sealed class VoiceSession : IVoiceSession
         }
 
         await _audio.StopAsync();
+        SpokenVoice = null;
         _responseActive = false;
         _answerAudio = false;
         lock (_micGate)
