@@ -361,8 +361,14 @@ public class ChatView : ContentView
                 var answer = new ChatAnswer();
                 for (; i < messages.Count && messages[i].Role != ChatRole.User; i++)
                 {
+                    // Each message keeps its own id, so the answer starts a paragraph between two of them.
                     if (messages[i].Role == ChatRole.Assistant || messages[i].Role == ChatRole.Tool)
-                        answer.Add(new ChatResponseUpdate { Role = messages[i].Role, Contents = [.. messages[i].Contents] });
+                        answer.Add(new ChatResponseUpdate
+                        {
+                            Role = messages[i].Role,
+                            MessageId = messages[i].MessageId ?? i.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            Contents = [.. messages[i].Contents],
+                        });
                 }
 
                 if (!(row < _rows.Count && _rows[row] is AnswerRow view))

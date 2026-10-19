@@ -39,6 +39,8 @@ internal sealed class ChatAnswer
     private readonly List<ChatResponseUpdate> _updates = [];
     private readonly StringBuilder _text = new();
     private readonly List<ChatToolCall> _calls = [];
+    private string? _textMessage;
+    private bool _callSinceText;
 
     /// <summary>The answer's text so far, as markdown.</summary>
     public string Text => _text.ToString();
@@ -61,7 +63,13 @@ internal sealed class ChatAnswer
             switch (content)
             {
                 case TextContent { Text.Length: > 0 } piece:
+                    // A new message, or text after a tool call, is a new paragraph: a voice session's goodbye and the
+                    // words after a function ran ran into the text before them ("Vi hörs!Ha det bra").
+                    if (_text.Length > 0 && (_callSinceText || update.MessageId != _textMessage))
+                        _text.Append("\n\n");
                     _text.Append(piece.Text);
+                    _textMessage = update.MessageId;
+                    _callSinceText = false;
                     text = true;
                     break;
 
@@ -70,6 +78,7 @@ internal sealed class ChatAnswer
                     var made = new ChatToolCall(call.CallId, call.Name, call.Arguments, null, false);
                     if (index < 0) _calls.Add(made);
                     else _calls[index] = made with { Result = _calls[index].Result, IsDone = _calls[index].IsDone };
+                    _callSinceText = true;
                     calls = true;
                     break;
 

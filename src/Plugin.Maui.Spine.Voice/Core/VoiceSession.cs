@@ -481,7 +481,12 @@ internal sealed class VoiceSession : IVoiceSession
 
         object? result;
         var goodbye = name == EndConversationTool && EndsOnGoodbye;
-        if (goodbye)
+        // A model often says goodbye in the same response that hangs up. That was the farewell: asking for another one
+        // made it say goodbye twice.
+        var saidGoodbye = goodbye && _answerAudio;
+        if (saidGoodbye)
+            result = "The call ends once your goodbye has played. Say nothing more.";
+        else if (goodbye)
             result = "The call ends after your goodbye. Say a short goodbye now.";
         else
         {
@@ -513,6 +518,15 @@ internal sealed class VoiceSession : IVoiceSession
                 ["output"] = result as string ?? JsonSerializer.Serialize(result, Compact.GetTypeInfo(result?.GetType() ?? typeof(object))),
             },
         });
+        if (saidGoodbye)
+        {
+            // The farewell is this response: done when it reports done, or now when it already has.
+            Interlocked.Exchange(ref _goodbye, FarewellUnderWay);
+            if (!_responseActive)
+                Interlocked.CompareExchange(ref _goodbye, FarewellDone, FarewellUnderWay);
+            return;
+        }
+
         // The response that called the tool may still report done after this; only the next one is the farewell.
         if (goodbye)
             Interlocked.Exchange(ref _goodbye, FarewellAsked);
