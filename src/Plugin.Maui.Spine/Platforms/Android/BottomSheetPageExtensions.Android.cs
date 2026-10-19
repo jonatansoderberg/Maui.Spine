@@ -284,6 +284,13 @@ internal static class BottomSheetPageExtensions
             ActiveSheetWindow = dialog.Window;
             SpineScreen.Secure(dialog.Window);
 
+            // A field on the page underneath keeps its keyboard over the sheet otherwise (a chat's composer).
+            if (activity.CurrentFocus is { } focused)
+            {
+                WindowCompat.GetInsetsController(activity.Window!, focused).Hide(WindowInsetsCompat.Type.Ime());
+                focused.ClearFocus();
+            }
+
             dialog.Show();
             SpineOverlay.OnSheetShown(dialog.Window);
 
