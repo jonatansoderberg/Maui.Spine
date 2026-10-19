@@ -3,9 +3,9 @@ using SkiaSharp;
 
 namespace Plugin.Maui.Spine.Controls.Avatar.Core.Tests;
 
-/// <summary>VoiceView's bars and ring as avatars (#630): one node per band, each on its own band parameter.</summary>
+/// <summary>The built-in bars and ring (#630): one node per band, each on its own band parameter.</summary>
 [Collection(Measurements.Name)]
-public class VoiceVisualAvatarTests
+public class BarsAndRingTests
 {
     private const int Size = 300;
     private static readonly SKColor Output = SKColor.Parse("#FF7A45");
@@ -30,7 +30,7 @@ public class VoiceVisualAvatarTests
         return frame;
     }
 
-    private static SKBitmap Draw(string avatar, AvatarRenderFrame frame, string name, IReadOnlyDictionary<string, SKColor>? colors = null)
+    private static SKBitmap Draw(string avatar, AvatarRenderFrame frame, string name, IReadOnlyDictionary<string, SKColor>? colors = null, SKColor? accent = null)
     {
         using var renderer = Renderer(avatar);
         renderer.ThemeColors = colors;
@@ -39,7 +39,7 @@ public class VoiceVisualAvatarTests
         using (var canvas = new SKCanvas(bitmap))
         {
             canvas.Clear(SKColors.White);
-            renderer.Draw(canvas, SKRect.Create(Size, Size), dark: false);
+            renderer.Draw(canvas, SKRect.Create(Size, Size), dark: false, accent);
         }
 
         // For review beside the sheets.
@@ -95,13 +95,17 @@ public class VoiceVisualAvatarTests
     [Theory]
     [InlineData("bars")]
     [InlineData("ring")]
-    public void TheHostsColoursReplaceTheSlots(string avatar)
+    public void TheAppsColoursReplaceTheSlots(string avatar)
     {
+        // The answer's side by SetThemeColor("output"), the microphone's by the accent (AvatarView.AccentColor or the app's).
         var green = SKColor.Parse("#2E7D32");
-        using var bitmap = Draw(avatar, Ramp(), "colours", new Dictionary<string, SKColor> { ["output"] = green });
+        var purple = SKColor.Parse("#7B1FA2");
+        using var bitmap = Draw(avatar, Ramp(), "colours", new Dictionary<string, SKColor> { ["output"] = green }, purple);
 
         Assert.True(Count(bitmap, green, new SKRectI(0, 0, Size, Size)) > 200);
+        Assert.True(Count(bitmap, purple, new SKRectI(0, 0, Size, Size)) > 200);
         Assert.Equal(0, Count(bitmap, Output, new SKRectI(0, 0, Size, Size)));
+        Assert.Equal(0, Count(bitmap, Input, new SKRectI(0, 0, Size, Size)));
     }
 
     [Theory]

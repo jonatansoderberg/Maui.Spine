@@ -4,7 +4,6 @@
     "projects": [
       "src\\Plugin.Maui.Spine.AI\\Plugin.Maui.Spine.AI.csproj",
       "src\\Plugin.Maui.Spine.Voice\\Plugin.Maui.Spine.Voice.csproj",
-      "src\\Plugin.Maui.Spine.Controls.Voice\\Plugin.Maui.Spine.Controls.Voice.csproj",
       "src\\Plugin.Maui.Spine.Controls.Avatar.Core\\Plugin.Maui.Spine.Controls.Avatar.Core.csproj",
       "src\\Plugin.Maui.Spine.Controls.Avatar\\Plugin.Maui.Spine.Controls.Avatar.csproj",
       "src\\Plugin.Maui.Spine.Speech\\Plugin.Maui.Spine.Speech.csproj",
@@ -43,7 +42,6 @@
       "src\\Plugin.Maui.Spine\\Plugin.Maui.Spine.csproj",
       "tests\\Plugin.Maui.Spine.AI.Tests\\Plugin.Maui.Spine.AI.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Voice.Tests\\Plugin.Maui.Spine.Voice.Tests.csproj",
-      "tests\\Plugin.Maui.Spine.Controls.Voice.Tests\\Plugin.Maui.Spine.Controls.Voice.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Controls.Avatar.Core.Tests\\Plugin.Maui.Spine.Controls.Avatar.Core.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Speech.Tests\\Plugin.Maui.Spine.Speech.Tests.csproj",
       "tests\\Plugin.Maui.Spine.Authentication.Tests\\Plugin.Maui.Spine.Authentication.Tests.csproj",

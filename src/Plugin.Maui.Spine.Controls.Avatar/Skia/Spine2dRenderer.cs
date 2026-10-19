@@ -414,7 +414,7 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
         ApplyParameter(prefix + "Low", Average(bands[..8]), weight);
         ApplyParameter(prefix + "Mid", Average(bands[8..16]), weight);
         ApplyParameter(prefix + "High", Average(bands[16..]), weight);
-        // And each band on its own, for a spectrum drawn part by part (VoiceView's bars and ring).
+        // And each band on its own, for a spectrum drawn part by part (the built-in bars and ring).
         var names = prefix == "input" ? Spine2dVocabulary.InputBands : Spine2dVocabulary.OutputBands;
         for (var b = 0; b < bands.Length && b < names.Length; b++)
             ApplyParameter(names[b], bands[b], weight);

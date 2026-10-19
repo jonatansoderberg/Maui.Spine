@@ -18,15 +18,22 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>AvatarView for Spine: animated characters and ambient visuals from .spineavatar files, drawn with SkiaSharp (vector scenes and SkSL shaders) and SceneKit (glTF on iOS and Mac Catalyst), driven by the app's state, by text or by a driver, with Reduce Motion, the app's theme and one screen-reader element.</Description>
+		<Description>AvatarView for Spine: animated characters and ambient visuals from .spineavatar files, drawn with SkiaSharp (vector scenes and SkSL shaders) and SceneKit (glTF on iOS and Mac Catalyst), driven by the app's state, by text, by speech or by a realtime voice conversation, with Reduce Motion, the app's theme and one screen-reader element. Built-in bars and ring show a voice's sound in and out.</Description>
 		<SpineIcon>avatar.png</SpineIcon>
-		<PackageTags>$(PackageTags);avatar;character;lip-sync;skiasharp;scenekit;gltf</PackageTags>
+		<PackageTags>$(PackageTags);avatar;character;lip-sync;skiasharp;scenekit;gltf;voice;visualizer;realtime</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="SkiaSharp" />
 		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Avatar.Core\Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
 		<ProjectReference Include="..\Plugin.Maui.Spine.Speech\Plugin.Maui.Spine.Speech.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Voice\Plugin.Maui.Spine.Voice.csproj" />
+	</ItemGroup>
+
+	<!-- The built-in avatars (AvatarSource.BuiltIn, Source="bars"): the packages in samples/Avatars, the one copy the lab, the Showcase and the tests use too. -->
+	<ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+		<EmbeddedResource Include="..\..\samples\Avatars\bars.spineavatar" LogicalName="Plugin.Maui.Spine.Controls.Avatar.bars.spineavatar" />
+		<EmbeddedResource Include="..\..\samples\Avatars\ring.spineavatar" LogicalName="Plugin.Maui.Spine.Controls.Avatar.ring.spineavatar" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
@@ -43,7 +50,6 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
-		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Voice" />
 		<!-- The spine-avatar tool draws posters and sheets with the Skia renderers. -->
 		<InternalsVisibleTo Include="spine-avatar" />
 		<!-- The lab's inspector reads the surfaces' frame timing once it runs on this package (B1.3). -->

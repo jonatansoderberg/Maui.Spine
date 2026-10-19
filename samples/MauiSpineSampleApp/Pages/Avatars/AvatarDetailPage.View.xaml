@@ -5,7 +5,7 @@
     x:TypeArguments="AvatarDetailPageViewModel"
     x:DataType="AvatarDetailPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar, Plugin.Maui.Spine.Speech, Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Voice">
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar, Plugin.Maui.Spine.Speech, Plugin.Maui.Spine.Voice">
 
         <Example Title="{Binding Entry.Title}"
                  Summary="{Binding Entry.Summary}">

@@ -2,7 +2,9 @@ using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Plugin.Maui.Spine.AI;
 using Plugin.Maui.Spine.Controls;
+using Plugin.Maui.Spine.Controls.Avatar;
 using Plugin.Maui.Spine.Voice;
+using MauiSpineSampleApp.Pages.Avatars;
 
 namespace MauiSpineSampleApp.Pages.VoiceChat;
 
@@ -28,6 +30,7 @@ public partial class VoiceChatPageViewModel : SampleViewModel
             IsConnected = false;
             Status = error is null ? $"Ended: {reason}." : $"Ended: {error.Message}";
         };
+        Driver = new VoiceAvatarDriver(Session);
     }
 
     /// <summary>The conversation; the meter and the chat view read it.</summary>
@@ -43,11 +46,14 @@ public partial class VoiceChatPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial bool Muted { get; set; }
 
-    /// <summary>The built-in visuals, for the picker.</summary>
-    public IReadOnlyList<string> Kinds { get; } = ["orb", "bars", "ring", "avatar"];
+    /// <summary>What draws the conversation: the built-in bars or ring, or a character.</summary>
+    public IReadOnlyList<AvatarChoice> Avatars => VoiceAvatars.All;
 
     [ObservableProperty]
-    public partial string Kind { get; set; } = "orb";
+    public partial AvatarChoice Avatar { get; set; } = VoiceAvatars.All[0];
+
+    /// <summary>The avatar follows the session: its state, the levels and bands each way, the mouth on the answer.</summary>
+    public AvatarDriver Driver { get; }
 
     [ObservableProperty]
     public partial bool Edge { get; set; }

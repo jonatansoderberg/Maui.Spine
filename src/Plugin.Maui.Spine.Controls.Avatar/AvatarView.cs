@@ -183,9 +183,9 @@ public sealed class AvatarView : ContentView
     }
 
     /// <summary>
-    /// Colours the avatar's theme slot <paramref name="slot"/> (such as <c>input</c> and <c>output</c> in VoiceView's bars and
-    /// ring) with <paramref name="color"/> in light and dark mode; null gives the slot back its own colours. Drawn by
-    /// spine2d and sksl avatars; <see cref="AccentColor"/> is the same for the <c>accent</c> slot.
+    /// Colours the avatar's theme slot <paramref name="slot"/> (such as <c>output</c>, the answer's side of the built-in bars
+    /// and ring) with <paramref name="color"/> in light and dark mode; null gives the slot back its own colours. Drawn by
+    /// spine2d and sksl avatars; <see cref="AccentColor"/> is the same for the <c>accent</c> slot (the microphone's side).
     /// </summary>
     public void SetThemeColor(string slot, Color? color)
     {
@@ -239,17 +239,6 @@ public sealed class AvatarView : ContentView
 
     /// <summary>The surface drawing the avatar, for an inspector.</summary>
     internal AvatarSurface? Surface => _surface;
-
-    /// <summary>Set by a host (VoiceView's character) that calls <see cref="TickFromHost"/> from its own tick: the view runs no timer.</summary>
-    internal bool IsHosted
-    {
-        get;
-        set
-        {
-            field = value;
-            UpdateLoop();
-        }
-    }
 
     /// <summary>Shows <paramref name="request"/>'s expression for its duration, then <see cref="Expression"/> again.</summary>
     public void SetExpression(AvatarExpressionRequest request) => _runtime.Input.SetExpression(request);
@@ -375,9 +364,6 @@ public sealed class AvatarView : ContentView
             cancellation.Dispose();
         }
     }
-
-    /// <summary>One frame, from a host that runs its own tick (<see cref="IsHosted"/>).</summary>
-    internal void TickFromHost(TimeSpan delta) => Tick(delta);
 
     private static List<AvatarRenderer> Renderers()
     {
@@ -544,7 +530,7 @@ public sealed class AvatarView : ContentView
         var reduced = IsReducedMotion;
         _runtime.Scheduler?.SetReducedMotion(reduced);
 
-        var run = !IsHosted && _surface is not null && _window is not null && !_windowStopped && IsVisible;
+        var run = _surface is not null && _window is not null && !_windowStopped && IsVisible;
         if (!run)
         {
             StopTimer();

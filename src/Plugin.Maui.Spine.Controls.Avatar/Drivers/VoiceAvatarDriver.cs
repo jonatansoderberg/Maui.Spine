@@ -7,6 +7,8 @@ namespace Plugin.Maui.Spine.Controls;
 /// <summary>
 /// Drives an avatar from a realtime voice conversation: the state 1:1 (the seven values are the same), the microphone's
 /// and the answer's levels and 24 bands each tick, and the mouth from the session's visemes on the answer's playback clock.
+/// The sound in and out of a conversation is drawn this way: a character, or the built-in bars and ring
+/// (<c>&lt;AvatarView Source="bars" /&gt;</c>).
 /// </summary>
 /// <remarks>
 /// <para>Quality TimedVisemes once the session reports visemes (<c>SpineVoiceOptions.VisemeSource</c>), AudioReactive until
@@ -28,7 +30,6 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
 
     private readonly IVoiceSession? _session;
     private readonly IVoiceAudio? _audio;
-    private VoiceFrame? _fed;
     private VoiceState _state = VoiceState.Idle;
     private string? _item;
     private TimeSpan _played;
@@ -50,16 +51,6 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
         LipSyncQuality = AvatarLipSyncQuality.AudioReactive;
     }
 
-    // Fed by a host that already reads the frame each tick (VoiceView's character), so the session is not asked twice.
-    internal VoiceAvatarDriver(IVoiceSession? session, IVoiceAudio? audio)
-    {
-        _session = session;
-        _audio = audio ?? (session as VoiceSession)?.Audio;
-        LipSyncQuality = AvatarLipSyncQuality.AudioReactive;
-    }
-
-    /// <summary>The frame for the next tick, from a host that reads it itself.</summary>
-    internal void Feed(VoiceFrame frame) => _fed = frame;
 
     AvatarPlaybackSnapshot IAvatarPlaybackClock.GetSnapshot() =>
         new(_generation, _played, _audio?.IsPlaying ?? _state == VoiceState.Speaking, PositionIsPresentationTime: true,
@@ -95,8 +86,7 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     /// <inheritdoc />
     protected internal override void OnTick(TimeSpan delta)
     {
-        var frame = _fed ?? _session?.UpdateFrame() ?? _audio?.UpdateFrame();
-        _fed = null;
+        var frame = _session?.UpdateFrame() ?? _audio?.UpdateFrame();
         if (frame is null)
             return;
 

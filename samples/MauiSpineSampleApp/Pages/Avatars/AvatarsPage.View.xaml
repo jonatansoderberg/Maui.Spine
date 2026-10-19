@@ -8,7 +8,7 @@
     <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar">
 
         <Example Title="Bundled with the app"
-                 Summary="Six avatars shipped as MauiAssets (Bars and Ring are VoiceView's own, built into Spine.Controls.Voice too), each a .spineavatar packed by the spine-avatar tool (rendered posters, no generator source) that the view checks before it draws it. The cards show each package's own poster, light or dark with the theme, so the list draws nothing per frame; the avatar comes alive on its page. Characters have a face that speaks and shows expressions; ambient ones are light and shape. Tap one to drive it.">
+                 Summary="Bars and Ring are built into Spine (Source=&quot;bars&quot;) and show a voice's sound in and out; the other four ship as MauiAssets. Each is a .spineavatar packed by the spine-avatar tool (rendered posters, no generator source) that the view checks before it draws it. The cards show each package's own poster, light or dark with the theme, so the list draws nothing per frame; the avatar comes alive on its page. Characters have a face that speaks and shows expressions; ambient ones are light and shape. Tap one to drive it.">
             <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Bundled}">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="AvatarEntry">

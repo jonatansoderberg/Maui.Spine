@@ -184,8 +184,7 @@ public sealed class AvatarInput
 }
 
 /// <summary>
-/// The tick of one avatar: its driver, then its scheduler. A view owns one; so does a host that runs
-/// no timer of its own avatar (VoiceView's character), which calls <see cref="Tick"/> from its own tick.
+/// The tick of one avatar: its driver, then its scheduler. A view owns one; tests and tools call <see cref="Tick"/> directly.
 /// </summary>
 public sealed class AvatarRuntime
 {

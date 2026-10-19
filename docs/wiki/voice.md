@@ -2,7 +2,7 @@
 
 ```bash
 dotnet add package Plugin.Maui.Spine.Voice
-dotnet add package Plugin.Maui.Spine.Controls.Voice   # VoiceView, to draw it
+dotnet add package Plugin.Maui.Spine.Controls.Avatar  # AvatarView, to draw it
 ```
 
 A spoken conversation with a realtime model has two parts:
@@ -10,7 +10,7 @@ A spoken conversation with a realtime model has two parts:
 - **The voice session (`IVoiceSession`)** gets a short-lived token from the app's server, connects to the provider, cuts the answer off when the user talks over it, keeps a transcript, and runs the tools the app answers itself.
 - **The audio engine (`IVoiceAudio`) under it** runs the microphone and the speaker at the same time, with the platform's echo cancellation. Without it the model hears its own answer and interrupts itself.
 
-The provider's key never reaches the app. **`VoiceView`** (Spine.Controls.Voice) draws the conversation: see [Drawing the conversation](#drawing-the-conversation).
+The provider's key never reaches the app. **`AvatarView`** (Spine.Controls.Avatar) draws the conversation, the sound in and out: see [Drawing the conversation](#drawing-the-conversation).
 
 | Platform | Engine | State |
 |---|---|---|
@@ -143,46 +143,27 @@ The frame is one object, overwritten on every tick without allocating. Read it d
 
 ## Drawing the conversation
 
-`VoiceView` in Spine.Controls.Voice reads the frame of a session (or of a bare engine, `Audio="{Binding Engine}"`) on its own tick and draws it: the orb and the face on its SkiaSharp canvas, bars, ring and a character as avatars ([Avatars](avatars.md)) that it ticks itself:
+An avatar draws the conversation: `AvatarView` with a `VoiceAvatarDriver` (Spine.Controls.Avatar). The driver reads the session's frame (or a bare engine's) on the view's tick: the state one to one, the microphone's and the answer's levels and 24 bands, and the mouth on the answer's playback clock.
 
 ```xml
-<VoiceView Session="{Binding Voice}" Kind="orb" HeightRequest="240" />
+<AvatarView Source="bars" Driver="{Binding Driver}" HeightRequest="200" />
 ```
-
-| `Kind` | What it draws | Under Reduce Motion |
-|---|---|---|
-| `orb` (default) | A soft blob that breathes with the level and wobbles with the bands: the user's colour while they talk, warm while the model speaks, a slow pulse while it thinks | A round orb, no wobble or pulse, whose size follows the level |
-| `bars` | The answer's 24 bands up from a line and the microphone's down, so talking over the answer shows as both. An avatar built into the library (`bars.spineavatar`), one part per band | The same row of bars in a still bell shape, rising with the level |
-| `ring` | The answer's bands outward and the microphone's inward round an empty middle, for round a button or a picture. An avatar built into the library (`ring.spineavatar`) | A ring of each colour whose size follows its level |
-| `avatar` | A face that blinks, looks at the user while listening and up while thinking, and whose mouth follows the visemes or the level | No blinking; the mouth moves slowly |
-| `character` | A `.spineavatar` avatar of your own (Nova, a plush, a shader): the conversation's state, levels and visemes on the avatar, ticked by the VoiceView. The avatar is `VoiceAvatar.Source` on the VoiceView. See [Avatars](avatars.md#with-a-voice-conversation) | The avatar's still pose, four frames a second |
-
-- **Colours:** `InputColor` is the user's (unset, the app's `Primary`), `OutputColor` the model's (unset, a warm orange). Bars and ring take them as their `input` and `output` theme slots (`AvatarView.SetThemeColor`); a character keeps its own colours.
-- **Frame rate:** `FrameRate`, 1 to 60, 30 by default. It does not draw while it is detached, hidden (itself or an ancestor, such as an unselected tab), scrolled out of sight or the app is in the background. Under Reduce Motion it draws four times a second.
-- **Screen readers** hear one element whose description is the state ("Listening", "Speaking"). Muting, an interruption and the end are announced; the turns are not, so the announcements do not talk over the answer.
-- An unknown `Kind` draws the orb and logs a warning.
-
-### Visuals of your own
-
-A `VoiceVisual` draws on the view's canvas; a `VoiceVisualView` is a view of its own (3D, Rive, Lottie) that gets each frame. Register them by name:
 
 ```csharp
-builder.UseSpineVoiceView(o =>
-{
-    o.AddVisual<PulseVisual>("pulse");
-    o.AddVisualView<MascotView>("mascot");
-});
-
-public sealed class PulseVisual : VoiceVisual
-{
-    public override void Draw(SKCanvas canvas, SKRect bounds, VoiceFrame frame, VoiceVisualContext context)
-    {
-        // context: the colours, the pixel scale, the time since the last frame and whether Reduce Motion is on.
-    }
-}
+Driver = new VoiceAvatarDriver(voiceSession);   // or new VoiceAvatarDriver(audioEngine)
 ```
 
-Each view gets a new instance, so a visual keeps its own smoothing state in fields. `Draw` runs on the main thread: keep it cheap and allocate little.
+| `Source` | What it draws | Under Reduce Motion |
+|---|---|---|
+| `bars` (built in) | The answer's 24 bands up from a line and the microphone's down, so talking over the answer shows as both | The same row of bars in a still bell shape, rising with the level |
+| `ring` (built in) | The answer's bands outward and the microphone's inward round an empty middle, for round a button or a picture | A ring of each colour whose size follows its level |
+| a character (`Avatars/nova.spineavatar`, Kairo, a plush) | A face that listens, thinks, speaks with its mouth on the answer and flinches when talked over | The avatar's still pose |
+| an ambient avatar (Voice Totem, Aurora Flow) | Light and shape that follow the levels | Slower motion |
+
+- **Colours:** the built-in bars and ring draw the microphone in the `accent` slot, the app's accent unless `AccentColor` says otherwise, and the answer in the `output` slot, a warm orange unless `SetThemeColor("output", …)` says otherwise.
+- **Frame rate:** `MaxFramesPerSecond` 15, 30 or 60. The view does not draw while it is hidden, scrolled out of sight or the app is in the background; under Reduce Motion it draws four times a second.
+- **Screen readers** hear one element whose description is the avatar's name and state.
+- **Your own look:** a `.spineavatar` of your own; see [Avatars](avatars.md#making-a-package). The format maps each band to a part (`inputBand0`–`23`, `outputBand0`–`23`), so a spectrum needs no code.
 
 ### Visemes
 
@@ -197,7 +178,7 @@ sealed class MyVisemes : IVisemeSource
 }
 ```
 
-OpenAI's realtime API gives no visemes; without a source the avatar's mouth follows the answer's level.
+OpenAI's realtime API gives no visemes; without a source the avatar's mouth opens with the answer's level (AudioReactive).
 
 ### The screen's edge
 

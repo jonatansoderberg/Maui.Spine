@@ -1,12 +1,12 @@
-"""Packages VoiceView's bars and ring as ambient spine2d avatars (#630).
+"""Packages Spine's built-in bars and ring, ambient spine2d avatars that show a voice's sound in and out (#630).
 
 Usage: python voice_visuals.py <out-dir>
 Writes bars.spineavatar and ring.spineavatar with placeholder posters; ship them through the spine-avatar tool
 (`pack <file> -o <out> --strip`), which renders the posters with the Skia renderer.
 
 Each band of the spectrum is its own node, scaled by a per-band parameter (inputBand0-23, outputBand0-23): the answer's
-bands in the `output` slot's colour, the microphone's in `input`'s. VoiceView colours both slots with its InputColor and
-OutputColor. Under Reduce Motion the bands give way to one level per side, as the old Skia visuals did.
+bands in the `output` slot's colour, the microphone's in `accent`'s, which follows the app's accent; AvatarView.SetThemeColor("output", …)
+and AccentColor change them. Under Reduce Motion the bands give way to one level per side.
 """
 import hashlib, io, json, math, os, struct, sys, zipfile, zlib
 
@@ -14,8 +14,8 @@ BANDS = 24
 STATES = ("idle", "connecting", "listening", "thinking", "speaking", "interrupted", "muted")
 EXPRESSIONS = ("neutral", "happy", "curious", "thinking", "concerned", "surprised", "apologetic", "confident")
 LIVE = ("listening", "thinking", "speaking", "interrupted")
-INPUT = {"light": "#1E88E5", "dark": "#64B5F6"}      # VoiceView draws the app's accent instead
-OUTPUT = {"light": "#FF7A45", "dark": "#FF8A5C"}     # VoiceView's warm default
+INPUT = {"light": "#1E88E5", "dark": "#64B5F6"}      # the app's accent replaces it
+OUTPUT = {"light": "#FF7A45", "dark": "#FF8A5C"}     # warm, for the answer
 SLIVER = 0.04                                         # a band at silence still reads as a bar
 
 
@@ -58,12 +58,12 @@ def bars():
     bar = (width - gap * (BANDS - 1)) / BANDS
     xs = [-width / 2 + b * (bar + gap) + bar / 2 for b in range(BANDS)]
     nodes = [still(), node("root", x=width / 2, y=height / 2)]
-    nodes.append(node("midline", "path", "root", slot="input", opacity=0.2, path=capsule(width, 1.0, 0), x=-width / 2))
+    nodes.append(node("midline", "path", "root", slot="accent", opacity=0.2, path=capsule(width, 1.0, 0), x=-width / 2))
     parameters = {}
     for b, x in enumerate(xs):
         # A bar turned to point up (the answer) or down (the microphone) from the midline, and scaled along it.
         nodes.append(node(f"out{b}", "path", "root", x=x, rotation=UP, sx=SLIVER, slot="output", path=capsule(half, bar)))
-        nodes.append(node(f"in{b}", "path", "root", x=x, rotation=DOWN, sx=SLIVER, slot="input", path=capsule(half, bar)))
+        nodes.append(node(f"in{b}", "path", "root", x=x, rotation=DOWN, sx=SLIVER, slot="accent", path=capsule(half, bar)))
         parameters[f"outputBand{b}"] = [{"node": f"out{b}", "property": "scaleX", "min": SLIVER, "max": 1}]
         parameters[f"inputBand{b}"] = [{"node": f"in{b}", "property": "scaleX", "min": SLIVER, "max": 1}]
     # Reduce Motion: the same row of bars in one still bell shape, rising with the level instead of the spectrum.
@@ -72,7 +72,7 @@ def bars():
     up = " ".join(capsule(half * k, bar, x) for k, x in zip(bell, xs))
     down = " ".join(capsule(half * k, bar, -x) for k, x in zip(bell, xs))
     nodes.append(node("outLevel", "path", "root", rotation=UP, sx=0.2, opacity=0, slot="output", path=up))
-    nodes.append(node("inLevel", "path", "root", rotation=DOWN, sx=0.2, opacity=0, slot="input", path=down))
+    nodes.append(node("inLevel", "path", "root", rotation=DOWN, sx=0.2, opacity=0, slot="accent", path=down))
     parameters["outputLevel"] = [{"node": "outLevel", "property": "scaleX", "min": 0.2, "max": 1}]
     parameters["inputLevel"] = [{"node": "inLevel", "property": "scaleX", "min": 0.2, "max": 1}]
 
@@ -89,7 +89,7 @@ def ring():
     ticks = BANDS * 2
     nodes = [still(), node("root", x=size / 2, y=size / 2)]
     # The circle the ticks stand on; the middle stays empty for what the ring surrounds.
-    nodes.append(node("circle", "ellipse", "root", opacity=0.28, w=2 * radius, h=2 * radius, stroke=(1.5, "input")))
+    nodes.append(node("circle", "ellipse", "root", opacity=0.28, w=2 * radius, h=2 * radius, stroke=(1.5, "accent")))
     parameters = {}
     for t in range(ticks):
         # The bands run up one side and down the other, so the ring is symmetric and low notes meet at the top.
@@ -98,12 +98,12 @@ def ring():
         cos, sin = math.cos(angle), math.sin(angle)
         # Each tick starts at its inner end, turned to point outward (the microphone's inward) and scaled along it.
         nodes.append(node(f"out{t}", "path", "root", x=cos * (radius + gap), y=sin * (radius + gap), rotation=angle, sx=SLIVER, slot="output", path=capsule(reach, thickness)))
-        nodes.append(node(f"in{t}", "path", "root", x=cos * (radius - gap), y=sin * (radius - gap), rotation=angle + math.pi, sx=SLIVER, slot="input", path=capsule(reach * 0.7, thickness)))
+        nodes.append(node(f"in{t}", "path", "root", x=cos * (radius - gap), y=sin * (radius - gap), rotation=angle + math.pi, sx=SLIVER, slot="accent", path=capsule(reach * 0.7, thickness)))
         parameters.setdefault(f"outputBand{band}", []).append({"node": f"out{t}", "property": "scaleX", "min": SLIVER, "max": 1})
         parameters.setdefault(f"inputBand{band}", []).append({"node": f"in{t}", "property": "scaleX", "min": SLIVER, "max": 1})
     # Reduce Motion: a ring of the answer's colour outside the circle and the microphone's inside, each widening with its level.
     nodes.append(node("outLevel", "ellipse", "root", opacity=0, w=2 * radius + 6, h=2 * radius + 6, stroke=(3, "output")))
-    nodes.append(node("inLevel", "ellipse", "root", opacity=0, w=2 * radius - 6, h=2 * radius - 6, stroke=(3, "input")))
+    nodes.append(node("inLevel", "ellipse", "root", opacity=0, w=2 * radius - 6, h=2 * radius - 6, stroke=(3, "accent")))
     parameters["outputLevel"] = [{"node": "outLevel", "property": "scaleX", "min": 1, "max": 1.1},
                                  {"node": "outLevel", "property": "scaleY", "min": 1, "max": 1.1}]
     parameters["inputLevel"] = [{"node": "inLevel", "property": "scaleX", "min": 1, "max": 0.9},
@@ -136,7 +136,8 @@ def package(out_dir, id, name, width, height, nodes, parameters, reduced, muted)
     def bound(slot):
         return sorted([f"{n['id']}.fill" for n in nodes if n.get("fill", {}).get("slot") == slot]
                       + [f"{n['id']}.stroke" for n in nodes if n.get("stroke", {}).get("slot") == slot])
-    slots = {"input": {**INPUT, "bindings": bound("input")}, "output": {**OUTPUT, "bindings": bound("output")}}
+    # The microphone's side is the accent slot, so it follows the app's accent (AvatarView.AccentColor) like the rest of Spine.
+    slots = {"accent": {**INPUT, "bindings": bound("accent")}, "output": {**OUTPUT, "bindings": bound("output")}}
     features = ["strokes"] if any("stroke" in n for n in nodes) else []
     manifest = {
         "schemaVersion": "1.0", "id": id, "displayName": name, "assetVersion": "1.0.0", "minRuntimeVersion": "1.0.0",
@@ -159,9 +160,9 @@ def package(out_dir, id, name, width, height, nodes, parameters, reduced, muted)
         "bindings/skia.json": json.dumps(bindings, indent=1).encode(),
         "previews/poster-light.png": png_1x1(),
         "previews/poster-dark.png": png_1x1(),
-        "LICENSE.txt": b"Written for Spine's VoiceView. Same licence as the Maui.Spine repository.\n",
+        "LICENSE.txt": b"Built into Spine. Same licence as the Maui.Spine repository.\n",
         "provenance.json": json.dumps({"created": "2026-10-19", "generator": "samples/SpineAvatarLab/Tools/voice_visuals.py",
-                                       "source": "Procedural, after VoiceView's Skia bars and ring (#630)", "externalAssets": []}, indent=1).encode(),
+                                       "source": "Procedural, after Spine's former Skia bars and ring (#630)", "externalAssets": []}, indent=1).encode(),
         "source/voice_visuals.py": open(__file__, 'rb').read(),
     }
     manifest["files"] = [{"path": p, "sha256": hashlib.sha256(b).hexdigest(), "bytes": len(b)} for p, b in sorted(files.items())]

@@ -86,7 +86,7 @@ One version, thirty-four packages, all on [nuget.org](https://www.nuget.org/pack
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients (accent, Aurora, Sunset or your own colours) that drift slowly behind glass |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view: a moving rim while a model works, rings that say tap here, a sweep, a running light or a breathing halo; once per install with a key |
 | Controls | `Plugin.Maui.Spine.Controls.Chat` | `ChatView` and `ChatComposer`: a conversation with any `IChatClient`, answers streamed as markdown that follow the end, Stop, suggestions, tool cards |
-| Controls | `Plugin.Maui.Spine.Controls.Voice` | `VoiceView`: a voice conversation drawn as it happens, as a breathing orb, duplex bars, a ring or a face whose mouth follows the answer; visuals of your own, quiet under Reduce Motion |
+| Controls | `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: animated characters and ambient visuals from `.spineavatar` files, driven by state, text, speech or a realtime voice conversation; built-in `bars` and `ring` that show a voice's sound in and out |
 | Controls | `Plugin.Maui.Spine.Controls.Markdown` | `MarkdownView`: markdown on native views (lists, code with Copy, quotes, tables, images), themed; a streamed answer rebuilds only its last block |
 | Controls | `Plugin.Maui.Spine.Controls.Rows` | `SpineRow`: settings and key/value rows with icon, detail, value, accessory and chevron |
 | Controls | `Plugin.Maui.Spine.Barcodes` | QR, Data Matrix, Aztec, PDF417 and linear codes as a matrix, SVG or `BarcodeView`, with fixed sizes such as 12 × 12 |

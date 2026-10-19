@@ -5,13 +5,13 @@
     x:TypeArguments="VoiceChatPageViewModel"
     x:DataType="VoiceChatPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Voice, Plugin.Maui.Spine.Server.AI, Plugin.Maui.Spine.Controls.Chat, Plugin.Maui.Spine.Controls.Highlight">
+    <SampleLayout Packages="Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Avatar, Plugin.Maui.Spine.Server.AI, Plugin.Maui.Spine.Controls.Chat, Plugin.Maui.Spine.Controls.Highlight">
 
         <Example Title="Talk to a realtime model"
                  Summary="A spoken conversation with the push sample server's Voice feature (gpt-realtime, in Swedish). The server gives a short-lived token and keeps the OpenAI key; the app opens the provider's socket with it. Talk over the answer and it stops, and the model is told how much you heard. Ask what time it is: the app answers that tool itself.">
             <VerticalStackLayout Spacing="12">
                 <Entry Text="{Binding Server}" Placeholder="http://192.168.1.10:5100/ai" Keyboard="Url" />
-                <VoiceView Session="{Binding Session}" Kind="{Binding Kind}" HeightRequest="200" />
+                <AvatarView Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="200" />
                 <Label Text="{Binding Status}" FontSize="15" Opacity="0.8" />
                 <HorizontalStackLayout Spacing="10">
                     <Button Text="Connect" Command="{Binding ConnectCommand}" />
@@ -19,8 +19,8 @@
                     <Button Text="Stop the answer" Command="{Binding StopCommand}" />
                 </HorizontalStackLayout>
                 <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
-                    <Label Text="Visual" VerticalOptions="Center" />
-                    <Picker Grid.Column="1" ItemsSource="{Binding Kinds}" SelectedItem="{Binding Kind}" MinimumWidthRequest="120" />
+                    <Label Text="Avatar" VerticalOptions="Center" />
+                    <Picker Grid.Column="1" ItemsSource="{Binding Avatars}" SelectedItem="{Binding Avatar}" MinimumWidthRequest="120" />
                     <Label Grid.Row="1" Text="Glow the screen's edge with the answer" VerticalOptions="Center" />
                     <Switch Grid.Row="1" Grid.Column="1" IsToggled="{Binding Edge}" />
                     <Label Grid.Row="2" Text="Mute the microphone" VerticalOptions="Center" />
@@ -38,8 +38,9 @@
                         "show_time", "Says what time it is."));
                 });
 
-                // The conversation drawn, and the screen's edge with the answer:
-                &lt;VoiceView Session="{Binding Voice}" Kind="orb" /&gt;
+                // The conversation drawn (the sound in and out), and the screen's edge with the answer:
+                &lt;AvatarView Source="bars" Driver="{Binding Driver}" /&gt;
+                Driver = new VoiceAvatarDriver(voice);
                 edge = highlights.AttachEdge(window);
                 edge.Intensity = () =&gt; voice.UpdateFrame().OutputLevel;
 
