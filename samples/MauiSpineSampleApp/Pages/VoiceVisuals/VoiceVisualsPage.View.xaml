@@ -8,7 +8,7 @@
     <SampleLayout Packages="Plugin.Maui.Spine.Controls.Voice">
 
         <Example Title="The built-in visuals"
-                 Summary="One engine plays 14 seconds of Swedish speech over and over, and four views draw its frame: the answer warm, the microphone in the app's accent. Talk over it to see both at once. The orb and the face are drawn on the view's canvas; bars and ring are avatars (.spineavatar packages built into the library), one part per band of the spectrum, coloured by the view's InputColor and OutputColor. With Reduce Motion on they draw four times a second and show the state and a slow level instead of the spectrum.">
+                 Summary="One engine plays 14 seconds of Swedish speech over and over, and four views draw its frame: the answer warm, the microphone in the app's accent. Talk over it to see both at once. The orb and the face are drawn on the view's canvas; bars and ring are avatars (.spineavatar packages built into the library, also in the Avatars gallery), one part per band of the spectrum, coloured by the view's InputColor and OutputColor. With Reduce Motion on they draw four times a second and show the state and a slow level instead of the spectrum.">
             <VerticalStackLayout Spacing="12">
                 <Grid ColumnDefinitions="*,*" RowDefinitions="170,Auto,170,Auto" ColumnSpacing="12" RowSpacing="4">
                     <VoiceView Audio="{Binding Audio}" Kind="orb" />

@@ -48,6 +48,8 @@ public partial class AvatarsPageViewModel : SampleViewModel
         new("plush-puff", "Puff", "A plush creature that squashes as it talks and blushes when it is happy.", "Character", Gltf, AvatarSource.FromMauiAsset("Avatars/plush-puff.spineavatar")),
         new("voice-totem", "Voice Totem", "A ring and three packets that follow the voice: a vector scene, crisp at any size.", "Ambient", "Vector · Skia", AvatarSource.FromMauiAsset("Avatars/voice-totem.spineavatar")),
         new("aurora-flow", "Aurora Flow", "Light that flows: one SkSL shader fed the levels, the mouth and the state.", "Ambient", "Shader · Skia", AvatarSource.FromMauiAsset("Avatars/aurora-flow.spineavatar")),
+        new("bars", "Bars", "VoiceView's bars: the answer's 24 bands up from a line and the microphone's down, one part per band.", "Ambient", "Vector · Skia", AvatarSource.FromMauiAsset("Avatars/bars.spineavatar")),
+        new("ring", "Ring", "VoiceView's ring: the answer's bands outward and the microphone's inward, round an empty middle.", "Ambient", "Vector · Skia", AvatarSource.FromMauiAsset("Avatars/ring.spineavatar")),
     ];
 
     /// <summary>Kairo, once downloaded; null until then.</summary>
