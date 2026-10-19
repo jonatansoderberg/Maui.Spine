@@ -16,6 +16,9 @@ public enum VoiceSessionEnd
 
     /// <summary>Something failed; the exception says what.</summary>
     Failed,
+
+    /// <summary>The user said goodbye and the model's farewell has played (<see cref="IVoiceSession.EndsOnGoodbye"/>).</summary>
+    Goodbye,
 }
 
 /// <summary>
@@ -81,6 +84,23 @@ public interface IVoiceSession : IAsyncDisposable
 
     /// <summary>Says something in writing; the model answers aloud.</summary>
     Task SendTextAsync(string text, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hangs up when the user says goodbye: the model gets a tool, <c>end_conversation</c>, to call when the user is done
+    /// ("thanks, bye"), says a short farewell, and the session ends with <see cref="VoiceSessionEnd.Goodbye"/> once that
+    /// has played. Talking over the farewell keeps the conversation going. Off by default; it can change during a session.
+    /// </summary>
+    bool EndsOnGoodbye { get; set; }
+
+    /// <summary>
+    /// The voice to ask the server for at the next <see cref="ConnectAsync"/>, such as an avatar's
+    /// (<c>VoiceAvatarDriver</c> sets it from the avatar). The server uses it when the feature offers it
+    /// (<c>Realtime:Voices</c>), otherwise its own; <see cref="SpokenVoice"/> says which.
+    /// </summary>
+    string? Voice { get; set; }
+
+    /// <summary>The voice the server gave the session, or <see langword="null"/> when it did not say or no session runs.</summary>
+    string? SpokenVoice { get; }
 
     /// <summary>Writes the latest levels, bands and the conversation's state into the frame. Call it on the UI's tick.</summary>
     VoiceFrame UpdateFrame();

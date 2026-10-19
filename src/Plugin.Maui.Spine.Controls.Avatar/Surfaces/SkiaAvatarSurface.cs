@@ -55,6 +55,7 @@ internal sealed class SkiaAvatarSurface : AvatarSurface
 #endif
     private bool _dark;
     private SKColor? _accent;
+    private IReadOnlyDictionary<string, Color>? _themeColors;
     private bool _hasFrame;
 
     public SkiaAvatarSurface(ISkiaAvatarModel model)
@@ -97,6 +98,11 @@ internal sealed class SkiaAvatarSurface : AvatarSurface
         frame.CopyTo(_frame);
         _dark = dark;
         _accent = accent?.ToSKColor();
+        if (!ReferenceEquals(_themeColors, ThemeColors))
+        {
+            _themeColors = ThemeColors;
+            _renderer.ThemeColors = ThemeColors.Count == 0 ? null : ThemeColors.ToDictionary(p => p.Key, p => p.Value.ToSKColor(), StringComparer.Ordinal);
+        }
         _hasFrame = true;
 #if IOS || MACCATALYST
         _metal.SetNeedsDisplay();

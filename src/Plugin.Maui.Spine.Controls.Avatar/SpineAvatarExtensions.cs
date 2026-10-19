@@ -4,12 +4,9 @@ using SkiaSharp.Views.Maui.Controls.Hosting;
 
 namespace Plugin.Maui.Spine.Controls;
 
-/// <summary>Defaults for <see cref="AvatarView"/> and the hosts that show an avatar.</summary>
+/// <summary>Defaults for <see cref="AvatarView"/>.</summary>
 public sealed class SpineAvatarOptions
 {
-    /// <summary>The avatar a host shows when it is given none (VoiceView's <c>character</c>).</summary>
-    public AvatarSource? DefaultSource { get; set; }
-
     /// <summary>
     /// Renderers beyond the built-in ones (Skia on every platform, SceneKit on iOS and Mac Catalyst), asked first.
     /// A renderer package adds itself here.

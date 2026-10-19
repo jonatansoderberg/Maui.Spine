@@ -33,6 +33,9 @@ internal sealed class AvatarShaderModel : ISkiaAvatarModel
     /// <summary>Uniform name → the theme slot that colours it.</summary>
     internal Dictionary<string, AvatarThemeSlot> Themes { get; }
 
+    /// <summary>Uniform name → the name of the theme slot that colours it.</summary>
+    internal Dictionary<string, string> SlotNames { get; } = new(StringComparer.Ordinal);
+
     public ISkiaAvatarRenderer CreateRenderer() => new AvatarShaderRenderer(this);
 
     public static AvatarShaderModel Compile(AvatarPackage package, AvatarRepresentation representation)
@@ -42,9 +45,13 @@ internal sealed class AvatarShaderModel : ISkiaAvatarModel
             ?? throw new AvatarFormatException(representation.Model, $"the shader does not compile: {errors}");
 
         var themes = new Dictionary<string, AvatarThemeSlot>(StringComparer.Ordinal);
-        foreach (var slot in package.Manifest.Themes.Slots.Values)
+        var slotNames = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (name, slot) in package.Manifest.Themes.Slots)
             foreach (var binding in slot.Bindings.Where(b => b.StartsWith("uniform:", StringComparison.Ordinal)))
+            {
                 themes[binding[8..]] = slot;
+                slotNames[binding[8..]] = name;
+            }
 
         var unknown = effect.Uniforms.Where(u => !AvatarShaderContract.Uniforms.ContainsKey(u) && !themes.ContainsKey(u)).ToList();
         if (unknown.Count > 0 || effect.Children.Any())
@@ -53,7 +60,10 @@ internal sealed class AvatarShaderModel : ISkiaAvatarModel
                 ? $"uniforms {string.Join(", ", unknown)} are not in the runtime's contract"
                 : "child shaders are not supported");
         }
-        return new AvatarShaderModel(source, package.Manifest, themes);
+        var model = new AvatarShaderModel(source, package.Manifest, themes);
+        foreach (var (uniform, name) in slotNames)
+            model.SlotNames[uniform] = name;
+        return model;
     }
 }
 
@@ -93,6 +103,17 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
     private double _lastTime = double.NaN;
     private float _flow;
     private bool? _themeDark;
+    private IReadOnlyDictionary<string, SKColor>? _themeColors;
+
+    public IReadOnlyDictionary<string, SKColor>? ThemeColors
+    {
+        get => _themeColors;
+        set
+        {
+            _themeColors = value;
+            _themeDark = null;
+        }
+    }
 
     public AvatarShaderRenderer(AvatarShaderModel model)
     {
@@ -214,7 +235,9 @@ internal sealed class AvatarShaderRenderer : ISkiaAvatarRenderer
         {
             foreach (var (uniform, slot) in _model.Themes)
             {
-                var c = SKColor.Parse(dark ? slot.Dark : slot.Light);
+                var c = _themeColors is not null && _model.SlotNames.TryGetValue(uniform, out var name) && _themeColors.TryGetValue(name, out var own)
+                    ? own
+                    : SKColor.Parse(dark ? slot.Dark : slot.Light);
                 var values = _themeValues[uniform];
                 values[0] = c.Red / 255f; values[1] = c.Green / 255f; values[2] = c.Blue / 255f;
                 Set(uniform, values);

@@ -1,7 +1,7 @@
 namespace MauiSpineSampleApp.Pages;
 
 /// <summary>The settings an example lets you try, shown in <see cref="OptionsSheet"/>.</summary>
-/// <param name="Options"><see cref="ChoiceGroup"/>, <see cref="ToggleOption"/> or <see cref="SliderOption"/> items.</param>
+/// <param name="Options"><see cref="ChoiceGroup"/>, <see cref="ToggleOption"/>, <see cref="SliderOption"/> or <see cref="TextOption"/> items.</param>
 public sealed record SampleOptions(string Title, IReadOnlyList<ObservableObject> Options);
 
 public sealed partial class Choice(string label, string description, Action choose) : ObservableObject
@@ -129,6 +129,34 @@ public sealed partial class SliderOption : ObservableObject
     partial void OnValueChanged(double value) => _set?.Invoke(value);
 }
 
+/// <summary>A text setting, such as a server's address, that reads and writes a property of the page.</summary>
+public sealed partial class TextOption : ObservableObject
+{
+    private readonly Action<string> _set;
+
+    public TextOption(string name, string? description, Func<string> get, Action<string> set, Microsoft.Maui.Keyboard? keyboard = null)
+    {
+        Name = name;
+        Description = description;
+        Keyboard = keyboard ?? Microsoft.Maui.Keyboard.Default;
+        Text = get();
+        _set = set;
+    }
+
+    public string Name { get; }
+
+    public string? Description { get; }
+
+    public bool HasDescription => Description is not null;
+
+    public Microsoft.Maui.Keyboard Keyboard { get; }
+
+    [ObservableProperty]
+    public partial string Text { get; set; }
+
+    partial void OnTextChanged(string value) => _set?.Invoke(value);
+}
+
 /// <summary>Picks the row template for each kind of option.</summary>
 public sealed class OptionTemplateSelector : DataTemplateSelector
 {
@@ -138,11 +166,14 @@ public sealed class OptionTemplateSelector : DataTemplateSelector
 
     public DataTemplate? Slider { get; set; }
 
+    public DataTemplate? Text { get; set; }
+
     protected override DataTemplate? OnSelectTemplate(object item, BindableObject container) => item switch
     {
         ChoiceGroup => Choice,
         ToggleOption => Toggle,
         SliderOption => Slider,
+        TextOption => Text,
         _ => null,
     };
 }

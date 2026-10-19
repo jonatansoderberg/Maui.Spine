@@ -7,7 +7,9 @@ namespace Plugin.Maui.Spine.Controls;
 /// <summary>
 /// Reads text aloud through <see cref="ISpineSpeech"/> and moves the mouth with the voice: each word's visemes are guessed
 /// from its letters and laid down as the voice reaches it, so the voice's own pace and pauses keep the mouth in step
-/// (EstimatedText). A voice that reports visemes (a server voice) gives TimedVisemes instead.
+/// (EstimatedText). A voice that reports visemes (a server voice) gives TimedVisemes instead. A voice that reports no words
+/// (some Enhanced and Premium voices on a device) still moves the mouth: once it has been still for a second while the voice
+/// speaks, the next words are guessed from the text, back to back, until the voice reports one again.
 /// </summary>
 /// <remarks>
 /// States: Thinking until the voice starts, Speaking while it speaks, Idle when it ends. The view's <c>Interrupt()</c>
@@ -22,11 +24,15 @@ namespace Plugin.Maui.Spine.Controls;
 /// </example>
 public sealed class SpeechAvatarDriver : AvatarDriver, IAvatarPlaybackClock
 {
+    // How long the mouth stays still while the voice speaks before the next word is guessed.
+    private const double Silence = 1;
+
     private readonly ISpineSpeech _speech;
     private readonly EstimatedMouth _mouth = new();
     private SpeechUtterance? _utterance;
     private long _generation;
-    private bool _timed;
+    private bool _timed, _guessing;
+    private int _said;
 
     /// <summary>A driver that speaks through <paramref name="speech"/>.</summary>
     public SpeechAvatarDriver(ISpineSpeech speech)
@@ -48,7 +54,8 @@ public sealed class SpeechAvatarDriver : AvatarDriver, IAvatarPlaybackClock
         var utterance = _speech.Speak(text, options);
         _utterance = utterance;
         _mouth.Clear();
-        _timed = false;
+        _timed = _guessing = false;
+        _said = 0;
         LipSyncQuality = AvatarLipSyncQuality.EstimatedText;
         utterance.Started += OnStarted;
         utterance.Word += OnWord;
@@ -96,6 +103,8 @@ public sealed class SpeechAvatarDriver : AvatarDriver, IAvatarPlaybackClock
         if (_utterance is not { State: SpeechUtteranceState.Speaking } utterance)
             return;
         var position = utterance.Position.TotalSeconds;
+        if (!_timed)
+            Guess(utterance.Text, position);
         _mouth.Push(Input, _generation, position);
         _mouth.Sound(Input, position);
     }
@@ -113,9 +122,29 @@ public sealed class SpeechAvatarDriver : AvatarDriver, IAvatarPlaybackClock
 
     private void OnWord(object? sender, SpeechWord word)
     {
-        if (sender is not SpeechUtterance utterance || utterance != _utterance || _timed)
+        if (sender is not SpeechUtterance utterance || utterance != _utterance || _timed || word.Start < _said)
             return;
+        _guessing = false;
+        _said = word.Start + word.Length;
         _mouth.AddText(utterance.Text.Substring(word.Start, word.Length), word.At.TotalSeconds, CharactersPerSecond);
+    }
+
+    // The next word after those laid down, once the mouth has been still for Silence (or at once while already guessing).
+    private void Guess(string text, double position)
+    {
+        if (position < _mouth.End + (_guessing ? 0 : Silence))
+            return;
+        var start = _said;
+        while (start < text.Length && char.IsWhiteSpace(text[start]))
+            start++;
+        var end = start;
+        while (end < text.Length && !char.IsWhiteSpace(text[end]))
+            end++;
+        _said = end;
+        if (end == start)
+            return;
+        _guessing = true;
+        _mouth.AddText(text[start..end], Math.Max(position, _mouth.End), CharactersPerSecond);
     }
 
     // A voice that times its visemes replaces the guesses from then on.

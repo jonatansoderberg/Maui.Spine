@@ -43,6 +43,9 @@ internal sealed class GltfSkiaModel : ISkiaAvatarModel
 
 internal sealed class GltfSkiaRenderer : ISkiaAvatarRenderer
 {
+    // Its materials have no theme slots.
+    public IReadOnlyDictionary<string, SKColor>? ThemeColors { get; set; }
+
     private static readonly Vector3 KeyLight = Vector3.Normalize(new(-0.5f, 0.7f, 0.9f));
     private static readonly Vector3 FillLight = Vector3.Normalize(new(0.8f, 0.2f, 0.6f));
 

@@ -54,6 +54,15 @@
                     </VerticalStackLayout>
                 </DataTemplate>
             </OptionTemplateSelector.Slider>
+            <OptionTemplateSelector.Text>
+                <DataTemplate x:DataType="TextOption">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="15" />
+                        <Entry Text="{Binding Text}" Keyboard="{Binding Keyboard}" FontSize="15" />
+                        <Label Text="{Binding Description}" FontSize="14" TextColor="Gray" IsVisible="{Binding HasDescription}" />
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </OptionTemplateSelector.Text>
         </OptionTemplateSelector>
     </SpinePage.Resources>
 

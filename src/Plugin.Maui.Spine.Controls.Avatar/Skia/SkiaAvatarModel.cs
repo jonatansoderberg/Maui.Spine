@@ -14,6 +14,9 @@ internal interface ISkiaAvatarRenderer : IDisposable
     void Evaluate(AvatarRenderFrame frame);
 
     void Draw(SKCanvas canvas, SKRect bounds, bool dark, SKColor? accent = null);
+
+    /// <summary>Theme slot colours by name over the package's own; replaced as a whole when they change.</summary>
+    IReadOnlyDictionary<string, SKColor>? ThemeColors { get; set; }
 }
 
 internal static class SkiaAvatarModel

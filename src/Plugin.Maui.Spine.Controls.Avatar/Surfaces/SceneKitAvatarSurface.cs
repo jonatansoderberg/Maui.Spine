@@ -45,6 +45,7 @@ internal sealed class SceneKitAvatarSurface : AvatarSurface
     private readonly SCNNode _cameraNode = SCNNode.Create();
     private readonly SCNNode[] _nodes;
     private readonly List<(int Mesh, SCNMorpher Morpher)> _morphers = [];
+    private readonly List<(int Mesh, SCNNode Node)> _overlays = [];
     private readonly Dictionary<string, SCNMaterial[]> _materials = new(StringComparer.Ordinal);
     private readonly GltfAvatarRig _rig;
     private readonly AvatarPackage _package;
@@ -186,6 +187,16 @@ internal sealed class SceneKitAvatarSurface : AvatarSurface
                 }
             }
         }
+        // The lids rest folded along the lash line, where they showed as a skin-coloured strip with the eyes wide open.
+        foreach (var (mesh, overlay) in _overlays)
+        {
+            var weights = _rig.Weights[mesh];
+            var resting = true;
+            for (var k = 0; k < weights.Length && resting; k++)
+                resting = MathF.Abs(weights[k]) < 0.01f;
+            if (overlay.Hidden != resting)
+                overlay.Hidden = resting;
+        }
         var rootScale = _rig.RootScale;
         _container.Scale = new SCNVector3(rootScale.X, rootScale.Y, rootScale.Z);
         _container.Orientation = new SCNQuaternion(0, MathF.Sin(_viewYaw / 2), 0, MathF.Cos(_viewYaw / 2));
@@ -226,7 +237,10 @@ internal sealed class SceneKitAvatarSurface : AvatarSurface
 
             var target = SCNNode.FromGeometry(geometry);
             if (_rig.OverlayMeshes.Contains(node.Mesh))
+            {
                 target.RenderingOrder = 1;          // lids over a transparent iris: drawn after it whatever the sorting says
+                _overlays.Add((node.Mesh, target));
+            }
             if (primitive.Targets.Length > 0)
             {
                 var morpher = new SCNMorpher
@@ -304,9 +318,12 @@ internal sealed class SceneKitAvatarSurface : AvatarSurface
             material.Emission.Contents = emissiveImage;
         if (m.Mask)
         {
-            // SceneKit has no alpha test; a fragment modifier discards what glTF's MASK mode would.
+            // SceneKit has no alpha test; a fragment modifier discards what glTF's MASK mode would. The fragments that survive
+            // are opaque: SceneKit blends by the texture's alpha by default, and hair cards seen at a grazing angle (their alpha
+            // averaged by the mip levels to 0.5-0.9) showed as pale ghosts against the background.
             var cutoff = m.AlphaCutoff.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-            material.ShaderModifiers = new SCNShaderModifiers { EntryPointFragment = $"if (_output.color.a < {cutoff}) discard_fragment();" };
+            material.ShaderModifiers = new SCNShaderModifiers { EntryPointFragment = $"if (_output.color.a < {cutoff}) discard_fragment(); _output.color.a = 1.0;" };
+            material.BlendMode = SCNBlendMode.Replace;
         }
         else if (m.Blend)
             material.BlendMode = SCNBlendMode.Alpha;

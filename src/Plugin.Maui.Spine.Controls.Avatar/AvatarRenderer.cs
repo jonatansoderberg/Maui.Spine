@@ -39,6 +39,12 @@ public abstract class AvatarSurface : IDisposable
     /// <param name="accent">The colour for the avatar's <c>accent</c> slot, or null for its own.</param>
     public abstract void Render(AvatarRenderFrame frame, bool dark, Color? accent);
 
+    /// <summary>
+    /// Colours for theme slots by name, over the package's own light and dark ones (<see cref="AvatarView.SetThemeColor"/>).
+    /// A renderer that colours by slot reads it when it draws; one that cannot, ignores it.
+    /// </summary>
+    public IReadOnlyDictionary<string, Color> ThemeColors { get; internal set; } = new Dictionary<string, Color>();
+
     internal AvatarFrameStats Stats { get; } = new();
 
     /// <summary>Releases the renderer's resources.</summary>

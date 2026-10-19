@@ -6,6 +6,7 @@ using Plugin.Maui.Spine.Controls;
 using Plugin.Maui.Spine.Controls.Avatar;
 using Plugin.Maui.Spine.Speech;
 using Plugin.Maui.Spine.Voice;
+using MauiSpineSampleApp.Pages.Avatars;
 
 namespace MauiSpineSampleApp.Pages.Assistant;
 
@@ -31,11 +32,15 @@ public partial class AssistantPageViewModel : SampleViewModel
             Status = error is null ? $"Ended: {reason}." : $"Ended: {error.Message}";
         };
         _voiceDriver = new VoiceAvatarDriver(Session);
+        // A simulator has no echo cancellation; see the Voice chat page.
+        if (DeviceInfo.DeviceType == DeviceType.Virtual)
+            Session.Duplex = VoiceDuplex.HalfWhileSpeaking;
         _speech = new SpeechAvatarDriver(services.GetRequiredService<ISpineSpeech>());
         _assistant = services.GetRequiredKeyedService<IChatClient>("Assistant");
         Driver = _voiceDriver;
         ChatClient = _demo;
-        Avatar = Avatars[0];
+        // A character: the page is about an assistant with a face.
+        Avatar = Avatars.First(a => a.Name == "Nova");
     }
 
     private readonly VoiceAvatarDriver _voiceDriver;
@@ -71,8 +76,6 @@ public partial class AssistantPageViewModel : SampleViewModel
     {
         _textDriver.Clear();
         _speech.Stop();
-        if (value == 1)
-            HostIndex = 0;
         Driver = value == 1 ? _textDriver : _voiceDriver;
     }
 
@@ -111,25 +114,10 @@ public partial class AssistantPageViewModel : SampleViewModel
     [ObservableProperty]
     public partial AvatarDriver Driver { get; set; }
 
-    public IReadOnlyList<AvatarChoice> Avatars { get; } =
-    [
-        new("Nova", AvatarSource.FromMauiAsset("Avatars/nova.spineavatar")),
-        new("Puff", AvatarSource.FromMauiAsset("Avatars/plush-puff.spineavatar")),
-        new("Voice Totem", AvatarSource.FromMauiAsset("Avatars/voice-totem.spineavatar")),
-        new("Aurora Flow", AvatarSource.FromMauiAsset("Avatars/aurora-flow.spineavatar")),
-    ];
+    public IReadOnlyList<AvatarChoice> Avatars => VoiceAvatars.All;
 
     [ObservableProperty]
     public partial AvatarChoice Avatar { get; set; }
-
-    /// <summary>0: an AvatarView with VoiceAvatarDriver; 1: VoiceView's character.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsFree), nameof(IsHosted))]
-    public partial int HostIndex { get; set; }
-
-    public bool IsFree => HostIndex == 0;
-
-    public bool IsHosted => HostIndex == 1;
 
     /// <summary>The push sample server's AI prefix; on a phone, the Mac's address on the network.</summary>
     [ObservableProperty]
@@ -202,7 +190,12 @@ public partial class AssistantPageViewModel : SampleViewModel
         }
         catch (AIFeatureOffException e)
         {
-            Status = $"The server's Voice feature is off ({e.Reason}). Does it have an OpenAI key?";
+            Status = e.Reason switch
+            {
+                AIOffReason.SignInRequired => "The server's Voice feature answers signed-in users only; sign in first.",
+                AIOffReason.Budget => "Today's Voice budget is spent; try again tomorrow.",
+                _ => $"The server's Voice feature is off ({e.Reason}). Does it have an OpenAI key?",
+            };
         }
         catch (AIRateLimitedException e)
         {
@@ -252,10 +245,4 @@ public partial class AssistantPageViewModel : SampleViewModel
         var left = Session.TimeLeft is { } t ? string.Create(CultureInfo.InvariantCulture, $" · {t:m\\:ss} left") : "";
         Status = $"{Session.State}{left}";
     }
-}
-
-/// <summary>An avatar in the picker.</summary>
-public sealed record AvatarChoice(string Name, AvatarSource Source)
-{
-    public override string ToString() => Name;
 }

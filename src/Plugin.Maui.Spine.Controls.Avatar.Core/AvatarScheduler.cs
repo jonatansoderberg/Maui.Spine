@@ -125,6 +125,9 @@ public sealed class AvatarScheduler
     private float _manualWeight;
     private float _speechActivity;
 
+    /// <summary>The manifest of the avatar it schedules.</summary>
+    public AvatarManifest Manifest { get; }
+
     /// <summary>A timeline for <paramref name="representation"/> of <paramref name="package"/>.</summary>
     /// <param name="package">The loaded avatar.</param>
     /// <param name="representation">The representation to drive; its bindings and model decide the poses and clips.</param>
@@ -137,6 +140,7 @@ public sealed class AvatarScheduler
         _random = new Random(seed);
 
         var manifest = package.Manifest;
+        Manifest = manifest;
         var bindings = package.GetBindings(representation);
         _clipDurations = package.GetClipDurations(representation);
 

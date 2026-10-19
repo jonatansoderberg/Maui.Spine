@@ -17,9 +17,9 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar.Core\Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar\Plugin.Maui.Spine.Controls.Avatar.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Speech\Plugin.Maui.Spine.Speech.csproj" />
-		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar.Voice\Plugin.Maui.Spine.Controls.Avatar.Voice.csproj" />
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Voice\Plugin.Maui.Spine.Voice.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Avatar.Tool\Plugin.Maui.Spine.Avatar.Tool.csproj" />
-		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Avatars\*.spineavatar" LinkBase="Avatars" CopyToOutputDirectory="PreserveNewest" />
+		<None Include="..\..\samples\Avatars\*.spineavatar" LinkBase="Avatars" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\..\samples\SpineAvatarLab\Resources\Raw\Fixtures\*" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="..\..\samples\MauiSpineSampleApp\Resources\Raw\voice-reference.wav" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>

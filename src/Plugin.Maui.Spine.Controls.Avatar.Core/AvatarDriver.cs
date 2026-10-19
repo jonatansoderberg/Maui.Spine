@@ -93,6 +93,11 @@ public sealed class AvatarInput
     /// <summary>Whether an avatar is loaded; until then cues, levels and gestures go nowhere.</summary>
     public bool IsLoaded => _scheduler is not null;
 
+    /// <summary>The voices the loaded avatar names per provider (<see cref="AvatarManifest.Voices"/>); empty without one.</summary>
+    public IReadOnlyDictionary<string, string> Voices => _scheduler?.Manifest.Voices ?? NoVoices;
+
+    private static readonly IReadOnlyDictionary<string, string> NoVoices = new Dictionary<string, string>();
+
     /// <summary>The avatar's state: what was last set, or where the scheduler moved on to by itself (after Interrupted).</summary>
     public AvatarState State => _scheduler?.State ?? _state;
 
@@ -184,8 +189,7 @@ public sealed class AvatarInput
 }
 
 /// <summary>
-/// The tick of one avatar: its driver, then its scheduler. A view owns one; so does a host that runs
-/// no timer of its own avatar (VoiceView's character), which calls <see cref="Tick"/> from its own tick.
+/// The tick of one avatar: its driver, then its scheduler. A view owns one; tests and tools call <see cref="Tick"/> directly.
 /// </summary>
 public sealed class AvatarRuntime
 {

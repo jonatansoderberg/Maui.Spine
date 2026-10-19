@@ -23,9 +23,7 @@ Spine ships as thirty-four NuGet packages built from this repository, one per pr
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients from the accent, a preset or your own colours, drifting slowly | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Chat` | [`ChatView` and `ChatComposer`](chat.md): a conversation with any `IChatClient` | `Plugin.Maui.Spine`, `.Controls.Markdown`, `.Controls.Shimmer`, Microsoft.Extensions.AI.Abstractions |
 | Controls | `Plugin.Maui.Spine.Controls.Markdown` | [`MarkdownView`](markdown.md): markdown on native views, rebuilt block by block while it streams | `Plugin.Maui.Spine`, Markdig |
-| Controls | `Plugin.Maui.Spine.Controls.Voice` | [`VoiceView`](voice.md#drawing-the-conversation): a voice conversation drawn with SkiaSharp (orb, bars, ring, avatar), visuals of your own, visemes | `Plugin.Maui.Spine`, `.Voice`, SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Avatar` | [`AvatarView`](avatars.md): animated characters and ambient visuals from `.spineavatar` files, drawn with SkiaSharp and SceneKit, driven by the app, by text or by a driver | `Plugin.Maui.Spine`, `.Controls.Avatar.Core`, `.Speech`, SkiaSharp |
-| Controls | `Plugin.Maui.Spine.Controls.Avatar.Voice` | [`VoiceAvatarDriver`](avatars.md#with-a-voice-conversation) and VoiceView's `character`: an avatar following a realtime voice conversation | `.Controls.Avatar`, `.Voice`, `.Controls.Voice` |
 | Tool | `Plugin.Maui.Spine.Avatar.Tool` | The `spine-avatar` .NET tool for [`.spineavatar` files](avatars.md#making-a-package): inspect, validate (with the shipping profile), pack with rendered posters, strip `source/`, render sheets, report | `.Controls.Avatar.Core`, `.Controls.Avatar` (its Skia renderers), SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Avatar.Core` | The core of [avatars](avatars.md) with no MAUI: the `.spineavatar` format 1.0 (safe reader, schemas, defaults, validation), the scheduler, the driver contract with a text driver, the canonical visemes, a glTF reader and rig | — |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view (Edge, Pulse, Sheen, Trace, Breathe), `Highlight.Repeat` and `.Key`, `IHighlights` | `Plugin.Maui.Spine` |
@@ -59,10 +57,8 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
 PushNotifications                                    AnimatedLabel
   Images ──► Common
   Voice ──► Common, Speech
-  Controls.Voice ──► Voice, Spine (and SkiaSharp)
-  Controls.Avatar ──► Controls.Avatar.Core, Speech, Spine (and SkiaSharp)
+  Controls.Avatar ──► Controls.Avatar.Core, Speech, Voice, Spine (and SkiaSharp)
   Speech (no Spine dependency)
-  Controls.Avatar.Voice ──► Controls.Avatar, Voice, Controls.Voice
   Avatar.Tool ──► Controls.Avatar (net10.0), Controls.Avatar.Core (a .NET tool, not a library)
   AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
   Common ◄── Server.Authentication (and JwtBearer, Azure.Data.Tables)
@@ -89,12 +85,12 @@ PushNotifications                                    AnimatedLabel
 | A chat with a model, on any `IChatClient` | `Plugin.Maui.Spine.Controls.Chat` (brings the core, Markdown and Shimmer); with `Plugin.Maui.Spine.AI` for features on the app's server |
 | Markdown text: help, release notes, chat answers | `Plugin.Maui.Spine.Controls.Markdown` (brings the core and Markdig) |
 | A spoken conversation with a realtime model on the app's server, or the microphone and speaker at once with echo cancellation | `Plugin.Maui.Spine.Voice` (brings `.Common`), plus `NSMicrophoneUsageDescription` |
-| That conversation drawn: an orb, bars, a ring or a face | `Plugin.Maui.Spine.Controls.Voice` (brings the core and `.Voice`) |
+| That conversation drawn: bars, a ring or a character | `Plugin.Maui.Spine.Controls.Avatar` with `VoiceAvatarDriver` (brings the core, `.Voice` and `.Speech`) |
 | An animated character or ambient visual from a `.spineavatar`: for an assistant, a guide, text mouthed or read aloud | `Plugin.Maui.Spine.Controls.Avatar` (brings the core, `.Controls.Avatar.Core` and `.Speech`) |
 | Text read aloud with the best installed voice, word by word | `Plugin.Maui.Spine.Speech` |
 | Text read aloud by a voice on the app's server, with mouth shapes for an avatar | `ServerSpeech` in `Plugin.Maui.Spine.Voice`, and a `Kind: Speech` feature in `Plugin.Maui.Spine.Server.AI` |
 | A `.spineavatar` checked, packed with posters and stripped for shipping | The `spine-avatar` tool, `Plugin.Maui.Spine.Avatar.Tool` |
-| A voice assistant with a face: an avatar following a realtime conversation | `Plugin.Maui.Spine.Controls.Avatar.Voice` (brings the avatar and voice packages) |
+| A voice assistant with a face: an avatar following a realtime conversation | `Plugin.Maui.Spine.Controls.Avatar` (brings the voice packages) |
 | Language models in the app, on the device or through the app's server | `Plugin.Maui.Spine.AI` (brings `.Common`; the core is not required), plus the app's own on-device client such as Microsoft.Maui.Essentials.AI |
 | Language or image models from the server, with costs and budgets | `Plugin.Maui.Spine.Server.AI` in the server project, plus the vendor's Microsoft.Extensions.AI adapter |
 | Sign-in against the app's own server: Apple, Google, Microsoft, OpenID Connect, email and password | `Plugin.Maui.Spine.Server.Authentication` in the server project |
@@ -127,7 +123,6 @@ PushNotifications                                    AnimatedLabel
 | `Plugin.Maui.Spine.Barcodes` | Nothing | Nothing |
 | `Plugin.Maui.Spine.Scanner` | Registered: the camera handlers, the scan sheet and its strings | `UseSpineScanner()`; the view works, the scan sheet needs Spine |
 | `Plugin.Maui.Spine.Images` | Registered; call `UseSpineImages(o => …)` only to change `SpineImagesOptions` | `UseSpineImages()` |
-| `Plugin.Maui.Spine.Controls.Voice` | Registered (SkiaSharp included); call `UseSpineVoiceView(o => …)` only to add visuals | `UseSpineVoiceView()` |
 
 Every `UseXxx()` is idempotent. The first call registers the package; a later call only applies its `configure` delegate to the same options instance. An explicit configuring call therefore works before or after `UseSpine()`, and the options end up with both. Settings that decide what gets registered (a widget background-refresh handler, a push handler) are applied after every call, and the platform callbacks read the options when they run, not when they are registered.
 
@@ -176,7 +171,6 @@ A package gets nothing internal from the core. It uses these small public hooks 
 | `Plugin.Maui.Spine.Barcodes` | `net10.0` (encoding, `LightGridReader`) and the four MAUI frameworks (adding `BarcodeView`) |
 | `Plugin.Maui.Spine.Images` | `net10.0` (the disk cache only, for tests) and the four MAUI frameworks |
 | `Plugin.Maui.Spine.Avatar.Tool` | `net10.0`, as a .NET tool (`dotnet tool install -g Plugin.Maui.Spine.Avatar.Tool`, command `spine-avatar`) |
-| `Plugin.Maui.Spine.Controls.Voice` | `net10.0` (the visuals' drawing, for tests) and the four MAUI frameworks (adding `VoiceView` and `UseSpineVoiceView`) |
 | `Plugin.Maui.Spine.Voice` | `net10.0` (the meter, the queue, the resampler and the shared engine, for tests) and the four MAUI frameworks (adding the platform engines and `UseSpineVoice`) |
 | `Plugin.Maui.Spine.AI` | `net10.0` (the server client, the fallback chain and the meter, for tests and non-MAUI clients) and the four MAUI frameworks (adding `UseSpineAI`) |
 | `Plugin.Maui.Spine.Authentication` | `net10.0` (the server client, the session and the `HttpClient` handler, for tests) and the four MAUI frameworks (adding `o.AddAuthentication`, the sheet, `[RequiresSignIn]` and Apple) |
@@ -212,7 +206,7 @@ These packages carry MSBuild files that run in the consuming app's build, import
 | Package | What its build files do |
 |---|---|
 | `Plugin.Maui.Spine` | Writes `SpineModules.g.cs` into the app: a `[ModuleInitializer]` that hands each referenced package's registration to `UseSpine()` (from the `SpineModule` items below). Only in an app project; `SpineGenerateModuleRegistrations=false` turns it off |
-| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Controls.Voice`, `.Scanner`, `.Images`, `.AI`, `.Voice`, `.Authentication`, `.Authentication.Microsoft` | Declare their `SpineModule` in `<PackageId>.props` |
+| `Plugin.Maui.Spine.Widgets`, `.PushNotifications`, `.BackgroundTasks`, `.Biometrics`, `.Controls.AnimatedLabel`, `.Controls.DataGrid`, `.Controls.Highlight`, `.Scanner`, `.Images`, `.AI`, `.Voice`, `.Authentication`, `.Authentication.Microsoft` | Declare their `SpineModule` in `<PackageId>.props` |
 | `Plugin.Maui.Spine.Common` | Writes the app's iOS entitlements file once from the `SpineEntitlement` items the other packages contribute, and one partial `Info.plist` with `UIBackgroundModes` and `BGTaskSchedulerPermittedIdentifiers` from the `SpineBackgroundMode` and `SpineBackgroundTaskIdentifier` items, merged with the app's own |
 | `Plugin.Maui.Spine.Widgets` | Compiles the WidgetKit extension and the bridge framework with `swiftc` on iOS; generates the manifest overlay and provider metadata on Android |
 | `Plugin.Maui.Spine.PushNotifications` | Contributes the `aps-environment` entitlement; compiles the Notification Service Extension on iOS when `SpinePushNotificationsImages` is on |

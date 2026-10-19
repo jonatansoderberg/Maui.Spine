@@ -13,7 +13,7 @@ internal static partial class AvatarValidator
 {
     private static readonly string[] KnownProfiles = ["ambient", "character", "humanoidAdvanced"];
     private static readonly string[] SpeechModes = ["none", "audioReactive", "canonicalVisemes"];
-    private static readonly string[] Spine2dParameters = ["inputLevel", "outputLevel", "inputLow", "inputMid", "inputHigh", "outputLow", "outputMid", "outputHigh"];
+    private static readonly string[] Spine2dParameters = Spine2dVocabulary.Parameters;
     private static readonly string[] SupportedRequiredFeatures = Spine2dVocabulary.Features;
 
     private static readonly Dictionary<string, string[]> Formats = new()
@@ -427,7 +427,7 @@ internal static partial class AvatarValidator
         {
             if (!Spine2dParameters.Contains(parameter))
             {
-                report.Fail(area, "parameters", $"parameter '{parameter}' is not one of {string.Join(", ", Spine2dParameters)}");
+                report.Fail(area, "parameters", $"parameter '{parameter}' is not one of inputLevel, outputLevel, inputLow|Mid|High, outputLow|Mid|High, inputBand0–23, outputBand0–23");
                 continue;
             }
             report.Try(area, "parameters", () =>

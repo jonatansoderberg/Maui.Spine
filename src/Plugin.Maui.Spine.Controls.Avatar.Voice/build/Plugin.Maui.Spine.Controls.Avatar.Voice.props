@@ -1,6 +1,0 @@
-<Project>
-	<!-- UseSpine() calls UseSpineAvatarVoice() for the app; see Plugin.Maui.Spine.targets. -->
-	<ItemGroup>
-		<SpineModule Include="Plugin.Maui.Spine.Controls.Avatar.Voice" Register="Plugin.Maui.Spine.Controls.SpineAvatarVoiceExtensions.UseSpineAvatarVoice" />
-	</ItemGroup>
-</Project>
