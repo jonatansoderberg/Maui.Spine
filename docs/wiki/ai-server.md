@@ -241,6 +241,7 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
 - **No cache.** A feature with functions skips `Cache`: its answers depend on the caller, and the cache key does not.
 - **`AICaller.System`.** The keyed `IChatClient` runs functions too, with a System caller and no user.
 - **Unknown names.** A name in `Functions` that nothing registered is logged at startup.
+- **OpenAI's reasoning models.** On chat completions, `gpt-5.4-nano` refuses function tools with a reasoning effort (400, "Function tools with reasoning_effort are not supported"): give such a feature `"Reasoning": "None"`.
 
 ### Device functions in text chat
 

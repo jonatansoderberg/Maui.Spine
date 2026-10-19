@@ -132,7 +132,11 @@ public static class SampleFunctions
 - All tests pass: Server.AI 112 (+5 skipped), AI 46, Voice 68.
 - Against the local sample server (port 5199, demo provider), with curl: signed out `get_my_bookings` answers `signInRequired` and the model reads it; signed in (email and password) it answers the user's name and email from Server.Authentication.
 - In the iPhone 17 Pro simulator, the Showcase's real clients through a scratch harness: `show_time` called by the server's model ran on the phone and the server took the result; `get_my_bookings` signed out asked for sign-in, signed in (through the app's sign-in) answered the user's bookings; the calls the server ran came back informational.
-- Not seen: Apple Intelligence with a tool (the simulator's FoundationModels fails even without tools; the Mac's model is not downloaded), a voice session with functions (no OpenAI key locally), `gpt-5.4-nano` choosing the tools. In the plan's verification backlog.
+- Against Azure after a deploy (2026-10-19), signed out, in the iPhone 17 Pro simulator through the Showcase's real clients:
+  - Text chat (gpt-5.4-nano): `get_my_bookings` → "logga in på Sign-in-sidan"; `show_time` ran on the phone, and on the server with `ChatOptions.Prefer`.
+  - A Voice session (gpt-realtime, typed turns with the microphone muted): the token's tools were declared; `get_my_bookings` was forwarded to `/ai/functions/Voice/get_my_bookings` and the model said to sign in; `show_time` ran on the phone, then on the server after `Prefer("show_time", Server)`.
+  - The first deploy failed every tool call: gpt-5.4-nano refuses function tools with `reasoning_effort` on chat completions, so the Azure `Assistant` has `"Reasoning": "None"` (noted in ai-server.md).
+- Not seen: Apple Intelligence with a tool (the simulator's FoundationModels fails even without tools; the Mac's model is not downloaded), and the signed-in case against Azure (no account may be made there by Claude). In the plan's verification backlog.
 
 ## Decisions
 
