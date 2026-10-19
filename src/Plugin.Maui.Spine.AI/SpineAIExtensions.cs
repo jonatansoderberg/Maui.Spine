@@ -8,7 +8,7 @@ namespace Plugin.Maui.Spine.AI;
 /// <summary>Registers <c>Plugin.Maui.Spine.AI</c> with a <see cref="MauiAppBuilder"/>.</summary>
 public static class SpineAIExtensions
 {
-    static readonly SpineAIOptions Options = new();
+    static readonly SpineAIOptions Options = new() { Functions = SpineAIFunctions.App };
 
     /// <summary>
     /// Registers the app's AI features: each one is injected as <c>[FromKeyedServices("Name")] IChatClient</c>,

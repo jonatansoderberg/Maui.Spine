@@ -26,6 +26,7 @@
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.Tests" />
 		<!-- The AI wire words (AIOffReasons) and the shared installation id (SpineInstallation). -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.AI" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.AI.Functions" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Server.AI.Tests" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.AI" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.AI.Tests" />

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Plugin.Maui.Spine.Server.AI;
 
@@ -86,7 +88,7 @@ public interface IAIFeatures
 }
 
 internal sealed class AIFeatures(
-    AIFeatureRegistry registry, AIBudgetGate gate, AIUsageMeter meter, SpineAIOptions options, IServiceProvider services) : IAIFeatures
+    AIFeatureRegistry registry, AIBudgetGate gate, AIUsageMeter meter, SpineAIOptions options, AIPendingCalls pending, IServiceProvider services) : IAIFeatures
 {
     public IChatClient? Chat(string feature, AICaller caller)
     {
@@ -97,7 +99,15 @@ internal sealed class AIFeatures(
 
         IChatClient client = new CallerChatClient(shared, found, caller, gate, meter);
 
+        // Outside the gate and the meter, so every round of function calls is checked and metered on its own.
+        if (found.Options.Functions is { Count: > 0 })
+        {
+            return new FeatureFunctionsChatClient(client, found, caller, options.Functions, pending, services,
+                services.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance);
+        }
+
         // Outside the gate and the meter: a cached answer costs nothing and is served even when the budget is spent.
+        // Not with functions: their answers depend on the caller, and the cache key does not.
         if (found.Options.Cache?.Ttl is { } ttl && services.GetService<IDistributedCache>() is { } cache)
         {
             client = new ExpiringCachingChatClient(client, cache, ttl)
@@ -130,7 +140,10 @@ internal sealed class AIFeatures(
         await gate.CheckAsync(found, caller, cancellationToken);
 
         var session = found.Options.Realtime ?? new AIRealtimeOptions();
-        var request = new AIRealtimeRequest(found.Name, found.Model, found.Options.SystemPrompt, found.Options.MaxOutputTokens, session, caller);
+        var request = new AIRealtimeRequest(found.Name, found.Model, found.Options.SystemPrompt, found.Options.MaxOutputTokens, session, caller)
+        {
+            Tools = FunctionsOf(found),
+        };
         var started = meter.Time.GetTimestamp();
 
         try
@@ -196,6 +209,23 @@ internal sealed class AIFeatures(
     {
         ArgumentNullException.ThrowIfNull(request);
         return options.IdentifyAsync(request);
+    }
+
+    /// <summary>The functions <paramref name="feature"/> lists that the server knows, with the sides that have them.</summary>
+    internal IReadOnlyList<AIRealtimeTool> FunctionsOf(AIFeature feature)
+    {
+        var tools = new List<AIRealtimeTool>();
+
+        foreach (var name in feature.Options.Functions ?? [])
+        {
+            var server = options.Functions.ServerFunction(name);
+            var device = options.Functions.DeviceFunction(name);
+            if ((server ?? device) is not { } declared) continue;
+
+            tools.Add(new AIRealtimeTool(declared.Name, declared.Description, declared.JsonSchema, server is not null, device is not null, declared.Prefer));
+        }
+
+        return tools;
     }
 
     /// <summary>The feature, when it is configured, enabled and not over a known hard budget.</summary>

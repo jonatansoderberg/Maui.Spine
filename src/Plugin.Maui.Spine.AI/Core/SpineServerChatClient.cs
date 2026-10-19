@@ -29,8 +29,11 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
             await ThrowIfRefusedAsync(response, request.RequestUri!, cancellationToken);
 
             var body = await response.Content.ReadAsStreamAsync(cancellationToken);
-            return await JsonSerializer.DeserializeAsync<ChatResponse>(body, Json, cancellationToken)
+            var answer = await JsonSerializer.DeserializeAsync<ChatResponse>(body, Json, cancellationToken)
                 ?? throw new HttpRequestException($"The AI feature '{feature}' answered with an empty body from {request.RequestUri}.");
+
+            foreach (var message in answer.Messages) Inform(message.Contents);
+            return answer;
         }
         catch (Exception e) when (Cancelled(e, cancellationToken))
         {
@@ -90,12 +93,27 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
 
                 default:
                     if (JsonSerializer.Deserialize<ChatResponseUpdate>(item.Data, Json) is { } update)
+                    {
+                        Inform(update.Contents);
                         yield return update;
+                    }
                     break;
             }
         }
 
         throw new HttpRequestException($"The stream from {request.RequestUri} ended without its done event; the answer may be cut short.");
+    }
+
+    /// <summary>
+    /// A call to anything but one of the app's own functions ran on the server already; marked so the app's function
+    /// invocation shows it and never runs it.
+    /// </summary>
+    private void Inform(IList<AIContent> contents)
+    {
+        foreach (var call in contents.OfType<FunctionCallContent>())
+        {
+            if (runtime.Options.Functions[call.Name] is null) call.InformationalOnly = true;
+        }
     }
 
     public object? GetService(Type serviceType, object? serviceKey = null) =>
@@ -113,7 +131,7 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
         var url = new Uri($"{backend.ToString().TrimEnd('/')}/features/{Uri.EscapeDataString(feature)}");
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
-            Content = new ByteArrayContent(Body(messages, options?.ConversationId)) { Headers = { ContentType = new("application/json") { CharSet = "utf-8" } } },
+            Content = new ByteArrayContent(Body(messages, options?.ConversationId, Offers(options))) { Headers = { ContentType = new("application/json") { CharSet = "utf-8" } } },
         };
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(stream ? "text/event-stream" : "application/json"));
 
@@ -121,11 +139,19 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
         return request;
     }
 
+    /// <summary>The app's functions with the side this chat wants for each: the server offers those it declared to the model.</summary>
+    private IReadOnlyList<(string Name, SpineAIFunctionSide Prefer)> Offers(ChatOptions? options)
+    {
+        var preferred = SpineAIFunctionOrder.PreferredSides(options);
+        return [.. runtime.Options.Functions.Select(f => (f.Name, SpineAIFunctionOrder.SideOf(f, preferred)))];
+    }
+
     /// <summary>
-    /// <c>{ "messages": [...], "conversationId": … }</c>, the body Spine.Server.AI reads. Written by hand around
-    /// Microsoft.Extensions.AI's own type info, so it needs no reflection on a trimmed or AOT-compiled app.
+    /// <c>{ "messages": [...], "conversationId": …, "functions": [{ "name", "prefer" }] }</c>, the body Spine.Server.AI reads.
+    /// Written by hand around Microsoft.Extensions.AI's own type info, so it needs no reflection on a trimmed or
+    /// AOT-compiled app.
     /// </summary>
-    internal static byte[] Body(IEnumerable<ChatMessage> messages, string? conversationId)
+    internal static byte[] Body(IEnumerable<ChatMessage> messages, string? conversationId, IReadOnlyList<(string Name, SpineAIFunctionSide Prefer)>? functions = null)
     {
         var message = Json.GetTypeInfo(typeof(ChatMessage));
         using var buffer = new MemoryStream();
@@ -136,6 +162,18 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
             foreach (var m in messages) JsonSerializer.Serialize(writer, m, message);
             writer.WriteEndArray();
             if (conversationId is not null) writer.WriteString("conversationId", conversationId);
+            if (functions is { Count: > 0 })
+            {
+                writer.WriteStartArray("functions");
+                foreach (var (name, prefer) in functions)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("name", name);
+                    writer.WriteString("prefer", prefer == SpineAIFunctionSide.Server ? "server" : "device");
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndArray();
+            }
             writer.WriteEndObject();
         }
 

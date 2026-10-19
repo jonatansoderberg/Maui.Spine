@@ -34,6 +34,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.AI.Functions\Plugin.Maui.Spine.AI.Functions.csproj" />
 		<ProjectReference Include="..\Plugin.Maui.Spine.Speech\Plugin.Maui.Spine.Speech.csproj" />
 	</ItemGroup>
 

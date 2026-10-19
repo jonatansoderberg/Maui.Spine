@@ -1,8 +1,8 @@
-using Microsoft.Extensions.AI;
+using Plugin.Maui.Spine.AI;
 
 namespace Plugin.Maui.Spine.Voice;
 
-/// <summary>How Spine.Voice reaches the app's backend for a voice session, and the tools the app answers itself.</summary>
+/// <summary>How Spine.Voice reaches the app's backend for a voice session, and the functions the app answers itself.</summary>
 public sealed class SpineVoiceOptions
 {
     /// <summary>
@@ -22,10 +22,11 @@ public sealed class SpineVoiceOptions
     public HttpMessageHandler? HttpHandler { get; set; }
 
     /// <summary>
-    /// Tools the model may call that run in the app, such as opening a page. They are added to the session when it
-    /// connects; tools that touch user data belong on the server.
+    /// The functions the app runs itself, which the model may call: the time, opening a page. The same set as
+    /// <c>SpineAIOptions.Functions</c>. A session declares them with the server's functions from the token, and runs a
+    /// function both sides have where its order says (<see cref="IVoiceSession.Prefer"/>).
     /// </summary>
-    public IList<AIFunction> ClientTools { get; } = [];
+    public SpineAIFunctions Functions { get; internal set; } = new();
 
     /// <summary>
     /// Mouth shapes for an avatar, lined up with the answer as it plays. Unset, <see cref="VoiceFrame.Viseme"/> stays -1 and

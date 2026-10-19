@@ -822,6 +822,7 @@
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.BackgroundTasks\Plugin.Maui.Spine.BackgroundTasks.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Biometrics\Plugin.Maui.Spine.Biometrics.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI\Plugin.Maui.Spine.AI.csproj" />
+		<ProjectReference Include="..\MauiSpineSampleApp.Shared\MauiSpineSampleApp.Shared.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Voice\Plugin.Maui.Spine.Voice.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Controls.Avatar\Plugin.Maui.Spine.Controls.Avatar.csproj" />
 		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.Speech\Plugin.Maui.Spine.Speech.csproj" />

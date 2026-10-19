@@ -16,11 +16,13 @@ internal sealed class SpineFeatureChatClient : IChatClient
     private readonly string _feature;
     private readonly SpineAIRuntime _runtime;
     private readonly (AISource Source, Lazy<IChatClient> Client)[] _sources;
+    private readonly IServiceProvider _services;
 
     public SpineFeatureChatClient(string feature, AIFeatureChain chain, SpineAIRuntime runtime, IServiceProvider services)
     {
         _feature = feature;
         _runtime = runtime;
+        _services = services;
         _sources = [.. chain.Sources.Select(source => (source, new Lazy<IChatClient>(() => source.Kind == AIAnsweredBy.Server
             ? new SpineServerChatClient(source.ServerFeature ?? feature, runtime)
             : new DeviceMeteredChatClient(source.Factory!(services), feature, runtime))))];
@@ -38,7 +40,8 @@ internal sealed class SpineFeatureChatClient : IChatClient
 
             try
             {
-                var response = await client.Value.GetResponseAsync(list, options, cancellationToken);
+                var (prepared, with) = await PrepareAsync(source, client.Value, options, cancellationToken);
+                var response = await prepared.GetResponseAsync(list, with, cancellationToken);
                 (response.AdditionalProperties ??= [])[AnsweredByKey] = source.Kind;
                 return response;
             }
@@ -81,7 +84,8 @@ internal sealed class SpineFeatureChatClient : IChatClient
             IAsyncEnumerator<ChatResponseUpdate>? updates = null;
             try
             {
-                updates = client.Value.GetStreamingResponseAsync(messages, options, cancellationToken).GetAsyncEnumerator(cancellationToken);
+                var (prepared, with) = await PrepareAsync(source, client.Value, options, cancellationToken);
+                updates = prepared.GetStreamingResponseAsync(messages, with, cancellationToken).GetAsyncEnumerator(cancellationToken);
                 if (await updates.MoveNextAsync()) return (updates, source.Kind);
 
                 last = new InvalidOperationException($"The {source.Kind} source of '{_feature}' ended its stream without an update.");
@@ -95,6 +99,33 @@ internal sealed class SpineFeatureChatClient : IChatClient
         }
 
         throw last ?? NothingAvailable();
+    }
+
+    /// <summary>
+    /// The source's client for one call. With the app's functions registered, an on-device model gets them all as tools,
+    /// and a server feature hands the calls to the ones it declared back to the app, which runs them and asks again.
+    /// </summary>
+    private async Task<(IChatClient Client, ChatOptions? Options)> PrepareAsync(AISource source, IChatClient client, ChatOptions? options, CancellationToken cancellationToken)
+    {
+        var functions = _runtime.Options.Functions;
+        if (functions.Count == 0) return (client, options);
+
+        var context = await _runtime.DeviceContextAsync(_feature, options?.ConversationId, _services, cancellationToken);
+        var bound = functions.Select(f => (AITool)f.Bind(context)).ToList();
+
+        // Apple Intelligence runs its tools itself and reports the calls as information only, which this then leaves alone.
+        var invoking = new FunctionInvokingChatClient(client, _services.GetService(typeof(ILoggerFactory)) as ILoggerFactory, _services);
+
+        if (source.Kind == AIAnsweredBy.Device)
+        {
+            var prepared = options?.Clone() ?? new ChatOptions();
+            prepared.AdditionalProperties?.Remove(SpineAIFunctionOrder.PreferKey);
+            prepared.Tools = [.. prepared.Tools ?? [], .. bound];
+            return (invoking, prepared);
+        }
+
+        invoking.AdditionalTools = bound;
+        return (invoking, options);
     }
 
     private bool IsAvailable(AISource source)

@@ -44,7 +44,8 @@ Every call sends the whole conversation to `Client`, with `ChatOptions` when the
 | `Messages` | The conversation |
 | `ChatOptions` | Options for every call |
 | `ThinkingTemplate` | What shows before the first word. Unset, two lines under a shimmer; Highlight's `Edge` on a card works well too |
-| `ToolCallTemplate` | A tool call's card, with a `ChatToolCall` (`Name`, `Arguments`, `Result`, `IsDone`) as its binding context. Unset, a compact card that turns from "Running…" to "Done" |
+| `ShowToolCalls` | A card for each function the model called, for debugging. Off by default: the model tells the user what a function did, and the calls are in the log ([Functions](ai-client.md#functions)) |
+| `ToolCallTemplate` | A tool call's card when `ShowToolCalls` is on, with a `ChatToolCall` (`Name`, `Arguments`, `Result`, `IsDone`) as its binding context. Unset, a compact card that turns from "Running…" to "Done" |
 | `StyleOptions` | `ChatStyleOptions`: see [Styling](#styling) |
 | `IsBusy` | Whether an answer is on its way |
 | `SendAsync(text)`, `SendCommand` | Send from code or a button of the app's own |

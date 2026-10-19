@@ -69,6 +69,10 @@ public class ChatView : ContentView
     public static readonly BindableProperty ToolCallTemplateProperty = BindableProperty.Create(
         nameof(ToolCallTemplate), typeof(DataTemplate), typeof(ChatView));
 
+    public static readonly BindableProperty ShowToolCallsProperty = BindableProperty.Create(
+        nameof(ShowToolCalls), typeof(bool), typeof(ChatView), false,
+        propertyChanged: (b, _, _) => ((ChatView)b).Rebuild());
+
     public static readonly BindableProperty StyleOptionsProperty = BindableProperty.Create(
         nameof(StyleOptions), typeof(ChatStyleOptions), typeof(ChatView), null,
         propertyChanged: (b, _, _) => ((ChatView)b).Rebuild());
@@ -145,6 +149,16 @@ public class ChatView : ContentView
     {
         get => (DataTemplate?)GetValue(ToolCallTemplateProperty);
         set => SetValue(ToolCallTemplateProperty, value);
+    }
+
+    /// <summary>
+    /// Shows a card for each function the model called, for debugging. Off by default: the model tells the user what a
+    /// function did in its answer, and the calls go to the log.
+    /// </summary>
+    public bool ShowToolCalls
+    {
+        get => (bool)GetValue(ShowToolCallsProperty);
+        set => SetValue(ShowToolCallsProperty, value);
     }
 
     /// <summary>Fonts, sizes and colours; unset, the app's <c>DefaultChatStyleOptions</c> or the theme.</summary>
@@ -503,13 +517,14 @@ public class ChatView : ContentView
         public void Show(ChatAnswer answer, ChatAnswerState state, bool calls)
         {
             _shown = answer;
-            if (answer.HasContent && _thinking is not null)
+            if ((answer.Text.Length > 0 || _chat.ShowToolCalls && answer.ToolCalls.Count > 0) && _thinking is not null)
             {
                 Remove(_thinking);
                 _thinking = null;
             }
 
-            if (calls) ShowTools(answer.ToolCalls);
+            if (!_chat.ShowToolCalls) _tools.Clear();
+            else if (calls) ShowTools(answer.ToolCalls);
 
             _text.IsVisible = answer.Text.Length > 0;
             _text.Text = answer.Text;

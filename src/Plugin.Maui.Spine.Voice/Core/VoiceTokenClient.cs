@@ -12,7 +12,20 @@ namespace Plugin.Maui.Spine.Voice;
 /// <param name="Token">The short-lived bearer token for <paramref name="Url"/>.</param>
 /// <param name="ExpiresAt">When the token can no longer open a connection.</param>
 /// <param name="MaxMinutes">How long the server allows the session; the client ends it then.</param>
-public sealed record VoiceSessionToken(string Feature, string Protocol, Uri Url, string Token, DateTimeOffset ExpiresAt, double? MaxMinutes);
+public sealed record VoiceSessionToken(string Feature, string Protocol, Uri Url, string Token, DateTimeOffset ExpiresAt, double? MaxMinutes)
+{
+    /// <summary>The feature's functions, as the server lists them with the token.</summary>
+    public IReadOnlyList<VoiceSessionTool> Tools { get; init; } = [];
+}
+
+/// <summary>A function a realtime feature lists.</summary>
+/// <param name="Name">The name the model calls it by.</param>
+/// <param name="Description">What it does, for the model.</param>
+/// <param name="Parameters">The parameters' JSON schema.</param>
+/// <param name="OnServer">The server runs it: the session forwards the call to <c>POST {SessionEndpoint}/functions/{feature}/{name}</c>.</param>
+/// <param name="OnDevice">The app may run it, when it has it.</param>
+/// <param name="Prefer">The side that runs it when both have it.</param>
+public sealed record VoiceSessionTool(string Name, string Description, JsonElement Parameters, bool OnServer, bool OnDevice, SpineAIFunctionSide Prefer);
 
 /// <summary>Asks the backend for a session's token, with the app's sign-in and installation id.</summary>
 internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<CancellationToken, Task<string?>> installationId)
@@ -23,6 +36,8 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
     private readonly Lazy<HttpClient> _http = options.HttpHandler is { } handler
         ? new(() => new HttpClient(handler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(30) })
         : Shared;
+
+    public Task<string?> InstallationIdAsync(CancellationToken cancellationToken) => installationId(cancellationToken);
 
     public async Task<VoiceSessionToken> RequestAsync(string feature, CancellationToken cancellationToken)
     {
@@ -46,7 +61,7 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
         {
             var expires = json.RootElement.TryGetProperty("expiresAt", out var e) && e.TryGetDateTimeOffset(out var at) ? at : DateTimeOffset.MaxValue;
             var minutes = json.RootElement.TryGetProperty("maxMinutes", out var m) && m.TryGetDouble(out var max) ? max : (double?)null;
-            return new VoiceSessionToken(Text(json, "feature") ?? feature, protocol, socket, token, expires, minutes);
+            return new VoiceSessionToken(Text(json, "feature") ?? feature, protocol, socket, token, expires, minutes) { Tools = Tools(json) };
         }
 
         switch (response.StatusCode)
@@ -62,6 +77,82 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
         throw new HttpRequestException(
             $"The voice feature '{feature}' got {(int)response.StatusCode} {response.ReasonPhrase} from {url}: {(text.Length <= 300 ? text : text[..300] + "…")}",
             null, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Runs a server function the model called: posts it to <c>{SessionEndpoint}/functions/{feature}/{name}</c> with the
+    /// app's sign-in. Never throws for an answer: a refusal or a failure is an error result, so the model can say so.
+    /// </summary>
+    public async Task<object?> CallFunctionAsync(string feature, string name, string? callId, string? arguments, CancellationToken cancellationToken)
+    {
+        var endpoint = options.SessionEndpoint!;
+        var url = new Uri($"{endpoint.ToString().TrimEnd('/')}/functions/{Uri.EscapeDataString(feature)}/{Uri.EscapeDataString(name)}");
+
+        var body = new System.Text.Json.Nodes.JsonObject
+        {
+            ["callId"] = callId,
+            ["arguments"] = ParseObject(arguments),
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(body.ToJsonString(), System.Text.Encoding.UTF8, "application/json"),
+        };
+        if (options.AuthorizationHeader is { } authorization && await authorization(cancellationToken) is { Length: > 0 } header)
+            request.Headers.TryAddWithoutValidation("Authorization", header);
+        if (await installationId(cancellationToken) is { Length: > 0 } installation)
+            request.Headers.TryAddWithoutValidation(SpineInstallation.Header, installation);
+
+        using var response = await _http.Value.SendAsync(request, cancellationToken);
+        var text = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var json = TryParse(text);
+
+        if (response.IsSuccessStatusCode && json?.RootElement.ValueKind == JsonValueKind.Object && json.RootElement.TryGetProperty("result", out var result))
+            return result.Clone();
+
+        if (AIOffReasons.FromJson(Text(json, "off")) == AIOffReason.SignInRequired)
+            return SpineAIFunctionResult.SignInRequired();
+
+        throw new HttpRequestException(
+            $"The server function '{name}' of '{feature}' got {(int)response.StatusCode} {response.ReasonPhrase} from {url}: {(text.Length <= 300 ? text : text[..300] + "…")}",
+            null, response.StatusCode);
+    }
+
+    private static System.Text.Json.Nodes.JsonNode? ParseObject(string? arguments)
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(arguments) ? new System.Text.Json.Nodes.JsonObject() : System.Text.Json.Nodes.JsonNode.Parse(arguments);
+        }
+        catch (JsonException)
+        {
+            return new System.Text.Json.Nodes.JsonObject();
+        }
+    }
+
+    private static List<VoiceSessionTool> Tools(JsonDocument json)
+    {
+        var tools = new List<VoiceSessionTool>();
+        if (!json.RootElement.TryGetProperty("tools", out var list) || list.ValueKind != JsonValueKind.Array) return tools;
+
+        foreach (var tool in list.EnumerateArray())
+        {
+            if (tool.ValueKind != JsonValueKind.Object || !tool.TryGetProperty("name", out var name) || name.GetString() is not { Length: > 0 } named) continue;
+
+            var sides = tool.TryGetProperty("runsOn", out var runsOn) && runsOn.ValueKind == JsonValueKind.Array
+                ? runsOn.EnumerateArray().Select(s => s.GetString()).ToList()
+                : [];
+
+            tools.Add(new VoiceSessionTool(
+                named,
+                tool.TryGetProperty("description", out var description) ? description.GetString() ?? "" : "",
+                tool.TryGetProperty("parameters", out var parameters) ? parameters.Clone() : default,
+                sides.Contains("server"),
+                sides.Contains("device"),
+                tool.TryGetProperty("prefer", out var prefer) && prefer.GetString() == "server" ? SpineAIFunctionSide.Server : SpineAIFunctionSide.Device));
+        }
+
+        return tools;
     }
 
     private static JsonDocument? TryParse(string text)

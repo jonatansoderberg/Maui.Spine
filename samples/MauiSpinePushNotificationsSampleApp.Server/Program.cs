@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Threading.RateLimiting;
 using Anthropic;
 using MauiSpinePushNotificationsSampleApp.Server;
+using MauiSpineSampleApp.Shared;
 using Microsoft.Extensions.AI;
 using OpenAI;
 using Plugin.Maui.Spine.AI;
@@ -143,6 +144,10 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
     ai.Speech("openai", AISpeechProviders.OpenAI);
     ai.UseInMemoryUsageStore();
 
+    // The functions the Assistant and Voice features list ("Functions"), shared with the Showcase. get_my_bookings runs
+    // here with the signed-in user; show_time runs on the phone or here, as the chat or the voice session chooses.
+    ai.Functions.Add(SampleFunctions.GetMyBookings).Add(SampleFunctions.ShowTime).AddDevice(SampleFunctions.ShowTime);
+
     // The report shows every caller's spending. A sample on a laptop shows it to the laptop only.
     ai.AuthorizeReport = request => ValueTask.FromResult(request.HttpContext.Connection.RemoteIpAddress is { } ip && System.Net.IPAddress.IsLoopback(ip));
 
@@ -182,7 +187,8 @@ app.MapGet("/sample/me", (ClaimsPrincipal user) => new
     email = user.FindFirstValue("email"),
 }).RequireAuthorization();
 
-// POST /ai/features/{name} for exposed features (Assistant), and GET /ai/usage for the report.
+// POST /ai/features/{name} for exposed features (Assistant), POST /ai/functions/{feature}/{name} for the Voice feature's
+// server functions, and GET /ai/usage for the report.
 app.MapSpineAI("/ai");
 
 // POST /ai/realtime/{name}: a short-lived token for a realtime voice session (Voice). The OpenAI key stays here.

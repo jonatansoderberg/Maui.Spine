@@ -2,6 +2,7 @@
   <Project Path="samples/MauiSpineSampleApp/MauiSpineSampleApp.csproj">
     <Deploy />
   </Project>
+  <Project Path="samples/MauiSpineSampleApp.Shared/MauiSpineSampleApp.Shared.csproj" />
   <Project Path="samples/MauiSpinePushNotificationsSampleApp/MauiSpinePushNotificationsSampleApp.csproj">
     <Deploy />
   </Project>
@@ -38,6 +39,7 @@
   <Project Path="src/Plugin.Maui.Spine.Server.Messaging.AzureStorage/Plugin.Maui.Spine.Server.Messaging.AzureStorage.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Server.Messaging.ServiceBus/Plugin.Maui.Spine.Server.Messaging.ServiceBus.csproj" />
   <Project Path="src/Plugin.Maui.Spine.AI/Plugin.Maui.Spine.AI.csproj" />
+  <Project Path="src/Plugin.Maui.Spine.AI.Functions/Plugin.Maui.Spine.AI.Functions.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Voice/Plugin.Maui.Spine.Voice.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Avatar.Core/Plugin.Maui.Spine.Controls.Avatar.Core.csproj" />
   <Project Path="src/Plugin.Maui.Spine.Controls.Avatar/Plugin.Maui.Spine.Controls.Avatar.csproj" />

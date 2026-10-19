@@ -6,13 +6,10 @@
     x:DataType="ChatPageViewModel">
 
     <Grid RowDefinitions="Auto,*">
-        <Grid ColumnDefinitions="*,Auto" Padding="16,8">
-            <Label Text="Spine.AI Assistant instead of the demo (needs the push sample server)" FontSize="13" Opacity="0.7"
-                   VerticalOptions="Center" />
-            <Switch Grid.Column="1" IsToggled="{Binding UseAssistant}" />
-        </Grid>
+        <Label Text="{Binding Using}" FontSize="13" Opacity="0.7" Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,8" />
 
-        <ChatView x:Name="chat" Grid.Row="1" Client="{Binding Client}" Messages="{Binding Messages}" />
+        <ChatView x:Name="chat" Grid.Row="1" Client="{Binding Client}" Messages="{Binding Messages}"
+                  ChatOptions="{Binding Options}" ShowToolCalls="{Binding ShowToolCalls}" />
     </Grid>
 
     <SpinePage.Footer>

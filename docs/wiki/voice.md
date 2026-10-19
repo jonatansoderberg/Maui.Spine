@@ -7,7 +7,7 @@ dotnet add package Plugin.Maui.Spine.Controls.Avatar  # AvatarView, to draw it
 
 A spoken conversation with a realtime model has two parts:
 
-- **The voice session (`IVoiceSession`)** gets a short-lived token from the app's server, connects to the provider, cuts the answer off when the user talks over it, keeps a transcript, and runs the tools the app answers itself.
+- **The voice session (`IVoiceSession`)** gets a short-lived token from the app's server, connects to the provider, cuts the answer off when the user talks over it, keeps a transcript, and runs the functions the model calls: in the app, or forwarded to the server with the user's sign-in.
 - **The audio engine (`IVoiceAudio`) under it** runs the microphone and the speaker at the same time, with the platform's echo cancellation. Without it the model hears its own answer and interrupts itself.
 
 The provider's key never reaches the app. **`AvatarView`** (Spine.Controls.Avatar) draws the conversation, the sound in and out: see [Drawing the conversation](#drawing-the-conversation).
@@ -30,8 +30,7 @@ builder.UseSpineVoice(o =>
 {
     o.SessionEndpoint = new Uri("https://api.example.com/ai");      // the prefix given to MapSpineRealtimeSessions
     o.AuthorizationHeader = ct => auth.GetHeaderAsync(ct);           // realtime features answer signed-in callers by default
-    o.ClientTools.Add(AIFunctionFactory.Create(
-        () => DateTime.Now.ToString("HH:mm"), "show_time", "Says what time it is on the user's phone."));
+    o.Functions.Add(SharedFunctions.ShowTime);                         // runs in the app; shared with UseSpineAI
 });
 ```
 
@@ -62,10 +61,11 @@ public partial class AssistantViewModel(IVoiceSession voice) : ViewModelBase   /
   - The model's answer streams in.
   - An answer cut off by the user has `spine.interrupted` in its `AdditionalProperties`. Its text is what the provider transcribed, which can run ahead of what was heard.
   - Tool calls appear as `FunctionCallContent` and `FunctionResultContent`.
-- **Client tools.**
-  - `ClientTools` are added to the session when it connects. When the model calls one, the session runs it and sends the result back, and the model goes on.
-  - An unknown or failing tool answers with an error, so the model can say so rather than wait.
-  - Tools that touch user data belong on the server; #632 plans functions that run on the server with the user's context.
+- **Functions.**
+  - The token lists the server feature's functions, and the session declares them with the app's own (`SpineVoiceOptions.Functions`, the same set as `SpineAIOptions.Functions`) in one `session.update` when it connects.
+  - A call to one of the app's functions runs in the app. A call to a server function is forwarded to `POST {SessionEndpoint}/functions/{feature}/{name}` with `AuthorizationHeader`, so it runs on the server with the signed-in user, and the result goes back to the model. No relay is needed: the app already holds the conversation.
+  - A function both sides have runs where its `Prefer` says; `Prefer(name, side)` on the session changes that for one conversation, and declares the tools again while it runs.
+  - An unknown, failing or refused function answers with an error result (`notFound`, `failed`, `signInRequired`), so the model can say so rather than wait.
 - **Hanging up on goodbye.** `EndsOnGoodbye = true` gives the model a tool, `end_conversation`, to call when the user is done ("tack, hej då"). The model says a short goodbye, and the session ends with `VoiceSessionEnd.Goodbye` once that has played and 0.7 s of quiet has passed, so the last word leaves the speaker. Talking over the goodbye keeps the conversation going. Off by default.
 - **Push-to-talk.** `BeginTurn()` cuts off any answer and clears the input, and `EndTurn()` commits it and asks for the answer. It is meant for a feature with `"TurnDetection": "none"`.
 - **Text.** `SendTextAsync(text)` says something in writing, and the model answers aloud.

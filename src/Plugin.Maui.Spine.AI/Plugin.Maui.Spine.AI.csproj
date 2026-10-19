@@ -29,11 +29,13 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+		<!-- FunctionInvokingChatClient runs the app's functions for on-device models and for server features that hand calls back. -->
+		<PackageReference Include="Microsoft.Extensions.AI" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\Plugin.Maui.Spine.Common\Plugin.Maui.Spine.Common.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.AI.Functions\Plugin.Maui.Spine.AI.Functions.csproj" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">

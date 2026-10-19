@@ -1,4 +1,5 @@
 using System.Globalization;
+using MauiSpineSampleApp.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Plugin.Maui.Spine.AI;
 using Plugin.Maui.Spine.Controls;
@@ -50,6 +51,8 @@ public partial class VoiceChatPageViewModel : SampleViewModel
         _tryOptions = [
             avatars,
             new ToggleOption("Hang up after goodbye", "Say goodbye (\"tack, hej då\") and the session ends once the answer has been said.", () => Session.EndsOnGoodbye, value => Session.EndsOnGoodbye = value),
+            new ToggleOption("Read the clock on the server", "show_time is on both sides; this session runs it on the server instead of the phone (IVoiceSession.Prefer).", () => ClockOnServer, value => ClockOnServer = value),
+            new ToggleOption("Show function calls", "A card in the transcript for each function the model called, for debugging (ChatView.ShowToolCalls).", () => ShowToolCalls, value => ShowToolCalls = value),
             new ToggleOption("Glow the screen's edge", "The window's edge glows with the answer's level (Spine.Controls.Highlight).", () => Edge, value => Edge = value),
             new TextOption("Server", "The push sample server's AI prefix; on a phone, the Mac's address on the network or the Azure one.", () => Server, value => Server = value, Microsoft.Maui.Keyboard.Url),
         ];
@@ -112,6 +115,15 @@ public partial class VoiceChatPageViewModel : SampleViewModel
 
     [ObservableProperty]
     public partial bool Edge { get; set; }
+
+    [ObservableProperty]
+    public partial bool ClockOnServer { get; set; }
+
+    partial void OnClockOnServerChanged(bool value) =>
+        Session.Prefer(SampleFunctions.ShowTime.Name, value ? SpineAIFunctionSide.Server : SpineAIFunctionSide.Device);
+
+    [ObservableProperty]
+    public partial bool ShowToolCalls { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand), nameof(EndCommand), nameof(StopCommand))]

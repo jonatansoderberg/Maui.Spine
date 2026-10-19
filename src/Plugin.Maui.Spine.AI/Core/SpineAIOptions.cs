@@ -42,6 +42,18 @@ public sealed class SpineAIOptions
     public HttpMessageHandler? HttpHandler { get; set; }
 
     /// <summary>
+    /// The functions the app runs itself, which the model may call: the time, the location, opening a page. The same set
+    /// as <c>SpineVoiceOptions.Functions</c>. An on-device model gets them all; a server feature gets those its
+    /// <c>Functions</c> setting lists and the server declared with <c>AddDevice</c>, and hands the calls back to the app.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// o.Functions.Add("show_time", "Says what time it is on the user's phone.", () => DateTime.Now.ToString("HH:mm"));
+    /// </code>
+    /// </example>
+    public SpineAIFunctions Functions { get; internal set; } = new();
+
+    /// <summary>
     /// Declares a feature and where it runs. The feature is then injected as
     /// <c>[FromKeyedServices("Name")] IChatClient</c>.
     /// </summary>
