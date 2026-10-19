@@ -66,6 +66,7 @@ public partial class AssistantViewModel(IVoiceSession voice) : ViewModelBase   /
   - `ClientTools` are added to the session when it connects. When the model calls one, the session runs it and sends the result back, and the model goes on.
   - An unknown or failing tool answers with an error, so the model can say so rather than wait.
   - Tools that touch user data belong on the server; #632 plans functions that run on the server with the user's context.
+- **The voice.** `Voice` asks the server for a voice at the next `ConnectAsync`; the server uses it when the feature offers it (`Realtime:Voices`), otherwise its own, and `SpokenVoice` says which. `VoiceAvatarDriver` sets it to the avatar's voice ([Avatars](avatars.md#with-a-voice-conversation)).
 - **Hanging up on goodbye.** `EndsOnGoodbye = true` gives the model a tool, `end_conversation`, to call when the user is done ("tack, hej då"). The model says a short goodbye, and the session ends with `VoiceSessionEnd.Goodbye` once that has played and 0.7 s of quiet has passed, so the last word leaves the speaker. Talking over the goodbye keeps the conversation going. Off by default.
 - **Push-to-talk.** `BeginTurn()` cuts off any answer and clears the input, and `EndTurn()` commits it and asks for the answer. It is meant for a feature with `"TurnDetection": "none"`.
 - **Text.** `SendTextAsync(text)` says something in writing, and the model answers aloud.

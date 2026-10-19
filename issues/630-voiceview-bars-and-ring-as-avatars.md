@@ -32,7 +32,12 @@ Started as "VoiceView's bars and ring become avatars". After the first round the
 
 - Showcase, Voice chat and Assistant: half duplex on a simulator (`DeviceType.Virtual`), which has no echo cancellation: the Mac's speaker reached its microphone, the model heard its own answer as the user talking over it and cut it off (the farewell too, which also kept the call from ending). Not checked live: the server's Voice budget for the day was spent.
 
+- **The avatar's voice** (the owner: Kairo should speak with a woman's voice, others with voices that suit them): the manifest's optional `voices` (per provider; schema, `AvatarManifest.Voices`, `AvatarInput.Voices`); `spine-avatar pack --voice openai=marin`; `VoiceAvatarDriver.UsesAvatarVoice` sets `IVoiceSession.Voice` from the loaded avatar; the token request takes `?voice=`, which the server uses when the feature lists it in `Realtime:Voices` and answers with the `voice` it used (`IVoiceSession.SpokenVoice`). Kairo 3.1.0 `marin`, Nova 1.1.0 `cedar`, Puff 1.1.0 `coral`, Voice Totem 1.1.0 `sage`, Aurora Flow 1.1.0 `shimmer`; bars and ring none (the feature's own). Server deployed (Kairo 3.1.0 listed, `?voice=cedar` honoured). Showcase: Voice chat and Assistant list the downloaded Kairo; the status shows the spoken voice. Checked on the simulator: Nova `cedar`, Kairo `marin`.
+- Azure app settings for testing: the Voice feature's daily cap 5 USD and 30 sessions per installation or user (`Ai__Features__Voice__Budget__…`).
+
 ## Decisions
+
+- **The voice is the avatar's, the choice the server's.** The package names its voice, the app asks, and the server only grants voices the feature lists, so a client cannot pick a voice the owner has not offered; an unknown one falls back to the feature's own rather than failing the connection.
 
 - **One visual for a voice: AvatarView** (the owner, 2026-10-19): the orb is removed, not converted; the canvas face is retired (Nova and Puff do it better); the canvas plug-in contracts go (a look of one's own is a `.spineavatar`); the Showcase keeps one path.
 - **No `Kind` property.** The owner suggested a kind setting; `Source` already picks the avatar, so a second property would be two ways to say the same thing. A built-in avatar is a source by name instead: `Source="bars"`.

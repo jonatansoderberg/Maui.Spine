@@ -28,6 +28,9 @@ public sealed record AIRealtimeSession(string Protocol, string Url, string Token
     /// <summary>The provider's id for the session, for the log. Not sent to the app.</summary>
     [JsonIgnore]
     public string? ProviderSessionId { get; init; }
+
+    /// <summary>The voice the session speaks with: the app's choice when the feature offers it, otherwise the feature's.</summary>
+    public string? Voice { get; init; }
 }
 
 /// <summary>Sets up realtime sessions with one provider. Register one with <see cref="SpineAIOptions.Realtime"/>.</summary>

@@ -157,7 +157,9 @@ public static class SpineAIEndpoints
 
         try
         {
-            session = await features.RealtimeAsync(found.Name, caller, cancellationToken);
+            // An app may ask for a voice (an avatar's); the feature's Voices decide whether it gets it.
+            var voice = request.Query.TryGetValue("voice", out var asked) ? asked.ToString() : null;
+            session = await features.RealtimeAsync(found.Name, caller, cancellationToken, voice);
         }
         catch (AIFeatureException e)
         {
@@ -184,6 +186,7 @@ public static class SpineAIEndpoints
             token = session.Token,
             expiresAt = session.ExpiresAt,
             maxMinutes = found.Options.Realtime?.MaxMinutes ?? new AIRealtimeOptions().MaxMinutes,
+            voice = session.Voice,
         }, Json);
     }
 

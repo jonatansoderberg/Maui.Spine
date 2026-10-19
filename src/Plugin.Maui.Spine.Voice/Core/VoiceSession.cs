@@ -116,6 +116,10 @@ internal sealed class VoiceSession : IVoiceSession
     public event Action<VoiceState>? StateChanged;
     public event Action<VoiceSessionEnd, Exception?>? Ended;
 
+    public string? Voice { get; set; }
+
+    public string? SpokenVoice { get; private set; }
+
     public bool EndsOnGoodbye
     {
         get;
@@ -150,7 +154,8 @@ internal sealed class VoiceSession : IVoiceSession
         Evaluate();
         try
         {
-            var token = await _tokens.RequestAsync(feature, cancellationToken);
+            var token = await _tokens.RequestAsync(feature, cancellationToken, Voice);
+            SpokenVoice = token.Voice;
             if (token.Protocol != "openai")
                 throw new NotSupportedException($"The voice feature '{feature}' speaks '{token.Protocol}', which Spine.Voice cannot speak yet; only 'openai' (OpenAI and Azure OpenAI).");
 
@@ -655,6 +660,7 @@ internal sealed class VoiceSession : IVoiceSession
         }
 
         await _audio.StopAsync();
+        SpokenVoice = null;
         _responseActive = false;
         _answerAudio = false;
         lock (_micGate)

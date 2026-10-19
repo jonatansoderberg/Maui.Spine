@@ -20,11 +20,10 @@ public sealed record AvatarPoster(ImageSource Light, ImageSource Dark);
 
 public partial class AvatarsPageViewModel : SampleViewModel
 {
-    private const string KairoFile = "kairo.spineavatar";
 
     private readonly INavigationService _navigation;
     private readonly IHttpClientFactory _http;
-    private readonly string _kairoPath = Path.Combine(FileSystem.AppDataDirectory, "avatars", KairoFile);
+    private readonly string _kairoPath = VoiceAvatars.KairoPath;
 
     public AvatarsPageViewModel(INavigationService navigation, IHttpClientFactory http)
     {

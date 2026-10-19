@@ -79,6 +79,8 @@ On a page centred on the avatar, give an `AvatarView` the driver:
 Driver = new VoiceAvatarDriver(voiceSession);   // or new VoiceAvatarDriver(audioEngine) for a bare IVoiceAudio
 ```
 
+**The avatar's voice.** A package names the voice it speaks with, per provider, in its manifest: `"voices": { "openai": "marin", "azure": "sv-SE-SofieNeural" }` (`AvatarManifest.Voices`, `AvatarInput.Voices`). The driver sets the session's `Voice` to the avatar's `openai` one, and the session asks the server for it at its next connection; the server uses it when the feature offers it (`Realtime:Voices`, [AI on the server](ai-server.md)), and `SpokenVoice` says what it got. An avatar that names none, such as bars and ring, speaks with the feature's own voice. `UsesAvatarVoice = false` leaves the choice to the app. The Showcase's avatars: Kairo `marin`, Nova `cedar`, Puff `coral`, Voice Totem `sage`, Aurora Flow `shimmer`; `spine-avatar pack … --voice openai=marin` writes it.
+
 The sound in and out rather than a face: Spine has two avatars built in, given by name.
 
 ```xml

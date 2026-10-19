@@ -23,7 +23,8 @@ internal sealed record AvatarManifestDocument(
     AvatarMotionsDocument? Motions = null,
     AvatarThemes? Themes = null,
     AvatarReducedMotionDocument? ReducedMotion = null,
-    JsonElement? Extensions = null);
+    JsonElement? Extensions = null,
+    IReadOnlyDictionary<string, string>? Voices = null);
 
 internal sealed record AvatarRepresentationDocument(
     string Id,
@@ -164,7 +165,8 @@ public static class AvatarDefaults
                 reduced?.RetainSpeech ?? true,
                 reduced?.TransitionMs ?? ReducedMotionTransitionMs,
                 Declared: reduced?.Pose is not null),
-            d.Posters, d.License, d.Provenance, d.Files, d.Extensions);
+            d.Posters, d.License, d.Provenance, d.Files, d.Extensions,
+            d.Voices ?? new Dictionary<string, string>());
     }
 
     private static AvatarRepresentation Resolve(AvatarRepresentationDocument r, AvatarValidationReport report)
