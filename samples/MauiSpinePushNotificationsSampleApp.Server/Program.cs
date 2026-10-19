@@ -343,10 +343,20 @@ app.MapPost("/channels", async (HttpRequest http, IServiceProvider services, Can
 
 /// Avatars too large to bundle with the Showcase (Kairo), downloaded by its Avatars page and cached there. The files are
 /// published next to the server (the csproj links them from samples/Avatars, the repository's one copy); anything else is
-/// not served. GET /sample/avatars lists them with the version each package's manifest names, its size and its SHA-256,
+/// not served. GET /sample/avatars lists them with the name, profile and version each package's manifest names, its size and its SHA-256,
 /// so an app compares the version with its cached copy's and downloads a newer one (and checks the hash).
 var avatars = AvatarCatalog.Read(Path.Combine(AppContext.BaseDirectory, "avatars"));
-app.MapGet("/sample/avatars", () => Results.Ok(avatars.Values));
+// No caching: the list says which version is current, and a phone that kept an old answer never saw an update.
+app.MapGet("/sample/avatars", (HttpResponse response) =>
+{
+    response.Headers.CacheControl = "no-cache";
+    return Results.Ok(avatars.Values);
+});
+// The posters, so the app can show an avatar it has not downloaded yet.
+app.MapGet("/sample/avatars/{id}/poster-{theme}.png", (string id, string theme) =>
+    avatars.TryGetValue(id, out var avatar) && avatar.Posters.TryGetValue(theme, out var png)
+        ? Results.File(png, "image/png")
+        : Results.NotFound());
 app.MapGet("/sample/avatars/{name}", (string name) =>
 {
     if (!avatars.TryGetValue(Path.GetFileNameWithoutExtension(name), out var avatar) || name != avatar.File)

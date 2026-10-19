@@ -44,8 +44,8 @@ public partial class VoiceChatPageViewModel : SampleViewModel
 
         var avatars = new ChoiceGroup("Avatar", [.. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
         {
-            "Bars" or "Ring" => "Built into Spine: the answer's sound one way, the microphone's the other.",
-            _ => "A character or ambient avatar following the conversation: its state, the levels and the mouth.",
+            "Bars" or "Ring" => "Built into Spine: the answer's sound one way, the microphone's the other, in the feature's own voice.",
+            _ => "Follows the conversation (its state, the levels, the mouth) and speaks with the voice its package names, from the next Connect.",
         }, () => Avatar = a))]);
         avatars.Select(0);
         _tryOptions = [
@@ -217,6 +217,7 @@ public partial class VoiceChatPageViewModel : SampleViewModel
         if (!Session.IsConnected)
             return;
         var left = Session.TimeLeft is { } t ? string.Create(CultureInfo.InvariantCulture, $" · {t:m\\:ss} left") : "";
-        Status = $"{Session.State}{left}";
+        var voice = Session.SpokenVoice is { } v ? $" · {v}" : "";
+        Status = $"{Session.State}{voice}{left}";
     }
 }

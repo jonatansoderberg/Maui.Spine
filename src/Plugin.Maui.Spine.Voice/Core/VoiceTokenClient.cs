@@ -12,7 +12,7 @@ namespace Plugin.Maui.Spine.Voice;
 /// <param name="Token">The short-lived bearer token for <paramref name="Url"/>.</param>
 /// <param name="ExpiresAt">When the token can no longer open a connection.</param>
 /// <param name="MaxMinutes">How long the server allows the session; the client ends it then.</param>
-public sealed record VoiceSessionToken(string Feature, string Protocol, Uri Url, string Token, DateTimeOffset ExpiresAt, double? MaxMinutes)
+public sealed record VoiceSessionToken(string Feature, string Protocol, Uri Url, string Token, DateTimeOffset ExpiresAt, double? MaxMinutes, string? Voice = null)
 {
     /// <summary>The feature's functions, as the server lists them with the token.</summary>
     public IReadOnlyList<VoiceSessionTool> Tools { get; init; } = [];
@@ -39,13 +39,14 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
 
     public Task<string?> InstallationIdAsync(CancellationToken cancellationToken) => installationId(cancellationToken);
 
-    public async Task<VoiceSessionToken> RequestAsync(string feature, CancellationToken cancellationToken)
+    public async Task<VoiceSessionToken> RequestAsync(string feature, CancellationToken cancellationToken, string? voice = null)
     {
         var endpoint = options.SessionEndpoint
             ?? throw new InvalidOperationException(
                 "A voice session needs SpineVoiceOptions.SessionEndpoint: set it in UseSpineVoice to the prefix given to MapSpineRealtimeSessions.");
 
-        var url = new Uri($"{endpoint.ToString().TrimEnd('/')}/realtime/{Uri.EscapeDataString(feature)}");
+        var url = new Uri($"{endpoint.ToString().TrimEnd('/')}/realtime/{Uri.EscapeDataString(feature)}"
+            + (string.IsNullOrWhiteSpace(voice) ? "" : $"?voice={Uri.EscapeDataString(voice)}"));
         using var request = new HttpRequestMessage(HttpMethod.Post, url);
         if (options.AuthorizationHeader is { } authorization && await authorization(cancellationToken) is { Length: > 0 } header)
             request.Headers.TryAddWithoutValidation("Authorization", header);
@@ -61,7 +62,7 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
         {
             var expires = json.RootElement.TryGetProperty("expiresAt", out var e) && e.TryGetDateTimeOffset(out var at) ? at : DateTimeOffset.MaxValue;
             var minutes = json.RootElement.TryGetProperty("maxMinutes", out var m) && m.TryGetDouble(out var max) ? max : (double?)null;
-            return new VoiceSessionToken(Text(json, "feature") ?? feature, protocol, socket, token, expires, minutes) { Tools = Tools(json) };
+            return new VoiceSessionToken(Text(json, "feature") ?? feature, protocol, socket, token, expires, minutes, Text(json, "voice")) { Tools = Tools(json) };
         }
 
         switch (response.StatusCode)

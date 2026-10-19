@@ -28,6 +28,9 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     private const float MouthFloor = 0.06f;
     private const int Aa = 10, E = 11, O = 13;
 
+    /// <summary>The key of <c>AvatarManifest.Voices</c> the realtime session speaks: OpenAI's and Azure OpenAI's voices.</summary>
+    public const string AvatarVoiceKey = "openai";
+
     private readonly IVoiceSession? _session;
     private readonly IVoiceAudio? _audio;
     private VoiceState _state = VoiceState.Idle;
@@ -35,6 +38,14 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     private TimeSpan _played;
     private long _generation;
     private bool _sawViseme;
+    private IReadOnlyDictionary<string, string>? _voicesApplied;
+
+    /// <summary>
+    /// Whether the session speaks with the avatar's voice: when an avatar is loaded that names an <c>openai</c> voice
+    /// (<c>AvatarManifest.Voices</c>), the driver sets the session's <c>Voice</c> to it, used from its next connection;
+    /// an avatar that names none gives the feature's own. True by default; false leaves <c>Voice</c> to the app.
+    /// </summary>
+    public bool UsesAvatarVoice { get; set; } = true;
 
     /// <summary>Follows <paramref name="session"/>: its state, levels, transcript-side visemes and playback.</summary>
     public VoiceAvatarDriver(IVoiceSession session)
@@ -86,6 +97,13 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     /// <inheritdoc />
     protected internal override void OnTick(TimeSpan delta)
     {
+        // A new avatar names its voice; the session takes it when it next connects (a voice cannot change mid-session).
+        if (UsesAvatarVoice && _session is not null && Input.IsLoaded && !ReferenceEquals(Input.Voices, _voicesApplied))
+        {
+            _voicesApplied = Input.Voices;
+            _session.Voice = Input.Voices.GetValueOrDefault(AvatarVoiceKey);
+        }
+
         var frame = _session?.UpdateFrame() ?? _audio?.UpdateFrame();
         if (frame is null)
             return;

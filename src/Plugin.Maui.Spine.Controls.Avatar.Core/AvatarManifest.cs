@@ -8,6 +8,11 @@ namespace Plugin.Maui.Spine.Controls.Avatar;
 /// applied (<see cref="AvatarDefaults"/>): every state, expression and the reduced-motion pose are
 /// present whether the author wrote them or not.
 /// </summary>
+/// <remarks>
+/// <see cref="Voices"/> names the voice the avatar speaks with, per provider: <c>openai</c> (OpenAI's and Azure OpenAI's
+/// realtime voices, such as <c>marin</c> or <c>cedar</c>), <c>azure</c> (Azure Speech, such as <c>sv-SE-SofieNeural</c>),
+/// or any other key an app reads. <c>VoiceAvatarDriver</c> asks the server for the <c>openai</c> one.
+/// </remarks>
 public sealed record AvatarManifest(
     string SchemaVersion,
     string Id,
@@ -26,7 +31,8 @@ public sealed record AvatarManifest(
     string License,
     string Provenance,
     IReadOnlyList<AvatarFileEntry> Files,
-    JsonElement? Extensions = null);
+    JsonElement? Extensions = null,
+    IReadOnlyDictionary<string, string>? Voices = null);
 
 /// <summary>One way to draw the avatar: a renderer, a model in a format, and what its poses move.</summary>
 /// <param name="Id">Unique within the package.</param>

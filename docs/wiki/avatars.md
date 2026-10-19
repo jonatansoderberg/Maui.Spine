@@ -79,6 +79,8 @@ On a page centred on the avatar, give an `AvatarView` the driver:
 Driver = new VoiceAvatarDriver(voiceSession);   // or new VoiceAvatarDriver(audioEngine) for a bare IVoiceAudio
 ```
 
+**The avatar's voice.** A package names the voice it speaks with, per provider, in its manifest: `"voices": { "openai": "marin", "azure": "sv-SE-SofieNeural" }` (`AvatarManifest.Voices`, `AvatarInput.Voices`). The driver sets the session's `Voice` to the avatar's `openai` one, and the session asks the server for it at its next connection; the server uses it when the feature offers it (`Realtime:Voices`, [AI on the server](ai-server.md)), and `SpokenVoice` says what it got. An avatar that names none, such as bars and ring, speaks with the feature's own voice. `UsesAvatarVoice = false` leaves the choice to the app. The Showcase's avatars: Kairo `marin`, Nova `cedar`, Puff `coral`, Voice Totem `sage`, Aurora Flow `shimmer`; `spine-avatar pack … --voice openai=marin` writes it.
+
 The sound in and out rather than a face: Spine has two avatars built in, given by name.
 
 ```xml
@@ -162,6 +164,6 @@ Visemes are the 15 of `oculus15-v1`; `AvatarVisemes.FromAzure` maps Azure Speech
 A package's `assetVersion` (major.minor.patch) is its release: `spine-avatar pack … --asset-version 3.0.0` sets it, and a changed
 avatar ships with a higher one. An app that downloads an avatar rather than bundling it keeps the file in its data folder and
 compares versions to update it. The Showcase does this for Kairo (`Pages/Avatars/AvatarDownloads.cs`): the sample server lists
-what it offers at `GET /sample/avatars` (id, version, file, size, SHA-256, read from each package at startup), the app reads the
+what it offers at `GET /sample/avatars` (id, name, profile, version, file, size, SHA-256, read from each package at startup, with the posters beside it), the app reads the
 kept copy's version from its manifest, offers the update when the server's is later, and keeps a download only when it matches
 the server's hash. A source never touches the network; the app opens the kept file with `AvatarSource.FromFile`.

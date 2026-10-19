@@ -62,9 +62,13 @@ public interface IAIFeatures
     /// <param name="feature">The feature's name; its <c>Kind</c> is <c>Realtime</c>.</param>
     /// <param name="caller">Who the session is for.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
+    /// <param name="voice">
+    /// The voice the app asks for, such as an avatar's (<c>AvatarManifest.Voices</c>): used when it is one of the feature's
+    /// <see cref="AIRealtimeOptions.Voices"/>, otherwise the feature's own <see cref="AIRealtimeOptions.Voice"/>.
+    /// </param>
     /// <returns>What the app connects with, or <see langword="null"/> when the feature is off or not a realtime feature.</returns>
     /// <exception cref="AIFeatureException">The caller is refused, over a rate or out of budget.</exception>
-    Task<AIRealtimeSession?> RealtimeAsync(string feature, AICaller caller, CancellationToken cancellationToken = default);
+    Task<AIRealtimeSession?> RealtimeAsync(string feature, AICaller caller, CancellationToken cancellationToken = default, string? voice = null);
 
     /// <summary>
     /// Reads <paramref name="text"/> aloud for <paramref name="caller"/>: checks the feature's callers, rates and budgets,
@@ -129,7 +133,7 @@ internal sealed class AIFeatures(
             : null;
     }
 
-    public async Task<AIRealtimeSession?> RealtimeAsync(string feature, AICaller caller, CancellationToken cancellationToken = default)
+    public async Task<AIRealtimeSession?> RealtimeAsync(string feature, AICaller caller, CancellationToken cancellationToken = default, string? voice = null)
     {
         ArgumentNullException.ThrowIfNull(feature);
         ArgumentNullException.ThrowIfNull(caller);
@@ -139,7 +143,7 @@ internal sealed class AIFeatures(
         using var lease = gate.Acquire(found, caller);
         await gate.CheckAsync(found, caller, cancellationToken);
 
-        var session = found.Options.Realtime ?? new AIRealtimeOptions();
+        var session = (found.Options.Realtime ?? new AIRealtimeOptions()).WithVoice(voice);
         var request = new AIRealtimeRequest(found.Name, found.Model, found.Options.SystemPrompt, found.Options.MaxOutputTokens, session, caller)
         {
             Tools = FunctionsOf(found),
@@ -150,7 +154,7 @@ internal sealed class AIFeatures(
         {
             var made = await provider.CreateSessionAsync(request, cancellationToken);
             await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, null, minutes: Math.Max(0, session.MaxMinutes));
-            return made;
+            return made with { Voice = session.Voice };
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

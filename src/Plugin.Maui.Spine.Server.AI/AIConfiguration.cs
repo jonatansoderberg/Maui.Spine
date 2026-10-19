@@ -166,6 +166,23 @@ public sealed class AIRealtimeOptions
     public string? Voice { get; set; }
 
     /// <summary>
+    /// The voices an app may ask for instead of <see cref="Voice"/>, such as the one its avatar names
+    /// (<c>?voice=cedar</c> on the token request). Empty, the app cannot choose.
+    /// </summary>
+    public List<string> Voices { get; set; } = [];
+
+    /// <summary>These options with <paramref name="voice"/> when the feature offers it; otherwise these options.</summary>
+    internal AIRealtimeOptions WithVoice(string? voice)
+    {
+        if (string.IsNullOrWhiteSpace(voice) || string.Equals(voice, Voice, StringComparison.OrdinalIgnoreCase)
+            || Voices.FirstOrDefault(v => string.Equals(v, voice, StringComparison.OrdinalIgnoreCase)) is not { } offered)
+            return this;
+        var copy = (AIRealtimeOptions)MemberwiseClone();
+        copy.Voice = offered;
+        return copy;
+    }
+
+    /// <summary>
     /// <c>server_vad</c>, <c>semantic_vad</c> or <c>none</c>, when the app commits each turn itself. Unset, the
     /// provider's default.
     /// </summary>

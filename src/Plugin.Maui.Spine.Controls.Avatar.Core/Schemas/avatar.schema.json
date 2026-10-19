@@ -128,7 +128,13 @@
         }
       }
     },
-    "extensions": { "type": "object", "description": "Keys <namespace>.<name> for tools and renderers outside the format." }
+    "extensions": { "type": "object", "description": "Keys <namespace>.<name> for tools and renderers outside the format." },
+    "voices": {
+      "type": "object",
+      "description": "The voice the avatar speaks with, per provider: openai (realtime, such as marin or cedar), azure (Azure Speech, such as sv-SE-SofieNeural), or a key an app reads.",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 64 }
+    }
   },
   "$defs": {
     "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-+][0-9A-Za-z.-]+)?$" },

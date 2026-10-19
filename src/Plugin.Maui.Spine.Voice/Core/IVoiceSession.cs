@@ -93,6 +93,16 @@ public interface IVoiceSession : IAsyncDisposable
     /// </summary>
     bool EndsOnGoodbye { get; set; }
 
+    /// <summary>
+    /// The voice to ask the server for at the next <see cref="ConnectAsync"/>, such as an avatar's
+    /// (<c>VoiceAvatarDriver</c> sets it from the avatar). The server uses it when the feature offers it
+    /// (<c>Realtime:Voices</c>), otherwise its own; <see cref="SpokenVoice"/> says which.
+    /// </summary>
+    string? Voice { get; set; }
+
+    /// <summary>The voice the server gave the session, or <see langword="null"/> when it did not say or no session runs.</summary>
+    string? SpokenVoice { get; }
+
     /// <summary>Writes the latest levels, bands and the conversation's state into the frame. Call it on the UI's tick.</summary>
     VoiceFrame UpdateFrame();
 

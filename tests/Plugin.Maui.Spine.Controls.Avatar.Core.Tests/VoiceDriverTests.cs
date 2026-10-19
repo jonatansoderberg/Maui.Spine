@@ -168,6 +168,66 @@ public class VoiceDriverTests
         Assert.True(frame.MicMutedWeight > 0.5f);
     }
 
+    [Fact]
+    public void The_session_asks_for_the_avatars_voice()
+    {
+        var runtime = new AvatarRuntime();
+        var session = new FakeSession();
+        runtime.Driver = new VoiceAvatarDriver(session);
+
+        var nova = AvatarArchiveTests.Load("nova");
+        runtime.Load(new AvatarScheduler(nova, nova.Manifest.Representations[0], _time, 5));
+        runtime.Tick(Frame);
+        Assert.Equal("cedar", session.Voice);
+
+        // An avatar that names no voice leaves the feature's own.
+        var bars = AvatarArchiveTests.Load("bars");
+        runtime.Load(new AvatarScheduler(bars, bars.Manifest.Representations[0], _time, 5));
+        runtime.Tick(Frame);
+        Assert.Null(session.Voice);
+    }
+
+    [Fact]
+    public void Without_UsesAvatarVoice_the_app_keeps_its_choice()
+    {
+        var runtime = new AvatarRuntime();
+        var session = new FakeSession { Voice = "verse" };
+        runtime.Driver = new VoiceAvatarDriver(session) { UsesAvatarVoice = false };
+
+        var nova = AvatarArchiveTests.Load("nova");
+        runtime.Load(new AvatarScheduler(nova, nova.Manifest.Representations[0], _time, 5));
+        runtime.Tick(Frame);
+
+        Assert.Equal("verse", session.Voice);
+    }
+
+    private sealed class FakeSession : IVoiceSession
+    {
+        private readonly VoiceFrame _frame = new();
+
+        public VoiceState State => VoiceState.Idle;
+        public bool IsConnected => false;
+        public bool IsMuted { get; set; }
+        public VoiceDuplex Duplex { get; set; }
+        public IList<Microsoft.Extensions.AI.ChatMessage> Transcript { get; } = [];
+        public TimeSpan? TimeLeft => null;
+        public bool EndsOnGoodbye { get; set; }
+        public string? Voice { get; set; }
+        public string? SpokenVoice => null;
+        public event Action<VoiceState>? StateChanged { add { } remove { } }
+        public event Action<VoiceSessionEnd, Exception?>? Ended { add { } remove { } }
+        public Task ConnectAsync(string feature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task EndAsync() => Task.CompletedTask;
+        public void Interrupt() { }
+        public void BeginTurn() { }
+        public void EndTurn() { }
+        public Task SendTextAsync(string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public VoiceFrame UpdateFrame() => _frame;
+
+        public void Prefer(string function, Plugin.Maui.Spine.AI.SpineAIFunctionSide side) { }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
     private sealed class FakeAudio : IVoiceAudio
     {
         public VoiceFrame Frame { get; } = new();
