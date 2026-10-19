@@ -220,10 +220,6 @@
 
 [assembly: XmlnsDefinition(
     "http://schemas.microsoft.com/dotnet/maui/global",
-    "MauiSpineSampleApp.Pages.VoiceChat")]
-
-[assembly: XmlnsDefinition(
-    "http://schemas.microsoft.com/dotnet/maui/global",
     "MauiSpineSampleApp.Pages.Avatars")]
 
 [assembly: XmlnsDefinition(

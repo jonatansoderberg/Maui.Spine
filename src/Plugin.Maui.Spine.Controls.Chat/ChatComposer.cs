@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Windows.Input;
 using Microsoft.Maui.Controls.Shapes;
 using Plugin.Maui.Spine.Extensions;
 using Path = Microsoft.Maui.Controls.Shapes.Path;
@@ -38,11 +39,25 @@ public class ChatComposer : ContentView
     public static readonly BindableProperty AutoFocusProperty = BindableProperty.Create(
         nameof(AutoFocus), typeof(bool), typeof(ChatComposer), true);
 
+    public static readonly BindableProperty MicrophoneCommandProperty = BindableProperty.Create(
+        nameof(MicrophoneCommand), typeof(ICommand), typeof(ChatComposer), null,
+        propertyChanged: (b, _, _) => ((ChatComposer)b).UpdateSend());
+
+    public static readonly BindableProperty IsMicrophoneActiveProperty = BindableProperty.Create(
+        nameof(IsMicrophoneActive), typeof(bool), typeof(ChatComposer), false,
+        propertyChanged: (b, _, _) => ((ChatComposer)b).OnMicrophoneActiveChanged());
+
+    public static readonly BindableProperty MicrophoneTextCommandProperty = BindableProperty.Create(
+        nameof(MicrophoneTextCommand), typeof(ICommand), typeof(ChatComposer), null,
+        propertyChanged: (b, _, _) => ((ChatComposer)b).OnMicrophoneActiveChanged());
+
     // Long enough for a page's push to finish, so the keyboard does not rise during the slide.
     private static readonly TimeSpan FocusDelay = TimeSpan.FromMilliseconds(400);
 
     private const string SendGlyph = "M 10,16 L 10,4 M 4.5,9.5 L 10,4 L 15.5,9.5";
     private const string StopGlyph = "M 6,6 L 14,6 L 14,14 L 6,14 Z";
+    private const string MicrophoneGlyph = "M 10,2.5 C 8.6,2.5 7.5,3.6 7.5,5 L 7.5,9.5 C 7.5,10.9 8.6,12 10,12 C 11.4,12 12.5,10.9 12.5,9.5 L 12.5,5 C 12.5,3.6 11.4,2.5 10,2.5 Z M 4.5,9 C 4.5,12 7,14.5 10,14.5 C 13,14.5 15.5,12 15.5,9 M 10,14.5 L 10,17.5";
+    private const string HangUpGlyph = "M 6,6 L 14,14 M 14,6 L 6,14";
 
     private readonly Editor _editor;
     private readonly Border _field;
@@ -94,7 +109,7 @@ public class ChatComposer : ContentView
             VerticalOptions = LayoutOptions.End,
             Content = _glyph,
         };
-        Tap.SetCommand(_send, new Command(SendOrStop));
+        Tap.SetCommand(_send, new Command(Act));
 
         _chipsScroll = new ScrollView
         {
@@ -123,6 +138,39 @@ public class ChatComposer : ContentView
     {
         get => (bool)GetValue(AutoFocusProperty);
         set => SetValue(AutoFocusProperty, value);
+    }
+
+    /// <summary>
+    /// Shows a microphone in the send button's place while the field is empty; a tap runs the command, which starts a
+    /// spoken conversation (and, while <see cref="IsMicrophoneActive"/>, ends it). Unset, there is no microphone.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// &lt;ChatComposer Chat="{x:Reference chat}" MicrophoneCommand="{Binding TalkCommand}"
+    ///               IsMicrophoneActive="{Binding IsTalking}" MicrophoneTextCommand="{Binding SayCommand}" /&gt;
+    /// </code>
+    /// </example>
+    public ICommand? MicrophoneCommand
+    {
+        get => (ICommand?)GetValue(MicrophoneCommandProperty);
+        set => SetValue(MicrophoneCommandProperty, value);
+    }
+
+    /// <summary>A spoken conversation is on: the microphone becomes a button that ends it, and typed text goes to <see cref="MicrophoneTextCommand"/>.</summary>
+    public bool IsMicrophoneActive
+    {
+        get => (bool)GetValue(IsMicrophoneActiveProperty);
+        set => SetValue(IsMicrophoneActiveProperty, value);
+    }
+
+    /// <summary>
+    /// Where text typed during a spoken conversation goes, with the text as the parameter, such as a voice session's
+    /// <c>SendTextAsync</c>. Unset, the field rests while the conversation is on.
+    /// </summary>
+    public ICommand? MicrophoneTextCommand
+    {
+        get => (ICommand?)GetValue(MicrophoneTextCommandProperty);
+        set => SetValue(MicrophoneTextCommandProperty, value);
     }
 
     /// <summary>The conversation this composer writes to.</summary>
@@ -185,7 +233,7 @@ public class ChatComposer : ContentView
         ShowSuggestions();
     }
 
-    private void SendOrStop()
+    private void Act()
     {
         if (Chat is not { } chat) return;
 
@@ -196,10 +244,41 @@ public class ChatComposer : ContentView
         }
 
         var text = _editor.Text;
-        if (string.IsNullOrWhiteSpace(text)) return;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            if (MicrophoneCommand is { } microphone && microphone.CanExecute(null))
+                microphone.Execute(null);
+            return;
+        }
 
         _editor.Text = "";
-        _ = chat.SendAsync(text);
+        Say(text);
+    }
+
+    /// <summary>Typed text goes into the spoken conversation while one is on, and to the chat otherwise.</summary>
+    private void Say(string text)
+    {
+        if (IsMicrophoneActive)
+        {
+            if (MicrophoneTextCommand is { } spoken && spoken.CanExecute(text))
+                spoken.Execute(text);
+            return;
+        }
+
+        _ = Chat?.SendAsync(text);
+    }
+
+    private void OnMicrophoneActiveChanged()
+    {
+        // Without somewhere to send it, typing rests while the conversation is spoken.
+        var resting = IsMicrophoneActive && MicrophoneTextCommand is null;
+        _editor.IsEnabled = !resting;
+        _editor.Placeholder = resting ? ChatStrings.Get("Spine.Chat.Talking")
+            : IsMicrophoneActive ? ChatStrings.Get("Spine.Chat.TalkOrType")
+            : Placeholder ?? ChatStrings.Get("Spine.Chat.Placeholder");
+        if (resting) _editor.Unfocus();
+        UpdateSend();
+        ShowSuggestions();
     }
 
     /// <summary>
@@ -235,10 +314,17 @@ public class ChatComposer : ContentView
     private void UpdateSend()
     {
         var busy = IsBusy;
-        _glyph.Data = (Geometry)new PathGeometryConverter().ConvertFromInvariantString(busy ? StopGlyph : SendGlyph)!;
+        var empty = string.IsNullOrWhiteSpace(_editor.Text);
+        var (glyph, label) = busy ? (StopGlyph, "Spine.Chat.Stop")
+            : empty && IsMicrophoneActive ? (HangUpGlyph, "Spine.Chat.HangUp")
+            : empty && MicrophoneCommand is not null ? (MicrophoneGlyph, "Spine.Chat.Microphone")
+            : (SendGlyph, "Spine.Chat.Send");
+
+        _glyph.Data = (Geometry)new PathGeometryConverter().ConvertFromInvariantString(glyph)!;
         _glyph.Fill = busy ? Colors.White : Colors.Transparent;
-        _send.Opacity = busy || !string.IsNullOrWhiteSpace(_editor.Text) ? 1 : 0.4;
-        SemanticProperties.SetDescription(_send, ChatStrings.Get(busy ? "Spine.Chat.Stop" : "Spine.Chat.Send"));
+        _send.Opacity = busy || !empty || glyph != SendGlyph ? 1 : 0.4;
+        _send.BackgroundColor = glyph == HangUpGlyph ? Effective.ErrorColor : Effective.SendButtonColor;
+        SemanticProperties.SetDescription(_send, ChatStrings.Get(label));
     }
 
     private void ShowSuggestions()
@@ -256,11 +342,11 @@ public class ChatComposer : ContentView
                 Padding = new Thickness(14, 7),
                 Content = new Label { Text = suggestion, FontSize = style.FontSize * 0.85, TextColor = style.ChipTextColor, FontFamily = style.FontFamily },
             };
-            Tap.SetCommand(chip, new Command(() => _ = Chat?.SendAsync(suggestion)));
+            Tap.SetCommand(chip, new Command(() => Say(suggestion)));
             _chips.Add(chip);
         }
 
-        _chipsScroll.IsVisible = _chips.Count > 0 && !IsBusy;
+        _chipsScroll.IsVisible = _chips.Count > 0 && !IsBusy && !(IsMicrophoneActive && MicrophoneTextCommand is null);
     }
 
     private void ApplyStyle()
@@ -274,7 +360,6 @@ public class ChatComposer : ContentView
         _field.MinimumHeightRequest = style.ControlHeight;
         _field.StrokeShape = new RoundRectangle { CornerRadius = style.ControlHeight / 2 };
         _send.WidthRequest = _send.HeightRequest = style.ControlHeight;
-        _send.BackgroundColor = style.SendButtonColor;
         FitPlatformEditor();
         UpdateSend();
         ShowSuggestions();

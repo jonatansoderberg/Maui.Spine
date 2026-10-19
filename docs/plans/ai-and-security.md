@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-19 (#632: AI functions on the device or the server with the user's context, step 2.7, in review; before that #630: VoiceView removed, a voice is drawn by AvatarView, see docs/plans/spine-avatar.md C2b)
+**Last updated:** 2026-10-19 (#634: chat and voice in one conversation, step 4.5, in review; before that #632, AI functions, step 2.7)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -146,6 +146,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 4.3a | `IVoiceSession` and the OpenAI adapter: token, socket, barge-in, transcript, client tools, push-to-talk, the time limit; the Showcase's Voice chat page | #516 | 4.1a, 4.2 | Done | #568 | OpenAI and Azure OpenAI only in v1 (Q28), over its own WebSocket (Decisions). Seen on the owner's iPhone: a spoken conversation, a tool, barge-in four times. |
 | 4.3b | `VoiceView`, the `VoiceVisual` contract and the built-in visuals (SkiaSharp) | #567 | 4.3a | In review | | Split by the owner on 2026-10-15. A package of its own, `Plugin.Maui.Spine.Controls.Voice`; `orb`, `bars`, `ring`, `avatar`; `IVisemeSource` in Spine.Voice (Decisions). Seen in the simulator: all four against the reference, the avatar and the edge against a real session. Superseded by #630 (2026-10-19): VoiceView, its visuals and `Plugin.Maui.Spine.Controls.Voice` were removed; a voice is drawn by `AvatarView` with `VoiceAvatarDriver`, and bars and ring are built-in avatars. |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
+| 4.5 | Chat and voice in one conversation: `ChatComposer`'s microphone, `IVoiceSession.ConnectAsync(feature, conversation)` with the typed turns given to the model, the Showcase's Chat and Voice chat pages merged | #634 | 2.7, 4.3a | In review | | Asked for by the owner on 2026-10-19 after testing #632 on the iPhone (Decisions). |
 
 ### Phase 5: sign-in
 
@@ -171,7 +172,7 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | Step | What has not been verified | What it takes | How |
 |---|---|---|---|
 | 2.7 (#632) | Apple Intelligence calling a device function (`show_time`) through Spine.AI: in the iPhone 17 Pro simulator FoundationModels fails even without tools, and the Mac's model was not downloaded ("The model is not available") | The owner's iPhone with Apple Intelligence | The Showcase's AI client page: "Vad är klockan?" answered on the device |
-| 2.7 (#632) | Signed in against Azure: `get_my_bookings` with the user's bookings in the Chat page (Server) and in Voice chat. Signed out, and `show_time` on both sides, were seen against Azure on 2026-10-19 in the simulator (gpt-5.4-nano and gpt-realtime); signed in only against the local server | The owner signed in to the Showcase against the Azure server | Ask "Vilka bokningar har jag?" on both pages |
+| 2.7 (#632) | Signed in against Azure: `get_my_bookings` with the user's bookings in the Chat page (Server), typed and in a call. Signed out, and `show_time` on both sides, were seen against Azure on 2026-10-19 in the simulator (gpt-5.4-nano and gpt-realtime); signed in only against the local server | The owner signed in to the Showcase against the Azure server | Ask "Vilka bokningar har jag?" on both pages |
 | 2.7 (#632) | Pending device calls in `IDistributedCache` across instances, and `SpineAIEndpoints.FunctionAsync` under Azure Functions (only the in-memory store ran; Functions only compiled) | Redis or a second instance; the scratch Functions AppHost | Two servers behind one address, a device call answered on the other |
 | 1.1 (#506) | Guards on Windows at run time: a guarded page, command and tab. The tab should show the guard's cover. | A Windows machine | A scratch app with two `[NavigableTab]` pages, one guarded (see below), plus the Showcase Guards page |
 | 1.1 (#506) | Android and Windows tabs fall back to switching back when the guard has **no** `IGuardCover` | Emulator | A guard that implements only `IGuard<T>` on a tab; tap the tab, refuse; the previous tab should come back and the guarded tab's page should never show |
@@ -550,6 +551,11 @@ Newest last. Each entry is dated and says who decided.
   - **Refusals the model should explain are 200 results:** sign-in needed, invalid arguments (unknown or missing, checked before the function runs), a failure (the exception's message only in the log), a result over `MaxToolResultCharacters` (16 000).
   - **`ChatView.ShowToolCalls` is off by default.** **Why:** the issue makes tool cards a debug option; the Chat page turns it on to show them.
   - **Device functions see the installation, or the user's id through `ISignedInSession`.** The app's Authentication registers no `ISpineUserLookup`: device functions read the device, and user data belongs on the server.
+- **2026-10-19, owner (#634):** Chat and voice become one conversation, in an issue and PR of their own on top of #632.
+  - Controls.Chat does not reference Spine.Voice. `ChatComposer` gets a generic microphone (`MicrophoneCommand`, `IsMicrophoneActive`, `MicrophoneTextCommand`), and `IVoiceSession.ConnectAsync(feature, conversation)` gives the model the conversation and writes into it. The page connects them.
+  - Typed text during a call goes into the call (no preference from the owner; the composer rests the field when `MicrophoneTextCommand` is unset).
+  - The Showcase's Chat and Voice chat pages are one page.
+- **2026-10-19, Claude (#634):** The history is the text of user and assistant turns only, the last 40, as `input_text` and `output_text` items. **Why:** tool calls from the typed half cannot be replayed into a realtime session by id, and the model's context is limited. A pending turn left when the call ends is removed, since its words will never come.
 - **2026-10-19, owner (#630):** One visual for a voice: `AvatarView` with `VoiceAvatarDriver`. VoiceView, the `orb` and the canvas face, the `VoiceVisual`/`VoiceVisualView` contracts and `Plugin.Maui.Spine.Controls.Voice` are removed (unreleased); bars and ring became built-in avatars in Controls.Avatar. This replaces the 2026-10-09 and 2026-10-15 decisions on VoiceView below. `IVisemeSource` stays in Spine.Voice; the screen's edge stays in Highlight.
 
 ## Open questions

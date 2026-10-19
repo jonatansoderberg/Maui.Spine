@@ -95,6 +95,7 @@ chat.Streamed += (_, e) =>
 - **`Suggestions`** are chips above the field, shown while no answer is on its way. A tap sends the chip's text.
 - **`AutoFocus`** (on by default) puts the cursor in the field and shows the keyboard when the page appears. Turn it off for a chat the user reads before writing.
 - **`Placeholder`** is the empty field's text.
+- **The microphone.** `MicrophoneCommand` puts a microphone in the send button's place while the field is empty; a tap runs it. `IsMicrophoneActive` says a spoken conversation is on: the button becomes a red hang-up that runs the same command, and typed text and chips go to `MicrophoneTextCommand` (with the text) instead of the chat. Without `MicrophoneTextCommand` the field rests during the call ("Talking…"). Controls.Chat does not reference Spine.Voice; the page connects the two (see [Typed and spoken](#typed-and-spoken)).
 - On iOS, MAUI's Done bar above the keyboard is removed, since the send button is there. On Android, the field's Material underline is removed.
 
 ## Copy and accessibility
@@ -122,6 +123,34 @@ chat.Streamed += (_, e) =>
 
 `Spine.Chat.*` comes in English and Swedish: the placeholder, Send, Stop, You, Assistant, Thinking, Transcribing (a pending turn), Stopped, Try again, the three failure lines, Copy, the jump button, and Running… and Done for tool cards. Override them in the app's own strings; see [Strings](strings.md).
 
+## Typed and spoken
+
+One conversation can be typed and spoken. The page owns the list, `ChatView` adds the typed turns, and a voice session connected with that list adds the spoken ones ([Voice](voice.md#in-the-middle-of-a-chat)):
+
+```xml
+<ChatView x:Name="chat" Client="{Binding Assistant}" Messages="{Binding Messages}" />
+
+<SpinePage.Footer>
+    <ChatComposer Chat="{x:Reference chat}" MicrophoneCommand="{Binding TalkCommand}"
+                  IsMicrophoneActive="{Binding IsTalking}" MicrophoneTextCommand="{Binding SayCommand}" />
+</SpinePage.Footer>
+```
+
+```csharp
+[RelayCommand]
+private async Task Talk()
+{
+    if (IsTalking) { await voice.EndAsync(); IsTalking = false; return; }
+    IsTalking = true;
+    await voice.ConnectAsync("Voice", Messages);   // the model knows what was typed; the call's turns go into Messages
+}
+
+[RelayCommand]
+private Task Say(string text) => voice.SendTextAsync(text);   // typed during the call, answered aloud
+```
+
+After the call, typing goes on in the same list, and the next typed turn carries the spoken ones as history. The app's functions (`SpineAIOptions.Functions`, shared with Spine.Voice) work on both paths.
+
 ## Limits in v1
 
 - **The list is not virtualised.** It is a scroll view over a stack, which measures a growing answer at once on every platform and is fine for a few hundred messages. Trim long histories in the app.
@@ -129,4 +158,4 @@ chat.Streamed += (_, e) =>
 
 ## Sample
 
-The Showcase's **Chat** page talks to a demo client in the sample that needs no server. It looks the race up with a tool call, then streams markdown with a table and code. A switch moves it to Spine.AI's Assistant, through the push sample server.
+The Showcase's **Chat** page talks to a demo client in the sample that needs no server. It looks the race up with a tool call, then streams markdown with a table and code. Its Options (the "…" menu) move typed turns to Spine.AI's Assistant or the push sample server's, and the microphone starts a call with the server's realtime Voice feature in the same conversation, with an avatar that follows it. The call's options (the avatar, hanging up after goodbye, the screen's edge, the server's address) are in the same sheet.

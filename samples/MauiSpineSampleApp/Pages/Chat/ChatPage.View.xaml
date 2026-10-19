@@ -5,15 +5,22 @@
     x:TypeArguments="ChatPageViewModel"
     x:DataType="ChatPageViewModel">
 
-    <Grid RowDefinitions="Auto,*">
-        <Label Text="{Binding Using}" FontSize="13" Opacity="0.7" Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,8" />
+    <!-- One conversation, typed and spoken: the microphone in the composer starts a call that knows the turns so far,
+         and adds its own to the same list. The avatar shows during a call. -->
+    <Grid RowDefinitions="Auto,Auto,*">
+        <Label Text="{Binding Status}" FontSize="13" Opacity="0.7" Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,8" />
 
-        <ChatView x:Name="chat" Grid.Row="1" Client="{Binding Client}" Messages="{Binding Messages}"
+        <AvatarView Grid.Row="1" IsVisible="{Binding IsTalking}" Source="{Binding Avatar.Source}" Driver="{Binding Driver}"
+                    HeightRequest="140" WidthRequest="180" HorizontalOptions="Center" />
+
+        <ChatView x:Name="chat" Grid.Row="2" Client="{Binding Client}" Messages="{Binding Messages}"
                   ChatOptions="{Binding Options}" ShowToolCalls="{Binding ShowToolCalls}" />
     </Grid>
 
     <SpinePage.Footer>
-        <ChatComposer Chat="{x:Reference chat}" Suggestions="{Binding Suggestions}" Placeholder="Ask about the race" />
+        <ChatComposer Chat="{x:Reference chat}" Suggestions="{Binding Suggestions}" Placeholder="Ask about the race"
+                      MicrophoneCommand="{Binding TalkCommand}" IsMicrophoneActive="{Binding IsTalking}"
+                      MicrophoneTextCommand="{Binding SayCommand}" />
     </SpinePage.Footer>
 
 </SpinePage>

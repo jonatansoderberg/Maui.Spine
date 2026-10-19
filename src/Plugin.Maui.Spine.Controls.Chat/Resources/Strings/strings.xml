@@ -7,6 +7,10 @@
   <s key="Spine.Chat.Assistant">Assistant: {0}</s>
   <s key="Spine.Chat.Thinking">Thinking</s>
   <s key="Spine.Chat.Transcribing">Writing down what you said</s>
+  <s key="Spine.Chat.Microphone">Talk</s>
+  <s key="Spine.Chat.HangUp">End the call</s>
+  <s key="Spine.Chat.Talking">Talking…</s>
+  <s key="Spine.Chat.TalkOrType">Talk, or type</s>
   <s key="Spine.Chat.Stopped">Stopped</s>
   <s key="Spine.Chat.TryAgain">Try again</s>
   <s key="Spine.Chat.Off">This feature is not available right now.</s>
