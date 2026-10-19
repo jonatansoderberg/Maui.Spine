@@ -71,41 +71,6 @@ public sealed class VisualTests
     }
 
     [Fact]
-    public void The_bars_grow_up_for_the_answer_and_down_for_the_microphone()
-    {
-        var top = new SKRectI(0, 0, Size, Size / 2 - 4);
-        var bottom = new SKRectI(0, Size / 2 + 4, Size, Size);
-
-        using var answer = Draw(new BarsVisual(), Frame(VoiceState.Speaking, output: 0.8f));
-        using var user = Draw(new BarsVisual(), Frame(VoiceState.Listening, input: 0.8f));
-
-        Assert.True(Painted(answer, top) > 10 * Math.Max(1, Painted(answer, bottom)));
-        Assert.True(Painted(user, bottom) > 10 * Math.Max(1, Painted(user, top)));
-    }
-
-    [Fact]
-    public void Under_reduce_motion_the_bars_are_two_level_bars_not_a_spectrum()
-    {
-        using var bitmap = Draw(new BarsVisual(), Frame(VoiceState.Speaking, output: 0.8f), reduced: true);
-
-        // Nothing at the sides: the spectrum would reach them.
-        Assert.Equal(0, Painted(bitmap, new SKRectI(0, 0, Size / 4, Size / 2 - 4)));
-        Assert.True(Painted(bitmap, new SKRectI(Size / 3, 0, 2 * Size / 3, Size / 2)) > 500);
-    }
-
-    [Fact]
-    public void The_ring_reaches_further_out_with_the_answer()
-    {
-        var outside = new SKRectI(0, 0, Size, 30);    // above the ring, where only outward ticks reach
-
-        using var quiet = Draw(new RingVisual(), Frame(VoiceState.Listening));
-        using var loud = Draw(new RingVisual(), Frame(VoiceState.Speaking, output: 1));
-
-        Assert.Equal(0, Painted(quiet, outside));
-        Assert.True(Painted(loud, outside) > 20);
-    }
-
-    [Fact]
     public void The_avatars_mouth_opens_with_the_level_and_follows_a_viseme()
     {
         var silent = new AvatarVisual();
@@ -147,9 +112,7 @@ public sealed class VisualTests
 
     [Theory]
     [InlineData("orb", typeof(OrbVisual), true)]
-    [InlineData("BARS", typeof(BarsVisual), true)]
-    [InlineData("ring", typeof(RingVisual), true)]
-    [InlineData("avatar", typeof(AvatarVisual), true)]
+    [InlineData("AVATAR", typeof(AvatarVisual), true)]
     [InlineData("mascot", typeof(OrbVisual), false)]
     [InlineData(null, typeof(OrbVisual), false)]
     public void Visuals_are_found_by_name_and_an_unknown_one_falls_back_to_the_orb(string? name, Type type, bool known)
@@ -172,7 +135,7 @@ public sealed class VisualTests
     [Fact]
     public void Every_visual_draws_idle_and_muted_frames_without_failing()
     {
-        foreach (var visual in new VoiceVisual[] { new OrbVisual(), new BarsVisual(), new RingVisual(), new AvatarVisual() })
+        foreach (var visual in new VoiceVisual[] { new OrbVisual(), new AvatarVisual() })
         {
             foreach (var state in Enum.GetValues<VoiceState>())
                 using (Draw(visual, Frame(state, 0.5f, 0.5f))) { }

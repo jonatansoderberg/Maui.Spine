@@ -3,9 +3,19 @@ using SkiaSharp.Views.Maui.Controls.Hosting;
 
 namespace Plugin.Maui.Spine.Controls;
 
-/// <summary>The visuals <see cref="VoiceView"/> can show, beyond the built-in <c>orb</c>, <c>bars</c>, <c>ring</c> and <c>avatar</c>.</summary>
+/// <summary>
+/// The visuals <see cref="VoiceView"/> can show, beyond the built-in <c>orb</c> and <c>avatar</c> drawn on its canvas and
+/// <c>bars</c>, <c>ring</c> and <c>character</c> drawn by avatars.
+/// </summary>
 public sealed class SpineVoiceViewOptions
 {
+    internal SpineVoiceViewOptions()
+    {
+        Registry.Set("bars", AvatarVoiceVisual.Bars);
+        Registry.Set("ring", AvatarVoiceVisual.Ring);
+        Registry.Set("character", static () => new AvatarVoiceVisual());
+    }
+
     internal VoiceVisualRegistry Registry { get; } = new();
 
     /// <summary>A visual that draws on the canvas, by name; a new one for each view.</summary>
@@ -29,7 +39,8 @@ public static class SpineVoiceViewExtensions
     internal static readonly SpineVoiceViewOptions Options = new();
 
     /// <summary>
-    /// Registers the SkiaSharp renderers <see cref="VoiceView"/> draws with, and the visuals it can show. <c>UseSpine()</c>
+    /// Registers the SkiaSharp renderers <see cref="VoiceView"/> draws with, the avatars it hosts (<c>UseSpineAvatar</c>), and the
+    /// visuals it can show. <c>UseSpine()</c>
     /// calls it for an app that references this package; call it yourself to add visuals. Calling it again adds to them.
     /// </summary>
     public static MauiAppBuilder UseSpineVoiceView(this MauiAppBuilder builder, Action<SpineVoiceViewOptions>? configure = null)
@@ -40,6 +51,8 @@ public static class SpineVoiceViewExtensions
 
         builder.Services.TryAddSingleton(Options);
         builder.UseSkiaSharp();
+        // bars, ring and character are avatars.
+        builder.UseSpineAvatar();
         return builder;
     }
 }

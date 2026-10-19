@@ -5,7 +5,7 @@
     x:TypeArguments="AssistantPageViewModel"
     x:DataType="AssistantPageViewModel">
 
-    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Avatar.Voice, Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Chat, Plugin.Maui.Spine.Speech">
+    <SampleLayout Packages="Plugin.Maui.Spine.Controls.Voice, Plugin.Maui.Spine.Voice, Plugin.Maui.Spine.Controls.Chat, Plugin.Maui.Spine.Speech">
 
         <Example Title="A voice assistant with a face"
                  Summary="Talk: a realtime conversation with the push sample server's Voice feature, drawn as an avatar: it listens with the microphone's level, thinks, speaks with its mouth on the answer's level (the realtime models send no visemes), wears the muted badge, and flinches when you talk over it. The same avatar can sit in a VoiceView as its character, ticked by the VoiceView. Type: a chat whose answer the avatar mouths as it streams in, Thinking until the first words, and reads aloud when it is done if you like.">

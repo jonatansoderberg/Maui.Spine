@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<!--
-		net10.0 carries only the visuals' drawing (Core/, SkiaSharp), so it is tested by drawing into a bitmap without a
-		device; the MAUI TFMs add VoiceView, VoiceVisualView and UseSpineVoiceView.
+		net10.0 carries only the canvas visuals' drawing and VoiceAvatarDriver (Core/), so they are tested without a device;
+		the MAUI TFMs add VoiceView, VoiceVisualView, the avatar kinds and UseSpineVoiceView.
 	-->
 	<PropertyGroup>
 		<TargetFrameworks>net10.0;$(SpineMauiTargetFrameworks)</TargetFrameworks>
@@ -17,9 +17,9 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>VoiceView for Spine.Voice: a voice conversation drawn as it happens, with SkiaSharp. Built-in Orb, duplex Bars, Ring and a simple Avatar that follow the levels, the 24 bands and visemes; a plug-in contract for visuals of your own, drawn on the canvas or hosted in a view of their own.</Description>
+		<Description>VoiceView for Spine.Voice: a voice conversation drawn as it happens. Built-in orb and a simple face on a SkiaSharp canvas; duplex bars, a ring and a character of your own drawn as avatars, following the levels, the 24 bands and visemes; VoiceAvatarDriver for an AvatarView of your own; a plug-in contract for visuals of your own.</Description>
 		<SpineIcon>ai.png</SpineIcon>
-		<PackageTags>$(PackageTags);voice;visualizer;audio;skiasharp;avatar</PackageTags>
+		<PackageTags>$(PackageTags);voice;visualizer;audio;skiasharp;avatar;realtime;lip-sync</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -34,6 +34,13 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Plugin.Maui.Spine.Voice\Plugin.Maui.Spine.Voice.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Avatar\Plugin.Maui.Spine.Controls.Avatar.csproj" />
+	</ItemGroup>
+
+	<!-- bars and ring: the packages in samples/Avatars, the one copy the lab, the Showcase and the tests use too. -->
+	<ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+		<EmbeddedResource Include="..\..\samples\Avatars\bars.spineavatar" LogicalName="Plugin.Maui.Spine.Controls.Voice.bars.spineavatar" />
+		<EmbeddedResource Include="..\..\samples\Avatars\ring.spineavatar" LogicalName="Plugin.Maui.Spine.Controls.Voice.ring.spineavatar" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
@@ -43,6 +50,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Voice.Tests" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
 	</ItemGroup>
 
 	<!-- Declares the package to UseSpine(); see Plugin.Maui.Spine's build\Plugin.Maui.Spine.targets. -->

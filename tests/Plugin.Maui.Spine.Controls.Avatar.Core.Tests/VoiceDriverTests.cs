@@ -104,6 +104,29 @@ public class VoiceDriverTests
         Assert.DoesNotContain(frame.Speech.ToArray(), w => w.Weight > 0.05f);
     }
 
+    [Theory]
+    [InlineData(VoiceState.Speaking)]
+    [InlineData(VoiceState.Listening)]
+    public void BarsAndRingGetTheSpectrumWhileTheConversationIsLive(VoiceState state)
+    {
+        foreach (var avatar in new[] { "bars", "ring" })
+        {
+            var package = AvatarArchiveTests.Load(avatar);
+            var runtime = new AvatarRuntime();
+            runtime.Load(new AvatarScheduler(package, package.Manifest.Representations[0], _time, 5));
+            var audio = new FakeAudio();
+            runtime.Driver = new VoiceAvatarDriver(audio);
+            audio.Frame.State = state;
+            audio.Frame.OutputLevel = audio.Frame.InputLevel = 0.6f;
+            for (var b = 0; b < VoiceFrame.BandCount; b++)
+                audio.Frame.WritableOutputBands[b] = audio.Frame.WritableInputBands[b] = 0.7f;
+            var frame = Run(runtime, audio, 20);
+
+            Assert.True(frame.OutputReactiveWeight > 0.9f && frame.InputReactiveWeight > 0.9f, $"{avatar}: reactive {frame.OutputReactiveWeight}, {frame.InputReactiveWeight}");
+            Assert.True(frame.OutputBands[3] > 0.3f && frame.InputBands[3] > 0.3f, $"{avatar}: bands {frame.OutputBands[3]}, {frame.InputBands[3]}");
+        }
+    }
+
     [Fact]
     public void ANewAnswerDropsTheCuesOfTheOneCutOff()
     {

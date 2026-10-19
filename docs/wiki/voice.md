@@ -143,7 +143,7 @@ The frame is one object, overwritten on every tick without allocating. Read it d
 
 ## Drawing the conversation
 
-`VoiceView` in Spine.Controls.Voice reads the frame of a session (or of a bare engine, `Audio="{Binding Engine}"`) on its own tick and draws it with SkiaSharp:
+`VoiceView` in Spine.Controls.Voice reads the frame of a session (or of a bare engine, `Audio="{Binding Engine}"`) on its own tick and draws it: the orb and the face on its SkiaSharp canvas, bars, ring and a character as avatars ([Avatars](avatars.md)) that it ticks itself:
 
 ```xml
 <VoiceView Session="{Binding Voice}" Kind="orb" HeightRequest="240" />
@@ -152,12 +152,12 @@ The frame is one object, overwritten on every tick without allocating. Read it d
 | `Kind` | What it draws | Under Reduce Motion |
 |---|---|---|
 | `orb` (default) | A soft blob that breathes with the level and wobbles with the bands: the user's colour while they talk, warm while the model speaks, a slow pulse while it thinks | A round orb, no wobble or pulse, whose size follows the level |
-| `bars` | The answer's 24 bands up from a line and the microphone's down, so talking over the answer shows as both | Two level bars |
-| `ring` | The answer's bands outward and the microphone's inward round an empty middle, for round a button or a picture | A ring whose width follows the level |
+| `bars` | The answer's 24 bands up from a line and the microphone's down, so talking over the answer shows as both. An avatar built into the library (`bars.spineavatar`), one part per band | The same row of bars in a still bell shape, rising with the level |
+| `ring` | The answer's bands outward and the microphone's inward round an empty middle, for round a button or a picture. An avatar built into the library (`ring.spineavatar`) | A ring of each colour whose size follows its level |
 | `avatar` | A face that blinks, looks at the user while listening and up while thinking, and whose mouth follows the visemes or the level | No blinking; the mouth moves slowly |
-| `character` | A `.spineavatar` avatar (Nova, a plush, a shader), from `Plugin.Maui.Spine.Controls.Avatar.Voice`: the conversation's state, levels and visemes on the avatar, ticked by the VoiceView. The avatar is `VoiceAvatar.Source` on the VoiceView. See [Avatars](avatars.md#with-a-voice-conversation) | The avatar's still pose, four frames a second |
+| `character` | A `.spineavatar` avatar of your own (Nova, a plush, a shader): the conversation's state, levels and visemes on the avatar, ticked by the VoiceView. The avatar is `VoiceAvatar.Source` on the VoiceView. See [Avatars](avatars.md#with-a-voice-conversation) | The avatar's still pose, four frames a second |
 
-- **Colours:** `InputColor` is the user's (unset, the app's `Primary`), `OutputColor` the model's (unset, a warm orange).
+- **Colours:** `InputColor` is the user's (unset, the app's `Primary`), `OutputColor` the model's (unset, a warm orange). Bars and ring take them as their `input` and `output` theme slots (`AvatarView.SetThemeColor`); a character keeps its own colours.
 - **Frame rate:** `FrameRate`, 1 to 60, 30 by default. It does not draw while it is detached, hidden (itself or an ancestor, such as an unselected tab), scrolled out of sight or the app is in the background. Under Reduce Motion it draws four times a second.
 - **Screen readers** hear one element whose description is the state ("Listening", "Speaking"). Muting, an interruption and the end are announced; the turns are not, so the announcements do not talk over the answer.
 - An unknown `Kind` draws the orb and logs a warning.

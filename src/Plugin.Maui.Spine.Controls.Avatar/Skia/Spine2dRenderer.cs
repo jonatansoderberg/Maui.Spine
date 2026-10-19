@@ -35,6 +35,20 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
     private readonly SKSamplingOptions _sampling = new(SKFilterMode.Linear);
     private bool? _shaderDark;
     private SKColor? _shaderAccent;
+    private IReadOnlyDictionary<string, SKColor>? _themeColors;
+    private IReadOnlyDictionary<string, SKColor>? _shaderThemeColors;
+    // Per slot: the app's colour for it, or null for the package's own.
+    private SKColor?[] _slotOverrides = [];
+
+    public IReadOnlyDictionary<string, SKColor>? ThemeColors
+    {
+        get => _themeColors;
+        set
+        {
+            _themeColors = value;
+            _slotOverrides = [.. _model.SlotNames.Select(n => value is not null && value.TryGetValue(n, out var c) ? c : (SKColor?)null)];
+        }
+    }
 
     public Spine2dRenderer(Spine2dModel model)
     {
@@ -107,7 +121,7 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
             area.MidX - _model.Width * scale / 2,
             area.MidY - _model.Height * scale / 2);
 
-        if (_shaderDark != dark || _shaderAccent != accent)
+        if (_shaderDark != dark || _shaderAccent != accent || !ReferenceEquals(_shaderThemeColors, _themeColors))
             BuildShaders(dark, accent);
 
         // On the GPU a blur is cheap; on the CPU it is the costliest thing drawn, so there blurred nodes come from images.
@@ -268,6 +282,7 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
         }
         _shaderDark = dark;
         _shaderAccent = accent;
+        _shaderThemeColors = _themeColors;
         foreach (var layer in _layers)
             layer?.Dispose();
     }
@@ -399,6 +414,10 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
         ApplyParameter(prefix + "Low", Average(bands[..8]), weight);
         ApplyParameter(prefix + "Mid", Average(bands[8..16]), weight);
         ApplyParameter(prefix + "High", Average(bands[16..]), weight);
+        // And each band on its own, for a spectrum drawn part by part (VoiceView's bars and ring).
+        var names = prefix == "input" ? Spine2dVocabulary.InputBands : Spine2dVocabulary.OutputBands;
+        for (var b = 0; b < bands.Length && b < names.Length; b++)
+            ApplyParameter(names[b], bands[b], weight);
 
         static float Average(ReadOnlySpan<float> values)
         {
@@ -520,6 +539,8 @@ internal sealed class Spine2dRenderer : ISkiaAvatarRenderer
             return literal;
         if (slot == _model.AccentSlot && accent is { } a)
             return a;
+        if (slot < _slotOverrides.Length && _slotOverrides[slot] is { } own)
+            return own;
         return dark ? _model.SlotDark[slot] : _model.SlotLight[slot];
     }
 

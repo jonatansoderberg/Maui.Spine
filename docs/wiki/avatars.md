@@ -11,7 +11,7 @@ Animated characters and ambient visuals for a voice assistant, text-to-speech, a
 | `Plugin.Maui.Spine.Controls.Avatar` | `AvatarView`: Skia (vector scenes, SkSL shaders) everywhere, glTF with SceneKit on iOS and Mac Catalyst and with Skia on Android and Windows, the poster where none applies |
 | `Plugin.Maui.Spine.Controls.Avatar.Core` | The format, the scheduler, the drivers' contract and the text driver, visemes, glTF; no MAUI |
 | `Plugin.Maui.Spine.Speech` | Text-to-speech with word boundaries, which `SpeechAvatarDriver` speaks through ([Speech](speech.md)) |
-| `Plugin.Maui.Spine.Controls.Avatar.Voice` | `VoiceAvatarDriver` for a realtime [voice](voice.md) conversation, and VoiceView's `character` |
+| `Plugin.Maui.Spine.Controls.Voice` | `VoiceAvatarDriver` for a realtime [voice](voice.md) conversation, VoiceView's `character`, and its `bars` and `ring`, which are avatars |
 | `Plugin.Maui.Spine.Avatar.Tool` | The `spine-avatar` command: checks, packs and draws `.spineavatar` files ([Making a package](#making-a-package)) |
 
 ## The view
@@ -38,6 +38,7 @@ avatar.Interrupt();
 | `MotionMode` | `System` follows Reduce Motion: a still pose, four frames a second, a slow mouth. `Reduced` and `Full` override it |
 | `MaxFramesPerSecond` | 15, 30 (default) or 60 |
 | `AccentColor` | The colour of the avatar's `accent` slot; unset, the app's accent |
+| `SetThemeColor(slot, color)` | A colour for any other theme slot, in light and dark (spine2d and sksl); null gives the slot back. VoiceView colours bars' and ring's `input` and `output` this way |
 | `AccessibilityText` | What a screen reader says; unset, the avatar's name and state |
 | `LoadState`, `LoadError`, `Package`, `RendererName`, `LipSyncQuality`, `Gestures` | What is shown and how |
 
@@ -67,7 +68,7 @@ In a Highlight tour, a presenter given as `TourStep.Presenter` (or `Highlight.Pr
 
 ## With a voice conversation
 
-`Plugin.Maui.Spine.Controls.Avatar.Voice` follows a [Spine.Voice](voice.md) session. The avatar's seven states are the session's, one to one; the microphone's and the answer's levels and 24 bands reach it every tick; a new answer or a cut-off one starts a new speech generation. The realtime providers send no visemes, so the mouth follows the answer's level (AudioReactive); with a viseme source registered (`SpineVoiceOptions.VisemeSource`) the session's visemes become timed cues on the answer's playback clock (TimedVisemes). The view's `Interrupt()` interrupts the session.
+`VoiceAvatarDriver` in `Plugin.Maui.Spine.Controls.Voice` follows a [Spine.Voice](voice.md) session. The avatar's seven states are the session's, one to one; the microphone's and the answer's levels and 24 bands reach it every tick; a new answer or a cut-off one starts a new speech generation. The realtime providers send no visemes, so the mouth follows the answer's level (AudioReactive); with a viseme source registered (`SpineVoiceOptions.VisemeSource`) the session's visemes become timed cues on the answer's playback clock (TimedVisemes). The view's `Interrupt()` interrupts the session.
 
 On a page centred on the avatar, give an `AvatarView` the driver:
 

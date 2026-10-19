@@ -74,4 +74,14 @@ internal static class Spine2dVocabulary
     public static readonly string[] NodeTypes = ["group", "ellipse", "roundedRect", "path"];
 
     public static readonly string[] Properties = ["x", "y", "scaleX", "scaleY", "rotation", "opacity", "pathPose"];
+
+    /// <summary><c>inputBand0</c>–<c>inputBand23</c>: one parameter per band of the microphone's spectrum, low to high.</summary>
+    public static readonly string[] InputBands = [.. Enumerable.Range(0, AvatarRenderFrame.BandCount).Select(b => $"inputBand{b}")];
+
+    /// <summary><c>outputBand0</c>–<c>outputBand23</c>: one parameter per band of the answer's spectrum, low to high.</summary>
+    public static readonly string[] OutputBands = [.. Enumerable.Range(0, AvatarRenderFrame.BandCount).Select(b => $"outputBand{b}")];
+
+    /// <summary>Every level a spine2d binding may map: the two levels, three ranges and 24 bands, each for input and output.</summary>
+    public static readonly string[] Parameters =
+        ["inputLevel", "outputLevel", "inputLow", "inputMid", "inputHigh", "outputLow", "outputMid", "outputHigh", .. InputBands, .. OutputBands];
 }

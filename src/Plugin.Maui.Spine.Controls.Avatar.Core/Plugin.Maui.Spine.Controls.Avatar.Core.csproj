@@ -23,7 +23,7 @@
 	<ItemGroup>
 		<!-- The view and its surfaces read the scheduler's and package's internals (AvatarInput.Scheduler, AvatarJson). -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar" />
-		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Voice" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Voice" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
 		<!-- The spine-avatar tool validates and draws with the same internals. -->
 		<InternalsVisibleTo Include="spine-avatar" />

@@ -43,7 +43,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
-		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Voice" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Voice" />
 		<!-- The spine-avatar tool draws posters and sheets with the Skia renderers. -->
 		<InternalsVisibleTo Include="spine-avatar" />
 		<!-- The lab's inspector reads the surfaces' frame timing once it runs on this package (B1.3). -->

@@ -73,7 +73,7 @@ A bindings file belongs to one representation and says what poses, animations an
 | `poses` | glb, spine2d | Pose name → list of writes. glb: `{node, mesh, primitives, targetIndex, value}` (a morph weight; `expectedName` checks the target's name) or `{node, property: translation|rotation|scale, value}`; spine2d: `{node, property, value}` with `x`, `y`, `scaleX`, `scaleY`, `rotation`, `opacity` or `pathPose` |
 | `animations` | glb, spine2d | Name → the model's clip, only where they differ |
 | `stateAnimations` | glb, spine2d | A looping clip per state, replacing the idle loop while it shows (`thinking: think`) |
-| `parameters` | glb, spine2d | `inputLevel`, `outputLevel` and, in spine2d, `inputLow|Mid|High`, `outputLow|Mid|High`: writes from `min` at level 0 to `max` at 1. **Values are absolute** |
+| `parameters` | glb, spine2d | `inputLevel`, `outputLevel` and, in spine2d, `inputLow|Mid|High`, `outputLow|Mid|High` and one per band, `inputBand0`–`inputBand23` and `outputBand0`–`outputBand23` (low to high; VoiceView's bars and ring): writes from `min` at level 0 to `max` at 1. **Values are absolute** |
 | `channelMasks` | glb, spine2d | The channels the `expression`, `speech`, `idle` and `reflex` layers may write; a write outside its layer's mask is dropped |
 | `framing` | all | `safeInset`, `fit`; glb also `cameraPosition`, `lookAt`, `verticalFov` |
 | `clipBlend` | glb | `override` for skinned characters, whose clips must not add to the rest pose |
