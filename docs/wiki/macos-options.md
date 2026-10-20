@@ -13,6 +13,7 @@ builder.UseSpine(options =>
     options.AppTitle = "My App";
 
     options.MacOS.Backdrop = WindowBackdrop.Acrylic;   // translucent window
+    options.MacOS.UnifiedTitleBar = true;              // header bar in the title bar row
     options.MacOS.ShowTrayIcon = true;                 // menu-bar icon
     options.MacOS.TrayIconSvg = "app_tray.svg";
     options.MacOS.CloseToBackground = true;            // closing hides the window; quit from the menu
@@ -22,6 +23,9 @@ builder.UseSpine(options =>
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `Backdrop` | `WindowBackdrop` | `None` | The window's material: `None` (opaque), `Acrylic` (the desktop blurred behind the window, clearly translucent, like System Settings' sidebar) or `Mica` (AppKit's subtler under-window material). See [A translucent window](#a-translucent-window) |
+| `UnifiedTitleBar` | `bool` | `false` | Puts a region page's header bar in the title bar row, after the window buttons. See [One row: the header bar in the title bar](#one-row-the-header-bar-in-the-title-bar) |
+| `FitWindowToContent` | `bool` | `false` | Once at launch, when the first page's content does not fit, the window takes the size the page suggests for its width. See [Window sizes from the content](#window-sizes-from-the-content) |
+| (page) `SuggestWindowSizes` | `ViewModelBase` override | none | Window sizes offered when the header bar is right-clicked. See [Window sizes from the content](#window-sizes-from-the-content) |
 | `ShowTrayIcon` | `bool` | `false` | Shows an icon in the menu bar, with the app's [shortcuts](shortcuts.md) as its menu |
 | `TrayIconSvg` | `string?` | `null` | Embedded SVG for the menu-bar icon, drawn as a template image |
 | `TrayIconPath` | `string` | `""` | A file path for the icon instead of an SVG |
@@ -45,6 +49,48 @@ An app that lives in the menu bar also sets `LSUIElement` to `true` in `Platform
 With **Reduce Transparency** turned on, the window stays opaque. Pages then sit on the host page's background, so give that background a real colour (see the first pitfall below).
 
 A page that should stay solid, such as a sheet with a form, sets its own `BackgroundColor`.
+
+---
+
+## One row: the header bar in the title bar
+
+By default a Mac window has its title bar and Spine's header bar below it: two rows. `options.MacOS.UnifiedTitleBar = true` makes them one, the way a unified toolbar does on the Mac and the way the header bar already sits beside the caption buttons on Windows:
+
+![The header bar in the title bar row](images/unified-titlebar-mac.png)
+
+- Spine gives the window an empty `NSToolbar` in the `UnifiedCompact` style, so the title bar row is a toolbar's height with the close, minimise and zoom buttons centred in it.
+- A region page's header bar is laid over that row. Its leading action (a back button or a `Primary` action) and the title start after the zoom button; the trailing actions keep their place at the right.
+- The bar's buttons are a toolbar's: compact, 34-point glass circles with a 20-point glyph (`HeaderBarConstants.CompactButtonHeight`, `CompactGlyphSize`). They and the title are centred on the window buttons. The page's content starts below the row.
+- The window's own title is hidden in the bar. It stays for Mission Control and the Window menu.
+- Sheets, and pages without a header bar, are unchanged.
+
+`TitleAlignment.Left` reads like a Mac toolbar's title. A centred title stays centred in the window.
+
+---
+
+## Window sizes from the content
+
+Right-clicking the header bar opens a menu of window sizes the page suggests, as snap layouts offer on Windows: one column of cards, two, three. The page decides, from its content:
+
+```csharp
+public override IReadOnlyList<WindowSize> SuggestWindowSizes(Size screen) =>
+[
+    new("One column", new Size(468, ContentHeight(468)), "rectangle"),
+    new("Two columns", new Size(904, ContentHeight(904)), "rectangle.split.2x1"),
+];
+```
+
+- It is asked each time the menu opens, so the sizes follow the content. `screen` is the room the screen leaves, in the app's points. Leave out the sizes that do not fit.
+- A size is the whole window, title bar row included, in the app's points (UIKit's, which an app scaled to match iPad has larger than AppKit's).
+- Choosing one resizes the window with AppKit's animation, keeping its top left corner and staying on the screen. The size the window has is checked.
+- A right-click on a button stays the button's. With no sizes, right-clicking does nothing.
+- Leave a few points of slack over a layout's breakpoint: a window exactly at the width three columns need can lay out two.
+- Measure the height in UIKit's points from the content's start (the scroll view's `AdjustedContentInset.Top` under a floating header bar) plus the content's natural height. MAUI's `Window.Height` is in AppKit's points on a scaled Mac, and a scroll view's frame under the unified title bar reads lower than it is drawn.
+
+### Fitting the window
+
+- `options.MacOS.FitWindowToContent = true`: once, at launch, when the first page's content does not fit, the window takes the suggestion for its width (the widest no wider than the window, or the narrowest). After that the size is the user's.
+- `FitWindowToContent()` on the page view model does it now, smaller or larger: after the content changed, for example when the user hid an item.
 
 ---
 
@@ -143,6 +189,14 @@ PropertyChanged += (_, e) =>
 - `strings.xml` (neutral) and `strings.<culture>.xml` are one document per culture for the whole assembly. Use `WithCulture="false"` on the `EmbeddedResource`, or `strings.sv.xml` ends up in a satellite assembly. See [Strings](strings.md).
 - A chosen culture is stored as `Spine.Culture` and applied at the next launch. For a "same as the system" choice, set the culture from the system's first language and remove that preference.
 - Text that providers or services build at runtime, such as quota names or "N requests this month", does not re-resolve. Rebuild it when `ISpineStrings.Changed` fires.
+
+### AppKit and UIKit measure in different points
+
+**Symptom:** something placed from an AppKit measurement (a window button's frame, the title bar's height) lands too high or too far left.
+
+**Cause:** a Catalyst app that is scaled to match iPad lays UIKit out in larger points than AppKit: a window 798 points wide in AppKit is 1037 wide in UIKit (77 %).
+
+**Fix:** convert with the ratio of `UIWindow.Bounds` to the `NSWindow` frame. UIKit's own safe area is already in UIKit points.
 
 ### Testing on the Mac
 

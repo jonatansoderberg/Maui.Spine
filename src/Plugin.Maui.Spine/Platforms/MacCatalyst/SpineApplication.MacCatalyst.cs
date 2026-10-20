@@ -36,24 +36,33 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         var provider = _services.GetRequiredService<ISystemInsetsProvider>() as SystemInsetsProvider;
         if (provider is not null)
         {
+            provider.MacUnifiedTitleBar = _services.GetRequiredService<SpineOptions>().MacOS.UnifiedTitleBar;
+            provider.MacFitWindowToContent = _services.GetRequiredService<SpineOptions>().MacOS.FitWindowToContent;
+
             // window.Activated fires while UIWindowScene is still a _UIPlaceholderWindowScene,
             // which doesn't expose the underlying NSWindow. Instead, observe AppKit notifications,
             // whose object IS the real NSWindow. DidBecomeKey alone left a window that opens without
             // focus (a login item, `open -g`) with the opaque system title bar until it was clicked;
             // DidChangeOcclusionState is posted when the window first comes on screen.
-            void Adopt(NSNotification notification) => MainThread.BeginInvokeOnMainThread(() =>
+            void Adopt(NSNotification notification) => MainThread.BeginInvokeOnMainThread(() => AdoptWindow(notification.Object));
+
+            void AdoptWindow(NSObject? nsObj)
             {
-                if (notification.Object is not { } nsObj) return;
+                if (nsObj is null) return;
                 // Only the scene's window: menus, the status item and popovers have AppKit windows of their own, and
                 // occlusion changes are posted for them too; a translucent menu showed white text on white.
                 if (!AppKitObjC.IsSceneWindow(nsObj.Handle)) return;
 
                 EnableFullSizeContentView(nsObj.Handle);
                 AdoptNSWindow(nsObj);
+                provider.MacWindow = nsObj.Handle;
                 MacBackdrop.Apply(nsObj.Handle, window.Handler?.PlatformView as UIKit.UIWindow,
                     _services.GetRequiredService<SpineOptions>().MacOS.Backdrop);
 
                 if (window.Handler?.PlatformView is not UIKit.UIWindow uiWindow) return;
+
+                if (provider.MacUnifiedTitleBar)
+                    UnifyTitleBar(uiWindow, nsObj.Handle, provider);
 
                 // Force a UIKit layout pass so safeAreaInsets update for the new
                 // fullSizeContentView geometry before we read them.
@@ -65,10 +74,32 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                 // full-bleed pages (IsHeaderBarVisible=false, SafeAreaEdges=None);
                 // non-full-bleed pages rely on MAUI's own safe-area offset instead.
                 provider.UpdateFromUIWindow(uiWindow);
-            });
+            }
 
             foreach (var name in new[] { "NSWindowDidChangeOcclusionStateNotification", "NSWindowDidBecomeKeyNotification" })
                 NSNotificationCenter.DefaultCenter.AddObserver(new NSString(name), Adopt, null);
+
+            // A window that opens without focus can come on screen before these observers exist, and then neither
+            // notification arrives until it is clicked: look for the scene's window as well, for the first seconds.
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                for (var attempt = 0; attempt < 15 && _nsWindow is null; attempt++)
+                {
+                    await Task.Delay(200);
+                    if (window.Handler?.PlatformView is not UIKit.UIWindow) continue;
+                    var app = AppKitObjC.IntPtr_msgSend(Class.GetHandle("NSApplication"), Selector.GetHandle("sharedApplication"));
+                    if (Runtime.GetNSObject<NSArray>(AppKitObjC.IntPtr_msgSend(app, Selector.GetHandle("windows"))) is not { } windows) continue;
+                    for (nuint i = 0; i < windows.Count; i++)
+                    {
+                        var candidate = windows.GetItem<NSObject>(i);
+                        if (AppKitObjC.IsSceneWindow(candidate.Handle))
+                        {
+                            AdoptWindow(candidate);
+                            break;
+                        }
+                    }
+                }
+            });
 
             // The backdrop's material follows the NSWindow's appearance, which UIKit's theme does not change.
             if (Current is { } app)
@@ -99,6 +130,65 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
         if (macOptions.CloseToBackground)
             SetupCloseToBackground(window);
+    }
+
+    /// <summary>
+    /// An empty unified toolbar makes the title bar one row as tall as a toolbar, with the window buttons
+    /// centred in it; the header bar is laid over that row (NavigationRegion). The window's own title stays
+    /// for Mission Control and the Window menu, hidden in the bar.
+    /// </summary>
+    private static void UnifyTitleBar(UIKit.UIWindow uiWindow, IntPtr nsWindowPtr, SystemInsetsProvider provider, int attempt = 0)
+    {
+        // A window that opens without focus is adopted before its scene has a title bar: try again shortly, or the
+        // header bar would stay under the system title bar until the window was clicked.
+        if (uiWindow.WindowScene?.Titlebar is not { } titlebar)
+        {
+            if (attempt < 20)
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    await Task.Delay(150);
+                    UnifyTitleBar(uiWindow, nsWindowPtr, provider, attempt + 1);
+                });
+            return;
+        }
+        if (titlebar.Toolbar is null)
+        {
+            titlebar.Toolbar = new AppKit.NSToolbar("Spine.UnifiedTitleBar");
+            titlebar.ToolbarStyle = UIKit.UITitlebarToolbarStyle.UnifiedCompact;
+        }
+        titlebar.TitleVisibility = UIKit.UITitlebarTitleVisibility.Hidden;
+
+        Measure();
+
+        // The toolbar takes effect on the next layout pass: measure again once it has, and the safe area with it.
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            await Task.Delay(250);
+            uiWindow.SetNeedsLayout();
+            uiWindow.LayoutIfNeeded();
+            provider.UpdateFromUIWindow(uiWindow);
+            Measure();
+        });
+
+        // AppKit measures in its own points; a Catalyst app scaled to match iPad lays UIKit out in larger ones
+        // (a 798-point window is 1037 points wide in UIKit), so the measurements are converted.
+        void Measure()
+        {
+            var frame = AppKitObjC.CGRect_msgSend(nsWindowPtr, Selector.GetHandle("frame"));
+            var layout = AppKitObjC.CGRect_msgSend(nsWindowPtr, Selector.GetHandle("contentLayoutRect"));
+            if (frame.Height <= 0) return;
+            var scale = (double)(uiWindow.Bounds.Height / frame.Height);
+            if (frame.Height > layout.Height)
+                provider.SetMacTitleBarRow((double)(frame.Height - layout.Height) * scale);
+
+            // NSWindowZoomButton = 2; its frame is in the title bar view, which starts at the window's left edge.
+            var zoom = AppKitObjC.IntPtr_msgSend_nuint(nsWindowPtr, Selector.GetHandle("standardWindowButton:"), 2);
+            if (zoom != IntPtr.Zero)
+            {
+                var button = AppKitObjC.CGRect_msgSend(zoom, Selector.GetHandle("frame"));
+                provider.SetMacWindowButtonsEnd((double)(button.X + button.Width) * scale);
+            }
+        }
     }
 
     private static void EnableFullSizeContentView(IntPtr nsWindowPtr)
@@ -399,6 +489,9 @@ internal static class AppKitObjC
 
     [DllImport(Lib, EntryPoint = "objc_msgSend")]
     public static extern IntPtr IntPtr_msgSend_CGRect(IntPtr receiver, IntPtr selector, CoreGraphics.CGRect arg1);
+
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    public static extern void Void_msgSend_CGRect_bool_bool(IntPtr receiver, IntPtr selector, CoreGraphics.CGRect arg1, bool arg2, bool arg3);
 
     [DllImport(Lib, EntryPoint = "objc_msgSend")]
     public static extern void Void_msgSend_IntPtr_nint_IntPtr(IntPtr receiver, IntPtr selector, IntPtr arg1, nint arg2, IntPtr arg3);

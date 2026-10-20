@@ -75,6 +75,38 @@ internal sealed class SystemInsetsProvider : ISystemInsetsProvider
 
     internal double MacTitleBarHeight => _macTitleBarHeight;
 
+    /// <summary>Whether region header bars share the title bar row (<c>SpineOptions.MacOS.UnifiedTitleBar</c>).</summary>
+    internal bool MacUnifiedTitleBar { get; set; }
+
+    /// <summary>Where the window's zoom button ends, from the window's left edge, in UIKit points: the header bar starts after it.</summary>
+    internal double MacWindowButtonsEnd { get; private set; }
+
+    /// <summary>
+    /// The title bar row's height with a unified toolbar: the window's frame less its content layout rect, in UIKit
+    /// points (an app scaled to match iPad has larger ones than AppKit).
+    /// </summary>
+    internal double MacTitleBarRow { get; private set; }
+
+    /// <summary>Whether the window fits the first page's content at launch (<c>SpineOptions.MacOS.FitWindowToContent</c>).</summary>
+    internal bool MacFitWindowToContent { get; set; }
+
+    /// <summary>The adopted NSWindow, for resizing it (<see cref="WindowSize"/>); zero before it is adopted.</summary>
+    internal IntPtr MacWindow { get; set; }
+
+    internal void SetMacTitleBarRow(double row)
+    {
+        if (Math.Abs(MacTitleBarRow - row) < 0.5) return;
+        MacTitleBarRow = row;
+        InsetsChanged?.Invoke();
+    }
+
+    internal void SetMacWindowButtonsEnd(double end)
+    {
+        if (Math.Abs(MacWindowButtonsEnd - end) < 0.5) return;
+        MacWindowButtonsEnd = end;
+        InsetsChanged?.Invoke();
+    }
+
     /// <summary>
     /// Stores the measured native title-bar height and fires <see cref="InsetsChanged"/>
     /// so <see cref="Presentation.NavigationRegion"/> can update its container margin.
