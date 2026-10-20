@@ -14,7 +14,7 @@ namespace Plugin.Maui.Spine.Voice;
 /// A voice session speaking OpenAI's realtime events over a WebSocket (protocol <c>openai</c>, which Azure OpenAI speaks
 /// too), with the audio through <see cref="IVoiceAudio"/>.
 /// </summary>
-internal sealed class VoiceSession : IVoiceSession
+internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 {
     public const string InterruptedKey = "spine.interrupted";
 
@@ -49,7 +49,7 @@ internal sealed class VoiceSession : IVoiceSession
     private readonly IVoiceAudio _audio;
 
     /// <summary>The engine the session plays through; an avatar's driver reads its playback position for the mouth's clock.</summary>
-    internal IVoiceAudio Audio => _audio;
+    public IVoiceAudio Audio => _audio;
     private readonly SpineVoiceOptions _options;
     private readonly VoiceTokenClient _tokens;
     private readonly IServiceProvider? _services;
