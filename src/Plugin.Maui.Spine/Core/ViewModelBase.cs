@@ -709,6 +709,14 @@ public abstract partial class ViewModelBase : ObservableObject
     public virtual Task<bool> OnCloseRequestedAsync() => Task.FromResult(true);
 
     /// <summary>
+    /// Window sizes that fit this page's content, offered when the header bar is right-clicked on the Mac: one
+    /// column of cards, two, the whole list without scrolling. Asked each time the menu opens, so they follow the
+    /// content. <paramref name="screen"/> is the room the screen leaves, in the app's points. None by default, and
+    /// then right-clicking does nothing.
+    /// </summary>
+    public virtual IReadOnlyList<WindowSize> SuggestWindowSizes(Size screen) => [];
+
+    /// <summary>
     /// Called on a tab root's ViewModel when its already-active tab is re-selected while the
     /// stack is at the root. Override for scroll-to-top handling. Only invoked for pages
     /// decorated with <see cref="NavigableTabAttribute"/>.

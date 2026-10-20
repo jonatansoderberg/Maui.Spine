@@ -52,6 +52,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
                 EnableFullSizeContentView(nsObj.Handle);
                 AdoptNSWindow(nsObj);
+                provider.MacWindow = nsObj.Handle;
                 MacBackdrop.Apply(nsObj.Handle, window.Handler?.PlatformView as UIKit.UIWindow,
                     _services.GetRequiredService<SpineOptions>().MacOS.Backdrop);
 
@@ -452,6 +453,9 @@ internal static class AppKitObjC
 
     [DllImport(Lib, EntryPoint = "objc_msgSend")]
     public static extern IntPtr IntPtr_msgSend_CGRect(IntPtr receiver, IntPtr selector, CoreGraphics.CGRect arg1);
+
+    [DllImport("/usr/lib/libobjc.dylib", EntryPoint = "objc_msgSend")]
+    public static extern void Void_msgSend_CGRect_bool_bool(IntPtr receiver, IntPtr selector, CoreGraphics.CGRect arg1, bool arg2, bool arg3);
 
     [DllImport(Lib, EntryPoint = "objc_msgSend")]
     public static extern void Void_msgSend_IntPtr_nint_IntPtr(IntPtr receiver, IntPtr selector, IntPtr arg1, nint arg2, IntPtr arg3);

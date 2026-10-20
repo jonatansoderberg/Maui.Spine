@@ -87,6 +87,9 @@ internal sealed class SystemInsetsProvider : ISystemInsetsProvider
     /// </summary>
     internal double MacTitleBarRow { get; private set; }
 
+    /// <summary>The adopted NSWindow, for resizing it (<see cref="WindowSize"/>); zero before it is adopted.</summary>
+    internal IntPtr MacWindow { get; set; }
+
     internal void SetMacTitleBarRow(double row)
     {
         if (Math.Abs(MacTitleBarRow - row) < 0.5) return;

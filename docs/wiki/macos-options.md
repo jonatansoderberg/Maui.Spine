@@ -24,6 +24,7 @@ builder.UseSpine(options =>
 |---|---|---|---|
 | `Backdrop` | `WindowBackdrop` | `None` | The window's material: `None` (opaque), `Acrylic` (the desktop blurred behind the window, clearly translucent, like System Settings' sidebar) or `Mica` (AppKit's subtler under-window material). See [A translucent window](#a-translucent-window) |
 | `UnifiedTitleBar` | `bool` | `false` | Puts a region page's header bar in the title bar row, after the window buttons. See [One row: the header bar in the title bar](#one-row-the-header-bar-in-the-title-bar) |
+| (page) `SuggestWindowSizes` | `ViewModelBase` override | none | Window sizes offered when the header bar is right-clicked. See [Window sizes from the content](#window-sizes-from-the-content) |
 | `ShowTrayIcon` | `bool` | `false` | Shows an icon in the menu bar, with the app's [shortcuts](shortcuts.md) as its menu |
 | `TrayIconSvg` | `string?` | `null` | Embedded SVG for the menu-bar icon, drawn as a template image |
 | `TrayIconPath` | `string` | `""` | A file path for the icon instead of an SVG |
@@ -63,6 +64,26 @@ By default a Mac window has its title bar and Spine's header bar below it: two r
 - Sheets, and pages without a header bar, are unchanged.
 
 `TitleAlignment.Left` reads like a Mac toolbar's title. A centred title stays centred in the window.
+
+---
+
+## Window sizes from the content
+
+Right-clicking the header bar opens a menu of window sizes the page suggests, as snap layouts offer on Windows: one column of cards, two, three. The page decides, from its content:
+
+```csharp
+public override IReadOnlyList<WindowSize> SuggestWindowSizes(Size screen) =>
+[
+    new("One column", new Size(468, ContentHeight(468)), "rectangle"),
+    new("Two columns", new Size(904, ContentHeight(904)), "rectangle.split.2x1"),
+];
+```
+
+- It is asked each time the menu opens, so the sizes follow the content. `screen` is the room the screen leaves, in the app's points. Leave out the sizes that do not fit.
+- A size is the whole window, title bar row included, in the app's points (UIKit's, which an app scaled to match iPad has larger than AppKit's).
+- Choosing one resizes the window with AppKit's animation, keeping its top left corner and staying on the screen. The size the window has is checked.
+- A right-click on a button stays the button's. With no sizes, right-clicking does nothing.
+- Leave a few points of slack over a layout's breakpoint: a window exactly at the width three columns need can lay out two.
 
 ---
 

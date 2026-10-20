@@ -144,6 +144,11 @@ public sealed partial class NavigationRegion : ContentView
         };
 
         _container.Children.Add(_frameActionView);
+#if MACCATALYST
+        // Right-clicking the bar offers the window sizes the page suggests for its content.
+        if (presentation is NavigationPresentation.Region && insetsProvider is SystemInsetsProvider mac)
+            WindowSizeMenu.Attach(_frameActionView, () => ViewModel.CurrentRegionViewModel, mac);
+#endif
 
         _lightboxToolbar = new LightboxToolbar();
         _container.Children.Add(_lightboxToolbar);
