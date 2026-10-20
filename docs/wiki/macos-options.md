@@ -58,7 +58,7 @@ By default a Mac window has its title bar and Spine's header bar below it: two r
 
 - Spine gives the window an empty `NSToolbar` in the `UnifiedCompact` style, so the title bar row is a toolbar's height with the close, minimise and zoom buttons centred in it.
 - A region page's header bar is laid over that row. Its leading action (a back button or a `Primary` action) and the title start after the zoom button; the trailing actions keep their place at the right.
-- The bar's items and the title are centred on the window buttons. The page's content starts below the row.
+- The bar's buttons are a toolbar's: compact, 34-point glass circles with a 20-point glyph (`HeaderBarConstants.CompactButtonHeight`, `CompactGlyphSize`). They and the title are centred on the window buttons. The page's content starts below the row.
 - The window's own title is hidden in the bar. It stays for Mission Control and the Window menu.
 - Sheets, and pages without a header bar, are unchanged.
 

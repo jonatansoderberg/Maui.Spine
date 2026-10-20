@@ -169,7 +169,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         {
             HorizontalOptions = LayoutOptions.End,
             VerticalOptions = LayoutOptions.Center,
-            HeightRequest = HeaderBarConstants.Height,
+            HeightRequest = ButtonHeight,
             IconWidth = IconButtonWidth,
             ButtonPadding = _secondaryPageActionView.ButtonPadding,
             Foreground = Foreground,
@@ -285,6 +285,9 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
     const double WindowButtonsGap = 12;
 
     double LeadingColumn => LeadingInset > 0 ? LeadingInset + WindowButtonsGap : SideMargin;
+
+    // In the title bar row the buttons are a toolbar's, smaller than the row.
+    double ButtonHeight => LeadingInset > 0 ? HeaderBarConstants.CompactButtonHeight : HeaderBarConstants.Height;
 
     /// <summary>
     /// Raised when <see cref="PrimaryActionSlot"/> or <see cref="SecondaryActionSlot"/> changes.
@@ -531,7 +534,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         : Presentation is NavigationPresentation.Sheet ? HeaderBarConstants.SheetSideMargin : HeaderBarConstants.RegionSideMargin;
 
     internal double IconButtonWidth => PageActionView.UseGlassHeaderActions
-        ? HeaderBarConstants.Height
+        ? ButtonHeight
         : Presentation is NavigationPresentation.Sheet
             ? HeaderBarConstants.SheetButtonWidth
             // Slightly larger for region pages, to accommodate caption buttons on Windows desktop.
@@ -564,7 +567,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             }
         }
 
-        _primaryPageActionView.HeightRequest = HeaderBarConstants.Height;
+        _primaryPageActionView.HeightRequest = ButtonHeight;
+        UpdateActionWidth(_primaryPageActionView);
 
         _primaryPageActionView.ButtonPadding = Presentation is NavigationPresentation.Sheet
             ? new Thickness(HeaderBarConstants.SheetButtonPadding)
@@ -579,7 +583,8 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
         // that much closer to the edge (the padding is zero on Apple and Windows).
         _primaryPageActionView.Margin = new Thickness(0);
 
-        _secondaryPageActionView.HeightRequest = HeaderBarConstants.Height;
+        _secondaryPageActionView.HeightRequest = ButtonHeight;
+        UpdateActionWidth(_secondaryPageActionView);
 
         _secondaryPageActionView.ButtonPadding = Presentation is NavigationPresentation.Sheet
             ? new Thickness(HeaderBarConstants.SheetButtonPadding)
@@ -589,6 +594,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
         foreach (var more in _moreTrailing)
         {
+            more.HeightRequest = ButtonHeight;
             more.IconWidth = IconButtonWidth;
             more.ButtonPadding = _secondaryPageActionView.ButtonPadding;
         }

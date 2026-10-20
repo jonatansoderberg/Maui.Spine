@@ -184,8 +184,9 @@ internal sealed class PageActionView : ContentView
     {
         base.OnPropertyChanged(propertyName);
 
+        // A compact bar (a Mac title bar row) gives its actions a smaller height: the circle and the glyph follow.
         if (propertyName == HeightRequestProperty.PropertyName && _front is not null)
-            _front.ApplyIconWidth();
+            ForEachFace(face => face.ApplySize());
     }
 
     void ForEachFace(Action<Face> apply)
@@ -545,6 +546,19 @@ internal sealed class PageActionView : ContentView
             _morphIcon.Source = SvgBitmapLoader.LoadFromEmbedded(resource, size, size, tint, Thickness.Zero, lineWidthScale: (float)LineWidthScale(svg), roundLineEnds: true);
         }
 
+        public void ApplySize()
+        {
+            // With glass morphing the circle is the text button, sized when the action was applied.
+            if (_morphIcon.IsVisible && _currentSvg is not null)
+            {
+                _textButton.WidthRequest = _owner.HeightRequest;
+                _textButton.HeightRequest = _owner.HeightRequest;
+            }
+            ApplyIconWidth();
+            ApplyShape();
+            ApplyMorphingImage();
+        }
+
         /// <summary>A glass icon is a circle as tall as the row; otherwise it fills the slot the bar gives it.</summary>
         public void ApplyIconWidth()
         {
@@ -557,9 +571,11 @@ internal sealed class PageActionView : ContentView
         // How far a filled circle's outer edge sits inside its slot.
         const double GlyphInset = 5;
 
-        // The back button's chevron has a size and weight of its own, as UIKit's back indicator does.
-        static double GlyphSize(string? svg) =>
-            svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.BackGlyphSize : HeaderBarConstants.GlyphSize;
+        // The back button's chevron has a size and weight of its own, as UIKit's back indicator does. A compact
+        // button (shorter than the row) has a toolbar item's smaller glyph.
+        double GlyphSize(string? svg) =>
+            _owner.HeightRequest is > 0 and < HeaderBarConstants.Height ? HeaderBarConstants.CompactGlyphSize
+            : svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.BackGlyphSize : HeaderBarConstants.GlyphSize;
 
         static double LineWidthScale(string? svg) =>
             svg == HeaderBarConstants.BackGlyph ? HeaderBarConstants.BackGlyphLineWidthScale : HeaderBarConstants.GlyphLineWidthScale;

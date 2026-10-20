@@ -199,6 +199,7 @@ public sealed partial class NavigationRegion : ContentView
     private void UpdateContainerMargin()
     {
         var insets = _insetsProvider.SystemBarInsets;
+        double? headerTop = null;
 
 #if ANDROID
         // Nothing offsets an overlay's window on Android, so there is nothing to counteract; the bars
@@ -254,7 +255,11 @@ public sealed partial class NavigationRegion : ContentView
             // The page starts under the title bar; its header bar stays below it, or with a unified title bar
             // sits in it, after the window buttons, its items centred on them.
             if (unified)
+            {
                 insets.Top = UnifiedTop(mac!.MacTitleBarRow);
+                // The bar is as tall as its compact buttons; it is centred on the window buttons itself.
+                headerTop = (mac.MacTitleBarRow - HeaderBarConstants.CompactButtonHeight) / 2;
+            }
             else if (overlay)
                 insets.Top = titleBarH;
             _frameActionView.LeadingInset = unified ? mac!.MacWindowButtonsEnd : 0;
@@ -268,7 +273,7 @@ public sealed partial class NavigationRegion : ContentView
         }
 #endif
 
-        var topMargin = insets.Top;
+        var topMargin = headerTop ?? insets.Top;
         if (ViewModel.Presentation is NavigationPresentation.Sheet)
             topMargin += HeaderBarConstants.SheetTopPadding;
 
