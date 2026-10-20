@@ -36,6 +36,8 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         var provider = _services.GetRequiredService<ISystemInsetsProvider>() as SystemInsetsProvider;
         if (provider is not null)
         {
+            provider.MacUnifiedTitleBar = _services.GetRequiredService<SpineOptions>().MacOS.UnifiedTitleBar;
+
             // window.Activated fires while UIWindowScene is still a _UIPlaceholderWindowScene,
             // which doesn't expose the underlying NSWindow. Instead, observe AppKit notifications,
             // whose object IS the real NSWindow. DidBecomeKey alone left a window that opens without
@@ -54,6 +56,9 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                     _services.GetRequiredService<SpineOptions>().MacOS.Backdrop);
 
                 if (window.Handler?.PlatformView is not UIKit.UIWindow uiWindow) return;
+
+                if (provider.MacUnifiedTitleBar)
+                    UnifyTitleBar(uiWindow, nsObj.Handle, provider);
 
                 // Force a UIKit layout pass so safeAreaInsets update for the new
                 // fullSizeContentView geometry before we read them.
@@ -99,6 +104,54 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
         if (macOptions.CloseToBackground)
             SetupCloseToBackground(window);
+    }
+
+    /// <summary>
+    /// An empty unified toolbar makes the title bar one row as tall as a toolbar, with the window buttons
+    /// centred in it; the header bar is laid over that row (NavigationRegion). The window's own title stays
+    /// for Mission Control and the Window menu, hidden in the bar.
+    /// </summary>
+    private static void UnifyTitleBar(UIKit.UIWindow uiWindow, IntPtr nsWindowPtr, SystemInsetsProvider provider)
+    {
+        if (uiWindow.WindowScene?.Titlebar is not { } titlebar) return;
+        if (titlebar.Toolbar is null)
+        {
+            titlebar.Toolbar = new AppKit.NSToolbar("Spine.UnifiedTitleBar");
+            titlebar.ToolbarStyle = UIKit.UITitlebarToolbarStyle.UnifiedCompact;
+        }
+        titlebar.TitleVisibility = UIKit.UITitlebarTitleVisibility.Hidden;
+
+        Measure();
+
+        // The toolbar takes effect on the next layout pass: measure again once it has, and the safe area with it.
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            await Task.Delay(250);
+            uiWindow.SetNeedsLayout();
+            uiWindow.LayoutIfNeeded();
+            provider.UpdateFromUIWindow(uiWindow);
+            Measure();
+        });
+
+        // AppKit measures in its own points; a Catalyst app scaled to match iPad lays UIKit out in larger ones
+        // (a 798-point window is 1037 points wide in UIKit), so the measurements are converted.
+        void Measure()
+        {
+            var frame = AppKitObjC.CGRect_msgSend(nsWindowPtr, Selector.GetHandle("frame"));
+            var layout = AppKitObjC.CGRect_msgSend(nsWindowPtr, Selector.GetHandle("contentLayoutRect"));
+            if (frame.Height <= 0) return;
+            var scale = (double)(uiWindow.Bounds.Height / frame.Height);
+            if (frame.Height > layout.Height)
+                provider.SetMacTitleBarRow((double)(frame.Height - layout.Height) * scale);
+
+            // NSWindowZoomButton = 2; its frame is in the title bar view, which starts at the window's left edge.
+            var zoom = AppKitObjC.IntPtr_msgSend_nuint(nsWindowPtr, Selector.GetHandle("standardWindowButton:"), 2);
+            if (zoom != IntPtr.Zero)
+            {
+                var button = AppKitObjC.CGRect_msgSend(zoom, Selector.GetHandle("frame"));
+                provider.SetMacWindowButtonsEnd((double)(button.X + button.Width) * scale);
+            }
+        }
     }
 
     private static void EnableFullSizeContentView(IntPtr nsWindowPtr)

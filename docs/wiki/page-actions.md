@@ -146,7 +146,20 @@ On iOS 26 and Mac Catalyst 26 the header bar renders its back button and page ac
 | `Secondary` | Trailing / right side | Page-specific actions (Save, Edit, Share) |
 | `Primary` | Leading / left side | Navigation-level actions (Menu, Cancel) |
 
-Each slot shows the **first visible** action with that placement. The back button occupies the `Primary` slot implicitly; an explicit `Primary` action replaces it for that page.
+The leading side shows the **first visible** `Primary` action. The back button occupies it implicitly; an explicit `Primary` action replaces it for that page.
+
+The trailing side shows **every visible** `Secondary` action, as a navigation bar's right bar button items: the first one declared sits at the edge and the next ones line up inward. An action that hides itself (`IsVisible = false`) leaves the row and the others close up.
+
+```csharp
+[PageAction(Svg = "Settings.svg")]   // at the edge
+[RelayCommand] private Task OpenSettings() => …;
+
+[PageAction(Svg = "WifiOff.svg")]    // next to it, only while offline
+[RelayCommand] private Task Retry() => …;
+
+[PageAction(Svg = "Reload.svg")]     // innermost
+[RelayCommand] private Task Refresh() => …;
+```
 
 ```csharp
 [PageAction("Cancel", Role = PageActionRole.Cancel)]   // Primary by its role

@@ -132,6 +132,7 @@ public sealed partial class NavigationRegion : ContentView
 
         _frameActionView.SetBinding(HeaderBarView.PrimaryPageActionProperty, new Binding(nameof(NavigationRegionViewModel.PrimaryPageAction), source: viewModel));
         _frameActionView.SetBinding(HeaderBarView.DefaultPageActionProperty, new Binding(nameof(NavigationRegionViewModel.SecondaryPageAction), source: viewModel));
+        _frameActionView.SetBinding(HeaderBarView.MoreTrailingActionsProperty, new Binding(nameof(NavigationRegionViewModel.MoreSecondaryPageActions), source: viewModel));
 
         // The header bar is the only thing that knows how wide its actions ended up. The title
         // lives in the page content, one visual tree away, so the measurement is routed through
@@ -238,25 +239,31 @@ public sealed partial class NavigationRegion : ContentView
         // ApplySafeAreaPadding on other pages is unaffected.
         {
             var vm = ViewModel.CurrentRegionViewModel;
-            var titleBarH = (_insetsProvider as SystemInsetsProvider)?.MacTitleBarHeight ?? 0;
+            var mac = _insetsProvider as SystemInsetsProvider;
+            var titleBarH = mac?.MacTitleBarHeight ?? 0;
+            bool unified = Unified(vm, mac, ViewModel.Presentation is NavigationPresentation.Region);
             bool fullBleed = titleBarH > 0
                 && vm is not null
                 && !vm.IsHeaderBarVisible
                 && vm.SafeAreaEdges == SpineSafeArea.None;
             bool overlay = titleBarH > 0 && vm is not null && ViewModel.Presentation is NavigationPresentation.Region && OverlaysTitleBar(vm);
-            _container.Margin = fullBleed || overlay
+            _container.Margin = fullBleed || overlay || unified
                 ? new Thickness(0, -titleBarH, 0, 0)
                 : Thickness.Zero;
 
-            // The page starts under the title bar; its header bar stays below it.
-            if (overlay)
+            // The page starts under the title bar; its header bar stays below it, or with a unified title bar
+            // sits in it, after the window buttons, its items centred on them.
+            if (unified)
+                insets.Top = UnifiedTop(mac!.MacTitleBarRow);
+            else if (overlay)
                 insets.Top = titleBarH;
+            _frameActionView.LeadingInset = unified ? mac!.MacWindowButtonsEnd : 0;
 
             // A full-bleed page draws its own top, so the window's title would sit on the page.
             if (ViewModel.Presentation is NavigationPresentation.Region
                 && (Window?.Handler?.PlatformView as UIKit.UIWindow)?.WindowScene?.Titlebar is { } titlebar)
             {
-                titlebar.TitleVisibility = fullBleed ? UIKit.UITitlebarTitleVisibility.Hidden : UIKit.UITitlebarTitleVisibility.Visible;
+                titlebar.TitleVisibility = fullBleed || mac?.MacUnifiedTitleBar == true ? UIKit.UITitlebarTitleVisibility.Hidden : UIKit.UITitlebarTitleVisibility.Visible;
             }
         }
 #endif
@@ -291,11 +298,25 @@ public sealed partial class NavigationRegion : ContentView
     {
         var insets = provider.SystemBarInsets;
 #if MACCATALYST
-        if (region && OverlaysTitleBar(vm) && provider is SystemInsetsProvider mac)
-            insets.Top = mac.MacTitleBarHeight;
+        if (provider is SystemInsetsProvider mac && Unified(vm, mac, region))
+            insets.Top = UnifiedTop(mac.MacTitleBarRow);
+        else if (region && OverlaysTitleBar(vm) && provider is SystemInsetsProvider mac2)
+            insets.Top = mac2.MacTitleBarHeight;
 #endif
         return insets;
     }
+
+#if MACCATALYST
+    /// <summary>Whether this page's header bar is laid over the title bar row (<c>SpineOptions.MacOS.UnifiedTitleBar</c>).</summary>
+    static bool Unified(ViewModelBase? vm, SystemInsetsProvider? mac, bool region) =>
+        region && mac is { MacUnifiedTitleBar: true, MacTitleBarHeight: > 0, MacTitleBarRow: > 0 } && vm is { IsHeaderBarVisible: true };
+
+    /// <summary>
+    /// The top bar a unified page keeps above its header bar, as a status bar on a phone: what centres the bar's
+    /// items (and the title, which follows the same inset) on the window buttons in the title bar row.
+    /// </summary>
+    static double UnifiedTop(double titleBarRow) => Math.Max(0, (titleBarRow - HeaderBarConstants.Height) / 2);
+#endif
 
     private static bool OverlaysTitleBar(ViewModelBase vm) =>
         vm.IsHeaderBarVisible && vm.HeaderBarFloats;

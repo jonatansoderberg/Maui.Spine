@@ -45,6 +45,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderRegionViewModel));
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
+        OnPropertyChanged(nameof(MoreSecondaryPageActions));
     }
 
     /// <summary>
@@ -122,6 +123,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
+        OnPropertyChanged(nameof(MoreSecondaryPageActions));
     }
 
     PageAction? GetExplicitAction(PageActionPlacement placement)
@@ -221,6 +223,16 @@ internal partial class NavigationRegionViewModel : ObservableObject
     }
 
     /// <summary>
+    /// The page's further visible <see cref="PageActionPlacement.Secondary"/> actions after
+    /// <see cref="SecondaryPageAction"/>, from the edge inward, as a navigation bar's right bar button
+    /// items: the first one declared sits at the edge.
+    /// </summary>
+    public IReadOnlyList<PageAction> MoreSecondaryPageActions =>
+        HeaderRegionViewModel is { Lightbox: null } vm && SecondaryPageAction is { } first
+            ? vm.PageActions.Where(a => a is { IsVisible: true, Placement: PageActionPlacement.Secondary } && !ReferenceEquals(a, first)).ToList()
+            : [];
+
+    /// <summary>
     /// Pushes <paramref name="next"/> onto the navigation stack and plays the forward transition.
     /// Called internally — use <see cref="INavigationService.NavigateToAsync{TPage}"/> instead.
     /// </summary>
@@ -250,6 +262,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderRegionViewModel));
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
+        OnPropertyChanged(nameof(MoreSecondaryPageActions));
 
         await PlayTransitionAsync(NavigationDirection.NavigateTo, RestBackView);
         await _frameTransition.ResetHiddenViewAsync(current);
@@ -263,6 +276,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderRegionViewModel));
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
+        OnPropertyChanged(nameof(MoreSecondaryPageActions));
     }
 
     /// <summary>
@@ -389,6 +403,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderRegionViewModel));
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
+        OnPropertyChanged(nameof(MoreSecondaryPageActions));
 
         if (_stack.Count == 1)
             WentBackToRoot?.Invoke();
@@ -472,6 +487,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderRegionViewModel));
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
+        OnPropertyChanged(nameof(MoreSecondaryPageActions));
     }
 
     /// <summary>Returns <see langword="true"/> when the navigation stack has exactly one page (the close action is available).</summary>
@@ -589,6 +605,7 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderRegionViewModel));
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
+        OnPropertyChanged(nameof(MoreSecondaryPageActions));
 
         await _frameTransition.AnimateSetRootAsync(FrontView);
 
@@ -601,5 +618,6 @@ internal partial class NavigationRegionViewModel : ObservableObject
         OnPropertyChanged(nameof(HeaderRegionViewModel));
         OnPropertyChanged(nameof(PrimaryPageAction));
         OnPropertyChanged(nameof(SecondaryPageAction));
+        OnPropertyChanged(nameof(MoreSecondaryPageActions));
     }
 }
