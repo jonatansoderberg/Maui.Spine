@@ -743,11 +743,14 @@ public sealed partial class NavigationRegion : ContentView
     /// behind the region, so the layer carries its page's colour to hide what is under it, and
     /// takes the screen's corners where the platform rounds pages. A sheet's pages sit on the
     /// sheet's surface instead, which a layer cannot carry: there the front page stays see-through
-    /// and the page underneath is cut off at its edge, so only the sheet shows under it.
+    /// and the page underneath is cut off at its edge, so only the sheet shows under it. A page with
+    /// no opaque background anywhere under it (a translucent window) is lifted the same way: a colour
+    /// would show as a solid band over the window's material while the page moved.
     /// </summary>
     private void LiftFront(bool lift)
     {
-        if (ViewModel.Presentation is NavigationPresentation.Sheet)
+        if (ViewModel.Presentation is NavigationPresentation.Sheet
+            || (!FrontIsLightbox && ViewModel.FrontView.OwnBackground() is null && (lift || _cutsBack)))
         {
             _cutsBack = lift;
             CutBackAt(lift ? _contentHostFront.TranslationX : null);

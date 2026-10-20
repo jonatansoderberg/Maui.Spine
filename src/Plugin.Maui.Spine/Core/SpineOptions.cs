@@ -431,6 +431,16 @@ public sealed class SpineOptions
     public sealed class MacOSPlatformOptions
     {
         /// <summary>
+        /// The window's backdrop on Mac Catalyst. <see cref="WindowBackdrop.Acrylic"/> blurs the desktop behind the window,
+        /// clearly translucent, as System Settings' sidebar is; <see cref="WindowBackdrop.Mica"/> is the subtler material
+        /// AppKit uses under a window's content. As with <see cref="WindowsPlatformOptions.Backdrop"/>, the host page's
+        /// background is cleared and pages show the material where they have no background of their own; cards and rows
+        /// keep theirs. A page with no opaque background moves over the material during navigation, not on a colour.
+        /// Defaults to <see cref="WindowBackdrop.None"/>: an opaque window. Reduce Transparency keeps it opaque.
+        /// </summary>
+        public WindowBackdrop Backdrop { get; set; } = WindowBackdrop.None;
+
+        /// <summary>
         /// When true, a menu-bar (tray) icon is shown in the macOS status bar.
         /// Pair with <see cref="CloseToBackground"/> to allow the user to restore
         /// or exit the app from the menu bar.

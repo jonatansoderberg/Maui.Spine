@@ -17,6 +17,10 @@
   - **`CollectionView`** (list or grid): `SafeArea.PageMargin="True"` lays its rows, header and footer out inside the page margin while the list reaches the sides. Items then have no side margin of their own; the gap between a grid's columns is `GridItemsLayout.HorizontalItemSpacing`.
   - **`ScrollView`:** `Padding="{x:Static HeaderBarConstants.PagePadding}"` on its content.
 
+## Mac Catalyst
+- Read `docs/wiki/macos-options.md` before building or changing a Mac app or Spine's Mac code. It lists what went wrong in a real app: a white title bar from the template's page style, the doubled window title, glass header buttons over a translucent window, double-framed entries in rows, pages that scroll although they fit, and attribute titles overwriting localized ones. Add new findings there.
+- Window-level AppKit work (title bar, backdrop, appearance) goes through the adopted `NSWindow` in `Platforms/MacCatalyst`. UIKit resets title bar state after focus and resize changes, so anything set there must be idempotent and re-applied.
+
 ## Active Plans
 Multi-issue efforts have a living plan under `docs/plans/`. When an issue belongs to one, read the plan first and update its step status, decisions and "Last updated" line in the same PR.
 - `docs/plans/ai-and-security.md` — AI, voice, sign-in, biometrics and highlight (roadmap #505, issues #506–#522).

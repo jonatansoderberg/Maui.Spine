@@ -84,6 +84,13 @@ public static class MauiProgram
                 options.MacOS.ShowTrayIcon = true;
                 options.MacOS.TrayIconSvg = "spinelogo.svg";
                 options.MacOS.CloseToBackground = true;
+                // A translucent window on Mac: `open --env SPINE_SHOWCASE_BACKDROP=acrylic` (or mica) to try it.
+                options.MacOS.Backdrop = Environment.GetEnvironmentVariable("SPINE_SHOWCASE_BACKDROP")?.ToLowerInvariant() switch
+                {
+                    "acrylic" => WindowBackdrop.Acrylic,
+                    "mica" => WindowBackdrop.Mica,
+                    _ => WindowBackdrop.None,
+                };
             })
             // The crest on the SVG Icons page has its own colours; its red gets an exact dark tone,
             // the rest the automatic one where an image turns AdjustColorsForDark on.

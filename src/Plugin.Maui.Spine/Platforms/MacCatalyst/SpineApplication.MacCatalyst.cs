@@ -23,6 +23,12 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
     partial void HookMacCatalystPlatform(Window window)
     {
+        // As on Windows with Mica or Acrylic: the host page's background (the app's ContentPage style) would paint over
+        // the backdrop, so it is cleared; Spine's pages are views inside it and show the material where they have no
+        // background of their own. Without a backdrop the page is left alone.
+        if (MacBackdrop.Applies(_services.GetRequiredService<SpineOptions>().MacOS.Backdrop) && window.Page is { } host)
+            host.BackgroundColor = Colors.Transparent;
+
         // Enable fullSizeContentView so UIWindow covers the full NSWindow frame (including
         // the native title bar), then read safeAreaInsets.top as the title bar height.
         // NavigationRegion uses that height to apply a per-page negative container margin
@@ -42,6 +48,8 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
                 EnableFullSizeContentView(nsObj.Handle);
                 AdoptNSWindow(nsObj);
+                MacBackdrop.Apply(nsObj.Handle, window.Handler?.PlatformView as UIKit.UIWindow,
+                    _services.GetRequiredService<SpineOptions>().MacOS.Backdrop);
 
                 if (window.Handler?.PlatformView is not UIKit.UIWindow uiWindow) return;
 
@@ -59,6 +67,14 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
             foreach (var name in new[] { "NSWindowDidChangeOcclusionStateNotification", "NSWindowDidBecomeKeyNotification" })
                 NSNotificationCenter.DefaultCenter.AddObserver(new NSString(name), Adopt, null);
+
+            // The backdrop's material follows the NSWindow's appearance, which UIKit's theme does not change.
+            if (Current is { } app)
+                app.RequestedThemeChanged += (_, _) =>
+                {
+                    if (_nsWindow is { } ns)
+                        MacBackdrop.Appearance(ns.Handle);
+                };
         }
 
         var options = _services.GetRequiredService<SpineOptions>();
@@ -371,6 +387,15 @@ internal static class AppKitObjC
 
     [DllImport(Lib, EntryPoint = "objc_msgSend")]
     public static extern void Void_msgSend_nuint(IntPtr receiver, IntPtr selector, nuint arg1);
+
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern CoreGraphics.CGRect CGRect_msgSend(IntPtr receiver, IntPtr selector);
+
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern IntPtr IntPtr_msgSend_CGRect(IntPtr receiver, IntPtr selector, CoreGraphics.CGRect arg1);
+
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern void Void_msgSend_IntPtr_nint_IntPtr(IntPtr receiver, IntPtr selector, IntPtr arg1, nint arg2, IntPtr arg3);
 
     public static bool IsStatusBarWindow(IntPtr win)
     {

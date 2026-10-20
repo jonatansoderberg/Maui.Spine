@@ -173,6 +173,7 @@ Spine auto-discovers pages via assembly scanning — no manual DI registration n
 | App shortcuts & tray icon | [Shortcuts](shortcuts.md) |
 | Spotlight and searchable items | [Searchable items](searchable-items.md) |
 | Windows desktop options | [Windows Platform Options](windows-options.md) |
+| macOS (Mac Catalyst) options and pitfalls | [macOS Platform Options](macos-options.md) |
 | Custom page transitions | [Custom Transitions](custom-transitions.md) |
 | Collapsing header collection view | [HeroCollectionView](hero-collection-view.md) |
 | Marquee label control | [AnimatedLabel](animated-label.md) |
