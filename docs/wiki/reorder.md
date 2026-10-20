@@ -98,6 +98,25 @@ A vertical list moves its items up and down only, and a horizontal list moves th
 
 A header and a footer stay where they are. Grouped lists (`IsGrouped="True"`) are not supported, and a list that is grouped does not reorder.
 
+## Bindable layouts
+
+`Reorder.Mode` works on any layout whose items come from `BindableLayout.ItemsSource` too: a `FlexLayout`, a `Grid`, a stack, or an app's own layout, such as a masonry of cards.
+
+```xml
+<controls:MasonryLayout BindableLayout.ItemsSource="{Binding Cards}"
+                        Reorder.Mode="LongPress"
+                        Reorder.Command="{Binding SaveOrderCommand}" />
+```
+
+- A long-press lifts the item, which then follows the pointer. With a pointer on the Mac, 0.1 seconds is enough.
+- The other items slide to their new places, and the item's place shows as an empty dashed frame with the item's corners (a `Border`'s rounded rectangle).
+- On the drop the item settles in its place, the source moves once, and `Reorder.Command` runs with the `ReorderMove`.
+- The item views stay in the tree during the drag: only the layout's children are reordered, so a template is never rebuilt under the pointer.
+- `Reorder.IsDragging` is true on the layout while an item is lifted. An app that rebuilds its items on a timer should wait for it to be false, or the item is taken from under the pointer.
+- Every item gets the screen-reader actions, as in a list.
+
+For now this is iOS and Mac Catalyst, in `LongPress` mode; `Handle` behaves the same there. On Android and Windows a bindable layout does not reorder yet.
+
 ## Platforms
 
 | Platform | How it works |
