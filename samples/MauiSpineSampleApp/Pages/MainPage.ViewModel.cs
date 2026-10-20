@@ -134,7 +134,7 @@ public partial class MainPageViewModel(INavigationService _navigation) : SampleV
         new("Searchable items", "The app's content in Spotlight and as Android shortcuts, each result opening its page with a typed parameter, also from a cold start", "searchitem.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<SearchableItems.SearchableItemsPage>()),
         new("Shortcuts", "Straight to a page from the app icon, the jump list or the tray menu, through one handler", "externallink.svg", "Plugin.Maui.Spine", n => n.NavigateToAsync<Shortcuts.ShortcutsPage>()),
         new("Strings", "Text per language from embedded XML: values and plurals in XAML, the same store from C#, a live language switch", "globe.svg", "Plugin.Maui.Spine, Plugin.Maui.Spine.Common", n => n.NavigateToAsync<Strings.StringsPage>()),
-        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 233 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
+        new("SVG icons", "Sharp, theme-tinted icons from SVG: tint only the outline, dark tones for coloured art, line weight per size, 234 bundled icons", "fish.svg", "Plugin.Maui.Spine.Svg, Plugin.Maui.Spine.Svg.Icons", n => n.NavigateToAsync<SvgIcons.SvgIconsPage>()),
     ];
 }
 
