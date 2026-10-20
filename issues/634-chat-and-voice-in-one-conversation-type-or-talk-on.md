@@ -44,6 +44,7 @@
   - `Tap`'s highlight is round on a `Border` with an `Ellipse` (half the shorter side; an oval ripple mask on Android). The highlight had been a square since the composer was built.
   - Send and voice are two `ImageButton`s with `Glass.Style` (Prominent for send and the hang-up, Regular for voice), with glyphs embedded in Controls.Chat (`spinechat*.svg`, drawn in the set's style) and loaded through Spine.Svg's `ResourceNameCache`.
   - New symbols in Svg.Icons, drawn with `/spine-symbol`: `Microphone` and `Waveform` (the owner picked A and A; the set has 235). The voice button uses Waveform.
+  - `Globe` redrawn at the owner's request: the circle, one meridian and a straight equator, instead of two curved latitudes (same name, so every use follows).
 
 ## Decisions
 
