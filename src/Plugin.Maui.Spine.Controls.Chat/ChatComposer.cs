@@ -106,7 +106,7 @@ public class ChatComposer : ContentView
 
         // As tall as the field on one line, and at its foot when it grows, the way Messages keeps its send button. Liquid
         // Glass where the system has it (iOS and Mac Catalyst 26); a round button elsewhere.
-        _send = new ImageButton { VerticalOptions = LayoutOptions.End, IsVisible = false };
+        _send = new ImageButton { VerticalOptions = LayoutOptions.End };
         Glass.SetStyle(_send, GlassStyle.Prominent);
         _send.Clicked += (_, _) => SendOrStop();
 
@@ -331,8 +331,7 @@ public class ChatComposer : ContentView
         var busy = IsBusy;
         var empty = string.IsNullOrWhiteSpace(_editor.Text);
 
-        // Send shows while there is something to send, and is Stop while an answer streams.
-        _send.IsVisible = busy || !empty;
+        // Send is always there, dimmed until there is something to send, and is Stop while an answer streams.
         var canSend = busy || !empty && (IsMicrophoneActive ? MicrophoneTextCommand?.CanExecute(_editor.Text) == true : Chat is not null);
         _send.BackgroundColor = style.SendButtonColor;
         _send.Opacity = canSend ? 1 : 0.4;
