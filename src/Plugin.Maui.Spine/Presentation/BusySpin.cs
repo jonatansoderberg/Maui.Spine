@@ -9,8 +9,11 @@ internal static class BusySpin
     const double TurnSeconds = 0.9;
     const string Key = "Spine.Busy";
 
-    /// <summary>Starts or finishes the turn; false when the view has no platform view yet to turn.</summary>
-    public static bool Set(View? view, bool on)
+    /// <summary>
+    /// Starts the turn, or stops it: finishing the turn it is on, or at once when the glyph now belongs to another
+    /// action (<paramref name="finish"/> false). False when the view has no platform view yet to turn.
+    /// </summary>
+    public static bool Set(View? view, bool on, bool finish = true)
     {
         if (view is null)
             return false;
@@ -42,7 +45,7 @@ internal static class BusySpin
             angle += Math.PI * 2;
         layer.RemoveAnimation(Key);
         var left = Math.PI * 2 - angle;
-        if (left > 0.01)
+        if (finish && left > 0.01)
             layer.AddAnimation(Turn(angle, TurnSeconds * left / (Math.PI * 2), 1), Key + ".Finish");
         return true;
 #else
@@ -59,6 +62,11 @@ internal static class BusySpin
             return true;
         var from = view.Rotation % 360;
         view.AbortAnimation(Key);
+        if (!finish)
+        {
+            view.Rotation = 0;
+            return true;
+        }
         view.Animate(Key, new Animation(r => view.Rotation = r, from, 360),
             length: (uint)(TurnSeconds * 1000 * (360 - from) / 360), easing: Easing.Linear, finished: (_, _) => view.Rotation = 0);
         return true;
