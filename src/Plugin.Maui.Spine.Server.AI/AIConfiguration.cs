@@ -156,12 +156,31 @@ public sealed class AIImageOptions
 /// app sends only the feature's name.
 /// </summary>
 /// <remarks>
-/// The token an app gets is not a lock: over its connection the app can change the voice, the instructions and the
-/// tools. Until <see cref="TokenSeconds"/> have passed, the same token opens further
-/// connections to the same session, so keep it short; the reservation covers <see cref="MaxMinutes"/> once.
+/// With <see cref="AIRealtimeProtocol.Realtime"/>, the token an app gets is not a lock: over its connection the app can
+/// change the voice, the instructions and the tools. Until <see cref="TokenSeconds"/> have passed, the same token opens
+/// further connections to the same session, so keep it short; the reservation covers <see cref="MaxMinutes"/> once.
+/// With <see cref="AIRealtimeProtocol.Live"/>, the server holds the connection and the app gets none of that.
 /// </remarks>
 public sealed class AIRealtimeOptions
 {
+    /// <summary>
+    /// <see cref="AIRealtimeProtocol.Realtime"/> (OpenAI's realtime API: the app connects with a short-lived token) or
+    /// <see cref="AIRealtimeProtocol.Live"/> (GPT-Live: the app connects to the server, which relays). Realtime by default.
+    /// </summary>
+    public AIRealtimeProtocol Protocol { get; set; } = AIRealtimeProtocol.Realtime;
+
+    /// <summary>
+    /// For a reasoning realtime model (<c>gpt-realtime-2.1</c>, <c>gpt-realtime-2.1-mini</c>): <c>minimal</c>, <c>low</c>,
+    /// <c>medium</c> or <c>high</c>. Unset, the model's default. Not used by Live, whose backend has its own.
+    /// </summary>
+    public string? Reasoning { get; set; }
+
+    /// <summary>
+    /// GPT-Live's backend: the model it hands reasoning and tools to, with the feature's functions. Required for
+    /// <see cref="AIRealtimeProtocol.Live"/>; <c>SystemPrompt</c> is the voice's own instructions.
+    /// </summary>
+    public AILiveBackendOptions? Backend { get; set; }
+
     /// <summary>The provider's voice, such as <c>marin</c> or <c>cedar</c>. Unset, the provider's default.</summary>
     public string? Voice { get; set; }
 
@@ -201,13 +220,48 @@ public sealed class AIRealtimeOptions
     public string? Language { get; set; }
 
     /// <summary>
-    /// The minutes a session is budgeted for. Each token reserves <c>MaxMinutes × PerMinute</c> from the budgets the
-    /// moment it is made, because the server does not see the session's real usage. 10 by default.
+    /// The longest a session may run, in minutes, and what it is budgeted for. Each session reserves
+    /// <c>MaxMinutes × PerMinute</c> from the budgets when it is set up; an app can ask for less per session
+    /// (<c>?maxMinutes=</c>), never more. A Realtime session is ended by the app; a Live session by the server, which
+    /// then settles the reservation with what it used. 10 by default.
     /// </summary>
     public int MaxMinutes { get; set; } = 10;
 
+    /// <summary>The limit for one session: what the app asked for when it is shorter than <see cref="MaxMinutes"/>.</summary>
+    internal double LimitFor(double? asked) =>
+        asked is { } minutes && minutes > 0 && minutes < MaxMinutes ? minutes : Math.Max(0, MaxMinutes);
+
     /// <summary>How long the app has to start its session with the token, 10–7200 seconds. 60 by default.</summary>
     public int TokenSeconds { get; set; } = 60;
+}
+
+/// <summary>How a realtime feature's sessions are set up.</summary>
+public enum AIRealtimeProtocol
+{
+    /// <summary>OpenAI's or Azure OpenAI's realtime API: the app gets a short-lived token and opens the provider's WebSocket.</summary>
+    Realtime,
+
+    /// <summary>
+    /// GPT-Live (<c>gpt-live-1</c>), which gives apps no credential: the app connects to the server's relay
+    /// (<c>MapSpineRealtimeSessions</c> on ASP.NET Core), and the server opens the provider's WebSocket with its key.
+    /// </summary>
+    Live,
+}
+
+/// <summary>GPT-Live's backend: <c>Ai:Features:&lt;Name&gt;:Realtime:Backend</c>.</summary>
+public sealed class AILiveBackendOptions
+{
+    /// <summary>The Responses model that reasons and calls the feature's functions, such as <c>gpt-6-luna</c>. Required.</summary>
+    public string? Model { get; set; }
+
+    /// <summary>The backend's prompt: business rules and how to use the functions. Unset, none.</summary>
+    public string? Instructions { get; set; }
+
+    /// <summary><c>none</c>, <c>low</c>, <c>medium</c> or <c>high</c>, for a reasoning backend. Unset, the model's default.</summary>
+    public string? Reasoning { get; set; }
+
+    /// <summary>OpenAI's hosted tools the backend may use, by type, such as <c>web_search</c>. Empty by default.</summary>
+    public List<string> HostedTools { get; set; } = [];
 }
 
 /// <summary>

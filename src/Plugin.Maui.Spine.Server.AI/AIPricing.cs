@@ -16,7 +16,7 @@ internal static class AIPricing
     /// Microsoft.Extensions.AI counts cached input inside <see cref="UsageDetails.InputTokenCount"/> and reasoning inside
     /// <see cref="UsageDetails.OutputTokenCount"/>, so each is taken out before the rest is priced as plain input or output.
     /// </remarks>
-    public static decimal? Cost(AIPrice? price, UsageDetails? usage, int images, int minutes = 0, long characters = 0)
+    public static decimal? Cost(AIPrice? price, UsageDetails? usage, int images, decimal minutes = 0, long characters = 0)
     {
         if (price is null) return null;
 

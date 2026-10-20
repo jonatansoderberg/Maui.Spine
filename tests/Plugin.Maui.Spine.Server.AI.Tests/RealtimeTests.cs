@@ -194,6 +194,19 @@ public sealed class RealtimeTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_shorter_limit_the_app_asks_for_is_the_sessions_and_its_reservation()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/ai/realtime/Talk?maxMinutes=1.5");
+        request.Headers.Add(UserHeader, "anna");
+
+        var answer = JsonNode.Parse(await (await _http.SendAsync(request)).Content.ReadAsStringAsync())!;
+
+        Assert.Equal(1.5, (double?)answer["maxMinutes"]);
+        Assert.Equal(1.5, Assert.Single(_provider.Requests).MaxMinutes);
+        Assert.Equal(0.45m, Assert.Single(_store.Records).Cost);
+    }
+
+    [Fact]
     public async Task Too_many_tokens_answer_429()
     {
         Assert.Equal(HttpStatusCode.OK, (await Post("Talk")).StatusCode);
@@ -333,6 +346,29 @@ public sealed class OpenAIRealtimeProviderTests
         Assert.Equal("azure-key", recorder.Request.Headers.GetValues("api-key").Single());
         Assert.Null(recorder.Request.Headers.Authorization);
         Assert.Equal("wss://my-resource.openai.azure.com/openai/v1/realtime?model=voice-deployment", session.Url);
+    }
+
+    [Fact]
+    public async Task A_reasoning_model_gets_its_effort()
+    {
+        var recorder = new Recorder(HttpStatusCode.OK, Answer);
+        var provider = AIRealtimeProviders.OpenAI(Section(("ApiKey", "sk-test")), new HttpClient(recorder));
+
+        await provider.CreateSessionAsync(Request(new AIRealtimeOptions { Reasoning = "low" }) with { Model = "gpt-realtime-2.1-mini" });
+
+        Assert.Equal("low", (string?)JsonNode.Parse(recorder.Body!)!["session"]!["reasoning"]!["effort"]);
+    }
+
+    [Fact]
+    public void GPT_Live_is_on_the_same_resource_for_OpenAI_and_Azure()
+    {
+        var openai = (OpenAIRealtimeProvider)AIRealtimeProviders.OpenAI(Section(("ApiKey", "sk-test")));
+        var azure = (OpenAIRealtimeProvider)AIRealtimeProviders.AzureOpenAI(Section(("ApiKey", "k"), ("Endpoint", "https://my-resource.openai.azure.com")));
+
+        Assert.Equal("wss://api.openai.com/v1/live/sessions", openai.LiveUri.ToString());
+        Assert.Equal("wss://my-resource.openai.azure.com/openai/v1/live/sessions", azure.LiveUri.ToString());
+        Assert.Equal(32, OpenAIRealtimeProvider.SafetyIdentifier(AICaller.SignedIn("anna")).Length);
+        Assert.NotEqual(OpenAIRealtimeProvider.SafetyIdentifier(AICaller.SignedIn("anna")), OpenAIRealtimeProvider.SafetyIdentifier(AICaller.SignedIn("bertil")));
     }
 
     [Fact]
