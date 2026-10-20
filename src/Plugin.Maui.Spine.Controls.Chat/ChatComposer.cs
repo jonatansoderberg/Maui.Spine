@@ -26,7 +26,7 @@ public class ChatComposer : ContentView
 
     public static readonly BindableProperty PlaceholderProperty = BindableProperty.Create(
         nameof(Placeholder), typeof(string), typeof(ChatComposer), null,
-        propertyChanged: (b, _, n) => ((ChatComposer)b)._editor.Placeholder = n as string ?? ChatStrings.Get("Spine.Chat.Placeholder"));
+        propertyChanged: (b, _, _) => ((ChatComposer)b).ApplyPlaceholder());
 
     public static readonly BindableProperty SuggestionsProperty = BindableProperty.Create(
         nameof(Suggestions), typeof(IEnumerable<string>), typeof(ChatComposer), null,
@@ -41,7 +41,7 @@ public class ChatComposer : ContentView
 
     public static readonly BindableProperty MicrophoneCommandProperty = BindableProperty.Create(
         nameof(MicrophoneCommand), typeof(ICommand), typeof(ChatComposer), null,
-        propertyChanged: (b, _, _) => ((ChatComposer)b).UpdateSend());
+        propertyChanged: (b, o, n) => ((ChatComposer)b).OnCommandChanged(o as ICommand, n as ICommand));
 
     public static readonly BindableProperty IsMicrophoneActiveProperty = BindableProperty.Create(
         nameof(IsMicrophoneActive), typeof(bool), typeof(ChatComposer), false,
@@ -49,7 +49,12 @@ public class ChatComposer : ContentView
 
     public static readonly BindableProperty MicrophoneTextCommandProperty = BindableProperty.Create(
         nameof(MicrophoneTextCommand), typeof(ICommand), typeof(ChatComposer), null,
-        propertyChanged: (b, _, _) => ((ChatComposer)b).OnMicrophoneActiveChanged());
+        propertyChanged: (b, o, n) =>
+        {
+            var composer = (ChatComposer)b;
+            composer.OnCommandChanged(o as ICommand, n as ICommand);
+            composer.OnMicrophoneActiveChanged();
+        });
 
     // Long enough for a page's push to finish, so the keyboard does not rise during the slide.
     private static readonly TimeSpan FocusDelay = TimeSpan.FromMilliseconds(400);
@@ -64,6 +69,8 @@ public class ChatComposer : ContentView
     private readonly Border _send;
     private readonly Path _glyph;
     private readonly HorizontalStackLayout _chips = new() { Spacing = 8 };
+    private readonly Dictionary<string, Geometry> _geometries = new(StringComparer.Ordinal);
+    private string? _shownGlyph;
     private readonly ScrollView _chipsScroll;
 
     public ChatComposer()
@@ -235,9 +242,7 @@ public class ChatComposer : ContentView
 
     private void Act()
     {
-        if (Chat is not { } chat) return;
-
-        if (chat.IsBusy)
+        if (Chat is { IsBusy: true } chat)
         {
             chat.Stop();
             return;
@@ -251,35 +256,51 @@ public class ChatComposer : ContentView
             return;
         }
 
-        _editor.Text = "";
-        Say(text);
+        // Cleared only once something took it: text that could not go anywhere stays to be sent again.
+        if (Say(text))
+            _editor.Text = "";
     }
 
     /// <summary>Typed text goes into the spoken conversation while one is on, and to the chat otherwise.</summary>
-    private void Say(string text)
+    /// <returns>Whether the text was taken.</returns>
+    private bool Say(string text)
     {
         if (IsMicrophoneActive)
         {
-            if (MicrophoneTextCommand is { } spoken && spoken.CanExecute(text))
-                spoken.Execute(text);
-            return;
+            if (MicrophoneTextCommand is not { } spoken || !spoken.CanExecute(text)) return false;
+            spoken.Execute(text);
+            return true;
         }
 
-        _ = Chat?.SendAsync(text);
+        if (Chat is not { } chat) return false;
+        _ = chat.SendAsync(text);
+        return true;
     }
+
+    private void OnCommandChanged(ICommand? previous, ICommand? next)
+    {
+        if (previous is not null) previous.CanExecuteChanged -= OnCanExecuteChanged;
+        if (next is not null) next.CanExecuteChanged += OnCanExecuteChanged;
+        UpdateSend();
+    }
+
+    private void OnCanExecuteChanged(object? sender, EventArgs e) => UpdateSend();
 
     private void OnMicrophoneActiveChanged()
     {
         // Without somewhere to send it, typing rests while the conversation is spoken.
         var resting = IsMicrophoneActive && MicrophoneTextCommand is null;
         _editor.IsEnabled = !resting;
-        _editor.Placeholder = resting ? ChatStrings.Get("Spine.Chat.Talking")
-            : IsMicrophoneActive ? ChatStrings.Get("Spine.Chat.TalkOrType")
-            : Placeholder ?? ChatStrings.Get("Spine.Chat.Placeholder");
+        ApplyPlaceholder();
         if (resting) _editor.Unfocus();
         UpdateSend();
         ShowSuggestions();
     }
+
+    private void ApplyPlaceholder() =>
+        _editor.Placeholder = IsMicrophoneActive && MicrophoneTextCommand is null ? ChatStrings.Get("Spine.Chat.Talking")
+            : IsMicrophoneActive ? ChatStrings.Get("Spine.Chat.TalkOrType")
+            : Placeholder ?? ChatStrings.Get("Spine.Chat.Placeholder");
 
     /// <summary>
     /// Centres one line in the field and keeps the insets even as it grows. On iOS, UIKit's text view has 8 points above
@@ -320,9 +341,23 @@ public class ChatComposer : ContentView
             : empty && MicrophoneCommand is not null ? (MicrophoneGlyph, "Spine.Chat.Microphone")
             : (SendGlyph, "Spine.Chat.Send");
 
-        _glyph.Data = (Geometry)new PathGeometryConverter().ConvertFromInvariantString(glyph)!;
+        if (glyph != _shownGlyph)
+        {
+            if (!_geometries.TryGetValue(glyph, out var geometry))
+                _geometries[glyph] = geometry = (Geometry)new PathGeometryConverter().ConvertFromInvariantString(glyph)!;
+            _glyph.Data = geometry;
+            _shownGlyph = glyph;
+        }
+
+        // Dimmed when a tap would do nothing: an empty field, or a command that cannot run now (a call still connecting).
+        var ready = glyph switch
+        {
+            StopGlyph => true,
+            HangUpGlyph or MicrophoneGlyph => MicrophoneCommand?.CanExecute(null) == true,
+            _ => !empty && (IsMicrophoneActive ? MicrophoneTextCommand?.CanExecute(_editor.Text) == true : Chat is not null),
+        };
         _glyph.Fill = busy ? Colors.White : Colors.Transparent;
-        _send.Opacity = busy || !empty || glyph != SendGlyph ? 1 : 0.4;
+        _send.Opacity = ready ? 1 : 0.4;
         _send.BackgroundColor = glyph == HangUpGlyph ? Effective.ErrorColor : Effective.SendButtonColor;
         SemanticProperties.SetDescription(_send, ChatStrings.Get(label));
     }

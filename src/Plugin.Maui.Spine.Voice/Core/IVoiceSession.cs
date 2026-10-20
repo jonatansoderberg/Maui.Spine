@@ -79,7 +79,10 @@ public interface IVoiceSession : IAsyncDisposable
     /// spoken passes the list its <c>ChatView</c> shows; typing continues in it after <see cref="EndAsync"/>.
     /// </summary>
     /// <param name="feature">The server's realtime feature.</param>
-    /// <param name="conversation">The conversation so far, changed on the main thread; <see cref="Transcript"/> is this list while connected.</param>
+    /// <param name="conversation">
+    /// The conversation so far, changed on the main thread. <see cref="Transcript"/> is this list while connected, and the
+    /// session's own again once the call ends.
+    /// </param>
     /// <param name="cancellationToken">Cancels connecting.</param>
     Task ConnectAsync(string feature, IList<ChatMessage> conversation, CancellationToken cancellationToken = default);
 

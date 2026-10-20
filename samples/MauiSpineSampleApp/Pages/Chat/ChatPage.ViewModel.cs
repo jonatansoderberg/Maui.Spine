@@ -18,6 +18,7 @@ public partial class ChatPageViewModel : SampleViewModel
     private readonly IHighlights _highlights;
     private IDispatcherTimer? _clock;
     private IEdgeGlow? _edge;
+    private CancellationTokenSource? _connecting;
     private string _using = "";
 
     public ChatPageViewModel()
@@ -41,7 +42,7 @@ public partial class ChatPageViewModel : SampleViewModel
         Session.StateChanged += _ => ShowStatus();
         Session.Ended += (reason, error) =>
         {
-            IsTalking = false;
+            IsTalking = IsConnected = false;
             _clock?.Stop();
             Status = error is not null ? $"The call ended: {error.Message}"
                 : reason == VoiceSessionEnd.Goodbye ? "You said goodbye, so it hung up."
@@ -161,19 +162,23 @@ public partial class ChatPageViewModel : SampleViewModel
             Status = label;
     }
 
-    /// <summary>The microphone: starts a call in this conversation, or ends the one that is on.</summary>
+    /// <summary>
+    /// The microphone: starts a call in this conversation, ends the one that is on, or gives up on one still connecting.
+    /// Never busy, so the hang-up button works while the call connects.
+    /// </summary>
     [RelayCommand]
-    private async Task Talk()
+    private void Talk()
     {
-        if (IsTalking)
-        {
-            _clock?.Stop();
-            await Session.EndAsync();
-            IsTalking = false;
-            Status = _using;
-            return;
-        }
+        if (_connecting is { } connecting)
+            connecting.Cancel();
+        else if (IsTalking)
+            _ = HangUpAsync();
+        else
+            _ = CallAsync();
+    }
 
+    private async Task CallAsync()
+    {
         if (!Uri.TryCreate(Server, UriKind.Absolute, out var endpoint))
         {
             Status = "The server address is not a URL.";
@@ -183,15 +188,22 @@ public partial class ChatPageViewModel : SampleViewModel
         _voiceOptions.SessionEndpoint = endpoint;
         IsTalking = true;
         Status = "Connecting…";
+        using var connecting = _connecting = new CancellationTokenSource();
         try
         {
-            await Session.ConnectAsync("Voice", Messages);
+            await Session.ConnectAsync("Voice", Messages, connecting.Token);
+            IsConnected = true;
             _clock ??= Application.Current!.Dispatcher.CreateTimer();
             _clock.Interval = TimeSpan.FromSeconds(1);
             _clock.Tick -= OnClock;
             _clock.Tick += OnClock;
             _clock.Start();
             ShowStatus();
+        }
+        catch (OperationCanceledException) when (connecting.IsCancellationRequested)
+        {
+            IsTalking = false;
+            Status = _using;
         }
         catch (Exception e)
         {
@@ -205,11 +217,46 @@ public partial class ChatPageViewModel : SampleViewModel
                 _ => e.Message,
             };
         }
+        finally
+        {
+            _connecting = null;
+        }
     }
 
-    /// <summary>Text typed during a call: said into the call, and answered aloud.</summary>
+    private async Task HangUpAsync()
+    {
+        _clock?.Stop();
+        await Session.EndAsync();
+        IsTalking = IsConnected = false;
+        Status = _using;
+    }
+
+    /// <summary>Text typed during a call: said into the call, and answered aloud. Only once it is connected, so the composer keeps it until then.</summary>
+    [RelayCommand(CanExecute = nameof(IsConnected))]
+    private Task Say(string text) => Session.SendTextAsync(text);
+
+    /// <summary>The call is connected: typed text can go into it.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SayCommand))]
+    public partial bool IsConnected { get; set; }
+
+    [ObservableProperty]
+    public partial bool Muted { get; set; }
+
+    partial void OnMutedChanged(bool value)
+    {
+        Session.IsMuted = value;
+        OnPropertyChanged(nameof(MuteText));
+    }
+
+    public string MuteText => Muted ? "Unmute" : "Mute";
+
     [RelayCommand]
-    private Task Say(string text) => Session.IsConnected ? Session.SendTextAsync(text) : Task.CompletedTask;
+    private void ToggleMute() => Muted = !Muted;
+
+    /// <summary>Cuts the answer off, as talking over it would.</summary>
+    [RelayCommand]
+    private void Interrupt() => Session.Interrupt();
 
     [RelayCommand]
     private Task ShowChatOptions() => ShowOptionsAsync("Chat", _options);
@@ -217,17 +264,17 @@ public partial class ChatPageViewModel : SampleViewModel
     [RelayCommand]
     private async Task NewChat()
     {
+        _connecting?.Cancel();
         if (IsTalking)
-            await Talk();
+            await HangUpAsync();
         Messages.Clear();
     }
 
     public override async Task OnDisappearingAsync(NavigationDirection navigationDirection)
     {
-        _clock?.Stop();
+        _connecting?.Cancel();
         Edge = false;
-        await Session.EndAsync();
-        IsTalking = false;
+        await HangUpAsync();
     }
 
     private void OnClock(object? sender, EventArgs e) => ShowStatus();

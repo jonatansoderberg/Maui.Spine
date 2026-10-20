@@ -748,6 +748,10 @@ internal sealed class VoiceSession : IVoiceSession
                 if (message.AdditionalProperties?.ContainsKey(PendingKey) == true)
                     RemoveMessage(item);
             }
+
+            // The app's conversation is the app's again: the session neither shows nor holds on to it after the call.
+            _byItem.Clear();
+            _transcript = _own;
         });
         if (wasConnected || error is not null)
             _dispatch(() => Ended?.Invoke(reason, error));

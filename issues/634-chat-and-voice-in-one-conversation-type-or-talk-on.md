@@ -33,6 +33,13 @@
 - Tests (Voice, 72 in all): the conversation's text turns go to the model and its list gets the spoken turns, a pending turn is removed at hang-up, and a plain connect gets its own transcript again.
 - Docs: chat.md (the microphone, Typed and spoken, the sample), voice.md (In the middle of a chat), the spine-controls skill, the plan (step 4.5, decisions).
 
+- **Review fixes (2026-10-20):**
+  - The composer clears the field only once the text was taken, follows its commands' `CanExecute` (dimmed when a tap would do nothing), sends the microphone without a `ChatView`, keeps the call's placeholder when `Placeholder` changes, and parses each glyph once.
+  - The Chat page's microphone command is never busy, so hang-up cancels a call still connecting. Typed text waits in the field until the call is connected. Mute and Stop are back beside the avatar.
+  - The session lets go of the app's list when the call ends.
+  - A sheet does not raise `OnDisappearing` on the page beneath (only region navigation and tab switches do), so Options does not end a call.
+- **The sample server's Voice feature runs on `gpt-realtime-mini`** at 0.05 USD a minute (owner, 2026-10-20). A token reserves 3 × 0.05 = 0.15 USD instead of 0.60, so the 1.5 USD day budget holds about ten calls.
+
 ## Decisions
 
 - The history is text only, the last 40 user and assistant turns. Tool calls and results from the typed half are left out: a realtime session cannot be given them by call id.

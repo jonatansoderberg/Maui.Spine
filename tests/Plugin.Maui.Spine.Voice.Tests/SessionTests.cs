@@ -386,9 +386,10 @@ public sealed class SessionTests : IAsyncLifetime
         _socket.Push(new { type = "input_audio_buffer.committed", item_id = "u1" });
         await Until(() => conversation.Count == 6, "the spoken turn added to the conversation");
 
-        // Hung up before the words came: the pending turn goes.
+        // Hung up before the words came: the pending turn goes, and the conversation is the app's alone again.
         await _session.EndAsync();
         Assert.Equal(5, conversation.Count);
+        Assert.NotSame(conversation, _session.Transcript);
     }
 
     [Fact]

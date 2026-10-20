@@ -10,8 +10,19 @@
     <Grid RowDefinitions="Auto,Auto,*">
         <Label Text="{Binding Status}" FontSize="13" Opacity="0.7" Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,8" />
 
-        <AvatarView Grid.Row="1" IsVisible="{Binding IsTalking}" Source="{Binding Avatar.Source}" Driver="{Binding Driver}"
-                    HeightRequest="140" WidthRequest="180" HorizontalOptions="Center" />
+        <!-- During a call: the avatar, and Mute and Stop (cut the answer off) beside it. -->
+        <Grid Grid.Row="1" IsVisible="{Binding IsTalking}" ColumnDefinitions="*,Auto" ColumnSpacing="12"
+              Margin="{x:Static HeaderBarConstants.PagePadding}">
+            <AvatarView Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="140" HorizontalOptions="Center" />
+            <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                <Button Text="{Binding MuteText}" Command="{Binding ToggleMuteCommand}"
+                        FontSize="14" Padding="12,4" HeightRequest="34" MinimumHeightRequest="34" CornerRadius="17"
+                        BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}" />
+                <Button Text="Stop" Command="{Binding InterruptCommand}"
+                        FontSize="14" Padding="12,4" HeightRequest="34" MinimumHeightRequest="34" CornerRadius="17"
+                        BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}" />
+            </VerticalStackLayout>
+        </Grid>
 
         <ChatView x:Name="chat" Grid.Row="2" Client="{Binding Client}" Messages="{Binding Messages}"
                   ChatOptions="{Binding Options}" ShowToolCalls="{Binding ShowToolCalls}" />
