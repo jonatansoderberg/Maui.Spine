@@ -59,6 +59,10 @@ public static class W
     /// <summary>Flexible space.</summary>
     public static SpacerNode Spacer() => new();
 
+    /// <summary>A share (0–1) as a ring of <paramref name="size"/> points; null for unknown. See <see cref="RingNode"/>.</summary>
+    public static RingNode Ring(double? value, WidgetColor? color = null, double size = 56) =>
+        new(value is { } v ? Math.Clamp(v, 0, 1) : null) { Color = color, Size = size };
+
     /// <summary>A separator line.</summary>
     public static DividerNode Divider() => new();
 
@@ -104,6 +108,12 @@ public static class WidgetNodeStyling
     /// wraps, and as wide as its greediest child on iOS.
     /// </summary>
     public static T Fill<T>(this T node) where T : StackNode => (T)(node with { Fill = true });
+
+    /// <summary>Centres a vertical stack's children on its axis (a ring tile: label, ring and time under each other).</summary>
+    public static VStackNode CenterItems(this VStackNode node) => node with { Align = "center" };
+
+    /// <summary>Spreads a horizontal stack's children evenly: the same space at its ends as between them.</summary>
+    public static HStackNode Evenly(this HStackNode node) => node with { Distribute = "evenly" };
 
     /// <summary>
     /// Centres the text: its lines on each other, and a timer's or relative date's text — which takes

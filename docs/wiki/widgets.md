@@ -228,6 +228,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Icon(name, color)` | A monochrome SVG named after the symbol, tinted with the color (see [Icons](#icons)); an SF Symbol of that name is the fallback on iOS |
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
+| `W.Ring(value, color, size)` | A share (0 to 1, null for unknown) as a ring: a faint track all round, the value clockwise from 12 o'clock. Put it in a `ZStack` with a text for the number. SwiftUI draws it; Android draws it as a picture |
 | `W.Spacer()` / `W.Divider()` | Flexible space, separator |
 | `W.Button(actionId, child)` | A tappable child that sends `actionId` to the provider (see [Buttons](#buttons)) |
 | `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
@@ -235,6 +236,11 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 A stack takes `.Fill()`, which gives it an equal share of its parent's axis instead of the width of its
 content: three filled stacks in a row are three equal columns, the shape of every scoreboard, and they
 come out the same on both platforms. Spacers still centre a single node; `.Fill()` divides a row.
+
+A `VStack` takes `.CenterItems()`, which centres its children on its axis: a ring with its label above and its
+time below, all on the ring's centre. An `HStack` takes `.Evenly()`, which leaves the same space at its ends as between
+its children, the children at their own width: two ring tiles spread 1-*-1-*-1 rather than as two columns, whose gaps
+come out 1-2-1.
 
 Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
 
@@ -244,7 +250,7 @@ Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Cap
 
 How the renderers lay the tree out, so a design can be planned before it is run:
 
-- **`VStack` aligns its children to the leading edge, `HStack` centers them vertically, `ZStack` centers them.** There is no alignment parameter; a `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
+- **`VStack` aligns its children to the leading edge (or centres them with `.CenterItems()`), `HStack` centers them vertically, `ZStack` centers them.** A `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
 - **Text roles are the platform's type ramp**: `Title` is SwiftUI's `.title2` and 22 sp on Android, `Headline` `.headline` and 16 sp, `Body` `.body` and 14 sp, `Caption` `.caption` and 12 sp. Text follows the user's text size on both platforms; there is no point size and no custom font.
 - **`W.Icon` has a fixed size**: 18 points square on iOS, 20 dp on Android, tinted with its color. For anything larger, use a picture.
 - **`W.Image` keeps its aspect ratio.** With a `height` it is scaled to that height; without one it is scaled to fit the room it is offered. See [Images](#images).

@@ -19,6 +19,7 @@ Spine ships as thirty-seven NuGet packages built from this repository, one per p
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp | — |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid on `CollectionView` with layouts, sorting, grouping and swipe actions | `Plugin.Maui.Spine` |
+| Controls | `Plugin.Maui.Spine.Controls.Charts` | [`RingChart`, `BarChart` and `ColumnChart`](charts.md) for dashboards | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: `Shimmer` over placeholders, `Skeleton.IsActive` on real layouts | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients from the accent, a preset or your own colours, drifting slowly | `Plugin.Maui.Spine` |
 | Controls | `Plugin.Maui.Spine.Controls.Chat` | [`ChatView` and `ChatComposer`](chat.md): a conversation with any `IChatClient` | `Plugin.Maui.Spine`, `.Controls.Markdown`, `.Controls.Shimmer`, Microsoft.Extensions.AI.Abstractions |

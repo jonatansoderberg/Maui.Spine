@@ -119,6 +119,14 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 views.SetImageViewBitmap(Node, bitmap);
                 return views;
             }
+            case "ring":
+            {
+                // RemoteViews has no ring; drawn as a picture at the widget's density.
+                var size = (int)Math.Max(1, (Number(node, "height") ?? 56) * Density);
+                var views = new RemoteViews(Package, Resource.Layout.spine_widget_image);
+                views.SetImageViewBitmap(Node, Ring(size, Number(node, "value"), Number(node, "thickness"), Text(node, "color")));
+                return views;
+            }
             case "progress":
             {
                 var views = new RemoteViews(Package, Resource.Layout.spine_widget_progress);
@@ -154,16 +162,22 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         views.RemoveAllViews(Node);
         var spacing = (float)(Number(node, "spacing") ?? DefaultSpacing);
         var first = true;
+        // Evenly: a flexible space at each end and between the children, which keep their own width.
+        var evenly = vertical == false && Text(node, "distribute") == "evenly";
+        if (vertical == true && Text(node, "align") == "center")
+            views.SetInt(Node, "setGravity", (int)GravityFlags.CenterHorizontal);
 
         if (node.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
             foreach (var child in children.EnumerateArray())
             {
+                if (evenly) views.AddView(Node, new RemoteViews(Package, Resource.Layout.spine_widget_spacer));
                 var childViews = Render(child, inline: vertical == false);
-                if (!first && spacing > 0 && vertical is { } axis && OperatingSystem.IsAndroidVersionAtLeast(31))
+                if (!first && !evenly && spacing > 0 && vertical is { } axis && OperatingSystem.IsAndroidVersionAtLeast(31))
                     childViews.SetViewLayoutMargin(Node, (int)(axis ? RemoteViewsMargin.Top : RemoteViewsMargin.Start), spacing, (int)ComplexUnitType.Dip);
                 views.AddView(Node, childViews);
                 first = false;
             }
+        if (evenly) views.AddView(Node, new RemoteViews(Package, Resource.Layout.spine_widget_spacer));
 
         Box(views, node);
         return views;
@@ -189,6 +203,30 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             // The outline alone shapes only shadows; clipping to it is what rounds the background and children.
             views.SetBoolean(Node, "setClipToOutline", true);
         }
+    }
+
+    /// <summary>A ring as a bitmap: the track in the colour, faint, and the value clockwise from 12 o'clock.</summary>
+    private Android.Graphics.Bitmap Ring(int size, double? value, double? thickness, string? color)
+    {
+        var bitmap = Android.Graphics.Bitmap.CreateBitmap(size, size, Android.Graphics.Bitmap.Config.Argb8888!)!;
+        using var canvas = new Android.Graphics.Canvas(bitmap);
+        var line = (float)((thickness ?? Math.Max(3, size / Density / 10)) * Density);
+        var argb = (color is null ? null : WidgetPalette.Concrete(color)) ?? unchecked((int)0xFF3B82F6);
+        using var paint = new Android.Graphics.Paint(Android.Graphics.PaintFlags.AntiAlias)
+        {
+            StrokeWidth = line,
+            StrokeCap = Android.Graphics.Paint.Cap.Round,
+        };
+        paint.SetStyle(Android.Graphics.Paint.Style.Stroke);
+        var oval = new Android.Graphics.RectF(line / 2, line / 2, size - line / 2, size - line / 2);
+        paint.Color = new Android.Graphics.Color(argb) { A = (byte)(255 * 0.22) };
+        canvas.DrawOval(oval, paint);
+        if (value is { } v && v > 0)
+        {
+            paint.Color = new Android.Graphics.Color(argb);
+            canvas.DrawArc(oval, -90, (float)(Math.Min(v, 1) * 360), false, paint);
+        }
+        return bitmap;
     }
 
     private RemoteViews TextLike(JsonElement node, int layout, int boldLayout)

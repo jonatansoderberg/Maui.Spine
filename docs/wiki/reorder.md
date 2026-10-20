@@ -100,10 +100,12 @@ A header and a footer stay where they are. Grouped lists (`IsGrouped="True"`) ar
 
 ## Bindable layouts
 
-`Reorder.Mode` works on any layout whose items come from `BindableLayout.ItemsSource` too: a `FlexLayout`, a `Grid`, a stack, or an app's own layout, such as a masonry of cards.
+`Reorder.Mode` works on any layout whose items come from `BindableLayout.ItemsSource` too: a `FlexLayout`, a `Grid`, a stack, an app's own layout, or Spine's `MasonryLayout` (`Plugin.Maui.Spine.Layouts`).
+
+`MasonryLayout` lays cards out in as many columns as fit at `MinColumnWidth` or wider (at most `MaxColumns`), each card in the column that is shortest at that moment, so cards of different heights leave no holes. `Spacing` is the gap between columns and between cards. `WidthFor(columns)` is how wide it must be for a number of columns, for [window sizes](macos-options.md#window-sizes-from-the-content).
 
 ```xml
-<controls:MasonryLayout BindableLayout.ItemsSource="{Binding Cards}"
+<layouts:MasonryLayout BindableLayout.ItemsSource="{Binding Cards}"
                         Reorder.Mode="LongPress"
                         Reorder.Command="{Binding SaveOrderCommand}" />
 ```

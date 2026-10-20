@@ -162,6 +162,9 @@ final class Node: Decodable {
     var centered: Bool?
     var spacing: Double?
     var fill: Bool?
+    var align: String?
+    var distribute: String?
+    var thickness: Double?
     var padding: Double?
     var background: String?
     var cornerRadius: Double?
@@ -229,7 +232,18 @@ struct NodeView: View {
                 .buttonStyle(.plain)
             }
         case "vstack":
-            VStack(alignment: .leading, spacing: node.spacing ?? 4) { children }.modifier(BoxModifier(node: node, alignment: .leading))
+            let center = node.align == "center"
+            VStack(alignment: center ? .center : .leading, spacing: node.spacing ?? 4) { children }
+                .modifier(BoxModifier(node: node, alignment: center ? .center : .leading))
+        case "hstack" where node.distribute == "evenly":
+            // The same space at the ends as between the children, which keep their own width.
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                ForEach(Array((node.children ?? []).enumerated()), id: \.offset) {
+                    NodeView(node: $0.element).environment(\.spineInline, true)
+                    Spacer(minLength: 0)
+                }
+            }.modifier(BoxModifier(node: node, alignment: .leading))
         case "hstack":
             HStack(spacing: node.spacing ?? 4) { children }.modifier(BoxModifier(node: node, alignment: .leading))
         case "zstack":
@@ -271,6 +285,20 @@ struct NodeView: View {
             }
         case "progress":
             ProgressView(value: min(max(node.value ?? 0, 0), 1)).tint(Palette.color(node.color))
+        case "ring":
+            let size = CGFloat(node.height ?? 56)
+            let line = CGFloat(node.thickness ?? max(3, Double(size) / 10))
+            let tint = node.color == nil ? Color.accentColor : Palette.color(node.color)
+            ZStack {
+                Circle().stroke(tint.opacity(0.22), lineWidth: line)
+                if let value = node.value, value > 0 {
+                    Circle().trim(from: 0, to: min(value, 1))
+                        .stroke(tint, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+            }
+            .padding(line / 2)
+            .frame(width: size, height: size)
         case "spacer":
             Spacer(minLength: 0)
         case "divider":

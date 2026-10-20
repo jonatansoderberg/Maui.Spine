@@ -62,6 +62,7 @@ internal static class NavigableMeta
         }
 
         vm.EffectiveHeaderBarBackground = ResolveBackground(view, vm, meta);
+        vm.PageView = new WeakReference<View>(view);
 
         // Populate raw system bar dimensions and the per-page complement insets.
         var insets = Presentation.NavigationRegion.SystemBarInsetsFor(vm, insetsProvider, meta is NavigableRegionAttribute or NavigableLightboxAttribute);

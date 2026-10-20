@@ -83,6 +83,7 @@ One version, thirty-seven packages, all on [nuget.org](https://www.nuget.org/pac
 | Controls | `Plugin.Maui.Spine.Controls.AnimatedLabel` | Marquee and fade label on SkiaSharp |
 | Controls | `Plugin.Maui.Spine.Controls.Calendar` | Month calendar with swipe navigation, year and decade pickers, week numbers and days marked from your own source |
 | Controls | `Plugin.Maui.Spine.Controls.DataGrid` | Responsive row grid: named layouts, sorting, grouping, swipe actions, load more |
+| Controls | `Plugin.Maui.Spine.Controls.Charts` | `RingChart`, `BarChart`, `ColumnChart`: shares and values per day for dashboards |
 | Controls | `Plugin.Maui.Spine.Controls.Shimmer` | Skeleton loading: a shimmer over placeholders, `Skeleton.IsActive` on real layouts |
 | Controls | `Plugin.Maui.Spine.Controls.MeshBackground` | `MeshBackground`: mesh gradients (accent, Aurora, Sunset or your own colours) that drift slowly behind glass |
 | Controls | `Plugin.Maui.Spine.Controls.Highlight` | `Highlight.Kind` on any view: a moving rim while a model works, rings that say tap here, a sweep, a running light or a breathing halo; once per install with a key |

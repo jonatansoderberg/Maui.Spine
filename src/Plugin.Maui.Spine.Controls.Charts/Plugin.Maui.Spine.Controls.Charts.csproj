@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>$(SpineMauiTargetFrameworks)</TargetFrameworks>
+
+		<AssemblyName>Plugin.Maui.Spine.Controls.Charts</AssemblyName>
+		<RootNamespace>Plugin.Maui.Spine.Controls</RootNamespace>
+		<UseMaui>true</UseMaui>
+		<SingleProject>true</SingleProject>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>Small charts for dashboards in .NET MAUI: RingChart (a share as a ring, clockwise from 12 o'clock), BarChart (a share as a bar) and ColumnChart (values per day or category as columns with labels). Drawn with Microsoft.Maui.Graphics, theme-aware tracks.</Description>
+		<PackageTags>$(PackageTags);charts;ring;gauge;bar;columns;dashboard;controls</PackageTags>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+	</ItemGroup>
+
+</Project>

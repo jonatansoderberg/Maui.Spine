@@ -17,6 +17,7 @@ namespace Plugin.Maui.Spine.Common;
 [JsonDerivedType(typeof(IconNode), "image")]
 [JsonDerivedType(typeof(ImageNode), "asset")]
 [JsonDerivedType(typeof(ProgressNode), "progress")]
+[JsonDerivedType(typeof(RingNode), "ring")]
 [JsonDerivedType(typeof(SpacerNode), "spacer")]
 [JsonDerivedType(typeof(DividerNode), "divider")]
 [JsonDerivedType(typeof(ButtonNode), "button")]
@@ -71,6 +72,20 @@ public abstract record StackNode : WidgetNode
     /// </summary>
     [JsonPropertyName("fill")]
     public bool? Fill { get; init; }
+
+    /// <summary>
+    /// <c>"center"</c> centres a vertical stack's children on its axis instead of aligning them to the leading edge. Set
+    /// with <see cref="WidgetNodeStyling.CenterItems"/>.
+    /// </summary>
+    [JsonPropertyName("align")]
+    public string? Align { get; init; }
+
+    /// <summary>
+    /// <c>"evenly"</c> spreads a horizontal stack's children with equal space at its ends and between them, the
+    /// children at their own width. Set with <see cref="WidgetNodeStyling.Evenly"/>.
+    /// </summary>
+    [JsonPropertyName("distribute")]
+    public string? Distribute { get; init; }
 
     /// <summary>The children in layout order.</summary>
     public IReadOnlyList<WidgetNode> Children { get; init; } = [];
@@ -198,6 +213,24 @@ public sealed record ProgressNode(double Value) : WidgetNode
 {
     /// <summary>Tint color; the platform accent when <see langword="null"/>.</summary>
     public WidgetColor? Color { get; init; }
+}
+
+/// <summary>
+/// A share as a ring: a faint track all round, the value clockwise from 12 o'clock with round ends. Null draws only the
+/// track (unknown). For a number in the middle, put the ring and a text in a <see cref="ZStackNode"/>.
+/// </summary>
+/// <param name="Value">The share, 0 to 1, or <see langword="null"/> for unknown.</param>
+public sealed record RingNode(double? Value) : WidgetNode
+{
+    /// <summary>The value's colour; the track is the same colour, faint. The platform accent when <see langword="null"/>.</summary>
+    public WidgetColor? Color { get; init; }
+
+    /// <summary>The ring's diameter in points.</summary>
+    [JsonPropertyName("height")]
+    public double Size { get; init; } = 56;
+
+    /// <summary>The ring's width in points; a tenth of the diameter when <see langword="null"/>.</summary>
+    public double? Thickness { get; init; }
 }
 
 /// <summary>Flexible space that pushes siblings apart.</summary>
