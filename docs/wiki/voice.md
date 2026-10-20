@@ -103,6 +103,17 @@ The app supplies the microphone's usage text. Without it the engine fails at sta
 - **Playback only:** `new VoiceAudioOptions { Input = false }` opens no microphone: no permission prompt, no usage text needed, no echo cancellation or convergence, and the playback audio category (spoken audio). [`ServerSpeech`](speech.md#a-voice-from-the-server) plays a server voice that way.
 - **Background audio:** off by default. With `<SpineVoiceBackground>true</SpineVoiceBackground>` the package adds the iOS `audio` background mode, so a conversation that started in the foreground goes on with the screen locked. Apple reviews it.
 
+## In the middle of a chat
+
+`ConnectAsync(feature, conversation)` connects in the middle of a typed conversation:
+
+- **The model is told what was said.** The text of the conversation's user and assistant turns (the last 40) goes to the provider as conversation items before the first spoken turn. Tool calls, results and pending turns are left out.
+- **The spoken turns go into the same list.** `Transcript` is that list while the session is connected, so a `ChatView` bound to it shows typed and spoken turns in order. A turn still being transcribed when the call ends is removed.
+- **Typing during the call** goes in with `SendTextAsync`, and the model answers aloud.
+- `ConnectAsync(feature)` starts a session with an empty transcript of its own again.
+
+`ChatComposer`'s microphone (`MicrophoneCommand`, `IsMicrophoneActive`, `MicrophoneTextCommand`) is made for this; see [Typed and spoken](chat.md#typed-and-spoken).
+
 ## A conversation
 
 ```csharp

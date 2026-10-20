@@ -198,6 +198,8 @@ public static class SpineIcons
     public const string MeshBackground = "MeshBackground.svg";
     /// <summary>The <c>Microowen.svg</c> icon.</summary>
     public const string Microowen = "Microowen.svg";
+    /// <summary>The <c>Microphone.svg</c> icon.</summary>
+    public const string Microphone = "Microphone.svg";
     /// <summary>The <c>Minus.svg</c> icon.</summary>
     public const string Minus = "Minus.svg";
     /// <summary>The <c>More.svg</c> icon.</summary>
@@ -366,6 +368,8 @@ public static class SpineIcons
     public const string Water = "Water.svg";
     /// <summary>The <c>WaterHeater.svg</c> icon.</summary>
     public const string WaterHeater = "WaterHeater.svg";
+    /// <summary>The <c>Waveform.svg</c> icon.</summary>
+    public const string Waveform = "Waveform.svg";
     /// <summary>The <c>Weather1.svg</c> icon.</summary>
     public const string Weather1 = "Weather1.svg";
     /// <summary>The <c>Weather10.svg</c> icon.</summary>
@@ -574,6 +578,7 @@ public static class SpineIcons
         Merge,
         MeshBackground,
         Microowen,
+        Microphone,
         Minus,
         More,
         Next,
@@ -658,6 +663,7 @@ public static class SpineIcons
         Washer,
         Water,
         WaterHeater,
+        Waveform,
         Weather1,
         Weather10,
         Weather11,

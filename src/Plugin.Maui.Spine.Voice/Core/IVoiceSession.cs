@@ -51,8 +51,10 @@ public interface IVoiceSession : IAsyncDisposable
 
     /// <summary>What has been said, as it is said: the user's turns and the model's answers, and tool calls. Changed on the main thread.</summary>
     /// <remarks>
-    /// <see cref="ConnectAsync"/> starts it empty. The model's words are shown about ten times a second as they come. An
-    /// answer cut off by the user has <c>spine.interrupted</c> set in its <see cref="ChatMessage.AdditionalProperties"/>.
+    /// <see cref="ConnectAsync(string, CancellationToken)"/> starts it empty; <see cref="ConnectAsync(string, IList{ChatMessage}, CancellationToken)"/>
+    /// makes it the app's own conversation. The model's words are shown about ten times a second as they come. An
+    /// answer cut off by the user has <c>spine.interrupted</c> set in its <see cref="ChatMessage.AdditionalProperties"/>,
+    /// and the user's turn has <c>spine.pending</c> until its words are known.
     /// </remarks>
     IList<ChatMessage> Transcript { get; }
 
@@ -70,6 +72,19 @@ public interface IVoiceSession : IAsyncDisposable
     /// <exception cref="AI.AIRateLimitedException">The caller started too many sessions.</exception>
     /// <exception cref="VoiceAudioException">The microphone could not be opened.</exception>
     Task ConnectAsync(string feature, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Connects as <see cref="ConnectAsync(string, CancellationToken)"/> does, in the middle of a conversation: the model
+    /// is given the text of its user and assistant turns, and the spoken turns are added to it. A chat that is typed and
+    /// spoken passes the list its <c>ChatView</c> shows; typing continues in it after <see cref="EndAsync"/>.
+    /// </summary>
+    /// <param name="feature">The server's realtime feature.</param>
+    /// <param name="conversation">
+    /// The conversation so far, changed on the main thread. <see cref="Transcript"/> is this list while connected, and the
+    /// session's own again once the call ends.
+    /// </param>
+    /// <param name="cancellationToken">Cancels connecting.</param>
+    Task ConnectAsync(string feature, IList<ChatMessage> conversation, CancellationToken cancellationToken = default);
 
     /// <summary>Ends the conversation: closes the connection and the microphone.</summary>
     Task EndAsync();

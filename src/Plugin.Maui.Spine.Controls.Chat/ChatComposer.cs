@@ -1,7 +1,9 @@
 using System.ComponentModel;
+using System.Windows.Input;
 using Microsoft.Maui.Controls.Shapes;
 using Plugin.Maui.Spine.Extensions;
-using Path = Microsoft.Maui.Controls.Shapes.Path;
+using Microsoft.Extensions.DependencyInjection;
+using Plugin.Maui.Spine.Svg;
 
 namespace Plugin.Maui.Spine.Controls;
 
@@ -25,7 +27,7 @@ public class ChatComposer : ContentView
 
     public static readonly BindableProperty PlaceholderProperty = BindableProperty.Create(
         nameof(Placeholder), typeof(string), typeof(ChatComposer), null,
-        propertyChanged: (b, _, n) => ((ChatComposer)b)._editor.Placeholder = n as string ?? ChatStrings.Get("Spine.Chat.Placeholder"));
+        propertyChanged: (b, _, _) => ((ChatComposer)b).ApplyPlaceholder());
 
     public static readonly BindableProperty SuggestionsProperty = BindableProperty.Create(
         nameof(Suggestions), typeof(IEnumerable<string>), typeof(ChatComposer), null,
@@ -38,17 +40,46 @@ public class ChatComposer : ContentView
     public static readonly BindableProperty AutoFocusProperty = BindableProperty.Create(
         nameof(AutoFocus), typeof(bool), typeof(ChatComposer), true);
 
+    public static readonly BindableProperty MicrophoneCommandProperty = BindableProperty.Create(
+        nameof(MicrophoneCommand), typeof(ICommand), typeof(ChatComposer), null,
+        propertyChanged: (b, o, n) => ((ChatComposer)b).OnCommandChanged(o as ICommand, n as ICommand));
+
+    public static readonly BindableProperty IsMicrophoneActiveProperty = BindableProperty.Create(
+        nameof(IsMicrophoneActive), typeof(bool), typeof(ChatComposer), false,
+        propertyChanged: (b, _, _) => ((ChatComposer)b).OnMicrophoneActiveChanged());
+
+    public static readonly BindableProperty MicrophoneTextCommandProperty = BindableProperty.Create(
+        nameof(MicrophoneTextCommand), typeof(ICommand), typeof(ChatComposer), null,
+        propertyChanged: (b, o, n) =>
+        {
+            var composer = (ChatComposer)b;
+            composer.OnCommandChanged(o as ICommand, n as ICommand);
+            composer.OnMicrophoneActiveChanged();
+        });
+
     // Long enough for a page's push to finish, so the keyboard does not rise during the slide.
     private static readonly TimeSpan FocusDelay = TimeSpan.FromMilliseconds(400);
 
-    private const string SendGlyph = "M 10,16 L 10,4 M 4.5,9.5 L 10,4 L 15.5,9.5";
-    private const string StopGlyph = "M 6,6 L 14,6 L 14,14 L 6,14 Z";
+    // The composer's glyphs, in Spine's icon style, embedded in this package.
+    private const string SendIcon = "spinechatsend.svg";
+    private const string StopIcon = "spinechatstop.svg";
+    private const string HangUpIcon = "spinechathangup.svg";
+    private const string VoiceIcon = "spinechatvoice.svg";
+
+    // The package's own SVGs, added to Spine.Svg's names the first time a composer draws one.
+    private static readonly Lazy<ResourceNameCache> Icons = new(() =>
+    {
+        var cache = IPlatformApplication.Current?.Services.GetService<ResourceNameCache>() ?? new ResourceNameCache();
+        cache.Initialize([typeof(ChatComposer).Assembly]);
+        return cache;
+    });
 
     private readonly Editor _editor;
     private readonly Border _field;
-    private readonly Border _send;
-    private readonly Path _glyph;
+    private readonly ImageButton _send;
+    private readonly ImageButton _voice;
     private readonly HorizontalStackLayout _chips = new() { Spacing = 8 };
+    private (string Icon, Color Tint, double Size)? _sendShown, _voiceShown;
     private readonly ScrollView _chipsScroll;
 
     public ChatComposer()
@@ -73,28 +104,19 @@ public class ChatComposer : ContentView
             Content = new Grid { Children = { _editor } },
         };
 
-        _glyph = new Path
-        {
-            Stroke = Colors.White,
-            Fill = Colors.Transparent,
-            StrokeThickness = 2.4,
-            StrokeLineCap = PenLineCap.Round,
-            StrokeLineJoin = PenLineJoin.Round,
-            WidthRequest = 20,
-            HeightRequest = 20,
-            HorizontalOptions = LayoutOptions.Center,
-            VerticalOptions = LayoutOptions.Center,
-        };
+        // As tall as the field on one line, and at its foot when it grows, the way Messages keeps its send button. Liquid
+        // Glass where the system has it (iOS and Mac Catalyst 26); a round button elsewhere.
+        _send = new ImageButton { VerticalOptions = LayoutOptions.End };
+        Glass.SetStyle(_send, GlassStyle.Prominent);
+        _send.Clicked += (_, _) => SendOrStop();
 
-        // As tall as the field on one line, and at its foot when it grows, the way Messages keeps its send button.
-        _send = new Border
+        // The spoken conversation: the voice button starts one, and is the hang-up while it is on.
+        _voice = new ImageButton { VerticalOptions = LayoutOptions.End, IsVisible = false };
+        _voice.Clicked += (_, _) =>
         {
-            StrokeThickness = 0,
-            StrokeShape = new Ellipse(),
-            VerticalOptions = LayoutOptions.End,
-            Content = _glyph,
+            if (MicrophoneCommand is { } microphone && microphone.CanExecute(null))
+                microphone.Execute(null);
         };
-        Tap.SetCommand(_send, new Command(SendOrStop));
 
         _chipsScroll = new ScrollView
         {
@@ -104,9 +126,10 @@ public class ChatComposer : ContentView
             IsVisible = false,
         };
 
-        var row = new Grid { ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto)], ColumnSpacing = 8 };
+        var row = new Grid { ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Auto)], ColumnSpacing = 8 };
         row.Add(_field, 0);
         row.Add(_send, 1);
+        row.Add(_voice, 2);
 
         Content = new VerticalStackLayout { Spacing = 8, Padding = new Thickness(12, 8), Children = { _chipsScroll, row } };
 
@@ -123,6 +146,39 @@ public class ChatComposer : ContentView
     {
         get => (bool)GetValue(AutoFocusProperty);
         set => SetValue(AutoFocusProperty, value);
+    }
+
+    /// <summary>
+    /// Shows a microphone in the send button's place while the field is empty; a tap runs the command, which starts a
+    /// spoken conversation (and, while <see cref="IsMicrophoneActive"/>, ends it). Unset, there is no microphone.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// &lt;ChatComposer Chat="{x:Reference chat}" MicrophoneCommand="{Binding TalkCommand}"
+    ///               IsMicrophoneActive="{Binding IsTalking}" MicrophoneTextCommand="{Binding SayCommand}" /&gt;
+    /// </code>
+    /// </example>
+    public ICommand? MicrophoneCommand
+    {
+        get => (ICommand?)GetValue(MicrophoneCommandProperty);
+        set => SetValue(MicrophoneCommandProperty, value);
+    }
+
+    /// <summary>A spoken conversation is on: the microphone becomes a button that ends it, and typed text goes to <see cref="MicrophoneTextCommand"/>.</summary>
+    public bool IsMicrophoneActive
+    {
+        get => (bool)GetValue(IsMicrophoneActiveProperty);
+        set => SetValue(IsMicrophoneActiveProperty, value);
+    }
+
+    /// <summary>
+    /// Where text typed during a spoken conversation goes, with the text as the parameter, such as a voice session's
+    /// <c>SendTextAsync</c>. Unset, the field rests while the conversation is on.
+    /// </summary>
+    public ICommand? MicrophoneTextCommand
+    {
+        get => (ICommand?)GetValue(MicrophoneTextCommandProperty);
+        set => SetValue(MicrophoneTextCommandProperty, value);
     }
 
     /// <summary>The conversation this composer writes to.</summary>
@@ -187,20 +243,57 @@ public class ChatComposer : ContentView
 
     private void SendOrStop()
     {
-        if (Chat is not { } chat) return;
-
-        if (chat.IsBusy)
+        if (Chat is { IsBusy: true } chat)
         {
             chat.Stop();
             return;
         }
 
-        var text = _editor.Text;
-        if (string.IsNullOrWhiteSpace(text)) return;
-
-        _editor.Text = "";
-        _ = chat.SendAsync(text);
+        // Cleared only once something took it: text that could not go anywhere stays to be sent again.
+        if (_editor.Text is { } text && !string.IsNullOrWhiteSpace(text) && Say(text))
+            _editor.Text = "";
     }
+
+    /// <summary>Typed text goes into the spoken conversation while one is on, and to the chat otherwise.</summary>
+    /// <returns>Whether the text was taken.</returns>
+    private bool Say(string text)
+    {
+        if (IsMicrophoneActive)
+        {
+            if (MicrophoneTextCommand is not { } spoken || !spoken.CanExecute(text)) return false;
+            spoken.Execute(text);
+            return true;
+        }
+
+        if (Chat is not { } chat) return false;
+        _ = chat.SendAsync(text);
+        return true;
+    }
+
+    private void OnCommandChanged(ICommand? previous, ICommand? next)
+    {
+        if (previous is not null) previous.CanExecuteChanged -= OnCanExecuteChanged;
+        if (next is not null) next.CanExecuteChanged += OnCanExecuteChanged;
+        UpdateSend();
+    }
+
+    private void OnCanExecuteChanged(object? sender, EventArgs e) => UpdateSend();
+
+    private void OnMicrophoneActiveChanged()
+    {
+        // Without somewhere to send it, typing rests while the conversation is spoken.
+        var resting = IsMicrophoneActive && MicrophoneTextCommand is null;
+        _editor.IsEnabled = !resting;
+        ApplyPlaceholder();
+        if (resting) _editor.Unfocus();
+        UpdateSend();
+        ShowSuggestions();
+    }
+
+    private void ApplyPlaceholder() =>
+        _editor.Placeholder = IsMicrophoneActive && MicrophoneTextCommand is null ? ChatStrings.Get("Spine.Chat.Talking")
+            : IsMicrophoneActive ? ChatStrings.Get("Spine.Chat.TalkOrType")
+            : Placeholder ?? ChatStrings.Get("Spine.Chat.Placeholder");
 
     /// <summary>
     /// Centres one line in the field and keeps the insets even as it grows. On iOS, UIKit's text view has 8 points above
@@ -234,11 +327,37 @@ public class ChatComposer : ContentView
 
     private void UpdateSend()
     {
+        var style = Effective;
         var busy = IsBusy;
-        _glyph.Data = (Geometry)new PathGeometryConverter().ConvertFromInvariantString(busy ? StopGlyph : SendGlyph)!;
-        _glyph.Fill = busy ? Colors.White : Colors.Transparent;
-        _send.Opacity = busy || !string.IsNullOrWhiteSpace(_editor.Text) ? 1 : 0.4;
+        var empty = string.IsNullOrWhiteSpace(_editor.Text);
+
+        // Send is always there, dimmed until there is something to send, and is Stop while an answer streams.
+        var canSend = busy || !empty && (IsMicrophoneActive ? MicrophoneTextCommand?.CanExecute(_editor.Text) == true : Chat is not null);
+        _send.BackgroundColor = style.SendButtonColor;
+        _send.Opacity = canSend ? 1 : 0.4;
+        Draw(_send, ref _sendShown, busy ? StopIcon : SendIcon, Colors.White);
         SemanticProperties.SetDescription(_send, ChatStrings.Get(busy ? "Spine.Chat.Stop" : "Spine.Chat.Send"));
+
+        // The voice button is there whenever the app offers a spoken conversation; red while one is on.
+        _voice.IsVisible = MicrophoneCommand is not null;
+        var talking = IsMicrophoneActive;
+        Glass.SetStyle(_voice, talking ? GlassStyle.Prominent : GlassStyle.Regular);
+        _voice.BackgroundColor = talking ? style.ErrorColor : style.ComposerFieldBackground;
+        _voice.Opacity = MicrophoneCommand?.CanExecute(null) == true ? 1 : 0.4;
+        Draw(_voice, ref _voiceShown, talking ? HangUpIcon : VoiceIcon, talking ? Colors.White : style.ComposerTextColor ?? Colors.Black);
+        SemanticProperties.SetDescription(_voice, ChatStrings.Get(talking ? "Spine.Chat.HangUp" : "Spine.Chat.Microphone"));
+    }
+
+    /// <summary>Renders <paramref name="icon"/> on <paramref name="button"/>, once per icon, tint and size.</summary>
+    private void Draw(ImageButton button, ref (string Icon, Color Tint, double Size)? shown, string icon, Color tint)
+    {
+        var size = Effective.ControlHeight;
+        if (shown is { } last && last.Icon == icon && last.Tint.Equals(tint) && last.Size == size) return;
+        shown = (icon, tint, size);
+
+        if (Icons.Value.Resolve(icon) is not { } resource) return;
+        // The glyph is half the button, with line ends rounded and lines a little heavier, as the header bar's icons.
+        button.Source = SvgBitmapLoader.LoadFromEmbedded(resource, size, size, tint, new Thickness(size / 4), lineWidthScale: 1.4f, roundLineEnds: true);
     }
 
     private void ShowSuggestions()
@@ -256,11 +375,11 @@ public class ChatComposer : ContentView
                 Padding = new Thickness(14, 7),
                 Content = new Label { Text = suggestion, FontSize = style.FontSize * 0.85, TextColor = style.ChipTextColor, FontFamily = style.FontFamily },
             };
-            Tap.SetCommand(chip, new Command(() => _ = Chat?.SendAsync(suggestion)));
+            Tap.SetCommand(chip, new Command(() => Say(suggestion)));
             _chips.Add(chip);
         }
 
-        _chipsScroll.IsVisible = _chips.Count > 0 && !IsBusy;
+        _chipsScroll.IsVisible = _chips.Count > 0 && !IsBusy && !(IsMicrophoneActive && MicrophoneTextCommand is null);
     }
 
     private void ApplyStyle()
@@ -273,8 +392,9 @@ public class ChatComposer : ContentView
         _field.BackgroundColor = style.ComposerFieldBackground;
         _field.MinimumHeightRequest = style.ControlHeight;
         _field.StrokeShape = new RoundRectangle { CornerRadius = style.ControlHeight / 2 };
-        _send.WidthRequest = _send.HeightRequest = style.ControlHeight;
-        _send.BackgroundColor = style.SendButtonColor;
+        _send.WidthRequest = _send.HeightRequest = _voice.WidthRequest = _voice.HeightRequest = style.ControlHeight;
+        _send.CornerRadius = _voice.CornerRadius = (int)(style.ControlHeight / 2);
+        _send.Padding = _voice.Padding = new Thickness(0);
         FitPlatformEditor();
         UpdateSend();
         ShowSuggestions();

@@ -70,7 +70,11 @@ internal sealed partial class TapState
         // The mask keeps the ripple inside the view, rounded like a Border's shape.
         var mask = new GradientDrawable();
         mask.SetColor(Android.Graphics.Color.White);
-        mask.SetCornerRadius((float)(CornerRadius() * density));
+        // Made before the view is measured: an ellipse takes the oval shape rather than a radius from its size.
+        if (IsOval())
+            mask.SetShape(ShapeType.Oval);
+        else
+            mask.SetCornerRadius((float)(CornerRadius() * density));
 
         return new RippleDrawable(ColorStateList.ValueOf(color), null, mask);
     }

@@ -284,15 +284,6 @@
       <DependentUpon>MarkdownPage.cs</DependentUpon>
     </Compile>
 
-    <MauiXaml Update="Pages\VoiceChat\VoiceChatPage.View.xaml">
-      <DependentUpon>VoiceChatPage.cs</DependentUpon>
-      <Generator>MSBuild:Compile</Generator>
-    </MauiXaml>
-
-    <Compile Include="Pages\VoiceChat\VoiceChatPage.ViewModel.cs">
-      <DependentUpon>VoiceChatPage.cs</DependentUpon>
-    </Compile>
-
     <MauiXaml Update="Pages\VoiceLab\VoiceLabPage.View.xaml">
       <DependentUpon>VoiceLabPage.cs</DependentUpon>
       <Generator>MSBuild:Compile</Generator>

@@ -59,7 +59,11 @@ internal sealed class VoiceSession : IVoiceSession
     private readonly Action<Action> _dispatch;
     private readonly TimeProvider _time;
     private readonly ILogger _logger;
-    private readonly ObservableCollection<ChatMessage> _transcript = [];
+    private readonly ObservableCollection<ChatMessage> _own = [];
+    private IList<ChatMessage> _transcript;
+
+    // The model's context is limited; the latest turns of a long typed conversation are what it needs.
+    private const int MaxHistory = 40;
     private readonly Dictionary<string, ChatMessage> _byItem = new(StringComparer.Ordinal);
     private readonly object _micGate = new();
     private readonly MemoryStream _mic = new();
@@ -90,6 +94,7 @@ internal sealed class VoiceSession : IVoiceSession
         _tokens = tokens;
         _services = services;
         _socketFactory = socketFactory;
+        _transcript = _own;
         _dispatch = dispatch;
         _time = time ?? TimeProvider.System;
         _logger = logger ?? NullLogger.Instance;
@@ -150,7 +155,16 @@ internal sealed class VoiceSession : IVoiceSession
         }
     }
 
-    public async Task ConnectAsync(string feature, CancellationToken cancellationToken = default)
+    public Task ConnectAsync(string feature, CancellationToken cancellationToken = default) =>
+        ConnectCoreAsync(feature, null, cancellationToken);
+
+    public Task ConnectAsync(string feature, IList<ChatMessage> conversation, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(conversation);
+        return ConnectCoreAsync(feature, conversation, cancellationToken);
+    }
+
+    private async Task ConnectCoreAsync(string feature, IList<ChatMessage>? conversation, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(feature);
         if (_connected || _connecting)
@@ -158,11 +172,15 @@ internal sealed class VoiceSession : IVoiceSession
 
         _connecting = true;
         _ended = 0;
-        // A new conversation starts with an empty transcript.
+        // Taken now, on the caller's thread: the conversation is the app's list, and it changes on the main thread.
+        var history = conversation is null ? [] : History(conversation).ToList();
         _dispatch(() =>
         {
-            _transcript.Clear();
             _byItem.Clear();
+            // A new conversation starts with an empty transcript; one in the middle of a chat goes on in the chat's list.
+            _transcript = conversation ?? _own;
+            if (conversation is null)
+                _own.Clear();
         });
         lock (_pendingGate)
             _pendingText.Clear();
@@ -185,6 +203,8 @@ internal sealed class VoiceSession : IVoiceSession
             _run = new CancellationTokenSource();
             _outbox = Channel.CreateUnbounded<object>(new UnboundedChannelOptions { SingleReader = true });
             Interlocked.Exchange(ref _goodbye, NoGoodbye);
+            foreach (var item in history)
+                Send(item);
             if (_options.Functions.Count > 0 || token.Tools.Count > 0 || EndsOnGoodbye)
                 Send(ToolsUpdate());
 
@@ -720,6 +740,19 @@ internal sealed class VoiceSession : IVoiceSession
 
         await TearDownAsync();
         Evaluate();
+        // A turn still being transcribed will never get its words now.
+        _dispatch(() =>
+        {
+            foreach (var (item, message) in _byItem.ToList())
+            {
+                if (message.AdditionalProperties?.ContainsKey(PendingKey) == true)
+                    RemoveMessage(item);
+            }
+
+            // The app's conversation is the app's again: the session neither shows nor holds on to it after the call.
+            _byItem.Clear();
+            _transcript = _own;
+        });
         if (wasConnected || error is not null)
             _dispatch(() => Ended?.Invoke(reason, error));
     }
@@ -756,6 +789,31 @@ internal sealed class VoiceSession : IVoiceSession
         _answerAudio = false;
         lock (_micGate)
             _mic.SetLength(0);
+    }
+
+    /// <summary>The text of a conversation's user and assistant turns, as items the provider adds before the first turn.</summary>
+    private static IEnumerable<JsonObject> History(IEnumerable<ChatMessage> conversation)
+    {
+        var turns = conversation
+            .Where(m => (m.Role == ChatRole.User || m.Role == ChatRole.Assistant) && m.AdditionalProperties?.ContainsKey(PendingKey) != true)
+            .Select(m => (m.Role, Text: string.Concat(m.Contents.OfType<TextContent>().Select(t => t.Text)).Trim()))
+            .Where(m => m.Text.Length > 0)
+            .TakeLast(MaxHistory);
+
+        foreach (var (role, text) in turns)
+        {
+            var user = role == ChatRole.User;
+            yield return new JsonObject
+            {
+                ["type"] = "conversation.item.create",
+                ["item"] = new JsonObject
+                {
+                    ["type"] = "message",
+                    ["role"] = user ? "user" : "assistant",
+                    ["content"] = new JsonArray(new JsonObject { ["type"] = user ? "input_text" : "output_text", ["text"] = text }),
+                },
+            };
+        }
     }
 
     private void AddMessage(string itemId, ChatMessage message)

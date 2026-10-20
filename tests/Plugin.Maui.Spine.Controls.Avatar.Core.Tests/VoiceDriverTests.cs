@@ -237,6 +237,7 @@ public class VoiceDriverTests
         public event Action<VoiceState>? StateChanged { add { } remove { } }
         public event Action<VoiceSessionEnd, Exception?>? Ended { add { } remove { } }
         public Task ConnectAsync(string feature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task ConnectAsync(string feature, IList<Microsoft.Extensions.AI.ChatMessage> conversation, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task EndAsync() => Task.CompletedTask;
         public void Interrupt() { }
         public void BeginTurn() { }

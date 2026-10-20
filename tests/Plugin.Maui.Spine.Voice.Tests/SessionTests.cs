@@ -363,6 +363,50 @@ public sealed class SessionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_session_in_a_conversation_gives_the_model_its_turns_and_adds_to_it()
+    {
+        var conversation = new System.Collections.ObjectModel.ObservableCollection<ChatMessage>
+        {
+            new(ChatRole.User, "Jag heter Anna."),
+            new(ChatRole.Assistant, "Hej Anna!"),
+            new(ChatRole.Assistant, [new FunctionCallContent("c0", "show_time")]),
+            new(ChatRole.Tool, [new FunctionResultContent("c0", "12:00")]),
+            new(ChatRole.User, "") { AdditionalProperties = new() { [VoiceSession.PendingKey] = true } },
+        };
+
+        await _session.ConnectAsync("Voice", conversation);
+        _time.Advance(TimeSpan.FromSeconds(1));
+
+        await Until(() => _socket.OfType("conversation.item.create").Count() == 2, "the two text turns");
+        var items = _socket.OfType("conversation.item.create").Select(m => m.GetProperty("item")).ToList();
+        Assert.Equal(("user", "input_text", "Jag heter Anna."), (items[0].GetProperty("role").GetString(), items[0].GetProperty("content")[0].GetProperty("type").GetString(), items[0].GetProperty("content")[0].GetProperty("text").GetString()));
+        Assert.Equal(("assistant", "output_text", "Hej Anna!"), (items[1].GetProperty("role").GetString(), items[1].GetProperty("content")[0].GetProperty("type").GetString(), items[1].GetProperty("content")[0].GetProperty("text").GetString()));
+        Assert.Same(conversation, _session.Transcript);
+
+        _socket.Push(new { type = "input_audio_buffer.committed", item_id = "u1" });
+        await Until(() => conversation.Count == 6, "the spoken turn added to the conversation");
+
+        // Hung up before the words came: the pending turn goes, and the conversation is the app's alone again.
+        await _session.EndAsync();
+        Assert.Equal(5, conversation.Count);
+        Assert.NotSame(conversation, _session.Transcript);
+    }
+
+    [Fact]
+    public async Task A_plain_connect_starts_its_own_empty_transcript_again()
+    {
+        var conversation = new List<ChatMessage> { new(ChatRole.User, "Hej") };
+        await _session.ConnectAsync("Voice", conversation);
+        await _session.EndAsync();
+
+        await _session.ConnectAsync("Voice");
+
+        Assert.NotSame(conversation, _session.Transcript);
+        Assert.Empty(_session.Transcript);
+        Assert.Single(conversation);
+    }
+
+    [Fact]
     public async Task The_users_turn_is_pending_until_its_words_arrive()
     {
         await ConnectAsync();

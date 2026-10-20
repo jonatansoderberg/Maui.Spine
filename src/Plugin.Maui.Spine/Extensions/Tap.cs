@@ -243,9 +243,19 @@ internal sealed partial class TapState : IDisposable
     /// <summary>The corner radius the press highlight follows: a <see cref="Border"/>'s rounded shape.</summary>
     double CornerRadius() => CornerRadiusOf(_view);
 
-    /// <summary>The corner radius of <paramref name="view"/>'s shape: a <see cref="Border"/>'s rounding, else 0.</summary>
-    internal static double CornerRadiusOf(View view) =>
-        view is Border { StrokeShape: Microsoft.Maui.Controls.Shapes.RoundRectangle shape } ? shape.CornerRadius.TopLeft : 0;
+    /// <summary>Whether the view is a <see cref="Border"/> drawn as an ellipse, such as a round button.</summary>
+    bool IsOval() => _view is Border { StrokeShape: Microsoft.Maui.Controls.Shapes.Ellipse };
+
+    /// <summary>
+    /// The corner radius of <paramref name="view"/>'s shape: a <see cref="Border"/>'s rounding, half the shorter side of
+    /// an ellipse (a round button's highlight was a square), else 0.
+    /// </summary>
+    internal static double CornerRadiusOf(View view) => view switch
+    {
+        Border { StrokeShape: Microsoft.Maui.Controls.Shapes.RoundRectangle shape } => shape.CornerRadius.TopLeft,
+        Border { StrokeShape: Microsoft.Maui.Controls.Shapes.Ellipse } when view.Width > 0 && view.Height > 0 => Math.Min(view.Width, view.Height) / 2,
+        _ => 0,
+    };
 
     partial void ConnectPlatform(object platformView);
 
