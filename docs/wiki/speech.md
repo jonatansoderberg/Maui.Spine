@@ -1,6 +1,6 @@
 # Speech
 
-`Plugin.Maui.Spine.Speech` reads text aloud with the platform's voices and says where it is: when the audio starts, each word as the voice reaches it, the position, and how it ended. That is what a caption that highlights the word being spoken needs, and what an avatar needs to move its mouth with the voice.
+`Plugin.Maui.Spine.Speech` reads text aloud with the platform's voices and says where it is: when the audio starts, each word as the voice reaches it, the position, and how it ended. That is what a caption that highlights the word being spoken needs, and what an avatar needs to move its mouth with the voice. It also writes speech down and renders the voices to audio, for a voice conversation that plays through its own engine.
 
 ```csharp
 builder.UseSpine();   // or builder.UseSpineSpeech() in an app without Spine
@@ -44,6 +44,35 @@ public sealed class ReaderViewModel(ISpineSpeech speech)
 Utterances play one after another, and events arrive on the main thread. `StopAll()` stops the one speaking and drops the rest.
 
 Words come from `willSpeakRangeOfSpeechString` on Apple, `UtteranceProgressListener.onRangeStart` on Android (Android 8 and later, and only on engines that implement it, such as Google's), and the synthesis stream's word-boundary cues on Windows, raised as the player reaches them.
+
+## Writing speech down
+
+`ISpineSpeechRecognizer` is the platform's speech-to-text, fed with audio the app already has rather than a microphone of its own: Spine.Voice's engine, with its echo cancellation, gives it the user and not the speaker. A [voice pipeline](voice.md#a-pipeline-any-chat-model) uses it for the user's turns.
+
+```csharp
+if (await recognizer.RequestPermissionAsync())
+{
+    using var recognition = recognizer.Start(new RecognitionOptions { Language = "sv-SE" });
+    recognition.Partial += text => Caption = text;     // as the recognizer revises it
+    recognition.Append(pcm16);                         // PCM16 mono at SampleRate (24 kHz by default), any thread
+    var said = await recognition.FinishAsync();        // empty when nothing was said
+}
+```
+
+- **iOS and Mac Catalyst** use `SFSpeechRecognizer` with an audio-buffer request, on the device when the language has a model there (`IsOnDevice`), else Apple's server. `OnDeviceOnly` keeps the audio on the device. `Phrases` are names and terms to prefer.
+- **The usage text** `NSSpeechRecognitionUsageDescription` is required: without it `RequestPermissionAsync` throws, naming the key, rather than iOS ending the app.
+- **Android and Windows** are not supported yet: `IsSupported` is false and `Start` throws.
+
+## Rendering to audio
+
+`ISpineSpeechRenderer` renders the same voices to PCM16 instead of playing them, so a voice conversation plays the answer through its own engine: the echo canceller knows it, talking over it cuts it off, and an avatar's mouth follows its level.
+
+```csharp
+await foreach (var piece in renderer.RenderAsync("Klockan är tre.", new SpeakOptions { Language = "sv-SE" }))
+    audio.Enqueue(item, Resample(piece.Pcm16, piece.SampleRate));   // the voice's rate, 22.05 kHz for most of Apple's
+```
+
+iOS and Mac Catalyst render with `AVSpeechSynthesizer.write(_:toBufferCallback:)`, voice chosen as for `Speak`. Android and Windows are not supported yet.
 
 ## A voice from the server
 

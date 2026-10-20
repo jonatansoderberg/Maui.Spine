@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-19 (#634: chat and voice in one conversation, step 4.5, in review; before that #632, AI functions, step 2.7)
+**Last updated:** 2026-10-20 (#640: voice pipelines, any chat model with speech-to-text and text-to-speech on the device or the server, step 4.6, in review; before that #634, chat and voice in one conversation, step 4.5)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -147,6 +147,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 4.3b | `VoiceView`, the `VoiceVisual` contract and the built-in visuals (SkiaSharp) | #567 | 4.3a | In review | | Split by the owner on 2026-10-15. A package of its own, `Plugin.Maui.Spine.Controls.Voice`; `orb`, `bars`, `ring`, `avatar`; `IVisemeSource` in Spine.Voice (Decisions). Seen in the simulator: all four against the reference, the avatar and the edge against a real session. Superseded by #630 (2026-10-19): VoiceView, its visuals and `Plugin.Maui.Spine.Controls.Voice` were removed; a voice is drawn by `AvatarView` with `VoiceAvatarDriver`, and bars and ring are built-in avatars. |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 | 4.5 | Chat and voice in one conversation: `ChatComposer`'s microphone, `IVoiceSession.ConnectAsync(feature, conversation)` with the typed turns given to the model, the Showcase's Chat and Voice chat pages merged | #634 | 2.7, 4.3a | In review | #635 | Asked for by the owner on 2026-10-19 after testing #632 on the iPhone (Decisions). |
+| 4.6 | Voice pipelines: `SpineVoiceOptions.Pipeline(name, …)` with speech-to-text, a chat model and text-to-speech, each on the device (Spine.Speech's new recognizer and renderer) or the server (`Kind: Transcription`, streamed `Kind: Speech`), in fallback order; the registered `IVoiceSession` picks it by name; the Showcase's Claude calls | #640 | 4.5 | In review | | Asked for by the owner on 2026-10-20 to talk to Claude, which has no realtime voice (Decisions). Apple only for the device's parts. |
 
 ### Phase 5: sign-in
 
@@ -217,6 +218,7 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 2.3b (#511) | The messaging sample's AppHost with the key passed as the secret parameter `openaikey`. The real postcard was made with the API run on its own against Azurite in Docker | Docker | `Parameters__openaikey=… dotnet run --project samples/SpineMessagingSample.AppHost`, then `send.http` |
 | 2.3b (#511) | A model that answers with a URL (`UriContent`) rather than bytes: the handler downloads it. OpenAI's gpt-image models answer with bytes | Such a provider | — |
 | 2.3c (#543) | `GeneratedImage` on Android, Windows and Mac Catalyst at run time (only compiled), and on a phone. Seen on the iPhone 17 Pro simulator: pending (a spinner in #543, a `Shimmer` since #549, light theme only), ready from blob storage, failed, polling stopped in the background and resumed at once | An emulator, a Windows machine, the Mac app | The Showcase's Generated images page against the messaging sample's API; `adb reverse tcp:5240 tcp:5240` on Android |
+| 4.6 (#640) | A Claude call on the iPhone: SFSpeechRecognizer on buffers from the voice engine (on-device Swedish), AVSpeechSynthesizer's write callback through the hand-made block binding, turn detection and barge-in against the phone's echo, the fallback to Transcribe and ReadOpenAI; Mac Catalyst | The iPhone; an Anthropic key on the Azure server | The Chat page, Options → Voice calls → Claude |
 | 4.3a (#516) | Azure OpenAI's realtime socket from the app (only OpenAI was called), a session through `TimeLimit` on a device, a phone call during a session, `SpineVoiceBackground` with the screen locked, and the session on Mac Catalyst | An Azure OpenAI deployment; the iPhone; a second phone | The Voice chat page |
 | 4.3b (#567) | `VoiceView` on the iPhone, Android, Windows and Mac Catalyst (only the iOS simulator), with Reduce Motion on (only the visuals' tests), VoiceOver's announcements of the state, and a `VoiceVisualView` of an app's own (no test or sample hosts one) | The iPhone; an emulator; the Mac app | The Showcase's Voice visuals and Voice chat pages |
 | 4.1a (#515) | A Release build on the iPhone: CPU was 50–60 % of one core in Debug, which runs the interpreter; the resampler's kernel is now a table, measured only in Debug | The iPhone, and disk room for an AOT build (the owner asked not to build Release on 2026-10-15) | The Voice lab's echo test in a Release build |
@@ -557,6 +559,8 @@ Newest last. Each entry is dated and says who decided.
   - The Showcase's Chat and Voice chat pages are one page.
 - **2026-10-19, Claude (#634):** The history is the text of user and assistant turns only, the last 40, as `input_text` and `output_text` items. **Why:** tool calls from the typed half cannot be replayed into a realtime session by id, and the model's context is limited. A pending turn left when the call ends is removed, since its words will never come.
 - **2026-10-19, owner (#630):** One visual for a voice: `AvatarView` with `VoiceAvatarDriver`. VoiceView, the `orb` and the canvas face, the `VoiceVisual`/`VoiceVisualView` contracts and `Plugin.Maui.Spine.Controls.Voice` are removed (unreleased); bars and ring became built-in avatars in Controls.Avatar. This replaces the 2026-10-09 and 2026-10-15 decisions on VoiceView below. `IVisemeSource` stays in Spine.Voice; the screen's edge stays in Highlight.
+
+- **2026-10-20, owner (#640):** Claude talks through a voice pipeline next to the realtime models: a named pipeline declared in the app (`o.Pipeline("Claude", p => p.AddLocalSpeechToText().AddServerSpeechToText(…).AddChat(…).AddLocalTextToSpeech().AddServerTextToSpeech(…))`), the parts of a kind a fallback chain in order. Speech-to-text on the device and on the server in v1; the server's speech streamed for real (`Accept: audio/pcm`); Spine.Speech both ways (`ISpineSpeechRecognizer`, `ISpineSpeechRenderer`), with the pipeline itself in Spine.Voice; the device's voice rendered into the voice engine rather than played by the system, so echo cancellation, barge-in and the avatar work as with realtime. Turns are found by level on the client (no provider VAD); `EndsOnGoodbye` and a time limit are not in v1.
 
 ## Open questions
 

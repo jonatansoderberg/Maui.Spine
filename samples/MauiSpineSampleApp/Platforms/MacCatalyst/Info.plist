@@ -4,6 +4,8 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>The Voice lab page measures the microphone and its echo cancellation.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>The Chat page writes down what you say to Claude on the device.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>The Barcodes page scans codes with the camera.</string>
 	<key>NSFaceIDUsageDescription</key>

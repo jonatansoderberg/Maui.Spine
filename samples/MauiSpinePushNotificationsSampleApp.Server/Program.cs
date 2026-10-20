@@ -142,6 +142,8 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
     ai.Speech("demo", _ => new DemoSpeechProvider());
     ai.Speech("azure", AISpeechProviders.AzureSpeech);
     ai.Speech("openai", AISpeechProviders.OpenAI);
+    // The Showcase's Claude voice pipeline writes the user down here when the phone cannot (Transcribe).
+    ai.Transcription("openai", AITranscriptionProviders.OpenAI);
     ai.UseInMemoryUsageStore();
 
     // The functions the Assistant and Voice features list ("Functions"), shared with the Showcase. get_my_bookings runs

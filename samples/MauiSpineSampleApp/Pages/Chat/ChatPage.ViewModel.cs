@@ -20,6 +20,7 @@ public partial class ChatPageViewModel : SampleViewModel
     private IEdgeGlow? _edge;
     private CancellationTokenSource? _connecting;
     private string _using = "";
+    private string _call = "Voice";
 
     public ChatPageViewModel()
     {
@@ -33,7 +34,8 @@ public partial class ChatPageViewModel : SampleViewModel
         var server = services.GetRequiredKeyedService<IChatClient>("ServerAssistant");
         Client = demo;
 
-        // Spoken turns go to the push sample server's realtime Voice feature, in the same conversation: the microphone
+        // Spoken turns go to the push sample server's realtime Voice feature, or to Claude through a voice pipeline (the
+        // phone or the server writes the user down and reads the answer), in the same conversation: the microphone
         // connects a session that is given the turns so far and adds its own to Messages.
         _voiceOptions = services.GetRequiredService<SpineVoiceOptions>();
         _highlights = services.GetRequiredService<IHighlights>();
@@ -64,6 +66,13 @@ public partial class ChatPageViewModel : SampleViewModel
         model.Select(0);
         Use(demo, "Demo answers in the app");
 
+        var calls = new ChoiceGroup("Voice calls", [
+            new Choice("Realtime", "The server's realtime Voice feature (gpt-realtime-mini): one model hears and speaks.", () => _call = "Voice"),
+            new Choice("Claude", "A voice pipeline: the phone writes you down (the server when it cannot), the server's Claude answers, and the phone's voice reads it.", () => _call = "Claude"),
+            new Choice("Claude, OpenAI's voice", "The same pipeline, read aloud by the server's OpenAI voice (ReadOpenAI), streamed as it is made.", () => _call = "ClaudeOpenAIVoice"),
+        ]);
+        calls.Select(0);
+
         var avatars = new ChoiceGroup("Avatar during a call", [.. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
         {
             "Bars" or "Ring" => "Built into Spine: the answer's sound one way, the microphone's the other.",
@@ -73,10 +82,11 @@ public partial class ChatPageViewModel : SampleViewModel
 
         _options = [
             model,
+            calls,
             new ToggleOption("Read the clock on the server", "show_time is on both sides; this chat runs it on the server instead of the phone (ChatOptions.Prefer for typed turns, IVoiceSession.Prefer for spoken ones).", () => ClockOnServer, value => ClockOnServer = value),
             new ToggleOption("Show function calls", "A card for each function the model called (ChatView.ShowToolCalls), for debugging; the model tells the user the result anyway.", () => ShowToolCalls, value => ShowToolCalls = value),
             avatars,
-            new ToggleOption("Hang up after goodbye", "Say goodbye (\"tack, hej då\") and the call ends once the answer has been said.", () => Session.EndsOnGoodbye, value => Session.EndsOnGoodbye = value),
+            new ToggleOption("Hang up after goodbye", "Say goodbye (\"tack, hej då\") and the call ends once the answer has been said. Realtime calls only so far.", () => Session.EndsOnGoodbye, value => Session.EndsOnGoodbye = value),
             new ToggleOption("Glow the screen's edge", "During a call the window's edge glows with the answer's level (Spine.Controls.Highlight).", () => Edge, value => Edge = value),
             new TextOption("Server", "The push sample server's AI prefix for calls; on a phone, the Mac's address on the network or the Azure one.", () => Server, value => Server = value, Microsoft.Maui.Keyboard.Url),
         ];
@@ -191,7 +201,7 @@ public partial class ChatPageViewModel : SampleViewModel
         using var connecting = _connecting = new CancellationTokenSource();
         try
         {
-            await Session.ConnectAsync("Voice", Messages, connecting.Token);
+            await Session.ConnectAsync(_call, Messages, connecting.Token);
             IsConnected = true;
             _clock ??= Application.Current!.Dispatcher.CreateTimer();
             _clock.Interval = TimeSpan.FromSeconds(1);
@@ -210,9 +220,9 @@ public partial class ChatPageViewModel : SampleViewModel
             IsTalking = false;
             Status = e switch
             {
-                AIFeatureOffException { Reason: AIOffReason.SignInRequired } => "The server's Voice feature answers signed-in users only; sign in first.",
-                AIFeatureOffException { Reason: AIOffReason.Budget } => "Today's Voice budget is spent; try again tomorrow.",
-                AIFeatureOffException off => $"The server's Voice feature is off ({off.Reason}). Does it have an OpenAI key?",
+                AIFeatureOffException { Reason: AIOffReason.SignInRequired } off => $"The server's {off.Feature} feature answers signed-in users only; sign in first.",
+                AIFeatureOffException { Reason: AIOffReason.Budget } off => $"Today's {off.Feature} budget is spent; try again tomorrow.",
+                AIFeatureOffException off => $"The server's {off.Feature} feature is off ({off.Reason}). Does it have the provider's key?",
                 AIRateLimitedException limited => $"Too many calls; try again in {limited.RetryAfter?.TotalSeconds:0} s.",
                 _ => e.Message,
             };

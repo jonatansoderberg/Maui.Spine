@@ -65,7 +65,7 @@ The section is read again when it changes, through any reloading configuration s
 
 | Feature setting | What it does |
 |---|---|
-| `Kind` | `Chat` (the default) or `Image` |
+| `Kind` | `Chat` (the default), `Image`, `Realtime`, `Speech` or `Transcription` |
 | `Provider`, `Model` | The provider's name as registered, and the model id passed to its factory |
 | `Enabled` | `false` turns the feature off without removing it |
 | `MaxOutputTokens`, `Temperature`, `Reasoning` | Defaults for every call; an app's own `ChatOptions` win. `Reasoning` is `Low`, `Medium`, `High` and so on |
@@ -321,6 +321,67 @@ Content-Type: application/json
 
 `IAIFeatures.SpeechAsync(feature, text, caller)` does the same for a route of your own.
 
+### Streamed speech
+
+A voice conversation reads its answer sentence by sentence and wants the first sound at once. With `Accept: audio/pcm` the endpoint answers raw PCM16 as the provider makes it, flushed piece by piece, with the rate in a header:
+
+```http
+POST /ai/speech/ReadOpenAI
+Accept: audio/pcm
+Content-Type: application/json
+
+{ "text": "Klockan är tre." }
+```
+
+```http
+HTTP/1.1 200 OK
+Content-Type: audio/pcm
+Spine-Sample-Rate: 24000
+
+<PCM16 little-endian mono, as it is made>
+```
+
+- **OpenAI** streams (`stream_format: audio`): `AISpeechProviders.OpenAI` implements `IAIStreamingSpeechProvider`. A provider that does not stream sends its whole audio as one piece, so the app reads either the same way.
+- **No visemes** in a stream; ask without the header for them.
+- **Metering** is by characters as above, recorded when the stream ends. `IAIFeatures.StreamSpeechAsync` does the same for a route of your own.
+
+## Transcription
+
+A feature with `"Kind": "Transcription"` writes speech down for the app: a voice pipeline whose phone cannot do it itself ([Voice pipelines](voice.md#a-pipeline-any-chat-model)) sends the user's turn here.
+
+```csharp
+builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
+{
+    ai.Transcription("openai", AITranscriptionProviders.OpenAI);   // ApiKey, optional Endpoint
+});
+```
+
+```json
+"Transcribe": {
+  "Kind": "Transcription", "Provider": "openai", "Model": "gpt-4o-mini-transcribe", "Expose": true,
+  "Transcription": { "Language": "sv-SE", "MaxSeconds": 30 },
+  "RequestsPerMinute": { "SignedIn": 30, "Installation": 20 }
+}
+```
+
+and under `Prices`, `"openai": { "gpt-4o-mini-transcribe": { "PerMinute": 0.003 } }`.
+
+```http
+POST /ai/transcribe/Transcribe
+Content-Type: audio/wav
+
+<a WAV file: PCM16 mono>
+```
+
+```json
+{ "feature": "Transcribe", "text": "Vad är klockan?" }
+```
+
+- **The body is a WAV file**, PCM16 mono; anything else gets 400. Audio longer than `MaxSeconds` (120 by default) gets 413, before the provider is asked.
+- **`Language`** (BCP-47; OpenAI is given its language part) and **`Prompt`** (names and terms to expect) are the feature's.
+- **Metering by minutes** of audio, from the WAV's header, priced at `PerMinute`. Callers, rates and budgets apply as for chat; unset `Callers` is `Any`.
+- **Other providers.** `IAITranscriptionProvider` is one method: `ai.Transcription(name, section => …)`. `IAIFeatures.TranscribeAsync(feature, wav, caller)` does the same for a route of your own.
+
 ## Metering and prices
 
 Every call through a feature is recorded as an `AIUsageRecord` with these fields:
@@ -344,6 +405,8 @@ Every call through a feature is recorded as an `AIUsageRecord` with these fields
 | `OutputPerMillion` | Output tokens, reasoning included |
 | `ReasoningPerMillion` | Reasoning tokens, for a model that prices them apart from output |
 | `PerImage` | Each image, on top of any tokens the provider reports |
+| `PerMinute` | A realtime session's reserved minutes, or a transcription's minutes of audio |
+| `PerMillionCharacters` | The characters of a speech feature's text |
 | `Additional` | Counts in `UsageDetails.AdditionalCounts`, by name, per million |
 
 A model without a row is recorded with no cost and logged once, and it is listed under `unpriced` in the report. Budgets then count its calls by number only (`DayCalls`). Prices live only in configuration, because they change more often than Spine is released.

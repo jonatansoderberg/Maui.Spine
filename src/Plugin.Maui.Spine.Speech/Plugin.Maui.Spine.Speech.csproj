@@ -17,7 +17,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Text-to-speech for Spine apps with what a caption or an avatar needs to follow it: the installed voices with their quality (Apple's Enhanced and Premium voices too), and for each utterance its start, each word as the voice reaches it, its position and its end. AVSpeechSynthesizer on iOS and Mac Catalyst, TextToSpeech on Android, SpeechSynthesizer on Windows.</Description>
+		<Description>Text-to-speech for Spine apps with what a caption or an avatar needs to follow it: the installed voices with their quality (Apple's Enhanced and Premium voices too), and for each utterance its start, each word as the voice reaches it, its position and its end. AVSpeechSynthesizer on iOS and Mac Catalyst, TextToSpeech on Android, SpeechSynthesizer on Windows. On Apple also speech-to-text from audio the app already has (SFSpeechRecognizer) and the voices rendered to PCM16 for a voice conversation's own engine.</Description>
 		<SpineIcon>speech.png</SpineIcon>
 		<PackageTags>$(PackageTags);speech;text-to-speech;tts;voice;accessibility</PackageTags>
 	</PropertyGroup>

@@ -113,6 +113,22 @@ public static class MauiProgram
         {
             o.SessionEndpoint = new Uri(SampleServer, "ai");
             o.AuthorizationHeader = SignedInHeaderAsync;
+            // The Chat page's other way to talk: Claude answers (the server's Claude feature), the phone writes the user
+            // down and reads the answer, and the server does either when the phone cannot.
+            o.Pipeline("Claude", p =>
+            {
+                p.Language = "sv-SE";
+                p.AddLocalSpeechToText().AddServerSpeechToText("Transcribe")
+                    .AddChat("Claude")
+                    .AddLocalTextToSpeech().AddServerTextToSpeech("ReadOpenAI");
+            });
+            o.Pipeline("ClaudeOpenAIVoice", p =>
+            {
+                p.Language = "sv-SE";
+                p.AddLocalSpeechToText().AddServerSpeechToText("Transcribe")
+                    .AddChat("Claude")
+                    .AddServerTextToSpeech("ReadOpenAI");
+            });
         });
 
         builder.UseSpineAI(o =>
@@ -133,6 +149,7 @@ public static class MauiProgram
 #endif
                 .ThenServer());
             o.Feature("ServerAssistant", f => f.Server("Assistant"));
+            o.Feature("Claude", f => f.Server("Claude"));
             o.Feature("Story", f => f.Server());
         });
 

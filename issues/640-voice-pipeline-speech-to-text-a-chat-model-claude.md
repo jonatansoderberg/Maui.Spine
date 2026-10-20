@@ -30,5 +30,18 @@
 (none: answered by the owner on 2026-10-20; see the issue's Decisions)
 
 ## Changes
+- **Server.AI:** `Kind: Transcription` (`ai.Transcription`, `AITranscriptionProviders.OpenAI`, `POST /ai/transcribe/{name}` with a WAV body, 413 over `MaxSeconds`, metered by minutes); speech streamed as it is made with `Accept: audio/pcm` (`IAIStreamingSpeechProvider`, OpenAI's `stream_format: audio`, `Spine-Sample-Rate`), a non-streaming provider sending its audio as one piece; `PerMinute` takes fractions of a minute. Tests in `PipelineServerTests`.
+- **Speech:** `ISpineSpeechRecognizer` (`SFSpeechRecognizer` with an audio-buffer request, on the device when it can, the usage key checked before iOS would end the app) and `ISpineSpeechRenderer` (`AVSpeechSynthesizer.write(_:toBufferCallback:)` through a block, since .NET for iOS does not bind it); unsupported elsewhere. `UseSpineSpeech` registers both.
+- **Voice:** `SpineVoiceOptions.Pipeline(name, …)` and `VoicePipeline` (`AddLocalSpeechToText`, `AddServerSpeechToText`, `AddChat`, `AddLocalTextToSpeech`, `AddServerTextToSpeech`, `Language`, `SpeechThreshold`, `StartOfTurn`, `EndOfTurn`, `MaxTurn`); `PipelineVoiceSession` (level-based turns with a pre-roll, pending turns, fallbacks, the answer cut into sentences and streamed through the engine, barge-in, tool cards); `RoutingVoiceSession` is the registered `IVoiceSession` and picks the pipeline or the realtime session by name, sharing one engine; `VoiceAvatarDriver` reads the engine through `IVoiceAudioOwner`. Tests in `PipelineTests`.
+- **Sample server:** features `Claude` (Anthropic, the functions, a prompt for spoken answers), `Transcribe` (`gpt-4o-mini-transcribe`) and `ReadOpenAI` (`gpt-4o-mini-tts`, voice marin) with prices; `ai.Transcription("openai", …)`.
+- **Showcase:** pipelines `Claude` (the phone's voice first) and `ClaudeOpenAIVoice` (the server's voice); the Chat page's options choose Realtime, Claude or Claude with OpenAI's voice; `NSSpeechRecognitionUsageDescription`.
+- **Docs:** voice.md (A pipeline), speech.md (Writing speech down, Rendering to audio), ai-server.md (Streamed speech, Transcription, the price rows), the package READMEs, the spine-setup and spine-controls skills, plan step 4.6.
 
 ## Decisions
+- **Owner, 2026-10-20:** a named pipeline declared in the app; speech-to-text on the device and on the server in v1; real streaming of the server's speech; Spine.Speech both ways, with the pipeline in Spine.Voice; the device's voice rendered into the voice engine.
+- **One registered `IVoiceSession`.** A router picks the session by the name given to `ConnectAsync`, so the Chat page, `ChatComposer` and `VoiceAvatarDriver` need nothing new; settings go to both sessions so they carry over.
+- **Turns by level on the client.** There is no provider VAD in a pipeline. The threshold follows the room's noise floor (not learned while the answer plays) and doubles while it plays, against residual echo.
+- **The turn's audio is kept** while the device writes it down live, so a failure falls back to the server with the whole turn rather than losing it.
+- **Sentences end only where the next word starts one**, so "kl. 18" and "t.ex. en" are not cut, at the cost of waiting for the next token.
+- **A chat failure ends the call** with the error, as a realtime provider's does: a silent failure would leave the user talking to nothing. Another chat answers only while nothing has been said.
+- **No `EndsOnGoodbye` in pipelines yet:** the hang-up tool is the session's own, and a Spine.AI server feature offers only the functions it lists.

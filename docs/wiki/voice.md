@@ -10,7 +10,7 @@ A spoken conversation with a realtime model has two parts:
 - **The voice session (`IVoiceSession`)** gets a short-lived token from the app's server, connects to the provider, cuts the answer off when the user talks over it, keeps a transcript, and runs the functions the model calls: in the app, or forwarded to the server with the user's sign-in.
 - **The audio engine (`IVoiceAudio`) under it** runs the microphone and the speaker at the same time, with the platform's echo cancellation. Without it the model hears its own answer and interrupts itself.
 
-The provider's key never reaches the app. **`AvatarView`** (Spine.Controls.Avatar) draws the conversation, the sound in and out: see [Drawing the conversation](#drawing-the-conversation).
+The provider's key never reaches the app. A conversation with any chat model, such as Claude, is a [pipeline](#a-pipeline-any-chat-model) instead: the user written down, the chat model's answer read aloud, each part on the device or the server. **`AvatarView`** (Spine.Controls.Avatar) draws the conversation, the sound in and out: see [Drawing the conversation](#drawing-the-conversation).
 
 | Platform | Engine | State |
 |---|---|---|
@@ -113,6 +113,34 @@ The app supplies the microphone's usage text. Without it the engine fails at sta
 - `ConnectAsync(feature)` starts a session with an empty transcript of its own again.
 
 `ChatComposer`'s microphone (`MicrophoneCommand`, `IsMicrophoneActive`, `MicrophoneTextCommand`) is made for this; see [Typed and spoken](chat.md#typed-and-spoken).
+
+## A pipeline: any chat model
+
+A realtime model hears and speaks itself. A pipeline builds the conversation from parts instead, so any chat model can talk, such as Claude, which has no voice of its own:
+
+1. **Speech-to-text** writes the user's turn down: the device's recognizer ([Speech](speech.md#writing-speech-down)), or a `Kind: Transcription` feature on the server ([AI server](ai-server.md#transcription)).
+2. **The chat model** answers: an `IChatClient` the app registers, such as a Spine.AI feature with its functions on both sides.
+3. **Text-to-speech** reads the answer sentence by sentence as it streams in: the device's voices rendered to audio ([Speech](speech.md#rendering-to-audio)), or a `Kind: Speech` feature on the server, streamed as it is made ([Streamed speech](ai-server.md#streamed-speech)).
+
+```csharp
+builder.UseSpineVoice(o => o.Pipeline("Claude", p =>
+{
+    p.Language = "sv-SE";
+    p.AddLocalSpeechToText().AddServerSpeechToText("Transcribe")    // the phone first, the server when it cannot
+        .AddChat("Claude")                                          // AddSpineAI's o.Feature("Claude", f => f.Server("Claude"))
+        .AddLocalTextToSpeech().AddServerTextToSpeech("ReadOpenAI");
+}));
+
+await voice.ConnectAsync("Claude", chat.Messages);   // a pipeline's name instead of a realtime feature
+```
+
+- **One session for both.** The registered `IVoiceSession` connects a pipeline when the name is one, and the server's realtime feature otherwise. States, `Transcript`, `SendTextAsync`, `Interrupt`, push-to-talk, `Prefer` and `VoiceAvatarDriver` work the same.
+- **Fallbacks.** Several parts of a kind are tried in the order they were added: the first that is available is used, and the next takes over when it fails. A turn the device could not write down goes to the server with its audio; a voice that fails is skipped for the rest of the call. Another chat answers only while the first has said nothing.
+- **Turns** are found by the microphone's level: speech for `StartOfTurn` (200 ms) begins one, quiet for `EndOfTurn` (800 ms) ends it, and 300 ms before the start goes with it. The threshold (`SpeechThreshold`, 0.02 of full scale) rises over a noisy room and doubles while the answer plays, so its echo is not taken for the user. Talking over the answer cuts it off and stops the chat.
+- **The user's turn** shows as pending (`spine.pending`, a shimmer in `ChatView`) from the moment they start talking until its words are known, and is removed when nothing was said.
+- **The answer** is read without markdown, cut at sentence ends (not at "kl. 18"). The server feature's `SystemPrompt` should ask for plain spoken sentences.
+- **Permissions.** The device's recognizer asks for speech recognition when the call connects; the app declares `NSSpeechRecognitionUsageDescription`. Without it, or when the user says no, the server writes the user down, and a pipeline with no other part fails to connect, naming the reason.
+- **Not yet:** `EndsOnGoodbye`, a time limit, the device's parts on Android and Windows (#562, #563).
 
 ## A conversation
 
