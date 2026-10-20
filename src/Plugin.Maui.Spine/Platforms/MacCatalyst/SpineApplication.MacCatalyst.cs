@@ -37,6 +37,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         if (provider is not null)
         {
             provider.MacUnifiedTitleBar = _services.GetRequiredService<SpineOptions>().MacOS.UnifiedTitleBar;
+            provider.MacFitWindowToContent = _services.GetRequiredService<SpineOptions>().MacOS.FitWindowToContent;
 
             // window.Activated fires while UIWindowScene is still a _UIPlaceholderWindowScene,
             // which doesn't expose the underlying NSWindow. Instead, observe AppKit notifications,

@@ -87,6 +87,9 @@ internal sealed class SystemInsetsProvider : ISystemInsetsProvider
     /// </summary>
     internal double MacTitleBarRow { get; private set; }
 
+    /// <summary>Whether the window fits the first page's content at launch (<c>SpineOptions.MacOS.FitWindowToContent</c>).</summary>
+    internal bool MacFitWindowToContent { get; set; }
+
     /// <summary>The adopted NSWindow, for resizing it (<see cref="WindowSize"/>); zero before it is adopted.</summary>
     internal IntPtr MacWindow { get; set; }
 

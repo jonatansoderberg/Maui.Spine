@@ -717,6 +717,14 @@ public abstract partial class ViewModelBase : ObservableObject
     public virtual IReadOnlyList<WindowSize> SuggestWindowSizes(Size screen) => [];
 
     /// <summary>
+    /// Gives the window the size this page suggests for its width (<see cref="SuggestWindowSizes"/>), smaller or
+    /// larger: after the content changed, for example when an item was hidden. Mac only; elsewhere it does nothing.
+    /// </summary>
+    protected void FitWindowToContent() => WindowFitter?.Invoke(this);
+
+    internal static Action<ViewModelBase>? WindowFitter { get; set; }
+
+    /// <summary>
     /// Called on a tab root's ViewModel when its already-active tab is re-selected while the
     /// stack is at the root. Override for scroll-to-top handling. Only invoked for pages
     /// decorated with <see cref="NavigableTabAttribute"/>.

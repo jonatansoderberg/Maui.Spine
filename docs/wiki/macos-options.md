@@ -24,6 +24,7 @@ builder.UseSpine(options =>
 |---|---|---|---|
 | `Backdrop` | `WindowBackdrop` | `None` | The window's material: `None` (opaque), `Acrylic` (the desktop blurred behind the window, clearly translucent, like System Settings' sidebar) or `Mica` (AppKit's subtler under-window material). See [A translucent window](#a-translucent-window) |
 | `UnifiedTitleBar` | `bool` | `false` | Puts a region page's header bar in the title bar row, after the window buttons. See [One row: the header bar in the title bar](#one-row-the-header-bar-in-the-title-bar) |
+| `FitWindowToContent` | `bool` | `false` | Once at launch, when the first page's content does not fit, the window takes the size the page suggests for its width. See [Window sizes from the content](#window-sizes-from-the-content) |
 | (page) `SuggestWindowSizes` | `ViewModelBase` override | none | Window sizes offered when the header bar is right-clicked. See [Window sizes from the content](#window-sizes-from-the-content) |
 | `ShowTrayIcon` | `bool` | `false` | Shows an icon in the menu bar, with the app's [shortcuts](shortcuts.md) as its menu |
 | `TrayIconSvg` | `string?` | `null` | Embedded SVG for the menu-bar icon, drawn as a template image |
@@ -84,6 +85,12 @@ public override IReadOnlyList<WindowSize> SuggestWindowSizes(Size screen) =>
 - Choosing one resizes the window with AppKit's animation, keeping its top left corner and staying on the screen. The size the window has is checked.
 - A right-click on a button stays the button's. With no sizes, right-clicking does nothing.
 - Leave a few points of slack over a layout's breakpoint: a window exactly at the width three columns need can lay out two.
+- Measure the height in UIKit's points from the content's start (the scroll view's `AdjustedContentInset.Top` under a floating header bar) plus the content's natural height. MAUI's `Window.Height` is in AppKit's points on a scaled Mac, and a scroll view's frame under the unified title bar reads lower than it is drawn.
+
+### Fitting the window
+
+- `options.MacOS.FitWindowToContent = true`: once, at launch, when the first page's content does not fit, the window takes the suggestion for its width (the widest no wider than the window, or the narrowest). After that the size is the user's.
+- `FitWindowToContent()` on the page view model does it now, smaller or larger: after the content changed, for example when the user hid an item.
 
 ---
 

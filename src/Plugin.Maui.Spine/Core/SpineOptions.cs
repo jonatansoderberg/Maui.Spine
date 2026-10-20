@@ -450,6 +450,13 @@ public sealed class SpineOptions
         public bool UnifiedTitleBar { get; set; }
 
         /// <summary>
+        /// At launch, when the first page's content does not fit the window, the window takes the size the page
+        /// suggests for its width (<see cref="ViewModelBase.SuggestWindowSizes"/>): the widest suggestion that is no
+        /// wider than the window, or the narrowest. It happens once; after that the size is the user's. Defaults to false.
+        /// </summary>
+        public bool FitWindowToContent { get; set; }
+
+        /// <summary>
         /// When true, a menu-bar (tray) icon is shown in the macOS status bar.
         /// Pair with <see cref="CloseToBackground"/> to allow the user to restore
         /// or exit the app from the menu bar.
