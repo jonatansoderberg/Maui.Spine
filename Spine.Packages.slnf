@@ -26,6 +26,7 @@
       "src\\Plugin.Maui.Spine.Controls.Markdown\\Plugin.Maui.Spine.Controls.Markdown.csproj",
       "src\\Plugin.Maui.Spine.Controls.MeshBackground\\Plugin.Maui.Spine.Controls.MeshBackground.csproj",
       "src\\Plugin.Maui.Spine.Controls.Rows\\Plugin.Maui.Spine.Controls.Rows.csproj",
+      "src\\Plugin.Maui.Spine.Controls.Charts\\Plugin.Maui.Spine.Controls.Charts.csproj",
       "src\\Plugin.Maui.Spine.Controls.Shimmer\\Plugin.Maui.Spine.Controls.Shimmer.csproj",
       "src\\Plugin.Maui.Spine.Images\\Plugin.Maui.Spine.Images.csproj",
       "src\\Plugin.Maui.Spine.PushNotifications\\Plugin.Maui.Spine.PushNotifications.csproj",
