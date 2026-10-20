@@ -44,9 +44,11 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             // whose object IS the real NSWindow. DidBecomeKey alone left a window that opens without
             // focus (a login item, `open -g`) with the opaque system title bar until it was clicked;
             // DidChangeOcclusionState is posted when the window first comes on screen.
-            void Adopt(NSNotification notification) => MainThread.BeginInvokeOnMainThread(() =>
+            void Adopt(NSNotification notification) => MainThread.BeginInvokeOnMainThread(() => AdoptWindow(notification.Object));
+
+            void AdoptWindow(NSObject? nsObj)
             {
-                if (notification.Object is not { } nsObj) return;
+                if (nsObj is null) return;
                 // Only the scene's window: menus, the status item and popovers have AppKit windows of their own, and
                 // occlusion changes are posted for them too; a translucent menu showed white text on white.
                 if (!AppKitObjC.IsSceneWindow(nsObj.Handle)) return;
@@ -72,10 +74,32 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                 // full-bleed pages (IsHeaderBarVisible=false, SafeAreaEdges=None);
                 // non-full-bleed pages rely on MAUI's own safe-area offset instead.
                 provider.UpdateFromUIWindow(uiWindow);
-            });
+            }
 
             foreach (var name in new[] { "NSWindowDidChangeOcclusionStateNotification", "NSWindowDidBecomeKeyNotification" })
                 NSNotificationCenter.DefaultCenter.AddObserver(new NSString(name), Adopt, null);
+
+            // A window that opens without focus can come on screen before these observers exist, and then neither
+            // notification arrives until it is clicked: look for the scene's window as well, for the first seconds.
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                for (var attempt = 0; attempt < 15 && _nsWindow is null; attempt++)
+                {
+                    await Task.Delay(200);
+                    if (window.Handler?.PlatformView is not UIKit.UIWindow) continue;
+                    var app = AppKitObjC.IntPtr_msgSend(Class.GetHandle("NSApplication"), Selector.GetHandle("sharedApplication"));
+                    if (Runtime.GetNSObject<NSArray>(AppKitObjC.IntPtr_msgSend(app, Selector.GetHandle("windows"))) is not { } windows) continue;
+                    for (nuint i = 0; i < windows.Count; i++)
+                    {
+                        var candidate = windows.GetItem<NSObject>(i);
+                        if (AppKitObjC.IsSceneWindow(candidate.Handle))
+                        {
+                            AdoptWindow(candidate);
+                            break;
+                        }
+                    }
+                }
+            });
 
             // The backdrop's material follows the NSWindow's appearance, which UIKit's theme does not change.
             if (Current is { } app)
@@ -113,9 +137,20 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
     /// centred in it; the header bar is laid over that row (NavigationRegion). The window's own title stays
     /// for Mission Control and the Window menu, hidden in the bar.
     /// </summary>
-    private static void UnifyTitleBar(UIKit.UIWindow uiWindow, IntPtr nsWindowPtr, SystemInsetsProvider provider)
+    private static void UnifyTitleBar(UIKit.UIWindow uiWindow, IntPtr nsWindowPtr, SystemInsetsProvider provider, int attempt = 0)
     {
-        if (uiWindow.WindowScene?.Titlebar is not { } titlebar) return;
+        // A window that opens without focus is adopted before its scene has a title bar: try again shortly, or the
+        // header bar would stay under the system title bar until the window was clicked.
+        if (uiWindow.WindowScene?.Titlebar is not { } titlebar)
+        {
+            if (attempt < 20)
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    await Task.Delay(150);
+                    UnifyTitleBar(uiWindow, nsWindowPtr, provider, attempt + 1);
+                });
+            return;
+        }
         if (titlebar.Toolbar is null)
         {
             titlebar.Toolbar = new AppKit.NSToolbar("Spine.UnifiedTitleBar");
