@@ -45,6 +45,9 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<AIFeatureRegistry>(), sp.GetRequiredService<IAIUsageStore>(), options, sp,
             sp.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>(), TimeOf(sp), LoggerOf(sp)));
         services.AddSingleton(sp => new AIPendingCalls(sp, TimeOf(sp)));
+        // Live relay tickets are signed with Data Protection, which a plain host may not have added yet.
+        services.AddDataProtection();
+        services.AddSingleton(sp => new AIRealtimeTickets(sp.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(), TimeOf(sp)));
         services.AddSingleton(sp => new AIFeatures(
             sp.GetRequiredService<AIFeatureRegistry>(), sp.GetRequiredService<AIBudgetGate>(), sp.GetRequiredService<AIUsageMeter>(), options,
             sp.GetRequiredService<AIPendingCalls>(), sp));

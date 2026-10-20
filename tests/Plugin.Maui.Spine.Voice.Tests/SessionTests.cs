@@ -15,7 +15,8 @@ internal sealed class ScriptedSocket : IVoiceSocket
     private readonly Channel<string?> _incoming = Channel.CreateUnbounded<string?>();
 
     public Uri? Url { get; private set; }
-    public string? Bearer { get; private set; }
+    public IReadOnlyDictionary<string, string> Headers { get; private set; } = new Dictionary<string, string>();
+    public string? Bearer => Headers.TryGetValue("Authorization", out var header) && header.StartsWith("Bearer ", StringComparison.Ordinal) ? header[7..] : null;
     public ConcurrentQueue<JsonElement> Sent { get; } = new();
     public bool Closed { get; private set; }
     public string? CloseReason => "1000: done";
@@ -26,10 +27,10 @@ internal sealed class ScriptedSocket : IVoiceSocket
 
     public void Hangup() => _incoming.Writer.TryWrite(null);
 
-    public Task ConnectAsync(Uri url, string bearer, CancellationToken cancellationToken)
+    public Task ConnectAsync(Uri url, IReadOnlyDictionary<string, string> headers, CancellationToken cancellationToken)
     {
         Url = url;
-        Bearer = bearer;
+        Headers = headers;
         return Task.CompletedTask;
     }
 

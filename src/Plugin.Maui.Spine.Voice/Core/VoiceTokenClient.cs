@@ -7,9 +7,12 @@ namespace Plugin.Maui.Spine.Voice;
 
 /// <summary>A realtime session's token from the app's backend (<c>MapSpineRealtimeSessions</c>).</summary>
 /// <param name="Feature">The server's feature.</param>
-/// <param name="Protocol">The events spoken on the socket: <c>openai</c> for OpenAI and Azure OpenAI.</param>
-/// <param name="Url">The provider's WebSocket.</param>
-/// <param name="Token">The short-lived bearer token for <paramref name="Url"/>.</param>
+/// <param name="Protocol">
+/// The events spoken on the socket: <c>openai</c> for OpenAI and Azure OpenAI, <c>openai-live</c> for GPT-Live through the
+/// server's relay.
+/// </param>
+/// <param name="Url">The provider's WebSocket, or for <c>openai-live</c> the server's relay.</param>
+/// <param name="Token">The short-lived bearer token for <paramref name="Url"/>; for <c>openai-live</c>, the relay's ticket, which is in <paramref name="Url"/>.</param>
 /// <param name="ExpiresAt">When the token can no longer open a connection.</param>
 /// <param name="MaxMinutes">How long the server allows the session; the client ends it then.</param>
 public sealed record VoiceSessionToken(string Feature, string Protocol, Uri Url, string Token, DateTimeOffset ExpiresAt, double? MaxMinutes, string? Voice = null)
@@ -39,26 +42,27 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
 
     public Task<string?> InstallationIdAsync(CancellationToken cancellationToken) => installationId(cancellationToken);
 
-    public async Task<VoiceSessionToken> RequestAsync(string feature, CancellationToken cancellationToken, string? voice = null)
+    public async Task<VoiceSessionToken> RequestAsync(string feature, CancellationToken cancellationToken, string? voice = null, double? maxMinutes = null)
     {
         var endpoint = options.SessionEndpoint
             ?? throw new InvalidOperationException(
                 "A voice session needs SpineVoiceOptions.SessionEndpoint: set it in UseSpineVoice to the prefix given to MapSpineRealtimeSessions.");
 
+        var query = new List<string>();
+        if (!string.IsNullOrWhiteSpace(voice)) query.Add($"voice={Uri.EscapeDataString(voice)}");
+        if (maxMinutes is > 0) query.Add($"maxMinutes={maxMinutes.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}");
         var url = new Uri($"{endpoint.ToString().TrimEnd('/')}/realtime/{Uri.EscapeDataString(feature)}"
-            + (string.IsNullOrWhiteSpace(voice) ? "" : $"?voice={Uri.EscapeDataString(voice)}"));
+            + (query.Count == 0 ? "" : "?" + string.Join('&', query)));
         using var request = new HttpRequestMessage(HttpMethod.Post, url);
-        if (options.AuthorizationHeader is { } authorization && await authorization(cancellationToken) is { Length: > 0 } header)
-            request.Headers.TryAddWithoutValidation("Authorization", header);
-        if (await installationId(cancellationToken) is { Length: > 0 } installation)
-            request.Headers.TryAddWithoutValidation(SpineInstallation.Header, installation);
+        foreach (var (name, value) in await AppHeadersAsync(cancellationToken))
+            request.Headers.TryAddWithoutValidation(name, value);
 
         using var response = await _http.Value.SendAsync(request, cancellationToken);
         var text = await response.Content.ReadAsStringAsync(cancellationToken);
         using var json = TryParse(text);
 
         if (response.IsSuccessStatusCode && json is not null
-            && Text(json, "protocol") is { } protocol && Uri.TryCreate(Text(json, "url"), UriKind.Absolute, out var socket) && Text(json, "token") is { } token)
+            && Text(json, "protocol") is { } protocol && SocketOf(endpoint, Text(json, "url")) is { } socket && Text(json, "token") is { } token)
         {
             var expires = json.RootElement.TryGetProperty("expiresAt", out var e) && e.TryGetDateTimeOffset(out var at) ? at : DateTimeOffset.MaxValue;
             var minutes = json.RootElement.TryGetProperty("maxMinutes", out var m) && m.TryGetDouble(out var max) ? max : (double?)null;
@@ -78,6 +82,34 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
         throw new HttpRequestException(
             $"The voice feature '{feature}' got {(int)response.StatusCode} {response.ReasonPhrase} from {url}: {(text.Length <= 300 ? text : text[..300] + "…")}",
             null, response.StatusCode);
+    }
+
+    /// <summary>The headers that open the session's socket: the provider's token, or for the relay the app's own sign-in.</summary>
+    public async Task<IReadOnlyDictionary<string, string>> SocketHeadersAsync(VoiceSessionToken token, CancellationToken cancellationToken) =>
+        token.Protocol == "openai-live"
+            ? await AppHeadersAsync(cancellationToken)
+            : new Dictionary<string, string> { ["Authorization"] = $"Bearer {token.Token}" };
+
+    private async Task<Dictionary<string, string>> AppHeadersAsync(CancellationToken cancellationToken)
+    {
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (options.AuthorizationHeader is { } authorization && await authorization(cancellationToken) is { Length: > 0 } header)
+            headers["Authorization"] = header;
+        if (await installationId(cancellationToken) is { Length: > 0 } installation)
+            headers[SpineInstallation.Header] = installation;
+        return headers;
+    }
+
+    /// <summary>The socket's address: absolute for a provider, relative to <see cref="SpineVoiceOptions.SessionEndpoint"/> for the server's relay.</summary>
+    private static Uri? SocketOf(Uri endpoint, string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return null;
+        if (Uri.TryCreate(url, UriKind.Absolute, out var absolute) && absolute.Scheme is "ws" or "wss" or "http" or "https") return absolute;
+
+        var root = endpoint.ToString().EndsWith('/') ? endpoint : new Uri(endpoint + "/");
+        var relay = new UriBuilder(new Uri(root, url)) { Scheme = root.Scheme == Uri.UriSchemeHttp ? "ws" : "wss" };
+        relay.Port = root.IsDefaultPort ? -1 : root.Port;
+        return relay.Uri;
     }
 
     /// <summary>

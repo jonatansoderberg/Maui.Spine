@@ -33,7 +33,7 @@ public sealed class AzureTableAIUsageStore(string connectionString, string prefi
 
         var scopes = AIUsageScope.Of(record);
         foreach (var period in periods)
-            await IncrementAsync(period, scopes, record.Cost ?? 0, cancellationToken);
+            await IncrementAsync(period, scopes, record.Cost ?? 0, record.Adjustment ? 0 : 1, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -90,7 +90,7 @@ public sealed class AzureTableAIUsageStore(string connectionString, string prefi
     /// so the rows are read with their ETags and the write fails if another got there first; it is then read and
     /// tried again.
     /// </summary>
-    private async Task IncrementAsync(AIPeriod period, AIUsageScope[] scopes, decimal cost, CancellationToken cancellationToken)
+    private async Task IncrementAsync(AIPeriod period, AIUsageScope[] scopes, decimal cost, int calls, CancellationToken cancellationToken)
     {
         for (var attempt = 1; ; attempt++)
         {
@@ -100,12 +100,12 @@ public sealed class AzureTableAIUsageStore(string connectionString, string prefi
             {
                 if (await ReadTotalAsync(period, scope, cancellationToken) is { } row)
                 {
-                    row.Add(cost);
+                    row.Add(cost, calls);
                     actions.Add(new TableTransactionAction(TableTransactionActionType.UpdateReplace, row, row.ETag));
                 }
                 else
                 {
-                    actions.Add(new TableTransactionAction(TableTransactionActionType.Add, TotalRow.New(period, scope, cost)));
+                    actions.Add(new TableTransactionAction(TableTransactionActionType.Add, TotalRow.New(period, scope, cost, calls)));
                 }
             }
 
@@ -176,18 +176,18 @@ public sealed class AzureTableAIUsageStore(string connectionString, string prefi
         public string Cost { get; set; } = "0";
         public long Calls { get; set; }
 
-        internal static TotalRow New(AIPeriod period, AIUsageScope scope, decimal cost) => new()
+        internal static TotalRow New(AIPeriod period, AIUsageScope scope, decimal cost, int calls) => new()
         {
             PartitionKey = Key(period.Key),
             RowKey = Key(scope.ToString()),
             Cost = cost.ToString(CultureInfo.InvariantCulture),
-            Calls = 1,
+            Calls = calls,
         };
 
-        internal void Add(decimal cost)
+        internal void Add(decimal cost, int calls)
         {
             Cost = (decimal.Parse(Cost, CultureInfo.InvariantCulture) + cost).ToString(CultureInfo.InvariantCulture);
-            Calls++;
+            Calls += calls;
         }
 
         internal AIUsageTotals ToTotals() => new(decimal.Parse(Cost, CultureInfo.InvariantCulture), Calls);
@@ -214,6 +214,7 @@ public sealed class AzureTableAIUsageStore(string connectionString, string prefi
         public bool Complete { get; set; }
         public long DurationTicks { get; set; }
         public string? Error { get; set; }
+        public bool Adjustment { get; set; }
 
         internal static UsageRow From(AIUsageRecord record) => new()
         {
@@ -234,12 +235,16 @@ public sealed class AzureTableAIUsageStore(string connectionString, string prefi
             Complete = record.Complete,
             DurationTicks = record.Duration.Ticks,
             Error = record.Error is { Length: > 30_000 } error ? error[..30_000] : record.Error,
+            Adjustment = record.Adjustment,
         };
 
         internal AIUsageRecord ToRecord() => new(
             At, Feature, Provider, Model, Caller,
             InputTokens, CachedInputTokens, OutputTokens, ReasoningTokens, Images,
             Cost is null ? null : decimal.Parse(Cost, CultureInfo.InvariantCulture),
-            Complete, TimeSpan.FromTicks(DurationTicks), Error);
+            Complete, TimeSpan.FromTicks(DurationTicks), Error)
+        {
+            Adjustment = Adjustment,
+        };
     }
 }

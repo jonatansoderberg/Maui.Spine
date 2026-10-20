@@ -9,7 +9,7 @@ public enum VoiceSessionEnd
     /// <summary>The app ended it.</summary>
     User,
 
-    /// <summary>It reached the server's <c>maxMinutes</c>.</summary>
+    /// <summary>It reached its limit: <see cref="IVoiceSession.MaxMinutes"/>, or the server's <c>maxMinutes</c>.</summary>
     TimeLimit,
 
     /// <summary>The provider closed the connection.</summary>
@@ -25,7 +25,8 @@ public enum VoiceSessionEnd
 /// <summary>
 /// A spoken conversation with a realtime model on the app's backend: the microphone and the speaker with echo
 /// cancellation, the answer cut off when the user talks over it, a transcript, and tools the app answers. The provider's
-/// key stays on the server; the session connects with a short-lived token from <c>MapSpineRealtimeSessions</c>.
+/// key stays on the server; the session connects with a short-lived token from <c>MapSpineRealtimeSessions</c>, or for
+/// GPT-Live through the server's relay. The server's feature decides which.
 /// </summary>
 /// <example>
 /// <code>
@@ -58,8 +59,16 @@ public interface IVoiceSession : IAsyncDisposable
     /// </remarks>
     IList<ChatMessage> Transcript { get; }
 
-    /// <summary>The time left of the server's <c>maxMinutes</c>, or <see langword="null"/> when there is no limit or no conversation.</summary>
+    /// <summary>The time left of the session's limit, or <see langword="null"/> when there is no limit or no conversation.</summary>
     TimeSpan? TimeLeft { get; }
+
+    /// <summary>
+    /// The longest the next session may run, in minutes, to bound what it costs: the server takes it when it is shorter
+    /// than the feature's <c>MaxMinutes</c>, and reserves only that from the budgets. <see langword="null"/>, the
+    /// feature's. The session ends itself with <see cref="VoiceSessionEnd.TimeLimit"/> then; a GPT-Live session is also
+    /// ended by the server.
+    /// </summary>
+    double? MaxMinutes { get; set; }
 
     /// <summary><see cref="State"/> changed. Raised on the main thread.</summary>
     event Action<VoiceState>? StateChanged;

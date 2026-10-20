@@ -145,7 +145,7 @@ Spine-Installation: 3f2c…
 
 ## Realtime voice sessions
 
-A feature with `"Kind": "Realtime"` sets up a live voice session that the app connects to itself. The server asks the provider for a short-lived token with its own key and the feature's session, and the app opens the provider's WebSocket with that token. The provider's key never reaches the app. The client half is `Plugin.Maui.Spine.Voice` ([Voice](voice.md)); the design is in [the voice proposal](../proposals/spine-voice.md), §6.
+A feature with `"Kind": "Realtime"` sets up a live voice session that the app connects to itself. The server asks the provider for a short-lived token with its own key and the feature's session, and the app opens the provider's WebSocket with that token. The provider's key never reaches the app. GPT-Live, which has no such token, goes through a relay on the server instead: see [GPT-Live through the relay](#gpt-live-through-the-relay). The client half is `Plugin.Maui.Spine.Voice` ([Voice](voice.md)); the design is in [the voice proposal](../proposals/spine-voice.md), §6.
 
 ```csharp
 builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
@@ -155,25 +155,28 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
     …
 });
 
-app.MapSpineRealtimeSessions("/ai");   // POST /ai/realtime/{name}
+app.UseWebSockets();                   // for GPT-Live's relay
+app.MapSpineRealtimeSessions("/ai");   // POST /ai/realtime/{name}, and /ai/realtime/{name}/relay
 ```
 
 ```json
 "Voice": {
-  "Kind": "Realtime", "Provider": "openai", "Model": "gpt-realtime", "Expose": true,
+  "Kind": "Realtime", "Provider": "openai", "Model": "gpt-realtime-2.1-mini", "Expose": true,
   "SystemPrompt": "You are a friendly voice assistant. Keep it short.",
   "Realtime": { "Voice": "marin", "Voices": ["marin", "cedar", "coral"],
                 "TurnDetection": "semantic_vad", "NoiseReduction": "near_field",
                 "TranscriptionModel": "gpt-4o-mini-transcribe", "Language": "sv",
-                "MaxMinutes": 5, "TokenSeconds": 60 },
+                "Reasoning": "low", "MaxMinutes": 5, "TokenSeconds": 60 },
   "RequestsPerMinute": { "SignedIn": 3 },
   "Budget": { "DayHard": 5, "PerCaller": { "SignedIn": { "DayCalls": 20 } } }
 }
 ```
 
-and under `Prices`, `"openai": { "gpt-realtime": { "PerMinute": 0.2 } }`.
+and under `Prices`, `"openai": { "gpt-realtime-2.1-mini": { "PerMinute": 0.05 } }`.
 
-The request has no body. It may ask for a voice, `?voice=cedar`, such as the one the app's avatar names; the server uses it when it is one of the feature's `Voices`, otherwise the feature's `Voice`, and says which in the answer's `voice`. Everything else about the session is the feature's configuration: the model (for Azure OpenAI, the deployment), `SystemPrompt` as the instructions, `MaxOutputTokens`, and the `Realtime` section. Unset entries leave the provider's defaults. `"TurnDetection": "none"` turns voice activity detection off, so the app commits each turn itself. The audio is PCM16 at 24 kHz both ways.
+The models are `gpt-realtime-2.1` and the cheaper `gpt-realtime-2.1-mini` (the same token prices as `gpt-realtime` and `gpt-realtime-mini`, which OpenAI removes on 2027-01-20). Both reason; `Reasoning` sets the effort (`minimal`, `low`, `medium`, `high`), and unset leaves the model's default. `low` was accepted and answered quickly in Swedish on 2026-10-20.
+
+The request has no body. It may ask for a voice, `?voice=cedar`, such as the one the app's avatar names; the server uses it when it is one of the feature's `Voices`, otherwise the feature's `Voice`, and says which in the answer's `voice`. It may ask for a shorter limit, `?maxMinutes=1.5` (`IVoiceSession.MaxMinutes`); the server takes it when it is shorter than the feature's `MaxMinutes`, never longer, and says which in the answer's `maxMinutes`. Everything else about the session is the feature's configuration: the model (for Azure OpenAI, the deployment), `SystemPrompt` as the instructions, `MaxOutputTokens`, and the `Realtime` section. Unset entries leave the provider's defaults. `"TurnDetection": "none"` turns voice activity detection off, so the app commits each turn itself. The audio is PCM16 at 24 kHz both ways.
 
 ```http
 POST /ai/realtime/Voice
@@ -182,22 +185,53 @@ Authorization: Bearer <the app's own sign-in>
 200 OK
 Cache-Control: no-store
 
-{ "feature": "Voice", "protocol": "openai", "model": "gpt-realtime",
-  "url": "wss://api.openai.com/v1/realtime?model=gpt-realtime",
+{ "feature": "Voice", "protocol": "openai", "model": "gpt-realtime-2.1-mini",
+  "url": "wss://api.openai.com/v1/realtime?model=gpt-realtime-2.1-mini",
   "token": "ek_…", "expiresAt": "2026-10-15T08:29:29+00:00", "maxMinutes": 5 }
 ```
 
 The app opens `url` with `Authorization: Bearer {token}` before `expiresAt`. `protocol` names the events spoken on the socket: `openai` for both OpenAI and Azure OpenAI.
 
 - **Signed-in callers only by default.** Unlike chat and image features, a realtime feature with no `Callers` answers only `AICaller.SignedIn`, because a session is paid by the minute. Installations and anonymous callers get 403 `signInRequired`. `"Callers": "Any"` lets them in, with their own rates and budgets.
-- **Metering by reservation.** The server never sees the session's real usage. Each token therefore records `MaxMinutes × PerMinute` at once, marked incomplete in the report, and the budgets count it from then on. A failed request to the provider records the call at no cost.
-- **The token is not a lock.** Over its connection the app can change the instructions, voice and tools; this was seen with `session.update` against OpenAI. Until it expires, the same token also opens further connections to the same session. A session is not cut off after `MaxMinutes` either. Keep `TokenSeconds` short. Rates, per-caller `DayCalls` and budgets bound what one caller can start. A server that has to hold the configuration or see real usage needs a relay, which is not built yet. Server functions need none: see [Functions in a voice session](#functions-in-a-voice-session).
+- **Metering by reservation.** The server never sees a Realtime session's real usage. Each token therefore records the session's limit (`MaxMinutes`, or the shorter `maxMinutes` the app asked for) × `PerMinute` at once, marked incomplete in the report, and the budgets count it from then on. A failed request to the provider records the call at no cost. A Live session is settled with what it used when it ends.
+- **The token is not a lock.** Over its connection the app can change the instructions, voice and tools; this was seen with `session.update` against OpenAI. Until it expires, the same token also opens further connections to the same session. A session is not cut off after `MaxMinutes` either: the app ends it. Keep `TokenSeconds` short. Rates, per-caller `DayCalls` and budgets bound what one caller can start. GPT-Live goes through a relay, which holds the configuration, sees the usage and ends the session on time; Realtime has none. Server functions need none: see [Functions in a voice session](#functions-in-a-voice-session).
 - **Tools.** The answer's `tools` lists the feature's [functions](#functions) as `{ name, description, parameters, runsOn, prefer }`, and the same declarations go into the provider's session.
 - **Rate limits** apply to tokens: `RequestsPerMinute` answers 429 with `Retry-After`. `ConcurrentPerCaller` covers only the request for the token, because the server cannot see when a session ends.
 - **The log** has the provider's session id with the caller for each token. A provider failure answers 502 with "The model call failed.", and the provider's own message goes to the log.
 - **Other providers.** `IAIRealtimeProvider` is one method, so an app can register its own with `ai.Realtime(name, section => …)`. Gemini Live, Azure Voice Live and WebRTC are in the proposal and come when an app needs them. Azure OpenAI uses its key only; Entra is not supported yet.
 
-`IAIFeatures.RealtimeAsync(feature, caller)` does the same for a route of your own.
+`IAIFeatures.RealtimeAsync(feature, caller, voice: …, maxMinutes: …)` does the same for a route of your own.
+
+### GPT-Live through the relay
+
+[GPT-Live](https://developers.openai.com/api/docs/guides/live) (`gpt-live-1`) is OpenAI's full-duplex voice model, which hands reasoning and functions to a backend model. It has no client token: its WebSocket takes the project key only. A feature with `"Protocol": "Live"` therefore goes through the server:
+
+```json
+"VoiceLive": {
+  "Kind": "Realtime", "Provider": "openai", "Model": "gpt-live-1", "Expose": true,
+  "SystemPrompt": "Talk briefly and naturally. Hand over to the backend for bookings, the time, and goodbyes.",
+  "Functions": [ "get_my_bookings", "show_time" ],
+  "Realtime": { "Protocol": "Live", "Voice": "marin", "MaxMinutes": 3,
+                "Backend": { "Model": "gpt-6-luna", "Reasoning": "low", "HostedTools": [ "web_search" ],
+                             "Instructions": "Answer briefly so it can be said aloud. Use the functions." } }
+}
+```
+
+and under `Prices`, `"gpt-live-1": { "PerMinute": 0.05 }` and the backend's token prices, `"gpt-6-luna": { "InputPerMillion": 0.1, "CachedInputPerMillion": 0.01, "OutputPerMillion": 0.5 }`.
+
+1. `POST /ai/realtime/VoiceLive` checks the caller, rates and budgets as for Realtime, reserves the session's minutes, and answers `protocol: "openai-live"` with `url: "realtime/VoiceLive/relay?ticket=…"`, relative to the prefix. The ticket is signed with ASP.NET Core Data Protection, opens one connection within `TokenSeconds`, and only for the caller it was issued to.
+2. The app opens that WebSocket with its own sign-in. The relay opens `wss://api.openai.com/v1/live/sessions` (Azure: `wss://<resource>.openai.azure.com/openai/v1/live/sessions`) with the key and a hashed `OpenAI-Safety-Identifier` for the caller, and writes `session.start` from the configuration: the model, `SystemPrompt` as the voice's instructions, the voice, PCM16 at 24 kHz, and Responses delegation to `Backend` with the feature's functions, its hosted tools and `MaxOutputTokens`.
+3. The app's first message carries only the conversation so far (user and assistant text, at most 128 messages and about 8,000 tokens) and the functions it runs itself. After that the relay passes on audio, mute and unmute, the results of the app's own functions and `session.close`. Typed text arrives as `spine.user_text`, which the relay gives the voice as the user's words. Everything else an app sends is dropped, so the instructions, the model and the backend stay the server's.
+4. **Server functions run in the relay**, with the caller's `SpineAIFunctionContext` (the signed-in user, the request's services) and the feature's limits per call. The relay alone asks the backend to go on (`response.create`), once every call of its response has a result. The app sees `spine.function.output` for the transcript.
+5. **The limit is enforced.** At the session's limit plus 5 s (the app ends it itself on time) the relay closes it, and the app gets `session.closed` with `spine_reason: "time_limit"`. An app that disconnects has its session closed for it.
+6. **The reservation is settled** when the session ends: a record takes the reserved minutes off and adds the seconds GPT-Live counted (`session.closed`), and another adds the backend's tokens, priced by `Backend:Model`. Both are marked `Adjustment`: they count toward cost and budgets but not as calls. A session that never started costs nothing; one whose close was never confirmed is charged its last count or the time since it started, whichever is longer. Hosted tools' own fees (web search) are not metered.
+7. **Silence stays off the phone.** GPT-Live streams its answer at real time, silence included; the relay drops the silent pieces, most of the 64 KB/s downstream.
+
+- **ASP.NET Core only**, with `app.UseWebSockets()` before `MapSpineRealtimeSessions`; a plain request to the relay answers 400 saying so. Azure Functions cannot host it. On Azure App Service, turn Web sockets on in the configuration; the Free tier allows few at once.
+- **The connection holds one of the caller's `ConcurrentPerCaller` places** while it runs.
+- **A Live feature without `Backend:Model`**, or on a provider that does not speak GPT-Live (`IAILiveProvider`), is off with the reason in the log.
+- **Rate limits:** GPT-Live counts concurrent sessions per OpenAI tier (50 at the lowest paid tier); the free tier has none.
+- Seen against OpenAI on 2026-10-20 from the Mac: a Swedish question and goodbye, `show_time` called in the app through the backend, 23 s settled at $0.019 for the voice and $0.0003 for the backend.
 
 ## Functions
 

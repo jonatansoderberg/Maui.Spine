@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Headers;
+using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -20,6 +22,9 @@ public sealed record AIRealtimeRequest(
 {
     /// <summary>The feature's functions, which the session declares to the model.</summary>
     public IReadOnlyList<AIRealtimeTool> Tools { get; init; } = [];
+
+    /// <summary>The longest the session may run, in minutes: the feature's <c>MaxMinutes</c>, or less when the app asked.</summary>
+    public double MaxMinutes { get; init; }
 }
 
 /// <summary>A function a realtime feature lists, as the token answer and the provider's session declare it.</summary>
@@ -44,6 +49,9 @@ public sealed record AIRealtimeSession(string Protocol, string Url, string Token
 
     /// <summary>The voice the session speaks with: the app's choice when the feature offers it, otherwise the feature's.</summary>
     public string? Voice { get; init; }
+
+    /// <summary>The longest the session may run, in minutes.</summary>
+    public double? MaxMinutes { get; init; }
 }
 
 /// <summary>Sets up realtime sessions with one provider. Register one with <see cref="SpineAIOptions.Realtime"/>.</summary>
@@ -60,17 +68,34 @@ public interface IAIRealtimeProvider
     Task<AIRealtimeSession> CreateSessionAsync(AIRealtimeRequest request, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// A realtime provider that also speaks GPT-Live, which gives apps no credential: the server's relay opens the
+/// provider's WebSocket with the key and the app talks to the relay.
+/// </summary>
+public interface IAILiveProvider
+{
+    /// <summary>Opens the provider's Live WebSocket with the server's key. The relay sends <c>session.start</c> itself.</summary>
+    /// <param name="request">The feature's session, and the caller it is for.</param>
+    /// <param name="cancellationToken">Cancels connecting.</param>
+    /// <returns>The open socket.</returns>
+    Task<WebSocket> ConnectLiveAsync(AIRealtimeRequest request, CancellationToken cancellationToken = default);
+}
+
 /// <summary>The built-in realtime providers.</summary>
 public static class AIRealtimeProviders
 {
     /// <summary>The events OpenAI's and Azure OpenAI's realtime WebSockets speak.</summary>
     public const string OpenAIProtocol = "openai";
 
+    /// <summary>GPT-Live's events, which the app speaks with the server's relay.</summary>
+    public const string LiveProtocol = "openai-live";
+
     private static readonly HttpClient Shared = new(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) });
 
     /// <summary>
     /// OpenAI's realtime API: <c>POST /v1/realtime/client_secrets</c> with <c>ApiKey</c> from the provider's section, and
-    /// an optional <c>Endpoint</c> (<c>https://api.openai.com/v1/</c> by default).
+    /// an optional <c>Endpoint</c> (<c>https://api.openai.com/v1/</c> by default). It speaks GPT-Live too, at
+    /// <c>wss://…/v1/live/sessions</c>.
     /// </summary>
     /// <param name="provider">The provider's section under <c>Ai:Providers</c>.</param>
     /// <returns>The provider.</returns>
@@ -106,9 +131,36 @@ public static class AIRealtimeProviders
         provider["ApiKey"] is { Length: > 0 } key ? key : throw new InvalidOperationException("the provider has no ApiKey.");
 }
 
-internal sealed class OpenAIRealtimeProvider(HttpClient http, Uri root, string key, bool azure) : IAIRealtimeProvider
+internal sealed class OpenAIRealtimeProvider(HttpClient http, Uri root, string key, bool azure) : IAIRealtimeProvider, IAILiveProvider
 {
     private const int Rate = 24_000;
+
+    internal Uri LiveUri => SocketUri("live/sessions", null);
+
+    public async Task<WebSocket> ConnectLiveAsync(AIRealtimeRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var socket = new ClientWebSocket();
+        if (azure) socket.Options.SetRequestHeader("api-key", key);
+        else socket.Options.SetRequestHeader("Authorization", $"Bearer {key}");
+        // OpenAI's safety identifier: a stable value per user that does not reveal who it is.
+        socket.Options.SetRequestHeader("OpenAI-Safety-Identifier", SafetyIdentifier(request.Caller));
+
+        try
+        {
+            await socket.ConnectAsync(LiveUri, cancellationToken);
+            return socket;
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    internal static string SafetyIdentifier(AICaller caller) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(caller.Key)))[..32];
 
     public async Task<AIRealtimeSession> CreateSessionAsync(AIRealtimeRequest request, CancellationToken cancellationToken = default)
     {
@@ -188,6 +240,7 @@ internal sealed class OpenAIRealtimeProvider(HttpClient http, Uri root, string k
 
         if (request.Instructions is { Length: > 0 } instructions) session["instructions"] = instructions;
         if (request.MaxOutputTokens is { } maxTokens) session["max_output_tokens"] = maxTokens;
+        if (options.Reasoning is { Length: > 0 } effort) session["reasoning"] = new JsonObject { ["effort"] = effort };
 
         if (request.Tools.Count > 0)
         {
@@ -212,16 +265,18 @@ internal sealed class OpenAIRealtimeProvider(HttpClient http, Uri root, string k
         };
     }
 
-    private string SocketOf(string model)
+    private string SocketOf(string model) => SocketUri("realtime", "model=" + Uri.EscapeDataString(model)).ToString();
+
+    private Uri SocketUri(string path, string? query)
     {
-        var socket = new UriBuilder(new Uri(root, "realtime"))
+        var socket = new UriBuilder(new Uri(root, path))
         {
             Scheme = root.Scheme == Uri.UriSchemeHttp ? "ws" : "wss",
             Port = root.IsDefaultPort ? -1 : root.Port,
-            Query = "model=" + Uri.EscapeDataString(model),
+            Query = query ?? "",
         };
 
-        return socket.Uri.ToString();
+        return socket.Uri;
     }
 
     private static string Shorten(string text) =>

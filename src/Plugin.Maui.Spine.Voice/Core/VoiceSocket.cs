@@ -3,10 +3,10 @@ using System.Text;
 
 namespace Plugin.Maui.Spine.Voice;
 
-/// <summary>A text WebSocket to the provider: whole messages in and out. Tests replace it with a scripted one.</summary>
+/// <summary>A text WebSocket to the provider or the server's relay: whole messages in and out. Tests replace it with a scripted one.</summary>
 internal interface IVoiceSocket : IAsyncDisposable
 {
-    Task ConnectAsync(Uri url, string bearer, CancellationToken cancellationToken);
+    Task ConnectAsync(Uri url, IReadOnlyDictionary<string, string> headers, CancellationToken cancellationToken);
 
     Task SendAsync(string message, CancellationToken cancellationToken);
 
@@ -27,9 +27,10 @@ internal sealed class ClientVoiceSocket : IVoiceSocket
 
     public string? CloseReason { get; private set; }
 
-    public Task ConnectAsync(Uri url, string bearer, CancellationToken cancellationToken)
+    public Task ConnectAsync(Uri url, IReadOnlyDictionary<string, string> headers, CancellationToken cancellationToken)
     {
-        _socket.Options.SetRequestHeader("Authorization", $"Bearer {bearer}");
+        foreach (var (name, value) in headers)
+            _socket.Options.SetRequestHeader(name, value);
         return _socket.ConnectAsync(url, cancellationToken);
     }
 

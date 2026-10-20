@@ -29,8 +29,8 @@ public sealed class InMemoryAIUsageStore : IAIUsageStore
         {
             _totals.AddOrUpdate(
                 (period.Key, scope.ToString()),
-                _ => new AIUsageTotals(record.Cost ?? 0, 1),
-                (_, total) => new AIUsageTotals(total.Cost + (record.Cost ?? 0), total.Calls + 1));
+                _ => new AIUsageTotals(record.Cost ?? 0, record.Adjustment ? 0 : 1),
+                (_, total) => new AIUsageTotals(total.Cost + (record.Cost ?? 0), total.Calls + (record.Adjustment ? 0 : 1)));
         }
 
         return Task.CompletedTask;

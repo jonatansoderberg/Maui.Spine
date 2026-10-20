@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-19 (#634: chat and voice in one conversation, step 4.5, in review; before that #632, AI functions, step 2.7)
+**Last updated:** 2026-10-20 (#639: GPT-Live through a relay, the Realtime 2.1 models and a time limit per session, step 4.6, in review; before that #634, step 4.5)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -147,6 +147,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 4.3b | `VoiceView`, the `VoiceVisual` contract and the built-in visuals (SkiaSharp) | #567 | 4.3a | In review | | Split by the owner on 2026-10-15. A package of its own, `Plugin.Maui.Spine.Controls.Voice`; `orb`, `bars`, `ring`, `avatar`; `IVisemeSource` in Spine.Voice (Decisions). Seen in the simulator: all four against the reference, the avatar and the edge against a real session. Superseded by #630 (2026-10-19): VoiceView, its visuals and `Plugin.Maui.Spine.Controls.Voice` were removed; a voice is drawn by `AvatarView` with `VoiceAvatarDriver`, and bars and ring are built-in avatars. |
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 | 4.5 | Chat and voice in one conversation: `ChatComposer`'s microphone, `IVoiceSession.ConnectAsync(feature, conversation)` with the typed turns given to the model, the Showcase's Chat and Voice chat pages merged | #634 | 2.7, 4.3a | In review | #635 | Asked for by the owner on 2026-10-19 after testing #632 on the iPhone (Decisions). |
+| 4.6 | GPT-Live (`gpt-live-1`) through a relay in `Server.AI`, the `openai-live` protocol in `IVoiceSession`, `gpt-realtime-2.1` and `-2.1-mini` with `Reasoning`, and `IVoiceSession.MaxMinutes` | #639 | 4.2, 4.3a, 4.5 | In review | | Asked by the owner on 2026-10-20 after the spike (#637). Closes #636. The relay is ASP.NET Core only; seen end to end against OpenAI from the Mac with the real `VoiceSession` (Swedish, `show_time` in the app, goodbye). |
 
 ### Phase 5: sign-in
 
@@ -232,6 +233,8 @@ These are behaviours that are merged but have not been seen working. Take one wh
 | 5.1b (#552) | The browser sign-in against real Apple, Google and OIDC web clients: the callback, the code exchange, Apple's form_post and its `user` JSON. `/start` reached the real authorize pages through real discovery with placeholder client ids; everything after ran only against stubs | A Services ID with a return URL, a Google web client | The push sample server with `Auth:Apple:*` or `Auth:Google:*` in user secrets, a public URL (a tunnel) for Apple, which refuses `http://localhost` return URLs |
 | 5.1a (#520) | `SpineAuthEndpoints` under Azure Functions (only compiled) | The scratch Functions AppHost | The Functions recipe below |
 | 4.2 (#517) | `SpineAIEndpoints.RealtimeSessionAsync` under Azure Functions (only compiled) | The scratch Functions AppHost | The Functions recipe below |
+| 4.6 (#639) | GPT-Live on a device: barge-in by the user over a real speaker with echo cancellation, the yield detection (never triggered: GPT-Live paces its audio at real time), push-to-talk, and the Showcase's Chat page with VoiceLive (only the real `VoiceSession` with a fake engine on the Mac ran) | The iPhone against the Mac's server, or Azure with Web sockets on | Showcase Chat page, Model for calls: GPT-Live |
+| 4.6 (#639) | The relay on Azure App Service (Web sockets off by default on the Showcase's F1 plan), Azure OpenAI's Live endpoint and its `api-key` header (only OpenAI was called), and relay tickets across instances (one key ring) | `az webapp config set --web-sockets-enabled true`; an Azure OpenAI `gpt-live-1` deployment | Sample server README |
 | 2.3c (#543) | `GeneratedImage` in a recycled `CollectionView` cell whose key changes while an image is pending. Only a `BindableLayout` was used | Simulator | A scratch page with a long list of keys |
 | 2.4 (#512) | Windows at run time (only compiled), and Mac Catalyst at run time (only built) | A Windows machine; the Mac app | Showcase AI client page against the push sample server |
 | 2.4 (#512) | A release build on a phone over the network: cleartext is off there, and the client was checked only against `http://localhost` in Debug | A phone and an HTTPS backend (Orientera after step 2.2) | Any feature through `https` |
@@ -556,6 +559,14 @@ Newest last. Each entry is dated and says who decided.
   - Typed text during a call goes into the call (no preference from the owner; the composer rests the field when `MicrophoneTextCommand` is unset).
   - The Showcase's Chat and Voice chat pages are one page.
 - **2026-10-19, Claude (#634):** The history is the text of user and assistant turns only, the last 40, as `input_text` and `output_text` items. **Why:** tool calls from the typed half cannot be replayed into a realtime session by id, and the model's context is limited. A pending turn left when the call ends is removed, since its words will never come.
+- **2026-10-20, owner (#639):** Spine.Voice supports GPT-Live next to `gpt-realtime-2.1` and `-2.1-mini`, with a time limit per session to bound cost. This builds the relay the 2026-10-15 decision (#517) left out, for Live only: GPT-Live has no client token (spike report #637), so the server must hold the connection. Realtime keeps its token.
+- **2026-10-20, Claude (#639):**
+  - The app speaks GPT-Live's own events with the relay, plus `spine.user_text` and a `session.start`/`session.update` that carry only history and the app's functions. **Why:** the protocol stays OpenAI's, and the relay can pass audio through untouched; everything that configures the session is the server's.
+  - The relay ticket is Data Protection–signed with its expiry in the payload, checked against the caller before it is spent. **Why:** any instance with the key ring can read it; a time-limited protector reads the system clock, which tests cannot move; and a wrong caller must not burn the right caller's ticket (a test found that).
+  - Settlement is two records marked `AIUsageRecord.Adjustment`: cost but no call. **Why:** budgets need the real cost, and `DayCalls` counts sessions, not their corrections.
+  - GPT-Live streams its answer at real time with silence as zeros (measured: 22.7 s of audio over 23.7 s, 151 of 223 pieces exact zeros). The session treats a piece whose peak is 32 or less as silence and plays the rest, and the relay drops silent pieces. **Why:** queuing silence kept the session `Speaking` for the whole call, and silence was most of the 64 KB/s to the phone.
+  - Barge-in for Live sends nothing: the model yields by going quiet, and the session drops what is queued only if more than 0.5 s is left when it does. **Why:** GPT-Live has no truncate or cancel, and with real-time pacing little is ever queued.
+  - The sample server's Voice is `gpt-realtime-2.1-mini` with `Reasoning: low`, VoiceFull `gpt-realtime-2.1`, VoiceLive `gpt-live-1` with `gpt-6-luna` as its backend. **Why:** `gpt-realtime` and `-mini` are removed on 2027-01-20 at the same prices, and luna is the cheapest backend OpenAI suggests (a delegation cost $0.0001).
 - **2026-10-19, owner (#630):** One visual for a voice: `AvatarView` with `VoiceAvatarDriver`. VoiceView, the `orb` and the canvas face, the `VoiceVisual`/`VoiceVisualView` contracts and `Plugin.Maui.Spine.Controls.Voice` are removed (unreleased); bars and ring became built-in avatars in Controls.Avatar. This replaces the 2026-10-09 and 2026-10-15 decisions on VoiceView below. `IVisemeSource` stays in Spine.Voice; the screen's edge stays in Highlight.
 
 ## Open questions

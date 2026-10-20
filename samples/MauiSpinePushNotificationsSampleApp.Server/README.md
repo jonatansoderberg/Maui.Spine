@@ -38,7 +38,7 @@ dotnet build ../MauiSpineSampleApp -c Release -f net10.0-ios -r ios-arm64 \
 - **Accounts:** users are kept in Table storage (`Auth:Storage`), so they survive a restart.
 - **Passkeys:** `Auth:Passkeys:RelyingPartyId` is the Azure host, and `/.well-known/apple-app-site-association` names the Showcase (`<team id>.se.cosmomedia.spineshowcase`, the team id from `Auth:Apple:TeamId` or `Push:Apple:TeamId`). A Showcase built with `-p:SpinePasskeyDomain=spine-showcase-e41ddd.azurewebsites.net` uses them.
 - **Push:** `/send`, `/installations` and `/channels` need a signed-in user, and reach and list only that user's devices. Broadcasts are not sent.
-- **AI:** the OpenAI features (Quick, Picture, Voice) answer any installation of the app, within each installation's limits (calls per minute and per day) and the feature's daily cap; Story (Anthropic) answers signed-in users only. Assistant and Summary use the free demo provider.
+- **AI:** the OpenAI features (Quick, Picture, and the voice features Voice on `gpt-realtime-2.1-mini`, VoiceFull on `gpt-realtime-2.1` and VoiceLive on `gpt-live-1` through the relay) answer any installation of the app, within each installation's limits (calls per minute and per day) and the feature's daily cap; Story (Anthropic) answers signed-in users only. Assistant and Summary use the free demo provider.
 - **Avatars:** `GET /sample/avatars` lists the avatars it hands out (id, name, profile and version from the package's manifest, file, size, SHA-256), `GET /sample/avatars/{id}/poster-light.png` and `poster-dark.png` serve each one's posters, and `GET /sample/avatars/kairo.spineavatar` serves Kairo (9.8 MB, version 3.1.0). The Showcase's Avatars page lists every hosted avatar beside the bundled ones with the server's poster, downloads one when asked, keeps it and updates it when the list names a later version. The file is published with the server (linked from `samples/Avatars`, the repository's one copy of every avatar); nothing else is served there.
 
 The push register and the AI usage stay in memory, so they reset when the server sleeps. Apps register again when they start.
@@ -57,6 +57,12 @@ Set them from a file, so that no value is printed:
 
 ```bash
 az webapp config appsettings set -g rg-spine-showcase -n spine-showcase-e41ddd --settings @settings.json -o none
+```
+
+VoiceLive talks through the server's WebSocket relay, which App Service serves only with Web sockets on (the Free plan allows a handful at once):
+
+```bash
+az webapp config set -g rg-spine-showcase -n spine-showcase-e41ddd --web-sockets-enabled true -o none
 ```
 
 Google's Web client lists both redirect URIs, `http://localhost:5100/auth/google/callback` and `https://spine-showcase-e41ddd.azurewebsites.net/auth/google/callback`, so Google sign-in works against both.
