@@ -485,10 +485,13 @@ internal sealed class PageActionView : ContentView
         /// </summary>
         void ApplyMorphing(PageAction action, bool hasSvg)
         {
+            var enabled = action.IsEnabled && !action.IsBusy;
             _imageButton.IsVisible = false;
             _textButton.IsVisible = true;
-            _textButton.IsEnabled = action.IsEnabled;
-            _textButton.Opacity = action.IsEnabled ? 1 : 0.4;
+            _textButton.IsEnabled = enabled;
+            _textButton.Opacity = enabled ? 1 : 0.4;
+            // The glyph is not part of the glass button, so it dims on its own.
+            _morphIcon.Opacity = enabled ? 1 : 0.4;
 
             _badgeLabel.Text = action.Badge ?? string.Empty;
             _badge.IsVisible = !string.IsNullOrEmpty(action.Badge);
@@ -524,6 +527,7 @@ internal sealed class PageActionView : ContentView
 
             _textButton.Command = CommandGuards.Wrap(action.Command);
             _textButton.CommandParameter = action.CommandParameter;
+            Spin(action.IsBusy && hasSvg ? _morphIcon : null, action);
         }
 
         // The glyph at the size and weight a UIBarButtonItem's symbol has, tinted like the icon buttons.
@@ -794,6 +798,24 @@ internal sealed class PageActionView : ContentView
                 ApplyMorphingImage();
         }
 
+        // The glyph turning for a busy action, or null; a text-only action only dims.
+        View? _spinning;
+        PageAction? _spinningFor;
+
+        void Spin(View? glyph, PageAction? action)
+        {
+            if (ReducedMotion.IsOn)
+                glyph = null;
+            if (glyph == _spinning && action == _spinningFor)
+                return;
+            // The face is reused for the next page's action (often Back): its glyph stops at once rather than
+            // finishing a turn that is no longer its own.
+            BusySpin.Set(_spinning, false, finish: action == _spinningFor);
+            // Not yet realised: left unset so the next Apply tries again.
+            _spinning = BusySpin.Set(glyph, true) ? glyph : null;
+            _spinningFor = _spinning is null ? null : action;
+        }
+
         public void Apply(PageAction? action)
         {
             WidthRequest = -1;
@@ -801,6 +823,7 @@ internal sealed class PageActionView : ContentView
 
             if (action is null || !action.IsVisible)
             {
+                Spin(null, action);
                 _textButton.IsVisible = false;
                 _imageButton.IsVisible = false;
                 _badge.IsVisible = false;
@@ -815,13 +838,15 @@ internal sealed class PageActionView : ContentView
                 return;
             }
 
+            var enabled = action.IsEnabled && !action.IsBusy;
             _imageButton.IsVisible = hasSvg;
             _textButton.IsVisible = !hasSvg;
-            _imageButton.IsEnabled = action.IsEnabled;
-            _textButton.IsEnabled = action.IsEnabled;
+            _imageButton.IsEnabled = enabled;
+            _textButton.IsEnabled = enabled;
             // The app's Disabled visual state may not reach a button whose colour is set directly.
-            _imageButton.Opacity = action.IsEnabled ? 1 : 0.4;
-            _textButton.Opacity = action.IsEnabled ? 1 : 0.4;
+            _imageButton.Opacity = enabled ? 1 : 0.4;
+            _textButton.Opacity = enabled ? 1 : 0.4;
+            Spin(action.IsBusy && hasSvg ? _imageButton : null, action);
 
             _badgeLabel.Text = action.Badge ?? string.Empty;
             SemanticProperties.SetDescription(_imageButton, action.Description);
