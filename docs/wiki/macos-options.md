@@ -61,7 +61,8 @@ By default a Mac window has its title bar and Spine's header bar below it: two r
 - Spine gives the window an empty `NSToolbar` in the `UnifiedCompact` style, so the title bar row is a toolbar's height with the close, minimise and zoom buttons centred in it.
 - A region page's header bar is laid over that row. Its leading action (a back button or a `Primary` action) and the title start after the zoom button; the trailing actions keep their place at the right.
 - The bar's buttons are a toolbar's: compact, 34-point glass circles with a 20-point glyph (`HeaderBarConstants.CompactButtonHeight`, `CompactGlyphSize`). They and the title are centred on the window buttons. The page's content starts below the row.
-- The window's own title is hidden in the bar. It stays for Mission Control and the Window menu.
+- The window's own title is hidden in the bar.
+- A floating page's content starts where the row ends, so the space above the title equals the space below it. It stays for Mission Control and the Window menu.
 - Sheets, and pages without a header bar, are unchanged.
 
 `TitleAlignment.Left` reads like a Mac toolbar's title. A centred title stays centred in the window.
@@ -85,7 +86,7 @@ public override IReadOnlyList<WindowSize> SuggestWindowSizes(Size screen) =>
 - Choosing one resizes the window with AppKit's animation, keeping its top left corner and staying on the screen. The size the window has is checked.
 - A right-click on a button stays the button's. With no sizes, right-clicking does nothing.
 - Leave a few points of slack over a layout's breakpoint: a window exactly at the width three columns need can lay out two.
-- Measure the height in UIKit's points from the content's start (the scroll view's `AdjustedContentInset.Top` under a floating header bar) plus the content's natural height. MAUI's `Window.Height` is in AppKit's points on a scaled Mac, and a scroll view's frame under the unified title bar reads lower than it is drawn.
+- `WindowHeightFor(width)` on the page view model measures the height for you: the page's `ScrollView` content at that width, with the header bar's (and the title bar row's) inset, in UIKit's points. It returns null before the page is laid out. Measuring by hand goes wrong easily: MAUI's `Window.Height` is in AppKit's points on a scaled Mac, and a scroll view's frame under the unified title bar reads lower than it is drawn.
 
 ### Fitting the window
 
@@ -153,7 +154,7 @@ EntryHandler.Mapper.AppendToMapping("GroupedRowField", (handler, _) =>
 
 **Cause:** `UIScrollView` stretches its content to its own height, and the header bar's inset comes on top, so there is always one inset's worth to scroll.
 
-**Fix:** compare the content's natural height (`Measure(width, ∞)`) with the bounds minus `AdjustedContentInset`. Set `ScrollEnabled` and the scroll bar from that, and scroll back to the top inset when it fits.
+**Fix:** none needed for a `ScrollView` under Spine's header bar: on the Mac it scrolls only when its content is taller than the room under the bar, and shows its scroll bar only then. A `CollectionView` scrolls as UIKit does.
 
 ### The page title from `[NavigableRegion(Title = …)]` overwrites a localized one
 

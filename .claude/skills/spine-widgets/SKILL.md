@@ -75,6 +75,7 @@ A per-family dictionary must have a tree for **every declared family** — iOS s
 | `W.Icon(name, color)` | A monochrome SVG by name (dots as underscores: `figure_run.svg`), fixed size (18 pt iOS, 20 dp Android); an SF Symbol of that name is the iOS fallback |
 | `W.Image(assetId, height)` | A picture stored with `IWidgetService.StoreAssetAsync`, aspect kept; `.FullColor()` keeps its colors in iOS's Tinted/Clear appearances |
 | `W.Progress(0..1, color)` / `W.Spacer()` / `W.Divider()` | |
+| `W.Ring(0..1 or null, color, size)` | A ring drawn natively (Android: a picture); a `ZStack` with a text puts the number in it. `VStack(...).CenterItems()` centres a ring tile, `HStack(...).Evenly()` spreads tiles 1-*-1-*-1 |
 | `W.Button(actionId, child)` | A tap that reaches `IWidgetActionHandler` **without opening the app**; mark what changes `.Pending()` |
 | `W.Adaptive(fallback, perFamily)` | One subtree that differs per family |
 

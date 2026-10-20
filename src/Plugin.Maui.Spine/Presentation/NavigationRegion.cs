@@ -312,8 +312,12 @@ public sealed partial class NavigationRegion : ContentView
     {
         var insets = provider.SystemBarInsets;
 #if MACCATALYST
+        vm.InTitleBarRow = false;
         if (provider is SystemInsetsProvider mac && Unified(vm, mac, region))
+        {
             insets.Top = UnifiedTop(mac.MacTitleBarRow);
+            vm.InTitleBarRow = true;
+        }
         else if (region && OverlaysTitleBar(vm) && provider is SystemInsetsProvider mac2)
             insets.Top = mac2.MacTitleBarHeight;
 #endif
@@ -486,8 +490,11 @@ public sealed partial class NavigationRegion : ContentView
         var overlay = vm.HeaderBarFloats;
 
         // Under a floating header the content must keep the status bar, the bar itself and a search row below it clear.
+        // In the Mac title bar row (UnifiedTitleBar) the bar is the row: the content starts where it ends, so the space
+        // above the title equals the space below it, rather than a navigation bar's extra 10 points further down.
+        var bar = vm.InTitleBarRow ? HeaderBarConstants.Height + insets.Top : HeaderBarConstants.BarHeight;
         var top = overlay
-            ? insets.Top + (vm.IsHeaderBarVisible ? HeaderBarConstants.BarHeight + vm.SearchRowHeight : 0)
+            ? insets.Top + (vm.IsHeaderBarVisible ? bar + vm.SearchRowHeight : 0)
             : (edges & SpineSafeArea.Top) != 0 ? 0 : insets.Top;
 
         // Above the keyboard the page no longer reaches the screen's bottom edge.

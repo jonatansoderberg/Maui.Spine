@@ -128,6 +128,21 @@ public abstract partial class ViewModelBase : ObservableObject
     /// </summary>
     internal Action? ReapplyHeaderBar { get; set; }
 
+    /// <summary>Whether the page's header bar lies in the Mac title bar row (<c>SpineOptions.MacOS.UnifiedTitleBar</c>).</summary>
+    internal bool InTitleBarRow { get; set; }
+
+    /// <summary>The page's view, for measuring its content (<see cref="WindowHeightFor"/>).</summary>
+    internal WeakReference<View>? PageView { get; set; }
+
+    /// <summary>
+    /// The window height that shows all of this page's scrolling content at <paramref name="windowWidth"/>, without
+    /// scrolling: what lies outside the page's scroll view, its insets (the header bar, the title bar row) and the
+    /// content's natural height, in the app's points. For <see cref="SuggestWindowSizes"/>. Null before the page has been
+    /// laid out, or when it has no <see cref="ScrollView"/>.
+    /// </summary>
+    protected double? WindowHeightFor(double windowWidth) =>
+        PageView?.TryGetTarget(out var view) == true ? Extensions.WindowMeasure.HeightFor(view, windowWidth) : null;
+
     /// <summary>The page's <see cref="NavigableLightboxAttribute"/> when it is a lightbox, otherwise <see langword="null"/>.</summary>
     internal NavigableLightboxAttribute? Lightbox { get; set; }
 
