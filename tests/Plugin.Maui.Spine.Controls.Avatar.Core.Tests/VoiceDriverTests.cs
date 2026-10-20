@@ -233,6 +233,7 @@ public class VoiceDriverTests
         public TimeSpan? TimeLeft => null;
         public bool EndsOnGoodbye { get; set; }
         public string? Voice { get; set; }
+        public double? MaxMinutes { get; set; }
         public string? SpokenVoice => null;
         public event Action<VoiceState>? StateChanged { add { } remove { } }
         public event Action<VoiceSessionEnd, Exception?>? Ended { add { } remove { } }
