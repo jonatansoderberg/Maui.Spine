@@ -31,32 +31,34 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         if (provider is not null)
         {
             // window.Activated fires while UIWindowScene is still a _UIPlaceholderWindowScene,
-            // which doesn't expose the underlying NSWindow. Instead, observe the AppKit
-            // NSWindowDidBecomeKeyNotification — its object IS the real NSWindow.
-            NSNotificationCenter.DefaultCenter.AddObserver(
-                new NSString("NSWindowDidBecomeKeyNotification"),
-                notification => MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    if (notification.Object is not { } nsObj) return;
-                    if (AppKitObjC.IsStatusBarWindow(nsObj.Handle)) return;
+            // which doesn't expose the underlying NSWindow. Instead, observe AppKit notifications,
+            // whose object IS the real NSWindow. DidBecomeKey alone left a window that opens without
+            // focus (a login item, `open -g`) with the opaque system title bar until it was clicked;
+            // DidChangeOcclusionState is posted when the window first comes on screen.
+            void Adopt(NSNotification notification) => MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (notification.Object is not { } nsObj) return;
+                if (AppKitObjC.IsStatusBarWindow(nsObj.Handle)) return;
 
-                    EnableFullSizeContentView(nsObj.Handle);
-                    AdoptNSWindow(nsObj);
+                EnableFullSizeContentView(nsObj.Handle);
+                AdoptNSWindow(nsObj);
 
-                    if (window.Handler?.PlatformView is not UIKit.UIWindow uiWindow) return;
+                if (window.Handler?.PlatformView is not UIKit.UIWindow uiWindow) return;
 
-                    // Force a UIKit layout pass so safeAreaInsets update for the new
-                    // fullSizeContentView geometry before we read them.
-                    uiWindow.SetNeedsLayout();
-                    uiWindow.LayoutIfNeeded();
+                // Force a UIKit layout pass so safeAreaInsets update for the new
+                // fullSizeContentView geometry before we read them.
+                uiWindow.SetNeedsLayout();
+                uiWindow.LayoutIfNeeded();
 
-                    // Read title-bar height now that UIKit has updated safeAreaInsets.
-                    // NavigationRegion applies a per-page negative container margin for
-                    // full-bleed pages (IsHeaderBarVisible=false, SafeAreaEdges=None);
-                    // non-full-bleed pages rely on MAUI's own safe-area offset instead.
-                    provider.UpdateFromUIWindow(uiWindow);
-                }),
-                null);
+                // Read title-bar height now that UIKit has updated safeAreaInsets.
+                // NavigationRegion applies a per-page negative container margin for
+                // full-bleed pages (IsHeaderBarVisible=false, SafeAreaEdges=None);
+                // non-full-bleed pages rely on MAUI's own safe-area offset instead.
+                provider.UpdateFromUIWindow(uiWindow);
+            });
+
+            foreach (var name in new[] { "NSWindowDidChangeOcclusionStateNotification", "NSWindowDidBecomeKeyNotification" })
+                NSNotificationCenter.DefaultCenter.AddObserver(new NSString(name), Adopt, null);
         }
 
         var options = _services.GetRequiredService<SpineOptions>();
