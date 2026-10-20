@@ -154,7 +154,15 @@ internal sealed class AIFeatureRegistry
                     return new(name, options, null, null, null, ImagePipeline(factory(providerSection, model), options), null, price);
 
                 case AIFeatureKind.Realtime when _options.RealtimeProviders.TryGetValue(provider, out var factory):
-                    return new(name, options, null, null, null, null, factory(providerSection), price);
+                    var realtime = factory(providerSection);
+                    if (options.Realtime is { Protocol: AIRealtimeProtocol.Live } live)
+                    {
+                        if (realtime is not IAILiveProvider)
+                            return Off(AIOffReason.NotConfigured, $"Protocol is Live, and realtime provider '{provider}' does not speak GPT-Live.");
+                        if (string.IsNullOrWhiteSpace(live.Backend?.Model))
+                            return Off(AIOffReason.NotConfigured, "Protocol is Live and Realtime:Backend:Model names no backend model.");
+                    }
+                    return new(name, options, null, null, null, null, realtime, price);
 
                 case AIFeatureKind.Speech when _options.SpeechProviders.TryGetValue(provider, out var factory):
                     return new(name, options, null, null, null, null, null, price) { Speech = factory(providerSection) };

@@ -49,7 +49,7 @@ public sealed record AIUsageReport(
 /// <param name="OutputTokens">Output tokens, reasoning included.</param>
 /// <param name="ReasoningTokens">Reasoning tokens.</param>
 /// <param name="Images">Images generated.</param>
-/// <param name="Cost">What the priced calls cost.</param>
+/// <param name="Cost">What the priced calls cost, with what settled them (<see cref="AIUsageRecord.Adjustment"/>).</param>
 public sealed record AIUsageSum(
     long Calls, long Failed, long Incomplete, long InputTokens, long CachedInputTokens, long OutputTokens, long ReasoningTokens, long Images, decimal Cost)
 {
@@ -60,9 +60,12 @@ public sealed record AIUsageSum(
 
         foreach (var r in records)
         {
-            calls++;
-            if (r.Error is not null) failed++;
-            if (!r.Complete) incomplete++;
+            if (!r.Adjustment)
+            {
+                calls++;
+                if (r.Error is not null) failed++;
+                if (!r.Complete) incomplete++;
+            }
             input += r.InputTokens;
             cached += r.CachedInputTokens;
             output += r.OutputTokens;

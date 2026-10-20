@@ -3,7 +3,7 @@
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/640
 **Branch:** issue/640-voice-pipeline-speech-to-text-a-chat-model-claude
 **Base:** `issue/634-chat-and-voice-in-one-conversation-type-or-talk-on` (PR #635, which builds on #633; neither merged on 2026-10-20)
-**Plan:** `docs/plans/ai-and-security.md`, step 4.6
+**Plan:** `docs/plans/ai-and-security.md`, step 4.7
 **Status:** In Progress
 
 ## Plan
@@ -35,7 +35,7 @@
 - **Voice:** `SpineVoiceOptions.Pipeline(name, …)` and `VoicePipeline` (`AddLocalSpeechToText`, `AddServerSpeechToText`, `AddChat`, `AddLocalTextToSpeech`, `AddServerTextToSpeech`, `Language`, `SpeechThreshold`, `StartOfTurn`, `EndOfTurn`, `MaxTurn`); `PipelineVoiceSession` (level-based turns with a pre-roll, pending turns, fallbacks, the answer cut into sentences and streamed through the engine, barge-in, tool cards); `RoutingVoiceSession` is the registered `IVoiceSession` and picks the pipeline or the realtime session by name, sharing one engine; `VoiceAvatarDriver` reads the engine through `IVoiceAudioOwner`. Tests in `PipelineTests`.
 - **Sample server:** features `Claude` (Anthropic, the functions, a prompt for spoken answers), `Transcribe` (`gpt-4o-mini-transcribe`) and `ReadOpenAI` (`gpt-4o-mini-tts`, voice marin) with prices; `ai.Transcription("openai", …)`.
 - **Showcase:** pipelines `Claude` (the phone's voice first) and `ClaudeOpenAIVoice` (the server's voice); the Chat page's options choose Realtime, Claude or Claude with OpenAI's voice; `NSSpeechRecognitionUsageDescription`.
-- **Docs:** voice.md (A pipeline), speech.md (Writing speech down, Rendering to audio), ai-server.md (Streamed speech, Transcription, the price rows), the package READMEs, the spine-setup and spine-controls skills, plan step 4.6.
+- **Docs:** voice.md (A pipeline), speech.md (Writing speech down, Rendering to audio), ai-server.md (Streamed speech, Transcription, the price rows), the package READMEs, the spine-setup and spine-controls skills, plan step 4.7.
 
 ## Decisions
 - **Owner, 2026-10-20:** a named pipeline declared in the app; speech-to-text on the device and on the server in v1; real streaming of the server's speech; Spine.Speech both ways, with the pipeline in Spine.Voice; the device's voice rendered into the voice engine.

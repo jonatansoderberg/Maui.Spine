@@ -252,6 +252,8 @@ public static class SpineIcons
     public const string Rain = "Rain.svg";
     /// <summary>The <c>Refresh.svg</c> icon.</summary>
     public const string Refresh = "Refresh.svg";
+    /// <summary>The <c>Reload.svg</c> icon.</summary>
+    public const string Reload = "Reload.svg";
     /// <summary>The <c>Remote.svg</c> icon.</summary>
     public const string Remote = "Remote.svg";
     /// <summary>The <c>Repeat.svg</c> icon.</summary>
@@ -603,6 +605,7 @@ public static class SpineIcons
         Radiator,
         Rain,
         Refresh,
+        Reload,
         Remote,
         Repeat,
         RepeatOne,

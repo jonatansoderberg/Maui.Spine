@@ -34,7 +34,8 @@ public sealed record AISpeechBody(string? Text);
 /// <para><c>POST /ai/features/{name}</c> runs an exposed feature. The body is an <see cref="AIFeatureRequest"/>. With
 /// <c>Accept: text/event-stream</c> the answer is a stream of <see cref="ChatResponseUpdate"/>s, one per event, then an
 /// event named <c>done</c>; otherwise it is one <see cref="ChatResponse"/>. All JSON is Microsoft.Extensions.AI's own.</para>
-/// <para><c>POST /ai/realtime/{name}</c> sets up a realtime voice session for an exposed realtime feature.</para>
+/// <para><c>POST /ai/realtime/{name}</c> sets up a realtime voice session for an exposed realtime feature, and
+/// <c>/ai/realtime/{name}/relay</c> is the WebSocket a GPT-Live session talks through (ASP.NET Core only).</para>
 /// <para><c>POST /ai/speech/{name}</c> reads text aloud with an exposed speech feature; with <c>Accept: audio/pcm</c> as it is made.</para>
 /// <para><c>POST /ai/transcribe/{name}</c> writes down what a WAV body says, with an exposed transcription feature.</para>
 /// <para><c>POST /ai/functions/{feature}/{name}</c> runs a server function a realtime session's model called.</para>
@@ -146,19 +147,25 @@ public static class SpineAIEndpoints
     }
 
     /// <summary>Sets up a realtime voice session the app connects to itself, for the caller of <paramref name="request"/>.</summary>
-    /// <param name="request">The incoming request. It has no body: everything about the session is the feature's configuration.</param>
+    /// <param name="request">
+    /// The incoming request. It has no body: everything about the session is the feature's configuration. The query may
+    /// ask for a voice (<c>?voice=</c>) and a shorter limit (<c>?maxMinutes=</c>).
+    /// </param>
     /// <param name="feature">The feature's name, from the route.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>
     /// The result to return from the host's own handler: <c>{ feature, protocol, model, url, token, expiresAt, maxMinutes, tools }</c>.
     /// The app opens a WebSocket to <c>url</c> with <c>Authorization: Bearer {token}</c> before <c>expiresAt</c>. <c>tools</c> are
     /// the feature's functions, <c>{ name, description, parameters, runsOn, prefer }</c>; the app forwards a call to one that
-    /// runs on the server to <see cref="FunctionAsync"/>.
+    /// runs on the server to <see cref="FunctionAsync"/>. For a Live feature, <c>protocol</c> is <c>openai-live</c> and
+    /// <c>url</c> is the relay's, relative to the prefix: the app opens it with its own sign-in, and the server runs the
+    /// server functions itself.
     /// </returns>
     /// <remarks>
     /// <para>Only features with <c>Kind: Realtime</c> and <c>Expose: true</c> answer, and only signed-in callers unless the
     /// feature sets <c>Callers: Any</c>. The provider's key stays on the server; the token opens connections only until it expires.</para>
-    /// <para>Each token reserves the feature's <c>MaxMinutes</c> from its budgets when it is made.</para>
+    /// <para>Each session reserves its limit (the feature's <c>MaxMinutes</c>, or the shorter <c>maxMinutes</c> the app
+    /// asked for) from the budgets when it is set up. A Live session is settled with what it used when it ends.</para>
     /// </remarks>
     public static async Task<IResult> RealtimeSessionAsync(HttpRequest request, string feature, CancellationToken cancellationToken = default)
     {
@@ -180,7 +187,9 @@ public static class SpineAIEndpoints
         {
             // An app may ask for a voice (an avatar's); the feature's Voices decide whether it gets it.
             var voice = request.Query.TryGetValue("voice", out var asked) ? asked.ToString() : null;
-            session = await features.RealtimeAsync(found.Name, caller, cancellationToken, voice);
+            double? limit = request.Query.TryGetValue("maxMinutes", out var minutes)
+                && double.TryParse(minutes.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var shorter) ? shorter : null;
+            session = await features.RealtimeAsync(found.Name, caller, cancellationToken, voice, limit);
         }
         catch (AIFeatureException e)
         {
@@ -206,7 +215,7 @@ public static class SpineAIEndpoints
             url = session.Url,
             token = session.Token,
             expiresAt = session.ExpiresAt,
-            maxMinutes = found.Options.Realtime?.MaxMinutes ?? new AIRealtimeOptions().MaxMinutes,
+            maxMinutes = session.MaxMinutes,
             voice = session.Voice,
             tools = features.FunctionsOf(found).Select(tool => new
             {
@@ -217,6 +226,92 @@ public static class SpineAIEndpoints
                 prefer = tool.Prefer == SpineAIFunctionSide.Server ? "server" : "device",
             }),
         }, Json);
+    }
+
+    /// <summary>
+    /// The WebSocket a GPT-Live session talks through: the app connects with the ticket <see cref="RealtimeSessionAsync"/>
+    /// gave it and its own sign-in, and the server opens the provider's socket with its key. ASP.NET Core only, with
+    /// <c>app.UseWebSockets()</c>; <c>MapSpineRealtimeSessions</c> maps it.
+    /// </summary>
+    /// <param name="context">The upgrade request.</param>
+    /// <param name="feature">The feature's name, from the route.</param>
+    /// <param name="cancellationToken">Ends the session.</param>
+    /// <returns>When the session has ended and been settled.</returns>
+    /// <remarks>
+    /// The ticket is good for one connection within <c>TokenSeconds</c>, for the caller it was issued to. The session
+    /// holds one of the caller's <c>ConcurrentPerCaller</c> places while it runs.
+    /// </remarks>
+    public static async Task RealtimeRelayAsync(HttpContext context, string feature, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(feature);
+
+        var services = context.RequestServices;
+        var features = services.GetRequiredService<AIFeatures>();
+        var registry = services.GetRequiredService<AIFeatureRegistry>();
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Plugin.Maui.Spine.Server.AI");
+
+        if (!context.WebSockets.IsWebSocketRequest)
+        {
+            // The usual cause is a host without the WebSocket middleware: say so rather than a bare 400.
+            await Results.BadRequest("The relay is a WebSocket. Connect with a WebSocket, and call app.UseWebSockets() before mapping it.").ExecuteAsync(context);
+            return;
+        }
+
+        if (!registry.Current.Features.TryGetValue(feature, out var found) || !found.Options.Expose || found.Options.Kind != AIFeatureKind.Realtime
+            || found.Options.Realtime?.Protocol != AIRealtimeProtocol.Live)
+        {
+            await new AIFeatureOffException(feature, AIOffReason.NotConfigured).ToResult().ExecuteAsync(context);
+            return;
+        }
+
+        var tickets = services.GetRequiredService<AIRealtimeTickets>();
+        var ticket = tickets.Read(context.Request.Query["ticket"].ToString());
+        if (ticket is null || ticket.Feature != found.Name)
+        {
+            await Results.Text("The ticket is missing, expired, used, or for another feature. Ask POST realtime/{feature} for a new one.", statusCode: 401)
+                .ExecuteAsync(context);
+            return;
+        }
+
+        var caller = await features.IdentifyAsync(context.Request);
+        if (caller.Key != ticket.Caller)
+        {
+            logger.LogWarning("AI feature '{Feature}': a Live ticket for {Ticket} came from {Caller}.", found.Name, ticket.Caller, caller.Key);
+            await Results.Text("The ticket was issued to another caller; connect with the sign-in that asked for it.", statusCode: 403).ExecuteAsync(context);
+            return;
+        }
+
+        if (!tickets.TryUse(ticket))
+        {
+            await Results.Text("The ticket was used already. Ask POST realtime/{feature} for a new one.", statusCode: 401).ExecuteAsync(context);
+            return;
+        }
+
+        if (!features.TryGetOn(found.Name, out _) || found.Realtime is not IAILiveProvider provider)
+        {
+            await new AIFeatureOffException(found.Name, features.OffReason(found.Name)).ToResult().ExecuteAsync(context);
+            return;
+        }
+
+        var gate = services.GetRequiredService<AIBudgetGate>();
+        IDisposable lease;
+        try
+        {
+            lease = gate.Acquire(found, caller, "relay");
+        }
+        catch (AIFeatureException e)
+        {
+            await e.ToResult().ExecuteAsync(context);
+            return;
+        }
+
+        using var held = lease;
+        using var socket = await context.WebSockets.AcceptWebSocketAsync();
+        var relay = new AIRealtimeRelay(
+            context, socket, found, caller, ticket, provider, features, services.GetRequiredService<SpineAIOptions>(), gate,
+            services.GetRequiredService<AIUsageMeter>(), logger);
+        await relay.RunAsync(cancellationToken);
     }
 
     /// <summary>
@@ -655,8 +750,10 @@ public static class SpineAIEndpointRouteBuilderExtensions
     }
 
     /// <summary>
-    /// Maps <c>POST {prefix}/realtime/{name}</c>, which hands the app a short-lived token for a realtime voice session.
-    /// See <see cref="SpineAIEndpoints.RealtimeSessionAsync"/>.
+    /// Maps <c>POST {prefix}/realtime/{name}</c>, which hands the app a short-lived token for a realtime voice session
+    /// (<see cref="SpineAIEndpoints.RealtimeSessionAsync"/>), and the WebSocket <c>{prefix}/realtime/{name}/relay</c> a
+    /// GPT-Live session talks through (<see cref="SpineAIEndpoints.RealtimeRelayAsync"/>), which needs
+    /// <c>app.UseWebSockets()</c> before it.
     /// </summary>
     /// <param name="endpoints">The application's route builder.</param>
     /// <param name="prefix">The path the endpoint lives under.</param>
@@ -668,6 +765,7 @@ public static class SpineAIEndpointRouteBuilderExtensions
 
         var root = prefix.TrimEnd('/');
         endpoints.MapPost($"{root}/realtime/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.RealtimeSessionAsync(request, name, ct));
+        endpoints.Map($"{root}/realtime/{{name}}/relay", (HttpContext context, string name) => SpineAIEndpoints.RealtimeRelayAsync(context, name, context.RequestAborted));
 
         return endpoints;
     }

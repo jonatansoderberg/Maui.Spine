@@ -20,7 +20,7 @@ public partial class ChatPageViewModel : SampleViewModel
     private IEdgeGlow? _edge;
     private CancellationTokenSource? _connecting;
     private string _using = "";
-    private string _call = "Voice";
+    private string _voiceFeature = "Voice";
 
     public ChatPageViewModel()
     {
@@ -34,7 +34,7 @@ public partial class ChatPageViewModel : SampleViewModel
         var server = services.GetRequiredKeyedService<IChatClient>("ServerAssistant");
         Client = demo;
 
-        // Spoken turns go to the push sample server's realtime Voice feature, or to Claude through a voice pipeline (the
+        // Spoken turns go to one of the push sample server's realtime features, or to Claude through a voice pipeline (the
         // phone or the server writes the user down and reads the answer), in the same conversation: the microphone
         // connects a session that is given the turns so far and adds its own to Messages.
         _voiceOptions = services.GetRequiredService<SpineVoiceOptions>();
@@ -66,12 +66,21 @@ public partial class ChatPageViewModel : SampleViewModel
         model.Select(0);
         Use(demo, "Demo answers in the app");
 
-        var calls = new ChoiceGroup("Voice calls", [
-            new Choice("Realtime", "The server's realtime Voice feature (gpt-realtime-mini): one model hears and speaks.", () => _call = "Voice"),
-            new Choice("Claude", "A voice pipeline: the phone writes you down (the server when it cannot), the server's Claude answers, and the phone's voice reads it.", () => _call = "Claude"),
-            new Choice("Claude, OpenAI's voice", "The same pipeline, read aloud by the server's OpenAI voice (ReadOpenAI), streamed as it is made.", () => _call = "ClaudeOpenAIVoice"),
+        var voiceModel = new ChoiceGroup("Model for calls", [
+            new Choice("Realtime 2.1 mini", "The server's Voice feature: gpt-realtime-2.1-mini, the app connects to OpenAI with a short-lived token.", () => _voiceFeature = "Voice"),
+            new Choice("Realtime 2.1", "VoiceFull: gpt-realtime-2.1, the larger model, about four times the price.", () => _voiceFeature = "VoiceFull"),
+            new Choice("GPT-Live", "VoiceLive: gpt-live-1, full duplex, through the server's relay; gpt-6-luna answers the bookings and the clock.", () => _voiceFeature = "VoiceLive"),
+            new Choice("Claude", "A voice pipeline: the phone writes you down (the server when it cannot), the server's Claude answers, and the phone's voice reads it.", () => _voiceFeature = "Claude"),
+            new Choice("Claude, OpenAI's voice", "The same pipeline, read aloud by the server's OpenAI voice (ReadOpenAI), streamed as it is made.", () => _voiceFeature = "ClaudeOpenAIVoice"),
         ]);
-        calls.Select(0);
+        voiceModel.Select(0);
+
+        var limit = new ChoiceGroup("Time limit per call", [
+            new Choice("The server's", "The feature's MaxMinutes (3 minutes in the sample).", () => Session.MaxMinutes = null),
+            new Choice("1 minute", "IVoiceSession.MaxMinutes = 1: the server reserves and allows one minute.", () => Session.MaxMinutes = 1),
+            new Choice("30 seconds", "IVoiceSession.MaxMinutes = 0.5.", () => Session.MaxMinutes = 0.5),
+        ]);
+        limit.Select(0);
 
         var avatars = new ChoiceGroup("Avatar during a call", [.. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
         {
@@ -82,7 +91,8 @@ public partial class ChatPageViewModel : SampleViewModel
 
         _options = [
             model,
-            calls,
+            voiceModel,
+            limit,
             new ToggleOption("Read the clock on the server", "show_time is on both sides; this chat runs it on the server instead of the phone (ChatOptions.Prefer for typed turns, IVoiceSession.Prefer for spoken ones).", () => ClockOnServer, value => ClockOnServer = value),
             new ToggleOption("Show function calls", "A card for each function the model called (ChatView.ShowToolCalls), for debugging; the model tells the user the result anyway.", () => ShowToolCalls, value => ShowToolCalls = value),
             avatars,
@@ -201,7 +211,7 @@ public partial class ChatPageViewModel : SampleViewModel
         using var connecting = _connecting = new CancellationTokenSource();
         try
         {
-            await Session.ConnectAsync(_call, Messages, connecting.Token);
+            await Session.ConnectAsync(_voiceFeature, Messages, connecting.Token);
             IsConnected = true;
             _clock ??= Application.Current!.Dispatcher.CreateTimer();
             _clock.Interval = TimeSpan.FromSeconds(1);

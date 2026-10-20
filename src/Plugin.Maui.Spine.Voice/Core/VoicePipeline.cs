@@ -19,8 +19,8 @@ namespace Plugin.Maui.Spine.Voice;
 /// </para>
 /// <para>
 /// The turn ends when the user has been quiet for <see cref="EndOfTurn"/>; talking over the answer cuts it off. The
-/// chat model's functions are those of its client (Spine.AI's features run the app's and the server's). Not yet:
-/// <see cref="IVoiceSession.EndsOnGoodbye"/>, and a server time limit.
+/// chat model's functions are those of its client (Spine.AI's features run the app's and the server's). The time limit
+/// is the app's <see cref="IVoiceSession.MaxMinutes"/>; <see cref="IVoiceSession.EndsOnGoodbye"/> is not supported yet.
 /// </para>
 /// </remarks>
 /// <example>

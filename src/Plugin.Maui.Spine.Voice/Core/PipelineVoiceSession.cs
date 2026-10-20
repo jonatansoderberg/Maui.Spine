@@ -52,6 +52,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     private CancellationTokenSource? _run;
     private CancellationTokenSource? _answer;
     private ITimer? _ticker;
+    private ITimer? _limit;
+    private long _endsAt;
     private volatile bool _connected;
     private volatile bool _connecting;
     private volatile int _transcribing;
@@ -81,7 +83,19 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     public VoiceState State { get { lock (_gate) return _state; } }
     public bool IsConnected => _connected;
     public IList<ChatMessage> Transcript => _transcript;
-    public TimeSpan? TimeLeft => null;
+    public double? MaxMinutes { get; set; }
+
+    public TimeSpan? TimeLeft
+    {
+        get
+        {
+            var endsAt = Interlocked.Read(ref _endsAt);
+            if (!_connected || endsAt == 0)
+                return null;
+            var left = TimeSpan.FromTicks(endsAt - _time.GetUtcNow().UtcTicks);
+            return left > TimeSpan.Zero ? left : TimeSpan.Zero;
+        }
+    }
     public string? Voice { get; set; }
     public string? SpokenVoice { get; private set; }
 
@@ -172,6 +186,13 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
             _run = new CancellationTokenSource();
             _ticker = _time.CreateTimer(_ => Tick(), null, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
+            // No server reserves a pipeline's minutes, so the app's own limit is the only one.
+            if (MaxMinutes is { } minutes and > 0)
+            {
+                var limit = TimeSpan.FromMinutes(minutes);
+                Interlocked.Exchange(ref _endsAt, (_time.GetUtcNow() + limit).UtcTicks);
+                _limit = _time.CreateTimer(_ => _ = EndCoreAsync(VoiceSessionEnd.TimeLimit, null), null, limit, Timeout.InfiniteTimeSpan);
+            }
             SpokenVoice = _mouths.FirstOrDefault(m => m.IsAvailable)?.Name;
             _connected = true;
             _logger.LogInformation("Spine.Voice: connected to the pipeline '{Pipeline}'.", name);
@@ -716,6 +737,9 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         _audio.InputAvailable -= OnMicrophone;
         _ticker?.Dispose();
         _ticker = null;
+        _limit?.Dispose();
+        _limit = null;
+        Interlocked.Exchange(ref _endsAt, 0);
         _run?.Cancel();
         Interlocked.Exchange(ref _answer, null)?.Cancel();
         lock (_turnGate)

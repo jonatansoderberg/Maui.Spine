@@ -1,6 +1,6 @@
 # Plugin.Maui.Spine.Voice
 
-Voice for Spine apps. `IVoiceSession` holds a spoken conversation with a realtime model on the app's server (OpenAI or Azure OpenAI): a short-lived token instead of a key in the app, the answer cut off when the user talks over it, a transcript for `ChatView`, and tools the app answers itself. Under it, the audio engine runs the microphone and the speaker at once, with the platform's echo cancellation, so a realtime voice model does not hear itself. It takes and gives PCM16 at the provider's rate, keeps a playback queue that is cut off at once when the user talks over the answer, and meters both directions into levels and 24 bands for visuals.
+Voice for Spine apps. `IVoiceSession` holds a spoken conversation with a realtime model on the app's server (OpenAI's Realtime models or GPT-Live, OpenAI or Azure OpenAI): a short-lived token or the server's relay instead of a key in the app, a time limit per session, the answer cut off when the user talks over it, a transcript for `ChatView`, and tools the app answers itself. Under it, the audio engine runs the microphone and the speaker at once, with the platform's echo cancellation, so a realtime voice model does not hear itself. It takes and gives PCM16 at the provider's rate, keeps a playback queue that is cut off at once when the user talks over the answer, and meters both directions into levels and 24 bands for visuals.
 
 iOS and Mac Catalyst now; Android and Windows come next.
 

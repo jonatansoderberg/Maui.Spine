@@ -22,7 +22,15 @@ namespace Plugin.Maui.Spine.Server.AI;
 public sealed record AIUsageRecord(
     DateTimeOffset At, string Feature, string Provider, string Model, string Caller,
     long InputTokens, long CachedInputTokens, long OutputTokens, long ReasoningTokens,
-    int Images, decimal? Cost, bool Complete, TimeSpan Duration, string? Error);
+    int Images, decimal? Cost, bool Complete, TimeSpan Duration, string? Error)
+{
+    /// <summary>
+    /// Settles a call recorded earlier rather than being a call of its own: a relayed voice session's real minutes
+    /// against the minutes it reserved (the cost can be negative), and its backend's tokens. Its cost counts toward the
+    /// totals; it does not count as a call.
+    /// </summary>
+    public bool Adjustment { get; init; }
+}
 
 /// <summary>A day or a month.</summary>
 public enum AIPeriodKind

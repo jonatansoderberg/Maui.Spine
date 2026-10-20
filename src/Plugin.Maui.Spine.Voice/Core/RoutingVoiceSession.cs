@@ -60,6 +60,12 @@ internal sealed class RoutingVoiceSession : IVoiceSession, IVoiceAudioOwner
         set => _realtime.EndsOnGoodbye = _pipeline.EndsOnGoodbye = value;
     }
 
+    public double? MaxMinutes
+    {
+        get => _realtime.MaxMinutes;
+        set => _realtime.MaxMinutes = _pipeline.MaxMinutes = value;
+    }
+
     public string? Voice
     {
         get => _realtime.Voice;
