@@ -44,8 +44,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(sp => new AIBudgetGate(
             sp.GetRequiredService<AIFeatureRegistry>(), sp.GetRequiredService<IAIUsageStore>(), options, sp,
             sp.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>(), TimeOf(sp), LoggerOf(sp)));
+        services.AddSingleton(sp => new AIPendingCalls(sp, TimeOf(sp)));
         services.AddSingleton(sp => new AIFeatures(
-            sp.GetRequiredService<AIFeatureRegistry>(), sp.GetRequiredService<AIBudgetGate>(), sp.GetRequiredService<AIUsageMeter>(), options, sp));
+            sp.GetRequiredService<AIFeatureRegistry>(), sp.GetRequiredService<AIBudgetGate>(), sp.GetRequiredService<AIUsageMeter>(), options,
+            sp.GetRequiredService<AIPendingCalls>(), sp));
         services.AddSingleton<IAIFeatures>(sp => sp.GetRequiredService<AIFeatures>());
 
         // Builds the features once at startup, so a missing key is in the log before the first call rather than after it.

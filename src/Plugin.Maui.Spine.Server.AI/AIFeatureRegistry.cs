@@ -103,6 +103,14 @@ internal sealed class AIFeatureRegistry
             var feature = BuildFeature(snapshot, name, options);
             features[name] = feature;
 
+            foreach (var function in options.Functions ?? [])
+            {
+                if (!_options.Functions.Knows(function))
+                    _logger.LogWarning(
+                        "AI feature '{Feature}' lists the function '{Function}', which is not registered; add ai.Functions.Add(...) or AddDevice(...) in AddSpineAI.",
+                        name, function);
+            }
+
             if (feature.Off is { } off)
                 _logger.LogWarning("AI feature '{Feature}' is off ({Reason}): {Detail}", name, off, feature.OffDetail);
             else if (feature.Price is null)

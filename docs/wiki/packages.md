@@ -1,6 +1,6 @@
 # Packages
 
-Spine ships as thirty-four NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
+Spine ships as thirty-seven NuGet packages built from this repository, one per project under `src/`. They share one version number and are released together; pick the ones the app needs.
 
 | Group | Package | What it is | Depends on |
 |---|---|---|---|
@@ -34,9 +34,10 @@ Spine ships as thirty-four NuGet packages built from this repository, one per pr
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and `BlurHash`; no MAUI | — |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions | `.Common` |
 | AI | `Plugin.Maui.Spine.Speech` | [Speech](speech.md): text-to-speech with the installed voices and their quality, and each word as the voice reaches it | — |
-| AI | `Plugin.Maui.Spine.Voice` | [Voice](voice.md): spoken conversations with a realtime model (`IVoiceSession`) on the full-duplex audio engine with the platform's echo cancellation | `.Common`, Microsoft.Extensions.AI.Abstractions |
-| AI | `Plugin.Maui.Spine.AI` | [AI in the app](ai-client.md): one `IChatClient` per named feature, on the device or the server, with fallback and on-device usage; generated images from the server on any `Image` | `.Common` |
-| Server | `Plugin.Maui.Spine.Server.AI` | [AI on the server](ai-server.md): named features, metering, prices, budgets and limits on Microsoft.Extensions.AI | `.Common` |
+| AI | `Plugin.Maui.Spine.Voice` | [Voice](voice.md): spoken conversations with a realtime model (`IVoiceSession`) on the full-duplex audio engine with the platform's echo cancellation; functions in the app or forwarded to the server | `.Common`, `.AI.Functions`, Microsoft.Extensions.AI.Abstractions |
+| AI | `Plugin.Maui.Spine.AI` | [AI in the app](ai-client.md): one `IChatClient` per named feature, on the device or the server, with fallback and on-device usage; the app's functions for on-device models and server features; generated images from the server on any `Image` | `.Common`, `.AI.Functions`, Microsoft.Extensions.AI |
+| AI | `Plugin.Maui.Spine.AI.Functions` | [Functions](ai-server.md#functions) the model calls, declared once for the app and the server: the side each runs on, the caller's context hidden from the model, the log of every call. No MAUI or ASP.NET Core | `.Common`, Microsoft.Extensions.AI.Abstractions |
+| Server | `Plugin.Maui.Spine.Server.AI` | [AI on the server](ai-server.md): named features, metering, prices, budgets and limits on Microsoft.Extensions.AI; functions with the caller's context | `.Common`, `.AI.Functions` |
 | Server | `Plugin.Maui.Spine.Server.Authentication` | [Sign-in on the server](authentication-server.md): ID tokens checked, own access and refresh tokens, email and password, account deletion | `.Common`, Microsoft.AspNetCore.Authentication.JwtBearer, Azure.Data.Tables |
 | Server | `Plugin.Maui.Spine.Server.AI.Assets` | [Generated assets](ai-assets.md): images from a Server.AI feature made once through messaging, archived in blob storage | `.Server.AI`, `.Server.Messaging`, Azure.Storage.Blobs |
 | Server | `Plugin.Maui.Spine.Server.Messaging` | [Messaging](messaging.md): typed queues with routing, priority, scheduling, retries, large payloads and cleanup; in-memory transport | — |
@@ -56,11 +57,12 @@ Widgets ──► Spine ──► Svg ◄── HeroCollectionView     Svg.Icons
   │   Chat ──► Markdown, Shimmer
 PushNotifications                                    AnimatedLabel
   Images ──► Common
-  Voice ──► Common, Speech
+  Voice ──► Common, Speech, AI.Functions
   Controls.Avatar ──► Controls.Avatar.Core, Speech, Voice, Spine (and SkiaSharp)
   Speech (no Spine dependency)
   Avatar.Tool ──► Controls.Avatar (net10.0), Controls.Avatar.Core (a .NET tool, not a library)
   AI ──► Common ◄── Server.AI (and Microsoft.Extensions.AI; Server.AI also Azure.Data.Tables)
+  AI, Voice, Server.AI ──► AI.Functions ──► Common (and Microsoft.Extensions.AI.Abstractions)
   Common ◄── Server.Authentication (and JwtBearer, Azure.Data.Tables)
   Server.Messaging ◄── Server.Messaging.AzureStorage ◄── Server.Messaging.ServiceBus
   Server.AI, Server.Messaging ◄── Server.AI.Assets (and Azure.Storage.Blobs)

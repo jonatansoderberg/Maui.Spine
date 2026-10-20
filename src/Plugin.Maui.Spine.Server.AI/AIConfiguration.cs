@@ -124,8 +124,21 @@ public sealed class AIFeatureOptions
     /// <summary>Response caching over the host's <c>IDistributedCache</c>.</summary>
     public AICacheOptions? Cache { get; set; }
 
-    /// <summary>Records prompts and responses in the OpenTelemetry spans. Off by default.</summary>
+    /// <summary>Records prompts and responses in the OpenTelemetry spans, and function arguments and results in the log. Off by default.</summary>
     public bool EnableSensitiveData { get; set; }
+
+    /// <summary>
+    /// The functions the model may call in this feature, by name, from <see cref="SpineAIOptions.Functions"/>. A server
+    /// function runs here with the caller's context; a device function (<c>AddDevice</c>) is offered only when the app says
+    /// it has it, and runs in the app.
+    /// </summary>
+    public List<string>? Functions { get; set; }
+
+    /// <summary>How many times the model may call functions before it has to answer, per request. Unset, 4.</summary>
+    public int? MaxToolRounds { get; set; }
+
+    /// <summary>The longest function result the model reads, in characters of JSON. Unset, 16 000.</summary>
+    public int? MaxToolResultCharacters { get; set; }
 }
 
 /// <summary>An image feature's defaults.</summary>

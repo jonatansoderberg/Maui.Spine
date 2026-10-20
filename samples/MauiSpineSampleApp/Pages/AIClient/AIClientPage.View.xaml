@@ -8,7 +8,7 @@
     <SampleLayout Packages="Plugin.Maui.Spine.AI">
 
         <Example Title="One client, on the device or on the server"
-                 Summary="A named feature is an IChatClient. Assistant tries Apple Intelligence on the device first and falls back to the app's server before the first word; the server's answer streams in as it is written. No key is in the app. Start the push sample server first (dotnet run in samples/MauiSpinePushNotificationsSampleApp.Server); on Android, run adb reverse tcp:5100 tcp:5100.">
+                 Summary="A named feature is an IChatClient. Assistant tries Apple Intelligence on the device first and falls back to the app's server before the first word; the server's answer streams in as it is written. No key is in the app. Ask &quot;Vad är klockan?&quot;: Apple Intelligence calls the app's show_time function itself. Start the push sample server first (dotnet run in samples/MauiSpinePushNotificationsSampleApp.Server); on Android, run adb reverse tcp:5100 tcp:5100.">
             <VerticalStackLayout Spacing="12">
                 <Editor Text="{Binding Prompt}" AutoSize="TextChanges" Placeholder="Ask something" />
                 <Grid ColumnDefinitions="*,Auto">
@@ -37,6 +37,9 @@
                     o.Feature("Assistant", f =&gt; f
                         .OnDevice(_ =&gt; new AppleIntelligenceChatClient())
                         .ThenServer());
+                    // Functions the app runs: Apple Intelligence calls them itself, and the
+                    // server's feature hands a call back when it lists the function.
+                    o.Functions.Add(SampleFunctions.ShowTime);
                 });
 
                 public AssistantViewModel(

@@ -6,6 +6,7 @@
   <s key="Spine.Chat.You">Du: {0}</s>
   <s key="Spine.Chat.Assistant">Assistenten: {0}</s>
   <s key="Spine.Chat.Thinking">Tänker</s>
+  <s key="Spine.Chat.Transcribing">Skriver ned det du sa</s>
   <s key="Spine.Chat.Stopped">Stoppad</s>
   <s key="Spine.Chat.TryAgain">Försök igen</s>
   <s key="Spine.Chat.Off">Den här funktionen är inte tillgänglig just nu.</s>

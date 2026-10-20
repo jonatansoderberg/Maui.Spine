@@ -37,6 +37,18 @@ public sealed class SpineAIOptions
     internal Func<IServiceProvider, IAIUsageStore>? StoreFactory { get; private set; }
 
     /// <summary>
+    /// The functions the model may call. A feature offers those it names in its <c>Functions</c> setting. <c>Add</c> runs a
+    /// function here with the caller's context; <c>AddDevice</c> declares one the app runs.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// ai.Functions.Add(SharedFunctions.GetMyBookings);
+    /// ai.Functions.AddDevice(SharedFunctions.ShowTime);
+    /// </code>
+    /// </example>
+    public SpineAIServerFunctions Functions { get; } = new();
+
+    /// <summary>
     /// Says who a request is for. The default takes the authenticated user's <c>sub</c> (or name identifier), then
     /// the <c>Spine-Installation</c> header, then the remote address.
     /// </summary>

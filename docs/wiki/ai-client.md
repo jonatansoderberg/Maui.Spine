@@ -63,6 +63,29 @@ The sources are tried in order:
 - **When every source fails,** the last failure is thrown. With the usual order of device, then server, that is the server's answer.
 - **Each failure that fell back** is logged at Warning, with the source and the exception.
 
+## Functions
+
+The app's own functions are tools the model calls that run on the device: the time, the location, opening a page. They are `SpineAIFunction`s from `Plugin.Maui.Spine.AI.Functions`, declared once and often shared with the server (see [Functions on the server](ai-server.md#functions)):
+
+```csharp
+builder.UseSpineAI(o =>
+{
+    o.Backend = new Uri("https://api.example.com/ai");
+    o.AuthorizationHeader = ct => auth.GetHeaderAsync(ct);    // so the server's functions know the user
+    o.Feature("Assistant", f => f.OnDevice(_ => new AppleIntelligenceChatClient()).ThenServer());
+    o.Functions.Add(SharedFunctions.ShowTime);
+    o.Functions.Add("open_page", "Opens a page of the app.", (string page) => Navigate(page));
+});
+```
+
+- **One set for the app.** `SpineAIOptions.Functions` and `SpineVoiceOptions.Functions` are the same set, so a function reaches text chat, on-device models and voice sessions alike.
+- **On the device.** An on-device source gets every function in `ChatOptions.Tools`. Apple Intelligence runs them itself; any other device client is run through Microsoft.Extensions.AI's `FunctionInvokingChatClient`. Server-only functions are not offered to it.
+- **On the server.** The request names the app's functions, and a server feature that lists one (and declared it with `AddDevice`) hands the model's call back. The client runs it and asks again with the result, all inside one `GetResponseAsync` or stream. Calls the server ran itself arrive marked `InformationalOnly` and are never run again.
+- **The context.** A `SpineAIFunctionContext` parameter is filled in and left out of the schema: `RunsOn` is `Device`, `Caller` the installation, or the signed-in user's id when Spine.Authentication shares it (`ISignedInSession`), `Services` the app's.
+- **The order.** A function both sides have runs where `SpineAIFunction.Prefer` says, and a chat changes it with `ChatOptions.Prefer(name, side)`, for example on `ChatView.ChatOptions`.
+- **What the user sees.** The model tells the user what a function did, from its result. `ChatView` shows a card per call only with `ShowToolCalls="True"`, for debugging; every call is in the log.
+- **Failures.** A function that throws, gets arguments its schema does not have, or answers more than 16 000 characters gives the model an error result instead (`failed`, `invalidArguments`, `tooLarge`), so the model can say so.
+
 ## Answers in one shape
 
 The server's answers become the same exceptions the server code uses (they live in `Plugin.Maui.Spine.Common`):
@@ -150,6 +173,7 @@ The lookups go to `AssetsBackend` when it is set, for images served by another s
 | `AuthorizationHeader` | The `Authorization` value, read on every call |
 | `HttpHandler` | The handler under the client's `HttpClient`, for tests, certificate pinning or logging. The client waits up to 5 minutes for an answer |
 | `Feature(name, chain)` | A feature and its sources: `OnDevice(factory, isAvailable)`, `Server(name?)` and `ThenServer(name?)` |
+| `Functions` | The app's [functions](#functions), shared with `UseSpineVoice` |
 
 ## Sample
 
@@ -161,3 +185,5 @@ The Showcase's **AI client** page runs against the push sample server from [AI o
 The **Generated images** page shows postcards from the messaging sample's API (`samples/SpineMessagingSample.*`) at `http://localhost:5240/ai`. Start it with an OpenAI key (see [Generated assets](ai-assets.md#sample)), and on Android run `adb reverse tcp:5240 tcp:5240`.
 
 **Assistant** tries Apple Intelligence first and then the server's `demo` provider, streamed. **Story** runs on a server feature with no key, which shows a feature that is off as `TaskState`'s empty state.
+
+The **Chat** page's options pick the server's Assistant, which lists `get_my_bookings` (server, the signed-in user) and `show_time` (the phone, or the server with "Read the clock on the server"). The Showcase sends the Sign-in page's user with every call, so the bookings are the user's own; signed out, the model says to sign in.

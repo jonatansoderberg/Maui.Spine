@@ -61,7 +61,7 @@
 
 ## Packages
 
-One version, thirty-four packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
+One version, thirty-seven packages, all on [nuget.org](https://www.nuget.org/packages?q=Plugin.Maui.Spine). Install what the app needs; see [Packages](docs/wiki/packages.md) for the dependency graph and [Releasing](docs/wiki/releasing.md) for how a version is published.
 
 | Group | Package | What it is |
 |---|---|---|
@@ -71,8 +71,9 @@ One version, thirty-four packages, all on [nuget.org](https://www.nuget.org/pack
 | Outside the window | `Plugin.Maui.Spine.Widgets` | Home-screen widgets and Live Activities from C# |
 | Outside the window | `Plugin.Maui.Spine.PushNotifications` | Push and local notifications |
 | Outside the window | `Plugin.Maui.Spine.BackgroundTasks` | `[BackgroundTask]` classes run by BGTaskScheduler and JobScheduler while the app is closed |
-| AI | `Plugin.Maui.Spine.Voice` | Spoken conversations with a realtime model on the app's server (`IVoiceSession`: barge-in, transcript for `ChatView`, client tools, no key in the app) on an audio engine with the platform's echo cancellation, levels and 24 bands each way (iOS and Mac Catalyst first) |
-| AI | `Plugin.Maui.Spine.AI` | One `IChatClient` per named feature: on the device first (Apple Intelligence), then the app's server, streamed; no keys in the app; off, budget and rate limits in one shape; generated images from the server on any `Image` |
+| AI | `Plugin.Maui.Spine.Voice` | Spoken conversations with a realtime model on the app's server (`IVoiceSession`: barge-in, transcript for `ChatView`, functions in the app or on the server, no key in the app) on an audio engine with the platform's echo cancellation, levels and 24 bands each way (iOS and Mac Catalyst first) |
+| AI | `Plugin.Maui.Spine.AI` | One `IChatClient` per named feature: on the device first (Apple Intelligence), then the app's server, streamed; no keys in the app; off, budget and rate limits in one shape; the app's functions for on-device models and server features; generated images from the server on any `Image` |
+| AI | `Plugin.Maui.Spine.AI.Functions` | Functions the model calls, declared once for the app and the server: on the device, on the server or either in an order, with the caller's context hidden from the model, every call logged |
 | Security | `Plugin.Maui.Spine.Authentication` | Sign-in against the app's own server: Sign in with Apple's sheet, email and password in a ready-made sheet, any OpenID Connect provider in the system browser, `[RequiresSignIn]` on a page or a command, refresh tokens in secure storage, an `HttpClient` handler |
 | Security | `Plugin.Maui.Spine.Authentication.Google` | Sign in with Google: Credential Manager's sheet on Android, the server's broker in the browser elsewhere |
 | Security | `Plugin.Maui.Spine.Authentication.Microsoft` | Sign in with Microsoft through MSAL and the broker (Authenticator, Company Portal, WAM), via the Spine server or straight to an Entra-protected API |
@@ -94,7 +95,7 @@ One version, thirty-four packages, all on [nuget.org](https://www.nuget.org/pack
 | Controls | `Plugin.Maui.Spine.Images` | Remote images that keep a list light: memory and disk cache, decoding at the view's size off the main thread, prefetching, BlurHash placeholders |
 | Server | `Plugin.Maui.Spine.Common` | Contracts shared by app and server, and the string store; no MAUI |
 | Server | `Plugin.Maui.Spine.Server` | The push backend for ASP.NET Core and Azure Functions |
-| Server | `Plugin.Maui.Spine.Server.AI` | AI on the server: named features with the provider in configuration, every token priced, budgets and per-user limits, endpoints for ASP.NET Core and Azure Functions |
+| Server | `Plugin.Maui.Spine.Server.AI` | AI on the server: named features with the provider in configuration, every token priced, budgets and per-user limits, functions with the signed-in user's context, endpoints for ASP.NET Core and Azure Functions |
 | Server | `Plugin.Maui.Spine.Server.Authentication` | Sign-in on the server: Apple, Google, Microsoft and OpenID Connect ID tokens checked, email and password with codes and lockout, the app's own access tokens and rotating refresh tokens, account deletion that revokes Apple's tokens |
 | Server | `Plugin.Maui.Spine.Server.AI.Assets` | Generated images made once and served from blob storage: a lookup that orders what is missing, a queue handler that generates, checks and archives under a versioned path, failures visible to the app |
 | Server | `Plugin.Maui.Spine.Server.Messaging` | Queues on the server: typed messages with routing, priority, scheduling, retries and failed messages, large payloads through blob storage, cleanup; handled in Azure Functions or a hosted pump |
@@ -238,7 +239,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Push (client)](docs/wiki/push-notifications.md) | Permission, tokens, tags, and the handler that sees every message |
 | [Push (server)](docs/wiki/push-notifications-server.md) | The backend half: register, tag expressions, APNs and FCM |
 | [Sign-in (app)](docs/wiki/authentication.md) | `o.AddAuthentication`: Sign in with Apple, Google, Microsoft, browser sign-in, the mode without a server, email and password, `[RequiresSignIn]`, tokens and the `HttpClient` handler, the push link |
-| [Voice](docs/wiki/voice.md) | `IVoiceSession`: a spoken conversation with a realtime model, barge-in, the transcript, client tools; `IVoiceAudio`: the full-duplex engine with echo cancellation, the playback queue and barge-in, `VoiceFrame` levels and bands, and what was measured on an iPhone |
+| [Voice](docs/wiki/voice.md) | `IVoiceSession`: a spoken conversation with a realtime model, barge-in, the transcript, functions on either side; `IVoiceAudio`: the full-duplex engine with echo cancellation, the playback queue and barge-in, `VoiceFrame` levels and bands, and what was measured on an iPhone |
 | [AI in the app](docs/wiki/ai-client.md) | `UseSpineAI`: features as keyed `IChatClient`s, the fallback between device and server, the answers in one shape, on-device usage |
 | [AI on the server](docs/wiki/ai-server.md) | `AddSpineAI`: named features on Microsoft.Extensions.AI, providers in one line, metering and prices, budgets, rate limits, exposed features streamed as server-sent events, the usage report |
 | [Sign-in (server)](docs/wiki/authentication-server.md) | `AddSpineAuthentication`: ID tokens from the platforms' sheets, Spine's own ES256 access tokens and rotating refresh tokens, email and password, account deletion, the push register's user from the token |
@@ -266,7 +267,7 @@ public partial class MySheetPage { public MySheetPage() => InitializeComponent()
 | [Theming](docs/wiki/theming.md) | `IThemeService`: a stored light/dark choice, token dictionaries, tab bar colours from keys, a repaint hook for code-drawn views |
 | [Strings](docs/wiki/strings.md) | `ISpineStrings`: embedded XML per culture, `{String}` with arguments and plurals, a runtime language switch, overridable control text |
 | [Typography](docs/wiki/typography.md) | `Text.FontFeatures` (tabular digits and other OpenType features) and `Text.TrimToCapHeight` on `Label` |
-| [Packages](docs/wiki/packages.md) | The thirty-four packages, what depends on what, which to install |
+| [Packages](docs/wiki/packages.md) | The thirty-seven packages, what depends on what, which to install |
 | [Releasing](docs/wiki/releasing.md) | Tag-driven releases to nuget.org from GitHub Actions |
 | [Agent skills](docs/wiki/agent-skills.md) | Skills for AI coding agents: set up and use Spine from NuGet the way the samples do |
 

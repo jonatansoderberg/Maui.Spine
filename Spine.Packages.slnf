@@ -3,6 +3,7 @@
     "path": "Spine.slnx",
     "projects": [
       "src\\Plugin.Maui.Spine.AI\\Plugin.Maui.Spine.AI.csproj",
+      "src\\Plugin.Maui.Spine.AI.Functions\\Plugin.Maui.Spine.AI.Functions.csproj",
       "src\\Plugin.Maui.Spine.Voice\\Plugin.Maui.Spine.Voice.csproj",
       "src\\Plugin.Maui.Spine.Controls.Avatar.Core\\Plugin.Maui.Spine.Controls.Avatar.Core.csproj",
       "src\\Plugin.Maui.Spine.Controls.Avatar\\Plugin.Maui.Spine.Controls.Avatar.csproj",

@@ -74,7 +74,8 @@ The section is read again when it changes, through any reloading configuration s
 | `Budget` | See [Budgets](#budgets) |
 | `RequestsPerMinute`, `ConcurrentPerCaller` | See [Rate limits](#rate-limits) |
 | `Cache.Ttl` | Response caching for this long, over the host's `IDistributedCache` |
-| `EnableSensitiveData` | Records prompts and responses in the OpenTelemetry spans. Off by default |
+| `EnableSensitiveData` | Records prompts and responses in the OpenTelemetry spans, and function arguments and results in the log. Off by default |
+| `Functions`, `MaxToolRounds`, `MaxToolResultCharacters` | See [Functions](#functions) |
 
 **A feature is off** when it has no provider or model, when its provider is not registered, when its factory throws, or when its provider's `ApiKey` entry is there but empty. The last is the usual sign of a secret that never arrived: the placeholder in `appsettings.json` without the value from user secrets or Key Vault. The startup log names each feature that is off and why, for example *AI feature 'Story' is off (NotConfigured): provider 'anthropic' has an empty ApiKey under Ai:Providers:anthropic.*
 
@@ -122,7 +123,7 @@ A feature with `"Expose": true` can be called straight from the app at `POST /ai
 
 The server owns the prompt. Without these rules, an exposed feature would be a free API key for anyone who reads the app's traffic:
 
-- **Only the text** of `user` and `assistant` messages is kept. The client's `system` and `tool` messages are dropped, and `SystemPrompt` goes first.
+- **Only the text** of `user` and `assistant` messages is kept. The client's `system` and `tool` messages are dropped, and `SystemPrompt` goes first. The one exception is the result of a [device function](#device-functions-in-text-chat) the server itself handed to this caller.
 - **Size limits.** More user messages than `MaxTurns` answers 413, and so does more than `MaxInputTokens`, estimated at four characters a token.
 - **Options.** The client's options are ignored except the conversation id. The feature's own defaults apply.
 
@@ -190,12 +191,91 @@ The app opens `url` with `Authorization: Bearer {token}` before `expiresAt`. `pr
 
 - **Signed-in callers only by default.** Unlike chat and image features, a realtime feature with no `Callers` answers only `AICaller.SignedIn`, because a session is paid by the minute. Installations and anonymous callers get 403 `signInRequired`. `"Callers": "Any"` lets them in, with their own rates and budgets.
 - **Metering by reservation.** The server never sees the session's real usage. Each token therefore records `MaxMinutes × PerMinute` at once, marked incomplete in the report, and the budgets count it from then on. A failed request to the provider records the call at no cost.
-- **The token is not a lock.** Over its connection the app can change the instructions, voice and tools; this was seen with `session.update` against OpenAI. Until it expires, the same token also opens further connections to the same session. A session is not cut off after `MaxMinutes` either. Keep `TokenSeconds` short. Rates, per-caller `DayCalls` and budgets bound what one caller can start. A server that has to hold the configuration, see real usage or run tools needs a relay, which is not built yet.
+- **The token is not a lock.** Over its connection the app can change the instructions, voice and tools; this was seen with `session.update` against OpenAI. Until it expires, the same token also opens further connections to the same session. A session is not cut off after `MaxMinutes` either. Keep `TokenSeconds` short. Rates, per-caller `DayCalls` and budgets bound what one caller can start. A server that has to hold the configuration or see real usage needs a relay, which is not built yet. Server functions need none: see [Functions in a voice session](#functions-in-a-voice-session).
+- **Tools.** The answer's `tools` lists the feature's [functions](#functions) as `{ name, description, parameters, runsOn, prefer }`, and the same declarations go into the provider's session.
 - **Rate limits** apply to tokens: `RequestsPerMinute` answers 429 with `Retry-After`. `ConcurrentPerCaller` covers only the request for the token, because the server cannot see when a session ends.
 - **The log** has the provider's session id with the caller for each token. A provider failure answers 502 with "The model call failed.", and the provider's own message goes to the log.
 - **Other providers.** `IAIRealtimeProvider` is one method, so an app can register its own with `ai.Realtime(name, section => …)`. Gemini Live, Azure Voice Live and WebRTC are in the proposal and come when an app needs them. Azure OpenAI uses its key only; Entra is not supported yet.
 
 `IAIFeatures.RealtimeAsync(feature, caller)` does the same for a route of your own.
+
+## Functions
+
+Functions are tools the model calls. One declaration, a `SpineAIFunction` from `Plugin.Maui.Spine.AI.Functions`, serves the app and the server, so it can live in a project both reference. The server runs a function with the caller's context; the app runs the ones that read the device. A feature offers the functions its `Functions` setting lists.
+
+```csharp
+// In a project the app and the server share (net10.0, references Plugin.Maui.Spine.AI.Functions).
+public static class SharedFunctions
+{
+    public static SpineAIFunction GetMyBookings { get; } = SpineAIFunction.Create(
+        "get_my_bookings", "Lists the signed-in user's bookings in the coming days.", GetMyBookingsAsync, SpineAIFunctionSide.Server);
+
+    public static SpineAIFunction ShowTime { get; } = SpineAIFunction.Create(
+        "show_time", "Says what time it is for the user.", () => DateTime.Now.ToString("HH:mm"));
+
+    static async Task<object> GetMyBookingsAsync(SpineAIFunctionContext context, [Description("Days ahead; 14 when unsaid.")] int days = 14)
+    {
+        if (await context.GetUserAsync() is not { } user) return SpineAIFunctionResult.SignInRequired();
+        return await Bookings.ForAsync(user.Id, days, context.CancellationToken);
+    }
+}
+
+builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
+{
+    …
+    ai.Functions.Add(SharedFunctions.GetMyBookings);     // runs here
+    ai.Functions.AddDevice(SharedFunctions.ShowTime);    // the app runs it; declared here so text chat can offer it
+});
+```
+
+```json
+"Assistant": { "Provider": "openai", "Model": "<model id>", "Expose": true,
+               "Functions": [ "get_my_bookings", "show_time" ], "MaxToolRounds": 4 }
+```
+
+- **The context.** A `SpineAIFunctionContext` parameter is filled from the call and left out of the schema, so the model never sees it, and so are `CancellationToken` and `IServiceProvider`. It carries `Caller` (`AICaller`), `Feature`, `ConversationId`, `RunsOn`, `User` (the request's `ClaimsPrincipal` for a signed-in caller), `Services` (the request's) and `CancellationToken`.
+- **The user.** `GetUserAsync()` answers the signed-in user's `SpineUser` (id, email, names, provider, organization) through Spine.Server.Authentication when it is registered, and otherwise from the access token's claims. Installations and anonymous callers get `null`. Server-only code that needs the whole `SpineAuthUser` resolves `IUserResolver` from `context.Services`.
+- **Signed out.** Return `SpineAIFunctionResult.SignInRequired()`: the model reads `{ "error": "signInRequired", "message": … }` and tells the user to sign in. `SpineAIFunctionResult.Error(message, code)` covers other refusals.
+- **Checks before it runs.** Arguments the schema does not have, and missing required ones, answer `invalidArguments` without calling the function. An exception answers `failed` (its message goes to the log only), and a result longer than `MaxToolResultCharacters` (16 000 by default) answers `tooLarge`.
+- **The log.** Every call logs the function, the side, the caller and how long it took at Information; arguments and results at Debug.
+- **Rounds are calls.** Function invocation sits outside the feature's gate and meter, so every round to the model is checked against the budgets, rates and `ConcurrentPerCaller` and metered on its own. A question that calls one function is two calls. `MaxToolRounds` (4 by default) caps the rounds per request.
+- **No cache.** A feature with functions skips `Cache`: its answers depend on the caller, and the cache key does not.
+- **`AICaller.System`.** The keyed `IChatClient` runs functions too, with a System caller and no user.
+- **Unknown names.** A name in `Functions` that nothing registered is logged at startup.
+- **OpenAI's reasoning models.** On chat completions, `gpt-5.4-nano` refuses function tools with a reasoning effort (400, "Function tools with reasoning_effort are not supported"): give such a feature `"Reasoning": "None"`.
+
+### Device functions in text chat
+
+A device function runs in the app: the device's own state, such as the time or the current page. The exposed chat still refuses client-sent tool messages; device calls go through a channel of their own:
+
+1. The app's request names the device functions it has, never their schemas: `"functions": [ { "name": "show_time", "prefer": "device" } ]`. Spine.AI sends it from `SpineAIOptions.Functions`.
+2. The server offers only names the feature lists and that it declared with `AddDevice`, with its own declaration.
+3. When the model calls one, the answer ends with that `FunctionCallContent`. The server keeps the call (its id, name and arguments, for this caller and feature, ten minutes) in memory, or in the host's `IDistributedCache` when one is registered.
+4. The app runs the function and posts the conversation again with the call and its result.
+5. The server takes a result only for a call it keeps for this caller, once, and puts its own record of the call before it. A forged, replayed or other caller's result is dropped.
+
+Calls the server ran itself reach the app with `InformationalOnly = true`, so the app shows them but never runs them again.
+
+**Both sides.** A function the server runs and declares for the device runs on the side the request's `prefer` names, else on the side the function prefers (`SpineAIFunction.Prefer`). The app sets it per chat with `ChatOptions.Prefer(name, side)`.
+
+### Functions in a voice session
+
+A realtime session talks to the provider directly, so the server never sees its calls. The token lists the feature's functions, and the app forwards a call to a server function:
+
+```http
+POST /ai/functions/Voice/get_my_bookings
+Authorization: Bearer <the app's own sign-in>
+
+{ "callId": "call_1", "arguments": { "days": 7 } }
+
+200 OK
+{ "result": { "bookings": [ … ] } }
+```
+
+- Only an exposed realtime feature that lists the function answers, for the callers its `Callers` allows. Any other name gets the same 404 as a feature that is off.
+- The calls have rate and concurrency limiters of their own with the feature's `RequestsPerMinute` and `ConcurrentPerCaller`, so a conversation's calls do not use up its caller's session starts. The feature's budgets must not be spent. A call costs nothing and is not a usage record.
+- A function that needs sign-in, fails or gets arguments its schema does not have still answers 200, with the error as the result: it is for the model.
+- `MapSpineAI` maps the route; `SpineAIEndpoints.FunctionAsync` is the handler for a Functions host.
 
 ## Speech
 
@@ -329,6 +409,11 @@ public sealed class AiFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ai/realtime/{name}")] HttpRequest request, string name, CancellationToken ct) =>
         SpineAIEndpoints.RealtimeSessionAsync(request, name, ct);
 
+    [Function("AiFunction")]
+    public Task<IResult> Function(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ai/functions/{feature}/{name}")] HttpRequest request, string feature, string name, CancellationToken ct) =>
+        SpineAIEndpoints.FunctionAsync(request, feature, name, ct);
+
     [Function("AiSpeech")]
     public Task<IResult> Speech(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ai/speech/{name}")] HttpRequest request, string name, CancellationToken ct) =>
@@ -345,6 +430,6 @@ Server-sent events stream through the Functions host one update at a time. This 
 
 ## Sample
 
-The push sample server (`samples/MauiSpinePushNotificationsSampleApp.Server`) registers a `demo` provider that needs no key, plus Anthropic and OpenAI. Its `send.http` has requests for an exposed feature (JSON and streamed), a feature the server owns, a picture, a realtime voice token (`Voice`, open to any caller because the sample has no sign-in), and the report.
+The push sample server (`samples/MauiSpinePushNotificationsSampleApp.Server`) registers a `demo` provider that needs no key, plus Anthropic and OpenAI. Its `send.http` has requests for an exposed feature (JSON and streamed), a feature the server owns, a picture, a realtime voice token (`Voice`, open to any caller), and the report. `Assistant` and `Voice` list two functions from `samples/MauiSpineSampleApp.Shared`, which the Showcase shares: `get_my_bookings` runs on the server with the signed-in user, and `show_time` runs on the phone or the server. The demo provider calls a function it is given when the question asks for one ("bokning", "klockan"), so the round trip runs without a key.
 
 Images that should be made once and kept, rather than per call, go through [Generated assets](ai-assets.md).

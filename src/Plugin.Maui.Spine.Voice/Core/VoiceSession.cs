@@ -5,6 +5,8 @@ using System.Threading.Channels;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Plugin.Maui.Spine.AI;
+using Plugin.Maui.Spine.Server.AI;
 
 namespace Plugin.Maui.Spine.Voice;
 
@@ -15,6 +17,12 @@ namespace Plugin.Maui.Spine.Voice;
 internal sealed class VoiceSession : IVoiceSession
 {
     public const string InterruptedKey = "spine.interrupted";
+
+    /// <summary>
+    /// Marks the user's turn while it is being transcribed: ChatView (<c>ChatView.PendingKey</c>, the same string) shows
+    /// it as a shimmer until the words arrive.
+    /// </summary>
+    public const string PendingKey = "spine.pending";
 
     /// <summary>The tool <see cref="EndsOnGoodbye"/> gives the model.</summary>
     public const string EndConversationTool = "end_conversation";
@@ -28,6 +36,9 @@ internal sealed class VoiceSession : IVoiceSession
     private long _quietSince;
 
     /// <summary>The provider's rate both ways.</summary>
+    // Microsoft.Extensions.AI's options indent, which the model pays for in tokens.
+    private static readonly JsonSerializerOptions Compact = new(AIJsonUtilities.DefaultOptions) { WriteIndented = false };
+
     private const int Rate = 24_000;
 
     /// <summary>Microphone audio is sent in frames of about 100 ms.</summary>
@@ -41,6 +52,9 @@ internal sealed class VoiceSession : IVoiceSession
     internal IVoiceAudio Audio => _audio;
     private readonly SpineVoiceOptions _options;
     private readonly VoiceTokenClient _tokens;
+    private readonly IServiceProvider? _services;
+    private readonly Dictionary<string, SpineAIFunctionSide> _preferred = new(StringComparer.Ordinal);
+    private VoiceSessionToken? _token;
     private readonly Func<IVoiceSocket> _socketFactory;
     private readonly Action<Action> _dispatch;
     private readonly TimeProvider _time;
@@ -69,11 +83,12 @@ internal sealed class VoiceSession : IVoiceSession
 
     public VoiceSession(
         IVoiceAudio audio, SpineVoiceOptions options, VoiceTokenClient tokens, Func<IVoiceSocket> socketFactory,
-        Action<Action> dispatch, TimeProvider? time = null, ILogger? logger = null)
+        Action<Action> dispatch, TimeProvider? time = null, ILogger? logger = null, IServiceProvider? services = null)
     {
         _audio = audio;
         _options = options;
         _tokens = tokens;
+        _services = services;
         _socketFactory = socketFactory;
         _dispatch = dispatch;
         _time = time ?? TimeProvider.System;
@@ -155,6 +170,7 @@ internal sealed class VoiceSession : IVoiceSession
         try
         {
             var token = await _tokens.RequestAsync(feature, cancellationToken, Voice);
+            _token = token;
             SpokenVoice = token.Voice;
             if (token.Protocol != "openai")
                 throw new NotSupportedException($"The voice feature '{feature}' speaks '{token.Protocol}', which Spine.Voice cannot speak yet; only 'openai' (OpenAI and Azure OpenAI).");
@@ -169,7 +185,7 @@ internal sealed class VoiceSession : IVoiceSession
             _run = new CancellationTokenSource();
             _outbox = Channel.CreateUnbounded<object>(new UnboundedChannelOptions { SingleReader = true });
             Interlocked.Exchange(ref _goodbye, NoGoodbye);
-            if (_options.ClientTools.Count > 0 || EndsOnGoodbye)
+            if (_options.Functions.Count > 0 || token.Tools.Count > 0 || EndsOnGoodbye)
                 Send(ToolsUpdate());
 
             if (token.MaxMinutes is { } minutes and > 0)
@@ -364,7 +380,7 @@ internal sealed class VoiceSession : IVoiceSession
                 break;
 
             case "input_audio_buffer.committed" when Text(e, "item_id") is { } userItem:
-                _dispatch(() => AddMessage(userItem, new ChatMessage(ChatRole.User, "…")));
+                _dispatch(() => AddMessage(userItem, new ChatMessage(ChatRole.User, "") { AdditionalProperties = new() { [PendingKey] = true } }));
                 break;
 
             case "conversation.item.input_audio_transcription.completed" when Text(e, "item_id") is { } heardItem:
@@ -471,24 +487,29 @@ internal sealed class VoiceSession : IVoiceSession
 
         object? result;
         var goodbye = name == EndConversationTool && EndsOnGoodbye;
-        if (goodbye)
+        // A model often says goodbye in the same response that hangs up. That was the farewell: asking for another one
+        // made it say goodbye twice.
+        var saidGoodbye = goodbye && _answerAudio;
+        if (saidGoodbye)
+            result = "The call ends once your goodbye has played. Say nothing more.";
+        else if (goodbye)
             result = "The call ends after your goodbye. Say a short goodbye now.";
-        else if (_options.ClientTools.FirstOrDefault(t => t.Name == name) is not { } tool)
-        {
-            result = new { error = $"The app has no tool named '{name}'." };
-            _logger.LogWarning("Spine.Voice: the model called '{Tool}', which the app does not have.", name);
-        }
         else
         {
             try
             {
-                result = await tool.InvokeAsync(new AIFunctionArguments(call.Arguments), cancellationToken);
+                result = SideOf(name) switch
+                {
+                    SpineAIFunctionSide.Device => await _options.Functions[name]!.InvokeAsync(call.Arguments, await DeviceContextAsync(cancellationToken)),
+                    SpineAIFunctionSide.Server => await _tokens.CallFunctionAsync(_token!.Feature, name, callId, arguments, cancellationToken),
+                    _ => Unknown(name),
+                };
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                // The model hears that the tool failed, so it can say so, rather than waiting for an answer that never comes.
-                _logger.LogWarning(e, "Spine.Voice: the tool '{Tool}' failed.", name);
-                result = new { error = $"The tool '{name}' failed." };
+                // The model hears that the function failed, so it can say so, rather than waiting for an answer that never comes.
+                _logger.LogWarning(e, "Spine.Voice: the function '{Function}' failed.", name);
+                result = SpineAIFunctionResult.Error($"The function '{name}' failed.");
             }
         }
 
@@ -500,9 +521,18 @@ internal sealed class VoiceSession : IVoiceSession
             {
                 ["type"] = "function_call_output",
                 ["call_id"] = callId,
-                ["output"] = result as string ?? JsonSerializer.Serialize(result, AIJsonUtilities.DefaultOptions),
+                ["output"] = result as string ?? JsonSerializer.Serialize(result, Compact.GetTypeInfo(result?.GetType() ?? typeof(object))),
             },
         });
+        if (saidGoodbye)
+        {
+            // The farewell is this response: done when it reports done, or now when it already has.
+            Interlocked.Exchange(ref _goodbye, FarewellUnderWay);
+            if (!_responseActive)
+                Interlocked.CompareExchange(ref _goodbye, FarewellDone, FarewellUnderWay);
+            return;
+        }
+
         // The response that called the tool may still report done after this; only the next one is the farewell.
         if (goodbye)
             Interlocked.Exchange(ref _goodbye, FarewellAsked);
@@ -529,6 +559,58 @@ internal sealed class VoiceSession : IVoiceSession
         return parsed;
     }
 
+    public void Prefer(string function, SpineAIFunctionSide side)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(function);
+        lock (_preferred)
+            _preferred[function] = side;
+        if (_connected)
+            Send(ToolsUpdate());
+    }
+
+    /// <summary>
+    /// Where a call to <paramref name="name"/> runs: the app's own function, or the server's from the token. A function both
+    /// sides have runs where the session's <see cref="Prefer"/> says, else where the app's declaration prefers.
+    /// </summary>
+    private SpineAIFunctionSide? SideOf(string name)
+    {
+        var device = _options.Functions[name];
+        var server = _token?.Tools.FirstOrDefault(t => t.Name == name && t.OnServer);
+
+        if (device is null) return server is null ? null : SpineAIFunctionSide.Server;
+        if (server is null) return SpineAIFunctionSide.Device;
+
+        lock (_preferred)
+            return SpineAIFunctionOrder.SideOf(device, _preferred);
+    }
+
+    private object Unknown(string name)
+    {
+        _logger.LogWarning("Spine.Voice: the model called '{Function}', which neither the app nor the server has.", name);
+        return SpineAIFunctionResult.Error($"There is no function named '{name}'.", "notFound");
+    }
+
+    private async Task<SpineAIFunctionContext> DeviceContextAsync(CancellationToken cancellationToken)
+    {
+        var caller = _services?.GetService(typeof(Plugin.Maui.Spine.Authentication.ISignedInSession)) is Plugin.Maui.Spine.Authentication.ISignedInSession { UserId: { Length: > 0 } user }
+            ? AICaller.SignedIn(user)
+            : await _tokens.InstallationIdAsync(cancellationToken) is { Length: > 0 } installation ? AICaller.Installation(installation) : AICaller.Anonymous(null);
+
+        return new SpineAIFunctionContext(caller, SpineAIFunctionSide.Device)
+        {
+            Feature = _token?.Feature,
+            Services = _services ?? EmptyServices.Instance,
+            CancellationToken = cancellationToken,
+        };
+    }
+
+    private sealed class EmptyServices : IServiceProvider
+    {
+        public static EmptyServices Instance { get; } = new();
+
+        public object? GetService(Type serviceType) => null;
+    }
+
     private JsonObject ToolsUpdate()
     {
         var list = new JsonArray();
@@ -542,14 +624,23 @@ internal sealed class VoiceSession : IVoiceSession
                 ["parameters"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
             });
         }
-        foreach (var tool in _options.ClientTools)
+        // The server's functions from the token, then the app's own: one declaration per name, from the side that runs it.
+        var names = (_token?.Tools.Where(t => t.OnServer || _options.Functions[t.Name] is not null).Select(t => t.Name) ?? [])
+            .Concat(_options.Functions.Select(f => f.Name)).Distinct(StringComparer.Ordinal);
+        foreach (var name in names)
         {
+            var (description, schema) = SideOf(name) == SpineAIFunctionSide.Device && _options.Functions[name] is { } device
+                ? (device.Description, device.JsonSchema)
+                : _token!.Tools.First(t => t.Name == name) is var server ? (server.Description, server.Parameters) : default;
+
             list.Add(new JsonObject
             {
                 ["type"] = "function",
-                ["name"] = tool.Name,
-                ["description"] = tool.Description,
-                ["parameters"] = JsonNode.Parse(tool.JsonSchema.GetRawText()),
+                ["name"] = name,
+                ["description"] = description,
+                ["parameters"] = schema.ValueKind == JsonValueKind.Object
+                    ? JsonNode.Parse(schema.GetRawText())
+                    : new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
             });
         }
         return new JsonObject
@@ -688,7 +779,17 @@ internal sealed class VoiceSession : IVoiceSession
             return;
         }
 
-        var replacement = new ChatMessage(role, append ? old.Text + text : text) { AdditionalProperties = old.AdditionalProperties };
+        // The words have arrived, so a pending turn is pending no longer.
+        var properties = old.AdditionalProperties;
+        if (properties?.ContainsKey(PendingKey) == true)
+        {
+            properties = new AdditionalPropertiesDictionary(properties);
+            properties.Remove(PendingKey);
+            if (properties.Count == 0)
+                properties = null;
+        }
+
+        var replacement = new ChatMessage(role, append ? old.Text + text : text) { AdditionalProperties = properties };
         var index = _transcript.IndexOf(old);
         _byItem[itemId] = replacement;
         if (index >= 0)

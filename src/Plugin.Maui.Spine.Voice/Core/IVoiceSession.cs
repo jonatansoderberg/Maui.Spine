@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Plugin.Maui.Spine.AI;
 
 namespace Plugin.Maui.Spine.Voice;
 
@@ -104,4 +105,12 @@ public interface IVoiceSession : IAsyncDisposable
 
     /// <summary>Writes the latest levels, bands and the conversation's state into the frame. Call it on the UI's tick.</summary>
     VoiceFrame UpdateFrame();
+
+    /// <summary>
+    /// Runs <paramref name="function"/> on <paramref name="side"/> in this session when both the app and the server have
+    /// it, instead of the side the function prefers. Set before or during a session.
+    /// </summary>
+    /// <param name="function">The function's name.</param>
+    /// <param name="side">The side to run it on.</param>
+    void Prefer(string function, SpineAIFunctionSide side);
 }

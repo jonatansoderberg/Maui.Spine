@@ -16,7 +16,20 @@ namespace Plugin.Maui.Spine.Server.AI;
 /// <param name="Options">The feature's session.</param>
 /// <param name="Caller">Who the session is for.</param>
 public sealed record AIRealtimeRequest(
-    string Feature, string Model, string? Instructions, int? MaxOutputTokens, AIRealtimeOptions Options, AICaller Caller);
+    string Feature, string Model, string? Instructions, int? MaxOutputTokens, AIRealtimeOptions Options, AICaller Caller)
+{
+    /// <summary>The feature's functions, which the session declares to the model.</summary>
+    public IReadOnlyList<AIRealtimeTool> Tools { get; init; } = [];
+}
+
+/// <summary>A function a realtime feature lists, as the token answer and the provider's session declare it.</summary>
+/// <param name="Name">The name the model calls it by.</param>
+/// <param name="Description">What it does, for the model.</param>
+/// <param name="Parameters">The parameters' JSON schema.</param>
+/// <param name="OnServer">The server runs it: the app forwards the call to <c>POST /ai/functions/{feature}/{name}</c>.</param>
+/// <param name="OnDevice">The app may run it itself.</param>
+/// <param name="Prefer">The side that runs it when both have it.</param>
+public sealed record AIRealtimeTool(string Name, string Description, JsonElement Parameters, bool OnServer, bool OnDevice, SpineAIFunctionSide Prefer);
 
 /// <summary>What the app connects with: a WebSocket to <see cref="Url"/> with <see cref="Token"/> as its bearer.</summary>
 /// <param name="Protocol">The events spoken on the socket, such as <c>openai</c> for OpenAI and Azure OpenAI.</param>
@@ -175,6 +188,18 @@ internal sealed class OpenAIRealtimeProvider(HttpClient http, Uri root, string k
 
         if (request.Instructions is { Length: > 0 } instructions) session["instructions"] = instructions;
         if (request.MaxOutputTokens is { } maxTokens) session["max_output_tokens"] = maxTokens;
+
+        if (request.Tools.Count > 0)
+        {
+            session["tools"] = new JsonArray([.. request.Tools.Select(tool => (JsonNode)new JsonObject
+            {
+                ["type"] = "function",
+                ["name"] = tool.Name,
+                ["description"] = tool.Description,
+                ["parameters"] = JsonNode.Parse(tool.Parameters.GetRawText()),
+            })]);
+            session["tool_choice"] = "auto";
+        }
 
         return new JsonObject
         {

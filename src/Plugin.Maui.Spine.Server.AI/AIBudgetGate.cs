@@ -56,14 +56,15 @@ internal sealed class AIBudgetGate
 
     /// <summary>
     /// Takes a permit from the feature's rate and concurrency limits for <paramref name="caller"/>. The result is
-    /// held until the call ends, a stream until its last update.
+    /// held until the call ends, a stream until its last update. A <paramref name="lane"/> has limiters of its own with the
+    /// same limits, so a realtime session's function calls do not use up the caller's session starts.
     /// </summary>
     /// <exception cref="AIRateLimitedException">The caller is over a limit.</exception>
-    public IDisposable Acquire(AIFeature feature, AICaller caller)
+    public IDisposable Acquire(AIFeature feature, AICaller caller, string? lane = null)
     {
         if (caller.Kind == AICallerKind.System) return NoLease.Instance;
 
-        var limiters = _limiters.GetOrAdd(feature.Name, _ => new Limiters(feature.Options));
+        var limiters = _limiters.GetOrAdd(lane is null ? feature.Name : $"{feature.Name}|{lane}", _ => new Limiters(feature.Options));
 
         if (limiters.Rate is { } rate)
         {

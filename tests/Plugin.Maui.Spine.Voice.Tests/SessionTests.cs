@@ -61,13 +61,23 @@ internal sealed class TokenHandler : HttpMessageHandler
     public TimeSpan? RetryAfter { get; set; }
     public HttpRequestMessage? Last { get; private set; }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    /// <summary>What <c>POST …/functions/{feature}/{name}</c> answers, and the bodies it was sent.</summary>
+    public (HttpStatusCode Status, string Body) Function { get; set; } = (HttpStatusCode.OK, """{ "result": "from the server" }""");
+    public ConcurrentQueue<(HttpRequestMessage Request, string Body)> FunctionCalls { get; } = new();
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (request.RequestUri!.AbsolutePath.Contains("/functions/", StringComparison.Ordinal))
+        {
+            FunctionCalls.Enqueue((request, await request.Content!.ReadAsStringAsync(cancellationToken)));
+            return new HttpResponseMessage(Function.Status) { Content = new StringContent(Function.Body, Encoding.UTF8, "application/json") };
+        }
+
         Last = request;
         var response = new HttpResponseMessage(Status) { Content = new StringContent(Body, Encoding.UTF8, "application/json") };
         if (RetryAfter is { } wait)
             response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(wait);
-        return Task.FromResult(response);
+        return response;
     }
 }
 
@@ -186,7 +196,7 @@ public sealed class SessionTests : IAsyncLifetime
     [Fact]
     public async Task Client_tools_are_added_to_the_session_when_it_connects()
     {
-        _options.ClientTools.Add(AIFunctionFactory.Create(() => "12:00", "show_time", "Says what time it is."));
+        _options.Functions.Add(AIFunctionFactory.Create(() => "12:00", "show_time", "Says what time it is."));
 
         await ConnectAsync();
 
@@ -321,7 +331,7 @@ public sealed class SessionTests : IAsyncLifetime
     [Fact]
     public async Task A_client_tool_runs_and_its_answer_goes_back_to_the_model()
     {
-        _options.ClientTools.Add(AIFunctionFactory.Create((string city) => $"12:00 i {city}", "show_time", "Says what time it is."));
+        _options.Functions.Add(AIFunctionFactory.Create((string city) => $"12:00 i {city}", "show_time", "Says what time it is."));
         await ConnectAsync();
 
         _socket.Push(new { type = "response.function_call_arguments.done", call_id = "c1", name = "show_time", arguments = """{"city":"Visby"}""" });
@@ -333,6 +343,115 @@ public sealed class SessionTests : IAsyncLifetime
         Assert.Contains("12:00 i Visby", output.GetProperty("output").GetString());
         Assert.Contains(_session.Transcript, m => m.Contents.OfType<FunctionCallContent>().Any(c => c.Name == "show_time"));
         Assert.Contains(_session.Transcript, m => m.Contents.OfType<FunctionResultContent>().Any(r => r.CallId == "c1"));
+    }
+
+    private const string TokenWithFunctions = """
+        { "feature": "Voice", "protocol": "openai", "model": "gpt-realtime", "url": "wss://api.openai.com/v1/realtime?model=gpt-realtime",
+          "token": "ek_test", "expiresAt": "2026-10-15T10:01:00+00:00", "maxMinutes": 3,
+          "tools": [
+            { "name": "get_my_bookings", "description": "Lists the bookings.", "parameters": { "type": "object", "properties": { "days": { "type": "integer" } } }, "runsOn": ["server"], "prefer": "server" },
+            { "name": "show_time", "description": "The time.", "parameters": { "type": "object", "properties": {} }, "runsOn": ["server", "device"], "prefer": "device" },
+            { "name": "device_only", "description": "A device function the app lacks.", "parameters": { "type": "object", "properties": {} }, "runsOn": ["device"], "prefer": "device" }
+          ] }
+        """;
+
+    private async Task<JsonElement> CallAsync(string callId, string name, string arguments = "{}")
+    {
+        _socket.Push(new { type = "response.function_call_arguments.done", call_id = callId, name, arguments });
+        await Until(() => _socket.OfType("conversation.item.create").Any(m => m.GetProperty("item").GetProperty("call_id").GetString() == callId), $"the answer to {callId}");
+        return _socket.OfType("conversation.item.create").Single(m => m.GetProperty("item").GetProperty("call_id").GetString() == callId).GetProperty("item");
+    }
+
+    [Fact]
+    public async Task The_users_turn_is_pending_until_its_words_arrive()
+    {
+        await ConnectAsync();
+
+        _socket.Push(new { type = "input_audio_buffer.committed", item_id = "u1" });
+        await Until(() => _session.Transcript.Count == 1, "the turn added");
+        var pending = _session.Transcript.Single();
+        Assert.Equal(ChatRole.User, pending.Role);
+        Assert.Equal("", pending.Text);
+        Assert.Equal(true, pending.AdditionalProperties?[VoiceSession.PendingKey]);
+
+        _socket.Push(new { type = "conversation.item.input_audio_transcription.completed", item_id = "u1", transcript = " Vad är klockan? " });
+        await Until(() => _session.Transcript.Single().Text.Length > 0, "the words");
+        Assert.Equal("Vad är klockan?", _session.Transcript.Single().Text);
+        Assert.False(_session.Transcript.Single().AdditionalProperties?.ContainsKey(VoiceSession.PendingKey) ?? false);
+    }
+
+    [Fact]
+    public async Task The_servers_functions_from_the_token_are_declared_with_the_apps_own()
+    {
+        _tokens.Body = TokenWithFunctions;
+        _options.Functions.Add("show_time", "Says the time on the phone.", () => "12:00");
+        _options.Functions.Add("open_page", "Opens a page.", () => "opened");
+
+        await ConnectAsync();
+
+        await Until(() => _socket.OfType("session.update").Any(), "a session.update");
+        var tools = _socket.OfType("session.update").Single().GetProperty("session").GetProperty("tools").EnumerateArray().ToList();
+        Assert.Equal(["get_my_bookings", "show_time", "open_page"], tools.Select(t => t.GetProperty("name").GetString()));
+        Assert.True(tools[0].GetProperty("parameters").GetProperty("properties").TryGetProperty("days", out _));
+        Assert.Equal("Says the time on the phone.", tools[1].GetProperty("description").GetString());
+    }
+
+    [Fact]
+    public async Task A_server_function_is_forwarded_with_the_apps_sign_in_and_its_result_goes_to_the_model()
+    {
+        _tokens.Body = TokenWithFunctions;
+        _tokens.Function = (HttpStatusCode.OK, """{ "result": { "bookings": 2 } }""");
+        await ConnectAsync();
+
+        var output = await CallAsync("c1", "get_my_bookings", """{"days":3}""");
+
+        var (request, body) = Assert.Single(_tokens.FunctionCalls);
+        Assert.Equal("https://api.example.com/ai/functions/Voice/get_my_bookings", request.RequestUri?.ToString());
+        Assert.Equal("Bearer app-token", request.Headers.Authorization?.ToString());
+        Assert.Equal(3, JsonDocument.Parse(body).RootElement.GetProperty("arguments").GetProperty("days").GetInt32());
+        Assert.Equal("c1", JsonDocument.Parse(body).RootElement.GetProperty("callId").GetString());
+        Assert.Contains("\"bookings\":2", output.GetProperty("output").GetString());
+    }
+
+    [Fact]
+    public async Task A_refused_forward_tells_the_model_to_ask_for_sign_in()
+    {
+        _tokens.Body = TokenWithFunctions;
+        _tokens.Function = (HttpStatusCode.Forbidden, """{ "off": "signInRequired" }""");
+        await ConnectAsync();
+
+        var output = await CallAsync("c1", "get_my_bookings");
+
+        Assert.Contains(SpineAIFunctionResult.SignInRequiredError, output.GetProperty("output").GetString());
+    }
+
+    [Fact]
+    public async Task The_sessions_order_switches_the_side_of_a_function_both_have()
+    {
+        _tokens.Body = TokenWithFunctions;
+        _options.Functions.Add("show_time", "Says the time on the phone.", () => "12:00 on the phone");
+        await ConnectAsync();
+
+        Assert.Contains("on the phone", (await CallAsync("c1", "show_time")).GetProperty("output").GetString());
+        Assert.Empty(_tokens.FunctionCalls);
+
+        _session.Prefer("show_time", SpineAIFunctionSide.Server);
+        await Until(() => _socket.OfType("session.update").Count() == 2, "the tools declared again");
+
+        Assert.Contains("from the server", (await CallAsync("c2", "show_time")).GetProperty("output").GetString());
+        Assert.Single(_tokens.FunctionCalls);
+    }
+
+    [Fact]
+    public async Task A_device_function_the_app_lacks_is_not_declared_and_answers_not_found()
+    {
+        _tokens.Body = TokenWithFunctions;
+        await ConnectAsync();
+
+        await Until(() => _socket.OfType("session.update").Any(), "a session.update");
+        var names = _socket.OfType("session.update").Single().GetProperty("session").GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString());
+        Assert.DoesNotContain("device_only", names);
+        Assert.Contains("notFound", (await CallAsync("c1", "device_only")).GetProperty("output").GetString());
     }
 
     [Fact]
@@ -385,6 +504,30 @@ public sealed class SessionTests : IAsyncLifetime
         await Until(() => _ended.Count == 1, "ended");
         Assert.Equal(VoiceSessionEnd.Goodbye, _ended[0].Reason);
         Assert.False(_session.IsConnected);
+    }
+
+    [Fact]
+    public async Task A_goodbye_said_with_the_hang_up_is_the_farewell_and_no_second_one_is_asked_for()
+    {
+        _session.EndsOnGoodbye = true;
+        await ConnectAsync();
+
+        // One response: the model says goodbye and calls the tool.
+        _socket.Push(new { type = "response.created", response = new { id = "r1" } });
+        _socket.Push(new { type = "response.output_audio.delta", item_id = "a1", delta = Audio(2400) });
+        _socket.Push(new { type = "response.output_audio.done", item_id = "a1" });
+        _socket.Push(new { type = "response.function_call_arguments.done", call_id = "c1", name = VoiceSession.EndConversationTool, arguments = "{}" });
+        await Until(() => _socket.OfType("conversation.item.create").Any(), "the tool's output");
+        _socket.Push(new { type = "response.done", response = new { id = "r1", status = "completed" } });
+        await Until(() => _audio.IsPlaying, "the goodbye queued");
+
+        _audio.Render(4800, 48_000);
+        for (var i = 0; i < 9; i++)
+            _time.Advance(TimeSpan.FromMilliseconds(100));
+        await Until(() => _ended.Count == 1, "ended");
+
+        Assert.Empty(_socket.OfType("response.create"));
+        Assert.Equal(VoiceSessionEnd.Goodbye, _ended[0].Reason);
     }
 
     [Fact]
@@ -490,7 +633,7 @@ public sealed class SessionTests : IAsyncLifetime
     public async Task A_slow_tool_does_not_hold_up_the_answer_or_an_interruption()
     {
         var release = new TaskCompletionSource<string>();
-        _options.ClientTools.Add(AIFunctionFactory.Create(() => release.Task, "slow", "Takes its time."));
+        _options.Functions.Add(AIFunctionFactory.Create(() => release.Task, "slow", "Takes its time."));
         await ConnectAsync();
 
         _socket.Push(new { type = "response.function_call_arguments.done", call_id = "c1", name = "slow", arguments = "{}" });

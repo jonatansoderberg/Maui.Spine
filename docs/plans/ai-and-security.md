@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-19 (#630: VoiceView removed; a voice is drawn by AvatarView, see docs/plans/spine-avatar.md C2b)
+**Last updated:** 2026-10-19 (#632: AI functions on the device or the server with the user's context, step 2.7, in review; before that #630: VoiceView removed, a voice is drawn by AvatarView, see docs/plans/spine-avatar.md C2b)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -125,6 +125,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 2.5a | `Controls.Markdown`: `MarkdownView` on native views | #513 | 0.2 | Done | #538 | Markdown is its own package (Q21). Split from the chat view on 2026-10-12 (Decisions). |
 | 2.5b | `Controls.Chat`: the chat view with streaming, composer and tool cards | #537 | 2.5a | Done | #539 | `ChatView` and a separate `ChatComposer` in the page footer (Decisions). Renders answers with `MarkdownView`. |
 | 2.6 | On-device `IChatClient` spike, Android and Windows | #514 | none | Ready | | Outside this repo. Contribute upstream to dotnet/maui-labs if it works. |
+| 2.7 | AI functions: one declaration for the device and the server, the user's context on the server, text chat and voice | #632 | 2.4, 4.2, 4.3a, 5.1a | In review | #633 | A new package, `Plugin.Maui.Spine.AI.Functions` (owner, 2026-10-19). `UseFunctionInvocation` per call outside the gate and meter; device calls in text chat through a separate channel that takes results only for calls the server made; realtime tokens list the tools and the app forwards server calls to `POST /ai/functions/{feature}/{name}`, no relay (Decisions). Seen in the simulator against the local server (signed in and out) and against Azure signed out, with gpt-5.4-nano in text chat and gpt-realtime in a voice session: sign-in asked for, `show_time` on the phone and, preferred, on the server. |
 
 ### Phase 3: highlight (done 2026-10-12)
 
@@ -169,6 +170,9 @@ These are behaviours that are merged but have not been seen working. Take one wh
 
 | Step | What has not been verified | What it takes | How |
 |---|---|---|---|
+| 2.7 (#632) | Apple Intelligence calling a device function (`show_time`) through Spine.AI: in the iPhone 17 Pro simulator FoundationModels fails even without tools, and the Mac's model was not downloaded ("The model is not available") | The owner's iPhone with Apple Intelligence | The Showcase's AI client page: "Vad är klockan?" answered on the device |
+| 2.7 (#632) | Signed in against Azure: `get_my_bookings` with the user's bookings in the Chat page (Server) and in Voice chat. Signed out, and `show_time` on both sides, were seen against Azure on 2026-10-19 in the simulator (gpt-5.4-nano and gpt-realtime); signed in only against the local server | The owner signed in to the Showcase against the Azure server | Ask "Vilka bokningar har jag?" on both pages |
+| 2.7 (#632) | Pending device calls in `IDistributedCache` across instances, and `SpineAIEndpoints.FunctionAsync` under Azure Functions (only the in-memory store ran; Functions only compiled) | Redis or a second instance; the scratch Functions AppHost | Two servers behind one address, a device call answered on the other |
 | 1.1 (#506) | Guards on Windows at run time: a guarded page, command and tab. The tab should show the guard's cover. | A Windows machine | A scratch app with two `[NavigableTab]` pages, one guarded (see below), plus the Showcase Guards page |
 | 1.1 (#506) | Android and Windows tabs fall back to switching back when the guard has **no** `IGuardCover` | Emulator | A guard that implements only `IGuard<T>` on a tab; tap the tab, refuse; the previous tab should come back and the guarded tab's page should never show |
 | 1.1 (#506) | A cold start through a shortcut or a search result to a guarded page. The guard should wait for activation and the root page, then ask over the root. | Simulator or phone | Showcase: put a guard on the page a shortcut opens, kill the app, open it from the shortcut |
@@ -524,6 +528,28 @@ Newest last. Each entry is dated and says who decided.
   - **A simulator build needs the team's signing identity** (`CodesignKey` and a profile) for the passkey sheet: without an `application-identifier` iOS refuses with error 1004 ("process without application identifier").
 - **2026-10-17, owner (#611):** A passkey row shows where it is kept (from the AAGUID), the device it was made on (the app's device name) and when it was last used.
 - **2026-10-17, Claude (#611):** The authenticator's name is resolved at registration and kept with the login, so `SpineAuthUser.ToContract` needs no options; `AuthenticatorNames` is a table of well-known AAGUIDs the app can extend. The device name is the app's own label and is not checked.
+- **2026-10-19, owner (#632):** AI functions:
+  - one declaration per function; it runs on the device, the server or both, with an order (priority) per function that a voice session or a chat can override;
+  - server functions get the user's context (`SpineAIFunctionContext`: the caller, the `ClaimsPrincipal`, `GetUserAsync`, the services, cancellation), hidden from the model's schema;
+  - calls go to the log and to a debug view; the user hears of them through the model's answer; no confirmation UI in v1;
+  - on-device models get tools where the platform supports them (Apple Intelligence);
+  - no limits per function: the feature's budget and rate limits apply;
+  - the exposed chat keeps refusing client-sent tool messages; device calls in text chat go through a separate opt-in channel that takes results only for calls the server made;
+  - realtime: the token lists the feature's tools, and the app forwards server calls to `POST /ai/functions/{feature}/{name}` with the user's token; no relay (this answers the #517 decision's "server tools").
+  - The contract is its own package, `Plugin.Maui.Spine.AI.Functions` (Common + M.E.AI.Abstractions), so a shared project references neither MAUI nor ASP.NET Core; `AICaller` moved there, type-forwarded from Server.AI.
+  - `GetUserAsync()` returns Common's `SpineUser`, through an `ISpineUserLookup` that Server.Authentication registers; server-only code resolves `IUserResolver` for the whole `SpineAuthUser`.
+  - The types are `SpineAI…` (`SpineAIFunction`, `SpineAIFunctionContext`, `SpineAIFunctionSide`, `SpineAIFunctionResult`, `SpineAIFunctions`), and `SpineVoiceOptions.ClientTools` (unreleased) became `Functions`, the same set as `SpineAIOptions.Functions`.
+  - The Showcase's demo provider calls the functions it is given, and the Azure sample server's `Assistant` moved to `openai` / `gpt-5.4-nano`.
+- **2026-10-19, Claude (#632):**
+  - **Every round of function calls is a call.** `FunctionInvokingChatClient` sits outside `CallerChatClient`, so each round is checked against the budgets, rates and `ConcurrentPerCaller` and metered; a question with one function is two calls. **Why:** "the feature's budget applies" has to hold for a model that loops; `MaxToolRounds` (4) caps a request. The Showcase's per-minute limits were raised for it.
+  - **A feature with functions skips the response cache.** **Why:** the answer depends on the caller and the cache key does not.
+  - **Server calls reach the app as `InformationalOnly`,** and the app also marks any call that is not one of its own functions, so the app's function invocation never runs a call twice or answers it with "not found".
+  - **Pending device calls live ten minutes,** in memory or in the host's `IDistributedCache`, keyed by feature, caller and call id; a result is taken once and the server puts back its own record of the call, never the client's.
+  - **The app names its device functions, never their schemas,** and the server offers only those the feature lists and declared with `AddDevice`. **Why:** a client-sent description would be a way into the prompt.
+  - **A forwarded realtime call has limiters of its own** with the feature's `RequestsPerMinute` and `ConcurrentPerCaller` (a lane), checks the budgets, and is not a usage record. **Why:** a conversation's calls must not use up the caller's session starts, and they cost nothing.
+  - **Refusals the model should explain are 200 results:** sign-in needed, invalid arguments (unknown or missing, checked before the function runs), a failure (the exception's message only in the log), a result over `MaxToolResultCharacters` (16 000).
+  - **`ChatView.ShowToolCalls` is off by default.** **Why:** the issue makes tool cards a debug option; the Chat page turns it on to show them.
+  - **Device functions see the installation, or the user's id through `ISignedInSession`.** The app's Authentication registers no `ISpineUserLookup`: device functions read the device, and user data belongs on the server.
 - **2026-10-19, owner (#630):** One visual for a voice: `AvatarView` with `VoiceAvatarDriver`. VoiceView, the `orb` and the canvas face, the `VoiceVisual`/`VoiceVisualView` contracts and `Plugin.Maui.Spine.Controls.Voice` are removed (unreleased); bars and ring became built-in avatars in Controls.Avatar. This replaces the 2026-10-09 and 2026-10-15 decisions on VoiceView below. `IVisemeSource` stays in Spine.Voice; the screen's edge stays in Highlight.
 
 ## Open questions

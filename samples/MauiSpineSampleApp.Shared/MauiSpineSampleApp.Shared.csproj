@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!-- What the Showcase and the push sample server share: the AI functions, written once for both sides. -->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<RootNamespace>MauiSpineSampleApp.Shared</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Plugin.Maui.Spine.AI.Functions\Plugin.Maui.Spine.AI.Functions.csproj" />
+	</ItemGroup>
+
+</Project>

@@ -109,6 +109,30 @@ Content-Type: application/json
 
 { "prompt": "En orienteringskontroll i en granskog, akvarell" }
 
+### AI: a function the server runs. Assistant calls get_my_bookings, which asks for sign-in here; add "Authorization: Bearer <accessToken>" from the sign-in requests below for the user's bookings
+POST {{host}}/ai/features/Assistant
+Content-Type: application/json
+Spine-Installation: sample-phone
+
+{ "messages": [ { "role": "user", "contents": [{ "$type": "text", "text": "Vilka bokningar har jag?" }] } ] }
+
+### AI: a device function. The app says it has show_time and runs the call the answer ends with, then posts the result (see docs/wiki/ai-server.md)
+POST {{host}}/ai/features/Assistant
+Content-Type: application/json
+Spine-Installation: sample-phone
+
+{
+  "messages": [ { "role": "user", "contents": [{ "$type": "text", "text": "Vad är klockan?" }] } ],
+  "functions": [ { "name": "show_time", "prefer": "device" } ]
+}
+
+### AI: a voice session's call to a server function, forwarded by the app with the user's token (Voice needs the OpenAI key)
+POST {{host}}/ai/functions/Voice/get_my_bookings
+Content-Type: application/json
+Spine-Installation: sample-phone
+
+{ "callId": "call_1", "arguments": { "days": 7 } }
+
 ### AI: a token for a realtime voice session (Voice, OpenAI). The app opens "url" with "Authorization: Bearer {token}"
 POST {{host}}/ai/realtime/Voice
 Spine-Installation: sample-phone

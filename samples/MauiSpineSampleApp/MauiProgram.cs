@@ -108,17 +108,20 @@ public static class MauiProgram
         // The AI client page: the push sample server with its demo provider (samples/MauiSpinePushNotificationsSampleApp.Server).
         // Android reaches it on localhost through adb reverse tcp:5100 tcp:5100.
         // The Voice chat page: the push sample server's realtime Voice feature. A phone sets the Mac's address on the page.
+        // Both send the Sign-in page's user, so the server's functions (get_my_bookings) know who is asking.
         builder.UseSpineVoice(o =>
         {
             o.SessionEndpoint = new Uri(SampleServer, "ai");
-            o.ClientTools.Add(Microsoft.Extensions.AI.AIFunctionFactory.Create(
-                () => DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
-                "show_time", "Says what time it is on the user's phone."));
+            o.AuthorizationHeader = SignedInHeaderAsync;
         });
 
         builder.UseSpineAI(o =>
         {
             o.Backend = new Uri(SampleServer, "ai");
+            o.AuthorizationHeader = SignedInHeaderAsync;
+            // The app's own functions, shared with UseSpineVoice: Apple Intelligence, the server's Assistant and Voice chat
+            // can all call it. The server has it too (MauiSpineSampleApp.Shared), so a chat can run it on either side.
+            o.Functions.Add(MauiSpineSampleApp.Shared.SampleFunctions.ShowTime);
             // The Generated images page reads postcards from the messaging sample's API, another service than the features.
             o.AssetsBackend = new Uri("http://localhost:5240/ai");
             o.Feature("Assistant", f => f
@@ -154,4 +157,10 @@ public static class MauiProgram
     // The push sample server: on this computer by default (a simulator, or Android through adb reverse), or the one in
     // Azure with -p:SpineSampleServer=https://… (a phone; samples/MauiSpinePushNotificationsSampleApp.Server/README.md).
     private static readonly Uri SampleServer = new(BuildSetting("SpineSampleServer").TrimEnd('/') + "/");
+
+    /// <summary>The signed-in user's <c>Authorization</c> header for the sample server, or none when signed out.</summary>
+    private static Task<string?> SignedInHeaderAsync(CancellationToken cancellationToken) =>
+        IPlatformApplication.Current?.Services.GetService<Plugin.Maui.Spine.Authentication.ISignedInSession>() is { } session
+            ? session.GetAuthorizationHeaderAsync(cancellationToken)
+            : Task.FromResult<string?>(null);
 }

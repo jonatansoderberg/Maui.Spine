@@ -139,7 +139,11 @@ internal static class BottomSheetPageExtensions
         ActiveBottomSheetChanged?.Invoke();
 
         await MainThread.InvokeOnMainThreadAsync(() =>
-            presenterVc.PresentViewController(sheetVc, true, null));
+        {
+            // A field on the page underneath keeps its keyboard over the sheet otherwise (a chat's composer).
+            presenterVc.View?.Window?.EndEditing(true);
+            presenterVc.PresentViewController(sheetVc, true, null);
+        });
 
         await tcs.Task;
 

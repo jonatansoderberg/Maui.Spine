@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.AI;
 using Plugin.Maui.Spine.Common;
 
 namespace Plugin.Maui.Spine.Voice;
@@ -7,7 +8,7 @@ namespace Plugin.Maui.Spine.Voice;
 /// <summary>Registers <c>Plugin.Maui.Spine.Voice</c> with a <see cref="MauiAppBuilder"/>.</summary>
 public static class SpineVoiceExtensions
 {
-    static readonly SpineVoiceOptions Options = new();
+    static readonly SpineVoiceOptions Options = new() { Functions = SpineAIFunctions.App };
 
     /// <summary>
     /// Registers <see cref="IVoiceSession"/> and <see cref="IVoiceAudio"/>, a new one for each conversation, and
@@ -21,7 +22,7 @@ public static class SpineVoiceExtensions
     /// {
     ///     o.SessionEndpoint = new Uri("https://api.example.com/ai");
     ///     o.AuthorizationHeader = ct => auth.GetHeaderAsync(ct);
-    ///     o.ClientTools.Add(AIFunctionFactory.Create(OpenPage, "open_page", "Opens a page of the app."));
+    ///     o.Functions.Add("open_page", "Opens a page of the app.", OpenPage);
     /// });
     /// </code>
     /// </example>
@@ -38,7 +39,8 @@ public static class SpineVoiceExtensions
             static () => new ClientVoiceSocket(),
             static action => MainThread.BeginInvokeOnMainThread(action),
             services.GetService<TimeProvider>(),
-            services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Voice")));
+            services.GetService<ILoggerFactory>()?.CreateLogger("Plugin.Maui.Spine.Voice"),
+            services));
         builder.Services.TryAddTransient(static services => new ServerSpeech(
             CreateAudio(services),
             Options,

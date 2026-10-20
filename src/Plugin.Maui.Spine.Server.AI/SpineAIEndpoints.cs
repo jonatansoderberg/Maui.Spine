@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -14,7 +15,11 @@ namespace Plugin.Maui.Spine.Server.AI;
 /// <summary>The body of <c>POST /ai/features/{name}</c>.</summary>
 /// <param name="Messages">The conversation so far, in Microsoft.Extensions.AI's JSON.</param>
 /// <param name="ConversationId">The provider's conversation, for providers that keep one.</param>
-public sealed record AIFeatureRequest(IList<ChatMessage>? Messages, string? ConversationId = null);
+/// <param name="Functions">
+/// The device functions the app has and will run when the model calls them. The server offers only those the feature
+/// lists and declared with <c>AddDevice</c>, and takes a result back only for a call it made.
+/// </param>
+public sealed record AIFeatureRequest(IList<ChatMessage>? Messages, string? ConversationId = null, IList<AIFunctionOffer>? Functions = null);
 
 /// <summary>The body of <c>POST /ai/speech/{name}</c>.</summary>
 /// <param name="Text">What to read aloud.</param>
@@ -31,6 +36,7 @@ public sealed record AISpeechBody(string? Text);
 /// event named <c>done</c>; otherwise it is one <see cref="ChatResponse"/>. All JSON is Microsoft.Extensions.AI's own.</para>
 /// <para><c>POST /ai/realtime/{name}</c> sets up a realtime voice session for an exposed realtime feature.</para>
 /// <para><c>POST /ai/speech/{name}</c> reads text aloud with an exposed speech feature.</para>
+/// <para><c>POST /ai/functions/{feature}/{name}</c> runs a server function a realtime session's model called.</para>
 /// <para><c>GET /ai/usage?from=&amp;to=&amp;feature=</c> reports what was spent.</para>
 /// </remarks>
 public static class SpineAIEndpoints
@@ -50,6 +56,9 @@ public static class SpineAIEndpoints
     /// <para>The server owns the prompt. Only the text of user and assistant messages is kept, so the client's system and
     /// tool messages are dropped. <c>SystemPrompt</c> goes first. <c>MaxTurns</c> and <c>MaxInputTokens</c> are enforced
     /// with 413, and the client's options are ignored except the conversation id.</para>
+    /// <para>The one exception is a result for a device function: a tool message whose call id the server handed to this
+    /// caller is taken, with the server's own record of the call, once. The app says which device functions it has in
+    /// <see cref="AIFeatureRequest.Functions"/>.</para>
     /// </remarks>
     public static async Task<IResult> FeatureAsync(HttpRequest request, string feature, CancellationToken cancellationToken = default)
     {
@@ -80,7 +89,9 @@ public static class SpineAIEndpoints
         if (body?.Messages is not { Count: > 0 } sent)
             return Results.BadRequest("The body has no messages.");
 
-        var messages = ExposedMessages(found.Options, sent);
+        var pending = services.GetRequiredService<AIPendingCalls>();
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Plugin.Maui.Spine.Server.AI");
+        var messages = await ExposedMessagesAsync(found, caller, sent, pending, logger, cancellationToken);
 
         if (found.Options.MaxTurns is { } maxTurns && messages.Count(m => m.Role == ChatRole.User) > maxTurns)
             return new AIRequestTooLargeException(found.Name, "turns", maxTurns).ToResult();
@@ -89,7 +100,8 @@ public static class SpineAIEndpoints
             return new AIRequestTooLargeException(found.Name, "tokens", maxTokens).ToResult();
 
         var options = new ChatOptions { ConversationId = body.ConversationId };
-        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Plugin.Maui.Spine.Server.AI");
+        if (body.Functions is { Count: > 0 } offers)
+            (options.AdditionalProperties ??= [])[FeatureFunctionsChatClient.OffersKey] = offers.Where(o => o?.Name is { Length: > 0 }).ToList();
 
         if (!WantsStream(request))
         {
@@ -131,8 +143,10 @@ public static class SpineAIEndpoints
     /// <param name="feature">The feature's name, from the route.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>
-    /// The result to return from the host's own handler: <c>{ feature, protocol, model, url, token, expiresAt, maxMinutes }</c>.
-    /// The app opens a WebSocket to <c>url</c> with <c>Authorization: Bearer {token}</c> before <c>expiresAt</c>.
+    /// The result to return from the host's own handler: <c>{ feature, protocol, model, url, token, expiresAt, maxMinutes, tools }</c>.
+    /// The app opens a WebSocket to <c>url</c> with <c>Authorization: Bearer {token}</c> before <c>expiresAt</c>. <c>tools</c> are
+    /// the feature's functions, <c>{ name, description, parameters, runsOn, prefer }</c>; the app forwards a call to one that
+    /// runs on the server to <see cref="FunctionAsync"/>.
     /// </returns>
     /// <remarks>
     /// <para>Only features with <c>Kind: Realtime</c> and <c>Expose: true</c> answer, and only signed-in callers unless the
@@ -187,7 +201,107 @@ public static class SpineAIEndpoints
             expiresAt = session.ExpiresAt,
             maxMinutes = found.Options.Realtime?.MaxMinutes ?? new AIRealtimeOptions().MaxMinutes,
             voice = session.Voice,
+            tools = features.FunctionsOf(found).Select(tool => new
+            {
+                name = tool.Name,
+                description = tool.Description,
+                parameters = tool.Parameters,
+                runsOn = (string[])[.. tool.OnServer ? ["server"] : Array.Empty<string>(), .. tool.OnDevice ? ["device"] : Array.Empty<string>()],
+                prefer = tool.Prefer == SpineAIFunctionSide.Server ? "server" : "device",
+            }),
         }, Json);
+    }
+
+    /// <summary>
+    /// Runs a server function a realtime session's model called, for the caller of <paramref name="request"/>. The app
+    /// forwards the call here, with its own sign-in, and hands the result to the model.
+    /// </summary>
+    /// <param name="request">The incoming request; its body is an <see cref="AIFunctionCallBody"/>.</param>
+    /// <param name="feature">The realtime feature's name, from the route.</param>
+    /// <param name="function">The function's name, from the route.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>
+    /// The result to return from the host's own handler: <c>{ result }</c>, what the model reads. A function that needs
+    /// sign-in, fails, or gets arguments its schema does not have answers 200 with <c>{ "error": …, "message": … }</c> as
+    /// the result, so the model can tell the user.
+    /// </returns>
+    /// <remarks>
+    /// Only exposed realtime features that list the function answer, and only for the callers the feature allows; any
+    /// other name gets the same 404 as a feature that is off. The calls have rate and concurrency limiters of their own
+    /// with the feature's limits, the feature's budgets must not be spent, and every call is logged.
+    /// </remarks>
+    public static async Task<IResult> FunctionAsync(HttpRequest request, string feature, string function, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(feature);
+        ArgumentNullException.ThrowIfNull(function);
+
+        var services = request.HttpContext.RequestServices;
+        var features = services.GetRequiredService<AIFeatures>();
+        var registry = services.GetRequiredService<AIFeatureRegistry>();
+        var options = services.GetRequiredService<SpineAIOptions>();
+
+        if (!registry.Current.Features.TryGetValue(feature, out var found) || !found.Options.Expose || found.Options.Kind != AIFeatureKind.Realtime
+            || found.Options.Functions?.Contains(function, StringComparer.Ordinal) != true || options.Functions.ServerFunction(function) is not { } declared)
+            return new AIFeatureOffException(feature, AIOffReason.NotConfigured).ToResult();
+
+        if (!features.TryGetOn(found.Name, out _))
+            return new AIFeatureOffException(found.Name, features.OffReason(found.Name)).ToResult();
+
+        AIFunctionCallBody? body;
+        try
+        {
+            body = request.ContentLength is 0 ? null : await JsonSerializer.DeserializeAsync<AIFunctionCallBody>(request.Body, Json, cancellationToken);
+        }
+        catch (JsonException e)
+        {
+            return Results.BadRequest($"The body is not a function call: {e.Message}");
+        }
+
+        if (body?.Arguments is { ValueKind: not (JsonValueKind.Object or JsonValueKind.Null or JsonValueKind.Undefined) })
+            return Results.BadRequest("The arguments are not a JSON object.");
+
+        var caller = await features.IdentifyAsync(request);
+        var gate = services.GetRequiredService<AIBudgetGate>();
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Plugin.Maui.Spine.Server.AI");
+
+        IDisposable lease;
+        try
+        {
+            lease = gate.Acquire(found, caller, "functions");
+        }
+        catch (AIFeatureException e)
+        {
+            return e.ToResult();
+        }
+
+        using var held = lease;
+        try
+        {
+            await gate.CheckAsync(found, caller, cancellationToken);
+        }
+        catch (AIFeatureException e)
+        {
+            return e.ToResult();
+        }
+
+        var context = new SpineAIFunctionContext(caller, SpineAIFunctionSide.Server)
+        {
+            Feature = found.Name,
+            User = caller.Kind == AICallerKind.SignedIn ? request.HttpContext.User : new ClaimsPrincipal(new ClaimsIdentity()),
+            Services = services,
+            CancellationToken = cancellationToken,
+            MaxResultCharacters = found.Options.MaxToolResultCharacters ?? SpineAIFunction.DefaultMaxResultCharacters,
+        };
+
+        var arguments = body?.Arguments is { ValueKind: JsonValueKind.Object } given
+            ? given.EnumerateObject().ToDictionary(p => p.Name, p => (object?)p.Value.Clone(), StringComparer.Ordinal)
+            : new Dictionary<string, object?>(StringComparer.Ordinal);
+
+        logger.LogInformation("AI feature '{Feature}': {Caller} forwarded a call to '{Function}' ({CallId}).", found.Name, caller.Key, function, body?.CallId ?? "no id");
+
+        request.HttpContext.Response.Headers.CacheControl = "no-store";
+        return Results.Json(new { result = await declared.InvokeAsync(arguments, context) }, Json);
     }
 
     /// <summary>Reads text aloud with an exposed speech feature, for the caller of <paramref name="request"/>.</summary>
@@ -292,13 +406,37 @@ public static class SpineAIEndpoints
         return Results.Json(AIUsageReport.Of(records, from, to, registry.Configuration.Currency, registry.Zone), Json);
     }
 
-    internal static List<ChatMessage> ExposedMessages(AIFeatureOptions feature, IEnumerable<ChatMessage> sent)
+    internal static async Task<List<ChatMessage>> ExposedMessagesAsync(
+        AIFeature feature, AICaller caller, IEnumerable<ChatMessage> sent, AIPendingCalls pending, ILogger logger, CancellationToken cancellationToken)
     {
         var messages = new List<ChatMessage>();
-        if (feature.SystemPrompt is { Length: > 0 } system) messages.Add(new ChatMessage(ChatRole.System, system));
+        if (feature.Options.SystemPrompt is { Length: > 0 } system) messages.Add(new ChatMessage(ChatRole.System, system));
+
+        var max = feature.Options.MaxToolResultCharacters ?? SpineAIFunction.DefaultMaxResultCharacters;
 
         foreach (var message in sent)
         {
+            if (message.Role == ChatRole.Tool)
+            {
+                foreach (var result in message.Contents.OfType<FunctionResultContent>())
+                {
+                    // The call is the server's own record: the client's copy of it, and any result for a call the server
+                    // did not hand to this caller, never reaches the model.
+                    if (result.CallId is { Length: > 0 } id && await pending.TakeAsync(feature.Name, caller, id, cancellationToken) is { } call)
+                    {
+                        messages.Add(new ChatMessage(ChatRole.Assistant, [call]));
+                        messages.Add(new ChatMessage(ChatRole.Tool, [new FunctionResultContent(id, Capped(result.Result, call.Name, max))]));
+                        logger.LogInformation("AI feature '{Feature}': the app's result for '{Function}' ({CallId}) from {Caller}.", feature.Name, call.Name, id, caller.Key);
+                    }
+                    else
+                    {
+                        logger.LogDebug("AI feature '{Feature}': dropped a function result ({CallId}) from {Caller} for a call the server did not make.", feature.Name, result.CallId, caller.Key);
+                    }
+                }
+
+                continue;
+            }
+
             if (message.Role != ChatRole.User && message.Role != ChatRole.Assistant) continue;
 
             var text = message.Contents.OfType<TextContent>().Select(t => (AIContent)new TextContent(t.Text)).ToList();
@@ -306,6 +444,19 @@ public static class SpineAIEndpoints
         }
 
         return messages;
+    }
+
+    private static object? Capped(object? result, string function, int max)
+    {
+        var length = result switch
+        {
+            null => 0,
+            string text => text.Length,
+            JsonElement element => element.GetRawText().Length,
+            _ => JsonSerializer.Serialize(result, Json.GetTypeInfo(result.GetType())).Length,
+        };
+
+        return length > max ? SpineAIFunctionResult.Error($"The result of '{function}' was too large to read.", "tooLarge") : result;
     }
 
     private static bool WantsStream(HttpRequest request) =>
@@ -364,7 +515,8 @@ public static class SpineAIEndpointRouteBuilderExtensions
 {
     /// <summary>
     /// Maps <c>POST {prefix}/features/{name}</c> for exposed features, <c>POST {prefix}/speech/{name}</c> for exposed speech
-    /// features and <c>GET {prefix}/usage</c> for the report.
+    /// features, <c>POST {prefix}/functions/{feature}/{name}</c> for a realtime session's server functions and
+    /// <c>GET {prefix}/usage</c> for the report.
     /// </summary>
     /// <param name="endpoints">The application's route builder.</param>
     /// <param name="prefix">The path the endpoints live under.</param>
@@ -377,6 +529,7 @@ public static class SpineAIEndpointRouteBuilderExtensions
         var root = prefix.TrimEnd('/');
         endpoints.MapPost($"{root}/features/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.FeatureAsync(request, name, ct));
         endpoints.MapPost($"{root}/speech/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.SpeechAsync(request, name, ct));
+        endpoints.MapPost($"{root}/functions/{{feature}}/{{name}}", (HttpRequest request, string feature, string name, CancellationToken ct) => SpineAIEndpoints.FunctionAsync(request, feature, name, ct));
         endpoints.MapGet($"{root}/usage", (HttpRequest request, CancellationToken ct) => SpineAIEndpoints.UsageAsync(request, ct));
 
         return endpoints;

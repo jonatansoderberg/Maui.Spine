@@ -9,7 +9,7 @@
 
         <Example Title="Talk to a realtime model"
                  OptionsCommand="{Binding ShowOptionsCommand}"
-                 Summary="A spoken conversation with the push sample server's Voice feature (gpt-realtime, in Swedish). The server gives a short-lived token and keeps the OpenAI key; the app opens the provider's socket with it. Talk over the answer and it stops, and the model is told how much you heard. Ask what time it is: the app answers that tool itself. Say goodbye and it hangs up once it has said goodbye too (EndsOnGoodbye). The avatar, the screen's edge and the server are under Try options.">
+                 Summary="A spoken conversation with the push sample server's Voice feature (gpt-realtime, in Swedish). The server gives a short-lived token and keeps the OpenAI key; the app opens the provider's socket with it. Talk over the answer and it stops, and the model is told how much you heard. Ask about your bookings: get_my_bookings runs on the server with the signed-in user, and asks you to sign in when you are not. Ask what time it is: show_time runs on the phone, or on the server under Try options. Say goodbye and it hangs up once it has said goodbye too (EndsOnGoodbye). The avatar, the screen's edge and the server are under Try options.">
             <VerticalStackLayout Spacing="10">
                 <!-- The avatar beside the controls, so the chat gets the rest of the screen. -->
                 <Grid ColumnDefinitions="96,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6">
@@ -26,17 +26,29 @@
                                 BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}" />
                     </HorizontalStackLayout>
                 </Grid>
-                <ChatView Messages="{Binding Session.Transcript}" HeightRequest="{Binding ChatHeight}" />
+                <ChatView Messages="{Binding Session.Transcript}" HeightRequest="{Binding ChatHeight}" ShowToolCalls="{Binding ShowToolCalls}" />
             </VerticalStackLayout>
             <Example.Code>
                 builder.UseSpineVoice(o =&gt;
                 {
                     o.SessionEndpoint = new Uri("https://api.example.com/ai");
                     o.AuthorizationHeader = ct =&gt; auth.GetHeaderAsync(ct);
-                    o.ClientTools.Add(AIFunctionFactory.Create(
-                        () =&gt; DateTime.Now.ToString("HH:mm"),
-                        "show_time", "Says what time it is."));
+                    o.Functions.Add(SampleFunctions.ShowTime);   // shared with UseSpineAI
                 });
+
+                // In a project the app and the server share:
+                public static SpineAIFunction GetMyBookings { get; } = SpineAIFunction.Create(
+                    "get_my_bookings", "Lists the signed-in user's bookings.", GetMyBookingsAsync, SpineAIFunctionSide.Server);
+
+                static async Task&lt;JsonElement&gt; GetMyBookingsAsync(SpineAIFunctionContext context, int days = 14)
+                {
+                    if (await context.GetUserAsync() is not { } user) return SpineAIFunctionResult.SignInRequired();
+                    …   // user.Id, user.Email, user.DisplayName
+                }
+
+                // The server: the token lists the feature's "Functions", and the app forwards
+                // a call to POST /ai/functions/Voice/get_my_bookings with the user's token.
+                ai.Functions.Add(SampleFunctions.GetMyBookings).Add(SampleFunctions.ShowTime).AddDevice(SampleFunctions.ShowTime);
 
                 // The conversation drawn, and the screen's edge with the answer:
                 &lt;AvatarView Source="bars" Driver="{Binding Driver}" /&gt;
@@ -46,6 +58,7 @@
 
                 // In the view model:
                 voice.EndsOnGoodbye = true;   // "thanks, bye" hangs up
+                voice.Prefer("show_time", SpineAIFunctionSide.Server);   // the server's clock this time
                 await voice.ConnectAsync("Voice");
                 chat.Messages = voice.Transcript;
                 voice.Interrupt();        // a Stop button

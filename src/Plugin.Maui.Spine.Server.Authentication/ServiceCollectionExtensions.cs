@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient(IdTokenValidator.HttpClientName);
         services.AddSingleton(sp => options.StoreFactory!(sp));
         services.AddSingleton(sp => options.UsersFactory!(sp));
+        services.AddSingleton<ISpineUserLookup>(sp => new SpineUserLookup(sp.GetRequiredService<IUserResolver>()));
 
         if (options.Providers.TryGetValue("apple", out var appleProvider) && appleProvider is SpineAppleOptions { CanRevoke: true } apple)
             services.AddSingleton(sp => new AppleTokenClient(apple, sp.GetRequiredService<IHttpClientFactory>(), TimeOf(sp), LoggerOf(sp)));
