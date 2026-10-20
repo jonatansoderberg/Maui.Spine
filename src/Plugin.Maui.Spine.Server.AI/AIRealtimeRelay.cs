@@ -556,6 +556,12 @@ internal sealed class AIRealtimeRelay
         })]);
     }
 
+    /// <summary>The tool Spine.Voice gives the backend while the app ends calls on goodbye (<c>IVoiceSession.EndsOnGoodbye</c>).</summary>
+    private const string EndConversation = "end_conversation";
+
+    private const string HangUpInstruction =
+        "When the user says goodbye or is done, hand it to your backend, which hangs up the call; do not only say goodbye yourself. Say at most two or three words of goodbye.";
+
     internal JsonObject StartMessage(JsonArray history, JsonArray tools)
     {
         var options = Options;
@@ -580,7 +586,12 @@ internal sealed class AIRealtimeRelay
             ["audio"] = audio,
             ["delegation"] = new JsonObject { ["type"] = "responses", ["responses"] = responses },
         };
-        if (_feature.Options.SystemPrompt is { Length: > 0 } prompt) session["instructions"] = prompt;
+        var prompt = _feature.Options.SystemPrompt;
+        // The voice cannot hang up itself; only its backend has the app's end_conversation. Told nothing, GPT-Live just said
+        // goodbye and the call went on (seen on an iPhone, 2026-10-20).
+        if (tools.Any(t => Text(t as JsonObject, "name") == EndConversation))
+            prompt = (prompt is { Length: > 0 } own ? own + "\n\n" : "") + HangUpInstruction;
+        if (prompt is { Length: > 0 }) session["instructions"] = prompt;
         if (history.Count > 0) session["input"] = history;
 
         return new JsonObject { ["type"] = "session.start", ["session"] = session };

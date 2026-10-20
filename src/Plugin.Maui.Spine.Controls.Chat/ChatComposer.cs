@@ -59,6 +59,7 @@ public class ChatComposer : ContentView
 
     // Long enough for a page's push to finish, so the keyboard does not rise during the slide.
     private static readonly TimeSpan FocusDelay = TimeSpan.FromMilliseconds(400);
+    private bool _focusedOnce;
 
     // The composer's glyphs, in Spine's icon style, embedded in this package.
     private const string SendIcon = "spinechatsend.svg";
@@ -139,8 +140,8 @@ public class ChatComposer : ContentView
     }
 
     /// <summary>
-    /// Puts the cursor in the field and shows the on-screen keyboard when the composer appears. On by default: on a chat
-    /// page, writing is what comes next.
+    /// Puts the cursor in the field and shows the on-screen keyboard the first time the composer appears. On by default:
+    /// on a chat page, writing is what comes next.
     /// </summary>
     public bool AutoFocus
     {
@@ -215,7 +216,9 @@ public class ChatComposer : ContentView
 
     private void OnLoaded(object? sender, EventArgs e)
     {
-        if (!AutoFocus) return;
+        // Once: the composer can be loaded again while the page stays (the keyboard came up on its own when a call ended).
+        if (!AutoFocus || _focusedOnce) return;
+        _focusedOnce = true;
 
         Dispatcher.DispatchDelayed(FocusDelay, async () =>
         {

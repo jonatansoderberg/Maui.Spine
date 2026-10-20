@@ -337,6 +337,12 @@ public sealed class PipelineTests : IAsyncLifetime
         await Until(() => _server.Spoken.Any() && _audio.IsPlaying, "the farewell plays");
         Assert.Empty(_ended);
 
+        // The user says goodbye back: it is not a turn, and it neither cuts the farewell nor keeps the call.
+        Say(400);
+        Say(400, 0f);
+        Assert.True(_audio.IsPlaying);
+        Assert.DoesNotContain(_server.Requests, r => r.Path.Contains("/transcribe/"));
+
         _audio.Render(4800, 48_000);                  // the farewell's 100 ms, played
         for (var i = 0; i < 100 && _ended.Count == 0; i++)
         {

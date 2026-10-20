@@ -335,6 +335,26 @@ public sealed class LiveRelayTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task With_the_apps_hang_up_tool_the_voice_is_told_to_hand_goodbyes_to_its_backend()
+    {
+        var app = await ConnectAsync((string)(await TicketAsync())["url"]!);
+        await app.SendAsync(new
+        {
+            type = "session.start",
+            session = new
+            {
+                tools = new object[] { new { type = "function", name = "end_conversation", description = "Hangs up.", parameters = new { type = "object", properties = new { } } } },
+            },
+        });
+        var provider = await _provider.NextConnectionAsync();
+        var start = (await provider.NextAsync("session.start"))["session"]!;
+
+        var instructions = (string?)start["instructions"];
+        Assert.StartsWith("Prata svenska, kort.", instructions);
+        Assert.Contains("hand it to your backend, which hangs up", instructions);
+    }
+
+    [Fact]
     public async Task Audio_goes_both_ways_and_what_only_the_server_may_set_stays_behind()
     {
         var (app, provider) = await StartAsync();

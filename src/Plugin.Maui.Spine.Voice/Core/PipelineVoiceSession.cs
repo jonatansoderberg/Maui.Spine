@@ -58,6 +58,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     private volatile bool _connecting;
     private volatile int _transcribing;
     private volatile bool _answering;
+    // The chat hung up: the farewell plays to its end and the microphone is not listened to.
+    private volatile bool _farewell;
     private volatile bool _answerAudio;
     private long _interruptedUntil;
     private VoiceState _state = VoiceState.Idle;
@@ -145,6 +147,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
         _connecting = true;
         _ended = 0;
+        _farewell = false;
         _dispatch(() =>
         {
             _byItem.Clear();
@@ -283,6 +286,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
     private void OnMicrophone(ReadOnlySpan<byte> pcm16)
     {
+        if (_farewell)
+            return;
         lock (_turnGate)
         {
             if (_detector is not { } detector)
@@ -482,7 +487,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         var splitter = new SentenceSplitter();
         var said = new StringBuilder();
         var goodbye = false;
-        var options = ChatOptions(EndsOnGoodbye ? Goodbye(said, () => goodbye = true) : null);
+        var options = ChatOptions(EndsOnGoodbye ? Goodbye(said, () => goodbye = _farewell = true) : null);
         Exception? failed = null;
         try
         {
@@ -580,20 +585,22 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         if (failed is not null)
             await EndCoreAsync(VoiceSessionEnd.Failed, failed);
         else if (goodbye && !cut)
-            await HangUpAfterFarewellAsync(generation);
+            await HangUpAfterFarewellAsync();
+        else
+            _farewell = false;
     }
 
     /// <summary>
-    /// Ends the call once the farewell has played, its last word out of the speaker too; the user talking again (a new
-    /// turn) keeps the conversation going.
+    /// Ends the call once the farewell has played, its last word out of the speaker too. The user saying goodbye back is
+    /// not heard (see <see cref="OnMicrophone"/>); only the Stop button or typed text cuts the farewell and goes on.
     /// </summary>
-    private async Task HangUpAfterFarewellAsync(int generation)
+    private async Task HangUpAfterFarewellAsync()
     {
         _logger.LogDebug("Spine.Voice: the chat hung up; the call ends after the farewell.");
-        while (_connected && _audio.IsPlaying && Volatile.Read(ref _generation) == generation)
+        while (_connected && _farewell && _audio.IsPlaying)
             await Task.Delay(TimeSpan.FromMilliseconds(50), _time);
         await Task.Delay(VoiceSession.FarewellTail, _time);
-        if (_connected && Volatile.Read(ref _generation) == generation)
+        if (_connected && _farewell)
             await EndCoreAsync(VoiceSessionEnd.Goodbye, null);
     }
 
@@ -703,6 +710,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     /// <summary>Cuts the answer off: the chat stops, the engine flushes, and the answer is marked as cut off where it was heard.</summary>
     private void BargeIn()
     {
+        // Only the Stop button and typed text reach here during the farewell: the conversation goes on.
+        _farewell = false;
         var wasAnswering = _answering;
         if (wasAnswering || _audio.IsPlaying)
             _logger.LogDebug("Spine.Voice: the answer is cut off ({What}).", _audio.IsPlaying ? "playing" : "not playing yet");

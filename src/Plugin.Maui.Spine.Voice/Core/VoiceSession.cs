@@ -374,6 +374,10 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 
     private void OnMicrophone(ReadOnlySpan<byte> pcm16)
     {
+        // The farewell is not interrupted: once the model has hung up, the user saying goodbye back is not sent, so it
+        // neither cuts the farewell off nor makes the model answer it.
+        if (Volatile.Read(ref _goodbye) != NoGoodbye)
+            return;
         Interlocked.Exchange(ref _liveMicAt, _time.GetUtcNow().UtcTicks);
         lock (_micGate)
         {
@@ -479,8 +483,9 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         switch (type)
         {
             case "input_audio_buffer.speech_started":
-                // The user talks over the answer: cut it off where it was heard.
-                if (_audio.IsPlaying || _responseActive)
+                // The user talks over the answer: cut it off where it was heard. Not the farewell, whose speech was
+                // already on its way when the microphone stopped.
+                if ((_audio.IsPlaying || _responseActive) && Volatile.Read(ref _goodbye) == NoGoodbye)
                     BargeIn();
                 break;
 
@@ -557,7 +562,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     /// <summary>Cuts the answer off: the engine flushes, the model hears how much was played, and a running response stops.</summary>
     private void BargeIn()
     {
-        // Talking over the farewell (or the Stop button) keeps the conversation going.
+        // The Stop button keeps the conversation going; talking over the farewell cannot reach here (see OnMicrophone).
         Interlocked.Exchange(ref _goodbye, NoGoodbye);
         Tick();
         if (_live)
@@ -656,6 +661,9 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
                 ["output"] = output,
             },
         });
+        // What the microphone already sent of a goodbye back is dropped, so the provider does not answer it.
+        if (goodbye)
+            Send(new JsonObject { ["type"] = "input_audio_buffer.clear" });
         if (saidGoodbye)
         {
             // The farewell is this response: done when it reports done, or now when it already has.

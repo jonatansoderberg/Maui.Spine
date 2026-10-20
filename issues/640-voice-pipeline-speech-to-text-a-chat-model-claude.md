@@ -41,6 +41,9 @@
 - **Hanging up on goodbye:** the pipeline offers `end_conversation` per answer (`ChatOptions.Tools`); Spine.AI's server client offers a call's own functions as device functions and runs them; the sample server declares it and the Claude feature lists it. The goodbye tool's description and answers are shared with the realtime session, and its farewell is two or three words.
 - **Shorter waits:** one reused `AVSpeechSynthesizer` for every render (a new one per sentence took 0.7 s to its first audio), and a 600 ms end of turn in the Showcase.
 - **Showcase:** the avatar above the chat (it had no width and never showed; None hides it), the call's length and time left in the status, why a call ended (time limit, provider), and the model for calls remembered.
+- **An uninterruptible farewell (owner, 2026-10-20):** once the model hangs up, the microphone is not sent (realtime, GPT-Live) or listened to (pipeline), the provider's input buffer is cleared, and the call ends after the farewell. On the iPhone the user's "Hej då" back had cut the farewell and the model answered it again. The Stop button still keeps the call going.
+- **GPT-Live hangs up:** the relay tells the voice to hand goodbyes to its backend when the app's tools include `end_conversation`; it had only said "Hej då!" itself.
+- **ChatComposer's AutoFocus runs once per composer:** the keyboard came up on its own when a call ended (the composer was loaded again).
 - **Tests:** the GPT-Live and pipeline tests read the transcript under the same lock as the session's dispatch ("Collection was modified" now and then).
 - **Docs:** voice.md (A pipeline), speech.md (Writing speech down, Rendering to audio), ai-server.md (Streamed speech, Transcription, the price rows), the package READMEs, the spine-setup and spine-controls skills, plan step 4.7.
 
