@@ -23,16 +23,17 @@ internal sealed class AIUsageMeter(AIFeatureRegistry registry, IAIUsageStore sto
     /// <param name="images">Images generated.</param>
     /// <param name="estimatedInput">Input tokens to record when the provider reported none.</param>
     /// <param name="error">The exception the call ended with.</param>
-    /// <param name="minutes">Realtime minutes reserved, priced at <see cref="AIPrice.PerMinute"/>.</param>
+    /// <param name="minutes">Realtime minutes reserved, or a transcription's audio minutes, priced at <see cref="AIPrice.PerMinute"/>.</param>
     /// <param name="characters">Characters read aloud, priced at <see cref="AIPrice.PerMillionCharacters"/>.</param>
     public async Task RecordAsync(
         AIFeature feature, AICaller caller, string model, long started, UsageDetails? usage, int images, long estimatedInput, Exception? error,
-        int minutes = 0, long characters = 0)
+        double minutes = 0, long characters = 0, bool measured = false)
     {
         try
         {
             var snapshot = registry.Current;
-            var complete = usage is not null || ((images > 0 || characters > 0) && error is null);
+            // Realtime minutes are reserved ahead and so an estimate; a transcription's minutes are measured from its audio.
+            var complete = usage is not null || ((images > 0 || characters > 0 || measured) && error is null);
             var counted = usage ?? new UsageDetails { InputTokenCount = estimatedInput };
             var price = snapshot.PriceOf(feature.Provider, model);
 

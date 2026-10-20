@@ -41,6 +41,9 @@ public enum AIFeatureKind
 
     /// <summary>Text read aloud, with mouth shapes when the provider gives them, made by <see cref="IAISpeechProvider"/>.</summary>
     Speech,
+
+    /// <summary>Speech written down, by <see cref="IAITranscriptionProvider"/>.</summary>
+    Transcription,
 }
 
 /// <summary>Who an exposed feature answers.</summary>
@@ -85,6 +88,9 @@ public sealed class AIFeatureOptions
 
     /// <summary>A speech feature's voice, language, style and longest text.</summary>
     public AISpeechOptions? Speech { get; set; }
+
+    /// <summary>A transcription feature's language and longest audio.</summary>
+    public AITranscriptionOptions? Transcription { get; set; }
 
     /// <summary>
     /// Makes the feature reachable straight from the app at <c>POST /ai/features/{name}</c>. The server then
@@ -229,6 +235,21 @@ public sealed class AISpeechOptions
 
     /// <summary>The longest text one call may read, in characters. Longer gets 413. 4000 by default (OpenAI's limit is 4096).</summary>
     public int MaxCharacters { get; set; } = 4000;
+}
+
+/// <summary>
+/// A transcription feature's settings: <c>Ai:Features:&lt;Name&gt;:Transcription</c>. Set on the server; the app sends only the audio.
+/// </summary>
+public sealed class AITranscriptionOptions
+{
+    /// <summary>The language spoken, as a BCP-47 tag such as <c>sv-SE</c>. Unset, the model detects it.</summary>
+    public string? Language { get; set; }
+
+    /// <summary>Words the model should expect, such as names or terms, for models that take a prompt.</summary>
+    public string? Prompt { get; set; }
+
+    /// <summary>The longest audio one call may send, in seconds. Longer gets 413. 120 by default.</summary>
+    public int MaxSeconds { get; set; } = 120;
 }
 
 /// <summary>A feature's response cache.</summary>
