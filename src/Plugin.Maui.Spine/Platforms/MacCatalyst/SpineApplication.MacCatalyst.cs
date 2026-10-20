@@ -23,6 +23,12 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
     partial void HookMacCatalystPlatform(Window window)
     {
+        // As on Windows with Mica or Acrylic: the host page's background (the app's ContentPage style) would paint over
+        // the backdrop, so it is cleared; Spine's pages are views inside it and show the material where they have no
+        // background of their own. Without a backdrop the page is left alone.
+        if (MacBackdrop.Applies(_services.GetRequiredService<SpineOptions>().MacOS.Backdrop) && window.Page is { } host)
+            host.BackgroundColor = Colors.Transparent;
+
         // Enable fullSizeContentView so UIWindow covers the full NSWindow frame (including
         // the native title bar), then read safeAreaInsets.top as the title bar height.
         // NavigationRegion uses that height to apply a per-page negative container margin
@@ -38,10 +44,14 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             void Adopt(NSNotification notification) => MainThread.BeginInvokeOnMainThread(() =>
             {
                 if (notification.Object is not { } nsObj) return;
-                if (AppKitObjC.IsStatusBarWindow(nsObj.Handle)) return;
+                // Only the scene's window: menus, the status item and popovers have AppKit windows of their own, and
+                // occlusion changes are posted for them too; a translucent menu showed white text on white.
+                if (!AppKitObjC.IsSceneWindow(nsObj.Handle)) return;
 
                 EnableFullSizeContentView(nsObj.Handle);
                 AdoptNSWindow(nsObj);
+                MacBackdrop.Apply(nsObj.Handle, window.Handler?.PlatformView as UIKit.UIWindow,
+                    _services.GetRequiredService<SpineOptions>().MacOS.Backdrop);
 
                 if (window.Handler?.PlatformView is not UIKit.UIWindow uiWindow) return;
 
@@ -59,6 +69,14 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
             foreach (var name in new[] { "NSWindowDidChangeOcclusionStateNotification", "NSWindowDidBecomeKeyNotification" })
                 NSNotificationCenter.DefaultCenter.AddObserver(new NSString(name), Adopt, null);
+
+            // The backdrop's material follows the NSWindow's appearance, which UIKit's theme does not change.
+            if (Current is { } app)
+                app.RequestedThemeChanged += (_, _) =>
+                {
+                    if (_nsWindow is { } ns)
+                        MacBackdrop.Appearance(ns.Handle);
+                };
         }
 
         var options = _services.GetRequiredService<SpineOptions>();
@@ -121,6 +139,9 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         SetStatusItemIcon(macOptions);
         SetStatusItemTooltip(macOptions, options);
         BuildStatusItemMenu(options);
+
+        // Titles that are string keys follow the culture.
+        Common.SpineStrings.Current.Changed += (_, _) => MainThread.BeginInvokeOnMainThread(() => BuildStatusItemMenu(options));
     }
 
     private void SetStatusItemIcon(SpineOptions.MacOSPlatformOptions macOptions)
@@ -185,6 +206,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
     {
         if (_statusItem is null) return;
 
+        _menuTargets.Clear();
         var menuAlloc = AppKitObjC.IntPtr_msgSend(Class.GetHandle("NSMenu"), Selector.GetHandle("alloc"));
         var menuHandle = AppKitObjC.IntPtr_msgSend(menuAlloc, Selector.GetHandle("init"));
 
@@ -201,7 +223,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                     .SafeFireAndForget();
             });
             _menuTargets.Add(target);
-            var item = AppKitObjC.CreateMenuItem(shortcut.Title, target);
+            var item = AppKitObjC.CreateMenuItem(shortcut.DisplayTitle, target);
             if (ShortcutIcons.ForTray(_services, shortcut) is { } icon)
                 AppKitObjC.Void_msgSend_IntPtr(item, Selector.GetHandle("setImage:"), MenuImage(icon.GetMacOsPdf()));
             AppKitObjC.Void_msgSend_IntPtr(menuHandle, Selector.GetHandle("addItem:"), item);
@@ -223,7 +245,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         });
         _menuTargets.Add(exitTarget);
         AppKitObjC.Void_msgSend_IntPtr(menuHandle, Selector.GetHandle("addItem:"),
-            AppKitObjC.CreateMenuItem("Exit", exitTarget));
+            AppKitObjC.CreateMenuItem(Common.SpineStrings.Current["Spine.Tray.Quit"], exitTarget));
 
         AppKitObjC.Void_msgSend_IntPtr(_statusItem.Handle, Selector.GetHandle("setMenu:"), menuHandle);
     }
@@ -372,12 +394,18 @@ internal static class AppKitObjC
     [DllImport(Lib, EntryPoint = "objc_msgSend")]
     public static extern void Void_msgSend_nuint(IntPtr receiver, IntPtr selector, nuint arg1);
 
-    public static bool IsStatusBarWindow(IntPtr win)
-    {
-        var classNamePtr = IntPtr_msgSend(win, Selector.GetHandle("className"));
-        var className = NSString.FromHandle(classNamePtr);
-        return className?.Contains("StatusBar", StringComparison.OrdinalIgnoreCase) == true;
-    }
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern CoreGraphics.CGRect CGRect_msgSend(IntPtr receiver, IntPtr selector);
+
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern IntPtr IntPtr_msgSend_CGRect(IntPtr receiver, IntPtr selector, CoreGraphics.CGRect arg1);
+
+    [DllImport(Lib, EntryPoint = "objc_msgSend")]
+    public static extern void Void_msgSend_IntPtr_nint_IntPtr(IntPtr receiver, IntPtr selector, IntPtr arg1, nint arg2, IntPtr arg3);
+
+    /// <summary>The window Catalyst hosts a scene in (<c>UINSWindow</c>), as opposed to menus and the status item.</summary>
+    public static bool IsSceneWindow(IntPtr win) =>
+        NSString.FromHandle(IntPtr_msgSend(win, Selector.GetHandle("className"))) == "UINSWindow";
 
     public static IntPtr CreateMenuItem(string title, NSObject target)
     {

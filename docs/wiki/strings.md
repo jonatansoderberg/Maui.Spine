@@ -93,7 +93,7 @@ through `Missing` and the debug output.
 Every key Spine ships starts with `Spine.`, followed by the package's area (`Spine.Header.Back`,
 `Spine.Calendar.Today`, `Spine.DataGrid.Empty`), so an app's own keys never collide with them.
 
-`Plugin.Maui.Spine` ships `Spine.Header.Back`, `Spine.Header.Close`, `Spine.Header.Done` and `Spine.Header.Cancel`
+`Plugin.Maui.Spine` ships `Spine.Header.Back`, `Spine.Header.Close`, `Spine.Header.Done`, `Spine.Header.Cancel` and `Spine.Tray.Quit` (the last item of the menu-bar or tray menu)
 (English and Swedish), read for the screen-reader descriptions of the back and close buttons and of a page action
 with a `Confirm` or `Cancel` role and no text of its own. A control package ships its defaults the same
 way and registers them with `SpineStrings.Current.AddDefaults(...)` from the control's static constructor, the first time one is created (this does not raise `Changed`); the

@@ -10,6 +10,7 @@
   <s key="Spine.Lightbox.SaveFailed.Title">Bilden sparades inte</s>
   <s key="Spine.Header.Done">Klar</s>
   <s key="Spine.Header.Cancel">Avbryt</s>
+  <s key="Spine.Tray.Quit">Avsluta</s>
   <s key="Spine.State.Loading">Laddar</s>
   <s key="Spine.State.Error.Title">Det gick inte att ladda</s>
   <s key="Spine.State.Error.Retry">Försök igen</s>

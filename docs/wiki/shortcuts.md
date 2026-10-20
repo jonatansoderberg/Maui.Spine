@@ -43,6 +43,8 @@ public class ShortcutHandler(INavigationService _navigation) : IShortcutHandler
 }
 ```
 
+**Localized titles:** `Configure` runs inside `UseSpine`, before the app's [string documents](strings.md) are loaded, so `ISpineStrings` cannot look a title up there; it would return the key. Pass the key instead, `builder.Add(id: "settings", title: "Menu.Settings")`. Spine looks a title that is a key up when it builds the menu-bar or tray menu, and again when the culture changes. The last item, Quit, is `Spine.Tray.Quit`.
+
 ---
 
 ## 2. Register the handler in `MauiProgram.cs`

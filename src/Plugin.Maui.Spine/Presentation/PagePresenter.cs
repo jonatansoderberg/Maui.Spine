@@ -424,17 +424,29 @@ internal sealed partial class PagePresenter : Grid
             && Application.Current?.PlatformAppTheme == AppTheme.Dark);
 
     /// <summary>
-    /// The colour the page sits on: the first opaque background from the page view up through the
-    /// host page (an app styles its <c>ContentPage</c>), otherwise what the platform paints behind
-    /// pages in the current theme, so the collapsed bar reads as the page continuing behind the title.
+    /// The first opaque background from the page view up through the host page, or <see langword="null"/> when
+    /// the page and everything it sits on are see-through, as in a translucent window.
     /// </summary>
-    internal Color PageBackground()
+    internal Color? OwnBackground()
     {
         for (Element? element = Content ?? (Element)this; element is not null; element = element.Parent)
         {
             if (element is VisualElement { BackgroundColor: { Alpha: >= 1 } own })
                 return own;
         }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The colour the page sits on: the first opaque background from the page view up through the
+    /// host page (an app styles its <c>ContentPage</c>), otherwise what the platform paints behind
+    /// pages in the current theme, so the collapsed bar reads as the page continuing behind the title.
+    /// </summary>
+    internal Color PageBackground()
+    {
+        if (OwnBackground() is { } own)
+            return own;
 
         var isDark = IsDarkTheme();
 
