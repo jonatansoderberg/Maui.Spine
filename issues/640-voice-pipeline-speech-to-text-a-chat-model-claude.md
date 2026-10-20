@@ -35,6 +35,13 @@
 - **Voice:** `SpineVoiceOptions.Pipeline(name, …)` and `VoicePipeline` (`AddLocalSpeechToText`, `AddServerSpeechToText`, `AddChat`, `AddLocalTextToSpeech`, `AddServerTextToSpeech`, `Language`, `SpeechThreshold`, `StartOfTurn`, `EndOfTurn`, `MaxTurn`); `PipelineVoiceSession` (level-based turns with a pre-roll, pending turns, fallbacks, the answer cut into sentences and streamed through the engine, barge-in, tool cards); `RoutingVoiceSession` is the registered `IVoiceSession` and picks the pipeline or the realtime session by name, sharing one engine; `VoiceAvatarDriver` reads the engine through `IVoiceAudioOwner`. Tests in `PipelineTests`.
 - **Sample server:** features `Claude` (Anthropic, the functions, a prompt for spoken answers), `Transcribe` (`gpt-4o-mini-transcribe`) and `ReadOpenAI` (`gpt-4o-mini-tts`, voice marin) with prices; `ai.Transcription("openai", …)`.
 - **Showcase:** pipelines `Claude` (the phone's voice first) and `ClaudeOpenAIVoice` (the server's voice); the Chat page's options choose Realtime, Claude or Claude with OpenAI's voice; `NSSpeechRecognitionUsageDescription`.
+- **Merged master** (GPT-Live, #642): pipelines take `MaxMinutes`; the Chat page lists the pipelines with the realtime models under **Model for calls**; the step is 4.7.
+- **Seen on the iPhone (2026-10-20):** a Claude call against Azure with on-device recognition (the turn written down 50 ms after it ended), `show_time` on the phone, the phone's voice. Claude Haiku 5.5 answered "Hej då" with no text: it spent its 300 output tokens reasoning; the feature now has `"Reasoning": "None"` and 400 tokens.
+- **Timings in the log** (Debug, `Plugin.Maui.Spine.Voice`), and the Showcase writes them to stdout for `devicectl --console`; a chat that answers no text is a warning.
+- **Hanging up on goodbye:** the pipeline offers `end_conversation` per answer (`ChatOptions.Tools`); Spine.AI's server client offers a call's own functions as device functions and runs them; the sample server declares it and the Claude feature lists it. The goodbye tool's description and answers are shared with the realtime session, and its farewell is two or three words.
+- **Shorter waits:** one reused `AVSpeechSynthesizer` for every render (a new one per sentence took 0.7 s to its first audio), and a 600 ms end of turn in the Showcase.
+- **Showcase:** the avatar above the chat (it had no width and never showed; None hides it), the call's length and time left in the status, why a call ended (time limit, provider), and the model for calls remembered.
+- **Tests:** the GPT-Live and pipeline tests read the transcript under the same lock as the session's dispatch ("Collection was modified" now and then).
 - **Docs:** voice.md (A pipeline), speech.md (Writing speech down, Rendering to audio), ai-server.md (Streamed speech, Transcription, the price rows), the package READMEs, the spine-setup and spine-controls skills, plan step 4.7.
 
 ## Decisions
@@ -44,4 +51,5 @@
 - **The turn's audio is kept** while the device writes it down live, so a failure falls back to the server with the whole turn rather than losing it.
 - **Sentences end only where the next word starts one**, so "kl. 18" and "t.ex. en" are not cut, at the cost of waiting for the next token.
 - **A chat failure ends the call** with the error, as a realtime provider's does: a silent failure would leave the user talking to nothing. Another chat answers only while nothing has been said.
-- **No `EndsOnGoodbye` in pipelines yet:** the hang-up tool is the session's own, and a Spine.AI server feature offers only the functions it lists.
+- **Hanging up goes through the server's device functions.** A pipeline cannot add a tool to a Spine.AI server feature's model directly, so it offers `end_conversation` as the call's own device function; the server offers it only when it declared it and the feature lists it, as for any device function. **Why:** the server owns what its model may call.
+- **Earlier function calls are not sent back to the model** (the server drops client tool messages), so Claude took back answers it had checked. The sample's prompt says those calls were made; Spine itself is unchanged.

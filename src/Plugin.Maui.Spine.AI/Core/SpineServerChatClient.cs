@@ -32,7 +32,7 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
             var answer = await JsonSerializer.DeserializeAsync<ChatResponse>(body, Json, cancellationToken)
                 ?? throw new HttpRequestException($"The AI feature '{feature}' answered with an empty body from {request.RequestUri}.");
 
-            foreach (var message in answer.Messages) Inform(message.Contents);
+            foreach (var message in answer.Messages) Inform(message.Contents, options);
             return answer;
         }
         catch (Exception e) when (Cancelled(e, cancellationToken))
@@ -94,7 +94,7 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
                 default:
                     if (JsonSerializer.Deserialize<ChatResponseUpdate>(item.Data, Json) is { } update)
                     {
-                        Inform(update.Contents);
+                        Inform(update.Contents, options);
                         yield return update;
                     }
                     break;
@@ -105,16 +105,19 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
     }
 
     /// <summary>
-    /// A call to anything but one of the app's own functions ran on the server already; marked so the app's function
-    /// invocation shows it and never runs it.
+    /// A call to anything but one of the app's own functions (or this call's own, in <see cref="ChatOptions.Tools"/>) ran on
+    /// the server already; marked so the app's function invocation shows it and never runs it.
     /// </summary>
-    private void Inform(IList<AIContent> contents)
+    private void Inform(IList<AIContent> contents, ChatOptions? options)
     {
         foreach (var call in contents.OfType<FunctionCallContent>())
         {
-            if (runtime.Options.Functions[call.Name] is null) call.InformationalOnly = true;
+            if (runtime.Options.Functions[call.Name] is null && !CallsOwn(options, call.Name)) call.InformationalOnly = true;
         }
     }
+
+    private static bool CallsOwn(ChatOptions? options, string name) =>
+        options?.Tools?.OfType<AIFunction>().Any(f => f.Name == name) == true;
 
     public object? GetService(Type serviceType, object? serviceKey = null) =>
         serviceKey is null && serviceType.IsInstanceOfType(this) ? this : null;
@@ -139,11 +142,15 @@ internal sealed class SpineServerChatClient(string feature, SpineAIRuntime runti
         return request;
     }
 
-    /// <summary>The app's functions with the side this chat wants for each: the server offers those it declared to the model.</summary>
+    /// <summary>
+    /// The app's functions with the side this chat wants for each, and this call's own functions (<see cref="ChatOptions.Tools"/>,
+    /// such as a voice pipeline's <c>end_conversation</c>) on the device: the server offers those it declared to the model.
+    /// </summary>
     private IReadOnlyList<(string Name, SpineAIFunctionSide Prefer)> Offers(ChatOptions? options)
     {
         var preferred = SpineAIFunctionOrder.PreferredSides(options);
-        return [.. runtime.Options.Functions.Select(f => (f.Name, SpineAIFunctionOrder.SideOf(f, preferred)))];
+        var own = options?.Tools?.OfType<AIFunction>().Where(f => runtime.Options.Functions[f.Name] is null).Select(f => (f.Name, SpineAIFunctionSide.Device)) ?? [];
+        return [.. runtime.Options.Functions.Select(f => (f.Name, SpineAIFunctionOrder.SideOf(f, preferred))), .. own];
     }
 
     /// <summary>

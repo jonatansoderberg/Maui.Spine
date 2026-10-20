@@ -282,7 +282,7 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
 
 A device function runs in the app: the device's own state, such as the time or the current page. The exposed chat still refuses client-sent tool messages; device calls go through a channel of their own:
 
-1. The app's request names the device functions it has, never their schemas: `"functions": [ { "name": "show_time", "prefer": "device" } ]`. Spine.AI sends it from `SpineAIOptions.Functions`.
+1. The app's request names the device functions it has, never their schemas: `"functions": [ { "name": "show_time", "prefer": "device" } ]`. Spine.AI sends it from `SpineAIOptions.Functions`, and adds the functions in the call's own `ChatOptions.Tools` (a voice pipeline's `end_conversation`), which it then runs itself.
 2. The server offers only names the feature lists and that it declared with `AddDevice`, with its own declaration.
 3. When the model calls one, the answer ends with that `FunctionCallContent`. The server keeps the call (its id, name and arguments, for this caller and feature, ten minutes) in memory, or in the host's `IDistributedCache` when one is registered.
 4. The app runs the function and posts the conversation again with the call and its result.

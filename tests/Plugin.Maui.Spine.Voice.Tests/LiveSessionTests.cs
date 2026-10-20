@@ -23,6 +23,9 @@ public sealed class LiveSessionTests : IAsyncLifetime
     private VoiceSession _session = null!;
     private readonly List<(VoiceSessionEnd Reason, Exception? Error)> _ended = [];
 
+    // The main thread of a test: the session changes the transcript on its receive loop, and the test reads it, under one lock.
+    private readonly Lock _ui = new();
+
     public Task InitializeAsync()
     {
         _options.SessionEndpoint = new Uri("https://api.example.com/ai");
@@ -30,7 +33,7 @@ public sealed class LiveSessionTests : IAsyncLifetime
         _options.HttpHandler = _tokens;
         _audio = new FakePlatform(_time);
         _session = new VoiceSession(_audio, _options, new VoiceTokenClient(_options, _ => Task.FromResult<string?>("phone-1")),
-            () => _socket, action => action(), _time);
+            () => _socket, action => { lock (_ui) action(); }, _time);
         _session.Ended += (reason, error) => _ended.Add((reason, error));
         return Task.CompletedTask;
     }
@@ -44,11 +47,17 @@ public sealed class LiveSessionTests : IAsyncLifetime
         _time.Advance(TimeSpan.FromSeconds(1));
     }
 
-    private static async Task Until(Func<bool> condition, string what)
+    private async Task Until(Func<bool> condition, string what)
     {
-        for (var i = 0; i < 200 && !condition(); i++)
+        bool Met()
+        {
+            lock (_ui)
+                return condition();
+        }
+
+        for (var i = 0; i < 200 && !Met(); i++)
             await Task.Delay(10);
-        Assert.True(condition(), what);
+        Assert.True(Met(), what);
     }
 
     private static string Audio(int samples, short value = 1000)

@@ -108,7 +108,7 @@ internal sealed class SpineFeatureChatClient : IChatClient
     private async Task<(IChatClient Client, ChatOptions? Options)> PrepareAsync(AISource source, IChatClient client, ChatOptions? options, CancellationToken cancellationToken)
     {
         var functions = _runtime.Options.Functions;
-        if (functions.Count == 0) return (client, options);
+        if (functions.Count == 0 && options?.Tools is not { Count: > 0 }) return (client, options);
 
         var context = await _runtime.DeviceContextAsync(_feature, options?.ConversationId, _services, cancellationToken);
         var bound = functions.Select(f => (AITool)f.Bind(context)).ToList();

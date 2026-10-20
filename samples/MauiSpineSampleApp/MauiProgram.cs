@@ -118,6 +118,9 @@ public static class MauiProgram
             o.Pipeline("Claude", p =>
             {
                 p.Language = "sv-SE";
+                // A shorter pause ends the turn than the default 800 ms: the answer starts sooner, at the cost of cutting
+                // off a user who stops to think.
+                p.EndOfTurn = TimeSpan.FromMilliseconds(600);
                 p.AddLocalSpeechToText().AddServerSpeechToText("Transcribe")
                     .AddChat("Claude")
                     .AddLocalTextToSpeech().AddServerTextToSpeech("ReadOpenAI");
@@ -125,6 +128,9 @@ public static class MauiProgram
             o.Pipeline("ClaudeOpenAIVoice", p =>
             {
                 p.Language = "sv-SE";
+                // A shorter pause ends the turn than the default 800 ms: the answer starts sooner, at the cost of cutting
+                // off a user who stops to think.
+                p.EndOfTurn = TimeSpan.FromMilliseconds(600);
                 p.AddLocalSpeechToText().AddServerSpeechToText("Transcribe")
                     .AddChat("Claude")
                     .AddServerTextToSpeech("ReadOpenAI");

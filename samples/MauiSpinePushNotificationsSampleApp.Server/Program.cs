@@ -149,6 +149,9 @@ builder.Services.AddSpineAI(builder.Configuration.GetSection("Ai"), ai =>
     // The functions the Assistant and Voice features list ("Functions"), shared with the Showcase. get_my_bookings runs
     // here with the signed-in user; show_time runs on the phone or here, as the chat or the voice session chooses.
     ai.Functions.Add(SampleFunctions.GetMyBookings).Add(SampleFunctions.ShowTime).AddDevice(SampleFunctions.ShowTime);
+    // A voice pipeline (the Showcase's Claude calls) offers it while EndsOnGoodbye is on, and hangs up after the farewell.
+    ai.Functions.AddDevice("end_conversation", "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation; then say only a goodbye of two or three words in their language, without saying that you are ending the call. Do not call it for a pause or a thank-you in the middle of a conversation.",
+        System.Text.Json.JsonDocument.Parse("""{"type":"object","properties":{}}""").RootElement);
 
     // The report shows every caller's spending. A sample on a laptop shows it to the laptop only.
     ai.AuthorizeReport = request => ValueTask.FromResult(request.HttpContext.Connection.RemoteIpAddress is { } ip && System.Net.IPAddress.IsLoopback(ip));

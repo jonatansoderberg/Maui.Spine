@@ -44,6 +44,11 @@ internal sealed class ScriptedChat(params string[] pieces) : IChatClient
     public Exception? Throws { get; set; }
     public TaskCompletionSource? Hold { get; set; }
 
+    /// <summary>Hangs up before answering, as a model does when the user says goodbye: the function invoking client runs the tool.</summary>
+    public bool HangsUp { get; set; }
+
+    public List<string> Offered { get; } = [];
+
     public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException();
 
@@ -51,8 +56,15 @@ internal sealed class ScriptedChat(params string[] pieces) : IChatClient
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         Asked.Add([.. messages]);
+        Offered.AddRange(options?.Tools?.Select(t => t.Name) ?? []);
         if (Throws is { } e)
             throw e;
+        if (HangsUp && options?.Tools?.OfType<AIFunction>().FirstOrDefault(t => t.Name == VoiceSession.EndConversationTool) is { } hangUp)
+        {
+            var told = await hangUp.InvokeAsync(cancellationToken: cancellationToken);
+            yield return new ChatResponseUpdate(ChatRole.Assistant, [new FunctionCallContent("call-1", hangUp.Name)]);
+            yield return new ChatResponseUpdate(ChatRole.Tool, [new FunctionResultContent("call-1", told)]);
+        }
         for (var i = 0; i < pieces.Length; i++)
         {
             if (i == 1 && Hold is { } hold)
@@ -159,7 +171,7 @@ public sealed class PipelineTests : IAsyncLifetime
         Declare(p => p.AddServerSpeechToText("Transcribe").AddChat(_chat).AddServerTextToSpeech("Read"));
         _session = new RoutingVoiceSession(
             new VoiceSession(_audio, _options, new VoiceTokenClient(_options, _ => Task.FromResult<string?>("phone-1")), () => new ScriptedSocket(), action => action(), _time),
-            new PipelineVoiceSession(_audio, _options, new PipelineServer(_options, _ => Task.FromResult<string?>("phone-1")), action => action(), _time),
+            new PipelineVoiceSession(_audio, _options, new PipelineServer(_options, _ => Task.FromResult<string?>("phone-1")), action => { lock (_ui) action(); }, _time),
             _options);
         _session.Ended += (reason, error) => _ended.Add((reason, error));
         return Task.CompletedTask;
@@ -188,11 +200,20 @@ public sealed class PipelineTests : IAsyncLifetime
             _audio.Capture(Signals.Sine(220, 24_000, 480, amplitude), 24_000);
     }
 
-    private static async Task Until(Func<bool> condition, string what)
+    // The main thread of a test: the session changes the conversation from its own tasks, and the test reads it, under one lock.
+    private readonly Lock _ui = new();
+
+    private async Task Until(Func<bool> condition, string what)
     {
-        for (var i = 0; i < 300 && !condition(); i++)
+        bool Met()
+        {
+            lock (_ui)
+                return condition();
+        }
+
+        for (var i = 0; i < 300 && !Met(); i++)
             await Task.Delay(10);
-        Assert.True(condition(), what);
+        Assert.True(Met(), what);
     }
 
     private ChatMessage? Answer => _conversation.LastOrDefault(m => m.Role == ChatRole.Assistant && m.Text.Length > 0);
@@ -302,6 +323,39 @@ public sealed class PipelineTests : IAsyncLifetime
         await Until(() => _ended.Count == 1, "ended");
         Assert.Equal(VoiceSessionEnd.Failed, _ended[0].Reason);
         Assert.Equal("503 from the server", _ended[0].Error?.Message);
+    }
+
+    [Fact]
+    public async Task A_goodbye_hangs_up_once_the_farewell_has_played()
+    {
+        _chat = new ScriptedChat("Hej då!") { HangsUp = true };
+        Declare(p => p.AddServerSpeechToText("Transcribe").AddChat(_chat).AddServerTextToSpeech("Read"));
+        _session.EndsOnGoodbye = true;
+        await ConnectAsync();
+
+        await _session.SendTextAsync("Tack, hej då");
+        await Until(() => _server.Spoken.Any() && _audio.IsPlaying, "the farewell plays");
+        Assert.Empty(_ended);
+
+        _audio.Render(4800, 48_000);                  // the farewell's 100 ms, played
+        for (var i = 0; i < 100 && _ended.Count == 0; i++)
+        {
+            _time.Advance(TimeSpan.FromMilliseconds(100));
+            await Task.Delay(10);
+        }
+        Assert.Equal([(VoiceSessionEnd.Goodbye, (Exception?)null)], _ended);
+        Assert.Equal(["Hej då!"], _server.Spoken);
+    }
+
+    [Fact]
+    public async Task Without_goodbyes_the_chat_is_offered_no_hang_up()
+    {
+        await ConnectAsync();
+
+        await _session.SendTextAsync("Vad är klockan?");
+
+        await Until(() => _chat.Asked.Count == 1, "answered");
+        Assert.Empty(_chat.Offered);
     }
 
     [Fact]

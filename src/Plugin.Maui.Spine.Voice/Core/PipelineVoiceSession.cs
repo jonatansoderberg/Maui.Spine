@@ -99,7 +99,10 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     public string? Voice { get; set; }
     public string? SpokenVoice { get; private set; }
 
-    /// <summary>Not supported by pipelines yet; kept so the app's toggle carries over when it switches back to a realtime feature.</summary>
+    /// <summary>
+    /// Each answer offers the chat <see cref="VoiceSession.EndConversationTool"/> as the app's own function; a server feature
+    /// must declare it (<c>ai.Functions.AddDevice</c>) and list it, or its model never sees it.
+    /// </summary>
     public bool EndsOnGoodbye { get; set; }
 
     public bool IsMuted
@@ -478,6 +481,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         var speaking = SpeakAsync(item, sentences.Reader, cancellationToken);
         var splitter = new SentenceSplitter();
         var said = new StringBuilder();
+        var goodbye = false;
+        var options = ChatOptions(EndsOnGoodbye ? Goodbye(said, () => goodbye = true) : null);
         Exception? failed = null;
         try
         {
@@ -485,7 +490,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
             {
                 try
                 {
-                    await foreach (var update in _chats[i].Client.GetStreamingResponseAsync(history, ChatOptions(), cancellationToken))
+                    await foreach (var update in _chats[i].Client.GetStreamingResponseAsync(history, options, cancellationToken))
                     {
                         finish = update.FinishReason ?? finish;
                         foreach (var content in update.Contents)
@@ -574,7 +579,31 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         // No chat could answer: the call ends and says why, as a realtime session does when its provider fails.
         if (failed is not null)
             await EndCoreAsync(VoiceSessionEnd.Failed, failed);
+        else if (goodbye && !cut)
+            await HangUpAfterFarewellAsync(generation);
     }
+
+    /// <summary>
+    /// Ends the call once the farewell has played, its last word out of the speaker too; the user talking again (a new
+    /// turn) keeps the conversation going.
+    /// </summary>
+    private async Task HangUpAfterFarewellAsync(int generation)
+    {
+        _logger.LogDebug("Spine.Voice: the chat hung up; the call ends after the farewell.");
+        while (_connected && _audio.IsPlaying && Volatile.Read(ref _generation) == generation)
+            await Task.Delay(TimeSpan.FromMilliseconds(50), _time);
+        await Task.Delay(VoiceSession.FarewellTail, _time);
+        if (_connected && Volatile.Read(ref _generation) == generation)
+            await EndCoreAsync(VoiceSessionEnd.Goodbye, null);
+    }
+
+    /// <summary>The hang-up tool, run here: a farewell already said in this answer is the farewell.</summary>
+    private static AIFunction Goodbye(StringBuilder said, Action hangUp) =>
+        AIFunctionFactory.Create(() =>
+        {
+            hangUp();
+            return said.Length > 0 ? VoiceSession.GoodbyeSaid : VoiceSession.SayGoodbye;
+        }, VoiceSession.EndConversationTool, VoiceSession.EndConversationDescription);
 
     /// <summary>Reads the sentences aloud as they come, through the engine as one item, so a cut-off says how far it got.</summary>
     private async Task SpeakAsync(string item, ChannelReader<string> sentences, CancellationToken cancellationToken)
@@ -637,9 +666,9 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         return bytes;
     }
 
-    private ChatOptions ChatOptions()
+    private ChatOptions ChatOptions(AIFunction? goodbye)
     {
-        var options = new ChatOptions();
+        var options = new ChatOptions { Tools = goodbye is null ? null : [goodbye] };
         lock (_preferred)
         {
             foreach (var (function, side) in _preferred)

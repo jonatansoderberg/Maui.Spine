@@ -22,6 +22,9 @@ public partial class ChatPageViewModel : SampleViewModel
     private CancellationTokenSource? _connecting;
     private string _using = "";
     private string _voiceFeature = "Voice";
+    private const string CallKey = "chat.call";
+    // In the order of the "Model for calls" choices.
+    private static readonly string[] CallFeatures = ["Voice", "VoiceFull", "VoiceLive", "Claude", "ClaudeOpenAIVoice"];
 
     public ChatPageViewModel()
     {
@@ -73,13 +76,15 @@ public partial class ChatPageViewModel : SampleViewModel
         Use(demo, "Demo answers in the app");
 
         var voiceModel = new ChoiceGroup("Model for calls", [
-            new Choice("Realtime 2.1 mini", "The server's Voice feature: gpt-realtime-2.1-mini, the app connects to OpenAI with a short-lived token.", () => _voiceFeature = "Voice"),
-            new Choice("Realtime 2.1", "VoiceFull: gpt-realtime-2.1, the larger model, about four times the price.", () => _voiceFeature = "VoiceFull"),
-            new Choice("GPT-Live", "VoiceLive: gpt-live-1, full duplex, through the server's relay; gpt-6-luna answers the bookings and the clock.", () => _voiceFeature = "VoiceLive"),
-            new Choice("Claude", "A voice pipeline: the phone writes you down (the server when it cannot), the server's Claude answers, and the phone's voice reads it.", () => _voiceFeature = "Claude"),
-            new Choice("Claude, OpenAI's voice", "The same pipeline, read aloud by the server's OpenAI voice (ReadOpenAI), streamed as it is made.", () => _voiceFeature = "ClaudeOpenAIVoice"),
+            new Choice("Realtime 2.1 mini", "The server's Voice feature: gpt-realtime-2.1-mini, the app connects to OpenAI with a short-lived token.", () => Call("Voice")),
+            new Choice("Realtime 2.1", "VoiceFull: gpt-realtime-2.1, the larger model, about four times the price.", () => Call("VoiceFull")),
+            new Choice("GPT-Live", "VoiceLive: gpt-live-1, full duplex, through the server's relay; gpt-6-luna answers the bookings and the clock.", () => Call("VoiceLive")),
+            new Choice("Claude", "A voice pipeline: the phone writes you down (the server when it cannot), the server's Claude answers, and the phone's voice reads it.", () => Call("Claude")),
+            new Choice("Claude, OpenAI's voice", "The same pipeline, read aloud by the server's OpenAI voice (ReadOpenAI), streamed as it is made.", () => Call("ClaudeOpenAIVoice")),
         ]);
-        voiceModel.Select(0);
+        // The model for calls is remembered, so a new build or a restart calls the same one.
+        _voiceFeature = Preferences.Default.Get(CallKey, "Voice");
+        voiceModel.Select(Math.Max(0, Array.IndexOf(CallFeatures, _voiceFeature)));
 
         var limit = new ChoiceGroup("Time limit per call", [
             new Choice("The server's", "The feature's MaxMinutes (3 minutes in the sample).", () => Session.MaxMinutes = null),
@@ -105,7 +110,7 @@ public partial class ChatPageViewModel : SampleViewModel
             new ToggleOption("Read the clock on the server", "show_time is on both sides; this chat runs it on the server instead of the phone (ChatOptions.Prefer for typed turns, IVoiceSession.Prefer for spoken ones).", () => ClockOnServer, value => ClockOnServer = value),
             new ToggleOption("Show function calls", "A card for each function the model called (ChatView.ShowToolCalls), for debugging; the model tells the user the result anyway.", () => ShowToolCalls, value => ShowToolCalls = value),
             avatars,
-            new ToggleOption("Hang up after goodbye", "Say goodbye (\"tack, hej då\") and the call ends once the answer has been said. Realtime calls only so far.", () => Session.EndsOnGoodbye, value => Session.EndsOnGoodbye = value),
+            new ToggleOption("Hang up after goodbye", "Say goodbye (\"tack, hej då\") and the call ends once the answer has been said. Claude calls too, when the server feature offers end_conversation.", () => Session.EndsOnGoodbye, value => Session.EndsOnGoodbye = value),
             new ToggleOption("Glow the screen's edge", "During a call the window's edge glows with the answer's level (Spine.Controls.Highlight).", () => Edge, value => Edge = value),
             new TextOption("Server", "The push sample server's AI prefix for calls; on a phone, the Mac's address on the network or the Azure one.", () => Server, value => Server = value, Microsoft.Maui.Keyboard.Url),
         ];
@@ -185,6 +190,12 @@ public partial class ChatPageViewModel : SampleViewModel
             _edge = _highlights.AttachEdge(window);
             _edge.Intensity = () => Session.UpdateFrame().OutputLevel;
         }
+    }
+
+    private void Call(string feature)
+    {
+        _voiceFeature = feature;
+        Preferences.Default.Set(CallKey, feature);
     }
 
     private void Use(IChatClient client, string label)

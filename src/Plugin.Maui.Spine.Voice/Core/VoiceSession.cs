@@ -33,12 +33,21 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     /// <summary>The tool <see cref="EndsOnGoodbye"/> gives the model.</summary>
     public const string EndConversationTool = "end_conversation";
 
+    /// <summary>What the model is told <see cref="EndConversationTool"/> is for; a server that declares it for a pipeline uses the same.</summary>
+    public const string EndConversationDescription = "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation; then say only a goodbye of two or three words in their language, without saying that you are ending the call. Do not call it for a pause or a thank-you in the middle of a conversation.";
+
+    /// <summary>The tool's answer when the farewell is still to be said.</summary>
+    internal const string SayGoodbye = "The call ends after your goodbye. Now say only a goodbye of two or three words in the user's language, such as \"Hej då!\"; do not say that you are ending the call.";
+
+    /// <summary>The tool's answer when the model already said goodbye in the same answer.</summary>
+    internal const string GoodbyeSaid = "The call ends once your goodbye has played. Say nothing more.";
+
     // EndsOnGoodbye's way out: asked for (the tool ran), the farewell under way, the farewell done (end once it has played).
     private const int NoGoodbye = 0, FarewellAsked = 1, FarewellUnderWay = 2, FarewellDone = 3;
     private int _goodbye;
     // How long the farewell must have been quiet before the call ends: the queue says it has played when its last sample
     // went to the device, which still has the output buffer and the speaker's latency to go. Ending at once cut the last word.
-    private static readonly TimeSpan FarewellTail = TimeSpan.FromMilliseconds(700);
+    internal static readonly TimeSpan FarewellTail = TimeSpan.FromMilliseconds(700);
     private long _quietSince;
 
     /// <summary>The provider's rate both ways.</summary>
@@ -592,9 +601,9 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         // made it say goodbye twice.
         var saidGoodbye = goodbye && _answerAudio;
         if (saidGoodbye)
-            result = "The call ends once your goodbye has played. Say nothing more.";
+            result = GoodbyeSaid;
         else if (goodbye)
-            result = "The call ends after your goodbye. Now say only a goodbye of two or three words in the user's language, such as \"Hej då!\"; do not say that you are ending the call.";
+            result = SayGoodbye;
         else
         {
             try
@@ -746,7 +755,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             {
                 ["type"] = "function",
                 ["name"] = EndConversationTool,
-                ["description"] = "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation; then say only a goodbye of two or three words in their language, without saying that you are ending the call. Do not call it for a pause or a thank-you in the middle of a conversation.",
+                ["description"] = EndConversationDescription,
                 ["parameters"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
             });
         }

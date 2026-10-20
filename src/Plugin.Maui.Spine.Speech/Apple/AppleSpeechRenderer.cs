@@ -15,6 +15,11 @@ internal sealed class AppleSpeechRenderer : ISpineSpeechRenderer
     private static readonly TimeSpan FirstAudio = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan NextAudio = TimeSpan.FromSeconds(1);
 
+    // One synthesizer for every render, one render at a time: a new synthesizer per sentence took about 0.7 s to give its
+    // first audio on an iPhone 16 Pro, which a voice conversation hears as a pause before each answer.
+    private readonly SemaphoreSlim _one = new(1, 1);
+    private Synthesizer? _synthesizer;
+
     public bool IsSupported => true;
 
     public async IAsyncEnumerable<SpeechAudio> RenderAsync(string text, SpeakOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -23,11 +28,12 @@ internal sealed class AppleSpeechRenderer : ISpineSpeechRenderer
         if (string.IsNullOrWhiteSpace(text))
             yield break;
 
-        var render = new Render();
-        using var _ = cancellationToken.Register(render.Stop);
-        render.Start(AppleSpineSpeech.Native(text, options ?? new()));
+        await _one.WaitAsync(cancellationToken);
+        Render? render = null;
         try
         {
+            render = (_synthesizer ??= new Synthesizer()).Start(AppleSpineSpeech.Native(text, options ?? new()));
+            using var _ = cancellationToken.Register(render.Stop);
             // The end is the empty buffer (or the delegate); a render that goes quiet without either ends anyway, rather
             // than holding up the sentences after it.
             for (var first = true; ; first = false)
@@ -53,7 +59,8 @@ internal sealed class AppleSpeechRenderer : ISpineSpeechRenderer
         }
         finally
         {
-            render.Stop();
+            render?.Stop();
+            _one.Release();
         }
     }
 
@@ -63,32 +70,59 @@ internal sealed class AppleSpeechRenderer : ISpineSpeechRenderer
     [UnmanagedCallersOnly]
     private static void OnBuffer(IntPtr block, IntPtr buffer) => BlockLiteral.GetTarget<Action<IntPtr>>(block)?.Invoke(buffer);
 
-    // One synthesizer per render: its delegate says when the utterance is done, and it is kept alive until then.
-    private sealed class Render : NSObject, IAVSpeechSynthesizerDelegate
+    // The shared synthesizer; its delegate ends the render whose utterance it reports.
+    private sealed class Synthesizer : NSObject, IAVSpeechSynthesizerDelegate
     {
-        private readonly AVSpeechSynthesizer _synthesizer = new();
-        private readonly Channel<SpeechAudio> _pieces = Channel.CreateUnbounded<SpeechAudio>(new() { SingleReader = true });
+        private readonly AVSpeechSynthesizer _native = new();
+        private Render? _current;
 
-        public Render() => _synthesizer.Delegate = this;
+        public Synthesizer() => _native.Delegate = this;
 
-        public ChannelReader<SpeechAudio> Pieces => _pieces.Reader;
-
-        public unsafe void Start(AVSpeechUtterance utterance)
+        public unsafe Render Start(AVSpeechUtterance utterance)
         {
-            Action<IntPtr> callback = OnBuffer;
+            var render = new Render(utterance, _native);
+            _current = render;
+            Action<IntPtr> callback = render.OnBuffer;
             delegate* unmanaged<IntPtr, IntPtr, void> trampoline = &AppleSpeechRenderer.OnBuffer;
             // The synthesizer copies the block, so this one is released when the call returns.
             using var block = new BlockLiteral(trampoline, callback, typeof(AppleSpeechRenderer), nameof(AppleSpeechRenderer.OnBuffer));
-            WriteUtterance(_synthesizer.Handle, WriteSelector, utterance.Handle, &block);
+            WriteUtterance(_native.Handle, WriteSelector, utterance.Handle, &block);
+            return render;
         }
+
+        private Render? For(AVSpeechUtterance utterance) => _current is { } render && render.Utterance == utterance ? render : null;
+
+        // The empty buffer ends a render; this is the fallback for a system that does not send it. Not at once, since the
+        // order of the two is not documented and the last buffers could still be on their way.
+        [Export("speechSynthesizer:didFinishSpeechUtterance:")]
+        public void DidFinishSpeechUtterance(AVSpeechSynthesizer synthesizer, AVSpeechUtterance utterance)
+        {
+            if (For(utterance) is { } render)
+                _ = Task.Delay(500).ContinueWith(_ => render.Complete(), TaskScheduler.Default);
+        }
+
+        [Export("speechSynthesizer:didCancelSpeechUtterance:")]
+        public void DidCancelSpeechUtterance(AVSpeechSynthesizer synthesizer, AVSpeechUtterance utterance) => For(utterance)?.Complete();
+    }
+
+    // One utterance's audio. Buffers from an utterance that was stopped arrive at its own completed channel, not the next's.
+    private sealed class Render(AVSpeechUtterance utterance, AVSpeechSynthesizer synthesizer)
+    {
+        private readonly Channel<SpeechAudio> _pieces = Channel.CreateUnbounded<SpeechAudio>(new() { SingleReader = true });
+
+        public AVSpeechUtterance Utterance { get; } = utterance;
+
+        public ChannelReader<SpeechAudio> Pieces => _pieces.Reader;
+
+        public void Complete() => _pieces.Writer.TryComplete();
 
         public void Stop()
         {
             if (_pieces.Writer.TryComplete())
-                _synthesizer.StopSpeaking(AVSpeechBoundary.Immediate);
+                synthesizer.StopSpeaking(AVSpeechBoundary.Immediate);
         }
 
-        private unsafe void OnBuffer(IntPtr handle)
+        public unsafe void OnBuffer(IntPtr handle)
         {
             // The last buffer is empty: the utterance is rendered.
             if (Runtime.GetNSObject<AVAudioPcmBuffer>(handle) is not { FrameLength: > 0 } buffer)
@@ -116,15 +150,6 @@ internal sealed class AppleSpeechRenderer : ISpineSpeechRenderer
             }
             _pieces.Writer.TryWrite(new SpeechAudio(pcm, (int)buffer.Format.SampleRate));
         }
-
-        // The empty buffer ends a render; this is the fallback for a system that does not send it. Not at once, since the
-        // order of the two is not documented and the last buffers could still be on their way.
-        [Export("speechSynthesizer:didFinishSpeechUtterance:")]
-        public void DidFinishSpeechUtterance(AVSpeechSynthesizer synthesizer, AVSpeechUtterance utterance) =>
-            _ = Task.Delay(500).ContinueWith(_ => _pieces.Writer.TryComplete(), TaskScheduler.Default);
-
-        [Export("speechSynthesizer:didCancelSpeechUtterance:")]
-        public void DidCancelSpeechUtterance(AVSpeechSynthesizer synthesizer, AVSpeechUtterance utterance) => _pieces.Writer.TryComplete();
     }
 }
 #endif

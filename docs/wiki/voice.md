@@ -163,7 +163,10 @@ await voice.ConnectAsync("Claude", chat.Messages);   // a pipeline's name instea
 - **The user's turn** shows as pending (`spine.pending`, a shimmer in `ChatView`) from the moment they start talking until its words are known, and is removed when nothing was said.
 - **The answer** is read without markdown, cut at sentence ends (not at "kl. 18"). The server feature's `SystemPrompt` should ask for plain spoken sentences.
 - **Permissions.** The device's recognizer asks for speech recognition when the call connects; the app declares `NSSpeechRecognitionUsageDescription`. Without it, or when the user says no, the server writes the user down, and a pipeline with no other part fails to connect, naming the reason.
-- **Not yet:** `EndsOnGoodbye`, a time limit, the device's parts on Android and Windows (#562, #563).
+- **Hanging up on goodbye.** With `EndsOnGoodbye`, each answer offers the chat `end_conversation` as the app's own function (`ChatOptions.Tools`), and the call ends with `VoiceSessionEnd.Goodbye` once the farewell has played. A Spine.AI server feature offers it to its model only when it declares it and lists it: `ai.Functions.AddDevice("end_conversation", VoiceSession's description, an empty schema)` and `"end_conversation"` in the feature's `Functions`.
+- **Time limit:** `MaxMinutes`, the app's own; no server reserves a pipeline's minutes. The call ends with `VoiceSessionEnd.TimeLimit`.
+- **Timings** are logged at Debug under `Plugin.Maui.Spine.Voice`: the turn, the words, the chat's first words and functions, each sentence's first audio and a cut-off. A chat that answers no text is a warning (a reasoning model can spend its whole output limit thinking; turn reasoning off or raise `MaxOutputTokens`).
+- **Not yet:** the device's parts on Android and Windows (#562, #563).
 
 ## A conversation
 
