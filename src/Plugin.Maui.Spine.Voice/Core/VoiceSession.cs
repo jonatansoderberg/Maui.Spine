@@ -594,7 +594,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         if (saidGoodbye)
             result = "The call ends once your goodbye has played. Say nothing more.";
         else if (goodbye)
-            result = "The call ends after your goodbye. Say a short goodbye now.";
+            result = "The call ends after your goodbye. Now say only a goodbye of two or three words in the user's language, such as \"Hej då!\"; do not say that you are ending the call.";
         else
         {
             try
@@ -746,7 +746,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             {
                 ["type"] = "function",
                 ["name"] = EndConversationTool,
-                ["description"] = "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation; then say a short goodbye in their language. Do not call it for a pause or a thank-you in the middle of a conversation.",
+                ["description"] = "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation; then say only a goodbye of two or three words in their language, without saying that you are ending the call. Do not call it for a pause or a thank-you in the middle of a conversation.",
                 ["parameters"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
             });
         }

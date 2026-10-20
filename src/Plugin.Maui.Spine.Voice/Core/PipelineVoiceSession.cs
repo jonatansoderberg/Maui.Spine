@@ -468,6 +468,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         var item = $"answer-{Guid.NewGuid():N}";
         var asked = _time.GetTimestamp();
         var firstWords = true;
+        ChatFinishReason? finish = null;
         _answering = true;
         _answerAudio = false;
         Evaluate();
@@ -486,6 +487,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
                 {
                     await foreach (var update in _chats[i].Client.GetStreamingResponseAsync(history, ChatOptions(), cancellationToken))
                     {
+                        finish = update.FinishReason ?? finish;
                         foreach (var content in update.Contents)
                         {
                             switch (content)
@@ -546,6 +548,9 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         // Cut off before a tick had shown it, the answer is marked here.
         var cut = answer.IsCancellationRequested && !run.IsCancellationRequested;
         _logger.LogDebug("Spine.Voice: the answer ended after {Ms:0} ms{Cut}: {Length} characters.", _time.GetElapsedTime(asked).TotalMilliseconds, cut ? ", cut off" : "", said.Length);
+        // A model that spends its output limit on reasoning answers nothing, and the user hears only silence.
+        if (!cut && failed is null && said.Length == 0)
+            _logger.LogWarning("Spine.Voice: the chat answered no text (finish reason {Finish}); a reasoning model may have used its output limit.", finish?.Value ?? "none");
         lock (_pendingGate)
         {
             _pendingText.Remove(item);
