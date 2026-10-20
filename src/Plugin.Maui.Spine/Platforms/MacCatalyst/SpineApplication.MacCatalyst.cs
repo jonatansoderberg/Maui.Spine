@@ -44,7 +44,9 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
             void Adopt(NSNotification notification) => MainThread.BeginInvokeOnMainThread(() =>
             {
                 if (notification.Object is not { } nsObj) return;
-                if (AppKitObjC.IsStatusBarWindow(nsObj.Handle)) return;
+                // Only the scene's window: menus, the status item and popovers have AppKit windows of their own, and
+                // occlusion changes are posted for them too; a translucent menu showed white text on white.
+                if (!AppKitObjC.IsSceneWindow(nsObj.Handle)) return;
 
                 EnableFullSizeContentView(nsObj.Handle);
                 AdoptNSWindow(nsObj);
@@ -137,6 +139,9 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         SetStatusItemIcon(macOptions);
         SetStatusItemTooltip(macOptions, options);
         BuildStatusItemMenu(options);
+
+        // Titles that are string keys follow the culture.
+        Common.SpineStrings.Current.Changed += (_, _) => MainThread.BeginInvokeOnMainThread(() => BuildStatusItemMenu(options));
     }
 
     private void SetStatusItemIcon(SpineOptions.MacOSPlatformOptions macOptions)
@@ -201,6 +206,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
     {
         if (_statusItem is null) return;
 
+        _menuTargets.Clear();
         var menuAlloc = AppKitObjC.IntPtr_msgSend(Class.GetHandle("NSMenu"), Selector.GetHandle("alloc"));
         var menuHandle = AppKitObjC.IntPtr_msgSend(menuAlloc, Selector.GetHandle("init"));
 
@@ -217,7 +223,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                     .SafeFireAndForget();
             });
             _menuTargets.Add(target);
-            var item = AppKitObjC.CreateMenuItem(shortcut.Title, target);
+            var item = AppKitObjC.CreateMenuItem(shortcut.DisplayTitle, target);
             if (ShortcutIcons.ForTray(_services, shortcut) is { } icon)
                 AppKitObjC.Void_msgSend_IntPtr(item, Selector.GetHandle("setImage:"), MenuImage(icon.GetMacOsPdf()));
             AppKitObjC.Void_msgSend_IntPtr(menuHandle, Selector.GetHandle("addItem:"), item);
@@ -239,7 +245,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         });
         _menuTargets.Add(exitTarget);
         AppKitObjC.Void_msgSend_IntPtr(menuHandle, Selector.GetHandle("addItem:"),
-            AppKitObjC.CreateMenuItem("Exit", exitTarget));
+            AppKitObjC.CreateMenuItem(Common.SpineStrings.Current["Spine.Tray.Quit"], exitTarget));
 
         AppKitObjC.Void_msgSend_IntPtr(_statusItem.Handle, Selector.GetHandle("setMenu:"), menuHandle);
     }
@@ -397,12 +403,9 @@ internal static class AppKitObjC
     [DllImport(Lib, EntryPoint = "objc_msgSend")]
     public static extern void Void_msgSend_IntPtr_nint_IntPtr(IntPtr receiver, IntPtr selector, IntPtr arg1, nint arg2, IntPtr arg3);
 
-    public static bool IsStatusBarWindow(IntPtr win)
-    {
-        var classNamePtr = IntPtr_msgSend(win, Selector.GetHandle("className"));
-        var className = NSString.FromHandle(classNamePtr);
-        return className?.Contains("StatusBar", StringComparison.OrdinalIgnoreCase) == true;
-    }
+    /// <summary>The window Catalyst hosts a scene in (<c>UINSWindow</c>), as opposed to menus and the status item.</summary>
+    public static bool IsSceneWindow(IntPtr win) =>
+        NSString.FromHandle(IntPtr_msgSend(win, Selector.GetHandle("className"))) == "UINSWindow";
 
     public static IntPtr CreateMenuItem(string title, NSObject target)
     {

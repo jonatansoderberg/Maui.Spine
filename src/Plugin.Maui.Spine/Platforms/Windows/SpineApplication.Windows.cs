@@ -394,7 +394,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
                 foreach (var shortcut in shortcuts.Where(s => s.ShowInTray))
                 {
-                    var item = new MenuFlyoutItem { Text = shortcut.Title };
+                    var item = new MenuFlyoutItem { Text = shortcut.DisplayTitle };
                     // Monochrome: the menu's own text colour, in light and dark.
                     if (ShortcutIcons.ForTray(_services, shortcut) is { } icon)
                         item.Icon = new Microsoft.UI.Xaml.Controls.BitmapIcon { UriSource = new Uri(icon.GetPngFilePath(32)), ShowAsMonochrome = true };
@@ -412,7 +412,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                 if (shortcuts.Any(s => s.ShowInTray))
                     flyout.Items.Add(new MenuFlyoutSeparator());
 
-                var exitItem = new MenuFlyoutItem { Text = "Exit" };
+                var exitItem = new MenuFlyoutItem { Text = Common.SpineStrings.Current["Spine.Tray.Quit"] };
                 exitItem.Click += (s, e) =>
                 {
                     _trayIcon?.Dispose();
