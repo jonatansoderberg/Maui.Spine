@@ -91,11 +91,11 @@ chat.Streamed += (_, e) =>
 `ChatComposer` goes in `SpinePage.Footer` and points at the view with `Chat="{x:Reference chat}"`. In the footer, the page's [keyboard avoidance](regions.md#the-on-screen-keyboard) keeps it above the on-screen keyboard.
 
 - **The field** is as tall as the platform's standard control on one line: 44 points on Apple, the 48 dp touch target on Android, and 40 on Windows. It grows to five lines.
-- **The round send button** is the same height, at the field's foot, and turns into Stop while an answer streams.
+- **The send button** is a round button as tall as the field, at its foot. It shows while there is text, and turns into Stop while an answer streams. On iOS and Mac Catalyst 26 it is Liquid Glass tinted with `SendButtonColor` (`Glass.Style="Prominent"`); elsewhere a round button in that colour.
 - **`Suggestions`** are chips above the field, shown while no answer is on its way. A tap sends the chip's text.
 - **`AutoFocus`** (on by default) puts the cursor in the field and shows the keyboard when the page appears. Turn it off for a chat the user reads before writing.
 - **`Placeholder`** is the empty field's text.
-- **The microphone.** `MicrophoneCommand` puts a microphone in the send button's place while the field is empty; a tap runs it. `IsMicrophoneActive` says a spoken conversation is on: the button becomes a red hang-up that runs the same command, and typed text and chips go to `MicrophoneTextCommand` (with the text) instead of the chat. Without `MicrophoneTextCommand` the field rests during the call ("Talking…"). Controls.Chat does not reference Spine.Voice; the page connects the two (see [Typed and spoken](#typed-and-spoken)).
+- **The voice button.** `MicrophoneCommand` adds a second round button with a waveform, in regular glass, beside the field; a tap runs it. `IsMicrophoneActive` says a spoken conversation is on: the button turns red with an X and runs the same command to hang up, and typed text and chips go to `MicrophoneTextCommand` (with the text) instead of the chat. Both buttons are dimmed while their command cannot run, and text that nothing took stays in the field. Without `MicrophoneTextCommand` the field rests during the call ("Talking…"). Controls.Chat does not reference Spine.Voice; the page connects the two (see [Typed and spoken](#typed-and-spoken)).
 - On iOS, MAUI's Done bar above the keyboard is removed, since the send button is there. On Android, the field's Material underline is removed.
 
 ## Copy and accessibility

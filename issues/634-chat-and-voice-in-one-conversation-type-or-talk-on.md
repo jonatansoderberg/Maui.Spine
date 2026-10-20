@@ -40,6 +40,11 @@
   - A sheet does not raise `OnDisappearing` on the page beneath (only region navigation and tab switches do), so Options does not end a call.
 - **The sample server's Voice feature runs on `gpt-realtime-mini`** at 0.05 USD a minute (owner, 2026-10-20). A token reserves 3 × 0.05 = 0.15 USD instead of 0.60, so the 1.5 USD day budget holds about ten calls.
 
+- **The composer's buttons (owner, 2026-10-20, seen on the iPhone):** the press highlight was a square, the button was not glass, and the microphone was too heavy.
+  - `Tap`'s highlight is round on a `Border` with an `Ellipse` (half the shorter side; an oval ripple mask on Android). The highlight had been a square since the composer was built.
+  - Send and voice are two `ImageButton`s with `Glass.Style` (Prominent for send and the hang-up, Regular for voice), with glyphs embedded in Controls.Chat (`spinechat*.svg`, drawn in the set's style) and loaded through Spine.Svg's `ResourceNameCache`.
+  - New symbols in Svg.Icons, drawn with `/spine-symbol`: `Microphone` and `Waveform` (the owner picked A and A; the set has 235). The voice button uses Waveform.
+
 ## Decisions
 
 - The history is text only, the last 40 user and assistant turns. Tool calls and results from the typed half are left out: a realtime session cannot be given them by call id.
