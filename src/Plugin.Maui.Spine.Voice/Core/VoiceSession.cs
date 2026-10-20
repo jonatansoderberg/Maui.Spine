@@ -16,9 +16,9 @@ namespace Plugin.Maui.Spine.Voice;
 /// </summary>
 /// <remarks>
 /// GPT-Live is full duplex and says less than Realtime: no event when the user starts to speak, no item ids, no end of an
-/// answer, and no truncate or cancel. The session cuts an answer off itself when the model stops sending audio while the
-/// user speaks and more than a moment of it is still queued, groups the transcript by speaker and pauses, and ends an
-/// answer's audio when none has come for a moment.
+/// answer, and no truncate or cancel. It streams its audio at real time, silence included, so the model yields simply by
+/// sending silence. The session plays what is not silence, ends an answer's audio when none has come for a moment, cuts
+/// it off itself if the model yielded with more than a moment still queued, and groups the transcript by speaker and pauses.
 /// </remarks>
 internal sealed class VoiceSession : IVoiceSession
 {
@@ -96,7 +96,9 @@ internal sealed class VoiceSession : IVoiceSession
     // A pause longer than this between two pieces of one speaker's words starts a new message.
     private const double LiveTurnGapMs = 1500;
     // No answer audio for this long ends its item, so it plays out and the next audio starts a new one.
-    private static readonly TimeSpan LiveAudioGap = TimeSpan.FromMilliseconds(300);
+    private static readonly TimeSpan LiveAudioGap = TimeSpan.FromMilliseconds(400);
+    // GPT-Live's silence is zeros or a few steps of noise (measured 2026-10-20); speech, fades included, peaks above this.
+    private const int LiveSilencePeak = 32;
     // The model stopped sending while the user speaks and this much is still queued: it yielded, so the rest is dropped.
     private static readonly TimeSpan LiveYieldAhead = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan LiveUserSpeaking = TimeSpan.FromSeconds(1);
@@ -911,6 +913,8 @@ internal sealed class VoiceSession : IVoiceSession
         {
             case "session.output_audio.delta" when Text(e, "delta") is { } delta:
                 var pcm = Convert.FromBase64String(delta);
+                if (IsSilence(pcm))
+                    break;
                 string? item = null;
                 lock (_liveGate)
                 {
@@ -980,6 +984,17 @@ internal sealed class VoiceSession : IVoiceSession
                 _logger.LogWarning("Spine.Voice: GPT-Live reported {Code}: {Message}", Text(error, "code") ?? Text(error, "type"), Text(error, "message"));
                 break;
         }
+    }
+
+    private static bool IsSilence(ReadOnlySpan<byte> pcm16)
+    {
+        var samples = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, short>(pcm16[..(pcm16.Length & ~1)]);
+        foreach (var sample in samples)
+        {
+            if (sample > LiveSilencePeak || sample < -LiveSilencePeak)
+                return false;
+        }
+        return true;
     }
 
     /// <summary>

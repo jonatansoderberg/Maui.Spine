@@ -31,6 +31,9 @@ internal sealed class AIRealtimeRelay
     private const int MaxAppMessage = 256 * 1024;
     private const int MaxProviderMessage = 16 * 1024 * 1024;
     private const int Rate = 24_000;
+    // GPT-Live streams its answer at real time, silence included: zeros or a few steps of noise (measured 2026-10-20).
+    // The app plays none of it, so the relay keeps it off the phone's connection.
+    private const int SilencePeak = 32;
 
     private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(15);
@@ -222,6 +225,9 @@ internal sealed class AIRealtimeRelay
                 case "response.event":
                     Backend(Parse(message)!, cancellationToken);
                     break;
+
+                case "session.output_audio.delta" when IsSilence(message):
+                    continue;
             }
 
             await SendAppAsync(message, cancellationToken);
@@ -661,6 +667,18 @@ internal sealed class AIRealtimeRelay
             if (result.EndOfMessage)
                 return Encoding.UTF8.GetString(message.GetBuffer(), 0, (int)message.Length);
         }
+    }
+
+    private static bool IsSilence(string message)
+    {
+        if (Parse(message)?["delta"] is not JsonValue delta || !delta.TryGetValue<string>(out var base64)) return false;
+        var pcm = Convert.FromBase64String(base64);
+        for (var i = 0; i + 1 < pcm.Length; i += 2)
+        {
+            var sample = (short)(pcm[i] | pcm[i + 1] << 8);
+            if (sample > SilencePeak || sample < -SilencePeak) return false;
+        }
+        return true;
     }
 
     /// <summary>The event's type, read without parsing the audio it may carry.</summary>

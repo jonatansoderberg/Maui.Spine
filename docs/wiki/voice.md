@@ -7,7 +7,7 @@ dotnet add package Plugin.Maui.Spine.Controls.Avatar  # AvatarView, to draw it
 
 A spoken conversation with a realtime model has two parts:
 
-- **The voice session (`IVoiceSession`)** gets a short-lived token from the app's server, connects to the provider, cuts the answer off when the user talks over it, keeps a transcript, and runs the functions the model calls: in the app, or forwarded to the server with the user's sign-in.
+- **The voice session (`IVoiceSession`)** gets a short-lived token from the app's server and connects to the provider (for GPT-Live, it connects to the server's relay instead), cuts the answer off when the user talks over it, keeps a transcript, and runs the functions the model calls: in the app, or on the server with the user's sign-in.
 - **The audio engine (`IVoiceAudio`) under it** runs the microphone and the speaker at the same time, with the platform's echo cancellation. Without it the model hears its own answer and interrupts itself.
 
 The provider's key never reaches the app. **`AvatarView`** (Spine.Controls.Avatar) draws the conversation, the sound in and out: see [Drawing the conversation](#drawing-the-conversation).
@@ -70,18 +70,41 @@ public partial class AssistantViewModel(IVoiceSession voice) : ViewModelBase   /
 - **Hanging up on goodbye.** `EndsOnGoodbye = true` gives the model a tool, `end_conversation`, to call when the user is done ("tack, hej då"). The model says a short goodbye, and the session ends with `VoiceSessionEnd.Goodbye` once that has played and 0.7 s of quiet has passed, so the last word leaves the speaker. Talking over the goodbye keeps the conversation going. Off by default.
 - **Push-to-talk.** `BeginTurn()` cuts off any answer and clears the input, and `EndTurn()` commits it and asks for the answer. It is meant for a feature with `"TurnDetection": "none"`.
 - **Text.** `SendTextAsync(text)` says something in writing, and the model answers aloud.
-- **The time limit.** The server cannot end a session (see [the token is not a lock](ai-server.md#realtime-voice-sessions)), so the session ends itself after the server's `maxMinutes`. `TimeLeft` counts down. `Ended` says why the session ended: `User`, `TimeLimit`, `Provider` (the socket closed), `Goodbye` or `Failed`, with the exception.
+- **The time limit.** `MaxMinutes` bounds what one conversation costs: set it before `ConnectAsync`, and the server takes it when it is shorter than the feature's `MaxMinutes` (never longer) and reserves only that from the budgets. The session ends itself then, and a GPT-Live session is also ended by the server a few seconds later if the app does not. A Realtime session cannot be ended by the server (see [the token is not a lock](ai-server.md#realtime-voice-sessions)). `TimeLeft` counts down. `Ended` says why the session ended: `User`, `TimeLimit`, `Provider` (the socket closed), `Goodbye` or `Failed`, with the exception.
+
+  ```csharp
+  voice.MaxMinutes = 2;                  // at most two minutes, whatever the feature allows
+  await voice.ConnectAsync("Voice");
+  ```
 - **Refusals** are the AI client's exceptions:
   - `AIFeatureOffException` when the feature is off or needs a signed-in user (`signInRequired`)
   - `AIRateLimitedException` with `RetryAfter`
   - `HttpRequestException` naming the URL for a wrong `SessionEndpoint`
-- **Providers.** The session speaks OpenAI's realtime events over a WebSocket, which covers Azure OpenAI too: the server's `protocol` is `openai` for both. Another protocol is refused before the microphone opens. Gemini Live and Azure Voice Live come when an app needs them.
+- **Providers.** The session speaks OpenAI's realtime events over a WebSocket, which covers Azure OpenAI too: the server's `protocol` is `openai` for both. A feature with `"Protocol": "Live"` answers `openai-live`, GPT-Live through the server's relay ([below](#gpt-live)). The server's feature decides; the app code is the same. Another protocol is refused before the microphone opens. Gemini Live and Azure Voice Live come when an app needs them.
 - **The installation id.** The token request sends it, the same `SecureStorage` key as push and the AI client. Per-installation rates then apply when the feature lets installations in.
 
 Seen on the owner's iPhone 16 Pro against `gpt-realtime` on 2026-10-15:
 - The token, the socket, a spoken Swedish conversation, and the states all worked.
 - `show_time` was called and answered ("Klockan är 19:30").
 - The owner talked over the answer four times. Each time the answer stopped, the model was told how much was heard, and it answered what he said.
+
+### GPT-Live
+
+[GPT-Live](https://developers.openai.com/api/docs/guides/live) (`gpt-live-1`) is OpenAI's full-duplex voice model. It listens while it speaks, and it hands reasoning and functions to a backend model. It gives apps no credential, so the app connects to the server's relay, `{SessionEndpoint}/realtime/{feature}/relay`, with its own sign-in and a one-time ticket from the token request. The server opens GPT-Live with its key. Server side: [GPT-Live through the relay](ai-server.md#gpt-live-through-the-relay). In the app, nothing changes but what the session does underneath:
+
+- **Barge-in needs no message.** GPT-Live streams its answer at real time, silence included, and yields to the user by going quiet. The session plays what is not silence, so the queue holds little more than the network's jitter. If the model goes quiet while the user speaks and more than half a second is still queued, the session drops it and marks the answer interrupted. `Interrupt()` flushes the answer and drops what still comes of it until the model pauses; the model is not told.
+- **The transcript** is grouped by speaker and pauses: GPT-Live sends both sides' words with times but marks no turns. A piece joins its speaker's latest message unless 1.5 s passed between them, and both sides can grow at once (a "mm" while the user talks is a message of its own). The user's turns are never pending.
+- **States:** `Speaking` while answer audio plays, `Thinking` while the backend works on something the model handed it, `Listening` otherwise.
+- **Functions** go to the backend model. The app's own functions run in the app as before. The server's run on the server inside the relay with the user's context, with no forwarding; the transcript shows the call and its result.
+- **Text** typed during a call is given to the voice as the user's words.
+- **Push-to-talk** mutes and unmutes the input; GPT-Live decides itself when to answer. `IsMuted` tells GPT-Live too, and while the engine sends nothing (muted, or `HalfWhileSpeaking`) the session sends silence, since GPT-Live listens to a continuous stream.
+- **Hanging up on goodbye** works as with Realtime, but less reliably: only the backend can call `end_conversation`, and GPT-Live sometimes says goodbye without handing over (reported on OpenAI's forum). If the voice never says the farewell, the call ends 8 s after the hang-up.
+
+Seen against the push sample server on the Mac on 2026-10-20, with Swedish speech (macOS's Alva) streamed at real time through the real `VoiceSession`:
+- "Hej! Vad är klockan just nu?": the voice said "Jag kollar det", the backend (`gpt-6-luna`) called `show_time` in the app, and the voice said "Klockan är 12:34".
+- "Tack, hej då!": the backend called `end_conversation`, the voice said "Hej då!", and the session ended with `Goodbye`.
+- 23 s of session cost $0.019 for the voice and $0.0003 for the backend. The relay recorded both and gave back the rest of the minute it had reserved.
+- GPT-Live sent 22.7 s of audio over 23.7 s, nearly all of it silence (exact zeros, or peaks of 8 at most). The relay keeps silence off the phone's connection.
 
 ## Setup
 

@@ -351,9 +351,14 @@ public sealed class LiveRelayTests : IAsyncLifetime
         Assert.Null(next["delegation_id"]);
         Assert.Contains("\"Vad är klockan?\"", (string?)next["content"]);
 
-        await provider.SendAsync(new { type = "session.output_audio.delta", delta = "BBBB" });
+        var silence = Convert.ToBase64String(new byte[4800]);
+        var speech = Convert.ToBase64String(Enumerable.Repeat((byte)0x10, 4800).ToArray());
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = silence });
+        await provider.SendAsync(new { type = "session.output_audio.delta", delta = speech });
         await provider.SendAsync(new { type = "session.output_transcript.delta", delta = "Hej", start_ms = 0, end_ms = 400 });
-        Assert.Equal("BBBB", (string?)(await app.NextAsync("session.output_audio.delta"))["delta"]);
+        var audio = await app.NextAsync();
+        Assert.Equal("session.output_audio.delta", (string?)audio!["type"]);
+        Assert.Equal(speech, (string?)audio["delta"]);
         Assert.Equal("Hej", (string?)(await app.NextAsync("session.output_transcript.delta"))["delta"]);
     }
 

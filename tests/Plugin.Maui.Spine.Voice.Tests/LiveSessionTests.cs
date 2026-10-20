@@ -128,6 +128,21 @@ public sealed class LiveSessionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_silence_live_streams_between_answers_is_not_played()
+    {
+        await ConnectAsync();
+
+        _socket.Push(new { type = "session.output_audio.delta", delta = Audio(2400, value: 0) });
+        _socket.Push(new { type = "session.output_audio.delta", delta = Audio(2400, value: 8) });
+        await Task.Delay(50);
+        Assert.False(_audio.IsPlaying);
+        Assert.Equal(VoiceState.Listening, _session.UpdateFrame().State);
+
+        _socket.Push(new { type = "session.output_audio.delta", delta = Audio(2400, value: 200) });
+        await Until(() => _audio.IsPlaying, "a fade-in plays");
+    }
+
+    [Fact]
     public async Task Each_side_s_words_join_its_latest_message_until_a_pause()
     {
         await ConnectAsync();

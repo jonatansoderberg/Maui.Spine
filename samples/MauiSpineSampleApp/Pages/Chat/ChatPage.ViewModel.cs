@@ -20,6 +20,7 @@ public partial class ChatPageViewModel : SampleViewModel
     private IEdgeGlow? _edge;
     private CancellationTokenSource? _connecting;
     private string _using = "";
+    private string _voiceFeature = "Voice";
 
     public ChatPageViewModel()
     {
@@ -33,7 +34,7 @@ public partial class ChatPageViewModel : SampleViewModel
         var server = services.GetRequiredKeyedService<IChatClient>("ServerAssistant");
         Client = demo;
 
-        // Spoken turns go to the push sample server's realtime Voice feature, in the same conversation: the microphone
+        // Spoken turns go to one of the push sample server's realtime features, in the same conversation: the microphone
         // connects a session that is given the turns so far and adds its own to Messages.
         _voiceOptions = services.GetRequiredService<SpineVoiceOptions>();
         _highlights = services.GetRequiredService<IHighlights>();
@@ -64,6 +65,20 @@ public partial class ChatPageViewModel : SampleViewModel
         model.Select(0);
         Use(demo, "Demo answers in the app");
 
+        var voiceModel = new ChoiceGroup("Model for calls", [
+            new Choice("Realtime 2.1 mini", "The server's Voice feature: gpt-realtime-2.1-mini, the app connects to OpenAI with a short-lived token.", () => _voiceFeature = "Voice"),
+            new Choice("Realtime 2.1", "VoiceFull: gpt-realtime-2.1, the larger model, about four times the price.", () => _voiceFeature = "VoiceFull"),
+            new Choice("GPT-Live", "VoiceLive: gpt-live-1, full duplex, through the server's relay; gpt-6-luna answers the bookings and the clock.", () => _voiceFeature = "VoiceLive"),
+        ]);
+        voiceModel.Select(0);
+
+        var limit = new ChoiceGroup("Time limit per call", [
+            new Choice("The server's", "The feature's MaxMinutes (3 minutes in the sample).", () => Session.MaxMinutes = null),
+            new Choice("1 minute", "IVoiceSession.MaxMinutes = 1: the server reserves and allows one minute.", () => Session.MaxMinutes = 1),
+            new Choice("30 seconds", "IVoiceSession.MaxMinutes = 0.5.", () => Session.MaxMinutes = 0.5),
+        ]);
+        limit.Select(0);
+
         var avatars = new ChoiceGroup("Avatar during a call", [.. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
         {
             "Bars" or "Ring" => "Built into Spine: the answer's sound one way, the microphone's the other.",
@@ -73,6 +88,8 @@ public partial class ChatPageViewModel : SampleViewModel
 
         _options = [
             model,
+            voiceModel,
+            limit,
             new ToggleOption("Read the clock on the server", "show_time is on both sides; this chat runs it on the server instead of the phone (ChatOptions.Prefer for typed turns, IVoiceSession.Prefer for spoken ones).", () => ClockOnServer, value => ClockOnServer = value),
             new ToggleOption("Show function calls", "A card for each function the model called (ChatView.ShowToolCalls), for debugging; the model tells the user the result anyway.", () => ShowToolCalls, value => ShowToolCalls = value),
             avatars,
@@ -191,7 +208,7 @@ public partial class ChatPageViewModel : SampleViewModel
         using var connecting = _connecting = new CancellationTokenSource();
         try
         {
-            await Session.ConnectAsync("Voice", Messages, connecting.Token);
+            await Session.ConnectAsync(_voiceFeature, Messages, connecting.Token);
             IsConnected = true;
             _clock ??= Application.Current!.Dispatcher.CreateTimer();
             _clock.Interval = TimeSpan.FromSeconds(1);
@@ -210,9 +227,9 @@ public partial class ChatPageViewModel : SampleViewModel
             IsTalking = false;
             Status = e switch
             {
-                AIFeatureOffException { Reason: AIOffReason.SignInRequired } => "The server's Voice feature answers signed-in users only; sign in first.",
-                AIFeatureOffException { Reason: AIOffReason.Budget } => "Today's Voice budget is spent; try again tomorrow.",
-                AIFeatureOffException off => $"The server's Voice feature is off ({off.Reason}). Does it have an OpenAI key?",
+                AIFeatureOffException { Reason: AIOffReason.SignInRequired } => $"The server's {_voiceFeature} feature answers signed-in users only; sign in first.",
+                AIFeatureOffException { Reason: AIOffReason.Budget } => $"Today's {_voiceFeature} budget is spent; try again tomorrow.",
+                AIFeatureOffException off => $"The server's {_voiceFeature} feature is off ({off.Reason}). Does it have an OpenAI key?",
                 AIRateLimitedException limited => $"Too many calls; try again in {limited.RetryAfter?.TotalSeconds:0} s.",
                 _ => e.Message,
             };

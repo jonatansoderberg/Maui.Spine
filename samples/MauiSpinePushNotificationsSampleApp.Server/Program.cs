@@ -191,7 +191,9 @@ app.MapGet("/sample/me", (ClaimsPrincipal user) => new
 // server functions, and GET /ai/usage for the report.
 app.MapSpineAI("/ai");
 
-// POST /ai/realtime/{name}: a short-lived token for a realtime voice session (Voice). The OpenAI key stays here.
+// POST /ai/realtime/{name}: a short-lived token for a realtime voice session (Voice, VoiceFull), or a ticket for the
+// relay a GPT-Live session talks through (VoiceLive, /ai/realtime/{name}/relay). The OpenAI key stays here.
+app.UseWebSockets();
 app.MapSpineRealtimeSessions("/ai");
 
 /// A feature the server owns: the app sends facts, the server writes the prompt. The caller is whoever the request
