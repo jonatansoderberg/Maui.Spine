@@ -162,6 +162,9 @@ public static class MauiProgram
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
+        // Spine.Voice's timings on stdout, which `devicectl device process launch --console` shows for a Release build on a phone.
+        builder.Logging.AddProvider(new StdoutLoggerProvider("Plugin.Maui.Spine.Voice"));
+        builder.Logging.AddFilter("Plugin.Maui.Spine.Voice", LogLevel.Debug);
 
         return builder.Build();
     }
@@ -180,4 +183,24 @@ public static class MauiProgram
         IPlatformApplication.Current?.Services.GetService<Plugin.Maui.Spine.Authentication.ISignedInSession>() is { } session
             ? session.GetAuthorizationHeaderAsync(cancellationToken)
             : Task.FromResult<string?>(null);
+}
+
+/// <summary>Writes one category's log lines to stdout.</summary>
+internal sealed class StdoutLoggerProvider(string category) : ILoggerProvider
+{
+    public ILogger CreateLogger(string categoryName) => categoryName.StartsWith(category, StringComparison.Ordinal) ? new Logger() : Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+
+    public void Dispose()
+    {
+    }
+
+    private sealed class Logger : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {logLevel}: {formatter(state, exception)}{(exception is null ? "" : $" {exception.GetType().Name}: {exception.Message}")}");
+    }
 }

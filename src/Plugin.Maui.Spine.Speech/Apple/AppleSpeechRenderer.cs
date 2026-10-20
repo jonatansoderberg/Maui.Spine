@@ -12,6 +12,8 @@ namespace Plugin.Maui.Spine.Speech;
 internal sealed class AppleSpeechRenderer : ISpineSpeechRenderer
 {
     private static readonly IntPtr WriteSelector = Selector.GetHandle("writeUtterance:toBufferCallback:");
+    private static readonly TimeSpan FirstAudio = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan NextAudio = TimeSpan.FromSeconds(1);
 
     public bool IsSupported => true;
 
@@ -26,8 +28,28 @@ internal sealed class AppleSpeechRenderer : ISpineSpeechRenderer
         render.Start(AppleSpineSpeech.Native(text, options ?? new()));
         try
         {
-            await foreach (var piece in render.Pieces.ReadAllAsync(cancellationToken))
-                yield return piece;
+            // The end is the empty buffer (or the delegate); a render that goes quiet without either ends anyway, rather
+            // than holding up the sentences after it.
+            for (var first = true; ; first = false)
+            {
+                bool more;
+                using (var quiet = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    quiet.CancelAfter(first ? FirstAudio : NextAudio);
+                    try
+                    {
+                        more = await render.Pieces.WaitToReadAsync(quiet.Token);
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        more = false;
+                    }
+                }
+                if (!more)
+                    yield break;
+                while (render.Pieces.TryRead(out var piece))
+                    yield return piece;
+            }
         }
         finally
         {

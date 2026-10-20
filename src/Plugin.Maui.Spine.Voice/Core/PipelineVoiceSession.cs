@@ -268,9 +268,11 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
     public async ValueTask DisposeAsync() => await EndCoreAsync(VoiceSessionEnd.User, null);
 
-    private sealed class Turn(string id, IHeardTurn? heard, int ear)
+    private sealed class Turn(string id, IHeardTurn? heard, int ear, long started)
     {
         public string Id { get; } = id;
+        public long Started { get; } = started;
+        public long Ended { get; set; }
         public MemoryStream Audio { get; } = new();
         public IHeardTurn? Heard { get; } = heard;
         public int Ear { get; } = ear;
@@ -339,7 +341,9 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         Interlocked.Increment(ref _generation);
 
         var (heard, ear) = BeginHearing(0);
-        var turn = new Turn($"turn-{Interlocked.Increment(ref _turns)}", heard, ear);
+        var turn = new Turn($"turn-{Interlocked.Increment(ref _turns)}", heard, ear, _time.GetTimestamp());
+        _logger.LogDebug("Spine.Voice: {Turn} started (threshold {Threshold:0.000}, {Part}{Barged}).", turn.Id, _detector?.Threshold,
+            ear < _ears.Count ? _ears[ear].Name : "no part", manual ? ", pushed" : "");
         _turn = turn;
         if (!manual && _preRollLength > 0)
         {
@@ -355,6 +359,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     {
         if (Interlocked.Exchange(ref _turn, null) is not { } turn)
             return;
+        turn.Ended = _time.GetTimestamp();
+        _logger.LogDebug("Spine.Voice: {Turn} ended after {Length:0.0} s.", turn.Id, _time.GetElapsedTime(turn.Started, turn.Ended).TotalSeconds);
         Interlocked.Increment(ref _transcribing);
         var generation = Volatile.Read(ref _generation);
         _ = Task.Run(() => HandleTurnAsync(turn, generation));
@@ -399,6 +405,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
             Evaluate();
         }
 
+        _logger.LogDebug("Spine.Voice: {Turn} written down {Ms:0} ms after it ended: {Length} characters.", turn.Id, _time.GetElapsedTime(turn.Ended).TotalMilliseconds, text?.Length ?? -1);
         if (string.IsNullOrWhiteSpace(text))
         {
             _dispatch(() => RemoveMessage(turn.Id));
@@ -409,6 +416,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         // The user went on talking after a pause: that turn is answered, with this one in the conversation before it.
         if (Volatile.Read(ref _generation) == generation)
             await AnswerAsync(generation);
+        else
+            _logger.LogDebug("Spine.Voice: {Turn} is not answered; a later turn is.", turn.Id);
     }
 
     /// <summary>The turn's words: from the part that heard it live, else each next part given the whole turn's audio.</summary>
@@ -457,6 +466,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
         var cancellationToken = answer.Token;
         var item = $"answer-{Guid.NewGuid():N}";
+        var asked = _time.GetTimestamp();
+        var firstWords = true;
         _answering = true;
         _answerAudio = false;
         Evaluate();
@@ -480,6 +491,9 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
                             switch (content)
                             {
                                 case TextContent { Text: { Length: > 0 } words }:
+                                    if (firstWords)
+                                        _logger.LogDebug("Spine.Voice: the chat's first words after {Ms:0} ms.", _time.GetElapsedTime(asked).TotalMilliseconds);
+                                    firstWords = false;
                                     said.Append(words);
                                     lock (_pendingGate)
                                         _pendingText[item] = _pendingText.GetValueOrDefault(item) + words;
@@ -487,6 +501,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
                                         sentences.Writer.TryWrite(sentence);
                                     break;
                                 case FunctionCallContent call:
+                                    _logger.LogDebug("Spine.Voice: the chat called {Function} after {Ms:0} ms.", call.Name, _time.GetElapsedTime(asked).TotalMilliseconds);
                                     _dispatch(() => _transcript.Add(new ChatMessage(ChatRole.Assistant, [call])));
                                     break;
                                 case FunctionResultContent result:
@@ -530,6 +545,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
         // Cut off before a tick had shown it, the answer is marked here.
         var cut = answer.IsCancellationRequested && !run.IsCancellationRequested;
+        _logger.LogDebug("Spine.Voice: the answer ended after {Ms:0} ms{Cut}: {Length} characters.", _time.GetElapsedTime(asked).TotalMilliseconds, cut ? ", cut off" : "", said.Length);
         lock (_pendingGate)
         {
             _pendingText.Remove(item);
@@ -566,11 +582,16 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
                 if (!mouth.IsAvailable)
                     continue;
                 var played = false;
+                var started = _time.GetTimestamp();
+                var seconds = 0.0;
                 try
                 {
                     PcmResampler? resampler = null;
                     await foreach (var piece in mouth.SayAsync(sentence, cancellationToken))
                     {
+                        if (!played)
+                            _logger.LogDebug("Spine.Voice: {Part} gave its first audio {Ms:0} ms after the sentence came, at {Rate} Hz.", mouth.Name, _time.GetElapsedTime(started).TotalMilliseconds, piece.SampleRate);
+                        seconds += piece.Pcm16.Length / 2.0 / piece.SampleRate;
                         var pcm = piece.SampleRate == Rate ? piece.Pcm16.Span
                             : Resample(piece.Pcm16.Span, resampler ??= new PcmResampler(piece.SampleRate, Rate));
                         _audio.Enqueue(item, pcm);
@@ -578,6 +599,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
                         _answerAudio = true;
                     }
                     SpokenVoice = mouth.Name;
+                    _logger.LogDebug("Spine.Voice: {Part} read {Characters} characters as {Seconds:0.0} s of audio in {Ms:0} ms{Empty}.", mouth.Name, sentence.Length,
+                        seconds, _time.GetElapsedTime(started).TotalMilliseconds, played ? "" : ", but gave no audio");
                     break;
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
@@ -647,6 +670,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     private void BargeIn()
     {
         var wasAnswering = _answering;
+        if (wasAnswering || _audio.IsPlaying)
+            _logger.LogDebug("Spine.Voice: the answer is cut off ({What}).", _audio.IsPlaying ? "playing" : "not playing yet");
         Interlocked.Exchange(ref _answer, null)?.Cancel();
         var position = _audio.Flush();
         if (position is { } played)

@@ -17,6 +17,7 @@ public partial class ChatPageViewModel : SampleViewModel
     private readonly SpineVoiceOptions _voiceOptions;
     private readonly IHighlights _highlights;
     private IDispatcherTimer? _clock;
+    private DateTime _callStarted;
     private IEdgeGlow? _edge;
     private CancellationTokenSource? _connecting;
     private string _using = "";
@@ -213,6 +214,7 @@ public partial class ChatPageViewModel : SampleViewModel
         {
             await Session.ConnectAsync(_voiceFeature, Messages, connecting.Token);
             IsConnected = true;
+            _callStarted = DateTime.UtcNow;
             _clock ??= Application.Current!.Dispatcher.CreateTimer();
             _clock.Interval = TimeSpan.FromSeconds(1);
             _clock.Tick -= OnClock;
@@ -303,8 +305,10 @@ public partial class ChatPageViewModel : SampleViewModel
     {
         if (!Session.IsConnected)
             return;
-        var left = Session.TimeLeft is { } t ? string.Create(CultureInfo.InvariantCulture, $" · {t:m\\:ss} left") : "";
+        // How long the call has lasted, and what is left of its limit when it has one.
+        var lasted = string.Create(CultureInfo.InvariantCulture, $" · {DateTime.UtcNow - _callStarted:m\\:ss}");
+        var left = Session.TimeLeft is { } t ? string.Create(CultureInfo.InvariantCulture, $", {t:m\\:ss} left") : "";
         var voice = Session.SpokenVoice is { } v ? $" · {v}" : "";
-        Status = $"Call: {Session.State}{voice}{left}";
+        Status = $"Call: {Session.State}{voice}{lasted}{left}";
     }
 }
