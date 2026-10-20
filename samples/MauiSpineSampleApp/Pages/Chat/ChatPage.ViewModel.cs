@@ -48,8 +48,13 @@ public partial class ChatPageViewModel : SampleViewModel
             IsTalking = IsConnected = false;
             _clock?.Stop();
             Status = error is not null ? $"The call ended: {error.Message}"
-                : reason == VoiceSessionEnd.Goodbye ? "You said goodbye, so it hung up."
-                : _using;
+                : reason switch
+                {
+                    VoiceSessionEnd.Goodbye => "You said goodbye, so it hung up.",
+                    VoiceSessionEnd.TimeLimit => string.Create(CultureInfo.InvariantCulture, $"Time's up: the call ended at its limit, after {DateTime.UtcNow - _callStarted:m\\:ss}."),
+                    VoiceSessionEnd.Provider => "The provider ended the call.",
+                    _ => _using,
+                };
         };
         Driver = new VoiceAvatarDriver(Session);
         // "Tack, hej då" ends the call, as with a person.
@@ -83,11 +88,14 @@ public partial class ChatPageViewModel : SampleViewModel
         ]);
         limit.Select(0);
 
-        var avatars = new ChoiceGroup("Avatar during a call", [.. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
-        {
-            "Bars" or "Ring" => "Built into Spine: the answer's sound one way, the microphone's the other.",
-            _ => "A character or ambient avatar following the conversation: its state, the levels and the mouth.",
-        }, () => Avatar = a))]);
+        var avatars = new ChoiceGroup("Avatar", [
+            .. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
+            {
+                "Bars" or "Ring" => "Built into Spine: the answer's sound one way, the microphone's the other.",
+                _ => "A character or ambient avatar following the conversation: its state, the levels and the mouth.",
+            }, () => Avatar = a)),
+            new Choice("None", "No avatar above the chat.", () => Avatar = null),
+        ]);
         avatars.Select(0);
 
         _options = [
@@ -146,8 +154,12 @@ public partial class ChatPageViewModel : SampleViewModel
     /// <summary>The avatar follows the call: its state, the levels and bands each way, the mouth on the answer.</summary>
     public AvatarDriver Driver { get; }
 
+    /// <summary>The avatar above the chat, idle until a call starts; null shows none.</summary>
     [ObservableProperty]
-    public partial AvatarChoice Avatar { get; set; } = VoiceAvatars.All[0];
+    [NotifyPropertyChangedFor(nameof(ShowsAvatar))]
+    public partial AvatarChoice? Avatar { get; set; } = VoiceAvatars.All[0];
+
+    public bool ShowsAvatar => Avatar is not null;
 
     /// <summary>A call is on or connecting: the microphone is a hang-up button, typed text goes into the call, the avatar shows.</summary>
     [ObservableProperty]
