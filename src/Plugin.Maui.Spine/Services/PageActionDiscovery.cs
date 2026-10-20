@@ -50,6 +50,18 @@ internal static class PageActionDiscovery
             action.IsVisible = attribute.IsVisible;
             action.Haptic = attribute.Haptic;
 
+            if (attribute.ShowsBusy)
+            {
+                if (command is not IAsyncRelayCommand running)
+                    throw new InvalidOperationException(
+                        $"[PageAction(ShowsBusy = true)] on {viewModel.GetType().Name}: '{template.Command.Name}' is not an async command.");
+                running.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(IAsyncRelayCommand.IsRunning))
+                        action.IsBusy = running.IsRunning;
+                };
+            }
+
             viewModel.PageActions.Add(action);
         }
     }

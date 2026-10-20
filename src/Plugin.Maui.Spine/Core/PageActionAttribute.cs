@@ -76,6 +76,20 @@ public sealed class PageActionAttribute : Attribute
     /// <summary>Initial <see cref="PageAction.IsVisible"/>. Defaults to <see langword="true"/>.</summary>
     public bool IsVisible { get; init; } = true;
 
+    /// <summary>
+    /// Whether <see cref="PageAction.IsBusy"/> follows the command while it runs, so a refresh button's icon turns
+    /// until the refresh is done. Needs an async command (<c>[RelayCommand]</c> on a method returning a
+    /// <see cref="Task"/>). Defaults to <see langword="false"/>.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// [PageAction(Svg = "Reload.svg", Placement = PageActionPlacement.Primary, ShowsBusy = true)]
+    /// [RelayCommand]
+    /// private Task RefreshAsync() => LoadAsync();
+    /// </code>
+    /// </example>
+    public bool ShowsBusy { get; init; }
+
     /// <summary>Initial <see cref="PageAction.Haptic"/>: the haptic a tap plays. Defaults to <see cref="Haptic.None"/>.</summary>
     public Haptic Haptic { get; init; }
 

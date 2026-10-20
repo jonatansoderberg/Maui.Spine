@@ -176,6 +176,21 @@ public sealed partial class PageAction : ObservableObject
     public partial bool IsEnabled { get; set; } = true;
 
     /// <summary>
+    /// Whether the work the button starts is under way: the button is dimmed and does not respond to taps, and an
+    /// icon turns until it is set back, finishing the turn it is on. With Reduce Motion the icon only dims.
+    /// <see cref="PageActionAttribute.ShowsBusy"/> sets it while an async command runs.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// _refresh.IsBusy = true;
+    /// try { await LoadAsync(); }
+    /// finally { _refresh.IsBusy = false; }
+    /// </code>
+    /// </example>
+    [ObservableProperty]
+    public partial bool IsBusy { get; set; }
+
+    /// <summary>
     /// Short text shown in a small pill over the button, such as a count. <see langword="null"/> hides the pill.
     /// </summary>
     [ObservableProperty]

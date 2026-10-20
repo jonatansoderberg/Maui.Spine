@@ -40,6 +40,21 @@
             </Example.Code>
         </Example>
 
+        <Example Title="Show that it is working"
+                 Summary="IsBusy dims the button, takes no taps and turns its icon until the work is done, finishing the turn it is on. ShowsBusy sets it for as long as an async command runs.">
+            <Button Text="Ring the bell" Command="{Binding RingCommand}" />
+            <Example.Code>
+                [PageAction(Svg = "bell.svg", ShowsBusy = true)]
+                [RelayCommand]
+                private Task Bell() => RingAsync();
+
+                // Or by hand
+                bell.IsBusy = true;
+                try { await RingAsync(); }
+                finally { bell.IsBusy = false; }
+            </Example.Code>
+        </Example>
+
         <Example Title="Replace the back button"
                  Summary="A Primary action takes the leading slot in place of Back: a Cancel on a page that edits something. Add it and remove it while the page shows.">
             <Button Text="{Binding CancelLabel}" Command="{Binding ToggleCancelCommand}" />
