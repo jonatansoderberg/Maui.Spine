@@ -2,7 +2,8 @@ using System.ComponentModel;
 using System.Windows.Input;
 using Microsoft.Maui.Controls.Shapes;
 using Plugin.Maui.Spine.Extensions;
-using Path = Microsoft.Maui.Controls.Shapes.Path;
+using Microsoft.Extensions.DependencyInjection;
+using Plugin.Maui.Spine.Svg;
 
 namespace Plugin.Maui.Spine.Controls;
 
@@ -59,18 +60,26 @@ public class ChatComposer : ContentView
     // Long enough for a page's push to finish, so the keyboard does not rise during the slide.
     private static readonly TimeSpan FocusDelay = TimeSpan.FromMilliseconds(400);
 
-    private const string SendGlyph = "M 10,16 L 10,4 M 4.5,9.5 L 10,4 L 15.5,9.5";
-    private const string StopGlyph = "M 6,6 L 14,6 L 14,14 L 6,14 Z";
-    private const string MicrophoneGlyph = "M 10,2.5 C 8.6,2.5 7.5,3.6 7.5,5 L 7.5,9.5 C 7.5,10.9 8.6,12 10,12 C 11.4,12 12.5,10.9 12.5,9.5 L 12.5,5 C 12.5,3.6 11.4,2.5 10,2.5 Z M 4.5,9 C 4.5,12 7,14.5 10,14.5 C 13,14.5 15.5,12 15.5,9 M 10,14.5 L 10,17.5";
-    private const string HangUpGlyph = "M 6,6 L 14,14 M 14,6 L 6,14";
+    // The composer's glyphs, in Spine's icon style, embedded in this package.
+    private const string SendIcon = "spinechatsend.svg";
+    private const string StopIcon = "spinechatstop.svg";
+    private const string HangUpIcon = "spinechathangup.svg";
+    private const string VoiceIcon = "spinechatvoice.svg";
+
+    // The package's own SVGs, added to Spine.Svg's names the first time a composer draws one.
+    private static readonly Lazy<ResourceNameCache> Icons = new(() =>
+    {
+        var cache = IPlatformApplication.Current?.Services.GetService<ResourceNameCache>() ?? new ResourceNameCache();
+        cache.Initialize([typeof(ChatComposer).Assembly]);
+        return cache;
+    });
 
     private readonly Editor _editor;
     private readonly Border _field;
-    private readonly Border _send;
-    private readonly Path _glyph;
+    private readonly ImageButton _send;
+    private readonly ImageButton _voice;
     private readonly HorizontalStackLayout _chips = new() { Spacing = 8 };
-    private readonly Dictionary<string, Geometry> _geometries = new(StringComparer.Ordinal);
-    private string? _shownGlyph;
+    private (string Icon, Color Tint, double Size)? _sendShown, _voiceShown;
     private readonly ScrollView _chipsScroll;
 
     public ChatComposer()
@@ -95,28 +104,19 @@ public class ChatComposer : ContentView
             Content = new Grid { Children = { _editor } },
         };
 
-        _glyph = new Path
-        {
-            Stroke = Colors.White,
-            Fill = Colors.Transparent,
-            StrokeThickness = 2.4,
-            StrokeLineCap = PenLineCap.Round,
-            StrokeLineJoin = PenLineJoin.Round,
-            WidthRequest = 20,
-            HeightRequest = 20,
-            HorizontalOptions = LayoutOptions.Center,
-            VerticalOptions = LayoutOptions.Center,
-        };
+        // As tall as the field on one line, and at its foot when it grows, the way Messages keeps its send button. Liquid
+        // Glass where the system has it (iOS and Mac Catalyst 26); a round button elsewhere.
+        _send = new ImageButton { VerticalOptions = LayoutOptions.End, IsVisible = false };
+        Glass.SetStyle(_send, GlassStyle.Prominent);
+        _send.Clicked += (_, _) => SendOrStop();
 
-        // As tall as the field on one line, and at its foot when it grows, the way Messages keeps its send button.
-        _send = new Border
+        // The spoken conversation: the voice button starts one, and is the hang-up while it is on.
+        _voice = new ImageButton { VerticalOptions = LayoutOptions.End, IsVisible = false };
+        _voice.Clicked += (_, _) =>
         {
-            StrokeThickness = 0,
-            StrokeShape = new Ellipse(),
-            VerticalOptions = LayoutOptions.End,
-            Content = _glyph,
+            if (MicrophoneCommand is { } microphone && microphone.CanExecute(null))
+                microphone.Execute(null);
         };
-        Tap.SetCommand(_send, new Command(Act));
 
         _chipsScroll = new ScrollView
         {
@@ -126,9 +126,10 @@ public class ChatComposer : ContentView
             IsVisible = false,
         };
 
-        var row = new Grid { ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto)], ColumnSpacing = 8 };
+        var row = new Grid { ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto), new ColumnDefinition(GridLength.Auto)], ColumnSpacing = 8 };
         row.Add(_field, 0);
         row.Add(_send, 1);
+        row.Add(_voice, 2);
 
         Content = new VerticalStackLayout { Spacing = 8, Padding = new Thickness(12, 8), Children = { _chipsScroll, row } };
 
@@ -240,7 +241,7 @@ public class ChatComposer : ContentView
         ShowSuggestions();
     }
 
-    private void Act()
+    private void SendOrStop()
     {
         if (Chat is { IsBusy: true } chat)
         {
@@ -248,16 +249,8 @@ public class ChatComposer : ContentView
             return;
         }
 
-        var text = _editor.Text;
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            if (MicrophoneCommand is { } microphone && microphone.CanExecute(null))
-                microphone.Execute(null);
-            return;
-        }
-
         // Cleared only once something took it: text that could not go anywhere stays to be sent again.
-        if (Say(text))
+        if (_editor.Text is { } text && !string.IsNullOrWhiteSpace(text) && Say(text))
             _editor.Text = "";
     }
 
@@ -334,32 +327,38 @@ public class ChatComposer : ContentView
 
     private void UpdateSend()
     {
+        var style = Effective;
         var busy = IsBusy;
         var empty = string.IsNullOrWhiteSpace(_editor.Text);
-        var (glyph, label) = busy ? (StopGlyph, "Spine.Chat.Stop")
-            : empty && IsMicrophoneActive ? (HangUpGlyph, "Spine.Chat.HangUp")
-            : empty && MicrophoneCommand is not null ? (MicrophoneGlyph, "Spine.Chat.Microphone")
-            : (SendGlyph, "Spine.Chat.Send");
 
-        if (glyph != _shownGlyph)
-        {
-            if (!_geometries.TryGetValue(glyph, out var geometry))
-                _geometries[glyph] = geometry = (Geometry)new PathGeometryConverter().ConvertFromInvariantString(glyph)!;
-            _glyph.Data = geometry;
-            _shownGlyph = glyph;
-        }
+        // Send shows while there is something to send, and is Stop while an answer streams.
+        _send.IsVisible = busy || !empty;
+        var canSend = busy || !empty && (IsMicrophoneActive ? MicrophoneTextCommand?.CanExecute(_editor.Text) == true : Chat is not null);
+        _send.BackgroundColor = style.SendButtonColor;
+        _send.Opacity = canSend ? 1 : 0.4;
+        Draw(_send, ref _sendShown, busy ? StopIcon : SendIcon, Colors.White);
+        SemanticProperties.SetDescription(_send, ChatStrings.Get(busy ? "Spine.Chat.Stop" : "Spine.Chat.Send"));
 
-        // Dimmed when a tap would do nothing: an empty field, or a command that cannot run now (a call still connecting).
-        var ready = glyph switch
-        {
-            StopGlyph => true,
-            HangUpGlyph or MicrophoneGlyph => MicrophoneCommand?.CanExecute(null) == true,
-            _ => !empty && (IsMicrophoneActive ? MicrophoneTextCommand?.CanExecute(_editor.Text) == true : Chat is not null),
-        };
-        _glyph.Fill = busy ? Colors.White : Colors.Transparent;
-        _send.Opacity = ready ? 1 : 0.4;
-        _send.BackgroundColor = glyph == HangUpGlyph ? Effective.ErrorColor : Effective.SendButtonColor;
-        SemanticProperties.SetDescription(_send, ChatStrings.Get(label));
+        // The voice button is there whenever the app offers a spoken conversation; red while one is on.
+        _voice.IsVisible = MicrophoneCommand is not null;
+        var talking = IsMicrophoneActive;
+        Glass.SetStyle(_voice, talking ? GlassStyle.Prominent : GlassStyle.Regular);
+        _voice.BackgroundColor = talking ? style.ErrorColor : style.ComposerFieldBackground;
+        _voice.Opacity = MicrophoneCommand?.CanExecute(null) == true ? 1 : 0.4;
+        Draw(_voice, ref _voiceShown, talking ? HangUpIcon : VoiceIcon, talking ? Colors.White : style.ComposerTextColor ?? Colors.Black);
+        SemanticProperties.SetDescription(_voice, ChatStrings.Get(talking ? "Spine.Chat.HangUp" : "Spine.Chat.Microphone"));
+    }
+
+    /// <summary>Renders <paramref name="icon"/> on <paramref name="button"/>, once per icon, tint and size.</summary>
+    private void Draw(ImageButton button, ref (string Icon, Color Tint, double Size)? shown, string icon, Color tint)
+    {
+        var size = Effective.ControlHeight;
+        if (shown is { } last && last.Icon == icon && last.Tint.Equals(tint) && last.Size == size) return;
+        shown = (icon, tint, size);
+
+        if (Icons.Value.Resolve(icon) is not { } resource) return;
+        // The glyph is half the button, with line ends rounded and lines a little heavier, as the header bar's icons.
+        button.Source = SvgBitmapLoader.LoadFromEmbedded(resource, size, size, tint, new Thickness(size / 4), lineWidthScale: 1.4f, roundLineEnds: true);
     }
 
     private void ShowSuggestions()
@@ -394,7 +393,9 @@ public class ChatComposer : ContentView
         _field.BackgroundColor = style.ComposerFieldBackground;
         _field.MinimumHeightRequest = style.ControlHeight;
         _field.StrokeShape = new RoundRectangle { CornerRadius = style.ControlHeight / 2 };
-        _send.WidthRequest = _send.HeightRequest = style.ControlHeight;
+        _send.WidthRequest = _send.HeightRequest = _voice.WidthRequest = _voice.HeightRequest = style.ControlHeight;
+        _send.CornerRadius = _voice.CornerRadius = (int)(style.ControlHeight / 2);
+        _send.Padding = _voice.Padding = new Thickness(0);
         FitPlatformEditor();
         UpdateSend();
         ShowSuggestions();
