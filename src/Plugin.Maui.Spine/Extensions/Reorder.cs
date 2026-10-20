@@ -85,7 +85,11 @@ public static class Reorder
             typeof(bool),
             typeof(Reorder),
             true,
-            propertyChanged: static (bindable, _, _) => GetState(bindable)?.Update());
+            propertyChanged: static (bindable, _, _) =>
+            {
+                GetState(bindable)?.Update();
+                ((LayoutReorderState?)bindable.GetValue(LayoutStateProperty))?.Update();
+            });
 
     /// <summary>
     /// Attached property: the command that runs with a <see cref="ReorderMove"/> after the user has
@@ -144,8 +148,41 @@ public static class Reorder
 
     internal static ReorderHandleState? GetHandleState(BindableObject view) => (ReorderHandleState?)view.GetValue(HandleStateProperty);
 
+    static readonly BindablePropertyKey IsDraggingPropertyKey =
+        BindableProperty.CreateAttachedReadOnly("IsDragging", typeof(bool), typeof(Reorder), false);
+
+    /// <summary>
+    /// Attached read-only property: true on a bindable layout while one of its items is being dragged. Rebuilding
+    /// the items then would take the item from under the pointer, so an app that refreshes its list on a timer waits.
+    /// </summary>
+    public static readonly BindableProperty IsDraggingProperty = IsDraggingPropertyKey.BindableProperty;
+
+    /// <summary>Gets whether an item of <paramref name="view"/> is being dragged.</summary>
+    public static bool GetIsDragging(BindableObject view) => (bool)view.GetValue(IsDraggingProperty);
+
+    internal static void SetIsDragging(BindableObject view, bool value) => view.SetValue(IsDraggingPropertyKey, value);
+
+    static readonly BindableProperty LayoutStateProperty =
+        BindableProperty.CreateAttached("LayoutState", typeof(LayoutReorderState), typeof(Reorder), null);
+
     static void OnModeChanged(BindableObject bindable, object oldValue, object newValue)
     {
+        // A bindable layout (BindableLayout.ItemsSource): see LayoutReorderState.
+        if (bindable is Layout layout)
+        {
+            var layoutState = (LayoutReorderState?)layout.GetValue(LayoutStateProperty);
+            if ((ReorderMode)newValue == ReorderMode.Off)
+            {
+                layoutState?.Dispose();
+                layout.ClearValue(LayoutStateProperty);
+            }
+            else if (layoutState is null)
+                layout.SetValue(LayoutStateProperty, new LayoutReorderState(layout));
+            else
+                layoutState.Update();
+            return;
+        }
+
         if (bindable is not CollectionView list)
             return;
 
