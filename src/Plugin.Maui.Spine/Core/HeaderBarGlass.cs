@@ -7,5 +7,11 @@ public enum HeaderBarGlass
     Regular,
 
     /// <summary>Nearly transparent glass, for a bar that lies over a photo or a map.</summary>
-    Clear
+    Clear,
+
+    /// <summary>
+    /// No glass at rest; regular glass while a button is pressed, like a toolbar's icons. A prominent action keeps
+    /// its tinted glass.
+    /// </summary>
+    Transient
 }

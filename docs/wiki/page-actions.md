@@ -137,6 +137,8 @@ finally { _refresh.IsBusy = false; }
 
 On iOS 26 and Mac Catalyst 26 the header bar renders its back button and page actions as Liquid Glass, the way a `UINavigationBar` shows its items. The SVG keeps the tint `PageActionView` gives it (black in light theme, white in dark); a text action keeps the app's accent (`Primary`, or `IThemeService.Accent`). Turn it off in `UseSpine` with `options.Apple.GlassHeaderActions = false`. See [Glass buttons](glass-buttons.md) for the attached property behind it.
 
+`HeaderBarGlass = HeaderBarGlass.Transient` (on the attribute, in `options.RegionDefaults`/`SheetDefaults`, or on the view model) draws the buttons as plain icons and shows regular glass only while one is pressed (`GlassStyle.Transient`), like the icons of a Mac toolbar. A `Confirm` stays prominent glass. Where the buttons are not glass, `Transient` is a bare icon button with the platform's pressed state.
+
 ---
 
 ## Placement
