@@ -127,16 +127,16 @@ public sealed class ColumnChart : ChartView
 
             if (i == selected && ValueLabels is { } valueLabels && i < valueLabels.Count)
             {
-                // Centred over its column, kept inside the chart at the ends.
-                const float width = 72;
+                // Centred on its column; moved in only as far as the text would otherwise leave the chart.
+                var font = new Microsoft.Maui.Graphics.Font(FontFamily, FontWeights.Bold);
+                const float size = 11;
+                var width = canvas.GetStringSize(valueLabels[i], font, size).Width + 2;
                 var centre = rect.X + slot * i + slot / 2;
-                var left = Math.Clamp(centre - width / 2, rect.X, rect.Right - width);
-                canvas.Font = new Microsoft.Maui.Graphics.Font(FontFamily, FontWeights.Bold);
-                canvas.FontSize = 11;
+                var left = Math.Clamp(centre - width / 2, rect.X, Math.Max(rect.X, rect.Right - width));
+                canvas.Font = font;
+                canvas.FontSize = size;
                 canvas.FontColor = dark ? Colors.White : Colors.Black;
-                canvas.DrawString(valueLabels[i], left, rect.Y, width, LabelHeight,
-                    centre - width / 2 < rect.X ? HorizontalAlignment.Left : centre + width / 2 > rect.Right ? HorizontalAlignment.Right : HorizontalAlignment.Center,
-                    VerticalAlignment.Center);
+                canvas.DrawString(valueLabels[i], left, rect.Y, width, LabelHeight, HorizontalAlignment.Center, VerticalAlignment.Center);
             }
 
             if (Labels is { } names && i < names.Count)
