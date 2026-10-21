@@ -1,247 +1,303 @@
-# Plan: glukosappen (CGM-källor → Azure → app, låsskärm, Mac, Garmin och DIY)
+# Plan: Glukos – glukosvärdet här och nu
 
 **Påbörjad:** 2026-10-21
-**Senast uppdaterad:** 2026-10-21 (fjärde utkastet: funktionslista och positionering efter konkurrentkartläggningen, flera personer, dygnsgraf, Mac och menyrad, Garmin-complications, fler Nightscout-vägar, risken med kryptering i LinkUp v5; därefter svenska och engelska, notiser med talade ljud, Windows)
+**Senast uppdaterad:** 2026-10-21 (femte utkastet: renskrivet, med kartläggning av vad användare efterfrågar, Garmin på djupet och dialogen med Abbott)
 
-En app byggd på Spine som visar aktuellt glukosvärde, **här och nu**. Värdet hämtas av en backend i Azure Functions från en **källa**: först
-LibreLinkUp (FreeStyle Libre 3), senare Nightscout. Backend hämtar i den takt användarens nivå tillåter och skickar värdet vidare till appen,
-till en Live Activity (iOS, och därmed StandBy, Macens menyrad och Apple Watch Smart Stack), till Live Update (Android), till en Garmin Connect IQ-app
-och till ett öppet API med nycklar för egna DIY-projekt.
+En app byggd på Spine som visar ett aktuellt glukosvärde. Värdet hämtas av en backend i Azure Functions från en **källa**, först LibreLinkUp (FreeStyle Libre 3) och senare Nightscout.
+Det visas i appen, i en Live Activity (iPhone, och därmed StandBy, Macens menyrad och Apple Watch), i Live Update (Android), på Garmin-klockan (datafält, glance och urtavla)
+och via ett öppet API med nycklar för egna DIY-projekt.
 
-Konkurrenterna och användarnas behov finns i [glucose-app-market.md](glucose-app-market.md).
-
-Arbetsnamn i planen: **Glukos**. Statusvärden: **Förslag**, **Klar att börja**, **Pågår**, **Under granskning**, **Klar**, **Parkerad**.
+Underlag: [glucose-app-market.md](glucose-app-market.md) (konkurrenter, användarbehov och källor).
+Arbetsnamn: **Glukos**. Statusvärden: **Förslag**, **Klar att börja**, **Pågår**, **Under granskning**, **Klar**, **Parkerad**.
 
 ---
 
-## 1. Mål och avgränsning
+## 0. Sammanfattning
 
-**Här och nu, inte statistik.** Glukos svarar på tre frågor med en blick: *vad är värdet, åt vilket håll går det och är det färskt?*
-Ingen tid i målområdet, HbA1c, rapporter, loggbok, mat eller AI. Det har Abbott, Gluroo och Sugar Sense redan, och det gör deras appar tyngre att ta in med en blick.
+- **Här och nu, inte statistik.** Tre frågor med en blick: *vad är värdet, åt vilket håll går det, och är det färskt?*
+- **Det användare efterfrågar mest** (§2):
+  1. Flera personer med egna notiser.
+  2. Värden som syns utan att öppna appen och som aldrig ser färska ut när de är gamla.
+  3. Notiser som väcker en.
+  4. Uppdatering varje minut.
+  5. Garmin.
+  Allt ligger inom "här och nu".
+- **Det tydligaste försprånget:** en Live Activity som startar om sig själv efter iOS gräns på 8 timmar. Spine kan redan göra det med push-to-start, och ingen konkurrent gör det bra.
+- **Gratisnivån (Standard)** innehåller Live Activity, Garmin, DIY och säkerhetsläget, med ett nytt värde var 5:e minut. **Plus** säljer tätheten: varje minut.
+- **Garmin:** tre appar.
+  - Ett **datafält** som visar och **loggar glukos i aktiviteten**, med graf och min, max och snitt i Garmin Connect.
+  - En **app med glance** som också publicerar värdet som complication till andra urtavlor.
+  - En **urtavla**.
+- **Backend:** Azure Functions på Consumption-planen och Table Storage. Ungefär **0–20 kr i månaden för 100 användare**.
+- **Största risken:** LibreLinkUp är inofficiellt, och v5 kan kryptera svaren (R1, R2). **Spike S1 avgör om planen håller.**
+  Parallellt skickas en begäran till Abbott enligt EU:s dataförordning (Data Act) och en fråga om partneråtkomst (§13).
+- **Spine** har nästan allt: inloggning, push, Live Activity, push-to-start, Android Live Update, ljud i notiser, strängar som delas med servern, köer och AI-röster.
+  Det som saknas är en linjegraf, en minigraf i widgetträdet, köp i appen, menyradsikon med text och critical alerts (§14).
+- **Svenska och engelska** från början, även ljuden och klockan.
 
-**Inte en medicinteknisk produkt.** Appen visar en kopia av data från källan och kan ligga efter. Det ska stå i appen
-(onboarding och Om-sidan), och ett värde som är för gammalt ska synas tydligt som gammalt, inte som aktuellt (§5.3).
+---
 
-### 1.1 Funktionslista
+## 1. Mål och principer
 
-**Måste** = v1. **Bör** = v1 om tiden räcker, annars nästa version. **Senare** = parkerat (§13).
+**Principer:**
+1. **Ärlig färskhet.** Ett gammalt värde får aldrig se aktuellt ut, på någon yta. Användarna ser det som det farligaste felet.
+2. **Säkerhet ligger inte bakom betalvägg.** Säkerhetsläget och notiserna för lågt värde finns i Standard.
+3. **Servern gör jobbet.** Telefonen och klockan får färdiga värden och behöver inte köra i bakgrunden. Det är bra för batteriet, som är ett av de vanligaste klagomålen hos andra.
+4. **En sanning.** Layouten för Live Activity, strängarna och trendlogiken finns i `Glukos.Shared` och används av både appen och servern.
+5. **Inget kringgående.** Glukos kringgår inte kryptering eller spärrar hos en källa.
 
-**Appen (Hem):**
+**Inte en medicinteknisk produkt.** Glukos visar en kopia av data från källan och kan ligga efter. Libre 3-appen och LinkUp är det som larmar.
+Det står i onboarding och på Om-sidan.
+
+**Medvetet utanför:**
+- statistik över 7–90 dagar, tid i målområdet, HbA1c, rapporter och export;
+- att mata in insulin, kolhydrater, mat eller anteckningar;
+- att styra en loop eller visa basal;
+- kalibrering och hantering av sensorn;
+- att ladda upp till LibreView, Tidepool eller Apple Hälsa;
+- AI.
+
+Det efterfrågas också, men det är andra appars uppgift och gör en app tyngre att ta in med en blick.
+
+---
+
+## 2. Vad användare efterfrågar
+
+Från GitHub-ärenden (xDrip4iOS, Nightguard, GlucoDataHandler, xDrip+, Juggluco, FLwatch, Loop, LoopFollow, nightscout-clock), forum, recensioner och konkurrenternas släppnotiser.
+Styrkan bygger på antal kommentarer och separata trådar (detaljer i marknadsdokumentet).
+
+| # | Önskemål | Styrka | Så svarar planen |
+|---|---|---|---|
+| 1 | **Flera personer**, med egna notiser, paus och klocka per person, namn och färg | Mycket stark (Nightguard #285: 136 kommentarer, avslaget) | Personer från första versionen, inställningar per person (§7.3, §7.8) |
+| 2 | **Complications och widgetar som är färska**, utan "?" och utan "öppna appen" | Mycket stark | Live Activity som pushas från servern, `staleAt`, complication på Garmin (§8.4, §9) |
+| 3 | **Live Activity i följarläge som startar om sig själv** | Stark | Push-to-start från servern (§7.7) |
+| 4 | **Värdet alltid synligt på Android** (statusfältet, pågående notis) | Stark | Android 16 Live Update med chip i statusfältet (§8.4) |
+| 5 | **Notiser som väcker en**, även i Stör ej och ljudlöst läge | Stark | `TimeSensitive` i v1. Critical alerts och Androids "Åsidosätt Stör ej" söks tidigt (§7.8) |
+| 6 | **Anpassade notiser**: egna ljud, paus, upprepning, "först efter N värden i rad" | Stark | Talade ljud, paus från notisen, två värden i rad (§7.8) |
+| 7 | **Tysta timmar** och profiler för dag och natt | Medel | Tysta timmar per person, utom för mycket lågt (§7.8) |
+| 8 | **Notis när värden slutar komma**, och tydligt gamla värden | Medel–stark | "Inga nya värden" och regeln för gamla värden (§8.3) |
+| 9 | **Uppdatering varje minut** | Medel–stark | Plus, om LinkUp verkligen ger minutvärden (R3) |
+| 10 | **Stora siffror och nattläge** | Medel–stark | StandBy gratis, sängläge i appen (§8.1) |
+| 11 | **Widgetar med graf** | Medel–stark | Minigraf i Live Activity (G2) |
+| 12 | **Uppläsning** av värden och notiser | Medel | Talade ljud, VoiceOver (§7.8, §8.5) |
+| 13 | **Klockor utöver Apple Watch** (Garmin med flera) | Mycket stark | Tre Garmin-appar (§9) |
+| 14 | **Garmin under träning** | Medel | Datafält som loggar i aktiviteten (§9.4) |
+| 15 | **CarPlay och Android Auto** | Medel–stark | Senare |
+| 16 | **DIY-displayer och smarta hem** | Medel | API-nycklar och Nightscout-vägar (§7.10) |
+| 17 | **Låg batteriförbrukning** | Stark som klagomål | Servern gör jobbet (princip 3) |
+| 18 | **Rätt enhet överallt**, mmol/L med decimal | Stark | Enheten är ett eget val (§8.6) |
+| 19 | **Språk** | Stark | Svenska och engelska (§8.6) |
+| 20 | **Siri och Alexa: "vad är mitt värde?"** | Medel | Senare (G6) |
+| 21 | **Inga dubbla notiser** | Medel | `CollapseId` per person och typ (§7.8) |
+| 22 | **Eskalering och telefonsamtal** vid akut lågt | Medel | Senare |
+| 23 | **Prognos för lågt** | Medel, osäker | Senare |
+| 24 | **IOB, COB och loopstatus** | Stark hos dem som loopar | Utanför "här och nu" för Libre. Kanske med Nightscout senare |
+| 25 | **Macens menyrad** | Många egna verktyg finns | Speglingen i macOS 26, SwiftBar (§8.7) |
+
+**Oväntade idéer värda att minnas:**
+- Ett diskret ljud eller en vibration vid varje nytt värde, som en bekräftelse på att data kommer.
+- Ett flytande värde ovanpå andra appar på Android.
+- Strikt separation per person: två nightscout-clock-klockor med olika LinkUp-konton bytte data med varandra.
+
+---
+
+## 3. Funktionslista
+
+**Måste** = v1. **Bör** = v1 om tiden räcker, annars nästa version. **Senare** = parkerat (§17).
+
+**Appen:**
 
 | Funktion | Prioritet | Kommentar |
 |---|---|---|
-| Stort värde med enhet (mmol/L eller mg/dL) | Måste | Förändring i mmol/L med en decimal |
-| Trendpil i 7 nivåer | Måste | §4.2. Libre ger 5 av dem |
-| Förändring: "+0,3 på 5 min" | Måste | |
-| Ålder: "för 42 s sedan", räknas om varje sekund i appen | Måste | Åldern räknas när skärmen ritas, inte bara när ny data kommer |
-| Färg efter område, alltid tillsammans med text eller ikon | Måste | Lågt, i målområdet, högt |
-| Gammalt värde: grått efter 2 × intervallet (minst 5 min), siffran döljs efter 15 min | Måste | Det viktigaste för säkerheten enligt användarna |
-| Graf med målband: 1, 3, 6, 12 och 24 h | Måste | 1 h är standard. Pekare som visar värde och tid |
-| **Flera personer** från samma LinkUp-konto, med namn, och byte med ett svep | Måste | Ett av de viktigaste behoven (föräldrar). LinkUp hämtar alla personer i samma anrop, så det kostar inget extra (§4.4) |
-| Sensorns tillstånd: uppvärmning, signalförlust, sensorn slut, "---" | Måste | Skilt från ett riktigt värde |
-| Banner när en källa har problem: "LibreLinkUp har problem" skilt från "anslut igen" | Måste | §4.13. Ingen konkurrent gör det bra |
-| VoiceOver: "6,8, stiger, för 2 minuter sedan" | Måste | Abbotts app läser inte upp riktningen |
-| Mörkt läge | Måste | |
-| **Svenska och engelska** | Måste | Appen, notiser, Live Activity, klockan, ljuden och DIY-texten (§5.8) |
-| **Notiser för lågt, högt och snabb förändring, med talade ljud** ("Glukos lågt") | Bör | Efter v1-kärnan. Ersätter inte Libre-appens larm (§4.14, B11) |
-| **Säkerhetsläge:** hämtning varje minut när värdet är lågt eller på väg ner, oavsett nivå | Bör | Säkerhet ska inte ligga bakom betalvägg (§4.14) |
-| **Sängläge:** helskärm, stor siffra, dämpad, skärmen hålls på | Bör | Som Nightguards BedsideView. StandBy täcker mycket av det gratis |
-| Siri och Genvägar: "Vad är Lisas värde?" | Senare | App Intents. Spines genvägar är snabbmenyer, inte Siri (Spine-lucka) |
-| Critical alerts (låter även i ljudlöst läge) | Senare | Kräver Apples godkännande (§4.14) |
-| CarPlay | Senare | |
+| Stort värde med enhet (mmol/L eller mg/dL), trendpil i 7 nivåer, förändring ("+0,3 på 5 min") | Måste | |
+| Ålder ("för 42 s sedan"), räknas om varje sekund | Måste | Räknas när skärmen ritas |
+| Färg efter område, alltid med text eller ikon | Måste | |
+| Gamla värden: grått efter 2 × intervallet, siffran döljs efter 15 min | Måste | §8.3 |
+| Graf med målband: 1, 3, 6, 12 och 24 h, pekare för värde och tid | Måste | Spine-lucka G1 |
+| **Flera personer**: översikt, svep mellan personer, namn och färg | Måste | |
+| Sensorns tillstånd: uppvärmning, signalförlust, sensorn slut, "---" | Måste | |
+| Banner vid problem hos källan, skild från "anslut igen" | Måste | §7.11 |
+| VoiceOver: "6,8, stiger, för 2 minuter sedan" | Måste | |
+| Mörkt läge, dynamisk textstorlek | Måste | |
+| Svenska och engelska | Måste | §8.6 |
+| **Notiser per person**: lågt, mycket lågt, högt, snabb förändring, inga nya värden, med talade ljud | Bör (direkt efter v1-kärnan) | §7.8 |
+| **Säkerhetsläge**: hämtning varje minut vid lågt eller sjunkande värde, oavsett nivå | Bör | §7.8 |
+| Sängläge: helskärm, stor siffra, dämpad | Bör | StandBy täcker mycket gratis |
+| Valfritt diskret ljud vid nytt värde | Senare | |
+| Critical alerts | Senare, men ansök tidigt | Kräver Apples godkännande (G7) |
+| Siri och Genvägar, CarPlay, eskalering till en andra person, prognos | Senare | |
 
 **Låsskärm, Dynamic Island och Live Activity (iOS):**
 
 | Funktion | Prioritet | Kommentar |
 |---|---|---|
-| Värde, pil, enhet och förändring | Måste | |
-| Tid sedan värdet (`W.Relative`) | Måste | På låsskärmen och i expanderad vy, inte i Dynamic Island (§5.4) |
+| Värde, pil, enhet, förändring, tid sedan värdet | Måste | |
 | Dimmas när värdet är gammalt (`staleAt`) | Måste | |
-| **Startar om sig själv** efter iOS gräns på 8 timmar (push-to-start) | Måste | Det tydligaste försprånget mot konkurrenterna |
+| **Startar om sig själv** efter 8 timmar (push-to-start) | Måste | |
 | Dynamic Island: droppe + `6,8↗` | Måste | |
-| **StandBy**, **Macens menyrad** (macOS 26) och **Apple Watch Smart Stack** (watchOS 11) | Måste | Kommer gratis med en Live Activity. Ingen extra kod (§5.6) |
-| Minigraf 1–3 h i Live Activity | Bör | Spine-lucka G6: `W.Sparkline`. Ryms i 4 KB |
-| Dynamic Island expanderar vid stort hopp eller vid lågt värde | Bör | En push med alert. Gluroo gör det vid hopp större än 30 mg/dL |
-| En aktivitet per person, för den som följer flera | Bör | v1: en vald person |
-| Låsskärmswidget (accessory) | Senare | Uppdateras bara ungefär var 15:e min. Live Activity är bättre för "här och nu" |
+| StandBy, Macens menyrad (macOS 26) och Apple Watch Smart Stack (watchOS 11) | Måste | Gratis med en Live Activity |
+| Minigraf över 3 h | Bör | Spine-lucka G2 |
+| Dynamic Island expanderar vid stort hopp eller lågt värde | Bör | |
+| En aktivitet per person | Bör | v1: en vald person |
+| Låsskärmswidget | Senare | Uppdateras bara ungefär var 15:e minut |
 
 **Android:**
 
 | Funktion | Prioritet | Kommentar |
 |---|---|---|
-| Live Update på Android 16 med chip `6,8↗` i statusfältet | Måste | Bara Gluroo har det, och bara på försök |
-| Hemskärmswidget | Senare | |
+| Live Update på Android 16 med chip `6,8↗` i statusfältet | Måste | |
+| Hemskärmswidget, flytande värde | Senare | |
 
-**Garmin:**
+**Garmin** (§9):
 
 | Funktion | Prioritet | Kommentar |
 |---|---|---|
-| Glance och widget: värde, pil, förändring, ålder, färg, graf över 3 h | Måste | |
-| Datafält under träning: värde, pil, ålder | Måste | Det Garmin-användare använder mest |
-| Ålder och gammalt värde räknas på klockan från mätningens tid | Måste | |
-| Koppling med en kod som klockan visar | Måste | Inget LinkUp-lösenord i klockans inställningar, som hos CGM Connect |
+| **Datafält**: värde, pil, ålder i alla storlekar, graf i helskärm | Måste | Klockor och Edge-cykeldatorer |
+| **Loggning i aktiviteten**: graf, min, max och snitt i Garmin Connect | Måste | §9.4 |
+| **App med glance**: värde, pil, ålder, graf över 3 h | Måste | |
+| **Complication** från appen, för Face It och urtavlor från Connect IQ | Bör | Ingen CGM-app verkar göra det |
+| **Urtavla**: värde, pil, ålder, always-on | Bör | Uppdateras var 5:e minut |
+| Koppling med kod per app, val av person | Måste | Inget LinkUp-lösenord på klockan |
 | Tydliga fel: anslut igen, källan har problem, ingen telefon | Måste | |
-| **Complications** (CIQ 4.2+): värdet i andra urtavlor och Face It | Bör | Ingen CGM-app verkar göra det |
-| Glukos sparat i aktiviteten (FIT developer field) | Bör | Uppskattat hos CGM Connect och Sugar Sense |
-| Edge-cykeldatorer (datafält) | Bör | |
-| Egen urtavla | Senare | Uppdateras bara var 5:e minut |
-| Vibration vid lågt under träning | Senare | Det är ett larm (B11) |
+| Ton och vibration vid lågt under träning | Bör | Bara datafältet kan. Det är en notis, inte ett larm |
 
-**Mac:**
+**Mac och Windows:**
 
 | Funktion | Prioritet | Kommentar |
 |---|---|---|
-| iPhonens Live Activity i menyraden (macOS 26) | Måste | Gratis, §5.6 |
-| `?format=swiftbar` för SwiftBar och xbar | Bör | Ungefär tio rader på servern |
-| Egen menyradsapp: droppe + `6,8 ↗` som en enhet, färg, minigraf, diskret läge | Senare | Spine-lucka G5. Spine visar idag bara en fast ikon |
+| iPhonens Live Activity i Macens menyrad | Måste | Gratis, §8.7 |
+| `?format=swiftbar` för SwiftBar och xbar | Bör | |
+| Rainmeter-recept för Windows-skrivbordet | Bör | |
+| Egna skrivbordsappar i menyraden och ikonområdet | Senare | Spine-lucka G4 |
 
-**Windows:**
-
-| Funktion | Prioritet | Kommentar |
-|---|---|---|
-| Rainmeter-recept för skrivbordet (DIY), mot `current.txt` | Bör | Rainmeter är ett populärt gratisverktyg för egna skrivbordswidgetar. Inget att bygga utom receptet |
-| Egen app i aktivitetsfältets ikonområde: ikon som ritas med värdet och färgen, tooltip "Lisa 6,8 ↗ · för 1 min sedan" | Senare | Spine-lucka G5 gäller även Windows: ikonen och tooltipen sätts bara vid start idag. Ikonen är 16 × 16 punkter, så tre tecken är gränsen. Windows 11 döljer nya ikoner tills användaren fäster dem |
-
-**DIY:**
+**DIY** (§7.10):
 
 | Funktion | Prioritet | Kommentar |
 |---|---|---|
-| API-nycklar med bara läsrätt, som kan återkallas | Måste | Ingen konkurrent har nycklar per verktyg |
+| API-nycklar med bara läsrätt, per person, som kan återkallas | Måste | Ingen konkurrent har nycklar per verktyg |
 | `/v1/glucose/current`, `history`, `current.txt` | Måste | |
-| Nightscout-vägar: `/api/v1/entries…`, `current.json`, `sgv.json`, `status.json` med `?token=` och `api-secret` (SHA1) | Måste | Så att SugarPixel, nightscout-clock, M5Stack och Home Assistant fungerar |
-| `/api/v2/properties`, `/pebble`, `/sgv.json` direkt under roten | Bör | Tronbyt och äldre urtavlor |
-| Färdiga recept: SugarPixel, nightscout-clock, Tronbyt, Home Assistant, M5Stack, SwiftBar | Bör | |
-| Webhooks och MQTT | Senare | |
-| Ta emot uppladdningar (`POST /api/v1/entries`) från Juggluco och xDrip+ | Senare | Reserven om LinkUp stängs (R11) |
+| Nightscout-vägar: `entries`, `current.json`, `sgv.json`, `status.json` med `?token=` och `api-secret` (SHA1) | Måste | SugarPixel, nightscout-clock, M5Stack, Home Assistant |
+| `/api/v2/properties`, `/pebble`, `/sgv.json` direkt under roten | Bör | Tronbyt, äldre urtavlor |
+| Recept för vanliga displayer | Bör | |
+| Webhooks och MQTT, ta emot uppladdningar | Senare | |
 
-**Konto och källor:**
+---
 
-| Funktion | Prioritet | Kommentar |
-|---|---|---|
-| Eget Glukos-konto (Apple, Google, passkey, e-post) | Måste | Spines inloggning |
-| LinkUp med ett eget följarkonto, guide i appen | Måste | |
-| Regionbyte, villkorssteget, token på 1 h, backoff | Måste | Det bryggorna oftast går sönder på |
-| Nightscout som källa | Senare | Efter v1, B16 |
+## 4. Positionering
 
-### 1.2 Positionering
-
-**I en mening:** en hostad "Nightscout för Libre", fast med färdig app, låsskärm, Mac och Garmin, och utan något att drifta själv.
+**I en mening:** en hostad "Nightscout för Libre", med färdig app, låsskärm, Mac och Garmin, och utan något att drifta själv.
 
 | | Glukos | Sugar Sense | Gluroo | CGM Connect | LinkUp (Abbott) | NS10BE |
 |---|---|---|---|---|---|---|
 | Fokus | Här och nu | Brett, AI | Loggning, socialt | Garmin | Följa | Hostad Nightscout |
-| Live Activity som startar om sig själv | Ja | ? | Vid appstart | – | Nej | – |
-| Egen Garmin-app för iPhone-användare | Ja, koppling med kod | Premium | Via tredje part | Ja, lösenord på klockan | Nej | Via tredje part |
-| Nightscout-kompatibelt API | Ja, med nycklar per verktyg | ? | Ja, en hemlighet | – | – | Ja |
+| Live Activity som startar om sig själv | Ja | ? | När appen öppnas | – | Nej | – |
+| Garmin för iPhone-användare | Tre egna appar, koppling med kod | Premium | Via tredje part | Ja, lösenord på klockan | Nej | Via tredje part |
+| Loggning i aktiviteten | Ja | Ja | – | Ja | – | – |
+| Flera personer | Ja | Familj | Ja | ? | Ja, 20 | Upp till 5 |
+| Nightscout-kompatibelt API | Ja, nycklar per verktyg | ? | Ja, en hemlighet | – | – | Ja |
 | Ärlig status vid driftstörning | Ja | ? | ? | – | – | – |
 | Pris | Standard gratis, Plus betald | ≈ 40 USD/år för Live Activity och Garmin | Gratis | Gratis, donation | Gratis | ≈ 50 €/år |
 
-Priser för andra är inte verifierade (se marknadsdokumentet).
-
-**Slutsats för nivåerna:** Live Activity och Garmin ingår i **Standard** (gratis, var 5:e minut). Det är vad användarna mest vill ha, och det är där Sugar Sense tar betalt.
-**Plus** säljer tätheten: varje minut, för den som verkligen har minutvärden (R4, B13).
+Priser för andra är inte verifierade.
 
 ---
 
-## 2. Förutsättningar och risker att känna till först
+## 5. Förutsättningar och risker
 
-| # | Förutsättning / risk | Vad det betyder för planen |
+| # | Risk | Vad planen gör |
 |---|---|---|
-| R1 | **LibreLinkUp-API:et är inofficiellt.** Abbott dokumenterar det inte och ändrar det utan förvarning. Hösten 2025 kom `Account-Id`-headern (SHA-256 av användarens id) och kravet på minst version 4.16.0. Enligt communityn slog Abbott på **v5 på serversidan i början av oktober 2026**: inloggningen kan svara `status: 4` med ett steg (`tou`) som måste bekräftas via `POST /auth/continue/{type}`, och **token gäller bara 1 timme** (tidigare ungefär 180 dagar). Bryggorna har gått sönder vid varje ändring. Nightscouts inbyggda koppling tog ungefär 11 månader att rätta. | Allt som rör Abbotts format ligger i en adapter (§4.2), och ändringar hanteras enligt §4.13. Spike S1 verifierar v5 mot ditt konto. |
-| R2 | **Backend måste kunna logga in igen utan användaren.** Med en token som gäller en timme räcker det inte att spara token. | Lösenordet lagras krypterat (Key Vault) med uttryckligt samtycke i appen (§4.5). Med ett eget följarkonto är det bara ett konto som kan läsa värden. |
-| R3 | **LibreLinkUp är ett följarkonto.** Libre 3-appens konto (ett LibreView-konto) delar sina data till ett LibreLinkUp-konto, som kan följa upp till 20 personer. nightscout-librelink-up och SugarPixel råder att skapa ett eget följarkonto. Abbott tillåter samma e-post i båda apparna, men det är inte bekräftat hur API:et beter sig då. | Appen guidar till ett eget följarkonto och fångar "inga kopplingar" som ett eget fel. Alla personer kontot följer visas (§4.4). S1 testar om huvudkontot också fungerar. |
-| R4 | **Hur ofta LinkUp får nya värden är inte bekräftat.** Abbott skriver "minute-to-minute". Communityn rapporterar att senaste värdet uppdateras ungefär varje minut, men CGM Connect uppger ungefär ett nytt värde per 2 minuter, och det finns rapporter om glapp på 30 minuter och om ett värde per kvart i EU. Historiken i `graph` är glesare (en punkt per kvart). Hela kedjan ligger ofta 1–3 minuter efter sensorn. | S1 mäter takten och fördröjningen över 24 h. Grafen bygger på våra egna hämtningar (§4.4). Plus-nivån säljs bara om S1 visar minutvärden (B13). |
-| R5 | **Rate limiting och spärrar.** LibreLinkUp svarar 429 (även som `status: 429` i ett 200-svar) och kan spärra kontot i upp till ungefär 15 minuter. Upprepade felaktiga inloggningar spärrar längre. | Högst ungefär 2 anrop i minuten per källa, backoff enligt `Retry-After` med slumpad förskjutning. Vid fel lösenord slutar backend att försöka (§4.6). |
-| R6 | **App Store, villkor och regler.** Att använda ett annat företags inofficiella API i en publicerad app kan stoppas i granskningen (riktlinje 5.2.2) och strider troligen mot LibreView-villkoren. Att ta betalt gör det värre. Flera appar i App Store gör ändå just detta (Gluroo, Sugar Sense, Sweet Dreams, GlucoLive, FLwatch). | Avgör vem appen är för (B1). För eget bruk och familj räcker TestFlight. Mer i §9. |
-| R7 | **Hälsodata enligt GDPR (art. 9).** En API-nyckel är åtkomst till hälsodata. | Lagring i EU (Sweden Central), kort lagringstid, radering av konto som tar bort allt, inga värden i loggar (§4.9), tydlig varning när en nyckel skapas (§4.12). |
-| R8 | **Live Activities har budget och lever högst 8 timmar på iOS.** iOS slänger tyst innehåll över 4 KB. | Push-to-start-token startar en ny aktivitet innan den gamla dör. `staleAt` dimmar den om backend tystnar. Spine mäter storleken och kastar ett fel i stället för att låta iOS slänga. Spike S2 mäter leveransen (§5.4). |
-| R9 | **Connect IQ har gränser.** Bakgrundskörningar högst var 5:e minut och ungefär 30 s långa. Glance på klockor med lite minne uppdateras bara när den syns. Ofta 32 KB minne för bakgrund och glance. Allt går via Garmin Connect-appen på telefonen. Android kräver https. | Litet, färdigberäknat svar för klockan (§6). Valet av apptyp avgör hur ofta klockan kan uppdateras. |
-| R10 | **Nightscout är en nisch.** Det finns ingen officiell siffra, men gemenskapen är några tiotusentals personer i världen, mot miljontals Libre-användare. | LinkUp först. Nightscout-adaptern byggs efter v1. Nightscouts **API-format** erbjuds däremot utåt, eftersom många DIY-verktyg redan kan läsa det (§4.12). |
-| R11 | **LinkUp v5 kan kryptera svaren med glukosvärden.** Underhållaren av nightscout-librelink-up uppger att v5 krypterar svaren med nycklar per enhet och användare. Han väljer att inte kringgå det, med hänvisning till EU:s regler mot kringgående av skydd: "For now, its game over". Andra rapporterar att v5 med identiteten 5.0.1 svarar med vanlig JSON, och att v4-identiteten fortfarande fungerar. Uppgifterna motsäger varandra. | **S1 avgör om planen håller.** Glukos kringgår inte kryptering. Reserver: (1) Nightscout som källa (§4.3), (2) ta emot uppladdningar från Juggluco och xDrip+ som läser sensorn direkt (§4.12), (3) Dexcom Share, (4) fråga Abbott om en officiell integration. |
+| R1 | **LibreLinkUp är inofficiellt** och ändras utan förvarning. 2025 kom `Account-Id` (SHA-256 av användarens id) och kravet på version 4.16.0. v5 (oktober 2026) ger `status: 4` med ett villkorssteg (`POST /auth/continue/{type}`) och **token som gäller 1 timme**. Bryggorna har gått sönder vid varje ändring. Nightscouts inbyggda koppling tog ungefär 11 månader att rätta och har inte kommit med i Nightscout ännu | Adapter med protokollet i konfigurationen, brytare, kanarie och rättelser inom timmar (§7.11) |
+| R2 | **v5 kan kryptera svaren med glukosvärden.** Underhållaren av nightscout-librelink-up säger att v5-appen krypterar dem. Han kringgår det inte, med hänvisning till EU:s regler mot kringgående av skydd: "For now, its game over". nightscout-clock rapporterar vanlig JSON med v5-identiteten 5.0.1, och att v4-identiteten fortfarande loggade in den 7 oktober 2026. Alla bryggor lever idag på att Abbott släpper in v4. **iPhone med Libre 3 har minst att falla tillbaka på**, eftersom Juggluco bara finns för Android | **S1 avgör.** Reserver: Nightscout som källa, uppladdning från Juggluco och xDrip+, Dexcom Share, och dialogen med Abbott (§13) |
+| R3 | **Hur ofta LinkUp får nya värden är inte bekräftat.** Abbott skriver "minute-to-minute". CGM Connect uppger ungefär ett nytt värde per 2 minuter. Det finns rapporter om glapp på 30 minuter och om ett värde per kvart i EU. Historiken i `graph` har en punkt per kvart | S1 mäter takten i 24 h. Graferna bygger på våra egna hämtningar. Plus säljs bara om det finns minutvärden |
+| R4 | **Rate limiting:** 429, även som `status: 429` i ett 200-svar, och spärrar i upp till 15 minuter | Högst ungefär 2 anrop i minuten per källa, backoff enligt `Retry-After`. Slutar vid fel lösenord |
+| R5 | **Lösenordet måste sparas**, eftersom token bara gäller en timme | Krypterat i Key Vault, med samtycke. Ett eget följarkonto som bara kan läsa värden (§7.4) |
+| R6 | **LinkUp är ett följarkonto** som kan följa upp till 20 personer. Ett eget följarkonto rekommenderas av nightscout-librelink-up och SugarPixel. Samma e-post i båda apparna är tillåtet men obekräftat i API:et | Guide i appen, felet "inga kopplingar" hanteras. S1 testar huvudkontot |
+| R7 | **App Store och villkor:** ett tredjeparts-API utan tillstånd strider mot riktlinje 5.2.2. Flera konkurrenter finns ändå i App Store | Eget bruk först (B1). Dialog med Abbott (§13) |
+| R8 | **Medicinteknisk reglering:** en app som visar CGM-värden, och särskilt en som varnar, kan räknas som medicinteknisk programvara (MDR, FDA) | Notiser, inte larm. Bedömning före en kommersiell lansering (§13) |
+| R9 | **Hälsodata enligt GDPR (art. 9).** En API-nyckel ger åtkomst till hälsodata | Sweden Central, 48 h lagring, radering, inga värden i loggar, nycklar per person |
+| R10 | **Live Activities:** budget, högst 8 timmar, och iOS slänger innehåll över 4 KB utan att säga något | Push-to-start, `staleAt`. Spine mäter storleken och kastar ett fel. S2 mäter leveransen |
+| R11 | **Connect IQ:** bakgrundskörningar högst var 5:e minut och ungefär 30 s långa. Glance kan inte hämta själv. Datafält och urtavlor hämtar i bakgrunden. Minnet är 32–64 KB i bakgrunden. Allt går via Garmin Connect på telefonen. Diagrammen i Garmin Connect fungerar bara för appar installerade från butiken | §9 |
+| R12 | **Nightscout är en nisch** (några tiotusentals personer, mot miljontals Libre-användare) | LinkUp först. Nightscouts API-format erbjuds utåt ändå |
 
 ---
 
-## 3. Arkitektur
+## 6. Arkitektur
 
 ```
  FreeStyle Libre 3 ──▶ Libre 3-appen ──▶ LibreView / LibreLinkUp ─┐
  (senare) xDrip+, Juggluco, Loop, AAPS ──▶ användarens Nightscout ─┤
-                                                                  │  HTTPS, per källa: var 5:e min (Standard) eller varje min (Plus)
+                                                                  │  HTTPS: var 5:e min (Standard), varje min (Plus, säkerhetsläge)
  ┌──────────── Azure (Sweden Central), Function App ──────────────┼───────────────────────────────┐
  │  Timer "PollDue" var 10:e s ───────────────────────────────────┘                               │
- │     └─ källor vars nextPollAt har infallit ─▶ IGlucoseSource (LibreLinkUp / Nightscout)         │
- │           └─ ny mätning per person ─▶ Readings (Table) + Sources.nextPollAt                     │
- │                          └─▶ IPushSender (Spine.Server)                                         │
- │                                ├─ APNs liveactivity ─▶ iPhone (låsskärm, Dynamic Island,        │
- │                                │                       StandBy, Mac-menyraden, Apple Watch)     │
- │                                └─ FCM data ─▶ Android Live Update                               │
- │  HTTP-triggers /v1/…          appen (hämtar vid nextUpdateAt), Garmin, DIY med API-nyckel       │
- │  HTTP-triggers /api/v1/…, /api/v2/properties, /pebble   Nightscout-kompatibelt, med API-nyckel  │
- │  HTTP-triggers /auth/… (Spine.Server.Authentication) · /push/… (Spine.Server)                   │
- │  Timers "Maintenance" (rensning, Live Activity-rotation) och "Canary" (§4.13)                   │
+ │     └─ källor på tur ─▶ IGlucoseSource ─▶ ny mätning per person ─▶ Readings (Table)             │
+ │                                           ├─▶ notiser (§7.8)                                    │
+ │                                           └─▶ IPushSender (Spine.Server)                        │
+ │                                                 ├─ APNs liveactivity ─▶ iPhone: låsskärm,        │
+ │                                                 │     Dynamic Island, StandBy, Mac, Apple Watch  │
+ │                                                 └─ FCM ─▶ Android Live Update                    │
+ │  HTTP /v1/…        appen (hämtar vid nextUpdateAt), Garmin, DIY                                 │
+ │  HTTP /api/v1/…, /api/v2/properties, /pebble   Nightscout-kompatibelt                           │
+ │  HTTP /auth/… (Spine.Server.Authentication) · /push/… (Spine.Server)                            │
+ │  Timers "Maintenance" (rensning, rotation av Live Activity) och "Canary" (§7.11)               │
  │  Storage Account (Table) · Key Vault · Application Insights · Managed Identity                  │
  └─────────────────────────────────────────────────────────────────────────────────────────────────┘
+          ▲ HTTPS med bearer-token, via Garmin Connect på telefonen
+ Garmin: datafält · app med glance och complication · urtavla
 ```
 
-För fler än några hundra användare byts timern mot en kö (§9). API:et och appen påverkas inte av det bytet.
-
-**Lösningens delar** (i ett eget repo, se B9):
+**Lösningens delar** (eget repo, B9):
 
 | Projekt | Vad |
 |---|---|
-| `Glukos.App` | MAUI-appen (iOS, Android; Mac Catalyst senare, §5.6) |
-| `Glukos.Functions` | Azure Functions, isolated worker (.NET 10): timers och HTTP-triggers |
+| `Glukos.App` | MAUI-appen (iOS, Android; Mac och Windows senare) |
+| `Glukos.Functions` | Azure Functions, isolated worker (.NET 10): timers och HTTP |
 | `Glukos.Sources` | `IGlucoseSource`, vår form för mätvärden och trend, felen |
-| `Glukos.Sources.LibreLinkUp` | Adaptern för LibreLinkUp. Det enda stället som känner till Abbotts format |
-| `Glukos.Sources.Nightscout` | Adaptern för Nightscout (efter v1) |
-| `Glukos.Shared` | `net10.0`: DTO:er, enheter och **Live Activity-layouten**. Den refererar `Plugin.Maui.Spine.Common`, så servern bygger exakt samma `LiveActivityLayout` som appen ("the same C# the app builds with", push-dokumentationen) |
-| `Glukos.Tests` | Adaptrarna mot inspelade svar, trend, schemaläggningen, API-kontrakt (även de Nightscout-kompatibla, mot hur SugarPixel, nightscout-clock, Tidbyt, M5Stack och Home Assistant anropar) |
+| `Glukos.Sources.LibreLinkUp` | Det enda stället som känner till Abbotts format |
+| `Glukos.Sources.Nightscout` | Efter v1 |
+| `Glukos.Shared` | `net10.0`: DTO:er, enheter, trend, **Live Activity-layouten** och **strängarna** (sv, en). Refererar `Plugin.Maui.Spine.Common`, så appen och servern bygger samma `LiveActivityLayout` och läser samma `ISpineStrings` |
+| `Glukos.Tools.Sounds` | Genererar de talade ljuden (§7.8) |
+| `Glukos.Tests` | Adaptrar mot inspelade svar, trend, schemaläggning, notisregler, API-kontrakt, även hur SugarPixel, nightscout-clock, Tidbyt, M5Stack och Home Assistant anropar |
 | `Glukos.Infra` | Bicep / `azd` |
-| `garmin/` | Connect IQ-appen (Monkey C), din |
+| `garmin/datafield`, `garmin/app`, `garmin/watchface`, `garmin/shared` | Tre Connect IQ-projekt med gemensam källkod (§9) |
 
-Nocturne (Nightscouts API omskrivet i .NET 10, AGPL) är värt att läsa som referens för de Nightscout-kompatibla vägarna. Koden kopieras inte, eftersom AGPL skulle gälla hela tjänsten.
+Nocturne (Nightscouts API omskrivet i .NET 10, AGPL) är en referens för de Nightscout-kompatibla vägarna. Koden kopieras inte, eftersom AGPL då skulle gälla hela tjänsten.
 
 ---
 
-## 4. Backend
+## 7. Backend
 
-### 4.1 Hosting i Azure
+### 7.1 Hosting
 
 | Resurs | Varför |
 |---|---|
-| **Azure Functions, Consumption-planen på Windows** (v1, upp till några hundra användare) | Ligger inom gratiskvoten (1 miljon körningar och 400 000 GB-s per månad och prenumeration) med upplägget i §4.6. Den gamla Consumption-planen på **Linux** fasas ut 2028-09-30, men Windows berörs inte. |
-| **Flex Consumption** (vid fler användare) | Microsofts rekommendation för nya appar, skalar ut snabbare och har VNet. Mindre gratiskvot (250 000 körningar och 100 000 GB-s per månad) och dyrare per GB-s (§8). |
-| **Storage Account** (Table) | All data (§4.4). Samma konto som Functions behöver ändå. |
-| **Key Vault** | Spines signeringsnyckel, APNs `.p8`, FCM-tjänstekontot, nyckeln som krypterar källornas uppgifter. Ingen data. |
-| **Application Insights** | Spårning och egna mätvärden (§4.10). Sampling så att det håller sig under de gratis 5 GB per månad |
-| **Managed Identity** | Inga anslutningssträngar i konfigurationen |
-| GitHub Actions | Bygga och driftsätta |
+| **Azure Functions, Consumption-planen på Windows** | Inom gratiskvoten (1 miljon körningar och 400 000 GB-s per månad) med upplägget i §7.5. Linux-varianten fasas ut 2028-09-30, men Windows berörs inte |
+| **Flex Consumption** vid fler användare | Rekommenderas för nya appar, skalar bättre. Mindre gratiskvot (250 000 körningar, 100 000 GB-s) |
+| **Storage Account** (Table) | All data. Samma konto som Functions behöver ändå |
+| **Key Vault** | Signeringsnyckeln, APNs `.p8`, FCM, nyckeln som krypterar källornas uppgifter |
+| **Application Insights** | Med sampling, under de gratis 5 GB per månad |
+| **Managed Identity**, GitHub Actions | Inga anslutningssträngar. Bygga och driftsätta |
 
-Spines delar fungerar i Functions isolated worker: push-registreringen (`SpinePushNotificationsEndpoints.HandleAsync`) och inloggningen
-(`GetSpineUserIdAsync()` kontrollerar själv bearer-token där ingen middleware körs).
+Spines push-registrering (`SpinePushNotificationsEndpoints.HandleAsync`) och inloggning (`GetSpineUserIdAsync()`) fungerar i Functions isolated worker.
 
-### 4.2 Källor
-
-Varje källa är en adapter bakom samma gränssnitt:
+### 7.2 Källor
 
 ```csharp
 public interface IGlucoseSource
 {
     string Kind { get; }                        // "librelinkup", "nightscout"
-    SourceCapabilities Capabilities { get; }    // minsta intervall, historikens upplösning, vilka fält anslutningen kräver
+    SourceCapabilities Capabilities { get; }    // minsta intervall, historikens upplösning, fält för anslutningen
     Task<ConnectResult> ConnectAsync(SourceCredentials credentials, CancellationToken ct);
     Task<FetchResult> FetchAsync(SourceConnection connection, DateTimeOffset? since, CancellationToken ct);
 }
 ```
 
-- `ConnectResult` innehåller personerna källan ger tillgång till. LinkUp ger alla som följarkontot följer, Nightscout en.
-- `FetchResult` innehåller mätvärden **per person** i vår egen form (mg/dL, `Trend`, tid i UTC, sensorns tillstånd, målområde om källan har ett), en uppdaterad anslutning (till exempel en ny token) och fel av fasta typer:
+- `ConnectResult` ger personerna källan har tillgång till. LinkUp ger alla som följarkontot följer, i ett anrop.
+- `FetchResult` ger mätvärden **per person** i vår form (mg/dL, `Trend`, tid i UTC, sensorns tillstånd, målområde), en uppdaterad anslutning (ny token) och fel av fasta typer:
   `CredentialsRejected`, `TermsRequired(step)`, `RateLimited(retryAfter)`, `NoConnections`, `Unavailable` och `Unrecognized`.
-- Hämtningen, API:et, Live Activity, Garmin och DIY ser bara vår form. De vet inte vilken källa ett värde kom från.
-- `Capabilities` styr appen: formuläret för att ansluta, och om Plus-nivån är meningsfull. En källa med bara 5-minutersvärden visar inte Plus.
-- I v1 har en användare **en aktiv källa**, med en eller flera personer.
+- Allt efter adaptern ser bara vår form.
+- `Capabilities` styr formuläret i appen och om Plus är meningsfullt.
 
-**Trend i 7 nivåer**, med Nightscouts namn eftersom det är den de facto-standard som DIY-verktyg använder:
+**Trend i 7 nivåer**, med Nightscouts namn, eftersom DIY-verktygen använder dem:
 
 | `Trend` | Pil | Nightscout `direction` / `trend` | Libre `TrendArrow` |
 |---|---|---|---|
@@ -252,768 +308,678 @@ public interface IGlucoseSource
 | `fortyFiveUp` | ↗ | `FortyFiveUp` / 3 | 4 |
 | `singleUp` | ↑ | `SingleUp` / 2 | 5 |
 | `doubleUp` | ⇈ | `DoubleUp` / 1 | – |
-| `unknown` | – | `NOT COMPUTABLE`, `RATE OUT OF RANGE` / 0, 8, 9 | 0 / okänt |
+| `unknown` | – | `NOT COMPUTABLE`, `RATE OUT OF RANGE` / 0, 8, 9 | 0 |
 
-Libre använder samma pil som Libre 3-appen visar (Abbott: ↑ mer än 2 mg/dL per minut, ↗ 1–2, → under 1), så att Glukos aldrig visar en annan trend än sensorn.
-Libre har inga dubbla pilar, så `doubleUp` och `doubleDown` kommer bara från Nightscout.
+Libre använder samma pil som Libre 3-appen visar (Abbott: ↑ mer än 2 mg/dL per minut, ↗ 1–2, → under 1). Dubbla pilar kommer bara från Nightscout.
 
-#### LibreLinkUp (v1)
+**LibreLinkUp (v1):**
+- `POST /llu/auth/login`: följer `data.redirect` till rätt region och sparar den. Hanterar `status: 4` och `data.step.type` (`tou`, `pp`), se B6.
+- `GET /llu/connections`: senaste värdet och målområdet för **varje person**, i ett anrop. Körs vid varje hämtning.
+- `GET /llu/connections/{patientId}/graph`: historik, en punkt per kvart, ungefär 12 h. Bara vid anslutning och efter glapp.
+- Headers: `product`, `version`, `Account-Id`, `Authorization: Bearer`. Produkt, version och protokoll (v4/v5) ligger i konfigurationen.
+- Token återanvänds tills den går ut eller ger 401, och sparas krypterad.
+- Tid från `FactoryTimestamp` (UTC), aldrig `Timestamp`.
+- Krypterade eller okända svar blir `Unrecognized`. Adaptern försöker aldrig dekryptera.
 
-- `POST /llu/auth/login`: följer `data.redirect` till rätt region (`api-eu`, `api-eu2`, `api-us`, …) och sparar regionen. Hanterar `status: 4` / `data.step.type` (`tou`, `pp`). Se B6.
-- `GET /llu/connections`: senaste `glucoseMeasurement` och `targetLow`/`targetHigh` för **varje person** kontot följer, i ett anrop. **Det här är anropet som körs vid varje hämtning.**
-- `GET /llu/connections/{patientId}/graph`: historiken och sensorns start. Körs bara vid första anslutningen och efter ett glapp. Den är glesare än minutvärdena (R4).
-- Headers: `product`, `version`, `Account-Id` (SHA-256 av `user.id`), `Authorization: Bearer`. Produkt och version ligger i konfigurationen (`Sources:LibreLinkUp:Product`, `…:Version`).
-- Token återanvänds tills den går ut (`authTicket.expires`) eller ger 401. Den sparas krypterad i anslutningen så att nästa körning kan återanvända den. Det håller antalet inloggningar nere (R5).
-- Tid: `FactoryTimestamp` (UTC), aldrig `Timestamp` (lokal tid i ett amerikanskt format).
-- Krypterade svar (R11) blir `Unrecognized`, och brytaren (§4.13) slår till. Adaptern försöker aldrig dekryptera.
+**Nightscout (efter v1):** webbadress och en access token med rollen `readable` (inte `API_SECRET`).
+Hämtning med `GET /api/v1/entries.json?find[date][$gt]=<senaste>&count=10`, målområdet från `/api/v1/status.json`. Högst varje minut.
 
-#### Nightscout (efter v1)
+**Fejkad källa** (bara i dev): två personer med sinuskurvor, alla trender, glapp och sensorns tillstånd. För utveckling, Garmin-simulatorn, DIY-exempel och skärmdumpar.
 
-| | |
+**Vilken källa när:**
+
+| Källa | När |
 |---|---|
-| Anslutning | Webbadress och en **access token med rollen `readable`** (skapas i Nightscouts Admin Tools). Inte `API_SECRET`, som ger full åtkomst |
-| Hämtning | `GET /api/v1/entries.json?find[date][$gt]=<senaste>&count=10&token=…`, så att bara nya värden hämtas. Fälten är `sgv`, `date` (ms) och `direction`. v1 är det API som flest installationer har |
-| Målområde | `GET /api/v1/status.json` → `settings.thresholds` (`bgTargetBottom`, `bgTargetTop`), en gång vid anslutning |
-| Takt | Följer uppladdaren, ofta var 1–5 min. Hämta högst varje minut och var snäll mot små gratis-servrar |
+| LibreLinkUp | v1 |
+| Nightscout | Efter v1, eller tidigare om S1 visar att LinkUp är stängt |
+| Uppladdning till Glukos (`POST /api/v1/entries` från Juggluco och xDrip+) | Reserv (R2) |
+| Dexcom Share | Parkerad. Dexcoms officiella API har historiskt haft minst en timmes fördröjning |
 
-#### Fejkad källa
+### 7.3 Data och lagring
 
-`Kind = "fake"` (`Sources:Fake:Enabled = true`, bara i dev) genererar två personer med sinuskurvor med brus, alla sju trender, glapp och sensorns tillstånd.
-Den används för lokal utveckling, för Garmin-simulatorn, för DIY-exempel och för skärmdumpar.
-
-### 4.3 Vilken källa när
-
-| Källa | När | Varför |
-|---|---|---|
-| LibreLinkUp | v1 | Når flest. Det räcker att man delar till ett följarkonto i Libre-appen |
-| Nightscout | efter v1, eller tidigare om S1 visar att LinkUp är stängt (R11) | En adapter ger stöd för allt xDrip+, Juggluco, Loop och AAPS laddar upp. Öppet och stabilt API. Liten grupp (R10) |
-| Uppladdning till Glukos | parkerad, reserv (R11) | Juggluco och xDrip+ laddar upp till "en Nightscout": Glukos tar emot `POST /api/v1/entries` med en nyckel som har skrivrätt för en person |
-| Dexcom Share | parkerad | Inofficiellt, som LinkUp, med 5-minutersvärden. Dexcoms officiella API har historiskt haft minst en timmes fördröjning och duger inte för realtid. Kontrollera innan det planeras |
-
-### 4.4 Data och lagring
-
-**Bara Table Storage** i Storage Account. Allt slås upp på nyckel: en användare, en källa, en person eller en persons mätvärden för ett dygn.
-Spines stores för inloggning och push använder redan Table Storage.
-
-**Kanonisk enhet är mg/dL som heltal.** Mmol/L räknas fram vid visning (`mg/dL / 18,0182`, en decimal, svensk decimalkomma i appen).
+**Bara Table Storage.** Allt slås upp på nyckel. Kanonisk enhet är **mg/dL som heltal**. Mmol/L räknas vid visning (÷ 18,0182, en decimal).
 
 | Tabell | PartitionKey | RowKey | Innehåll |
 |---|---|---|---|
-| `Users` | `userId` (Spines `sub`) | `profile` | Språk (`sv`, `en`), enhet, nivå (`Standard`, `Plus`) och till när den gäller, aktiv källa, huvudperson, Live Activity på/av |
-| `Sources` | `userId` | `sourceId` | Typ (`librelinkup`, `nightscout`), krypterade uppgifter (en JSON-blob: e-post och lösenord, eller adress och token), krypterad sessionstoken med utgångstid, region, status (`Active`, `NeedsReconnect`, `Paused`), `nextPollAt`, *d* |
-| `People` | `userId` | `personId` | `sourceId`, källans id för personen (LinkUps `patientId`), namn (från källan, kan ändras i appen), färg, ordning, målområde (eget, eller källans), senaste värde (för snabb läsning, §9.1) |
-| `Readings` | `personId:yyyyMMdd` | `HHmmss` | `mgdl`, `trend`, `state` (sensorns tillstånd), `source` (`poll` / `backfill`) |
-| `ApiKeys` | `hash` | `key` | `userId`, typ (`personal`, `device`, `upload`), personer nyckeln får läsa, namn, prefix, skapad, senast använd. SHA-256 av nyckeln, aldrig nyckeln (§4.12) |
-| `ApiKeysBySha1` | `sha1` | `key` | Pekare till nyckeln, för Nightscout-klienter som skickar `api-secret: sha1(nyckel)` |
-| `ApiKeysByUser` | `userId` | `keyId` | Samma nycklar listade per användare, för appens lista |
-| `Pairings` | `userCode` | `pairing` | Garmin-koppling under väntan (§6.1), tas bort efter 10 min |
+| `Users` | `userId` (Spines `sub`) | `profile` | Språk, enhet, nivå och slutdatum, aktiv källa, huvudperson, Live Activity på/av och för vem |
+| `Sources` | `userId` | `sourceId` | Typ, krypterade uppgifter, krypterad token med utgångstid, region, status (`Active`, `NeedsReconnect`, `Paused`), `nextPollAt`, säkerhetsläge till, *d* |
+| `People` | `userId` | `personId` | `sourceId`, källans id (LinkUps `patientId`), namn, färg, ordning, målområde, notisinställningar (§7.8), senaste värde |
+| `Readings` | `personId:yyyyMMdd` | `HHmmss` | `mgdl`, `trend`, `state`, `source` (`poll` / `backfill`) |
+| `NotificationState` | `personId` | `typ` | Senast skickad, pausad till, antal värden i rad under gränsen |
+| `ApiKeys` | SHA-256 av nyckeln | `key` | `userId`, typ (`personal`, `device`, `upload`), personer, namn, prefix, skapad, senast använd |
+| `ApiKeysBySha1` | SHA1 av nyckeln | `key` | För Nightscout-klienter som skickar `api-secret: sha1(nyckel)` |
+| `ApiKeysByUser` | `userId` | `keyId` | Listan i appen |
+| `Pairings` | `userCode` | `pairing` | Garmin-koppling under väntan, tas bort efter 10 min |
 
-Functions behåller inget minne mellan körningar, så `history` läser från `Readings`: en eller två partitioner (två när intervallet går över midnatt) och högst 1 440 rader.
+- **Lagringstid 48 timmar**, så att dygnsgrafen alltid är hel. `Maintenance` tar bort äldre partitioner en gång i timmen.
+- **Graferna** bygger på våra egna hämtningar: en punkt per minut (Plus) eller per 5 minuter (Standard). Intervall över 3 h slås ihop till en punkt per 5 minuter (24 h = 288 punkter, ungefär 6 KB).
+  Det första dygnet efter anslutning är dygnsgrafen gles bakåt, eftersom LinkUp bara ger en punkt per kvart.
+- **"Vilka står på tur?"** Vid 100 användare läses alla `Sources` var 10:e sekund. Vid fler: en tabell `Schedule` med tidsluckan som nyckel.
+- Cosmos DB (gratisnivå, TTL) och Azure SQL behövs inte. SQL blir inte gratis, eftersom timern håller den vaken.
 
-**"Vilka källor står på tur?"** är den enda frågan Table Storage är dålig på, eftersom det saknar sekundära index:
-- Vid 100 användare: läs alla rader i `Sources` var 10:e sekund. Det kostar nästan ingenting.
-- Vid fler: en tabell `Schedule` med tidsluckan som PartitionKey och `sourceId` som RowKey. Timern läser bara den aktuella luckan och eventuella försenade.
+### 7.4 Konto och anslutning av källor
 
-**Graferna** bygger på våra egna hämtningar: en punkt per minut för Plus, en per 5 minuter för Standard. Intervall längre än 3 h slås ihop till en punkt per 5 minuter (24 h = 288 punkter, ungefär 6 KB).
-Källans historik används bara för att fylla glapp. LinkUp räcker ungefär 12 h bakåt med en punkt per kvart, så dygnsgrafen är gles det första dygnet efter anslutning (R4).
+**Eget Glukos-konto** via Spines inloggning: Apple, Google, passkey eller e-post. Tokens, refresh, borttagning av konto och koppling till push finns färdigt.
+Kontot är identiteten. Källor, personer och köp hör till kontot.
 
-**Lagringstid:** 48 timmar, så att det alltid finns ett helt dygn bakåt (B8). Timern `Maintenance` tar bort äldre partitioner en gång i timmen.
+**Ansluta LinkUp med ett eget följarkonto:**
+1. I Libre 3-appen delar man till en ny e-postadress (Meny → Anslutna appar / Dela → LibreLinkUp).
+2. Man skapar ett LinkUp-konto med den adressen. Den som följer flera personer låter alla dela till samma följarkonto.
+3. Man ansluter kontot i Glukos (`POST /v1/sources`), med samtycke: *"Glukos sparar dina inloggningsuppgifter krypterat för att kunna hämta värden när appen är stängd."*
+4. Servern loggar in, följer regionen, hanterar villkoren och läser personerna. `no_connections` visar guiden igen.
 
-**Förändring över 5 och 15 minuter** (mg/dL) räknas från de egna värdena och visas som "+0,3 på 5 min".
+Fördelen med ett eget följarkonto är att det **bara kan läsa värden**. Läcker det, eller spärrar Abbott det, stänger man delningen i Libre 3-appen. Huvudkontot berörs inte.
 
-Alternativ som inte behövs i v1:
-- **Cosmos DB med gratisnivån** (1 000 RU/s och 25 GB, ett konto per prenumeration) ger index och TTL, så att databasen själv tar bort gamla mätvärden.
-- **Azure SQL serverless** blir inte gratis här: timern var 10:e sekund håller databasen vaken hela tiden.
+Uppgifterna krypteras med AES-GCM och en nyckel per källa, inslagen med Key Vault (envelope-kryptering). De dekrypteras bara i adaptern.
 
-### 4.5 Konto och anslutning av källor
+Att ta bort en källa raderar dess uppgifter, personer och mätvärden. Att ta bort kontot (`OnAccountDeleting`) raderar allt.
 
-**Ett eget Glukos-konto** via Spine: Sign in with Apple, Google, passkey eller e-post och lösenord. Det finns färdigt i
-`Plugin.Maui.Spine.Authentication` och `Plugin.Maui.Spine.Server.Authentication`, med tokens, refresh, att ta bort konto, koppling till push och `[RequiresSignIn]`.
-Kontot är identiteten. Källorna kopplas till kontot. Köpen hör också till kontot (§4.11).
+### 7.5 Hämtning
 
-**Ansluta LibreLinkUp:** rekommendationen är **ett eget följarkonto bara för Glukos**. I Libre 3-appen delar man till en ny e-postadress
-(Meny → Anslutna appar / Dela → LibreLinkUp), skapar LibreLinkUp-kontot med den adressen och ansluter det i Glukos.
-Följer man flera personer delar var och en till samma följarkonto.
-Då sparar backend bara lösenordet till ett konto som **kan läsa värden och inget annat**. Läcker det, eller spärrar Abbott det,
-stänger man av delningen i Libre 3-appen. Huvudkontot och Libre 3-appen berörs inte.
+Timern `PollDue` körs var 10:e sekund. Functions låter den aldrig köra i två kopior.
 
-Flödet (`POST /v1/sources`):
-
-1. Appen: typ och fälten källan kräver (`Capabilities`), plus samtycke: *"Glukos sparar dina inloggningsuppgifter krypterat för att kunna hämta värden när appen är stängd. Du kan ta bort dem när du vill."*
-2. Servern kör `ConnectAsync`. För LinkUp: inloggning, region, `tou` (B6) och kopplingarna.
-   - `NoConnections` ger `no_connections`, och appen visar guiden för delning till ett följarkonto.
-   - Alla personer kontot följer läggs i `People`. Användaren väljer huvudperson och kan döpa om och sortera.
-3. Uppgifterna krypteras med AES-GCM med en nyckel från Key Vault (envelope-kryptering: en nyckel per källa, inslagen med Key Vault-nyckeln).
-   De dekrypteras bara i adaptern och loggas aldrig.
-4. Att ta bort en källa raderar dess uppgifter, personer och mätvärden. Att ta bort kontot (`DELETE /auth/account` → `OnAccountDeleting`) raderar allt: källor, personer, mätvärden, API-nycklar och push-registreringar.
-
-### 4.6 Hämtning: timer och `nextPollAt` per källa
-
-En timer-trigger, `PollDue`, körs var 10:e sekund (`*/10 * * * * *`, eftersom Functions schemaformat har sekunder).
-En timer-trigger körs aldrig i två kopior samtidigt (Functions låser den med ett blob-lease), så det blir inga dubbla anrop mot källan.
-
-Varje körning:
-1. Läser aktiva källor vars `nextPollAt` ≤ nu (§4.4).
-2. Hämtar för dem parallellt (högst 16 åt gången) i **samma körning**. Det gör att en körning täcker många användare, och det är det som håller kostnaden inom gratiskvoten (§8).
-3. Räknar ut nästa `nextPollAt` per källa:
-   - **Nivån bestämmer intervallet:** Standard 5 min, Plus 1 min (§4.11), aldrig tätare än källans `Capabilities`.
-   - **Hämta strax efter ett nytt värde:** hämtningen lär sig hur lång tid det tar från mätningens tid till att källan visar den (median *d*, glidande).
-     Nästa hämtning läggs vid `senaste mätning + intervall + d`, avrundat uppåt till timerns 10 s.
-     Finns inget nytt värde provar den igen efter 10 s och 20 s och faller sedan tillbaka till intervallet.
-   - **Glapp:** finns ingen ny mätning på 15 minuter (telefonen utan nät, sensorbyte) går den till var 5:e minut oavsett nivå. När värden kommer igen fylls glappet i från källans historik.
-   - **Fel:** se tabellen nedan.
-4. Vid ny mätning för en person: spara, pusha Live Activity (§4.8).
+1. Läs aktiva källor vars `nextPollAt` har infallit.
+2. Hämta parallellt, högst 16 åt gången, **i samma körning**. Det håller kostnaden inom gratiskvoten.
+3. Räkna ut nästa `nextPollAt`:
+   - **Intervall:** Standard 5 min, Plus 1 min, **säkerhetsläge 1 min** (§7.8).
+   - **Strax efter nytt värde:** hämtningen lär sig fördröjningen *d* från mätning till att källan visar den. Nästa hämtning läggs vid `senaste mätning + intervall + d`. Om inget nytt finns provar den igen efter 10 s och 20 s.
+   - **Glapp:** inget nytt på 15 minuter ger var 5:e minut. När värden kommer igen fylls glappet från källans historik.
+4. Vid ny mätning för en person: spara, utvärdera notiser, pusha Live Activity.
 
 | Fel | Vad hämtningen gör |
 |---|---|
-| `RateLimited` | Väntar enligt `Retry-After` plus en slumpad förskjutning, högst 15 min |
-| `CredentialsRejected` | **Slutar** för källan, sätter `NeedsReconnect`, skickar en notis: "Anslut LibreLinkUp igen". Den fortsätter inte gissa och spärra kontot |
-| `TermsRequired` | Som ovan, med texten att villkoren behöver godkännas (B6) |
-| `Unavailable` | Backoff: 1, 2, 5 min |
-| `Unrecognized` | Backoff, och räknas mot brytaren (§4.13). **Aldrig** `NeedsReconnect` |
+| `RateLimited` | Väntar enligt `Retry-After` plus slumpad förskjutning, högst 15 min |
+| `CredentialsRejected`, `TermsRequired` | **Slutar** för källan, `NeedsReconnect`, notis "Anslut LibreLinkUp igen" |
+| `Unavailable` | Backoff 1, 2, 5 min |
+| `Unrecognized` | Backoff, räknas mot brytaren. **Aldrig** `NeedsReconnect` |
 
-Körningen avbryts efter 8 s så att två körningar aldrig hinner krocka. Källor som inte hanns med tas i nästa körning.
+Körningen avbryts efter 8 s. Det som inte hanns med tas nästa gång.
+En källa som ingen app, klocka eller nyckel har frågat efter på 14 dagar pausas och startar vid nästa anrop.
 
-En källa vars användare inte hört av sig på 14 dagar (ingen app, klocka eller API-nyckel har frågat) pausas (`Paused`). Den startar igen vid nästa anrop.
+### 7.6 API
 
-### 4.7 API
-
-Allt under `/v1`, JSON i camelCase, OpenAPI (`/openapi/v1.json`). Det är referensen när du bygger Garmin-appen och för DIY.
-`?person=<personId>` väljer person. Utan den gäller huvudpersonen.
+Allt under `/v1`, JSON i camelCase, OpenAPI. `?person=<id>` väljer person, annars gäller huvudpersonen.
 
 | Endpoint | Auth | Svar |
 |---|---|---|
-| `GET /v1/glucose/current` | användare / nyckel | Aktuellt värde, trend och `nextUpdateAt` |
-| `GET /v1/glucose/history?minutes=60` | användare / nyckel | Punkter, högst 1 440 minuter. Över 180 minuter en punkt per 5 minuter |
-| `GET /v1/glucose/snapshot` | användare / nyckel | `current` för alla personer + `history(60)` för huvudpersonen. Det är vad appen hämtar vid start |
-| `GET /v1/glucose/current.txt` | nyckel | Ren text (§4.12) |
-| `GET /v1/garmin/glucose` | nyckel | Kompakt svar för klockan (§6) |
-| `GET /v1/people`, `PUT /v1/people/{id}` | användare | Personer: namn, färg, ordning, målområde, huvudperson |
-| `GET/POST/PUT/DELETE /v1/sources…` | användare | Källor (§4.5) |
-| `GET/PUT /v1/settings` | användare | Enhet, Live Activity på/av och för vem |
-| `GET /v1/status` | ingen | Status per källtyp (§4.13) |
-| `POST /v1/subscription/verify` | användare | Ett köp från App Store eller Google Play (§4.11) |
-| `GET/POST/DELETE /v1/keys…` | användare | API-nycklar (§4.12) |
-| `POST /v1/devices/pair`, `/approve`, `/token` | §6 | Garmin-koppling |
-| `/api/v1/…`, `/api/v2/properties`, `/pebble`, `/sgv.json` | nyckel | Nightscout-kompatibelt (§4.12) |
-| `/auth/…` | Spine | Inloggning |
-| `/push/installations/{id}` | Spine | Push-registrering, `UserId` från access-token |
+| `GET /v1/glucose/current` | användare / nyckel | Aktuellt värde |
+| `GET /v1/glucose/history?minutes=60` | användare / nyckel | Högst 1 440 minuter. Över 180 minuter en punkt per 5 minuter |
+| `GET /v1/glucose/snapshot` | användare / nyckel | `current` för alla personer + `history(60)` för huvudpersonen |
+| `GET /v1/glucose/current.txt` | nyckel | Ren text, §7.10 |
+| `GET /v1/garmin/glucose` | nyckel | Kompakt svar, §9.3 |
+| `GET /v1/people`, `PUT /v1/people/{id}` | användare | Namn, färg, ordning, målområde, notisinställningar |
+| `/v1/sources…` | användare | Källor |
+| `GET/PUT /v1/settings` | användare | Språk, enhet, Live Activity |
+| `GET /v1/status` | ingen | Status per källtyp |
+| `POST /v1/subscription/verify` | användare | Köp |
+| `/v1/keys…` | användare | API-nycklar |
+| `POST /v1/devices/pair`, `/approve`, `/token` | §9.2 | Garmin-koppling |
+| `/api/v1/…`, `/api/v2/properties`, `/pebble`, `/sgv.json` | nyckel | Nightscout-kompatibelt |
+| `/auth/…`, `/push/installations/{id}` | Spine | Inloggning, push-registrering |
 
 ```json
 // GET /v1/glucose/current
 {
   "person": { "id": "p_2c9…", "name": "Lisa" },
-  "mgdl": 123,
-  "value": 6.8,
-  "unit": "mmol/L",
-  "trend": "fortyFiveUp",       // doubleDown | singleDown | fortyFiveDown | flat | fortyFiveUp | singleUp | doubleUp | unknown
-  "arrow": "↗",
-  "delta5Mgdl": 6,
-  "delta15Mgdl": 14,
-  "timestamp": "2026-10-21T12:34:00Z",
-  "ageSeconds": 42,
+  "mgdl": 123, "value": 6.8, "unit": "mmol/L",
+  "trend": "fortyFiveUp", "arrow": "↗",
+  "delta5Mgdl": 6, "delta15Mgdl": 14,
+  "timestamp": "2026-10-21T12:34:00Z", "ageSeconds": 42,
   "isStale": false,             // äldre än 2 × intervallet, minst 5 min
   "sensor": "active",           // active | warmingUp | signalLoss | ended | unknown
-  "range": "inRange",           // low | inRange | high
-  "targetLowMgdl": 70,
-  "targetHighMgdl": 180,
+  "range": "inRange",           // veryLow | low | inRange | high
+  "targetLowMgdl": 70, "targetHighMgdl": 180,
   "tier": "plus",               // standard | plus
   "nextUpdateAt": "2026-10-21T12:35:20Z",
   "status": "active"            // active | needsReconnect | sourceDegraded | noData | paused
 }
 ```
 
-`history` svarar med `{ "points": [{ "t": "…Z", "mgdl": 118 }, …], "resolutionMinutes": 1, "targetLowMgdl": 70, "targetHighMgdl": 180 }`.
+`history`: `{ "points": [{ "t": "…Z", "mgdl": 118 }, …], "resolutionMinutes": 1, "targetLowMgdl": 70, "targetHighMgdl": 180 }`.
 
-Svaren innehåller `Cache-Control: no-store` för användare och `max-age` fram till `nextUpdateAt` för nycklar (§4.12). Rate limiting per användare och per nyckel.
+`Cache-Control: no-store` för användare, och `max-age` fram till `nextUpdateAt` för nycklar. Rate limiting per användare och nyckel.
 
-### 4.8 Ut till skärmarna
+### 7.7 Ut till skärmarna
 
 | Kanal | När | Hur |
 |---|---|---|
-| **Appen hämtar vid `nextUpdateAt`** | Appen är i förgrunden | Backend vet när den hämtar nästa gång, så appen frågar `current` precis efter det (+2 s, och igen efter +5 s om inget nytt finns). Det ger några sekunders fördröjning utan en anslutning som hålls öppen, och kostar ingenting extra. Azure SignalR Service (serverless) tas in först vid fler användare (§9) |
-| **APNs `liveactivity`** | iOS, aktivitet på | `IPushSender.UpdateLiveActivityAsync(PushTarget.User(id), $"glucose:{personId}", GlucoseActivity.Layout(reading), Update, new() { StaleAt = reading.Time + 2 × intervallet })`. Prioritet 5 som standard och prioritet 10 bara när värdet går in i lågt område (B5) |
-| **APNs push-to-start** | iOS 17.2+, ingen aktivitet eller äldre än 7 h 45 min | `StartLiveActivityAsync` med push-to-start-token. `Maintenance` håller reda på när den senast startades per installation. Det följer Spines mönster "Keeping one on screen around the clock" |
-| **FCM data** | Android 16+ | Samma `UpdateLiveActivityAsync`. Spine skickar ett högprioriterat datameddelande och appens push-hanterare uppdaterar Live Update |
-| **Vanlig notis** | `NeedsReconnect`, inga nya värden på 30 min, en källtyp pausad av brytaren | `IPushSender.SendAsync` |
+| **Appen hämtar vid `nextUpdateAt`** | Appen i förgrunden | `current` precis efter (+2 s, igen +5 s). Några sekunders fördröjning, utan öppen anslutning och utan kostnad. SignalR först vid fler än 20 samtidigt öppna appar |
+| **APNs `liveactivity`** | iOS | `UpdateLiveActivityAsync(PushTarget.User(id), $"glucose:{personId}", GlucoseActivity.Layout(reading, language), Update, new() { StaleAt = reading.Time + 2 × intervallet })`. Prioritet 5, och 10 vid lågt värde |
+| **APNs push-to-start** | iOS 17.2+, ingen aktivitet eller äldre än 7 h 45 min | `StartLiveActivityAsync`. `Maintenance` håller reda på starttiden |
+| **FCM** | Android 16+ | Samma anrop. Spines push-hanterare uppdaterar Live Update |
+| **Notiser** | §7.8 | `SendAsync` |
 
-**Hur ofta Live Activity pushas** (B5): rekommendationen är att pusha när det visade värdet eller pilen ändras, plus en hjärtslag var 5:e minut så att `staleAt` flyttas fram.
-För Plus blir det ungefär 20–40 pushar i timmen i stället för 60, med samma bild på skärmen. För Standard blir det högst 12 i timmen. `SpineWidgetsFrequentUpdates=true` sätts oavsett.
+- **Takt:** push när värdet eller pilen ändras, plus ett hjärtslag var 5:e minut som flyttar fram `staleAt`. Plus ger ungefär 20–40 pushar i timmen, Standard högst 12. `SpineWidgetsFrequentUpdates=true`. S2 bekräftar (B5).
+- **Dynamic Island som expanderar** (Bör): en uppdatering med `PushAlert` vid hopp större än 30 mg/dL på 15 minuter eller vid lågt värde.
+- **Bortsvept aktivitet** (`ActivityEnded`) stänger av Live Activity i inställningarna. Push-to-start väcker den inte igen förrän användaren slår på den.
 
-**Dynamic Island som expanderar** (Bör): en uppdatering med `PushAlert` när värdet hoppar mer än 30 mg/dL på 15 minuter eller går in i lågt område.
-Det är en uppmärksamhetssignal, inte ett larm, och den är av som standard.
+### 7.8 Notiser och ljud
 
-Om användaren sveper bort aktiviteten säger appen till backend (`ActivityEnded` → `PUT /v1/settings { liveActivity: false }`).
-Då startar push-to-start den **inte** igen förrän användaren slår på den i appen. En borttagen aktivitet som kommer tillbaka av sig själv känns fel.
+**Notiser, inte larm.** Libre-appen larmar. Glukos påminner, och säger det i appen. Det håller den regulatoriska bedömningen enklare (§13).
 
-### 4.9 Säkerhet och integritet
-
-- TLS överallt. Access-token 15 min. API-nycklar har bara läsrätt (utom `upload`, som bara får skriva värden för en person), sparas som SHA-256 och kan återkallas i appen (§4.12).
-- Källornas uppgifter: envelope-kryptering, Key Vault med managed identity, dekrypteras bara i minnet och aldrig i loggar eller undantag. Den upplindade nyckeln cachas i minnet under en körning så att Key Vault inte anropas per hämtning.
-- Loggar och telemetri innehåller inga glukosvärden, namn, e-postadresser, nycklar eller tokens. **Frågesträngar loggas inte**, eftersom en API-nyckel kan ligga i `?token=` (§4.12). Användaren loggas som sitt id.
-- Allt ligger i Sweden Central. Lagringstiden är 48 h. Kontot och all data kan tas bort från appen.
-- Integritetspolicy och samtyckestext innan första anslutningen av en källa (krävs för App Store/Play och för art. 9).
-- Personernas namn kommer från källan och visas i Live Activity och på klockan. Inställningen "Visa namn" kan stängas av för låsskärmen.
-
-### 4.10 Drift
-
-Egna mätvärden i Application Insights:
-- `source.lag{kind}`: från mätningens tid till att vi har den.
-- `source.cadence{kind}`: tid mellan nya värden per person. Visar om LinkUp verkligen ger minutvärden (R4).
-- `push.lag`: från mätning till att APNs/FCM har svarat.
-- `poll.due.lag`: hur långt efter `nextPollAt` hämtningen faktiskt gjordes. Visar när timern inte hinner med och det är dags för kön (§9).
-- `source.errors{kind, error}`, `source.logins{kind}`, `poll.calls{kind}`.
-- `source.shape{kind}`: ändringar i svarens form (§4.13).
-- `apikey.calls{type, route}`: anrop med API-nycklar, även vilka Nightscout-vägar som används.
-- Andel källor med `NeedsReconnect`.
-
-Larmen beskrivs i §4.13.
-
-### 4.11 Nivåer och köp
-
-| Nivå | Hämtning | Live Activity | Garmin och DIY |
-|---|---|---|---|
-| **Standard** (gratis) | var 5:e min | ingår, uppdateras var 5:e min | ingår, nytt värde var 5:e min |
-| **Plus** (betald) | varje minut | varje nytt värde | nytt värde varje minut |
-
-- **Live Activity och Garmin ingår i Standard** (§1.2). Plus säljer tätheten.
-- **1 minut är taket.** Libre 3 ger ett värde i minuten, så tätare än så finns inget att sälja. Plus förutsätter att S1 visar att LinkUp verkligen har minutvärden (R4).
-- **Köp:** digitala funktioner i appen måste köpas med Apples och Googles köpsystem (StoreKit 2 och Play Billing).
-  Appen skickar köpet till `POST /v1/subscription/verify`. Backend kontrollerar det mot App Store Server API och Google Play Developer API och sätter nivån och slutdatumet.
-  App Store Server Notifications och Play Real-time Developer Notifications talar om förnyelser och uppsägningar.
-- **Spine-lucka G4:** Spine har inget köppaket idag. Antingen skrivs köpen i appen, eller så blir det ett nytt Spine-paket (B12).
-- Köpet hör till Glukos-kontot och gäller alla personer kontot följer, så en förälder betalar en gång.
-
-### 4.12 API-nycklar och DIY
-
-Den som bygger något eget (en ESP32 med display, en Ulanzi-klocka, Home Assistant, en Raspberry Pi, SwiftBar på Macen, ett skript) ska kunna läsa sitt värde med en nyckel.
-
-**Nycklar i appen:** Inställningar → *API-nycklar* → *Ny nyckel*.
-- Nyckeln ser ut som `gk_` + 32 slumpade byte i base62, till exempel `gk_7fQ2…`. Den visas **en gång**, med en kopieringsknapp och en QR-kod.
-- Användaren ger den ett namn ("Köksdisplayen") och väljer vilka personer den får läsa. Listan visar namn, de första tecknen, när den skapades och när den senast användes. Den kan återkallas när som helst.
-- Text i appen när en nyckel skapas: *"Den som har nyckeln kan se glukosvärdet. Dela den inte, och ta bort den om du inte använder den längre."*
-- Bara läsrätt. En nyckel kan aldrig ändra inställningar, se källornas uppgifter eller skapa andra nycklar.
-- Högst 10 personliga nycklar per konto.
-- **Garmin-klockans token** (§6.1) är samma sak, med typen `device`. Den skapas genom kopplingen i stället för i listan, men visas och återkallas på samma ställe.
-
-**Hur en nyckel skickas**, som Nightscout-klienterna faktiskt gör:
-- `Authorization: Bearer gk_…`. Det rekommenderas i dokumentationen.
-- `?token=gk_…`, för enheter och verktyg som inte kan sätta headers. Frågesträngar loggas aldrig (§4.9).
-- `api-secret: gk_…` eller `api-secret: <SHA1 av nyckeln>`. nightscout-clock, Tidbyt och Home Assistant skickar SHA1. Därför finns tabellen `ApiKeysBySha1` (§4.4).
-
-**Glukos egna vägar:**
-
-| Endpoint | Svar |
-|---|---|
-| `GET /v1/glucose/current` | Samma JSON som appen får (§4.7) |
-| `GET /v1/glucose/history?minutes=60` | Punkter |
-| `GET /v1/glucose/current.txt` | Ren text: `6,8 ↗` (eller `123 ↗` i mg/dL). `?arrow=ascii` ger `6,8 +` för displayer utan Unicode. `?format=swiftbar` ger SwiftBars format (§5.6) |
-| `GET /v1/garmin/glucose` | Det kompakta svaret (§6.2), även för andra små enheter |
-
-**Nightscout-kompatibla vägar** (den delmängd som verktygen faktiskt anropar, enligt deras källkod):
-
-| Endpoint | Prioritet | Används av |
-|---|---|---|
-| `GET /api/v1/entries.json`, `/api/v1/entries` med `count`, `find[date][$gt\|$gte\|$lte]`, `find[type][$eq]=sgv` | Måste | nightscout-clock, M5Stack, Tidbyt (reserv), Nightscout som källa |
-| `GET /api/v1/entries/sgv.json` (även `brief_mode=Y`), `/api/v1/entries/current.json` | Måste | Home Assistant, nightscout-clock |
-| `GET /api/v1/status.json` | Måste | Home Assistant |
-| `GET /api/v2/properties/bgnow,delta,direction,iob,cob` | Bör | Tidbyt / Tronbyt, M5Stack. `iob` och `cob` svaras tomma |
-| `GET /pebble` | Bör | Äldre urtavlor |
-| `GET /sgv.json` direkt under roten | Bör | Urtavlor som är byggda för xDrip+ |
-
-Fälten i entries: `_id`, `sgv`, `date` (ms), `dateString`, `direction`, `trend` (siffra, §4.2), `delta`, `type: "sgv"`, `device: "glukos"`, `sysTime`, `utcOffset`.
-En nyckel som får läsa flera personer läser huvudpersonen, eller den som anges med `?person=`. En nyckel per person är enklast för en display.
-
-Verktygen pekar på `https://<glukos>/?token=gk_…` som om det vore en Nightscout. Inget av Nightscouts skrivande API, inga behandlingar, profiler eller `API_SECRET`.
-Vilka verktyg som faktiskt fungerar testas i steg 9 och listas i dokumentationen.
-
-**Gränser och kostnad:**
-- Rate limit per nyckel: 30 anrop per minut. Svaret har `Cache-Control: max-age` fram till `nextUpdateAt`, så att verktyg som respekterar det inte frågar i onödan.
-- Värdet kan aldrig vara färskare än nivån: en DIY-display på Standard får ett nytt värde var 5:e minut, oavsett hur ofta den frågar.
-- En display som frågar varje minut ger ungefär 43 000 anrop i månaden. Det ryms i gratiskvoten för en handfull nycklar per användare vid 100 användare (§8).
-- CORS är öppet (`*`) för läsvägarna med nyckel, så att en egen webbsida kan visa värdet. Att lägga en nyckel i en webbsida är användarens eget val, och dokumentationen säger det.
-
-**Dokumentation för DIY:** en enkel sida med OpenAPI, och recept för `curl`, SwiftBar, Home Assistant (`rest`-sensor och Nightscout-integrationen), SugarPixel, nightscout-clock, Tronbyt och en ESP32 eller M5Stack med Arduino.
-
-### 4.13 När ett API ändras
-
-Det gäller främst LinkUp (R1, R11), men samma sak gäller varje källa.
-
-1. **Bara adaptern känner till formatet.** Resten av systemet påverkas inte. Eftersom appen, klockan och DIY-verktygen aldrig pratar direkt med källan rättas en ändring på servern utan att något släpps på nytt. Målet är att en rättelse är ute **inom timmar**. Bryggorna i Nightscout-världen har tagit allt från 2 dagar till 11 månader.
-2. **Tolerant tolkning.** Okända fält ignoreras, och ett okänt trendvärde blir `unknown` i stället för att krascha. Fält vi behöver kontrolleras uttryckligen. Saknas ett sådant, eller är svaret krypterat, blir det `Unrecognized`.
-3. **Header- och versionsvärden ligger i konfigurationen** (`Sources:LibreLinkUp:Product`, `…:Version`). Då kan till exempel en ny `version` sättas utan ny kod. När ett protokoll byts, som v4 → v5, finns båda kvar i adaptern bakom en inställning (`…:Protocol`) tills det gamla är dött.
-4. **Fel av fel slag får aldrig koppla bort användare.** `Unrecognized` och `Unavailable` är inte `CredentialsRejected`. Annars skulle en API-ändring sätta alla källor i `NeedsReconnect` på en gång. Nocturne har just det problemet (issue #1338).
-5. **Brytare per källtyp.** Får mer än 30 % av källorna av en typ `Unrecognized` inom 5 minuter (och minst 3 källor) pausas hämtningen för den typen i 15 minuter, och provas sedan med en källa i taget. Det skyddar alla konton från att spärras av upprepade fel. Samtidigt händer tre saker:
-   - Du får ett larm.
-   - Appen visar en banner ("LibreLinkUp har ändrats, vi arbetar på det") från `GET /v1/status`.
-   - Live Activity dimmas av sig själv genom `staleAt`, och `isStale` och `status: sourceDegraded` sätts för klockan och DIY.
-6. **Kanarie.** Timern `Canary` kör var 15:e minut hela flödet med ditt eget testkonto per källtyp: inloggning, kopplingar och hämtning. Den larmar innan någon användare märker något.
-7. **Formändringar loggas.** Adaptern räknar ett hash av svarets fältnamn och typer, aldrig värdena, och skickar det som `source.shape`. Ändras hashet får du ett larm, även när allt fortfarande råkar fungera.
-8. **Inspelade svar som tester.** Varje ny version av ett API spelas in med kanariekontot, anonymiseras och läggs till som testdata. Rättelsen kan då verifieras i CI på några minuter innan den driftsätts.
-9. **Bevaka communityn.** Följ releaser och diskussioner i nightscout-librelink-up (särskilt #228), nightscout-connect, nightscout-clock, xDrip4iOS, pylibrelinkup och GlucoDataHandler. De brukar upptäcka Abbotts ändringar inom några dagar.
-10. **Vårt eget API ändras aldrig så att det går sönder.** `/v1` och `/api/v1` får bara nya fält. Garmin-appen uppdateras ojämnt på klockorna och DIY-projekt uppdateras ibland aldrig, så de måste fungera i flera år. En ändring som inte går att göra bakåtkompatibel blir `/v2`, och `/v1` lever kvar.
-
-**Larm till dig:**
-
-| Larm | När |
-|---|---|
-| Brytaren har löst ut | Direkt |
-| Kanarien misslyckas | Två gånger i rad |
-| `source.shape` har ändrats | Direkt |
-| `NeedsReconnect` ökar | Fler än 3 källor av samma typ på en timme |
-| `poll.due.lag` | p95 över 20 s i 15 minuter |
-
-`GET /v1/status` (utan nyckel): `{ "sources": { "librelinkup": "ok" | "degraded" | "paused" }, "message": "…" }`.
-
-### 4.14 Notiser och ljud
-
-**Vad det är, och inte är.** Notiser när värdet blir lågt, högt eller ändras snabbt, med en talad röst: "Glukos lågt", "Glukos högt".
-Det är en **notis**, inte ett medicinskt larm. Libre 3-appen och LinkUp är fortfarande det som larmar, och det står i appen.
-Notiser gör den regulatoriska bedömningen svårare (§9.4), så de ligger efter v1-kärnan (B11).
-
-**Typer** (per person, var och en kan slås av och på):
+**Typer, per person** (var och en kan slås av och på, med egna gränser):
 
 | Notis | Standard | Ljud (sv / en) |
 |---|---|---|
-| Lågt | under målområdets nedre gräns (från LinkUp, till exempel 3,9) | "Glukos lågt" / "Glucose low" |
-| Mycket lågt | under 3,0 mmol/L | "Glukos mycket lågt" / "Glucose very low" |
-| Högt | över målområdets övre gräns (till exempel 10,0), i minst 15 minuter | "Glukos högt" / "Glucose high" |
+| Lågt | under målområdet, **två värden i rad** | "Glukos lågt" / "Glucose low" |
+| Mycket lågt | under 3,0 mmol/L, **direkt** | "Glukos mycket lågt" / "Glucose very low" |
+| Högt | över målområdet i minst 15 min | "Glukos högt" / "Glucose high" |
 | Sjunker snabbt | `singleDown` eller `doubleDown` | "Glukos sjunker snabbt" / "Glucose falling fast" |
 | Stiger snabbt | `singleUp` eller `doubleUp` | "Glukos stiger snabbt" / "Glucose rising fast" |
-| Inga nya värden | 30 minuter utan nytt värde | "Inga nya glukosvärden" / "No new glucose readings" |
-| Tillbaka i målområdet | av som standard | "Glukos i målområdet" / "Glucose in range" |
+| Inga nya värden | 30 min utan nytt värde | "Inga nya glukosvärden" / "No new glucose readings" |
+| Tillbaka i målområdet | av | "Glukos i målområdet" / "Glucose in range" |
 
-Texten i notisen säger resten: **"Lisa 3,4 ↓ · lågt"**. Ljudet säger vad, texten säger vem och hur mycket.
+Texten säger resten: **"Lisa 3,4 ↓ · lågt"**. Ljudet säger vad, texten säger vem och hur mycket.
 
-**Regler så att det inte blir för mycket:**
-- En notis när en gräns passeras, inte vid varje värde. Samma typ upprepas tidigast efter 30 minuter (inställbart), och `CollapseId` = `person:typ` så att en ny ersätter den gamla.
-- "Pausa notiser i 1 timme" direkt från notisen (en knapp, Spines `Category`).
+**Regler mot för många notiser:**
+- En notis när en gräns passeras, inte vid varje värde.
+- Kravet på "två värden i rad" vid lågt filtrerar bort falska låga, till exempel när man ligger på sensorn.
+- Samma typ upprepas tidigast efter 30 minuter (inställbart). `CollapseId` = `person:typ`, så en ny notis ersätter den gamla.
+- "Pausa 1 timme" direkt från notisen (Spines `Category`).
 - Tysta timmar per person, utom för "Mycket lågt".
 
-**Säkerhetsläge:** när värdet är lågt, eller under 5,0 och sjunker, hämtar backend **varje minut oavsett nivå** tills värdet är stabilt igen.
-Annars skulle en notis om lågt kunna komma upp till 5 minuter sent på Standard. Det kostar lite, eftersom det bara gäller korta perioder.
+**Säkerhetsläge:** när värdet är lågt, eller under 5,0 och sjunker, hämtar backend **varje minut oavsett nivå** tills värdet är stabilt.
+Annars kunde en notis om lågt komma upp till 5 minuter sent på Standard.
 
-**Hur det skickas** (Spine stöder allt det här idag):
-- `IPushSender.SendAsync(PushTarget.User(id), new PushNotification { Title, Body, Sound = "glucose_low_sv.caf", Channel = "glucose-low-sv", CollapseId = …, Interruption = PushInterruption.TimeSensitive, Category = "glucose" })`.
-- **iOS:** ljudet väljs per notis (`aps.sound`), en fil i appens bundle, `.caf`, `.wav` eller `.aiff`, under 30 sekunder. `TimeSensitive` bryter igenom Fokus men inte ljudlöst läge.
-- **Android:** ljudet hör till kanalen och kan inte ändras efter att kanalen skapats. Därför en kanal per typ och språk (`glucose-low-sv`, `glucose-low-en`, …) med `AddChannel(id, namn, sound: "glucose_low_sv")`, och filerna i `Platforms/Android/Resources/raw`.
-- **Windows:** Spine ger bara systemets ljud.
-- **Critical alerts** (låter även i ljudlöst läge och i Fokus) kräver att Apple godkänner entitlementet `com.apple.developer.usernotifications.critical-alerts`, vilket hälso- och säkerhetsappar kan ansöka om. Payloaden behöver `sound` som ett objekt (`critical: 1`, `name`, `volume`), vilket Spines `Apple`-krok kan sätta, eller en liten Spine-ändring (G8). Senare.
+**Hur det skickas** (Spine stöder detta idag):
+- `SendAsync(PushTarget.User(id), new PushNotification { Title, Body, Sound = "glucose_low_sv.wav", Channel = "glucose-low-sv", CollapseId, Interruption = PushInterruption.TimeSensitive, Category = "glucose" })`.
+- **iOS:** ljudet väljs per notis och är en fil i appen (`.caf`, `.wav` eller `.aiff`, under 30 s). `TimeSensitive` går igenom Fokus men inte ljudlöst läge.
+- **Android:** ljudet hör till kanalen och kan inte ändras efteråt. Därför en kanal per typ och språk (`glucose-low-sv`, …), med filerna i `Platforms/Android/Resources/raw`.
+  Kanalen för "Mycket lågt" kan få gå igenom Stör ej om användaren ger appen åtkomst till Stör ej. Kontrollera om Spines `AddChannel` kan sätta det, annars blir det en liten Spine-ändring.
+- **Critical alerts på iOS**, som låter även i ljudlöst läge och i Fokus, kräver att Apple godkänner entitlementet `com.apple.developer.usernotifications.critical-alerts`.
+  Det är det föräldrar efterfrågar mest för natten. **Ansök tidigt**, eftersom det tar tid. Payloaden behöver `sound` som objekt (`critical`, `name`, `volume`), via Spines `Apple`-krok eller G7.
 
-**Rösterna genereras, en gång, när appen byggs:**
-- Ett litet verktyg, `Glukos.Tools.Sounds`, läser fraserna från strängfilerna (§5.8) och genererar ljuden med **OpenAI** (`gpt-4o-mini-tts`, med en instruktion om lugn och tydlig ton) eller **Azure Speech** (till exempel `sv-SE-SofieNeural` och `en-GB-SoniaNeural`).
-  Spines `Plugin.Maui.Spine.Server.AI` har redan båda (`AISpeechProviders.OpenAI` och `AISpeechProviders.AzureSpeech`) och ger PCM16, som verktyget skriver som `.wav` för både iOS och Android.
-- Filerna checkas in och följer med appen. De genereras inte när en notis skickas: en push kan inte bära ett ljud, och ljudet måste finnas på telefonen innan.
-- Kostnaden är försumbar: några tiotal korta fraser.
-- **Jämför rösterna på svenska.** Azures svenska röster är byggda för svenska. OpenAIs röster är flerspråkiga och kan låta mindre naturliga på svenska. Lyssna innan valet (B26).
-- **Ange att rösten är AI-genererad**, på Om-sidan. OpenAI kräver det, och det är rimligt oavsett leverantör.
-- Ett kort ljud före rösten (en ton på 0,3 s) gör att notisen hörs även när man inte lyssnar efter ord.
+**Rösterna genereras en gång, när appen byggs:**
+- `Glukos.Tools.Sounds` läser fraserna från strängfilerna och genererar ljud med **OpenAI** (`gpt-4o-mini-tts`, med en instruktion om lugn och tydlig ton) eller **Azure Speech** (till exempel `sv-SE-SofieNeural`, `en-GB-SoniaNeural`).
+  `Plugin.Maui.Spine.Server.AI` har båda (`AISpeechProviders.OpenAI`, `AISpeechProviders.AzureSpeech`) och ger PCM16, som skrivs som `.wav`.
+- Filerna checkas in och följer med appen. En push kan inte bära ett ljud.
+- En kort ton (0,3 s) före rösten gör att notisen hörs även när man inte lyssnar efter ord.
+- Jämför rösterna på svenska innan valet (B14). Om-sidan anger att rösten är AI-genererad, vilket OpenAI kräver.
+- Senare: personliga röster med namn ("Lisas glukos är lågt"), genererade per person och sparade i `Library/Sounds` på iOS.
 
-**Senare: personliga röster med namn.** "Lisas glukos är lågt". Servern genererar ljudet per person när personen läggs till, och appen hämtar det och sparar det i `Library/Sounds` på iOS, där notiser kan hitta det.
-På Android blir det en egen kanal per person och typ. Det är mer att hantera, så det väntar.
+### 7.9 Nivåer och köp
+
+| Nivå | Hämtning | Ingår |
+|---|---|---|
+| **Standard** (gratis) | var 5:e min, varje minut i säkerhetsläge | App, flera personer, Live Activity, Live Update, Garmin, DIY, notiser |
+| **Plus** (betald) | varje minut | Samma, med varje nytt värde överallt |
+
+- 1 minut är taket. Plus säljs bara om S1 visar minutvärden (B13).
+- Köp med StoreKit 2 och Play Billing. Servern kontrollerar köpet (`POST /v1/subscription/verify`) mot App Store Server API och Google Play Developer API, och följer förnyelser via deras notiser.
+- Spine har inget köppaket (G3). Köpen skrivs i appen först (B12).
+- Köpet gäller hela kontot och alla personer, så en förälder betalar en gång.
+
+### 7.10 API-nycklar och DIY
+
+**Nycklar** skapas i appen (Inställningar → *API-nycklar*):
+- Formatet är `gk_` + 32 slumpade byte i base62. Nyckeln visas **en gång**, med kopieringsknapp och QR-kod.
+- Varje nyckel har ett namn och **de personer den får läsa**. Separationen per person är strikt.
+- Bara läsrätt. Högst 10 per konto. Varningstext när en nyckel skapas.
+- Garmin-apparnas token är nycklar av typen `device` (§9.2) och visas i samma lista.
+
+**Hur nyckeln skickas**, så som Nightscout-klienterna gör:
+- `Authorization: Bearer gk_…`, som rekommenderas.
+- `?token=gk_…`. Frågesträngar loggas aldrig.
+- `api-secret: gk_…` eller `api-secret: <SHA1 av nyckeln>`. Det senare används av nightscout-clock, Tidbyt och Home Assistant.
+
+**Glukos egna vägar:**
+- `current`, `history` och det kompakta Garmin-svaret.
+- `current.txt` ger `6,8 ↗`. `?arrow=ascii` ger `6,8 +`. `?format=swiftbar` ger SwiftBars format. `?lang=sv|en` styr språket.
+
+**Nightscout-kompatibla vägar**, den delmängd verktygen faktiskt anropar:
+
+| Endpoint | Prioritet | Används av |
+|---|---|---|
+| `/api/v1/entries.json`, `/api/v1/entries` med `count`, `find[date][$gt\|$gte\|$lte]`, `find[type][$eq]=sgv` | Måste | nightscout-clock, M5Stack, Tidbyt |
+| `/api/v1/entries/sgv.json` (även `brief_mode=Y`), `/api/v1/entries/current.json` | Måste | Home Assistant, nightscout-clock |
+| `/api/v1/status.json` | Måste | Home Assistant |
+| `/api/v2/properties/bgnow,delta,direction,iob,cob` | Bör | Tronbyt, M5Stack. `iob` och `cob` är tomma |
+| `/pebble`, `/sgv.json` direkt under roten | Bör | Äldre urtavlor |
+
+Fälten i entries är `_id`, `sgv`, `date` (ms), `dateString`, `direction`, `trend`, `delta`, `type: "sgv"`, `device: "glukos"`, `sysTime` och `utcOffset`.
+Verktygen pekar på `https://<glukos>/?token=gk_…` som om det vore en Nightscout. Inget skrivande API, inga behandlingar och ingen `API_SECRET`.
+
+**Gränser:**
+- 30 anrop per minut och nyckel, och `Cache-Control` fram till `nextUpdateAt`.
+- Värdet blir aldrig färskare än nivån.
+- CORS är öppet för läsvägarna.
+
+**Recept** i dokumentationen: `curl`, SwiftBar, Rainmeter, Home Assistant, SugarPixel, nightscout-clock (även skolans wifi och dämpning på natten), Tronbyt, ESP32 och M5Stack.
+
+### 7.11 När ett API ändras
+
+1. **Bara adaptern känner till formatet.** Appen, klockorna och DIY-verktygen påverkas inte. Målet är en rättelse **inom timmar**.
+2. **Tolerant tolkning.** Okända fält ignoreras. Okänd trend blir `unknown`. Saknade fält, eller krypterat innehåll, blir `Unrecognized`.
+3. **Version, produkt och protokoll i konfigurationen.** Gamla och nya protokoll finns kvar sida vid sida tills det gamla är dött.
+4. **Fel av fel slag kopplar aldrig bort användare.** `Unrecognized` och `Unavailable` är inte `CredentialsRejected`. Nocturne har just det problemet (issue #1338).
+5. **Brytare per källtyp.** Om fler än 30 % av källorna (minst 3) får `Unrecognized` inom 5 minuter pausas typen i 15 minuter. Sedan provas en källa i taget.
+   Det skyddar alla konton från spärrar. Samtidigt händer tre saker:
+   - Du får ett larm.
+   - Appen visar en banner från `/v1/status`.
+   - Live Activity dimmas av `staleAt`, och klockorna och DIY får `sourceDegraded`.
+6. **Kanarie.** Var 15:e minut körs hela flödet med ditt testkonto per källtyp.
+7. **Formändringar.** Ett hash av svarets fältnamn och typer skickas som `source.shape`. En ändring larmar, även när allt fortfarande fungerar.
+8. **Inspelade svar** för varje ny version blir testdata, så att en rättelse kan verifieras i CI på minuter.
+9. **Bevaka communityn:** nightscout-librelink-up (särskilt #228), nightscout-connect, nightscout-clock, xDrip4iOS, pylibrelinkup och GlucoDataHandler.
+10. **Vårt API ändras aldrig så att det går sönder.** Garmin-appar och DIY-projekt uppdateras sällan. Bara nya fält. Det som inte går att göra bakåtkompatibelt blir `/v2`.
+
+**Larm till dig:** brytaren löser ut, kanarien misslyckas två gånger i rad, `source.shape` ändras, fler än 3 källor av samma typ får `NeedsReconnect` på en timme, eller `poll.due.lag` p95 överstiger 20 s i 15 minuter.
+
+### 7.12 Säkerhet och integritet
+
+- TLS överallt. Access-token 15 minuter. Nycklar sparas som hash, har läsrätt per person och kan återkallas.
+- Källornas uppgifter: envelope-kryptering med Key Vault, dekrypteras bara i minnet. Den upplindade nyckeln cachas under en körning.
+- Inga glukosvärden, namn, e-postadresser, nycklar, tokens eller frågesträngar i loggar.
+- Sweden Central, 48 h lagring, radering av allt från appen.
+- Integritetspolicy och samtycke före första anslutningen.
+- "Visa namn på låsskärmen" kan stängas av.
+
+### 7.13 Drift
+
+Mätvärden i Application Insights:
+- `source.lag`: från mätning till att vi har värdet.
+- `source.cadence`: tid mellan nya värden. Avgör frågan om minutvärden.
+- `push.lag`.
+- `poll.due.lag`: när timern inte hinner med och det är dags för kön.
+- `source.errors`, `source.logins`, `source.shape`.
+- `notifications.sent{typ}`.
+- `apikey.calls{type, route}`: även vilka Nightscout-vägar som används.
+- Andel `NeedsReconnect`.
 
 ---
 
-## 5. Appen
+## 8. Appen
 
-Spine-paket: `Plugin.Maui.Spine`, `.Authentication`, `.PushNotifications`, `.Widgets` (Live Activity), `.Controls.Charts`, `.Controls.Rows`, `.Controls.AnimatedLabel`, `.Svg.Icons`.
-`/spine-setup` gäller för registrering, App Group, push-entitlement och plattformsminimum. iOS 17.2 är minimum, så att push-to-start finns.
+Spine-paket: `Plugin.Maui.Spine`, `.Authentication`, `.PushNotifications`, `.Widgets`, `.Controls.Charts`, `.Controls.Rows`, `.Controls.AnimatedLabel` och `.Svg.Icons`.
+`/spine-setup` för registrering, App Group och push-entitlement. iOS 17.2 är minimum, för push-to-start.
 
-### 5.1 Sidor
+### 8.1 Sidor
 
-Varje sida följer Spines tre-filsmönster (`/spine-page`) och `HeaderBarConstants.PagePadding`.
+Spines tre-filsmönster (`/spine-page`), `HeaderBarConstants.PagePadding`.
 
 | Sida | Innehåll |
 |---|---|
-| **Välkommen / Logga in** | Kort förklaring, "inte en medicinteknisk produkt", Spines inloggningssida (Apple, Google, passkey, e-post) |
-| **Ansluta källa** | Val av källa (i v1 bara LibreLinkUp), guide för att skapa ett eget följarkonto, fälten källan kräver, samtycke. Visar `no_connections` och `terms_required` med tydliga instruktioner |
-| **Hem** | En sida per person, svep mellan dem (namn överst). Stort värde (`AnimatedLabel` med rullande siffror), trendpil, enhet, "för 42 s sedan", "+0,3 på 5 min", sensorns tillstånd. Graf med väljare 1/3/6/12/24 h och målband. Accent efter område. Banner från `/v1/status`. Knapp: *Visa på låsskärmen* (startar Live Activity, §5.4). `StateView` för laddar / fel / `needsReconnect` |
-| **Sängläge** (Bör) | Helskärm med stor siffra, pil och ålder, mörkt och dämpat, skärmen hålls på. Öppnas från Hem |
-| **Inställningar** (`SpineRow`) | Källor, personer, nivå (Standard / Plus, med köp), enhet, Live Activity på/av och för vem, "Visa namn på låsskärmen", API-nycklar, Garmin-enheter, logga ut, ta bort konto, Om (med varningstexten) |
-| **Personer** | Namn, färg, ordning, målområde, huvudperson |
-| **Källor** | Ansluten källa med status, anslut igen, byt, ta bort |
-| **API-nycklar** | Lista, ny nyckel (visas en gång med QR-kod, välj personer), återkalla. Länk till DIY-dokumentationen |
-| **Koppla Garmin** (sheet) | Fält för den sexsiffriga koden som klockan visar (§6) |
-| **Plus** (sheet) | Vad Plus ger, pris från butiken, köp och återställ köp |
+| **Välkommen / Logga in** | Förklaring, "inte en medicinteknisk produkt", Spines inloggning |
+| **Ansluta källa** | LinkUp, guide för ett eget följarkonto, samtycke, felen `no_connections` och `terms_required` |
+| **Översikt** (visas när man följer flera) | En rad per person: namn, värde, pil, ålder, färg. Tryck öppnar personen |
+| **Person** (Hem) | Stort värde (`AnimatedLabel`), pil, enhet, ålder, förändring, sensorns tillstånd. Graf 1–24 h med målband. Banner från `/v1/status`. Knapp *Visa på låsskärmen*. Svep mellan personer. `StateView` för laddar, fel och `needsReconnect` |
+| **Sängläge** (Bör) | Helskärm, stor siffra, pil, ålder, mörkt och dämpat, skärmen hålls på |
+| **Inställningar** (`SpineRow`) | Källor, personer, nivå och köp, språk, enhet, Live Activity, API-nycklar, Garmin-enheter, logga ut, ta bort konto, Om |
+| **Person, inställningar** | Namn, färg, ordning, målområde, notiser per typ, tysta timmar, "visa namn på låsskärmen" |
+| **API-nycklar** | Lista, ny nyckel (en gång, QR-kod, välj personer), återkalla. Länk till recepten |
+| **Koppla Garmin** (sheet) | Koden från klockan, välj person |
+| **Plus** (sheet) | Vad Plus ger, pris, köp, återställ köp |
 
-### 5.2 Data i appen
+### 8.2 Data i appen
 
-- Vid start och vid återkomst till förgrunden: `GET /v1/glucose/snapshot`. Därefter hämtar appen `current` vid varje `nextUpdateAt` medan den är i förgrunden, och slutar när den går i bakgrunden.
-- Byte av grafintervall hämtar `history` för den personen och det intervallet.
-- En klocka i UI:t räknar upp åldern varje sekund lokalt och tillämpar regeln för gamla värden (§5.3). Den behöver inget nätverk.
-- Push-registrering med `user:<id>` från access-token. Live Activity-tokens och push-to-start-token skickas vid varje start och återkomst till förgrunden (det kräver Spines `LiveActivityPushTokens = true`).
+- Vid start och återkomst: `GET /v1/glucose/snapshot`. Därefter `current` vid varje `nextUpdateAt` medan appen är i förgrunden.
+- Byte av grafintervall hämtar `history`.
+- Åldern och regeln för gamla värden räknas lokalt varje sekund.
+- Push-registrering med `user:<id>`. Live Activity-tokens och push-to-start-token skickas vid varje start och återkomst.
 
-### 5.3 Graf och "gammalt värde"
+### 8.3 Graf och gamla värden
 
-- **Spine-lucka G1:** `Plugin.Maui.Spine.Controls.Charts` har `RingChart`, `BarChart` och `ColumnChart`, men ingen linjegraf.
-  Förslag: en `LineChart` i paketet med tidsaxel, punkter i område/utanför område, ett band (`BandLow`/`BandHigh`), glapp som avbrott i linjen och en markerad sista punkt.
-  Pekare och tooltip som `ColumnChart`. Den ritas med Microsoft.Maui.Graphics och fungerar i ljust och mörkt läge som de andra. Alternativet är att bygga den i appen först och flytta in den senare (B3).
-- **Gammalt värde**, samma regel överallt:
-  - Efter **2 × intervallet** (minst 5 min) utan ny mätning blir värdet grått, med texten "Inget nytt värde på 7 min".
-  - Efter **15 minuter** visas inte siffran stort längre. I stället står "Senaste värdet 14:32" med siffran mindre.
-  - Det gäller i appen, i Live Activity (`staleAt` dimmar, och nästa push byter till texten), på klockan och i DIY-svaren (`isStale`).
-  - Sensorns tillstånd (uppvärmning, signalförlust, sensorn slut) visas med egen text och utan siffra.
+- **Spine-lucka G1:** `LineChart` i `Plugin.Maui.Spine.Controls.Charts`, med tidsaxel, målband, punkter i och utanför området, glapp som avbrott, markerad sista punkt, och pekare och tooltip som i `ColumnChart`.
+- **Regeln för gamla värden**, samma överallt (appen, Live Activity, klockorna, DIY):
+  - Efter **2 × intervallet** (minst 5 min) utan nytt värde: grått, "Inget nytt värde på 7 min".
+  - Efter **15 minuter**: siffran visas inte stort längre, i stället "Senaste värdet 14:32".
+  - Sensorns tillstånd visas med egen text och utan siffra.
 
-### 5.4 Live Activity och Live Update
+### 8.4 Live Activity och Live Update
 
-En aktivitet per person med kind `glucose:<personId>`. I v1 en aktivitet, för huvudpersonen eller den användaren väljer.
-Layouten finns i `Glukos.Shared/GlucoseActivity.cs` och används av både appen och servern:
+En aktivitet per person (`glucose:<personId>`). I v1 en, för huvudpersonen eller den användaren väljer. Layouten finns i `Glukos.Shared/GlucoseActivity.cs`.
 
 | Region | Innehåll |
 |---|---|
-| `LockScreen` | Namn (om på), stor siffra `6,8` + pil `↗` + `mmol/L`. Andra raden: `+0,3 på 5 min · ` + `W.Relative(reading.Time)`. Minigraf över 3 h (G6, Bör). Accentfärg efter område |
-| `ExpandedCenter` / `ExpandedBottom` | Samma värde, minigraf, och målområdet i text ("Mål 3,9–10,0") |
-| `CompactLeading` | Droppe, färgad efter område |
-| `CompactTrailing` | `W.Text("6,8↗")`. Ingen timer, eftersom en timer drar ut Dynamic Island (se Spine-dokumentationen) |
+| `LockScreen` | Namn (om på), `6,8` ↗ `mmol/L`, "+0,3 på 5 min · " + `W.Relative(tid)`, minigraf (Bör), accentfärg |
+| `ExpandedCenter` / `ExpandedBottom` | Samma, plus målområdet i text |
+| `CompactLeading` | Droppe i områdets färg |
+| `CompactTrailing` | `W.Text("6,8↗")`. Ingen timer, eftersom den drar ut Dynamic Island |
 | `Minimal` | `W.Text("6,8")` |
 | `Android` | `LiveUpdateText(Title: "Lisa 6,8 mmol/L ↗", Body: "+0,3 på 5 min · 14:32", Chip: "6,8↗")` |
 
-- Trendpilen är ett Unicode-tecken i texten (§4.2). Det fungerar i SwiftUI, RemoteViews och på klockan utan egna bilder.
-  I appen roteras Spines `Arrow`-ikon (−90°, −45°, 0°, 45°, 90°, och dubbel för `double*`), eller så ritas symboler med `/spine-symbol` (B4).
-- `staleAt` = mätningens tid + 2 × intervallet. Då dimmar iOS aktiviteten själv om backend tystnar.
-- Första starten sker från knappen på Hem (iOS kräver att användaren startar). Därefter håller backend aktiviteten igång med push-to-start (§4.8).
-- **Spine-lucka G6:** widgetträdet har `W.Ring` och `W.Progress`, men ingen graf. En `W.Sparkline(values, low, high)` som ritas av renderaren (SwiftUI `Path` på iOS, en bitmap i RemoteViews på Android) gör minigrafen möjlig via push.
-  Bilder fungerar inte här, eftersom de lagras av appen och inte kan skickas i en push. 36 punkter (3 h, en per 5 min) som heltal är ungefär 150 byte.
-- Layouten blir ungefär 1–1,5 KB med minigraf, alltså under APNs gräns på 4 KB.
-- **Gratis med samma Live Activity:**
-  - **StandBy:** iPhone på laddning, liggande, visar aktiviteten stort, med rött nattläge i mörker. Det är en sängdisplay utan extra hårdvara.
-  - **Macens menyrad** på macOS 26 (§5.6).
-  - **Apple Watch Smart Stack** på watchOS 11.
+- Pilen är ett Unicode-tecken i texten, så ingen egen bild behövs. I appen roteras Spines `Arrow`-ikon (B4).
+- `staleAt` = mätningens tid + 2 × intervallet.
+- **Spine-lucka G2:** `W.Sparkline(values, low, high)`, ritad av renderaren, så att minigrafen kan skickas via push. 36 punkter är ungefär 150 byte. Bilder fungerar inte, eftersom de lagras av appen.
+- Layouten blir 1–1,5 KB med minigraf, under APNs gräns på 4 KB.
+- **Gratis med samma aktivitet:**
+  - **StandBy** (rött nattläge i mörker, en sängdisplay utan extra hårdvara).
+  - **Macens menyrad** (macOS 26).
+  - **Apple Watch Smart Stack** (watchOS 11).
 
-### 5.5 Tillgänglighet
+### 8.5 Tillgänglighet
 
-- VoiceOver läser värde, riktning och ålder i en mening: "6,8 millimol, stiger, för 2 minuter sedan". Även i Live Activity (tillgänglighetsetikett i layouten) och för grafens sista punkt.
-- Färg står aldrig ensam: "Lågt" eller "Högt" i text, och pilen.
-- Dynamisk textstorlek på Hem. Siffran skalar, och resten bryts om.
-- Målområdets färger väljs så att de skiljer sig för färgblinda (blått eller lila för högt, orange eller rött för lågt). Det kontrolleras med en simulator för färgblindhet.
+- VoiceOver läser "6,8 millimol, stiger, för 2 minuter sedan", även i Live Activity och för grafens sista punkt.
+- Färg står aldrig ensam: text och pil. Färgerna kontrolleras för färgblindhet.
+- Dynamisk textstorlek.
 
-### 5.6 Mac och menyraden
+### 8.6 Språk: svenska och engelska
 
-**Gratis: iPhonens Live Activity i menyraden.**
-- Från macOS 26 Tahoe visas Live Activities från iPhone i Macens menyrad, utan någon extra kod.
-- **Krav:** iOS 18 eller senare, samma Apple-konto, Wi-Fi och Bluetooth på, iPhone inom ungefär 10 meter och iPhone-spegling inställd.
-- Den kompakta vyn visas: droppe + `6,8↗` som en enhet. Ett klick ger den expanderade vyn, och ett dubbelklick öppnar Glukos via iPhone-speglingen.
-- Begränsningar: iPhone måste vara i närheten, och aktiviteten följer iPhonens regler.
+- **Appen:** `ISpineStrings` med `strings.sv.xml` och `strings.en.xml` i `Glukos.Shared`. Följer telefonen och kan väljas i Inställningar.
+- **Servern** använder samma strängar (`ISpineStrings` ligger i `Plugin.Maui.Spine.Common`). Den skriver Live Activity, notiser, banner och `current.txt` på användarens språk (`Users.language`).
+- **Tal:** `6,8` på svenska, `6.8` på engelska. Enheten är ett eget val: mmol/L som standard i Sverige och Storbritannien, mg/dL i USA.
+- `W.Relative` skrivs av iOS på telefonens språk.
+- **Ljuden** finns per språk.
+- **Garmin:** strängresurser per språk (`resources-swe`, `resources-eng`). Svaret från servern är bara siffror och ett namn.
+- **Butikerna:** texter, skärmdumpar och integritetspolicy på båda språken.
 
-**Enklast för DIY: SwiftBar eller xbar.** SwiftBar är en gratis Mac-app med öppen källkod som visar första raden från ett skript i menyraden. Filnamnet styr hur ofta det körs (`glukos.1m.sh` = varje minut), och rader efter `---` blir en meny.
+### 8.7 Mac
 
-```sh
-#!/bin/bash
-curl -s "https://api.glukos.app/v1/glucose/current.txt?format=swiftbar&token=gk_…"
-```
+- **v1, gratis:** iPhonens Live Activity i menyraden på macOS 26.
+  - Krav: iOS 18+, samma Apple-konto, wifi och Bluetooth, iPhone inom ungefär 10 m, iPhone-spegling inställd.
+  - Den kompakta vyn visas: droppe + `6,8↗` som en enhet. Ett klick expanderar.
+- **DIY:** SwiftBar, en gratis Mac-app med öppen källkod som visar första raden från ett skript i menyraden. Filnamnet `glukos.1m.sh` betyder att den körs varje minut:
+  ```sh
+  #!/bin/bash
+  curl -s "https://api.glukos.app/v1/glucose/current.txt?format=swiftbar&token=gk_…"
+  ```
+  Det ger `6,8 ↗ | sfimage=drop.fill color=#2E7D32`, och en meny med person, förändring och ålder.
+- **Senare: egen menyradsapp** (Mac Catalyst, Spines `ShowTrayIcon`, `LSUIElement`, `CloseToBackground`).
+  - **Spine-lucka G4:** menyradsikonen är idag fast och sätts vid start. AppKit kan visa bild och färgad text som en enhet, eller en bild som appen ritar.
+  - Idéer: färg bara utanför målområdet, `6,8 · 14m` när värdet är gammalt, minigraf, diskret läge (en prick och pilen) vid skärmdelning, och inget behov av iPhone i närheten.
 
-```
-6,8 ↗ | sfimage=drop.fill color=#2E7D32
----
-Lisa · +0,3 på 5 min
-För 1 min sedan
-Öppna Glukos | href=glukos://home
-```
+### 8.8 Windows
 
-**Senare: egen menyradsapp** med Mac Catalyst och Spine.
-- Spine har redan det som krävs för en app som bara bor i menyraden: `ShowTrayIcon`, `LSUIElement`, `CloseToBackground` och `InDockWhileOpen`.
-- **Spine-lucka G5:** menyradsikonen visar idag bara en fast bild, som sätts vid start (`ShowTrayIcon`). AppKits statusikon kan visa en bild och text bredvid varandra som en enhet (bild till vänster, färgad text till höger), eller en enda bild som appen ritar själv.
-  Spine skapar redan ikonen med varierande bredd, så tillägget är litet: till exempel `SetTrayContent(icon: "drop", text: "6,8 ↗", color)`, och `SetTrayImage(bytes)` för en egenritad bild med minigraf.
-  Samma tillägg behövs på Windows, där ikonen (`TrayIconSvg`) och tooltipen (`TrayIconTooltip`) också bara sätts vid start.
-- Appen kör hela tiden och hämtar vid `nextUpdateAt`. Den har ingen budget och ingen gräns på 8 timmar, och den behöver ingen iPhone i närheten.
-- Idéer:
-  - Färg bara när värdet är utanför målområdet.
-  - Grått med åldern när det är gammalt: `6,8 · 14m`.
-  - Minigraf på ungefär 40 × 16 punkter bredvid siffran.
-  - **Diskret läge** (bara en färgad prick och pilen) för skärmdelning och möten.
-  - Ett klick öppnar ett litet fönster med stort värde och graf.
-- Läs `docs/wiki/macos-options.md` innan den byggs.
+- **v1:** DIY med Rainmeter (ett gratisverktyg för skrivbordswidgetar) mot `current.txt`, eller en webbsida med en nyckel.
+- **Senare:** egen app i ikonområdet. Ikonen ritas med värde och färg, och tooltipen visar "Lisa 6,8 ↗ · för 1 min sedan".
+  - G4 gäller även här: `TrayIconSvg` och `TrayIconTooltip` sätts bara vid start idag.
+  - Ikonen är 16 × 16 punkter, så tre tecken är gränsen.
+  - Windows 11 döljer nya ikoner tills de fästs.
+  - Notiser får bara systemets ljud.
 
-### 5.7 Plattformar
+### 8.9 Plattformar
 
-- **iOS 17.2+:** allt.
-- **Android:** appen och push. Live Update kräver Android 16. På äldre Android blir det bara appen (en vanlig pågående notis vore ingen Live Activity, och Spine låtsas inte att den är det).
-- **Mac:** v1 genom speglingen (§5.6). Egen app senare.
-- **Windows:** v1 genom DIY (Rainmeter, en webbsida med en nyckel). Egen app i ikonområdet senare (G5). Ingen Live Activity på Windows, och notiser får bara systemets ljud.
-
-### 5.8 Språk: svenska och engelska
-
-- **Appen:** Spines `ISpineStrings` med `strings.sv.xml` och `strings.en.xml`. Språket följer telefonen, och kan väljas i Inställningar. Spines egna kontroller har redan texter som kan skrivas över med samma nycklar.
-- **Samma strängar på servern.** `ISpineStrings` ligger i `Plugin.Maui.Spine.Common`, som servern refererar ändå. Strängfilerna ligger därför i `Glukos.Shared`, och servern använder dem för allt den skriver: Live Activity ("+0,3 på 5 min" / "+0.3 in 5 min"), notiser, statusbannern och `current.txt`.
-  Servern skriver på användarens språk (`Users.language`), som appen skickar vid inloggning och när det ändras.
-- **Tal:** decimalkomma på svenska (`6,8`), decimalpunkt på engelska (`6.8`). Enheten är ett eget val, oberoende av språket: mmol/L som standard i Sverige och Storbritannien, mg/dL i USA.
-- **Tid:** `W.Relative` i Live Activity skrivs av iOS på telefonens språk. Allt annat formaterar servern eller appen.
-- **Ljuden** finns per språk (§4.14).
-- **Garmin:** Connect IQ har strängresurser per språk (`resources-swe`, `resources-eng`). Klockan väljer efter sitt eget språk. Svaret från servern innehåller bara siffror och personens namn, så det behöver inte översättas.
-- **DIY:** `current.txt` och `?format=swiftbar` följer kontots språk, och `?lang=sv|en` styr per anrop. Nightscout-vägarna har inget språk.
-- **Butikerna:** beskrivning, skärmdumpar och integritetspolicy på svenska och engelska.
-- Fler språk senare kräver bara nya strängfiler och nya ljud.
+| Plattform | Vad |
+|---|---|
+| iOS 17.2+ | Allt |
+| Android | Appen och notiser. Live Update från Android 16 |
+| Mac | Speglingen och SwiftBar i v1. Egen app senare |
+| Windows | DIY i v1. Egen app senare |
 
 ---
 
-## 6. Garmin Connect IQ
+## 9. Garmin Connect IQ
 
-### 6.1 Koppla klockan (device flow, som RFC 8628)
+### 9.1 Tre appar
 
-Att skriva in en lång nyckel, eller som hos CGM Connect sitt LinkUp-lösenord, i Connect IQ-inställningarna i Garmin Connect-appen är krångligt och sämre för säkerheten.
-Därför används samma flöde som TV-appar. Det som klockan får till sist är en API-nyckel av typen `device` (§4.12):
+En Connect IQ-app har en enda typ och egna inställningar och egen lagring. Därför blir det tre appar med gemensam källkod (`garmin/shared`):
 
-1. Klockan: `POST /v1/devices/pair { "name": "Fenix 8" }` → `{ "userCode": "K7Q4MX", "deviceCode": "…", "interval": 5, "expiresIn": 600 }`. Klockan visar `K7Q 4MX`.
-2. Glukos-appen: Inställningar → *Koppla Garmin* → skriv koden, välj person → `POST /v1/devices/approve { userCode, personIds }` (som inloggad användare).
-3. Klockan frågar `POST /v1/devices/token { deviceCode }` var 5:e sekund tills den får `{ "token": "gk_…" }`. Den har bara läsrätt, ingen utgångstid och kan återkallas i appen.
-4. Klockan sparar token i `Application.Storage` och skickar `Authorization: Bearer …`.
+| App | Visar | Hämtar | Ordning |
+|---|---|---|---|
+| **Glukos datafält** | Under aktivitet: litet fält = värde + pil; halvt = + "i målområdet · 3 min"; helt = + graf över 3 h. Följer bakgrundsfärgen. Klockor och **Edge** | Bakgrundstjänst. En hämtning direkt när aktiviteten startar, sedan vid `max(nextUpdateAt + några s, senaste + 5 min)` | **1**, eftersom den också loggar (§9.4) |
+| **Glukos** (app med glance) | Glance: värde, pil, ålder. Helskärm: värde, pil, förändring, ålder, graf över 3 h, person | Bakgrund var 5:e minut för glance. Helskärmsvyn hämtar direkt när den öppnas och vid `nextUpdateAt` | **2** |
+| | **Publicerar en complication**: värde, pil och enhet, till Face It och urtavlor från Connect IQ | Från bakgrundstjänsten | |
+| **Glukos urtavla** | Tid, datum, värde, pil, ålder, valfri liten graf. Always-on på AMOLED (en uppdatering i minuten, under 10 % tända pixlar, layouten flyttas lite varje minut). Egen variant för MIP-skärmar | Bakgrund vid `nextUpdateAt`, högst var 5:e minut | **3** |
 
-Den som hellre vill kan också klistra in en personlig nyckel i Connect IQ-inställningarna.
+- **Åldern räknas på klockan** varje minut från mätningens tid. Regeln för gamla värden gäller (§8.3).
+- **Complications** (CIQ 4.2+):
+  - Publiceras från bakgrundstjänsten. Från förgrunden ger det ett fel som inte går att fånga.
+  - Användaren måste öppna appen en gång så att bakgrunden startar.
+  - Face It och urtavlor från Connect IQ kan visa dem. Garmins egna urtavlor kan troligen inte, så räkna inte med det.
+  - Datafält kan inte läsa complications, så datafältet hämtar själv.
+  - Face It uppdateras ibland först när man lämnar urtavlan och kommer tillbaka.
+- **Widgets** finns inte längre som egen typ på CIQ 4+-klockor. En app med glance visas i glance-listan ("super app"). Glance kan inte hämta själv, utan visar det bakgrunden har sparat.
+- **Ton och vibration** (Bör): bara datafältet kan, under aktivitet (`Attention.playTone`, `vibrate`), och bara om klockans inställningar tillåter. Urtavlor kan inte. Det är en notis, inte ett larm.
 
-### 6.2 Svaret till klockan
+### 9.2 Koppling per app
 
-Litet, färdigberäknat, bara heltal och utan nästlade objekt, eftersom JSON-tolkning i Monkey C kostar minne (ofta 32 KB för bakgrund och glance):
+Varje app har egna inställningar, så varje app kopplas för sig. Det blir ett enkelt flöde som är likadant i alla tre:
+
+1. Appen visar en kod: `POST /v1/devices/pair { "name": "fēnix 8", "app": "datafield" }` → `{ "userCode": "K7Q4MX", "deviceCode": "…", "interval": 5, "expiresIn": 600 }`.
+2. I Glukos-appen: *Koppla Garmin* → koden → välj person → `POST /v1/devices/approve`.
+3. Klockan frågar `POST /v1/devices/token` var 5:e sekund och får en `device`-nyckel (`gk_…`), **en per app**, så att varje app kan återkallas för sig.
+
+Den som hellre vill kan klistra in en personlig nyckel i appens inställningar i Connect IQ-appen. Det fungerar bara för appar installerade från butiken, även betaversioner.
+
+### 9.3 Svaret
+
+Litet och färdigberäknat, bara heltal, under 500 byte:
 
 ```json
 // GET /v1/garmin/glucose
 {
   "v": 123,        // mg/dL
-  "u": 1,          // 0 = mg/dL, 1 = mmol/L (användarens val)
+  "u": 1,          // 0 = mg/dL, 1 = mmol/L
   "a": 3,          // trend som Nightscouts siffra: 0 okänd, 1 doubleUp … 4 flat … 7 doubleDown
   "d": 6,          // förändring på 5 min, mg/dL
   "t": 1761050040, // mätningens tid, Unix-sekunder
-  "n": 1761050120, // nextUpdateAt, Unix-sekunder: när det är lönt att fråga igen
-  "s": 0,          // 0 aktiv, 1 gammalt, 2 källan behöver anslutas igen, 3 ingen data, 4 källan har problem, 5 sensorn värms upp, 6 signalförlust
+  "n": 1761050120, // nextUpdateAt
+  "s": 0,          // 0 aktiv, 1 gammalt, 2 anslut igen, 3 ingen data, 4 källan har problem, 5 uppvärmning, 6 signalförlust
   "lo": 70, "hi": 180,
-  "p": "Lisa",     // personens namn, högst 12 tecken
-  "h": [118,119,121,…]  // senaste 3 h, ett värde per 5 min (36 st), äldst först; ?minutes=60 ger 12 st; ?res=1 ger 1 per min (Plus)
+  "p": "Lisa",     // högst 12 tecken
+  "h": [118,119,121,…]  // 3 h, en per 5 min (36 st), äldst först; ?minutes=60 ger 12; ?res=1 ger en per minut (Plus)
 }
 ```
 
-Klockan räknar om till mmol/L och visar åldern från `t`. Svaret med 3 h graf är ungefär 400 byte.
+Garmin Connect på telefonen kräver https (Android) och ATS (iOS). Använd ett vanligt certifikat, eftersom klockornas listor över betrodda utfärdare är begränsade.
+Varje anrop skickar `?v=<build>` för felsökning.
 
-### 6.3 Begränsningar att designa efter
+### 9.4 Loggning i aktiviteten
 
-| Apptyp | Uppdatering | Kommentar |
+Datafältet skriver glukos till aktivitetens FIT-fil med `FitContributor`:
+
+| Fält | Typ | Vad |
 |---|---|---|
-| **Glance + widget** | Vid `n` medan den är öppen (varje minut för Plus). Klockor med lite minne uppdaterar glance bara när den syns, minst 30 s isär | Bra start: snabb blick, enkel att bygga |
-| **Datafält** (under träning) | Klockor med API 5.0+ kan anropa i förgrunden. Äldre bara via bakgrund var 5:e minut | Mest användbart vid träning. Kan spara glukos i aktiviteten (FIT developer field) |
-| **Complications** (CIQ 4.2+) | Appen publicerar värdet. Andra urtavlor och Face It visar det | Ingen CGM-app verkar göra det. Kontrollera vilka urtavlor som kan visa en complication från en app |
-| **Urtavla** | Bakgrund högst var 5:e minut, och bara för urtavlan som visas | Senare. Fem minuter gamla värden måste visas tydligt som "för 4 min sedan" |
+| `glucose` (RECORD) | `UINT16`, mg/dL | Senaste värdet, varje sekund i `compute()`. **`0xFFFF` (ogiltigt) när värdet är äldre än 15 minuter**, så att grafen får ett glapp i stället för en platt linje |
+| `glucose_mmol` (RECORD) | `FLOAT` | Samma i mmol/L, skapas bara när användaren valt mmol/L |
+| `glucose_min`, `glucose_max`, `glucose_avg` (SESSION) | | Visas i aktivitetens sammanfattning |
+| `glucose_avg` (LAP) | | Per varv |
 
-- Alla anrop går via Garmin Connect-appen på telefonen och kräver https och `Content-Type: application/json`. Android kräver https.
-- Spara senaste svaret i `Application.Storage`, så att något visas direkt mellan körningarna.
-- Klockan räknar åldern varje gång den ritar och tillämpar regeln för gamla värden (§5.3).
-- I simulatorn kör man mot den fejkade källan på en dev-miljö.
+- `resources/fitcontributions.xml` styr hur Garmin Connect visar fälten: `displayInChart`, `chartTitle`, `unitLabel`, `precision`, `fillColor`, `displayInActivitySummary` och `displayInActivityLaps`.
+- **Graferna i Garmin Connect visas bara för appar installerade från butiken.** En sidladdad version skriver data men visar ingen graf. Därför släpps apparna först som privat beta i butiken.
+- Gränser enligt forumet: ungefär 16 FIT-fält totalt för alla datafält som körs samtidigt, och några tiotal byte per meddelande. Det räcker gott för en RECORD och några SESSION-fält.
+- **Strava** visar inte fält från Connect IQ. **Intervals.icu** och **Runalyze** gör det. Det står i dokumentationen.
+- Appar av typen `watch-app` kan också logga, men datafältet räcker.
+
+### 9.5 Begränsningar att designa efter
+
+- **Bakgrund:** högst var 5:e minut, ungefär 30 s per körning, 32–64 KB minne. Datafält på nyare klockor har 128–256 KB i förgrunden.
+- **Hämtning i förgrunden** i datafält på nyare klockor är inte bekräftat. Designa för bakgrunden.
+- **Utan telefon** misslyckas anropet direkt (-104). Visa det sparade värdet med ålder.
+- **För stora svar** (-402) och JSON-tolkning som dubblar minnet: håll svaret litet.
+- **Edge** kan hämta via wifi utan telefon (enligt forumet).
+- **Connect IQ SDK 9.3** (20 oktober 2026) kan öppna LTE för appar på fēnix 8/9 och MARQ 3, vilket skulle ge hämtning utan telefon. Det kommer från en enda källa. Kontrollera.
+- **Simulatorn** körs mot den fejkade källan. Urtavlans always-on kontrolleras med simulatorns värmekarta (gränsen 10 %).
 
 ---
 
-## 7. Latensbudget (målet "så fort som möjligt")
+## 10. Latens
 
 | Led | Typiskt | Vi påverkar? |
 |---|---|---|
-| Sensor → Libre 3-appen → LibreView → LinkUp | 30 s – 3 min, ibland mer (R4) | Nej |
-| Källan → backend (hämtning strax efter väntat värde) | 3–20 s (timern går var 10:e s) | Ja, §4.6 |
-| Backend → app (hämtar vid `nextUpdateAt`) | 2–7 s | Ja |
-| Backend → Live Activity (APNs prio 5 / FCM) | 1–10 s, ibland längre i lågenergiläge | Delvis, S2 mäter |
-| Backend → klocka | 1–60 s (glance), upp till 5 min (bakgrund) | Apptypen, §6.3 |
-| Backend → DIY | Hur ofta verktyget frågar | Nej, men `Cache-Control` och `n` hjälper |
+| Sensor → Libre 3-appen → LibreView → LinkUp | 30 s – 3 min, ibland mer (R3) | Nej |
+| Källan → backend | 3–20 s | Ja, §7.5 |
+| Backend → appen | 2–7 s | Ja |
+| Backend → Live Activity | 1–10 s, längre i lågenergiläge | Delvis, S2 |
+| Backend → Garmin | Helskärmsvyn 1–60 s. Glance, datafält och urtavla upp till 5 min | Connect IQ sätter gränsen |
+| Backend → DIY | Hur ofta verktyget frågar | `Cache-Control` hjälper |
 
-Mål för vår del, Plus-nivån: **p95 under 30 s** från att källan har värdet tills det syns i appen eller i Live Activity. Mäts med `source.lag` och `push.lag`.
-På Standard-nivån styr intervallet: värdet kan vara upp till ungefär 5 minuter gammalt innan nästa hämtning.
+Mål för vår del på Plus: **p95 under 30 s** från att källan har värdet till appen eller Live Activity.
 
 ---
 
-## 8. Kostnad för 100 användare
+## 11. Kostnad för 100 användare
 
-Antaganden: 80 användare på Standard och 20 på Plus, alla på LinkUp. Hälften har Live Activity på. Hälften har en Garmin-urtavla som frågar var 5:e minut.
-20 användare har en DIY-display som frågar varje minut. Appen är öppen 30 minuter om dagen per användare.
-Ungefärliga listpriser (USD, cirka 10 kr per dollar). Kontrollera i Azures priskalkylator innan beslut.
+Antaganden: 80 Standard och 20 Plus. Hälften har Live Activity, hälften Garmin, 20 en DIY-display som frågar varje minut. Appen är öppen 30 minuter om dagen.
+Ungefärliga listpriser, cirka 10 kr per dollar. Kontrollera i priskalkylatorn.
 
-**Volym per månad:**
-
-| | Antal |
+| | Per månad |
 |---|---|
-| Hämtningar från LinkUp | 80 × 288 + 20 × 1 440 = 51 840 per dygn ≈ **1,6 miljoner** (i ≈ 260 000 körningar av `PollDue`). Flera personer per konto ändrar inte antalet |
-| Inloggningar hos LinkUp (token gäller 1 h) | 100 per timme ≈ 72 000 |
-| HTTP-anrop från appen och Garmin | ≈ 0,5 miljoner |
-| HTTP-anrop från DIY | 20 × 43 000 ≈ 0,9 miljoner |
-| Kanarie och `Maintenance` | ≈ 10 000 |
-| Pushar till Live Activity | ≈ 0,5 miljoner |
+| Hämtningar från LinkUp | ≈ 1,6 miljoner, i ≈ 260 000 körningar. Flera personer per konto ändrar inget |
+| Inloggningar hos LinkUp (token 1 h) | ≈ 72 000 |
+| HTTP från app, Garmin och DIY | ≈ 1,4 miljoner |
+| Pushar | ≈ 0,5 miljoner |
+| **Functions** (Consumption, Windows) | **≈ 0–2 kr**, nästan helt inom gratiskvoten |
+| Table Storage, lagringskonto, Key Vault | < 15 kr |
+| Application Insights (sampling), APNs, FCM | 0 kr |
+| **Summa** | **≈ 0–20 kr** (Flex Consumption: ≈ 40–100 kr) |
 
-**Kostnad per månad:**
+Det håller sig nästan gratis tack vare två saker: en körning hämtar för många användare, och appen hämtar vid `nextUpdateAt` i stället för att hålla en anslutning öppen.
 
-| Del | Consumption på Windows (rekommenderas i v1) | Flex Consumption |
-|---|---|---|
-| Functions | **≈ 0–2 kr**: ≈ 1,7 miljoner körningar, varav ≈ 0,7 miljoner över gratiskvoten. GB-s ≈ 100 000–150 000, inom gratiskvoten | ≈ 30–80 kr: körningarna går över den mindre gratiskvoten, och minsta instansen är 512 MB |
-| Table Storage (48 h, några miljoner transaktioner) | < 5 kr | samma |
-| Functions eget lagringskonto | < 5 kr | samma |
-| Key Vault | < 5 kr (nyckeln cachas, §4.9) | samma |
-| Application Insights | 0 kr med sampling (5 GB gratis per månad) | samma |
-| Realtid till appen | 0 kr (appen hämtar vid `nextUpdateAt`) | samma |
-| APNs och FCM | 0 kr | samma |
-| **Summa** | **≈ 0–20 kr** | **≈ 40–100 kr** |
-
-**Kan det köras gratis?** Nästan. Functions, telemetri, push och realtiden ryms i gratiskvoterna med upplägget ovan.
-Det som kostar är lagringskontot och Key Vault: några kronor i månaden. Azures gratiskonto (krediter under första månaden och vissa tjänster gratis i 12 månader) täcker även det i början.
-
-Två saker gör att det håller sig gratis, och båda finns i planen:
-- **En körning hämtar för många användare** (§4.6). Ett kömeddelande per hämtning och användare skulle ge 1,6 miljoner körningar som var och en mest väntar på LinkUp, och då räcker inte gratiskvoten.
-- **Ingen öppen anslutning till appen.** SignalR Free tar bara 20 samtidiga anslutningar, och Standard kostar ungefär 500 kr per enhet och månad.
-
-DIY-anropen är det som växer snabbast. Rate limit per nyckel och `Cache-Control` (§4.12) håller dem i schack.
-
-Utanför Azure: Apple Developer Program 99 USD om året (krävs för push och Live Activities), Google Play 25 USD en gång.
+Utanför Azure tillkommer Apple Developer Program för 99 USD om året och Google Play för 25 USD en gång.
 
 ---
 
-## 9. Skalning och lansering
+## 12. Skalning
 
-### 9.1 När timern inte räcker
+**När timern inte räcker** (`poll.due.lag` växer, från några hundra användare):
+1. **Kedja per källa:** varje hämtning schemalägger nästa meddelande med Spine.Server.Messaging (`PublishOptions.Delay`) över Service Bus.
+   Meddelandets id är `sourceId:planerad tid`, och hanteraren hoppar över det som inte stämmer med `nextPollAt`.
+2. **Kontrollant:** en timer som startar om kedjor som har tystnat.
+3. **Tidsluckor:** ett meddelande per lucka med upp till 100 källor, vilket ger ungefär 100 gånger färre meddelanden.
+4. **SignalR** för appen. `current` läses från senaste värdet i `People`.
 
-Timern med `nextPollAt` räcker till några hundra användare. Tecknet på att den inte räcker längre är att `poll.due.lag` växer. Då byts den mot en kö, utan att API:et eller appen märker något:
+Service Bus framför Storage Queues: kötriggern mot Storage Queues kan vänta upp till en minut, och dubblettkontroll finns bara i Service Bus.
+Att schemalägga hela dygnet i förväg fungerar sämre: byte av nivå, borttagen källa eller backoff skulle kräva att hundratals meddelanden avbryts.
 
-1. **Kedja per källa:** varje hämtning schemalägger sitt nästa meddelande (`poll(sourceId)`) med Spine.Server.Messaging (`PublishOptions.Delay`) över Service Bus.
-   Byter användaren nivå eller tar bort källan läggs ett nytt meddelande. Det gamla slängs, eftersom meddelandets id är `sourceId:planerad tid` och hanteraren hoppar över ett meddelande som inte stämmer med `nextPollAt`.
-   Vid `NeedsReconnect` läggs inget nytt meddelande, och kedjan dör.
-2. **Kontrollant:** en timer var 5:e–15:e minut startar om kedjan för aktiva källor vars senaste hämtning är äldre än ungefär 2 × intervallet. Det fångar tappade meddelanden.
-3. **Tidsluckor när det blir många:** ett meddelande per lucka (till exempel 10 s) och upp till 100 källor, i stället för ett per källa.
-   Det ger ungefär 100 gånger färre meddelanden och körningar. Kedjan per källa finns kvar inuti luckan.
-4. **Realtid:** Azure SignalR Service (serverless, med Functions-bindningar) när det är fler än 20 som har appen öppen samtidigt.
-5. **DIY-läsningar:** `current` läses från senaste värdet i `People` i stället för att räknas fram varje gång.
-
-Att schemalägga hela dygnets meddelanden i förväg med en timer en gång per dygn fungerar sämre: ett byte av nivå, en borttagen källa eller en backoff efter 429 skulle kräva att hundratals redan köade meddelanden avbryts.
-
-Service Bus framför Storage Queues: en kötrigger mot Storage Queues kan vänta upp till en minut innan den ser ett meddelande, och dubblettkontroll finns bara i Service Bus Standard.
-
-### 9.2 Volym vid 10 000 användare
-
-Samma fördelning som i §8, 80 % Standard och 20 % Plus:
-
-| | Volym |
-|---|---|
-| Anrop till LinkUp | 1 600 + 2 000 = **3 600 per min ≈ 60 per s** |
-| Inloggningar hos LinkUp | ≈ 10 000 per timme ≈ 3 per s |
-| Kömeddelanden utan tidsluckor | ≈ 5,2 miljoner per dygn ≈ 155 miljoner per månad |
-| Kömeddelanden med tidsluckor om 100 | ≈ 1,5 miljoner per månad |
-
-Azure klarar det: Functions skalar ut, Table Storage klarar tusentals skrivningar per sekund och Service Bus tar volymen.
-Med tidsluckor är Azure-kostnaden fortfarande måttlig: några hundra till några tusen kronor i månaden, mest Flex, Service Bus och SignalR. Det räknas exakt när volymerna är bestämda.
-
-### 9.3 Den verkliga gränsen är Abbott
-
-- 60 anrop per sekund och 10 000 inloggningar i timmen från ett fåtal Azure-IP-adresser, mot ett inofficiellt API, kommer med stor sannolikhet att bli begränsat eller blockerat. Konton kan spärras, och Abbott kan kräva att tjänsten stängs.
-  Det ska inte lösas genom att sprida trafiken över fler IP-adresser för att komma runt deras gränser.
-- Även 100 användare är 36 anrop i minuten och 100 inloggningar i timmen från samma avsändare. Det är långt mindre, men inte osynligt.
-- Kryptering i v5 (R11) kan stänga vägen helt, oavsett skala.
-- **Före en kommersiell lansering:** fråga Abbott om en officiell integration eller ett partneravtal. Utan det är planen rimlig för dig och en mindre krets, inte för en app som säljs.
-- Fler källor (Nightscout, uppladdning) minskar beroendet av Abbott men tar inte bort det, eftersom de flesta Libre-användare inte har Nightscout (R10).
-
-### 9.4 Regler vid lansering
-
-- **App Store:** att använda en tredjeparts API utan tillstånd strider mot riktlinje 5.2.2. Att flera konkurrenter finns i App Store betyder inte att Apple godkänner nästa.
-- **Medicinteknisk produkt:** en app som visar CGM-värden för personer som fattar beslut på dem kan räknas som medicinteknisk programvara, i EU enligt MDR och i USA av FDA, där en "secondary display" för CGM är en klassad produkt. Det kräver en egen bedömning innan appen säljs. Ett öppet API för DIY gör inte bedömningen enklare, och larm skulle göra den svårare (B11).
-- **GDPR:** hälsodata i en kommersiell tjänst kräver en konsekvensbedömning (DPIA) och personuppgiftsbiträdesavtal.
+**Vid 10 000 användare:** ungefär 60 anrop per sekund och 10 000 inloggningar i timmen mot LinkUp. Azure klarar det för några hundra till några tusen kronor i månaden.
+**Abbott klarar det sannolikt inte**, i alla fall inte utan avtal (§13). Det ska inte lösas genom att sprida trafiken över fler IP-adresser.
 
 ---
 
-## 10. Spine-luckor
+## 13. Abbott, regler och lansering
 
-Det här skulle göras som issues i Maui.Spine. Resten byggs med det Spine redan har.
+**Abbotts hållning:**
+- Integritetspolicyn varnar för "obehöriga" appar som påstår sig vara kompatibla, och Abbott tar inget ansvar för dem.
+- Något offentligt uttalande om att stänga ute tredjepartsappar har jag inte hittat.
+- Det finns partner med godkänd åtkomst via LibreView. Det kräver avtal och onboarding, enligt en leverantörs beskrivning.
 
-| # | Lucka | Förslag | Status |
+**EU:s dataförordning (Data Act)** gäller sedan 12 september 2025:
+- Användaren av en uppkopplad produkt, även en CGM, har rätt att få ut data produkten skapar, där det är relevant **löpande och i realtid**.
+- Användaren får också låta en **tredje part hen väljer** få datan.
+- Förbehåll:
+  - Rätten gäller rådata, inte allt som räknas fram.
+  - Personuppgifter och företagshemligheter har särskilt skydd.
+  - Tredje parten får inte ta fram en konkurrerande produkt. En visningsapp är rimligen inte en konkurrerande sensor, men det behöver bedömas juridiskt.
+- Underlaget är advokatbyråers kommentarer. Kontrollera själva förordningen.
+
+**Åtgärder** (steg A1, parallellt med S1):
+1. **Begäran enligt Data Act:** du skriver som användare till Abbott och ber om löpande åtkomst i realtid till dina sensordata, och att den lämnas till en tjänst du väljer. Svaret säger mycket om hur stabil vägen är.
+2. **Fråga om partneråtkomst** till LibreView, med Data Act som bakgrund.
+3. **Ansök om critical alerts** hos Apple (§7.8), eftersom det tar tid.
+
+**Före en kommersiell lansering:**
+- **App Store:** ett tredjeparts-API utan tillstånd strider mot riktlinje 5.2.2. Att konkurrenter finns där betyder inte att nästa app godkänns.
+- **Medicinteknisk produkt:** visning av CGM-värden, och särskilt notiser, kan räknas som medicinteknisk programvara (MDR, FDA "secondary display"). Det kräver en egen bedömning.
+- **GDPR:** konsekvensbedömning (DPIA) och personuppgiftsbiträdesavtal.
+- **Garmin:** apparna släpps först som privat beta i Connect IQ-butiken.
+
+---
+
+## 14. Spine-luckor
+
+Görs som issues i Maui.Spine. Allt annat finns redan.
+
+| # | Lucka | Förslag | Behövs för |
 |---|---|---|---|
-| G1 | Ingen linjegraf | `LineChart` i `Plugin.Maui.Spine.Controls.Charts`: tidsserie, band, glapp, markerad sista punkt, pekare/tooltip som `ColumnChart` | Förslag |
-| G2 | Inloggning med ett annat kontos lösenord | Behövs inte: Glukos har ett eget konto och källorna ansluts separat (§4.5) | Parkerad |
-| G3 | Trendpilar som symboler | Symboler via `/spine-symbol`, eller rotera `Arrow` (B4) | Förslag |
-| G4 | Inga köp i appen | Ett paket för StoreKit 2 / Play Billing med en serverdel som kontrollerar köp, eller köpen skrivna i appen (B12) | Förslag |
-| G5 | Menyradsikonen på Mac och ikonen i Windows ikonområde är fasta och sätts vid start | Mac: bild och färgad text som en enhet (`SetTrayContent`), och en egenritad bild (`SetTrayImage`). Windows: ikon och tooltip som kan ändras medan appen kör | Förslag (för de egna skrivbordsapparna, senare) |
-| G6 | Ingen graf i widgetträdet | `W.Sparkline(values, low, high)`, ritad av renderaren på iOS och Android, så att den kan skickas via push | Förslag |
-| G7 | Inga App Intents för Siri | En intent som svarar med en mening ("Lisa 6,8, stiger") | Parkerad |
-| G8 | Critical alerts | `PushInterruption.Critical` med `sound` som objekt (`critical`, `name`, `volume`), och behörigheten i appen | Parkerad (kräver Apples godkännande) |
-
-Inga luckor i inloggning, push, Live Activity, push-to-start, Android Live Update eller köer. Spines inloggning, `IPushSender`, `LiveActivityLayout.ToJson()`, push-tokens, `SpineWidgetsFrequentUpdates` och Spine.Server.Messaging täcker planen.
+| G1 | Ingen linjegraf | `LineChart` i `Controls.Charts`: tidsserie, band, glapp, sista punkt, pekare | Hem (v1) |
+| G2 | Ingen graf i widgetträdet | `W.Sparkline(values, low, high)`, ritad av renderaren på iOS och Android | Minigraf i Live Activity (Bör) |
+| G3 | Inga köp i appen | StoreKit 2 och Play Billing, med kontroll på servern | Plus (B12) |
+| G4 | Ikonen i menyraden (Mac) och ikonområdet (Windows) är fast och sätts vid start | Mac: bild och färgad text som en enhet, eller en egenritad bild. Windows: ikon och tooltip som kan ändras | Egna skrivbordsappar (Senare) |
+| G5 | Trendpilar som symboler | Symboler via `/spine-symbol`, eller rotera `Arrow` | Appen (B4) |
+| G6 | Inga App Intents för Siri | En intent som svarar med en mening | Senare |
+| G7 | Critical alerts, och Stör ej på Android | `PushInterruption.Critical` med `sound` som objekt. Kanal som går igenom Stör ej | Notiser för mycket lågt |
 
 ---
 
-## 11. Steg
+## 15. Steg
 
-| # | Steg | Innehåll | Klart när | Status |
-|---|---|---|---|---|
-| S1 | **Spike: LibreLinkUp v5 (avgör om planen håller)** | Konsolapp mot ett eget följarkonto som följer två personer: login, region, `tou`-steget, connections, graph. **Är svaren krypterade (R11)?** Logga 24 h: hur ofta `glucoseMeasurement` får nya värden, fördröjningen *d*, upplösningen i `graph` och svaren vid 429. Prova även att logga in med huvudkontot | Inspelade svar finns som testdata. Takt och *d* är uppmätta. Vi vet om v5 går att läsa. Beslut om Plus-nivån och om Nightscout ska tidigareläggas kan tas | Förslag |
-| S2 | **Spike: Live Activity per minut** | Spines push-sample med en push i minuten över en natt på en riktig iPhone, med och utan `FrequentUpdates`, i lågenergiläge och i StandBy. Även push-to-start efter 8 h, och hur den syns i Macens menyrad | Andel levererade och fördröjning är uppmätta. Beslut B5 kan tas | Förslag |
-| S3 | **Spike: Connect IQ** | `makeWebRequest` från glance och datafält på din klocka mot ett fejkat svar. Minne med 3 h graf. Complications: vilka urtavlor visar dem | Du vet vilken apptyp, vilket intervall och hur stor graf som fungerar | Förslag |
-| 1 | Backend-grund | Repo, `Glukos.Functions`, `Glukos.Sources`, `Glukos.Shared`, Bicep, Function App på Windows Consumption, Key Vault, CI. Den fejkade källan med två personer | `GET /v1/glucose/current` svarar med fejkade data i Azure | Förslag |
-| 2 | Konto | Spines inloggning i appen och på servern, ta bort konto | Logga in, logga ut och ta bort konto fungerar i appen | Förslag |
-| 3 | LinkUp-adapter och hämtning | §4.2, §4.4–4.6, personer, timern `PollDue`, ansluta källa, tester mot S1-data | Riktiga värden för alla personer flödar in. `source.lag`, `source.cadence` och `poll.due.lag` syns i App Insights | Förslag |
-| 4 | Ändrade API:er | §4.13: tolerant tolkning, brytare, kanarie, `source.shape`, `/v1/status`, larmen | En inspelad trasig version av svaret löser ut brytaren i ett test, och kanarien larmar i dev | Förslag |
-| 5 | Appen: Hem | Sidor §5.1, personer, snapshot + hämtning vid `nextUpdateAt`, G1 (graf med 1–24 h), regeln för gamla värden, tillgänglighet §5.5, svenska och engelska §5.8 (strängarna i `Glukos.Shared`) | Värdet ändras i appen inom sekunder efter backend, VoiceOver läser riktningen, och allt finns på båda språken | Förslag |
-| 6 | Live Activity iOS | Layout i `Shared`, tokens, push från hämtningen, push-to-start-rotation, `staleAt`, bortsvepning respekteras. Kontrollera StandBy, Macens menyrad och Apple Watch Smart Stack | Ligger kvar en hel natt och visar rätt värde | Förslag |
-| 7 | Android Live Update | FCM, `LiveUpdateText` | Samma sak på Android 16 | Förslag |
-| 8 | API-nycklar och Garmin | §4.12 (nycklar, `/v1`-läsvägar, `current.txt`, `?format=swiftbar`), §6.1–6.2, sidorna API-nycklar och Koppla Garmin | Klockan i simulatorn, ett `curl` med nyckel och SwiftBar får värden | Förslag |
-| 9 | Nightscout-kompatibla endpoints | §4.12: `/api/v1/…`, `status.json`, `/api/v2/properties`, `/pebble`, `/sgv.json`, autentisering med SHA1. Testa Home Assistant, nightscout-clock, M5Stack och om möjligt SugarPixel. DIY-dokumentationen med recept | Home Assistant och nightscout-clock visar värdet med en Glukos-nyckel | Förslag |
-| 10 | Nivåer och köp | §4.11, G4 eller köp i appen, kontroll på servern | Plus kan köpas i TestFlight och sandlådan, och hämtningen går varje minut efter köpet | Förslag |
-| 11 | Härdning | `NeedsReconnect`-flöde och notiser, rensning, rate limiting, integritetspolicy | Fel hos en källa upptäcks och visas utan att du tittar | Förslag |
-| 12 | Notiser och ljud | §4.14: typer per person, regler mot för många notiser, säkerhetsläget, kanaler per språk på Android, `Glukos.Tools.Sounds` och valet av röst (B26) | "Glukos lågt" hörs på svenska och engelska på iOS och Android, och säkerhetsläget hämtar varje minut vid lågt värde | Förslag |
-| 12b | Bör-funktioner | Minigraf i Live Activity (G6), Dynamic Island som expanderar, sängläge, Garmin-complications och FIT, en aktivitet per person, Rainmeter-recept | Enligt §1.1 | Förslag |
-| 13 | Nightscout som källa | `Glukos.Sources.Nightscout`, §4.2 | En Nightscout-användare kan byta källa och få samma app, Live Activity och klocka | Parkerad (efter v1, eller tidigare efter S1) |
-| 14 | Uppladdning som källa | `POST /api/v1/entries` med en `upload`-nyckel, för Juggluco och xDrip+ | Juggluco laddar upp och värdet syns i Glukos | Parkerad (reserv, R11) |
-| 15 | Egen Mac-app i menyraden | §5.6, G5 | Droppe + `6,8 ↗` i menyraden utan iPhone i närheten | Parkerad |
-| 16 | (vid behov) Kö i stället för timer | §9.1 | `poll.due.lag` håller sig under 10 s | Parkerad |
+| # | Steg | Klart när | Status |
+|---|---|---|---|
+| **S1** | **Spike: LinkUp v5.** Konsolapp mot ett eget följarkonto med två personer. v4- och v5-identiteten, villkorssteget, **krypterat eller inte**, takt, *d*, upplösning i `graph`, 429. Prova huvudkontot | Vi vet om LinkUp går att läsa och hur ofta. Testdata finns. Beslut om Plus och om Nightscout ska tidigareläggas | Förslag |
+| **A1** | **Abbott och Apple:** begäran enligt Data Act, fråga om partneråtkomst, ansökan om critical alerts | Breven är skickade | Förslag |
+| S2 | Spike: Live Activity per minut över en natt, i lågenergiläge och StandBy, push-to-start efter 8 h, Macens menyrad | Leverans och fördröjning är uppmätta (B5) | Förslag |
+| S3 | Spike: Connect IQ på din klocka. Datafält med FIT-loggning (beta i butiken), glance, complication i en Face It-urtavla, minne med 3 h graf | Du vet vad som fungerar på din klocka | Förslag |
+| 1 | Backend-grund: repo, Functions, `Glukos.Shared`, Bicep, Key Vault, CI, den fejkade källan | `current` svarar i Azure | Förslag |
+| 2 | Konto: Spines inloggning, ta bort konto | Fungerar i appen | Förslag |
+| 3 | LinkUp-adapter, personer och hämtning (§7.2–7.5) | Riktiga värden för alla personer. Mätvärdena syns | Förslag |
+| 4 | Ändrade API:er (§7.11): brytare, kanarie, `source.shape`, `/v1/status`, larm | En inspelad trasig version löser ut brytaren i ett test | Förslag |
+| 5 | Appen: översikt, person, graf (G1), gamla värden, tillgänglighet, språk | VoiceOver läser riktningen, och allt finns på båda språken | Förslag |
+| 6 | Live Activity: layout i `Shared`, push, push-to-start, `staleAt`. StandBy, Mac och Apple Watch kontrolleras | Ligger kvar en hel natt | Förslag |
+| 7 | Android Live Update | Samma på Android 16 | Förslag |
+| 8 | API-nycklar, `current.txt`, SwiftBar, Garmin-koppling | `curl`, SwiftBar och simulatorn får värden | Förslag |
+| 9 | **Garmin datafält** med FIT-loggning, layouter, Edge | En löptur i Garmin Connect visar glukosgrafen | Förslag |
+| 10 | Notiser och ljud (§7.8): typer per person, regler, säkerhetsläge, kanaler per språk, `Glukos.Tools.Sounds` | "Glukos lågt" hörs på båda språken. Säkerhetsläget hämtar varje minut | Förslag |
+| 11 | Nightscout-kompatibla vägar och recept | Home Assistant och nightscout-clock visar värdet | Förslag |
+| 12 | **Garmin-app** med glance och complication | Värdet syns i en Face It-urtavla | Förslag |
+| 13 | **Garmin urtavla** | Always-on under 10 %, åldern stämmer | Förslag |
+| 14 | Nivåer och köp | Plus kan köpas i sandlådan | Förslag |
+| 15 | Härdning: rensning, rate limiting, integritetspolicy | Fel hos en källa upptäcks utan att du tittar | Förslag |
+| 16 | Bör-funktioner: minigraf (G2), Dynamic Island som expanderar, sängläge, en aktivitet per person, ton och vibration i datafältet | Enligt §3 | Förslag |
+| 17 | Nightscout som källa | En Nightscout-användare får samma upplevelse | Parkerad (efter S1) |
+| 18 | Uppladdning som källa | Juggluco laddar upp till Glukos | Parkerad (reserv) |
+| 19 | Egna skrivbordsappar (G4) | Droppe + `6,8 ↗` i menyraden | Parkerad |
+| 20 | Kö i stället för timer (§12) | `poll.due.lag` under 10 s | Parkerad |
 
-Ordning: S1 först eftersom den kan välta allt. S2 och S3 parallellt med steg 1–3.
+Ordning: S1 och A1 först, eftersom de kan välta allt. S2 och S3 parallellt med steg 1–3.
 
 ---
 
-## 12. Beslut att granska
+## 16. Beslut att granska
 
 | # | Fråga | Rekommendation |
 |---|---|---|
-| B1 | Vem är appen för: du och familjen (TestFlight) eller App Store/Play? | Eget bruk och en mindre krets först. Kommersiell lansering först efter avtal med Abbott (§9.3) |
-| B2 | Identitet: LinkUp-kontot som inloggning eller eget Glukos-konto med källor? | **Eget Glukos-konto.** Det krävs för flera källor, köp och API-nycklar, och Spines inloggning finns redan. LinkUp ansluts med ett eget följarkonto |
-| B3 | Linjegrafen i Spine direkt eller i appen först? | I Spine (G1). Charts-paketet är redan för dashboards |
-| B4 | Trendpil i appen: roterad `Arrow` eller egna symboler? | Roterad `Arrow` i v1 |
-| B5 | Live Activity: push varje minut eller vid ändring + hjärtslag var 5:e min? | Vid ändring + hjärtslag. Avgörs med S2 |
-| B6 | Villkorssteget (`tou`): godkänna från vår app eller skicka användaren till LibreLinkUp-appen? | Visa villkoren och låt användaren godkänna uttryckligen i appen. Godkänn aldrig tyst åt användaren (nightscout-connect har det som ett val som är av som standard) |
-| B7 | Hosting | Azure Functions på Consumption-planen (Windows) i v1. Flex Consumption när det behövs mer skala |
-| B8 | Lagringstid för mätvärden | 48 h, så att dygnsgrafen alltid är hel |
-| B9 | Var ska appen ligga: eget repo eller under `samples/` här? | Eget repo. Spine-luckorna blir issues här |
-| B10 | Mac | v1 genom speglingen av iPhonens Live Activity och `?format=swiftbar`. Egen menyradsapp senare (G5) |
-| B11 | Notiser vid lågt, högt och snabb förändring? | **Ja, som Bör efter v1-kärnan** (§4.14), med talade ljud och säkerhetsläget. De kallas notiser, inte larm, och appen säger att Libre-appen larmar. Critical alerts senare (G8) |
-| B12 | Köp: nytt Spine-paket (G4) eller köpen skrivna i appen? | I appen först, flytta till Spine om en andra app behöver det |
-| B13 | Nivåerna: Standard 5 min gratis och Plus 1 min betald? | Ja, om S1 visar att LinkUp har minutvärden. Annars bara en nivå |
-| B14 | Realtid till appen: hämta vid `nextUpdateAt` eller SignalR? | Hämta vid `nextUpdateAt` i v1. SignalR vid fler än 20 samtidigt öppna appar |
-| B15 | Lagring: bara Table Storage? | Ja. Cosmos DB med gratisnivån om TTL eller fler frågor behövs senare |
-| B16 | Nightscout som källa: när? | Efter v1, och tidigare om S1 visar att LinkUp v5 inte går att läsa |
-| B17 | Nightscout-kompatibla läsvägar i v1? | Ja, med `/api/v2/properties` och `/pebble` som Bör |
-| B18 | API-nyckel i frågesträngen (`?token=`) och som SHA1 i `api-secret`? | Ja, eftersom verktygen gör så. Frågesträngar loggas aldrig, och headern rekommenderas |
-| B19 | DIY-nycklar på Standard: tillåtna, eller bara för Plus? | Tillåtna på båda. Värdet följer nivåns takt ändå |
-| B20 | Flera personer i v1? | Ja, i appen och API:et. LinkUp ger dem utan extra anrop, och föräldrar är en viktig grupp. En Live Activity i v1, en per person som Bör |
-| B21 | Live Activity och Garmin i Standard (gratis)? | Ja (§1.2). Plus säljer tätheten |
-| B22 | Minigraf i Live Activity (G6)? | Bör, efter v1-kärnan |
-| B23 | Garmin: complications och FIT-inspelning? | Bör. Complications är en lucka hos alla konkurrenter |
-| B24 | Namn på låsskärmen | Visas som standard när man följer flera personer, och kan stängas av |
-| B25 | Språk i v1 | Svenska och engelska, överallt (§5.8) |
-| B26 | Röster: OpenAI eller Azure Speech? | Generera båda och lyssna. Troligen Azure för svenska och den som låter bäst för engelska. Spine.Server.AI har båda |
-| B27 | Säkerhetsläge (hämtning varje minut vid lågt) även på Standard? | Ja. Säkerhet ska inte ligga bakom betalvägg |
-| B28 | Windows | DIY (Rainmeter) i v1. Egen app i ikonområdet senare, med G5 |
+| B1 | Vem är appen för? | Du och en mindre krets (TestFlight, beta i Connect IQ) först. Kommersiellt först efter dialog med Abbott |
+| B2 | Identitet | Eget Glukos-konto med Spines inloggning. LinkUp ansluts med ett eget följarkonto |
+| B3 | Linjegrafen | I Spine (G1) |
+| B4 | Trendpil i appen | Roterad `Arrow` i v1 |
+| B5 | Takt för Live Activity | Vid ändring + hjärtslag var 5:e minut. Avgörs med S2 |
+| B6 | Villkorssteget (`tou`) | Användaren godkänner uttryckligen i appen. Aldrig tyst |
+| B7 | Hosting | Functions på Consumption (Windows). Flex vid behov |
+| B8 | Lagringstid | 48 h |
+| B9 | Repo | Eget repo. Spine-luckorna som issues här |
+| B10 | Flera personer | Ja, från v1 i appen, API:et och på Garmin. En Live Activity i v1 |
+| B11 | Notiser | Ja, direkt efter v1-kärnan, per person och med talade ljud. Notiser, inte larm |
+| B12 | Köp | I appen först. Till Spine om en andra app behöver det |
+| B13 | Nivåer | Standard 5 min gratis, Plus 1 min, om S1 visar minutvärden |
+| B14 | Röster | Generera med Azure Speech och OpenAI och lyssna. Troligen Azure för svenska |
+| B15 | Säkerhetsläge på Standard | Ja |
+| B16 | Live Activity och Garmin på Standard | Ja |
+| B17 | Nightscout som källa | Efter v1. Tidigare om S1 visar att LinkUp är stängt |
+| B18 | Nightscout-kompatibla vägar | Ja i v1. `/api/v2/properties` och `/pebble` som Bör |
+| B19 | Nyckel i `?token=` och som SHA1 i `api-secret` | Ja, eftersom verktygen gör så |
+| B20 | Garmin: ordning | Datafält, sedan app med glance och complication, sedan urtavla |
+| B21 | Garmin: koppling | En kod per app och en nyckel per app |
+| B22 | Garmin: ton och vibration under träning | Bör, av som standard |
+| B23 | Mac och Windows | Spegling, SwiftBar och Rainmeter i v1. Egna appar senare |
+| B24 | Språk | Svenska och engelska överallt |
+| B25 | Critical alerts | Ansök direkt (A1). Bygg när godkännandet finns |
+| B26 | Data Act | Skicka begäran och partnerfrågan parallellt med S1 |
 
 ---
 
-## 13. Parkerade idéer
+## 17. Parkerat
 
-- Critical alerts (G8) och personliga röster med namn (§4.14).
-- Egen Windows-app i ikonområdet (B28).
-- Låsskärms- och hemskärmswidgetar. iOS 26-push för widgetar (`SpineWidgetsPush`) kan göra dem snabbare än 15 minuter.
-- **Webhooks och MQTT för DIY:** backend skickar varje nytt värde till en adress eller en MQTT-broker som användaren anger, i stället för att verktyget frågar. Bra för Home Assistant, men varje leverans är en körning och ett möjligt fel att hantera.
-- **Glukos som Nightscout-uppladdare:** skicka LinkUp-värden vidare till användarens egen Nightscout.
-- Uppladdning som källa (steg 14) och Dexcom Share (§4.3).
-- Siri och Genvägar (G7), CarPlay.
-- Egen Mac-app i menyraden (steg 15).
-- Garmin-urtavla och vibration vid lågt under träning.
-- Läsa sensorn direkt via Bluetooth (som Juggluco). Det går förbi molnet och Abbotts API, men bygger också på omvänd ingenjörskonst och kan krocka med Libre 3-appens anslutning till sensorn.
-- Flera aktiva källor per användare.
+- Critical alerts (efter godkännande), personliga röster med namn, eskalering till en andra person och telefonsamtal vid akut lågt.
+- Prognos för lågt.
+- Siri, Genvägar och Alexa (G6). CarPlay och Android Auto.
+- Låsskärms- och hemskärmswidgetar, flytande värde på Android.
+- Egna skrivbordsappar för Mac och Windows (G4).
+- Webhooks och MQTT. Glukos som uppladdare till användarens egen Nightscout.
+- Nightscout, uppladdning och Dexcom Share som källor.
+- IOB, COB och loopstatus, om Nightscout blir källa.
+- Ett diskret ljud vid varje nytt värde.
+- Att läsa sensorn direkt via Bluetooth (som Juggluco). Det bygger på omvänd ingenjörskonst och kan krocka med Libre 3-appen.
+
+---
 
 ## Källor
 
-- Konkurrenter och användarbehov: [glucose-app-market.md](glucose-app-market.md), med alla länkar.
-- Spine: `docs/wiki/widgets.md` (Live Activities, "Keeping one on screen around the clock", "Real-time data", Android Live Updates),
-  `docs/wiki/push-notifications-server.md`, `docs/wiki/authentication-server.md`, `docs/wiki/authentication.md`, `docs/wiki/charts.md`, `docs/wiki/messaging.md`, `docs/wiki/macos-options.md`
-- LibreLinkUp v4 (`Account-Id`, 4.16.0): [nightscout-connect #53](https://github.com/nightscout/nightscout-connect/pull/53), [#73](https://github.com/nightscout/nightscout-connect/pull/73)
-- LibreLinkUp v5: [nightscout-clock #236](https://github.com/ktomy/nightscout-clock/pull/236), [#237](https://github.com/ktomy/nightscout-clock/pull/237), [nightscout-librelink-up #228 (kryptering)](https://github.com/timoschlueter/nightscout-librelink-up/discussions/228)
-- Följarkonto: [nightscout-librelink-up uploader](https://ca.unraid.net/apps/nightscout-librelink-up-uploader-0q38yag1bey6as), [Abbott: samma e-post för LibreLinkUp och Libre](https://www.freestyle.abbott/en-us/support/faq/apps/using-the-same-email-for-librelinkup-and-libre-accounts.html)
-- Exempel på svar från Libre 3: [HTTP-dump](https://gist.github.com/khskekec/6c13ba01b10d3018d816706a32ae8ab2)
-- Nightscout: [dokumentationen](https://nightscout.github.io/), [cgm-remote-monitor](https://github.com/nightscout/cgm-remote-monitor), [Nocturne](https://github.com/nightscout/nocturne)
-- Azure Functions: [prissättning](https://azure.microsoft.com/pricing/details/functions/), [Flex Consumption](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan), [Consumption-planen och Linux 2028](https://learn.microsoft.com/en-us/Azure/azure-functions/functions-scale)
-- Live Activities på Mac: [9to5Mac](https://9to5mac.com/2025/06/16/macos-26-live-activities-work-even-if-your-iphone-is-on-ios-18/), [iGeeksBlog](https://www.igeeksblog.com/how-to-use-live-activities-on-ipad-mac/)
-- Connect IQ: [Background](https://developer.garmin.com/connect-iq/api-docs/Toybox/Background.html), [Communications](https://developer.garmin.com/connect-iq/api-docs/Toybox/Communications.html), [Complications](https://developer.garmin.com/connect-iq/api-docs/Toybox/Complications.html)
+- **Konkurrenter, användarbehov och alla länkar:** [glucose-app-market.md](glucose-app-market.md).
+- **Spine:** `docs/wiki/widgets.md`, `push-notifications.md`, `push-notifications-server.md`, `authentication-server.md`, `authentication.md`, `charts.md`, `messaging.md`, `strings.md`, `ai-server.md` (Speech), `macos-options.md`, `windows-options.md`.
+- **LibreLinkUp:**
+  - [nightscout-connect #53](https://github.com/nightscout/nightscout-connect/pull/53), [#73](https://github.com/nightscout/nightscout-connect/pull/73)
+  - [nightscout-clock #236](https://github.com/ktomy/nightscout-clock/pull/236), [#237](https://github.com/ktomy/nightscout-clock/pull/237)
+  - [nightscout-librelink-up #228](https://github.com/timoschlueter/nightscout-librelink-up/discussions/228)
+  - [HTTP-dump](https://gist.github.com/khskekec/6c13ba01b10d3018d816706a32ae8ab2)
+- **Abbott och Data Act:**
+  - [Abbotts integritetspolicy](https://freestyleserver.com/Payloads/FSLibreLink/DOC38902-001_rev-A_en-GB.html)
+  - [CMS om Data Act och medicintekniska produkter](https://cms.law/en/aut/legal-updates/adapting-to-the-new-eu-data-act-implications-for-medical-devices-and-other-health-devices)
+  - [White & Case](https://www.whitecase.com/insight-alert/eu-data-act-unlocking-data-healthcare-life-sciences-and-beyond)
+  - [SRD Rechtsanwälte](https://www.srd-rechtsanwaelte.de/en/blog/data-act-healthcare-impact)
+- **Azure Functions:** [prissättning](https://azure.microsoft.com/pricing/details/functions/), [Flex Consumption](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan), [planer och Linux 2028](https://learn.microsoft.com/en-us/Azure/azure-functions/functions-scale)
+- **Live Activities på Mac:** [9to5Mac](https://9to5mac.com/2025/06/16/macos-26-live-activities-work-even-if-your-iphone-is-on-ios-18/)
+- **Connect IQ:**
+  - API: [FitContributor](https://developer.garmin.com/connect-iq/api-docs/Toybox/FitContributor.html), [Complications](https://developer.garmin.com/connect-iq/api-docs/Toybox/Complications.html), [Background](https://developer.garmin.com/connect-iq/api-docs/Toybox/Background.html), [Communications](https://developer.garmin.com/connect-iq/api-docs/Toybox/Communications.html)
+  - Garmins forum: [super apps i CIQ 4](https://forums.garmin.com/developer/connect-iq/f/discussion/245387/super-apps-and-widgets-in-ciq-4-0), [Face It och complications](https://forums.garmin.com/developer/connect-iq/f/discussion/352175/face-it-and-ciq-complications/1698129), [lägen för urtavlor](https://forums.garmin.com/developer/connect-iq/b/news-announcements/posts/changes-to-watch-face-low--and-high-power-modes)
+  - Andra: [Runalyze om developer fields](https://blog.runalyze.com/allgemein-en/extended-support-for-fit-developer-fields/), [the5krunner om SDK 9.3](https://the5krunner.com/2026/10/21/garmin-connect-iq-sdk-themes/)

@@ -183,6 +183,82 @@ Rangordnat efter hur ofta och hur starkt behovet kommer fram:
 
 ---
 
+## 7. Vad användare efterfrågar (andra kartläggningen)
+
+Från GitHub-ärenden, forum, recensioner och släppnotiser. Reaktioner (+1) gick inte att räkna, så styrkan bygger på antal kommentarer och separata trådar.
+Recensioner och forum kommer från sökresultat. Svenska forum (Familjeliv, Flashback, Diabetesförbundet) gav inga träffar.
+
+| Önskemål | Exempel på källor |
+|---|---|
+| Flera personer med egna larm, paus och komplikation per person | [Nightguard #285](https://github.com/nightscout/nightguard/issues/285) (136 kommentarer, avslaget: "This is not just adding a second URL"), [xDrip #267](https://github.com/NightscoutFoundation/xDrip/issues/267), [LoopFollow #65](https://github.com/loopandlearn/LoopFollow/issues/65), [FLwatch #19](https://github.com/poml88/FLwatch/issues/19) |
+| Complications och widgetar som är färska | [Nightguard #271](https://github.com/nightscout/nightguard/issues/271), [Loop #2411](https://github.com/LoopKit/Loop/issues/2411) |
+| Live Activity i följarläge, omstart efter 8 h | [xDrip4iOS #446](https://github.com/JohanDegraeve/xdripswift/issues/446), [#531](https://github.com/JohanDegraeve/xdripswift/issues/531) |
+| Värdet alltid synligt på Android | [xDrip #222](https://github.com/NightscoutFoundation/xDrip/issues/222), [#1625](https://github.com/NightscoutFoundation/xDrip/issues/1625) |
+| Larm som väcker, critical alerts | [GlucoDataHandler #194](https://github.com/pachi81/GlucoDataHandler/issues/194), Diabetes UK-forumet (LinkUp-larmet är bara "a notification bing" på Samsung) |
+| Anpassade larm, "efter N värden i rad" | [xDrip4iOS #124](https://github.com/JohanDegraeve/xdripswift/issues/124), [GlucoDataHandler #249](https://github.com/pachi81/GlucoDataHandler/issues/249) |
+| Tysta timmar, eskalering från vibration till ljud | [GlucoDataHandler #361](https://github.com/pachi81/GlucoDataHandler/issues/361), [#362](https://github.com/pachi81/GlucoDataHandler/issues/362) |
+| Notis när värden slutar komma, tydligt gamla värden | [Nightguard #347](https://github.com/nightscout/nightguard/issues/347), [Nightscout #57](https://github.com/nightscout/cgm-remote-monitor/issues/57) |
+| Uppdatering varje minut | [Nightguard #211](https://github.com/nightscout/nightguard/issues/211) |
+| Stora siffror, nattläge, StandBy | [xDrip4iOS #593](https://github.com/JohanDegraeve/xdripswift/issues/593), [GlucoDataHandler #352](https://github.com/pachi81/GlucoDataHandler/issues/352) |
+| Widgetar med graf | [Nightguard #244](https://github.com/nightscout/nightguard/issues/244), [#312](https://github.com/nightscout/nightguard/issues/312) |
+| Uppläsning | [GlucoDataHandler #227](https://github.com/pachi81/GlucoDataHandler/issues/227), [xDrip #1423](https://github.com/NightscoutFoundation/xDrip/issues/1423) |
+| Andra klockor än Apple Watch | [xDrip #353](https://github.com/NightscoutFoundation/xDrip/issues/353) (216), [#460](https://github.com/NightscoutFoundation/xDrip/issues/460) (382) |
+| Garmin och Wahoo under träning | [xDrip #1654](https://github.com/NightscoutFoundation/xDrip/issues/1654) |
+| CarPlay och Android Auto | [xDrip4iOS #498](https://github.com/JohanDegraeve/xdripswift/issues/498) |
+| DIY-displayer, MQTT | [Juggluco #128](https://github.com/j-kaltes/Juggluco/issues/128), [nightscout-clock](https://github.com/ktomy/nightscout-clock/issues) (två klockor med olika LinkUp-konton bytte data, #65) |
+| Batteri | [xDrip4iOS #494](https://github.com/JohanDegraeve/xdripswift/issues/494) (134) |
+| Enheter och språk | [GlucoDataHandler #115](https://github.com/pachi81/GlucoDataHandler/issues/115), [#80](https://github.com/pachi81/GlucoDataHandler/issues/80) |
+| Siri och Alexa | [Nightscout #4896](https://github.com/nightscout/cgm-remote-monitor/issues/4896) |
+| Inga dubbla larm | [Nightguard #82](https://github.com/nightscout/nightguard/issues/82) |
+| Prognos för lågt | [Loop #265](https://github.com/LoopKit/Loop/issues/265) |
+| IOB, COB, loopstatus | [GlucoDataHandler #114](https://github.com/pachi81/GlucoDataHandler/issues/114) |
+
+**Medvetet utanför "här och nu":**
+- Statistik: [Nightguard #366](https://github.com/nightscout/nightguard/issues/366), [GlucoDataHandler #346](https://github.com/pachi81/GlucoDataHandler/issues/346).
+- Inmatning av insulin och mat: [Nightguard #300](https://github.com/nightscout/nightguard/issues/300).
+- Att styra en loop: [LoopFollow #51](https://github.com/loopandlearn/LoopFollow/issues/51).
+- Kalibrering, uppladdning och lång historik.
+
+## 8. Garmin i detalj
+
+Kontrollerat i källkoden till Connect IQ-appar med öppen källkod: Garmin-Glucose (datafält och glance), dotscout-garmin och Dextrack (urtavlor), garmin-blood-glucose-widget (glance), Connect-iQ-CGM-datafield, en app som publicerar complications, och Garmins egna exempel.
+Garmins dokumentation och forum kunde bara läsas via sökresultat.
+
+- **Loggning:** `FitContributor` i datafält, och även i `watch-app` (Garmins exempel Namaste).
+  - RECORD skrivs högst en gång per sekund. SESSION och LAP används för min, max och snitt.
+  - `fitcontributions.xml` styr graferna i Garmin Connect, som bara visas för appar installerade från butiken.
+  - Garmin-Glucose skriver `0xFFFF` när värdet är gammalt, så att grafen får ett glapp.
+  - Strava visar inte fälten. Intervals.icu och Runalyze gör det.
+- **Datafält:** öppna CGM-datafält hämtar från bakgrunden.
+  - En direkt hämtning när aktiviteten startar, sedan var 5:e minut.
+  - Layouter för litet, halvt och helt fält.
+  - `Attention.playTone` och `vibrate` fungerar under aktivitet.
+  - Edge stöds.
+- **Urtavlor:** hämtar bara från bakgrunden.
+  - `onUpdate` en gång i minuten i viloläge, så åldern räknas lokalt.
+  - Always-on på AMOLED: under 10 % tända pixlar, och layouten flyttas lite.
+  - Urtavlor kan inte vibrera.
+- **Widgets och glance:** widget som typ finns inte på CIQ 4+. En app med glance visas som "super app". Glance kan inte hämta själv.
+- **Complications:**
+  - Publiceras från en apps bakgrundstjänst (`ComplicationPublisher`, `complications.xml`, `updateComplication`).
+  - Face It och urtavlor från Connect IQ kan visa dem. Garmins egna urtavlor troligen inte. Datafält kan inte läsa dem.
+- **Lagring och inställningar** är separata per app, så varje app kopplas för sig.
+- **Användare efterfrågar:**
+  - värdet på urtavlan, inte bara i en widget;
+  - stabil anslutning (Dexcoms Garmin-appar har 1,8–1,9 i betyg, främst på grund av avbrott);
+  - under 5 minuters fördröjning;
+  - graf och min, max och snitt i aktiviteten;
+  - Edge, larm under träning, och att det fungerar med iPhone.
+
+Källor:
+- [FitContributor](https://developer.garmin.com/connect-iq/api-docs/Toybox/FitContributor.html), [Complications](https://developer.garmin.com/connect-iq/api-docs/Toybox/Complications.html)
+- [super apps i CIQ 4](https://forums.garmin.com/developer/connect-iq/f/discussion/245387/super-apps-and-widgets-in-ciq-4-0), [Face It och complications](https://forums.garmin.com/developer/connect-iq/f/discussion/352175/face-it-and-ciq-complications/1698129), [lägen för urtavlor](https://forums.garmin.com/developer/connect-iq/b/news-announcements/posts/changes-to-watch-face-low--and-high-power-modes)
+- [Runalyze om developer fields](https://blog.runalyze.com/allgemein-en/extended-support-for-fit-developer-fields/), [Strava-gemenskapen om glukos](https://communityhub.strava.com/t5/ideas/glucose-numbers-displayed-in-a-graph/idi-p/3138)
+- [CGM Connect Datafield](https://apps.garmin.com/en-US/apps/286fcd0e-8697-4d22-a557-6203ae3cca18), [Sugar Sense på Garmin](https://apps.garmin.com/en-US/apps/dab2d770-df9a-4a25-900f-11ca19b16486)
+- [Dexcom på Garmin (pressmeddelande)](https://www.garmin.com/en-US/newsroom/press-release/wearables-health/people-with-diabetes-can-now-view-dexcom-cgm-data-on-their-garmin-smartwatch-or-cycling-computer/), [the5krunner om SDK 9.3](https://the5krunner.com/2026/10/21/garmin-connect-iq-sdk-themes/)
+
+---
+
 ## Källor
 
 **Mobilappar**
