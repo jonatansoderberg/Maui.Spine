@@ -1,7 +1,7 @@
 # Plan: glukosappen (CGM-källor → Azure → app, låsskärm, Mac, Garmin och DIY)
 
 **Påbörjad:** 2026-10-21
-**Senast uppdaterad:** 2026-10-21 (fjärde utkastet: funktionslista och positionering efter konkurrentkartläggningen, flera personer, dygnsgraf, Mac och menyrad, Garmin-complications, fler Nightscout-vägar, risken med kryptering i LinkUp v5)
+**Senast uppdaterad:** 2026-10-21 (fjärde utkastet: funktionslista och positionering efter konkurrentkartläggningen, flera personer, dygnsgraf, Mac och menyrad, Garmin-complications, fler Nightscout-vägar, risken med kryptering i LinkUp v5; därefter svenska och engelska, notiser med talade ljud, Windows)
 
 En app byggd på Spine som visar aktuellt glukosvärde, **här och nu**. Värdet hämtas av en backend i Azure Functions från en **källa**: först
 LibreLinkUp (FreeStyle Libre 3), senare Nightscout. Backend hämtar i den takt användarens nivå tillåter och skickar värdet vidare till appen,
@@ -42,9 +42,12 @@ Ingen tid i målområdet, HbA1c, rapporter, loggbok, mat eller AI. Det har Abbot
 | Banner när en källa har problem: "LibreLinkUp har problem" skilt från "anslut igen" | Måste | §4.13. Ingen konkurrent gör det bra |
 | VoiceOver: "6,8, stiger, för 2 minuter sedan" | Måste | Abbotts app läser inte upp riktningen |
 | Mörkt läge | Måste | |
+| **Svenska och engelska** | Måste | Appen, notiser, Live Activity, klockan, ljuden och DIY-texten (§5.8) |
+| **Notiser för lågt, högt och snabb förändring, med talade ljud** ("Glukos lågt") | Bör | Efter v1-kärnan. Ersätter inte Libre-appens larm (§4.14, B11) |
+| **Säkerhetsläge:** hämtning varje minut när värdet är lågt eller på väg ner, oavsett nivå | Bör | Säkerhet ska inte ligga bakom betalvägg (§4.14) |
 | **Sängläge:** helskärm, stor siffra, dämpad, skärmen hålls på | Bör | Som Nightguards BedsideView. StandBy täcker mycket av det gratis |
 | Siri och Genvägar: "Vad är Lisas värde?" | Senare | App Intents. Spines genvägar är snabbmenyer, inte Siri (Spine-lucka) |
-| Larm vid högt, lågt och snabb förändring, critical alerts | Senare | B11 |
+| Critical alerts (låter även i ljudlöst läge) | Senare | Kräver Apples godkännande (§4.14) |
 | CarPlay | Senare | |
 
 **Låsskärm, Dynamic Island och Live Activity (iOS):**
@@ -90,7 +93,14 @@ Ingen tid i målområdet, HbA1c, rapporter, loggbok, mat eller AI. Det har Abbot
 |---|---|---|
 | iPhonens Live Activity i menyraden (macOS 26) | Måste | Gratis, §5.6 |
 | `?format=swiftbar` för SwiftBar och xbar | Bör | Ungefär tio rader på servern |
-| Egen menyradsapp: droppe + `6,8 ↗` som en enhet, färg, minigraf, diskret läge | Senare | Spine-lucka G5 |
+| Egen menyradsapp: droppe + `6,8 ↗` som en enhet, färg, minigraf, diskret läge | Senare | Spine-lucka G5. Spine visar idag bara en fast ikon |
+
+**Windows:**
+
+| Funktion | Prioritet | Kommentar |
+|---|---|---|
+| Rainmeter-recept för skrivbordet (DIY), mot `current.txt` | Bör | Rainmeter är ett populärt gratisverktyg för egna skrivbordswidgetar. Inget att bygga utom receptet |
+| Egen app i aktivitetsfältets ikonområde: ikon som ritas med värdet och färgen, tooltip "Lisa 6,8 ↗ · för 1 min sedan" | Senare | Spine-lucka G5 gäller även Windows: ikonen och tooltipen sätts bara vid start idag. Ikonen är 16 × 16 punkter, så tre tecken är gränsen. Windows 11 döljer nya ikoner tills användaren fäster dem |
 
 **DIY:**
 
@@ -289,7 +299,7 @@ Spines stores för inloggning och push använder redan Table Storage.
 
 | Tabell | PartitionKey | RowKey | Innehåll |
 |---|---|---|---|
-| `Users` | `userId` (Spines `sub`) | `profile` | Enhet, nivå (`Standard`, `Plus`) och till när den gäller, aktiv källa, huvudperson, Live Activity på/av |
+| `Users` | `userId` (Spines `sub`) | `profile` | Språk (`sv`, `en`), enhet, nivå (`Standard`, `Plus`) och till när den gäller, aktiv källa, huvudperson, Live Activity på/av |
 | `Sources` | `userId` | `sourceId` | Typ (`librelinkup`, `nightscout`), krypterade uppgifter (en JSON-blob: e-post och lösenord, eller adress och token), krypterad sessionstoken med utgångstid, region, status (`Active`, `NeedsReconnect`, `Paused`), `nextPollAt`, *d* |
 | `People` | `userId` | `personId` | `sourceId`, källans id för personen (LinkUps `patientId`), namn (från källan, kan ändras i appen), färg, ordning, målområde (eget, eller källans), senaste värde (för snabb läsning, §9.1) |
 | `Readings` | `personId:yyyyMMdd` | `HHmmss` | `mgdl`, `trend`, `state` (sensorns tillstånd), `source` (`poll` / `backfill`) |
@@ -555,6 +565,53 @@ Det gäller främst LinkUp (R1, R11), men samma sak gäller varje källa.
 
 `GET /v1/status` (utan nyckel): `{ "sources": { "librelinkup": "ok" | "degraded" | "paused" }, "message": "…" }`.
 
+### 4.14 Notiser och ljud
+
+**Vad det är, och inte är.** Notiser när värdet blir lågt, högt eller ändras snabbt, med en talad röst: "Glukos lågt", "Glukos högt".
+Det är en **notis**, inte ett medicinskt larm. Libre 3-appen och LinkUp är fortfarande det som larmar, och det står i appen.
+Notiser gör den regulatoriska bedömningen svårare (§9.4), så de ligger efter v1-kärnan (B11).
+
+**Typer** (per person, var och en kan slås av och på):
+
+| Notis | Standard | Ljud (sv / en) |
+|---|---|---|
+| Lågt | under målområdets nedre gräns (från LinkUp, till exempel 3,9) | "Glukos lågt" / "Glucose low" |
+| Mycket lågt | under 3,0 mmol/L | "Glukos mycket lågt" / "Glucose very low" |
+| Högt | över målområdets övre gräns (till exempel 10,0), i minst 15 minuter | "Glukos högt" / "Glucose high" |
+| Sjunker snabbt | `singleDown` eller `doubleDown` | "Glukos sjunker snabbt" / "Glucose falling fast" |
+| Stiger snabbt | `singleUp` eller `doubleUp` | "Glukos stiger snabbt" / "Glucose rising fast" |
+| Inga nya värden | 30 minuter utan nytt värde | "Inga nya glukosvärden" / "No new glucose readings" |
+| Tillbaka i målområdet | av som standard | "Glukos i målområdet" / "Glucose in range" |
+
+Texten i notisen säger resten: **"Lisa 3,4 ↓ · lågt"**. Ljudet säger vad, texten säger vem och hur mycket.
+
+**Regler så att det inte blir för mycket:**
+- En notis när en gräns passeras, inte vid varje värde. Samma typ upprepas tidigast efter 30 minuter (inställbart), och `CollapseId` = `person:typ` så att en ny ersätter den gamla.
+- "Pausa notiser i 1 timme" direkt från notisen (en knapp, Spines `Category`).
+- Tysta timmar per person, utom för "Mycket lågt".
+
+**Säkerhetsläge:** när värdet är lågt, eller under 5,0 och sjunker, hämtar backend **varje minut oavsett nivå** tills värdet är stabilt igen.
+Annars skulle en notis om lågt kunna komma upp till 5 minuter sent på Standard. Det kostar lite, eftersom det bara gäller korta perioder.
+
+**Hur det skickas** (Spine stöder allt det här idag):
+- `IPushSender.SendAsync(PushTarget.User(id), new PushNotification { Title, Body, Sound = "glucose_low_sv.caf", Channel = "glucose-low-sv", CollapseId = …, Interruption = PushInterruption.TimeSensitive, Category = "glucose" })`.
+- **iOS:** ljudet väljs per notis (`aps.sound`), en fil i appens bundle, `.caf`, `.wav` eller `.aiff`, under 30 sekunder. `TimeSensitive` bryter igenom Fokus men inte ljudlöst läge.
+- **Android:** ljudet hör till kanalen och kan inte ändras efter att kanalen skapats. Därför en kanal per typ och språk (`glucose-low-sv`, `glucose-low-en`, …) med `AddChannel(id, namn, sound: "glucose_low_sv")`, och filerna i `Platforms/Android/Resources/raw`.
+- **Windows:** Spine ger bara systemets ljud.
+- **Critical alerts** (låter även i ljudlöst läge och i Fokus) kräver att Apple godkänner entitlementet `com.apple.developer.usernotifications.critical-alerts`, vilket hälso- och säkerhetsappar kan ansöka om. Payloaden behöver `sound` som ett objekt (`critical: 1`, `name`, `volume`), vilket Spines `Apple`-krok kan sätta, eller en liten Spine-ändring (G8). Senare.
+
+**Rösterna genereras, en gång, när appen byggs:**
+- Ett litet verktyg, `Glukos.Tools.Sounds`, läser fraserna från strängfilerna (§5.8) och genererar ljuden med **OpenAI** (`gpt-4o-mini-tts`, med en instruktion om lugn och tydlig ton) eller **Azure Speech** (till exempel `sv-SE-SofieNeural` och `en-GB-SoniaNeural`).
+  Spines `Plugin.Maui.Spine.Server.AI` har redan båda (`AISpeechProviders.OpenAI` och `AISpeechProviders.AzureSpeech`) och ger PCM16, som verktyget skriver som `.wav` för både iOS och Android.
+- Filerna checkas in och följer med appen. De genereras inte när en notis skickas: en push kan inte bära ett ljud, och ljudet måste finnas på telefonen innan.
+- Kostnaden är försumbar: några tiotal korta fraser.
+- **Jämför rösterna på svenska.** Azures svenska röster är byggda för svenska. OpenAIs röster är flerspråkiga och kan låta mindre naturliga på svenska. Lyssna innan valet (B26).
+- **Ange att rösten är AI-genererad**, på Om-sidan. OpenAI kräver det, och det är rimligt oavsett leverantör.
+- Ett kort ljud före rösten (en ton på 0,3 s) gör att notisen hörs även när man inte lyssnar efter ord.
+
+**Senare: personliga röster med namn.** "Lisas glukos är lågt". Servern genererar ljudet per person när personen läggs till, och appen hämtar det och sparar det i `Library/Sounds` på iOS, där notiser kan hitta det.
+På Android blir det en egen kanal per person och typ. Det är mer att hantera, så det väntar.
+
 ---
 
 ## 5. Appen
@@ -655,8 +712,9 @@ För 1 min sedan
 
 **Senare: egen menyradsapp** med Mac Catalyst och Spine.
 - Spine har redan det som krävs för en app som bara bor i menyraden: `ShowTrayIcon`, `LSUIElement`, `CloseToBackground` och `InDockWhileOpen`.
-- **Spine-lucka G5:** menyradsikonen kan bara visa en bild idag. AppKits statusikon kan visa en bild och text bredvid varandra som en enhet (bild till vänster, färgad text till höger), eller en enda bild som appen ritar själv.
+- **Spine-lucka G5:** menyradsikonen visar idag bara en fast bild, som sätts vid start (`ShowTrayIcon`). AppKits statusikon kan visa en bild och text bredvid varandra som en enhet (bild till vänster, färgad text till höger), eller en enda bild som appen ritar själv.
   Spine skapar redan ikonen med varierande bredd, så tillägget är litet: till exempel `SetTrayContent(icon: "drop", text: "6,8 ↗", color)`, och `SetTrayImage(bytes)` för en egenritad bild med minigraf.
+  Samma tillägg behövs på Windows, där ikonen (`TrayIconSvg`) och tooltipen (`TrayIconTooltip`) också bara sätts vid start.
 - Appen kör hela tiden och hämtar vid `nextUpdateAt`. Den har ingen budget och ingen gräns på 8 timmar, och den behöver ingen iPhone i närheten.
 - Idéer:
   - Färg bara när värdet är utanför målområdet.
@@ -671,6 +729,20 @@ För 1 min sedan
 - **iOS 17.2+:** allt.
 - **Android:** appen och push. Live Update kräver Android 16. På äldre Android blir det bara appen (en vanlig pågående notis vore ingen Live Activity, och Spine låtsas inte att den är det).
 - **Mac:** v1 genom speglingen (§5.6). Egen app senare.
+- **Windows:** v1 genom DIY (Rainmeter, en webbsida med en nyckel). Egen app i ikonområdet senare (G5). Ingen Live Activity på Windows, och notiser får bara systemets ljud.
+
+### 5.8 Språk: svenska och engelska
+
+- **Appen:** Spines `ISpineStrings` med `strings.sv.xml` och `strings.en.xml`. Språket följer telefonen, och kan väljas i Inställningar. Spines egna kontroller har redan texter som kan skrivas över med samma nycklar.
+- **Samma strängar på servern.** `ISpineStrings` ligger i `Plugin.Maui.Spine.Common`, som servern refererar ändå. Strängfilerna ligger därför i `Glukos.Shared`, och servern använder dem för allt den skriver: Live Activity ("+0,3 på 5 min" / "+0.3 in 5 min"), notiser, statusbannern och `current.txt`.
+  Servern skriver på användarens språk (`Users.language`), som appen skickar vid inloggning och när det ändras.
+- **Tal:** decimalkomma på svenska (`6,8`), decimalpunkt på engelska (`6.8`). Enheten är ett eget val, oberoende av språket: mmol/L som standard i Sverige och Storbritannien, mg/dL i USA.
+- **Tid:** `W.Relative` i Live Activity skrivs av iOS på telefonens språk. Allt annat formaterar servern eller appen.
+- **Ljuden** finns per språk (§4.14).
+- **Garmin:** Connect IQ har strängresurser per språk (`resources-swe`, `resources-eng`). Klockan väljer efter sitt eget språk. Svaret från servern innehåller bara siffror och personens namn, så det behöver inte översättas.
+- **DIY:** `current.txt` och `?format=swiftbar` följer kontots språk, och `?lang=sv|en` styr per anrop. Nightscout-vägarna har inget språk.
+- **Butikerna:** beskrivning, skärmdumpar och integritetspolicy på svenska och engelska.
+- Fler språk senare kräver bara nya strängfiler och nya ljud.
 
 ---
 
@@ -845,9 +917,10 @@ Det här skulle göras som issues i Maui.Spine. Resten byggs med det Spine redan
 | G2 | Inloggning med ett annat kontos lösenord | Behövs inte: Glukos har ett eget konto och källorna ansluts separat (§4.5) | Parkerad |
 | G3 | Trendpilar som symboler | Symboler via `/spine-symbol`, eller rotera `Arrow` (B4) | Förslag |
 | G4 | Inga köp i appen | Ett paket för StoreKit 2 / Play Billing med en serverdel som kontrollerar köp, eller köpen skrivna i appen (B12) | Förslag |
-| G5 | Menyradsikonen på Mac visar bara en bild | Bild och färgad text som en enhet (`SetTrayContent`), och en egenritad bild (`SetTrayImage`) | Förslag (för den egna Mac-appen, senare) |
+| G5 | Menyradsikonen på Mac och ikonen i Windows ikonområde är fasta och sätts vid start | Mac: bild och färgad text som en enhet (`SetTrayContent`), och en egenritad bild (`SetTrayImage`). Windows: ikon och tooltip som kan ändras medan appen kör | Förslag (för de egna skrivbordsapparna, senare) |
 | G6 | Ingen graf i widgetträdet | `W.Sparkline(values, low, high)`, ritad av renderaren på iOS och Android, så att den kan skickas via push | Förslag |
 | G7 | Inga App Intents för Siri | En intent som svarar med en mening ("Lisa 6,8, stiger") | Parkerad |
+| G8 | Critical alerts | `PushInterruption.Critical` med `sound` som objekt (`critical`, `name`, `volume`), och behörigheten i appen | Parkerad (kräver Apples godkännande) |
 
 Inga luckor i inloggning, push, Live Activity, push-to-start, Android Live Update eller köer. Spines inloggning, `IPushSender`, `LiveActivityLayout.ToJson()`, push-tokens, `SpineWidgetsFrequentUpdates` och Spine.Server.Messaging täcker planen.
 
@@ -864,14 +937,15 @@ Inga luckor i inloggning, push, Live Activity, push-to-start, Android Live Updat
 | 2 | Konto | Spines inloggning i appen och på servern, ta bort konto | Logga in, logga ut och ta bort konto fungerar i appen | Förslag |
 | 3 | LinkUp-adapter och hämtning | §4.2, §4.4–4.6, personer, timern `PollDue`, ansluta källa, tester mot S1-data | Riktiga värden för alla personer flödar in. `source.lag`, `source.cadence` och `poll.due.lag` syns i App Insights | Förslag |
 | 4 | Ändrade API:er | §4.13: tolerant tolkning, brytare, kanarie, `source.shape`, `/v1/status`, larmen | En inspelad trasig version av svaret löser ut brytaren i ett test, och kanarien larmar i dev | Förslag |
-| 5 | Appen: Hem | Sidor §5.1, personer, snapshot + hämtning vid `nextUpdateAt`, G1 (graf med 1–24 h), regeln för gamla värden, tillgänglighet §5.5 | Värdet ändras i appen inom sekunder efter backend, och VoiceOver läser riktningen | Förslag |
+| 5 | Appen: Hem | Sidor §5.1, personer, snapshot + hämtning vid `nextUpdateAt`, G1 (graf med 1–24 h), regeln för gamla värden, tillgänglighet §5.5, svenska och engelska §5.8 (strängarna i `Glukos.Shared`) | Värdet ändras i appen inom sekunder efter backend, VoiceOver läser riktningen, och allt finns på båda språken | Förslag |
 | 6 | Live Activity iOS | Layout i `Shared`, tokens, push från hämtningen, push-to-start-rotation, `staleAt`, bortsvepning respekteras. Kontrollera StandBy, Macens menyrad och Apple Watch Smart Stack | Ligger kvar en hel natt och visar rätt värde | Förslag |
 | 7 | Android Live Update | FCM, `LiveUpdateText` | Samma sak på Android 16 | Förslag |
 | 8 | API-nycklar och Garmin | §4.12 (nycklar, `/v1`-läsvägar, `current.txt`, `?format=swiftbar`), §6.1–6.2, sidorna API-nycklar och Koppla Garmin | Klockan i simulatorn, ett `curl` med nyckel och SwiftBar får värden | Förslag |
 | 9 | Nightscout-kompatibla endpoints | §4.12: `/api/v1/…`, `status.json`, `/api/v2/properties`, `/pebble`, `/sgv.json`, autentisering med SHA1. Testa Home Assistant, nightscout-clock, M5Stack och om möjligt SugarPixel. DIY-dokumentationen med recept | Home Assistant och nightscout-clock visar värdet med en Glukos-nyckel | Förslag |
 | 10 | Nivåer och köp | §4.11, G4 eller köp i appen, kontroll på servern | Plus kan köpas i TestFlight och sandlådan, och hämtningen går varje minut efter köpet | Förslag |
 | 11 | Härdning | `NeedsReconnect`-flöde och notiser, rensning, rate limiting, integritetspolicy | Fel hos en källa upptäcks och visas utan att du tittar | Förslag |
-| 12 | Bör-funktioner | Minigraf i Live Activity (G6), Dynamic Island som expanderar, sängläge, Garmin-complications och FIT, en aktivitet per person | Enligt §1.1 | Förslag |
+| 12 | Notiser och ljud | §4.14: typer per person, regler mot för många notiser, säkerhetsläget, kanaler per språk på Android, `Glukos.Tools.Sounds` och valet av röst (B26) | "Glukos lågt" hörs på svenska och engelska på iOS och Android, och säkerhetsläget hämtar varje minut vid lågt värde | Förslag |
+| 12b | Bör-funktioner | Minigraf i Live Activity (G6), Dynamic Island som expanderar, sängläge, Garmin-complications och FIT, en aktivitet per person, Rainmeter-recept | Enligt §1.1 | Förslag |
 | 13 | Nightscout som källa | `Glukos.Sources.Nightscout`, §4.2 | En Nightscout-användare kan byta källa och få samma app, Live Activity och klocka | Parkerad (efter v1, eller tidigare efter S1) |
 | 14 | Uppladdning som källa | `POST /api/v1/entries` med en `upload`-nyckel, för Juggluco och xDrip+ | Juggluco laddar upp och värdet syns i Glukos | Parkerad (reserv, R11) |
 | 15 | Egen Mac-app i menyraden | §5.6, G5 | Droppe + `6,8 ↗` i menyraden utan iPhone i närheten | Parkerad |
@@ -895,7 +969,7 @@ Ordning: S1 först eftersom den kan välta allt. S2 och S3 parallellt med steg 1
 | B8 | Lagringstid för mätvärden | 48 h, så att dygnsgrafen alltid är hel |
 | B9 | Var ska appen ligga: eget repo eller under `samples/` här? | Eget repo. Spine-luckorna blir issues här |
 | B10 | Mac | v1 genom speglingen av iPhonens Live Activity och `?format=swiftbar`. Egen menyradsapp senare (G5) |
-| B11 | Larm vid högt/lågt värde (med critical alerts) i en senare version? | Inte i v1. Libre 3-appen och LinkUp larmar redan, och larm gör den regulatoriska bedömningen svårare. Det är ändå den största luckan mot konkurrenterna, så det bör tas upp igen efter v1 |
+| B11 | Notiser vid lågt, högt och snabb förändring? | **Ja, som Bör efter v1-kärnan** (§4.14), med talade ljud och säkerhetsläget. De kallas notiser, inte larm, och appen säger att Libre-appen larmar. Critical alerts senare (G8) |
 | B12 | Köp: nytt Spine-paket (G4) eller köpen skrivna i appen? | I appen först, flytta till Spine om en andra app behöver det |
 | B13 | Nivåerna: Standard 5 min gratis och Plus 1 min betald? | Ja, om S1 visar att LinkUp har minutvärden. Annars bara en nivå |
 | B14 | Realtid till appen: hämta vid `nextUpdateAt` eller SignalR? | Hämta vid `nextUpdateAt` i v1. SignalR vid fler än 20 samtidigt öppna appar |
@@ -909,12 +983,17 @@ Ordning: S1 först eftersom den kan välta allt. S2 och S3 parallellt med steg 1
 | B22 | Minigraf i Live Activity (G6)? | Bör, efter v1-kärnan |
 | B23 | Garmin: complications och FIT-inspelning? | Bör. Complications är en lucka hos alla konkurrenter |
 | B24 | Namn på låsskärmen | Visas som standard när man följer flera personer, och kan stängas av |
+| B25 | Språk i v1 | Svenska och engelska, överallt (§5.8) |
+| B26 | Röster: OpenAI eller Azure Speech? | Generera båda och lyssna. Troligen Azure för svenska och den som låter bäst för engelska. Spine.Server.AI har båda |
+| B27 | Säkerhetsläge (hämtning varje minut vid lågt) även på Standard? | Ja. Säkerhet ska inte ligga bakom betalvägg |
+| B28 | Windows | DIY (Rainmeter) i v1. Egen app i ikonområdet senare, med G5 |
 
 ---
 
 ## 13. Parkerade idéer
 
-- Larm och critical alerts (B11).
+- Critical alerts (G8) och personliga röster med namn (§4.14).
+- Egen Windows-app i ikonområdet (B28).
 - Låsskärms- och hemskärmswidgetar. iOS 26-push för widgetar (`SpineWidgetsPush`) kan göra dem snabbare än 15 minuter.
 - **Webhooks och MQTT för DIY:** backend skickar varje nytt värde till en adress eller en MQTT-broker som användaren anger, i stället för att verktyget frågar. Bra för Home Assistant, men varje leverans är en körning och ett möjligt fel att hantera.
 - **Glukos som Nightscout-uppladdare:** skicka LinkUp-värden vidare till användarens egen Nightscout.
