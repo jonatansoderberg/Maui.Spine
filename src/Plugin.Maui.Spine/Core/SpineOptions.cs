@@ -457,6 +457,13 @@ public sealed class SpineOptions
         public bool FitWindowToContent { get; set; }
 
         /// <summary>
+        /// For a menu-bar app (<c>LSUIElement</c>): while its window is open the app is in the Dock and in Cmd+Tab, like
+        /// any app, and when <see cref="CloseToBackground"/> hides the window it goes back to the menu bar only. macOS
+        /// lists only apps with a Dock icon in Cmd+Tab, so there is no Cmd+Tab without it. Defaults to false.
+        /// </summary>
+        public bool InDockWhileOpen { get; set; }
+
+        /// <summary>
         /// When true, a menu-bar (tray) icon is shown in the macOS status bar.
         /// Pair with <see cref="CloseToBackground"/> to allow the user to restore
         /// or exit the app from the menu bar.

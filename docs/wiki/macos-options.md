@@ -30,9 +30,10 @@ builder.UseSpine(options =>
 | `TrayIconSvg` | `string?` | `null` | Embedded SVG for the menu-bar icon, drawn as a template image |
 | `TrayIconPath` | `string` | `""` | A file path for the icon instead of an SVG |
 | `TrayIconTooltip` | `string` | `""` | Tooltip on the menu-bar icon |
+| `InDockWhileOpen` | `bool` | `false` | A menu-bar app (`LSUIElement`) is in the Dock and Cmd+Tab while its window is open, and back in the menu bar only when `CloseToBackground` hides the window |
 | `CloseToBackground` | `bool` | `false` | The close button hides the window instead of quitting; pair it with `ShowTrayIcon` |
 
-An app that lives in the menu bar also sets `LSUIElement` to `true` in `Platforms/MacCatalyst/Info.plist`, so it has no Dock icon.
+An app that lives in the menu bar also sets `LSUIElement` to `true` in `Platforms/MacCatalyst/Info.plist`, so it has no Dock icon. macOS lists only apps with a Dock icon in Cmd+Tab, so such an app can't be reached with Cmd+Tab either. `options.MacOS.InDockWhileOpen = true` switches the app's activation policy with its window: regular (Dock and Cmd+Tab) while the window is open, accessory (menu bar only) once the close button hides it, and regular again when the menu bar icon brings it back. The Dock shows the app's icon meanwhile, so give it one.
 
 ---
 
