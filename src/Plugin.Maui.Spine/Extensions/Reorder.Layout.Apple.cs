@@ -106,6 +106,27 @@ internal sealed partial class LayoutReorderState
         CATransaction.Commit();
     }
 
+    // In front of its siblings and of the placeholder layer: the subview order alone is reset when the children are
+    // reordered, and a z-position keeps it on top between those changes and while it settles.
+    partial void RaisePlatform(View view)
+    {
+        if (Outermost(view) is not { Superview: { } superview } platformView)
+            return;
+        superview.BringSubviewToFront(platformView);
+        platformView.Layer.ZPosition = 1000;
+    }
+
+    // A view with a shadow or a clip sits in a wrapper (the handler's ContainerView); that is what lies among the
+    // layout's subviews.
+    static UIView? Outermost(View view) =>
+        (view.Handler as IViewHandler)?.ContainerView as UIView ?? view.Handler?.PlatformView as UIView;
+
+    partial void LowerPlatform(View view)
+    {
+        if (Outermost(view) is { } platformView)
+            platformView.Layer.ZPosition = 0;
+    }
+
     partial void HidePlaceholderPlatform()
     {
         _placeholder?.RemoveFromSuperLayer();

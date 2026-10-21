@@ -55,8 +55,11 @@ internal sealed partial class LayoutReorderState : IDisposable
         _from = _layout.Children.IndexOf(view);
         Reorder.SetIsDragging(_layout, true);
         _grab = new Point(point.X - view.Frame.X, point.Y - view.Frame.Y);
+        // Over the other items for the whole drag: a z-index above theirs, and on the platform the view raised too
+        // (the children are reordered under the pointer, which puts the view back among them).
         _zIndex = view.ZIndex;
-        view.ZIndex = int.MaxValue;
+        view.ZIndex = Items.Max(v => v.ZIndex) + 1;
+        RaisePlatform(view);
         _ = view.ScaleToAsync(LiftScale, 150, Easing.CubicOut);
         ShowPlaceholderPlatform(view.Frame, CornerRadius(view));
         Haptics.Play(Haptic.Medium);
@@ -97,6 +100,7 @@ internal sealed partial class LayoutReorderState : IDisposable
             }
 
             MovePlaceholderPlatform(view.Frame);
+            RaisePlatform(view);
             Haptics.Play(Haptic.Selection);
         }
 
@@ -126,6 +130,7 @@ internal sealed partial class LayoutReorderState : IDisposable
             view.TranslationX = view.TranslationY = 0;
             view.Scale = 1;
             view.ZIndex = _zIndex;
+            LowerPlatform(view);
             return;
         }
 
@@ -139,6 +144,7 @@ internal sealed partial class LayoutReorderState : IDisposable
 
         await Task.WhenAll(view.TranslateToAsync(0, 0, SettleMs, Easing.CubicOut), view.ScaleToAsync(1, SettleMs, Easing.CubicOut));
         view.ZIndex = _zIndex;
+        LowerPlatform(view);
 
         if (to == from || Source is not { } source || from < 0 || from >= source.Count)
             return;
@@ -276,5 +282,7 @@ internal sealed partial class LayoutReorderState : IDisposable
     partial void ShowPlaceholderPlatform(Rect frame, double cornerRadius);
     partial void MovePlaceholderPlatform(Rect frame);
     partial void HidePlaceholderPlatform();
+    partial void RaisePlatform(View view);
+    partial void LowerPlatform(View view);
     partial void ApplyActionsPlatform(View view, IReadOnlyList<ReorderAction> actions);
 }
