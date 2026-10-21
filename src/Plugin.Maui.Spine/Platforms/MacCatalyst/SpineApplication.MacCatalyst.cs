@@ -379,7 +379,12 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
 
     private void AdoptNSWindow(NSObject nsWindow)
     {
+        var first = _nsWindow is null;
         _nsWindow = nsWindow;
+
+        // The window is on screen: in the Dock and Cmd+Tab while it is (MacOS.InDockWhileOpen).
+        if (first)
+            SetInDock(true);
 
         if (_closeToBackground)
             InterceptCloseButton(nsWindow);
@@ -408,9 +413,24 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
         AppKitObjC.Void_msgSend_IntPtr(button, Selector.GetHandle("setAction:"), Selector.GetHandle("invoke:"));
     }
 
-    private static void HideMacWindow(NSObject nsWindow) =>
+    private void HideMacWindow(NSObject nsWindow) =>
         MainThread.BeginInvokeOnMainThread(() =>
-            AppKitObjC.Void_msgSend_IntPtr(nsWindow.Handle, Selector.GetHandle("orderOut:"), IntPtr.Zero));
+        {
+            AppKitObjC.Void_msgSend_IntPtr(nsWindow.Handle, Selector.GetHandle("orderOut:"), IntPtr.Zero);
+            SetInDock(false);
+        });
+
+    /// <summary>
+    /// NSApplicationActivationPolicyRegular (0) while the window is open, Accessory (1) when it is hidden: the Dock
+    /// icon and the place in Cmd+Tab follow the window. Only with <c>MacOS.InDockWhileOpen</c>.
+    /// </summary>
+    private void SetInDock(bool inDock)
+    {
+        if (!_services.GetRequiredService<SpineOptions>().MacOS.InDockWhileOpen)
+            return;
+        var sharedApp = AppKitObjC.IntPtr_msgSend(Class.GetHandle("NSApplication"), Selector.GetHandle("sharedApplication"));
+        AppKitObjC.Void_msgSend_nuint(sharedApp, Selector.GetHandle("setActivationPolicy:"), inDock ? 0u : 1u);
+    }
 
     private void FocusMacWindow()
     {
@@ -423,6 +443,7 @@ public partial class SpineApplication<TNavigable> where TNavigable : INavigable
                 AppKitObjC.Void_msgSend_IntPtr(
                     nsWindow.Handle, Selector.GetHandle("makeKeyAndOrderFront:"), IntPtr.Zero);
             }
+            SetInDock(true);
 
             var sharedApp = AppKitObjC.IntPtr_msgSend(
                 Class.GetHandle("NSApplication"), Selector.GetHandle("sharedApplication"));
