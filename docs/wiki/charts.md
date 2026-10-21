@@ -23,4 +23,12 @@
 
 - The track is the value's colour mixed towards the background (`ChartColors.Track`), so a series reads the same on a
   light and a dark card; `TrackColor` overrides it. The charts redraw when the theme changes.
+- **Pointing at a column:** with `ValueLabels` (one text per value, such as "$0.32"), pointing at a column picks it out: the others dim, its value shows above it in a row the chart keeps for that, its label turns bold, and the system tooltip says the label and the value. `ToolTips` gives a longer text per column. On touch a tap picks a column out and a second tap lets it go. `SelectedIndex` is the column picked out, or -1. Give the chart about 16 points more height for the value row.
+- **Rings and bars:** set `ToolTipProperties.Text` for the detailed value, on the `Grid` that holds the ring and its label, so the label in the middle doesn't take the pointer.
+
+```xml
+<charts:ColumnChart Values="{Binding CostPerDay}" Labels="{Binding Weekdays}" ValueLabels="{Binding CostTexts}"
+                    ToolTips="{Binding DayDetails}" Color="{Binding Accent}" HeightRequest="88" />
+```
+
 - A widget can't host these views; `W.Ring` and `W.Progress` are their counterparts there (see [Widgets](widgets.md)).
