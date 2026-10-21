@@ -93,6 +93,12 @@ internal sealed partial class LayoutReorderState : IDisposable
             {
                 if (item == view || was.Location == item.Frame.Location)
                     continue;
+                // The platform slides it with a spring that adds to any slide still running (Apple); elsewhere a
+                // translation eased back to zero.
+                var slid = false;
+                SlidePlatform(item, was.X - item.Frame.X, was.Y - item.Frame.Y, ref slid);
+                if (slid)
+                    continue;
                 item.CancelAnimations();
                 item.TranslationX += was.X - item.Frame.X;
                 item.TranslationY += was.Y - item.Frame.Y;
@@ -122,8 +128,20 @@ internal sealed partial class LayoutReorderState : IDisposable
         _from = -1;
         var to = _layout.Children.IndexOf(view);
         HidePlaceholderPlatform();
-        Reorder.SetIsDragging(_layout, false);
+        // IsDragging stays true until the source has moved: an app that rebuilds its items when it turns false would
+        // otherwise rebuild them under the settling item, and the item would be put back among the new ones.
+        try
+        {
+            await FinishAsync(view, from, to, cancelled);
+        }
+        finally
+        {
+            Reorder.SetIsDragging(_layout, false);
+        }
+    }
 
+    async Task FinishAsync(View view, int from, int to, bool cancelled)
+    {
         // The items were rebuilt during the drag: nothing to settle or move.
         if (to < 0)
         {
@@ -142,11 +160,14 @@ internal sealed partial class LayoutReorderState : IDisposable
             to = from;
         }
 
-        await Task.WhenAll(view.TranslateToAsync(0, 0, SettleMs, Easing.CubicOut), view.ScaleToAsync(1, SettleMs, Easing.CubicOut));
+        Task? settled = null;
+        SettlePlatform(view, ref settled);
+        await (settled ?? Task.WhenAll(view.TranslateToAsync(0, 0, SettleMs, Easing.CubicOut), view.ScaleToAsync(1, SettleMs, Easing.CubicOut)));
         view.ZIndex = _zIndex;
         LowerPlatform(view);
 
-        if (to == from || Source is not { } source || from < 0 || from >= source.Count)
+        // Rebuilt while it settled: the new items are the app's, nothing to move.
+        if (to == from || !_layout.Children.Contains(view) || Source is not { } source || from < 0 || from >= source.Count)
             return;
 
         _layout.Children.Remove(view);
@@ -283,6 +304,8 @@ internal sealed partial class LayoutReorderState : IDisposable
     partial void MovePlaceholderPlatform(Rect frame);
     partial void HidePlaceholderPlatform();
     partial void RaisePlatform(View view);
+    partial void SlidePlatform(View item, double fromX, double fromY, ref bool slid);
+    partial void SettlePlatform(View view, ref Task? settled);
     partial void LowerPlatform(View view);
     partial void ApplyActionsPlatform(View view, IReadOnlyList<ReorderAction> actions);
 }
