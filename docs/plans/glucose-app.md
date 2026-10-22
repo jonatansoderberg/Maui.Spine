@@ -1,7 +1,7 @@
 # Plan: Glukos – glukosvärdet här och nu
 
 **Påbörjad:** 2026-10-21
-**Senast uppdaterad:** 2026-10-22 (steg 1: backend-grunden i repot Glukos, §15.2)
+**Senast uppdaterad:** 2026-10-22 (steg 1 klart, §15.2; appen och Live Activity påbörjade, §15.3)
 
 En app byggd på Spine som visar ett aktuellt glukosvärde. Värdet hämtas av en backend i Azure Functions från en **källa**, först LibreLinkUp (FreeStyle Libre 3) och senare Nightscout.
 Det visas i appen, i en Live Activity (iPhone, och därmed StandBy, Macens menyrad och Apple Watch), i Live Update (Android), på Garmin-klockan (datafält, glance och urtavla)
@@ -887,6 +887,7 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | G5 | Trendpilar som symboler | Symboler via `/spine-symbol`, eller rotera `Arrow` | Appen (B4) |
 | G6 | Inga App Intents för Siri | En intent som svarar med en mening | Senare |
 | G7 | Critical alerts, och Stör ej på Android | `PushInterruption.Critical` med `sound` som objekt. Kanal som går igenom Stör ej | Notiser för mycket lågt |
+| G8 | Live Activity kräver en widget: Spine bygger widgettillägget bara när appen har minst en `<SpineWidget>` | Bygg tillägget när `SpineWidgetsLiveActivities` är på, även utan widgets | Liten. Glukos har en widget (`glucose`) så länge |
 
 ---
 
@@ -902,8 +903,8 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | 2 | Konto: Spines inloggning, ta bort konto | Fungerar i appen | Förslag |
 | 3 | LinkUp-adapter, personer och hämtning (§7.2–7.5) | Riktiga värden för alla personer. Mätvärdena syns | Förslag |
 | 4 | Ändrade API:er (§7.11): brytare, kanarie, `source.shape`, `/v1/status`, larm | En inspelad trasig version löser ut brytaren i ett test | Förslag |
-| 5 | Appen: översikt, person, graf (G1), gamla värden, tillgänglighet, språk | VoiceOver läser riktningen, och allt finns på båda språken | Förslag |
-| 6 | Live Activity: layout i `Shared`, push, push-to-start, `staleAt`. StandBy, Mac och Apple Watch kontrolleras | Ligger kvar en hel natt | Förslag |
+| 5 | Appen: översikt, person, graf (G1), gamla värden, tillgänglighet, språk | VoiceOver läser riktningen, och allt finns på båda språken | Pågår: översikt och person utan graf (§15.3) |
+| 6 | Live Activity: layout i `Shared`, push, push-to-start, `staleAt`. StandBy, Mac och Apple Watch kontrolleras | Ligger kvar en hel natt | Pågår: startas och uppdateras från appen, push väntar på APNs-nyckeln (§15.3) |
 | 7 | Android Live Update | Samma på Android 16 | Förslag |
 | 8 | API-nycklar, `current.txt`, SwiftBar, Garmin-koppling | `curl`, SwiftBar och simulatorn får värden | Förslag |
 | 9 | **Garmin datafält** med FIT-loggning, layouter, Edge | En löptur i Garmin Connect visar glukosgrafen | Förslag |
@@ -981,6 +982,27 @@ Repot [jonatansoderberg/Glukos](https://github.com/jonatansoderberg/Glukos) (pri
 **Återstår (flyttas till senare steg):**
 - Mätvärdena i §7.13 (`poll.due.lag`, `source.lag` med flera) som egna mätvärden i Application Insights. I dag är de loggrader. Steg 15.
 - Driftsättning från GitHub Actions med managed identity (§7.1). I dag körs `azd up` lokalt.
+
+### 15.3 Steg 5 och 6: appen och Live Activity 2026-10-22
+
+Byggt efter konceptbilderna (§18.1) och Spines hockeyexempel (`samples/MauiSpineSampleApp/Widgets/Hockey`). Allt körs mot dev-miljön i Azure.
+
+| Del | Läge |
+|---|---|
+| `GET /v1/glucose/snapshot` | `current` för alla personer och huvudpersonens senaste timme. `current` har nu sensorns tillstånd från personen, inte bara från senaste mätningen |
+| `Glukos.Shared` | `GlucoseText` (värde, förändring, mål, ålder, tillstånd) på svenska och engelska ur Spines strängar. Servern får en per språk. `Freshness` är regeln för gamla värden (§8.3). `GlucoseActivity` bygger Live Activity, så att servern kan pusha samma layout |
+| Översikt | Ett kort per person: namn, värde, färgad pil, "Lågt"/"Högt", ålder. Grått med "Inget nytt värde på 7 min" efter 2 × intervallet, och "Senaste värdet 14:32" i stället för siffran efter 15 min |
+| Person | Stort neutralt värde, pil i nivåns färg, enhet, "+0,3 på 5 min", ålder, mål och *Visa på låsskärmen*. Grafen saknas (G1) |
+| Hämtning | `GlucoseFeed` hämtar `snapshot` strax efter `nextUpdateAt` (+2 s), högst var 5:e sekund och minst varje minut, och lämnar varje hämtning till Live Activity och widgeten |
+| Live Activity | Startas från personsidan, en i taget (B10). Låsskärm, kompakt och expanderad Dynamic Island är verifierade i simulatorn. Åldern räknas av systemet (`W.Relative`), och `staleAt` dimmar efter 2 × intervallet |
+| Widget | `glucose` (liten, rektangulär, inline). Den finns för att Spine ska bygga tillägget (G8), och den leder Live Activity-länken till rätt person |
+| Mac | Inga widgetar på Mac Catalyst, eftersom ActivityKit inte finns där |
+
+**Återstår:**
+- **Push till Live Activity** (§7.7): token och push-to-start från appen, `IPushSender` i Functions och uppdatering vid varje nytt värde. Kräver APNs-nyckeln (`.p8`) i Key Vault. Utan den slutar aktiviteten uppdateras när appen stängs, och den dimmas vid `staleAt`.
+- **G1** (graf i appen och minigraf i översikten) och **G2** (minigraf i Live Activity) i Spine.
+- Tillgänglighet (§8.5): riktningen i ord för VoiceOver, och Dynamic Type.
+- Mörkt läge efter översiktsbilden, och svep mellan personer.
 
 ---
 
