@@ -210,7 +210,7 @@ Priser för andra är inte verifierade.
 |---|---|---|
 | R1 | **LibreLinkUp är inofficiellt** och ändras utan förvarning. 2025 kom `Account-Id` (SHA-256 av användarens id) och kravet på version 4.16.0. v5 (oktober 2026) ger `status: 4` med ett villkorssteg (`POST /auth/continue/{type}`) och **token som gäller 1 timme**. Bryggorna har gått sönder vid varje ändring. Nightscouts inbyggda koppling tog ungefär 11 månader att rätta och har inte kommit med i Nightscout ännu | Adapter med protokollet i konfigurationen, brytare, kanarie och rättelser inom timmar (§7.11) |
 | R2 | **v5 kan kryptera svaren med glukosvärden.** Underhållaren av nightscout-librelink-up säger att v5-appen krypterar dem. Han kringgår det inte, med hänvisning till EU:s regler mot kringgående av skydd: "For now, its game over". nightscout-clock rapporterar vanlig JSON med v5-identiteten 5.0.1, och att v4-identiteten fortfarande loggade in den 7 oktober 2026. Alla bryggor lever idag på att Abbott släpper in v4. **iPhone med Libre 3 har minst att falla tillbaka på**, eftersom Juggluco bara finns för Android | **S1 avgör.** Reserver: Nightscout som källa, uppladdning från Juggluco och xDrip+, Dexcom Share, och dialogen med Abbott (§13) |
-| R3 | **Hur ofta LinkUp får nya värden är inte bekräftat.** Abbott skriver "minute-to-minute". CGM Connect uppger ungefär ett nytt värde per 2 minuter. Det finns rapporter om glapp på 30 minuter och om ett värde per kvart i EU. Historiken i `graph` har en punkt per kvart | S1 mäter takten i 24 h. Graferna bygger på våra egna hämtningar. Plus säljs bara om det finns minutvärden |
+| R3 | **Hur ofta LinkUp får nya värden är inte bekräftat.** Abbott skriver "minute-to-minute". CGM Connect uppger ungefär ett nytt värde per 2 minuter. Det finns rapporter om glapp på 30 minuter och om ett värde per kvart i EU. **S1 såg nya värden varje minut och en punkt per 5 minuter i `graph`** (24 h-mätningen pågår) | S1 mäter takten i 24 h. Graferna bygger på våra egna hämtningar. Plus säljs bara om det finns minutvärden |
 | R4 | **Rate limiting:** 429, även som `status: 429` i ett 200-svar, och spärrar i upp till 15 minuter | Högst ungefär 2 anrop i minuten per källa, backoff enligt `Retry-After`. Slutar vid fel lösenord |
 | R5 | **Lösenordet måste sparas**, eftersom token bara gäller en timme | Krypterat i Key Vault, med samtycke. Ett eget följarkonto som bara kan läsa värden (§7.4) |
 | R6 | **LinkUp är ett följarkonto** som kan följa upp till 20 personer. Ett eget följarkonto rekommenderas av nightscout-librelink-up och SugarPixel. Samma e-post i båda apparna är tillåtet men obekräftat i API:et | Guide i appen, felet "inga kopplingar" hanteras. S1 testar huvudkontot |
@@ -317,8 +317,8 @@ Libre använder samma pil som Libre 3-appen visar (Abbott: ↑ mer än 2 mg/dL p
 **LibreLinkUp (v1):**
 - `POST /llu/auth/login`: följer `data.redirect` till rätt region och sparar den. Hanterar `status: 4` och `data.step.type` (`tou`, `pp`), se B6.
 - `GET /llu/connections`: senaste värdet och målområdet för **varje person**, i ett anrop. Körs vid varje hämtning.
-- `GET /llu/connections/{patientId}/graph`: historik, en punkt per kvart, ungefär 12 h. Bara vid anslutning och efter glapp.
-- Headers: `product`, `version`, `Account-Id`, `Authorization: Bearer`. Produkt, version och protokoll (v4/v5) ligger i konfigurationen.
+- `GET /llu/connections/{patientId}/graph`: historik, en punkt per 5 minuter, ungefär 12 h (S1). Bara vid anslutning och efter glapp.
+- Headers: `product`, `version`, `Account-Id` (SHA-256 av `user.id`, hex med gemener), `Authorization: Bearer` och en `User-Agent`. Utan `User-Agent` svarar Cloudflare 403 med en HTML-sida. Produkt, version och protokoll (v4/v5) ligger i konfigurationen.
 - Token återanvänds tills den går ut eller ger 401, och sparas krypterad.
 - Tid från `FactoryTimestamp` (UTC), aldrig `Timestamp`.
 - Krypterade eller okända svar blir `Unrecognized`. Adaptern försöker aldrig dekryptera.
@@ -355,7 +355,7 @@ Hämtning med `GET /api/v1/entries.json?find[date][$gt]=<senaste>&count=10`, må
 
 - **Lagringstid 48 timmar**, så att dygnsgrafen alltid är hel. `Maintenance` tar bort äldre partitioner en gång i timmen.
 - **Graferna** bygger på våra egna hämtningar: en punkt per minut (Plus) eller per 5 minuter (Standard). Intervall över 3 h slås ihop till en punkt per 5 minuter (24 h = 288 punkter, ungefär 6 KB).
-  Det första dygnet efter anslutning är dygnsgrafen gles bakåt, eftersom LinkUp bara ger en punkt per kvart.
+  Det första dygnet efter anslutning har dygnsgrafen bakåt en punkt per 5 minuter för de senaste 12 timmarna, och inget före det, eftersom det är vad LinkUps `graph` ger (S1).
 - **"Vilka står på tur?"** Vid 100 användare läses alla `Sources` var 10:e sekund. Vid fler: en tabell `Schedule` med tidsluckan som nyckel.
 - Cosmos DB (gratisnivå, TTL) och Azure SQL behövs inte. SQL blir inte gratis, eftersom timern håller den vaken.
 
@@ -890,7 +890,7 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 
 | # | Steg | Klart när | Status |
 |---|---|---|---|
-| **S1** | **Spike: LinkUp v5.** Konsolapp mot ett eget följarkonto med två personer. v4- och v5-identiteten, villkorssteget, **krypterat eller inte**, takt, *d*, upplösning i `graph`, 429. Prova huvudkontot | Vi vet om LinkUp går att läsa och hur ofta. Testdata finns. Beslut om Plus och om Nightscout ska tidigareläggas | Förslag |
+| **S1** | **Spike: LinkUp v5.** Konsolapp mot ett eget följarkonto med två personer. v4- och v5-identiteten, villkorssteget, **krypterat eller inte**, takt, *d*, upplösning i `graph`, 429. Prova huvudkontot | Vi vet om LinkUp går att läsa och hur ofta. Testdata finns. Beslut om Plus och om Nightscout ska tidigareläggas | Pågår: läsbart, 24 h-mätningen kör |
 | **A1** | **Abbott och Apple:** begäran enligt Data Act, fråga om partneråtkomst, ansökan om critical alerts | Breven är skickade | Förslag |
 | S2 | Spike: Live Activity per minut över en natt, i lågenergiläge och StandBy, push-to-start efter 8 h, Macens menyrad | Leverans och fördröjning är uppmätta (B5) | Förslag |
 | S3 | Spike: Connect IQ på din klocka. Datafält med FIT-loggning (beta i butiken), glance, complication i en Face It-urtavla, minne med 3 h graf | Du vet vad som fungerar på din klocka | Förslag |
@@ -916,6 +916,31 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | 20 | Kö i stället för timer (§12) | `poll.due.lag` under 10 s | Parkerad |
 
 Ordning: S1 och A1 först, eftersom de kan välta allt. S2 och S3 parallellt med steg 1–3.
+
+### 15.1 S1: LinkUp 2026-10-22 (preliminärt)
+
+Konsolappen `S1.LinkUp` (`probe`, `watch`, `analyze`) kördes mot ett eget följarkonto i Sverige. Inloggningsuppgifterna låg i Nyckelringen. Spiken godkänner aldrig ett villkorssteg och försöker aldrig dekryptera något.
+
+| Fråga | Resultat |
+|---|---|
+| Går LinkUp att läsa? | **Ja, med båda identiteterna.** v4 (`llu.ios` 4.16.0) och v5 (`llu.android` 5.0.1) loggar in med `status: 0`, och `connections` och `graph` är vanlig JSON |
+| Krypterat? | **Nej**, inte för någon av identiteterna. R2 har inte inträffat för tredjepartsklienter. Enligt nightscout-librelink-up #228 krypterar Abbotts egen v5-app efter ett signerat provisioneringssteg, och det steget gör inte andra klienter (obekräftat) |
+| Token | **180 dagar med båda identiteterna** (`duration` 15 552 000 000 ms), inte 1 timme. Inloggningarna i §11 blir därmed försumbara |
+| Region | Kontot fick ingen omdirigering, utan stannade på `api.libreview.io` |
+| Villkorssteget | Kom inte, så det är inte prövat. Hanteringen enligt B6 står kvar |
+| `User-Agent` | Krävs. Utan den svarar Cloudflare 403 med en HTML-sida, som adaptern ska klassa som `Unavailable` och inte som fel lösenord |
+| Takt | Ett nytt värde **varje minut** de första minuterna. 24 h-mätningen med en hämtning per minut pågår och avgör B13 |
+| *d* | Cirka 20–40 s från mätning (`FactoryTimestamp`) till att värdet syns i `connections` |
+| `graph` | **140 punkter med 5 minuters mellanrum** (4,7–5,3 min) under cirka 11,6 timmar |
+| 429 | Inga hittills |
+| Personer | Följarkontot följer en person. Två personer är inte prövat |
+| Huvudkontot | Inte prövat |
+| Testdata | Anonymiserade svar från `login`, `connections` och `graph` för båda identiteterna. Namn, id, e-post, födelsedatum, serienummer och token är ersatta med platshållare |
+
+**Preliminära slutsatser:**
+- LinkUp är läsbart och planen håller. Nightscout behöver inte tidigareläggas (B17).
+- Plus med minutvärden ser möjligt ut (B13). Det avgörs när 24 h-mätningen är klar.
+- v4 och v5 beter sig likadant i dag. Båda ska finnas i konfigurationen (§7.11), och v4 används först eftersom alla bryggor använder den.
 
 ---
 
