@@ -1,7 +1,7 @@
 # Plan: Glukos – glukosvärdet här och nu
 
 **Påbörjad:** 2026-10-21
-**Senast uppdaterad:** 2026-10-21 (femte utkastet: renskrivet, med kartläggning av vad användare efterfrågar, Garmin på djupet och dialogen med Abbott)
+**Senast uppdaterad:** 2026-10-22 (steg 1: backend-grunden i repot Glukos, §15.2)
 
 En app byggd på Spine som visar ett aktuellt glukosvärde. Värdet hämtas av en backend i Azure Functions från en **källa**, först LibreLinkUp (FreeStyle Libre 3) och senare Nightscout.
 Det visas i appen, i en Live Activity (iPhone, och därmed StandBy, Macens menyrad och Apple Watch), i Live Update (Android), på Garmin-klockan (datafält, glance och urtavla)
@@ -289,9 +289,12 @@ public interface IGlucoseSource
     string Kind { get; }                        // "librelinkup", "nightscout"
     SourceCapabilities Capabilities { get; }    // minsta intervall, historikens upplösning, fält för anslutningen
     Task<ConnectResult> ConnectAsync(SourceCredentials credentials, CancellationToken ct);
-    Task<FetchResult> FetchAsync(SourceConnection connection, DateTimeOffset? since, CancellationToken ct);
+    Task<FetchResult> FetchAsync(SourceConnection connection, IReadOnlyDictionary<string, DateTimeOffset> since, CancellationToken ct);
 }
 ```
+
+- `since` är det senaste sparade värdet **per person** (källans id). En person som saknas får den historik källan har.
+  Per person, eftersom en persons glapp (LinkUps `graph`) inte ska kosta en historikhämtning för alla andra.
 
 - `ConnectResult` ger personerna källan har tillgång till. LinkUp ger alla som följarkontot följer, i ett anrop.
 - `FetchResult` ger mätvärden **per person** i vår form (mg/dL, `Trend`, tid i UTC, sensorns tillstånd, målområde), en uppdaterad anslutning (ny token) och fel av fasta typer:
@@ -394,6 +397,7 @@ Timern `PollDue` körs var 10:e sekund. Functions låter den aldrig köra i två
 | `CredentialsRejected`, `TermsRequired` | **Slutar** för källan, `NeedsReconnect`, notis "Anslut LibreLinkUp igen" |
 | `Unavailable` | Backoff 1, 2, 5 min |
 | `Unrecognized` | Backoff, räknas mot brytaren. **Aldrig** `NeedsReconnect` |
+| `NoConnections` | Fortsätter var 5:e minut och förblir aktiv, eftersom ett konto som inte följer någon är ett giltigt svar. Appen visar guiden |
 
 Körningen avbryts efter 8 s. Det som inte hanns med tas nästa gång.
 En källa som ingen app, klocka eller nyckel har frågat efter på 14 dagar pausas och startar vid nästa anrop.
@@ -894,7 +898,7 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | **A1** | **Abbott och Apple:** begäran enligt Data Act, fråga om partneråtkomst, ansökan om critical alerts | Breven är skickade | Förslag |
 | S2 | Spike: Live Activity per minut över en natt, i lågenergiläge och StandBy, push-to-start efter 8 h, Macens menyrad | Leverans och fördröjning är uppmätta (B5) | Förslag |
 | S3 | Spike: Connect IQ på din klocka. Datafält med FIT-loggning (beta i butiken), glance, complication i en Face It-urtavla, minne med 3 h graf | Du vet vad som fungerar på din klocka | Förslag |
-| 1 | Backend-grund: repo, Functions, `Glukos.Shared`, Bicep, Key Vault, CI, den fejkade källan | `current` svarar i Azure | Förslag |
+| 1 | Backend-grund: repo, Functions, `Glukos.Shared`, Bicep, Key Vault, CI, den fejkade källan | `current` svarar i Azure | Pågår: klart lokalt och i CI, inte driftsatt (§15.2) |
 | 2 | Konto: Spines inloggning, ta bort konto | Fungerar i appen | Förslag |
 | 3 | LinkUp-adapter, personer och hämtning (§7.2–7.5) | Riktiga värden för alla personer. Mätvärdena syns | Förslag |
 | 4 | Ändrade API:er (§7.11): brytare, kanarie, `source.shape`, `/v1/status`, larm | En inspelad trasig version löser ut brytaren i ett test | Förslag |
@@ -942,6 +946,37 @@ Konsolappen `S1.LinkUp` (`probe`, `watch`, `analyze`) kördes mot ett eget följ
 - LinkUp är läsbart och planen håller. Nightscout behöver inte tidigareläggas (B17).
 - Plus med minutvärden ser möjligt ut (B13). Det avgörs när 24 h-mätningen är klar. Den startade om 2026-10-22 09:13 UTC, med jitter, och pågår till 2026-10-23 09:13 UTC.
 - v4 och v5 beter sig likadant i dag. Båda ska finnas i konfigurationen (§7.11), och v4 används först eftersom alla bryggor använder den.
+
+### 15.2 Steg 1: backend-grund 2026-10-22
+
+Repot [jonatansoderberg/Glukos](https://github.com/jonatansoderberg/Glukos) (privat) har `spikes/` som undermapp. Spines paket kommer från NuGet (`SpineVersion` 0.1.19), med central pakethantering som Almanacka.
+
+| Del | Läge |
+|---|---|
+| `Glukos.Shared` | mg/dL som heltal, mmol/L ÷ 18,0182 med en decimal, `Trend` i 7 nivåer med Libre- och Nightscout-mappningen, svaren för `current` och `history` (§7.6). JSON i camelCase, tider med `Z`, pilarna oescapade. Refererar `Plugin.Maui.Spine.Common`, men använder inget ur det ännu |
+| `Glukos.Sources` | `IGlucoseSource`, `SourceCapabilities`, `ConnectResult`, `FetchResult` och de sex fasta feltyperna |
+| Fejkad källa | I `Glukos.Sources/Fake`. Två personer på sinuskurvor, alla trender och nivåer, glapp, uppvärmning, signalförlust och slut på sensorn. Beter sig som LinkUp: ett värde i minuten vid :05, synligt efter 20 s, och glapp fylls med punkter var 5:e minut. Lösenordet väljer ett fel för att pröva hämtningen |
+| `Glukos.Functions` | `PollDue` var 10:e s enligt §7.5, Table Storage enligt §7.3 (`Users`, `Sources`, `People`, `Readings`), `GET /v1/glucose/current` och `/history` |
+| `Glukos.Tests` | 120 tester: trend, enheter, schemaläggningen (*d*, omförsök, glapp, backoff, `Retry-After`), den fejkade källan och kontraktet för `current`. De anonymiserade S1-svaren ligger i `Recordings/LinkUp` |
+| `infra/` | Bicep och `azure.yaml`: Function App (Consumption, Windows), Storage med tabellerna, Key Vault (RBAC), Application Insights med Log Analytics (högst 0,15 GB per dygn) och en användartilldelad managed identity, i Sweden Central |
+| CI | GitHub Actions bygger, testar och validerar Bicep. Grön |
+
+**Verifierat:** `func start` mot Azurite svarar för båda personerna, och värdet ändras varje minut. *d* lärde sig från 25 s ned till 19 s.
+
+**Avvikelser och val:**
+- `since` per person i `FetchAsync` (§7.2), och `NoConnections` i tabellen i §7.5.
+- *d* lärs så här: en träff vid första försöket minskar *d* med 1 s, och en träff efter omförsök sätter *d* till det uppmätta. Bara efter en schemalagd hämtning, inte efter glapp eller fel.
+- `sourceDegraded` visas efter två fel i rad, tills brytaren kommer i steg 4.
+- Windows Consumption når inte sin innehållsdelning (Azure Files) med managed identity. Den är den enda nyckelbaserade inställningen, och allt annat går via identiteten.
+- Inloggningsuppgifter sparas bara för den fejkade källan, i klartext. Lagringen vägrar andra källtyper tills envelope-krypteringen finns (§7.4, steg 3).
+- Till inloggningen i steg 2 svarar API:et bara för en dev-användare (`Glukos:Dev:UserId`), som får den fejkade källan vid start. I Azure slås det på med `GLUKOS_DEV_USER_ID`, och då är fejkdatan öppen utan inloggning.
+- Application Insights-paketet är 2.23, eftersom Functions-paketet för Application Insights bygger på den versionen.
+- Inga Spine-luckor hittades.
+
+**Återstår:**
+- `azd up`, så att `current` svarar i Azure.
+- Mätvärdena i §7.13 (`poll.due.lag`, `source.lag` med flera) som egna mätvärden i Application Insights. I dag är de loggrader.
+- Ett tomt `Glukos.App` med `ApplicationId` `se.cosmomedia.glucose`, som skjuts till steg 2 eller 5.
 
 ---
 
