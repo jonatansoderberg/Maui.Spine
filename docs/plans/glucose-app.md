@@ -949,7 +949,7 @@ Ordning: S1 och A1 först, eftersom de kan välta allt. S2 och S3 parallellt med
 | B24 | Språk | Svenska och engelska överallt |
 | B25 | Critical alerts | Ansök direkt (A1). Bygg när godkännandet finns |
 | B26 | Data Act | Skicka begäran och partnerfrågan parallellt med S1 |
-| B27 | Namn | "Glukos" eller "Glucose:Live" / "Glukos:Live", med en undertitel per språk. "Glucose" ensamt är taget. "… Live" är troligen möjligt, med förväxlingsrisk mot GlucoLive. Kontrollera i App Store Connect, USPTO och EUIPO. Ett eget varumärke ger bäst skydd (§18.3) |
+| B27 | Namn | **"Glukos" (sv) och "Glucose:Live" (en-US, en-GB) är reserverade i App Store sedan 2026-10-22**, med undertitlarna "Glukosvärdet här och nu" och "Glucose at a glance". "Glucose" är upptaget. Inga varumärken på GLUKOS, GLUCOSE LIVE eller GLUCOLIVE i klass 9 eller 44 hos USPTO, EUIPO eller TMview. Förväxlingsrisken mot appen GlucoLive kvarstår. Google Play är okänt tills utvecklarkontot är verifierat. Ett eget varumärke ger fortfarande bäst skydd (§18.3) |
 | B28 | Ikon | Behåll droppen och färgen, men byt grafen mot något som säger "nu" i stället för "över tid" (§18.2) |
 
 ---
@@ -1070,6 +1070,36 @@ Also show for the arrow variant: dark mode version, a tinted/monochrome version,
 
 **Slutsats:** alla beskrivande namn (Glukos, Blodsocker, Glucose, Blood Sugar) är tydliga men går inte att skydda.
 Ett **eget kort varumärke med en beskrivande undertitel** ("<Namn> – blodsocker här och nu") ger både tydlighet och skydd. Det kräver en namnrunda (B27).
+
+**Registrering 2026-10-22.** App Store Connect API, utvecklarportalen, App Store Connect och Play Console i webben, Connect IQ-butikens API samt sök-API:erna hos USPTO, EUIPO eSearch plus och TMview.
+
+| Namn | Var | Resultat |
+|---|---|---|
+| Glukos | App Store, sv | **Ledigt, reserverat.** Godtogs när appposten skapades |
+| Glukos:Live | App Store, sv | Ej prövat, eftersom "Glukos" godtogs |
+| Glucose | App Store, en-US och en-GB | **Upptaget:** "The app name you entered is already being used. If you have trademark rights to this name and would like it released for your use, submit a claim." |
+| Glucose:Live | App Store, en-US och en-GB | **Ledigt, reserverat** |
+| Undertitlar | App Store | Godtogs: sv "Glukosvärdet här och nu", en-US och en-GB "Glucose at a glance" |
+| Glukos, `se.cosmomedia.glucose` | Google Play | **Okänt.** "Create app" avvisades med "This package name is already in use. Use a different package name." Slumpade namn som `io.zq7probe.app8841` fick samma svar, så felet beror troligen på att det nya utvecklarkontot inte är verifierat än. Ingen app skapad |
+| Glucose:Live | Google Play, en-US | Ej prövat, eftersom ingen app finns |
+| Glukos | Connect IQ | Ingen app med namnet. Närmast: utvecklaren "Gluki" med urtavlor för glukos ("Gluki X1"–"X5" med flera) |
+| Glucose Live, Glukos Live, GlucoLive | Connect IQ | Inga träffar |
+| GLUKOS | Varumärke | Inget i klass 9 eller 44. USPTO: tre döda märken från The Glukos Company (klass 5, 21 och 35, avregistrerade 2017–2022). EUIPO, PRV och WIPO: inget. Levande "GLUKOS" bara i Malaysia (klass 33). Närmast i klass 9/44: "Glukoseheld" i Tyskland (9, 41 och 44, ansökt 2026-09-12) |
+| GLUCOSE LIVE | Varumärke | Inga träffar hos USPTO, EUIPO eller TMview |
+| GLUCOLIVE | Varumärke | Inget i klass 9 eller 44. USPTO: "GLUCOLIVE" död (klass 5, upphävd 2021), "GLUCOLIVER" under ansökan (klass 5). Mexiko: "GLUCOLIVE" registrerat, klass 5 |
+
+**Skapat:**
+- App ID `se.cosmomedia.glucose` (explicit, iOS) med Push Notifications, App Groups och Sign in with Apple. In-App Purchase följer med automatiskt.
+- App ID `se.cosmomedia.glucose.SpineWidgets` med App Groups och Push Notifications.
+- App Group `group.se.cosmomedia.glucose`, påslagen för båda App ID:na.
+- Apppost i App Store Connect: iOS, primärt språk svenska, SKU `glukos-ios`, full åtkomst, med namnen och undertitlarna ovan. Inget har skickats till granskning.
+- Inga profiler, ingen Play-app och ingen AAB.
+
+**Kvar:**
+- **Google Play:** verifiera utvecklarkontot (identitet, Android-enhet och telefonnummer) och skapa sedan appen igen med `se.cosmomedia.glucose`.
+  Formuläret har numera ett eget fält för package name, så namnet låses troligen redan när appen skapas, inte först vid första AAB.
+  Kontot är personligt, inte ett organisationskonto. Nya personliga konton måste testa med minst 12 testare i 14 dagar innan appen kan publiceras.
+- **Apple:** Paid Apps Agreement väntar på bank- och skatteuppgifter. Det krävs för köp (§7.9).
 
 ---
 
