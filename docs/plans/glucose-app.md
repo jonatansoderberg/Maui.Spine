@@ -949,7 +949,7 @@ Ordning: S1 och A1 först, eftersom de kan välta allt. S2 och S3 parallellt med
 | B24 | Språk | Svenska och engelska överallt |
 | B25 | Critical alerts | Ansök direkt (A1). Bygg när godkännandet finns |
 | B26 | Data Act | Skicka begäran och partnerfrågan parallellt med S1 |
-| B27 | Namn | "Glukos" i alla marknader om namnet är ledigt, med en undertitel per språk. Inte "Glucose" och inte "… Live" (§18.3) |
+| B27 | Namn | "Glukos" eller "Glucose:Live" / "Glukos:Live", med en undertitel per språk. "Glucose" ensamt är taget. "… Live" är troligen möjligt, med förväxlingsrisk mot GlucoLive. Kontrollera i App Store Connect, USPTO och EUIPO. Ett eget varumärke ger bäst skydd (§18.3) |
 | B28 | Ikon | Behåll droppen och färgen, men byt grafen mot något som säger "nu" i stället för "över tid" (§18.2) |
 
 ---
@@ -1028,9 +1028,17 @@ Also show for the arrow variant: dark mode version, a tinted/monochrome version,
 **Fakta:**
 - **"Glucose" är redan taget i App Store**, av minst två appar: "Glucose - Blood Sugar Tracker" och "Glucose | Blood Sugar Tracker".
   Ett generiskt ord går dessutom inte att skydda som varumärke, och det är svårt att synas med i sökningar.
-- **"Glucose Live" och "Glukos Live" ligger mycket nära GlucoLive**, en app från maj 2026 som gör nästan samma sak: Libre via LinkUp, Live Activity, Dynamic Island och Apple Watch.
-  Risken för förväxling är stor, både för användare och i en granskning.
-- **Kolon i namnet** ("Glukos:Live") ser ut som kod och kan krångla i butikernas namnfält och sökning. Om "Live" behövs, skriv det utan kolon.
+- **"Glucose:Live" och "Glukos:Live" är troligen möjliga.** Ingen app med just de namnen hittades. App Store kräver bara att namnet inte är identiskt med ett annat, och kolon är tillåtet i appnamn.
+  Inget varumärke på "GlucoLive" hittades heller, men det kan bara bekräftas i USPTO och EUIPO.
+- **Riskerna med "… Live"** är bedömningar, inte hinder:
+  - **Förväxling med GlucoLive.** Den släpptes 31 maj 2026, troligen av en enskild utvecklare, och gör nästan samma sak: Libre via LinkUp, Live Activity, Dynamic Island och Apple Watch. Uttalet ligger nära.
+    Apples riktlinje 4.1 avråder från "minor changes to another app's name". En granskare, eller GlucoLive om de skaffar ett varumärke, kan reagera, men det är inte säkert.
+  - **Svagt varumärke.** Både "Glucose" och "Live" är beskrivande, så andra kan använda liknande namn.
+  - **Sökningar.** "glucose" är ett trångt sökord men hjälper också att synas.
+- **Så kontrolleras det:**
+  1. Skapa en apppost i App Store Connect med namnet. Den reserverar namnet och visar direkt om det godtas.
+  2. Sök på "GlucoLive" och "Glucose Live" i USPTO och EUIPO eSearch plus.
+  3. Väg förväxlingsrisken.
 - App Store, Google Play och Connect IQ har **namn och undertitlar per språk**, så olika namn per språk går tekniskt. Det delar dock varumärket i två.
 
 **Rekommendation:**
