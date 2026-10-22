@@ -971,7 +971,7 @@ Ordning: S1 och A1 först, eftersom de kan välta allt. S2 och S3 parallellt med
 
 ## 18. Koncept, ikon och namn
 
-Konceptbilderna är genererade med ChatGPT utifrån stilen i §3: Apples designspråk (Liquid Glass), en stor siffra, en accentfärg som följer läget, och svensk text.
+Konceptbilderna är genererade med ChatGPT utifrån en stilbeskrivning: Apples designspråk (Liquid Glass), en stor siffra, en accentfärg som följer läget, och svensk text.
 De visar riktningen, inte exakta mått.
 
 ### 18.1 Konceptbilder
