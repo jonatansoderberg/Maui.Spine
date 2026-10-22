@@ -898,7 +898,7 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | **A1** | **Abbott och Apple:** begäran enligt Data Act, fråga om partneråtkomst, ansökan om critical alerts | Breven är skickade | Förslag |
 | S2 | Spike: Live Activity per minut över en natt, i lågenergiläge och StandBy, push-to-start efter 8 h, Macens menyrad | Leverans och fördröjning är uppmätta (B5) | Förslag |
 | S3 | Spike: Connect IQ på din klocka. Datafält med FIT-loggning (beta i butiken), glance, complication i en Face It-urtavla, minne med 3 h graf | Du vet vad som fungerar på din klocka | Förslag |
-| 1 | Backend-grund: repo, Functions, `Glukos.Shared`, Bicep, Key Vault, CI, den fejkade källan | `current` svarar i Azure | Pågår: klart lokalt och i CI, inte driftsatt (§15.2) |
+| 1 | Backend-grund: repo, Functions, `Glukos.Shared`, Bicep, Key Vault, CI, den fejkade källan | `current` svarar i Azure | Klar (§15.2) |
 | 2 | Konto: Spines inloggning, ta bort konto | Fungerar i appen | Förslag |
 | 3 | LinkUp-adapter, personer och hämtning (§7.2–7.5) | Riktiga värden för alla personer. Mätvärdena syns | Förslag |
 | 4 | Ändrade API:er (§7.11): brytare, kanarie, `source.shape`, `/v1/status`, larm | En inspelad trasig version löser ut brytaren i ett test | Förslag |
@@ -959,9 +959,12 @@ Repot [jonatansoderberg/Glukos](https://github.com/jonatansoderberg/Glukos) (pri
 | `Glukos.Functions` | `PollDue` var 10:e s enligt §7.5, Table Storage enligt §7.3 (`Users`, `Sources`, `People`, `Readings`), `GET /v1/glucose/current` och `/history` |
 | `Glukos.Tests` | 120 tester: trend, enheter, schemaläggningen (*d*, omförsök, glapp, backoff, `Retry-After`), den fejkade källan och kontraktet för `current`. De anonymiserade S1-svaren ligger i `Recordings/LinkUp` |
 | `infra/` | Bicep och `azure.yaml`: Function App (Consumption, Windows), Storage med tabellerna, Key Vault (RBAC), Application Insights med Log Analytics (högst 0,15 GB per dygn) och en användartilldelad managed identity, i Sweden Central |
-| CI | GitHub Actions bygger, testar och validerar Bicep. Grön |
+| CI | GitHub Actions bygger backend, testar och validerar Bicep. Grön |
+| `Glukos.App` | En tom Spine-app med `ApplicationId` `se.cosmomedia.glucose`, så att tillägget och App Group får de registrerade id:na (`…SpineWidgets`, `group.se.cosmomedia.glucose`). Bygger för iOS (från 17.2), Android och Mac Catalyst och startar i simulatorn. En sida med texten om att appen inte är en medicinteknisk produkt, på svenska och engelska, och en tillfällig ikon efter §18.2 (a) |
+| Azure | `azd up` till `rg-glukos-dev` i "Visual Studio Enterprise-prenumeration", där Spines andra backends ligger. Function App `func-glukos-yu33a2qcpuzlk` i Sweden Central, med dev-användaren på |
 
 **Verifierat:** `func start` mot Azurite svarar för båda personerna, och värdet ändras varje minut. *d* lärde sig från 25 s ned till 19 s.
+`GET /v1/glucose/current` i Azure ger värden från den fejkade källan, och de ändras varje minut.
 
 **Avvikelser och val:**
 - `since` per person i `FetchAsync` (§7.2), och `NoConnections` i tabellen i §7.5.
@@ -971,12 +974,13 @@ Repot [jonatansoderberg/Glukos](https://github.com/jonatansoderberg/Glukos) (pri
 - Inloggningsuppgifter sparas bara för den fejkade källan, i klartext. Lagringen vägrar andra källtyper tills envelope-krypteringen finns (§7.4, steg 3).
 - Till inloggningen i steg 2 svarar API:et bara för en dev-användare (`Glukos:Dev:UserId`), som får den fejkade källan vid start. I Azure slås det på med `GLUKOS_DEV_USER_ID`, och då är fejkdatan öppen utan inloggning.
 - Application Insights-paketet är 2.23, eftersom Functions-paketet för Application Insights bygger på den versionen.
+- `global.json` låser SDK och MAUI-workloads till 10.0.201, som Almanacka, eftersom .NET for iOS i 10.0.300 kräver Xcode 26.3. CI bygger bara backend och tar bort låsningen av workloads.
+- Fejkdatan i Azure är öppen utan inloggning tills steg 2. Ta bort `GLUKOS_DEV_USER_ID` och kör `azd provision` när inloggningen finns.
 - Inga Spine-luckor hittades.
 
-**Återstår:**
-- `azd up`, så att `current` svarar i Azure.
-- Mätvärdena i §7.13 (`poll.due.lag`, `source.lag` med flera) som egna mätvärden i Application Insights. I dag är de loggrader.
-- Ett tomt `Glukos.App` med `ApplicationId` `se.cosmomedia.glucose`, som skjuts till steg 2 eller 5.
+**Återstår (flyttas till senare steg):**
+- Mätvärdena i §7.13 (`poll.due.lag`, `source.lag` med flera) som egna mätvärden i Application Insights. I dag är de loggrader. Steg 15.
+- Driftsättning från GitHub Actions med managed identity (§7.1). I dag körs `azd up` lokalt.
 
 ---
 
