@@ -210,7 +210,7 @@ Priser för andra är inte verifierade.
 |---|---|---|
 | R1 | **LibreLinkUp är inofficiellt** och ändras utan förvarning. 2025 kom `Account-Id` (SHA-256 av användarens id) och kravet på version 4.16.0. v5 (oktober 2026) ger `status: 4` med ett villkorssteg (`POST /auth/continue/{type}`) och **token som gäller 1 timme**. Bryggorna har gått sönder vid varje ändring. Nightscouts inbyggda koppling tog ungefär 11 månader att rätta och har inte kommit med i Nightscout ännu | Adapter med protokollet i konfigurationen, brytare, kanarie och rättelser inom timmar (§7.11) |
 | R2 | **v5 kan kryptera svaren med glukosvärden.** Underhållaren av nightscout-librelink-up säger att v5-appen krypterar dem. Han kringgår det inte, med hänvisning till EU:s regler mot kringgående av skydd: "For now, its game over". nightscout-clock rapporterar vanlig JSON med v5-identiteten 5.0.1, och att v4-identiteten fortfarande loggade in den 7 oktober 2026. Alla bryggor lever idag på att Abbott släpper in v4. **iPhone med Libre 3 har minst att falla tillbaka på**, eftersom Juggluco bara finns för Android | **S1 avgör.** Reserver: Nightscout som källa, uppladdning från Juggluco och xDrip+, Dexcom Share, och dialogen med Abbott (§13) |
-| R3 | **Hur ofta LinkUp får nya värden är inte bekräftat.** Abbott skriver "minute-to-minute". CGM Connect uppger ungefär ett nytt värde per 2 minuter. Det finns rapporter om glapp på 30 minuter och om ett värde per kvart i EU. **S1 såg nya värden varje minut och en punkt per 5 minuter i `graph`** (24 h-mätningen pågår) | S1 mäter takten i 24 h. Graferna bygger på våra egna hämtningar. Plus säljs bara om det finns minutvärden |
+| R3 | **Hur ofta LinkUp får nya värden är inte bekräftat.** Abbott skriver "minute-to-minute". CGM Connect uppger ungefär ett nytt värde per 2 minuter. Det finns rapporter om glapp på 30 minuter och om ett värde per kvart i EU. **S1 såg ett nytt värde varje minut i 10 minuter, med *d* på högst cirka 20 s, och en punkt per 5 minuter i `graph`.** 24 h-mätningen pågår (§15.1) | S1 mäter takten i 24 h. Graferna bygger på våra egna hämtningar. Plus säljs bara om det finns minutvärden |
 | R4 | **Rate limiting:** 429, även som `status: 429` i ett 200-svar, och spärrar i upp till 15 minuter | Högst ungefär 2 anrop i minuten per källa, backoff enligt `Retry-After`. Slutar vid fel lösenord |
 | R5 | **Lösenordet måste sparas**, eftersom token bara gäller en timme | Krypterat i Key Vault, med samtycke. Ett eget följarkonto som bara kan läsa värden (§7.4) |
 | R6 | **LinkUp är ett följarkonto** som kan följa upp till 20 personer. Ett eget följarkonto rekommenderas av nightscout-librelink-up och SugarPixel. Samma e-post i båda apparna är tillåtet men obekräftat i API:et | Guide i appen, felet "inga kopplingar" hanteras. S1 testar huvudkontot |
@@ -929,17 +929,18 @@ Konsolappen `S1.LinkUp` (`probe`, `watch`, `analyze`) kördes mot ett eget följ
 | Region | Kontot fick ingen omdirigering, utan stannade på `api.libreview.io` |
 | Villkorssteget | Kom inte, så det är inte prövat. Hanteringen enligt B6 står kvar |
 | `User-Agent` | Krävs. Utan den svarar Cloudflare 403 med en HTML-sida, som adaptern ska klassa som `Unavailable` och inte som fel lösenord |
-| Takt | Ett nytt värde **varje minut** de första minuterna. 24 h-mätningen med en hämtning per minut pågår och avgör B13 |
-| *d* | Cirka 20–40 s från mätning (`FactoryTimestamp`) till att värdet syns i `connections` |
+| Takt | Delrapport (10 min): 10 olika mätningar, och alla 9 steg var ≈1 minut. Inget avgörs ännu, eftersom det krävs ett dygn med natt och sensorbyten |
+| *d* | Delrapport: högst 20–22 s från mätning (`FactoryTimestamp`) till att värdet syns i `connections`. Varje prov är en övre gräns. Den första mätningen hämtade alltid vid sekund :25 och mätningarna kom vid :05, så den visade bara fasskillnaden. Den nya mätningen hämtar var 60 ± 15 s så att *d* går att mäta |
+| Glapp | Inga i delrapporten |
 | `graph` | **140 punkter med 5 minuters mellanrum** (4,7–5,3 min) under cirka 11,6 timmar |
-| 429 | Inga hittills |
+| 429 | Inga i delrapporten (11 anrop till `connections`, 1 inloggning) |
 | Personer | Följarkontot följer en person. Två personer är inte prövat |
 | Huvudkontot | Inte prövat |
 | Testdata | Anonymiserade svar från `login`, `connections` och `graph` för båda identiteterna. Namn, id, e-post, födelsedatum, serienummer och token är ersatta med platshållare |
 
 **Preliminära slutsatser:**
 - LinkUp är läsbart och planen håller. Nightscout behöver inte tidigareläggas (B17).
-- Plus med minutvärden ser möjligt ut (B13). Det avgörs när 24 h-mätningen är klar.
+- Plus med minutvärden ser möjligt ut (B13). Det avgörs när 24 h-mätningen är klar. Den startade om 2026-10-22 09:13 UTC, med jitter, och pågår till 2026-10-23 09:13 UTC.
 - v4 och v5 beter sig likadant i dag. Båda ska finnas i konfigurationen (§7.11), och v4 används först eftersom alla bryggor använder den.
 
 ---
@@ -960,7 +961,7 @@ Konsolappen `S1.LinkUp` (`probe`, `watch`, `analyze`) kördes mot ett eget följ
 | B10 | Flera personer | Ja, från v1 i appen, API:et och på Garmin. En Live Activity i v1 |
 | B11 | Notiser | Ja, direkt efter v1-kärnan, per person och med talade ljud. Notiser, inte larm |
 | B12 | Köp | I appen först. Till Spine om en andra app behöver det |
-| B13 | Nivåer | Standard 5 min gratis, Plus 1 min, om S1 visar minutvärden |
+| B13 | Nivåer | Standard 5 min gratis, Plus 1 min, om S1 visar minutvärden. S1:s delrapport visar minutvärden i 10 minuter. Beslutet tas när 24 h-mätningen är klar (§15.1) |
 | B14 | Röster | Generera med Azure Speech och OpenAI och lyssna. Troligen Azure för svenska |
 | B15 | Säkerhetsläge på Standard | Ja |
 | B16 | Live Activity och Garmin på Standard | Ja |
