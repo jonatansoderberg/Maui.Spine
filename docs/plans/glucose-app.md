@@ -1080,7 +1080,7 @@ Ett **eget kort varumärke med en beskrivande undertitel** ("<Namn> – blodsock
 | Glucose | App Store, en-US och en-GB | **Upptaget:** "The app name you entered is already being used. If you have trademark rights to this name and would like it released for your use, submit a claim." |
 | Glucose:Live | App Store, en-US och en-GB | **Ledigt, reserverat** |
 | Undertitlar | App Store | Godtogs: sv "Glukosvärdet här och nu", en-US och en-GB "Glucose at a glance" |
-| Glukos, `se.cosmomedia.glucose` | Google Play | **Okänt.** "Create app" avvisades med "This package name is already in use. Use a different package name." Slumpade namn som `io.zq7probe.app8841` fick samma svar, så felet beror troligen på att det nya utvecklarkontot inte är verifierat än. Ingen app skapad |
+| Glukos, `se.cosmomedia.glucose` | Google Play | **Okänt.** "Create app" avvisades med "This package name is already in use. Use a different package name." Slumpade namn som `io.zq7probe.app8841` fick samma svar. Orsaken är att kontot inte är verifierat: Play Console visar "Complete account verifications to create apps", och sidan Android developer verification säger "Before you can register package names, you must complete outstanding verifications". Ingen app skapad |
 | Glucose:Live | Google Play, en-US | Ej prövat, eftersom ingen app finns |
 | Glukos | Connect IQ | Ingen app med namnet. Närmast: utvecklaren "Gluki" med urtavlor för glukos ("Gluki X1"–"X5" med flera) |
 | Glucose Live, Glukos Live, GlucoLive | Connect IQ | Inga träffar |
@@ -1096,8 +1096,10 @@ Ett **eget kort varumärke med en beskrivande undertitel** ("<Namn> – blodsock
 - Inga profiler, ingen Play-app och ingen AAB.
 
 **Kvar:**
-- **Google Play:** verifiera utvecklarkontot (identitet, Android-enhet och telefonnummer) och skapa sedan appen igen med `se.cosmomedia.glucose`.
-  Formuläret har numera ett eget fält för package name, så namnet låses troligen redan när appen skapas, inte först vid första AAB.
+- **Google Play:** sedan 2026-09-30 måste varje package name registreras genom Android developer verification, kopplat till en verifierad identitet och en signeringsnyckel. Det ersätter "reserveras vid första AAB". Ordningen blir:
+  1. Verifiera utvecklarkontot: identitet (tar några dagar), Android-enhet och telefonnummer.
+  2. Registrera `se.cosmomedia.glucose` under Play Console → Android developer verification → Register package name. Ett nytt namn kräver bara SHA-256-certifikatet för appens publika signeringsnyckel, ingen APK. Nyckeln måste väljas först.
+  3. Skapa appen "Glukos" med det namnet och lägg till en-US "Glucose:Live".
   Kontot är personligt, inte ett organisationskonto. Nya personliga konton måste testa med minst 12 testare i 14 dagar innan appen kan publiceras.
 - **Apple:** Paid Apps Agreement väntar på bank- och skatteuppgifter. Det krävs för köp (§7.9).
 
