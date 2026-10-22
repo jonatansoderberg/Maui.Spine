@@ -775,10 +775,14 @@ internal sealed class PageActionView : ContentView
                 return;
             }
 
-            var clear = _owner.Glass == HeaderBarGlass.Clear;
-            var style = _prominent
-                ? clear ? GlassStyle.ProminentClear : GlassStyle.Prominent
-                : clear ? GlassStyle.Clear : GlassStyle.Regular;
+            var style = (_prominent, _owner.Glass) switch
+            {
+                (true, HeaderBarGlass.Clear) => GlassStyle.ProminentClear,
+                (true, _) => GlassStyle.Prominent,
+                (false, HeaderBarGlass.Clear) => GlassStyle.Clear,
+                (false, HeaderBarGlass.Transient) => GlassStyle.Transient,
+                _ => GlassStyle.Regular,
+            };
             Extensions.Glass.SetStyle(_imageButton, style);
             Extensions.Glass.SetStyle(_textButton, style);
         }

@@ -149,7 +149,8 @@ public abstract class NavigableAttribute : Attribute
     private bool _headerBarGlassSet;
     /// <summary>
     /// The Liquid Glass of the header bar's buttons on iOS 26: <see cref="Core.HeaderBarGlass.Regular"/>,
-    /// or <see cref="Core.HeaderBarGlass.Clear"/> for a bar that lies over a photo or a map. Where the
+    /// <see cref="Core.HeaderBarGlass.Clear"/> for a bar that lies over a photo or a map, or
+    /// <see cref="Core.HeaderBarGlass.Transient"/> for plain icons that show glass only while pressed. Where the
     /// buttons are not glass (Android, Windows), <see cref="Core.HeaderBarGlass.Clear"/> puts each one on a
     /// dark translucent circle, so it reads over the picture; <see cref="Core.HeaderBarGlass.Regular"/>
     /// changes nothing there. When not set the value is inherited from the relevant <c>DefaultsConfig</c>.
