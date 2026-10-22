@@ -1045,6 +1045,24 @@ Also show for the arrow variant: dark mode version, a tinted/monochrome version,
   - varumärken hos PRV, EUIPO och USPTO, i klass 9 och 44.
 - Om "Glukos" är upptaget behövs ett eget namn som inte är ett generiskt ord. Ta fram förslag då.
 
+**Sökning 2026-10-22.** Webbsökning. App Store, domänregistren och varumärkesdatabaserna gick inte att nå direkt.
+
+| Kontroll | Resultat |
+|---|---|
+| App Store, Google Play | Ingen app som heter "Glukos" hittades. Närmast: GlucoSense, Gluco AI, GluCozy, Glooko |
+| Connect IQ | Ingen app som heter "Glukos". Dexcoms officiella app dominerar |
+| Varumärke | **"GLUKOS" används av Glukos Energy**, ett amerikanskt märke för sportnäring med glukosgel och tabletter, sedan 2020 ägt av United Sports Brands. Det marknadsförs delvis till personer med diabetes. Troligen registrerat i USA för livsmedel och kosttillskott (ej bekräftat). Det är andra varuklasser än programvara (9) och tjänster (44), men samma område, så det är en risk i USA |
+| Ordet i Sverige | "Glukos" är det vanliga svenska ordet för glucose. Som ordmärke för en glukosapp är det beskrivande och kan troligen inte registreras hos PRV eller EUIPO. Skydd går bara via en figurmärke (namn och logotyp) |
+| Domäner | Ingen webbplats på glukos.se, glukos.com eller glukos.app hittades i sökningen. Om de är registrerade är okänt |
+
+**"Blodsocker" / "Blood Sugar"** är ännu mer generiskt:
+- "Blodsocker" är det ord svenskar använder i vardagen, så det är tydligt.
+- "Blood Sugar" finns i namnet på många appar för loggning, så det blir trångt i sökningar och svårt att skilja sig.
+- Inget av dem kan skyddas som ordmärke.
+
+**Slutsats:** alla beskrivande namn (Glukos, Blodsocker, Glucose, Blood Sugar) är tydliga men går inte att skydda.
+Ett **eget kort varumärke med en beskrivande undertitel** ("<Namn> – blodsocker här och nu") ger både tydlighet och skydd. Det kräver en namnrunda (B27).
+
 ---
 
 ## Källor
