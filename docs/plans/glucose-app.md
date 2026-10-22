@@ -34,6 +34,7 @@ Arbetsnamn: **Glukos**. Statusvärden: **Förslag**, **Klar att börja**, **Påg
 - **Spine** har nästan allt: inloggning, push, Live Activity, push-to-start, Android Live Update, ljud i notiser, strängar som delas med servern, köer och AI-röster.
   Det som saknas är en linjegraf, en minigraf i widgetträdet, köp i appen, menyradsikon med text och critical alerts (§14).
 - **Svenska och engelska** från början, även ljuden och klockan.
+- **Konceptbilder, ikonförslag och namn** finns i §18.
 
 ---
 
@@ -109,7 +110,8 @@ Styrkan bygger på antal kommentarer och separata trådar (detaljer i marknadsdo
 
 | Funktion | Prioritet | Kommentar |
 |---|---|---|
-| Stort värde med enhet (mmol/L eller mg/dL), trendpil i 7 nivåer, förändring ("+0,3 på 5 min") | Måste | |
+| Stort värde med enhet (mmol/L eller mg/dL), trendpil i 7 nivåer, förändring ("+0,3 på 5 min") | Måste | Siffran neutral och stor. Färgen sitter i pilen och grafen (§18) |
+| Målområdet som ett litet märke under värdet ("3,9–10,0") | Måste | Från konceptbilderna |
 | Ålder ("för 42 s sedan"), räknas om varje sekund | Måste | Räknas när skärmen ritas |
 | Färg efter område, alltid med text eller ikon | Måste | |
 | Gamla värden: grått efter 2 × intervallet, siffran döljs efter 15 min | Måste | §8.3 |
@@ -639,6 +641,8 @@ En aktivitet per person (`glucose:<personId>`). I v1 en, för huvudpersonen elle
 | `Android` | `LiveUpdateText(Title: "Lisa 6,8 mmol/L ↗", Body: "+0,3 på 5 min · 14:32", Chip: "6,8↗")` |
 
 - Pilen är ett Unicode-tecken i texten, så ingen egen bild behövs. I appen roteras Spines `Arrow`-ikon (B4).
+- Minigrafen har ingen tidsaxel. Axeln får inte plats, och den behövs inte för att se riktningen.
+- **Android Live Update kan inte visa en graf.** Android tillåter inga egna vyer i en promoted notification, så Spine fyller mallen med titel, text, chip och en eventuell `W.Progress`. Konceptbilden med graf går alltså inte att bygga som den är.
 - `staleAt` = mätningens tid + 2 × intervallet.
 - **Spine-lucka G2:** `W.Sparkline(values, low, high)`, ritad av renderaren, så att minigrafen kan skickas via push. 36 punkter är ungefär 150 byte. Bilder fungerar inte, eftersom de lagras av appen.
 - Layouten blir 1–1,5 KB med minigraf, under APNs gräns på 4 KB.
@@ -945,6 +949,8 @@ Ordning: S1 och A1 först, eftersom de kan välta allt. S2 och S3 parallellt med
 | B24 | Språk | Svenska och engelska överallt |
 | B25 | Critical alerts | Ansök direkt (A1). Bygg när godkännandet finns |
 | B26 | Data Act | Skicka begäran och partnerfrågan parallellt med S1 |
+| B27 | Namn | "Glukos" i alla marknader om namnet är ledigt, med en undertitel per språk. Inte "Glucose" och inte "… Live" (§18.3) |
+| B28 | Ikon | Behåll droppen och färgen, men byt grafen mot något som säger "nu" i stället för "över tid" (§18.2) |
 
 ---
 
@@ -960,6 +966,84 @@ Ordning: S1 och A1 först, eftersom de kan välta allt. S2 och S3 parallellt med
 - IOB, COB och loopstatus, om Nightscout blir källa.
 - Ett diskret ljud vid varje nytt värde.
 - Att läsa sensorn direkt via Bluetooth (som Juggluco). Det bygger på omvänd ingenjörskonst och kan krocka med Libre 3-appen.
+
+---
+
+## 18. Koncept, ikon och namn
+
+Konceptbilderna är genererade med ChatGPT utifrån stilen i §3: Apples designspråk (Liquid Glass), en stor siffra, en accentfärg som följer läget, och svensk text.
+De visar riktningen, inte exakta mått.
+
+### 18.1 Konceptbilder
+
+| Bild | Vad den visar | Att ta med eller ändra |
+|---|---|---|
+| [Översikt](images/glukos/concept-overview.webp) | iPhone (låsskärm och app), Android, Garmin-klocka, Edge och Macens menyrad | Edge-fältet saknar ålder, och ålder ska synas på alla Garmin-ytor |
+| [Person](images/glukos/app-person.webp) | Hem för en person: stor neutral siffra, färgad pil, graf med målband, intervallväljare | Hierarkin är rätt: färgen sitter i pilen och grafen, inte i siffran |
+| [Översikt, flera personer](images/glukos/app-overview.webp) | Kort per person, med "Lågt" och "Högt" i text | Precis rätt för föräldrar. Pilen och grafen kan säga olika saker (Libres pil bygger på ungefär 15 min), så bestäm hur det ska visas |
+| [Låsskärm och Dynamic Island](images/glukos/lockscreen-live-activity.webp) | Live Activity med minigraf, kompakt och expanderad Dynamic Island | Stämmer med §8.4. Ta bort tidsaxeln. Minigrafen kräver G2 |
+| [StandBy](images/glukos/standby.webp) | Nattläge vid sängen | Kommer gratis med Live Activity |
+| [Garmin](images/glukos/garmin.webp) | Urtavla med graf i en båge, datafält under löptur (med ålder "3 min"), glance-lista | Bra. Graf i ett litet datafält bara på klockor med hög upplösning. Glance med graf bara på klockor med mycket minne |
+| [Android](images/glukos/android-live-update.webp) | Chip i statusfältet, Live Update i notislistan | Chipet går att bygga. Grafen i notisen går inte att bygga (§8.4) |
+| [Macens menyrad](images/glukos/mac-menubar.webp) | Droppe + `6,8 ↗` i menyraden, popover med graf och diskret läge | Det här är den egna Mac-appen (senare, G4). I v1 visar speglingen bara den kompakta vyn |
+| [Notis och gammalt värde](images/glukos/notification-and-stale.webp) | Notis "Lisa 3,4 ↓ · lågt" med "Pausa 1 timme", och läget när inget nytt värde kommit på 17 min | Notisens ikon är alltid appens ikon på iOS, så den kan inte bli röd. Färgen sitter i texten. Efter 15 min ska siffran bli mindre enligt §8.3, medan bilden visar den stor och grå. Behåll regeln |
+
+### 18.2 Ikon
+
+[Förslaget](images/glukos/icon-draft.webp) är en vit droppe med en sicksackgraf på en turkosgrön gradient.
+
+**Det som fungerar:**
+- Droppen är enkel och känns igen även liten.
+- Färgen är densamma som accenten för "i målområdet".
+- Den passar Apples ikonstil.
+
+**Det som bör ändras:**
+- **Grafen med punkter säger "statistik över tid"**, alltså det Glukos medvetet inte är.
+- Droppe plus graf är också vanligt bland glukosappar för loggning.
+- Bättre vore något som säger **nu**:
+  - (a) en droppe med en enda pil (→ eller ↗) i negativ form;
+  - (b) en droppe med en liten "live"-prick eller en pulsring.
+- Inga siffror i ikonen.
+
+**Varianter som behövs:**
+- iOS 26: ikon i lager (Icon Composer), med ljus, mörk, klar och tonad variant.
+- Android: adaptiv ikon med förgrund och bakgrund, och en monokrom variant för tematiska ikoner.
+- Mac.
+- Garmin: launcher-ikoner på 40–80 pixlar. Bara siluetten håller där.
+- Menyraden och Dynamic Island: en enfärgad droppe som mallbild.
+
+**Prompt för nästa varv:**
+
+```text
+App icon for "Glukos", a glucose app about the value right now, not statistics. Apple iOS 26 icon style (layered Liquid Glass, soft depth, continuous squircle).
+A simple white water-drop silhouette on a teal-green gradient (#14C8B4 → #2EE6A6). Inside the drop, in negative space, a single bold arrow pointing to the right and slightly up (like "↗"), OR a small glowing "live" dot with one subtle pulse ring — show both variants side by side.
+No chart lines, no dots in a graph, no numbers, no text. Must stay recognizable at 40×40 px.
+Also show for the arrow variant: dark mode version, a tinted/monochrome version, and a flat white-on-black version for a smartwatch launcher.
+```
+
+### 18.3 Namn
+
+**Önskat:** "Glukos" på svenska och "Glucose" på andra språk, med "Glukos:Live" och "Glucose:Live" som reserv.
+
+**Fakta:**
+- **"Glucose" är redan taget i App Store**, av minst två appar: "Glucose - Blood Sugar Tracker" och "Glucose | Blood Sugar Tracker".
+  Ett generiskt ord går dessutom inte att skydda som varumärke, och det är svårt att synas med i sökningar.
+- **"Glucose Live" och "Glukos Live" ligger mycket nära GlucoLive**, en app från maj 2026 som gör nästan samma sak: Libre via LinkUp, Live Activity, Dynamic Island och Apple Watch.
+  Risken för förväxling är stor, både för användare och i en granskning.
+- **Kolon i namnet** ("Glukos:Live") ser ut som kod och kan krångla i butikernas namnfält och sökning. Om "Live" behövs, skriv det utan kolon.
+- App Store, Google Play och Connect IQ har **namn och undertitlar per språk**, så olika namn per språk går tekniskt. Det delar dock varumärket i två.
+
+**Rekommendation:**
+- **"Glukos" i alla marknader**, om namnet är ledigt. Det är kort, går att uttala på engelska och tyska ("Glukose"), är mer unikt än "Glucose" och går troligen att skydda i kombination med ikonen.
+- Sökorden läggs i undertiteln, som finns per språk:
+  - sv: "Glukosvärdet här och nu"
+  - en: "Glucose at a glance"
+- Namnet på hemskärmen är "Glukos".
+- **Kontrollera innan namnet bestäms:**
+  - att namnet är ledigt i App Store Connect, Google Play och Connect IQ;
+  - domänen (till exempel `glukos.app`);
+  - varumärken hos PRV, EUIPO och USPTO, i klass 9 och 44.
+- Om "Glukos" är upptaget behövs ett eget namn som inte är ett generiskt ord. Ta fram förslag då.
 
 ---
 
