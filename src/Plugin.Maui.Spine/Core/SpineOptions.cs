@@ -49,6 +49,16 @@ public abstract class NavigableDefaults
 
     /// <summary>Default for <see cref="NavigableAttribute.KeyboardAvoidance"/>: <see langword="true"/>.</summary>
     public bool KeyboardAvoidance { get; set; } = true;
+
+    /// <summary>
+    /// Whether a page whose scroll source (<see cref="ScrollView"/> or <see cref="CollectionView"/>) reaches its bottom
+    /// edge scrolls under the bottom bar — the home indicator, Android's gesture bar, the floating tab bar — the way a
+    /// list does under a navigation controller: Spine leaves <see cref="SafeAreaEdges.Bottom"/> out of the page's safe
+    /// area and gives the scroll source a bottom scroll inset, so its last row still scrolls clear of the bar.
+    /// Only for a page that sets neither <c>SafeAreaEdges</c> nor <c>ScrollInset</c> (on its attribute, in these
+    /// defaults, or <c>SafeArea.ScrollInset</c> on the view). Defaults to <see langword="true"/>.
+    /// </summary>
+    public bool ScrollUnderBottomBar { get; set; } = true;
 }
 
 /// <summary>

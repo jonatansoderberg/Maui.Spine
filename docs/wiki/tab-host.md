@@ -141,7 +141,7 @@ the properties above applied on top ([#22](https://github.com/jonatansoderberg/M
 
 Spine's explicit safe-area contract extends into tabs: the **bottom inset a tab page sees includes the native tab bar**.
 
-- `SafeAreaEdges.All` (default): content is padded above the bar — nothing to do.
+- `SafeAreaEdges.All` (default): content is padded above the bar — nothing to do. A page whose scroll view reaches its bottom edge scrolls under the bar by itself, its last row clear of it ([Scrolling under a bar](regions.md#scrolling-under-a-bar)).
 - Excluding `Bottom`: content renders behind the bar (required for the full iOS 26 glass effect on scrolling content). Give the list `SafeArea.ScrollInset="Bottom"` — or set `ScrollInset = SafeAreaEdges.Bottom` on the attribute or `options.TabDefaults` — so it scrolls under the bar and its last row still comes clear of it; see [Scrolling under a bar](regions.md#scrolling-under-a-bar). Offset non-scrolling content via `SafeAreaInsets` exactly as for system bars.
 - With the on-screen keyboard up, the tab's content ends above the keyboard, which covers the tab bar; see [The on-screen keyboard](regions.md#the-on-screen-keyboard).
 

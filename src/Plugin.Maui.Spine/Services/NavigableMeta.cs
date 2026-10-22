@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Plugin.Maui.Spine.Core;
 using Plugin.Maui.Spine.Extensions;
 using SafeAreaEdges = Plugin.Maui.Spine.Core.SafeAreaEdges;
@@ -61,6 +62,8 @@ internal static class NavigableMeta
             vm.Lightbox = lightboxMeta;
         }
 
+        ScrollUnderBottomBar(view, vm, meta);
+
         vm.EffectiveHeaderBarBackground = ResolveBackground(view, vm, meta);
         vm.PageView = new WeakReference<View>(view);
 
@@ -81,6 +84,33 @@ internal static class NavigableMeta
             HeaderBar.Track(view, vm);
 
         vm.ReapplyHeaderBar = () => ReapplyHeaderBar(view, vm, meta, insetsProvider);
+    }
+
+    // Scroll sources whose bottom inset Spine set, so a page shown again is still recognised as one that left it to Spine.
+    static readonly ConditionalWeakTable<View, object> BottomInsetBySpine = new();
+
+    /// <summary>
+    /// A page whose scroll source reaches its bottom edge scrolls under the bottom bar (home indicator, gesture bar,
+    /// floating tab bar) instead of stopping above it, where the content would be cut off while scrolling: the bottom
+    /// edge comes out of the page's safe area and the scroll source takes it as a scroll inset.
+    /// Only when the page leaves its edges to Spine (<see cref="NavigableAttribute.ScrollsUnderBottomBar"/>) and the
+    /// view does not set its own <see cref="SafeArea.ScrollInsetProperty"/>.
+    /// </summary>
+    static void ScrollUnderBottomBar(View view, ViewModelBase vm, NavigableAttribute meta)
+    {
+        if (!meta.ScrollsUnderBottomBar
+            || (HeaderBar.GetScrollSource(view) ?? FindFirstScrollable(view)) is not { } source
+            || !FillsToBottom(view, source))
+            return;
+
+        var ours = BottomInsetBySpine.TryGetValue(source, out _);
+        if (source.IsSet(SafeArea.ScrollInsetProperty) && !ours)
+            return;
+
+        vm.SafeAreaEdges &= ~SafeAreaEdges.Bottom;
+        vm.ScrollInset |= SafeAreaEdges.Bottom;
+        SafeArea.SetScrollInset(source, SafeArea.GetScrollInset(source) | SafeAreaEdges.Bottom);
+        BottomInsetBySpine.AddOrUpdate(source, true);
     }
 
     /// <summary>
@@ -167,6 +197,31 @@ internal static class NavigableMeta
             if (parent is Grid grid && child is BindableObject cell
                 && Grid.GetRow(cell) == 0
                 && Grid.GetRowSpan(cell) >= Math.Max(1, grid.RowDefinitions.Count))
+                continue;
+
+            if (parent is Layout layout && layout.Count == 1)
+                continue;
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="source"/> reaches <paramref name="page"/>'s bottom edge: every container between them
+    /// holds only that branch, or is a grid in which that branch reaches the last row (a list with a floating button
+    /// over it). A list with a fixed footer under it does not.
+    /// </summary>
+    internal static bool FillsToBottom(Element page, Element source)
+    {
+        for (var child = source; child.Parent is { } parent && !ReferenceEquals(child, page); child = child.Parent)
+        {
+            if (ReferenceEquals(parent, page) || parent is ContentView or Border or ScrollView)
+                continue;
+
+            if (parent is Grid grid && child is BindableObject cell
+                && Grid.GetRow(cell) + Grid.GetRowSpan(cell) >= Math.Max(1, grid.RowDefinitions.Count))
                 continue;
 
             if (parent is Layout layout && layout.Count == 1)
