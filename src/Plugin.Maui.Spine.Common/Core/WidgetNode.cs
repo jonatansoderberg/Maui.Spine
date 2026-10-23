@@ -179,6 +179,13 @@ public sealed record RelativeDateNode(DateTimeOffset Date) : TextLikeNode
     /// </summary>
     public bool? Compact { get; init; }
 
+    /// <summary>
+    /// Whole minutes, then hours and minutes: <c>5 minutes</c>, <c>1 hour, 5 minutes</c>, in the app's language. iOS 18
+    /// draws the units' full names, the only form of this it updates by itself; earlier iOS draws it as without, and
+    /// Android as a clock. Wins over <see cref="Compact"/> where it is drawn.
+    /// </summary>
+    public bool? Rounded { get; init; }
+
     /// <summary>Text drawn in front of the time as part of the same text: <c>"Uppdaterad "</c>.</summary>
     public string? Prefix { get; init; }
 

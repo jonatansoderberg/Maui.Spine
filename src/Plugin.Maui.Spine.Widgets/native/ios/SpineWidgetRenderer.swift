@@ -159,6 +159,7 @@ final class Node: Decodable {
     var height: Double?
     var value: Double?
     var compact: Bool?
+    var rounded: Bool?
     var prefix: String?
     var centered: Bool?
     var spacing: Double?
@@ -275,9 +276,7 @@ struct NodeView: View {
             }
         case "relative":
             if let date = node.date {
-                // .timer is the same information as a clock — "18:35" rather than "18 min, 35 secs"
-                // — for the regions that have no room for a sentence.
-                prefixed(node, Text(date, style: node.compact == true ? .timer : .relative))
+                prefixed(node, age(since: date))
                     .monospacedDigit()
                     .modifier(TextStyleModifier(node: node))
             }
@@ -320,6 +319,17 @@ struct NodeView: View {
         default:
             EmptyView()
         }
+    }
+
+    /// The age of `date`, redrawn by the system. Rounded on iOS 18: whole minutes, then hours and minutes, which iOS
+    /// only draws with the units' full names ("1 hour, 5 minutes"). Compact: .timer, the same information as a clock,
+    /// "18:35" rather than "18 min, 35 secs", for the regions that have no room for a sentence.
+    private func age(since date: Date) -> Text {
+        if node.rounded == true, #available(iOS 18.0, *) {
+            return Text(.currentDate, format: .offset(to: date, allowedFields: [.hour, .minute], maxFieldCount: 2, sign: .never)
+                .locale(AppLanguage.locale))
+        }
+        return Text(date, style: node.compact == true ? .timer : .relative)
     }
 
     @ViewBuilder private var children: some View {
@@ -613,6 +623,26 @@ struct TextStyleModifier: ViewModifier {
     }
 }
 
+/// The language the app shows, for what the system writes in a widget or an activity: "2 min, 5 secs", a rounded age.
+/// The extension is built with no localizations of its own, so iOS would write those in English whatever the app
+/// shows. The app's CFBundleLocalizations name the languages it has, and the user's order picks one of them, as iOS
+/// picks the app's own; the user's region still decides the formats.
+enum AppLanguage {
+    static let locale: Locale = {
+        var url = Bundle.main.bundleURL
+        while url.pathExtension != "app", url.pathComponents.count > 1 { url = url.deletingLastPathComponent() }
+        let app = Bundle(url: url)
+        let languages = (app?.object(forInfoDictionaryKey: "CFBundleLocalizations") as? [String])
+            ?? app?.localizations.filter { $0 != "Base" } ?? []
+        guard !languages.isEmpty,
+              let language = Bundle.preferredLocalizations(from: languages, forPreferences: Locale.preferredLanguages).first
+        else { return .autoupdatingCurrent }
+        var components = Locale.Components(locale: .current)
+        components.languageComponents = Locale.Language.Components(identifier: language)
+        return Locale(components: components)
+    }()
+}
+
 enum Palette {
     static func font(_ role: String?) -> Font {
         switch role?.lowercased() {
@@ -791,7 +821,7 @@ struct SpineWidgetView: View {
 
     @ViewBuilder private var content: some View {
         if let tree = entry.trees[Families.key(family)] ?? entry.trees["default"] {
-            NodeView(node: tree).environment(\.spineKind, entry.kind)
+            NodeView(node: tree).environment(\.spineKind, entry.kind).environment(\.locale, AppLanguage.locale)
         } else {
             Text("—").foregroundStyle(.secondary)
         }
@@ -844,7 +874,7 @@ struct Slot: View {
     let node: Node?
     var kind: String = ""
     var body: some View {
-        if let node { NodeView(node: node).environment(\.spineKind, kind) } else { EmptyView() }
+        if let node { NodeView(node: node).environment(\.spineKind, kind).environment(\.locale, AppLanguage.locale) } else { EmptyView() }
     }
 }
 

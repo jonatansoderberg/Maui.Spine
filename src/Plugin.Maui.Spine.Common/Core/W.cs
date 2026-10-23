@@ -44,8 +44,12 @@ public static class W
     /// anywhere the width is tight, the Dynamic Island's compact presentation most of all.
     /// </param>
     /// <param name="prefix">Text in front of the time, drawn as one text with it; see <see cref="Timer"/>.</param>
-    public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false, string? prefix = null) =>
-        new(date) { Compact = compact ? true : null, Prefix = prefix };
+    /// <param name="rounded">
+    /// <see langword="true"/> for whole minutes, then hours and minutes: <c>5 minutes</c>, <c>1 hour, 5 minutes</c>. iOS 18
+    /// and later; see <see cref="RelativeDateNode.Rounded"/>.
+    /// </param>
+    public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false, string? prefix = null, bool rounded = false) =>
+        new(date) { Compact = compact ? true : null, Prefix = prefix, Rounded = rounded ? true : null };
 
     /// <summary>A platform symbol by SF Symbols name.</summary>
     public static IconNode Icon(string systemName, WidgetColor? color = null) => new(systemName) { Color = color };

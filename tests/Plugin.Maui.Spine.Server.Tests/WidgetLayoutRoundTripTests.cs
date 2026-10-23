@@ -58,6 +58,22 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_rounded_age_says_so_and_a_plain_one_does_not()
+    {
+        var reading = new DateTimeOffset(2026, 10, 23, 14, 0, 0, TimeSpan.Zero);
+        var layout = new LiveActivityLayout { LockScreen = W.Relative(reading, prefix: "för ", rounded: true).Caption() };
+
+        var json = layout.ToJson();
+        var back = Assert.IsType<RelativeDateNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Contains("\"rounded\":true", json);
+        Assert.True(back.Rounded);
+        Assert.Null(back.Compact);
+        Assert.Equal("för ", back.Prefix);
+        Assert.DoesNotContain("rounded", new LiveActivityLayout { LockScreen = W.Relative(reading, compact: true) }.ToJson());
+    }
+
+    [Fact]
     public void Text_that_is_not_centred_says_nothing_about_it()
     {
         var json = new LiveActivityLayout { LockScreen = W.Timer(DateTimeOffset.UnixEpoch) }.ToJson();
