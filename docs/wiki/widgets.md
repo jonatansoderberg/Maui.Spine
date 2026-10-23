@@ -229,6 +229,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
 | `W.Ring(value, color, size)` | A share (0 to 1, null for unknown) as a ring: a faint track all round, the value clockwise from 12 o'clock. Put it in a `ZStack` with a text for the number. SwiftUI draws it; Android draws it as a picture |
+| `W.Sparkline(points, from, to, step, color, height)` | A line through values over time, drawn by the platform, with an optional target band, a fading area and a dot on the last value. It is small enough to push to a Live Activity. See [Sparklines](#sparklines) |
 | `W.Spacer()` / `W.Divider()` | Flexible space, separator |
 | `W.Button(actionId, child)` | A tappable child that sends `actionId` to the provider (see [Buttons](#buttons)) |
 | `W.Adaptive(fallback, trees)` | A different subtree per family inside one tree (see [Adaptive trees](#adaptive-trees)) |
@@ -255,6 +256,23 @@ How the renderers lay the tree out, so a design can be planned before it is run:
 - **`W.Icon` has a fixed size**: 18 points square on iOS, 20 dp on Android, tinted with its color. For anything larger, use a picture.
 - **`W.Image` keeps its aspect ratio.** With a `height` it is scaled to that height; without one it is scaled to fit the room it is offered. See [Images](#images).
 - **The tree is the whole widget.** iOS gives it the system's content margins; Android pads it by 16 dp and centers it vertically. Nothing is drawn outside the tree except the [surface](#backgrounds-and-boxes).
+
+### Sparklines
+
+`W.Sparkline` draws a line through values over time, such as the last hour of a reading, a price or a queue. The platform draws it from the values, so unlike a picture made with `StoreAssetAsync` it can travel in a server's push to a Live Activity.
+
+```csharp
+var graph = W.Sparkline(readings.Select(r => (r.Time, r.Value)), now.AddHours(-1), now, TimeSpan.FromMinutes(1), Teal, height: 56)
+    .Band(3.9, 10, above: Amber, below: Coral)   // a faint target band; the line takes these colours outside it
+    .Area()                                       // a soft fill under the line, fading downwards
+    .Dot();                                       // the last value marked, in its colour
+```
+
+- **The axis is even.** The points are put one value per `step`, from `from` to `to`, keeping the latest of each step. A step with no point breaks the line. With no `step`, the span is cut into 60. `W.Sparkline(values)` takes plain values spread across the width instead.
+- **It is compact.** Values are rounded to a thousandth of their range, finer than a widget can draw, and times are not repeated per point. An hour at one value a minute takes about 550 bytes of the 4 KB a Live Activity push may carry. Twice in one layout, on the Lock Screen and in the expanded island, it still leaves well over a kilobyte.
+- **It is drawn smooth but true.** The curve is a monotone cubic, so it never swings above or below the values around it. The vertical scale fits the values with 15 % room above and below. The band does not stretch the scale; it is drawn wherever it falls.
+- **Colour by value.** Inside the band, or without one, the line is `color` (the accent when null). Above the band it is `above` and below it `below`; each defaults to `color`. The area takes the colour of the line above it, and the dot the colour of the last value.
+- **Size.** On iOS the line fills the width it is offered, at `height` points (48 by default). Android draws it as a picture `height` dp high and `Aspect` times as wide (3 by default). Android's Live Update notification has no place for a graph and leaves it out.
 
 ### Backgrounds and boxes
 

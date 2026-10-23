@@ -40,6 +40,8 @@ public sealed class NextStartWidget(IRaceService races, IWidgetService widgets) 
 }
 ```
 
+Besides text, timers, icons, pictures, bars and rings, the tree draws charts of its own: `W.Sparkline(points, from, to)` is a line over time with an optional target band, area and last-value dot. The platform draws it from the values, so a server can push it inside a Live Activity, where a stored picture cannot go.
+
 Controls — a toggle or a button in iOS 18's Control Center, on the Lock Screen and the Action button, and an Android Quick Settings tile — come from the same package: a `<SpineControl Include="goal-alerts" Type="Toggle" />` item and a `[Control("goal-alerts")]` class implementing `IControlProvider`. A tap runs the provider's `OnActionAsync` in the app's process without opening the app.
 
 On iOS the app needs an App Group entitlement shared with the extension; the package's build targets write it. The documentation covers the developer-portal steps device builds need.

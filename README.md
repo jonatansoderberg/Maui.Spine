@@ -292,6 +292,7 @@ The `samples/MauiSpineSampleApp` project demonstrates all of the above features:
 | App shortcuts → navigation | `ShortcutHandler` → `ShortcutsPage`, `LiveActivitiesPage`, `WidgetsPage`, the scanner sheet on `BarcodesPage`, `ThemePage` |
 | Windows tray icon + close-to-background | `MauiProgram.cs` options |
 | Home-screen and Lock Screen widgets with buttons (iOS, Android) | `Widgets/Hockey/ScoreWidget.cs`, `Widgets/SampleWidget.cs`, `WidgetsPage` |
+| A sparkline the widget draws itself, with a target band (the medium sample widget) | `Widgets/SampleWidget.cs` |
 | Live Activity updated from the app, with a lock-screen button (iOS, Android 16) | `Widgets/Hockey/ScoreActivity.cs`, `LiveActivitiesPage` |
 | Background tasks: a scheduled task that rebuilds a widget, one that fails, status and Run now | `BackgroundTasks/SampleSyncTask.cs`, `BackgroundTasksPage` |
 | An unlock before a page or a command: `[RequiresUnlock]`, `Fresh`, `Unlock.Command`, `IUnlock` | `BiometricsPage`, `PinPage` |
