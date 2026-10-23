@@ -17,6 +17,8 @@
 		  SpineWidgetsBackgroundRefresh default true                    (iOS: UIBackgroundModes fetch + the BGTaskScheduler identifier; Android: the alarm receiver;
 		                                                                 with Plugin.Maui.Spine.BackgroundTasks the refresh is its task spine.widgets instead)
 		  SpineWidgetsFrequentUpdates default false                     (iOS: NSSupportsLiveActivitiesFrequentUpdates)
+		  SpineWidgetsLiveActivitySmall default false                   (iOS 18: declares the small activity family, so CarPlay and the
+		                                                                 Apple Watch Smart Stack draw LiveActivityLayout.Small)
 		  SpineWidgetsMinimumOSVersion default 17.0                    (iOS)
 		  SpineWidgetsExtensionName   default SpineWidgets             (iOS)
 		  SpineWidgetsCodesignProvision default empty                  (iOS: the extension's own profile; found by App ID when empty)
@@ -31,6 +33,7 @@
 		<SpineWidgetsLiveActivities Condition="'$(SpineWidgetsLiveActivities)' == ''">true</SpineWidgetsLiveActivities>
 		<SpineWidgetsBackgroundRefresh Condition="'$(SpineWidgetsBackgroundRefresh)' == ''">true</SpineWidgetsBackgroundRefresh>
 		<SpineWidgetsFrequentUpdates Condition="'$(SpineWidgetsFrequentUpdates)' == ''">false</SpineWidgetsFrequentUpdates>
+		<SpineWidgetsLiveActivitySmall Condition="'$(SpineWidgetsLiveActivitySmall)' == ''">false</SpineWidgetsLiveActivitySmall>
 		<SpineWidgetsMinimumOSVersion Condition="'$(SpineWidgetsMinimumOSVersion)' == ''">17.0</SpineWidgetsMinimumOSVersion>
 		<SpineWidgetsExtensionName Condition="'$(SpineWidgetsExtensionName)' == ''">SpineWidgets</SpineWidgetsExtensionName>
 		<SpineWidgetsCodesignProvision Condition="'$(SpineWidgetsCodesignProvision)' == ''"></SpineWidgetsCodesignProvision>
@@ -110,7 +113,7 @@
 		<ItemGroup>
 			<_SpineWidgetsInputLine Include="@(SpineWidget->'%(Identity)|%(DisplayName)|%(Description)|%(Families)')" />
 			<_SpineWidgetsInputLine Include="@(SpineControl->'control:%(Identity)|%(Type)|%(DisplayName)|%(Description)|%(Icon)')" Condition="'$(_SpineControlsApple)' == 'true'" />
-			<_SpineWidgetsInputLine Include="$(_SpineWidgetsBundleId);$(SpineWidgetsAppGroup);$(SpineWidgetsLiveActivities);$(SpineWidgetsBackgroundRefresh);$(SpineWidgetsFrequentUpdates);$(SpineWidgetsMinimumOSVersion);$(Configuration);$(ApplicationTitle);$(_SpineWidgetsArch);$(_SpineWidgetsSdk);$(SpineWidgetsCodesignProvision);$(_SpineWidgetsRequireProvision);$(SpineWidgetsPush);$(_SpineWidgetsPushEnvironment)" />
+			<_SpineWidgetsInputLine Include="$(_SpineWidgetsBundleId);$(SpineWidgetsAppGroup);$(SpineWidgetsLiveActivities);$(SpineWidgetsLiveActivitySmall);$(SpineWidgetsBackgroundRefresh);$(SpineWidgetsFrequentUpdates);$(SpineWidgetsMinimumOSVersion);$(Configuration);$(ApplicationTitle);$(_SpineWidgetsArch);$(_SpineWidgetsSdk);$(SpineWidgetsCodesignProvision);$(_SpineWidgetsRequireProvision);$(SpineWidgetsPush);$(_SpineWidgetsPushEnvironment)" />
 		</ItemGroup>
 		<WriteLinesToFile File="$(_SpineWidgetsInputsFile)" Lines="@(_SpineWidgetsInputLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
 
@@ -124,7 +127,7 @@
 			Condition="'$(SpineWidgetsEnabled)' == 'true' And '$(_SpineWidgetsApple)' == 'true' And ('@(SpineWidget)' != '' Or ('@(SpineControl)' != '' And '$(_SpineControlsApple)' == 'true')) And '$(RuntimeIdentifier)' != '' And '$(DesignTimeBuild)' != 'true' And $([MSBuild]::IsOSPlatform('OSX'))"
 			Inputs="@(_SpineWidgetsInputs)"
 			Outputs="$(_SpineWidgetsStamp)">
-		<Exec Command="bash &quot;$(_SpineWidgetsScript)&quot; --out &quot;$(_SpineWidgetsOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpineWidgetsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpineWidgetsSdk) --arch $(_SpineWidgetsArch) --min-os $(SpineWidgetsMinimumOSVersion) --config $(Configuration) --bundle-id &quot;$(_SpineWidgetsBundleId)&quot; --app-group &quot;$(SpineWidgetsAppGroup)&quot; --name &quot;$(SpineWidgetsExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --live-activities $(SpineWidgetsLiveActivities) --frequent-updates $(SpineWidgetsFrequentUpdates) --provision &quot;$(SpineWidgetsCodesignProvision)&quot; --require-provision $(_SpineWidgetsRequireProvision) --push $(SpineWidgetsPush) --push-environment $(_SpineWidgetsPushEnvironment) $(_SpineWidgetsArgs)" />
+		<Exec Command="bash &quot;$(_SpineWidgetsScript)&quot; --out &quot;$(_SpineWidgetsOutDir.TrimEnd('/'))&quot; --sources &quot;$(_SpineWidgetsNativeDir.TrimEnd('/'))&quot; --sdk $(_SpineWidgetsSdk) --arch $(_SpineWidgetsArch) --min-os $(SpineWidgetsMinimumOSVersion) --config $(Configuration) --bundle-id &quot;$(_SpineWidgetsBundleId)&quot; --app-group &quot;$(SpineWidgetsAppGroup)&quot; --name &quot;$(SpineWidgetsExtensionName)&quot; --display-name &quot;$(ApplicationTitle)&quot; --live-activities $(SpineWidgetsLiveActivities) --small-activities $(SpineWidgetsLiveActivitySmall) --frequent-updates $(SpineWidgetsFrequentUpdates) --provision &quot;$(SpineWidgetsCodesignProvision)&quot; --require-provision $(_SpineWidgetsRequireProvision) --push $(SpineWidgetsPush) --push-environment $(_SpineWidgetsPushEnvironment) $(_SpineWidgetsArgs)" />
 	</Target>
 
 	<!--

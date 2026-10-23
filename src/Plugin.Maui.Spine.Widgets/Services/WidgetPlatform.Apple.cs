@@ -28,6 +28,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     private const string BridgeClassName = "SpineWidgetBridge";
     private const string AppGroupInfoKey = "SpineWidgetsAppGroup";
     private const string ControlsInfoKey = "SpineWidgetsControls";
+    private const string SmallActivitiesInfoKey = "SpineWidgetsLiveActivitySmall";
 
     private readonly ILogger<WidgetPlatform> _logger;
     private readonly object _actionsLock = new();
@@ -35,6 +36,8 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     private readonly string? _appGroup;
     private readonly string? _containerPath;
     private readonly bool _hasControls;
+    private readonly bool _smallActivities;
+    private bool _smallWarned;
 
     public WidgetPlatform(SpineWidgetsOptions options, ILogger<WidgetPlatform> logger)
     {
@@ -43,6 +46,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
         _appGroup = options.AppGroup ?? NSBundle.MainBundle.ObjectForInfoDictionary(AppGroupInfoKey)?.ToString();
         // The kinds the build compiled into the extension; Mac Catalyst builds list none.
         _hasControls = NSBundle.MainBundle.ObjectForInfoDictionary(ControlsInfoKey) is NSArray { Count: > 0 };
+        _smallActivities = NSBundle.MainBundle.ObjectForInfoDictionary(SmallActivitiesInfoKey) is NSNumber { BoolValue: true };
 
         if (_bridge != IntPtr.Zero && options.LiveActivityPushTokens)
             Send(_bridge, Selector.GetHandle("enablePushTokens"));
@@ -182,6 +186,7 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     private string? StartActivity(string kind, string json, DateTimeOffset? staleAt, string? channel)
     {
         if (!IsSupported) return null;
+        WarnIfSmallIgnored(json);
         using var kindValue = new NSString(kind);
         using var jsonValue = new NSString(json);
         using var channelValue = channel is null ? null : new NSString(channel);
@@ -195,9 +200,20 @@ internal sealed class WidgetPlatform : IWidgetPlatform
     public void UpdateActivity(string id, string json, DateTimeOffset? staleAt)
     {
         if (!IsSupported) return;
+        WarnIfSmallIgnored(json);
         using var idValue = new NSString(id);
         using var jsonValue = new NSString(json);
         Send(_bridge, Selector.GetHandle("updateActivityWithId:json:staleAt:"), idValue.Handle, jsonValue.Handle, Seconds(staleAt));
+    }
+
+    // The small family is declared when the extension is built, so without it a Small tree is never drawn.
+    private void WarnIfSmallIgnored(string json)
+    {
+        if (_smallActivities || _smallWarned || OperatingSystem.IsMacCatalyst() || !json.Contains("\"small\":", StringComparison.Ordinal)) return;
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+        if (!document.RootElement.TryGetProperty("small", out _)) return;
+        _smallWarned = true;
+        _logger.LogWarning("LiveActivityLayout.Small is set, but the widget extension does not declare the small activity family, so CarPlay and the Apple Watch show the compact views instead. Set SpineWidgetsLiveActivitySmall to true in the project.");
     }
 
     public void EndActivity(string id)
