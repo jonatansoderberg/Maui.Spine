@@ -242,7 +242,8 @@ public sealed record RingNode(double? Value) : WidgetNode
 /// with <see cref="W.Sparkline(IEnumerable{ValueTuple{DateTimeOffset, double}}, DateTimeOffset, DateTimeOffset, TimeSpan?, WidgetColor?, double)"/>.
 /// </summary>
 /// <param name="Values">
-/// The values in time order, <see langword="null"/> where there is none; the line breaks there. With
+/// The values in time order, <see langword="null"/> where there is none. A short run of them is bridged; a run of more
+/// than a tenth of the values (at least two) breaks the line. With
 /// <see cref="From"/> and <see cref="Step"/> value <c>i</c> is at <c>From + i × Step</c>; without them the values
 /// are spread evenly across the width.
 /// </param>

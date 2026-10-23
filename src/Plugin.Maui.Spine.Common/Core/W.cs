@@ -69,7 +69,8 @@ public static class W
     /// <summary>
     /// A line through <paramref name="points"/> from <paramref name="from"/> to <paramref name="to"/>, drawn by the
     /// platform; see <see cref="SparklineNode"/>. The points are put on an even time axis, one value per
-    /// <paramref name="step"/>, the latest of each step kept. A step with none breaks the line. The values
+    /// <paramref name="step"/>, the latest of each step kept. A short run of steps with none is bridged; a run longer
+    /// than a tenth of the steps breaks the line. The values
     /// are rounded to a thousandth of their range, finer than a widget can draw, so an hour at one value a
     /// minute takes about 300 bytes.
     /// </summary>
