@@ -342,11 +342,13 @@ struct SparklineView: View {
                 if let band = plot.band {
                     Path(band).fill(plot.inRange.opacity(0.14))
                 }
+                // The fade is in the colours themselves. A gradient mask over the area drew nothing on an
+                // iPhone's lock screen (iOS 27), while the Dynamic Island and the simulator drew it.
                 if node.area == true {
-                    plot.area
-                        .fill(LinearGradient(stops: plot.alongStops, startPoint: .leading, endPoint: .trailing))
-                        .opacity(0.35)
-                        .mask(LinearGradient(colors: [.white, .white.opacity(0)], startPoint: .top, endPoint: .bottom))
+                    ForEach(plot.areas.indices, id: \.self) { i in
+                        plot.areas[i].path.fill(LinearGradient(colors: [plot.areas[i].color.opacity(0.35), plot.areas[i].color.opacity(0)],
+                                                               startPoint: .top, endPoint: .bottom))
+                    }
                 }
                 // Butt ends where one colour meets the next, so the cut is square to the line; round ends only
                 // where the line itself starts and stops.
@@ -438,10 +440,9 @@ struct SparklinePlot {
     let halo: CGFloat
     let inRange: Color
     var runs: [(path: Path, color: Color)] = []
+    var areas: [(path: Path, color: Color)] = []
     var ends: [(point: CGPoint, color: Color)] = []
-    var area = Path()
     var band: CGRect?
-    var alongStops: [Gradient.Stop] = []
     var last: (point: CGPoint, color: Color)?
 
     init(node: Node, size: CGSize) {
@@ -497,31 +498,25 @@ struct SparklinePlot {
             segments[segments.count - 1].append(point)
         }
 
-        // Along the width the area takes the colour of the line above it, blending over a few points either side
-        // of where the line changes colour.
-        let blend = lineWidth * 2
-        var changes: [(x: CGFloat, from: Color, to: Color)] = []
-        var lastRun: Color?
+        // Each colour's stretch of line closes down to the bottom as its own area, so the area under the line is in the
+        // line's colour and changes where the line does.
+        func finish(_ run: (path: Path, color: Color, start: CGPoint)) {
+            runs.append((run.path, run.color))
+            guard let end = run.path.currentPoint else { return }
+            var fill = run.path
+            fill.addLine(to: CGPoint(x: end.x, y: size.height))
+            fill.addLine(to: CGPoint(x: run.start.x, y: size.height))
+            fill.closeSubpath()
+            areas.append((fill, run.color))
+        }
         for segment in segments where !segment.isEmpty {
             let pieces = SparkPiece.smooth(segment)
-            if let lastRun, let start = runs.last?.path.currentPoint {
-                let tint = color(atY: segment[0].y)
-                if tint != lastRun { changes.append(((start.x + segment[0].x) / 2, lastRun, tint)) }
-            }
             if pieces.isEmpty {
-                let tint = color(atY: segment[0].y)
-                ends.append((segment[0], tint))
-                runs.append((Path(), tint))
-                runs[runs.count - 1].path.move(to: segment[0])
-                lastRun = tint
+                ends.append((segment[0], color(atY: segment[0].y)))
                 continue
             }
-
-            var fill = Path()
-            fill.move(to: segment[0])
-            var run: (path: Path, color: Color)?
+            var run: (path: Path, color: Color, start: CGPoint)?
             for piece in pieces {
-                fill.addCurve(to: piece.p3, control1: piece.c1, control2: piece.c2)
                 let cuts = ([upper, lower].compactMap { $0 }.flatMap { piece.crossings($0) }).sorted()
                 var rest = piece
                 var done: CGFloat = 0
@@ -535,36 +530,20 @@ struct SparklinePlot {
                 for part in parts {
                     let tint = color(atY: part.y(0.5))
                     if run?.color != tint {
-                        if let finished = run {
-                            runs.append(finished)
-                            changes.append((part.p0.x, finished.color, tint))
-                        }
+                        if let finished = run { finish(finished) }
                         var path = Path()
                         path.move(to: part.p0)
-                        run = (path, tint)
+                        run = (path, tint, part.p0)
                     }
                     run?.path.addCurve(to: part.p3, control1: part.c1, control2: part.c2)
                 }
             }
-            if let run { runs.append(run) }
-            fill.addLine(to: CGPoint(x: segment[segment.count - 1].x, y: size.height))
-            fill.addLine(to: CGPoint(x: segment[0].x, y: size.height))
-            fill.closeSubpath()
-            area.addPath(fill)
+            if let run { finish(run) }
             ends.append((segment[0], color(atY: pieces[0].y(0.02))))
             ends.append((segment[segment.count - 1], color(atY: pieces[pieces.count - 1].y(0.98))))
-            lastRun = runs.last?.color
         }
 
-        guard let first = ends.first, let final = ends.last else { return }
-        last = (final.point, color(atY: final.point.y))
-        alongStops = [.init(color: first.color, location: 0)]
-        for change in changes {
-            let from = max(Double((change.x - blend) / size.width), alongStops[alongStops.count - 1].location)
-            alongStops.append(.init(color: change.from, location: from))
-            alongStops.append(.init(color: change.to, location: max(from, Double((change.x + blend) / size.width))))
-        }
-        alongStops.append(.init(color: final.color, location: max(1, alongStops[alongStops.count - 1].location)))
+        if let final = ends.last { last = (final.point, color(atY: final.point.y)) }
     }
 }
 
