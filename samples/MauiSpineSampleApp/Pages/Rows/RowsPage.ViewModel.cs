@@ -81,4 +81,18 @@ public partial class RowsPageViewModel : SampleViewModel
 
     [RelayCommand]
     private void TapCard() => CardTaps++;
+
+    [ObservableProperty]
+    public partial string? Email { get; set; }
+
+    [ObservableProperty]
+    public partial string? Password { get; set; }
+
+    [ObservableProperty]
+    public partial string SignInState { get; set; } = "Type an email and a password.";
+
+    [RelayCommand]
+    private void SignIn() => SignInState = string.IsNullOrEmpty(Email) || string.IsNullOrEmpty(Password)
+        ? "Both fields are needed."
+        : $"Would sign in {Email} with a {Password.Length}-character password.";
 }

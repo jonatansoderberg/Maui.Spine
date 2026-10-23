@@ -138,7 +138,7 @@ With `Backdrop` set, Spine clears it.
 
 **Symptom:** an `Entry` in a `SpineRow` has a square UIKit border with a rounded focus ring outside it.
 
-**Fix:** per Apple's guidelines, a field in a grouped row has no frame of its own; the row is the frame. Remove the border and the focus effect for those entries:
+**Fix:** per Apple's guidelines, a field in a grouped row has no frame of its own; the row is the frame. Use [`SpineEntryRow`](rows.md#spineentryrow), which has none. For an `Entry` of your own, remove the border and the focus effect:
 
 ```csharp
 EntryHandler.Mapper.AppendToMapping("GroupedRowField", (handler, _) =>

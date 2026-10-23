@@ -4,7 +4,7 @@ Three pieces for list rows and tappable cards:
 
 - **`Tap.Command`** (core, `Plugin.Maui.Spine`): an attached command on any view, with the platform's own press feedback.
 - **`Semantic.Merge`** (core): a layout that reads as one element to VoiceOver, TalkBack and Narrator.
-- **`SpineRow`** and **`SpineSection`** (package `Plugin.Maui.Spine.Controls.Rows`): a settings or key/value row built on both, and the group that makes rows look like the platform's own Settings.
+- **`SpineRow`**, **`SpineEntryRow`** and **`SpineSection`** (package `Plugin.Maui.Spine.Controls.Rows`): a settings or key/value row built on both, a text field as a row, and the group that makes rows look like the platform's own Settings.
 
 ## Setup
 
@@ -67,6 +67,44 @@ The chevron is the header bar's back glyph (`HeaderBarConstants.BackGlyph`) turn
 The defaults follow the platform, so the same markup reads as native on both: on Android the value moves under the title and there is no chevron, as in Android's own settings. `ValuePlacement="Trailing"` and `ShowChevron="True"` keep the iOS layout on Android.
 
 The row has no background and no separator of its own: group rows in a `SpineSection`, or in whatever card or list the app draws.
+
+## SpineEntryRow
+
+A text field as a row of a `SpineSection`, for a sign-in, an account or a name. It has no frame of its own, since the section's group is the frame: no UIKit border or Mac focus ring, no Android underline, no Windows box. It takes the rows' side insets, minimum height and title font, the placeholder is in the detail colour, and the section draws separators between it and the rows round it.
+
+```xml
+<SpineSection Header="Account">
+    <SpineEntryRow Text="{Binding Email}" Placeholder="Email" Keyboard="Email"
+                   IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
+                   ReturnType="Next" Completed="OnEmailCompleted" />
+    <SpineEntryRow x:Name="PasswordRow" Text="{Binding Password}" Placeholder="Password"
+                   IsPassword="True" ReturnType="Go" ReturnCommand="{Binding SignInCommand}" />
+</SpineSection>
+```
+
+```csharp
+void OnEmailCompleted(object? sender, EventArgs e) => PasswordRow.FocusField();
+```
+
+`IsPassword="True"` hides what is typed and puts an eye button at the end of the row that shows it. The button's screen-reader name is Spine's Show password or Hide password (`Spine.Row.ShowPassword`, `Spine.Row.HidePassword` in the [string store](strings.md)). `IsPasswordShown` is the eye's state and binds two-way: set it back to `false` to hide the password again.
+
+| Property | Default | Description |
+|---|---|---|
+| `Text` | `null` | What is typed; binds two-way |
+| `Placeholder` | `null` | Shown while the field is empty, and what a screen reader names the field by |
+| `Keyboard` | `Default` | `Email`, `Numeric`, `Telephone`, … |
+| `IsPassword` | `false` | Hides what is typed, with an eye button that shows it |
+| `IsPasswordShown` | `false` | Whether the password is shown; the eye flips it |
+| `IsSpellCheckEnabled` | `true` | Marks misspelt words; turn it off for addresses, user names and codes |
+| `IsTextPredictionEnabled` | `true` | Suggestions and autocorrection; turn it off for addresses, user names and codes |
+| `MaxLength` | `int.MaxValue` | The most characters the field takes |
+| `ReturnType` | `Default` | What the return key says: `Next`, `Go`, `Done`, … |
+| `ReturnCommand`, `ReturnCommandParameter` | `null` | Run by the return key |
+| `StyleOptions` | `null` | The same `SpineRowStyleOptions` as `SpineRow`: font, size, padding, minimum height, title and detail colours |
+
+`Completed` is raised when the return key is pressed, and `FocusField()` puts the cursor in the field, for moving from one field to the next. `IsEnabled="False"` dims the row like a `SpineRow`.
+
+The field fills the row from its leading inset to the eye button, so a tap anywhere on the row lands in it. The row has no title of its own: the placeholder names the field, as in iOS's own sign-in forms.
 
 ## SpineSection
 
@@ -173,4 +211,4 @@ A merged layout is one element: its children leave the accessibility tree and th
 
 ## Sample
 
-`samples/MauiSpineSampleApp/Pages/Rows` shows two `SpineSection`s of settings rows (badge icons, detail, value, switches, chevrons, a disabled row, a marquee detail) on the grouped background, a pick-one list, key/value rows, a card with `Tap.Command` and a merged custom row. Its options switch the badges off, move the value, and turn the rows' `CanExecute` off. The sample's main list (`ContextItem`) is built on `Tap.Command` and `Semantic.Merge`.
+`samples/MauiSpineSampleApp/Pages/Rows` shows two `SpineSection`s of settings rows (badge icons, detail, value, switches, chevrons, a disabled row, a marquee detail) on the grouped background, a pick-one list, key/value rows, an email and a password `SpineEntryRow`, a card with `Tap.Command` and a merged custom row. Its options switch the badges off, move the value, and turn the rows' `CanExecute` off. The sample's main list (`ContextItem`) is built on `Tap.Command` and `Semantic.Merge`.
