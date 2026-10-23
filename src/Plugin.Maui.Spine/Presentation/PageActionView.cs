@@ -528,7 +528,7 @@ internal sealed class PageActionView : ContentView
 
             _textButton.Command = CommandGuards.Wrap(action.Command);
             _textButton.CommandParameter = action.CommandParameter;
-            Spin(action.IsBusy && hasSvg ? _morphIcon : null, action);
+            Spin(action.IsBusy && action.SpinsWhenBusy && hasSvg ? _morphIcon : null, action);
         }
 
         // The glyph at the size and weight a UIBarButtonItem's symbol has, tinted like the icon buttons.
@@ -818,7 +818,7 @@ internal sealed class PageActionView : ContentView
                 ApplyMorphingImage();
         }
 
-        // The glyph turning for a busy action, or null; a text-only action only dims.
+        // The glyph turning for a busy action that spins, or null; any other busy action only dims.
         View? _spinning;
         PageAction? _spinningFor;
 
@@ -866,7 +866,7 @@ internal sealed class PageActionView : ContentView
             // The app's Disabled visual state may not reach a button whose colour is set directly.
             _imageButton.Opacity = enabled ? 1 : 0.4;
             _textButton.Opacity = enabled ? 1 : 0.4;
-            Spin(action.IsBusy && hasSvg ? _imageButton : null, action);
+            Spin(action.IsBusy && action.SpinsWhenBusy && hasSvg ? _imageButton : null, action);
 
             _badgeLabel.Text = action.Badge ?? string.Empty;
             SemanticProperties.SetDescription(_imageButton, action.Description);

@@ -23,8 +23,8 @@ public partial class PageActionsPageViewModel : SampleViewModel
     [RelayCommand]
     private void Filter() => Log = $"Filter tapped at {DateTime.Now:HH:mm:ss}";
 
-    // Second in the Secondary slot: takes over when Filter hides itself. Busy while it rings, so its icon turns.
-    [PageAction(Svg = "bell.svg", Order = 1, ShowsBusy = true)]
+    // Second in the Secondary slot: takes over when Filter hides itself. Busy while it rings, and its icon turns.
+    [PageAction(Svg = "bell.svg", Order = 1, ShowsBusy = true, SpinsWhenBusy = true)]
     [RelayCommand]
     private async Task Bell()
     {
@@ -49,7 +49,7 @@ public partial class PageActionsPageViewModel : SampleViewModel
     private Task ShowFilterOptions() => ShowOptionsAsync("Filter",
         new ToggleOption("Enabled", "Off, the button greys out and takes no taps.", () => FilterAction.IsEnabled, value => FilterAction.IsEnabled = value),
         new ToggleOption("Visible", "Off, Filter leaves the header, and Bell, the next Secondary action, takes its place.", () => FilterAction.IsVisible, value => FilterAction.IsVisible = value),
-        new ToggleOption("Busy", "On, the button dims and takes no taps; a text button does not turn.", () => FilterAction.IsBusy, value => FilterAction.IsBusy = value));
+        new ToggleOption("Busy", "On, the button dims and takes no taps, without turning.", () => FilterAction.IsBusy, value => FilterAction.IsBusy = value));
 
     [RelayCommand]
     private void CountUp()

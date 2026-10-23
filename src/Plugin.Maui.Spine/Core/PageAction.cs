@@ -176,19 +176,32 @@ public sealed partial class PageAction : ObservableObject
     public partial bool IsEnabled { get; set; } = true;
 
     /// <summary>
-    /// Whether the work the button starts is under way: the button is dimmed and does not respond to taps, and an
-    /// icon turns until it is set back, finishing the turn it is on. With Reduce Motion the icon only dims.
+    /// Whether the work the button starts is under way: the button is dimmed and does not respond to taps until it
+    /// is set back. With <see cref="SpinsWhenBusy"/> an icon also turns, finishing the turn it is on.
     /// <see cref="PageActionAttribute.ShowsBusy"/> sets it while an async command runs.
     /// </summary>
     /// <example>
     /// <code>
-    /// _refresh.IsBusy = true;
-    /// try { await LoadAsync(); }
-    /// finally { _refresh.IsBusy = false; }
+    /// _save.IsBusy = true;
+    /// try { await SaveAsync(); }
+    /// finally { _save.IsBusy = false; }
     /// </code>
     /// </example>
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
+
+    /// <summary>
+    /// Whether the icon turns while <see cref="IsBusy"/>, for a button whose glyph means going round, such as a
+    /// refresh. Defaults to <see langword="false"/>: a busy button only dims, which suits a confirm or send. Only the
+    /// glyph turns, never the circle under it; a text button and Reduce Motion only dim.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// _refresh = new PageAction(null, RefreshCommand) { Svg = "Reload.svg", SpinsWhenBusy = true };
+    /// </code>
+    /// </example>
+    [ObservableProperty]
+    public partial bool SpinsWhenBusy { get; set; }
 
     /// <summary>
     /// Short text shown in a small pill over the button, such as a count. <see langword="null"/> hides the pill.

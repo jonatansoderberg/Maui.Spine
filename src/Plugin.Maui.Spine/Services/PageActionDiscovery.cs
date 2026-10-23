@@ -49,6 +49,7 @@ internal static class PageActionDiscovery
             action.Badge = attribute.Badge;
             action.IsVisible = attribute.IsVisible;
             action.Haptic = attribute.Haptic;
+            action.SpinsWhenBusy = attribute.SpinsWhenBusy;
 
             if (attribute.ShowsBusy)
             {

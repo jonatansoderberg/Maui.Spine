@@ -138,7 +138,7 @@ With `Backdrop` set, Spine clears it.
 
 **Symptom:** an `Entry` in a `SpineRow` has a square UIKit border with a rounded focus ring outside it.
 
-**Fix:** per Apple's guidelines, a field in a grouped row has no frame of its own; the row is the frame. Remove the border and the focus effect for those entries:
+**Fix:** per Apple's guidelines, a field in a grouped row has no frame of its own; the row is the frame. Use [`SpineEntryRow`](rows.md#spineentryrow), which has none. For an `Entry` of your own, remove the border and the focus effect:
 
 ```csharp
 EntryHandler.Mapper.AppendToMapping("GroupedRowField", (handler, _) =>
@@ -178,7 +178,7 @@ PropertyChanged += (_, e) =>
 
 ### Turning a header button's icon yourself
 
-**Fix:** use [`PageAction.IsBusy`](page-actions.md#a-busy-action). Header buttons morph on macOS 26, and the glyph is then an `Image` over the glass rather than the button's image. The face is also reused for the next page's action, so a rotation started from outside keeps turning on Back.
+**Fix:** use [`PageAction.IsBusy`](page-actions.md#a-busy-action) with `SpinsWhenBusy = true`. Header buttons morph on macOS 26, and the glyph is then an `Image` over the glass rather than the button's image. The face is also reused for the next page's action, so a rotation started from outside keeps turning on Back.
 
 ### JavaScript in a `WebView` returns `null`
 
