@@ -346,7 +346,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
 
         if (Bool(node, "area"))
         {
-            // Each colour's stretch of line closes down to the bottom as its own area, fading downwards in its colour,
+            // Each colour's stretch of line closes down to the bottom as its own area, from its colour, opaque, to clear,
             // as SparklineView draws it on iOS.
             using var fill = new Android.Graphics.Paint(PaintFlags.AntiAlias);
             foreach (var (path, color, startX, endX) in runs)
@@ -355,7 +355,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 area.LineTo(endX, height);
                 area.LineTo(startX, height);
                 area.Close();
-                fill.SetShader(new LinearGradient(0, 0, 0, height, (int)(color & 0x00FFFFFF | 0x59000000), color & 0x00FFFFFF, Shader.TileMode.Clamp!));
+                fill.SetShader(new LinearGradient(0, 0, 0, height, (int)(color | 0xFF000000), color & 0x00FFFFFF, Shader.TileMode.Clamp!));
                 canvas.DrawPath(area, fill);
             }
         }
