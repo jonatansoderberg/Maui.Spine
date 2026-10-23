@@ -483,9 +483,15 @@ struct SparklinePlot {
             if bottom > top { band = CGRect(x: 0, y: top, width: size.width, height: bottom - top) }
         }
 
+        // A short run of missing values is bridged, so a reading that came a little early or late leaves no hole;
+        // a long one, such as a sensor that was off, breaks the line. Same rule as RemoteViewsRenderer.Sparkline.
+        let bridged = max(2, values.count / 10)
         var segments: [[CGPoint]] = [[]]
+        var missing = 0
         for (i, value) in values.enumerated() {
-            guard let value else { segments.append([]); continue }
+            guard let value else { missing += 1; continue }
+            if missing > bridged, !segments[segments.count - 1].isEmpty { segments.append([]) }
+            missing = 0
             let point = CGPoint(x: x(i), y: y(value))
             if point.x > plot.maxX + 0.5 { break }
             segments[segments.count - 1].append(point)

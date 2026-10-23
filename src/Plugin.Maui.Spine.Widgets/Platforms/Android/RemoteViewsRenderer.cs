@@ -277,10 +277,16 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         float? lower = Number(node, "low") is { } low ? Y(low) : null;
         int Tint(float y) => upper is { } u && y < u ? above : lower is { } l && y > l ? below : inRange;
 
+        // A short run of missing values is bridged, so a reading that came a little early or late leaves no hole; a
+        // long one, such as a sensor that was off, breaks the line. Same rule as SparklineView in SpineWidgetRenderer.swift.
+        var bridged = Math.Max(2, values.Length / 10);
         var segments = new List<List<SparkPoint>> { new() };
+        var missing = 0;
         for (var i = 0; i < values.Length; i++)
         {
-            if (values[i] is not { } value) { segments.Add([]); continue; }
+            if (values[i] is not { } value) { missing++; continue; }
+            if (missing > bridged && segments[^1].Count > 0) segments.Add([]);
+            missing = 0;
             var point = new SparkPoint(X(i), Y(value));
             if (point.X > plot.Right + 0.5f) break;
             segments[^1].Add(point);
