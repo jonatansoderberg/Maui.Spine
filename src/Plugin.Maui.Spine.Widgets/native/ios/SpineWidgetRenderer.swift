@@ -133,6 +133,7 @@ struct ActivityLayout: Decodable {
     var compactLeading: Node?
     var compactTrailing: Node?
     var minimal: Node?
+    var small: Node?
     var background: String?
     var systemBackground: Bool?
     var actionColor: String?
@@ -774,33 +775,89 @@ struct Slot: View {
 // ActivityKit does not exist on Mac Catalyst; the build leaves the activity out of the bundle there.
 #if !targetEnvironment(macCatalyst)
 struct SpineLiveActivity: Widget {
+    var body: some WidgetConfiguration { spineActivityConfiguration() }
+}
+
+/// The activity with the small family declared, which the build picks when the project sets
+/// SpineWidgetsLiveActivitySmall: CarPlay and the Apple Watch Smart Stack then draw the banner view with
+/// `activityFamily` set to `.small`, instead of the compact Dynamic Island they show otherwise.
+struct SpineSmallLiveActivity: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: SpineActivityAttributes.self) { context in
-            let layout = ActivityLayout.parse(context.state.json)
-            Slot(node: layout.lockScreen, kind: context.attributes.kind)
-                .padding()
-                .opacity(context.isStale ? 0.5 : 1)
-                .activityBackgroundTint(Palette.lockScreenTint(layout))
-                .activitySystemActionForegroundColor(layout.actionColor.map { Palette.color($0) })
-                .widgetURL(layout.link.flatMap(URL.init(string:)))
-        } dynamicIsland: { context in
-            let layout = ActivityLayout.parse(context.state.json)
-            let kind = context.attributes.kind
-            return DynamicIsland {
-                // Beside a taller centre the side regions would sit at the top, level with the camera;
-                // filling their height centres them on it instead.
-                DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind).frame(maxHeight: .infinity) }
-                DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind).frame(maxHeight: .infinity) }
-                DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter, kind: kind) }
-                DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom, kind: kind) }
-            } compactLeading: {
-                Slot(node: layout.compactLeading, kind: kind)
-            } compactTrailing: {
-                Slot(node: layout.compactTrailing, kind: kind)
-            } minimal: {
-                Slot(node: layout.minimal, kind: kind)
-            }
+        // Unlike a WidgetBundle's, this if #available can have an else: an opaque result type may
+        // differ by OS version (SE-0360), so the extension still runs on iOS 17.
+        if #available(iOS 18.0, *) {
+            return spineActivityConfiguration().supplementalActivityFamilies([.small])
+        } else {
+            return spineActivityConfiguration()
+        }
+    }
+}
+
+private func spineActivityConfiguration() -> some WidgetConfiguration {
+    ActivityConfiguration(for: SpineActivityAttributes.self) { context in
+        let layout = ActivityLayout.parse(context.state.json)
+        ActivityBanner(layout: layout, kind: context.attributes.kind)
+            .opacity(context.isStale ? 0.5 : 1)
+            .activityBackgroundTint(Palette.lockScreenTint(layout))
+            .activitySystemActionForegroundColor(layout.actionColor.map { Palette.color($0) })
             .widgetURL(layout.link.flatMap(URL.init(string:)))
+    } dynamicIsland: { context in
+        let layout = ActivityLayout.parse(context.state.json)
+        let kind = context.attributes.kind
+        return DynamicIsland {
+            // Beside a taller centre the side regions would sit at the top, level with the camera;
+            // filling their height centres them on it instead.
+            DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind).frame(maxHeight: .infinity) }
+            DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind).frame(maxHeight: .infinity) }
+            DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter, kind: kind) }
+            DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom, kind: kind) }
+        } compactLeading: {
+            Slot(node: layout.compactLeading, kind: kind)
+        } compactTrailing: {
+            Slot(node: layout.compactTrailing, kind: kind)
+        } minimal: {
+            Slot(node: layout.minimal, kind: kind)
+        }
+        .widgetURL(layout.link.flatMap(URL.init(string:)))
+    }
+}
+
+/// The Lock Screen banner; on iOS 18 also the small family, which is drawn by the same view.
+struct ActivityBanner: View {
+    let layout: ActivityLayout
+    let kind: String
+
+    var body: some View {
+        if #available(iOS 18.0, *) {
+            FamilyBanner(layout: layout, kind: kind)
+        } else {
+            Slot(node: layout.lockScreen, kind: kind).padding()
+        }
+    }
+}
+
+@available(iOS 18.0, *)
+private struct FamilyBanner: View {
+    @Environment(\.activityFamily) private var family
+    let layout: ActivityLayout
+    let kind: String
+
+    var body: some View {
+        if family == .small {
+            if let small = layout.small {
+                Slot(node: small, kind: kind).padding(10)
+            } else {
+                // Another kind in the same app may have no small tree; it gets what the system shows
+                // when the family is not declared.
+                HStack {
+                    Slot(node: layout.compactLeading, kind: kind)
+                    Spacer(minLength: 8)
+                    Slot(node: layout.compactTrailing, kind: kind)
+                }
+                .padding(10)
+            }
+        } else {
+            Slot(node: layout.lockScreen, kind: kind).padding()
         }
     }
 }

@@ -95,8 +95,9 @@ On iOS the items become the widget extension; on Android they become manifest en
 | Property | Default | Meaning |
 |---|---|---|
 | `SpineWidgetsAppGroup` | `group.$(ApplicationId)` | The App Group the app and the extension share. |
-| `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. On Android: whether the manifest gets the notification permissions a Live Update needs. |
+| `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. On Android: whether the manifest gets the notification permissions a Live Update needs. Set to `true` in the project, it does both for an app with no `<SpineWidget>` at all; see [A Live Activity without widgets](#a-live-activity-without-widgets). |
 | `SpineWidgetsFrequentUpdates` | `false` | Declares `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget of Live Activities. |
+| `SpineWidgetsLiveActivitySmall` | `false` | Declares the small activity family on iOS 18 and later, so CarPlay and the Apple Watch Smart Stack draw `LiveActivityLayout.Small`. See [CarPlay and Apple Watch](#carplay-and-apple-watch). |
 | `SpineWidgetsBackgroundRefresh` | `true` | Adds `UIBackgroundModes: fetch` and the task identifier for [background runs](#background-runs); on Android, the alarm receiver. With `Plugin.Maui.Spine.BackgroundTasks` the identifier is that package's instead. |
 | `SpineWidgetsMinimumOSVersion` | `17.0` | Deployment target of the extension. |
 | `SpineWidgetsExtensionName` | `SpineWidgets` | Bundle name of the appex. |
@@ -652,7 +653,7 @@ canvas.DrawText(day.Day.ToString(), 38, 52, SKTextAlign.Center, date, cut);   //
 
 ## Live Activities
 
-A Live Activity is the same tree vocabulary in eight named regions. Unlike a widget it is updated **directly by the app**, with no budget while the app is running.
+A Live Activity is the same tree vocabulary in nine named regions. Unlike a widget it is updated **directly by the app**, with no budget while the app is running.
 
 <p align="center">
   <img src="images/live-activity-lock-screen.png" width="240" alt="The Live Activity on the lock screen">
@@ -698,8 +699,53 @@ await activity.EndAsync();
 | `ExpandedBottom` | Under all three, full width | A few lines | Details, a `W.Progress` |
 | `CompactLeading` / `CompactTrailing` | Either side of the camera while the activity runs | About 44 points each | An icon; one short `W.Text` — not a clock (see [below](#why-a-dynamic-island-holding-one-clock-can-still-span-the-screen)) |
 | `Minimal` | A small circle when another app's activity also runs | One glyph | An icon |
+| `Small` | CarPlay's Dashboard and the Apple Watch Smart Stack, with `SpineWidgetsLiveActivitySmall` (see [below](#carplay-and-apple-watch)) | A small tile; padded by Spine | One row: the value, its trend, how old it is |
 
 A region left `null` is empty. The Dynamic Island is always black, so fixed colors there are drawn on black whatever the appearance; the Lock Screen is drawn on `Background`, on the system material with `SystemBackground`, or on Spine's translucent black. A `W.Adaptive` node renders its fallback in every region.
+
+### CarPlay and Apple Watch
+
+iOS 26 shows a running Live Activity on CarPlay's Dashboard, and iOS 18 on the paired Apple Watch's Smart Stack. Both use the **small activity family**. By default an app does not declare it, and both surfaces show `CompactLeading` and `CompactTrailing` side by side. Those are laid out for the Dynamic Island, either side of the camera, so on a car's screen they often read poorly.
+
+To give those surfaces a layout of their own, turn the family on in the project and set `Small`:
+
+```xml
+<SpineWidgetsLiveActivitySmall>true</SpineWidgetsLiveActivitySmall>
+```
+
+```csharp
+var layout = new LiveActivityLayout
+{
+    LockScreen      = …,
+    CompactLeading  = W.Icon("drop.fill"),
+    CompactTrailing = W.Text("5.4 →").Caption().Bold(),
+    Small           = W.HStack(6, W.Icon("drop.fill"), W.Text("5.4 →").Title().Bold(), W.Spacer(), W.Relative(reading.At, compact: true).Caption().Secondary()),
+};
+```
+
+- The family is declared when the widget extension is built, not per activity: ActivityKit reads it from the extension's `ActivityConfiguration` (`.supplementalActivityFamilies([.small])`). That is why it takes a build property as well as the tree.
+- With the property on, an activity whose layout has no `Small` (another kind in the same app, say) is drawn as the system would draw it without the family: its compact leading and trailing views in a row.
+- With the property off, `Small` is ignored, and the app logs a warning the first time it starts or updates an activity that sets it.
+- Before iOS 18 the extension leaves the family out, so it still runs on iOS 17.
+- Keep it to one row of large text: on the dashboard it is read at a glance while driving.
+- `Small` travels in the same push as the rest of the layout. A row of five nodes adds about 400 bytes, which a layout near APNs' 4 KB limit may not have room for.
+- Android has no such surface and ignores `Small`.
+
+### A Live Activity without widgets
+
+The extension that draws a Live Activity on iOS is the widget extension, and the build makes it only for an app that declares a `<SpineWidget>` or a `<SpineControl>`. An app whose only surface is a Live Activity says so instead:
+
+```xml
+<PropertyGroup>
+  <SpineWidgetsLiveActivities>true</SpineWidgetsLiveActivities>
+</PropertyGroup>
+```
+
+- The value is the default, but here it has to be in the project. Referencing the package does not build an extension the app never asked for.
+- iOS gets an extension holding only the Live Activity. Nothing shows in the widget gallery. Start, update, push tokens, push-to-start, `SpineWidgetsFrequentUpdates` and the App Group work as they do with widgets. Device builds still need the extension's App ID and profile; see [Register the extension](#4-register-the-extension-in-the-developer-portal-for-device-builds).
+- Android gets the notification permissions a Live Update needs, and no widget receivers. The background-refresh receiver is left out, since there is nothing for it to refresh.
+- `SpineWidgetsPush` is ignored without a widget: it would only raise the extension to iOS 26. Pushes to the activity itself work either way.
+- Mac Catalyst has no Live Activities, so it gets nothing.
 
 ### Lifecycle
 

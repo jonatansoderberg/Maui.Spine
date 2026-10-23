@@ -148,7 +148,7 @@ public sealed class NextEventWidget(…) : IWidgetProvider, IWidgetActionHandler
 
 ## 6. Live Activities
 
-Same vocabulary, eight named regions. **Start it from a button the user pressed** — iOS only starts an activity while the app is in the foreground, and Android asks for the notification permission there.
+Same vocabulary, nine named regions. **Start it from a button the user pressed** — iOS only starts an activity while the app is in the foreground, and Android asks for the notification permission there.
 
 ```csharp
 var layout = new LiveActivityLayout
@@ -171,9 +171,11 @@ await activity.EndAsync();
 
 - Lifecycle: start (foreground, or push-to-start) → update (replaces the whole layout) → stale past `staleAt` (dimmed on iOS) → end (`EndAsync`/`EndAllAsync`, the user's swipe, a push, or iOS after 8 hours).
 - Put clocks on `LockScreen` and the expanded regions; compact and minimal get a plain text or an icon.
+- CarPlay (iOS 26) and the Apple Watch Smart Stack show `CompactLeading` + `CompactTrailing` side by side. For a layout of their own, set `Small` (one row, large text) **and** `<SpineWidgetsLiveActivitySmall>true</SpineWidgetsLiveActivitySmall>` in the project, which declares the small family in the extension; without the property `Small` is ignored and a warning is logged.
 - `StartAsync` returns `null` when refused (activities off in Settings, app not in foreground, Android below 16); `AreActivitiesEnabled` tells you whether to show the button at all.
 - `Active` lists running activities, including ones started before the app was last killed — ask it instead of keeping a handle in a ViewModel. `ActivitiesChanged` / `ActivityEnded` report ends the app did not make (swipe, push, stale date); subscribe right after `builder.Build()` to hear about ends while the app was closed.
 - A `W.Button` in an activity reaches the `[Widget]` provider whose kind equals the **activity's kind**; with no such provider the tap is dropped. Android Live Updates have no buttons.
+- A Live Activity with no `<SpineWidget>` (and no control): set `<SpineWidgetsLiveActivities>true</SpineWidgetsLiveActivities>` in the project, or no extension is built and the activity never appears.
 - An activity lives at most 8 hours on iOS. For around-the-clock subjects, let the server restart it with the push-to-start token (see the wiki, "Keeping one on screen around the clock").
 - Push updates: `UseSpineWidgets(o => o.LiveActivityPushTokens = true)`, send `activity.GetPushTokenAsync()` and `GetPushToStartTokenAsync()` to the backend at every launch and foreground; `Plugin.Maui.Spine.Server`'s `IPushSender` has `StartLiveActivityAsync`, `UpdateLiveActivityAsync` and `BroadcastLiveActivityAsync`.
 
