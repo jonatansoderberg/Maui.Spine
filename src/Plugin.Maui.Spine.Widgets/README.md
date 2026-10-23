@@ -44,7 +44,7 @@ Controls — a toggle or a button in iOS 18's Control Center, on the Lock Screen
 
 On iOS the app needs an App Group entitlement shared with the extension; the package's build targets write it. The documentation covers the developer-portal steps device builds need.
 
-Platforms: iOS 17+ (home-screen and Lock Screen widgets, Live Activities; controls on iOS 18+) and Android 5+ (home-screen widgets; Live Activities on Android 16+ as Live Updates; Quick Settings tiles on Android 7+). Every other platform, Mac Catalyst included, gets no-op services and `IWidgetService.IsSupported == false`.
+Platforms: iOS 17+ (home-screen and Lock Screen widgets, Live Activities; controls on iOS 18+; a Live Activity layout of its own for CarPlay and the Apple Watch Smart Stack on iOS 18+ with `SpineWidgetsLiveActivitySmall`) and Android 5+ (home-screen widgets; Live Activities on Android 16+ as Live Updates; Quick Settings tiles on Android 7+). Every other platform, Mac Catalyst included, gets no-op services and `IWidgetService.IsSupported == false`.
 
 ## Documentation
 

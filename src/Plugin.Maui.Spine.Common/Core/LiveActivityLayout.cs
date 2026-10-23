@@ -40,6 +40,15 @@ public sealed record LiveActivityLayout
     public WidgetNode? Minimal { get; init; }
 
     /// <summary>
+    /// The small activity family: CarPlay's Dashboard on iOS 26 and the Smart Stack on Apple Watch, both iOS 18
+    /// and later. Rendered only when the project sets <c>SpineWidgetsLiveActivitySmall</c>, which declares the
+    /// family in the widget extension; without it those surfaces show <see cref="CompactLeading"/> and
+    /// <see cref="CompactTrailing"/> side by side. The space is small, room for a row or two of what matters
+    /// most. Android has no such surface and ignores it.
+    /// </summary>
+    public WidgetNode? Small { get; init; }
+
+    /// <summary>
     /// The color behind the Lock Screen presentation; a translucent black when <see langword="null"/>.
     /// iOS only: the Dynamic Island is always black, and Android does not promote a Live Update that
     /// asks for a color. A fixed color stays fixed in dark mode, so give the text fixed colors too.

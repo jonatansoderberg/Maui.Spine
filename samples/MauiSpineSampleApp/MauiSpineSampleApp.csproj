@@ -831,6 +831,11 @@
 		<SpineWidgetsAppGroup>7F2CQZ9T84.se.cosmomedia.spineshowcase</SpineWidgetsAppGroup>
 	</PropertyGroup>
 
+	<!-- The score activity has a layout of its own for CarPlay and the Apple Watch (ScoreActivity's Small). -->
+	<PropertyGroup>
+		<SpineWidgetsLiveActivitySmall>true</SpineWidgetsLiveActivitySmall>
+	</PropertyGroup>
+
 	<!-- Widgets: the kinds below become a WidgetKit extension on iOS and Mac Catalyst; the providers are the [Widget] classes in Widgets\. -->
 	<ItemGroup>
 		<SpineWidget Include="sample" DisplayName="Spine sample" Description="A data-driven widget rendered from a tree the app builds." Families="Small,Medium" />
