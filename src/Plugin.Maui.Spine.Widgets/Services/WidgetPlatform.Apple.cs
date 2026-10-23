@@ -139,6 +139,24 @@ internal sealed class WidgetPlatform : IWidgetPlatform
             ? DateTimeOffset.FromUnixTimeMilliseconds((long)(at.GetDouble() * 1000)).ToLocalTime()
             : DateTimeOffset.Now;
 
+    /// <summary>
+    /// Writes the language the app shows where the extension reads it, so what the system writes in a widget or an
+    /// activity ("2 min, 5 secs", a rounded age) is in that language: the app's own choice can differ from the phone's.
+    /// </summary>
+    public void WriteLanguage(System.Globalization.CultureInfo culture)
+    {
+        if (_containerPath is null) return;
+        var path = Path.Combine(_containerPath, "language");
+        if (culture.Name.Length == 0)
+        {
+            File.Delete(path);
+            return;
+        }
+        if (File.Exists(path) && File.ReadAllText(path) == culture.Name) return;
+        Directory.CreateDirectory(_containerPath);
+        AtomicFile.WriteAllText(path, culture.Name);
+    }
+
     public void WriteTimeline(string kind, string json)
     {
         if (_containerPath is not null) AtomicFile.WriteAllText(Path.Combine(_containerPath, kind + ".json"), json);

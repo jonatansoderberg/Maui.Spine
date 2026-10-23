@@ -71,7 +71,7 @@ A per-family dictionary must have a tree for **every declared family** — iOS s
 |---|---|
 | `W.VStack(spacing, …)` / `W.HStack` / `W.ZStack` | Stacks: VStack leading-aligned, HStack vertically centered, ZStack centered; default spacing 4. Only stacks take `.Padding()`, `.Background()`, `.CornerRadius()` |
 | `W.Text(s)` | Text; style with `.Title() .Headline() .Body() .Caption() .Bold() .Secondary() .Color(c)` — the platform's type ramp, no point sizes, no custom fonts |
-| `W.Timer(until)` / `W.Relative(date, compact)` | A countdown / "3 min ago", redrawn by the **system** — never compute these as text |
+| `W.Timer(until)` / `W.Relative(date, compact, prefix, rounded)` | A countdown / "3 min ago", redrawn by the **system** — never compute these as text. `rounded: true` (iOS 18) is whole minutes, then hours and minutes ("1 hour, 5 minutes"), for an age read at a glance; the system's times follow the app's `CFBundleLocalizations` |
 | `W.Icon(name, color)` | A monochrome SVG by name (dots as underscores: `figure_run.svg`), fixed size (18 pt iOS, 20 dp Android); an SF Symbol of that name is the iOS fallback |
 | `W.Image(assetId, height)` | A picture stored with `IWidgetService.StoreAssetAsync`, aspect kept; `.FullColor()` keeps its colors in iOS's Tinted/Clear appearances |
 | `W.Progress(0..1, color)` / `W.Spacer()` / `W.Divider()` | |
