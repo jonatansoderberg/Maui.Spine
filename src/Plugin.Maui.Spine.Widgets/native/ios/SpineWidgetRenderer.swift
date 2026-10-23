@@ -625,10 +625,19 @@ struct TextStyleModifier: ViewModifier {
 
 /// The language the app shows, for what the system writes in a widget or an activity: "2 min, 5 secs", a rounded age.
 /// The extension is built with no localizations of its own, so iOS would write those in English whatever the app
-/// shows. The app's CFBundleLocalizations name the languages it has, and the user's order picks one of them, as iOS
-/// picks the app's own; the user's region still decides the formats.
+/// shows. The app writes its language (ISpineStrings.Culture, which can differ from the phone's) to the container;
+/// before it has, the app's CFBundleLocalizations are matched against the user's order, as iOS picks the app's own.
+/// The user's region still decides the formats.
 enum AppLanguage {
-    static let locale: Locale = {
+    static var locale: Locale {
+        if let url = Store.root?.appendingPathComponent("language"),
+           let name = try? String(contentsOf: url, encoding: .utf8), !name.isEmpty {
+            return locale(language: name)
+        }
+        return declared
+    }
+
+    private static let declared: Locale = {
         var url = Bundle.main.bundleURL
         while url.pathExtension != "app", url.pathComponents.count > 1 { url = url.deletingLastPathComponent() }
         let app = Bundle(url: url)
@@ -637,10 +646,14 @@ enum AppLanguage {
         guard !languages.isEmpty,
               let language = Bundle.preferredLocalizations(from: languages, forPreferences: Locale.preferredLanguages).first
         else { return .autoupdatingCurrent }
+        return locale(language: language)
+    }()
+
+    private static func locale(language: String) -> Locale {
         var components = Locale.Components(locale: .current)
         components.languageComponents = Locale.Language.Components(identifier: language)
         return Locale(components: components)
-    }()
+    }
 }
 
 enum Palette {
