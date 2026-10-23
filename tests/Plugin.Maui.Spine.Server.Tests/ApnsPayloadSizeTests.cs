@@ -85,6 +85,23 @@ public class ApnsPayloadSizeTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_small_family_tree_fits_beside_the_rest()
+    {
+        var layout = ScoreCard() with
+        {
+            Small = W.HStack(6,
+                W.Image("logo-dif", 24).FullColor(), W.Text("2–2").Headline().Bold(), W.Image("logo-ifb", 24).FullColor(),
+                W.Spacer(), W.Text("P2 · 17:19").Caption().Secondary()),
+        };
+        var payload = Payload(layout);
+
+        output.WriteLine($"payload with a small tree {Bytes(payload)} bytes, without {Bytes(Payload(ScoreCard()))}");
+
+        // A row of five nodes costs about 400 bytes; half a kilobyte is still spare.
+        Assert.True(Bytes(payload) < 3600, $"{Bytes(payload)} bytes leaves too little of APNs' 4096");
+    }
+
+    [Fact]
     public void The_layout_reads_back_unchanged_from_the_payload()
     {
         var layout = ScoreCard();

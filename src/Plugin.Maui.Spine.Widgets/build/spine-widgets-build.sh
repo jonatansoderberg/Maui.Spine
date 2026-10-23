@@ -5,7 +5,7 @@
 set -euo pipefail
 
 OUT=""; SOURCES=""; SDK="iphonesimulator"; ARCH="arm64"; MIN_OS="17.0"; CONFIG="Debug"
-BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; LIVE="true"; FREQUENT="false"
+BUNDLE_ID=""; APP_GROUP=""; NAME="SpineWidgets"; DISPLAY_NAME=""; LIVE="true"; SMALL="false"; FREQUENT="false"
 PROVISION=""; REQUIRE_PROVISION="false"; PUSH="false"; PUSH_ENV="development"
 WIDGETS=()
 CONTROLS=()
@@ -23,6 +23,7 @@ while [[ $# -gt 0 ]]; do
     --name) NAME="$2"; shift 2;;
     --display-name) DISPLAY_NAME="$2"; shift 2;;
     --live-activities) LIVE="$2"; shift 2;;
+    --small-activities) SMALL="$2"; shift 2;;
     --frequent-updates) FREQUENT="$2"; shift 2;;
     --provision) PROVISION="$2"; shift 2;;
     --require-provision) REQUIRE_PROVISION="$2"; shift 2;;
@@ -203,7 +204,7 @@ BUNDLE="$GEN/SpineWidgetBundle.swift"
     EXTRAS=true
     echo "struct SpineExtrasBundle: WidgetBundle {"
     echo "    var body: some Widget {"
-    [[ "$LIVE" == "true" ]] && echo "        SpineLiveActivity()"
+    [[ "$LIVE" == "true" ]] && echo "        $( [[ "$SMALL" == "true" ]] && echo SpineSmallLiveActivity || echo SpineLiveActivity )()"
     [[ ${#CONTROLS[@]} -gt 0 ]] && echo "        if #available(iOS 18.0, *) { SpineControlBundle().body }"
     echo "    }"
     echo "}"
@@ -323,6 +324,7 @@ fi
   cat <<PLIST
 	<key>SpineWidgetsAppGroup</key><string>$APP_GROUP</string>
 	<key>NSSupportsLiveActivities</key><$( [[ "$LIVE" == "true" ]] && echo true || echo false )/>
+	<key>SpineWidgetsLiveActivitySmall</key><$( [[ "$LIVE" == "true" && "$SMALL" == "true" ]] && echo true || echo false )/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key><$( [[ "$FREQUENT" == "true" ]] && echo true || echo false )/>
 	<key>SpineWidgetsControls</key><array>$(for spec in ${CONTROLS[@]+"${CONTROLS[@]}"}; do printf '<string>%s</string>' "$(plist_escape "${spec%%|*}")"; done)</array>
 PLIST

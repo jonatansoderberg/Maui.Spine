@@ -51,6 +51,12 @@ public static class ScoreActivity
             CompactLeading = W.HStack(W.Image(home.LogoAsset, 22), W.Text($"{game.HomeGoals}").Headline().Bold()),
             CompactTrailing = W.HStack(W.Text($"{game.AwayGoals}").Headline().Bold(), W.Image(away.LogoAsset, 22)),
             Minimal = W.Text(game.Score).Caption().Bold(),
+
+            // CarPlay's Dashboard and the Apple Watch Smart Stack (SpineWidgetsLiveActivitySmall in the
+            // project): the score between the badges, and where the game is.
+            Small = W.HStack(8,
+                W.Image(home.LogoAsset, 28).FullColor(), W.Text(game.Score).Title().Bold().Color(Ink), W.Image(away.LogoAsset, 28).FullColor(),
+                W.Spacer(), W.Text(game.PhaseText(now)).Caption().Color(Muted)),
         };
     }
 
@@ -85,6 +91,10 @@ public static class ScoreActivity
             CompactLeading = W.HStack(W.Image(home.LogoAsset, 22), W.Image(away.LogoAsset, 22)),
             CompactTrailing = W.Text(time).Caption().Bold(),
             Minimal = W.Image(Teams.Followed.LogoAsset, 22),
+
+            Small = W.HStack(8,
+                W.Image(home.LogoAsset, 28).FullColor(), W.Image(away.LogoAsset, 28).FullColor(),
+                W.Spacer(), W.Text(time).Title().Bold().Color(Ink)),
         };
     }
 

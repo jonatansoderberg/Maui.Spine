@@ -114,12 +114,23 @@ public class WidgetLayoutRoundTripTests
             CompactLeading = W.Icon("clock"),
             CompactTrailing = W.Text("10:24").Caption(),
             Minimal = W.Icon("house"),
+            Small = W.HStack(4, W.Icon("drop"), W.Text("10:24").Headline()),
             Background = WidgetColor.Blue,
         };
 
         var json = layout.ToJson();
 
         Assert.Equal(json, WidgetJson.DeserializeLayout(json)!.ToJson());
+    }
+
+    [Fact]
+    public void The_small_family_is_written_only_when_set()
+    {
+        var json = new LiveActivityLayout { LockScreen = W.Text("x"), Small = W.Text("5,4 →").Headline() }.ToJson();
+
+        Assert.Contains("\"small\":", json);
+        Assert.Equal("5,4 →", Assert.IsType<TextNode>(WidgetJson.DeserializeLayout(json)!.Small).Text);
+        Assert.DoesNotContain("\"small\"", new LiveActivityLayout { LockScreen = W.Text("x") }.ToJson());
     }
 
     [Fact]
