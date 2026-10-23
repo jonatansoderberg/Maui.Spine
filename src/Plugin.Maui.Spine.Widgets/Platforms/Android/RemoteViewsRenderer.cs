@@ -293,28 +293,20 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         }
         segments.RemoveAll(s => s.Count == 0);
 
-        var runs = new List<(Android.Graphics.Path Path, int Color)>();
+        var runs = new List<(Android.Graphics.Path Path, int Color, float StartX, float EndX)>();
         var ends = new List<(SparkPoint Point, int Color)>();
-        var changes = new List<(float X, int From, int To)>();
-        using var area = new Android.Graphics.Path();
-        (SparkPoint Point, int Color)? previous = null;
         foreach (var segment in segments)
         {
-            if (previous is { } gap && Tint(segment[0].Y) != gap.Color)
-                changes.Add(((gap.Point.X + segment[0].X) / 2, gap.Color, Tint(segment[0].Y)));
             var pieces = SparkPiece.Smooth(segment);
             if (pieces.Count == 0)
             {
                 ends.Add((segment[0], Tint(segment[0].Y)));
-                previous = ends[^1];
                 continue;
             }
 
-            area.MoveTo(segment[0].X, segment[0].Y);
-            (Android.Graphics.Path Path, int Color)? run = null;
+            (Android.Graphics.Path Path, int Color, float StartX, float EndX)? run = null;
             foreach (var piece in pieces)
             {
-                area.CubicTo(piece.C1.X, piece.C1.Y, piece.C2.X, piece.C2.Y, piece.P3.X, piece.P3.Y);
                 var cuts = new[] { upper, lower }.OfType<float>().SelectMany(piece.Crossings).Order().ToList();
                 var (rest, done) = (piece, 0f);
                 var parts = new List<SparkPiece>();
@@ -330,25 +322,18 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                     var tint = Tint(part.Y(0.5f));
                     if (run?.Color != tint)
                     {
-                        if (run is { } finished)
-                        {
-                            runs.Add(finished);
-                            changes.Add((part.P0.X, finished.Color, tint));
-                        }
+                        if (run is { } finished) runs.Add(finished);
                         var path = new Android.Graphics.Path();
                         path.MoveTo(part.P0.X, part.P0.Y);
-                        run = (path, tint);
+                        run = (path, tint, part.P0.X, part.P0.X);
                     }
                     run!.Value.Path.CubicTo(part.C1.X, part.C1.Y, part.C2.X, part.C2.Y, part.P3.X, part.P3.Y);
+                    run = run.Value with { EndX = part.P3.X };
                 }
             }
             runs.Add(run!.Value);
-            area.LineTo(segment[^1].X, height);
-            area.LineTo(segment[0].X, height);
-            area.Close();
             ends.Add((segment[0], Tint(pieces[0].Y(0.02f))));
             ends.Add((segment[^1], Tint(pieces[^1].Y(0.98f))));
-            previous = (segment[^1], run.Value.Color);
         }
 
         using var paint = new Android.Graphics.Paint(PaintFlags.AntiAlias);
@@ -361,27 +346,18 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
 
         if (Bool(node, "area"))
         {
-            // Along the width the area takes the colour of the line above it, blending over a few pixels either side of
-            // where the line changes colour.
-            var blend = line * 2;
-            var stops = new List<(int Color, float At)> { (ends[0].Color, 0) };
-            foreach (var change in changes)
-            {
-                var from = Math.Max((change.X - blend) / width, stops[^1].At);
-                stops.Add((change.From, from));
-                stops.Add((change.To, Math.Max(from, (change.X + blend) / width)));
-            }
-            stops.Add((ends[^1].Color, Math.Max(1, stops[^1].At)));
+            // Each colour's stretch of line closes down to the bottom as its own area, fading downwards in its colour,
+            // as SparklineView draws it on iOS.
             using var fill = new Android.Graphics.Paint(PaintFlags.AntiAlias);
-            fill.SetShader(new LinearGradient(0, 0, width, 0, [.. stops.Select(s => (int)(s.Color & 0x00FFFFFF | 0x59000000))],
-                [.. stops.Select(s => s.At)], Shader.TileMode.Clamp!));
-            canvas.SaveLayer(null, null);
-            canvas.DrawPath(area, fill);
-            using var fade = new Android.Graphics.Paint();
-            fade.SetXfermode(new PorterDuffXfermode(PorterDuff.Mode.DstIn!));
-            fade.SetShader(new LinearGradient(0, 0, 0, height, unchecked((int)0xFF000000), 0, Shader.TileMode.Clamp!));
-            canvas.DrawRect(0, 0, width, height, fade);
-            canvas.Restore();
+            foreach (var (path, color, startX, endX) in runs)
+            {
+                using var area = new Android.Graphics.Path(path);
+                area.LineTo(endX, height);
+                area.LineTo(startX, height);
+                area.Close();
+                fill.SetShader(new LinearGradient(0, 0, 0, height, (int)(color & 0x00FFFFFF | 0x59000000), color & 0x00FFFFFF, Shader.TileMode.Clamp!));
+                canvas.DrawPath(area, fill);
+            }
         }
 
         // Butt ends where one colour meets the next, so the cut is square to the line; round ends only where the
@@ -390,7 +366,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         paint.StrokeWidth = line;
         paint.StrokeCap = Android.Graphics.Paint.Cap.Butt;
         paint.StrokeJoin = Android.Graphics.Paint.Join.Round;
-        foreach (var (path, color) in runs)
+        foreach (var (path, color, _, _) in runs)
         {
             paint.Color = new Android.Graphics.Color(color);
             canvas.DrawPath(path, paint);
