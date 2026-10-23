@@ -352,11 +352,12 @@ struct SparklineView: View {
                 if let band = plot.band {
                     Path(band).fill(plot.inRange.opacity(0.14))
                 }
-                // The fade is in the colours themselves. A gradient mask over the area drew nothing on an
-                // iPhone's lock screen (iOS 27), while the Dynamic Island and the simulator drew it.
+                // From the line's own colour, opaque, to clear. The iPhone's Lock Screen (iOS 27) draws nothing of a
+                // gradient whose colours are all translucent, nor of a gradient mask, though a translucent solid fill and
+                // the Dynamic Island draw either; tried on the phone, this is what both draw.
                 if node.area == true {
                     ForEach(plot.areas.indices, id: \.self) { i in
-                        plot.areas[i].path.fill(LinearGradient(colors: [plot.areas[i].color.opacity(0.35), plot.areas[i].color.opacity(0)],
+                        plot.areas[i].path.fill(LinearGradient(colors: [plot.areas[i].color, plot.areas[i].color.opacity(0)],
                                                                startPoint: .top, endPoint: .bottom))
                     }
                 }
