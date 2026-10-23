@@ -889,9 +889,11 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | G7 | Critical alerts, och Stör ej på Android | `PushInterruption.Critical` med `sound` som objekt. Kanal som går igenom Stör ej | Notiser för mycket lågt |
 | G8 | Live Activity kräver en widget: Spine bygger widgettillägget bara när appen har minst en `<SpineWidget>` | Bygg tillägget när `SpineWidgetsLiveActivities` är på, även utan widgets | Liten. Glukos har en widget (`glucose`) så länge |
 | G9 | Widgettillägget byggs på engelska: `spine-widgets-build.sh` skriver `CFBundleDevelopmentRegion` `en` och inga `CFBundleLocalizations`, så tider som systemet ritar (`W.Relative`) blir "1 min, 36 sec" även på en svensk telefon | Ta appens `CFBundleLocalizations` (eller en egen egenskap) till tilläggets `Info.plist` | Live Activity och widget på svenska |
-| G10 | Inloggningens tabeller (`UseAzureTableStore`) tar bara en anslutningssträng, inte en `TableServiceClient` med hanterad identitet | En överlagring med `TableServiceClient` (eller `Uri` och `TokenCredential`) | Glukos använder lagringskontots nyckel för `SpineAuth*`-tabellerna så länge; allt annat går med identiteten |
+| G10 | Inloggningens och pushregistrets tabeller (`UseAzureTableStore` i `AddSpineAuthentication` och `AddSpinePushNotifications`) tar bara en anslutningssträng, inte en `TableServiceClient` med hanterad identitet | En överlagring med `TableServiceClient` (eller `Uri` och `TokenCredential`) | Glukos använder lagringskontots nyckel för `SpineAuth*`- och `SpinePush*`-tabellerna så länge; allt annat går med identiteten |
 | G11 | `PageAction.IsBusy` snurrar alltid ikonen. En bock som skickar ett formulär ska bara dämpas medan det pågår | En egen flagga för att snurra (`SpinsWhenBusy`), av som standard för bekräfta-knappar, eller en `BusyStyle` | Anslut LinkUp-bladet. Glukos stänger av bocken och visar "Ansluter …" så länge |
 | G12 | Ingen textfältsrad för `SpineSection`, och inget lösenordsfält med visa/dölj utanför inloggningsrutan | `SpineEntryRow` (kantlöst fält som rad) med `IsPassword` och en ögonknapp, som `SignInSheet` redan har | Anslut LinkUp-bladet. Glukos har en egen `PlainEntry` med en handler-mappning och ögat från `Svg.Icons` så länge |
+| G13 | Inget Apple Hälsa (HealthKit) i Spine | En tjänst för att läsa och skriva mätvärden (blodsocker först) med behörighet, synk-id och version, och HealthConnect på Android | Inställningen "Spara mina värden" och läsa andras. Glukos har en egen `AppleHealthGlucose` med HealthKit direkt så länge |
+| G14 | Live Activity-push kräver notisbehörighet: installationen måste ha en enhetstoken (`Handle`), och Spine ber APNs om den först när notiser är tillåtna. iOS kräver ingen behörighet för aktivitetens egen pushtoken | Registrera installationen med bara Live Activity-tokens när det inte finns någon enhetstoken, eller hämta enhetstoken utan behörighet (`registerForRemoteNotifications` går ändå) | Push till låsskärmen. Glukos ber om notiser när en person läggs på låsskärmen; de behövs ändå för larmen (§7.8) |
 
 ---
 
@@ -1003,7 +1005,7 @@ Byggt efter konceptbilderna (§18.1) och Spines hockeyexempel (`samples/MauiSpin
 | Mac | Inga widgetar på Mac Catalyst, eftersom ActivityKit inte finns där |
 
 **Återstår:**
-- **Push till Live Activity** (§7.7): token och push-to-start från appen, `IPushSender` i Functions och uppdatering vid varje nytt värde. Kräver APNs-nyckeln (`.p8`) i Key Vault. Utan den slutar aktiviteten uppdateras när appen stängs, och den dimmas vid `staleAt`.
+- **Push till Live Activity** (§7.7): token och push-to-start från appen, `IPushSender` i Functions och uppdatering vid varje nytt värde. Kräver APNs-nyckeln (`.p8`) i Key Vault. Utan den slutar aktiviteten uppdateras när appen stängs, och den dimmas vid `staleAt`. **Byggt:** registreringen (`PUT/DELETE /push/installations/{id}`, kopplad till den inloggade), `IPushSender` i pollaren när det som visas ändras eller var 5:e minut som hjärtslag, och `PUT /v1/settings` så att servern ritar med appens enhet, målområde och språk. Utan minigrafen (G2). Push-to-start väntar.
 - **G1** (graf i appen och minigraf i översikten) och **G2** (minigraf i Live Activity) i Spine.
 - Tillgänglighet (§8.5): riktningen i ord för VoiceOver, och Dynamic Type.
 - Mörkt läge efter översiktsbilden, och svep mellan personer.
