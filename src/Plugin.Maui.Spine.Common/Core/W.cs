@@ -221,13 +221,14 @@ public static class WidgetNodeStyling
     }
 
     /// <summary>
-    /// A target band from <paramref name="low"/> to <paramref name="high"/>, drawn faintly behind the line. The line
-    /// takes <paramref name="above"/> over the band and <paramref name="below"/> under it.
+    /// A target band from <paramref name="low"/> to <paramref name="high"/>: the line takes <paramref name="above"/> over it
+    /// and <paramref name="below"/> under it, cut square to the line where it crosses an edge. <paramref name="shaded"/> also
+    /// draws the band faintly behind the line; without it the graph stays relative.
     /// </summary>
-    public static SparklineNode Band(this SparklineNode node, double low, double high, WidgetColor? above = null, WidgetColor? below = null)
+    public static SparklineNode Band(this SparklineNode node, double low, double high, WidgetColor? above = null, WidgetColor? below = null, bool shaded = false)
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(low, high);
-        return node with { Low = low, High = high, AboveColor = above, BelowColor = below };
+        return node with { Low = low, High = high, AboveColor = above, BelowColor = below, Shade = shaded ? true : null };
     }
 
     /// <summary>A soft fill under the line, in its colour at each point, fading out downwards.</summary>

@@ -260,7 +260,7 @@ public sealed record SparklineNode(IReadOnlyList<double?> Values) : WidgetNode
     /// <summary>The line's colour, and inside the band its colour there; the platform accent when <see langword="null"/>.</summary>
     public WidgetColor? Color { get; init; }
 
-    /// <summary>The lower edge of the target band; with <see cref="High"/>, a faint band behind the line.</summary>
+    /// <summary>The lower edge of the target band, below which the line takes <see cref="BelowColor"/>.</summary>
     public double? Low { get; init; }
 
     /// <summary>The upper edge of the target band.</summary>
@@ -271,6 +271,12 @@ public sealed record SparklineNode(IReadOnlyList<double?> Values) : WidgetNode
 
     /// <summary>The line's colour below <see cref="Low"/>; <see cref="Color"/> when <see langword="null"/>.</summary>
     public WidgetColor? BelowColor { get; init; }
+
+    /// <summary>
+    /// The band drawn faintly behind the line. Without it the graph stays relative: the band only colours the line,
+    /// and the scale fits the values alone either way.
+    /// </summary>
+    public bool? Shade { get; init; }
 
     /// <summary>A soft fill under the line, in the line's colour at each point, fading out downwards.</summary>
     public bool? Area { get; init; }

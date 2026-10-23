@@ -85,7 +85,7 @@ public sealed class SampleWidget(IWidgetService _widgets, INavigationService _na
     {
         var points = Enumerable.Range(0, 24).Select(i => (now.AddMinutes(5 * (i - 23)), 52 + 22 * Math.Sin(i / 3.5) + i * 0.8));
         return W.Sparkline(points, now.AddHours(-2), now, TimeSpan.FromMinutes(5), Mint, height: 34)
-            .Band(30, 70, above: WidgetColor.FromHex("#FFC845")).Area().Dot();
+            .Band(30, 70, above: WidgetColor.FromHex("#FFC845"), shaded: true).Area().Dot();
     }
 
     public Task OnWidgetOpenedAsync(WidgetLink link) => _navigation.ShowAsync<WidgetsPage>();

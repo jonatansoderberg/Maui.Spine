@@ -185,6 +185,7 @@ final class Node: Decodable {
     var high: Double?
     var aboveColor: String?
     var belowColor: String?
+    var shade: Bool?
     var area: Bool?
     var dot: Bool?
 }
@@ -328,9 +329,9 @@ struct NodeView: View {
     }
 }
 
-/// A line through a sparkline node's values: smooth without overshooting a point (monotone cubic), coloured
-/// by the band it passes through, with a faint band, a fading area and a dot on the last value when asked.
-/// RemoteViewsRenderer.Sparkline draws the same on Android.
+/// A line through a sparkline node's values: smooth without overshooting a point (monotone cubic), split where it
+/// crosses the band's edges so each stretch takes its colour with a cut square to the line, a faint band, a fading
+/// area and a dot on the last value when asked. RemoteViewsRenderer.Sparkline draws the same on Android.
 struct SparklineView: View {
     let node: Node
 
@@ -347,13 +348,86 @@ struct SparklineView: View {
                         .opacity(0.35)
                         .mask(LinearGradient(colors: [.white, .white.opacity(0)], startPoint: .top, endPoint: .bottom))
                 }
-                plot.line.stroke(LinearGradient(stops: plot.acrossStops, startPoint: .top, endPoint: .bottom),
-                                 style: StrokeStyle(lineWidth: plot.lineWidth, lineCap: .round, lineJoin: .round))
-                if node.dot == true, let (point, color) = plot.last {
-                    Circle().fill(color.opacity(0.4)).frame(width: plot.halo * 2, height: plot.halo * 2).position(point)
-                    Circle().fill(color).frame(width: plot.dot * 2, height: plot.dot * 2).position(point)
+                // Butt ends where one colour meets the next, so the cut is square to the line; round ends only
+                // where the line itself starts and stops.
+                ForEach(plot.runs.indices, id: \.self) { i in
+                    plot.runs[i].path.stroke(plot.runs[i].color, style: StrokeStyle(lineWidth: plot.lineWidth, lineCap: .butt, lineJoin: .round))
+                }
+                ForEach(plot.ends.indices, id: \.self) { i in
+                    Circle().fill(plot.ends[i].color).frame(width: plot.lineWidth, height: plot.lineWidth).position(plot.ends[i].point)
+                }
+                if node.dot == true, let last = plot.last {
+                    Circle().fill(last.color.opacity(0.4)).frame(width: plot.halo * 2, height: plot.halo * 2).position(last.point)
+                    Circle().fill(last.color).frame(width: plot.dot * 2, height: plot.dot * 2).position(last.point)
                 }
             }
+        }
+    }
+}
+
+/// One cubic of a sparkline, in view points.
+struct SparkPiece {
+    var p0: CGPoint, c1: CGPoint, c2: CGPoint, p3: CGPoint
+
+    func y(_ t: CGFloat) -> CGFloat {
+        let u = 1 - t
+        return u * u * u * p0.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p3.y
+    }
+
+    /// The two halves at `t` (de Casteljau), which together are exactly this piece.
+    func split(_ t: CGFloat) -> (SparkPiece, SparkPiece) {
+        func lerp(_ a: CGPoint, _ b: CGPoint) -> CGPoint { CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t) }
+        let (a, b, c) = (lerp(p0, c1), lerp(c1, c2), lerp(c2, p3))
+        let (d, e) = (lerp(a, b), lerp(b, c))
+        let f = lerp(d, e)
+        return (SparkPiece(p0: p0, c1: a, c2: d, p3: f), SparkPiece(p0: f, c1: e, c2: c, p3: p3))
+    }
+
+    /// Where the piece crosses the horizontal line at `level`.
+    func crossings(_ level: CGFloat) -> [CGFloat] {
+        var found: [CGFloat] = []
+        var (t0, v0) = (CGFloat(0), y(0) - level)
+        for i in 1...24 {
+            let t1 = CGFloat(i) / 24
+            let v1 = y(t1) - level
+            if v0 * v1 < 0 {
+                var (low, high) = (t0, t1)
+                for _ in 0..<24 {
+                    let mid = (low + high) / 2
+                    if (y(low) - level) * (y(mid) - level) <= 0 { high = mid } else { low = mid }
+                }
+                found.append((low + high) / 2)
+            }
+            (t0, v0) = (t1, v1)
+        }
+        return found
+    }
+
+    /// Fritsch–Carlson monotone cubic through the points: smooth, and never above or below the values around it.
+    static func smooth(_ p: [CGPoint]) -> [SparkPiece] {
+        let n = p.count
+        guard n > 1 else { return [] }
+        guard n > 2 else {
+            let third = CGPoint(x: (p[1].x - p[0].x) / 3, y: (p[1].y - p[0].y) / 3)
+            return [SparkPiece(p0: p[0], c1: CGPoint(x: p[0].x + third.x, y: p[0].y + third.y),
+                               c2: CGPoint(x: p[1].x - third.x, y: p[1].y - third.y), p3: p[1])]
+        }
+        var d = [CGFloat](repeating: 0, count: n - 1)
+        for i in 0..<n - 1 { d[i] = (p[i + 1].y - p[i].y) / max(p[i + 1].x - p[i].x, 0.001) }
+        var m = [CGFloat](repeating: 0, count: n)
+        m[0] = d[0]
+        m[n - 1] = d[n - 2]
+        for i in 1..<n - 1 { m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2 }
+        for i in 0..<n - 1 {
+            if d[i] == 0 { m[i] = 0; m[i + 1] = 0; continue }
+            let (a, b) = (m[i] / d[i], m[i + 1] / d[i])
+            let s = a * a + b * b
+            if s > 9 { let t = 3 / s.squareRoot(); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i] }
+        }
+        return (0..<n - 1).map { i in
+            let h = (p[i + 1].x - p[i].x) / 3
+            return SparkPiece(p0: p[i], c1: CGPoint(x: p[i].x + h, y: p[i].y + m[i] * h),
+                              c2: CGPoint(x: p[i + 1].x - h, y: p[i + 1].y - m[i + 1] * h), p3: p[i + 1])
         }
     }
 }
@@ -363,21 +437,21 @@ struct SparklinePlot {
     let dot: CGFloat
     let halo: CGFloat
     let inRange: Color
-    var line = Path()
+    var runs: [(path: Path, color: Color)] = []
+    var ends: [(point: CGPoint, color: Color)] = []
     var area = Path()
     var band: CGRect?
-    var acrossStops: [Gradient.Stop]
     var alongStops: [Gradient.Stop] = []
-    var last: (CGPoint, Color)?
+    var last: (point: CGPoint, color: Color)?
 
     init(node: Node, size: CGSize) {
         lineWidth = max(1.5, size.height / 20)
         dot = lineWidth * 2
         halo = lineWidth * 3
-        inRange = node.color == nil ? .accentColor : Palette.color(node.color)
+        let inRange = node.color == nil ? Color.accentColor : Palette.color(node.color)
+        self.inRange = inRange
         let above = node.aboveColor.map { Palette.color($0) } ?? inRange
         let below = node.belowColor.map { Palette.color($0) } ?? inRange
-        acrossStops = [.init(color: inRange, location: 0), .init(color: inRange, location: 1)]
 
         let values = node.values ?? []
         let known = values.compactMap { $0 }
@@ -395,79 +469,96 @@ struct SparklinePlot {
             return values.count > 1 ? plot.minX + CGFloat(i) / CGFloat(values.count - 1) * plot.width : plot.maxX
         }
         func y(_ v: Double) -> CGFloat { plot.maxY - CGFloat((v - bottom) / (top - bottom)) * plot.height }
-        func color(_ v: Double) -> Color {
-            if let high = node.high, v > high { return above }
-            if let low = node.low, v < low { return below }
+
+        // The band's edges in view points; the line is coloured by which side of them it is on.
+        let upper = node.high.map { y($0) }
+        let lower = node.low.map { y($0) }
+        func color(atY level: CGFloat) -> Color {
+            if let upper, level < upper { return above }
+            if let lower, level > lower { return below }
             return inRange
         }
-
-        if let low = node.low, let high = node.high {
-            let (upper, lower) = (min(max(y(high), 0), size.height), min(max(y(low), 0), size.height))
-            if lower > upper { band = CGRect(x: 0, y: upper, width: size.width, height: lower - upper) }
-            // Hard stops where the line crosses the band's edges, so each stretch takes its colour.
-            let (h, l) = (Double(upper / size.height), Double(lower / size.height))
-            acrossStops = [.init(color: above, location: 0), .init(color: above, location: h), .init(color: inRange, location: h),
-                           .init(color: inRange, location: l), .init(color: below, location: l), .init(color: below, location: 1)]
+        if node.shade == true, let upper, let lower {
+            let (top, bottom) = (min(max(upper, 0), size.height), min(max(lower, 0), size.height))
+            if bottom > top { band = CGRect(x: 0, y: top, width: size.width, height: bottom - top) }
         }
 
-        var segment: [CGPoint] = []
-        var previous: (x: CGFloat, color: Color)?
-        func close() {
-            guard let first = segment.first, let end = segment.last else { return }
-            SparklinePlot.smooth(segment, into: &line)
-            var fill = Path()
-            SparklinePlot.smooth(segment, into: &fill)
-            fill.addLine(to: CGPoint(x: end.x, y: size.height))
-            fill.addLine(to: CGPoint(x: first.x, y: size.height))
-            fill.closeSubpath()
-            area.addPath(fill)
-            segment = []
-        }
+        var segments: [[CGPoint]] = [[]]
         for (i, value) in values.enumerated() {
-            guard let value else { close(); continue }
+            guard let value else { segments.append([]); continue }
             let point = CGPoint(x: x(i), y: y(value))
             if point.x > plot.maxX + 0.5 { break }
-            segment.append(point)
-            let tint = color(value)
-            // Along the width the area takes the colour of the line above it, blending between two points.
-            if let previous, previous.color != tint {
-                alongStops += [.init(color: previous.color, location: Double(previous.x / size.width)),
-                               .init(color: tint, location: Double(point.x / size.width))]
-            } else if previous == nil {
-                alongStops.append(.init(color: tint, location: 0))
-            }
-            previous = (point.x, tint)
-            last = (point, tint)
+            segments[segments.count - 1].append(point)
         }
-        close()
-        if let previous { alongStops.append(.init(color: previous.color, location: 1)) }
-    }
 
-    /// Fritsch–Carlson monotone cubic through the points: smooth, and never above or below the values around it.
-    static func smooth(_ p: [CGPoint], into path: inout Path) {
-        path.move(to: p[0])
-        guard p.count > 2 else {
-            if p.count == 2 { path.addLine(to: p[1]) }
-            return
+        // Along the width the area takes the colour of the line above it, blending over a few points either side
+        // of where the line changes colour.
+        let blend = lineWidth * 2
+        var changes: [(x: CGFloat, from: Color, to: Color)] = []
+        var lastRun: Color?
+        for segment in segments where !segment.isEmpty {
+            let pieces = SparkPiece.smooth(segment)
+            if let lastRun, let start = runs.last?.path.currentPoint {
+                let tint = color(atY: segment[0].y)
+                if tint != lastRun { changes.append(((start.x + segment[0].x) / 2, lastRun, tint)) }
+            }
+            if pieces.isEmpty {
+                let tint = color(atY: segment[0].y)
+                ends.append((segment[0], tint))
+                runs.append((Path(), tint))
+                runs[runs.count - 1].path.move(to: segment[0])
+                lastRun = tint
+                continue
+            }
+
+            var fill = Path()
+            fill.move(to: segment[0])
+            var run: (path: Path, color: Color)?
+            for piece in pieces {
+                fill.addCurve(to: piece.p3, control1: piece.c1, control2: piece.c2)
+                let cuts = ([upper, lower].compactMap { $0 }.flatMap { piece.crossings($0) }).sorted()
+                var rest = piece
+                var done: CGFloat = 0
+                var parts: [SparkPiece] = []
+                for cut in cuts {
+                    let (head, tail) = rest.split((cut - done) / (1 - done))
+                    parts.append(head)
+                    (rest, done) = (tail, cut)
+                }
+                parts.append(rest)
+                for part in parts {
+                    let tint = color(atY: part.y(0.5))
+                    if run?.color != tint {
+                        if let finished = run {
+                            runs.append(finished)
+                            changes.append((part.p0.x, finished.color, tint))
+                        }
+                        var path = Path()
+                        path.move(to: part.p0)
+                        run = (path, tint)
+                    }
+                    run?.path.addCurve(to: part.p3, control1: part.c1, control2: part.c2)
+                }
+            }
+            if let run { runs.append(run) }
+            fill.addLine(to: CGPoint(x: segment[segment.count - 1].x, y: size.height))
+            fill.addLine(to: CGPoint(x: segment[0].x, y: size.height))
+            fill.closeSubpath()
+            area.addPath(fill)
+            ends.append((segment[0], color(atY: pieces[0].y(0.02))))
+            ends.append((segment[segment.count - 1], color(atY: pieces[pieces.count - 1].y(0.98))))
+            lastRun = runs.last?.color
         }
-        let n = p.count
-        var d = [CGFloat](repeating: 0, count: n - 1)
-        for i in 0..<n - 1 { d[i] = (p[i + 1].y - p[i].y) / max(p[i + 1].x - p[i].x, 0.001) }
-        var m = [CGFloat](repeating: 0, count: n)
-        m[0] = d[0]
-        m[n - 1] = d[n - 2]
-        for i in 1..<n - 1 { m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2 }
-        for i in 0..<n - 1 {
-            if d[i] == 0 { m[i] = 0; m[i + 1] = 0; continue }
-            let (a, b) = (m[i] / d[i], m[i + 1] / d[i])
-            let s = a * a + b * b
-            if s > 9 { let t = 3 / s.squareRoot(); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i] }
+
+        guard let first = ends.first, let final = ends.last else { return }
+        last = (final.point, color(atY: final.point.y))
+        alongStops = [.init(color: first.color, location: 0)]
+        for change in changes {
+            let from = max(Double((change.x - blend) / size.width), alongStops[alongStops.count - 1].location)
+            alongStops.append(.init(color: change.from, location: from))
+            alongStops.append(.init(color: change.to, location: max(from, Double((change.x + blend) / size.width))))
         }
-        for i in 0..<n - 1 {
-            let h = (p[i + 1].x - p[i].x) / 3
-            path.addCurve(to: p[i + 1], control1: CGPoint(x: p[i].x + h, y: p[i].y + m[i] * h),
-                          control2: CGPoint(x: p[i + 1].x - h, y: p[i + 1].y - m[i + 1] * h))
-        }
+        alongStops.append(.init(color: final.color, location: max(1, alongStops[alongStops.count - 1].location)))
     }
 }
 
