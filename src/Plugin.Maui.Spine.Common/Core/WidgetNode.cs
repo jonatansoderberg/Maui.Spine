@@ -18,6 +18,7 @@ namespace Plugin.Maui.Spine.Common;
 [JsonDerivedType(typeof(ImageNode), "asset")]
 [JsonDerivedType(typeof(ProgressNode), "progress")]
 [JsonDerivedType(typeof(RingNode), "ring")]
+[JsonDerivedType(typeof(SparklineNode), "sparkline")]
 [JsonDerivedType(typeof(SpacerNode), "spacer")]
 [JsonDerivedType(typeof(DividerNode), "divider")]
 [JsonDerivedType(typeof(ButtonNode), "button")]
@@ -231,6 +232,57 @@ public sealed record RingNode(double? Value) : WidgetNode
 
     /// <summary>The ring's width in points; a tenth of the diameter when <see langword="null"/>.</summary>
     public double? Thickness { get; init; }
+}
+
+/// <summary>
+/// A line through <see cref="Values"/>, drawn by the platform. A server can push one inside a Live
+/// Activity, which a stored picture cannot travel in. It is drawn smooth, without overshooting a point.
+/// The vertical scale fits the values with a little room above and below. The node fills the width it
+/// is offered on iOS; on Android it is a picture <see cref="Aspect"/> times as wide as it is high. Build it
+/// with <see cref="W.Sparkline(IEnumerable{ValueTuple{DateTimeOffset, double}}, DateTimeOffset, DateTimeOffset, TimeSpan?, WidgetColor?, double)"/>.
+/// </summary>
+/// <param name="Values">
+/// The values in time order, <see langword="null"/> where there is none; the line breaks there. With
+/// <see cref="From"/> and <see cref="Step"/> value <c>i</c> is at <c>From + i × Step</c>; without them the values
+/// are spread evenly across the width.
+/// </param>
+public sealed record SparklineNode(IReadOnlyList<double?> Values) : WidgetNode
+{
+    /// <summary>The time at the left edge, and of the first value.</summary>
+    public DateTimeOffset? From { get; init; }
+
+    /// <summary>The time at the right edge. A line that ends before it leaves the rest of the width empty.</summary>
+    public DateTimeOffset? To { get; init; }
+
+    /// <summary>The time between two values, in seconds.</summary>
+    public double? Step { get; init; }
+
+    /// <summary>The line's colour, and inside the band its colour there; the platform accent when <see langword="null"/>.</summary>
+    public WidgetColor? Color { get; init; }
+
+    /// <summary>The lower edge of the target band; with <see cref="High"/>, a faint band behind the line.</summary>
+    public double? Low { get; init; }
+
+    /// <summary>The upper edge of the target band.</summary>
+    public double? High { get; init; }
+
+    /// <summary>The line's colour above <see cref="High"/>; <see cref="Color"/> when <see langword="null"/>.</summary>
+    public WidgetColor? AboveColor { get; init; }
+
+    /// <summary>The line's colour below <see cref="Low"/>; <see cref="Color"/> when <see langword="null"/>.</summary>
+    public WidgetColor? BelowColor { get; init; }
+
+    /// <summary>A soft fill under the line, in the line's colour at each point, fading out downwards.</summary>
+    public bool? Area { get; init; }
+
+    /// <summary>A dot on the last value, in its colour.</summary>
+    public bool? Dot { get; init; }
+
+    /// <summary>The height in points.</summary>
+    public double Height { get; init; } = 48;
+
+    /// <summary>Android: the picture's width as a multiple of <see cref="Height"/>; 3 when <see langword="null"/>.</summary>
+    public double? Aspect { get; init; }
 }
 
 /// <summary>Flexible space that pushes siblings apart.</summary>

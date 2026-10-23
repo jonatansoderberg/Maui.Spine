@@ -67,6 +67,54 @@ public static class W
     public static DividerNode Divider() => new();
 
     /// <summary>
+    /// A line through <paramref name="points"/> from <paramref name="from"/> to <paramref name="to"/>, drawn by the
+    /// platform; see <see cref="SparklineNode"/>. The points are put on an even time axis, one value per
+    /// <paramref name="step"/>, the latest of each step kept. A step with none breaks the line. The values
+    /// are rounded to a thousandth of their range, finer than a widget can draw, so an hour at one value a
+    /// minute takes about 300 bytes.
+    /// </summary>
+    /// <param name="points">Time and value, in any order. Points outside <paramref name="from"/>–<paramref name="to"/> are left out.</param>
+    /// <param name="from">The time at the left edge.</param>
+    /// <param name="to">The time at the right edge, usually now.</param>
+    /// <param name="step">The time between two values; a sixtieth of the span when <see langword="null"/>.</param>
+    /// <param name="color">The line's colour; the platform accent when <see langword="null"/>.</param>
+    /// <param name="height">The height in points.</param>
+    public static SparklineNode Sparkline(IEnumerable<(DateTimeOffset Time, double Value)> points, DateTimeOffset from, DateTimeOffset to,
+        TimeSpan? step = null, WidgetColor? color = null, double height = 48)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(to, from);
+        var interval = step ?? TimeSpan.FromSeconds(Math.Max(1, Math.Round((to - from).TotalSeconds / 60)));
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(interval, TimeSpan.Zero, nameof(step));
+
+        var values = new double?[(int)Math.Floor((to - from) / interval) + 1];
+        var times = new DateTimeOffset[values.Length];
+        foreach (var (time, value) in points)
+        {
+            if (time < from || time > to || !double.IsFinite(value)) continue;
+            var i = (int)((time - from) / interval);
+            if (values[i] is null || time >= times[i]) (values[i], times[i]) = (value, time);
+        }
+
+        return new(Rounded(values)) { From = from, To = to, Step = interval.TotalSeconds, Color = color, Height = height };
+    }
+
+    /// <summary>A line through <paramref name="values"/> spread evenly across the width; see <see cref="SparklineNode"/>.</summary>
+    /// <param name="values">The values in order, <see langword="null"/> for a gap.</param>
+    /// <param name="color">The line's colour; the platform accent when <see langword="null"/>.</param>
+    /// <param name="height">The height in points.</param>
+    public static SparklineNode Sparkline(IEnumerable<double?> values, WidgetColor? color = null, double height = 48) =>
+        new(Rounded([.. values.Select(v => v is { } d && double.IsFinite(d) ? v : null)])) { Color = color, Height = height };
+
+    private static double?[] Rounded(double?[] values)
+    {
+        var known = values.OfType<double>().ToArray();
+        if (known.Length == 0) return values;
+        var range = known.Max() - known.Min();
+        var decimals = range > 0 ? Math.Clamp(3 - (int)Math.Ceiling(Math.Log10(range)), 0, 10) : 3;
+        return [.. values.Select(v => v is { } d ? Math.Round(d, decimals) : (double?)null)];
+    }
+
+    /// <summary>
     /// A tappable <paramref name="child"/> that sends <paramref name="actionId"/> to the provider's
     /// <see cref="IWidgetActionHandler"/>.
     /// </summary>
@@ -171,6 +219,22 @@ public static class WidgetNodeStyling
         ArgumentOutOfRangeException.ThrowIfNegative(points);
         return (T)(node with { CornerRadius = points });
     }
+
+    /// <summary>
+    /// A target band from <paramref name="low"/> to <paramref name="high"/>, drawn faintly behind the line. The line
+    /// takes <paramref name="above"/> over the band and <paramref name="below"/> under it.
+    /// </summary>
+    public static SparklineNode Band(this SparklineNode node, double low, double high, WidgetColor? above = null, WidgetColor? below = null)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(low, high);
+        return node with { Low = low, High = high, AboveColor = above, BelowColor = below };
+    }
+
+    /// <summary>A soft fill under the line, in its colour at each point, fading out downwards.</summary>
+    public static SparklineNode Area(this SparklineNode node) => node with { Area = true };
+
+    /// <summary>A dot on the last value, in its colour.</summary>
+    public static SparklineNode Dot(this SparklineNode node) => node with { Dot = true };
 
     private static T Role<T>(this T node, TextRole role) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Role = role });
 }

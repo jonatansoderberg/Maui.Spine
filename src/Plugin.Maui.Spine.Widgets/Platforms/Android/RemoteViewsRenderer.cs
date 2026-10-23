@@ -127,6 +127,15 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 views.SetImageViewBitmap(Node, Ring(size, Number(node, "value"), Number(node, "thickness"), Text(node, "color")));
                 return views;
             }
+            case "sparkline":
+            {
+                // RemoteViews cannot draw a path either; a picture Aspect times as wide as it is high.
+                var height = (Number(node, "height") ?? 48) * Density;
+                var width = height * (Number(node, "aspect") ?? 3);
+                var views = new RemoteViews(Package, Resource.Layout.spine_widget_image);
+                views.SetImageViewBitmap(Node, Sparkline(node, (int)Math.Max(1, width), (int)Math.Max(1, height)));
+                return views;
+            }
             case "progress":
             {
                 var views = new RemoteViews(Package, Resource.Layout.spine_widget_progress);
@@ -227,6 +236,154 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             canvas.DrawArc(oval, -90, (float)(Math.Min(v, 1) * 360), false, paint);
         }
         return bitmap;
+    }
+
+    /// <summary>
+    /// A sparkline as a bitmap, drawn as <c>SparklineView</c> in SpineWidgetRenderer.swift draws it: a monotone
+    /// cubic through the values, coloured by the band, the band faint behind it, the area fading downwards
+    /// and a dot on the last value.
+    /// </summary>
+    private Bitmap Sparkline(JsonElement node, int width, int height)
+    {
+        var bitmap = Bitmap.CreateBitmap(width, height, Bitmap.Config.Argb8888!)!;
+        double?[] values = node.TryGetProperty("values", out var array) && array.ValueKind == JsonValueKind.Array
+            ? [.. array.EnumerateArray().Select(v => v.ValueKind == JsonValueKind.Number ? v.GetDouble() : (double?)null)]
+            : [];
+        var known = values.OfType<double>().ToArray();
+        if (known.Length == 0) return bitmap;
+
+        using var canvas = new Canvas(bitmap);
+        var inRange = Argb(Text(node, "color") ?? "accent");
+        var above = Text(node, "aboveColor") is { } a ? Argb(a) : inRange;
+        var below = Text(node, "belowColor") is { } b ? Argb(b) : inRange;
+        var (low, high) = (Number(node, "low"), Number(node, "high"));
+        int Tint(double v) => v > high ? above : v < low ? below : inRange;
+
+        var line = Math.Max(1.5f, height / Density / 20) * Density;
+        var marked = Bool(node, "dot");
+        var (dot, halo) = (line * 2, line * 3);
+        var edge = marked ? halo : line / 2;
+        var plot = new Android.Graphics.RectF(line / 2, edge, width - edge, height - edge);
+
+        var (lowest, highest) = (known.Min(), known.Max());
+        var pad = highest > lowest ? (highest - lowest) * 0.15 : Math.Max(Math.Abs(highest) * 0.1, 1);
+        var (bottom, top) = (lowest - pad, highest + pad);
+        var step = Number(node, "step");
+        var span = node.TryGetProperty("from", out _) && node.TryGetProperty("to", out _) ? (Date(node, "to") - Date(node, "from")).TotalSeconds : 0;
+        float X(int i) => step is { } s && span > 0 ? plot.Left + (float)(i * s / span) * plot.Width()
+            : values.Length > 1 ? plot.Left + (float)i / (values.Length - 1) * plot.Width() : plot.Right;
+        float Y(double v) => plot.Bottom - (float)((v - bottom) / (top - bottom)) * plot.Height();
+
+        var segments = new List<List<Android.Graphics.PointF>>();
+        var along = new List<(int Color, float At)>();
+        (float X, int Color)? previous = null;
+        var lastColor = inRange;
+        Android.Graphics.PointF? last = null;
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (values[i] is not { } value) { segments.Add([]); continue; }
+            var point = new Android.Graphics.PointF(X(i), Y(value));
+            if (point.X > plot.Right + 0.5f) break;
+            if (segments.Count == 0) segments.Add([]);
+            segments[^1].Add(point);
+            var tint = Tint(value);
+            if (previous is { } p && p.Color != tint)
+            {
+                along.Add((p.Color, p.X / width));
+                along.Add((tint, point.X / width));
+            }
+            else if (previous is null) along.Add((tint, 0));
+            previous = (point.X, tint);
+            (last, lastColor) = (point, tint);
+        }
+        if (previous is { } end) along.Add((end.Color, 1));
+        segments.RemoveAll(s => s.Count == 0);
+
+        using var paint = new Android.Graphics.Paint(PaintFlags.AntiAlias);
+        if (low is { } l && high is { } h)
+        {
+            var (upper, lower) = (Math.Clamp(Y(h), 0, height), Math.Clamp(Y(l), 0, height));
+            if (lower > upper)
+            {
+                paint.Color = new Android.Graphics.Color(inRange) { A = (byte)(255 * 0.14) };
+                canvas.DrawRect(0, upper, width, lower, paint);
+            }
+            // Hard stops where the line crosses the band's edges, so each stretch takes its colour.
+            paint.SetShader(new LinearGradient(0, 0, 0, height, [above, above, inRange, inRange, below, below],
+                [0, upper / height, upper / height, lower / height, lower / height, 1], Shader.TileMode.Clamp!));
+        }
+        else paint.Color = new Android.Graphics.Color(inRange);
+
+        if (Bool(node, "area"))
+        {
+            using var fill = new Android.Graphics.Paint(PaintFlags.AntiAlias);
+            fill.SetShader(new LinearGradient(0, 0, width, 0, [.. along.Select(s => (int)(s.Color & 0x00FFFFFF | 0x59000000))],
+                [.. along.Select(s => s.At)], Shader.TileMode.Clamp!));
+            canvas.SaveLayer(null, null);
+            foreach (var segment in segments)
+            {
+                using var area = SparklinePath(segment);
+                area.LineTo(segment[^1].X, height);
+                area.LineTo(segment[0].X, height);
+                area.Close();
+                canvas.DrawPath(area, fill);
+            }
+            using var fade = new Android.Graphics.Paint();
+            fade.SetXfermode(new PorterDuffXfermode(PorterDuff.Mode.DstIn!));
+            fade.SetShader(new LinearGradient(0, 0, 0, height, unchecked((int)0xFF000000), 0, Shader.TileMode.Clamp!));
+            canvas.DrawRect(0, 0, width, height, fade);
+            canvas.Restore();
+        }
+
+        paint.SetStyle(Android.Graphics.Paint.Style.Stroke);
+        paint.StrokeWidth = line;
+        paint.StrokeCap = Android.Graphics.Paint.Cap.Round;
+        paint.StrokeJoin = Android.Graphics.Paint.Join.Round;
+        foreach (var segment in segments)
+        {
+            using var path = SparklinePath(segment);
+            canvas.DrawPath(path, paint);
+        }
+
+        if (marked && last is { } final)
+        {
+            using var mark = new Android.Graphics.Paint(PaintFlags.AntiAlias) { Color = new Android.Graphics.Color(lastColor) { A = (byte)(255 * 0.4) } };
+            canvas.DrawCircle(final.X, final.Y, halo, mark);
+            mark.Color = new Android.Graphics.Color(lastColor);
+            canvas.DrawCircle(final.X, final.Y, dot, mark);
+        }
+        return bitmap;
+    }
+
+    /// <summary>Fritsch–Carlson monotone cubic through the points: smooth, and never above or below the values around it.</summary>
+    private static Android.Graphics.Path SparklinePath(List<Android.Graphics.PointF> p)
+    {
+        var path = new Android.Graphics.Path();
+        path.MoveTo(p[0].X, p[0].Y);
+        if (p.Count < 3)
+        {
+            if (p.Count == 2) path.LineTo(p[1].X, p[1].Y);
+            return path;
+        }
+        var n = p.Count;
+        var d = new float[n - 1];
+        for (var i = 0; i < n - 1; i++) d[i] = (p[i + 1].Y - p[i].Y) / Math.Max(p[i + 1].X - p[i].X, 0.001f);
+        var m = new float[n];
+        (m[0], m[n - 1]) = (d[0], d[n - 2]);
+        for (var i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+        for (var i = 0; i < n - 1; i++)
+        {
+            if (d[i] == 0) { m[i] = 0; m[i + 1] = 0; continue; }
+            var (a, b) = (m[i] / d[i], m[i + 1] / d[i]);
+            var s = a * a + b * b;
+            if (s > 9) { var t = 3 / MathF.Sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+        }
+        for (var i = 0; i < n - 1; i++)
+        {
+            var h = (p[i + 1].X - p[i].X) / 3;
+            path.CubicTo(p[i].X + h, p[i].Y + m[i] * h, p[i + 1].X - h, p[i + 1].Y - m[i + 1] * h, p[i + 1].X, p[i + 1].Y);
+        }
+        return path;
     }
 
     private RemoteViews TextLike(JsonElement node, int layout, int boldLayout)
