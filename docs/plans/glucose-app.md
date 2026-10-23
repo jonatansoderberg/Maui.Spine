@@ -888,6 +888,8 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | G6 | Inga App Intents för Siri | En intent som svarar med en mening | Senare |
 | G7 | Critical alerts, och Stör ej på Android | `PushInterruption.Critical` med `sound` som objekt. Kanal som går igenom Stör ej | Notiser för mycket lågt |
 | G8 | Live Activity kräver en widget: Spine bygger widgettillägget bara när appen har minst en `<SpineWidget>` | Bygg tillägget när `SpineWidgetsLiveActivities` är på, även utan widgets | Liten. Glukos har en widget (`glucose`) så länge |
+| G9 | Widgettillägget byggs på engelska: `spine-widgets-build.sh` skriver `CFBundleDevelopmentRegion` `en` och inga `CFBundleLocalizations`, så tider som systemet ritar (`W.Relative`) blir "1 min, 36 sec" även på en svensk telefon | Ta appens `CFBundleLocalizations` (eller en egen egenskap) till tilläggets `Info.plist` | Live Activity och widget på svenska |
+| G10 | Inloggningens tabeller (`UseAzureTableStore`) tar bara en anslutningssträng, inte en `TableServiceClient` med hanterad identitet | En överlagring med `TableServiceClient` (eller `Uri` och `TokenCredential`) | Glukos använder lagringskontots nyckel för `SpineAuth*`-tabellerna så länge; allt annat går med identiteten |
 
 ---
 
@@ -900,8 +902,8 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | S2 | Spike: Live Activity per minut över en natt, i lågenergiläge och StandBy, push-to-start efter 8 h, Macens menyrad | Leverans och fördröjning är uppmätta (B5) | Förslag |
 | S3 | Spike: Connect IQ på din klocka. Datafält med FIT-loggning (beta i butiken), glance, complication i en Face It-urtavla, minne med 3 h graf | Du vet vad som fungerar på din klocka | Förslag |
 | 1 | Backend-grund: repo, Functions, `Glukos.Shared`, Bicep, Key Vault, CI, den fejkade källan | `current` svarar i Azure | Klar (§15.2) |
-| 2 | Konto: Spines inloggning, ta bort konto | Fungerar i appen | Förslag |
-| 3 | LinkUp-adapter, personer och hämtning (§7.2–7.5) | Riktiga värden för alla personer. Mätvärdena syns | Förslag |
+| 2 | Konto: Spines inloggning, ta bort konto | Fungerar i appen | Pågår: e-post och lösenord i Azure, utan e-posttjänst (§15.4) |
+| 3 | LinkUp-adapter, personer och hämtning (§7.2–7.5) | Riktiga värden för alla personer. Mätvärdena syns | Pågår: adapter, kryptering och anslutning i appen; inte prövad med ett riktigt konto (§15.4) |
 | 4 | Ändrade API:er (§7.11): brytare, kanarie, `source.shape`, `/v1/status`, larm | En inspelad trasig version löser ut brytaren i ett test | Förslag |
 | 5 | Appen: översikt, person, graf (G1), gamla värden, tillgänglighet, språk | VoiceOver läser riktningen, och allt finns på båda språken | Pågår: översikt och person utan graf (§15.3) |
 | 6 | Live Activity: layout i `Shared`, push, push-to-start, `staleAt`. StandBy, Mac och Apple Watch kontrolleras | Ligger kvar en hel natt | Pågår: startas och uppdateras från appen, push väntar på APNs-nyckeln (§15.3) |
@@ -1005,6 +1007,26 @@ Byggt efter konceptbilderna (§18.1) och Spines hockeyexempel (`samples/MauiSpin
 - Mörkt läge efter översiktsbilden, och svep mellan personer.
 
 ---
+
+### 15.4 Steg 2 och 3: konto och LinkUp 2026-10-23
+
+**Klart:**
+- **Konto (steg 2):** Spines inloggning med e-post och lösenord. Servern kör Spines handläggare som Functions under `/auth`, och API:t läser användaren ur access-token. Att ta bort kontot (`OnAccountDeleting`) raderar källor, personer och mätvärden. Lokalt är ett anrop utan token fortfarande dev-användaren; i Azure finns ingen dev-användare längre.
+- **LinkUp-adaptern (steg 3):** loggar in, följer regionen, godkänner aldrig villkor, läser alla personer ur `connections` och fyller en persons glapp ur `graph`. Tid från `FactoryTimestamp`. En avvisad token får en ny inloggning; Cloudflares 403-sida blir `Unavailable`. Testad mot S1:s inspelningar.
+- **Kryptering (§7.4):** uppgifter och token ligger i ett kuvert per källa: AES-256-GCM med en ny nyckel per skrivning, bunden till raden och inslagen med en RSA-nyckel i Key Vault som inte kan exporteras. Lokalt slår en dev-nyckel in den.
+- **`/v1/sources`:** ansluta LinkUp (med samtycke), slå på demopersonerna (den fejkade källan, som nu finns för alla konton), lista och ta bort med allt som hör till.
+- **Appen:** Inställningar med konto, LinkUp, demopersoner, enhet (mmol/L eller mg/dL) och klocka (24 eller 12 h) som menyer, och länkar till Libre 3 och Hälsa. Enheten räknas om i appen och slår igenom i kort, graf, Live Activity och widget. Högt är gult i stället för lila.
+
+**Beslut och avvikelser:**
+- **Ingen e-posttjänst än.** Registrering kräver ingen verifierad e-post, och "Glömt lösenord" är avstängt i appen. Ett glömt lösenord kan inte återställas förrän en tjänst finns.
+- **Inloggningens tabeller med kontonyckel** (G10), tills Spine tar en `TableServiceClient`.
+- **Libre 3 går inte att öppna direkt.** Appen (`com.abbott.libre3.se`) har inget URL-schema och Abbotts domäner ingen app-site-association (31 scheman prövade på enheten 2026-10-22). Länken går till appens sida i App Store, där "Öppna" startar den. Varje land har sin egen app.
+- **Enhet och klocka sparas på telefonen**, inte på kontot. En pushad Live Activity (steg 6) behöver enheten på servern.
+
+**Återstår:**
+- Prova med ett riktigt följarkonto när S1:s 24 h-mätning är klar.
+- Sign in with Apple (App ID-förmågan, profilerna görs om), och en e-posttjänst för koder och återställning.
+- Brytaren och kanarien (steg 4).
 
 ## 16. Beslut att granska
 
