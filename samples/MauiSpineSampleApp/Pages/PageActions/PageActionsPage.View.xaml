@@ -41,10 +41,10 @@
         </Example>
 
         <Example Title="Show that it is working"
-                 Summary="IsBusy dims the button, takes no taps and turns its icon until the work is done, finishing the turn it is on. ShowsBusy sets it for as long as an async command runs.">
+                 Summary="IsBusy dims the button and takes no taps until the work is done. SpinsWhenBusy turns its icon as well, finishing the turn it is on. ShowsBusy sets IsBusy for as long as an async command runs.">
             <Button Text="Ring the bell" Command="{Binding RingCommand}" />
             <Example.Code>
-                [PageAction(Svg = "bell.svg", ShowsBusy = true)]
+                [PageAction(Svg = "bell.svg", ShowsBusy = true, SpinsWhenBusy = true)]
                 [RelayCommand]
                 private Task Bell() => RingAsync();
 

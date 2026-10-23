@@ -1,8 +1,8 @@
 namespace Plugin.Maui.Spine.Presentation;
 
 /// <summary>
-/// Turns a page action's glyph while the action is busy (<see cref="Core.PageAction.IsBusy"/>), and lets the turn
-/// it is on finish when it stops. On Apple the glyph's layer turns, so the glass circle under it stays still.
+/// Turns a page action's glyph while the action is busy and spins (<see cref="Core.PageAction.SpinsWhenBusy"/>), and
+/// lets the turn it is on finish when it stops. On Apple the glyph's layer turns, so the glass circle under it stays still.
 /// </summary>
 internal static class BusySpin
 {

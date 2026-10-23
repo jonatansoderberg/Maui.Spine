@@ -178,7 +178,7 @@ PropertyChanged += (_, e) =>
 
 ### Turning a header button's icon yourself
 
-**Fix:** use [`PageAction.IsBusy`](page-actions.md#a-busy-action). Header buttons morph on macOS 26, and the glyph is then an `Image` over the glass rather than the button's image. The face is also reused for the next page's action, so a rotation started from outside keeps turning on Back.
+**Fix:** use [`PageAction.IsBusy`](page-actions.md#a-busy-action) with `SpinsWhenBusy = true`. Header buttons morph on macOS 26, and the glyph is then an `Image` over the glass rather than the button's image. The face is also reused for the next page's action, so a rotation started from outside keeps turning on Back.
 
 ### JavaScript in a `WebView` returns `null`
 

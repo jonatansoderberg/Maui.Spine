@@ -47,6 +47,7 @@ The command property is found by the toolkit's naming rule (`SaveAsync` and `Sav
 | `Badge` | `null` | Initial badge text |
 | `IsVisible` | `true` | Initial visibility |
 | `ShowsBusy` | `false` | `IsBusy` follows the async command while it runs; see [A busy action](#a-busy-action) |
+| `SpinsWhenBusy` | `false` | The icon turns while the action is busy, rather than only dimming |
 | `Command` | `null` | Name of the command property, when not derived from the member |
 
 ### Adding actions by hand
@@ -84,7 +85,8 @@ void OnEditingChanged(bool editing) => FilterAction.IsVisible = !editing;
 | `Svg` | `string?` | `null` | SVG resource name from `Resources/Images`; changing it cross-fades |
 | `Badge` | `string?` | `null` | Short text in a small pill over the button, e.g. `"3"`; `null` hides it |
 | `IsEnabled` | `bool` | `true` | Whether the button responds to taps |
-| `IsBusy` | `bool` | `false` | Work the button started is under way: dimmed, no taps, the icon turns; see below |
+| `IsBusy` | `bool` | `false` | Work the button started is under way: dimmed, no taps; see [A busy action](#a-busy-action) |
+| `SpinsWhenBusy` | `bool` | `false` | The icon turns while `IsBusy`, such as a refresh |
 | `IsSelected` | `bool` | `false` | Whether a toggle the button stands for is on; see below |
 | `IsVisible` | `bool` | `true` | Whether the button is shown; the next visible action in the slot takes over |
 | `Command` | `ICommand` | — | Command executed when the button is tapped (fixed at creation) |
@@ -111,12 +113,18 @@ partial void OnIsTorchOnChanged(bool value) => _torch.IsSelected = value;
 
 ## A busy action
 
-`IsBusy = true` shows that the work a button started is under way, such as a refresh: the button dims and does not respond to taps, and its icon turns until `IsBusy` is set back, finishing the turn it is on rather than snapping back. Only the glyph turns; the glass circle or filled circle under it stays still. A text button only dims, and with Reduce Motion the icon only dims too.
+`IsBusy = true` shows that the work a button started is under way, such as saving: the button dims and does not respond to taps until `IsBusy` is set back. That is all a confirm, send or save button needs.
 
-`ShowsBusy = true` on the attribute sets it for as long as the async command runs, so the page needs no code of its own:
+`SpinsWhenBusy = true` also turns the icon while it is busy, for a glyph that means going round, such as a refresh. It turns until `IsBusy` is set back, finishing the turn it is on rather than snapping back. Only the glyph turns; the glass circle or filled circle under it stays still. A text button only dims, and with Reduce Motion the icon only dims too.
+
+`ShowsBusy = true` on the attribute sets `IsBusy` for as long as the async command runs, so the page needs no code of its own; add `SpinsWhenBusy = true` for the turn:
 
 ```csharp
-[PageAction(Svg = "Reload.svg", Placement = PageActionPlacement.Primary, ShowsBusy = true)]
+[PageAction("Save", Role = PageActionRole.Confirm, ShowsBusy = true)]
+[RelayCommand]
+private Task SaveAsync() => StoreAsync();
+
+[PageAction(Svg = "Reload.svg", Placement = PageActionPlacement.Primary, ShowsBusy = true, SpinsWhenBusy = true)]
 [RelayCommand]
 private Task RefreshAsync() => LoadAsync();
 ```
@@ -128,6 +136,8 @@ _refresh.IsBusy = true;
 try { await Task.WhenAll(SyncAsync(), Task.Delay(900)); }   // at least one turn, so a quick refresh still shows
 finally { _refresh.IsBusy = false; }
 ```
+
+Up to Spine 0.1.19 every busy icon turned. A button that should keep turning, such as a refresh, now needs `SpinsWhenBusy = true` on the attribute or the `PageAction`.
 
 ## A haptic on tap
 

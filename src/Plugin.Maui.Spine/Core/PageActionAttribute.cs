@@ -77,18 +77,32 @@ public sealed class PageActionAttribute : Attribute
     public bool IsVisible { get; init; } = true;
 
     /// <summary>
-    /// Whether <see cref="PageAction.IsBusy"/> follows the command while it runs, so a refresh button's icon turns
-    /// until the refresh is done. Needs an async command (<c>[RelayCommand]</c> on a method returning a
-    /// <see cref="Task"/>). Defaults to <see langword="false"/>.
+    /// Whether <see cref="PageAction.IsBusy"/> follows the command while it runs, so the button dims and takes no
+    /// taps until the work is done. Needs an async command (<c>[RelayCommand]</c> on a method returning a
+    /// <see cref="Task"/>). Defaults to <see langword="false"/>. Add <see cref="SpinsWhenBusy"/> for an icon that
+    /// turns as well, such as a refresh.
     /// </summary>
     /// <example>
     /// <code>
-    /// [PageAction(Svg = "Reload.svg", Placement = PageActionPlacement.Primary, ShowsBusy = true)]
+    /// [PageAction("Save", Role = PageActionRole.Confirm, ShowsBusy = true)]
+    /// [RelayCommand]
+    /// private Task SaveAsync() => StoreAsync();
+    /// </code>
+    /// </example>
+    public bool ShowsBusy { get; init; }
+
+    /// <summary>
+    /// Initial <see cref="PageAction.SpinsWhenBusy"/>: whether the icon turns while the action is busy. Defaults to
+    /// <see langword="false"/>, so a busy action only dims.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// [PageAction(Svg = "Reload.svg", Placement = PageActionPlacement.Primary, ShowsBusy = true, SpinsWhenBusy = true)]
     /// [RelayCommand]
     /// private Task RefreshAsync() => LoadAsync();
     /// </code>
     /// </example>
-    public bool ShowsBusy { get; init; }
+    public bool SpinsWhenBusy { get; init; }
 
     /// <summary>Initial <see cref="PageAction.Haptic"/>: the haptic a tap plays. Defaults to <see cref="Haptic.None"/>.</summary>
     public Haptic Haptic { get; init; }
