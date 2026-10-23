@@ -35,7 +35,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$OUT" && -n "$SOURCES" && -n "$BUNDLE_ID" && -n "$APP_GROUP" ]] || { echo "spine-widgets-build.sh: --out, --sources, --bundle-id and --app-group are required" >&2; exit 2; }
-[[ ${#WIDGETS[@]} -gt 0 || ${#CONTROLS[@]} -gt 0 ]] || { echo "spine-widgets-build.sh: at least one --widget or --control is required" >&2; exit 2; }
+# An extension with no widget and no control carries the Live Activity alone, which Mac Catalyst does not have.
+[[ ${#WIDGETS[@]} -gt 0 || ${#CONTROLS[@]} -gt 0 || ( "$LIVE" == "true" && "$SDK" != "maccatalyst" ) ]] || { echo "spine-widgets-build.sh: at least one --widget or --control is required, or --live-activities true on iOS" >&2; exit 2; }
 [[ ${#WIDGETS[@]} -le 9 ]] || { echo "spine-widgets-build.sh: WidgetKit bundles hold at most 10 widgets; Spine reserves one for Live Activities" >&2; exit 2; }
 [[ ${#CONTROLS[@]} -le 9 ]] || { echo "spine-widgets-build.sh: at most nine <SpineControl> items are supported; ${#CONTROLS[@]} declared" >&2; exit 2; }
 
@@ -77,6 +78,12 @@ esac
 # -g in Release too: it changes no optimization, only that DWARF is written and swiftc leaves a dSYM, which
 # crash reports from the extension and the bridge are symbolicated with. The binaries are stripped below.
 case "$CONFIG" in Release) OPT=(-O -g);; *) OPT=(-Onone -g);; esac
+
+# Widget push reloads widgets; with none it would only raise the extension to iOS 26.
+if [[ "$PUSH" == "true" && ${#WIDGETS[@]} -eq 0 ]]; then
+  echo "spine-widgets-build.sh: SpineWidgetsPush is ignored: there is no <SpineWidget> to reload"
+  PUSH="false"
+fi
 
 # Widget push needs iOS 26 in the extension (WidgetPushHandler), and a widget cannot pick its
 # configuration by OS version — Swift allows neither an if/else in a widget's body nor one in the
@@ -477,4 +484,4 @@ codesign --force --sign - --timestamp=none "$FRAMEWORK"
 codesign --force --sign - --timestamp=none --entitlements "$OUT/$NAME.entitlements" "$APPEX"
 
 date +%s > "$OUT/build.stamp"
-echo "spine-widgets-build.sh: built $APPEX ($EXT_TARGET, ${#WIDGETS[@]} widget(s), ${#CONTROLS[@]} control(s)$( [[ "$PUSH" == "true" ]] && echo ", widget push" )), $FRAMEWORK and $APP/Metadata.appintents for $TARGET"
+echo "spine-widgets-build.sh: built $APPEX ($EXT_TARGET, ${#WIDGETS[@]} widget(s), ${#CONTROLS[@]} control(s)$( [[ "$LIVE" == "true" ]] && echo ", Live Activity" )$( [[ "$PUSH" == "true" ]] && echo ", widget push" )), $FRAMEWORK and $APP/Metadata.appintents for $TARGET"
