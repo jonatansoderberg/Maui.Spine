@@ -49,7 +49,7 @@ public class SparklineTests(ITestOutputHelper output)
         var layout = new LiveActivityLayout
         {
             LockScreen = W.Sparkline(Hour(), Now.AddHours(-1), Now, color: Teal)
-                .Band(3.9, 10, above: WidgetColor.Yellow, below: WidgetColor.Red).Area().Dot(),
+                .Band(3.9, 10, above: WidgetColor.Yellow, below: WidgetColor.Red, shaded: true).Area().Dot(),
         };
 
         var json = layout.ToJson();
@@ -58,10 +58,12 @@ public class SparklineTests(ITestOutputHelper output)
         Assert.Equal(json, new LiveActivityLayout { LockScreen = back }.ToJson());
         Assert.Equal((3.9, 10.0), (back.Low, back.High));
         Assert.Equal(WidgetColor.Yellow, back.AboveColor);
+        Assert.True(back.Shade);
         Assert.True(back.Area);
         Assert.True(back.Dot);
         Assert.Contains("\"type\":\"sparkline\"", json);
         Assert.DoesNotContain("aspect", json);
+        Assert.DoesNotContain("shade", new LiveActivityLayout { LockScreen = W.Sparkline([1.0, 2]).Band(1, 2) }.ToJson());
     }
 
     [Fact]

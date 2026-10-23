@@ -239,9 +239,9 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     }
 
     /// <summary>
-    /// A sparkline as a bitmap, drawn as <c>SparklineView</c> in SpineWidgetRenderer.swift draws it: a monotone
-    /// cubic through the values, coloured by the band, the band faint behind it, the area fading downwards
-    /// and a dot on the last value.
+    /// A sparkline as a bitmap, drawn as <c>SparklineView</c> in SpineWidgetRenderer.swift draws it: a monotone cubic
+    /// through the values, split where it crosses the band's edges so each stretch takes its colour with a cut square
+    /// to the line, the band faint behind it when shaded, the area fading downwards and a dot on the last value.
     /// </summary>
     private Bitmap Sparkline(JsonElement node, int width, int height)
     {
@@ -256,8 +256,6 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         var inRange = Argb(Text(node, "color") ?? "accent");
         var above = Text(node, "aboveColor") is { } a ? Argb(a) : inRange;
         var below = Text(node, "belowColor") is { } b ? Argb(b) : inRange;
-        var (low, high) = (Number(node, "low"), Number(node, "high"));
-        int Tint(double v) => v > high ? above : v < low ? below : inRange;
 
         var line = Math.Max(1.5f, height / Density / 20) * Density;
         var marked = Bool(node, "dot");
@@ -274,60 +272,105 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             : values.Length > 1 ? plot.Left + (float)i / (values.Length - 1) * plot.Width() : plot.Right;
         float Y(double v) => plot.Bottom - (float)((v - bottom) / (top - bottom)) * plot.Height();
 
-        var segments = new List<List<Android.Graphics.PointF>>();
-        var along = new List<(int Color, float At)>();
-        (float X, int Color)? previous = null;
-        var lastColor = inRange;
-        Android.Graphics.PointF? last = null;
+        // The band's edges in pixels; the line is coloured by which side of them it is on.
+        float? upper = Number(node, "high") is { } high ? Y(high) : null;
+        float? lower = Number(node, "low") is { } low ? Y(low) : null;
+        int Tint(float y) => upper is { } u && y < u ? above : lower is { } l && y > l ? below : inRange;
+
+        var segments = new List<List<SparkPoint>> { new() };
         for (var i = 0; i < values.Length; i++)
         {
             if (values[i] is not { } value) { segments.Add([]); continue; }
-            var point = new Android.Graphics.PointF(X(i), Y(value));
+            var point = new SparkPoint(X(i), Y(value));
             if (point.X > plot.Right + 0.5f) break;
-            if (segments.Count == 0) segments.Add([]);
             segments[^1].Add(point);
-            var tint = Tint(value);
-            if (previous is { } p && p.Color != tint)
-            {
-                along.Add((p.Color, p.X / width));
-                along.Add((tint, point.X / width));
-            }
-            else if (previous is null) along.Add((tint, 0));
-            previous = (point.X, tint);
-            (last, lastColor) = (point, tint);
         }
-        if (previous is { } end) along.Add((end.Color, 1));
         segments.RemoveAll(s => s.Count == 0);
 
-        using var paint = new Android.Graphics.Paint(PaintFlags.AntiAlias);
-        if (low is { } l && high is { } h)
+        var runs = new List<(Android.Graphics.Path Path, int Color)>();
+        var ends = new List<(SparkPoint Point, int Color)>();
+        var changes = new List<(float X, int From, int To)>();
+        using var area = new Android.Graphics.Path();
+        (SparkPoint Point, int Color)? previous = null;
+        foreach (var segment in segments)
         {
-            var (upper, lower) = (Math.Clamp(Y(h), 0, height), Math.Clamp(Y(l), 0, height));
-            if (lower > upper)
+            if (previous is { } gap && Tint(segment[0].Y) != gap.Color)
+                changes.Add(((gap.Point.X + segment[0].X) / 2, gap.Color, Tint(segment[0].Y)));
+            var pieces = SparkPiece.Smooth(segment);
+            if (pieces.Count == 0)
             {
-                paint.Color = new Android.Graphics.Color(inRange) { A = (byte)(255 * 0.14) };
-                canvas.DrawRect(0, upper, width, lower, paint);
+                ends.Add((segment[0], Tint(segment[0].Y)));
+                previous = ends[^1];
+                continue;
             }
-            // Hard stops where the line crosses the band's edges, so each stretch takes its colour.
-            paint.SetShader(new LinearGradient(0, 0, 0, height, [above, above, inRange, inRange, below, below],
-                [0, upper / height, upper / height, lower / height, lower / height, 1], Shader.TileMode.Clamp!));
+
+            area.MoveTo(segment[0].X, segment[0].Y);
+            (Android.Graphics.Path Path, int Color)? run = null;
+            foreach (var piece in pieces)
+            {
+                area.CubicTo(piece.C1.X, piece.C1.Y, piece.C2.X, piece.C2.Y, piece.P3.X, piece.P3.Y);
+                var cuts = new[] { upper, lower }.OfType<float>().SelectMany(piece.Crossings).Order().ToList();
+                var (rest, done) = (piece, 0f);
+                var parts = new List<SparkPiece>();
+                foreach (var cut in cuts)
+                {
+                    var (head, tail) = rest.Split((cut - done) / (1 - done));
+                    parts.Add(head);
+                    (rest, done) = (tail, cut);
+                }
+                parts.Add(rest);
+                foreach (var part in parts)
+                {
+                    var tint = Tint(part.Y(0.5f));
+                    if (run?.Color != tint)
+                    {
+                        if (run is { } finished)
+                        {
+                            runs.Add(finished);
+                            changes.Add((part.P0.X, finished.Color, tint));
+                        }
+                        var path = new Android.Graphics.Path();
+                        path.MoveTo(part.P0.X, part.P0.Y);
+                        run = (path, tint);
+                    }
+                    run!.Value.Path.CubicTo(part.C1.X, part.C1.Y, part.C2.X, part.C2.Y, part.P3.X, part.P3.Y);
+                }
+            }
+            runs.Add(run!.Value);
+            area.LineTo(segment[^1].X, height);
+            area.LineTo(segment[0].X, height);
+            area.Close();
+            ends.Add((segment[0], Tint(pieces[0].Y(0.02f))));
+            ends.Add((segment[^1], Tint(pieces[^1].Y(0.98f))));
+            previous = (segment[^1], run.Value.Color);
         }
-        else paint.Color = new Android.Graphics.Color(inRange);
+
+        using var paint = new Android.Graphics.Paint(PaintFlags.AntiAlias);
+        if (Bool(node, "shade") && upper is { } bandTop && lower is { } bandBottom)
+        {
+            var (from, to) = (Math.Clamp(bandTop, 0, height), Math.Clamp(bandBottom, 0, height));
+            paint.Color = new Android.Graphics.Color(inRange) { A = (byte)(255 * 0.14) };
+            if (to > from) canvas.DrawRect(0, from, width, to, paint);
+        }
 
         if (Bool(node, "area"))
         {
-            using var fill = new Android.Graphics.Paint(PaintFlags.AntiAlias);
-            fill.SetShader(new LinearGradient(0, 0, width, 0, [.. along.Select(s => (int)(s.Color & 0x00FFFFFF | 0x59000000))],
-                [.. along.Select(s => s.At)], Shader.TileMode.Clamp!));
-            canvas.SaveLayer(null, null);
-            foreach (var segment in segments)
+            // Along the width the area takes the colour of the line above it, blending over a few pixels either side of
+            // where the line changes colour.
+            var blend = line * 2;
+            var stops = new List<(int Color, float At)> { (ends[0].Color, 0) };
+            foreach (var change in changes)
             {
-                using var area = SparklinePath(segment);
-                area.LineTo(segment[^1].X, height);
-                area.LineTo(segment[0].X, height);
-                area.Close();
-                canvas.DrawPath(area, fill);
+                var from = Math.Max((change.X - blend) / width, stops[^1].At);
+                stops.Add((change.From, from));
+                stops.Add((change.To, Math.Max(from, (change.X + blend) / width)));
             }
+            stops.Add((ends[^1].Color, Math.Max(1, stops[^1].At)));
+            using var fill = new Android.Graphics.Paint(PaintFlags.AntiAlias);
+            fill.SetShader(new LinearGradient(0, 0, width, 0, [.. stops.Select(s => (int)(s.Color & 0x00FFFFFF | 0x59000000))],
+                [.. stops.Select(s => s.At)], Shader.TileMode.Clamp!));
+            canvas.SaveLayer(null, null);
+            canvas.DrawPath(area, fill);
             using var fade = new Android.Graphics.Paint();
             fade.SetXfermode(new PorterDuffXfermode(PorterDuff.Mode.DstIn!));
             fade.SetShader(new LinearGradient(0, 0, 0, height, unchecked((int)0xFF000000), 0, Shader.TileMode.Clamp!));
@@ -335,55 +378,109 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             canvas.Restore();
         }
 
+        // Butt ends where one colour meets the next, so the cut is square to the line; round ends only where the
+        // line itself starts and stops.
         paint.SetStyle(Android.Graphics.Paint.Style.Stroke);
         paint.StrokeWidth = line;
-        paint.StrokeCap = Android.Graphics.Paint.Cap.Round;
+        paint.StrokeCap = Android.Graphics.Paint.Cap.Butt;
         paint.StrokeJoin = Android.Graphics.Paint.Join.Round;
-        foreach (var segment in segments)
+        foreach (var (path, color) in runs)
         {
-            using var path = SparklinePath(segment);
+            paint.Color = new Android.Graphics.Color(color);
             canvas.DrawPath(path, paint);
+            path.Dispose();
+        }
+        paint.SetStyle(Android.Graphics.Paint.Style.Fill);
+        foreach (var (point, color) in ends)
+        {
+            paint.Color = new Android.Graphics.Color(color);
+            canvas.DrawCircle(point.X, point.Y, line / 2, paint);
         }
 
-        if (marked && last is { } final)
+        if (marked)
         {
-            using var mark = new Android.Graphics.Paint(PaintFlags.AntiAlias) { Color = new Android.Graphics.Color(lastColor) { A = (byte)(255 * 0.4) } };
-            canvas.DrawCircle(final.X, final.Y, halo, mark);
-            mark.Color = new Android.Graphics.Color(lastColor);
-            canvas.DrawCircle(final.X, final.Y, dot, mark);
+            var (final, color) = (ends[^1].Point, Tint(ends[^1].Point.Y));
+            paint.Color = new Android.Graphics.Color(color) { A = (byte)(255 * 0.4) };
+            canvas.DrawCircle(final.X, final.Y, halo, paint);
+            paint.Color = new Android.Graphics.Color(color);
+            canvas.DrawCircle(final.X, final.Y, dot, paint);
         }
         return bitmap;
     }
 
-    /// <summary>Fritsch–Carlson monotone cubic through the points: smooth, and never above or below the values around it.</summary>
-    private static Android.Graphics.Path SparklinePath(List<Android.Graphics.PointF> p)
+    private readonly record struct SparkPoint(float X, float Y);
+
+    /// <summary>One cubic of a sparkline, in pixels.</summary>
+    private readonly record struct SparkPiece(SparkPoint P0, SparkPoint C1, SparkPoint C2, SparkPoint P3)
     {
-        var path = new Android.Graphics.Path();
-        path.MoveTo(p[0].X, p[0].Y);
-        if (p.Count < 3)
+        public float Y(float t)
         {
-            if (p.Count == 2) path.LineTo(p[1].X, p[1].Y);
-            return path;
+            var u = 1 - t;
+            return u * u * u * P0.Y + 3 * u * u * t * C1.Y + 3 * u * t * t * C2.Y + t * t * t * P3.Y;
         }
-        var n = p.Count;
-        var d = new float[n - 1];
-        for (var i = 0; i < n - 1; i++) d[i] = (p[i + 1].Y - p[i].Y) / Math.Max(p[i + 1].X - p[i].X, 0.001f);
-        var m = new float[n];
-        (m[0], m[n - 1]) = (d[0], d[n - 2]);
-        for (var i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
-        for (var i = 0; i < n - 1; i++)
+
+        /// <summary>The two halves at <paramref name="t"/> (de Casteljau), which together are exactly this piece.</summary>
+        public (SparkPiece Head, SparkPiece Tail) Split(float t)
         {
-            if (d[i] == 0) { m[i] = 0; m[i + 1] = 0; continue; }
-            var (a, b) = (m[i] / d[i], m[i + 1] / d[i]);
-            var s = a * a + b * b;
-            if (s > 9) { var t = 3 / MathF.Sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+            SparkPoint Lerp(SparkPoint a, SparkPoint b) => new(a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t);
+            var (a, b, c) = (Lerp(P0, C1), Lerp(C1, C2), Lerp(C2, P3));
+            var (d, e) = (Lerp(a, b), Lerp(b, c));
+            var f = Lerp(d, e);
+            return (new(P0, a, d, f), new(f, e, c, P3));
         }
-        for (var i = 0; i < n - 1; i++)
+
+        /// <summary>Where the piece crosses the horizontal line at <paramref name="level"/>.</summary>
+        public IEnumerable<float> Crossings(float level)
         {
-            var h = (p[i + 1].X - p[i].X) / 3;
-            path.CubicTo(p[i].X + h, p[i].Y + m[i] * h, p[i + 1].X - h, p[i + 1].Y - m[i + 1] * h, p[i + 1].X, p[i + 1].Y);
+            var (t0, v0) = (0f, Y(0) - level);
+            for (var i = 1; i <= 24; i++)
+            {
+                var t1 = i / 24f;
+                var v1 = Y(t1) - level;
+                if (v0 * v1 < 0)
+                {
+                    var (low, high) = (t0, t1);
+                    for (var j = 0; j < 24; j++)
+                    {
+                        var mid = (low + high) / 2;
+                        if ((Y(low) - level) * (Y(mid) - level) <= 0) high = mid; else low = mid;
+                    }
+                    yield return (low + high) / 2;
+                }
+                (t0, v0) = (t1, v1);
+            }
         }
-        return path;
+
+        /// <summary>Fritsch–Carlson monotone cubic through the points: smooth, and never above or below the values around it.</summary>
+        public static List<SparkPiece> Smooth(List<SparkPoint> p)
+        {
+            var n = p.Count;
+            if (n < 2) return [];
+            if (n == 2)
+            {
+                var (dx, dy) = ((p[1].X - p[0].X) / 3, (p[1].Y - p[0].Y) / 3);
+                return [new(p[0], new(p[0].X + dx, p[0].Y + dy), new(p[1].X - dx, p[1].Y - dy), p[1])];
+            }
+            var d = new float[n - 1];
+            for (var i = 0; i < n - 1; i++) d[i] = (p[i + 1].Y - p[i].Y) / Math.Max(p[i + 1].X - p[i].X, 0.001f);
+            var m = new float[n];
+            (m[0], m[n - 1]) = (d[0], d[n - 2]);
+            for (var i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+            for (var i = 0; i < n - 1; i++)
+            {
+                if (d[i] == 0) { m[i] = 0; m[i + 1] = 0; continue; }
+                var (a, b) = (m[i] / d[i], m[i + 1] / d[i]);
+                var s = a * a + b * b;
+                if (s > 9) { var t = 3 / MathF.Sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+            }
+            var pieces = new List<SparkPiece>(n - 1);
+            for (var i = 0; i < n - 1; i++)
+            {
+                var h = (p[i + 1].X - p[i].X) / 3;
+                pieces.Add(new(p[i], new(p[i].X + h, p[i].Y + m[i] * h), new(p[i + 1].X - h, p[i + 1].Y - m[i + 1] * h), p[i + 1]));
+            }
+            return pieces;
+        }
     }
 
     private RemoteViews TextLike(JsonElement node, int layout, int boldLayout)
