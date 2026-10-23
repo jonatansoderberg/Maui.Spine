@@ -890,6 +890,8 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | G8 | Live Activity kräver en widget: Spine bygger widgettillägget bara när appen har minst en `<SpineWidget>` | Bygg tillägget när `SpineWidgetsLiveActivities` är på, även utan widgets | Liten. Glukos har en widget (`glucose`) så länge |
 | G9 | Widgettillägget byggs på engelska: `spine-widgets-build.sh` skriver `CFBundleDevelopmentRegion` `en` och inga `CFBundleLocalizations`, så tider som systemet ritar (`W.Relative`) blir "1 min, 36 sec" även på en svensk telefon | Ta appens `CFBundleLocalizations` (eller en egen egenskap) till tilläggets `Info.plist` | Live Activity och widget på svenska |
 | G10 | Inloggningens tabeller (`UseAzureTableStore`) tar bara en anslutningssträng, inte en `TableServiceClient` med hanterad identitet | En överlagring med `TableServiceClient` (eller `Uri` och `TokenCredential`) | Glukos använder lagringskontots nyckel för `SpineAuth*`-tabellerna så länge; allt annat går med identiteten |
+| G11 | `PageAction.IsBusy` snurrar alltid ikonen. En bock som skickar ett formulär ska bara dämpas medan det pågår | En egen flagga för att snurra (`SpinsWhenBusy`), av som standard för bekräfta-knappar, eller en `BusyStyle` | Anslut LinkUp-bladet. Glukos stänger av bocken och visar "Ansluter …" så länge |
+| G12 | Ingen textfältsrad för `SpineSection`, och inget lösenordsfält med visa/dölj utanför inloggningsrutan | `SpineEntryRow` (kantlöst fält som rad) med `IsPassword` och en ögonknapp, som `SignInSheet` redan har | Anslut LinkUp-bladet. Glukos har en egen `PlainEntry` med en handler-mappning och ögat från `Svg.Icons` så länge |
 
 ---
 
