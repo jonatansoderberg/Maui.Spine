@@ -95,7 +95,7 @@ On iOS the items become the widget extension; on Android they become manifest en
 | Property | Default | Meaning |
 |---|---|---|
 | `SpineWidgetsAppGroup` | `group.$(ApplicationId)` | The App Group the app and the extension share. |
-| `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. On Android: whether the manifest gets the notification permissions a Live Update needs. |
+| `SpineWidgetsLiveActivities` | `true` | Whether the bundle includes the Live Activity and the app declares `NSSupportsLiveActivities`. On Android: whether the manifest gets the notification permissions a Live Update needs. Set to `true` in the project, it does both for an app with no `<SpineWidget>` at all; see [A Live Activity without widgets](#a-live-activity-without-widgets). |
 | `SpineWidgetsFrequentUpdates` | `false` | Declares `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget of Live Activities. |
 | `SpineWidgetsLiveActivitySmall` | `false` | Declares the small activity family on iOS 18 and later, so CarPlay and the Apple Watch Smart Stack draw `LiveActivityLayout.Small`. See [CarPlay and Apple Watch](#carplay-and-apple-watch). |
 | `SpineWidgetsBackgroundRefresh` | `true` | Adds `UIBackgroundModes: fetch` and the task identifier for [background runs](#background-runs); on Android, the alarm receiver. With `Plugin.Maui.Spine.BackgroundTasks` the identifier is that package's instead. |
@@ -712,6 +712,22 @@ var layout = new LiveActivityLayout
 - Keep it to one row of large text: on the dashboard it is read at a glance while driving.
 - `Small` travels in the same push as the rest of the layout. A row of five nodes adds about 400 bytes, which a layout near APNs' 4 KB limit may not have room for.
 - Android has no such surface and ignores `Small`.
+
+### A Live Activity without widgets
+
+The extension that draws a Live Activity on iOS is the widget extension, and the build makes it only for an app that declares a `<SpineWidget>` or a `<SpineControl>`. An app whose only surface is a Live Activity says so instead:
+
+```xml
+<PropertyGroup>
+  <SpineWidgetsLiveActivities>true</SpineWidgetsLiveActivities>
+</PropertyGroup>
+```
+
+- The value is the default, but here it has to be in the project. Referencing the package does not build an extension the app never asked for.
+- iOS gets an extension holding only the Live Activity. Nothing shows in the widget gallery. Start, update, push tokens, push-to-start, `SpineWidgetsFrequentUpdates` and the App Group work as they do with widgets. Device builds still need the extension's App ID and profile; see [Register the extension](#4-register-the-extension-in-the-developer-portal-for-device-builds).
+- Android gets the notification permissions a Live Update needs, and no widget receivers. The background-refresh receiver is left out, since there is nothing for it to refresh.
+- `SpineWidgetsPush` is ignored without a widget: it would only raise the extension to iOS 26. Pushes to the activity itself work either way.
+- Mac Catalyst has no Live Activities, so it gets nothing.
 
 ### Lifecycle
 
