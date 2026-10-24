@@ -18,7 +18,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>Voice for Spine apps: a full-duplex audio engine with the platform's echo cancellation, PCM16 in and out at a provider's rate, a playback queue that can be flushed when the user talks over the answer, and levels and 24 bands each way for visuals. The base for realtime voice AI.</Description>
+		<Description>Voice for Spine apps: a full-duplex audio engine with the platform's echo cancellation, PCM16 in and out at a provider's rate, a playback queue that can be flushed when the user talks over the answer, and levels and 24 bands each way for visuals. The base for realtime voice AI, and voice pipelines that let any chat model (Claude) talk: speech-to-text, the chat and text-to-speech, each on the device or the server.</Description>
 		<SpineIcon>ai.png</SpineIcon>
 		<PackageTags>$(PackageTags);voice;audio;echo-cancellation;realtime;microphone</PackageTags>
 	</PropertyGroup>
@@ -45,7 +45,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Voice.Tests" />
-		<!-- The avatar's voice driver reads a session's engine (VoiceSession.Audio) for the playback clock. -->
+		<!-- The avatar's voice driver reads a session's engine (IVoiceAudioOwner.Audio) for the playback clock. -->
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar" />
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.Controls.Avatar.Core.Tests" />
 	</ItemGroup>

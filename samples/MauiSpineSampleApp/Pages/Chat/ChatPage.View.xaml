@@ -6,15 +6,16 @@
     x:DataType="ChatPageViewModel">
 
     <!-- One conversation, typed and spoken: the microphone in the composer starts a call that knows the turns so far,
-         and adds its own to the same list. The avatar shows during a call. -->
+         and adds its own to the same list. The avatar is above the chat, idle until a call starts (Options: None hides it). -->
     <Grid RowDefinitions="Auto,Auto,*">
         <Label Text="{Binding Status}" FontSize="13" Opacity="0.7" Margin="{x:Static HeaderBarConstants.PagePadding}" Padding="0,8" />
 
-        <!-- During a call: the avatar, and Mute and Stop (cut the answer off) beside it. -->
-        <Grid Grid.Row="1" IsVisible="{Binding IsTalking}" ColumnDefinitions="*,Auto" ColumnSpacing="12"
-              Margin="{x:Static HeaderBarConstants.PagePadding}">
-            <AvatarView Source="{Binding Avatar.Source}" Driver="{Binding Driver}" HeightRequest="140" HorizontalOptions="Center" />
-            <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+        <!-- The avatar, and during a call Mute and Stop (cut the answer off) beside it. The avatar spans both columns so it
+             stays centred on the page; it needs a width of its own, having none. -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="{x:Static HeaderBarConstants.PagePadding}">
+            <AvatarView Grid.ColumnSpan="2" IsVisible="{Binding ShowsAvatar}" Source="{Binding Avatar.Source}" Driver="{Binding Driver}"
+                        WidthRequest="160" HeightRequest="140" HorizontalOptions="Center" />
+            <VerticalStackLayout Grid.Column="1" IsVisible="{Binding IsTalking}" Spacing="8" VerticalOptions="Center">
                 <Button Text="{Binding MuteText}" Command="{Binding ToggleMuteCommand}"
                         FontSize="14" Padding="12,4" HeightRequest="34" MinimumHeightRequest="34" CornerRadius="17"
                         BackgroundColor="#22808080" TextColor="{AppThemeBinding Light=Black, Dark=White}" />

@@ -91,6 +91,31 @@ public interface IAIFeatures
     /// <exception cref="AIFeatureException">The caller is refused, over a rate or out of budget, or the text is too long.</exception>
     Task<AISpeech?> SpeechAsync(string feature, string text, AICaller caller, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Writes down what <paramref name="wav"/> says for <paramref name="caller"/>: checks the feature's callers, rates and
+    /// budgets, asks the provider and records the audio's minutes.
+    /// </summary>
+    /// <param name="feature">The feature's name; its <c>Kind</c> is <c>Transcription</c>.</param>
+    /// <param name="wav">A WAV file, PCM16 mono; at most the feature's <see cref="AITranscriptionOptions.MaxSeconds"/>.</param>
+    /// <param name="caller">Who it is for.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The words, or <see langword="null"/> when the feature is off or not a transcription feature.</returns>
+    /// <exception cref="AIFeatureException">The caller is refused, over a rate or out of budget, or the audio is too long.</exception>
+    Task<AITranscription?> TranscribeAsync(string feature, ReadOnlyMemory<byte> wav, AICaller caller, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads <paramref name="text"/> aloud for <paramref name="caller"/> as the audio is made: a provider that streams
+    /// (<see cref="IAIStreamingSpeechProvider"/>) hands over each piece as it comes, any other its whole audio as one piece.
+    /// The characters are recorded when the stream ends.
+    /// </summary>
+    /// <param name="feature">The feature's name; its <c>Kind</c> is <c>Speech</c>.</param>
+    /// <param name="text">The text; at most the feature's <see cref="AISpeechOptions.MaxCharacters"/>.</param>
+    /// <param name="caller">Who it is for.</param>
+    /// <param name="cancellationToken">Cancels the call; a reader that stops ends the stream.</param>
+    /// <returns>The sample rate and the PCM16 pieces, or <see langword="null"/> when the feature is off or not a speech feature.</returns>
+    /// <exception cref="AIFeatureException">The caller is refused, over a rate or out of budget, or the text is too long.</exception>
+    Task<AISpeechStream?> StreamSpeechAsync(string feature, string text, AICaller caller, CancellationToken cancellationToken = default);
+
     /// <summary>Whether <paramref name="feature"/> answers right now.</summary>
     /// <param name="feature">The feature's name.</param>
     AIFeatureState StateOf(string feature);
@@ -214,6 +239,106 @@ internal sealed class AIFeatures(
         {
             await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, e);
             throw;
+        }
+    }
+
+    public async Task<AITranscription?> TranscribeAsync(string feature, ReadOnlyMemory<byte> wav, AICaller caller, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(feature);
+        ArgumentNullException.ThrowIfNull(caller);
+
+        if (!TryGetOn(feature, out var found) || found.Transcription is not { } provider) return null;
+
+        var options = found.Options.Transcription ?? new AITranscriptionOptions();
+        var duration = AITranscriptionProviders.DurationOf(wav.Span);
+        if (duration.TotalSeconds > options.MaxSeconds)
+            throw new AIRequestTooLargeException(found.Name, "seconds", options.MaxSeconds);
+
+        using var lease = gate.Acquire(found, caller);
+        await gate.CheckAsync(found, caller, cancellationToken);
+
+        var request = new AITranscriptionRequest(found.Name, found.Model, wav, options, caller);
+        var started = meter.Time.GetTimestamp();
+
+        try
+        {
+            var heard = await provider.TranscribeAsync(request, cancellationToken);
+            await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, null, minutes: (decimal)duration.TotalMinutes, measured: true);
+            return heard;
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, e);
+            throw;
+        }
+    }
+
+    public async Task<AISpeechStream?> StreamSpeechAsync(string feature, string text, AICaller caller, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(feature);
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(caller);
+
+        if (!TryGetOn(feature, out var found) || found.Speech is not { } speech) return null;
+
+        // A provider that does not stream makes its whole audio first; it is the one piece.
+        if (speech is not IAIStreamingSpeechProvider provider)
+            return await SpeechAsync(feature, text, caller, cancellationToken) is { } whole ? new AISpeechStream(whole.SampleRate, One(whole.Pcm)) : null;
+
+        var options = found.Options.Speech ?? new AISpeechOptions();
+        if (text.Length > options.MaxCharacters)
+            throw new AIRequestTooLargeException(found.Name, "characters", options.MaxCharacters);
+
+        var lease = gate.Acquire(found, caller);
+        try
+        {
+            await gate.CheckAsync(found, caller, cancellationToken);
+        }
+        catch
+        {
+            lease.Dispose();
+            throw;
+        }
+
+        var request = new AISpeechRequest(found.Name, found.Model, text, options, caller);
+        return new AISpeechStream(provider.SampleRate, Pieces());
+
+        // The lease is held and the meter runs until the last piece is read, or the reader stops.
+        async IAsyncEnumerable<ReadOnlyMemory<byte>> Pieces([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken stop = default)
+        {
+            using var held = lease;
+            var started = meter.Time.GetTimestamp();
+            Exception? error = null;
+            var pieces = provider.StreamAsync(request, cancellationToken).GetAsyncEnumerator(cancellationToken);
+
+            try
+            {
+                while (true)
+                {
+                    try
+                    {
+                        if (!await pieces.MoveNextAsync()) break;
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        error = e;
+                        throw;
+                    }
+
+                    yield return pieces.Current;
+                }
+            }
+            finally
+            {
+                await pieces.DisposeAsync();
+                await meter.RecordAsync(found, caller, found.Model, started, null, 0, 0, error, characters: error is null ? text.Length : 0);
+            }
+        }
+
+        static async IAsyncEnumerable<ReadOnlyMemory<byte>> One(ReadOnlyMemory<byte> pcm)
+        {
+            await Task.CompletedTask;
+            yield return pcm;
         }
     }
 

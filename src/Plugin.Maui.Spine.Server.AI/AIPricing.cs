@@ -20,7 +20,7 @@ internal static class AIPricing
     {
         if (price is null) return null;
 
-        var cost = images * (price.PerImage ?? 0) + minutes * (price.PerMinute ?? 0) + characters * (price.PerMillionCharacters ?? 0) / Million;
+        var cost = images * (price.PerImage ?? 0) + (decimal)minutes * (price.PerMinute ?? 0) + characters * (price.PerMillionCharacters ?? 0) / Million;
         if (usage is null) return cost;
 
         var input = usage.InputTokenCount ?? 0;

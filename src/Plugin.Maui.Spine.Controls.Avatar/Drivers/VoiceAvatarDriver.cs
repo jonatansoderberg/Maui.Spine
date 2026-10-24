@@ -51,7 +51,7 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     public VoiceAvatarDriver(IVoiceSession session)
     {
         _session = session;
-        _audio = (session as VoiceSession)?.Audio;
+        _audio = (session as IVoiceAudioOwner)?.Audio;
         LipSyncQuality = AvatarLipSyncQuality.AudioReactive;
     }
 

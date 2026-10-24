@@ -36,4 +36,25 @@ public sealed class SpineVoiceOptions
 
     /// <summary>The server's speech feature (<c>Kind: Speech</c>) a <see cref="ServerSpeech"/> reads with unless it is given another.</summary>
     public string? SpeechFeature { get; set; }
+
+    internal Dictionary<string, VoicePipeline> Pipelines { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Declares a voice pipeline: a conversation the session connects to by <paramref name="name"/> that writes the user
+    /// down, answers with a chat model and reads the answer aloud, each part on the device or the server. A second
+    /// declaration of the name replaces the first.
+    /// </summary>
+    /// <param name="name">The name given to <see cref="IVoiceSession.ConnectAsync(string, CancellationToken)"/> instead of a realtime feature.</param>
+    /// <param name="configure">Adds the parts.</param>
+    /// <returns>These options.</returns>
+    public SpineVoiceOptions Pipeline(string name, Action<VoicePipeline> configure)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(configure);
+        var pipeline = new VoicePipeline(name);
+        configure(pipeline);
+        pipeline.Validate();
+        Pipelines[name] = pipeline;
+        return this;
+    }
 }

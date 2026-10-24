@@ -17,13 +17,17 @@ internal sealed class AppleSpineSpeech() : QueuedSpeech(MainThread.BeginInvokeOn
     public override Task<IReadOnlyList<SpeechVoice>> GetVoicesAsync(string? language = null, CancellationToken cancellationToken = default) =>
         Task.FromResult(SpeechVoices.For(Voices(), language));
 
-    protected override void StartNative(SpeechUtterance utterance)
+    protected override void StartNative(SpeechUtterance utterance) => _synthesizer.Start(Native(utterance.Text, utterance.Options), utterance, Finished);
+
+    protected override void StopNative(SpeechUtterance utterance) => _synthesizer.Stop();
+
+    /// <summary>The native utterance for <paramref name="text"/>: the voice asked for, else the best for the language, at the options' pace.</summary>
+    internal static AVSpeechUtterance Native(string text, SpeakOptions options)
     {
-        var options = utterance.Options;
         var voice = SpeechVoices.Pick(Voices(), options) is { } picked ? AVSpeechSynthesisVoice.FromIdentifier(picked.Id)
             : options.Language is { } language ? AVSpeechSynthesisVoice.FromLanguage(language)
             : null;
-        var native = new AVSpeechUtterance(utterance.Text)
+        return new AVSpeechUtterance(text)
         {
             Voice = voice,
             // AVSpeechUtteranceDefaultSpeechRate is 0.5; Rate scales it.
@@ -31,10 +35,7 @@ internal sealed class AppleSpineSpeech() : QueuedSpeech(MainThread.BeginInvokeOn
             PitchMultiplier = Math.Clamp(options.Pitch, 0.5f, 2f),
             Volume = Math.Clamp(options.Volume, 0f, 1f),
         };
-        _synthesizer.Start(native, utterance, Finished);
     }
-
-    protected override void StopNative(SpeechUtterance utterance) => _synthesizer.Stop();
 
     private static IEnumerable<SpeechVoice> Voices() =>
         // Without the novelty voices (Bad News, Bells, Boing…), which would otherwise lead an alphabetical list. Quality by

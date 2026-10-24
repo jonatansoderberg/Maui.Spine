@@ -576,7 +576,38 @@ public sealed class SessionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Talking_over_the_farewell_keeps_the_conversation_going()
+    public async Task Saying_goodbye_back_neither_cuts_the_farewell_nor_keeps_the_call()
+    {
+        _session.EndsOnGoodbye = true;
+        await ConnectAsync();
+
+        _socket.Push(new { type = "response.function_call_arguments.done", call_id = "c1", name = VoiceSession.EndConversationTool, arguments = "{}" });
+        await Until(() => _socket.OfType("response.create").Any(), "the farewell asked for");
+        Assert.Single(_socket.OfType("input_audio_buffer.clear"));
+        _socket.Push(new { type = "response.created", response = new { id = "r2" } });
+        _socket.Push(new { type = "response.output_audio.delta", item_id = "a2", delta = Audio(2400) });
+        await Until(() => _audio.IsPlaying, "the farewell playing");
+
+        // The user says goodbye back: nothing of it is sent, and the provider's late speech_started cuts nothing.
+        var sent = _socket.OfType("input_audio_buffer.append").Count();
+        _audio.Capture(Signals.Sine(440, 48_000, 9600, 0.3f), 48_000);
+        _socket.Push(new { type = "input_audio_buffer.speech_started" });
+        _socket.Push(new { type = "response.output_audio.done", item_id = "a2" });
+        _socket.Push(new { type = "response.done", response = new { id = "r2", status = "completed" } });
+        await Task.Delay(50);
+        Assert.True(_audio.IsPlaying);
+        Assert.Equal(sent, _socket.OfType("input_audio_buffer.append").Count());
+        Assert.Empty(_socket.OfType("response.cancel"));
+
+        _audio.Render(4800, 48_000);
+        for (var i = 0; i < 10; i++)
+            _time.Advance(TimeSpan.FromMilliseconds(100));
+        await Until(() => _ended.Count == 1, "ended");
+        Assert.Equal(VoiceSessionEnd.Goodbye, _ended[0].Reason);
+    }
+
+    [Fact]
+    public async Task The_stop_button_still_keeps_the_conversation_going()
     {
         _session.EndsOnGoodbye = true;
         await ConnectAsync();
@@ -586,7 +617,8 @@ public sealed class SessionTests : IAsyncLifetime
         _socket.Push(new { type = "response.created", response = new { id = "r2" } });
         _socket.Push(new { type = "response.output_audio.delta", item_id = "a2", delta = Audio(2400) });
         await Until(() => _audio.IsPlaying, "the farewell playing");
-        _socket.Push(new { type = "input_audio_buffer.speech_started" });
+
+        _session.Interrupt();
         _socket.Push(new { type = "response.done", response = new { id = "r2", status = "cancelled" } });
         await Until(() => !_audio.IsPlaying, "cut off");
         _time.Advance(TimeSpan.FromSeconds(1));

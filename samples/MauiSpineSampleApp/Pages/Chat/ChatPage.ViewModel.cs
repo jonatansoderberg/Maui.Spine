@@ -17,10 +17,14 @@ public partial class ChatPageViewModel : SampleViewModel
     private readonly SpineVoiceOptions _voiceOptions;
     private readonly IHighlights _highlights;
     private IDispatcherTimer? _clock;
+    private DateTime _callStarted;
     private IEdgeGlow? _edge;
     private CancellationTokenSource? _connecting;
     private string _using = "";
     private string _voiceFeature = "Voice";
+    private const string CallKey = "chat.call";
+    // In the order of the "Model for calls" choices.
+    private static readonly string[] CallFeatures = ["Voice", "VoiceFull", "VoiceLive", "Claude", "ClaudeOpenAIVoice"];
 
     public ChatPageViewModel()
     {
@@ -34,7 +38,8 @@ public partial class ChatPageViewModel : SampleViewModel
         var server = services.GetRequiredKeyedService<IChatClient>("ServerAssistant");
         Client = demo;
 
-        // Spoken turns go to one of the push sample server's realtime features, in the same conversation: the microphone
+        // Spoken turns go to one of the push sample server's realtime features, or to Claude through a voice pipeline (the
+        // phone or the server writes the user down and reads the answer), in the same conversation: the microphone
         // connects a session that is given the turns so far and adds its own to Messages.
         _voiceOptions = services.GetRequiredService<SpineVoiceOptions>();
         _highlights = services.GetRequiredService<IHighlights>();
@@ -46,8 +51,13 @@ public partial class ChatPageViewModel : SampleViewModel
             IsTalking = IsConnected = false;
             _clock?.Stop();
             Status = error is not null ? $"The call ended: {error.Message}"
-                : reason == VoiceSessionEnd.Goodbye ? "You said goodbye, so it hung up."
-                : _using;
+                : reason switch
+                {
+                    VoiceSessionEnd.Goodbye => "You said goodbye, so it hung up.",
+                    VoiceSessionEnd.TimeLimit => string.Create(CultureInfo.InvariantCulture, $"Time's up: the call ended at its limit, after {DateTime.UtcNow - _callStarted:m\\:ss}."),
+                    VoiceSessionEnd.Provider => "The provider ended the call.",
+                    _ => _using,
+                };
         };
         Driver = new VoiceAvatarDriver(Session);
         // "Tack, hej då" ends the call, as with a person.
@@ -66,11 +76,15 @@ public partial class ChatPageViewModel : SampleViewModel
         Use(demo, "Demo answers in the app");
 
         var voiceModel = new ChoiceGroup("Model for calls", [
-            new Choice("Realtime 2.1 mini", "The server's Voice feature: gpt-realtime-2.1-mini, the app connects to OpenAI with a short-lived token.", () => _voiceFeature = "Voice"),
-            new Choice("Realtime 2.1", "VoiceFull: gpt-realtime-2.1, the larger model, about four times the price.", () => _voiceFeature = "VoiceFull"),
-            new Choice("GPT-Live", "VoiceLive: gpt-live-1, full duplex, through the server's relay; gpt-6-luna answers the bookings and the clock.", () => _voiceFeature = "VoiceLive"),
+            new Choice("Realtime 2.1 mini", "The server's Voice feature: gpt-realtime-2.1-mini, the app connects to OpenAI with a short-lived token.", () => Call("Voice")),
+            new Choice("Realtime 2.1", "VoiceFull: gpt-realtime-2.1, the larger model, about four times the price.", () => Call("VoiceFull")),
+            new Choice("GPT-Live", "VoiceLive: gpt-live-1, full duplex, through the server's relay; gpt-6-luna answers the bookings and the clock.", () => Call("VoiceLive")),
+            new Choice("Claude", "A voice pipeline: the phone writes you down (the server when it cannot), the server's Claude answers, and the phone's voice reads it.", () => Call("Claude")),
+            new Choice("Claude, OpenAI's voice", "The same pipeline, read aloud by the server's OpenAI voice (ReadOpenAI), streamed as it is made.", () => Call("ClaudeOpenAIVoice")),
         ]);
-        voiceModel.Select(0);
+        // The model for calls is remembered, so a new build or a restart calls the same one.
+        _voiceFeature = Preferences.Default.Get(CallKey, "Voice");
+        voiceModel.Select(Math.Max(0, Array.IndexOf(CallFeatures, _voiceFeature)));
 
         var limit = new ChoiceGroup("Time limit per call", [
             new Choice("The server's", "The feature's MaxMinutes (3 minutes in the sample).", () => Session.MaxMinutes = null),
@@ -79,11 +93,14 @@ public partial class ChatPageViewModel : SampleViewModel
         ]);
         limit.Select(0);
 
-        var avatars = new ChoiceGroup("Avatar during a call", [.. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
-        {
-            "Bars" or "Ring" => "Built into Spine: the answer's sound one way, the microphone's the other.",
-            _ => "A character or ambient avatar following the conversation: its state, the levels and the mouth.",
-        }, () => Avatar = a))]);
+        var avatars = new ChoiceGroup("Avatar", [
+            .. VoiceAvatars.All.Select(a => new Choice(a.Name, a.Name switch
+            {
+                "Bars" or "Ring" => "Built into Spine: the answer's sound one way, the microphone's the other.",
+                _ => "A character or ambient avatar following the conversation: its state, the levels and the mouth.",
+            }, () => Avatar = a)),
+            new Choice("None", "No avatar above the chat.", () => Avatar = null),
+        ]);
         avatars.Select(0);
 
         _options = [
@@ -93,7 +110,7 @@ public partial class ChatPageViewModel : SampleViewModel
             new ToggleOption("Read the clock on the server", "show_time is on both sides; this chat runs it on the server instead of the phone (ChatOptions.Prefer for typed turns, IVoiceSession.Prefer for spoken ones).", () => ClockOnServer, value => ClockOnServer = value),
             new ToggleOption("Show function calls", "A card for each function the model called (ChatView.ShowToolCalls), for debugging; the model tells the user the result anyway.", () => ShowToolCalls, value => ShowToolCalls = value),
             avatars,
-            new ToggleOption("Hang up after goodbye", "Say goodbye (\"tack, hej då\") and the call ends once the answer has been said.", () => Session.EndsOnGoodbye, value => Session.EndsOnGoodbye = value),
+            new ToggleOption("Hang up after goodbye", "Say goodbye (\"tack, hej då\") and the call ends once the answer has been said. Claude calls too, when the server feature offers end_conversation.", () => Session.EndsOnGoodbye, value => Session.EndsOnGoodbye = value),
             new ToggleOption("Glow the screen's edge", "During a call the window's edge glows with the answer's level (Spine.Controls.Highlight).", () => Edge, value => Edge = value),
             new TextOption("Server", "The push sample server's AI prefix for calls; on a phone, the Mac's address on the network or the Azure one.", () => Server, value => Server = value, Microsoft.Maui.Keyboard.Url),
         ];
@@ -142,8 +159,12 @@ public partial class ChatPageViewModel : SampleViewModel
     /// <summary>The avatar follows the call: its state, the levels and bands each way, the mouth on the answer.</summary>
     public AvatarDriver Driver { get; }
 
+    /// <summary>The avatar above the chat, idle until a call starts; null shows none.</summary>
     [ObservableProperty]
-    public partial AvatarChoice Avatar { get; set; } = VoiceAvatars.All[0];
+    [NotifyPropertyChangedFor(nameof(ShowsAvatar))]
+    public partial AvatarChoice? Avatar { get; set; } = VoiceAvatars.All[0];
+
+    public bool ShowsAvatar => Avatar is not null;
 
     /// <summary>A call is on or connecting: the microphone is a hang-up button, typed text goes into the call, the avatar shows.</summary>
     [ObservableProperty]
@@ -169,6 +190,12 @@ public partial class ChatPageViewModel : SampleViewModel
             _edge = _highlights.AttachEdge(window);
             _edge.Intensity = () => Session.UpdateFrame().OutputLevel;
         }
+    }
+
+    private void Call(string feature)
+    {
+        _voiceFeature = feature;
+        Preferences.Default.Set(CallKey, feature);
     }
 
     private void Use(IChatClient client, string label)
@@ -210,6 +237,7 @@ public partial class ChatPageViewModel : SampleViewModel
         {
             await Session.ConnectAsync(_voiceFeature, Messages, connecting.Token);
             IsConnected = true;
+            _callStarted = DateTime.UtcNow;
             _clock ??= Application.Current!.Dispatcher.CreateTimer();
             _clock.Interval = TimeSpan.FromSeconds(1);
             _clock.Tick -= OnClock;
@@ -227,9 +255,9 @@ public partial class ChatPageViewModel : SampleViewModel
             IsTalking = false;
             Status = e switch
             {
-                AIFeatureOffException { Reason: AIOffReason.SignInRequired } => $"The server's {_voiceFeature} feature answers signed-in users only; sign in first.",
-                AIFeatureOffException { Reason: AIOffReason.Budget } => $"Today's {_voiceFeature} budget is spent; try again tomorrow.",
-                AIFeatureOffException off => $"The server's {_voiceFeature} feature is off ({off.Reason}). Does it have an OpenAI key?",
+                AIFeatureOffException { Reason: AIOffReason.SignInRequired } off => $"The server's {off.Feature} feature answers signed-in users only; sign in first.",
+                AIFeatureOffException { Reason: AIOffReason.Budget } off => $"Today's {off.Feature} budget is spent; try again tomorrow.",
+                AIFeatureOffException off => $"The server's {off.Feature} feature is off ({off.Reason}). Does it have the provider's key?",
                 AIRateLimitedException limited => $"Too many calls; try again in {limited.RetryAfter?.TotalSeconds:0} s.",
                 _ => e.Message,
             };
@@ -300,8 +328,10 @@ public partial class ChatPageViewModel : SampleViewModel
     {
         if (!Session.IsConnected)
             return;
-        var left = Session.TimeLeft is { } t ? string.Create(CultureInfo.InvariantCulture, $" · {t:m\\:ss} left") : "";
+        // How long the call has lasted, and what is left of its limit when it has one.
+        var lasted = string.Create(CultureInfo.InvariantCulture, $" · {DateTime.UtcNow - _callStarted:m\\:ss}");
+        var left = Session.TimeLeft is { } t ? string.Create(CultureInfo.InvariantCulture, $", {t:m\\:ss} left") : "";
         var voice = Session.SpokenVoice is { } v ? $" · {v}" : "";
-        Status = $"Call: {Session.State}{voice}{left}";
+        Status = $"Call: {Session.State}{voice}{lasted}{left}";
     }
 }

@@ -36,13 +36,20 @@ public sealed record AISpeechBody(string? Text);
 /// event named <c>done</c>; otherwise it is one <see cref="ChatResponse"/>. All JSON is Microsoft.Extensions.AI's own.</para>
 /// <para><c>POST /ai/realtime/{name}</c> sets up a realtime voice session for an exposed realtime feature, and
 /// <c>/ai/realtime/{name}/relay</c> is the WebSocket a GPT-Live session talks through (ASP.NET Core only).</para>
-/// <para><c>POST /ai/speech/{name}</c> reads text aloud with an exposed speech feature.</para>
+/// <para><c>POST /ai/speech/{name}</c> reads text aloud with an exposed speech feature; with <c>Accept: audio/pcm</c> as it is made.</para>
+/// <para><c>POST /ai/transcribe/{name}</c> writes down what a WAV body says, with an exposed transcription feature.</para>
 /// <para><c>POST /ai/functions/{feature}/{name}</c> runs a server function a realtime session's model called.</para>
 /// <para><c>GET /ai/usage?from=&amp;to=&amp;feature=</c> reports what was spent.</para>
 /// </remarks>
 public static class SpineAIEndpoints
 {
     private const int MaxReportDays = 366;
+
+    /// <summary>The media type of streamed speech: raw PCM16, little-endian, mono.</summary>
+    internal const string PcmType = "audio/pcm";
+
+    /// <summary>The header streamed speech carries its sample rate in.</summary>
+    internal const string SampleRateHeader = "Spine-Sample-Rate";
 
     internal static JsonSerializerOptions Json { get; } = CreateJson();
 
@@ -439,6 +446,10 @@ public static class SpineAIEndpoints
 
         var caller = await features.IdentifyAsync(request);
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Plugin.Maui.Spine.Server.AI");
+
+        if (request.Headers.Accept.ToString().Contains(PcmType, StringComparison.OrdinalIgnoreCase))
+            return await StreamSpeechAsync(request, features, found.Name, text, caller, logger, cancellationToken);
+
         AISpeech? speech;
 
         try
@@ -465,6 +476,112 @@ public static class SpineAIEndpoints
             visemes = speech.Visemes.Select(v => new { id = v.Id, offsetMs = Math.Round(v.Offset.TotalMilliseconds, 1) }),
             durationMs = Math.Round(speech.Duration.TotalMilliseconds),
         }, Json);
+    }
+
+    /// <summary>The speech route's answer as it is made: PCM16, little-endian, mono, with its rate in <see cref="SampleRateHeader"/>.</summary>
+    private static async Task<IResult> StreamSpeechAsync(
+        HttpRequest request, AIFeatures features, string feature, string text, AICaller caller, ILogger logger, CancellationToken cancellationToken)
+    {
+        AISpeechStream? stream;
+        try
+        {
+            stream = await features.StreamSpeechAsync(feature, text, caller, cancellationToken);
+        }
+        catch (AIFeatureException e)
+        {
+            return e.ToResult();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Failed(logger, feature, e);
+        }
+
+        if (stream is null)
+            return new AIFeatureOffException(feature, features.OffReason(feature)).ToResult();
+
+        request.HttpContext.Response.Headers[SampleRateHeader] = stream.SampleRate.ToString(CultureInfo.InvariantCulture);
+        request.HttpContext.Response.Headers.CacheControl = "no-store";
+        return Results.Stream(async body =>
+        {
+            try
+            {
+                await foreach (var piece in stream.Pieces.WithCancellation(cancellationToken))
+                {
+                    await body.WriteAsync(piece, cancellationToken);
+                    await body.FlushAsync(cancellationToken);
+                }
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // The status is sent; the app sees the audio end early, and the reason goes to the log.
+                logger.LogError(e, "AI feature '{Feature}': the speech stream failed after it started.", feature);
+            }
+        }, PcmType);
+    }
+
+    /// <summary>Writes down what the audio in the body of <paramref name="request"/> says, with an exposed transcription feature.</summary>
+    /// <param name="request">The incoming request; its body is a WAV file, PCM16 mono.</param>
+    /// <param name="feature">The feature's name, from the route.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The result to return from the host's own handler: <c>{ feature, text }</c>.</returns>
+    /// <remarks>
+    /// Only features with <c>Kind: Transcription</c> and <c>Expose: true</c> answer. The language and prompt are the
+    /// feature's; audio longer than its <c>MaxSeconds</c> gets 413.
+    /// </remarks>
+    public static async Task<IResult> TranscribeAsync(HttpRequest request, string feature, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(feature);
+
+        var services = request.HttpContext.RequestServices;
+        var features = services.GetRequiredService<AIFeatures>();
+        var registry = services.GetRequiredService<AIFeatureRegistry>();
+
+        if (!registry.Current.Features.TryGetValue(feature, out var found) || !found.Options.Expose || found.Options.Kind != AIFeatureKind.Transcription)
+            return new AIFeatureOffException(feature, AIOffReason.NotConfigured).ToResult();
+
+        // The feature's longest audio at 48 kHz stereo, so a body can never be far larger than what it may hold.
+        var maxSeconds = (found.Options.Transcription ?? new AITranscriptionOptions()).MaxSeconds;
+        var limit = 44L + maxSeconds * 48_000L * 2 * 2;
+        if (request.ContentLength > limit)
+            return new AIRequestTooLargeException(found.Name, "seconds", maxSeconds).ToResult();
+
+        using var buffer = new MemoryStream();
+        var chunk = new byte[16_384];
+        int read;
+        while ((read = await request.Body.ReadAsync(chunk, cancellationToken)) > 0)
+        {
+            if (buffer.Length + read > limit)
+                return new AIRequestTooLargeException(found.Name, "seconds", maxSeconds).ToResult();
+            buffer.Write(chunk, 0, read);
+        }
+
+        var wav = buffer.GetBuffer().AsMemory(0, (int)buffer.Length);
+        if (AITranscriptionProviders.DurationOf(wav.Span) <= TimeSpan.Zero)
+            return Results.BadRequest("The body is not a WAV file with audio.");
+
+        var caller = await features.IdentifyAsync(request);
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Plugin.Maui.Spine.Server.AI");
+        AITranscription? heard;
+
+        try
+        {
+            heard = await features.TranscribeAsync(found.Name, wav, caller, cancellationToken);
+        }
+        catch (AIFeatureException e)
+        {
+            return e.ToResult();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Failed(logger, found.Name, e);
+        }
+
+        if (heard is null)
+            return new AIFeatureOffException(found.Name, features.OffReason(found.Name)).ToResult();
+
+        request.HttpContext.Response.Headers.CacheControl = "no-store";
+        return Results.Json(new { feature = found.Name, text = heard.Text }, Json);
     }
 
     /// <summary>Reports usage between <c>from</c> and <c>to</c>, by feature, model and day, with the top callers.</summary>
@@ -610,7 +727,8 @@ public static class SpineAIEndpointRouteBuilderExtensions
 {
     /// <summary>
     /// Maps <c>POST {prefix}/features/{name}</c> for exposed features, <c>POST {prefix}/speech/{name}</c> for exposed speech
-    /// features, <c>POST {prefix}/functions/{feature}/{name}</c> for a realtime session's server functions and
+    /// features, <c>POST {prefix}/transcribe/{name}</c> for exposed transcription features,
+    /// <c>POST {prefix}/functions/{feature}/{name}</c> for a realtime session's server functions and
     /// <c>GET {prefix}/usage</c> for the report.
     /// </summary>
     /// <param name="endpoints">The application's route builder.</param>
@@ -624,6 +742,7 @@ public static class SpineAIEndpointRouteBuilderExtensions
         var root = prefix.TrimEnd('/');
         endpoints.MapPost($"{root}/features/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.FeatureAsync(request, name, ct));
         endpoints.MapPost($"{root}/speech/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.SpeechAsync(request, name, ct));
+        endpoints.MapPost($"{root}/transcribe/{{name}}", (HttpRequest request, string name, CancellationToken ct) => SpineAIEndpoints.TranscribeAsync(request, name, ct));
         endpoints.MapPost($"{root}/functions/{{feature}}/{{name}}", (HttpRequest request, string feature, string name, CancellationToken ct) => SpineAIEndpoints.FunctionAsync(request, feature, name, ct));
         endpoints.MapGet($"{root}/usage", (HttpRequest request, CancellationToken ct) => SpineAIEndpoints.UsageAsync(request, ct));
 

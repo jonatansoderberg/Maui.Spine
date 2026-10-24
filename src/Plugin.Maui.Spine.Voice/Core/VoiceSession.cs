@@ -20,7 +20,7 @@ namespace Plugin.Maui.Spine.Voice;
 /// sending silence. The session plays what is not silence, ends an answer's audio when none has come for a moment, cuts
 /// it off itself if the model yielded with more than a moment still queued, and groups the transcript by speaker and pauses.
 /// </remarks>
-internal sealed class VoiceSession : IVoiceSession
+internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 {
     public const string InterruptedKey = "spine.interrupted";
 
@@ -33,12 +33,21 @@ internal sealed class VoiceSession : IVoiceSession
     /// <summary>The tool <see cref="EndsOnGoodbye"/> gives the model.</summary>
     public const string EndConversationTool = "end_conversation";
 
+    /// <summary>What the model is told <see cref="EndConversationTool"/> is for; a server that declares it for a pipeline uses the same.</summary>
+    public const string EndConversationDescription = "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation; then say only a goodbye of two or three words in their language, without saying that you are ending the call. Do not call it for a pause or a thank-you in the middle of a conversation.";
+
+    /// <summary>The tool's answer when the farewell is still to be said.</summary>
+    internal const string SayGoodbye = "The call ends after your goodbye. Now say only a goodbye of two or three words in the user's language, such as \"Hej då!\"; do not say that you are ending the call.";
+
+    /// <summary>The tool's answer when the model already said goodbye in the same answer.</summary>
+    internal const string GoodbyeSaid = "The call ends once your goodbye has played. Say nothing more.";
+
     // EndsOnGoodbye's way out: asked for (the tool ran), the farewell under way, the farewell done (end once it has played).
     private const int NoGoodbye = 0, FarewellAsked = 1, FarewellUnderWay = 2, FarewellDone = 3;
     private int _goodbye;
     // How long the farewell must have been quiet before the call ends: the queue says it has played when its last sample
     // went to the device, which still has the output buffer and the speaker's latency to go. Ending at once cut the last word.
-    private static readonly TimeSpan FarewellTail = TimeSpan.FromMilliseconds(700);
+    internal static readonly TimeSpan FarewellTail = TimeSpan.FromMilliseconds(700);
     private long _quietSince;
 
     /// <summary>The provider's rate both ways.</summary>
@@ -55,7 +64,7 @@ internal sealed class VoiceSession : IVoiceSession
     private readonly IVoiceAudio _audio;
 
     /// <summary>The engine the session plays through; an avatar's driver reads its playback position for the mouth's clock.</summary>
-    internal IVoiceAudio Audio => _audio;
+    public IVoiceAudio Audio => _audio;
     private readonly SpineVoiceOptions _options;
     private readonly VoiceTokenClient _tokens;
     private readonly IServiceProvider? _services;
@@ -365,6 +374,10 @@ internal sealed class VoiceSession : IVoiceSession
 
     private void OnMicrophone(ReadOnlySpan<byte> pcm16)
     {
+        // The farewell is not interrupted: once the model has hung up, the user saying goodbye back is not sent, so it
+        // neither cuts the farewell off nor makes the model answer it.
+        if (Volatile.Read(ref _goodbye) != NoGoodbye)
+            return;
         Interlocked.Exchange(ref _liveMicAt, _time.GetUtcNow().UtcTicks);
         lock (_micGate)
         {
@@ -470,8 +483,9 @@ internal sealed class VoiceSession : IVoiceSession
         switch (type)
         {
             case "input_audio_buffer.speech_started":
-                // The user talks over the answer: cut it off where it was heard.
-                if (_audio.IsPlaying || _responseActive)
+                // The user talks over the answer: cut it off where it was heard. Not the farewell, whose speech was
+                // already on its way when the microphone stopped.
+                if ((_audio.IsPlaying || _responseActive) && Volatile.Read(ref _goodbye) == NoGoodbye)
                     BargeIn();
                 break;
 
@@ -548,7 +562,7 @@ internal sealed class VoiceSession : IVoiceSession
     /// <summary>Cuts the answer off: the engine flushes, the model hears how much was played, and a running response stops.</summary>
     private void BargeIn()
     {
-        // Talking over the farewell (or the Stop button) keeps the conversation going.
+        // The Stop button keeps the conversation going; talking over the farewell cannot reach here (see OnMicrophone).
         Interlocked.Exchange(ref _goodbye, NoGoodbye);
         Tick();
         if (_live)
@@ -592,9 +606,9 @@ internal sealed class VoiceSession : IVoiceSession
         // made it say goodbye twice.
         var saidGoodbye = goodbye && _answerAudio;
         if (saidGoodbye)
-            result = "The call ends once your goodbye has played. Say nothing more.";
+            result = GoodbyeSaid;
         else if (goodbye)
-            result = "The call ends after your goodbye. Say a short goodbye now.";
+            result = SayGoodbye;
         else
         {
             try
@@ -647,6 +661,9 @@ internal sealed class VoiceSession : IVoiceSession
                 ["output"] = output,
             },
         });
+        // What the microphone already sent of a goodbye back is dropped, so the provider does not answer it.
+        if (goodbye)
+            Send(new JsonObject { ["type"] = "input_audio_buffer.clear" });
         if (saidGoodbye)
         {
             // The farewell is this response: done when it reports done, or now when it already has.
@@ -746,7 +763,7 @@ internal sealed class VoiceSession : IVoiceSession
             {
                 ["type"] = "function",
                 ["name"] = EndConversationTool,
-                ["description"] = "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation; then say a short goodbye in their language. Do not call it for a pause or a thank-you in the middle of a conversation.",
+                ["description"] = EndConversationDescription,
                 ["parameters"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
             });
         }
