@@ -76,6 +76,7 @@ A per-family dictionary must have a tree for **every declared family** — iOS s
 | `W.Image(assetId, height)` | A picture stored with `IWidgetService.StoreAssetAsync`, aspect kept; `.FullColor()` keeps its colors in iOS's Tinted/Clear appearances |
 | `W.Progress(0..1, color)` / `W.Spacer()` / `W.Divider()` | |
 | `W.Sparkline(points, from, to, step, color, height)` + `.Band(low, high, above, below, shaded)` `.Area()` `.Dot()` | A line over time drawn by the platform, so a **server push can carry the graph** (a stored picture cannot). It is compact: an hour at one value a minute is about 550 bytes. Android: a picture `Aspect`× as wide as high |
+| `.LargeTitle()` / `.FontDesign(TextDesign.Rounded)` / `.FontSize(pt)` / `.Trailing()` on text, `W.Icon(name, color, size)` | The largest role; SF Pro Rounded for values (iOS only); a fixed size for the Dynamic Island's exact room; `.Trailing()` makes a timer or age after a `W.Spacer()` hug the right edge (it takes all the width offered); an icon of any size (sharp up to ~40 pt) |
 | `W.Ring(0..1 or null, color, size)` | A ring drawn natively (Android: a picture); a `ZStack` with a text puts the number in it. `VStack(...).CenterItems()` centres a ring tile, `HStack(...).Evenly()` spreads tiles 1-*-1-*-1 |
 | `W.Button(actionId, child)` | A tap that reaches `IWidgetActionHandler` **without opening the app**; mark what changes `.Pending()` |
 | `W.Adaptive(fallback, perFamily)` | One subtree that differs per family |

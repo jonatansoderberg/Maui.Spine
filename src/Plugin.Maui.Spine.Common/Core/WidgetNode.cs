@@ -138,6 +138,28 @@ public abstract record TextLikeNode : WidgetNode
     [JsonPropertyName("centered")]
     public bool? IsCentered { get; init; }
 
+    /// <summary>
+    /// Aligns the text to the trailing edge: its lines, and a timer's or relative date's text in the width it takes;
+    /// see <see cref="WidgetNodeStyling.Trailing{T}"/>.
+    /// </summary>
+    [JsonPropertyName("trailing")]
+    public bool? IsTrailing { get; init; }
+
+    /// <summary>
+    /// The system font's design: <see cref="TextDesign.Rounded"/> for values in SF Pro Rounded, as Apple's own apps
+    /// show them. iOS; Android has no such system font and draws the default. Set with
+    /// <see cref="WidgetNodeStyling.FontDesign{T}"/>.
+    /// </summary>
+    [JsonPropertyName("design")]
+    public TextDesign? Design { get; init; }
+
+    /// <summary>
+    /// A fixed size in points (sp on Android) in place of the role's, which follows the user's text size. For a region
+    /// with an exact amount of room, such as the Dynamic Island's. Set with <see cref="WidgetNodeStyling.FontSize{T}"/>.
+    /// </summary>
+    [JsonPropertyName("size")]
+    public double? FontSize { get; init; }
+
     /// <summary>Returns a copy of this node with <paramref name="style"/> applied.</summary>
     public abstract TextLikeNode WithStyle(TextStyle style);
 }
@@ -206,6 +228,10 @@ public sealed record IconNode([property: JsonPropertyName("systemImage")] string
 {
     /// <summary>Tint color; the platform's primary color when <see langword="null"/>.</summary>
     public WidgetColor? Color { get; init; }
+
+    /// <summary>The icon's size in points (dp on Android); 18 on iOS and 20 on Android when <see langword="null"/>.</summary>
+    [JsonPropertyName("height")]
+    public double? Size { get; init; }
 }
 
 /// <summary>A bitmap the app has placed in the shared container under <see cref="AssetId"/>.</summary>
@@ -342,4 +368,20 @@ public enum TextRole
     Title,
     /// <summary>Small secondary text.</summary>
     Caption,
+    /// <summary>The largest text, for a value that is the whole point of the widget.</summary>
+    LargeTitle,
+}
+
+/// <summary>The design of the system font a <see cref="TextLikeNode"/> is drawn in.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<TextDesign>))]
+public enum TextDesign
+{
+    /// <summary>The platform's default design.</summary>
+    Default,
+    /// <summary>Rounded: SF Pro Rounded on iOS, as Health and Fitness show their values.</summary>
+    Rounded,
+    /// <summary>Monospaced, every character as wide as the next.</summary>
+    Monospaced,
+    /// <summary>Serif: New York on iOS.</summary>
+    Serif,
 }
