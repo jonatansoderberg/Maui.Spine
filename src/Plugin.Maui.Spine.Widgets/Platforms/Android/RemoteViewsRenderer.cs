@@ -486,6 +486,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         });
         Color(views, "setTextColor", Text(node, "color"));
         if (Bool(node, "centered")) views.SetInt(Node, "setGravity", (int)GravityFlags.CenterHorizontal);
+        else if (Bool(node, "trailing")) views.SetInt(Node, "setGravity", (int)(GravityFlags.End | GravityFlags.CenterVertical));
         return views;
     }
 

@@ -139,6 +139,13 @@ public abstract record TextLikeNode : WidgetNode
     public bool? IsCentered { get; init; }
 
     /// <summary>
+    /// Aligns the text to the trailing edge: its lines, and a timer's or relative date's text in the width it takes;
+    /// see <see cref="WidgetNodeStyling.Trailing{T}"/>.
+    /// </summary>
+    [JsonPropertyName("trailing")]
+    public bool? IsTrailing { get; init; }
+
+    /// <summary>
     /// The system font's design: <see cref="TextDesign.Rounded"/> for values in SF Pro Rounded, as Apple's own apps
     /// show them. iOS; Android has no such system font and draws the default. Set with
     /// <see cref="WidgetNodeStyling.FontDesign{T}"/>.

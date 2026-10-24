@@ -121,11 +121,27 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_trailing_age_comes_back_trailing()
+    {
+        var json = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(W.Text("Jonatan"), W.Spacer(), W.Relative(DateTimeOffset.UnixEpoch, ago: true).Trailing().Caption()),
+        }.ToJson();
+
+        var row = Assert.IsType<HStackNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.True(Assert.IsType<RelativeDateNode>(row.Children[2]).IsTrailing);
+        Assert.Null(Assert.IsType<TextNode>(row.Children[0]).IsTrailing);
+        Assert.Equal(1, json.Split("\"trailing\":true").Length - 1);
+    }
+
+    [Fact]
     public void Text_that_is_not_centred_says_nothing_about_it()
     {
         var json = new LiveActivityLayout { LockScreen = W.Timer(DateTimeOffset.UnixEpoch) }.ToJson();
 
         Assert.DoesNotContain("centered", json);
+        Assert.DoesNotContain("trailing", json);
         Assert.DoesNotContain("prefix", json);
     }
 

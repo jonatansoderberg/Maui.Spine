@@ -201,6 +201,14 @@ public static class WidgetNodeStyling
     public static T Centered<T>(this T node) where T : TextLikeNode => (T)(node with { IsCentered = true });
 
     /// <summary>
+    /// Aligns the text to the trailing edge: its lines, and a timer's or relative date's text — which takes all the width
+    /// it is offered — in that width, so an age after a <see cref="W.Spacer"/> hugs the right edge, as a card's top-right
+    /// corner does. Like <see cref="Centered{T}"/> it claims no width of its own. Android aligns the text to the end of
+    /// its view.
+    /// </summary>
+    public static T Trailing<T>(this T node) where T : TextLikeNode => (T)(node with { IsTrailing = true });
+
+    /// <summary>
     /// Marks the node as changed by the widget's buttons: from a tap until the rebuild that follows
     /// the handler, the platform dims it, so the tap is seen to be working. Mark the nodes the tap
     /// changes, such as a line that shows the result. Ignored on a <see cref="W.Button"/> and inside
