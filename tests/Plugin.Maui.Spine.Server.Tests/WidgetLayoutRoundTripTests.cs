@@ -74,6 +74,20 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void How_long_ago_says_so_and_a_plain_age_does_not()
+    {
+        var reading = new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero);
+        var json = new LiveActivityLayout { LockScreen = W.Relative(reading, prefix: "Stabilt · ", ago: true).Caption() }.ToJson();
+        var back = Assert.IsType<RelativeDateNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Contains("\"ago\":true", json);
+        Assert.True(back.Ago);
+        Assert.Null(back.Rounded);
+        Assert.Equal("Stabilt · ", back.Prefix);
+        Assert.DoesNotContain("ago", new LiveActivityLayout { LockScreen = W.Relative(reading, rounded: true) }.ToJson());
+    }
+
+    [Fact]
     public void Text_that_is_not_centred_says_nothing_about_it()
     {
         var json = new LiveActivityLayout { LockScreen = W.Timer(DateTimeOffset.UnixEpoch) }.ToJson();

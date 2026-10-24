@@ -48,8 +48,12 @@ public static class W
     /// <see langword="true"/> for whole minutes, then hours and minutes: <c>5 minutes</c>, <c>1 hour, 5 minutes</c>. iOS 18
     /// and later; see <see cref="RelativeDateNode.Rounded"/>.
     /// </param>
-    public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false, string? prefix = null, bool rounded = false) =>
-        new(date) { Compact = compact ? true : null, Prefix = prefix, Rounded = rounded ? true : null };
+    /// <param name="ago">
+    /// <see langword="true"/> for how long ago: <c>now</c>, then <c>2 minutes ago</c>, <c>3 hours ago</c>. iOS 18 and later;
+    /// see <see cref="RelativeDateNode.Ago"/>.
+    /// </param>
+    public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false, string? prefix = null, bool rounded = false, bool ago = false) =>
+        new(date) { Compact = compact ? true : null, Prefix = prefix, Rounded = rounded ? true : null, Ago = ago ? true : null };
 
     /// <summary>A platform symbol by SF Symbols name.</summary>
     public static IconNode Icon(string systemName, WidgetColor? color = null) => new(systemName) { Color = color };

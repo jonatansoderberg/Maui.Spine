@@ -186,6 +186,13 @@ public sealed record RelativeDateNode(DateTimeOffset Date) : TextLikeNode
     /// </summary>
     public bool? Rounded { get; init; }
 
+    /// <summary>
+    /// How long ago, in the app's language: <c>now</c> for the first minute, then <c>2 minutes ago</c>, <c>3 hours ago</c>,
+    /// <c>2 days ago</c>, each rounded to the nearest whole unit. iOS 18 draws it; earlier iOS draws it as without, and Android
+    /// as a clock. Wins over <see cref="Rounded"/> and <see cref="Compact"/> where it is drawn.
+    /// </summary>
+    public bool? Ago { get; init; }
+
     /// <summary>Text drawn in front of the time as part of the same text: <c>"Uppdaterad "</c>.</summary>
     public string? Prefix { get; init; }
 
