@@ -225,7 +225,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.VStack` / `W.HStack` / `W.ZStack` | Stacks, with optional spacing in points |
 | `W.Text(string)` | A run of text |
 | `W.Timer(until, prefix)` | A countdown the **system** redraws every second, with optional text in front of it |
-| `W.Relative(date, compact, prefix, rounded)` | Relative text ("3 min ago"), also system-drawn. `rounded` gives whole minutes, then hours and minutes (see [Choosing a time node](#choosing-a-time-node)) |
+| `W.Relative(date, compact, prefix, rounded, ago)` | Relative text ("3 min ago"), also system-drawn. `ago` gives "now", then "3 minutes ago"; `rounded` gives whole minutes, then hours and minutes (see [Choosing a time node](#choosing-a-time-node)) |
 | `W.Icon(name, color)` | A monochrome SVG named after the symbol, tinted with the color (see [Icons](#icons)); an SF Symbol of that name is the fallback on iOS |
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
@@ -912,7 +912,7 @@ The consequence for Spine: **anything that must tick has to be a `W.Timer` or `W
 
 ### Choosing a time node
 
-Four forms of the same idea — text the system keeps current without the app running:
+Five forms of the same idea — text the system keeps current without the app running:
 
 | Node | Shows | Counts |
 |---|---|---|
@@ -920,10 +920,13 @@ Four forms of the same idea — text the system keeps current without the app ru
 | `W.Relative(date)` | `18 min, 35 secs` | up from a moment, every second |
 | `W.Relative(date, compact: true)` | `18:35` | up from a moment, every second |
 | `W.Relative(date, rounded: true)` | `18 minutes`, `1 hour, 5 minutes` | up from a moment, every minute (iOS 18) |
+| `W.Relative(date, ago: true)` | `now`, `18 minutes ago`, `1 hour ago` | up from a moment, every minute (iOS 18) |
 
 Pick by the room the region has. **Lock screen and expanded** can carry a sentence, and "18 min, 35 secs" says what it means without the reader converting anything. **Compact and minimal** cannot: use `compact: true`, or `W.Timer` when there is an end to count down to.
 
-**`rounded: true` is for an age read at a glance**, such as how old a reading is, where the seconds are only noise. Under a minute it says `0 minutes`. It is drawn with SwiftUI's live offset format, which writes the units' full names; iOS has no self-updating form with `min` or `h`. Before iOS 18 it is drawn as `W.Relative(date)`. Android draws it as the same counting-up clock as every `W.Relative` (see [Known gaps](#known-gaps)).
+**`ago: true` is for how old something is, read at a glance**, such as the age of a reading. It says `now` right after the moment, then `2 minutes ago`, `3 hours ago`, `yesterday`, `3 days ago`, each rounded to the nearest unit. In Swedish that is `nu`, `för 2 minuter sedan`. It is drawn with SwiftUI's live reference format, the only live format with a word for under a minute; an app's own word such as "just now" cannot go into it. Before iOS 18 it is drawn as `W.Relative(date)`, and on Android as the counting-up clock.
+
+**`rounded: true` is the alternative without "ago"**: whole minutes, then hours and minutes, where the seconds are only noise but the minutes past the hour still count. Under a minute it says `0 minutes`. It is drawn with SwiftUI's live offset format, which writes the units' full names; iOS has no self-updating form with `min` or `h`. Before iOS 18 it is drawn as `W.Relative(date)`. Android draws it as the same counting-up clock as every `W.Relative` (see [Known gaps](#known-gaps)).
 
 **The system's times are in the app's language.** The widget extension has no localizations of its own, so iOS would write "secs" and "minutes" in English whatever the app shows. Spine writes the language the app shows, `ISpineStrings.Culture`, to the App Group at launch and whenever it changes, and the renderer writes the times in it. That works for any language, also one the app chooses in its own settings rather than the phone's, and widgets are redrawn when it changes. An activity takes the new language at its next update. Before the app has run, the renderer matches the app's `CFBundleLocalizations` against the user's languages, as iOS does for the app itself. The user's region still decides the formats. The result reads `1 min, 49 s` and `1 timme, 5 minuter` in Swedish, and `1 Min., 54 Sek.` and `1 Stunde und 5 Minuten` in German.
 
@@ -1031,7 +1034,7 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 
 ### Known gaps
 
-- `W.Relative` is a chronometer counting up (`03:12`), not "3 min ago" — `RemoteViews` has no system-drawn relative text, and a text the app computed would stand still. `rounded: true` is drawn the same way.
+- `W.Relative` is a chronometer counting up (`03:12`), not "3 min ago" — `RemoteViews` has no system-drawn relative text, and a text the app computed would stand still. `rounded: true` and `ago: true` are drawn the same way.
 - `W.Spacer` only stretches inside a stack that is wider than its content; stacks are full-width, so the usual `HStack(text, Spacer(), timer)` works, a spacer in a nested vertical stack does not.
 - No custom fonts and no `ZStack` alignment beyond centered: `RemoteViews` cannot set a typeface.
 - `.CornerRadius` needs Android 12; below it a stack's background is square, and so is a widget's own `Background` — `RemoteViews` can neither clip nor tint there.

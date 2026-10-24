@@ -160,6 +160,7 @@ final class Node: Decodable {
     var value: Double?
     var compact: Bool?
     var rounded: Bool?
+    var ago: Bool?
     var prefix: String?
     var centered: Bool?
     var spacing: Double?
@@ -321,10 +322,15 @@ struct NodeView: View {
         }
     }
 
-    /// The age of `date`, redrawn by the system. Rounded on iOS 18: whole minutes, then hours and minutes, which iOS
+    /// The age of `date`, redrawn by the system. Ago on iOS 18: "now" for the first minute, then "2 minutes ago", the only
+    /// live format that has a word for under a minute. Rounded on iOS 18: whole minutes, then hours and minutes, which iOS
     /// only draws with the units' full names ("1 hour, 5 minutes"). Compact: .timer, the same information as a clock,
     /// "18:35" rather than "18 min, 35 secs", for the regions that have no room for a sentence.
     private func age(since date: Date) -> Text {
+        if node.ago == true, #available(iOS 18.0, *) {
+            return Text(.currentDate, format: .reference(to: date, allowedFields: [.day, .hour, .minute], thresholdField: .year)
+                .locale(AppLanguage.locale))
+        }
         if node.rounded == true, #available(iOS 18.0, *) {
             return Text(.currentDate, format: .offset(to: date, allowedFields: [.hour, .minute], maxFieldCount: 2, sign: .never)
                 .locale(AppLanguage.locale))

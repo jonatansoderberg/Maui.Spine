@@ -40,8 +40,8 @@ public sealed class SampleWidget(IWidgetService _widgets, INavigationService _na
                 W.Spacer(),
                 W.Adaptive(W.Spacer(), new Dictionary<WidgetFamily, WidgetNode>
                 {
-                    // Whole minutes, then hours and minutes, rather than a count of seconds; iOS 18 and later.
-                    [WidgetFamily.Medium] = W.Relative(refreshed, rounded: true).Caption().Color(Muted),
+                    // "now", then "3 minutes ago", rather than a count of seconds; iOS 18 and later.
+                    [WidgetFamily.Medium] = W.Relative(refreshed, ago: true).Caption().Color(Muted),
                 })),
             W.Adaptive(W.Text("Next event").Caption().Color(Muted), new Dictionary<WidgetFamily, WidgetNode>
             {
