@@ -44,8 +44,9 @@ public static class ScoreActivity
 
             // Each side's badge and goals beside the camera; between them one centred text. A centre
             // made of stacks and spacers would take the width of the regions beside it.
-            ExpandedLeading = W.HStack(8, W.Image(home.LogoAsset, 44).FullColor(), W.Text($"{game.HomeGoals}").Title().Bold()),
-            ExpandedTrailing = W.HStack(8, W.Text($"{game.AwayGoals}").Title().Bold(), W.Image(away.LogoAsset, 44).FullColor()),
+            // The goals in SF Pro Rounded, at a size that fills the island's side beside the badge.
+            ExpandedLeading = W.HStack(8, W.Image(home.LogoAsset, 44).FullColor(), W.Text($"{game.HomeGoals}").FontSize(34).Bold().FontDesign(TextDesign.Rounded)),
+            ExpandedTrailing = W.HStack(8, W.Text($"{game.AwayGoals}").FontSize(34).Bold().FontDesign(TextDesign.Rounded), W.Image(away.LogoAsset, 44).FullColor()),
             ExpandedCenter = W.Text(string.Join('\n', IslandLines(game, now))).Caption().Centered(),
 
             CompactLeading = W.HStack(W.Image(home.LogoAsset, 22), W.Text($"{game.HomeGoals}").Headline().Bold()),
@@ -110,7 +111,7 @@ public static class ScoreActivity
     private static WidgetNode[] Centre(Game game, DateTimeOffset now)
     {
         var phase = W.Text(game.IsRunning ? $"Period {game.Period}" : game.PhaseText(now)).Caption().Color(Muted);
-        var score = W.Text(game.Score).Title().Bold().Color(Ink);
+        var score = W.Text(game.Score).LargeTitle().Bold().FontDesign(TextDesign.Rounded).Color(Ink);
         return game.IsRunning
             ? [phase, score, W.Text(game.Clock(now)).Headline().Bold().Color(Ink)]
             : [phase, score];

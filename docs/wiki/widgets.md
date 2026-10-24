@@ -226,7 +226,7 @@ public sealed class NextStartWidget(IRaceService _races, IWidgetService _widgets
 | `W.Text(string)` | A run of text |
 | `W.Timer(until, prefix)` | A countdown the **system** redraws every second, with optional text in front of it |
 | `W.Relative(date, compact, prefix, rounded, ago)` | Relative text ("3 min ago"), also system-drawn. `ago` gives "now", then "3 minutes ago"; `rounded` gives whole minutes, then hours and minutes (see [Choosing a time node](#choosing-a-time-node)) |
-| `W.Icon(name, color)` | A monochrome SVG named after the symbol, tinted with the color (see [Icons](#icons)); an SF Symbol of that name is the fallback on iOS |
+| `W.Icon(name, color, size)` | A monochrome SVG named after the symbol, tinted with the color (see [Icons](#icons)); an SF Symbol of that name is the fallback on iOS |
 | `W.Image(assetId, height)` | A bitmap the app stored with `StoreAssetAsync` |
 | `W.Progress(value, color)` | A linear bar, 0 to 1 |
 | `W.Ring(value, color, size)` | A share (0 to 1, null for unknown) as a ring: a faint track all round, the value clockwise from 12 o'clock. Put it in a `ZStack` with a text for the number. SwiftUI draws it; Android draws it as a picture |
@@ -244,7 +244,7 @@ time below, all on the ring's centre. An `HStack` takes `.Evenly()`, which leave
 its children, the children at their own width: two ring tiles spread 1-*-1-*-1 rather than as two columns, whose gaps
 come out 1-2-1.
 
-Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
+Text-like nodes take fluent styling: `.LargeTitle()`, `.Title()`, `.Headline()`, `.Body()`, `.Caption()`, `.Bold()`, `.FontDesign(TextDesign.Rounded)`, `.FontSize(points)`, `.Secondary()`, `.Color(…)`, `.Centered()`. Stacks take `.Padding(…)`, `.Background(…)` and `.CornerRadius(…)` (see [Backgrounds and boxes](#backgrounds-and-boxes)). Any node takes `.Pending()` (see [Buttons](#buttons)). Each call returns a new node, so a styled node can be reused.
 
 **A system-drawn time takes all the width it is offered**, and draws its digits from the leading edge, so spacers either side cannot centre it and a label beside it cannot be centred with it. `W.Timer(start, prefix: "Face-off in ")` makes the label and the digits one text, and `.Centered()` centres it in the width it takes. `.Centered()` is alignment only — it claims no width — so a centred node in a Dynamic Island's centre region does not squeeze the regions beside it.
 
@@ -253,8 +253,9 @@ Text-like nodes take fluent styling: `.Title()`, `.Headline()`, `.Body()`, `.Cap
 How the renderers lay the tree out, so a design can be planned before it is run:
 
 - **`VStack` aligns its children to the leading edge (or centres them with `.CenterItems()`), `HStack` centers them vertically, `ZStack` centers them.** A `W.Spacer()` in a stack is how something is pushed to the far edge. The default spacing is 4 points; Android applies spacing from Android 12.
-- **Text roles are the platform's type ramp**: `Title` is SwiftUI's `.title2` and 22 sp on Android, `Headline` `.headline` and 16 sp, `Body` `.body` and 14 sp, `Caption` `.caption` and 12 sp. Text follows the user's text size on both platforms; there is no point size and no custom font.
-- **`W.Icon` has a fixed size**: 18 points square on iOS, 20 dp on Android, tinted with its color. For anything larger, use a picture.
+- **Text roles are the platform's type ramp**: `LargeTitle` is SwiftUI's `.largeTitle` and 28 sp on Android, `Title` `.title2` and 22 sp, `Headline` `.headline` and 16 sp, `Body` `.body` and 14 sp, `Caption` `.caption` and 12 sp. A role follows the user's text size on both platforms; `.FontSize(points)` fixes it instead. There is no custom font.
+- **`.FontDesign(TextDesign.Rounded)` draws the text in SF Pro Rounded**, as Health and Fitness show their values; `Monospaced` and `Serif` are there too. iOS only: `RemoteViews` cannot set a typeface, so Android draws the default. `.FontSize(points)` replaces the role's size with a fixed one (sp on Android), for a region with an exact amount of room such as the Dynamic Island's; a role follows the user's text size and is the better choice anywhere else.
+- **`W.Icon` is 18 points square on iOS and 20 dp on Android** unless it is given a `size`, tinted with its color. The SVG is rasterized at 128 px, sharp up to about 40 points on a 3x screen. Android resizes the icon from Android 12; below it the icon stays 20 dp.
 - **`W.Image` keeps its aspect ratio.** With a `height` it is scaled to that height; without one it is scaled to fit the room it is offered. See [Images](#images).
 - **The tree is the whole widget.** iOS gives it the system's content margins; Android pads it by 16 dp and centers it vertically. Nothing is drawn outside the tree except the [surface](#backgrounds-and-boxes).
 
@@ -1036,7 +1037,8 @@ The build adds `POST_NOTIFICATIONS` and `POST_PROMOTED_NOTIFICATIONS` to the man
 
 - `W.Relative` is a chronometer counting up (`03:12`), not "3 min ago" — `RemoteViews` has no system-drawn relative text, and a text the app computed would stand still. `rounded: true` and `ago: true` are drawn the same way.
 - `W.Spacer` only stretches inside a stack that is wider than its content; stacks are full-width, so the usual `HStack(text, Spacer(), timer)` works, a spacer in a nested vertical stack does not.
-- No custom fonts and no `ZStack` alignment beyond centered: `RemoteViews` cannot set a typeface.
+- No custom fonts, no rounded design and no `ZStack` alignment beyond centered: `RemoteViews` cannot set a typeface.
+- `W.Icon`'s `size` needs Android 12; below it an icon stays 20 dp.
 - `.CornerRadius` needs Android 12; below it a stack's background is square, and so is a widget's own `Background` — `RemoteViews` can neither clip nor tint there.
 - Stack spacing needs Android 12; below it children sit edge to edge.
 - Nine widget kinds, as on iOS.

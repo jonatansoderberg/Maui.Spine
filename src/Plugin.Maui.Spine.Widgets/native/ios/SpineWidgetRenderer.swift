@@ -150,6 +150,8 @@ final class Node: Decodable {
     var type: String
     var text: String?
     var font: String?
+    var design: String?
+    var size: Double?
     var bold: Bool?
     var color: String?
     var until: Date?
@@ -285,7 +287,11 @@ struct NodeView: View {
             // The app rasterized the icon from an SVG as a white mask; an SF Symbol is the fallback.
             if let name = node.systemImage, let mask = Store.image(asset: "icons/\(name).png") {
                 Image(uiImage: mask).renderingMode(.template).resizable().scaledToFit()
-                    .frame(width: 18, height: 18)
+                    .frame(width: CGFloat(node.height ?? 18), height: CGFloat(node.height ?? 18))
+                    .foregroundStyle(Palette.color(node.color))
+            } else if let size = node.height {
+                Image(systemName: node.systemImage ?? "questionmark").font(.system(size: CGFloat(size) * 0.8))
+                    .frame(width: CGFloat(size), height: CGFloat(size))
                     .foregroundStyle(Palette.color(node.color))
             } else {
                 Image(systemName: node.systemImage ?? "questionmark").foregroundStyle(Palette.color(node.color))
@@ -623,7 +629,7 @@ struct TextStyleModifier: ViewModifier {
     // and plain text keeps its size, so a centred Dynamic Island region does not squeeze its neighbours.
     func body(content: Content) -> some View {
         content
-            .font(Palette.font(node.font))
+            .font(Palette.font(node))
             .fontWeight(node.bold == true ? .bold : .regular)
             .foregroundStyle(Palette.color(node.color))
             .multilineTextAlignment(node.centered == true ? .center : .leading)
@@ -664,13 +670,23 @@ enum AppLanguage {
 }
 
 enum Palette {
-    static func font(_ role: String?) -> Font {
-        switch role?.lowercased() {
+    /// The node's text style in the system font's design (rounded for SF Pro Rounded), or a fixed size in points.
+    static func font(_ node: Node) -> Font {
+        let design: Font.Design = switch node.design?.lowercased() {
+        case "rounded": .rounded
+        case "monospaced": .monospaced
+        case "serif": .serif
+        default: .default
+        }
+        if let size = node.size { return .system(size: CGFloat(size), design: design) }
+        let style: Font.TextStyle = switch node.font?.lowercased() {
+        case "largetitle": .largeTitle
         case "title": .title2
         case "headline": .headline
         case "caption": .caption
         default: .body
         }
+        return .system(style, design: design)
     }
 
     static func color(_ value: String?) -> Color {

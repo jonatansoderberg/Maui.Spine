@@ -106,9 +106,16 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             }
             case "image":
             {
-                if (_icons.Bitmap(Text(node, "systemImage"), (int)(IconDp * Density)) is not { } bitmap) return Empty();
+                var size = (float)(Number(node, "height") ?? IconDp);
+                if (_icons.Bitmap(Text(node, "systemImage"), (int)(size * Density)) is not { } bitmap) return Empty();
                 var views = new RemoteViews(Package, Resource.Layout.spine_widget_icon);
                 views.SetImageViewBitmap(Node, bitmap);
+                // The layout's view is IconDp square; RemoteViews can resize it from Android 12.
+                if (size != IconDp && OperatingSystem.IsAndroidVersionAtLeast(31))
+                {
+                    views.SetViewLayoutWidth(Node, size, (int)ComplexUnitType.Dip);
+                    views.SetViewLayoutHeight(Node, size, (int)ComplexUnitType.Dip);
+                }
                 Color(views, "setColorFilter", Text(node, "color"));
                 return views;
             }
@@ -468,8 +475,10 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
     private RemoteViews TextLike(JsonElement node, int layout, int boldLayout)
     {
         var views = new RemoteViews(Package, Bool(node, "bold") ? boldLayout : layout);
-        views.SetTextViewTextSize(Node, (int)ComplexUnitType.Sp, Text(node, "font")?.ToLowerInvariant() switch
+        // RemoteViews cannot set a typeface, so a rounded design is drawn in the default one.
+        views.SetTextViewTextSize(Node, (int)ComplexUnitType.Sp, (float?)Number(node, "size") ?? Text(node, "font")?.ToLowerInvariant() switch
         {
+            "largetitle" => 28,
             "title" => 22,
             "headline" => 16,
             "caption" => 12,

@@ -88,6 +88,39 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_rounded_large_value_and_a_sized_icon_come_back()
+    {
+        var layout = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(6,
+                W.Icon("drop.fill", Brand, size: 28),
+                W.Text("6,3").LargeTitle().Bold().FontDesign(TextDesign.Rounded),
+                W.Text("→").FontSize(30).FontDesign(TextDesign.Rounded)),
+        };
+
+        var json = layout.ToJson();
+        var row = Assert.IsType<HStackNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Equal(28, Assert.IsType<IconNode>(row.Children[0]).Size);
+        var value = Assert.IsType<TextNode>(row.Children[1]);
+        Assert.Equal(TextRole.LargeTitle, value.Role);
+        Assert.Equal(TextDesign.Rounded, value.Design);
+        Assert.True(value.Bold);
+        Assert.Equal(30, Assert.IsType<TextNode>(row.Children[2]).FontSize);
+        Assert.Contains("\"design\":\"Rounded\"", json);
+    }
+
+    [Fact]
+    public void Plain_text_and_icons_say_nothing_about_design_or_size()
+    {
+        var json = new LiveActivityLayout { LockScreen = W.HStack(W.Icon("bell"), W.Text("x").FontDesign(TextDesign.Default)) }.ToJson();
+
+        Assert.DoesNotContain("design", json);
+        Assert.DoesNotContain("size", json);
+        Assert.DoesNotContain("height", json);
+    }
+
+    [Fact]
     public void Text_that_is_not_centred_says_nothing_about_it()
     {
         var json = new LiveActivityLayout { LockScreen = W.Timer(DateTimeOffset.UnixEpoch) }.ToJson();

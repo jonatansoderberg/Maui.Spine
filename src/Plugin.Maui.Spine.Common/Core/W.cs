@@ -55,8 +55,8 @@ public static class W
     public static RelativeDateNode Relative(DateTimeOffset date, bool compact = false, string? prefix = null, bool rounded = false, bool ago = false) =>
         new(date) { Compact = compact ? true : null, Prefix = prefix, Rounded = rounded ? true : null, Ago = ago ? true : null };
 
-    /// <summary>A platform symbol by SF Symbols name.</summary>
-    public static IconNode Icon(string systemName, WidgetColor? color = null) => new(systemName) { Color = color };
+    /// <summary>A platform symbol by SF Symbols name, <paramref name="size"/> points square (18 on iOS, 20 dp on Android by default).</summary>
+    public static IconNode Icon(string systemName, WidgetColor? color = null, double? size = null) => new(systemName) { Color = color, Size = size };
 
     /// <summary>A bitmap previously stored with <see cref="IWidgetService.StoreAssetAsync"/>.</summary>
     public static ImageNode Image(string assetId, double? height = null) => new(assetId) { Height = height };
@@ -154,6 +154,26 @@ public static class WidgetNodeStyling
 
     /// <summary>Renders in the platform's caption style.</summary>
     public static T Caption<T>(this T node) where T : TextLikeNode => node.Role(TextRole.Caption);
+
+    /// <summary>Renders in the platform's largest text style.</summary>
+    public static T LargeTitle<T>(this T node) where T : TextLikeNode => node.Role(TextRole.LargeTitle);
+
+    /// <summary>
+    /// Draws the text in the system font's <paramref name="design"/>: <see cref="TextDesign.Rounded"/> for values in SF Pro
+    /// Rounded. iOS; Android draws the default.
+    /// </summary>
+    public static T FontDesign<T>(this T node, TextDesign design) where T : TextLikeNode =>
+        (T)(node with { Design = design == TextDesign.Default ? null : design });
+
+    /// <summary>
+    /// Draws the text at <paramref name="points"/> (sp on Android) instead of its role's size, which follows the user's
+    /// text size. For a region with an exact amount of room, such as the Dynamic Island's.
+    /// </summary>
+    public static T FontSize<T>(this T node, double points) where T : TextLikeNode
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(points);
+        return (T)(node with { FontSize = points });
+    }
 
     /// <summary>Renders in bold weight.</summary>
     public static T Bold<T>(this T node) where T : TextLikeNode => (T)node.WithStyle(node.Style with { Bold = true });
