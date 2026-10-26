@@ -357,6 +357,7 @@ struct NodeView: View {
 /// crosses the band's edges so each stretch takes its colour with a cut square to the line, a faint band, a fading
 /// area and a dot on the last value when asked. RemoteViewsRenderer.Sparkline draws the same on Android.
 struct SparklineView: View {
+    @Environment(\.displayScale) private var displayScale
     let node: Node
 
     var body: some View {
@@ -366,14 +367,10 @@ struct SparklineView: View {
                 if let band = plot.band {
                     Path(band).fill(plot.inRange.opacity(0.14))
                 }
-                // From the line's own colour, opaque, to clear. The iPhone's Lock Screen (iOS 27) draws nothing of a
-                // gradient whose colours are all translucent, nor of a gradient mask, though a translucent solid fill and
-                // the Dynamic Island draw either; tried on the phone, this is what both draw.
-                if node.area == true {
-                    ForEach(plot.areas.indices, id: \.self) { i in
-                        plot.areas[i].path.fill(LinearGradient(colors: [plot.areas[i].color, plot.areas[i].color.opacity(0)],
-                                                               startPoint: .top, endPoint: .bottom))
-                    }
+                if node.area == true, let area = SparklineArea.image(plot, size: geometry.size, scale: displayScale) {
+                    Image(uiImage: area).resizable()
+                        .frame(width: geometry.size.width + SparklineArea.edge, height: geometry.size.height)
+                        .position(x: (geometry.size.width + SparklineArea.edge) / 2, y: geometry.size.height / 2)
                 }
                 // Butt ends where one colour meets the next, so the cut is square to the line; round ends only
                 // where the line itself starts and stops.
@@ -392,9 +389,67 @@ struct SparklineView: View {
     }
 }
 
+/// The area under a sparkline, drawn by the extension into a picture: from the line down, in the line's colour, fading to
+/// clear at the bottom. Each column of pixels has its own gradient starting at the line, so the area is as strong under a
+/// valley as under a peak, all along the line; past its two ends it carries on level and fades out over `edge` points.
+/// The picture is `edge` wider than the graph, reaching over its trailing side as the last value's dot does. The iPhone's
+/// Lock Screen (iOS 27) draws nothing of a gradient mask, nor of a gradient whose colours are all translucent, though the
+/// Dynamic Island draws both; a picture it draws as it is.
+struct SparklineArea: View {
+    static let edge: CGFloat = 6
+    let plot: SparklinePlot
+    let size: CGSize
+    let scale: CGFloat
+
+    var body: some View {
+        Canvas { context, canvas in
+            let all = plot.samples.flatMap { $0 }
+            guard let first = all.first, let last = all.last, last.point.x > first.point.x else { return }
+            let edge = Self.edge
+            func eased(_ t: CGFloat) -> CGFloat { let t = min(max(t, 0), 1); return t * t * (3 - 2 * t) }
+            func column(_ x: CGFloat) -> (y: CGFloat, color: Color, strength: CGFloat)? {
+                if x < first.point.x { return (first.point.y, first.color, eased((x - first.point.x + edge) / edge)) }
+                if x > last.point.x { return (last.point.y, last.color, eased((last.point.x + edge - x) / edge)) }
+                for segment in plot.samples where segment.count > 1 {
+                    guard x >= segment[0].point.x, x <= segment[segment.count - 1].point.x,
+                          let i = segment.lastIndex(where: { $0.point.x <= x }) else { continue }
+                    let (a, b) = (segment[i], segment[min(i + 1, segment.count - 1)])
+                    let t = b.point.x > a.point.x ? (x - a.point.x) / (b.point.x - a.point.x) : 0
+                    return (a.point.y + (b.point.y - a.point.y) * t, a.color, 1)
+                }
+                return nil
+            }
+            let step = 1 / scale
+            var x = ((first.point.x - edge) * scale).rounded(.down) / scale
+            while x < min(last.point.x + edge, canvas.width) {
+                if let (y, color, strength) = column(x), strength > 0 {
+                    context.fill(Path(CGRect(x: x, y: y, width: step, height: max(0, size.height - y))),
+                                 with: .linearGradient(Gradient(colors: [color.opacity(0.55 * strength), color.opacity(0)]),
+                                                       startPoint: CGPoint(x: x, y: y), endPoint: CGPoint(x: x, y: size.height)))
+                }
+                x += step
+            }
+        }
+        .frame(width: size.width + Self.edge, height: size.height)
+    }
+
+    @MainActor static func image(_ plot: SparklinePlot, size: CGSize, scale: CGFloat) -> UIImage? {
+        guard size.width > 0, size.height > 0, !plot.samples.isEmpty else { return nil }
+        let renderer = ImageRenderer(content: SparklineArea(plot: plot, size: size, scale: scale))
+        renderer.scale = scale
+        return renderer.uiImage
+    }
+}
+
 /// One cubic of a sparkline, in view points.
 struct SparkPiece {
     var p0: CGPoint, c1: CGPoint, c2: CGPoint, p3: CGPoint
+
+    func point(_ t: CGFloat) -> CGPoint {
+        let u = 1 - t
+        let (a, b, c, d) = (u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t)
+        return CGPoint(x: a * p0.x + b * c1.x + c * c2.x + d * p3.x, y: a * p0.y + b * c1.y + c * c2.y + d * p3.y)
+    }
 
     func y(_ t: CGFloat) -> CGFloat {
         let u = 1 - t
@@ -465,7 +520,8 @@ struct SparklinePlot {
     let halo: CGFloat
     let inRange: Color
     var runs: [(path: Path, color: Color)] = []
-    var areas: [(path: Path, color: Color)] = []
+    /// Points along the drawn curve, per unbroken stretch, with the line's colour there: what the area hangs from.
+    var samples: [[(point: CGPoint, color: Color)]] = []
     var ends: [(point: CGPoint, color: Color)] = []
     var band: CGRect?
     var last: (point: CGPoint, color: Color)?
@@ -486,8 +542,10 @@ struct SparklinePlot {
         let (bottom, top) = (lowest - pad, highest + pad)
 
         let marked = node.dot == true
-        let inset = UIEdgeInsets(top: marked ? halo : lineWidth / 2, left: lineWidth / 2,
-                                 bottom: marked ? halo : lineWidth / 2, right: marked ? halo : lineWidth / 2)
+        // The last value sits on the trailing edge, its dot reaching over by its radius, so the graph ends where text
+        // aligned to the same edge does. The first is in by the area's fade, which runs on before the line starts.
+        let inset = UIEdgeInsets(top: marked ? halo : lineWidth / 2, left: lineWidth / 2 + (node.area == true ? SparklineArea.edge : 0),
+                                 bottom: marked ? halo : lineWidth / 2, right: marked ? 0 : lineWidth / 2)
         let plot = CGRect(origin: .zero, size: size).inset(by: inset)
         let span = node.from.flatMap { from in node.to.map { $0.timeIntervalSince(from) } } ?? 0
         func x(_ i: Int) -> CGFloat {
@@ -523,24 +581,14 @@ struct SparklinePlot {
             segments[segments.count - 1].append(point)
         }
 
-        // Each colour's stretch of line closes down to the bottom as its own area, so the area under the line is in the
-        // line's colour and changes where the line does.
-        func finish(_ run: (path: Path, color: Color, start: CGPoint)) {
-            runs.append((run.path, run.color))
-            guard let end = run.path.currentPoint else { return }
-            var fill = run.path
-            fill.addLine(to: CGPoint(x: end.x, y: size.height))
-            fill.addLine(to: CGPoint(x: run.start.x, y: size.height))
-            fill.closeSubpath()
-            areas.append((fill, run.color))
-        }
         for segment in segments where !segment.isEmpty {
             let pieces = SparkPiece.smooth(segment)
             if pieces.isEmpty {
                 ends.append((segment[0], color(atY: segment[0].y)))
                 continue
             }
-            var run: (path: Path, color: Color, start: CGPoint)?
+            var run: (path: Path, color: Color)?
+            var along: [(point: CGPoint, color: Color)] = [(segment[0], color(atY: pieces[0].y(0.02)))]
             for piece in pieces {
                 let cuts = ([upper, lower].compactMap { $0 }.flatMap { piece.crossings($0) }).sorted()
                 var rest = piece
@@ -555,15 +603,17 @@ struct SparklinePlot {
                 for part in parts {
                     let tint = color(atY: part.y(0.5))
                     if run?.color != tint {
-                        if let finished = run { finish(finished) }
+                        if let finished = run { runs.append(finished) }
                         var path = Path()
                         path.move(to: part.p0)
-                        run = (path, tint, part.p0)
+                        run = (path, tint)
                     }
                     run?.path.addCurve(to: part.p3, control1: part.c1, control2: part.c2)
+                    for step in 1...8 { along.append((part.point(CGFloat(step) / 8), tint)) }
                 }
             }
-            if let run { finish(run) }
+            if let run { runs.append(run) }
+            samples.append(along)
             ends.append((segment[0], color(atY: pieces[0].y(0.02))))
             ends.append((segment[segment.count - 1], color(atY: pieces[pieces.count - 1].y(0.98))))
         }

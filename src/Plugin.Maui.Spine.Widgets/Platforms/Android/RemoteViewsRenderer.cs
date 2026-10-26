@@ -268,7 +268,8 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         var marked = Bool(node, "dot");
         var (dot, halo) = (line * 2, line * 3);
         var edge = marked ? halo : line / 2;
-        var plot = new Android.Graphics.RectF(line / 2, edge, width - edge, height - edge);
+        // The area's fade runs on before the line starts, so the line begins that far in.
+        var plot = new Android.Graphics.RectF(line / 2 + (Bool(node, "area") ? AreaFade * Density : 0), edge, width - edge, height - edge);
 
         var (lowest, highest) = (known.Min(), known.Max());
         var pad = highest > lowest ? (highest - lowest) * 0.15 : Math.Max(Math.Abs(highest) * 0.1, 1);
@@ -300,8 +301,9 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         }
         segments.RemoveAll(s => s.Count == 0);
 
-        var runs = new List<(Android.Graphics.Path Path, int Color, float StartX, float EndX)>();
+        var runs = new List<(Android.Graphics.Path Path, int Color)>();
         var ends = new List<(SparkPoint Point, int Color)>();
+        var samples = new List<List<(SparkPoint Point, int Color)>>();
         foreach (var segment in segments)
         {
             var pieces = SparkPiece.Smooth(segment);
@@ -311,7 +313,8 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                 continue;
             }
 
-            (Android.Graphics.Path Path, int Color, float StartX, float EndX)? run = null;
+            (Android.Graphics.Path Path, int Color)? run = null;
+            var along = new List<(SparkPoint Point, int Color)> { (segment[0], Tint(pieces[0].Y(0.02f))) };
             foreach (var piece in pieces)
             {
                 var cuts = new[] { upper, lower }.OfType<float>().SelectMany(piece.Crossings).Order().ToList();
@@ -332,13 +335,14 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
                         if (run is { } finished) runs.Add(finished);
                         var path = new Android.Graphics.Path();
                         path.MoveTo(part.P0.X, part.P0.Y);
-                        run = (path, tint, part.P0.X, part.P0.X);
+                        run = (path, tint);
                     }
                     run!.Value.Path.CubicTo(part.C1.X, part.C1.Y, part.C2.X, part.C2.Y, part.P3.X, part.P3.Y);
-                    run = run.Value with { EndX = part.P3.X };
+                    for (var k = 1; k <= 8; k++) along.Add((part.Point(k / 8f), tint));
                 }
             }
             runs.Add(run!.Value);
+            samples.Add(along);
             ends.Add((segment[0], Tint(pieces[0].Y(0.02f))));
             ends.Add((segment[^1], Tint(pieces[^1].Y(0.98f))));
         }
@@ -351,20 +355,10 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             if (to > from) canvas.DrawRect(0, from, width, to, paint);
         }
 
-        if (Bool(node, "area"))
+        if (Bool(node, "area") && SparklineArea(samples, width, height) is { } area)
         {
-            // Each colour's stretch of line closes down to the bottom as its own area, from its colour, opaque, to clear,
-            // as SparklineView draws it on iOS.
-            using var fill = new Android.Graphics.Paint(PaintFlags.AntiAlias);
-            foreach (var (path, color, startX, endX) in runs)
-            {
-                using var area = new Android.Graphics.Path(path);
-                area.LineTo(endX, height);
-                area.LineTo(startX, height);
-                area.Close();
-                fill.SetShader(new LinearGradient(0, 0, 0, height, (int)(color | 0xFF000000), color & 0x00FFFFFF, Shader.TileMode.Clamp!));
-                canvas.DrawPath(area, fill);
-            }
+            canvas.DrawBitmap(area, 0, 0, null);
+            area.Dispose();
         }
 
         // Butt ends where one colour meets the next, so the cut is square to the line; round ends only where the
@@ -373,7 +367,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         paint.StrokeWidth = line;
         paint.StrokeCap = Android.Graphics.Paint.Cap.Butt;
         paint.StrokeJoin = Android.Graphics.Paint.Join.Round;
-        foreach (var (path, color, _, _) in runs)
+        foreach (var (path, color) in runs)
         {
             paint.Color = new Android.Graphics.Color(color);
             canvas.DrawPath(path, paint);
@@ -397,11 +391,63 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         return bitmap;
     }
 
+    /// <summary>How far past the line's two ends the area fades out, in dp; the same as SparklineArea.edge on iOS.</summary>
+    private const float AreaFade = 6;
+
+    /// <summary>
+    /// The area under a sparkline, as SparklineArea draws it on iOS: each column of pixels from the line down, in the
+    /// line's colour fading to clear at the bottom, so it is as strong under a valley as under a peak, all along the line;
+    /// past its two ends it carries on level and fades out over <see cref="AreaFade"/>.
+    /// </summary>
+    private Bitmap? SparklineArea(List<List<(SparkPoint Point, int Color)>> samples, int width, int height)
+    {
+        var all = samples.SelectMany(s => s).ToList();
+        if (all.Count < 2 || all[^1].Point.X <= all[0].Point.X) return null;
+        var (first, last) = (all[0], all[^1]);
+        var edge = AreaFade * Density;
+        static float Eased(float t) { t = Math.Clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+        (float Y, int Color, float Strength)? Column(float x)
+        {
+            if (x < first.Point.X) return (first.Point.Y, first.Color, Eased((x - first.Point.X + edge) / edge));
+            if (x > last.Point.X) return (last.Point.Y, last.Color, Eased((last.Point.X + edge - x) / edge));
+            foreach (var segment in samples.Where(s => s.Count > 1 && x >= s[0].Point.X && x <= s[^1].Point.X))
+            {
+                var i = segment.FindLastIndex(p => p.Point.X <= x);
+                var (a, b) = (segment[i], segment[Math.Min(i + 1, segment.Count - 1)]);
+                var t = b.Point.X > a.Point.X ? (x - a.Point.X) / (b.Point.X - a.Point.X) : 0;
+                return (a.Point.Y + (b.Point.Y - a.Point.Y) * t, a.Color, 1);
+            }
+            return null;
+        }
+
+        var pixels = new int[width * height];
+        for (var x = Math.Max(0, (int)Math.Floor(first.Point.X - edge)); x < Math.Min(width, last.Point.X + edge); x++)
+        {
+            if (Column(x) is not { } column || column.Strength <= 0) continue;
+            var top = Math.Clamp(column.Y, 0, height - 1);
+            for (var y = (int)top; y < height; y++)
+            {
+                var alpha = (int)(255 * 0.55f * column.Strength * (1 - (y - top) / (height - top)));
+                pixels[y * width + x] = alpha << 24 | column.Color & 0x00FFFFFF;
+            }
+        }
+        var bitmap = Bitmap.CreateBitmap(width, height, Bitmap.Config.Argb8888!)!;
+        bitmap.SetPixels(pixels, 0, width, 0, 0, width, height);
+        return bitmap;
+    }
+
     private readonly record struct SparkPoint(float X, float Y);
 
     /// <summary>One cubic of a sparkline, in pixels.</summary>
     private readonly record struct SparkPiece(SparkPoint P0, SparkPoint C1, SparkPoint C2, SparkPoint P3)
     {
+        public SparkPoint Point(float t)
+        {
+            var u = 1 - t;
+            var (a, b, c, d) = (u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t);
+            return new(a * P0.X + b * C1.X + c * C2.X + d * P3.X, a * P0.Y + b * C1.Y + c * C2.Y + d * P3.Y);
+        }
+
         public float Y(float t)
         {
             var u = 1 - t;
