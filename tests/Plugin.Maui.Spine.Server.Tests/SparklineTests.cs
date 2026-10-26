@@ -67,6 +67,17 @@ public class SparklineTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_fixed_scale_survives_the_trip_and_is_left_out_without_one()
+    {
+        var json = new LiveActivityLayout { LockScreen = W.Sparkline([5.0, 7]).Scale(2, 14) }.ToJson();
+        var back = Assert.IsType<SparklineNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Equal((2.0, 14.0), (back.Min, back.Max));
+        Assert.DoesNotContain("\"min\"", new LiveActivityLayout { LockScreen = W.Sparkline([5.0, 7]) }.ToJson());
+        Assert.Throws<ArgumentOutOfRangeException>(() => W.Sparkline([5.0]).Scale(3, 3));
+    }
+
+    [Fact]
     public void An_hour_at_one_point_a_minute_fits_a_live_activity_push()
     {
         var graph = W.Sparkline(Hour(), Now.AddHours(-1), Now, TimeSpan.FromMinutes(1), Teal, height: 56)

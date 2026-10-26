@@ -273,7 +273,8 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
 
         var (lowest, highest) = (known.Min(), known.Max());
         var pad = highest > lowest ? (highest - lowest) * 0.15 : Math.Max(Math.Abs(highest) * 0.1, 1);
-        var (bottom, top) = (lowest - pad, highest + pad);
+        var bottom = Number(node, "min") is { } min ? Math.Min(min, lowest) : lowest - pad;
+        var top = Number(node, "max") is { } max ? Math.Max(max, highest) : highest + pad;
         var step = Number(node, "step");
         var span = node.TryGetProperty("from", out _) && node.TryGetProperty("to", out _) ? (Date(node, "to") - Date(node, "from")).TotalSeconds : 0;
         float X(int i) => step is { } s && span > 0 ? plot.Left + (float)(i * s / span) * plot.Width()
@@ -391,33 +392,52 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         return bitmap;
     }
 
-    /// <summary>How far past the line's two ends the area fades out, in dp; the same as SparklineArea.edge on iOS.</summary>
-    private const float AreaFade = 6;
+    /// <summary>How far the area reaches past the line's two ends, in dp; the same as SparklineArea.edge on iOS.</summary>
+    private const float AreaFade = 2;
+
+    /// <summary>How wide the area's fade at each end is, in dp, mostly under the line; SparklineArea.fade on iOS.</summary>
+    private const float AreaFadeWidth = 4;
 
     /// <summary>
-    /// The area under a sparkline, as SparklineArea draws it on iOS: each column of pixels from the line down, in the
-    /// line's colour fading to clear at the bottom, so it is as strong under a valley as under a peak, all along the line;
-    /// past its two ends it carries on level and fades out over <see cref="AreaFade"/>.
+    /// The area under a sparkline, as SparklineArea draws it on iOS: from the line down in the line's colour, strongest at
+    /// the line's highest level and fading to clear at the bottom, as one gradient across the graph; past the line's two
+    /// ends it carries on level and fades out over <see cref="AreaFade"/>.
     /// </summary>
     private Bitmap? SparklineArea(List<List<(SparkPoint Point, int Color)>> samples, int width, int height)
     {
         var all = samples.SelectMany(s => s).ToList();
         if (all.Count < 2 || all[^1].Point.X <= all[0].Point.X) return null;
         var (first, last) = (all[0], all[^1]);
-        var edge = AreaFade * Density;
+        var highest = Math.Min(all.Min(p => p.Point.Y), height - 1);
+        var (edge, fade) = (AreaFade * Density, AreaFadeWidth * Density);
         static float Eased(float t) { t = Math.Clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+        float Ends(float x) => Eased((x - first.Point.X + edge) / fade) * Eased((last.Point.X + edge - x) / fade);
         (float Y, int Color, float Strength)? Column(float x)
         {
-            if (x < first.Point.X) return (first.Point.Y, first.Color, Eased((x - first.Point.X + edge) / edge));
-            if (x > last.Point.X) return (last.Point.Y, last.Color, Eased((last.Point.X + edge - x) / edge));
+            if (x < first.Point.X) return (first.Point.Y, first.Color, Ends(x));
+            if (x > last.Point.X) return (last.Point.Y, last.Color, Ends(x));
             foreach (var segment in samples.Where(s => s.Count > 1 && x >= s[0].Point.X && x <= s[^1].Point.X))
             {
                 var i = segment.FindLastIndex(p => p.Point.X <= x);
                 var (a, b) = (segment[i], segment[Math.Min(i + 1, segment.Count - 1)]);
                 var t = b.Point.X > a.Point.X ? (x - a.Point.X) / (b.Point.X - a.Point.X) : 0;
-                return (a.Point.Y + (b.Point.Y - a.Point.Y) * t, a.Color, 1);
+                return (a.Point.Y + (b.Point.Y - a.Point.Y) * t, a.Color, Ends(x));
             }
             return null;
+        }
+
+        // Where the line changes colour the area's colour runs from one to the other over 10 dp either side, weighted
+        // towards the middle so the change has no visible steps.
+        int Tint(float x)
+        {
+            var (r, g, b, n) = (0f, 0f, 0f, 0f);
+            for (var d = -10f; d <= 10f; d += 0.5f)
+            {
+                if (Column(Math.Clamp(x + d * Density, first.Point.X, last.Point.X)) is not { } around) continue;
+                var w = 10.5f - Math.Abs(d);
+                (r, g, b, n) = (r + (around.Color >> 16 & 0xFF) * w, g + (around.Color >> 8 & 0xFF) * w, b + (around.Color & 0xFF) * w, n + w);
+            }
+            return n == 0 ? 0 : (int)(r / n) << 16 | (int)(g / n) << 8 | (int)(b / n);
         }
 
         var pixels = new int[width * height];
@@ -425,10 +445,11 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         {
             if (Column(x) is not { } column || column.Strength <= 0) continue;
             var top = Math.Clamp(column.Y, 0, height - 1);
+            var tint = Tint(x);
             for (var y = (int)top; y < height; y++)
             {
-                var alpha = (int)(255 * 0.55f * column.Strength * (1 - (y - top) / (height - top)));
-                pixels[y * width + x] = alpha << 24 | column.Color & 0x00FFFFFF;
+                var alpha = (int)(255 * 0.6f * column.Strength * MathF.Pow((height - y) / (height - highest), 0.4f));
+                pixels[y * width + x] = alpha << 24 | tint;
             }
         }
         var bitmap = Bitmap.CreateBitmap(width, height, Bitmap.Config.Argb8888!)!;

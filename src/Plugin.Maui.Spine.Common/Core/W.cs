@@ -268,6 +268,17 @@ public static class WidgetNodeStyling
         return node with { Low = low, High = high, AboveColor = above, BelowColor = below, Shade = shaded ? true : null };
     }
 
+    /// <summary>
+    /// A fixed scale from <paramref name="min"/> at the bottom edge to <paramref name="max"/> at the top, so every graph
+    /// of one subject (lock screen, Dynamic Island, the app's own chart) puts a value at the same height. A value outside
+    /// widens the scale to fit.
+    /// </summary>
+    public static SparklineNode Scale(this SparklineNode node, double min, double max)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(min, max);
+        return node with { Min = min, Max = max };
+    }
+
     /// <summary>A soft fill under the line, in its colour at each point, fading out downwards.</summary>
     public static SparklineNode Area(this SparklineNode node) => node with { Area = true };
 

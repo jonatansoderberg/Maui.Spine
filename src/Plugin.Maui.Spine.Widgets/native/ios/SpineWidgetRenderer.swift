@@ -189,6 +189,8 @@ final class Node: Decodable {
     var step: Double?
     var low: Double?
     var high: Double?
+    var min: Double?
+    var max: Double?
     var aboveColor: String?
     var belowColor: String?
     var shade: Bool?
@@ -202,7 +204,20 @@ struct SpineKindKey: EnvironmentKey { static let defaultValue = "" }
 struct SpineInsideButtonKey: EnvironmentKey { static let defaultValue = false }
 /// Set for the children of an HStack and a button, which wrap their content on Android; see BoxModifier.
 struct SpineInlineKey: EnvironmentKey { static let defaultValue = false }
+/// The solid colour behind a Live Activity, where it is known: what a sparkline's area is blended onto, so it is drawn
+/// opaque. Nil on widgets and on a translucent or system background.
+struct SpineBackdropKey: EnvironmentKey { static let defaultValue: Color? = nil }
+/// Set where the region clips at its edges, as the Dynamic Island's do: nothing may reach over them there.
+struct SpineClippedKey: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
+    var spineClipped: Bool {
+        get { self[SpineClippedKey.self] }
+        set { self[SpineClippedKey.self] = newValue }
+    }
+    var spineBackdrop: Color? {
+        get { self[SpineBackdropKey.self] }
+        set { self[SpineBackdropKey.self] = newValue }
+    }
     var spineInline: Bool {
         get { self[SpineInlineKey.self] }
         set { self[SpineInlineKey.self] = newValue }
@@ -358,16 +373,18 @@ struct NodeView: View {
 /// area and a dot on the last value when asked. RemoteViewsRenderer.Sparkline draws the same on Android.
 struct SparklineView: View {
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.spineBackdrop) private var backdrop
+    @Environment(\.spineClipped) private var clipped
     let node: Node
 
     var body: some View {
         GeometryReader { geometry in
-            let plot = SparklinePlot(node: node, size: geometry.size)
+            let plot = SparklinePlot(node: node, size: geometry.size, clipped: clipped)
             ZStack {
                 if let band = plot.band {
                     Path(band).fill(plot.inRange.opacity(0.14))
                 }
-                if node.area == true, let area = SparklineArea.image(plot, size: geometry.size, scale: displayScale) {
+                if node.area == true, let area = SparklineArea.image(plot, size: geometry.size, scale: displayScale, backdrop: backdrop) {
                     Image(uiImage: area).resizable()
                         .frame(width: geometry.size.width + SparklineArea.edge, height: geometry.size.height)
                         .position(x: (geometry.size.width + SparklineArea.edge) / 2, y: geometry.size.height / 2)
@@ -389,43 +406,92 @@ struct SparklineView: View {
     }
 }
 
-/// The area under a sparkline, drawn by the extension into a picture: from the line down, in the line's colour, fading to
-/// clear at the bottom. Each column of pixels has its own gradient starting at the line, so the area is as strong under a
-/// valley as under a peak, all along the line; past its two ends it carries on level and fades out over `edge` points.
-/// The picture is `edge` wider than the graph, reaching over its trailing side as the last value's dot does. The iPhone's
-/// Lock Screen (iOS 27) draws nothing of a gradient mask, nor of a gradient whose colours are all translucent, though the
-/// Dynamic Island draws both; a picture it draws as it is.
+/// The area under a sparkline, drawn by the extension into a picture: from the line down in the line's colour, strongest
+/// at the line's highest level and fading to nothing at the bottom, as one gradient across the graph. At the line's two ends
+/// it fades in over `fade` points, reaching `edge` points past them; the picture is `edge` wider than the graph, reaching
+/// over its trailing side as the last value's dot does. Where the line changes colour, the area's colour runs from one to
+/// the other over a few points either side.
+///
+/// The iPhone's Lock Screen (iOS 27) draws nothing of a gradient mask, nor of a gradient whose colours are all translucent,
+/// and thins out the translucent parts of a picture until only a sliver under the line is left; the Dynamic Island and the
+/// simulator draw all of them. Where the colour behind the activity is known (`spineBackdrop`), the area is therefore blended
+/// onto it and drawn opaque, which the lock screen shows as it is; elsewhere it is translucent.
 struct SparklineArea: View {
-    static let edge: CGFloat = 6
+    /// How far the area reaches past the line's two ends.
+    static let edge: CGFloat = 2
+    /// How wide the fade at each end is, mostly under the line.
+    static let fade: CGFloat = 4
+    /// How strong the area is at the line's highest level.
+    static let strength: CGFloat = 0.6
     let plot: SparklinePlot
     let size: CGSize
     let scale: CGFloat
+    let backdrop: Color?
 
     var body: some View {
         Canvas { context, canvas in
             let all = plot.samples.flatMap { $0 }
-            guard let first = all.first, let last = all.last, last.point.x > first.point.x else { return }
+            guard let first = all.first, let last = all.last, last.point.x > first.point.x,
+                  let top = all.map(\.point.y).min(), size.height > top else { return }
             let edge = Self.edge
             func eased(_ t: CGFloat) -> CGFloat { let t = min(max(t, 0), 1); return t * t * (3 - 2 * t) }
-            func column(_ x: CGFloat) -> (y: CGFloat, color: Color, strength: CGFloat)? {
-                if x < first.point.x { return (first.point.y, first.color, eased((x - first.point.x + edge) / edge)) }
-                if x > last.point.x { return (last.point.y, last.color, eased((last.point.x + edge - x) / edge)) }
+            func ends(_ x: CGFloat) -> CGFloat {
+                eased((x - first.point.x + edge) / Self.fade) * eased((last.point.x + edge - x) / Self.fade)
+            }
+            func column(_ x: CGFloat) -> (y: CGFloat, color: Color, ends: CGFloat)? {
+                if x < first.point.x { return (first.point.y, first.color, ends(x)) }
+                if x > last.point.x { return (last.point.y, last.color, ends(x)) }
                 for segment in plot.samples where segment.count > 1 {
                     guard x >= segment[0].point.x, x <= segment[segment.count - 1].point.x,
                           let i = segment.lastIndex(where: { $0.point.x <= x }) else { continue }
                     let (a, b) = (segment[i], segment[min(i + 1, segment.count - 1)])
                     let t = b.point.x > a.point.x ? (x - a.point.x) / (b.point.x - a.point.x) : 0
-                    return (a.point.y + (b.point.y - a.point.y) * t, a.color, 1)
+                    return (a.point.y + (b.point.y - a.point.y) * t, a.color, ends(x))
                 }
                 return nil
             }
+            func rgb(_ color: Color) -> SIMD3<Double> {
+                var (r, g, b, a): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+                UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+                return SIMD3(Double(r), Double(g), Double(b))
+            }
+            // Where the line changes colour the area's colour runs from one to the other over 10 points either side,
+            // weighted towards the middle so the change has no visible steps.
+            var tints: [Int: SIMD3<Double>] = [:]
+            func tint(_ x: CGFloat) -> SIMD3<Double> {
+                var (sum, weights) = (SIMD3<Double>(), 0.0)
+                for d in stride(from: -10.0, through: 10.0, by: 0.5) {
+                    let at = min(max(x + CGFloat(d), first.point.x), last.point.x)
+                    let key = Int((at * 2).rounded())
+                    let value = tints[key] ?? column(at).map { rgb($0.color) }
+                    guard let value else { continue }
+                    tints[key] = value
+                    let w = 10.5 - abs(d)
+                    (sum, weights) = (sum + value * w, weights + w)
+                }
+                return weights > 0 ? sum / weights : SIMD3<Double>()
+            }
+            let behind = backdrop.map(rgb)
             let step = 1 / scale
             var x = ((first.point.x - edge) * scale).rounded(.down) / scale
             while x < min(last.point.x + edge, canvas.width) {
-                if let (y, color, strength) = column(x), strength > 0 {
+                if let (y, _, ends) = column(x), ends > 0 {
+                    // The one gradient across the graph, from the line's highest level to the bottom, met where the line is.
+                    // It darkens slowly at first: the iPhone's Lock Screen turns the darkest shades black, which cut a
+                    // straight fade short a little way under the line.
+                    let c = tint(x)
+                    let stops = stride(from: 0.0, through: 1.0, by: 0.125).map { f -> Gradient.Stop in
+                        let below = Double(size.height - y) * (1 - f)
+                        let k = Double(Self.strength * ends) * pow(below / Double(size.height - top), 0.4)
+                        let color = behind.map { b in
+                            let m = b + (c - b) * k
+                            return Color(red: m.x, green: m.y, blue: m.z)
+                        } ?? Color(red: c.x, green: c.y, blue: c.z).opacity(k)
+                        return .init(color: color, location: f)
+                    }
                     context.fill(Path(CGRect(x: x, y: y, width: step, height: max(0, size.height - y))),
-                                 with: .linearGradient(Gradient(colors: [color.opacity(0.55 * strength), color.opacity(0)]),
-                                                       startPoint: CGPoint(x: x, y: y), endPoint: CGPoint(x: x, y: size.height)))
+                                 with: .linearGradient(Gradient(stops: stops), startPoint: CGPoint(x: x, y: y),
+                                                       endPoint: CGPoint(x: x, y: size.height)))
                 }
                 x += step
             }
@@ -433,9 +499,9 @@ struct SparklineArea: View {
         .frame(width: size.width + Self.edge, height: size.height)
     }
 
-    @MainActor static func image(_ plot: SparklinePlot, size: CGSize, scale: CGFloat) -> UIImage? {
+    @MainActor static func image(_ plot: SparklinePlot, size: CGSize, scale: CGFloat, backdrop: Color?) -> UIImage? {
         guard size.width > 0, size.height > 0, !plot.samples.isEmpty else { return nil }
-        let renderer = ImageRenderer(content: SparklineArea(plot: plot, size: size, scale: scale))
+        let renderer = ImageRenderer(content: SparklineArea(plot: plot, size: size, scale: scale, backdrop: backdrop))
         renderer.scale = scale
         return renderer.uiImage
     }
@@ -526,7 +592,7 @@ struct SparklinePlot {
     var band: CGRect?
     var last: (point: CGPoint, color: Color)?
 
-    init(node: Node, size: CGSize) {
+    init(node: Node, size: CGSize, clipped: Bool = false) {
         lineWidth = max(1.5, size.height / 20)
         dot = lineWidth * 2
         halo = lineWidth * 3
@@ -539,13 +605,14 @@ struct SparklinePlot {
         let known = values.compactMap { $0 }
         guard let lowest = known.min(), let highest = known.max(), size.width > 0, size.height > 0 else { return }
         let pad = highest > lowest ? (highest - lowest) * 0.15 : max(abs(highest) * 0.1, 1)
-        let (bottom, top) = (lowest - pad, highest + pad)
+        let bottom = node.min.map { Swift.min($0, lowest) } ?? lowest - pad
+        let top = node.max.map { Swift.max($0, highest) } ?? highest + pad
 
         let marked = node.dot == true
         // The last value sits on the trailing edge, its dot reaching over by its radius, so the graph ends where text
-        // aligned to the same edge does. The first is in by the area's fade, which runs on before the line starts.
+        // aligned to the same edge does; where the region clips its edges (the Dynamic Island) the dot stays inside. The first is in by the little the area reaches past it.
         let inset = UIEdgeInsets(top: marked ? halo : lineWidth / 2, left: lineWidth / 2 + (node.area == true ? SparklineArea.edge : 0),
-                                 bottom: marked ? halo : lineWidth / 2, right: marked ? 0 : lineWidth / 2)
+                                 bottom: marked ? halo : lineWidth / 2, right: marked ? (clipped ? halo : 0) : lineWidth / 2)
         let plot = CGRect(origin: .zero, size: size).inset(by: inset)
         let span = node.from.flatMap { from in node.to.map { $0.timeIntervalSince(from) } } ?? 0
         func x(_ i: Int) -> CGFloat {
@@ -774,6 +841,14 @@ enum Palette {
 
     /// The Lock Screen tint: the layout's color; the system's own material (nil) when it asks for that; and
     /// otherwise the translucent black Spine has always drawn, so an activity that sets neither looks the same.
+    /// The colour behind the Lock Screen presentation (and CarPlay's and the watch's, which share it) when it is one
+    /// opaque colour; nil for the system's material or Spine's translucent black.
+    static func backdrop(_ layout: ActivityLayout) -> Color? {
+        guard let background = layout.background else { return nil }
+        let solid = color(background)
+        return UIColor(solid).cgColor.alpha >= 1 ? solid : nil
+    }
+
     static func lockScreenTint(_ layout: ActivityLayout) -> Color? {
         if let background = layout.background {
             if layout.systemBackground == true {
@@ -961,8 +1036,17 @@ func spineWidgetConfiguration(index: Int) -> some WidgetConfiguration {
 struct Slot: View {
     let node: Node?
     var kind: String = ""
+    /// The solid colour the region is drawn on, when known; see SpineBackdropKey.
+    var backdrop: Color?
+    /// Whether the region clips at its edges; see SpineClippedKey.
+    var clipped = false
     var body: some View {
-        if let node { NodeView(node: node).environment(\.spineKind, kind).environment(\.locale, AppLanguage.locale) } else { EmptyView() }
+        if let node {
+            NodeView(node: node).environment(\.spineKind, kind).environment(\.locale, AppLanguage.locale)
+                .environment(\.spineBackdrop, backdrop).environment(\.spineClipped, clipped)
+        } else {
+            EmptyView()
+        }
     }
 }
 
@@ -991,6 +1075,7 @@ private func spineActivityConfiguration() -> some WidgetConfiguration {
     ActivityConfiguration(for: SpineActivityAttributes.self) { context in
         let layout = ActivityLayout.parse(context.state.layout)
         ActivityBanner(layout: layout, kind: context.attributes.kind)
+            .environment(\.spineBackdrop, Palette.backdrop(layout))
             .opacity(context.isStale ? 0.5 : 1)
             .activityBackgroundTint(Palette.lockScreenTint(layout))
             .activitySystemActionForegroundColor(layout.actionColor.map { Palette.color($0) })
@@ -998,19 +1083,20 @@ private func spineActivityConfiguration() -> some WidgetConfiguration {
     } dynamicIsland: { context in
         let layout = ActivityLayout.parse(context.state.layout)
         let kind = context.attributes.kind
+        // The Dynamic Island is always black.
         return DynamicIsland {
             // Beside a taller centre the side regions would sit at the top, level with the camera;
             // filling their height centres them on it instead.
-            DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind).frame(maxHeight: .infinity) }
-            DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind).frame(maxHeight: .infinity) }
-            DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter, kind: kind) }
-            DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom, kind: kind) }
+            DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind, backdrop: .black, clipped: true).frame(maxHeight: .infinity) }
+            DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind, backdrop: .black, clipped: true).frame(maxHeight: .infinity) }
+            DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter, kind: kind, backdrop: .black, clipped: true) }
+            DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom, kind: kind, backdrop: .black, clipped: true) }
         } compactLeading: {
-            Slot(node: layout.compactLeading, kind: kind)
+            Slot(node: layout.compactLeading, kind: kind, backdrop: .black, clipped: true)
         } compactTrailing: {
-            Slot(node: layout.compactTrailing, kind: kind)
+            Slot(node: layout.compactTrailing, kind: kind, backdrop: .black, clipped: true)
         } minimal: {
-            Slot(node: layout.minimal, kind: kind)
+            Slot(node: layout.minimal, kind: kind, backdrop: .black, clipped: true)
         }
         .widgetURL(layout.link.flatMap(URL.init(string:)))
     }

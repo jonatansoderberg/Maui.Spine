@@ -324,6 +324,16 @@ public sealed record SparklineNode(IReadOnlyList<double?> Values) : WidgetNode
     /// </summary>
     public bool? Shade { get; init; }
 
+    /// <summary>
+    /// The value at the bottom edge. Graphs of one subject that share <see cref="Min"/> and <see cref="Max"/> draw the
+    /// same value at the same height; without them the scale fits the values with a little room over and under.
+    /// A value outside still shows: the scale widens to take it.
+    /// </summary>
+    public double? Min { get; init; }
+
+    /// <summary>The value at the top edge; see <see cref="Min"/>.</summary>
+    public double? Max { get; init; }
+
     /// <summary>A soft fill under the line, in the line's colour at each point, fading out downwards.</summary>
     public bool? Area { get; init; }
 
