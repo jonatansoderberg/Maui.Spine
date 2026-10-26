@@ -29,13 +29,27 @@ internal sealed record WidgetTimelineEntryDocument(
 [JsonSourceGenerationOptions(
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    UseStringEnumConverter = true)]
+    UseStringEnumConverter = true,
+    Converters = [typeof(UtcDateConverter)])]
 [JsonSerializable(typeof(WidgetTimelineDocument))]
 [JsonSerializable(typeof(LiveActivityLayout))]
 [JsonSerializable(typeof(ControlState))]
 [JsonSerializable(typeof(WidgetNode))]
 [JsonSerializable(typeof(IReadOnlyDictionary<string, WidgetNode>))]
 internal sealed partial class WidgetJsonContext : JsonSerializerContext;
+
+/// <summary>
+/// Writes a time in UTC with <c>Z</c>, five bytes shorter than an offset such as <c>+01:00</c> in a Live Activity push of
+/// 4 KB. The renderers read the moment, not the offset, and either form back.
+/// </summary>
+internal sealed class UtcDateConverter : JsonConverter<DateTimeOffset>
+{
+    public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        reader.GetDateTimeOffset();
+
+    public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value.UtcDateTime);
+}
 
 /// <summary>
 /// The wire format between C# and the platform renderers. Both the widget extension on iOS and

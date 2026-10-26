@@ -150,11 +150,15 @@ service hands to `ILiveActivityService`.
 
 **The 4 KB ceiling is real.** APNs refuses a larger payload, so `PushPayloads` measures what it
 built and throws with the size rather than letting it become a 413. The layout travels as a JSON
-string inside the payload, escaped once: each of its quotes costs two bytes (`\"`) and letters such
-as å stay UTF-8, so the payload is the layout plus roughly a third. For scale: Orientera's Live
-Activity, with a competition name, a place and a timer, serializes to about 1.2 KB; a game's score
-card with two logos, names, score, clock, shots, a power play and all four Dynamic Island regions
-is about 2.2 KB of layout and 3 KB of payload.
+object in `content-state.layout`, so the payload is the layout plus about 150 bytes for an update
+(about 400 for a start with an alert and a channel). Letters such as å stay UTF-8, and the layout
+leaves out defaults (`bold: false`, the body text style) and writes times in UTC with `Z`. For scale:
+a glucose card with the value, its trend and age and the hour as a graph three times over (lock
+screen, expanded island, CarPlay) is about 3.3 KB of layout and 3.45 KB of payload.
+
+Before 0.1.27 the layout was a string under `content-state.json`, which cost a backslash for every
+quote, about a fifth more. The extension still reads that form, but an app on an older Spine cannot
+read the object: update the app before the server.
 
 ### Broadcast channels
 

@@ -119,12 +119,17 @@ public abstract record TextLikeNode : WidgetNode
     // serialized layout in a data message and is rendered in the app's process. Without the setters
     // the structure came back but every style fell to its default, silently.
 
+    // The defaults, Body and not bold, are left out: a Live Activity push has 4 KB, and the renderers read a
+    // missing key as the default.
+
     /// <summary>The text role, exposed flat for serialization.</summary>
     [JsonPropertyName("font")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public TextRole Role { get => Style.Role; init => Style = Style with { Role = value }; }
 
     /// <summary>Bold weight, exposed flat for serialization.</summary>
     [JsonPropertyName("bold")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Bold { get => Style.Bold; init => Style = Style with { Bold = value }; }
 
     /// <summary>Foreground color, exposed flat for serialization.</summary>
@@ -318,6 +323,16 @@ public sealed record SparklineNode(IReadOnlyList<double?> Values) : WidgetNode
     /// and the scale fits the values alone either way.
     /// </summary>
     public bool? Shade { get; init; }
+
+    /// <summary>
+    /// The value at the bottom edge. Graphs of one subject that share <see cref="Min"/> and <see cref="Max"/> draw the
+    /// same value at the same height; without them the scale fits the values with a little room over and under.
+    /// A value outside still shows: the scale widens to take it.
+    /// </summary>
+    public double? Min { get; init; }
+
+    /// <summary>The value at the top edge; see <see cref="Min"/>.</summary>
+    public double? Max { get; init; }
 
     /// <summary>A soft fill under the line, in the line's colour at each point, fading out downwards.</summary>
     public bool? Area { get; init; }

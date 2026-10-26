@@ -79,8 +79,8 @@ public static class W
     /// platform; see <see cref="SparklineNode"/>. The points are put on an even time axis, one value per
     /// <paramref name="step"/>, the latest of each step kept. A short run of steps with none is bridged; a run longer
     /// than a tenth of the steps breaks the line. The values
-    /// are rounded to a thousandth of their range, finer than a widget can draw, so an hour at one value a
-    /// minute takes about 300 bytes.
+    /// are rounded to a hundredth of their range, finer than the line is wide, so an hour at one value a
+    /// minute takes just under 500 bytes.
     /// </summary>
     /// <param name="points">Time and value, in any order. Points outside <paramref name="from"/>–<paramref name="to"/> are left out.</param>
     /// <param name="from">The time at the left edge.</param>
@@ -119,7 +119,7 @@ public static class W
         var known = values.OfType<double>().ToArray();
         if (known.Length == 0) return values;
         var range = known.Max() - known.Min();
-        var decimals = range > 0 ? Math.Clamp(3 - (int)Math.Ceiling(Math.Log10(range)), 0, 10) : 3;
+        var decimals = range > 0 ? Math.Clamp(2 - (int)Math.Ceiling(Math.Log10(range)), 0, 10) : 2;
         return [.. values.Select(v => v is { } d ? Math.Round(d, decimals) : (double?)null)];
     }
 
@@ -266,6 +266,17 @@ public static class WidgetNodeStyling
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(low, high);
         return node with { Low = low, High = high, AboveColor = above, BelowColor = below, Shade = shaded ? true : null };
+    }
+
+    /// <summary>
+    /// A fixed scale from <paramref name="min"/> at the bottom edge to <paramref name="max"/> at the top, so every graph
+    /// of one subject (lock screen, Dynamic Island, the app's own chart) puts a value at the same height. A value outside
+    /// widens the scale to fit.
+    /// </summary>
+    public static SparklineNode Scale(this SparklineNode node, double min, double max)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(min, max);
+        return node with { Min = min, Max = max };
     }
 
     /// <summary>A soft fill under the line, in its colour at each point, fading out downwards.</summary>

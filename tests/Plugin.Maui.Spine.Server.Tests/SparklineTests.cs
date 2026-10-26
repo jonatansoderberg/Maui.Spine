@@ -37,9 +37,9 @@ public class SparklineTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Values_are_rounded_to_a_thousandth_of_their_range()
+    public void Values_are_rounded_to_a_hundredth_of_their_range()
     {
-        Assert.Equal([5.43, 12.68], W.Sparkline([5.4321, 12.6789]).Values);
+        Assert.Equal([5.4, 12.7], W.Sparkline([5.4321, 12.6789]).Values);
         Assert.Equal([98, 213], W.Sparkline([98.4, 212.6]).Values);
     }
 
@@ -64,6 +64,17 @@ public class SparklineTests(ITestOutputHelper output)
         Assert.Contains("\"type\":\"sparkline\"", json);
         Assert.DoesNotContain("aspect", json);
         Assert.DoesNotContain("shade", new LiveActivityLayout { LockScreen = W.Sparkline([1.0, 2]).Band(1, 2) }.ToJson());
+    }
+
+    [Fact]
+    public void A_fixed_scale_survives_the_trip_and_is_left_out_without_one()
+    {
+        var json = new LiveActivityLayout { LockScreen = W.Sparkline([5.0, 7]).Scale(2, 14) }.ToJson();
+        var back = Assert.IsType<SparklineNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Equal((2.0, 14.0), (back.Min, back.Max));
+        Assert.DoesNotContain("\"min\"", new LiveActivityLayout { LockScreen = W.Sparkline([5.0, 7]) }.ToJson());
+        Assert.Throws<ArgumentOutOfRangeException>(() => W.Sparkline([5.0]).Scale(3, 3));
     }
 
     [Fact]
@@ -96,6 +107,6 @@ public class SparklineTests(ITestOutputHelper output)
         // The graph twice, lock screen and expanded island, and still well inside 4096.
         Assert.True(graphBytes < 650, $"a sparkline of 60 values takes {graphBytes} bytes");
         Assert.True(bytes < 3000, $"{bytes} bytes leaves too little of APNs' 4096");
-        Assert.Equal(layout.ToJson(), JsonNode.Parse(payload)!["aps"]!["content-state"]!["json"]!.GetValue<string>());
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(layout.ToJson()), JsonNode.Parse(payload)!["aps"]!["content-state"]!["layout"]));
     }
 }
