@@ -206,11 +206,11 @@ Keys from outside are base64url-encoded. `UseInMemoryStore()` is for tests and s
 
 `UseUsers(sp => …)` puts users in the app's own database through `IUserResolver`, while tokens stay in the chosen store. `IUserResolver.CreateAsync` returns `false` when the email is taken. `UpdateAsync` returns `false` when `SpineAuthUser.Version` (an ETag or row version) no longer matches. `ISpineAuthStore` is the token side, for a store of your own with `UseStore(...)`.
 
-Expired refresh tokens and one-time values stay until `ISpineAuthStore.PruneAsync(now)` removes them. Run it now and then, for example from a timer trigger.
+Expired refresh tokens and one-time values stay until `ISpineAuthStore.PruneAsync(now)` removes them. Run it now and then, for example from a timer trigger. It also removes the token families that can no longer sign in: revoked ones (after a sign-out everywhere, a reset or a replayed refresh token), and those whose refresh tokens have all expired. A missing family reads as revoked, so this changes nothing for the user.
 
 ## Account deletion
 
-`DELETE /auth/account` with the user's access token runs `OnAccountDeleting(userId, services, ct)` first, so the app can delete its own data. An exception there stops the deletion. It then revokes Apple's tokens, revokes every Spine sign-in and removes the user and their logins. Access tokens already issued keep working until they expire, at most `AccessTokenLifetime`. The same Apple id signing in again later is a new user.
+`DELETE /auth/account` with the user's access token runs `OnAccountDeleting(userId, services, ct)` first, so the app can delete its own data. An exception there stops the deletion. It then revokes Apple's tokens, removes every Spine sign-in (`ISpineAuthStore.ForgetUserAsync`: the refresh tokens and their families) and removes the user, their email and their logins. Nothing of the account is left in the tables. Access tokens already issued keep working until they expire, at most `AccessTokenLifetime`. The same Apple id signing in again later is a new user.
 
 ## Push
 

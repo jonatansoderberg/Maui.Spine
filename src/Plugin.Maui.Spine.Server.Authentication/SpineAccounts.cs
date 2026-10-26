@@ -590,7 +590,7 @@ internal sealed class SpineAccounts(
                 await apple.RevokeAsync(appleToken, clientId, cancellationToken);
         }
 
-        await store.RevokeUserAsync(userId, cancellationToken);
+        await store.ForgetUserAsync(userId, cancellationToken);
         await users.DeleteAsync(userId, cancellationToken);
         logger.LogInformation("Spine sign-in: user {User} deleted their account.", userId);
     }

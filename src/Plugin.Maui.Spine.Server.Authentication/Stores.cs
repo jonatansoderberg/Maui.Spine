@@ -184,7 +184,16 @@ public interface ISpineAuthStore
     /// <summary>Revokes every token the user has.</summary>
     Task RevokeUserAsync(string userId, CancellationToken cancellationToken = default);
 
-    /// <summary>Removes refresh tokens and one-time values that expired before <paramref name="now"/>.</summary>
+    /// <summary>
+    /// Removes every token and token family of a deleted account. The built-in stores implement it; a store of the app's
+    /// own that does not revokes them instead, and <see cref="PruneAsync"/> removes them later.
+    /// </summary>
+    Task ForgetUserAsync(string userId, CancellationToken cancellationToken = default) => RevokeUserAsync(userId, cancellationToken);
+
+    /// <summary>
+    /// Removes refresh tokens and one-time values that expired before <paramref name="now"/>, and token families that were
+    /// revoked or whose refresh tokens are all gone. A missing family counts as revoked, so removing one changes nothing.
+    /// </summary>
     /// <returns>How many were removed.</returns>
     Task<int> PruneAsync(DateTimeOffset now, CancellationToken cancellationToken = default);
 }
@@ -385,12 +394,28 @@ public sealed class InMemorySpineAuthStore : ISpineAuthStore
         return Task.CompletedTask;
     }
 
+    /// <summary>The token families kept, for tests.</summary>
+    public int FamilyCount => _families.Count;
+
+    /// <inheritdoc />
+    public Task ForgetUserAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        foreach (var key in _families.Keys.Where(k => k.User == userId)) _families.TryRemove(key, out _);
+        foreach (var (hash, token) in _refresh) if (token.UserId == userId) _refresh.TryRemove(hash, out _);
+        return Task.CompletedTask;
+    }
+
     /// <inheritdoc />
     public Task<int> PruneAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         var removed = 0;
         foreach (var (key, entry) in _oneTime) if (entry.ExpiresAt <= now && _oneTime.TryRemove(key, out _)) removed++;
         foreach (var (key, token) in _refresh) if (token.ExpiresAt <= now && _refresh.TryRemove(key, out _)) removed++;
+
+        var live = _refresh.Values.Select(t => (t.UserId, t.FamilyId)).ToHashSet();
+        foreach (var (key, revoked) in _families)
+            if ((revoked || !live.Contains(key)) && _families.TryRemove(key, out _)) removed++;
+
         return Task.FromResult(removed);
     }
 }

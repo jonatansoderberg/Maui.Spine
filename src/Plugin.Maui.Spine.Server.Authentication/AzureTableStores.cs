@@ -269,7 +269,8 @@ public sealed class AzureTableUserResolver(string connectionString, string prefi
 
 /// <summary>
 /// Tokens in Azure Table Storage: <c>{prefix}Refresh</c> by hash, <c>{prefix}Families</c> by user, and
-/// <c>{prefix}OneTime</c> for nonces and emailed codes. Run <see cref="PruneAsync"/> now and then.
+/// <c>{prefix}OneTime</c> for nonces and emailed codes. Run <see cref="PruneAsync"/> now and then; it also removes the
+/// families that can no longer sign in.
 /// </summary>
 /// <param name="connectionString">The storage account; <c>UseDevelopmentStorage=true</c> for Azurite.</param>
 /// <param name="prefix">Prepended to every table name.</param>
@@ -330,12 +331,21 @@ public sealed class AzureTableSpineAuthStore(string connectionString, string pre
             ["ExpiresAt"] = token.ExpiresAt,
         }, cancellationToken);
 
+        // A family lives as long as its newest token, so PruneAsync can tell when it is spent.
         try
         {
-            await _families.AddEntityAsync(new TableEntity(TableKey.Encode(token.UserId), token.FamilyId) { ["Revoked"] = false }, cancellationToken);
+            await _families.AddEntityAsync(new TableEntity(TableKey.Encode(token.UserId), token.FamilyId)
+            {
+                ["Revoked"] = false,
+                ["ExpiresAt"] = token.ExpiresAt,
+            }, cancellationToken);
         }
         catch (RequestFailedException e) when (e.Status == 409)
         {
+            // Only ExpiresAt is merged, so a revocation in between stands; a family pruned in between comes back without
+            // Revoked, which reads as revoked.
+            await _families.UpsertEntityAsync(new TableEntity(TableKey.Encode(token.UserId), token.FamilyId) { ["ExpiresAt"] = token.ExpiresAt },
+                TableUpdateMode.Merge, cancellationToken);
         }
     }
 
@@ -401,6 +411,22 @@ public sealed class AzureTableSpineAuthStore(string connectionString, string pre
     }
 
     /// <inheritdoc />
+    public async Task ForgetUserAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(userId);
+        await EnsureAsync(cancellationToken);
+
+        var partition = TableKey.Encode(userId);
+        await foreach (var family in _families.QueryAsync<TableEntity>(r => r.PartitionKey == partition, select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken))
+            await _families.DeleteEntityAsync(partition, family.RowKey, ETag.All, cancellationToken);
+
+        // Refresh tokens are kept by hash, so finding a user's takes a scan; an account is deleted rarely.
+        var mine = TableClient.CreateQueryFilter($"UserId eq {userId}");
+        await foreach (var row in _refresh.QueryAsync<TableEntity>(mine, select: ["PartitionKey", "RowKey"], cancellationToken: cancellationToken))
+            await _refresh.DeleteEntityAsync(row.PartitionKey, row.RowKey, ETag.All, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<int> PruneAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         await EnsureAsync(cancellationToken);
@@ -419,6 +445,27 @@ public sealed class AzureTableSpineAuthStore(string connectionString, string pre
                 catch (RequestFailedException e) when (e.Status == 404)
                 {
                 }
+            }
+        }
+
+        // A missing family reads as revoked, so removing a revoked or spent one changes nothing. A family written before
+        // families had ExpiresAt goes once none of its refresh tokens is left.
+        await foreach (var family in _families.QueryAsync<TableEntity>(cancellationToken: cancellationToken))
+        {
+            var spent = family.GetBoolean("Revoked") != false
+                || (family.GetDateTimeOffset("ExpiresAt") is { } expiresAt
+                    ? expiresAt <= now
+                    : !await _refresh.QueryAsync<TableEntity>(TableClient.CreateQueryFilter($"FamilyId eq {family.RowKey}"), maxPerPage: 1,
+                        select: ["PartitionKey"], cancellationToken: cancellationToken).AnyAsync(cancellationToken));
+            if (!spent) continue;
+
+            try
+            {
+                await _families.DeleteEntityAsync(family.PartitionKey, family.RowKey, family.ETag, cancellationToken);
+                removed++;
+            }
+            catch (RequestFailedException e) when (e.Status is 404 or 412)
+            {
             }
         }
 

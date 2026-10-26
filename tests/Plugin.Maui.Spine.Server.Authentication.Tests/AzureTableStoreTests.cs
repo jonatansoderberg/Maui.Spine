@@ -197,6 +197,52 @@ public sealed class AzureTableStoreTests : IAsyncLifetime
     }
 
     [AzuriteFact]
+    public async Task A_deleted_users_tokens_and_families_are_removed()
+    {
+        await _store.AddRefreshAsync(new SpineRefreshToken("h1", "f1", "u1", "apple", Now.AddDays(60)));
+        await _store.AddRefreshAsync(new SpineRefreshToken("h2", "f2", "u1", "apple", Now.AddDays(60)));
+        await _store.AddRefreshAsync(new SpineRefreshToken("h3", "f3", "u2", "apple", Now.AddDays(60)));
+
+        await _store.ForgetUserAsync("u1");
+
+        Assert.Null(await _store.FindRefreshAsync("h1"));
+        Assert.Null(await _store.FindRefreshAsync("h2"));
+        Assert.NotNull(await _store.FindRefreshAsync("h3"));
+        Assert.True(await _store.IsFamilyRevokedAsync("u1", "f1"));
+        Assert.Equal(["f3"], await FamiliesAsync());
+    }
+
+    [AzuriteFact]
+    public async Task Prune_removes_revoked_and_spent_families_and_keeps_live_ones()
+    {
+        await _store.AddRefreshAsync(new SpineRefreshToken("h1", "revoked", "u1", "apple", Now.AddDays(60)));
+        await _store.RevokeFamilyAsync("u1", "revoked");
+        await _store.AddRefreshAsync(new SpineRefreshToken("h2", "spent", "u1", "apple", Now.AddDays(-1)));
+        await _store.AddRefreshAsync(new SpineRefreshToken("h3", "live", "u1", "apple", Now.AddDays(-2)));
+        await _store.AddRefreshAsync(new SpineRefreshToken("h4", "live", "u1", "apple", Now.AddDays(30)));
+
+        // Families written before they had ExpiresAt: one with a token left, one with none.
+        var families = new TableClient(ConnectionString, $"{_prefix}Families");
+        await _store.AddRefreshAsync(new SpineRefreshToken("h5", "old-live", "u2", "apple", Now.AddDays(30)));
+        await families.UpsertEntityAsync(new TableEntity(TableKey.Encode("u2"), "old-live") { ["Revoked"] = false }, TableUpdateMode.Replace);
+        await families.UpsertEntityAsync(new TableEntity(TableKey.Encode("u2"), "old-spent") { ["Revoked"] = false }, TableUpdateMode.Replace);
+
+        // h2 and h3, then the revoked, spent and old-spent families.
+        Assert.Equal(5, await _store.PruneAsync(Now));
+
+        Assert.Equal(["live", "old-live"], await FamiliesAsync());
+        Assert.False(await _store.IsFamilyRevokedAsync("u1", "live"));
+        Assert.NotNull(await _store.FindRefreshAsync("h1"));
+    }
+
+    private async Task<string[]> FamiliesAsync()
+    {
+        var rows = new List<string>();
+        await foreach (var row in new TableClient(ConnectionString, $"{_prefix}Families").QueryAsync<TableEntity>()) rows.Add(row.RowKey);
+        return [.. rows.Order()];
+    }
+
+    [AzuriteFact]
     public async Task Prune_removes_what_expired()
     {
         await _store.AddRefreshAsync(new SpineRefreshToken("old", "f1", "u1", "apple", Now.AddDays(-1)));
