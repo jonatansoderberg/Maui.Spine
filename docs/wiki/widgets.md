@@ -271,7 +271,7 @@ var graph = W.Sparkline(readings.Select(r => (r.Time, r.Value)), now.AddHours(-1
 ```
 
 - **The axis is even.** The points are put one value per `step`, from `from` to `to`, keeping the latest of each step. A step with no point is bridged, and so is a short run of them (up to a tenth of the steps, at least two), so a reading that came a little early or late leaves no hole. A longer run, such as a sensor that was off, breaks the line. With no `step`, the span is cut into 60. `W.Sparkline(values)` takes plain values spread across the width instead.
-- **It is compact.** Values are rounded to a thousandth of their range, finer than a widget can draw, and times are not repeated per point. An hour at one value a minute takes about 550 bytes of the 4 KB a Live Activity push may carry. Twice in one layout, on the Lock Screen and in the expanded island, it still leaves well over a kilobyte.
+- **It is compact.** Values are rounded to a hundredth of their range, finer than the line is wide, and times are not repeated per point. An hour at one value a minute takes just under 500 bytes of the 4 KB a Live Activity push may carry, and at one value every five minutes about 250. Three graphs in one layout, on the Lock Screen, in the expanded island and in CarPlay, fit with the rest of a card.
 - **It is drawn smooth but true.** The curve is a monotone cubic, so it never swings above or below the values around it. The vertical scale fits the values with 15 % room above and below, so the graph is relative. The band does not stretch the scale. It colours the line, and `shaded: true` also draws it faintly behind the line, wherever it falls.
 - **Colour by value.** Inside the band, or without one, the line is `color` (the accent when null). Above the band it is `above` and below it `below`; each defaults to `color`. The curve is split where it crosses an edge of the band, so each colour ends in a cut square to the line rather than a horizontal one. The area under each stretch of line is in that stretch's colour, fading downwards from opaque to clear, so it changes colour where the line does. The fade starts opaque because the iPhone's Lock Screen (iOS 27) draws nothing of a gradient whose colours are all translucent, nor of a gradient mask, while the Dynamic Island draws both. The dot takes the colour of the last value.
 - **Size.** On iOS the line fills the width it is offered, at `height` points (48 by default). Android draws it as a picture `height` dp high and `Aspect` times as wide (3 by default). Android's Live Update notification has no place for a graph and leaves it out.
@@ -771,15 +771,17 @@ await _backend.RegisterAsync(await activity!.GetPushTokenAsync());
 await _backend.RegisterStartTokenAsync(await _liveActivities.GetPushToStartTokenAsync());
 ```
 
-Tokens rotate, so send them at every launch and foreground as well. The server pushes with `apns-push-type: liveactivity` and `apns-topic: <bundle-id>.push-type.liveactivity`; the content state is a single string holding the layout's JSON, which the server builds with the same types and `LiveActivityLayout.ToJson()`:
+Tokens rotate, so send them at every launch and foreground as well. The server pushes with `apns-push-type: liveactivity` and `apns-topic: <bundle-id>.push-type.liveactivity`; the content state holds the layout's JSON as an object under `layout`, which the server builds with the same types and `LiveActivityLayout.ToJson()`:
 
 ```json
 { "aps": {
     "timestamp": 1757236800,
     "event": "update",
-    "content-state": { "json": "{\"lockScreen\":{\"type\":\"text\",\"text\":\"6,8 ↗\"}}" }
+    "content-state": { "layout": { "lockScreen": { "type": "text", "text": "6,8 ↗" } } }
 } }
 ```
+
+Before 0.1.27 the layout was a string under `json`, every quote escaped. The extension still reads that, so a server that has not been updated keeps working, but an app built with an older Spine cannot read the object: update the app before the server. Priority 5, the default for an update, lets iOS hold it back for a while; ask for `PushPriority.High` only when the update cannot wait.
 
 `event: start` with `attributes-type: SpineActivityAttributes` and `attributes: { "kind": "…" }` starts an activity through the push-to-start token. Set `SpineWidgetsFrequentUpdates=true` in the project to declare `NSSupportsLiveActivitiesFrequentUpdates`, which raises the push budget. Android has no tokens: a server reaches a Live Update through the app's own push handler (FCM), which calls `UpdateAsync` or `RefreshAsync` like any other code.
 

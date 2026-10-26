@@ -128,13 +128,11 @@ public class PushPayloadsTests
         Assert.Equal("update", aps.GetProperty("event").GetString());
         Assert.Equal(Now.ToUnixTimeSeconds(), aps.GetProperty("timestamp").GetInt64());
         Assert.Equal(Now.AddMinutes(10).ToUnixTimeSeconds(), aps.GetProperty("stale-date").GetInt64());
-        // content-state carries the layout as a string under "json", the shape ActivityKit decodes
-        // into SpineActivityAttributes.ContentState. Inlining the layout object here is what made
-        // server-driven activities render as a placeholder ring.
+        // content-state carries the layout as an object under "layout", which SpineActivityAttributes.ContentState
+        // decodes; before 0.1.27 it was a string under "json", which it still reads.
         var state = aps.GetProperty("content-state");
-        Assert.Equal(JsonValueKind.String, state.GetProperty("json").ValueKind);
-        Assert.Equal("Startar om 30 min",
-            Parse(state.GetProperty("json").GetString()!).GetProperty("lockScreen").GetProperty("text").GetString());
+        Assert.Equal(JsonValueKind.Object, state.GetProperty("layout").ValueKind);
+        Assert.Equal("Startar om 30 min", state.GetProperty("layout").GetProperty("lockScreen").GetProperty("text").GetString());
     }
 
     [Fact]

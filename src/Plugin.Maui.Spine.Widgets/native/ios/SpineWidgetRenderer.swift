@@ -139,8 +139,9 @@ struct ActivityLayout: Decodable {
     var actionColor: String?
     var link: String?
 
-    static func parse(_ json: String) -> ActivityLayout {
-        (try? Store.decoder.decode(ActivityLayout.self, from: Data(json.utf8))) ?? ActivityLayout()
+    static func parse(_ layout: JSONValue) -> ActivityLayout {
+        guard let data = try? JSONEncoder().encode(layout) else { return ActivityLayout() }
+        return (try? Store.decoder.decode(ActivityLayout.self, from: data)) ?? ActivityLayout()
     }
 }
 
@@ -938,14 +939,14 @@ struct SpineSmallLiveActivity: Widget {
 
 private func spineActivityConfiguration() -> some WidgetConfiguration {
     ActivityConfiguration(for: SpineActivityAttributes.self) { context in
-        let layout = ActivityLayout.parse(context.state.json)
+        let layout = ActivityLayout.parse(context.state.layout)
         ActivityBanner(layout: layout, kind: context.attributes.kind)
             .opacity(context.isStale ? 0.5 : 1)
             .activityBackgroundTint(Palette.lockScreenTint(layout))
             .activitySystemActionForegroundColor(layout.actionColor.map { Palette.color($0) })
             .widgetURL(layout.link.flatMap(URL.init(string:)))
     } dynamicIsland: { context in
-        let layout = ActivityLayout.parse(context.state.json)
+        let layout = ActivityLayout.parse(context.state.layout)
         let kind = context.attributes.kind
         return DynamicIsland {
             // Beside a taller centre the side regions would sit at the top, level with the camera;

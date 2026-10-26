@@ -119,12 +119,17 @@ public abstract record TextLikeNode : WidgetNode
     // serialized layout in a data message and is rendered in the app's process. Without the setters
     // the structure came back but every style fell to its default, silently.
 
+    // The defaults, Body and not bold, are left out: a Live Activity push has 4 KB, and the renderers read a
+    // missing key as the default.
+
     /// <summary>The text role, exposed flat for serialization.</summary>
     [JsonPropertyName("font")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public TextRole Role { get => Style.Role; init => Style = Style with { Role = value }; }
 
     /// <summary>Bold weight, exposed flat for serialization.</summary>
     [JsonPropertyName("bold")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Bold { get => Style.Bold; init => Style = Style with { Bold = value }; }
 
     /// <summary>Foreground color, exposed flat for serialization.</summary>

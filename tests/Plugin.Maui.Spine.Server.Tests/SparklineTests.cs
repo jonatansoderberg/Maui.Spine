@@ -37,9 +37,9 @@ public class SparklineTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Values_are_rounded_to_a_thousandth_of_their_range()
+    public void Values_are_rounded_to_a_hundredth_of_their_range()
     {
-        Assert.Equal([5.43, 12.68], W.Sparkline([5.4321, 12.6789]).Values);
+        Assert.Equal([5.4, 12.7], W.Sparkline([5.4321, 12.6789]).Values);
         Assert.Equal([98, 213], W.Sparkline([98.4, 212.6]).Values);
     }
 
@@ -96,6 +96,6 @@ public class SparklineTests(ITestOutputHelper output)
         // The graph twice, lock screen and expanded island, and still well inside 4096.
         Assert.True(graphBytes < 650, $"a sparkline of 60 values takes {graphBytes} bytes");
         Assert.True(bytes < 3000, $"{bytes} bytes leaves too little of APNs' 4096");
-        Assert.Equal(layout.ToJson(), JsonNode.Parse(payload)!["aps"]!["content-state"]!["json"]!.GetValue<string>());
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(layout.ToJson()), JsonNode.Parse(payload)!["aps"]!["content-state"]!["layout"]));
     }
 }

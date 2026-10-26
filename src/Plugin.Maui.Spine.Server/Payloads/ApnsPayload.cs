@@ -61,9 +61,8 @@ public sealed class ApnsPayload
     {
         var buffer = new System.IO.MemoryStream();
 
-        // Relaxed escaping: the Live Activity layout is a JSON string inside this JSON, and the default
-        // encoder writes each of its quotes as \u0022 and each å as \u00E5 — six bytes where two do,
-        // which roughly doubled a layout against APNs' 4 KB limit. APNs takes any valid JSON.
+        // Relaxed escaping: the default encoder writes each å as \u00E5, six bytes where two do, against
+        // APNs' 4 KB limit. APNs takes any valid JSON.
         using (var w = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
             w.WriteStartObject();
@@ -104,13 +103,15 @@ public sealed class ApnsPayload
                     w.WriteEndObject();
                 }
 
-                // ActivityKit decodes content-state into the extension's ContentState, which holds the
-                // layout as a single string — see SpineActivityAttributes.ContentState(json:). Writing
-                // the layout object here instead produces JSON that cannot be decoded, and iOS answers
-                // by rendering its placeholder: a frozen progress ring where the activity should be.
+                // ActivityKit decodes content-state into the extension's ContentState, which reads the layout
+                // as an object under "layout" (SpineWidgetShared.swift). As an object its quotes need no
+                // escaping, where the string Spine sent before 0.1.27 ("json") paid a backslash for each.
+                // An app on an older Spine reads only that string and draws iOS's placeholder for this:
+                // update the app before the server.
                 w.WritePropertyName("content-state");
                 w.WriteStartObject();
-                w.WriteString("json", activity.ContentStateJson);
+                w.WritePropertyName("layout");
+                w.WriteRawValue(activity.ContentStateJson);
                 w.WriteEndObject();
             }
 

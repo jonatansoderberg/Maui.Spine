@@ -53,35 +53,79 @@ public class ApnsPayloadSizeTests(ITestOutputHelper output)
         };
     }
 
+    /// <summary>
+    /// A glucose card as the Glukos app builds it: name and age, the value large and rounded with its unit and trend, and
+    /// the hour as a graph three times over, on the lock screen, at the bottom of the expanded island and in CarPlay.
+    /// </summary>
+    private static LiveActivityLayout GlucoseCard()
+    {
+        var at = new DateTimeOffset(2026, 10, 26, 11, 42, 17, TimeSpan.FromHours(1));
+        var color = WidgetColor.FromHex("#2BB894");
+        var muted = WidgetColor.FromHex("#A6FFFFFF");
+        var points = Enumerable.Range(0, 60).Select(i => (at.AddMinutes(i - 59).AddSeconds(i % 7), 6.2 + 0.9 * Math.Sin(i / 9.0))).ToList();
+        SparklineNode Graph(double height) => W.Sparkline(points, at.AddHours(-1), at, TimeSpan.FromMinutes(5), color, height)
+            .Band(3.9, 10, WidgetColor.FromHex("#F5B83D"), WidgetColor.FromHex("#F2614A")).Area().Dot();
+        WidgetNode Title() => W.Text("Jonatan").Caption().Bold().Color(WidgetColor.FromHex("#FFFFFF"));
+        TextLikeNode Age() => W.Relative(at, ago: true).Caption().Color(muted).Trailing();
+        WidgetNode Reading(double size, bool drop = true)
+        {
+            var number = W.Text("6,8").FontSize(size).Bold().FontDesign(TextDesign.Rounded).Color(color);
+            var arrow = W.Text("→").FontSize(size * 0.7).Bold().Color(color);
+            return drop ? W.HStack(6, W.Icon("drop", color, size * 0.55), number, arrow) : W.HStack(6, number, arrow);
+        }
+        var unit = W.Text("mmol/L · Stabilt").Caption().Bold().Color(muted);
+
+        return new LiveActivityLayout
+        {
+            LockScreen = W.VStack(10, W.HStack(8, Title(), W.Spacer(), Age()), W.HStack(12, W.VStack(2, Reading(40), unit), Graph(56))).Padding(16),
+            Background = WidgetColor.FromHex("#000000"),
+            Link = new Uri("se.cosmomedia.glukos://widget/glucose?person=p2qoh7wot5"),
+            ExpandedLeading = W.HStack(0, Title()).Padding(6),
+            ExpandedTrailing = W.HStack(0, W.Spacer(), Age()).Padding(6),
+            ExpandedBottom = W.HStack(12, W.VStack(2, Reading(30), unit), Graph(44)),
+            CompactLeading = W.Icon("drop", color),
+            CompactTrailing = W.Text("6,8 →").Headline().Bold().FontDesign(TextDesign.Rounded).Color(color),
+            Minimal = W.Text("6,8").Headline().Bold().FontDesign(TextDesign.Rounded).Color(color),
+            Small = W.HStack(12, W.VStack(2, Title(), Reading(26, drop: false), Age()), Graph(40)),
+        };
+    }
+
+    [Fact]
+    public void A_glucose_card_with_three_graphs_fits_with_room_to_spare()
+    {
+        var layout = GlucoseCard();
+        var update = PushPayloads.ApnsLiveActivity("glucose:p2qoh7wot5", layout, LiveActivityEvent.Update, alert: null,
+            new LiveActivityOptions { StaleAt = DateTimeOffset.UnixEpoch.AddYears(57) }, "se.cosmomedia.glukos", DateTimeOffset.UnixEpoch.AddYears(56)).Json;
+        var start = Payload(layout);
+
+        output.WriteLine($"layout {Bytes(layout.ToJson())} bytes; update {Bytes(update)} bytes, start with alert and channel {Bytes(start)} bytes");
+
+        Assert.True(Bytes(update) < 3500, $"{Bytes(update)} bytes of APNs' 4096");
+        Assert.True(Bytes(start) < 4096, $"{Bytes(start)} bytes of APNs' 4096");
+    }
+
     private static string Payload(LiveActivityLayout layout) => PushPayloads.ApnsLiveActivity(
         "match:p2qoh7wot5", layout, LiveActivityEvent.Start,
         new PushAlert("Nedsläpp!", "Djurgården–Björklöven har börjat."),
         new LiveActivityOptions { Channel = "dHN0LTEyMzQ1Njc4OTAxMjM0NTY=", StaleAt = DateTimeOffset.UnixEpoch.AddYears(56) },
         "se.cosmomedia.puckkoll", DateTimeOffset.UnixEpoch.AddYears(56)).Json;
 
-    /// <summary>The same payload as the default encoder wrote it before #279, the layout inside it included.</summary>
-    private static string WrittenTheOldWay(string payload)
-    {
-        var node = JsonNode.Parse(payload)!;
-        var state = node["aps"]!["content-state"]!;
-        state["json"] = JsonSerializer.Serialize(JsonNode.Parse(state["json"]!.GetValue<string>()));
-        return JsonSerializer.Serialize(node);
-    }
-
     private static int Bytes(string json) => Encoding.UTF8.GetByteCount(json);
 
     [Fact]
-    public void The_embedded_layout_costs_about_two_bytes_per_quote()
+    public void The_layout_travels_as_an_object_without_escaping()
     {
-        var payload = Payload(ScoreCard());
-        var before = WrittenTheOldWay(payload);
+        var layout = ScoreCard();
+        var payload = Payload(layout);
 
-        output.WriteLine($"layout {ScoreCard().ToJson().Length} characters; payload before {Bytes(before)} bytes, now {Bytes(payload)} bytes");
+        output.WriteLine($"layout {Bytes(layout.ToJson())} bytes, payload {Bytes(payload)} bytes");
 
-        Assert.DoesNotContain("\\u0022", payload);
+        Assert.Equal(JsonValueKind.Object, JsonNode.Parse(payload)!["aps"]!["content-state"]!["layout"]!.GetValueKind());
+        Assert.DoesNotContain("\\\"", payload);
+        Assert.DoesNotContain("\\u00", payload);
         Assert.Contains("Björklöven", payload);
-        Assert.True(Bytes(payload) < Bytes(before) * 0.65, $"{Bytes(payload)} bytes now against {Bytes(before)} before");
-        Assert.True(Bytes(payload) < 3200, $"{Bytes(payload)} bytes leaves too little of APNs' 4096");
+        // The alert, the channel and the activity's own fields around it are all a start adds.
+        Assert.True(Bytes(payload) - Bytes(layout.ToJson()) < 400, $"{Bytes(payload) - Bytes(layout.ToJson())} bytes around the layout");
     }
 
     [Fact]
@@ -107,9 +151,9 @@ public class ApnsPayloadSizeTests(ITestOutputHelper output)
         var layout = ScoreCard();
         var payload = JsonNode.Parse(Payload(layout))!;
 
-        var embedded = payload["aps"]!["content-state"]!["json"]!.GetValue<string>();
+        var embedded = payload["aps"]!["content-state"]!["layout"]!.ToJsonString();
 
-        Assert.Equal(layout.ToJson(), embedded);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(layout.ToJson()), JsonNode.Parse(embedded)));
         Assert.Equal(layout.ToJson(), WidgetJson.DeserializeLayout(embedded)!.ToJson());
     }
 }
