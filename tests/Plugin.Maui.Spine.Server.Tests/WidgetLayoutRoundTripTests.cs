@@ -136,12 +136,30 @@ public class WidgetLayoutRoundTripTests
     }
 
     [Fact]
+    public void A_single_line_age_keeps_its_scale_and_other_text_says_nothing()
+    {
+        var json = new LiveActivityLayout
+        {
+            LockScreen = W.HStack(W.Text("Jonatan"), W.Spacer(), W.Relative(DateTimeOffset.UnixEpoch, ago: true).SingleLine(0.6).Caption()),
+        }.ToJson();
+
+        var row = Assert.IsType<HStackNode>(WidgetJson.DeserializeLayout(json)!.LockScreen);
+
+        Assert.Equal(0.6, Assert.IsType<RelativeDateNode>(row.Children[2]).SingleLine);
+        Assert.Null(Assert.IsType<TextNode>(row.Children[0]).SingleLine);
+        Assert.Equal(1, json.Split("\"singleLine\":0.6").Length - 1);
+        Assert.Equal(0.7, W.Text("x").SingleLine().SingleLine);
+        Assert.Throws<ArgumentOutOfRangeException>(() => W.Text("x").SingleLine(0));
+    }
+
+    [Fact]
     public void Text_that_is_not_centred_says_nothing_about_it()
     {
         var json = new LiveActivityLayout { LockScreen = W.Timer(DateTimeOffset.UnixEpoch) }.ToJson();
 
         Assert.DoesNotContain("centered", json);
         Assert.DoesNotContain("trailing", json);
+        Assert.DoesNotContain("singleLine", json);
         Assert.DoesNotContain("prefix", json);
     }
 

@@ -209,6 +209,18 @@ public static class WidgetNodeStyling
     public static T Trailing<T>(this T node) where T : TextLikeNode => (T)(node with { IsTrailing = true });
 
     /// <summary>
+    /// Keeps the text on one line where it would wrap, such as an age in the Dynamic Island's narrow side regions: it
+    /// shrinks to as little as <paramref name="minimumScale"/> of its size to fit, and is cut off with an ellipsis past
+    /// that. Android cannot shrink a widget's text and only keeps it on one line.
+    /// </summary>
+    public static T SingleLine<T>(this T node, double minimumScale = 0.7) where T : TextLikeNode
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(minimumScale);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(minimumScale, 1);
+        return (T)(node with { SingleLine = minimumScale });
+    }
+
+    /// <summary>
     /// Marks the node as changed by the widget's buttons: from a tap until the rebuild that follows
     /// the handler, the platform dims it, so the tap is seen to be working. Mark the nodes the tap
     /// changes, such as a line that shows the result. Ignored on a <see cref="W.Button"/> and inside
