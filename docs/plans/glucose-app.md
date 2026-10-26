@@ -1,7 +1,7 @@
 # Plan: Glukos – glukosvärdet här och nu
 
 **Påbörjad:** 2026-10-21
-**Senast uppdaterad:** 2026-10-26 (Spine-luckor G20 och G21, §14; steg 1 klart, §15.2; appen och Live Activity påbörjade, §15.3)
+**Senast uppdaterad:** 2026-10-26 (Spine-luckor G20–G22, §14; steg 1 klart, §15.2; appen och Live Activity påbörjade, §15.3)
 
 En app byggd på Spine som visar ett aktuellt glukosvärde. Värdet hämtas av en backend i Azure Functions från en **källa**, först LibreLinkUp (FreeStyle Libre 3) och senare Nightscout.
 Det visas i appen, i en Live Activity (iPhone, och därmed StandBy, Macens menyrad och Apple Watch), i Live Update (Android), på Garmin-klockan (datafält, glance och urtavla)
@@ -900,6 +900,7 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | G18 | Ett sheet kan inte bli så högt som sitt innehåll: `NavigableSheet` tar bara fasta lägen, procent eller pixlar | Ett läge som följer innehållets höjd (iOS `.custom`-detent med innehållets höjd, Android på samma sätt), och som följer med när sidan i sheetet byts | Inloggningsrutan. Glukos har `"60%"` så länge, som rymmer innehållet på en liten iPhone men lämnar luft på en stor |
 | G20 | Widgettext kan inte hållas på en rad: åldern (`W.Relative(at, ago: true)`) bryts i den utfällda öns smala högerfält till "för 2 minuter" / "sedan", och kan göra det på låsskärmen och i CarPlay med längre språk eller större text | `.SingleLine(minimumScale)`: en rad, krymper till högst den andelen och kortas sedan med ellips (iOS `.lineLimit(1)` + `.minimumScaleFactor`, Android en rad). Kortare enheter ("2 min sedan") går inte: iOS skriver enheternas fulla namn i alla format som uppdaterar sig själva | Åldern på låsskärmen, i ön och i CarPlay. Glukos har en ålder som kan brytas så länge |
 | G21 | Ett inloggat konto kan inte lägga till e-post och lösenord, bara ta bort dem: `UnlinkAsync("password")` finns, men inget som lägger tillbaka dem, och återställning är av i Glukos (`AllowReset = false`, ingen e-post skickas) | `ISpineAuth.AddPasswordAsync(email, password)` och `POST /auth/link/password` (samma route som `link/{provider}`, så en Functions-värd behöver ingen ny). En annan e-post ersätter kontots, overifierad; `email_taken` när ett annat konto har den; kod först med `RequireVerifiedEmail` | Inställningar: raden "Lägg till e-post och lösenord" med ett blad. Glukos saknar den så länge |
+| G22 | Inloggningen lämnar rester på servern: när ett konto raderas märks dess refresh-tokenfamiljer bara som återkallade, och `PruneAsync` tar aldrig bort familjer, så `SpineAuthFamilies` behåller rader för användare som inte finns | `ISpineAuthStore.ForgetUserAsync` tar bort ett raderat kontos refresh-tokens och familjer; `PruneAsync` tar också bort återkallade familjer och de vars tokens har gått ut (äldre rader utan `ExpiresAt` när inga tokens finns kvar). E-postindexet går redan med kontot. Att ta bort lösenordet behåller kontots e-post, så G21 tar emot kontots egen e-post | Inga rester på servern. Glukos kör `PruneAsync` varje natt, så rensningen når de gamla raderna av sig själv |
 
 ---
 
