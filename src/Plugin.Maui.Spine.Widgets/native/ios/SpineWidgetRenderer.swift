@@ -205,12 +205,19 @@ struct SpineKindKey: EnvironmentKey { static let defaultValue = "" }
 struct SpineInsideButtonKey: EnvironmentKey { static let defaultValue = false }
 /// Set for the children of an HStack and a button, which wrap their content on Android; see BoxModifier.
 struct SpineInlineKey: EnvironmentKey { static let defaultValue = false }
-/// The solid colour behind a Live Activity, where it is known: what a sparkline's area is blended onto, so it is drawn
-/// opaque. Nil on widgets and on a translucent or system background.
+/// The solid colour behind a region, where it is known (the Dynamic Island's black): what a sparkline's area is blended
+/// onto, so it is drawn opaque. Nil elsewhere.
 struct SpineBackdropKey: EnvironmentKey { static let defaultValue: Color? = nil }
 /// Set where the region clips at its edges, as the Dynamic Island's do: nothing may reach over them there.
 struct SpineClippedKey: EnvironmentKey { static let defaultValue = false }
+/// Set where the system draws an activity's dim shades as they are (the Dynamic Island, and the small family in CarPlay
+/// and the Smart Stack), which the iPhone's Lock Screen darkens; a sparkline's area then darkens them itself.
+struct SpineTonedKey: EnvironmentKey { static let defaultValue = false }
 extension EnvironmentValues {
+    var spineToned: Bool {
+        get { self[SpineTonedKey.self] }
+        set { self[SpineTonedKey.self] = newValue }
+    }
     var spineClipped: Bool {
         get { self[SpineClippedKey.self] }
         set { self[SpineClippedKey.self] = newValue }
@@ -376,6 +383,7 @@ struct SparklineView: View {
     @Environment(\.displayScale) private var displayScale
     @Environment(\.spineBackdrop) private var backdrop
     @Environment(\.spineClipped) private var clipped
+    @Environment(\.spineToned) private var toned
     let node: Node
 
     var body: some View {
@@ -385,7 +393,7 @@ struct SparklineView: View {
                 if let band = plot.band {
                     Path(band).fill(plot.inRange.opacity(0.14))
                 }
-                if node.area == true, let area = SparklineArea.image(plot, size: geometry.size, scale: displayScale, backdrop: backdrop, island: clipped) {
+                if node.area == true, let area = SparklineArea.image(plot, size: geometry.size, scale: displayScale, backdrop: backdrop, toned: toned) {
                     Image(uiImage: area).resizable()
                         .frame(width: geometry.size.width + SparklineArea.edge, height: geometry.size.height)
                         .position(x: (geometry.size.width + SparklineArea.edge) / 2, y: geometry.size.height / 2)
@@ -415,10 +423,10 @@ struct SparklineView: View {
 ///
 /// The iPhone's Lock Screen (iOS 27) draws nothing of a gradient mask, nor of a gradient whose colours are all translucent,
 /// and thins out the translucent parts of a picture until only a sliver under the line is left; the Dynamic Island and the
-/// simulator draw all of them. Where the colour behind the activity is known (`spineBackdrop`), the area is therefore blended
-/// onto it and drawn opaque; elsewhere it is translucent. The lock screen still darkens the dim shades of that picture,
-/// showing a share k of the line's colour as about k^1.6 (measured on an iPhone with iOS 27), and the island does not, so in
-/// the island the area takes that curve itself and the two look alike.
+/// simulator draw all of them. Where the colour behind the region is known (`spineBackdrop`, the island's black), the area
+/// is blended onto it and drawn opaque; elsewhere it is translucent. The lock screen darkens the dim shades of the picture,
+/// showing a share k of the line's colour as about k^1.6 (measured on an iPhone with iOS 27); the island and CarPlay do not,
+/// so there (`spineToned`) the area takes that curve itself and all of them look alike.
 struct SparklineArea: View {
     /// How far the area reaches past the line's two ends.
     static let edge: CGFloat = 2
@@ -426,13 +434,13 @@ struct SparklineArea: View {
     static let fade: CGFloat = 4
     /// How strong the area is at the line's highest level.
     static let strength: CGFloat = 0.5
-    /// How the lock screen darkens the area's shades, which the island draws as they are.
+    /// How the lock screen darkens the area's shades, which the island and CarPlay draw as they are.
     static let lockScreenTone = 1.6
     let plot: SparklinePlot
     let size: CGSize
     let scale: CGFloat
     let backdrop: Color?
-    let island: Bool
+    let toned: Bool
 
     var body: some View {
         Canvas { context, canvas in
@@ -489,7 +497,7 @@ struct SparklineArea: View {
                     let stops = stride(from: 0.0, through: 1.0, by: 0.125).map { f -> Gradient.Stop in
                         let below = Double(size.height - y) * (1 - f)
                         let share = Double(Self.strength * ends) * pow(below / Double(size.height - top), 0.4)
-                        let k = island ? pow(share, Self.lockScreenTone) : share
+                        let k = toned ? pow(share, Self.lockScreenTone) : share
                         let color = behind.map { b in
                             let m = b + (c - b) * k
                             return Color(red: m.x, green: m.y, blue: m.z)
@@ -506,9 +514,9 @@ struct SparklineArea: View {
         .frame(width: size.width + Self.edge, height: size.height)
     }
 
-    @MainActor static func image(_ plot: SparklinePlot, size: CGSize, scale: CGFloat, backdrop: Color?, island: Bool = false) -> UIImage? {
+    @MainActor static func image(_ plot: SparklinePlot, size: CGSize, scale: CGFloat, backdrop: Color?, toned: Bool = false) -> UIImage? {
         guard size.width > 0, size.height > 0, !plot.samples.isEmpty else { return nil }
-        let renderer = ImageRenderer(content: SparklineArea(plot: plot, size: size, scale: scale, backdrop: backdrop, island: island))
+        let renderer = ImageRenderer(content: SparklineArea(plot: plot, size: size, scale: scale, backdrop: backdrop, toned: toned))
         renderer.scale = scale
         return renderer.uiImage
     }
@@ -850,14 +858,6 @@ enum Palette {
 
     /// The Lock Screen tint: the layout's color; the system's own material (nil) when it asks for that; and
     /// otherwise the translucent black Spine has always drawn, so an activity that sets neither looks the same.
-    /// The colour behind the Lock Screen presentation (and CarPlay's and the watch's, which share it) when it is one
-    /// opaque colour; nil for the system's material or Spine's translucent black.
-    static func backdrop(_ layout: ActivityLayout) -> Color? {
-        guard let background = layout.background else { return nil }
-        let solid = color(background)
-        return UIColor(solid).cgColor.alpha >= 1 ? solid : nil
-    }
-
     static func lockScreenTint(_ layout: ActivityLayout) -> Color? {
         if let background = layout.background {
             if layout.systemBackground == true {
@@ -1049,10 +1049,12 @@ struct Slot: View {
     var backdrop: Color?
     /// Whether the region clips at its edges; see SpineClippedKey.
     var clipped = false
+    /// Whether the system shows the region's dim shades undarkened; see SpineTonedKey.
+    var toned = false
     var body: some View {
         if let node {
             NodeView(node: node).environment(\.spineKind, kind).environment(\.locale, AppLanguage.locale)
-                .environment(\.spineBackdrop, backdrop).environment(\.spineClipped, clipped)
+                .environment(\.spineBackdrop, backdrop).environment(\.spineClipped, clipped).environment(\.spineToned, toned)
         } else {
             EmptyView()
         }
@@ -1084,7 +1086,6 @@ private func spineActivityConfiguration() -> some WidgetConfiguration {
     ActivityConfiguration(for: SpineActivityAttributes.self) { context in
         let layout = ActivityLayout.parse(context.state.layout)
         ActivityBanner(layout: layout, kind: context.attributes.kind)
-            .environment(\.spineBackdrop, Palette.backdrop(layout))
             .opacity(context.isStale ? 0.5 : 1)
             .activityBackgroundTint(Palette.lockScreenTint(layout))
             .activitySystemActionForegroundColor(layout.actionColor.map { Palette.color($0) })
@@ -1096,16 +1097,16 @@ private func spineActivityConfiguration() -> some WidgetConfiguration {
         return DynamicIsland {
             // Beside a taller centre the side regions would sit at the top, level with the camera;
             // filling their height centres them on it instead.
-            DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind, backdrop: .black, clipped: true).frame(maxHeight: .infinity) }
-            DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind, backdrop: .black, clipped: true).frame(maxHeight: .infinity) }
-            DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter, kind: kind, backdrop: .black, clipped: true) }
-            DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom, kind: kind, backdrop: .black, clipped: true) }
+            DynamicIslandExpandedRegion(.leading) { Slot(node: layout.expandedLeading, kind: kind, backdrop: .black, clipped: true, toned: true).frame(maxHeight: .infinity) }
+            DynamicIslandExpandedRegion(.trailing) { Slot(node: layout.expandedTrailing, kind: kind, backdrop: .black, clipped: true, toned: true).frame(maxHeight: .infinity) }
+            DynamicIslandExpandedRegion(.center) { Slot(node: layout.expandedCenter, kind: kind, backdrop: .black, clipped: true, toned: true) }
+            DynamicIslandExpandedRegion(.bottom) { Slot(node: layout.expandedBottom, kind: kind, backdrop: .black, clipped: true, toned: true) }
         } compactLeading: {
-            Slot(node: layout.compactLeading, kind: kind, backdrop: .black, clipped: true)
+            Slot(node: layout.compactLeading, kind: kind, backdrop: .black, clipped: true, toned: true)
         } compactTrailing: {
-            Slot(node: layout.compactTrailing, kind: kind, backdrop: .black, clipped: true)
+            Slot(node: layout.compactTrailing, kind: kind, backdrop: .black, clipped: true, toned: true)
         } minimal: {
-            Slot(node: layout.minimal, kind: kind, backdrop: .black, clipped: true)
+            Slot(node: layout.minimal, kind: kind, backdrop: .black, clipped: true, toned: true)
         }
         .widgetURL(layout.link.flatMap(URL.init(string:)))
     }
@@ -1134,14 +1135,14 @@ private struct FamilyBanner: View {
     var body: some View {
         if family == .small {
             if let small = layout.small {
-                Slot(node: small, kind: kind).padding(10)
+                Slot(node: small, kind: kind, toned: true).padding(10)
             } else {
                 // Another kind in the same app may have no small tree; it gets what the system shows
                 // when the family is not declared.
                 HStack {
-                    Slot(node: layout.compactLeading, kind: kind)
+                    Slot(node: layout.compactLeading, kind: kind, toned: true)
                     Spacer(minLength: 8)
-                    Slot(node: layout.compactTrailing, kind: kind)
+                    Slot(node: layout.compactTrailing, kind: kind, toned: true)
                 }
                 .padding(10)
             }
