@@ -422,7 +422,7 @@ struct SparklineArea: View {
     /// How wide the fade at each end is, mostly under the line.
     static let fade: CGFloat = 4
     /// How strong the area is at the line's highest level.
-    static let strength: CGFloat = 0.6
+    static let strength: CGFloat = 0.5
     let plot: SparklinePlot
     let size: CGSize
     let scale: CGFloat

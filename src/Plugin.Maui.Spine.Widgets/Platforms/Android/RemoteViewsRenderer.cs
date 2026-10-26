@@ -448,7 +448,7 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
             var tint = Tint(x);
             for (var y = (int)top; y < height; y++)
             {
-                var alpha = (int)(255 * 0.6f * column.Strength * MathF.Pow((height - y) / (height - highest), 0.4f));
+                var alpha = (int)(255 * 0.5f * column.Strength * MathF.Pow((height - y) / (height - highest), 0.4f));
                 pixels[y * width + x] = alpha << 24 | tint;
             }
         }
