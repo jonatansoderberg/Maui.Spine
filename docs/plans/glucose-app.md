@@ -1,7 +1,7 @@
 # Plan: Glukos – glukosvärdet här och nu
 
 **Påbörjad:** 2026-10-21
-**Senast uppdaterad:** 2026-10-22 (steg 1 klart, §15.2; appen och Live Activity påbörjade, §15.3)
+**Senast uppdaterad:** 2026-10-26 (Spine-lucka G20, §14; steg 1 klart, §15.2; appen och Live Activity påbörjade, §15.3)
 
 En app byggd på Spine som visar ett aktuellt glukosvärde. Värdet hämtas av en backend i Azure Functions från en **källa**, först LibreLinkUp (FreeStyle Libre 3) och senare Nightscout.
 Det visas i appen, i en Live Activity (iPhone, och därmed StandBy, Macens menyrad och Apple Watch), i Live Update (Android), på Garmin-klockan (datafält, glance och urtavla)
@@ -898,6 +898,7 @@ Görs som issues i Maui.Spine. Allt annat finns redan.
 | G16 | Ingen egen Live Activity-layout för CarPlay och Apple Watch Smart Stack: Spine deklarerar inte `supplementalActivityFamilies([.small])`, så iOS 26 visar den kompakta Dynamic Island-vyn där (droppe till vänster, värde och pil till höger) | `LiveActivityLayout.Small` med ett eget träd, och familjen `.small` i widgettillägget när den är satt | Värdet läsbart i bilen och på klockan (B15). Glukos har den kompakta vyn så länge |
 | G17 | Widgettext kan inte bli större än `Title()`, som ritas som iOS `.title2` (22 pt), och har ingen rundad design; ikoner är fasta 18 × 18 | En större stil (`LargeTitle()` eller en storlek i punkter) och `Rounded()`, och en storlek på `W.Icon` | Värdet i widgeten lika stort som på appens kort. Glukos har `Title()` så länge |
 | G18 | Ett sheet kan inte bli så högt som sitt innehåll: `NavigableSheet` tar bara fasta lägen, procent eller pixlar | Ett läge som följer innehållets höjd (iOS `.custom`-detent med innehållets höjd, Android på samma sätt), och som följer med när sidan i sheetet byts | Inloggningsrutan. Glukos har `"60%"` så länge, som rymmer innehållet på en liten iPhone men lämnar luft på en stor |
+| G20 | Widgettext kan inte hållas på en rad: åldern (`W.Relative(at, ago: true)`) bryts i den utfällda öns smala högerfält till "för 2 minuter" / "sedan", och kan göra det på låsskärmen och i CarPlay med längre språk eller större text | `.SingleLine(minimumScale)`: en rad, krymper till högst den andelen och kortas sedan med ellips (iOS `.lineLimit(1)` + `.minimumScaleFactor`, Android en rad). Kortare enheter ("2 min sedan") går inte: iOS skriver enheternas fulla namn i alla format som uppdaterar sig själva | Åldern på låsskärmen, i ön och i CarPlay. Glukos har en ålder som kan brytas så länge |
 
 ---
 
