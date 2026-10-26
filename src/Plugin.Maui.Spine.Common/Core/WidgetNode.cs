@@ -151,6 +151,13 @@ public abstract record TextLikeNode : WidgetNode
     public bool? IsTrailing { get; init; }
 
     /// <summary>
+    /// Keeps the text on one line: it shrinks to as little as this share of its size to fit the width, and is cut off past
+    /// that. Set with <see cref="WidgetNodeStyling.SingleLine{T}"/>.
+    /// </summary>
+    [JsonPropertyName("singleLine")]
+    public double? SingleLine { get; init; }
+
+    /// <summary>
     /// The system font's design: <see cref="TextDesign.Rounded"/> for values in SF Pro Rounded, as Apple's own apps
     /// show them. iOS; Android has no such system font and draws the default. Set with
     /// <see cref="WidgetNodeStyling.FontDesign{T}"/>.

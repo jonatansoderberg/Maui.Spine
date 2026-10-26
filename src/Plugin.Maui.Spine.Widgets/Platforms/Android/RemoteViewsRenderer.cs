@@ -554,6 +554,8 @@ internal sealed class RemoteViewsRenderer(Context _context, WidgetIcons _icons, 
         Color(views, "setTextColor", Text(node, "color"));
         if (Bool(node, "centered")) views.SetInt(Node, "setGravity", (int)GravityFlags.CenterHorizontal);
         else if (Bool(node, "trailing")) views.SetInt(Node, "setGravity", (int)(GravityFlags.End | GravityFlags.CenterVertical));
+        // RemoteViews cannot size text to fit, so single-line text is only kept on one line.
+        if (Number(node, "singleLine") is not null) views.SetInt(Node, "setMaxLines", 1);
         return views;
     }
 

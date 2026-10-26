@@ -167,6 +167,7 @@ final class Node: Decodable {
     var prefix: String?
     var centered: Bool?
     var trailing: Bool?
+    var singleLine: Double?
     var spacing: Double?
     var fill: Bool?
     var align: String?
@@ -758,6 +759,8 @@ struct TextStyleModifier: ViewModifier {
             .fontWeight(node.bold == true ? .bold : .regular)
             .foregroundStyle(Palette.color(node.color))
             .multilineTextAlignment(node.centered == true ? .center : node.trailing == true ? .trailing : .leading)
+            .lineLimit(node.singleLine == nil ? nil : 1)
+            .minimumScaleFactor(CGFloat(node.singleLine ?? 1))
     }
 }
 
