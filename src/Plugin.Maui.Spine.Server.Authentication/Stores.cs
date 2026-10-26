@@ -137,6 +137,15 @@ public interface IUserResolver
     /// </summary>
     Task DeleteLoginAsync(SpineAuthLogin login, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("This IUserResolver cannot remove a login.");
+
+    /// <summary>
+    /// Gives a user a new email, not verified (adding email and password to a signed-in account). The built-in stores
+    /// implement it; a resolver over the app's own database that does not makes <c>POST /auth/link/password</c> answer 501
+    /// for an email other than the account's own.
+    /// </summary>
+    /// <returns><see langword="false"/> when another user owns the email; nothing changes then.</returns>
+    Task<bool> ChangeEmailAsync(string userId, string email, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This IUserResolver cannot change a user's email.");
 }
 
 /// <summary>A refresh token as the store keeps it: by its hash, never the token itself.</summary>
@@ -244,6 +253,25 @@ public sealed class InMemoryUserResolver : IUserResolver
         {
             if (!_users.TryGetValue(user.Id, out var current) || current.Version != user.Version) return Task.FromResult(false);
             _users[user.Id] = Copy(user, current.Email, Guid.NewGuid().ToString("N"));
+            return Task.FromResult(true);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<bool> ChangeEmailAsync(string userId, string email, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(email);
+
+        lock (_gate)
+        {
+            if (!_users.TryGetValue(userId, out var user)) return Task.FromResult(false);
+            if (_emails.TryGetValue(email.Trim(), out var owner) && owner != userId) return Task.FromResult(false);
+
+            if (user.Email is { } old) _emails.Remove(old.Trim());
+            _emails[email.Trim()] = userId;
+            var changed = Copy(user, email, Guid.NewGuid().ToString("N"));
+            changed.EmailVerified = false;
+            _users[userId] = changed;
             return Task.FromResult(true);
         }
     }

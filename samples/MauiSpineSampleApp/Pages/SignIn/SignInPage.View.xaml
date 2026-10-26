@@ -84,6 +84,7 @@
                 await _auth.LinkAsync("google");    // Google's sheet or the browser; the same user after
                 await _auth.UnlinkAsync("google");  // never the last way in
                 await _auth.UnlinkAsync("passkey", login.Subject!);  // one passkey of several
+                await _auth.AddPasswordAsync(email, password);  // email and password as a way in, again after an unlink
             </Example.Code>
         </Example>
 

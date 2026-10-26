@@ -111,6 +111,48 @@ public sealed class AzureTableUserResolver(string connectionString, string prefi
     }
 
     /// <inheritdoc />
+    public async Task<bool> ChangeEmailAsync(string userId, string email, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(userId);
+        ArgumentNullException.ThrowIfNull(email);
+        await EnsureAsync(cancellationToken);
+
+        // The new index row first, as in CreateAsync: its insert is what keeps the email to one user.
+        try
+        {
+            await _emails.AddEntityAsync(new TableEntity(EmailKey(email), Row) { ["UserId"] = userId }, cancellationToken);
+        }
+        catch (RequestFailedException e) when (e.Status == 409)
+        {
+            var index = await _emails.GetEntityIfExistsAsync<TableEntity>(EmailKey(email), Row, cancellationToken: cancellationToken);
+            if (!index.HasValue || index.Value!.GetString("UserId") != userId) return false;
+        }
+
+        for (var attempt = 0; ; attempt++)
+        {
+            if (await FindByIdAsync(userId, cancellationToken) is not { } user) return false;
+
+            var old = user.Email;
+            var row = ToRow(user);
+            row["Email"] = email.Trim();
+            row["EmailVerified"] = false;
+
+            try
+            {
+                await _users.UpdateEntityAsync(row, new ETag(user.Version!), TableUpdateMode.Replace, cancellationToken);
+            }
+            catch (RequestFailedException e) when (e.Status == 412 && attempt < 5)
+            {
+                continue;
+            }
+
+            if (old is not null && EmailKey(old) != EmailKey(email))
+                await _emails.DeleteEntityAsync(EmailKey(old), Row, ETag.All, cancellationToken);
+            return true;
+        }
+    }
+
+    /// <inheritdoc />
     public async Task SaveLoginAsync(SpineAuthLogin login, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(login);

@@ -121,11 +121,14 @@ internal sealed class SpineAuth : ISpineAuth
         if (Direct) return await NeedsServer("Linking accounts");
 
         var name = provider.ToLowerInvariant();
-        if (name == "password") return SignInResult.Failure("A password is added by signing up with the account's email, not linked.");
+        if (name == "password") return SignInResult.Failure("A password is added with AddPasswordAsync(email, password).");
 
         var (token, problem) = await Flows.LinkingAsAsync(cancellationToken);
         return problem ?? await WithAsync(name, token, cancellationToken);
     }
+
+    public Task<SignInResult> AddPasswordAsync(string email, string password, CancellationToken cancellationToken = default) =>
+        Direct ? NeedsServer("Linking accounts") : Flows.AddPasswordAsync(email, password, cancellationToken);
 
     public Task<SignInResult> UnlinkAsync(string provider, CancellationToken cancellationToken = default) =>
         Direct ? NeedsServer("Linking accounts") : Flows.UnlinkAsync(provider.ToLowerInvariant(), cancellationToken);

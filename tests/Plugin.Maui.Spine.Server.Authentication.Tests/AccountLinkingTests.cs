@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
 
@@ -188,6 +189,84 @@ public sealed class AccountLinkingTests : IAsyncLifetime
 
         Assert.Equal(["google"], Providers(unlinked));
         Assert.Equal(HttpStatusCode.Unauthorized, (await _host.PostAsync("/auth/password/signin", new SpinePasswordSignIn(email, Password))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Email_and_password_join_a_user_who_signed_in_with_apple()
+    {
+        var apple = await _host.SignInWithAppleAsync(email: "anna@example.com");
+
+        var added = await TokensAsync(await SendAsync(HttpMethod.Post, "/auth/link/password", apple.AccessToken, new SpinePasswordSignIn("Anna@Example.com", Password)));
+
+        Assert.Equal(apple.User.Id, added.User.Id);
+        Assert.Equal(["apple", "password"], Providers(added));
+        Assert.Empty(_host.Email.Sent);
+        var signedIn = await TokensAsync(await _host.PostAsync("/auth/password/signin", new SpinePasswordSignIn("anna@example.com", Password)));
+        Assert.Equal(apple.User.Id, signedIn.User.Id);
+    }
+
+    [Fact]
+    public async Task A_new_email_with_the_password_replaces_the_accounts_and_is_verified_first()
+    {
+        const string email = "anna@home.example";
+        var apple = await _host.SignInWithAppleAsync(email: "relay@privaterelay.appleid.com");
+
+        var added = await SendAsync(HttpMethod.Post, "/auth/link/password", apple.AccessToken, new SpinePasswordSignIn(email, Password));
+
+        Assert.Equal(HttpStatusCode.Accepted, added.StatusCode);
+        await _host.App.Services.GetRequiredService<SpineAccounts>().EmailsSentAsync();
+        Assert.Equal(email, _host.Email.Sent.Single().To);
+        Assert.Equal(HttpStatusCode.Forbidden, (await _host.PostAsync("/auth/password/signin", new SpinePasswordSignIn(email, Password))).StatusCode);
+
+        var verified = await TokensAsync(await _host.PostAsync("/auth/password/verify", new SpineEmailCode(email, _host.Email.LastCode)));
+        Assert.Equal(apple.User.Id, verified.User.Id);
+        Assert.Equal(["apple", "password"], Providers(verified));
+        Assert.Equal(apple.User.Id, (await _host.Users.FindByEmailAsync(email))!.Id);
+        Assert.Null(await _host.Users.FindByEmailAsync("relay@privaterelay.appleid.com"));
+    }
+
+    [Fact]
+    public async Task An_email_another_account_has_is_refused_as_taken()
+    {
+        await _host.PostAsync("/auth/password/signup", new SpinePasswordSignUp("taken@example.com", Password));
+        var apple = await _host.SignInWithAppleAsync(email: "anna@example.com");
+
+        var taken = await SendAsync(HttpMethod.Post, "/auth/link/password", apple.AccessToken, new SpinePasswordSignIn("taken@example.com", Password));
+
+        Assert.Equal(HttpStatusCode.Conflict, taken.StatusCode);
+        Assert.Equal(SpineAuthErrors.EmailTaken, await ErrorAsync(taken));
+        Assert.Equal("anna@example.com", (await _host.Users.FindByIdAsync(apple.User.Id))!.Email);
+    }
+
+    [Fact]
+    public async Task A_removed_password_can_be_added_again()
+    {
+        const string email = "cia@example.com";
+        await _host.PostAsync("/auth/password/signup", new SpinePasswordSignUp(email, Password));
+        var password = await TokensAsync(await _host.PostAsync("/auth/password/verify", new SpineEmailCode(email, _host.Email.LastCode)));
+        await TokensAsync(await SendAsync(HttpMethod.Post, "/auth/link/google", password.AccessToken, await GoogleRequestAsync()));
+        await TokensAsync(await SendAsync(HttpMethod.Delete, "/auth/link/password", password.AccessToken));
+
+        var again = await TokensAsync(await SendAsync(HttpMethod.Post, "/auth/link/password", password.AccessToken, new SpinePasswordSignIn(email, "a new password")));
+
+        Assert.Equal(["google", "password"], Providers(again));
+        Assert.Equal(HttpStatusCode.OK, (await _host.PostAsync("/auth/password/signin", new SpinePasswordSignIn(email, "a new password"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _host.PostAsync("/auth/password/signin", new SpinePasswordSignIn(email, Password))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Adding_a_password_needs_a_signed_in_user_without_one_and_a_strong_one()
+    {
+        var apple = await _host.SignInWithAppleAsync(email: "anna@example.com");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SendAsync(HttpMethod.Post, "/auth/link/password", null, new SpinePasswordSignIn("anna@example.com", Password))).StatusCode);
+        var weak = await SendAsync(HttpMethod.Post, "/auth/link/password", apple.AccessToken, new SpinePasswordSignIn("anna@example.com", "short"));
+        Assert.Equal(SpineAuthErrors.WeakPassword, await ErrorAsync(weak));
+
+        await TokensAsync(await SendAsync(HttpMethod.Post, "/auth/link/password", apple.AccessToken, new SpinePasswordSignIn("anna@example.com", Password)));
+        var twice = await SendAsync(HttpMethod.Post, "/auth/link/password", apple.AccessToken, new SpinePasswordSignIn("anna@example.com", "another password"));
+        Assert.Equal(HttpStatusCode.Conflict, twice.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _host.PostAsync("/auth/password/signin", new SpinePasswordSignIn("anna@example.com", "another password"))).StatusCode);
     }
 
     private async Task<(HttpResponseMessage Start, Dictionary<string, string> Provider)> StartGoogleAsync(string? link, string subject = "google-1")

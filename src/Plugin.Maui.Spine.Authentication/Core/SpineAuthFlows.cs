@@ -122,6 +122,13 @@ internal sealed class SpineAuthFlows(SpineAuthClient client, SpineAuthSession se
         return problem ?? await ResultOfAsync(await client.UnlinkAsync(provider, token!, cancellationToken, subject), signedIn: false);
     }
 
+    /// <summary>Email and password become a way into the signed-in user.</summary>
+    public async Task<SignInResult> AddPasswordAsync(string email, string password, CancellationToken cancellationToken)
+    {
+        var (token, problem) = await LinkingAsAsync(cancellationToken);
+        return problem ?? await ResultOfAsync(await client.AddPasswordAsync(new SpinePasswordSignIn(email, password), token!, cancellationToken), signedIn: false);
+    }
+
     /// <summary>A new account for the pending provider account.</summary>
     public async Task<SignInResult> CreatePendingAsync(SpinePendingIdentity pending, CancellationToken cancellationToken) =>
         await ResultOfAsync(await client.PendingAsync("create", pending, null, cancellationToken));

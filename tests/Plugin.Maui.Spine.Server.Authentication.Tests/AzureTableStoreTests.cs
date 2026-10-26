@@ -107,6 +107,25 @@ public sealed class AzureTableStoreTests : IAsyncLifetime
     }
 
     [AzuriteFact]
+    public async Task A_new_email_moves_the_index_unverified_and_never_takes_another_users()
+    {
+        var anna = User("u1", "relay@privaterelay.appleid.com");
+        anna.EmailVerified = true;
+        await _users.CreateAsync(anna);
+        await _users.CreateAsync(User("u2", "bo@example.com"));
+
+        Assert.False(await _users.ChangeEmailAsync("u1", "BO@example.com"));
+        Assert.True(await _users.ChangeEmailAsync("u1", "anna@home.example"));
+
+        var changed = (await _users.FindByIdAsync("u1"))!;
+        Assert.Equal(("anna@home.example", false), (changed.Email, changed.EmailVerified));
+        Assert.Equal("u1", (await _users.FindByEmailAsync("Anna@Home.example"))!.Id);
+        Assert.Null(await _users.FindByEmailAsync("relay@privaterelay.appleid.com"));
+        Assert.Equal("u2", (await _users.FindByEmailAsync("bo@example.com"))!.Id);
+        Assert.True(await _users.CreateAsync(User("u3", "relay@privaterelay.appleid.com")));
+    }
+
+    [AzuriteFact]
     public async Task An_update_keeps_the_email_and_saves_the_rest()
     {
         await _users.CreateAsync(User("u1", "anna@example.com"));

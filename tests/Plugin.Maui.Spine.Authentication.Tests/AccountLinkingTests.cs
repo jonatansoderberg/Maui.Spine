@@ -191,6 +191,25 @@ public sealed class AccountLinkingTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_google_user_adds_email_and_password_and_then_signs_in_with_them()
+    {
+        await StartAsync();
+        var google = await _flows.NativeAsync("google", GoogleSheet, default);
+
+        await _flows.SignUpAsync("other@example.com", Password, null, default);
+        await _flows.NativeAsync("google", GoogleSheet, default);
+        Assert.Equal(SpineAuthErrors.EmailTaken, (await _flows.AddPasswordAsync("other@example.com", Password, default)).Error);
+
+        var added = await _flows.AddPasswordAsync(Email, Password, default);
+
+        Assert.Equal(SignInStatus.SignedIn, added.Status);
+        Assert.Equal(google.User!.Id, added.User!.Id);
+        Assert.Equal("google", added.User.Provider);
+        Assert.Equal(["google", "password"], Providers(added.User));
+        Assert.Equal(google.User.Id, (await _flows.PasswordAsync(Email, Password, default)).User!.Id);
+    }
+
+    [Fact]
     public async Task Linking_needs_someone_signed_in()
     {
         await StartAsync();
