@@ -129,6 +129,9 @@ public sealed class RefreshTests : IAsyncLifetime
         Assert.Equal("apple-refresh-1", revoke.Form["token"]);
         Assert.Equal("refresh_token", revoke.Form["token_type_hint"]);
 
+        // Nothing of the account is left: no refresh token and no token family.
+        Assert.DoesNotContain(_host.Store.RefreshTokens, t => t.UserId == phone.User.Id);
+        Assert.Equal(0, _host.Store.FamilyCount);
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(tablet.RefreshToken)).StatusCode);
         Assert.Null(await _host.Users.FindByIdAsync(phone.User.Id));
 

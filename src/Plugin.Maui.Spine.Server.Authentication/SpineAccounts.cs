@@ -333,6 +333,60 @@ internal sealed class SpineAccounts(
         return SignInOutcome.Ok(await tokens.IssueAsync(user, caller.Provider, cancellationToken: cancellationToken));
     }
 
+    /// <summary>
+    /// <c>POST /auth/link/password</c>: email and password become a way into the signed-in user, who signed in some other
+    /// way. An email other than the account's own replaces it, unverified; with
+    /// <see cref="SpineEmailPasswordOptions.RequireVerifiedEmail"/> a code goes to it first, as on sign-up.
+    /// </summary>
+    public async Task<SignInOutcome> AddPasswordAsync(SpinePasswordSignIn request, SpineCaller caller, CancellationToken cancellationToken)
+    {
+        if (options.EmailPasswordOptions is not { } password) return SignInOutcome.Refused(404, SpineAuthErrors.UnknownProvider);
+        if (Email(request.Email) is not { } address) return SignInOutcome.Refused(400, SpineAuthErrors.InvalidRequest, "email is not an email address.");
+        if (PasswordProblem(request.Password) is { } weak) return weak;
+
+        if (await users.FindByIdAsync(caller.UserId, cancellationToken) is not { } user) return SignInOutcome.Refused(401, SpineAuthErrors.InvalidGrant);
+        if ((await users.GetLoginsAsync(user.Id, cancellationToken)).Any(l => l.Provider == SpineAuthDefaults.PasswordProvider))
+            return SignInOutcome.Refused(409, SpineAuthErrors.InvalidRequest, "The account already has a password.");
+
+        // The caller is signed in, so saying the email is someone else's tells them nothing a sign-up would not.
+        if (!string.Equals(user.Email, address, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                if (!await users.ChangeEmailAsync(user.Id, address, cancellationToken)) return SignInOutcome.Refused(409, SpineAuthErrors.EmailTaken);
+            }
+            catch (NotSupportedException e)
+            {
+                return SignInOutcome.Refused(501, SpineAuthErrors.InvalidRequest, e.Message);
+            }
+        }
+
+        user = await ChangeAsync(user.Id, u =>
+        {
+            u.PasswordHash = _hasher.HashPassword(u, request.Password);
+            u.FailedSignIns = 0;
+            u.LockedUntil = null;
+            return true;
+        }, cancellationToken);
+        if (user is null) return SignInOutcome.Refused(401, SpineAuthErrors.InvalidGrant);
+
+        await users.SaveLoginAsync(new SpineAuthLogin(SpineAuthDefaults.PasswordProvider, user.Id, user.Id)
+        {
+            LinkedAt = time.GetUtcNow(),
+            Email = user.Email,
+            DisplayName = user.DisplayName,
+        }, cancellationToken);
+        logger.LogInformation("Spine sign-in: user {User} added email and password.", user.Id);
+
+        if (password.RequireVerifiedEmail && !user.EmailVerified)
+        {
+            await SendCodeAsync(SpineAuthEmailKind.VerifyEmail, user, cancellationToken);
+            return SignInOutcome.Accepted;
+        }
+
+        return SignInOutcome.Ok(await tokens.IssueAsync(user, caller.Provider, cancellationToken: cancellationToken));
+    }
+
     /// <summary><c>POST /auth/link/ticket</c>: a one-time ticket that lets a browser sign-in link to the signed-in user.</summary>
     public async Task<SpineLinkTicket> CreateLinkTicketAsync(SpineCaller caller, CancellationToken cancellationToken)
     {
@@ -536,7 +590,7 @@ internal sealed class SpineAccounts(
                 await apple.RevokeAsync(appleToken, clientId, cancellationToken);
         }
 
-        await store.RevokeUserAsync(userId, cancellationToken);
+        await store.ForgetUserAsync(userId, cancellationToken);
         await users.DeleteAsync(userId, cancellationToken);
         logger.LogInformation("Spine sign-in: user {User} deleted their account.", userId);
     }

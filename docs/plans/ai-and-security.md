@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-20 (#639: GPT-Live through a relay, the Realtime 2.1 models and a time limit per session, step 4.6, in review; before that #634, step 4.5)
+**Last updated:** 2026-10-26 (step 5.5b, email and password added to a signed-in user, in review)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -163,6 +163,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 5.4b | Passkeys on Android: Credential Manager's `CreatePublicKeyCredentialRequest` and `GetPublicKeyCredentialOption`, `assetlinks.json` from `AndroidApps` | #601 | 5.4a | Waiting | | The server side is ready: `AndroidApps` adds the `android:apk-key-hash:` origins. |
 | 5.4c | Passkeys on Windows: WebAuthn through `webauthn.dll` | #602 | 5.4a | Waiting | | |
 | 5.5 | Account linking: one account with several providers, `Logins` with their details, link and unlink, and a pending identity before a new account (`AskBeforeNewAccount`) with "Is this your first time here?" in the sheet; the sheet's provider buttons in one shape with each brand's logo | #575 | 5.3b | Done | #576 | Asked for by the owner on 2026-10-16 (Decisions). Also `Password`, `AccountLink` and `Merge` in the icon set, and Spine.Svg draws Figma's conic gradients and alpha masks (Google's G). |
+| 5.5b | Email and password added to a signed-in user: `POST /auth/link/password`, `ISpineAuth.AddPasswordAsync`, `IUserResolver.ChangeEmailAsync`. A user who removed the password, or signed in with Apple only, had no way back (gap G21 in the glucose app's plan) | — | 5.5 | In review | | The email may replace the account's, unverified; `RequireVerifiedEmail` sends a code first. Also nothing left behind: a deleted account's refresh tokens and token families go (`ISpineAuthStore.ForgetUserAsync`), and `PruneAsync` removes revoked and spent families |
 
 ---
 
