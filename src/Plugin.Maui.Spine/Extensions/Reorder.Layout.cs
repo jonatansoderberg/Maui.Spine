@@ -14,6 +14,8 @@ namespace Plugin.Maui.Spine.Extensions;
 internal sealed partial class LayoutReorderState : IDisposable
 {
     const double LiftScale = 1.03;
+    // A pointer press lifts the item only once it has moved this far, so a click on it doesn't make it grow.
+    const double LiftDistance = 4;
     const uint SlideMs = 220, SettleMs = 180;
 
     readonly Layout _layout;
@@ -21,7 +23,8 @@ internal sealed partial class LayoutReorderState : IDisposable
     View? _dragged;
     int _from = -1;
     int _zIndex;
-    Point _grab;
+    Point _grab, _pressed;
+    bool _lifted;
 
     public LayoutReorderState(Layout layout)
     {
@@ -45,16 +48,29 @@ internal sealed partial class LayoutReorderState : IDisposable
 
     public void Update() => RefreshAccessibility();
 
-    /// <summary>A long-press at <paramref name="point"/> (the layout's coordinates) lifts the item there.</summary>
-    bool Begin(Point point)
+    /// <summary>
+    /// A long-press at <paramref name="point"/> (the layout's coordinates) takes the item there. A finger's lifts it at
+    /// once; a pointer's (<paramref name="liftOnMove"/>) lifts it when it starts to move, as a drag on the desktop does.
+    /// </summary>
+    bool Begin(Point point, bool liftOnMove = false)
     {
         if (_dragged is not null || !CanReorder || Items.FirstOrDefault(v => v.IsVisible && v.Frame.Contains(point)) is not { } view)
             return false;
 
         _dragged = view;
         _from = _layout.Children.IndexOf(view);
-        Reorder.SetIsDragging(_layout, true);
         _grab = new Point(point.X - view.Frame.X, point.Y - view.Frame.Y);
+        _pressed = point;
+        _lifted = false;
+        if (!liftOnMove)
+            Lift(view);
+        return true;
+    }
+
+    void Lift(View view)
+    {
+        _lifted = true;
+        Reorder.SetIsDragging(_layout, true);
         // Over the other items for the whole drag: a z-index above theirs, and on the platform the view raised too
         // (the children are reordered under the pointer, which puts the view back among them).
         _zIndex = view.ZIndex;
@@ -63,7 +79,6 @@ internal sealed partial class LayoutReorderState : IDisposable
         _ = view.ScaleToAsync(LiftScale, 150, Easing.CubicOut);
         ShowPlaceholderPlatform(view.Frame, CornerRadius(view));
         Haptics.Play(Haptic.Medium);
-        return true;
     }
 
     /// <summary>
@@ -74,6 +89,12 @@ internal sealed partial class LayoutReorderState : IDisposable
     {
         if (_dragged is not { } view)
             return;
+        if (!_lifted)
+        {
+            if (Math.Abs(point.X - _pressed.X) < LiftDistance && Math.Abs(point.Y - _pressed.Y) < LiftDistance)
+                return;
+            Lift(view);
+        }
         // The app rebuilt its items under the pointer.
         if (!_layout.Children.Contains(view))
         {
@@ -126,6 +147,10 @@ internal sealed partial class LayoutReorderState : IDisposable
         _dragged = null;
         var from = _from;
         _from = -1;
+        // Pressed and let go without moving: it was never lifted.
+        if (!_lifted)
+            return;
+        _lifted = false;
         var to = _layout.Children.IndexOf(view);
         HidePlaceholderPlatform();
         // IsDragging stays true until the source has moved: an app that rebuilds its items when it turns false would
