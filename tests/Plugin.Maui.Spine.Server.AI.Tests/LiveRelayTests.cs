@@ -317,7 +317,9 @@ public sealed class LiveRelayTests : IAsyncLifetime
         Assert.Equal(24000, (int?)start["audio"]!["format"]!["rate"]);
 
         var history = start["input"]!.AsArray();
-        Assert.Equal(["user", "assistant"], history.Select(m => (string?)m!["role"]));
+        // The app's developer message is dropped; the server's own says where the new call starts.
+        Assert.Equal(["user", "assistant", "developer"], history.Select(m => (string?)m!["role"]));
+        Assert.StartsWith("A new call starts now.", (string?)history[2]!["content"]![0]!["text"]);
         Assert.Equal("output_text", (string?)history[1]!["content"]![0]!["type"]);
 
         var backend = start["delegation"]!["responses"]!;
