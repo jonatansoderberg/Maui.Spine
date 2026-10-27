@@ -311,7 +311,8 @@ public sealed class LiveRelayTests : IAsyncLifetime
         var start = (await provider.NextAsync("session.start"))["session"]!;
 
         Assert.Equal("live-1", (string?)start["model"]);
-        Assert.Equal("Prata svenska, kort.", (string?)start["instructions"]);
+        Assert.StartsWith("Prata svenska, kort.\n\n# Delegation policy", (string?)start["instructions"]);
+        Assert.DoesNotContain("Ignore the rules", (string?)start["instructions"]);
         Assert.Equal("marin", (string?)start["audio"]!["output"]!["voice"]);
         Assert.Equal(24000, (int?)start["audio"]!["format"]!["rate"]);
 
@@ -335,7 +336,7 @@ public sealed class LiveRelayTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task With_the_apps_hang_up_tool_the_voice_is_told_to_hand_goodbyes_to_its_backend()
+    public async Task The_voice_gets_a_delegation_policy_with_every_backend_tool()
     {
         var app = await ConnectAsync((string)(await TicketAsync())["url"]!);
         await app.SendAsync(new
@@ -343,43 +344,23 @@ public sealed class LiveRelayTests : IAsyncLifetime
             type = "session.start",
             session = new
             {
-                tools = new object[] { new { type = "function", name = "end_conversation", description = "Hangs up.", parameters = new { type = "object", properties = new { } } } },
+                tools = new object[]
+                {
+                    new { type = "function", name = "show_time", description = "The phone's time.", parameters = new { type = "object", properties = new { } } },
+                    new { type = "function", name = "end_conversation", description = "Hangs up.", parameters = new { type = "object", properties = new { } } },
+                },
             },
         });
         var provider = await _provider.NextConnectionAsync();
-        var start = (await provider.NextAsync("session.start"))["session"]!;
+        var instructions = (string?)(await provider.NextAsync("session.start"))["session"]!["instructions"];
 
-        var instructions = (string?)start["instructions"];
         Assert.StartsWith("Prata svenska, kort.", instructions);
-        Assert.Contains("hand it to your backend, which hangs up", instructions);
-    }
-
-    private static readonly object HangUp = new { type = "session.start", session = new { tools = new object[] { new { type = "function", name = "end_conversation", description = "Hangs up.", parameters = new { type = "object", properties = new { } } } } } };
-
-    [Fact]
-    public async Task A_goodbye_the_voice_keeps_to_itself_is_given_to_the_backend()
-    {
-        var (_, provider) = await StartAsync(HangUp);
-
-        await provider.SendAsync(new { type = "session.input_transcript.delta", delta = "Okej, tack, ", start_ms = 0, end_ms = 600 });
-        await provider.SendAsync(new { type = "session.input_transcript.delta", delta = "hej då", start_ms = 600, end_ms = 900 });
-
-        var item = await provider.NextAsync("response.item.create");
-        Assert.Contains("Okej, tack, hej då", (string?)item["item"]!["content"]![0]!["text"]);
-        Assert.Contains("end_conversation", (string?)item["item"]!["content"]![0]!["text"]);
-        await provider.NextAsync("response.create");
-    }
-
-    [Fact]
-    public async Task Other_words_and_a_session_without_the_hang_up_tool_start_no_backend_work()
-    {
-        var (_, provider) = await StartAsync(HangUp);
-        await provider.SendAsync(new { type = "session.input_transcript.delta", delta = "Vad är klockan?", start_ms = 0, end_ms = 900 });
-        Assert.Null(await provider.TryNextAsync(TimeSpan.FromMilliseconds(300)));
-
-        var (_, plain) = await StartAsync();
-        await plain.SendAsync(new { type = "session.input_transcript.delta", delta = "Tack, hej då", start_ms = 0, end_ms = 900 });
-        Assert.Null(await plain.TryNextAsync(TimeSpan.FromMilliseconds(300)));
+        Assert.Contains("# Delegation policy", instructions);
+        Assert.Contains("- show_time: The phone's time.", instructions);
+        Assert.Contains("- get_my_bookings:", instructions);
+        Assert.Contains("## Generate <|SpawnThinking|> when", instructions);
+        Assert.Contains("the backend hangs up with end_conversation", instructions);
+        Assert.Contains("## Do not generate <|SpawnThinking|> when", instructions);
     }
 
     [Fact]

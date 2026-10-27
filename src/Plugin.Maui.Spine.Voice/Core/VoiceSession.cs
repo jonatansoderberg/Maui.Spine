@@ -604,7 +604,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         var goodbye = name == EndConversationTool && EndsOnGoodbye;
         // A model often says goodbye in the same response that hangs up. That was the farewell: asking for another one
         // made it say goodbye twice.
-        var saidGoodbye = goodbye && _answerAudio;
+        // GPT-Live has no responses: its voice said goodbye when it spoke after the user's last words.
+        var saidGoodbye = goodbye && (_live ? Interlocked.Read(ref _liveAudioAt) > Interlocked.Read(ref _liveUserAt) : _answerAudio);
         if (saidGoodbye)
             result = GoodbyeSaid;
         else if (goodbye)
