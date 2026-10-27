@@ -5,6 +5,10 @@ namespace Plugin.Maui.Spine.Controls;
 /// share of the highest value, and a value of 0 shows only the track. The last label is bold (today), unless
 /// <see cref="HighlightLast"/> is false. 72 points tall by default.
 /// <para>
+/// With <see cref="ShowTrack"/> off there is no full-height track behind the columns: a value of 0 is a short column
+/// at the bottom in the track's colour, so a week with one busy day doesn't read as one lit column among empty ones.
+/// </para>
+/// <para>
 /// With <see cref="ValueLabels"/>, pointing at a column (or tapping it, on touch) picks it out: the others dim, its
 /// value shows above it in a row the chart keeps for that, and the system tooltip says the label and the value (or
 /// the column's <see cref="ToolTips"/> entry). <see cref="SelectedIndex"/> is the column picked out, or -1.
@@ -17,6 +21,9 @@ public sealed class ColumnChart : ChartView
 
     public static readonly BindableProperty LabelsProperty =
         BindableProperty.Create(nameof(Labels), typeof(IList<string>), typeof(ColumnChart), null, propertyChanged: Redraw);
+
+    public static readonly BindableProperty ShowTrackProperty =
+        BindableProperty.Create(nameof(ShowTrack), typeof(bool), typeof(ColumnChart), true, propertyChanged: Redraw);
 
     public static readonly BindableProperty HighlightLastProperty =
         BindableProperty.Create(nameof(HighlightLast), typeof(bool), typeof(ColumnChart), true, propertyChanged: Redraw);
@@ -49,6 +56,12 @@ public sealed class ColumnChart : ChartView
 
     /// <summary>One label per value, under its column; none when null.</summary>
     public IList<string>? Labels { get => (IList<string>?)GetValue(LabelsProperty); set => SetValue(LabelsProperty, value); }
+
+    /// <summary>
+    /// Whether each column has a full-height track behind it. True by default; off, a value of 0 is a short column in
+    /// the track's colour.
+    /// </summary>
+    public bool ShowTrack { get => (bool)GetValue(ShowTrackProperty); set => SetValue(ShowTrackProperty, value); }
 
     /// <summary>Whether the last label is bold, as today in a week. True by default.</summary>
     public bool HighlightLast { get => (bool)GetValue(HighlightLastProperty); set => SetValue(HighlightLastProperty, value); }
@@ -116,8 +129,16 @@ public sealed class ColumnChart : ChartView
         {
             var x = rect.X + slot * i + (slot - columnWidth) / 2;
             var dimmed = selected >= 0 && i != selected;
-            canvas.FillColor = Track;
-            canvas.FillRoundedRectangle(new RectF(x, top, columnWidth, height), 4);
+            if (ShowTrack)
+            {
+                canvas.FillColor = Track;
+                canvas.FillRoundedRectangle(new RectF(x, top, columnWidth, height), 4);
+            }
+            else if (max <= 0 || values[i] <= 0)
+            {
+                canvas.FillColor = dimmed ? Track.WithAlpha(DimmedAlpha) : Track;
+                canvas.FillRoundedRectangle(new RectF(x, top + height - MinColumn, columnWidth, MinColumn), 2);
+            }
             if (max > 0 && values[i] > 0)
             {
                 var h = Math.Max(MinColumn, height * (float)(values[i] / max));
