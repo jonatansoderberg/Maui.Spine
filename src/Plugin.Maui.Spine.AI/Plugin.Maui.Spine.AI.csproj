@@ -45,6 +45,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="Plugin.Maui.Spine.AI.Tests" />
+		<InternalsVisibleTo Include="Plugin.Maui.Spine.Voice.LiveTests" />
 	</ItemGroup>
 
 	<!-- Declares the package to UseSpine(); see Plugin.Maui.Spine's build\Plugin.Maui.Spine.targets. -->
