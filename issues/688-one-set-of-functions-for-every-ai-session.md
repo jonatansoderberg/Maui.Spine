@@ -1,7 +1,7 @@
 # Issue #688 — One set of functions for every AI session: device and server everywhere, ending on intent, the user's context
 
 **GitHub:** https://github.com/jonatansoderberg/Maui.Spine/issues/688
-**Branch:** one per PR: issue/688-ai-function-context (PR 2, #691, merged), issue/688-one-invoker (PR 3, #692, merged), issue/688-catalogue (PR 4, #693, merged), issue/688-end-on-intent (PR 5, #694, merged), issue/688-live-tests (PR 6)
+**Branch:** one per PR: issue/688-ai-function-context (PR 2, #691, merged), issue/688-one-invoker (PR 3, #692, merged), issue/688-catalogue (PR 4, #693, merged), issue/688-end-on-intent (PR 5, #694, merged), issue/688-live-tests (PR 6, #695)
 **Status:** Completed
 
 ## Plan
