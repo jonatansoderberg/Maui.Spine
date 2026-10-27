@@ -761,10 +761,12 @@ internal class ActionsToTitleSlotsConverter : IMultiValueConverter
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         => new Thickness(Reserve(values, 0), 0, Reserve(values, 1), 0);
 
+    // With glass buttons a side without an action keeps the page margin, so a left-aligned title starts where the
+    // page's content and the buttons' edges do, as a UINavigationBar's does.
     private static double Reserve(object[] values, int index) =>
         values.Length > index && values[index] is double slot && slot > 0
             ? slot + HeaderBarConstants.TitleActionGap
-            : PagePresenter.TitleEdgePadding;
+            : PageActionView.UseGlassHeaderActions ? HeaderBarConstants.PageMargin : PagePresenter.TitleEdgePadding;
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
     {
