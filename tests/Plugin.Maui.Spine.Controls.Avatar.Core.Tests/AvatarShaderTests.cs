@@ -53,6 +53,52 @@ public class AvatarShaderTests
         Assert.True(Lit(loud) > Lit(quiet) * 1.5, $"{Lit(loud)} vs {Lit(quiet)}");
     }
 
+    public static TheoryData<string> Minis => ["mini-brown", "mini-red", "mini-orange", "mini-amber", "mini-green", "mini-teal", "mini-blue", "mini-purple", "mini-pink"];
+
+    private static SKBitmap RenderMini(string name, Action<AvatarRenderFrame> setup)
+    {
+        var package = AvatarArchiveTests.Load(name);
+        using var renderer = SkiaAvatarModel.Compile(package, package.Manifest.Representations[0]).CreateRenderer();
+        var frame = new AvatarRenderFrame { ElapsedSeconds = 2 };
+        setup(frame);
+        renderer.Evaluate(frame);
+        var bitmap = new SKBitmap(200, 200);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.Transparent);
+        renderer.Draw(canvas, new SKRect(0, 0, 200, 200), dark: false);
+        return bitmap;
+    }
+
+    // The eyes are the only white on a mini.
+    private static int EyePixels(SKBitmap b)
+    {
+        var count = 0;
+        for (var y = 0; y < b.Height; y++)
+            for (var x = 0; x < b.Width; x++)
+                if (b.GetPixel(x, y) is { Alpha: > 200, Red: > 225, Green: > 225, Blue: > 225 }) count++;
+        return count;
+    }
+
+    [Theory]
+    [MemberData(nameof(Minis))]
+    public void MinisBlinkAndTalkWithTheirEyes(string name)
+    {
+        using var open = RenderMini(name, f => f.AddActivity("idle", 1));
+        using var closed = RenderMini(name, f => { f.AddActivity("idle", 1); f.Blink = 1; });
+        using var quiet = RenderMini(name, f => f.AddActivity("speaking", 1));
+        using var talking = RenderMini(name, f =>
+        {
+            f.AddActivity("speaking", 1);
+            f.SpeakingWeight = 1;
+            f.AddSpeech("viseme_aa", 1);
+        });
+
+        Assert.True(open.GetPixel(100, 100).Alpha > 200 && open.GetPixel(1, 1).Alpha == 0, "a body in the middle, nothing in the corner");
+        Assert.True(EyePixels(open) > 60, $"{EyePixels(open)} eye pixels open");
+        Assert.True(EyePixels(closed) < EyePixels(open) * 0.4, $"{EyePixels(closed)} closed vs {EyePixels(open)} open");
+        Assert.True(EyePixels(talking) > EyePixels(quiet) * 1.25, $"{EyePixels(talking)} talking vs {EyePixels(quiet)} quiet");
+    }
+
     [Fact]
     public void UnknownUniformIsRefusedWithItsName()
     {
