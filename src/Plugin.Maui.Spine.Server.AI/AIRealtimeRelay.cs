@@ -582,18 +582,22 @@ internal sealed class AIRealtimeRelay
 
         policy.Append("\n## Generate <|SpawnThinking|> when\n")
             .Append("- the request needs one of the backend tools: a fact only a tool has, such as the time or the user's own data, or an action on the user's things or devices;\n")
-            .Append("- a correction changes a backend task already in progress;\n");
+            .Append("- the user asks again for something a tool answered earlier: the time and the user's data change, so an earlier answer in the conversation is out of date;\n")
+            .Append("- the user disagrees with or corrects a result, or a correction changes a backend task already in progress;\n");
         if (functions.Any(f => Text(f, "name") == EndConversation))
-            policy.Append("- the user says goodbye, thanks you and is done, or wants to end the call: the backend hangs up with end_conversation.\n");
+            policy.Append("- the user says goodbye in any words, even a single word such as \"hejdå\", \"hej då\" or \"bye\", thanks you and is done, or wants to end the call: the backend hangs up with end_conversation. Do this every time, even if goodbyes were said before in the conversation.\n");
 
         policy.Append("\n## Do not generate <|SpawnThinking|> when\n")
-            .Append("- the answer is already in the conversation, or a result given earlier is still current;\n")
-            .Append("- the user greets you or asks you to repeat a result already given;\n")
+            .Append("- the answer is general knowledge or small talk that no tool has;\n")
+            .Append("- the user only says hello, or asks you to repeat what you just said;\n")
             .Append("- a brief clarification is needed to understand the request.\n\n")
             .Append("Generate <|SpawnThinking|> before giving an answer that depends on backend work. Do not guess the result while waiting, ")
             .Append("and do not say that something is done before the backend's result says so.");
         return policy.ToString();
     }
+
+    private const string NewCall =
+        "A new call starts now. Everything above was said before it, typed or in an earlier call: the results there are out of date, and any goodbye there is over.";
 
     internal JsonObject StartMessage(JsonArray history, JsonArray tools)
     {
@@ -621,7 +625,18 @@ internal sealed class AIRealtimeRelay
         };
         var prompt = string.Join("\n\n", new[] { _feature.Options.SystemPrompt, DelegationPolicy(tools) }.Where(p => p is { Length: > 0 }));
         if (prompt.Length > 0) session["instructions"] = prompt;
-        if (history.Count > 0) session["input"] = history;
+        if (history.Count > 0)
+        {
+            // The voice took the turns before a call as its own: an earlier time as still true, an earlier goodbye as the
+            // end, and stayed silent when the user said goodbye again (3 of 21 turns, 2026-10-27).
+            history.Add(new JsonObject
+            {
+                ["type"] = "message",
+                ["role"] = "developer",
+                ["content"] = new JsonArray(new JsonObject { ["type"] = "input_text", ["text"] = NewCall }),
+            });
+            session["input"] = history;
+        }
 
         return new JsonObject { ["type"] = "session.start", ["session"] = session };
     }
