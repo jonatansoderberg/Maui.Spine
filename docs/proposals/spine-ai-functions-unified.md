@@ -1,6 +1,6 @@
 # Proposal: one set of functions for every AI session
 
-**Status:** Proposal, 2026-10-27. Asked for by the owner after testing GPT-Live, Realtime and the Claude pipeline on the iPhone.
+**Status:** Accepted with the owner's answers below, 2026-10-27. Asked for by the owner after testing GPT-Live, Realtime and the Claude pipeline on the iPhone.
 **Plan:** `docs/plans/ai-and-security.md` (a new step after 4.7).
 
 ## The owner's requirements
@@ -164,9 +164,9 @@ The Mac harness becomes a test project, `tests/Plugin.Maui.Spine.Voice.LiveTests
 
 Each PR updates `docs/wiki/ai-server.md`, `ai-client.md`, `voice.md`, `chat.md`, the skills and the sample.
 
-## Open questions for the owner
+## Decisions (owner, 2026-10-27)
 
-1. **Typed chat ending on intent:** what should `ChatView.Ended` do in the Showcase? Clear the conversation, show "Conversation ended", or close the page?
-2. **Unlisted app functions:** should a function the app registers but the feature does not list be refused everywhere, as proposed? Today some paths offer it.
-3. **On-device model and server functions:** offering them means the device model's calls go over the network. Is that wanted for Apple Intelligence, or should the device model keep to device functions?
-4. **Time zone and locale on every request:** they say where the user is roughly. Fine to send them always, or only when a feature's functions ask for them?
+1. **A typed chat that ends on intent** shows "Conversation ended", and the next message starts a new conversation.
+2. **A function the feature does not list is refused in every session kind:** the feature's `Functions` decides everywhere.
+3. **An on-device model gets the feature's server functions**, called over the network, so the same question gets the same answer whichever model answers.
+4. **Time zone and locale go with every AI request**, since the server cannot know in advance which functions the model will call.

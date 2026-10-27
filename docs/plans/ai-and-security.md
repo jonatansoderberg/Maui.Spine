@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-27 (#640: voice pipelines, step 4.7, done as #641, with GPT-Live delegating through a SpawnThinking policy; before that step 5.5b, email and password added to a signed-in user, in review)
+**Last updated:** 2026-10-27 (step 4.8, one set of functions for every AI session, in progress; 4.7 voice pipelines done as #641)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -149,6 +149,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 4.5 | Chat and voice in one conversation: `ChatComposer`'s microphone, `IVoiceSession.ConnectAsync(feature, conversation)` with the typed turns given to the model, the Showcase's Chat and Voice chat pages merged | #634 | 2.7, 4.3a | Done | #635 | Asked for by the owner on 2026-10-19 after testing #632 on the iPhone (Decisions). |
 | 4.6 | GPT-Live (`gpt-live-1`) through a relay in `Server.AI`, the `openai-live` protocol in `IVoiceSession`, `gpt-realtime-2.1` and `-2.1-mini` with `Reasoning`, and `IVoiceSession.MaxMinutes` | #639 | 4.2, 4.3a, 4.5 | Done | #642 | Asked by the owner on 2026-10-20 after the spike (#637). Closes #636. The relay is ASP.NET Core only; seen end to end against OpenAI from the Mac with the real `VoiceSession` (Swedish, `show_time` in the app, goodbye). |
 | 4.7 | Voice pipelines: `SpineVoiceOptions.Pipeline(name, …)` with speech-to-text, a chat model and text-to-speech, each on the device (Spine.Speech's new recognizer and renderer) or the server (`Kind: Transcription`, streamed `Kind: Speech`), in fallback order; the registered `IVoiceSession` picks it by name; the Showcase's Claude calls | #640 | 4.5, 4.6 | Done | #641 | Asked for by the owner on 2026-10-20 to talk to Claude, which has no realtime voice (Decisions). Apple only for the device's parts. |
+| 4.8 | One set of functions for every AI session: the user's context (time zone, locale, ids), one invoker each side, the feature as the one catalogue, ending on intent built in (typed chat too), a live harness for every session kind; proposal `docs/proposals/spine-ai-functions-unified.md`, PR 1 is GPT-Live's delegation policy | | 4.7 | In progress | | Asked for by the owner on 2026-10-27 after GPT-Live, Realtime and Claude calls on the iPhone (Decisions). |
 
 ### Phase 5: sign-in
 
@@ -573,6 +574,8 @@ Newest last. Each entry is dated and says who decided.
 - **2026-10-19, owner (#630):** One visual for a voice: `AvatarView` with `VoiceAvatarDriver`. VoiceView, the `orb` and the canvas face, the `VoiceVisual`/`VoiceVisualView` contracts and `Plugin.Maui.Spine.Controls.Voice` are removed (unreleased); bars and ring became built-in avatars in Controls.Avatar. This replaces the 2026-10-09 and 2026-10-15 decisions on VoiceView below. `IVisemeSource` stays in Spine.Voice; the screen's edge stays in Highlight.
 
 - **2026-10-20, owner (#640):** Claude talks through a voice pipeline next to the realtime models: a named pipeline declared in the app (`o.Pipeline("Claude", p => p.AddLocalSpeechToText().AddServerSpeechToText(…).AddChat(…).AddLocalTextToSpeech().AddServerTextToSpeech(…))`), the parts of a kind a fallback chain in order. Speech-to-text on the device and on the server in v1; the server's speech streamed for real (`Accept: audio/pcm`); Spine.Speech both ways (`ISpineSpeechRecognizer`, `ISpineSpeechRenderer`), with the pipeline itself in Spine.Voice; the device's voice rendered into the voice engine rather than played by the system, so echo cancellation, barge-in and the avatar work as with realtime. Turns are found by level on the client (no provider VAD); `EndsOnGoodbye` and a time limit are not in v1.
+
+- **2026-10-27, owner (step 4.8):** Functions are wired up on the device and on the server in every session, every session ends on the user's intent, functions are exposed the same way, and they get the user's context. A typed chat that ends shows "Conversation ended" and the next message starts anew; a function the feature does not list is refused everywhere; an on-device model gets the feature's server functions; time zone and locale go with every AI request. GPT-Live delegates only with a "Delegation policy" in OpenAI's form (`<|SpawnThinking|>`), which the relay writes from the session's tools.
 
 ## Open questions
 
