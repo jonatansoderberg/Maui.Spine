@@ -12,6 +12,7 @@
   <s key="Spine.Chat.Talking">Pratar…</s>
   <s key="Spine.Chat.TalkOrType">Prata eller skriv</s>
   <s key="Spine.Chat.Stopped">Stoppad</s>
+  <s key="Spine.Chat.Ended">Samtalet avslutat</s>
   <s key="Spine.Chat.TryAgain">Försök igen</s>
   <s key="Spine.Chat.Off">Den här funktionen är inte tillgänglig just nu.</s>
   <s key="Spine.Chat.RateLimited">För många frågor. Försök igen om {0} s.</s>

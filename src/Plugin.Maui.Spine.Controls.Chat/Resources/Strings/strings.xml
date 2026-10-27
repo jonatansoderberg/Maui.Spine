@@ -12,6 +12,7 @@
   <s key="Spine.Chat.Talking">Talking…</s>
   <s key="Spine.Chat.TalkOrType">Talk, or type</s>
   <s key="Spine.Chat.Stopped">Stopped</s>
+  <s key="Spine.Chat.Ended">Conversation ended</s>
   <s key="Spine.Chat.TryAgain">Try again</s>
   <s key="Spine.Chat.Off">This feature is not available right now.</s>
   <s key="Spine.Chat.RateLimited">Too many questions. Try again in {0} s.</s>

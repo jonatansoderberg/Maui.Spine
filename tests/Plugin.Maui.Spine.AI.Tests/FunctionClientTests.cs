@@ -66,7 +66,6 @@ public sealed class FunctionClientTests : IAsyncLifetime
         ["Ai:Features:Assistant:Expose"] = "true",
         ["Ai:Features:Assistant:Functions:0"] = "show_time",
         ["Ai:Features:Assistant:Functions:1"] = "get_my_bookings",
-        ["Ai:Features:Assistant:Functions:2"] = "end_conversation",
     };
 
     private SpineAIFunction ShowTime => SpineAIFunction.Create("show_time", "Says the time on the phone.", (SpineAIFunctionContext context) =>
@@ -91,8 +90,7 @@ public sealed class FunctionClientTests : IAsyncLifetime
         {
             ai.Chat("fake", (_, _) => _model);
             ai.UseInMemoryUsageStore();
-            ai.Functions.Add(ShowTime).AddDevice(ShowTime).Add(Bookings)
-                .AddDevice("end_conversation", "Hangs up.", JsonDocument.Parse("""{"type":"object","properties":{}}""").RootElement);
+            ai.Functions.Add(ShowTime).AddDevice(ShowTime).Add(Bookings);
         });
 
         _app = builder.Build();
@@ -174,9 +172,10 @@ public sealed class FunctionClientTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task A_chats_own_function_is_offered_to_the_server_and_runs_in_the_app()
+    public async Task Spines_end_conversation_is_offered_by_the_server_without_a_declaration_and_runs_in_the_app()
     {
-        // A voice pipeline's end_conversation: not one of the app's functions, only this call's.
+        // A voice pipeline's or a ChatView's end_conversation: not one of the app's functions, only this call's, and
+        // neither declared nor listed on the server.
         _model.Calls = "end_conversation";
         var hungUp = false;
         var options = new ChatOptions { Tools = [AIFunctionFactory.Create(() => { hungUp = true; return "Say goodbye."; }, "end_conversation", "Hangs up.")] };
@@ -185,6 +184,8 @@ public sealed class FunctionClientTests : IAsyncLifetime
 
         Assert.True(hungUp);
         Assert.Equal("Svar: Say goodbye.", answer.Text);
+        var offered = Assert.Single(_model.Options[0]!.Tools!, t => t.Name == "end_conversation");
+        Assert.Equal(SpineAIFunctions.EndConversationDescription, offered.Description);
     }
 
     [Fact]

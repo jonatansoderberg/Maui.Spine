@@ -20,7 +20,8 @@ namespace Plugin.Maui.Spine.Voice;
 /// <para>
 /// The turn ends when the user has been quiet for <see cref="EndOfTurn"/>; talking over the answer cuts it off. The
 /// chat model's functions are those of its client (Spine.AI's features run the app's and the server's). The time limit
-/// is the app's <see cref="IVoiceSession.MaxMinutes"/>; <see cref="IVoiceSession.EndsOnGoodbye"/> is not supported yet.
+/// is the app's <see cref="IVoiceSession.MaxMinutes"/>. With <see cref="IVoiceSession.EndsOnGoodbye"/> each answer offers
+/// Spine's built-in <c>end_conversation</c>, and the call hangs up once the farewell has played.
 /// </para>
 /// </remarks>
 /// <example>

@@ -1,11 +1,12 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.AI;
+using Plugin.Maui.Spine.AI;
 
 namespace MauiSpineSampleApp.Pages.Chat;
 
 /// <summary>
 /// A model that needs no server: it looks the race up with a tool call, then writes a markdown answer a few words at a
-/// time, the way a real model streams. Asked for a table, it answers with the splits.
+/// time, the way a real model streams. Asked for a table, it answers with the splits; told goodbye, it ends the conversation.
 /// </summary>
 internal sealed class DemoChatClient : IChatClient
 {
@@ -41,6 +42,18 @@ internal sealed class DemoChatClient : IChatClient
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var question = messages.LastOrDefault(m => m.Role == ChatRole.User)?.Text ?? "";
+
+        // A goodbye ends the conversation, when the chat offers Spine's end_conversation (ChatView.EndsOnIntent).
+        if (options?.Tools?.OfType<AIFunction>().FirstOrDefault(t => t.Name == SpineAIFunctions.EndConversationName) is { } end
+            && (question.Contains("hej då", StringComparison.OrdinalIgnoreCase) || question.Contains("bye", StringComparison.OrdinalIgnoreCase)))
+        {
+            await Task.Delay(500, cancellationToken);
+            yield return new ChatResponseUpdate { Role = ChatRole.Assistant, Contents = [new FunctionCallContent("call-end", end.Name)] };
+            yield return new ChatResponseUpdate { Role = ChatRole.Tool, Contents = [new FunctionResultContent("call-end", await end.InvokeAsync(cancellationToken: cancellationToken))] };
+            yield return new ChatResponseUpdate(ChatRole.Assistant, "Hej då!");
+            yield break;
+        }
+
         var answer = question.Contains("table", StringComparison.OrdinalIgnoreCase) || question.Contains("split", StringComparison.OrdinalIgnoreCase)
             ? Table
             : Summary;

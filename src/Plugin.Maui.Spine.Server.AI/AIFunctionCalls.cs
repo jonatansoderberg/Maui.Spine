@@ -119,6 +119,10 @@ internal sealed class FeatureFunctionsChatClient(
             }
         }
 
+        // Ending on the user's intent is Spine's own: offered whenever the app's session offers it, as Spine declares it.
+        if (offers?.Any(o => o.Name == SpineAIFunctions.EndConversationName) == true && device.Add(SpineAIFunctions.EndConversationName))
+            tools.Add(SpineAIFunctions.EndConversation.Declaration());
+
         prepared.Tools = tools;
 
         var invoking = new FunctionInvokingChatClient(InnerClient, loggerFactory, context.Services)

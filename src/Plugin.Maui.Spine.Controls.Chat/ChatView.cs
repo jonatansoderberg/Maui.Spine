@@ -80,6 +80,9 @@ public class ChatView : ContentView
         nameof(ShowToolCalls), typeof(bool), typeof(ChatView), false,
         propertyChanged: (b, _, _) => ((ChatView)b).Rebuild());
 
+    public static readonly BindableProperty EndsOnIntentProperty = BindableProperty.Create(
+        nameof(EndsOnIntent), typeof(bool), typeof(ChatView), false);
+
     public static readonly BindableProperty StyleOptionsProperty = BindableProperty.Create(
         nameof(StyleOptions), typeof(ChatStyleOptions), typeof(ChatView), null,
         propertyChanged: (b, _, _) => ((ChatView)b).Rebuild());
@@ -100,6 +103,8 @@ public class ChatView : ContentView
     // Where each drawn row's messages start in Messages; out of step with _rows once SendAsync draws rows itself.
     private readonly List<int> _rowStarts = [];
     private CancellationTokenSource? _running;
+    // The model ended the conversation (EndsOnIntent): "Conversation ended" shows under it, and the next message starts anew.
+    private bool _ended;
 
     public ChatView()
     {
@@ -168,6 +173,22 @@ public class ChatView : ContentView
         set => SetValue(ShowToolCallsProperty, value);
     }
 
+    /// <summary>
+    /// Ends the conversation when the user says goodbye or is done: each answer offers the model Spine's built-in
+    /// <see cref="SpineAIFunctions.EndConversation"/>, as a voice session's <c>EndsOnGoodbye</c> does. When the model calls
+    /// it, the farewell is said, "Conversation ended" shows under it, <see cref="Ended"/> is raised, and the next message
+    /// starts a new conversation (<see cref="Messages"/> is cleared first). Off by default.
+    /// </summary>
+    /// <remarks>
+    /// The client runs the function: a Spine.AI feature does, on the device or through its server, which offers it
+    /// without a declaration. A client that does not run functions still ends the conversation when its model calls it.
+    /// </remarks>
+    public bool EndsOnIntent
+    {
+        get => (bool)GetValue(EndsOnIntentProperty);
+        set => SetValue(EndsOnIntentProperty, value);
+    }
+
     /// <summary>Fonts, sizes and colours; unset, the app's <c>DefaultChatStyleOptions</c> or the theme.</summary>
     public ChatStyleOptions? StyleOptions
     {
@@ -207,6 +228,12 @@ public class ChatView : ContentView
     /// <summary>Raised when an answer failed; the row offers to try again.</summary>
     public event EventHandler<ChatFailedEventArgs>? Failed;
 
+    /// <summary>
+    /// Raised when the model ended the conversation on the user's intent (<see cref="EndsOnIntent"/>), once its farewell
+    /// is in the conversation. The app decides what else ending means: close the page, sign out of a kiosk.
+    /// </summary>
+    public event EventHandler? Ended;
+
     private IList<ChatMessage> Conversation => Messages ??= [];
 
     private ChatStyleOptions Effective => ChatStyleOptions.Resolve(StyleOptions);
@@ -215,6 +242,21 @@ public class ChatView : ContentView
     public async Task SendAsync(string? text, CancellationToken cancellationToken = default)
     {
         if (IsBusy || string.IsNullOrWhiteSpace(text) || Client is null) return;
+
+        if (_ended)
+        {
+            _ended = false;
+            _adding = true;
+            try
+            {
+                Conversation.Clear();
+            }
+            finally
+            {
+                _adding = false;
+            }
+            Rebuild();
+        }
 
         var message = new ChatMessage(ChatRole.User, text.Trim());
         Add(message);
@@ -241,12 +283,26 @@ public class ChatView : ContentView
 
         using var running = _running = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var answer = new ChatAnswer();
+        var ending = false;
+        var options = ChatOptions;
+        if (EndsOnIntent)
+        {
+            options = options?.Clone() ?? new ChatOptions();
+            // The farewell already in this answer was the farewell: asking for another made the model say goodbye twice.
+            options.Tools = [.. options.Tools?.Where(t => t.Name != SpineAIFunctions.EndConversationName) ?? [], AIFunctionFactory.Create(() =>
+            {
+                ending = true;
+                return answer.Text.Length > 0 ? SpineAIFunctions.GoodbyeSaid : SpineAIFunctions.SayGoodbye;
+            }, SpineAIFunctions.EndConversationName, SpineAIFunctions.EndConversationDescription)];
+        }
 
         try
         {
             var streamed = 0;
-            await foreach (var update in client.GetStreamingResponseAsync([.. Conversation], ChatOptions, running.Token))
+            await foreach (var update in client.GetStreamingResponseAsync([.. Conversation], options, running.Token))
             {
+                if (EndsOnIntent && update.Contents.OfType<FunctionCallContent>().Any(c => c.Name == SpineAIFunctions.EndConversationName))
+                    ending = true;
                 var (text, calls) = answer.Add(update);
                 if (text || calls) row.Show(answer, ChatAnswerState.Streaming, calls);
                 if (text && Streamed is { } handler)
@@ -265,6 +321,13 @@ public class ChatView : ContentView
                 SemanticScreenReader.Announce(answer.Text);
 
             Answered?.Invoke(this, new ChatAnsweredEventArgs(response));
+            if (ending)
+            {
+                _ended = true;
+                _rows.Add(EndedRow());
+                SemanticScreenReader.Announce(ChatStrings.Get("Spine.Chat.Ended"));
+                Ended?.Invoke(this, EventArgs.Empty);
+            }
         }
         catch (OperationCanceledException) when (running.IsCancellationRequested)
         {
@@ -308,12 +371,21 @@ public class ChatView : ContentView
     {
         if (previous is INotifyCollectionChanged old) old.CollectionChanged -= OnConversationChanged;
         if (next is INotifyCollectionChanged watched) watched.CollectionChanged += OnConversationChanged;
+        _ended = false;
         Rebuild();
     }
 
     private void OnConversationChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (_adding || IsBusy) return;
+
+        // The app went on with the conversation (a call adds its turns, or it loaded another): it has not ended.
+        if (_ended)
+        {
+            _ended = false;
+            Rebuild();
+            return;
+        }
 
         // A voice session replaces its answer's message ten times a second as the words come: only the row it is in, and
         // those after it, are drawn again. Drawing the whole conversation each time made the text flicker and the list jump.
@@ -393,6 +465,21 @@ public class ChatView : ContentView
 
         while (_rows.Count > row)
             _rows.RemoveAt(_rows.Count - 1);
+        if (_ended)
+            _rows.Add(EndedRow());
+    }
+
+    private View EndedRow()
+    {
+        var style = Effective;
+        return new Label
+        {
+            Text = ChatStrings.Get("Spine.Chat.Ended"),
+            FontSize = style.FontSize * 0.8,
+            FontFamily = style.FontFamily,
+            TextColor = style.SecondaryTextColor,
+            HorizontalOptions = LayoutOptions.Center,
+        };
     }
 
     private void Place(int row, View view)

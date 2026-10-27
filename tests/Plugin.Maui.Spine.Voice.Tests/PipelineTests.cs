@@ -397,6 +397,32 @@ public sealed class PipelineTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Turning_goodbyes_off_cancels_a_farewell_under_way()
+    {
+        _chat = new ScriptedChat("Hej då!") { HangsUp = true };
+        Declare(p => p.AddServerSpeechToText("Transcribe").AddChat(_chat).AddServerTextToSpeech("Read"));
+        _session.EndsOnGoodbye = true;
+        await ConnectAsync();
+
+        await _session.SendTextAsync("Tack, hej då");
+        await Until(() => _server.Spoken.Any() && _audio.IsPlaying, "the farewell plays");
+        _session.EndsOnGoodbye = false;
+
+        _audio.Render(4800, 48_000);
+        for (var i = 0; i < 30; i++)
+        {
+            _time.Advance(TimeSpan.FromMilliseconds(100));
+            await Task.Delay(10);
+        }
+        Assert.Empty(_ended);
+
+        // The microphone is listened to again: the call goes on.
+        Say(400);
+        Say(900, 0f);
+        await Until(() => _server.Requests.Any(r => r.Path.Contains("/transcribe/")), "the next turn is written down");
+    }
+
+    [Fact]
     public async Task Without_goodbyes_the_chat_is_offered_no_hang_up()
     {
         await ConnectAsync();

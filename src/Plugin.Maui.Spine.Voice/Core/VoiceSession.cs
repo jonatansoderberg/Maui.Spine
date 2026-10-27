@@ -30,25 +30,13 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     /// </summary>
     public const string PendingKey = "spine.pending";
 
-    /// <summary>The tool <see cref="EndsOnGoodbye"/> gives the model.</summary>
-    public const string EndConversationTool = "end_conversation";
+    /// <summary>The tool <see cref="EndsOnGoodbye"/> gives the model: Spine's built-in <see cref="SpineAIFunctions.EndConversation"/>.</summary>
+    public const string EndConversationTool = SpineAIFunctions.EndConversationName;
 
-    /// <summary>What the model is told <see cref="EndConversationTool"/> is for; a server that declares it for a pipeline uses the same.</summary>
-    public const string EndConversationDescription = "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation; then say only a goodbye of two or three words in their language, without saying that you are ending the call. Do not call it for a pause or a thank-you in the middle of a conversation.";
+    /// <summary>What the model is told <see cref="EndConversationTool"/> is for: <see cref="SpineAIFunctions.EndConversationDescription"/>.</summary>
+    public const string EndConversationDescription = SpineAIFunctions.EndConversationDescription;
 
-    /// <summary>The tool's answer when the farewell is still to be said.</summary>
-    internal const string SayGoodbye = "The call ends after your goodbye. Now say only a goodbye of two or three words in the user's language, such as \"Hej då!\"; do not say that you are ending the call.";
-
-    /// <summary>The tool's answer when the model already said goodbye in the same answer.</summary>
-    internal const string GoodbyeSaid = "The call ends once your goodbye has played. Say nothing more.";
-
-    // EndsOnGoodbye's way out: asked for (the tool ran), the farewell under way, the farewell done (end once it has played).
-    private const int NoGoodbye = 0, FarewellAsked = 1, FarewellUnderWay = 2, FarewellDone = 3;
-    private int _goodbye;
-    // How long the farewell must have been quiet before the call ends: the queue says it has played when its last sample
-    // went to the device, which still has the output buffer and the speaker's latency to go. Ending at once cut the last word.
-    internal static readonly TimeSpan FarewellTail = TimeSpan.FromMilliseconds(700);
-    private long _quietSince;
+    private readonly FarewellTracker _farewell;
 
     /// <summary>The provider's rate both ways.</summary>
     // Microsoft.Extensions.AI's options indent, which the model pays for in tokens.
@@ -111,8 +99,8 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     // The model stopped sending while the user speaks and this much is still queued: it yielded, so the rest is dropped.
     private static readonly TimeSpan LiveYieldAhead = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan LiveUserSpeaking = TimeSpan.FromSeconds(1);
-    // A goodbye the voice never speaks still ends the call.
-    private static readonly TimeSpan LiveFarewellWait = TimeSpan.FromSeconds(8);
+    // How long a farewell is waited for when the voice may already have said it: its answer to a result comes within this.
+    private static readonly TimeSpan LiveMaybeSaid = TimeSpan.FromSeconds(3);
     private volatile bool _live;
     private readonly object _liveGate = new();
     private int _liveCount;
@@ -127,7 +115,6 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     private double _liveUserEnd = double.NegativeInfinity;
     private long _liveUserAt;
     private long _liveMicAt;
-    private long _liveGoodbyeAt;
 
     public VoiceSession(
         IVoiceAudio audio, SpineVoiceOptions options, VoiceTokenClient tokens, Func<IVoiceSocket> socketFactory,
@@ -141,6 +128,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         _transcript = _own;
         _dispatch = dispatch;
         _time = time ?? TimeProvider.System;
+        _farewell = new FarewellTracker(_time);
         _logger = logger ?? NullLogger.Instance;
         _audio.StateChanged += _ => Evaluate();
     }
@@ -200,7 +188,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             if (_connected)
                 Send(ToolsUpdate());
             if (!value)
-                Interlocked.Exchange(ref _goodbye, NoGoodbye);
+                _farewell.Cancel();
         }
     }
 
@@ -255,7 +243,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 
             _run = new CancellationTokenSource();
             _outbox = Channel.CreateUnbounded<object>(new UnboundedChannelOptions { SingleReader = true });
-            Interlocked.Exchange(ref _goodbye, NoGoodbye);
+            _farewell.Cancel();
             if (_live)
             {
                 // The relay writes the session; the app gives it the conversation so far and the functions it runs itself.
@@ -379,7 +367,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     {
         // The farewell is not interrupted: once the model has hung up, the user saying goodbye back is not sent, so it
         // neither cuts the farewell off nor makes the model answer it.
-        if (Volatile.Read(ref _goodbye) != NoGoodbye)
+        if (_farewell.IsActive)
             return;
         Interlocked.Exchange(ref _liveMicAt, _time.GetUtcNow().UtcTicks);
         lock (_micGate)
@@ -488,7 +476,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             case "input_audio_buffer.speech_started":
                 // The user talks over the answer: cut it off where it was heard. Not the farewell, whose speech was
                 // already on its way when the microphone stopped.
-                if ((_audio.IsPlaying || _responseActive) && Volatile.Read(ref _goodbye) == NoGoodbye)
+                if ((_audio.IsPlaying || _responseActive) && !_farewell.IsActive)
                     BargeIn();
                 break;
 
@@ -513,7 +501,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
                 break;
 
             case "response.created":
-                Interlocked.CompareExchange(ref _goodbye, FarewellUnderWay, FarewellAsked);
+                _farewell.AnswerStarted();
                 _responseActive = true;
                 _answerAudio = false;
                 break;
@@ -550,7 +538,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
 
             case "response.done":
                 _responseActive = false;
-                Interlocked.CompareExchange(ref _goodbye, FarewellDone, FarewellUnderWay);
+                _farewell.AnswerDone();
                 break;
 
             case "error":
@@ -567,7 +555,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
     private void BargeIn()
     {
         // The Stop button keeps the conversation going; talking over the farewell cannot reach here (see OnMicrophone).
-        Interlocked.Exchange(ref _goodbye, NoGoodbye);
+        _farewell.Cancel();
         Tick();
         if (_live)
         {
@@ -625,12 +613,13 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         var goodbye = name == EndConversationTool && EndsOnGoodbye;
         // A model often says goodbye in the same response that hangs up. That was the farewell: asking for another one
         // made it say goodbye twice.
-        // GPT-Live has no responses: its voice said goodbye when it spoke after the user's last words.
-        var saidGoodbye = goodbye && (_live ? Interlocked.Read(ref _liveAudioAt) > Interlocked.Read(ref _liveUserAt) : _answerAudio);
+        // GPT-Live has no responses, and its voice talks while the backend works: what it said may be the goodbye or only
+        // "one moment", so the voice decides.
+        var saidGoodbye = goodbye && !_live && _answerAudio;
         if (saidGoodbye)
-            result = GoodbyeSaid;
+            result = SpineAIFunctions.GoodbyeSaid;
         else if (goodbye)
-            result = SayGoodbye;
+            result = _live ? SpineAIFunctions.GoodbyeUnlessSaid : SpineAIFunctions.SayGoodbye;
         else if (!readable)
             result = invalid;
         else if (TooManyRounds(round))
@@ -670,11 +659,9 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
                 ["type"] = "response.item.create",
                 ["item"] = new JsonObject { ["type"] = "function_call_output", ["call_id"] = callId, ["output"] = output },
             });
+            // A voice that already spoke since the user's last words may have said its goodbye and say nothing more.
             if (goodbye)
-            {
-                Interlocked.Exchange(ref _liveGoodbyeAt, _time.GetUtcNow().UtcTicks);
-                Interlocked.Exchange(ref _goodbye, FarewellUnderWay);
-            }
+                _farewell.Start(Interlocked.Read(ref _liveAudioAt) > Interlocked.Read(ref _liveUserAt) ? LiveMaybeSaid : null);
             return;
         }
         Send(new JsonObject
@@ -693,15 +680,15 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         if (saidGoodbye)
         {
             // The farewell is this response: done when it reports done, or now when it already has.
-            Interlocked.Exchange(ref _goodbye, FarewellUnderWay);
+            _farewell.Start();
             if (!_responseActive)
-                Interlocked.CompareExchange(ref _goodbye, FarewellDone, FarewellUnderWay);
+                _farewell.AnswerDone();
             return;
         }
 
         // The response that called the tool may still report done after this; only the next one is the farewell.
         if (goodbye)
-            Interlocked.Exchange(ref _goodbye, FarewellAsked);
+            _farewell.Ask();
         Send(new JsonObject { ["type"] = "response.create" });
     }
 
@@ -825,13 +812,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         Evaluate();
 
         // The farewell has been heard to its end, its last word out of the speaker too: hang up.
-        if (_audio.IsPlaying || _responseActive)
-            Interlocked.Exchange(ref _quietSince, 0);
-        else if (Interlocked.Read(ref _quietSince) == 0)
-            Interlocked.Exchange(ref _quietSince, _time.GetUtcNow().UtcTicks);
-        if (Volatile.Read(ref _goodbye) == FarewellDone && Interlocked.Read(ref _quietSince) is var quiet and > 0
-            && _time.GetUtcNow().UtcTicks - quiet >= FarewellTail.Ticks
-            && Interlocked.CompareExchange(ref _goodbye, NoGoodbye, FarewellDone) == FarewellDone)
+        if (_farewell.ShouldHangUp(_audio.IsPlaying || _responseActive))
             _ = EndCoreAsync(VoiceSessionEnd.Goodbye, null);
     }
 
@@ -1136,13 +1117,9 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
         if (now - Interlocked.Read(ref _liveMicAt) > TimeSpan.FromMilliseconds(150).Ticks)
             _outbox?.Writer.TryWrite(new byte[FrameBytes]);
 
-        if (Volatile.Read(ref _goodbye) == FarewellUnderWay)
-        {
-            var since = Interlocked.Read(ref _liveGoodbyeAt);
-            var spoke = Interlocked.Read(ref _liveAudioAt) >= since;
-            if (spoke && !_audio.IsPlaying || now - since > LiveFarewellWait.Ticks)
-                Interlocked.CompareExchange(ref _goodbye, FarewellDone, FarewellUnderWay);
-        }
+        // The voice spoke after the backend's goodbye and has played it out (a farewell that never comes ends in the tracker).
+        if (_farewell.IsUnderWay && Interlocked.Read(ref _liveAudioAt) >= _farewell.UnderWaySince && !_audio.IsPlaying)
+            _farewell.AnswerDone();
     }
 
     /// <summary>The functions the app runs itself, which GPT-Live's backend gets beside the server's.</summary>
@@ -1155,7 +1132,7 @@ internal sealed class VoiceSession : IVoiceSession, IVoiceAudioOwner
             {
                 ["type"] = "function",
                 ["name"] = EndConversationTool,
-                ["description"] = "Hangs up. Call it when the user says goodbye, thanks you and is done, or otherwise wants to end the conversation. Do not call it for a pause or a thank-you in the middle of a conversation.",
+                ["description"] = EndConversationDescription,
                 ["parameters"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject() },
             });
         }

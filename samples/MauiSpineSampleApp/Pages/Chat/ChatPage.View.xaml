@@ -25,8 +25,9 @@
             </VerticalStackLayout>
         </Grid>
 
+        <!-- "Tack, hej då" ends a typed conversation too: "Conversation ended" shows, and the next message starts anew. -->
         <ChatView x:Name="chat" Grid.Row="2" Client="{Binding Client}" Messages="{Binding Messages}"
-                  ChatOptions="{Binding Options}" ShowToolCalls="{Binding ShowToolCalls}" />
+                  ChatOptions="{Binding Options}" ShowToolCalls="{Binding ShowToolCalls}" EndsOnIntent="{Binding EndsOnIntent}" />
     </Grid>
 
     <SpinePage.Footer>

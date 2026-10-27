@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-27 (step 4.8, one set of functions for every AI session, in progress: PRs 1–3 merged, PR 4 the feature as the one catalogue; 4.7 voice pipelines done as #641)
+**Last updated:** 2026-10-27 (step 4.8, one set of functions for every AI session, in progress: PRs 1–4 merged, PR 5 ending on intent built in; 4.7 voice pipelines done as #641)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 

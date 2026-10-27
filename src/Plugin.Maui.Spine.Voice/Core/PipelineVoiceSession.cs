@@ -59,7 +59,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     private volatile int _transcribing;
     private volatile bool _answering;
     // The chat hung up: the farewell plays to its end and the microphone is not listened to.
-    private volatile bool _farewell;
+    private readonly FarewellTracker _farewell;
     private volatile bool _answerAudio;
     private long _interruptedUntil;
     private VoiceState _state = VoiceState.Idle;
@@ -76,6 +76,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         _dispatch = dispatch;
         _transcript = _own;
         _time = time ?? TimeProvider.System;
+        _farewell = new FarewellTracker(_time);
         _logger = logger ?? NullLogger.Instance;
         _audio.StateChanged += _ => Evaluate();
     }
@@ -102,10 +103,20 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     public string? SpokenVoice { get; private set; }
 
     /// <summary>
-    /// Each answer offers the chat <see cref="VoiceSession.EndConversationTool"/> as the app's own function; a server feature
-    /// must declare it (<c>ai.Functions.AddDevice</c>) and list it, or its model never sees it.
+    /// Each answer offers the chat Spine's built-in <see cref="SpineAIFunctions.EndConversation"/> as the app's own
+    /// function; a Spine.AI server offers it to the feature's model without a declaration. Turned off, a farewell under
+    /// way is cancelled and the call goes on.
     /// </summary>
-    public bool EndsOnGoodbye { get; set; }
+    public bool EndsOnGoodbye
+    {
+        get;
+        set
+        {
+            field = value;
+            if (!value)
+                _farewell.Cancel();
+        }
+    }
 
     public bool IsMuted
     {
@@ -147,7 +158,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
         _connecting = true;
         _ended = 0;
-        _farewell = false;
+        _farewell.Cancel();
         _server.ConversationId = Guid.NewGuid().ToString("N");
         _dispatch(() =>
         {
@@ -287,7 +298,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
 
     private void OnMicrophone(ReadOnlySpan<byte> pcm16)
     {
-        if (_farewell)
+        if (_farewell.IsActive)
             return;
         lock (_turnGate)
         {
@@ -488,7 +499,11 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         var splitter = new SentenceSplitter();
         var said = new StringBuilder();
         var goodbye = false;
-        var options = ChatOptions(EndsOnGoodbye ? Goodbye(said, () => goodbye = _farewell = true) : null);
+        var options = ChatOptions(EndsOnGoodbye ? Goodbye(said, () =>
+        {
+            goodbye = true;
+            _farewell.Start();
+        }) : null);
         Exception? failed = null;
         try
         {
@@ -586,10 +601,13 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         // No chat could answer: the call ends and says why, as a realtime session does when its provider fails.
         if (failed is not null)
             await EndCoreAsync(VoiceSessionEnd.Failed, failed);
-        else if (goodbye && !cut)
+        else if (goodbye && !cut && _farewell.IsActive)
+        {
+            _farewell.AnswerDone();
             await HangUpAfterFarewellAsync();
+        }
         else
-            _farewell = false;
+            _farewell.Cancel();
     }
 
     /// <summary>
@@ -599,11 +617,15 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     private async Task HangUpAfterFarewellAsync()
     {
         _logger.LogDebug("Spine.Voice: the chat hung up; the call ends after the farewell.");
-        while (_connected && _farewell && _audio.IsPlaying)
+        while (_connected && _farewell.IsActive)
+        {
+            if (_farewell.ShouldHangUp(_audio.IsPlaying))
+            {
+                await EndCoreAsync(VoiceSessionEnd.Goodbye, null);
+                return;
+            }
             await Task.Delay(TimeSpan.FromMilliseconds(50), _time);
-        await Task.Delay(VoiceSession.FarewellTail, _time);
-        if (_connected && _farewell)
-            await EndCoreAsync(VoiceSessionEnd.Goodbye, null);
+        }
     }
 
     /// <summary>The options for the app's own chat client: the app's functions too, run with the device's context.</summary>
@@ -622,8 +644,8 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
         AIFunctionFactory.Create(() =>
         {
             hangUp();
-            return said.Length > 0 ? VoiceSession.GoodbyeSaid : VoiceSession.SayGoodbye;
-        }, VoiceSession.EndConversationTool, VoiceSession.EndConversationDescription);
+            return said.Length > 0 ? SpineAIFunctions.GoodbyeSaid : SpineAIFunctions.SayGoodbye;
+        }, SpineAIFunctions.EndConversationName, SpineAIFunctions.EndConversationDescription);
 
     /// <summary>Reads the sentences aloud as they come, through the engine as one item, so a cut-off says how far it got.</summary>
     private async Task SpeakAsync(string item, ChannelReader<string> sentences, CancellationToken cancellationToken)
@@ -728,7 +750,7 @@ internal sealed class PipelineVoiceSession : IVoiceSession, IVoiceAudioOwner
     private void BargeIn()
     {
         // Only the Stop button and typed text reach here during the farewell: the conversation goes on.
-        _farewell = false;
+        _farewell.Cancel();
         var wasAnswering = _answering;
         if (wasAnswering || _audio.IsPlaying)
             _logger.LogDebug("Spine.Voice: the answer is cut off ({What}).", _audio.IsPlaying ? "playing" : "not playing yet");

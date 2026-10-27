@@ -29,6 +29,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Plugin.Maui.Spine\Plugin.Maui.Spine.csproj" />
+		<ProjectReference Include="..\Plugin.Maui.Spine.AI.Functions\Plugin.Maui.Spine.AI.Functions.csproj" />
 		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Markdown\Plugin.Maui.Spine.Controls.Markdown.csproj" />
 		<ProjectReference Include="..\Plugin.Maui.Spine.Controls.Shimmer\Plugin.Maui.Spine.Controls.Shimmer.csproj" />
 	</ItemGroup>
