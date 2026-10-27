@@ -340,8 +340,9 @@ view `SafeArea.ScrollInset="Bottom"`, so the content runs to the screen's edge w
 comes clear of the bar. Without it the content stops above the bar and is cut off there.
 
 "Reaches the bottom edge" means every container between the page and the scroll view holds only that branch, or is a
-grid in which it spans to the last row (a list with a floating button over it). A page with a footer under its list
-keeps its bottom padding. The default applies only to a page that leaves its edges to Spine: one that sets
+grid in which it spans to the last row (a list with a floating button over it). A page with a footer under its list,
+inside the page or as `SpinePage.Footer` (a chat's composer), keeps its bottom padding, so the footer stays clear of
+the home indicator. The default applies only to a page that leaves its edges to Spine: one that sets
 `SafeAreaEdges` or `ScrollInset` (on the attribute or in `options.RegionDefaults` / `TabDefaults` / `SheetDefaults`),
 or `SafeArea.ScrollInset` on the scroll view, keeps exactly what it set. Turn it off with
 `options.RegionDefaults.ScrollUnderBottomBar = false` (and `TabDefaults` / `SheetDefaults`).

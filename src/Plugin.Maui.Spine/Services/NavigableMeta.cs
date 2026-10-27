@@ -94,11 +94,14 @@ internal static class NavigableMeta
     /// floating tab bar) instead of stopping above it, where the content would be cut off while scrolling: the bottom
     /// edge comes out of the page's safe area and the scroll source takes it as a scroll inset.
     /// Only when the page leaves its edges to Spine (<see cref="NavigableAttribute.ScrollsUnderBottomBar"/>) and the
-    /// view does not set its own <see cref="SafeArea.ScrollInsetProperty"/>.
+    /// view does not set its own <see cref="SafeArea.ScrollInsetProperty"/>. Not on a page with a footer: the footer is
+    /// what reaches the bottom edge, and without the bottom of the safe area it sat on the home indicator, its buttons
+    /// cut by the screen's rounded corners (a chat's composer).
     /// </summary>
     static void ScrollUnderBottomBar(View view, ViewModelBase vm, NavigableAttribute meta)
     {
         if (!meta.ScrollsUnderBottomBar
+            || view is IPageFooterSource { Footer: not null }
             || (HeaderBar.GetScrollSource(view) ?? FindFirstScrollable(view)) is not { } source
             || !FillsToBottom(view, source))
             return;
