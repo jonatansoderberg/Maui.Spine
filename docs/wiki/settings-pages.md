@@ -66,7 +66,7 @@ From what the app is about to what is about the app, as in the platform's own Se
 3. **Display**: theme, language, units, clock and the app's own display choices.
 4. **The system**: notifications, launch at login, Apple Health, motion effects; only the ones the device has.
 5. **More**: links to other apps and web pages.
-6. **About**: Version, Send feedback, and licences or sources (see below).
+6. **About**: About <app> (a sheet with the app's page), Send feedback and Version (see below).
 7. **Delete**: deleting the account or all data, alone in the last section, with a footer that says what goes.
 
 A section has a header when it has more than one row or when its row doesn't say what it is about on its own. A footer explains what a choice does or where something comes from, in one or two sentences; it is not a place for status that changes, except a section's own last-sync or error line.
@@ -106,23 +106,52 @@ Green, orange and red are never a kind of setting:
 - **Green** and **orange** are the [`Status`](rows.md#status-menus-and-destructive-rows) marks: green works, orange needs the user. A row that needs the user keeps its own icon colour and gets the orange mark.
 - **Red** (`#FF3B30`) is the badge of a row with `IsDestructive`, and only of those.
 
-Glyphs come from `Plugin.Maui.Spine.Svg.Icons`: `Delete.svg` for deleting and removing (never `Trashcan.svg`), `SignOut.svg` for signing out, `ExternalLink.svg` for a web page, `Mail.svg` for feedback, `Info.svg` for the version, `Theme.svg` for the theme, `Globe.svg` for the language, `Key.svg` for a key, `User.svg` for an account, `Reload.svg` for fetching now (`Refresh.svg` is a sync symbol).
+Glyphs come from `Plugin.Maui.Spine.Svg.Icons`: `Delete.svg` for deleting and removing (never `Trashcan.svg`), `SignOut.svg` for signing out, `ExternalLink.svg` for a web page, `Mail.svg` for feedback, `Info.svg` for About, `Tag.svg` for the version, `Theme.svg` for the theme, `Globe.svg` for the language, `Key.svg` for a key, `User.svg` for an account, `Reload.svg` for fetching now (`Refresh.svg` is a sync symbol).
 
 ## About
 
-The last section but the delete section, without a header or with "About":
+The last section but the delete section, with the header "About". It always has the same three rows, in this order:
 
 ```xml
-<SpineSection Header="{String Settings.About}" Footer="{String Settings.AboutFooter}">
+<SpineSection Header="{String Settings.About}">
+    <SpineRow Icon="Info.svg" IconBackground="#8E8E93" Title="{String Settings.AboutApp}"
+              Command="{Binding OpenAboutCommand}" />
     <SpineRow Icon="Mail.svg" IconBackground="#5856D6" Title="{String Settings.Feedback}"
               Command="{Binding SendFeedbackCommand}" />
-    <SpineRow Icon="Info.svg" IconBackground="#8E8E93" Title="{String Settings.Version}" Value="{Binding Version}" />
+    <SpineRow Icon="Tag.svg" IconBackground="#8E8E93" Title="{String Settings.Version}"
+              Value="{Binding Version}" Detail="{Binding BuildTime}" />
 </SpineSection>
 ```
 
-- **Version** is `AppInfo.Current.VersionString` and the build in brackets: `1.4 (27)`.
+- **About <app>** opens a sheet with the app's own page: what the app does, what is important to know (a medical or financial disclaimer, unofficial data sources), privacy, sources, licences and how to reach the developer. The text is a markdown file in the app (`Resources/Raw/about.md`, and `about.sv.md` beside it for each further language), drawn with [`MarkdownView`](markdown.md) in a scrolling sheet. The sheet loads the file after it is up (a sheet waits for `OnAppearingAsync`), and links in it open with `Launcher`. Licences and sources live there, not in footers.
 - **Send feedback** opens a mail to the developer with the app's name and version as the subject, through `Email.Default.ComposeAsync`, or a `mailto:` link when Mail isn't set up.
-- **Sources and licences**: one line each in the section's footer when they are short (fonts, data sources), or a row with a `Command` to a page of their own when they are long.
+- **Version** shows `AppInfo.Current.VersionString` as the value, `1.0.431494`, and the build time as the detail, `27 October 2026 16:47`, in the app's language. No brackets and no separate build string.
+
+A footer under the section is only for what must be seen without opening the sheet, such as "not a medical device".
+
+### Version and build number
+
+Every build gets a new build number: the minutes since 1 January 2026 UTC. It is the app's `ApplicationVersion` (`CFBundleVersion`, Android's `versionCode`) and the third part of `ApplicationDisplayVersion`, so the version is always `major.minor.build` and always increases. Set it in the app's project, with the app's own major and minor version:
+
+```xml
+<PropertyGroup>
+    <!-- Minutes since 2026-01-01 UTC: a new, increasing build number for every build. The app turns it back
+         into the build time. 639028224000000000 is the ticks of that date. -->
+    <AppBuildNumber Condition="'$(AppBuildNumber)' == ''">$([System.Math]::Floor($([MSBuild]::Divide($([MSBuild]::Subtract($([System.DateTime]::UtcNow.Ticks), 639028224000000000)), 600000000))))</AppBuildNumber>
+    <ApplicationDisplayVersion>1.0.$(AppBuildNumber)</ApplicationDisplayVersion>
+    <ApplicationVersion>$(AppBuildNumber)</ApplicationVersion>
+</PropertyGroup>
+```
+
+The settings page turns it back into the build time, so no second value is stamped into the build:
+
+```csharp
+public string BuildTime => int.TryParse(AppInfo.Current.BuildString, out var minutes)
+    ? new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddMinutes(minutes).ToLocalTime().ToString("d MMMM yyyy HH:mm", culture)
+    : "";
+```
+
+A release build can pin the number with `-p:AppBuildNumber=<n>`. The widget extension's own version is still fixed at `1.0` / `1` in `Plugin.Maui.Spine.Widgets`.
 
 ## Sample
 
