@@ -25,6 +25,17 @@ speech.Feature = "Read";
 await speech.Speak("Välkommen tillbaka.").Completed;
 ```
 
+Any chat model, such as Claude, as a voice pipeline: the user written down on the phone or the server, the answer read aloud by the phone's voices or the server's, streamed sentence by sentence through the same engine:
+
+```csharp
+builder.UseSpineVoice(o => o.Pipeline("Claude", p => p
+    .AddLocalSpeechToText().AddServerSpeechToText("Transcribe")   // fallbacks, in order
+    .AddChat("Claude")                                            // a keyed IChatClient, such as a Spine.AI feature
+    .AddLocalTextToSpeech().AddServerTextToSpeech("ReadOpenAI")));
+
+await voice.ConnectAsync("Claude", chat.Messages);
+```
+
 The engine on its own, for a provider of your own:
 
 ```csharp

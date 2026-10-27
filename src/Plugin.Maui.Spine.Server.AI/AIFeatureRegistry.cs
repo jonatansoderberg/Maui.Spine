@@ -19,6 +19,8 @@ internal sealed record AIFeature(
 {
     public IAISpeechProvider? Speech { get; init; }
 
+    public IAITranscriptionProvider? Transcription { get; init; }
+
     public string Provider => Options.Provider ?? "";
     public string Model => Options.Model ?? "";
 }
@@ -164,6 +166,9 @@ internal sealed class AIFeatureRegistry
 
                 case AIFeatureKind.Speech when _options.SpeechProviders.TryGetValue(provider, out var factory):
                     return new(name, options, null, null, null, null, null, price) { Speech = factory(providerSection) };
+
+                case AIFeatureKind.Transcription when _options.TranscriptionProviders.TryGetValue(provider, out var factory):
+                    return new(name, options, null, null, null, null, null, price) { Transcription = factory(providerSection) };
 
                 default:
                     var register = options.Kind.ToString();

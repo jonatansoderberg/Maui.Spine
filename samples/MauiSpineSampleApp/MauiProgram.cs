@@ -120,6 +120,28 @@ public static class MauiProgram
         {
             o.SessionEndpoint = new Uri(SampleServer, "ai");
             o.AuthorizationHeader = SignedInHeaderAsync;
+            // The Chat page's other way to talk: Claude answers (the server's Claude feature), the phone writes the user
+            // down and reads the answer, and the server does either when the phone cannot.
+            o.Pipeline("Claude", p =>
+            {
+                p.Language = "sv-SE";
+                // A shorter pause ends the turn than the default 800 ms: the answer starts sooner, at the cost of cutting
+                // off a user who stops to think.
+                p.EndOfTurn = TimeSpan.FromMilliseconds(600);
+                p.AddLocalSpeechToText().AddServerSpeechToText("Transcribe")
+                    .AddChat("Claude")
+                    .AddLocalTextToSpeech().AddServerTextToSpeech("ReadOpenAI");
+            });
+            o.Pipeline("ClaudeOpenAIVoice", p =>
+            {
+                p.Language = "sv-SE";
+                // A shorter pause ends the turn than the default 800 ms: the answer starts sooner, at the cost of cutting
+                // off a user who stops to think.
+                p.EndOfTurn = TimeSpan.FromMilliseconds(600);
+                p.AddLocalSpeechToText().AddServerSpeechToText("Transcribe")
+                    .AddChat("Claude")
+                    .AddServerTextToSpeech("ReadOpenAI");
+            });
         });
 
         builder.UseSpineAI(o =>
@@ -140,6 +162,7 @@ public static class MauiProgram
 #endif
                 .ThenServer());
             o.Feature("ServerAssistant", f => f.Server("Assistant"));
+            o.Feature("Claude", f => f.Server("Claude"));
             o.Feature("Story", f => f.Server());
         });
 
@@ -152,6 +175,9 @@ public static class MauiProgram
 #if DEBUG
         builder.Logging.AddDebug();
 #endif
+        // Spine.Voice's timings on stdout, which `devicectl device process launch --console` shows for a Release build on a phone.
+        builder.Logging.AddProvider(new StdoutLoggerProvider("Plugin.Maui.Spine.Voice"));
+        builder.Logging.AddFilter("Plugin.Maui.Spine.Voice", LogLevel.Debug);
 
         return builder.Build();
     }
@@ -170,4 +196,24 @@ public static class MauiProgram
         IPlatformApplication.Current?.Services.GetService<Plugin.Maui.Spine.Authentication.ISignedInSession>() is { } session
             ? session.GetAuthorizationHeaderAsync(cancellationToken)
             : Task.FromResult<string?>(null);
+}
+
+/// <summary>Writes one category's log lines to stdout.</summary>
+internal sealed class StdoutLoggerProvider(string category) : ILoggerProvider
+{
+    public ILogger CreateLogger(string categoryName) => categoryName.StartsWith(category, StringComparison.Ordinal) ? new Logger() : Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+
+    public void Dispose()
+    {
+    }
+
+    private sealed class Logger : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff} {logLevel}: {formatter(state, exception)}{(exception is null ? "" : $" {exception.GetType().Name}: {exception.Message}")}");
+    }
 }

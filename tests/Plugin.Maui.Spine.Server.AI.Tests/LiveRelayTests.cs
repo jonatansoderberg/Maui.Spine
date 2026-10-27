@@ -311,7 +311,8 @@ public sealed class LiveRelayTests : IAsyncLifetime
         var start = (await provider.NextAsync("session.start"))["session"]!;
 
         Assert.Equal("live-1", (string?)start["model"]);
-        Assert.Equal("Prata svenska, kort.", (string?)start["instructions"]);
+        Assert.StartsWith("Prata svenska, kort.\n\n# Delegation policy", (string?)start["instructions"]);
+        Assert.DoesNotContain("Ignore the rules", (string?)start["instructions"]);
         Assert.Equal("marin", (string?)start["audio"]!["output"]!["voice"]);
         Assert.Equal(24000, (int?)start["audio"]!["format"]!["rate"]);
 
@@ -332,6 +333,34 @@ public sealed class LiveRelayTests : IAsyncLifetime
         var asked = Assert.Single(_provider.Requests);
         Assert.Equal(AICaller.SignedIn("anna"), asked.Caller);
         Assert.Equal(2, asked.MaxMinutes);
+    }
+
+    [Fact]
+    public async Task The_voice_gets_a_delegation_policy_with_every_backend_tool()
+    {
+        var app = await ConnectAsync((string)(await TicketAsync())["url"]!);
+        await app.SendAsync(new
+        {
+            type = "session.start",
+            session = new
+            {
+                tools = new object[]
+                {
+                    new { type = "function", name = "show_time", description = "The phone's time.", parameters = new { type = "object", properties = new { } } },
+                    new { type = "function", name = "end_conversation", description = "Hangs up.", parameters = new { type = "object", properties = new { } } },
+                },
+            },
+        });
+        var provider = await _provider.NextConnectionAsync();
+        var instructions = (string?)(await provider.NextAsync("session.start"))["session"]!["instructions"];
+
+        Assert.StartsWith("Prata svenska, kort.", instructions);
+        Assert.Contains("# Delegation policy", instructions);
+        Assert.Contains("- show_time: The phone's time.", instructions);
+        Assert.Contains("- get_my_bookings:", instructions);
+        Assert.Contains("## Generate <|SpawnThinking|> when", instructions);
+        Assert.Contains("the backend hangs up with end_conversation", instructions);
+        Assert.Contains("## Do not generate <|SpawnThinking|> when", instructions);
     }
 
     [Fact]

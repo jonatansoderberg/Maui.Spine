@@ -34,6 +34,7 @@ public sealed class SpineAIOptions
     internal Dictionary<string, Func<IConfiguration, string, IImageGenerator>> ImageProviders { get; } = new(StringComparer.OrdinalIgnoreCase);
     internal Dictionary<string, Func<IConfiguration, IAIRealtimeProvider>> RealtimeProviders { get; } = new(StringComparer.OrdinalIgnoreCase);
     internal Dictionary<string, Func<IConfiguration, IAISpeechProvider>> SpeechProviders { get; } = new(StringComparer.OrdinalIgnoreCase);
+    internal Dictionary<string, Func<IConfiguration, IAITranscriptionProvider>> TranscriptionProviders { get; } = new(StringComparer.OrdinalIgnoreCase);
     internal Func<IServiceProvider, IAIUsageStore>? StoreFactory { get; private set; }
 
     /// <summary>
@@ -122,6 +123,22 @@ public sealed class SpineAIOptions
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
         SpeechProviders[provider] = factory ?? throw new ArgumentNullException(nameof(factory));
+        return this;
+    }
+
+    /// <summary>Registers a transcription provider, which writes speech down for <c>Kind: Transcription</c> features.</summary>
+    /// <param name="provider">The name features use as their <c>Provider</c>.</param>
+    /// <param name="factory">Builds the provider from its section: <see cref="AITranscriptionProviders.OpenAI(IConfiguration)"/> or one of your own.</param>
+    /// <returns>The same options, for chaining.</returns>
+    /// <example>
+    /// <code>
+    /// ai.Transcription("openai", AITranscriptionProviders.OpenAI);
+    /// </code>
+    /// </example>
+    public SpineAIOptions Transcription(string provider, Func<IConfiguration, IAITranscriptionProvider> factory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        TranscriptionProviders[provider] = factory ?? throw new ArgumentNullException(nameof(factory));
         return this;
     }
 

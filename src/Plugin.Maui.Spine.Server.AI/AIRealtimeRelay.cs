@@ -69,6 +69,7 @@ internal sealed class AIRealtimeRelay
     private bool _confirmed;
     private string? _reason;
     private volatile bool _closing;
+
     private volatile bool _timeLimit;
 
     public AIRealtimeRelay(
@@ -228,6 +229,7 @@ internal sealed class AIRealtimeRelay
 
                 case "session.output_audio.delta" when IsSilence(message):
                     continue;
+
             }
 
             await SendAppAsync(message, cancellationToken);
@@ -556,6 +558,43 @@ internal sealed class AIRealtimeRelay
         })]);
     }
 
+    /// <summary>The tool Spine.Voice gives the backend while the app ends calls on goodbye (<c>IVoiceSession.EndsOnGoodbye</c>).</summary>
+    private const string EndConversation = "end_conversation";
+
+    /// <summary>
+    /// The voice's delegation policy, in the terms OpenAI's GPT-Live prompting guide gives: the backend's tools, and when
+    /// to generate <c>&lt;|SpawnThinking|&gt;</c> (the voice's way to start backend work) and when not. Written from the
+    /// tools the session has, so the voice knows every function the app and the server offer. Asked in plain words to
+    /// "hand it to the backend", GPT-Live answered the time itself and never delegated (an iPhone, 2026-10-27).
+    /// </summary>
+    internal static string DelegationPolicy(JsonArray tools)
+    {
+        var functions = tools.OfType<JsonObject>().Where(t => Text(t, "type") == "function" && Text(t, "name") is { Length: > 0 }).ToList();
+        var hosted = tools.OfType<JsonObject>().Where(t => Text(t, "type") is { Length: > 0 } type && type != "function").Select(t => Text(t, "type")!).ToList();
+        if (functions.Count == 0 && hosted.Count == 0)
+            return "";
+
+        var policy = new System.Text.StringBuilder("# Delegation policy\n\n## Backend tools\n");
+        foreach (var function in functions)
+            policy.Append("- ").Append(Text(function, "name")).Append(": ").Append(Text(function, "description") ?? "").Append('\n');
+        foreach (var tool in hosted)
+            policy.Append("- ").Append(tool).Append('\n');
+
+        policy.Append("\n## Generate <|SpawnThinking|> when\n")
+            .Append("- the request needs one of the backend tools: a fact only a tool has, such as the time or the user's own data, or an action on the user's things or devices;\n")
+            .Append("- a correction changes a backend task already in progress;\n");
+        if (functions.Any(f => Text(f, "name") == EndConversation))
+            policy.Append("- the user says goodbye, thanks you and is done, or wants to end the call: the backend hangs up with end_conversation.\n");
+
+        policy.Append("\n## Do not generate <|SpawnThinking|> when\n")
+            .Append("- the answer is already in the conversation, or a result given earlier is still current;\n")
+            .Append("- the user greets you or asks you to repeat a result already given;\n")
+            .Append("- a brief clarification is needed to understand the request.\n\n")
+            .Append("Generate <|SpawnThinking|> before giving an answer that depends on backend work. Do not guess the result while waiting, ")
+            .Append("and do not say that something is done before the backend's result says so.");
+        return policy.ToString();
+    }
+
     internal JsonObject StartMessage(JsonArray history, JsonArray tools)
     {
         var options = Options;
@@ -580,7 +619,8 @@ internal sealed class AIRealtimeRelay
             ["audio"] = audio,
             ["delegation"] = new JsonObject { ["type"] = "responses", ["responses"] = responses },
         };
-        if (_feature.Options.SystemPrompt is { Length: > 0 } prompt) session["instructions"] = prompt;
+        var prompt = string.Join("\n\n", new[] { _feature.Options.SystemPrompt, DelegationPolicy(tools) }.Where(p => p is { Length: > 0 }));
+        if (prompt.Length > 0) session["instructions"] = prompt;
         if (history.Count > 0) session["input"] = history;
 
         return new JsonObject { ["type"] = "session.start", ["session"] = session };

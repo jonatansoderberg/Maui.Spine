@@ -62,6 +62,10 @@ internal sealed class TokenHandler : HttpMessageHandler
     public TimeSpan? RetryAfter { get; set; }
     public HttpRequestMessage? Last { get; private set; }
 
+    /// <summary>Token requests that fail to connect first, as to a server that is still starting.</summary>
+    public int Unreachable { get; set; }
+    public int Requests { get; private set; }
+
     /// <summary>What <c>POST …/functions/{feature}/{name}</c> answers, and the bodies it was sent.</summary>
     public (HttpStatusCode Status, string Body) Function { get; set; } = (HttpStatusCode.OK, """{ "result": "from the server" }""");
     public ConcurrentQueue<(HttpRequestMessage Request, string Body)> FunctionCalls { get; } = new();
@@ -75,6 +79,8 @@ internal sealed class TokenHandler : HttpMessageHandler
         }
 
         Last = request;
+        if (++Requests <= Unreachable)
+            throw new HttpRequestException("Could not connect to the server.");
         var response = new HttpResponseMessage(Status) { Content = new StringContent(Body, Encoding.UTF8, "application/json") };
         if (RetryAfter is { } wait)
             response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(wait);
@@ -143,6 +149,34 @@ public sealed class SessionTests : IAsyncLifetime
         Assert.True(_session.IsConnected);
         Assert.Equal(TimeSpan.FromMinutes(3) - TimeSpan.FromSeconds(1), _session.TimeLeft);
         Assert.Equal(VoiceState.Listening, _session.UpdateFrame().State);
+    }
+
+    [Fact]
+    public async Task A_server_that_is_still_starting_is_asked_again_until_it_answers()
+    {
+        _tokens.Unreachable = 2;
+        var client = new VoiceTokenClient(_options, _ => Task.FromResult<string?>("phone-1")) { RetryDelay = TimeSpan.FromMilliseconds(10) };
+
+        var token = await client.RequestAsync("Voice", CancellationToken.None);
+
+        Assert.Equal("ek_test", token.Token);
+        Assert.Equal(3, _tokens.Requests);
+    }
+
+    [Fact]
+    public async Task A_server_that_never_starts_fails_with_its_error_once_the_wait_is_over()
+    {
+        _tokens.Unreachable = int.MaxValue;
+        var client = new VoiceTokenClient(_options, _ => Task.FromResult<string?>("phone-1"))
+        {
+            RetryDelay = TimeSpan.FromMilliseconds(10),
+            WakeTimeout = TimeSpan.FromMilliseconds(100),
+        };
+
+        var failed = await Assert.ThrowsAsync<HttpRequestException>(() => client.RequestAsync("Voice", CancellationToken.None));
+
+        Assert.Equal("Could not connect to the server.", failed.Message);
+        Assert.True(_tokens.Requests > 1);
     }
 
     [Fact]
@@ -576,7 +610,38 @@ public sealed class SessionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Talking_over_the_farewell_keeps_the_conversation_going()
+    public async Task Saying_goodbye_back_neither_cuts_the_farewell_nor_keeps_the_call()
+    {
+        _session.EndsOnGoodbye = true;
+        await ConnectAsync();
+
+        _socket.Push(new { type = "response.function_call_arguments.done", call_id = "c1", name = VoiceSession.EndConversationTool, arguments = "{}" });
+        await Until(() => _socket.OfType("response.create").Any(), "the farewell asked for");
+        Assert.Single(_socket.OfType("input_audio_buffer.clear"));
+        _socket.Push(new { type = "response.created", response = new { id = "r2" } });
+        _socket.Push(new { type = "response.output_audio.delta", item_id = "a2", delta = Audio(2400) });
+        await Until(() => _audio.IsPlaying, "the farewell playing");
+
+        // The user says goodbye back: nothing of it is sent, and the provider's late speech_started cuts nothing.
+        var sent = _socket.OfType("input_audio_buffer.append").Count();
+        _audio.Capture(Signals.Sine(440, 48_000, 9600, 0.3f), 48_000);
+        _socket.Push(new { type = "input_audio_buffer.speech_started" });
+        _socket.Push(new { type = "response.output_audio.done", item_id = "a2" });
+        _socket.Push(new { type = "response.done", response = new { id = "r2", status = "completed" } });
+        await Task.Delay(50);
+        Assert.True(_audio.IsPlaying);
+        Assert.Equal(sent, _socket.OfType("input_audio_buffer.append").Count());
+        Assert.Empty(_socket.OfType("response.cancel"));
+
+        _audio.Render(4800, 48_000);
+        for (var i = 0; i < 10; i++)
+            _time.Advance(TimeSpan.FromMilliseconds(100));
+        await Until(() => _ended.Count == 1, "ended");
+        Assert.Equal(VoiceSessionEnd.Goodbye, _ended[0].Reason);
+    }
+
+    [Fact]
+    public async Task The_stop_button_still_keeps_the_conversation_going()
     {
         _session.EndsOnGoodbye = true;
         await ConnectAsync();
@@ -586,7 +651,8 @@ public sealed class SessionTests : IAsyncLifetime
         _socket.Push(new { type = "response.created", response = new { id = "r2" } });
         _socket.Push(new { type = "response.output_audio.delta", item_id = "a2", delta = Audio(2400) });
         await Until(() => _audio.IsPlaying, "the farewell playing");
-        _socket.Push(new { type = "input_audio_buffer.speech_started" });
+
+        _session.Interrupt();
         _socket.Push(new { type = "response.done", response = new { id = "r2", status = "cancelled" } });
         await Until(() => !_audio.IsPlaying, "cut off");
         _time.Advance(TimeSpan.FromSeconds(1));

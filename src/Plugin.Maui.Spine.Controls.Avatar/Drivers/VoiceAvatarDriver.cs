@@ -26,6 +26,11 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     private static readonly TimeSpan MinimumCue = TimeSpan.FromMilliseconds(33);
     private static readonly TimeSpan CueOverlap = TimeSpan.FromMilliseconds(30);
     private const float MouthFloor = 0.06f;
+    // The mouth follows the answer's level against its own recent peak, not full scale: GPT-Live's voice played so
+    // quietly that the mouth barely opened (iPhone, 2026-10-27), while a loud voice still reaches a full mouth.
+    private static readonly TimeSpan PeakHalfLife = TimeSpan.FromSeconds(1.5);
+    private const float QuietestPeak = 0.04f;
+    private float _peak;
     private const int Aa = 10, E = 11, O = 13;
 
     /// <summary>The key of <c>AvatarManifest.Voices</c> the realtime session speaks: OpenAI's and Azure OpenAI's voices.</summary>
@@ -51,7 +56,7 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
     public VoiceAvatarDriver(IVoiceSession session)
     {
         _session = session;
-        _audio = (session as VoiceSession)?.Audio;
+        _audio = (session as IVoiceAudioOwner)?.Audio;
         LipSyncQuality = AvatarLipSyncQuality.AudioReactive;
     }
 
@@ -155,8 +160,12 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
             var length = (delta > MinimumCue ? delta : MinimumCue) + CueOverlap;
             Input.EnqueueViseme(_generation, _played, length, viseme);
         }
-        else if (!_sawViseme && _state == VoiceState.Speaking && frame.OutputLevel >= MouthFloor)
-            LevelMouth(frame, delta);
+        else if (!_sawViseme && _state == VoiceState.Speaking)
+        {
+            _peak = Math.Max(frame.OutputLevel, _peak * (float)Math.Pow(0.5, delta / PeakHalfLife));
+            if (frame.OutputLevel >= Math.Min(MouthFloor, Math.Max(_peak, QuietestPeak) * 0.25f))
+                LevelMouth(frame, delta);
+        }
     }
 
     // AudioReactive: no shape is known, so the mouth opens with the answer's level, rounder when its energy sits low and
@@ -175,6 +184,7 @@ public sealed class VoiceAvatarDriver : AvatarDriver, IAvatarPlaybackClock
         var total = low + high;
         var shape = total <= 0 ? Aa : low > 2 * high ? O : high > low ? E : Aa;
         var length = (delta > MinimumCue ? delta : MinimumCue) + CueOverlap;
-        Input.EnqueueViseme(_generation, _played, length, shape, Math.Clamp(frame.OutputLevel * 1.4f, 0.25f, 1f));
+        var open = frame.OutputLevel / Math.Max(_peak, QuietestPeak);
+        Input.EnqueueViseme(_generation, _played, length, shape, Math.Clamp(open * 1.1f, 0.25f, 1f));
     }
 }

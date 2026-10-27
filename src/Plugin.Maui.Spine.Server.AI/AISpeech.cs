@@ -44,6 +44,26 @@ public interface IAISpeechProvider
     Task<AISpeech> SynthesizeAsync(AISpeechRequest request, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// A speech provider that hands over its audio as it is made, so the app can start playing before the text is read to
+/// the end. <see cref="IAIFeatures.StreamSpeechAsync"/> uses it when the feature's provider has it.
+/// </summary>
+public interface IAIStreamingSpeechProvider : IAISpeechProvider
+{
+    /// <summary>The sample rate of the PCM16 the stream gives, in hertz.</summary>
+    int SampleRate { get; }
+
+    /// <summary>Reads <see cref="AISpeechRequest.Text"/> aloud, piece by piece: PCM16, little-endian, mono, at <see cref="SampleRate"/>.</summary>
+    /// <param name="request">The text and the feature's voice.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    IAsyncEnumerable<ReadOnlyMemory<byte>> StreamAsync(AISpeechRequest request, CancellationToken cancellationToken = default);
+}
+
+/// <summary>Speech as it is made.</summary>
+/// <param name="SampleRate">The pieces' sample rate in hertz.</param>
+/// <param name="Pieces">PCM16, little-endian, mono.</param>
+public sealed record AISpeechStream(int SampleRate, IAsyncEnumerable<ReadOnlyMemory<byte>> Pieces);
+
 /// <summary>The built-in speech providers.</summary>
 public static class AISpeechProviders
 {
@@ -86,10 +106,50 @@ public static class AISpeechProviders
     }
 }
 
-internal sealed class OpenAISpeechProvider(HttpClient http, Uri root, string key) : IAISpeechProvider
+internal sealed class OpenAISpeechProvider(HttpClient http, Uri root, string key) : IAIStreamingSpeechProvider
 {
     // OpenAI's raw PCM is 24 kHz, 16-bit, mono.
     private const int Rate = 24_000;
+
+    public int SampleRate => Rate;
+
+    public async IAsyncEnumerable<ReadOnlyMemory<byte>> StreamAsync(AISpeechRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var body = Body(request);
+        body["stream_format"] = "audio";
+        using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(root, "audio/speech"))
+        {
+            Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
+        };
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+
+        // Headers only: the body is the audio as it is made.
+        using var response = await http.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var text = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                string.Create(CultureInfo.InvariantCulture, $"{(int)response.StatusCode} from {message.RequestUri}: {(text.Length <= 500 ? text : text[..500] + "…")}"),
+                null, response.StatusCode);
+        }
+
+        await using var audio = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var buffer = new byte[4800];
+        var held = 0;
+        int read;
+        while ((read = await audio.ReadAsync(buffer.AsMemory(held), cancellationToken)) > 0)
+        {
+            held += read;
+            // Whole samples only: an odd byte waits for its other half.
+            var whole = held & ~1;
+            if (whole == 0) continue;
+            yield return buffer.AsMemory(0, whole).ToArray();
+            if (held > whole) buffer[0] = buffer[whole];
+            held -= whole;
+        }
+    }
 
     public async Task<AISpeech> SynthesizeAsync(AISpeechRequest request, CancellationToken cancellationToken = default)
     {

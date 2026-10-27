@@ -66,6 +66,7 @@ public sealed class FunctionClientTests : IAsyncLifetime
         ["Ai:Features:Assistant:Expose"] = "true",
         ["Ai:Features:Assistant:Functions:0"] = "show_time",
         ["Ai:Features:Assistant:Functions:1"] = "get_my_bookings",
+        ["Ai:Features:Assistant:Functions:2"] = "end_conversation",
     };
 
     private SpineAIFunction ShowTime => SpineAIFunction.Create("show_time", "Says the time on the phone.", (SpineAIFunctionContext context) =>
@@ -90,7 +91,8 @@ public sealed class FunctionClientTests : IAsyncLifetime
         {
             ai.Chat("fake", (_, _) => _model);
             ai.UseInMemoryUsageStore();
-            ai.Functions.Add(ShowTime).AddDevice(ShowTime).Add(Bookings);
+            ai.Functions.Add(ShowTime).AddDevice(ShowTime).Add(Bookings)
+                .AddDevice("end_conversation", "Hangs up.", JsonDocument.Parse("""{"type":"object","properties":{}}""").RootElement);
         });
 
         _app = builder.Build();
@@ -169,6 +171,30 @@ public sealed class FunctionClientTests : IAsyncLifetime
         Assert.Equal("Assistant", seen?.Feature);
         Assert.False(device.Options[0]!.AdditionalProperties?.ContainsKey(SpineAIFunctionOrder.PreferKey) ?? false);
         Assert.Empty(_model.Options);
+    }
+
+    [Fact]
+    public async Task A_chats_own_function_is_offered_to_the_server_and_runs_in_the_app()
+    {
+        // A voice pipeline's end_conversation: not one of the app's functions, only this call's.
+        _model.Calls = "end_conversation";
+        var hungUp = false;
+        var options = new ChatOptions { Tools = [AIFunctionFactory.Create(() => { hungUp = true; return "Say goodbye."; }, "end_conversation", "Hangs up.")] };
+
+        var answer = await Feature(f => f.Server()).GetResponseAsync([new(ChatRole.User, "Tack, hej då")], options);
+
+        Assert.True(hungUp);
+        Assert.Equal("Svar: Say goodbye.", answer.Text);
+    }
+
+    [Fact]
+    public async Task Without_it_the_server_does_not_offer_a_device_function_the_app_did_not()
+    {
+        _model.Calls = "end_conversation";
+
+        await Feature(f => f.Server()).GetResponseAsync([new(ChatRole.User, "Tack, hej då")]);
+
+        Assert.DoesNotContain(_model.Options[0]?.Tools ?? [], t => t.Name == "end_conversation");
     }
 
     [Fact]

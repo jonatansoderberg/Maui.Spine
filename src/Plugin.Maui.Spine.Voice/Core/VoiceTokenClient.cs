@@ -42,6 +42,14 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
 
     public Task<string?> InstallationIdAsync(CancellationToken cancellationToken) => installationId(cancellationToken);
 
+    /// <summary>
+    /// How long the token request keeps trying a server that does not answer yet. An app service stopped while idle
+    /// (Azure's free plan) took 54 s to start; its first requests time out or cannot connect, which is not a refusal.
+    /// </summary>
+    internal TimeSpan WakeTimeout { get; init; } = TimeSpan.FromSeconds(90);
+
+    internal TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(2);
+
     public async Task<VoiceSessionToken> RequestAsync(string feature, CancellationToken cancellationToken, string? voice = null, double? maxMinutes = null)
     {
         var endpoint = options.SessionEndpoint
@@ -53,11 +61,7 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
         if (maxMinutes is > 0) query.Add($"maxMinutes={maxMinutes.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}");
         var url = new Uri($"{endpoint.ToString().TrimEnd('/')}/realtime/{Uri.EscapeDataString(feature)}"
             + (query.Count == 0 ? "" : "?" + string.Join('&', query)));
-        using var request = new HttpRequestMessage(HttpMethod.Post, url);
-        foreach (var (name, value) in await AppHeadersAsync(cancellationToken))
-            request.Headers.TryAddWithoutValidation(name, value);
-
-        using var response = await _http.Value.SendAsync(request, cancellationToken);
+        using var response = await SendWhileWakingAsync(url, cancellationToken);
         var text = await response.Content.ReadAsStringAsync(cancellationToken);
         using var json = TryParse(text);
 
@@ -82,6 +86,32 @@ internal sealed class VoiceTokenClient(SpineVoiceOptions options, Func<Cancellat
         throw new HttpRequestException(
             $"The voice feature '{feature}' got {(int)response.StatusCode} {response.ReasonPhrase} from {url}: {(text.Length <= 300 ? text : text[..300] + "…")}",
             null, response.StatusCode);
+    }
+
+    /// <summary>Posts to <paramref name="url"/>, trying again while the server is starting: no connection, a timeout, or 502–504.</summary>
+    private async Task<HttpResponseMessage> SendWhileWakingAsync(Uri url, CancellationToken cancellationToken)
+    {
+        var started = Environment.TickCount64;
+        bool Waking() => Environment.TickCount64 - started < WakeTimeout.TotalMilliseconds;
+
+        while (true)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            foreach (var (name, value) in await AppHeadersAsync(cancellationToken))
+                request.Headers.TryAddWithoutValidation(name, value);
+            try
+            {
+                var response = await _http.Value.SendAsync(request, cancellationToken);
+                if (response.StatusCode is not (HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout) || !Waking())
+                    return response;
+                response.Dispose();
+            }
+            catch (Exception e) when (e is HttpRequestException { StatusCode: null } or TaskCanceledException
+                && !cancellationToken.IsCancellationRequested && Waking())
+            {
+            }
+            await Task.Delay(RetryDelay, cancellationToken);
+        }
     }
 
     /// <summary>The headers that open the session's socket: the provider's token, or for the relay the app's own sign-in.</summary>
