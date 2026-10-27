@@ -1,4 +1,5 @@
 using Plugin.Maui.Spine.Controls;
+using Plugin.Maui.Spine.Core;
 
 namespace MauiSpineSampleApp.Pages.Rows;
 
@@ -48,6 +49,37 @@ public partial class RowsPageViewModel : SampleViewModel
     public bool SortBySize => SortBy == "Size";
 
     private static readonly string[] Themes = ["System", "Light", "Dark"];
+
+    public MenuItems AppearanceMenu { get; } =
+    [
+        new MenuPicker
+        {
+            new MenuAction("System") { IsChecked = true },
+            new MenuAction("Light"),
+            new MenuAction("Dark"),
+        },
+    ];
+
+    // Each language in its own words, as the system's language lists do.
+    public MenuItems LanguageMenu { get; } =
+    [
+        new MenuPicker
+        {
+            new MenuAction("System") { IsChecked = true },
+            new MenuAction("English"),
+            new MenuAction("Svenska"),
+        },
+    ];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(KeyState), nameof(KeyStatus))]
+    public partial bool HasKey { get; set; }
+
+    public string KeyState => HasKey ? "Saved" : "Missing";
+    public SpineRowStatus KeyStatus => HasKey ? SpineRowStatus.Ok : SpineRowStatus.NeedsAttention;
+
+    [RelayCommand]
+    private void ToggleKey() => HasKey = !HasKey;
 
     [RelayCommand]
     private Task ShowRowOptions()

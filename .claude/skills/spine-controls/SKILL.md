@@ -200,12 +200,15 @@ For a whole page: `[NavigableRegion(HeaderBar = HeaderBarMode.Overlay, HeaderBar
 
 `Tap.Command` / `Tap.CommandParameter` on any view: the whole view is the target, with native press feedback (iOS highlight, Android ripple, Windows hover/pressed), inner controls keep their touches, runs only when enabled and `CanExecute`. Use it instead of a `TapGestureRecognizer` plus `BackgroundColor="Transparent"`. `Semantic.Merge="True"` on a layout: children leave the accessibility tree, their texts (own `SemanticProperties.Description`, else `Label.Text`) join into one description; a `Switch` inside makes it a toggle, `Tap.Command` a button. Both in `Plugin.Maui.Spine.Extensions`; not `Semantics` (clashes with `Microsoft.Maui.Semantics`).
 
-`SpineRow` (namespace `Plugin.Maui.Spine.Controls`, assembly `Plugin.Maui.Spine.Controls.Rows`, no registration): `Icon` (SVG), `Title`, `Detail` (`DetailMarquee` for AnimatedLabel), `Value`, `Accessory`, `ShowChevron` (auto with a command), `Command`. A switch accessory without a command toggles on row tap. Always merged. No background or separators; put rows in a card. `SpineRowStyleOptions` / `DefaultSpineRowStyleOptions` for fonts and colours.
+`SpineRow` (namespace `Plugin.Maui.Spine.Controls`, assembly `Plugin.Maui.Spine.Controls.Rows`, no registration): `Icon` (SVG), `IconBackground`, `Title`, `Detail` (`DetailMarquee` for AnimatedLabel), `Value`, `Accessory`, `ShowChevron` (auto with a command), `Command`, `Menu` (a `MenuItems` opened as the platform's pop-up menu over the whole row; the first `MenuPicker`'s pick is the value; no `Command`), `Status` (`Ok` green check / `NeedsAttention` orange "!"), `IsDestructive` (red title, no chevron). A switch accessory without a command toggles on row tap. Always merged (a menu row reads through its button). Never lay your own `Button` with `MenuButton.Items` over a row or draw your own check or "!" badges. A settings page follows https://github.com/jonatansoderberg/Maui.Spine/blob/master/docs/wiki/settings-pages.md: section order, icon colour by kind (grey app/system, blue display, purple devices/people/places, pink access, indigo leaving the app, teal fetching, service colour for a named service; green/orange only as `Status`, red only with `IsDestructive`), an About section with Version and Send feedback, and nothing slow before the page is on screen (sheets await `OnAppearingAsync`). No background or separators; put rows in a card. `SpineRowStyleOptions` / `DefaultSpineRowStyleOptions` for fonts and colours.
 
 ```xml
 <SpineRow Icon="lamp.svg" Title="Appearance" Value="{Binding Theme}" Command="{Binding PickThemeCommand}" />
 <SpineRow Icon="bell.svg" Title="Notifications"><SpineRow.Accessory><Switch IsToggled="{Binding Notify}" /></SpineRow.Accessory></SpineRow>
 <SpineRow Title="Version" Value="1.0" />
+<SpineRow Icon="Theme.svg" IconBackground="#007AFF" Title="Appearance" Menu="{Binding AppearanceMenu}" />
+<SpineRow Icon="Key.svg" IconBackground="#FF2D55" Title="API key" Status="{Binding KeyStatus}" Command="{Binding EditKeyCommand}" />
+<SpineRow Icon="Delete.svg" IconBackground="#FF3B30" Title="Delete account" IsDestructive="True" Command="{Binding DeleteAccountCommand}" />
 <Border Tap.Command="{Binding OpenCommand}" Tap.CommandParameter="{Binding .}" Semantic.Merge="True">...</Border>
 ```
 

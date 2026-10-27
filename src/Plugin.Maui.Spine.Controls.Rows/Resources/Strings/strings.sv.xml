@@ -3,4 +3,6 @@
   <s key="Spine.Row.Selected">Vald</s>
   <s key="Spine.Row.ShowPassword">Visa lösenord</s>
   <s key="Spine.Row.HidePassword">Dölj lösenord</s>
+  <s key="Spine.Row.StatusOk">OK</s>
+  <s key="Spine.Row.StatusNeedsAttention">Behöver åtgärdas</s>
 </strings>
