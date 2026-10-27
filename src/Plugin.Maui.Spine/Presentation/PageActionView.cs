@@ -371,10 +371,14 @@ internal sealed class PageActionView : ContentView
             IsVisible = false,
         };
         string? _currentSvg;
+        PageAction? _action;
         // A confirm action leads the screen: tinted glass on iOS 26, a filled accent circle elsewhere. A selected
-        // action (a toggle that is on) is filled the same way, with the foreground instead of the accent.
+        // action (a toggle that is on) is filled the same way, with the foreground instead of the accent. A selected
+        // Tinted action is washed instead: its tint at a low alpha under a glyph in the tint.
         bool _prominent;
         bool _selected;
+        bool _washed;
+        Color? _appliedTint;
 
         public Face(PageActionView owner)
         {
@@ -502,7 +506,7 @@ internal sealed class PageActionView : ContentView
             Haptics.SetOnTap(_textButton, action.Haptic);
 
             _currentSvg = hasSvg ? action.Svg : null;
-            ApplyProminence(action.Role == PageActionRole.Confirm || action.IsSelected, action.IsSelected);
+            ApplyProminence(action);
 
             // The icon is not the glass button's image: a glass configuration that has held an
             // image draws later titles in the label colour, not the accent.
@@ -539,7 +543,7 @@ internal sealed class PageActionView : ContentView
                 return;
 
             var dark = Application.Current?.RequestedTheme == AppTheme.Dark;
-            var tint = _prominent ? OnFill() : _owner.Foreground ?? (dark ? Colors.White : Colors.Black);
+            var tint = GlyphTint() ?? (dark ? Colors.White : Colors.Black);
             var size = GlyphSize(svg);
             _morphIcon.WidthRequest = size;
             _morphIcon.HeightRequest = size;
@@ -607,7 +611,7 @@ internal sealed class PageActionView : ContentView
         // frosted glass does, where a bare icon would not.
         bool Tonal => !_owner._glass && !_prominent && _owner.Glass == HeaderBarGlass.Regular && _owner.OverContent;
 
-        bool Filled => _prominent || Scrim || Tonal;
+        bool Filled => _prominent || _washed || Scrim || Tonal;
 
         // Slightly translucent, so the picture still shows through a little, as through glass.
         static readonly Color TonalLight = Color.FromRgba(0.95f, 0.95f, 0.96f, 0.88f);
@@ -686,21 +690,28 @@ internal sealed class PageActionView : ContentView
         /// <summary>
         /// The prominent look of a confirm: the glass tinted with the accent (iOS 26's prominent bar button), or
         /// without glass a filled accent circle; the glyph or text in the colour that reads on the accent. A selected
-        /// action takes the same look in the foreground colour.
+        /// action takes the same look in the foreground colour, a tinted one in its tint. A selected Tinted action is
+        /// washed with its tint.
         /// </summary>
-        void ApplyProminence(bool prominent, bool selected)
+        void ApplyProminence(PageAction action)
         {
-            if (prominent == _prominent && selected == _selected)
+            var selected = action.IsSelected;
+            var washed = selected && action.SelectedStyle == PageActionSelectedStyle.Tinted;
+            var prominent = action.Role == PageActionRole.Confirm || selected && !washed;
+            var tint = Tint();
+            if (prominent == _prominent && washed == _washed && selected == _selected && Equals(tint, _appliedTint))
                 return;
 
             _selected = selected;
-            if (prominent == _prominent)
+            _appliedTint = tint;
+            if (prominent == _prominent && washed == _washed)
             {
                 ApplyForeground();
                 return;
             }
 
             _prominent = prominent;
+            _washed = washed;
             if (_owner._glass)
                 ApplyGlass();
             else
@@ -739,11 +750,21 @@ internal sealed class PageActionView : ContentView
         static Color Accent() => SpineTheme.GetAccent(IsDark ? AppTheme.Dark : AppTheme.Light)
             ?? Color.FromArgb(IsDark ? "#0A84FF" : "#007AFF");
 
-        Color Fill() => _selected
+        Color? Tint() => _action is null ? null : IsDark ? _action.DarkTint ?? _action.Tint : _action.Tint;
+
+        Color Fill() => Tint() ?? (_selected
             ? _owner.Foreground ?? (IsDark ? Colors.White : Colors.Black)
-            : Accent();
+            : Accent());
 
         Color OnFill() => SpineAccent.TextOn(Fill());
+
+        // Light enough that the glass or the bar still reads as itself, strong enough to tell on from off.
+        const float WashAlpha = 0.15f;
+
+        Color Wash() => (Tint() ?? Accent()).WithAlpha(WashAlpha);
+
+        // Null leaves an icon to the bar's own light or dark glyph.
+        Color? GlyphTint() => _prominent ? OnFill() : _washed ? Tint() ?? Accent() : Tint() ?? _owner.Foreground;
 
         /// <summary>Holds the face at its current size while it fades out.</summary>
         public void Freeze()
@@ -775,7 +796,7 @@ internal sealed class PageActionView : ContentView
                 return;
             }
 
-            var style = (_prominent, _owner.Glass) switch
+            var style = (_prominent || _washed, _owner.Glass) switch
             {
                 (true, HeaderBarGlass.Clear) => GlassStyle.ProminentClear,
                 (true, _) => GlassStyle.Prominent,
@@ -790,7 +811,11 @@ internal sealed class PageActionView : ContentView
         public void ApplyForeground()
         {
             // Read again on every theme or accent change, so the prominent fill follows the accent
-            var fill = _prominent ? Fill() : Scrim ? ContainerFill(ScrimFill) : Tonal ? ContainerFill(TonalFill()) : Colors.Transparent;
+            var fill = _prominent ? Fill()
+                : Scrim ? ContainerFill(ScrimFill)
+                : Tonal ? ContainerFill(TonalFill())
+                : _washed ? Wash()
+                : Colors.Transparent;
             _imageButton.BackgroundColor = fill;
             _textButton.BackgroundColor = fill;
 
@@ -801,16 +826,11 @@ internal sealed class PageActionView : ContentView
                 ApplyFilledStates(fill);
             }
 
-            if (_prominent)
-                _textButton.TextColor = OnFill();
-            else if (_owner.Foreground is { } foreground)
-                _textButton.TextColor = foreground;
-            else
-                _textButton.TextColor = Accent();
+            _textButton.TextColor = GlyphTint() ?? Accent();
 
             if (_imageButton.Behaviors.OfType<SvgImageSourceBehavior>().FirstOrDefault() is { } svg)
             {
-                svg.TintColor = _prominent ? OnFill() : _owner.Foreground;
+                svg.TintColor = GlyphTint();
                 svg.UpdateImage();
             }
 
@@ -838,6 +858,7 @@ internal sealed class PageActionView : ContentView
 
         public void Apply(PageAction? action)
         {
+            _action = action;
             WidthRequest = -1;
             ApplyIconWidth();
 
@@ -871,7 +892,7 @@ internal sealed class PageActionView : ContentView
             _badgeLabel.Text = action.Badge ?? string.Empty;
             SemanticProperties.SetDescription(_imageButton, action.Description);
             SemanticProperties.SetDescription(_textButton, action.Description);
-            ApplyProminence(action.Role == PageActionRole.Confirm || action.IsSelected, action.IsSelected);
+            ApplyProminence(action);
 
             MenuButton.SetItems(_imageButton, action.Menu);
             MenuButton.SetItems(_textButton, action.Menu);
@@ -890,7 +911,7 @@ internal sealed class PageActionView : ContentView
                         Svg = action.Svg!,
                         LightTintColor = Colors.Black,
                         DarkTintColor = Colors.White,
-                        TintColor = _prominent ? OnFill() : _owner.Foreground,
+                        TintColor = GlyphTint(),
                         Padding = GlyphPadding(action.Svg),
                         LineWidthScale = LineWidthScale(action.Svg),
                         RoundLineEnds = true,

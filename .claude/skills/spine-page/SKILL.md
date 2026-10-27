@@ -188,7 +188,7 @@ Hand-made actions still work (`PageActions.Add(new PageAction("Save", SaveComman
 
 A tap can play a haptic: `[PageAction("Save", Role = PageActionRole.Confirm, Haptic = Haptic.Success)]` (see docs/wiki/haptics.md).
 
-`PageAction` is observable: set `Text`, `Svg`, `Badge` ("3", "•"), `IsEnabled`, `IsVisible` or `Haptic` on the instance while the page shows and the header follows. Find a declared one with `PageActions.First(a => a.Command == FilterCommand)`. Adding or removing from `PageActions` at runtime also updates the header.
+`PageAction` is observable: set `Text`, `Svg`, `Badge` ("3", "•"), `IsEnabled`, `IsVisible` or `Haptic` on the instance while the page shows and the header follows. A toggle that is on sets `IsSelected` (filled with the bar's foreground); `Tint`/`DarkTint` give the glyph or text a colour of its own, and `SelectedStyle = PageActionSelectedStyle.Tinted` shows "on" as the glyph in the tint over a faint wash of it instead of a fill (see docs/wiki/page-actions.md). Find a declared one with `PageActions.First(a => a.Command == FilterCommand)`. Adding or removing from `PageActions` at runtime also updates the header.
 
 ## Search in the header bar
 

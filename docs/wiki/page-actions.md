@@ -88,6 +88,9 @@ void OnEditingChanged(bool editing) => FilterAction.IsVisible = !editing;
 | `IsBusy` | `bool` | `false` | Work the button started is under way: dimmed, no taps; see [A busy action](#a-busy-action) |
 | `SpinsWhenBusy` | `bool` | `false` | The icon turns while `IsBusy`, such as a refresh |
 | `IsSelected` | `bool` | `false` | Whether a toggle the button stands for is on; see below |
+| `SelectedStyle` | `PageActionSelectedStyle` | `Filled` | How a selected button shows it: `Filled`, or `Tinted` (the glyph in the tint over a faint wash of it) |
+| `Tint` | `Color?` | `null` | A colour of the button's own for its glyph or text; it also fills a confirm or a selected button |
+| `DarkTint` | `Color?` | `null` | The `Tint` in dark mode; `null` uses `Tint` in both |
 | `IsVisible` | `bool` | `true` | Whether the button is shown; the next visible action in the slot takes over |
 | `Command` | `ICommand` | — | Command executed when the button is tapped (fixed at creation) |
 | `CommandParameter` | `object?` | `null` | Optional parameter forwarded to the command |
@@ -109,6 +112,23 @@ void OnEditingChanged(bool editing) => FilterAction.IsVisible = !editing;
 
 ```csharp
 partial void OnIsTorchOnChanged(bool value) => _torch.IsSelected = value;
+```
+
+### A colour of its own
+
+`Tint` gives a button a colour of its own: its glyph or text is drawn in it instead of the header bar's foreground (or the accent of a text button), and a confirm or a filled selected button is filled with it instead. `DarkTint` replaces it in dark mode. A tint follows the theme as it changes; a fixed `HeaderBarForeground` over a photo does not override it.
+
+`SelectedStyle = PageActionSelectedStyle.Tinted` shows a selected button another way: the glyph or text in the tint (the accent without one) over a faint wash of the same colour, about 15 %, on the glass circle on iOS 26 and in the button's circle or capsule elsewhere. It suits a toggle whose "on" is a colour, such as a green bolt while a Live Activity runs, where a black fill would read as a pressed button. For a button that looks as usual while it is off, set the tint with the state:
+
+```csharp
+_bolt = new PageAction(null, LiveMenu) { Svg = "Bolt.svg", SelectedStyle = PageActionSelectedStyle.Tinted };
+
+partial void OnIsLiveChanged(bool value)
+{
+    _bolt.IsSelected = value;
+    _bolt.Tint = value ? Color.FromArgb("#34C759") : null;
+    _bolt.DarkTint = value ? Color.FromArgb("#30D158") : null;
+}
 ```
 
 ## A busy action

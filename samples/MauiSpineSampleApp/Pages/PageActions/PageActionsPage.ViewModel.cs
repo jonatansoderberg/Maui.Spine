@@ -2,14 +2,30 @@ namespace MauiSpineSampleApp.Pages.PageActions;
 
 public partial class PageActionsPageViewModel : SampleViewModel
 {
+    private static readonly Color Orange = Color.FromArgb("#FF9500");
+    private static readonly Color DarkOrange = Color.FromArgb("#FF9F0A");
+
     private int _count;
     private PageAction? _cancel;
+    private readonly PageAction _star;
 
     public PageActionsPageViewModel()
     {
         // The header bar has one trailing slot, and it goes to the first visible Secondary action:
         // the base class's theme menu would take it from the actions this page is about.
         PageActions.Remove(PageActions.Single(a => a.Menu == ThemeMenu));
+
+        // Added before the declared actions, so it sits at the trailing edge while it shows.
+        _star = new PageAction(null, ToggleStarCommand)
+        {
+            Svg = "star.svg",
+            Description = "Favourite",
+            IsVisible = false,
+            SelectedStyle = PageActionSelectedStyle.Tinted,
+            Tint = Orange,
+            DarkTint = DarkOrange,
+        };
+        PageActions.Add(_star);
     }
 
     [ObservableProperty]
@@ -17,6 +33,9 @@ public partial class PageActionsPageViewModel : SampleViewModel
 
     [ObservableProperty]
     public partial string CancelLabel { get; set; } = "Show Cancel instead of Back";
+
+    [ObservableProperty]
+    public partial string StarLabel { get; set; } = "Show the star";
 
     // Declared once by the attribute; nothing to add in OnAppearingAsync.
     [PageAction("Filter", Order = 0)]
@@ -66,6 +85,27 @@ public partial class PageActionsPageViewModel : SampleViewModel
         FilterAction.Text = "Filter";
         FilterAction.Badge = null;
     }
+
+    [RelayCommand]
+    private void ToggleStar() => _star.IsSelected = !_star.IsSelected;
+
+    [RelayCommand]
+    private void ShowStar()
+    {
+        _star.IsVisible = !_star.IsVisible;
+        StarLabel = _star.IsVisible ? "Hide the star" : "Show the star";
+    }
+
+    [RelayCommand]
+    private Task ShowStarOptions() => ShowOptionsAsync("Star",
+        new ToggleOption("Selected", "On, the toggle the star stands for is on. Tapping the star does the same.", () => _star.IsSelected, value => _star.IsSelected = value),
+        new ToggleOption("Tinted", "On, a selected star is orange on a faint orange wash. Off, it is filled, with its tint or the bar's foreground.", () => _star.SelectedStyle == PageActionSelectedStyle.Tinted,
+            value => _star.SelectedStyle = value ? PageActionSelectedStyle.Tinted : PageActionSelectedStyle.Filled),
+        new ToggleOption("Orange", "Off, the star has no colour of its own: it follows the bar, and Tinted uses the accent.", () => _star.Tint is not null, value =>
+        {
+            _star.Tint = value ? Orange : null;
+            _star.DarkTint = value ? DarkOrange : null;
+        }));
 
     // Adding and removing at runtime works too; a Primary action replaces the back button.
     [RelayCommand]
