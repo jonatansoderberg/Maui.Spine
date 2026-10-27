@@ -30,7 +30,7 @@ public partial class ActionSheetsPageViewModel(INavigationService _navigation) :
                 new("Share", "share.svg", ShareCommand),
                 new("Add to calendar", "calendar.svg", AddToCalendarCommand),
                 new("Copy link", "link.svg", CopyLinkCommand),
-                new("Remove", "trashcan.svg", RemoveRaceCommand) { IsDestructive = true },
+                new("Remove", "delete.svg", RemoveRaceCommand) { IsDestructive = true },
             ],
         });
 
@@ -53,7 +53,7 @@ public partial class ActionSheetsPageViewModel(INavigationService _navigation) :
     [RelayCommand]
     private async Task DeleteResults()
     {
-        var delete = new MenuAction("Delete 12 results", "trashcan.svg") { IsDestructive = true };
+        var delete = new MenuAction("Delete 12 results", "delete.svg") { IsDestructive = true };
 
         var picked = await _navigation.ShowActionsAsync(new ActionSheet(null, "The results of the night sprint are deleted from this phone. This can't be undone.")
         {

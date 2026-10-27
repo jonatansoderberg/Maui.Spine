@@ -25,6 +25,9 @@ internal sealed partial class LayoutReorderState : IDisposable
     int _zIndex;
     Point _grab, _pressed;
     bool _lifted;
+    // The platform draws the lifted item itself (a drag session's preview on iOS): the view stays in its place, hidden,
+    // and only the placeholder and the other items move.
+    bool _systemPreview;
 
     public LayoutReorderState(Layout layout)
     {
@@ -52,12 +55,17 @@ internal sealed partial class LayoutReorderState : IDisposable
     /// A long-press at <paramref name="point"/> (the layout's coordinates) takes the item there. A finger's lifts it at
     /// once; a pointer's (<paramref name="liftOnMove"/>) lifts it when it starts to move, as a drag on the desktop does.
     /// </summary>
-    bool Begin(Point point, bool liftOnMove = false)
+    bool Begin(Point point, bool liftOnMove = false) =>
+        Items.FirstOrDefault(v => v.IsVisible && v.Frame.Contains(point)) is { } view && Take(view, point, liftOnMove, systemPreview: false);
+
+    /// <summary>Takes <paramref name="view"/>, pressed at <paramref name="point"/>, for a drag.</summary>
+    bool Take(View view, Point point, bool liftOnMove, bool systemPreview)
     {
-        if (_dragged is not null || !CanReorder || Items.FirstOrDefault(v => v.IsVisible && v.Frame.Contains(point)) is not { } view)
+        if (_dragged is not null || !CanReorder || !_layout.Children.Contains(view))
             return false;
 
         _dragged = view;
+        _systemPreview = systemPreview;
         _from = _layout.Children.IndexOf(view);
         _grab = new Point(point.X - view.Frame.X, point.Y - view.Frame.Y);
         _pressed = point;
@@ -71,6 +79,12 @@ internal sealed partial class LayoutReorderState : IDisposable
     {
         _lifted = true;
         Reorder.SetIsDragging(_layout, true);
+        if (_systemPreview)
+        {
+            ShowPlaceholderPlatform(view.Frame, CornerRadius(view));
+            HideItemPlatform(view);
+            return;
+        }
         // Over the other items for the whole drag: a z-index above theirs, and on the platform the view raised too
         // (the children are reordered under the pointer, which puts the view back among them).
         _zIndex = view.ZIndex;
@@ -131,8 +145,28 @@ internal sealed partial class LayoutReorderState : IDisposable
             Haptics.Play(Haptic.Selection);
         }
 
+        if (_systemPreview)
+            return;
         view.TranslationX = point.X - _grab.X - view.Frame.X;
         view.TranslationY = point.Y - _grab.Y - view.Frame.Y;
+    }
+
+    /// <summary>
+    /// Puts the item back at the place it was taken from, before a cancelled drag animates there; its frame is where that
+    /// is.
+    /// </summary>
+    Rect? RestoreOrder()
+    {
+        if (_dragged is not { } view || _from < 0 || !_layout.Children.Contains(view))
+            return null;
+        if (_layout.Children.IndexOf(view) != _from)
+        {
+            _layout.Children.Remove(view);
+            _layout.Children.Insert(Math.Min(_from, _layout.Children.Count), view);
+            Relayout();
+            MovePlaceholderPlatform(view.Frame);
+        }
+        return view.Frame;
     }
 
     /// <summary>
@@ -167,13 +201,22 @@ internal sealed partial class LayoutReorderState : IDisposable
 
     async Task FinishAsync(View view, int from, int to, bool cancelled)
     {
+        var systemPreview = _systemPreview;
+        _systemPreview = false;
+        // The platform's preview has landed where the view is: show the view in its place.
+        if (systemPreview)
+            ShowItemPlatform(view);
+
         // The items were rebuilt during the drag: nothing to settle or move.
         if (to < 0)
         {
-            view.TranslationX = view.TranslationY = 0;
-            view.Scale = 1;
-            view.ZIndex = _zIndex;
-            LowerPlatform(view);
+            if (!systemPreview)
+            {
+                view.TranslationX = view.TranslationY = 0;
+                view.Scale = 1;
+                view.ZIndex = _zIndex;
+                LowerPlatform(view);
+            }
             return;
         }
 
@@ -185,11 +228,14 @@ internal sealed partial class LayoutReorderState : IDisposable
             to = from;
         }
 
-        Task? settled = null;
-        SettlePlatform(view, ref settled);
-        await (settled ?? Task.WhenAll(view.TranslateToAsync(0, 0, SettleMs, Easing.CubicOut), view.ScaleToAsync(1, SettleMs, Easing.CubicOut)));
-        view.ZIndex = _zIndex;
-        LowerPlatform(view);
+        if (!systemPreview)
+        {
+            Task? settled = null;
+            SettlePlatform(view, ref settled);
+            await (settled ?? Task.WhenAll(view.TranslateToAsync(0, 0, SettleMs, Easing.CubicOut), view.ScaleToAsync(1, SettleMs, Easing.CubicOut)));
+            view.ZIndex = _zIndex;
+            LowerPlatform(view);
+        }
 
         // Rebuilt while it settled: the new items are the app's, nothing to move.
         if (to == from || !_layout.Children.Contains(view) || Source is not { } source || from < 0 || from >= source.Count)
@@ -245,6 +291,7 @@ internal sealed partial class LayoutReorderState : IDisposable
         var views = Items.ToList();
         for (var i = 0; i < views.Count; i++)
             ApplyActionsPlatform(views[i], ActionsFor(i, views.Count));
+        AttachItemsPlatform();
     }
 
     IReadOnlyList<ReorderAction> ActionsFor(int index, int count)
@@ -328,6 +375,9 @@ internal sealed partial class LayoutReorderState : IDisposable
     partial void ShowPlaceholderPlatform(Rect frame, double cornerRadius);
     partial void MovePlaceholderPlatform(Rect frame);
     partial void HidePlaceholderPlatform();
+    partial void HideItemPlatform(View view);
+    partial void ShowItemPlatform(View view);
+    partial void AttachItemsPlatform();
     partial void RaisePlatform(View view);
     partial void SlidePlatform(View item, double fromX, double fromY, ref bool slid);
     partial void SettlePlatform(View view, ref Task? settled);

@@ -111,6 +111,7 @@ A header and a footer stay where they are. Grouped lists (`IsGrouped="True"`) ar
 ```
 
 - A long-press lifts the item, which then follows the pointer. With a pointer on the Mac, 0.1 seconds is enough, and the item lifts when the pointer starts to move (4 points), so a click on it does not make it grow.
+- On iPhone and iPad the drag is the system's drag and drop, kept inside the app. Items can also have a `ContextMenu.Items` menu: a long-press held still opens the menu, and moving the finger while it is open turns it into the drag, as on the Home Screen. A quick swipe that starts on an item still scrolls the page.
 - The other items slide to their new places, and the item's place shows as an empty dashed frame with the item's corners (a `Border`'s rounded rectangle).
 - On the drop the item settles in its place, the source moves once, and `Reorder.Command` runs with the `ReorderMove`.
 - The item views stay in the tree during the drag: only the layout's children are reordered, so a template is never rebuilt under the pointer.

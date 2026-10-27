@@ -87,11 +87,43 @@
                         new MenuAction("Copy name", "copy.svg", CopyCommand),
                         new MenuAction("Share", "share.svg", ShareCommand),
                     },
-                    new MenuAction("Remove", "trashcan.svg", RemoveCommand) { IsDestructive = true },
+                    new MenuAction("Remove", "delete.svg", RemoveCommand) { IsDestructive = true },
                 ];
 
                 [RelayCommand]
                 private void Remove(Race race) =&gt; Races.Remove(race);
+            </Example.Code>
+        </Example>
+
+        <Example Title="A menu on cards you can reorder"
+                 Summary="The same menu on cards in a reorderable layout. On iOS, a long-press lifts the card with its menu; move the finger and the menu gives way to the drag, while a quick swipe still scrolls the page. With a mouse, right-click for the menu and press and drag to move.">
+            <VerticalStackLayout Spacing="6" BindableLayout.ItemsSource="{Binding Order}" Reorder.Mode="LongPress">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="Race">
+                        <Border Padding="16,10" StrokeThickness="0" StrokeShape="RoundRectangle 12"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}"
+                                ContextMenu.Items="{PageBinding RowMenu}"
+                                ContextMenu.CommandParameter="{Binding .}">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" />
+                                <Label Text="{Binding Details}" FontSize="14" TextColor="{AppThemeBinding Light=#6C6C70, Dark=#AEAEB2}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;VerticalStackLayout BindableLayout.ItemsSource="{Binding Order}"
+                                     Reorder.Mode="LongPress"&gt;
+                    &lt;BindableLayout.ItemTemplate&gt;
+                        &lt;DataTemplate x:DataType="Race"&gt;
+                            &lt;Border ContextMenu.Items="{PageBinding RowMenu}"
+                                    ContextMenu.CommandParameter="{Binding .}"&gt;
+                                ...
+                            &lt;/Border&gt;
+                        &lt;/DataTemplate&gt;
+                    &lt;/BindableLayout.ItemTemplate&gt;
+                &lt;/VerticalStackLayout&gt;
             </Example.Code>
         </Example>
 

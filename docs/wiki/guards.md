@@ -32,7 +32,7 @@ A shortcut or a search result that opens a guarded page on a cold start waits un
 ## Guarding a command
 
 ```csharp
-[PageAction(Svg = "trashcan.svg"), RequiresUnlock("Delete your account")]
+[PageAction(Svg = "delete.svg"), RequiresUnlock("Delete your account")]
 [RelayCommand]
 private Task DeleteAsync() => _account.DeleteAsync();
 ```

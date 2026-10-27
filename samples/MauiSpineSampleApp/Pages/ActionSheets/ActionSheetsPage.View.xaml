@@ -27,7 +27,7 @@
                             new("Share", "share.svg", ShareCommand),
                             new("Add to calendar", "calendar.svg", AddToCalendarCommand),
                             new("Copy link", "link.svg", CopyLinkCommand),
-                            new("Remove", "trashcan.svg", RemoveCommand) { IsDestructive = true },
+                            new("Remove", "delete.svg", RemoveCommand) { IsDestructive = true },
                         ],
                     });
 
@@ -43,7 +43,7 @@
                 <Label Text="{Binding ResultsStatus}" FontSize="15" />
             </VerticalStackLayout>
             <Example.Code>
-                var delete = new MenuAction("Delete 12 results", "trashcan.svg") { IsDestructive = true };
+                var delete = new MenuAction("Delete 12 results", "delete.svg") { IsDestructive = true };
 
                 var picked = await _navigation.ShowActionsAsync(
                     new ActionSheet(null, "The results are deleted from this phone. This can't be undone.")

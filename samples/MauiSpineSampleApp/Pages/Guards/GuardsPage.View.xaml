@@ -35,8 +35,8 @@
                 private void Delete() { … }
 
                 // Asks too
-                [PageAction(Svg = "trashcan.svg"), Confirm("Delete the draft?")]
-                new MenuAction("Delete", "trashcan.svg", DeleteCommand)
+                [PageAction(Svg = "delete.svg"), Confirm("Delete the draft?")]
+                new MenuAction("Delete", "delete.svg", DeleteCommand)
                 &lt;Border Tap.Command="{Binding DeleteCommand}"&gt; … &lt;/Border&gt;
                 &lt;Button Command="{PageCommand Delete}" /&gt;
 

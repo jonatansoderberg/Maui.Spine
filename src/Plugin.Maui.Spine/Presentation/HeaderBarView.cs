@@ -53,6 +53,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             var bar = (HeaderBarView)b;
             foreach (var view in bar.ActionViews)
                 view.Glass = (HeaderBarGlass)v;
+            bar.ApplyTrailingSpacing();
         });
 
     public HeaderBarGlass Glass
@@ -527,6 +528,14 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
 
     void UpdateActionWidth(PageActionView pageActionView) => pageActionView.IconWidth = IconButtonWidth;
 
+    // Transient glass buttons have no shape at rest, so the gap between their circles read as a wide gap between
+    // bare icons; they touch instead, as the buttons in one group of a UINavigationBar do.
+    void ApplyTrailingSpacing()
+    {
+        if (_trailing is not null)
+            _trailing.Spacing = PageActionView.UseGlassHeaderActions && Glass == HeaderBarGlass.Transient ? 0 : HeaderBarConstants.TitleActionGap;
+    }
+
     // Glass buttons are 44-point circles whose edge lines up with the page's content, as a
     // UINavigationBar's do; without glass the older, platform-specific slots stay.
     internal double SideMargin => PageActionView.UseGlassHeaderActions
@@ -727,6 +736,7 @@ internal class HeaderBarView : Microsoft.Maui.Controls.ContentView
             Spacing = HeaderBarConstants.TitleActionGap,
             Children = { _secondaryPageActionView },
         };
+        ApplyTrailingSpacing();
         _trailing.SizeChanged += (_, _) => PublishActionSlots();
         buttonGrid.Add(_trailing, 3);
 

@@ -147,7 +147,9 @@ Up to Spine 0.1.19 every busy icon turned. A button that should keep turning, su
 
 On iOS 26 and Mac Catalyst 26 the header bar renders its back button and page actions as Liquid Glass, the way a `UINavigationBar` shows its items. The SVG keeps the tint `PageActionView` gives it (black in light theme, white in dark); a text action keeps the app's accent (`Primary`, or `IThemeService.Accent`). Turn it off in `UseSpine` with `options.Apple.GlassHeaderActions = false`. See [Glass buttons](glass-buttons.md) for the attached property behind it.
 
-`HeaderBarGlass = HeaderBarGlass.Transient` (on the attribute, in `options.RegionDefaults`/`SheetDefaults`, or on the view model) draws the buttons as plain icons and shows regular glass only while one is pressed (`GlassStyle.Transient`), like the icons of a Mac toolbar. A `Confirm` stays prominent glass. Where the buttons are not glass, `Transient` is a bare icon button with the platform's pressed state.
+`HeaderBarGlass = HeaderBarGlass.Transient` (on the attribute, in `options.RegionDefaults`/`SheetDefaults`, or on the view model) draws the buttons as plain icons and shows regular glass only while one is pressed (`GlassStyle.Transient`), like the icons of a Mac toolbar. A `Confirm` stays prominent glass. Where the buttons are not glass, `Transient` is a bare icon button with the platform's pressed state. On iOS 26 transient buttons sit next to each other without a gap, as one group of a navigation bar's does, so the bare icons are not spread out.
+
+With glass buttons (iOS 26) a left-aligned title on a page without a leading action starts at the page margin (`HeaderBarConstants.PageMargin`), where the page's content and the outer button's edge are.
 
 ---
 

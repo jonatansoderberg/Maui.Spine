@@ -52,7 +52,7 @@ The reason is shown in the platform's prompt. It can be plain text or the key of
 ## A command behind an unlock
 
 ```csharp
-[PageAction(Svg = "trashcan.svg"), RequiresUnlock("Delete the account", Fresh = true)]
+[PageAction(Svg = "delete.svg"), RequiresUnlock("Delete the account", Fresh = true)]
 [RelayCommand]
 private Task DeleteAccountAsync() { … }
 ```

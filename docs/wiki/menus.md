@@ -108,7 +108,7 @@ public MenuItems RowMenu { get; } =
         new MenuAction("Copy name", "copy.svg", CopyCommand),
         new MenuAction("Share", "share.svg", ShareCommand),
     },
-    new MenuAction("Remove", "trashcan.svg", RemoveCommand) { IsDestructive = true },
+    new MenuAction("Remove", "delete.svg", RemoveCommand) { IsDestructive = true },
 ];
 
 [RelayCommand]
@@ -153,7 +153,7 @@ var picked = await _navigation.ShowActionsAsync(new ActionSheet("Night sprint", 
     [
         new("Share", SpineIcons.Share, ShareCommand),
         new("Add to calendar", SpineIcons.Calendar, AddToCalendarCommand),
-        new("Remove", SpineIcons.Trashcan, RemoveCommand) { IsDestructive = true },
+        new("Remove", SpineIcons.Delete, RemoveCommand) { IsDestructive = true },
     ],
 });
 
@@ -166,7 +166,7 @@ if (picked is null)
   completes, so use either style. A confirmation needs no command at all:
 
   ```csharp
-  var delete = new MenuAction("Delete 12 results", SpineIcons.Trashcan) { IsDestructive = true };
+  var delete = new MenuAction("Delete 12 results", SpineIcons.Delete) { IsDestructive = true };
   var picked = await _navigation.ShowActionsAsync(new ActionSheet(null, "This can't be undone.") { Actions = [delete] });
   if (picked == delete)
       DeleteResults();

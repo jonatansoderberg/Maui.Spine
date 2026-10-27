@@ -16,7 +16,7 @@ namespace Plugin.Maui.Spine.Biometrics;
 /// [NavigableRegion(Title = "Card"), RequiresUnlock("Show your card details")]
 /// public partial class CardPage { … }
 ///
-/// [PageAction(Svg = "trashcan.svg"), RequiresUnlock("Delete your account", Fresh = true)]
+/// [PageAction(Svg = "delete.svg"), RequiresUnlock("Delete your account", Fresh = true)]
 /// [RelayCommand]
 /// private Task DeleteAsync() { … }
 /// </code>
