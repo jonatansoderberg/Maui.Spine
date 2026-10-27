@@ -28,8 +28,12 @@ public partial class ContextMenusPageViewModel : SampleViewModel
         new("Club championship", "Uppsala · 21 Oct"),
     ];
 
+    // The same races in an order of their own, for the cards that can be reordered.
+    public ObservableCollection<Race> Order { get; }
+
     public ContextMenusPageViewModel()
     {
+        Order = [.. Races];
         _follow = new MenuAction("Follow", "star.svg", FollowCommand);
         _unfollow = new MenuAction("Unfollow", "star.svg", UnfollowCommand) { IsVisible = false };
 
@@ -88,6 +92,7 @@ public partial class ContextMenusPageViewModel : SampleViewModel
     private void Remove(Race race)
     {
         Races.Remove(race);
+        Order.Remove(race);
         RowStatus = $"Removed {race.Name.ToLowerInvariant()}";
     }
 
