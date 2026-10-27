@@ -60,6 +60,45 @@
             </Example.Code>
         </Example>
 
+        <Example Title="Menus, status marks and destructive rows"
+                 Summary="A row with a Menu opens the platform's own pop-up menu and shows the pick as its value. Status marks what works with a green check and what needs the user with an orange mark. IsDestructive turns a title red, for what cannot be undone, at the end of the screen.">
+            <VerticalStackLayout Spacing="10">
+                <SpineSection Header="Display">
+                    <SpineRow Icon="theme.svg" IconBackground="#007AFF" Title="Appearance" Menu="{Binding AppearanceMenu}" />
+                    <SpineRow Icon="globe.svg" IconBackground="#007AFF" Title="Language" Menu="{Binding LanguageMenu}" />
+                </SpineSection>
+                <SpineSection Header="Access" Footer="Tap the key to save it or forget it.">
+                    <SpineRow Icon="user.svg" IconBackground="#FF2D55" Title="Account" Detail="ada@example.com" Status="Ok" />
+                    <SpineRow Icon="key.svg" IconBackground="#FF2D55" Title="API key" Value="{Binding KeyState}"
+                              Status="{Binding KeyStatus}" Command="{Binding ToggleKeyCommand}" />
+                </SpineSection>
+                <SpineSection>
+                    <SpineRow Icon="delete.svg" IconBackground="#FF3B30" Title="Delete account" IsDestructive="True"
+                              Command="{Binding OpenCommand}" CommandParameter="Delete account" />
+                </SpineSection>
+            </VerticalStackLayout>
+            <Example.Code>
+                &lt;SpineRow Icon="theme.svg" IconBackground="#007AFF"
+                          Title="Appearance" Menu="{Binding AppearanceMenu}" /&gt;
+
+                &lt;SpineRow Icon="key.svg" IconBackground="#FF2D55" Title="API key"
+                          Status="{Binding KeyStatus}"
+                          Command="{Binding EditKeyCommand}" /&gt;
+
+                &lt;SpineRow Icon="delete.svg" IconBackground="#FF3B30"
+                          Title="Delete account" IsDestructive="True"
+                          Command="{Binding DeleteAccountCommand}" /&gt;
+
+                // The picked row's title is the row's value
+                AppearanceMenu = [new MenuPicker(SetThemeCommand)
+                {
+                    new MenuAction("System") { IsChecked = true },
+                    new MenuAction("Light"),
+                    new MenuAction("Dark"),
+                }];
+            </Example.Code>
+        </Example>
+
         <Example Title="Pick one"
                  Summary="A list of choices: the selected row shows a check mark, a tap moves it. For a sort order, a language, a quality setting.">
             <SpineSection Header="Sort by">

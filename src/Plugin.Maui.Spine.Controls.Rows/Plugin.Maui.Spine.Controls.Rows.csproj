@@ -23,7 +23,7 @@
 
 	<ItemGroup>
 		<EmbeddedResource Include="Resources\Strings\*.xml" WithCulture="false" />
-		<!-- SpineEntryRow's eye glyphs, loaded by name through Spine.Svg; prefixed so an app's own icons never shadow them. -->
+		<!-- The rows' own glyphs (the entry row's eye, the menu and status marks), loaded by name through Spine.Svg; prefixed so an app's own icons never shadow them. -->
 		<EmbeddedResource Include="Resources\Svg\*.svg" />
 	</ItemGroup>
 

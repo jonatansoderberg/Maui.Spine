@@ -164,11 +164,7 @@ public class SpineEntryRow : ContentView
     readonly Entry _entry;
     readonly ImageButton _eye;
 
-    static SpineEntryRow()
-    {
-        RowsStrings.EnsureRegistered();
-        new ResourceNameCache().Initialize([typeof(SpineEntryRow).Assembly]);
-    }
+    static SpineEntryRow() => RowsStrings.EnsureRegistered();
 
     public SpineEntryRow()
     {

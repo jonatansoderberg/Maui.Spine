@@ -3,4 +3,6 @@
   <s key="Spine.Row.Selected">Selected</s>
   <s key="Spine.Row.ShowPassword">Show password</s>
   <s key="Spine.Row.HidePassword">Hide password</s>
+  <s key="Spine.Row.StatusOk">OK</s>
+  <s key="Spine.Row.StatusNeedsAttention">Needs attention</s>
 </strings>

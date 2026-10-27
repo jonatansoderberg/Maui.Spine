@@ -72,6 +72,21 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
     /// <summary>Colour of the check mark of a selected row.</summary>
     public Color? CheckColor { get; set; }
 
+    /// <summary>Title colour of a row with <see cref="SpineRow.IsDestructive"/>: the system red, the error colour on Android.</summary>
+    public Color? DestructiveColor { get; set; }
+
+    /// <summary>Diameter of the <see cref="SpineRow.Status"/> mark.</summary>
+    public double StatusSize { get; set; } = IsAndroid ? 24 : 22;
+
+    /// <summary>Fill of the <see cref="SpineRowStatus.Ok"/> mark: the system green.</summary>
+    public Color? StatusOkColor { get; set; }
+
+    /// <summary>Fill of the <see cref="SpineRowStatus.NeedsAttention"/> mark: the system orange.</summary>
+    public Color? StatusAttentionColor { get; set; }
+
+    /// <summary>Colour of the check and the "!" on the status mark.</summary>
+    public Color? StatusGlyphColor { get; set; }
+
     protected override void InheritColorsFrom(SpineRowStyleOptions source)
     {
         TitleColor ??= source.TitleColor;
@@ -81,6 +96,10 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
         IconBadgeGlyphColor ??= source.IconBadgeGlyphColor;
         ChevronColor ??= source.ChevronColor;
         CheckColor ??= source.CheckColor;
+        DestructiveColor ??= source.DestructiveColor;
+        StatusOkColor ??= source.StatusOkColor;
+        StatusAttentionColor ??= source.StatusAttentionColor;
+        StatusGlyphColor ??= source.StatusGlyphColor;
     }
 
     protected override void ApplyThemeDefaults(AppTheme theme)
@@ -96,5 +115,9 @@ public class SpineRowStyleOptions : SpineStyleOptions<SpineRowStyleOptions>
         IconColor ??= accent;
         IconBadgeGlyphColor ??= Colors.White;
         CheckColor ??= accent;
+        DestructiveColor ??= Color.FromArgb(IsAndroid ? (dark ? "#F2B8B5" : "#B3261E") : (dark ? "#FF453A" : "#FF3B30"));
+        StatusOkColor ??= Color.FromArgb(dark ? "#30D158" : "#34C759");
+        StatusAttentionColor ??= Color.FromArgb(dark ? "#FF9F0A" : "#FF9500");
+        StatusGlyphColor ??= Colors.White;
     }
 }
