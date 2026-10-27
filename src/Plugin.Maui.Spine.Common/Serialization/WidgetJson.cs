@@ -1,5 +1,6 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
@@ -87,8 +88,47 @@ public static class WidgetJson
     }
 
     /// <summary>The layout as the renderer's JSON — the <c>content-state</c> of a Live Activity push.</summary>
-    public static string Serialize(LiveActivityLayout layout) =>
-        JsonSerializer.Serialize(layout, (JsonTypeInfo<LiveActivityLayout>)Written.GetTypeInfo(typeof(LiveActivityLayout)));
+    /// <exception cref="ArgumentException">A region uses a node the layout does not share, or a shared node uses another.</exception>
+    public static string Serialize(LiveActivityLayout layout)
+    {
+        var shared = layout.Shared ?? new Dictionary<string, WidgetNode>();
+        if (shared.Values.SelectMany(WidgetTree.Nodes).OfType<UseNode>().FirstOrDefault() is { } nested)
+            throw new ArgumentException($"A shared node uses \"{nested.Name}\"; a shared node cannot use another.", nameof(layout));
+        if (layout.Trees.SelectMany(WidgetTree.Nodes).OfType<UseNode>().FirstOrDefault(u => !shared.ContainsKey(u.Name)) is { } missing)
+            throw new ArgumentException($"The layout uses \"{missing.Name}\", which is not one of its shared nodes.", nameof(layout));
+
+        return JsonSerializer.Serialize(layout, (JsonTypeInfo<LiveActivityLayout>)Written.GetTypeInfo(typeof(LiveActivityLayout)));
+    }
+
+    /// <summary>
+    /// The layout's JSON with every <c>use</c> replaced by the shared node it names, what the use sets laid over the
+    /// node's own, and <c>shared</c> gone: what a renderer that reads the regions straight from the JSON needs. The
+    /// widget extension does the same in Swift.
+    /// </summary>
+    internal static string ResolveShared(string json)
+    {
+        if (JsonNode.Parse(json) is not JsonObject layout || layout["shared"] is not JsonObject shared) return json;
+        layout.Remove("shared");
+        return Resolve(layout, shared)!.ToJsonString();
+    }
+
+    private static JsonNode? Resolve(JsonNode? node, JsonObject shared)
+    {
+        switch (node)
+        {
+            case JsonArray array:
+                return new JsonArray([.. array.Select(item => Resolve(item, shared))]);
+            case JsonObject use when use["type"]?.GetValue<string>() == "use" && use["ref"]?.GetValue<string>() is { } name && shared[name] is JsonObject target:
+                var resolved = (JsonObject)target.DeepClone();
+                foreach (var (key, value) in use)
+                    if (key is not ("type" or "ref")) resolved[key] = value?.DeepClone();
+                return resolved;
+            case JsonObject other:
+                return new JsonObject(other.Select(p => KeyValuePair.Create(p.Key, Resolve(p.Value, shared))));
+            default:
+                return node?.DeepClone();
+        }
+    }
 
     // Family keys are the JSON names of WidgetFamily; the Swift side switches on the same strings.
     /// <summary>

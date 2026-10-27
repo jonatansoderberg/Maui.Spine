@@ -49,6 +49,15 @@ public sealed record LiveActivityLayout
     public WidgetNode? Small { get; init; }
 
     /// <summary>
+    /// Nodes several regions show, by name, sent once: a region shows one with <see cref="W.Use(string, double?)"/>,
+    /// and sets its own height there. A Live Activity push has 4 KB, and a graph that the Lock Screen, the
+    /// Dynamic Island and CarPlay each repeat takes a fifth of it. A shared node cannot use another. The app's
+    /// widget extension must be built with a Spine that reads them (0.1.34 or later): an older one draws nothing
+    /// where a node is used, so a server keeps sending the full form to apps that are not updated.
+    /// </summary>
+    public IReadOnlyDictionary<string, WidgetNode>? Shared { get; init; }
+
+    /// <summary>
     /// The color behind the Lock Screen presentation; a translucent black when <see langword="null"/>.
     /// iOS only: the Dynamic Island is always black, and Android does not promote a Live Update that
     /// asks for a color. A fixed color stays fixed in dark mode, so give the text fixed colors too.
@@ -76,6 +85,11 @@ public sealed record LiveActivityLayout
     /// <summary>The serialized form of <see cref="Link"/>.</summary>
     [JsonPropertyName("link")]
     public string? LinkValue => Link?.ToString();
+
+    /// <summary>Every region's tree, then every shared node.</summary>
+    internal IEnumerable<WidgetNode?> Trees =>
+        [LockScreen, ExpandedLeading, ExpandedTrailing, ExpandedCenter, ExpandedBottom, CompactLeading, CompactTrailing, Minimal, Small,
+            .. Shared?.Values ?? []];
 
     /// <summary>
     /// The layout as the renderer's JSON — what a server puts in the <c>content-state.layout</c> of a

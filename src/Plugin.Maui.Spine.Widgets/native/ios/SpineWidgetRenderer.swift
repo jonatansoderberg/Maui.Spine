@@ -140,8 +140,32 @@ struct ActivityLayout: Decodable {
     var link: String?
 
     static func parse(_ layout: JSONValue) -> ActivityLayout {
-        guard let data = try? JSONEncoder().encode(layout) else { return ActivityLayout() }
+        guard let data = try? JSONEncoder().encode(resolved(layout)) else { return ActivityLayout() }
         return (try? Store.decoder.decode(ActivityLayout.self, from: data)) ?? ActivityLayout()
+    }
+
+    /// The layout with every "use" replaced by the shared node it names, what the use sets (its height) laid over the
+    /// node's own: a push carries a subtree several regions show once. WidgetJson.ResolveShared does the same on Android.
+    /// A use whose node is missing stays, and draws nothing.
+    static func resolved(_ layout: JSONValue) -> JSONValue {
+        guard case .object(var fields) = layout, case .object(let shared)? = fields.removeValue(forKey: "shared") else { return layout }
+        func resolve(_ value: JSONValue) -> JSONValue {
+            switch value {
+            case .array(let items):
+                return .array(items.map(resolve))
+            case .object(var use) where use["type"] == .string("use"):
+                guard case .string(let name)? = use["ref"], case .object(var node)? = shared[name] else { return value }
+                use["type"] = nil
+                use["ref"] = nil
+                node.merge(use) { _, own in own }
+                return .object(node)
+            case .object(let object):
+                return .object(object.mapValues(resolve))
+            default:
+                return value
+            }
+        }
+        return .object(fields.mapValues(resolve))
     }
 }
 

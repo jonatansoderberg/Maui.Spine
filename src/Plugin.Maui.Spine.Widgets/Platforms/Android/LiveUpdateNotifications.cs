@@ -5,6 +5,7 @@ using Android.Content;
 using Android.Graphics.Drawables;
 using Android.Runtime;
 using Microsoft.Extensions.Logging;
+using Plugin.Maui.Spine.Common.Serialization;
 
 namespace Plugin.Maui.Spine.Widgets.Services;
 
@@ -55,7 +56,7 @@ internal sealed class LiveUpdateNotifications(Context _context, WidgetIcons _ico
 
     private void Post(string tag, string json)
     {
-        using var document = JsonDocument.Parse(json);
+        using var document = JsonDocument.Parse(WidgetJson.ResolveShared(json));
         var layout = document.RootElement;
         var lockScreen = Region(layout, "lockScreen");
         var texts = Texts(lockScreen).Concat(Texts(Region(layout, "expandedBottom"))).ToList();

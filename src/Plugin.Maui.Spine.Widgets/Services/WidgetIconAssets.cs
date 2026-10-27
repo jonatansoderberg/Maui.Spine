@@ -53,8 +53,7 @@ internal sealed class WidgetIconAssets(IWidgetPlatform _platform, ResourceNameCa
     }
 
     public Task EnsureAsync(LiveActivityLayout layout, CancellationToken cancellationToken) =>
-        EnsureAsync([layout.LockScreen, layout.ExpandedLeading, layout.ExpandedTrailing, layout.ExpandedCenter,
-            layout.ExpandedBottom, layout.CompactLeading, layout.CompactTrailing, layout.Minimal, layout.Small], cancellationToken);
+        EnsureAsync(layout.Trees, cancellationToken);
 
     // The underscore form first: the SDK reads "figure.run.svg" as a resource for the culture "run".
     private Stream? Open(string name) =>

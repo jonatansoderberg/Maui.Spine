@@ -23,6 +23,7 @@ namespace Plugin.Maui.Spine.Common;
 [JsonDerivedType(typeof(DividerNode), "divider")]
 [JsonDerivedType(typeof(ButtonNode), "button")]
 [JsonDerivedType(typeof(AdaptiveNode), "adaptive")]
+[JsonDerivedType(typeof(UseNode), "use")]
 public abstract record WidgetNode
 {
     /// <summary>
@@ -377,6 +378,22 @@ public sealed record ButtonNode(string ActionId, WidgetNode Child) : WidgetNode;
 /// <param name="Fallback">The subtree for every family not in <see cref="Trees"/>.</param>
 /// <param name="Trees">The subtree per family name.</param>
 public sealed record AdaptiveNode(WidgetNode Fallback, IReadOnlyDictionary<string, WidgetNode> Trees) : WidgetNode;
+
+/// <summary>
+/// One of the layout's <see cref="LiveActivityLayout.Shared"/> nodes, used here: the renderer puts that node in its place,
+/// with what is set on this one laid over the node's own. A Live Activity push then carries a subtree that several
+/// regions show once. Live Activity layouts only; a widget draws nothing for it. Build it with
+/// <see cref="W.Use(string, double?)"/>.
+/// </summary>
+/// <param name="Name">The shared node's name.</param>
+public sealed record UseNode([property: JsonPropertyName("ref")] string Name) : WidgetNode
+{
+    /// <summary>
+    /// The height in points here, in place of the shared node's: a sparkline's or picture's height, an icon's or
+    /// ring's size.
+    /// </summary>
+    public double? Height { get; init; }
+}
 
 /// <summary>The text styles a <see cref="TextLikeNode"/> can take, mapped to each platform's type ramp.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<TextRole>))]
