@@ -4,7 +4,7 @@
 **Branch:** issue/640-voice-pipeline-speech-to-text-a-chat-model-claude
 **Base:** `issue/634-chat-and-voice-in-one-conversation-type-or-talk-on` (PR #635, which builds on #633; neither merged on 2026-10-20)
 **Plan:** `docs/plans/ai-and-security.md`, step 4.7
-**Status:** In Progress
+**Status:** Completed
 
 ## Plan
 

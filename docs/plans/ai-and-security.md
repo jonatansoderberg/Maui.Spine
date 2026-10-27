@@ -2,7 +2,7 @@
 
 **Roadmap issue:** [#505](https://github.com/jonatansoderberg/Maui.Spine/issues/505)
 **Started:** 2026-10-09
-**Last updated:** 2026-10-27 (#640: voice pipelines, step 4.7, in review as #641, with master merged in; before that step 5.5b, email and password added to a signed-in user, in review)
+**Last updated:** 2026-10-27 (#640: voice pipelines, step 4.7, done as #641, with GPT-Live delegating through a SpawnThinking policy; before that step 5.5b, email and password added to a signed-in user, in review)
 
 This is the living plan for the work that came out of the AI and security brainstorm on 2026-10-09. A new session should be able to pick up from here, so every pull request that moves a step forward updates this file in the same PR.
 
@@ -148,7 +148,7 @@ The order follows value against risk. Steps in different phases can run in paral
 | 4.4 | Live Activity and ongoing-notification experiment | #518 | 4.1 | Waiting | | Decide afterwards whether it ships |
 | 4.5 | Chat and voice in one conversation: `ChatComposer`'s microphone, `IVoiceSession.ConnectAsync(feature, conversation)` with the typed turns given to the model, the Showcase's Chat and Voice chat pages merged | #634 | 2.7, 4.3a | Done | #635 | Asked for by the owner on 2026-10-19 after testing #632 on the iPhone (Decisions). |
 | 4.6 | GPT-Live (`gpt-live-1`) through a relay in `Server.AI`, the `openai-live` protocol in `IVoiceSession`, `gpt-realtime-2.1` and `-2.1-mini` with `Reasoning`, and `IVoiceSession.MaxMinutes` | #639 | 4.2, 4.3a, 4.5 | Done | #642 | Asked by the owner on 2026-10-20 after the spike (#637). Closes #636. The relay is ASP.NET Core only; seen end to end against OpenAI from the Mac with the real `VoiceSession` (Swedish, `show_time` in the app, goodbye). |
-| 4.7 | Voice pipelines: `SpineVoiceOptions.Pipeline(name, …)` with speech-to-text, a chat model and text-to-speech, each on the device (Spine.Speech's new recognizer and renderer) or the server (`Kind: Transcription`, streamed `Kind: Speech`), in fallback order; the registered `IVoiceSession` picks it by name; the Showcase's Claude calls | #640 | 4.5, 4.6 | In review | #641 | Asked for by the owner on 2026-10-20 to talk to Claude, which has no realtime voice (Decisions). Apple only for the device's parts. |
+| 4.7 | Voice pipelines: `SpineVoiceOptions.Pipeline(name, …)` with speech-to-text, a chat model and text-to-speech, each on the device (Spine.Speech's new recognizer and renderer) or the server (`Kind: Transcription`, streamed `Kind: Speech`), in fallback order; the registered `IVoiceSession` picks it by name; the Showcase's Claude calls | #640 | 4.5, 4.6 | Done | #641 | Asked for by the owner on 2026-10-20 to talk to Claude, which has no realtime voice (Decisions). Apple only for the device's parts. |
 
 ### Phase 5: sign-in
 
